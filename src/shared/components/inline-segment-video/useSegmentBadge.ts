@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useMarkVariantViewed } from '@/shared/hooks/useMarkVariantViewed';
 import { useVariantBadges } from '@/shared/hooks/useVariantBadges';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 
 const RECENTLY_CREATED_THRESHOLD_MS = 10 * 60 * 100 * 10;
 

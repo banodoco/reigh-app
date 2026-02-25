@@ -12,7 +12,7 @@ import React from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { SegmentedControl, SegmentedControlItem } from '@/shared/components/ui/segmented-control';
 import { X, Loader2 } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 
 import { TaskDetailsPanelWrapper } from './TaskDetailsPanelWrapper';
 import { VariantSelector } from '@/shared/components/VariantSelector';
@@ -24,10 +24,10 @@ import {
 } from '../contexts/LightboxStateContext';
 import { useImageEditCanvasSafe } from '../contexts/ImageEditCanvasContext';
 import { useVideoEditSafe } from '../contexts/VideoEditContext';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 import type { TaskDetailsData } from '../types';
-import { useCopyToClipboard } from '@/shared/hooks/useCopyToClipboard';
-import type { DerivedItem } from '@/shared/hooks/useDerivedItems';
+import { useCopyToClipboard } from '@/shared/hooks/clipboard/useCopyToClipboard';
+import type { DerivedItem } from '@/domains/generation/hooks/useDerivedItems';
 
 interface InfoPanelProps {
   /** Layout variant */

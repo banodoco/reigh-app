@@ -12,7 +12,7 @@ import { handleLightboxDownload } from '../lightboxDownload';
 import { downloadMedia } from '../download';
 import { readSegmentOverrides } from '@/shared/lib/settingsMigration';
 import type { GenerationVariant } from '@/shared/hooks/useVariants';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 
 const mockDownloadMedia = vi.mocked(downloadMedia);
 const mockReadSegmentOverrides = vi.mocked(readSegmentOverrides);

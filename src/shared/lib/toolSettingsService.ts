@@ -10,11 +10,18 @@
  * - Module-level state for caching and deduplication
  */
 
-import { supabase } from '@/integrations/supabase/client';
-import { deepMerge } from '@/shared/lib/deepEqual';
+import { getSupabaseClient } from '@/integrations/supabase/client';
+import { deepMerge } from '@/shared/lib/utils/deepEqual';
 import { isCancellationError, getErrorMessage } from '@/shared/lib/errorHandling/errorUtils';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { readUserIdFromStorage } from '@/shared/lib/supabaseSession';
+import { isKnownSettingsId } from '@/shared/lib/settingsIds';
+import {
+  operationFailure,
+  operationSuccess,
+  type OperationFailure,
+  type OperationResult,
+} from '@/shared/lib/operationResult';
 import { toolDefaultsRegistry } from '@/tooling/toolDefaultsRegistry';
 
 // ============================================================================
@@ -28,6 +35,25 @@ const inflightSettingsFetches = new Map<string, Promise<unknown>>();
 let cachedUser: { id: string } | null = null;
 let cachedUserAt: number = 0;
 const USER_CACHE_MS = 10_000; // 10 seconds
+
+const unknownSettingsIdsReported = new Set<string>();
+
+function reportUnknownSettingsId(toolId: string): void {
+  if (isKnownSettingsId(toolId) || unknownSettingsIdsReported.has(toolId)) {
+    return;
+  }
+  if (import.meta.env.MODE === 'test') {
+    return;
+  }
+
+  unknownSettingsIdsReported.add(toolId);
+  if (import.meta.env.DEV) {
+    console.warn(
+      `[toolSettingsService] Unknown settings key "${toolId}". ` +
+      'Add this key to SETTINGS_IDS if it should be persisted via useToolSettings.',
+    );
+  }
+}
 
 /**
  * Seed the user cache from an external source (e.g. AuthContext).
@@ -55,6 +81,109 @@ export function _resetCachedUserForTesting() {
 interface ToolSettingsContext {
   projectId?: string;
   shotId?: string;
+}
+
+export type ToolSettingsErrorCode =
+  | 'auth_required'
+  | 'cancelled'
+  | 'network'
+  | 'scope_fetch_failed'
+  | 'invalid_scope_identifier'
+  | 'unknown';
+
+interface ToolSettingsErrorOptions {
+  recoverable?: boolean;
+  cause?: unknown;
+  metadata?: Record<string, unknown>;
+}
+
+export class ToolSettingsError extends Error {
+  readonly code: ToolSettingsErrorCode;
+  readonly recoverable: boolean;
+  readonly metadata?: Record<string, unknown>;
+  readonly cause?: unknown;
+
+  constructor(
+    code: ToolSettingsErrorCode,
+    message: string,
+    options: ToolSettingsErrorOptions = {},
+  ) {
+    super(message);
+    this.name = 'ToolSettingsError';
+    this.code = code;
+    this.recoverable = options.recoverable ?? false;
+    this.metadata = options.metadata;
+    this.cause = options.cause;
+  }
+}
+
+export function isToolSettingsError(error: unknown): error is ToolSettingsError {
+  return error instanceof ToolSettingsError;
+}
+
+export function classifyToolSettingsError(error: unknown): ToolSettingsError {
+  if (isToolSettingsError(error)) {
+    return error;
+  }
+
+  if (isCancellationError(error)) {
+    return new ToolSettingsError('cancelled', 'Request was cancelled', {
+      recoverable: true,
+      cause: error,
+    });
+  }
+
+  const message = getErrorMessage(error);
+  if (message.includes('Authentication required')) {
+    return new ToolSettingsError('auth_required', message, {
+      recoverable: false,
+      cause: error,
+    });
+  }
+
+  if (
+    message.includes('Failed to fetch')
+    || message.includes('ERR_INSUFFICIENT_RESOURCES')
+    || message.includes('Network connection issue')
+    || message.includes('Network exhaustion')
+  ) {
+    return new ToolSettingsError('network', message, {
+      recoverable: true,
+      cause: error,
+    });
+  }
+
+  return new ToolSettingsError('unknown', message, {
+    recoverable: false,
+    cause: error,
+  });
+}
+
+function toOperationFailure(error: ToolSettingsError): OperationFailure {
+  return operationFailure(error, {
+    policy: error.recoverable ? 'best_effort' : 'fail_closed',
+    recoverable: error.recoverable,
+    errorCode: error.code,
+    message: error.message,
+    cause: error.cause,
+  });
+}
+
+export function toToolSettingsErrorFromOperationFailure(failure: OperationFailure): ToolSettingsError {
+  const code = failure.errorCode as ToolSettingsErrorCode;
+  const normalizedCode: ToolSettingsErrorCode = (
+    code === 'auth_required'
+    || code === 'cancelled'
+    || code === 'network'
+    || code === 'scope_fetch_failed'
+    || code === 'invalid_scope_identifier'
+    || code === 'unknown'
+  ) ? code : 'unknown';
+
+  return new ToolSettingsError(normalizedCode, failure.message, {
+    recoverable: failure.recoverable,
+    cause: failure.cause ?? failure.error,
+  });
 }
 
 /** The wrapper format returned by fetchToolSettingsSupabase */
@@ -105,33 +234,121 @@ export function getUserWithTimeout(): Promise<{ data: { user: { id: string } | n
 
 type SettingsRow = { data: { settings: unknown } | null; error: unknown };
 
+function describeScopeError(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  if (error && typeof error === 'object') {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.length > 0) {
+      return message;
+    }
+  }
+  return 'unknown error';
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) {
+    return;
+  }
+
+  throw new ToolSettingsError('cancelled', 'Request was cancelled', {
+    recoverable: true,
+  });
+}
+
+type AbortableQuery<T> = {
+  abortSignal?: (signal: AbortSignal) => T;
+};
+
+function maybeAttachAbortSignal<T>(query: T, signal?: AbortSignal): T {
+  if (!signal) {
+    return query;
+  }
+
+  const abortable = query as AbortableQuery<T>;
+  if (typeof abortable.abortSignal === 'function') {
+    return abortable.abortSignal(signal);
+  }
+
+  return query;
+}
+
+async function raceWithAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) {
+    return promise;
+  }
+
+  throwIfAborted(signal);
+
+  return await new Promise<T>((resolve, reject) => {
+    const onAbort = () => {
+      cleanup();
+      reject(new ToolSettingsError('cancelled', 'Request was cancelled', {
+        recoverable: true,
+      }));
+    };
+
+    const cleanup = () => {
+      signal.removeEventListener('abort', onAbort);
+    };
+
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(
+      (value) => {
+        cleanup();
+        resolve(value);
+      },
+      (error) => {
+        cleanup();
+        reject(error);
+      },
+    );
+  });
+}
+
 /** Fetch settings from all three scopes (user, project, shot) in parallel. */
 function fetchAllScopes(
+  supabaseClient: ReturnType<typeof getSupabaseClient>,
   userId: string,
-  ctx: ToolSettingsContext
+  ctx: ToolSettingsContext,
+  signal?: AbortSignal,
 ): Promise<[SettingsRow, SettingsRow, SettingsRow]> {
-  return Promise.all([
-    supabase
+  const userQuery = maybeAttachAbortSignal(
+    supabaseClient
       .from('users')
       .select('settings')
       .eq('id', userId)
       .maybeSingle(),
+    signal,
+  );
 
-    ctx.projectId
-      ? supabase
+  const projectQuery = ctx.projectId
+    ? maybeAttachAbortSignal(
+        supabaseClient
           .from('projects')
           .select('settings')
           .eq('id', ctx.projectId)
-          .maybeSingle()
-      : Promise.resolve({ data: null, error: null }),
+          .maybeSingle(),
+        signal,
+      )
+    : Promise.resolve({ data: null, error: null });
 
-    ctx.shotId
-      ? supabase
+  const shotQuery = ctx.shotId
+    ? maybeAttachAbortSignal(
+        supabaseClient
           .from('shots')
           .select('settings')
           .eq('id', ctx.shotId)
-          .maybeSingle()
-      : Promise.resolve({ data: null, error: null }),
+          .maybeSingle(),
+        signal,
+      )
+    : Promise.resolve({ data: null, error: null });
+
+  return Promise.all([
+    userQuery,
+    projectQuery,
+    shotQuery,
   ]) as Promise<[SettingsRow, SettingsRow, SettingsRow]>;
 }
 
@@ -140,21 +357,45 @@ function extractAndMergeSettings(
   userResult: SettingsRow,
   projectResult: SettingsRow,
   shotResult: SettingsRow,
-  toolId: string
+  toolId: string,
+  ctx: ToolSettingsContext,
 ): SettingsFetchResult {
+  if (userResult.error) {
+    throw new ToolSettingsError(
+      'scope_fetch_failed',
+      `Failed to load user settings: ${describeScopeError(userResult.error)}`,
+      { recoverable: true, cause: userResult.error, metadata: { scope: 'user' } },
+    );
+  }
+  if (ctx.projectId && projectResult.error) {
+    throw new ToolSettingsError(
+      'scope_fetch_failed',
+      `Failed to load project settings: ${describeScopeError(projectResult.error)}`,
+      { recoverable: true, cause: projectResult.error, metadata: { scope: 'project', projectId: ctx.projectId } },
+    );
+  }
+  if (ctx.shotId && shotResult.error) {
+    throw new ToolSettingsError(
+      'scope_fetch_failed',
+      `Failed to load shot settings: ${describeScopeError(shotResult.error)}`,
+      { recoverable: true, cause: shotResult.error, metadata: { scope: 'shot', shotId: ctx.shotId } },
+    );
+  }
+
   const userSettingsData = userResult.data?.settings as Record<string, unknown> | null;
   const projectSettingsData = projectResult.data?.settings as Record<string, unknown> | null;
   const shotSettingsData = shotResult.data?.settings as Record<string, unknown> | null;
   const userSettings = (userSettingsData?.[toolId] as Record<string, unknown>) ?? {};
   const projectSettings = (projectSettingsData?.[toolId] as Record<string, unknown>) ?? {};
   const shotSettings = (shotSettingsData?.[toolId] as Record<string, unknown>) ?? {};
+  const defaultSettings = (toolDefaultsRegistry[toolId] as Record<string, unknown> | undefined) ?? {};
 
   const hasShotSettings = shotSettings && Object.keys(shotSettings).length > 0;
 
   // Merge in priority order: defaults -> user -> project -> shot
   const merged = deepMerge(
     {},
-    toolDefaultsRegistry[toolId] ?? {},
+    defaultSettings,
     userSettings,
     projectSettings,
     shotSettings
@@ -179,33 +420,40 @@ export async function fetchToolSettingsSupabase(
   toolId: string,
   ctx: ToolSettingsContext,
   signal?: AbortSignal
-): Promise<SettingsFetchResult> {
+): Promise<OperationResult<SettingsFetchResult>> {
   try {
+    reportUnknownSettingsId(toolId);
+
     // Check if request was cancelled before starting
     if (signal?.aborted) {
-      throw new DOMException('Request was cancelled', 'AbortError');
+      return toOperationFailure(new ToolSettingsError('cancelled', 'Request was cancelled', {
+        recoverable: true,
+      }));
     }
 
     // Single-flight dedupe key for concurrent identical requests
     const singleFlightKey = JSON.stringify({ toolId, projectId: ctx.projectId ?? null, shotId: ctx.shotId ?? null });
     const existingPromise = inflightSettingsFetches.get(singleFlightKey);
     if (existingPromise) {
-      return existingPromise as Promise<SettingsFetchResult>;
+      const value = await raceWithAbort(existingPromise as Promise<SettingsFetchResult>, signal);
+      return operationSuccess(value);
     }
 
     const promise = (async (): Promise<SettingsFetchResult> => {
+      throwIfAborted(signal);
+
       const { data: { user } } = await getUserWithTimeout();
 
       if (!user) {
-        throw new Error('Authentication required');
+        throw new ToolSettingsError('auth_required', 'Authentication required');
       }
 
-      if (signal?.aborted) {
-        throw new DOMException('Request was cancelled', 'AbortError');
-      }
+      throwIfAborted(signal);
 
-      const [userResult, projectResult, shotResult] = await fetchAllScopes(user.id, ctx);
-      return extractAndMergeSettings(userResult, projectResult, shotResult, toolId);
+      const supabaseClient = getSupabaseClient();
+      const [userResult, projectResult, shotResult] = await fetchAllScopes(supabaseClient, user.id, ctx, signal);
+      throwIfAborted(signal);
+      return extractAndMergeSettings(userResult, projectResult, shotResult, toolId, ctx);
     })();
 
     inflightSettingsFetches.set(singleFlightKey, promise);
@@ -215,11 +463,18 @@ export async function fetchToolSettingsSupabase(
     promise.finally(() => {
       inflightSettingsFetches.delete(singleFlightKey);
     }).catch(() => {});
-    return promise;
+    const value = await raceWithAbort(promise, signal);
+    return operationSuccess(value);
 
   } catch (error: unknown) {
+    if (isToolSettingsError(error) && error.code === 'cancelled') {
+      return toOperationFailure(error);
+    }
     if (isCancellationError(error)) {
-      throw new DOMException('Request was cancelled', 'AbortError');
+      return toOperationFailure(new ToolSettingsError('cancelled', 'Request was cancelled', {
+        recoverable: true,
+        cause: error,
+      }));
     }
     // Build context info without calling getSession() — can block during token refresh
     const errorMsg = getErrorMessage(error);
@@ -230,15 +485,36 @@ export async function fetchToolSettingsSupabase(
     };
 
     if (errorMsg.includes('Auth timeout') || errorMsg.includes('Auth request was cancelled')) {
-      return { settings: deepMerge({}, toolDefaultsRegistry[toolId] ?? {}), hasShotSettings: false };
+      normalizeAndPresentError(error, {
+        context: 'fetchToolSettingsSupabase.authTimeout',
+        showToast: false,
+        logData: contextInfo,
+      });
+      return toOperationFailure(new ToolSettingsError(
+        'network',
+        'Authentication check timed out. Please retry.',
+        {
+          recoverable: true,
+          cause: error,
+          metadata: { ...contextInfo, reason: 'auth_timeout' },
+        },
+      ));
     }
 
     if (errorMsg.includes('Failed to fetch')) {
-      handleError(error, { context: 'fetchToolSettingsSupabase.network', showToast: false, logData: contextInfo });
-      throw new Error('Network connection issue. Please check your internet connection.');
+      normalizeAndPresentError(error, { context: 'fetchToolSettingsSupabase.network', showToast: false, logData: contextInfo });
+      return toOperationFailure(new ToolSettingsError(
+        'network',
+        'Network connection issue. Please check your internet connection.',
+        {
+          recoverable: true,
+          cause: error,
+          metadata: contextInfo,
+        },
+      ));
     }
 
-    handleError(error, { context: 'fetchToolSettingsSupabase', showToast: false, logData: contextInfo });
-    throw error;
+    normalizeAndPresentError(error, { context: 'fetchToolSettingsSupabase', showToast: false, logData: contextInfo });
+    return toOperationFailure(classifyToolSettingsError(error));
   }
 }

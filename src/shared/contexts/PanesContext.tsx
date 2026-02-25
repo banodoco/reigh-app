@@ -1,7 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
-import { useUserUIState } from '@/shared/hooks/useUserUIState';
-import { useIsMobile, useIsTablet } from '@/shared/hooks/useMobile';
+import React, { createContext, useContext, useState, ReactNode, useCallback, useMemo } from 'react';
 import { PANE_CONFIG } from '@/shared/config/panes';
+import { usePaneLockPolicyState } from '@/shared/contexts/usePaneLockPolicyState';
 
 interface PanesContextType {
   isGenerationsPaneLocked: boolean;
@@ -33,29 +32,53 @@ interface PanesContextType {
   resetAllPaneLocks: () => void;
 }
 
-const PanesContext = createContext<PanesContextType | undefined>(undefined);
+type PaneLockPolicyContextType = Pick<
+  PanesContextType,
+  | 'isGenerationsPaneLocked'
+  | 'setIsGenerationsPaneLocked'
+  | 'isGenerationsPaneOpen'
+  | 'setIsGenerationsPaneOpen'
+  | 'isShotsPaneLocked'
+  | 'setIsShotsPaneLocked'
+  | 'isTasksPaneLocked'
+  | 'setIsTasksPaneLocked'
+  | 'isTasksPaneOpen'
+  | 'setIsTasksPaneOpen'
+  | 'resetAllPaneLocks'
+>;
+
+type PaneLayoutContextType = Pick<
+  PanesContextType,
+  | 'generationsPaneHeight'
+  | 'setGenerationsPaneHeight'
+  | 'shotsPaneWidth'
+  | 'setShotsPaneWidth'
+  | 'tasksPaneWidth'
+  | 'setTasksPaneWidth'
+>;
+
+type PaneSelectionContextType = Pick<
+  PanesContextType,
+  | 'activeTaskId'
+  | 'setActiveTaskId'
+>;
+
+const PaneLockPolicyContext = createContext<PaneLockPolicyContextType | undefined>(undefined);
+const PaneLayoutContext = createContext<PaneLayoutContextType | undefined>(undefined);
+const PaneSelectionContext = createContext<PaneSelectionContextType | undefined>(undefined);
 
 export const PanesProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const isMobile = useIsMobile();
-  const isTablet = useIsTablet();
-  
-  // On tablets, allow locking but only one pane at a time
-  // On phones (mobile but not tablet), no locking allowed
-  const isSmallMobile = isMobile && !isTablet;
-  
-  // Load pane locks from user settings (desktop and tablet)
-  const { value: paneLocks, update: savePaneLocks, isLoading } = useUserUIState('paneLocks', {
-    shots: false,
-    tasks: false,
-    gens: false,
-  });
-
-  // Local state for lock status (source of truth for UI)
-  const [locks, setLocks] = useState(paneLocks);
-
-  // Pane open states (not persisted, runtime only)
-  const [isGenerationsPaneOpenState, setIsGenerationsPaneOpenState] = useState(false);
-  const [isTasksPaneOpenState, setIsTasksPaneOpenState] = useState(false);
+  const {
+    locks,
+    isGenerationsPaneOpenState,
+    isTasksPaneOpenState,
+    setIsGenerationsPaneLocked,
+    setIsShotsPaneLocked,
+    setIsTasksPaneLocked,
+    setIsGenerationsPaneOpen,
+    setIsTasksPaneOpen,
+    resetAllPaneLocks,
+  } = usePaneLockPolicyState();
 
   // Pane dimensions (not persisted)
   const [generationsPaneHeight, setGenerationsPaneHeightState] = useState<number>(PANE_CONFIG.dimensions.DEFAULT_HEIGHT);
@@ -64,105 +87,6 @@ export const PanesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   
   // Active task tracking (not persisted)
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
-
-  // Hydrate local state once when settings load (desktop and tablet)
-  useEffect(() => {
-    if (isSmallMobile) {
-      // On small mobile (phones), always start with unlocked state
-      setLocks({
-        shots: false,
-        tasks: false,
-        gens: false,
-      });
-      return;
-    }
-
-    if (!isLoading) {
-      // Hydrating pane locks from server (desktop and tablet)
-      // On tablets, only keep one lock if multiple are saved
-      let newLocks = paneLocks;
-      if (isTablet) {
-        const activeLocks = Object.entries(paneLocks).filter(([_, locked]) => locked);
-        if (activeLocks.length > 1) {
-          // Keep only the first locked pane on tablets
-          const firstLocked = activeLocks[0][0] as 'shots' | 'tasks' | 'gens';
-          newLocks = {
-            shots: firstLocked === 'shots',
-            tasks: firstLocked === 'tasks',
-            gens: firstLocked === 'gens',
-          };
-        }
-      }
-      setLocks(newLocks);
-
-      // IMPORTANT: Sync isTasksPaneOpen with isTasksPaneLocked on hydration
-      // This ensures lightboxes (which read isTasksPaneOpen from context) correctly
-      // account for a locked pane even after page refresh
-      if (newLocks.tasks) {
-        setIsTasksPaneOpenState(true);
-      }
-    }
-  }, [isLoading, paneLocks, isSmallMobile, isTablet]);
-
-
-  // Factory for pane lock setters — each pane follows the same logic:
-  // 1. On mobile/tablet + locking: unlock all OTHER panes (exclusive locking)
-  // 2. On small phone: skip persistence to DB
-  // 3. On desktop: standard toggle
-  const createPaneLockSetter = useCallback(
-    (lockKey: 'gens' | 'shots' | 'tasks') => (isLocked: boolean) => {
-      setLocks(prev => {
-        if (prev[lockKey] === isLocked) return prev;
-
-        // On mobile/tablets, unlock other panes when locking this one (only one pane can be locked at a time)
-        const exclusiveLock = (isMobile || isTablet) && isLocked;
-        return exclusiveLock
-          ? { shots: false, tasks: false, gens: false, [lockKey]: isLocked }
-          : { ...prev, [lockKey]: isLocked };
-      });
-
-      // Save to database (desktop and tablet only, not small phones)
-      // Kept outside setLocks updater to avoid side effects in state updater functions
-      if (!isSmallMobile) {
-        const exclusiveLock = (isMobile || isTablet) && isLocked;
-        savePaneLocks(exclusiveLock
-          ? { shots: false, tasks: false, gens: false, [lockKey]: isLocked }
-          : { [lockKey]: isLocked });
-      }
-
-      // IMPORTANT: Sync isTasksPaneOpen with isTasksPaneLocked
-      // This ensures lightboxes correctly account for locked pane state
-      if (lockKey === 'tasks' && isLocked) {
-        setIsTasksPaneOpenState(true);
-      }
-    },
-    [savePaneLocks, isSmallMobile, isMobile, isTablet]
-  );
-
-  // Each call to createPaneLockSetter returns a NEW closure, so we must memoize
-  // to keep stable references in the context value.
-  const setIsGenerationsPaneLocked = useMemo(() => createPaneLockSetter('gens'), [createPaneLockSetter]);
-  const setIsShotsPaneLocked = useMemo(() => createPaneLockSetter('shots'), [createPaneLockSetter]);
-  const setIsTasksPaneLocked = useMemo(() => createPaneLockSetter('tasks'), [createPaneLockSetter]);
-
-  // Open state setters
-  const setIsGenerationsPaneOpen = useCallback((isOpen: boolean) => {
-    setIsGenerationsPaneOpenState(isOpen);
-  }, []);
-  
-  const setIsTasksPaneOpen = useCallback((isOpen: boolean) => {
-    // Works on desktop and tablets - only small phones use hover/tap behavior exclusively
-    if (!isSmallMobile) {
-      setIsTasksPaneOpenState(isOpen);
-    }
-  }, [isSmallMobile]);
-
-  // Reset all pane locks (used by ProductTour)
-  const resetAllPaneLocks = useCallback(() => {
-    const unlockedState = { shots: false, tasks: false, gens: false };
-    setLocks(unlockedState);
-    savePaneLocks(unlockedState);
-  }, [savePaneLocks]);
 
   // Dimension setters
   const setGenerationsPaneHeight = useCallback((height: number) => {
@@ -177,25 +101,16 @@ export const PanesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setTasksPaneWidthState(width);
   }, []);
 
-  const value = useMemo(
-    () => ({
-      // Return actual lock state for all device types (mobile locking is now supported)
+  const lockPolicyValue = useMemo(
+    (): PaneLockPolicyContextType => ({
       isGenerationsPaneLocked: locks.gens,
       setIsGenerationsPaneLocked,
       isGenerationsPaneOpen: isGenerationsPaneOpenState,
       setIsGenerationsPaneOpen,
-      generationsPaneHeight,
-      setGenerationsPaneHeight,
       isShotsPaneLocked: locks.shots,
       setIsShotsPaneLocked,
-      shotsPaneWidth,
-      setShotsPaneWidth,
       isTasksPaneLocked: locks.tasks,
       setIsTasksPaneLocked,
-      tasksPaneWidth,
-      setTasksPaneWidth,
-      activeTaskId,
-      setActiveTaskId,
       isTasksPaneOpen: isTasksPaneOpenState,
       setIsTasksPaneOpen,
       resetAllPaneLocks,
@@ -205,35 +120,69 @@ export const PanesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       locks.shots,
       locks.tasks,
       setIsGenerationsPaneLocked,
-      setIsShotsPaneLocked,
-      setIsTasksPaneLocked,
       isGenerationsPaneOpenState,
       setIsGenerationsPaneOpen,
-      generationsPaneHeight,
-      setGenerationsPaneHeight,
-      shotsPaneWidth,
-      setShotsPaneWidth,
-      tasksPaneWidth,
-      setTasksPaneWidth,
-      activeTaskId,
-      setActiveTaskId,
+      setIsShotsPaneLocked,
+      setIsTasksPaneLocked,
       isTasksPaneOpenState,
       setIsTasksPaneOpen,
       resetAllPaneLocks,
     ]
   );
 
+  const layoutValue = useMemo(
+    (): PaneLayoutContextType => ({
+      generationsPaneHeight,
+      setGenerationsPaneHeight,
+      shotsPaneWidth,
+      setShotsPaneWidth,
+      tasksPaneWidth,
+      setTasksPaneWidth,
+    }),
+    [
+      generationsPaneHeight,
+      setGenerationsPaneHeight,
+      shotsPaneWidth,
+      setShotsPaneWidth,
+      tasksPaneWidth,
+      setTasksPaneWidth,
+    ]
+  );
+
+  const selectionValue = useMemo(
+    (): PaneSelectionContextType => ({
+      activeTaskId,
+      setActiveTaskId,
+    }),
+    [
+      activeTaskId,
+      setActiveTaskId,
+    ]
+  );
+
   return (
-    <PanesContext.Provider value={value}>
-      {children}
-    </PanesContext.Provider>
+    <PaneLockPolicyContext.Provider value={lockPolicyValue}>
+      <PaneLayoutContext.Provider value={layoutValue}>
+        <PaneSelectionContext.Provider value={selectionValue}>
+          {children}
+        </PaneSelectionContext.Provider>
+      </PaneLayoutContext.Provider>
+    </PaneLockPolicyContext.Provider>
   );
 };
 
 export const usePanes = () => {
-  const context = useContext(PanesContext);
-  if (context === undefined) {
+  const lockPolicy = useContext(PaneLockPolicyContext);
+  const layout = useContext(PaneLayoutContext);
+  const selection = useContext(PaneSelectionContext);
+
+  if (!lockPolicy || !layout || !selection) {
     throw new Error('usePanes must be used within a PanesProvider');
   }
-  return context;
-}; 
+
+  return {
+    ...lockPolicy,
+    ...layout,
+    ...selection,
+  };
+};

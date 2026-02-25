@@ -1,20 +1,20 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
-import { Label } from '@/shared/components/ui/label';
+import { Label } from '@/shared/components/ui/primitives/label';
 import { Slider } from '@/shared/components/ui/slider';
 import { Copy, Check, LogIn } from 'lucide-react';
 import { toast } from '@/shared/components/ui/toast';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { ProjectSelectorModal } from './ProjectSelectorModal';
 import BatchSettingsForm from './BatchSettingsForm';
 import { MotionControl } from './MotionControl';
 import { SectionHeader } from '@/shared/components/ImageGenerationForm/components';
-import { useIsMobile, useDeviceInfo } from '@/shared/hooks/useMobile';
+import { useIsMobile, useDeviceInfo } from '@/shared/hooks/mobile';
 import ShotImagesEditor from './ShotImagesEditor';
 import { VideoTravelSettings } from '../settings';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 import { FinalVideoSection } from './FinalVideoSection';
 import {
   transformGenerationToParentRow,
@@ -62,7 +62,7 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
   const { generation, images, settings } = shareData;
 
   const checkAuth = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await supabase().auth.getSession();
     setIsAuthenticated(!!session);
   }, []);
 
@@ -91,7 +91,7 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
   useEffect(() => {
     checkAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase().auth.onAuthStateChange((event, session) => {
       setIsAuthenticated(!!session);
       if (event === 'SIGNED_IN') {
         checkPendingShare();
@@ -108,8 +108,7 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
     setIsCopying(true);
 
     try {
-      const { error: copyError } = await supabase
-        .rpc('copy_shot_from_share', {
+      const { error: copyError } = await supabase().rpc('copy_shot_from_share', {
           share_slug_param: shareSlug,
           target_project_id: projectId,
         });

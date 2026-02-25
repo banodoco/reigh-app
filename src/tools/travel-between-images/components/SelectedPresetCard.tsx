@@ -4,7 +4,7 @@ import { Card } from '@/shared/components/ui/card';
 import { Badge } from '@/shared/components/ui/badge';
 import { Pencil, X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { presetQueryKeys } from '@/shared/lib/queryKeys/presets';
 import HoverScrubVideo from '@/shared/components/HoverScrubVideo';
 import type { PresetMetadata, PresetSampleGeneration } from '@/shared/types/presetMetadata';
@@ -30,8 +30,7 @@ export const SelectedPresetCard: React.FC<SelectedPresetCardProps> = ({
   const { data: preset, isLoading, isError } = useQuery({
     queryKey: presetQueryKeys.detail(presetId),
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('resources')
+      const { data, error } = await supabase().from('resources')
         .select('*')
         .eq('id', presetId)
         .single();

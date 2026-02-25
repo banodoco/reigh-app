@@ -12,11 +12,11 @@
  */
 
 import { useShots } from '@/shared/contexts/ShotsContext';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 import { usePublicLoras } from '@/shared/hooks/useResources';
 import { useToolSettings } from '@/shared/hooks/useToolSettings';
 import { VideoTravelSettings } from '../settings';
-import { Shot } from '@/types/shots';
+import { Shot } from '@/domains/generation/types';
 import type { LoraModel } from '@/shared/components/LoraSelectorModal';
 
 interface ProjectUISettings {
@@ -80,7 +80,7 @@ export const useVideoTravelData = (
   // Always call these hooks but disable them when parameters are missing
   // This ensures consistent hook order between renders
   const toolSettingsQuery = useToolSettings<VideoTravelSettings>(
-    TOOL_IDS.TRAVEL_BETWEEN_IMAGES,
+    SETTINGS_IDS.TRAVEL_BETWEEN_IMAGES,
     { 
       shotId: selectedShotId ?? undefined,
       enabled: !!selectedShotId 
@@ -91,7 +91,7 @@ export const useVideoTravelData = (
   const { error: toolSettingsError } = toolSettingsQuery;
 
   const projectSettingsQuery = useToolSettings<VideoTravelSettings>(
-    TOOL_IDS.TRAVEL_BETWEEN_IMAGES,
+    SETTINGS_IDS.TRAVEL_BETWEEN_IMAGES,
     { 
       projectId: projectId ?? undefined,
       enabled: !!projectId 
@@ -99,7 +99,7 @@ export const useVideoTravelData = (
   );
 
   const projectUISettingsQuery = useToolSettings<ProjectUISettings>(
-    'travel-ui-state', 
+    SETTINGS_IDS.TRAVEL_UI_STATE, 
     { 
       projectId: projectId ?? undefined,
       enabled: !!projectId 
@@ -108,7 +108,7 @@ export const useVideoTravelData = (
 
   // Upload settings (for cropToProjectSize)
   const uploadSettingsQuery = useToolSettings<UploadSettings>(
-    'upload', 
+    SETTINGS_IDS.UPLOAD, 
     { 
       projectId: projectId ?? undefined,
       enabled: !!projectId 

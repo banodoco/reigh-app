@@ -1,0 +1,98 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "ai_generated_debt": 84.0,
+    "incomplete_migration": 68.0,
+    "low_level_elegance": 100.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "src/shared/components/ShotImageManager/utils/image-utils.ts contains long explanatory comment blocks (lines 8-20) that restate type fields and call-site behavior instead of encoding that intent via types/tests.",
+        "src/shared/components/ShotImageManager/utils/image-utils.ts exports a pass-through wrapper getAspectRatioStyle() (lines 58-60) that only forwards to getProjectAspectRatioStyle with no translation/guarding.",
+        "src/shared/hooks/useDeleteGenerationWithConfirm.tsx has a large usage tutorial block (lines 5-26) for a small hook, increasing maintenance noise in production code."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium"
+    },
+    "incomplete_migration": {
+      "evidence": [
+        "Multiple compatibility shims remain active and export old paths: src/shared/components/BatchDropZone.tsx, src/shared/components/ConfirmDialog.tsx, src/shared/components/MediaLightbox/utils/download.ts, src/shared/hooks/useBatchImageLoading.ts, src/shared/hooks/useClickRipple.ts, src/shared/hooks/useGalleryPageState.ts, src/shared/hooks/useMobile.tsx, src/shared/lib/NetworkStatusManager.ts, src/shared/lib/aspectRatios.ts, src/shared/lib/autoplayMonitor.ts, src/shared/lib/clientThumbnailGenerator.ts, src/shared/lib/deepEqual.ts.",
+        "src/integrations/supabase/client.ts keeps both the new API (initializeSupabase/getSupabaseClient) and deprecated lazy proxy export supabase (lines 85-98), prolonging dual-path usage.",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts preserves a broad deprecated payload surface (motion_strength, structure_video_* fields, use_uni3c) alongside newer structure_guidance contracts."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Non-shim implementation files in scope are short and direct, with straightforward control flow (for example src/shared/hooks/useBottomOffset.ts and src/shared/hooks/useTextCase.ts).",
+        "No repeated defensive branching, deep nesting, or hard-to-follow local mutation patterns were found in the reviewed non-compatibility logic."
+      ],
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "unreported_risk": "Most assigned files are thin compatibility re-exports, so low-level craft in their canonical target modules was out of scope and may still carry local implementation debt."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "compat_shims_still_primary_surface",
+      "summary": "Legacy import-path shims are still widespread, extending dual API surfaces.",
+      "related_files": [
+        "src/shared/components/BatchDropZone.tsx",
+        "src/shared/components/ConfirmDialog.tsx",
+        "src/shared/hooks/useGalleryPageState.ts",
+        "src/shared/lib/aspectRatios.ts"
+      ],
+      "evidence": [
+        "Each file is a deprecated compatibility re-export with comments directing callers to new module ownership.",
+        "The volume of active shim files in this batch indicates migration is not bounded to isolated holdouts."
+      ],
+      "suggestion": "Add a migration cutoff plan: (1) codemod remaining imports to canonical targets, (2) block new imports of shim paths via ESLint no-restricted-imports, and (3) delete shim files in one removal PR once import count reaches zero.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "supabase_legacy_proxy_extends_dual_path",
+      "summary": "Deprecated Supabase proxy keeps runtime dual-path behavior alive.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "src/integrations/supabase/client.ts exports deprecated `supabase` proxy (lines 85-98) while also exposing `getSupabaseClient()` and `initializeSupabase()`.",
+        "Proxy traps dynamically forward property reads/writes (lines 55-82), so legacy usage remains hard to statically detect and easy to keep shipping.",
+        "Fallback initialization/error path logs runtime recovery (lines 25-51), confirming old and new initialization modes still coexist."
+      ],
+      "suggestion": "Replace `supabase` proxy with a temporary throwing getter in development once migration starts, migrate all imports to `getSupabaseClient()`, then remove proxy export and fallback lazy-init path together.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "commentary_and_passthrough_noise",
+      "summary": "Several modules carry formulaic explanatory noise and zero-value forwarding wrappers.",
+      "related_files": [
+        "src/shared/components/ShotImageManager/utils/image-utils.ts",
+        "src/shared/hooks/useDeleteGenerationWithConfirm.tsx"
+      ],
+      "evidence": [
+        "image-utils.ts includes a long narrative comment (lines 8-20) that reiterates field meaning and caller context rather than documenting non-obvious constraints.",
+        "image-utils.ts `getAspectRatioStyle` (lines 58-60) is a one-line pass-through to another helper without added behavior.",
+        "useDeleteGenerationWithConfirm.tsx embeds an extended usage example block (lines 15-25) for a simple hook API, adding maintenance overhead with limited runtime value."
+      ],
+      "suggestion": "Trim comments to only non-obvious invariants, remove pass-through wrappers unless they enforce a boundary, and move usage examples into tests/docs so code files keep high signal-to-noise.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ]
+}

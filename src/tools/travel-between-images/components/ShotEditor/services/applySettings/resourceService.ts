@@ -1,5 +1,5 @@
 import { extractVideoMetadataFromUrl } from '@/shared/lib/videoUploader';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { ApplyContext, ApplyResult, ExtractedSettings, TaskData } from './types';
 
 export const applyLoRAs = (
@@ -78,7 +78,7 @@ export const applyStructureVideo = async (
   }
 
   if (!context.onStructureVideoInputChange) {
-    handleError(new Error('onStructureVideoInputChange is not defined'), {
+    normalizeAndPresentError(new Error('onStructureVideoInputChange is not defined'), {
       context: 'ApplySettings.applyStructureVideo',
       showToast: false,
     });
@@ -103,7 +103,7 @@ export const applyStructureVideo = async (
 
     return { success: true, settingName: 'structureVideo' };
   } catch (error) {
-    const appError = handleError(error, {
+    const appError = normalizeAndPresentError(error, {
       context: 'ApplySettings.applyStructureVideo',
       showToast: false,
     });

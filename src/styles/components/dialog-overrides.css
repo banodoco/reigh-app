@@ -1,0 +1,31 @@
+/* Custom override for modal inputs */
+[data-dialog-content] input,
+[data-dialog-content] textarea,
+[data-dialog-content] [data-select-trigger] {
+  --input: #faf9f7;
+  --ring: hsl(var(--ring));
+  border-color: #f5f3f0;
+}
+
+.dark [data-dialog-content] input,
+.dark [data-dialog-content] textarea,
+.dark [data-dialog-content] [data-select-trigger] {
+  --input: #4a453f;
+  --ring: hsl(var(--ring));
+  border-color: #3d3831;
+}
+
+/* Special styling for main prompt text fields in PromptInputRow */
+[data-dialog-content] .prompt-input-main {
+  --input: #f0f8ff;
+  --ring: hsl(var(--ring));
+  border-color: #e6f3ff;
+  background-color: #f0f8ff;
+}
+
+.dark [data-dialog-content] .prompt-input-main {
+  --input: #2a3441;
+  --ring: hsl(var(--ring));
+  border-color: #1e2834;
+  background-color: #2a3441;
+}

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Input } from '@/shared/components/ui/input';
-import { Label } from '@/shared/components/ui/label';
+import { Label } from '@/shared/components/ui/primitives/label';
 import { Checkbox } from '@/shared/components/ui/checkbox';
 import FileInput from '@/shared/components/FileInput';
-import { parseRatio } from '@/shared/lib/aspectRatios';
+import { parseRatio } from '@/shared/lib/media/aspectRatios';
 import { cropImageToProjectAspectRatio } from '@/shared/lib/imageCropper';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import { AspectRatioSelector } from '@/shared/components/AspectRatioSelector';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { AspectRatioSelector } from '@/shared/components/generation-controls/AspectRatioSelector';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { ModalContainer, ModalFooterButtons } from '@/shared/components/ModalContainer';
 
@@ -79,7 +79,7 @@ const CreateShotModal: React.FC<CreateShotModalProps> = ({
               }
               return file; // Return original if cropping fails
             } catch (error) {
-              handleError(error, { context: 'CreateShotModal', toastTitle: `Failed to crop ${file.name}` });
+              normalizeAndPresentError(error, { context: 'CreateShotModal', toastTitle: `Failed to crop ${file.name}` });
               return file; // Return original on error
             }
           });
@@ -105,7 +105,7 @@ const CreateShotModal: React.FC<CreateShotModalProps> = ({
       onClose();
     } catch (error) {
       // Cropping failed - show error but don't close
-      handleError(error, { context: 'CreateShotModal', toastTitle: 'Failed to process images' });
+      normalizeAndPresentError(error, { context: 'CreateShotModal', toastTitle: 'Failed to process images' });
       setIsProcessing(false);
     }
   };

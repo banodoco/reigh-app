@@ -13,7 +13,7 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import { ImageGenerationFormUIState, FormUIActions } from './state/useFormUIState';
 import { PromptEntry, PromptMode, HydratedReferenceImage, ReferenceMode } from './types';
-import { ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';
+import type { ActiveLora } from '@/shared/types/lora';
 import type { LoraModel } from '@/shared/components/LoraSelectorModal';
 import type { Resource } from '@/shared/hooks/useResources';
 

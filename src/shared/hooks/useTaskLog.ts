@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { getVisibleTaskTypes, getHiddenTaskTypes } from '@/shared/lib/taskConfig';
 import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 
@@ -51,14 +51,13 @@ export function useTaskLog(
     queryKey: taskQueryKeys.log(limit, page, filters),
     placeholderData: (previousData) => previousData, // Prevents table from disappearing during filter changes
     queryFn: async () => {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase().auth.getUser();
       if (authError || !user) {
         throw new Error('Authentication required');
       }
 
       // First get user's projects to filter tasks
-      const { data: projects } = await supabase
-        .from('projects')
+      const { data: projects } = await supabase().from('projects')
         .select('id, name')
         .eq('user_id', user.id);
 
@@ -89,8 +88,7 @@ export function useTaskLog(
 
       // Build query with filters
       // Only show visible task types (uses same centralized config as TasksPane)
-      let query = supabase
-        .from('tasks')
+      let query = supabase().from('tasks')
         .select('*', { count: 'exact' })
         .in('project_id', projectIds);
 
@@ -127,8 +125,7 @@ export function useTaskLog(
       let costsData: { task_id: string | null; amount: number; created_at: string }[] = [];
       
       if (taskIds.length > 0) {
-        const { data: costs } = await supabase
-          .from('credits_ledger')
+        const { data: costs } = await supabase().from('credits_ledger')
           .select('task_id, amount, created_at')
           .in('task_id', taskIds)
           .eq('type', 'spend');
@@ -175,8 +172,7 @@ export function useTaskLog(
       const visibleTaskTypes = getVisibleTaskTypes();
       
       // Query for unique statuses from user's visible tasks
-      let allTasksQuery = supabase
-        .from('tasks')
+      let allTasksQuery = supabase().from('tasks')
         .select('task_type, status, project_id')
         .in('project_id', projectIds);
       

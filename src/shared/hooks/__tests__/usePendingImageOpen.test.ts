@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { usePendingImageOpen } from '../usePendingImageOpen';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 
 describe('usePendingImageOpen', () => {
   const mockOpenLightbox = vi.fn();

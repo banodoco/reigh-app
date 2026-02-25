@@ -1,11 +1,12 @@
 import { QueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { handleError, type HandleErrorOptions } from '@/shared/lib/errorHandling/handleError';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { normalizeAndPresentError, type RuntimeErrorOptions } from '@/shared/lib/errorHandling/runtimeError';
 import { getDisplayUrl } from '@/shared/lib/mediaUrl';
 import { ValidationError } from '@/shared/lib/errorHandling/errors';
 import {
   createTravelBetweenImagesTask,
-  type TravelBetweenImagesTaskParams,
+  validateTravelBetweenImagesParams,
+  type TravelBetweenImagesRequestPayload,
   type PromptConfig,
   type MotionConfig,
   type ModelConfig,
@@ -13,25 +14,32 @@ import {
   type StitchConfig,
   DEFAULT_VIDEO_STRUCTURE_PARAMS,
 } from '@/shared/lib/tasks/travelBetweenImages';
-import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
+import { normalizeStructureGuidance } from '@/shared/lib/tasks/structureGuidance';
+import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
 import { DEFAULT_RESOLUTION } from '../utils/dimension-utils';
 import { DEFAULT_STEERABLE_MOTION_SETTINGS } from '../state/types';
-import { PhaseConfig, buildBasicModePhaseConfig as buildPhaseConfigCore } from '../../../settings';
-import { isVideoShotGenerations, type ShotGenerationsLike } from '@/shared/lib/typeGuards';
+import type { PhaseConfig } from '@/shared/types/phaseConfig';
+import { isVideoAny } from '@/shared/lib/typeGuards';
 import {
   readSegmentOverrides,
   type SegmentOverrides,
 } from '@/shared/lib/settingsMigration';
-import type { Shot } from '@/types/shots';
+import { buildMotionTaskFields, stripModeFromPhaseConfig } from '@/shared/components/segmentSettingsUtils';
+import type { Shot } from '@/domains/generation/types';
+import {
+  operationFailure,
+  operationSuccess,
+  type OperationResult,
+} from '@/shared/lib/operationResult';
+import {
+  buildBasicModeGenerationRequest,
+  resolveModelPhaseSelection,
+  validatePhaseConfigConsistency,
+  type ModelPhaseSelection,
+} from './generateVideo/modelPhase';
 
 // Re-export types used by consumers (VideoGenerationModal, etc.)
 export type { StitchConfig };
-
-/** Strip 'mode' field from phaseConfig - backend determines mode from actual model */
-const stripModeFromPhaseConfig = (config: PhaseConfig): PhaseConfig => {
-  const { mode, ...rest } = config as PhaseConfig & { mode?: string };
-  return rest as PhaseConfig;
-};
 
 /**
  * Extract segment overrides from metadata using migration utility.
@@ -51,74 +59,23 @@ function extractPairOverrides(metadata: Record<string, unknown> | null | undefin
   return { overrides, enhancedPrompt };
 }
 
-/**
- * Build phase config for basic mode based on motion amount and user LoRAs.
- * Wraps the shared buildBasicModePhaseConfig, adding model selection.
- */
-export function buildBasicModeGenerationRequest(
-  motionPercent: number,
-  userLoras: Array<{ path: string; strength: number; lowNoisePath?: string; isMultiStage?: boolean }>,
-): { model: string; phaseConfig: PhaseConfig } {
-  const model = 'wan_2_2_i2v_lightning_baseline_2_2_2';
-  const phaseConfig = buildPhaseConfigCore(false, motionPercent / 100, userLoras);
-  return { model, phaseConfig };
-}
-
 // ============================================================================
 // STRUCTURE GUIDANCE BUILDER
 // ============================================================================
 
-const PREPROCESSING_MAP: Record<string, string> = {
-  'flow': 'flow', 'canny': 'canny', 'depth': 'depth', 'raw': 'none',
-};
-
 /**
  * Build unified structure_guidance object for the API request.
- * Uses the structure_videos array format.
- * Returns null if no structure video is configured.
+ * Delegates to the canonical task-layer adapter so UI and task builders share one mapping contract.
  */
 function buildStructureGuidance(
   structureVideos: StructureVideoConfigWithMetadata[] | undefined,
 ): Record<string, unknown> | null {
-  if (!structureVideos || structureVideos.length === 0) {
-    return null;
-  }
-
-  const firstVideo = structureVideos[0];
-  const isUni3c = firstVideo.structure_type === 'uni3c';
-
-  const cleanedVideos = structureVideos.map(video => ({
-    path: video.path,
-    start_frame: video.start_frame ?? 0,
-    end_frame: video.end_frame ?? null,
-    treatment: video.treatment ?? DEFAULT_VIDEO_STRUCTURE_PARAMS.structure_video_treatment,
-    ...(video.metadata ? { metadata: video.metadata } : {}),
-    ...(video.resource_id ? { resource_id: video.resource_id } : {}),
-  }));
-
-  const guidance: Record<string, unknown> = {
-    target: isUni3c ? 'uni3c' : 'vace',
-    videos: cleanedVideos,
-    strength: firstVideo.motion_strength ?? 1.0,
-  };
-
-  if (isUni3c) {
-    guidance.step_window = [
-      firstVideo.uni3c_start_percent ?? 0,
-      firstVideo.uni3c_end_percent ?? 1.0,
-    ];
-    guidance.frame_policy = 'fit';
-    guidance.zero_empty_frames = true;
-  } else {
-    guidance.preprocessing = PREPROCESSING_MAP[firstVideo.structure_type ?? 'flow'] ?? 'flow';
-    const videoRecord = firstVideo as unknown as Record<string, unknown>;
-    const cannyIntensity = videoRecord.canny_intensity;
-    const depthContrast = videoRecord.depth_contrast;
-    if (typeof cannyIntensity === 'number') guidance.canny_intensity = cannyIntensity;
-    if (typeof depthContrast === 'number') guidance.depth_contrast = depthContrast;
-  }
-
-  return guidance;
+  const normalized = normalizeStructureGuidance({
+    structureVideos,
+    defaultVideoTreatment: DEFAULT_VIDEO_STRUCTURE_PARAMS.structure_video_treatment,
+    defaultUni3cEndPercent: 0.1,
+  });
+  return normalized ?? null;
 }
 
 // ============================================================================
@@ -142,11 +99,11 @@ interface GenerateVideoParams {
   stitchConfig?: StitchConfig;
 }
 
-interface GenerateVideoResult {
-  success: boolean;
-  error?: string;
+interface GenerateVideoSuccessValue {
   parentGenerationId?: string;
 }
+
+type GenerateVideoResult = OperationResult<GenerateVideoSuccessValue>;
 
 /** Shared Supabase query shape for shot_generations with joined generation data */
 const SHOT_GEN_QUERY = `
@@ -176,14 +133,24 @@ function filterImageShotGenerations(rows: ShotGenRow[]): ShotGenRow[] {
     const hasValidLocation = shotGen.generation?.location && shotGen.generation.location !== '/placeholder.svg';
     return shotGen.generation &&
            shotGen.timeline_frame != null &&
-           !isVideoShotGenerations(shotGen as ShotGenerationsLike) &&
+           !isVideoAny(shotGen) &&
            hasValidLocation;
   });
 }
 
-function failureResult(error: unknown, options: HandleErrorOptions): GenerateVideoResult {
-  const appError = handleError(error, options);
-  return { success: false, error: appError.message };
+function failureResult(error: unknown, options: RuntimeErrorOptions): GenerateVideoResult {
+  const appError = normalizeAndPresentError(error, options);
+  return operationFailure(appError, {
+    errorCode: 'generate_video_failed',
+    policy: 'fail_closed',
+    recoverable: true,
+    message: appError.message,
+    cause: {
+      context: options.context,
+      toastTitle: options.toastTitle,
+      logData: options.logData,
+    },
+  });
 }
 
 interface ImagePayload {
@@ -198,16 +165,10 @@ interface PairConfigPayload {
   segmentFrames: number[];
   frameOverlap: number[];
   negativePrompts: string[];
-  enhancedPromptsArray: Array<string | null>;
+  enhancedPromptsArray: string[];
   pairPhaseConfigsArray: Array<PhaseConfig | null>;
   pairLorasArray: Array<Array<{ path: string; strength: number }> | null>;
   pairMotionSettingsArray: Array<Record<string, unknown> | null>;
-}
-
-interface ModelPhaseSelection {
-  actualModelName: string;
-  effectivePhaseConfig: PhaseConfig;
-  useAdvancedMode: boolean;
 }
 
 function resolveGenerationResolution(selectedShot: Shot, effectiveAspectRatio: string | null): string {
@@ -233,8 +194,7 @@ async function waitForPendingMutations(queryClient: QueryClient, timeoutMs = 500
 }
 
 async function fetchFreshShotGenerations(selectedShotId: string): Promise<ShotGenRow[]> {
-  const { data, error } = await supabase
-    .from('shot_generations')
+  const { data, error } = await supabase().from('shot_generations')
     .select(SHOT_GEN_QUERY)
     .eq('shot_id', selectedShotId)
     .order('timeline_frame', { ascending: true });
@@ -389,56 +349,91 @@ function buildBatchPairConfig(
     pairPhaseConfigsArray: numPairs > 0 ? Array(numPairs).fill(null) : [],
     pairLorasArray: numPairs > 0 ? Array(numPairs).fill(null) : [],
     pairMotionSettingsArray: numPairs > 0 ? Array(numPairs).fill(null) : [],
-    enhancedPromptsArray: numPairs > 0 ? Array(numPairs).fill(null) : [],
+    enhancedPromptsArray: numPairs > 0 ? Array(numPairs).fill('') : [],
   };
 }
 
-function resolveModelPhaseSelection(
-  amountOfMotion: number,
-  advancedMode: boolean,
-  phaseConfig: PhaseConfig | undefined,
-  motionMode: string,
-  selectedLoras: GenerateVideoParams['selectedLoras'],
-): ModelPhaseSelection {
-  const userLorasForPhaseConfig = (selectedLoras || []).map(lora => ({
-    path: lora.path,
-    strength: parseFloat(lora.strength?.toString() ?? '0') || 0.0,
-    lowNoisePath: (lora as { lowNoisePath?: string }).lowNoisePath,
-    isMultiStage: (lora as { isMultiStage?: boolean }).isMultiStage,
-  }));
+function buildByPairConfig(
+  allShotGenerations: ShotGenRow[],
+  batchVideoFrames: number,
+  defaultNegativePrompt: string,
+): PairConfigPayload {
+  const filteredShotGenerations = filterImageShotGenerations(allShotGenerations)
+    .sort((a, b) => (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0));
+  const pairCount = Math.max(0, filteredShotGenerations.length - 1);
 
-  const useAdvancedMode = Boolean(advancedMode && phaseConfig && motionMode !== 'basic');
-  if (useAdvancedMode && phaseConfig) {
+  if (pairCount === 0) {
     return {
-      actualModelName: phaseConfig.num_phases === 2
-        ? 'wan_2_2_i2v_lightning_baseline_3_3'
-        : 'wan_2_2_i2v_lightning_baseline_2_2_2',
-      effectivePhaseConfig: phaseConfig,
-      useAdvancedMode,
+      basePrompts: [''],
+      segmentFrames: [batchVideoFrames],
+      frameOverlap: [10],
+      negativePrompts: [defaultNegativePrompt],
+      enhancedPromptsArray: [],
+      pairPhaseConfigsArray: [],
+      pairLorasArray: [],
+      pairMotionSettingsArray: [],
     };
   }
 
-  const basicConfig = buildBasicModeGenerationRequest(amountOfMotion, userLorasForPhaseConfig);
-  return {
-    actualModelName: basicConfig.model,
-    effectivePhaseConfig: basicConfig.phaseConfig,
-    useAdvancedMode: false,
-  };
-}
+  const basePrompts: string[] = [];
+  const segmentFrames: number[] = [];
+  const frameOverlap: number[] = [];
+  const negativePrompts: string[] = [];
+  const enhancedPromptsArray: string[] = [];
+  const pairPhaseConfigsArray: Array<PhaseConfig | null> = [];
+  const pairLorasArray: Array<Array<{ path: string; strength: number }> | null> = [];
+  const pairMotionSettingsArray: Array<Record<string, unknown> | null> = [];
 
-function validatePhaseConfigConsistency(config: PhaseConfig): void {
-  const phasesLength = config.phases?.length || 0;
-  const stepsLength = config.steps_per_phase?.length || 0;
-  if (config.num_phases !== phasesLength || config.num_phases !== stepsLength) {
-    throw new ValidationError(
-      `Invalid phase configuration: num_phases (${config.num_phases}) does not match arrays (phases: ${phasesLength}, steps: ${stepsLength}).`,
+  for (let i = 0; i < pairCount; i += 1) {
+    const metadata = filteredShotGenerations[i]?.metadata as Record<string, unknown> | null;
+    const { overrides, enhancedPrompt } = extractPairOverrides(metadata);
+
+    basePrompts.push(overrides.prompt?.trim() || '');
+    segmentFrames.push(overrides.numFrames ?? batchVideoFrames);
+    frameOverlap.push(10);
+    negativePrompts.push(overrides.negativePrompt?.trim() || defaultNegativePrompt);
+    enhancedPromptsArray.push(enhancedPrompt || '');
+
+    const isBasicMode = overrides.motionMode === 'basic';
+    pairPhaseConfigsArray.push(!isBasicMode && overrides.phaseConfig ? stripModeFromPhaseConfig(overrides.phaseConfig) : null);
+    pairLorasArray.push(
+      overrides.loras?.length
+        ? overrides.loras.map((lora) => ({ path: lora.path, strength: lora.strength }))
+        : null,
+    );
+
+    const hasMotionOverrides = overrides.motionMode !== undefined || overrides.amountOfMotion !== undefined;
+    const hasStructureOverrides = overrides.structureMotionStrength !== undefined
+      || overrides.structureTreatment !== undefined
+      || overrides.structureUni3cEndPercent !== undefined;
+    pairMotionSettingsArray.push(
+      (hasMotionOverrides || hasStructureOverrides)
+        ? {
+          ...(overrides.amountOfMotion !== undefined && { amount_of_motion: overrides.amountOfMotion / 100 }),
+          ...(overrides.motionMode !== undefined && { motion_mode: overrides.motionMode }),
+          ...(overrides.structureMotionStrength !== undefined && { structure_motion_strength: overrides.structureMotionStrength }),
+          ...(overrides.structureTreatment !== undefined && { structure_treatment: overrides.structureTreatment }),
+          ...(overrides.structureUni3cEndPercent !== undefined && { uni3c_end_percent: overrides.structureUni3cEndPercent }),
+        }
+        : null,
     );
   }
+
+  return {
+    basePrompts,
+    segmentFrames,
+    frameOverlap,
+    negativePrompts,
+    enhancedPromptsArray,
+    pairPhaseConfigsArray,
+    pairLorasArray,
+    pairMotionSettingsArray,
+  };
 }
 
 interface MotionParams {
   amountOfMotion: number;
-  motionMode: string;
+  motionMode: MotionConfig['motion_mode'];
   useAdvancedMode: boolean;
   effectivePhaseConfig: PhaseConfig;
   selectedPhasePresetId: string | null | undefined;
@@ -460,33 +455,47 @@ interface SeedParams {
   debug: boolean | undefined;
 }
 
-function buildTravelRequestBody(params: {
+interface TravelRequestBodyV2Params {
   projectId: string;
   selectedShot: Shot;
   imagePayload: ImagePayload;
   pairConfig: PairConfigPayload;
   parentGenerationId?: string;
   actualModelName: string;
-  motionParams?: MotionParams;
-  generationParams?: GenerationParams;
-  seedParams?: SeedParams;
-  // Backward-compat input fields (used by tests and older call sites).
-  batchVideoPrompt?: string;
-  enhancePrompt?: boolean;
-  generationMode?: GenerateVideoParams['generationMode'];
-  variantNameParam?: string;
-  textBeforePrompts?: string | undefined;
-  textAfterPrompts?: string | undefined;
-  seed?: number;
-  randomSeed?: boolean | undefined;
-  turboMode?: boolean | undefined;
-  debug?: boolean | undefined;
-  amountOfMotion?: number;
-  useAdvancedMode?: boolean;
-  motionMode?: string;
-  effectivePhaseConfig?: PhaseConfig;
-  selectedPhasePresetId?: string | null | undefined;
-}): Record<string, unknown> {
+  generationTypeMode: ModelConfig['generation_type_mode'];
+  motionParams: MotionParams;
+  generationParams: GenerationParams;
+  seedParams: SeedParams;
+}
+
+function assertMappedIdCardinality(
+  imagePayload: ImagePayload,
+  expectedImageCount: number,
+): void {
+  if (imagePayload.imageGenerationIds.length > 0 && imagePayload.imageGenerationIds.length !== expectedImageCount) {
+    throw new ValidationError(
+      'Travel payload integrity check failed: image_generation_ids count does not match image_urls count.',
+      { field: 'image_generation_ids' },
+    );
+  }
+
+  if (imagePayload.imageVariantIds.length > 0 && imagePayload.imageVariantIds.length !== expectedImageCount) {
+    throw new ValidationError(
+      'Travel payload integrity check failed: image_variant_ids count does not match image_urls count.',
+      { field: 'image_variant_ids' },
+    );
+  }
+
+  const expectedPairCount = Math.max(0, expectedImageCount - 1);
+  if (imagePayload.pairShotGenerationIds.length > 0 && imagePayload.pairShotGenerationIds.length !== expectedPairCount) {
+    throw new ValidationError(
+      'Travel payload integrity check failed: pair_shot_generation_ids count does not match pair count.',
+      { field: 'pair_shot_generation_ids' },
+    );
+  }
+}
+
+function buildTravelRequestBodyV2(params: TravelRequestBodyV2Params): TravelBetweenImagesRequestPayload {
   const {
     projectId,
     selectedShot,
@@ -494,38 +503,18 @@ function buildTravelRequestBody(params: {
     pairConfig,
     parentGenerationId,
     actualModelName,
+    generationTypeMode,
     motionParams,
     generationParams,
     seedParams,
   } = params;
-  const resolvedMotionParams: MotionParams = motionParams ?? {
-    amountOfMotion: params.amountOfMotion ?? 50,
-    motionMode: params.motionMode ?? 'basic',
-    useAdvancedMode: params.useAdvancedMode ?? false,
-    effectivePhaseConfig: params.effectivePhaseConfig ?? buildBasicModeGenerationRequest(50, []).phaseConfig,
-    selectedPhasePresetId: params.selectedPhasePresetId,
-  };
-  const resolvedGenerationParams: GenerationParams = generationParams ?? {
-    generationMode: params.generationMode ?? 'timeline',
-    batchVideoPrompt: params.batchVideoPrompt ?? '',
-    enhancePrompt: params.enhancePrompt ?? false,
-    variantNameParam: params.variantNameParam ?? '',
-    textBeforePrompts: params.textBeforePrompts,
-    textAfterPrompts: params.textAfterPrompts,
-  };
-  const resolvedSeedParams: SeedParams = seedParams ?? {
-    seed: params.seed ?? 0,
-    randomSeed: params.randomSeed,
-    turboMode: params.turboMode,
-    debug: params.debug,
-  };
   const {
     amountOfMotion,
     motionMode,
     useAdvancedMode,
     effectivePhaseConfig,
     selectedPhasePresetId,
-  } = resolvedMotionParams;
+  } = motionParams;
   const {
     generationMode,
     batchVideoPrompt,
@@ -533,13 +522,24 @@ function buildTravelRequestBody(params: {
     variantNameParam,
     textBeforePrompts,
     textAfterPrompts,
-  } = resolvedGenerationParams;
+  } = generationParams;
   const {
     seed,
     randomSeed,
     turboMode,
     debug,
-  } = resolvedSeedParams;
+  } = seedParams;
+  const imageCount = imagePayload.absoluteImageUrls.length;
+  const expectedPairCount = Math.max(0, imageCount - 1);
+  assertMappedIdCardinality(imagePayload, imageCount);
+
+  const motionFields = buildMotionTaskFields({
+    amountOfMotion,
+    motionMode,
+    phaseConfig: effectivePhaseConfig,
+    selectedPhasePresetId,
+    omitBasicPhaseConfig: true,
+  });
 
   const hasValidEnhancedPrompts = pairConfig.enhancedPromptsArray.some(prompt => prompt && prompt.trim().length > 0);
 
@@ -547,13 +547,15 @@ function buildTravelRequestBody(params: {
     project_id: projectId,
     shot_id: selectedShot.id,
     image_urls: imagePayload.absoluteImageUrls,
-    ...(imagePayload.imageGenerationIds.length > 0 && imagePayload.imageGenerationIds.length === imagePayload.absoluteImageUrls.length
+    ...(imagePayload.imageGenerationIds.length > 0 && imagePayload.imageGenerationIds.length === imageCount
       ? { image_generation_ids: imagePayload.imageGenerationIds }
       : {}),
-    ...(imagePayload.imageVariantIds.length > 0 && imagePayload.imageVariantIds.length === imagePayload.absoluteImageUrls.length
+    ...(imagePayload.imageVariantIds.length > 0 && imagePayload.imageVariantIds.length === imageCount
       ? { image_variant_ids: imagePayload.imageVariantIds }
       : {}),
-    ...(imagePayload.pairShotGenerationIds.length > 0 ? { pair_shot_generation_ids: imagePayload.pairShotGenerationIds } : {}),
+    ...(imagePayload.pairShotGenerationIds.length > 0 && imagePayload.pairShotGenerationIds.length === expectedPairCount
+      ? { pair_shot_generation_ids: imagePayload.pairShotGenerationIds }
+      : {}),
     ...(parentGenerationId ? { parent_generation_id: parentGenerationId } : {}),
     base_prompts: pairConfig.basePrompts,
     base_prompt: batchVideoPrompt,
@@ -565,7 +567,7 @@ function buildTravelRequestBody(params: {
     ...(pairConfig.pairLorasArray.some(loras => loras !== null) ? { pair_loras: pairConfig.pairLorasArray } : {}),
     ...(pairConfig.pairMotionSettingsArray.some(settings => settings !== null) ? { pair_motion_settings: pairConfig.pairMotionSettingsArray } : {}),
     model_name: actualModelName,
-    model_type: 'i2v',
+    model_type: generationTypeMode,
     seed,
     debug: debug ?? DEFAULT_STEERABLE_MOTION_SETTINGS.debug,
     show_input_images: DEFAULT_STEERABLE_MOTION_SETTINGS.show_input_images,
@@ -573,42 +575,37 @@ function buildTravelRequestBody(params: {
     generation_mode: generationMode,
     random_seed: randomSeed,
     turbo_mode: turboMode,
-    amount_of_motion: amountOfMotion / 100.0,
+    ...motionFields,
     advanced_mode: useAdvancedMode,
-    motion_mode: motionMode,
-    phase_config: stripModeFromPhaseConfig(effectivePhaseConfig),
     regenerate_anchors: false,
-    selected_phase_preset_id: selectedPhasePresetId || undefined,
     generation_name: variantNameParam.trim() || undefined,
     ...(textBeforePrompts ? { text_before_prompts: textBeforePrompts } : {}),
     ...(textAfterPrompts ? { text_after_prompts: textAfterPrompts } : {}),
     independent_segments: true,
     chain_segments: false,
-    use_svi: false,
   };
 }
 
 // =============================================================================
-// TEST-ONLY EXPORTS
-// These internal functions are exported for unit testing.
-// Consumers should use generateVideo() as the public API.
+// TEST-ONLY INTERNAL SURFACE
+// Keep helper exports behind a single internal namespace so production
+// consumers rely on generateVideo() as the stable module contract.
 // =============================================================================
-export {
-  stripModeFromPhaseConfig as _stripModeFromPhaseConfig,
-  extractPairOverrides as _extractPairOverrides,
-  filterImageShotGenerations as _filterImageShotGenerations,
-  resolveGenerationResolution as _resolveGenerationResolution,
-  buildStructureGuidance as _buildStructureGuidance,
-  buildTravelRequestBody as _buildTravelRequestBody,
-};
-export {
+export const __internal = {
+  stripModeFromPhaseConfig,
+  extractPairOverrides,
+  filterImageShotGenerations,
+  resolveGenerationResolution,
+  buildStructureGuidance,
+  buildTravelRequestBodyV2,
   buildImagePayload,
   buildTimelinePairConfig,
   buildBatchPairConfig,
+  buildByPairConfig,
   resolveModelPhaseSelection,
   validatePhaseConfigConsistency,
-  buildBasicModeGenerationRequest as buildBasicModePhaseConfig,
-};
+  buildBasicModePhaseConfig: buildBasicModeGenerationRequest,
+} as const;
 export type { ShotGenRow, ImagePayload, PairConfigPayload, ModelPhaseSelection };
 
 /**
@@ -658,9 +655,17 @@ export async function generateVideo(params: GenerateVideoParams): Promise<Genera
   }
 
   const imagePayload = buildImagePayload(allShotGenerations);
-  const pairConfig = generationMode === 'timeline'
-    ? buildTimelinePairConfig(allShotGenerations, batchVideoFrames, promptConfig.default_negative_prompt)
-    : buildBatchPairConfig(imagePayload.absoluteImageUrls, batchVideoFrames, promptConfig.default_negative_prompt);
+  const pairConfig = (() => {
+    switch (generationMode) {
+      case 'timeline':
+        return buildTimelinePairConfig(allShotGenerations, batchVideoFrames, promptConfig.default_negative_prompt);
+      case 'by-pair':
+        return buildByPairConfig(allShotGenerations, batchVideoFrames, promptConfig.default_negative_prompt);
+      case 'batch':
+      default:
+        return buildBatchPairConfig(imagePayload.absoluteImageUrls, batchVideoFrames, promptConfig.default_negative_prompt);
+    }
+  })();
 
   const modelPhaseSelection = resolveModelPhaseSelection(
     amountOfMotion,
@@ -679,13 +684,14 @@ export async function generateVideo(params: GenerateVideoParams): Promise<Genera
     });
   }
 
-  const requestBody = buildTravelRequestBody({
+  const requestBody = buildTravelRequestBodyV2({
     projectId,
     selectedShot,
     imagePayload,
     pairConfig,
     parentGenerationId,
     actualModelName: modelPhaseSelection.actualModelName,
+    generationTypeMode: modelConfig.generation_type_mode,
     motionParams: {
       amountOfMotion,
       motionMode: motionConfig.motion_mode,
@@ -709,12 +715,12 @@ export async function generateVideo(params: GenerateVideoParams): Promise<Genera
     },
   });
 
-  if (selectedLoras && selectedLoras.length > 0) {
-    requestBody.loras = selectedLoras.map(lora => ({
-      path: lora.path,
-      strength: parseFloat(lora.strength?.toString() ?? '1') || 1.0,
-    }));
-  }
+    if (selectedLoras && selectedLoras.length > 0) {
+      requestBody.loras = selectedLoras.map(lora => ({
+        path: lora.path,
+        strength: parseFloat(lora.strength?.toString() ?? '1') || 1.0,
+      }));
+    }
 
   requestBody.resolution = resolution;
   if (stitchConfig) requestBody.stitch_config = stitchConfig;
@@ -723,16 +729,21 @@ export async function generateVideo(params: GenerateVideoParams): Promise<Genera
   if (structureGuidance) requestBody.structure_guidance = structureGuidance;
 
   try {
+    validateTravelBetweenImagesParams(requestBody);
+
     if (!promptConfig.enhance_prompt) {
       try {
         await clearAllEnhancedPrompts();
       } catch (clearError) {
-        handleError(clearError, { context: 'generateVideoService', showToast: false });
+        normalizeAndPresentError(clearError, { context: 'generateVideoService', showToast: false });
       }
     }
 
-    const result = await createTravelBetweenImagesTask(requestBody as unknown as TravelBetweenImagesTaskParams);
-    return { success: true, parentGenerationId: result.parentGenerationId };
+    const result = await createTravelBetweenImagesTask(requestBody);
+    return operationSuccess(
+      { parentGenerationId: result.parentGenerationId },
+      { policy: 'best_effort' },
+    );
   } catch (error) {
     return failureResult(error, {
       context: 'generateVideoService',

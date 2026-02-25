@@ -1,9 +1,9 @@
 // deno-lint-ignore-file
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { authenticateRequest, verifyShotOwnership } from "../_shared/auth.ts";
-import { SystemLogger } from "../_shared/systemLogger.ts";
-declare const Deno: { env: { get: (key: string) => string | undefined } };
+import { verifyShotOwnership } from "../_shared/auth.ts";
+import { withEdgeRequest } from "../_shared/edgeHandler.ts";
+import { jsonResponse } from "../_shared/http.ts";
+import { isTimelineEligiblePositionedImage } from "../../../src/shared/lib/timelineEligibility.ts";
 
 /**
  * Edge function: update-shot-pair-prompts
@@ -32,62 +32,20 @@ declare const Deno: { env: { get: (key: string) => string | undefined } };
  * - 500 Internal Server Error
  */
 
-serve(async (req) => {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-  if (!serviceKey || !supabaseUrl) {
-    console.error("[UPDATE-SHOT-PAIR-PROMPTS] Missing required environment variables");
-    return new Response("Server configuration error", { status: 500 });
-  }
-
-  // Create admin client for database operations
-  const supabaseAdmin = createClient(supabaseUrl, serviceKey);
-  
-  // Create logger (task_id will be set after parsing body)
-  const logger = new SystemLogger(supabaseAdmin, 'update-shot-pair-prompts');
-
-  // Only accept POST requests
-  if (req.method !== "POST") {
-    logger.warn("Method not allowed", { method: req.method });
-    await logger.flush();
-    return new Response("Method not allowed", { status: 405 });
-  }
-
-  // Authenticate request using shared utility
-  const auth = await authenticateRequest(req, supabaseAdmin, "[UPDATE-SHOT-PAIR-PROMPTS]");
-  
-  if (!auth.success) {
-    logger.error("Authentication failed", { error: auth.error });
-    await logger.flush();
-    return new Response(auth.error || "Authentication failed", { 
-      status: auth.statusCode || 403 
-    });
-  }
-
-  const isServiceRole = auth.isServiceRole;
-  const callerId = auth.userId;
-
-  logger.info("Authenticated", {
-    isServiceRole,
-    userId: callerId,
-  });
-
-  // Parse request body
-  let requestBody: unknown = {};
-  try {
-    const bodyText = await req.text();
-    if (bodyText) {
-      requestBody = JSON.parse(bodyText);
-    }
-  } catch {
-    logger.error("Invalid JSON body");
-    await logger.flush();
-    return new Response("Invalid JSON body", { status: 400 });
-  }
+serve((req) => withEdgeRequest(req, {
+  functionName: "update-shot-pair-prompts",
+  logPrefix: "[UPDATE-SHOT-PAIR-PROMPTS]",
+  parseBody: "strict",
+}, async ({ supabaseAdmin, logger, body: requestBody, auth }) => {
+  const isServiceRole = auth!.isServiceRole;
+  const callerId = auth!.userId;
 
   // Validate required fields
-  const { shot_id, task_id, enhanced_prompts } = requestBody;
+  const shot_id = typeof requestBody.shot_id === "string" ? requestBody.shot_id : null;
+  const task_id = typeof requestBody.task_id === "string" ? requestBody.task_id : null;
+  const enhancedPrompts = Array.isArray(requestBody.enhanced_prompts)
+    ? requestBody.enhanced_prompts.filter((value): value is string => typeof value === "string")
+    : null;
   
   // Set task_id for all subsequent logs if provided
   if (task_id) {
@@ -97,236 +55,186 @@ serve(async (req) => {
   
   if (!shot_id) {
     logger.error("Missing required field: shot_id");
-    await logger.flush();
-    return new Response("Missing required field: shot_id", { status: 400 });
+    return jsonResponse({ error: "Missing required field: shot_id" }, 400);
   }
-  if (!enhanced_prompts || !Array.isArray(enhanced_prompts)) {
+  if (!enhancedPrompts) {
     logger.error("Missing or invalid required field: enhanced_prompts", { 
       shot_id,
-      hasEnhancedPrompts: !!enhanced_prompts,
-      isArray: Array.isArray(enhanced_prompts)
+      hasEnhancedPrompts: Array.isArray(requestBody.enhanced_prompts),
+      isArray: Array.isArray(requestBody.enhanced_prompts),
     });
-    await logger.flush();
-    return new Response("Missing or invalid required field: enhanced_prompts (must be array)", { status: 400 });
+    return jsonResponse({ error: "Missing or invalid required field: enhanced_prompts (must be array)" }, 400);
   }
 
-  try {
-    // Verify shot ownership if user token
-    if (!isServiceRole && callerId) {
-      const ownershipResult = await verifyShotOwnership(
-        supabaseAdmin, 
-        shot_id, 
-        callerId, 
-        "[UPDATE-SHOT-PAIR-PROMPTS]"
-      );
-
-      if (!ownershipResult.success) {
-        logger.error("Shot ownership verification failed", {
-          shot_id,
-          userId: callerId,
-          error: ownershipResult.error
-        });
-        await logger.flush();
-        return new Response(ownershipResult.error || "Forbidden", { 
-          status: ownershipResult.statusCode || 403 
-        });
-      }
-
-      logger.info("Shot ownership verified", { shot_id, userId: callerId });
-    }
-
-    logger.info("Processing shot", {
+  // Verify shot ownership if user token
+  if (!isServiceRole && callerId) {
+    const ownershipResult = await verifyShotOwnership(
+      supabaseAdmin,
       shot_id,
-      enhancedPromptsCount: enhanced_prompts.length,
-    });
+      callerId,
+      "[UPDATE-SHOT-PAIR-PROMPTS]",
+    );
 
-    // Get all shot_generations for this shot, filtering for images with timeline_frame
-    const { data: shotGenerations, error: sgError } = await supabaseAdmin
-      .from("shot_generations")
-      .select(`
-        id,
-        generation_id,
-        timeline_frame,
-        metadata,
-        generation:generations!shot_generations_generation_id_generations_id_fk(
-          id,
-          type,
-          location
-        )
-      `)
-      .eq("shot_id", shot_id)
-      .not("timeline_frame", "is", null)
-      // Deterministic ordering: Timeline sorts by timeline_frame; add a stable tie-breaker.
-      .order("timeline_frame", { ascending: true })
-      .order("id", { ascending: true });
-
-    if (sgError) {
-      logger.error("Error fetching shot_generations", { 
-        shot_id, 
-        error: sgError.message 
-      });
-      await logger.flush();
-      return new Response(`Database error: ${sgError.message}`, { status: 500 });
-    }
-
-    if (!shotGenerations || shotGenerations.length === 0) {
-      logger.warn("No shot_generations found for shot", { shot_id });
-      await logger.flush();
-      return new Response(JSON.stringify({
-        success: true,
-        message: "No positioned images found for this shot",
-        updated_count: 0,
-      }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" }
-      });
-    }
-
-    // Filter to only include positioned images (not videos, not unpositioned)
-    // Must match Timeline.tsx filtering logic exactly:
-    // - Exclude videos by type and extension (.mp4, .webm, .mov)
-    // - Exclude unpositioned items (timeline_frame < 0, e.g. -1 sentinel)
-    const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mov'];
-    const hasVideoExtension = (url: string | null | undefined): boolean => {
-      if (!url) return false;
-      const lower = url.toLowerCase();
-      return VIDEO_EXTENSIONS.some(ext => lower.endsWith(ext));
-    };
-    
-    const imageGenerations = shotGenerations.filter(sg => {
-      const gen = sg.generation as unknown;
-      // Exclude videos
-      const isVideo = gen?.type === 'video' || 
-                     gen?.type === 'video_travel_output' ||
-                     hasVideoExtension(gen?.location);
-      if (isVideo) return false;
-      
-      // Exclude unpositioned items (timeline_frame < 0, e.g. -1 sentinel)
-      // Note: NULL already excluded by query, but check for safety
-      if (sg.timeline_frame == null || sg.timeline_frame < 0) return false;
-      
-      return true;
-    });
-
-    logger.info("Found shot_generations", {
-      shot_id,
-      totalCount: shotGenerations.length,
-      imageCount: imageGenerations.length,
-      firstFewIds: imageGenerations.slice(0, 3).map(sg => sg.id.substring(0, 8)),
-      firstFewFrames: imageGenerations.slice(0, 3).map(sg => sg.timeline_frame),
-    });
-
-    // Verify enhanced_prompts count matches expected (N-1 for N images, since prompts describe transitions)
-    const expectedPromptCount = Math.max(0, imageGenerations.length - 1);
-    if (enhanced_prompts.length !== expectedPromptCount) {
-      logger.warn("Enhanced prompts count differs from expected", {
+    if (!ownershipResult.success) {
+      logger.error("Shot ownership verification failed", {
         shot_id,
-        imageCount: imageGenerations.length,
-        expectedPromptCount,
-        actualPromptCount: enhanced_prompts.length,
-        note: 'Enhanced prompts describe transitions between images (N-1 prompts for N images)'
+        userId: callerId,
+        error: ownershipResult.error,
       });
+      return jsonResponse({ error: ownershipResult.error || "Forbidden" }, ownershipResult.statusCode || 403);
     }
 
-    if (imageGenerations.length === 0) {
-      logger.info("No image generations found for shot", { shot_id });
-      await logger.flush();
-      return new Response(JSON.stringify({
-        success: true,
-        message: "No image generations found for this shot",
-        updated_count: 0,
-      }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" }
-      });
-    }
+    logger.info("Shot ownership verified", { shot_id, userId: callerId });
+  }
 
-    // Update each shot_generation's metadata with the corresponding enhanced_prompt
-    // Image at index i gets enhanced_prompts[i] (describes transition FROM this image TO the next)
-    const updatePromises = imageGenerations.map(async (sg, index) => {
-      // Get existing metadata or create new object
-      const existingMetadata = sg.metadata || {};
-      
-      // Check if we have an enhanced_prompt for this index
-      const enhancedPrompt = index < enhanced_prompts.length ? enhanced_prompts[index] : undefined;
-      
-      // Skip if enhanced_prompt is empty/falsy (expected for last image)
-      if (!enhancedPrompt) {
-        logger.debug("Skipping shot_generation (no prompt for this index)", {
-          shot_id,
-          shotGenerationId: sg.id.substring(0, 8),
-          index,
-          timeline_frame: sg.timeline_frame,
-          reason: index >= enhanced_prompts.length ? 'last_image_no_transition' : 'empty_prompt'
-        });
-        return { id: sg.id, success: true, skipped: true };
-      }
+  logger.info("Processing shot", {
+    shot_id,
+    enhancedPromptsCount: enhancedPrompts.length,
+  });
 
-      // Build updated metadata with enhanced_prompt
-      const updatedMetadata = {
-        ...existingMetadata,
-        enhanced_prompt: enhancedPrompt,
-      };
+  // Get all shot_generations for this shot, filtering for images with timeline_frame
+  const { data: shotGenerations, error: sgError } = await supabaseAdmin
+    .from("shot_generations")
+    .select(`
+      id,
+      generation_id,
+      timeline_frame,
+      metadata,
+      generation:generations!shot_generations_generation_id_generations_id_fk(
+        id,
+        type,
+        location
+      )
+    `)
+    .eq("shot_id", shot_id)
+    .not("timeline_frame", "is", null)
+    // Deterministic ordering: Timeline sorts by timeline_frame; add a stable tie-breaker.
+    .order("timeline_frame", { ascending: true })
+    .order("id", { ascending: true });
 
-      logger.debug("Updating shot_generation with enhanced_prompt", {
+  if (sgError) {
+    logger.error("Error fetching shot_generations", {
+      shot_id,
+      error: sgError.message,
+    });
+    return jsonResponse({ error: `Database error: ${sgError.message}` }, 500);
+  }
+
+  if (!shotGenerations || shotGenerations.length === 0) {
+    logger.warn("No shot_generations found for shot", { shot_id });
+    return jsonResponse({
+      success: true,
+      message: "No positioned images found for this shot",
+      updated_count: 0,
+    }, 200);
+  }
+
+  // Use shared timeline eligibility contract to keep edge behavior aligned with Timeline UI.
+  const imageGenerations = shotGenerations.filter((sg) => {
+    const generation = sg.generation as { type?: string | null; location?: string | null } | null;
+    return isTimelineEligiblePositionedImage({
+      timeline_frame: sg.timeline_frame,
+      type: generation?.type ?? null,
+      location: generation?.location ?? null,
+    });
+  });
+
+  logger.info("Found shot_generations", {
+    shot_id,
+    totalCount: shotGenerations.length,
+    imageCount: imageGenerations.length,
+    firstFewIds: imageGenerations.slice(0, 3).map((sg) => sg.id.substring(0, 8)),
+    firstFewFrames: imageGenerations.slice(0, 3).map((sg) => sg.timeline_frame),
+  });
+
+  // Verify enhanced_prompts count matches expected (N-1 for N images, since prompts describe transitions)
+  const expectedPromptCount = Math.max(0, imageGenerations.length - 1);
+  if (enhancedPrompts.length !== expectedPromptCount) {
+    logger.warn("Enhanced prompts count differs from expected", {
+      shot_id,
+      imageCount: imageGenerations.length,
+      expectedPromptCount,
+      actualPromptCount: enhancedPrompts.length,
+      note: 'Enhanced prompts describe transitions between images (N-1 prompts for N images)',
+    });
+  }
+
+  if (imageGenerations.length === 0) {
+    logger.info("No image generations found for shot", { shot_id });
+    return jsonResponse({
+      success: true,
+      message: "No image generations found for this shot",
+      updated_count: 0,
+    }, 200);
+  }
+
+  // Update each shot_generation's metadata with the corresponding enhanced_prompt
+  // Image at index i gets enhanced_prompts[i] (describes transition FROM this image TO the next)
+  const updatePromises = imageGenerations.map(async (sg, index) => {
+    const existingMetadata = sg.metadata || {};
+    const enhancedPrompt = index < enhancedPrompts.length ? enhancedPrompts[index] : undefined;
+
+    // Skip if enhanced_prompt is empty/falsy (expected for last image)
+    if (!enhancedPrompt) {
+      logger.debug("Skipping shot_generation (no prompt for this index)", {
         shot_id,
         shotGenerationId: sg.id.substring(0, 8),
         index,
         timeline_frame: sg.timeline_frame,
-        promptPreview: enhancedPrompt.substring(0, 80) + (enhancedPrompt.length > 80 ? '...' : ''),
+        reason: index >= enhancedPrompts.length ? 'last_image_no_transition' : 'empty_prompt',
       });
+      return { id: sg.id, success: true, skipped: true };
+    }
 
-      // Update the shot_generation
-      const { error: updateError } = await supabaseAdmin
-        .from("shot_generations")
-        .update({ metadata: updatedMetadata })
-        .eq("id", sg.id);
+    const updatedMetadata = {
+      ...existingMetadata,
+      enhanced_prompt: enhancedPrompt,
+    };
 
-      if (updateError) {
-        logger.error("Error updating shot_generation", {
-          shot_id,
-          shotGenerationId: sg.id.substring(0, 8),
-          error: updateError.message
-        });
-        return { id: sg.id, success: false, error: updateError.message };
-      }
-
-      return { id: sg.id, success: true };
-    });
-
-    const results = await Promise.all(updatePromises);
-    const successCount = results.filter(r => r.success).length;
-    const failedCount = results.filter(r => !r.success).length;
-    const skippedCount = results.filter(r => (r as unknown).skipped).length;
-
-    logger.info("Update complete", {
+    logger.debug("Updating shot_generation with enhanced_prompt", {
       shot_id,
-      total: results.length,
-      success: successCount,
-      failed: failedCount,
-      skipped: skippedCount,
+      shotGenerationId: sg.id.substring(0, 8),
+      index,
+      timeline_frame: sg.timeline_frame,
+      promptPreview: enhancedPrompt.substring(0, 80) + (enhancedPrompt.length > 80 ? '...' : ''),
     });
 
-    await logger.flush();
-    
-    return new Response(JSON.stringify({
-      success: true,
-      message: `Updated ${successCount - skippedCount} shot_generation(s) with enhanced prompts`,
-      updated_count: successCount - skippedCount,
-      skipped_count: skippedCount,
-      failed_count: failedCount,
-      shot_id: shot_id,
-    }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" }
-    });
+    const { error: updateError } = await supabaseAdmin
+      .from("shot_generations")
+      .update({ metadata: updatedMetadata })
+      .eq("id", sg.id);
 
-  } catch (error: unknown) {
-    logger.critical("Unexpected error", { 
-      shot_id, 
-      error: error?.message || String(error) 
-    });
-    await logger.flush();
-    return new Response(`Internal server error: ${error?.message || 'Unknown error'}`, { status: 500 });
-  }
-});
+    if (updateError) {
+      logger.error("Error updating shot_generation", {
+        shot_id,
+        shotGenerationId: sg.id.substring(0, 8),
+        error: updateError.message,
+      });
+      return { id: sg.id, success: false, error: updateError.message };
+    }
+
+    return { id: sg.id, success: true };
+  });
+
+  const results = await Promise.all(updatePromises);
+  const successCount = results.filter((r) => r.success).length;
+  const failedCount = results.filter((r) => !r.success).length;
+  const skippedCount = results.filter((r) => (r as { skipped?: boolean }).skipped).length;
+
+  logger.info("Update complete", {
+    shot_id,
+    total: results.length,
+    success: successCount,
+    failed: failedCount,
+    skipped: skippedCount,
+  });
+
+  return jsonResponse({
+    success: true,
+    message: `Updated ${successCount - skippedCount} shot_generation(s) with enhanced prompts`,
+    updated_count: successCount - skippedCount,
+    skipped_count: skippedCount,
+    failed_count: failedCount,
+    shot_id,
+  }, 200);
+}));

@@ -1,6 +1,6 @@
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from "@/shared/lib/utils"
+import { cn } from "@/shared/components/ui/contracts/cn"
 
 const segmentedControlVariants = cva(
   "inline-flex items-center p-1 transition-all",

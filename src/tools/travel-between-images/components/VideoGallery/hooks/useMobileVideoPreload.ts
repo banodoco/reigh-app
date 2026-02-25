@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 import { getDisplayUrl } from '@/shared/lib/mediaUrl';
 
 // TypeScript declaration for global mobile video preload map

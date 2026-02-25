@@ -178,6 +178,40 @@ export const getTimelineDimensions = (
   return { fullMin, fullMax, fullRange };
 };
 
+interface TrailingEffectiveEndInput {
+  framePositions: Map<string, number>;
+  imagesCount: number;
+  hasExistingTrailingVideo: boolean;
+  singleImageOffset?: number;
+  multiImageOffset?: number;
+}
+
+export function getTrailingEffectiveEnd({
+  framePositions,
+  imagesCount,
+  hasExistingTrailingVideo,
+  singleImageOffset = 49,
+  multiImageOffset = 17,
+}: TrailingEffectiveEndInput): number | null {
+  if (imagesCount === 0) {
+    return null;
+  }
+
+  const isMultiImage = imagesCount > 1;
+  if (isMultiImage && !hasExistingTrailingVideo) {
+    return null;
+  }
+
+  const trailingDefaultOffset = isMultiImage ? multiImageOffset : singleImageOffset;
+  const imageValues = [...framePositions.entries()]
+    .filter(([id]) => id !== TRAILING_ENDPOINT_KEY)
+    .map(([, value]) => value);
+  if (imageValues.length === 0) {
+    return null;
+  }
+  return Math.max(...imageValues) + trailingDefaultOffset;
+}
+
 
 // Get pair information from positions (excludes trailing endpoint)
 export const getPairInfo = (framePositions: Map<string, number>) => {
@@ -194,6 +228,8 @@ export const getPairInfo = (framePositions: Map<string, number>) => {
 
     pairs.push({
       index: i,
+      startId: sortedPositions[i].id,
+      endId: sortedPositions[i + 1].id,
       startFrame,
       endFrame,
       frames: pairFrames,

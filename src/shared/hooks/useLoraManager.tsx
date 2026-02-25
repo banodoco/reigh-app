@@ -1,18 +1,24 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { toast } from '@/shared/components/ui/sonner';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { useToolSettings } from './useToolSettings';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import { ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import type { ActiveLora } from '@/shared/types/lora';
 import type { LoraModel } from '@/shared/types/lora';
 import { LoraHeaderActions } from '@/shared/components/LoraHeaderActions';
 
 // Re-export types
-export type { ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';
+export type { ActiveLora } from '@/shared/types/lora';
 export type { LoraModel } from '@/shared/types/lora';
 
 export interface UseLoraManagerOptions {
   projectId?: string;
   shotId?: string;
+  /**
+   * Optional controlled selection model.
+   * When provided with `onSelectedLorasChange`, selection state is owned by the caller.
+   */
+  selectedLoras?: ActiveLora[];
+  onSelectedLorasChange?: (loras: ActiveLora[]) => void;
   /** Persistence scope: 'project', 'shot', or 'none' for no persistence */
   persistenceScope?: 'project' | 'shot' | 'none';
   /** Enable save/load functionality to project settings */
@@ -70,6 +76,8 @@ export const useLoraManager = (
   const {
     projectId,
     shotId,
+    selectedLoras: controlledSelectedLoras,
+    onSelectedLorasChange,
     persistenceScope = 'none',
     enableProjectPersistence = false,
     persistenceKey = 'loras',
@@ -79,8 +87,11 @@ export const useLoraManager = (
     disableAutoLoad = false,
   } = options;
 
-  // Core state
-  const [selectedLoras, setSelectedLoras] = useState<ActiveLora[]>([]);
+  const isControlledSelection = !!(controlledSelectedLoras && onSelectedLorasChange);
+  const [internalSelectedLoras, setInternalSelectedLoras] = useState<ActiveLora[]>([]);
+  const selectedLoras = isControlledSelection
+    ? (controlledSelectedLoras ?? [])
+    : internalSelectedLoras;
   
   // Universal user preference tracking
   const [hasEverSetLoras, setHasEverSetLoras] = useState(false);
@@ -96,11 +107,15 @@ export const useLoraManager = (
         }
       });
       if (uniqueMap.size !== selectedLoras.length) {
-        // Only update state if duplicates were actually found to avoid extra renders.
-        setSelectedLoras(Array.from(uniqueMap.values()));
+        const deduped = Array.from(uniqueMap.values());
+        if (isControlledSelection) {
+          onSelectedLorasChange?.(deduped);
+        } else {
+          setInternalSelectedLoras(deduped);
+        }
       }
     }
-  }, [selectedLoras]);
+  }, [selectedLoras, isControlledSelection, onSelectedLorasChange]);
   const [isLoraModalOpen, setIsLoraModalOpen] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveFlash, setSaveFlash] = useState(false);
@@ -112,6 +127,14 @@ export const useLoraManager = (
   useEffect(() => {
     selectedLorasRef.current = selectedLoras;
   }, [selectedLoras]);
+
+  const setSelectedLoras = useCallback((loras: ActiveLora[]) => {
+    if (isControlledSelection) {
+      onSelectedLorasChange?.(loras);
+      return;
+    }
+    setInternalSelectedLoras(loras);
+  }, [isControlledSelection, onSelectedLorasChange]);
 
   // Track latest prompt value for trigger words
   const latestPromptRef = useRef(currentPrompt);
@@ -186,35 +209,35 @@ export const useLoraManager = (
         lowNoisePath: hasLowNoise ? loraToAdd.low_noise_url : undefined,
         isMultiStage,
       };
-      setSelectedLoras(prev => [...prev, newLora]);
+      setSelectedLoras([...selectedLorasRef.current, newLora]);
       if (isManualAction) {
         markAsUserSet();
       }
     } else {
       toast.error("Selected LoRA has no model file specified.");
     }
-  }, [markAsUserSet]);
+  }, [markAsUserSet, setSelectedLoras]);
 
   const handleRemoveLora = useCallback((loraIdToRemove: string, isManualAction = true) => {
-    const loraToRemove = selectedLoras.find(lora => lora.id === loraIdToRemove);
+    const loraToRemove = selectedLorasRef.current.find(lora => lora.id === loraIdToRemove);
     if (!loraToRemove) {
       return;
     }
     
-    setSelectedLoras(prev => prev.filter(lora => lora.id !== loraIdToRemove));
+    setSelectedLoras(selectedLorasRef.current.filter(lora => lora.id !== loraIdToRemove));
     if (isManualAction) {
       markAsUserSet();
     }
-  }, [selectedLoras, markAsUserSet]);
+  }, [markAsUserSet, setSelectedLoras]);
 
   const handleLoraStrengthChange = useCallback((loraId: string, newStrength: number) => {
-    setSelectedLoras(prev => 
-      prev.map(lora => 
+    setSelectedLoras(
+      selectedLorasRef.current.map(lora =>
         lora.id === loraId ? { ...lora, strength: newStrength } : lora
       )
     );
     markAsUserSet();
-  }, [markAsUserSet]);
+  }, [markAsUserSet, setSelectedLoras]);
 
   // Trigger word functionality
   const handleAddTriggerWord = useCallback((triggerWord: string) => {
@@ -262,7 +285,7 @@ export const useLoraManager = (
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000); // Clear success after 2 seconds
     } catch (error) {
-      handleError(error, { context: 'useLoraManager', showToast: false });
+      normalizeAndPresentError(error, { context: 'useLoraManager', showToast: false });
       setSaveFlash(false); // Clear flash on error too
     }
   }, [enableProjectPersistence, projectId, updatePersistenceSettings, markAsUserSet]);
@@ -311,7 +334,7 @@ export const useLoraManager = (
       // Mark as user set after loading
       markAsUserSet();
     } catch (error) {
-      handleError(error, { context: 'useLoraManager', showToast: false });
+      normalizeAndPresentError(error, { context: 'useLoraManager', showToast: false });
     }
   }, [
     enableProjectPersistence, 

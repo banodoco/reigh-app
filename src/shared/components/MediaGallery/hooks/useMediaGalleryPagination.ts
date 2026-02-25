@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { GeneratedImageWithMetadata } from '../types';
+import { scrollToGalleryTop } from '../utils/scrollToGalleryTop';
 
 /**
  * UNIFIED NAVIGATION STATE
@@ -54,12 +55,13 @@ interface UseMediaGalleryPaginationReturn {
 
   // Backwards-compatible derived values (derived from navigationState)
   loadingButton: 'prev' | 'next' | null;
-  setLoadingButton: (button: 'prev' | 'next' | null) => void;
   isGalleryLoading: boolean;
-  setIsGalleryLoading: (loading: boolean) => void;
 
   // Clear navigation (the canonical way to end a navigation)
   clearNavigation: () => void;
+  startNavigation: (
+    params?: { direction?: 'prev' | 'next' | null; targetPage?: number | null }
+  ) => void;
 
   // Computed values
   paginatedImages: GeneratedImageWithMetadata[];
@@ -115,22 +117,12 @@ export const useMediaGalleryPagination = ({
   // we derive a valid page from the raw page. No effects, no race conditions.
   const page = Math.min(rawPage, Math.max(0, totalPages - 1));
 
-  // If raw page was out of bounds, sync it (this is a one-time correction, not a loop)
-  // We use a ref to track if we've already logged this to avoid spam
-  const lastCorrectionRef = useRef<{ raw: number; clamped: number } | null>(null);
-  if (rawPage !== page) {
-    const correction = { raw: rawPage, clamped: page };
-    if (
-      !lastCorrectionRef.current ||
-      lastCorrectionRef.current.raw !== correction.raw ||
-      lastCorrectionRef.current.clamped !== correction.clamped
-    ) {
-      lastCorrectionRef.current = correction;
+  // Keep raw state synchronized via effect (avoids render-time state updates).
+  useEffect(() => {
+    if (rawPage !== page) {
+      setRawPage(page);
     }
-    // Sync the raw state to avoid drift (this won't cause re-render loops because page is derived)
-    // Using setTimeout to avoid state update during render
-    setTimeout(() => setRawPage(page), 0);
-  }
+  }, [rawPage, page]);
 
   // For server pagination: notify parent if their page is out of bounds
   // This is the ONE place we handle orphaned server pages
@@ -192,38 +184,16 @@ export const useMediaGalleryPagination = ({
     }
   }, []);
 
-  // Backwards-compatible setters (for external callers)
-  // These allow gradual migration - eventually these should be removed
-  const setLoadingButton = useCallback((button: 'prev' | 'next' | null) => {
-    if (button === null) {
-      // Clearing loading - use the canonical method
-      clearNavigation();
-    } else {
-      // Setting loading - this shouldn't happen via setter anymore
-      // but support it for backwards compatibility
-      setNavigationState({
-        status: 'navigating',
-        direction: button,
-        targetPage: null,
-        startedAt: Date.now(),
-      });
-    }
-  }, [clearNavigation]);
-
-  const setIsGalleryLoading = useCallback((loading: boolean) => {
-    if (!loading) {
-      // Clearing loading - use the canonical method
-      clearNavigation();
-    } else {
-      // Setting loading without direction - used by filter changes
-      setNavigationState({
-        status: 'navigating',
-        direction: null, // No direction for filter changes
-        targetPage: null,
-        startedAt: Date.now(),
-      });
-    }
-  }, [clearNavigation]);
+  const startNavigation = useCallback((
+    params?: { direction?: 'prev' | 'next' | null; targetPage?: number | null },
+  ) => {
+    setNavigationState({
+      status: 'navigating',
+      direction: params?.direction ?? null,
+      targetPage: params?.targetPage ?? null,
+      startedAt: Date.now(),
+    });
+  }, []);
 
   // Detect when new server data has been applied (includes mobile where prefetch is disabled)
   // IMPORTANT: Only clear loading when actual IMAGE DATA changes, not when serverPage changes.
@@ -290,13 +260,9 @@ export const useMediaGalleryPagination = ({
       if (fromBottom && galleryTopRef.current) {
         setTimeout(() => {
           if (!galleryTopRef.current) return;
-          const rect = galleryTopRef.current.getBoundingClientRect();
-          const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-          const targetPosition = rect.top + scrollTop - (isMobile ? 80 : 20);
-
-          window.scrollTo({
-            top: Math.max(0, targetPosition),
-            behavior: 'smooth'
+          scrollToGalleryTop({
+            galleryTop: galleryTopRef.current,
+            isMobile,
           });
         }, 50);
       }
@@ -325,12 +291,11 @@ export const useMediaGalleryPagination = ({
 
     // Backwards-compatible derived values
     loadingButton,
-    setLoadingButton,
     isGalleryLoading,
-    setIsGalleryLoading,
 
     // Clear navigation (canonical way to end navigation)
     clearNavigation,
+    startNavigation,
 
     // Computed values
     paginatedImages,

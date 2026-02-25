@@ -1,0 +1,293 @@
+{
+  "batch": "Full Codebase Sweep",
+  "batch_index": 9,
+  "assessments": {
+    "cross_module_architecture": 91.0,
+    "convention_outlier": 95.0,
+    "error_consistency": 88.0,
+    "abstraction_fitness": 89.0,
+    "api_surface_coherence": 84.0,
+    "authorization_consistency": 95.0,
+    "ai_generated_debt": 95.0,
+    "incomplete_migration": 82.0,
+    "package_organization": 90.0,
+    "high_level_elegance": 95.0,
+    "mid_level_elegance": 95.0,
+    "low_level_elegance": 95.0,
+    "design_coherence": 86.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "Global runtime mutation is performed in integration modules: `console.warn` is monkey-patched in `src/integrations/supabase/instrumentation/realtime/index.ts:112-136`.",
+        "`window.WebSocket`, `window.onerror`, and `window.onunhandledrejection` are replaced in `src/integrations/supabase/instrumentation/window/index.ts:39-144`.",
+        "These side-effectful installers are invoked from bootstrap flow (`src/app/bootstrap.tsx:66-72` via `src/integrations/supabase/debug/initializeSupabaseDebugGlobals.ts:25-27`) without a teardown path."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Debug instrumentation crosses module boundaries through global monkey-patching and hidden side effects, increasing blast radius and making runtime behavior harder to localize."
+    },
+    "convention_outlier": {
+      "evidence": [
+        "Most app files follow single-quote imports, but `src/app/routes.tsx:22` uses double quotes (`import ShotsPage from \"@/pages/ShotsPage\"`).",
+        "Config files consistently use explicit constants for include/exclude patterns (`config/testing/vitest*.ts`), and app/domain naming is mostly camelCase/PascalCase aligned."
+      ],
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Minor style island remains in routes import quoting; otherwise conventions are consistent."
+    },
+    "error_consistency": {
+      "evidence": [
+        "`src/features/account/hooks/useApiTokens.ts:42-45` and `:60-63` use `handleAndRethrow`, preserving centralized error strategy.",
+        "`src/features/billing/hooks/useCredits.ts:63`, `:86`, `:98` wraps Supabase errors with new generic `Error(...)` strings, dropping structured upstream fields (code/details/hint).",
+        "`src/app/bootstrap.tsx:71` swallows dynamic import failure with `.catch(() => undefined)`, unlike neighboring paths that report via `handleError`/`reportRuntimeError`."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Mixed throw/wrap/swallow patterns create inconsistent failure contracts and observability across similar hooks."
+    },
+    "abstraction_fitness": {
+      "evidence": [
+        "`src/features/prompt-editor/components/BulkEditControls.tsx:1-5` is a compatibility pass-through re-export with no behavior.",
+        "`src/domains/generation/hooks/useSmartPolling.ts:1` is also a pure pass-through to shared hook naming.",
+        "`src/domains/generation/hooks/index.ts:1-3` maintains abstraction ceremony that does not currently provide a coherent domain API."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Multiple one-line wrappers add indirection cost without adding policy, validation, or boundary translation.",
+      "sub_axes": {
+        "abstraction_leverage": 84.0,
+        "indirection_cost": 88.0,
+        "interface_honesty": 90.0
+      }
+    },
+    "api_surface_coherence": {
+      "evidence": [
+        "`src/domains/generation/hooks/index.ts:1-3` exports `useDerivedItems` and `useDeleteGenerationWithConfirm` from local paths that are absent from that directory.",
+        "Directory listing for `src/domains/generation/hooks/` contains only `index.ts` and `useSmartPolling.ts`, so barrel API advertises symbols not present in package implementation."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "authorization_consistency": {
+      "evidence": [
+        "Assigned data-access hooks consistently gate user/session (`requireSession`/`requireUserFromSession`) before privileged operations in `src/features/account/hooks/useApiTokens.ts`, `src/features/settings/hooks/useApiKeys.ts`, and `src/features/billing/hooks/useCredits.ts`.",
+        "Shared auth contract builder is centralized in `src/integrations/supabase/auth/ensureAuthenticatedSession.ts` and reused by these features."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "issues_preventing_higher_score": "No material authorization gap in assigned files; score is held below perfect because auth checks are hook-level conventions rather than enforced by typed repository/service boundaries."
+    },
+    "ai_generated_debt": {
+      "evidence": [
+        "Most comments explain rationale or migration contracts (for example `src/integrations/supabase/config/env.ts` and `src/app/bootstrap.tsx`) rather than repeating line-by-line code intent.",
+        "Some verbose banner comments exist (`src/features/gallery/hooks/useGalleryPageState.ts:1-31`) but they still document usage constraints and ownership intent."
+      ],
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "A few high-volume comments can be tightened, but there is limited evidence of repetitive low-value AI boilerplate in this batch."
+    },
+    "incomplete_migration": {
+      "evidence": [
+        "Supabase client keeps explicit legacy compatibility export with sunset date (`src/integrations/supabase/client.ts:85-99`).",
+        "Environment module also carries a legacy removal contract (`src/integrations/supabase/config/env.ts:4-7`).",
+        "`src/features/prompt-editor/components/BulkEditControls.tsx:1-5` is explicitly marked migration compatibility, and `src/features/gallery/hooks/useGalleryPageState.ts:315-328` keeps old/new naming in parallel."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "package_organization": {
+      "evidence": [
+        "Objective structure shows `src/domains/generation/hooks/` has `file_count: 2`, `avg_fan_in: 0.0`, `avg_fan_out: 0.5`, and imports from `src/shared/hooks/` (directory profile), indicating a low-adoption straggler package.",
+        "Compatibility wrappers are placed in feature/domain folders while canonical implementations live elsewhere (`src/features/prompt-editor/components/BulkEditControls.tsx` re-exporting shared; `src/domains/generation/hooks/useSmartPolling.ts` re-exporting shared hook), reducing navigational honesty."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Directory placement does not fully match ownership boundaries for migrated features; wrapper-only packages create dead-end navigation and weak package cohesion."
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Top-level decomposition is mostly understandable: app bootstrap/providers/routes in `src/app`, integration runtime in `src/integrations/supabase`, page-specific UI in `src/pages`.",
+        "Explicit migration contracts and deprecation metadata help preserve architectural intent while transitioning APIs (`src/integrations/supabase/client.ts`, `src/integrations/supabase/config/env.ts`)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Residual compatibility layers blur canonical ownership in a few feature/domain entrypoints."
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Boundary translation is centralized for generation params in `src/domains/generation/mappers/generationParamsMapper.ts`.",
+        "Feature hooks generally compose shared collaborators rather than duplicating direct Supabase logic in multiple places (`useApiKeys`, `useApiTokens`, `useCredits`)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Some orchestration seams (notably gallery page controller) still combine unrelated concerns and increase integration friction."
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Core helpers are mostly direct and readable (for example `ensureAuthenticatedSession.ts` and `supabaseRuntime.ts`).",
+        "Some local complexity appears in long orchestration hooks and nested control flow (`useGalleryPageState.ts`), but function-level intent remains recoverable."
+      ],
+      "impact_scope": "local",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "A few large hooks and repeated branching patterns reduce precision and local simplicity."
+    },
+    "design_coherence": {
+      "evidence": [
+        "`src/features/gallery/hooks/useGalleryPageState.ts` mixes filter state, pagination, network query orchestration, mutation handlers, toasts, event dispatch, and compatibility naming in a single hook.",
+        "Its API surface returns many disparate concerns (`data`, `state`, setters, modal component, action handlers) from one entrypoint (`:269-311`), indicating responsibility overload.",
+        "Adjacent preload logic is separated (`src/features/gallery/hooks/useAdjacentPagePreloader.ts` + coordinator), but gallery controller still aggregates unrelated behavior."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "issues_preventing_higher_score": "The primary gallery page hook acts as a god-orchestrator, reducing structural focus and composability."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "generation_hooks_barrel_exports_missing_symbols",
+      "summary": "Generation hooks barrel exports symbols that do not exist in its package, creating a misleading and potentially broken API surface.",
+      "related_files": [
+        "src/domains/generation/hooks/index.ts",
+        "src/domains/generation/hooks/useSmartPolling.ts"
+      ],
+      "evidence": [
+        "`src/domains/generation/hooks/index.ts:1-3` re-exports `./useDerivedItems` and `./useDeleteGenerationWithConfirm`.",
+        "The directory contains only `index.ts` and `useSmartPolling.ts`, so those export targets are absent from the package."
+      ],
+      "suggestion": "Normalize the barrel to only export existing domain-owned hooks, or add the missing implementations intentionally. Then run `pnpm -s tsc --noEmit` and `pnpm -s vitest run src/domains/generation` to confirm the public API is coherent.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "supabase_debug_instrumentation_global_side_effects",
+      "summary": "Supabase instrumentation mutates global browser/runtime primitives across module boundaries without teardown isolation.",
+      "related_files": [
+        "src/integrations/supabase/instrumentation/realtime/index.ts",
+        "src/integrations/supabase/instrumentation/window/index.ts",
+        "src/integrations/supabase/debug/initializeSupabaseDebugGlobals.ts",
+        "src/app/bootstrap.tsx"
+      ],
+      "evidence": [
+        "`console.warn` is replaced globally in `realtime/index.ts:112-136`.",
+        "`window.WebSocket`, `window.onerror`, and `window.onunhandledrejection` are overridden in `window/index.ts:39-144`.",
+        "Bootstrap calls the installer path in dev (`bootstrap.tsx:66-72`) but no corresponding restore/teardown function exists."
+      ],
+      "suggestion": "Refactor instrumentation into an install/uninstall module that returns a disposable handle, and scope interception to explicit debug sessions. Use dependency-injected logger/socket adapters where possible instead of global monkey-patching.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "mixed_error_contracts_in_feature_hooks",
+      "summary": "Feature hooks use inconsistent error contracts (centralized rethrow vs generic wrapping vs silent swallow).",
+      "related_files": [
+        "src/features/billing/hooks/useCredits.ts",
+        "src/features/account/hooks/useApiTokens.ts",
+        "src/app/bootstrap.tsx"
+      ],
+      "evidence": [
+        "`useApiTokens` consistently calls `handleAndRethrow` (`:42-45`, `:60-63`, `:78-81`).",
+        "`useCredits` wraps Supabase failures with new generic errors (`:63`, `:86`, `:98`), which loses structured upstream metadata.",
+        "`bootstrap.tsx:71` suppresses import failure using `.catch(() => undefined)` without logging context."
+      ],
+      "suggestion": "Standardize on one boundary pattern: `handleAndRethrow` (with cause + context) for service/hook failures, and only swallow where intentional with explicit `reportRuntimeError` logging. Update `useCredits` and bootstrap dynamic import handlers accordingly.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "wrapper_abstractions_without_behavior",
+      "summary": "Multiple compatibility wrappers add indirection but no policy/validation behavior.",
+      "related_files": [
+        "src/features/prompt-editor/components/BulkEditControls.tsx",
+        "src/domains/generation/hooks/useSmartPolling.ts",
+        "src/domains/generation/hooks/index.ts"
+      ],
+      "evidence": [
+        "`BulkEditControls.tsx:1-5` is a compatibility re-export only.",
+        "`useSmartPolling.ts:1` only re-exports `useSmartPollingConfig` from shared.",
+        "The domain hooks barrel continues abstraction ceremony despite near-zero local domain implementation."
+      ],
+      "suggestion": "Either promote these as explicit stable facades with real boundary logic (ownership policy, argument normalization, telemetry) or remove the wrappers and import canonical modules directly to cut indirection.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_and_canonical_paths_coexist_without_enforced_sunset",
+      "summary": "Legacy compatibility paths are still active across Supabase and feature hooks, extending migration half-state.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/integrations/supabase/config/env.ts",
+        "src/features/prompt-editor/components/BulkEditControls.tsx",
+        "src/features/gallery/hooks/useGalleryPageState.ts"
+      ],
+      "evidence": [
+        "Deprecated `supabase` compatibility proxy remains exported (`client.ts:85-99`).",
+        "Env module still carries legacy constant removal contract (`env.ts:4-7`).",
+        "Feature/domain API keeps old/new naming side-by-side (`useGalleryPageState` alias block at `:315-328`; prompt-editor compatibility wrapper `:1-5`)."
+      ],
+      "suggestion": "Define and enforce a migration checklist with CI guards: remove deprecated exports after callsite count reaches zero, replace compatibility re-exports with direct imports, and fail CI on newly introduced legacy path usage.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "wrapper_only_packages_reduce_navigational_cohesion",
+      "summary": "Wrapper-only domain/feature folders act as straggler packages and obscure true ownership boundaries.",
+      "related_files": [
+        "src/domains/generation/hooks/index.ts",
+        "src/domains/generation/hooks/useSmartPolling.ts",
+        "src/features/prompt-editor/components/BulkEditControls.tsx"
+      ],
+      "evidence": [
+        "Structure profile reports `src/domains/generation/hooks/` with `file_count: 2`, `avg_fan_in: 0.0`, `avg_fan_out: 0.5`, and imports from `src/shared/hooks/`, indicating low-adoption proxy behavior rather than a real domain package.",
+        "`src/features/prompt-editor/components/BulkEditControls.tsx` is a wrapper to shared implementation, so folder placement suggests ownership that the code does not hold."
+      ],
+      "suggestion": "Staged reorg plan: (1) target folders: keep canonical code under `src/shared/components/` and `src/shared/hooks/`, and convert wrapper files to direct imports at call sites; (2) move order: first replace imports of `@/features/prompt-editor/components/BulkEditControls`, then remove that wrapper, then clean `src/domains/generation/hooks` barrel/export list to only real domain-owned hooks; (3) import updates/validation commands: run `rg -n \"features/prompt-editor/components/BulkEditControls|domains/generation/hooks\" src`, apply import rewrites, then run `pnpm -s tsc --noEmit` and `pnpm -s vitest run src/features src/domains`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "gallery_page_state_god_hook",
+      "summary": "Gallery page controller hook combines too many responsibilities, weakening structural focus and composability.",
+      "related_files": [
+        "src/features/gallery/hooks/useGalleryPageState.ts",
+        "src/features/gallery/hooks/useAdjacentPagePreloader.ts",
+        "src/features/gallery/lib/adjacentPagePreloadCoordinator.ts"
+      ],
+      "evidence": [
+        "`useGalleryPageState` handles state persistence, query fallback, pagination, shot selection, mutation orchestration, toasts, and app event dispatch in one hook (`:57-323`).",
+        "Returned API contains broad mixed concerns (state, setters, data, UI dialog component, mutation handlers) in a single contract (`:269-311`).",
+        "Preload logic is already separated into dedicated hook/coordinator, showing a decomposition path not yet fully applied to gallery controller responsibilities."
+      ],
+      "suggestion": "Split into focused hooks: `useGalleryFiltersState`, `useGalleryPagination`, `useGalleryShotActions`, and `useGalleryQueryFallback`, then keep `useGalleryPageState` as thin composition glue with a reduced API surface.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import Joyride, { CallBackProps, STATUS, EVENTS, ACTIONS, TooltipRenderProps } from 'react-joyride';
 import { tourSteps, tourStepColors } from './tourSteps';
 import { useProductTour } from '@/shared/hooks/useProductTour';
-import { TOOL_ROUTES } from '@/shared/lib/toolConstants';
+import { TOOL_ROUTES } from '@/shared/lib/toolRoutes';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import {
   ChevronRight,
@@ -127,15 +127,43 @@ function CustomTooltip({
 const SHORT_DELAY_MS = 400;
 const LONG_DELAY_MS = 1500;
 const WAIT_FOR_TARGET_DELAY_MS = 800;
+type ScheduleTimeout = (callback: () => void, delayMs: number) => ReturnType<typeof setTimeout>;
+
+function useManagedTimeouts() {
+  const timeoutIdsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
+  const scheduleTimeout = useCallback<ScheduleTimeout>((callback, delayMs) => {
+    const timeoutId = setTimeout(() => {
+      timeoutIdsRef.current.delete(timeoutId);
+      callback();
+    }, delayMs);
+    timeoutIdsRef.current.add(timeoutId);
+    return timeoutId;
+  }, []);
+
+  const clearScheduledTimeouts = useCallback(() => {
+    for (const timeoutId of timeoutIdsRef.current) {
+      clearTimeout(timeoutId);
+    }
+    timeoutIdsRef.current.clear();
+  }, []);
+
+  useEffect(() => () => {
+    clearScheduledTimeouts();
+  }, [clearScheduledTimeouts]);
+
+  return { scheduleTimeout, clearScheduledTimeouts };
+}
 
 function pauseThenAdvance(
   nextIndex: number,
   setStepIndex: (value: number) => void,
   setIsPaused: (value: boolean) => void,
-  delayMs: number
+  delayMs: number,
+  scheduleTimeout: ScheduleTimeout,
 ) {
   setIsPaused(true);
-  setTimeout(() => {
+  scheduleTimeout(() => {
     setStepIndex(nextIndex);
     setIsPaused(false);
   }, delayMs);
@@ -171,6 +199,7 @@ function useSpotlightClickAdvance(input: {
   setStepIndex: (value: number) => void;
   setIsPaused: (value: boolean) => void;
   setIsTasksPaneLocked: (locked: boolean) => void;
+  scheduleTimeout: ScheduleTimeout;
 }) {
   const {
     isRunning,
@@ -179,6 +208,7 @@ function useSpotlightClickAdvance(input: {
     setStepIndex,
     setIsPaused,
     setIsTasksPaneLocked,
+    scheduleTimeout,
   } = input;
 
   useEffect(() => {
@@ -200,18 +230,18 @@ function useSpotlightClickAdvance(input: {
       const nextIndex = stepIndex + 1;
 
       if (stepIndex === 4) {
-        pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, LONG_DELAY_MS);
+        pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, LONG_DELAY_MS, scheduleTimeout);
         return;
       }
 
       if (stepIndex === 8) {
         setIsTasksPaneLocked(true);
-        pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, SHORT_DELAY_MS);
+        pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, SHORT_DELAY_MS, scheduleTimeout);
         return;
       }
 
       if (stepIndex === 0 || stepIndex === 2) {
-        pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, SHORT_DELAY_MS);
+        pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, SHORT_DELAY_MS, scheduleTimeout);
         return;
       }
 
@@ -220,7 +250,7 @@ function useSpotlightClickAdvance(input: {
 
     target.addEventListener('click', handleClick);
     return () => target.removeEventListener('click', handleClick);
-  }, [isPaused, isRunning, setIsPaused, setIsTasksPaneLocked, setStepIndex, stepIndex]);
+  }, [isPaused, isRunning, scheduleTimeout, setIsPaused, setIsTasksPaneLocked, setStepIndex, stepIndex]);
 }
 
 function useJoyrideCallback(input: {
@@ -231,6 +261,7 @@ function useJoyrideCallback(input: {
   setStepIndex: (value: number) => void;
   setIsPaused: (value: boolean) => void;
   navigate: (path: string) => void;
+  scheduleTimeout: ScheduleTimeout;
 }) {
   const {
     completeTour,
@@ -240,6 +271,7 @@ function useJoyrideCallback(input: {
     setStepIndex,
     setIsPaused,
     navigate,
+    scheduleTimeout,
   } = input;
 
   return useCallback((data: CallBackProps) => {
@@ -250,24 +282,24 @@ function useJoyrideCallback(input: {
 
       if (index === 0 && action !== ACTIONS.PREV) {
         setIsGenerationsPaneLocked(true);
-        pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, SHORT_DELAY_MS);
+        pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, SHORT_DELAY_MS, scheduleTimeout);
       } else if (index === 1 && action !== ACTIONS.PREV) {
         setStepIndex(nextIndex);
       } else if (index === 2 && action !== ACTIONS.PREV) {
         dispatchTourEvent('openGenerationModal');
-        pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, SHORT_DELAY_MS);
+        pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, SHORT_DELAY_MS, scheduleTimeout);
       } else if (index === 3 && action !== ACTIONS.PREV) {
         dispatchTourEvent('closeGenerationModal');
         setIsGenerationsPaneLocked(false);
         setIsPaused(true);
-        setTimeout(() => {
+        scheduleTimeout(() => {
           const waitForTarget = () => {
             const target = document.querySelector('[data-tour="first-shot"]');
             if (target) {
               setStepIndex(nextIndex);
-              setTimeout(() => setIsPaused(false), 100);
+              scheduleTimeout(() => setIsPaused(false), 100);
             } else {
-              setTimeout(waitForTarget, 100);
+              scheduleTimeout(waitForTarget, 100);
             }
           };
           waitForTarget();
@@ -277,10 +309,10 @@ function useJoyrideCallback(input: {
         if (firstShot) {
           firstShot.click();
         }
-        pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, LONG_DELAY_MS);
+        pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, LONG_DELAY_MS, scheduleTimeout);
       } else if (index === 8 && action !== ACTIONS.PREV) {
         setIsTasksPaneLocked(true);
-        pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, SHORT_DELAY_MS);
+        pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, SHORT_DELAY_MS, scheduleTimeout);
       } else {
         setStepIndex(nextIndex);
       }
@@ -299,6 +331,7 @@ function useJoyrideCallback(input: {
     setIsPaused,
     setIsTasksPaneLocked,
     setStepIndex,
+    scheduleTimeout,
     skipTour,
   ]);
 }
@@ -307,10 +340,17 @@ export function ProductTour() {
   const { isRunning, completeTour, skipTour } = useProductTour();
   const { setIsGenerationsPaneLocked, setIsTasksPaneLocked, resetAllPaneLocks } = usePanes();
   const navigate = useNavigate();
+  const { scheduleTimeout, clearScheduledTimeouts } = useManagedTimeouts();
   const { stepIndex, setStepIndex, isPaused, setIsPaused } = useTourProgressState(
     isRunning,
     resetAllPaneLocks
   );
+
+  useEffect(() => {
+    if (!isRunning) {
+      clearScheduledTimeouts();
+    }
+  }, [clearScheduledTimeouts, isRunning]);
 
   useSpotlightClickAdvance({
     isRunning,
@@ -319,6 +359,7 @@ export function ProductTour() {
     setStepIndex,
     setIsPaused,
     setIsTasksPaneLocked,
+    scheduleTimeout,
   });
 
   const handleCallback = useJoyrideCallback({
@@ -329,6 +370,7 @@ export function ProductTour() {
     setStepIndex,
     setIsPaused,
     navigate,
+    scheduleTimeout,
   });
 
   if (!isRunning) {

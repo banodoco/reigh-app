@@ -6,14 +6,14 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { toast } from '@/shared/components/ui/sonner';
-import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
-import { createJoinClipsTask } from '@/shared/lib/tasks/joinClips';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
-import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
-import { GenerationRow } from '@/types/shots';
+import { createCanonicalJoinClipsTask } from '@/shared/lib/tasks/joinClips';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
+import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
+import { GenerationRow } from '@/domains/generation/types';
 import { joinClipsSettings } from '@/shared/lib/joinClipsDefaults';
 import { DEFAULT_VACE_PHASE_CONFIG, BUILTIN_VACE_DEFAULT_ID } from '@/shared/lib/vaceDefaults';
 import { useTaskPlaceholder } from '@/shared/hooks/useTaskPlaceholder';
@@ -162,13 +162,12 @@ export function useJoinSegmentsHandler({
 
           // Fetch fresh URLs from database
           const videoIds = orderedSegments.map(v => v.id).filter(Boolean);
-          const { data: freshVideos, error: fetchError } = await supabase
-            .from('generations')
+          const { data: freshVideos, error: fetchError } = await supabase().from('generations')
             .select('id, location')
             .in('id', videoIds);
 
           if (fetchError) {
-            handleError(fetchError, { context: 'JoinSegments', showToast: false });
+            normalizeAndPresentError(fetchError, { context: 'JoinSegments', showToast: false });
             throw new Error('Failed to fetch video URLs');
           }
 
@@ -195,10 +194,14 @@ export function useJoinSegmentsHandler({
             }
           }
 
-          return createJoinClipsTask({
+          return createCanonicalJoinClipsTask({
             project_id: projectId,
             shot_id: selectedShotId,
-            clips,
+            mode: 'multi_clip',
+            clip_source: {
+              kind: 'clips',
+              clips,
+            },
             prompt: joinPrompt,
             negative_prompt: joinNegativePrompt,
             context_frame_count: joinContextFrames,

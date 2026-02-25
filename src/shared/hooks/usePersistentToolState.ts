@@ -1,8 +1,8 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { SettingsScope } from './useToolSettings';
 import { useRenderLogger } from '@/shared/lib/debug/debugRendering';
-import { useAutoSaveSettings } from './useAutoSaveSettings';
-import { deepEqual, sanitizeSettings } from '../lib/deepEqual';
+import { useAutoSaveSettings } from '@/shared/hooks/settings/useAutoSaveSettings';
+import { deepEqual, sanitizeSettings } from '@/shared/lib/utils/deepEqual';
 import { toolDefaultsRegistry } from '@/tooling/toolDefaultsRegistry';
 
 /**

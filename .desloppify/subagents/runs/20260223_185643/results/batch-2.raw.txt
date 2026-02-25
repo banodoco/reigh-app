@@ -1,0 +1,102 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "mid_level_elegance": 72.0,
+    "low_level_elegance": 69.0
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "Task row translation is duplicated at seams: `mapDbTaskToTask` in `src/shared/hooks/useTasks.ts` and `mapDbTaskRowToTask` in `src/shared/lib/generationTaskBridge.ts` both perform near-identical DB->Task mapping.",
+        "Task/orchestrator handoff carries multiple legacy shapes instead of a single contract: `src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts` emits mixed top-level/orchestrator fields while `supabase/functions/complete_task/orchestrator.ts` and `supabase/functions/complete_task/generation.ts` read multiple fallback paths.",
+        "Cross-feature boundary is inverted by re-export: `src/shared/imageEditCore/utils.ts` exports `downloadMedia` from `src/shared/components/MediaLightbox/utils/index.ts`, coupling core edit utilities to a UI lightbox module."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Large param-bag construction and fan-out in `src/tools/edit-images/hooks/useInlineEditState.ts` pushes many values through helper layers before final state assembly, increasing local cognitive load.",
+        "`src/tools/edit-images/hooks/useImageEditValue.ts` and `src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts` use `useMemo(..., [params])`, but `params` is a fresh object in typical callers, so memoization is mostly defeated while adding abstraction overhead.",
+        "`src/shared/components/ShotImageManager/ShotImageManagerContainer.tsx` centralizes many independent concerns (selection, drag/drop, external generations, segment derivation, mobile gestures) into one hook state factory, making internal flow harder to reason about."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "duplicated_task_mapping_seam",
+      "summary": "Task DB-to-domain mapping is duplicated across modules, creating drift-prone boundary translation.",
+      "related_files": [
+        "src/shared/hooks/useTasks.ts",
+        "src/shared/lib/generationTaskBridge.ts"
+      ],
+      "evidence": [
+        "`mapDbTaskToTask` and `mapDbTaskRowToTask` both map the same snake_case task row fields to `Task` (including params normalization and timestamp fields).",
+        "Any schema change (e.g., new task columns) requires synchronized edits in two seam modules."
+      ],
+      "suggestion": "Extract one shared `mapTaskRowToTask` mapper in a neutral task-domain module and reuse it from both query hooks and generation-task bridge code.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "orchestrator_contract_fragmentation",
+      "summary": "Orchestrator payload and completion routing rely on overlapping legacy field paths instead of a single explicit contract.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/complete_task/generation.ts"
+      ],
+      "evidence": [
+        "Payload builder emits mixed fields (`orchestrator_task_id`, nested `orchestrator_details`, run IDs, legacy structure guidance fallbacks).",
+        "Completion and generation routing read multiple fallback locations (`params.parent_generation_id` vs `params.orchestrator_details.parent_generation_id`, multiple run-id/orchestrator-id selectors)."
+      ],
+      "suggestion": "Define a versioned orchestrator schema (single canonical field paths), add normalization at ingestion once, and remove multi-path lookups from downstream completion/routing code.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "core_to_ui_dependency_inversion",
+      "summary": "Image edit core utilities depend on MediaLightbox utilities through a re-export, reversing expected layer direction.",
+      "related_files": [
+        "src/shared/imageEditCore/utils.ts",
+        "src/shared/components/MediaLightbox/utils/index.ts"
+      ],
+      "evidence": [
+        "`imageEditCore/utils.ts` exports `downloadMedia` from MediaLightbox utilities rather than owning or depending on a lower-level shared utility.",
+        "This makes non-lightbox edit code transitively depend on a feature UI module."
+      ],
+      "suggestion": "Move `downloadMedia` to a lower shared utility package (e.g., `src/shared/lib/mediaDownload.ts`) and import it from both image-edit and lightbox modules.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "param_bag_memoization_overhead",
+      "summary": "Param-bag builders and ineffective memo boundaries add indirection without reducing recomputation.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/hooks/useImageEditValue.ts",
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts"
+      ],
+      "evidence": [
+        "`useInlineEditState` builds large aggregated objects passed through multiple helper functions before final state creation.",
+        "`useImageEditValue` and `useButtonGroupProps` memoize on `[params]`, which is typically recreated per render, so the memo layer does not provide stable caching benefits."
+      ],
+      "suggestion": "Reduce param-bag breadth (group by stable sub-slices), pass explicit dependency arrays for derived objects, and collapse trivial wrapper helpers where they only forward fields.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

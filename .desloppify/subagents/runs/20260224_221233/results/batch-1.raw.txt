@@ -1,0 +1,123 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 1,
+  "assessments": {
+    "abstraction_fitness": 78.6
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "`src/tools/edit-images/hooks/useInlineEditState.ts` exposes multiple broad state surfaces (`InlineEditStateResult`, `InlineEditCanvasState`, `InlineEditSidebarState`) and then `useInlineEditViewState` re-slices the same object, creating extra indirection rather than reducing complexity.",
+        "`src/tools/edit-images/components/InlineEditView.tsx` mostly forwards state/handlers from `useInlineEditViewState` into child components (`InlineEditCanvas`, `InlineEditSidebar`, `EditModePanel`), indicating wrapper-heavy handoff layers.",
+        "`src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx` and `useVideoLightboxController.ts` import `VideoLightboxProps` from `../VideoLightbox` while `VideoLightbox.tsx` imports those hooks, and both hooks use placeholder media objects for form-only flows (`{ id: '__segment-form-only__' }` and `({} as GenerationRow)`), showing contract pressure from over-coupled abstractions.",
+        "`src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts`, `src/shared/lib/tasks/individualTravelSegment.ts`, and `src/shared/lib/tasks/joinClips.ts` repeat the same multi-step payload choreography (`buildOrchestrationContract` + `buildTaskViewContract` + family contract + `composeTaskPayload`) with large option bags and conditional field spreading, increasing abstraction overhead and drift risk."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 74.8,
+        "indirection_cost": 71.9,
+        "interface_honesty": 79.1
+      }
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "inline_edit_state_surface_bloat",
+      "summary": "Inline edit flow uses oversized state contracts and pass-through selectors",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx",
+        "src/tools/edit-images/hooks/__tests__/useInlineEditState.test.ts"
+      ],
+      "evidence": [
+        "`useInlineEditState` returns a very large nested object (`canvasEnvironment`, `inpaintingState`, `transformState`, `generationState`, `imageEditValue`) and also defines additional projection types (`InlineEditCanvasState`, `InlineEditSidebarState`).",
+        "`useInlineEditViewState` immediately calls `useInlineEditState` and remaps fields via `selectInlineEditCanvasState`/`selectInlineEditSidebarState`, adding an extra wrapper layer without reducing dependency surface.",
+        "`InlineEditView` mostly forwards this mapped state to `InlineEditCanvas`/`InlineEditSidebar` and then to `EditModePanel`, preserving high coupling across the chain."
+      ],
+      "suggestion": "Refactor inline edit to expose a smaller command-oriented API per concern (canvas, generation actions, sidebar actions) and let leaf components consume dedicated hooks/context directly. Remove `useInlineEditViewState` as a pass-through layer once slices are independently consumable.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "controller_surface_overgrowth"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "video_lightbox_type_cycle_contract_pressure",
+      "summary": "VideoLightbox hooks depend on component types and rely on fake media objects",
+      "related_files": [
+        "src/shared/components/MediaLightbox/VideoLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxController.ts"
+      ],
+      "evidence": [
+        "`useVideoLightboxRenderModel.tsx` and `useVideoLightboxController.ts` import `VideoLightboxProps` from `../VideoLightbox` while `VideoLightbox.tsx` imports those hooks, creating a tight bidirectional dependency at the type boundary.",
+        "`useVideoLightboxRenderModel` fabricates a placeholder generation (`{ id: '__segment-form-only__' }`) for form-only mode.",
+        "`useVideoLightboxController` uses `const fallbackMedia = media || ({} as GenerationRow)` to satisfy downstream APIs, which hides an invalid state behind type assertion."
+      ],
+      "suggestion": "Move shared prop/model types into a neutral `types` module and model form-only mode as a discriminated union so media-required paths cannot be called without real media. Remove placeholder generation objects and explicit casts by splitting media and form-only render pipelines.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "interface_honesty_erosion"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "task_payload_contract_choreography_duplication",
+      "summary": "Task payload assembly repeats a high-ceremony contract pipeline across task families",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/imageGeneration.ts"
+      ],
+      "evidence": [
+        "Multiple task modules build raw param objects, then separately call `buildOrchestrationContract`, `buildTaskViewContract`, family-specific contract builders, and finally `composeTaskPayload`.",
+        "`payloadBuilder.ts` contains a long conditional spread-based orchestrator payload object before contract composition; `joinClips.ts` and `individualTravelSegment.ts` repeat similar assembly responsibilities with different field names.",
+        "This repeated orchestration contract choreography means each schema evolution requires synchronized edits in many files, indicating abstraction cost outweighing reuse."
+      ],
+      "suggestion": "Introduce a shared task-family payload composer that accepts a typed family schema and standard lifecycle metadata, so modules provide only family-specific fields and validation. Centralize contract assembly and default propagation to reduce per-file boilerplate and drift.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "contract_builder_fragmentation"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "lightbox_layout_controller_bag",
+      "summary": "Lightbox layout relies on wide controller bags that mostly relay handlers",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/layouts/types.ts",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx"
+      ],
+      "evidence": [
+        "`LightboxLayoutControllers`/`LayoutWorkflowBarProps` define very broad prop bags (numerous callbacks, refs, and workflow flags) rather than focused interfaces.",
+        "`useVideoLightboxRenderModel` constructs and forwards large layout/controller structures to `LightboxLayout` (`layoutProps` + `controllers`), and `ImageLightbox` follows the same controller assembly style.",
+        "Most fields are passed through to child controls (`WorkflowControlsBar`, button groups, navigation components), increasing indirection and coupling between orchestration hooks and view primitives."
+      ],
+      "suggestion": "Decompose `LightboxLayout` into smaller feature components with narrow props (workflow actions, navigation, panel controls) and move state access closer to consumers through dedicated hooks/context selectors instead of top-level controller bags.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "controller_surface_overgrowth"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Controller-oriented composition is overused as a transport mechanism, producing large pass-through prop/state surfaces.",
+      "Type ownership is inverted in some lightbox modules (hooks depend on component-level types), forcing placeholder values and assertions.",
+      "Task payload composition abstractions are fragmented by family instead of centralized around shared contract assembly."
+    ],
+    "likely_symptoms": [
+      "inline_edit_state_surface_bloat",
+      "lightbox_layout_controller_bag"
+    ],
+    "possible_false_positives": [
+      "Some contract-builder repetition may be partially intentional to isolate worker-specific payload differences."
+    ]
+  }
+}

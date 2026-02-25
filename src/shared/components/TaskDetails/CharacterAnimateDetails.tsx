@@ -1,6 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { TaskDetailsProps, getVariantConfig } from '@/shared/types/taskDetailsTypes';
-import { parseTaskParams } from '@/shared/lib/taskParamsUtils';
+import {
+  normalizeTaskDetailsPayload,
+  pickTaskDetailsString,
+} from '@/shared/components/TaskDetails/hooks/normalizeTaskDetailsPayload';
 
 /**
  * Task details for character animation tasks
@@ -14,17 +17,14 @@ export const CharacterAnimateDetails: React.FC<TaskDetailsProps> = ({
 }) => {
   const config = getVariantConfig(variant, isMobile, inputImages.length);
   const [videoLoaded, setVideoLoaded] = useState(false);
-
-  const parsedParams = useMemo(() => parseTaskParams(task?.params), [task?.params]);
-  const orchestratorDetails = parsedParams?.orchestrator_details as Record<string, unknown> | undefined;
-  const orchestratorPayload = parsedParams?.full_orchestrator_payload as Record<string, unknown> | undefined;
+  const normalized = useMemo(() => normalizeTaskDetailsPayload(task), [task]);
 
   // Extract character animate data
-  const mode = (parsedParams?.mode || orchestratorDetails?.mode || orchestratorPayload?.mode) as string | undefined;
-  const characterImageUrl = (parsedParams?.character_image_url || orchestratorDetails?.character_image_url || orchestratorPayload?.character_image_url) as string | undefined;
-  const motionVideoUrl = (parsedParams?.motion_video_url || orchestratorDetails?.motion_video_url || orchestratorPayload?.motion_video_url) as string | undefined;
-  const prompt = (parsedParams?.prompt || orchestratorDetails?.prompt || orchestratorPayload?.prompt) as string | undefined;
-  const resolution = (parsedParams?.resolution || orchestratorDetails?.resolution || orchestratorPayload?.resolution) as string | undefined;
+  const mode = pickTaskDetailsString(normalized, 'mode');
+  const characterImageUrl = pickTaskDetailsString(normalized, 'character_image_url');
+  const motionVideoUrl = pickTaskDetailsString(normalized, 'motion_video_url');
+  const prompt = pickTaskDetailsString(normalized, 'prompt');
+  const resolution = pickTaskDetailsString(normalized, 'resolution');
 
   return (
     <div className={`p-3 bg-muted/30 rounded-lg border space-y-3 ${variant === 'panel' ? '' : variant === 'modal' && isMobile ? 'w-full' : 'w-[360px]'}`}>

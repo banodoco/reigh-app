@@ -1,0 +1,102 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 74.0,
+    "high_level_elegance": 81.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "src/shared/lib/errorHandling/handleError.ts exposes setErrorPresenter(), which mutates a process-wide notifier bridge through configureErrorNotifier and creates hidden global coupling between feature hooks and UI error presentation.",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts and src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts call handleError/handleAndRethrow directly, so feature-layer behavior depends on an out-of-band global presenter setup.",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts exports a live `supabase` legacy facade plus getLegacySupabaseClient(), preserving dual data-access surfaces and keeping migration-era boundaries active."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Media gallery child modules (src/shared/components/MediaGalleryItem/components/ShotActions.tsx, src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx, src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts) import GeneratedImageWithMetadata from ../../MediaGallery/types, coupling leaf item modules to parent container internals.",
+        "Sibling hooks in src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts and src/shared/components/MediaGallery/hooks/useMobileInteractions.ts also depend on ../types, reinforcing parent-centric ownership instead of a neutral domain boundary."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "global_error_presenter_port",
+      "summary": "Global error presenter wiring creates hidden cross-module runtime coupling.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+      ],
+      "evidence": [
+        "handleError.ts exposes setErrorPresenter() that mutates notifier behavior globally via configureErrorNotifier.",
+        "Gallery hooks call handleError/handleAndRethrow without explicit presenter dependency, so UX behavior depends on global bootstrap order and side-channel configuration."
+      ],
+      "suggestion": "Replace global presenter mutation with an explicit error-reporting boundary (provider/context or injected reporter) and keep shared error normalization pure; enforce one app-shell adapter that maps normalized errors to toast UI.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "global_singleton_ports"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "supabase_dual_surface_persists",
+      "summary": "Legacy Supabase facade keeps duplicate client entrypoints alive across modules.",
+      "related_files": [
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "legacySupabaseFacade.ts exports both getLegacySupabaseClient() and a module-level `supabase` facade with broad client capabilities, despite deprecation metadata.",
+        "This preserves legacy-vs-canonical access ambiguity and increases blast radius for client contract changes."
+      ],
+      "suggestion": "Constrain legacy access to a migration-only adapter path, block new imports via lint rule, and migrate remaining call sites to getSupabaseClient() until the module-level `supabase` export can be removed.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "global_singleton_ports"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "gallery_item_boundary_inversion",
+      "summary": "MediaGalleryItem modules depend on parent MediaGallery types, blurring ownership.",
+      "related_files": [
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+        "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGallery/hooks/useMobileInteractions.ts"
+      ],
+      "evidence": [
+        "MediaGalleryItem files import GeneratedImageWithMetadata from ../../MediaGallery/types instead of a neutral domain-level type module.",
+        "Multiple hooks/components across gallery and item layers converge on parent-relative type paths, indicating container-first structure rather than stable feature contracts."
+      ],
+      "suggestion": "Extract media gallery domain contracts into a dedicated shared module (e.g., MediaGallery/domain/types) and have both MediaGallery and MediaGalleryItem consume that boundary to remove parent-child type dependency inversion.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "gallery_contract_placement"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Migration-era compatibility surfaces remain public and act as long-lived architectural defaults.",
+      "Global singleton-style coordination (error presentation, legacy clients) is used where explicit boundaries would reduce coupling.",
+      "Feature contracts are colocated with parent containers instead of domain boundaries."
+    ],
+    "likely_symptoms": [
+      "global_error_presenter_port",
+      "supabase_dual_surface_persists",
+      "gallery_item_boundary_inversion"
+    ],
+    "possible_false_positives": []
+  }
+}

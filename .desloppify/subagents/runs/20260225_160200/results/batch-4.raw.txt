@@ -1,0 +1,120 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "ai_generated_debt": 86.0,
+    "low_level_elegance": 82.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "Multiple migration-era pass-through aliases remain: `handleError.ts` exports deprecated wrappers that only forward to runtime helpers; `useEditVideoSettings.ts` is a pure re-export shim; `toolConstants.ts` is a compatibility alias module.",
+        "Travel-between-images typing keeps both modern and legacy surfaces alive in the same module (`StructureVideoConfigWithMetadata` includes `Partial<LegacyStructureVideoFields>`, and a separate `TravelBetweenImagesLegacyTaskInput` persists).",
+        "Deprecated wrappers are implemented inconsistently: some shims have runtime enforcement hooks (`toolConstants.ts`, `legacyStructureVideo.ts`) while others rely only on comments (`handleError.ts`, `useEditVideoSettings.ts`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Migration shims and compatibility aliases are still spread across core/shared modules, with inconsistent enforcement and duplicated API surfaces that increase long-term cleanup risk."
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "`useTextCase` mutates a global DOM class in each hook instance and always removes it on unmount; with multiple consumers mounted, one unmount can clear state set by another active consumer.",
+        "`joinClipsCompatAdapter.ts` contains leftover implementation drift (unused helper `hasLegacyVideoEditFields`, and `createJoinClipsTaskCompat` marked `async` while directly returning a promise).",
+        "Several small modules carry extra ceremony compared to behavior size, adding local reading cost (for example compatibility wrappers with minimal logic but heavy migration framing)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "migration_shim_surface_sprawl",
+      "summary": "Compatibility wrappers keep parallel APIs alive without a single enforced retirement path",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/tools/edit-video/hooks/useEditVideoSettings.ts",
+        "src/shared/lib/toolConstants.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` exports deprecated wrappers (`handleError`, `handleAndRethrow`) that only forward calls and are marked for removal by comment metadata.",
+        "`useEditVideoSettings.ts` is a pure re-export shim retained only for backwards compatibility.",
+        "`toolConstants.ts` is another alias layer re-exporting canonical constants, adding one more migration surface to maintain."
+      ],
+      "suggestion": "Adopt one migration-shim policy: centralize shim metadata/enforcement in a shared helper, add tests that fail when removal targets are passed, and remove zero-logic alias modules once call sites are migrated to canonical imports.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "migration_shim_sprawl"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "global_class_toggle_race",
+      "summary": "useTextCase cleanup can clobber global class state when multiple hook instances mount",
+      "related_files": [
+        "src/shared/hooks/useTextCase.ts",
+        "src/shared/components/GlobalHeader/GlobalHeaderController.ts",
+        "src/shared/components/SettingsModal/SettingsModal.tsx"
+      ],
+      "evidence": [
+        "`useTextCase` adds/removes `preserve-user-text` on `document.documentElement` and always removes it in effect cleanup.",
+        "The hook has multiple consumers (`GlobalHeaderController` and `SettingsModal`), so one instance unmounting can remove the class even if another mounted instance still requires it."
+      ],
+      "suggestion": "Move DOM class ownership to a single provider-level effect (or a reference-counted singleton) so unmounting one consumer cannot clear class state that is still active elsewhere.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shared_state_side_effects"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "compat_adapter_dead_logic",
+      "summary": "Legacy adapter retains dead helper paths and unnecessary async ceremony",
+      "related_files": [
+        "src/shared/lib/tasks/legacy/testing/joinClipsCompatAdapter.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts"
+      ],
+      "evidence": [
+        "`joinClipsCompatAdapter.ts` defines `hasLegacyVideoEditFields` but does not use it, leaving stale decision logic in a complex migration adapter.",
+        "`createJoinClipsTaskCompat` is declared `async` but directly returns `createCanonicalJoinClipsTask(canonical)` without `await`, indicating unnecessary wrapper ceremony."
+      ],
+      "suggestion": "Remove unused helpers, simplify function signatures to match actual behavior, and trim compatibility adapters to only active migration paths with explicit tests per path.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "migration_shim_sprawl"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "legacy_type_leakage_in_modern_contracts",
+      "summary": "Modern travel-between-images types still embed legacy field shapes",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/types.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts"
+      ],
+      "evidence": [
+        "`StructureVideoConfigWithMetadata` extends `Partial<LegacyStructureVideoFields>`, allowing deprecated fields in a current UI-facing type.",
+        "The same module keeps both `TravelBetweenImagesTaskInput` and `TravelBetweenImagesLegacyTaskInput`, preserving dual-shape contracts in the canonical types surface."
+      ],
+      "suggestion": "Split legacy-read types into a dedicated adapter module and keep canonical shared types strictly legacy-free; perform normalization at boundaries and expose only normalized contracts to consumers.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "migration_shim_sprawl"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Compatibility shims were added incrementally across modules without one consistent lifecycle mechanism.",
+      "Migration boundary types and canonical types are co-located, which encourages legacy fields to leak into active contracts."
+    ],
+    "likely_symptoms": [
+      "migration_shim_surface_sprawl",
+      "compat_adapter_dead_logic",
+      "legacy_type_leakage_in_modern_contracts"
+    ],
+    "possible_false_positives": []
+  }
+}

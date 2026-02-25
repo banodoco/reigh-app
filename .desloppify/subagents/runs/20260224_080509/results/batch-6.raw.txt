@@ -1,0 +1,57 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "high_level_elegance": 81.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "README.md states: \"GenerationRow ownership is src/domains/generation/types/generationRow.ts, with explicit PersistedGenerationRow and GenerationViewModel boundary types.\"",
+        "src/domains/generation/types/generationViewRow.ts defines `GenerationViewModel`, `GenerationRow`, and `composeGenerationRow`, so the documented ownership/boundary location in README is inconsistent with runtime source of truth.",
+        "README.md provides a narrow \"Runtime Contracts\" section, while high-fan-in shared entry points in src/integrations/supabase/client.ts and src/shared/lib/errorHandling/handleError.ts expose behavioral contracts without corresponding governance/compatibility guidance."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "runtime_contract_doc_drift_generation_row",
+      "summary": "README runtime contract points to a different ownership boundary than code implements",
+      "related_files": [
+        "README.md",
+        "src/domains/generation/types/generationViewRow.ts"
+      ],
+      "evidence": [
+        "README.md claims GenerationRow ownership/boundary types are in `generationRow.ts`.",
+        "`GenerationViewModel` and `GenerationRow` are actually declared in `generationViewRow.ts`, and row composition is implemented there."
+      ],
+      "suggestion": "Align the contract in one direction: either update README.md to name `generationViewRow.ts` as the view-boundary owner, or move the boundary types/composition so runtime code matches the documented ownership path.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "missing_governance_for_shared_entrypoints",
+      "summary": "Core shared entry points have no explicit compatibility policy in project contracts",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "README.md Runtime Contracts section documents one domain type boundary but does not define stability/compatibility expectations for high-fan-in shared facades.",
+        "src/integrations/supabase/client.ts is a project-wide access surface (`getSupabaseClient` + runtime initializer re-export).",
+        "src/shared/lib/errorHandling/handleError.ts is a project-wide error contract surface (`reportRuntimeError` + `RuntimeErrorOptions`)."
+      ],
+      "suggestion": "Add a governance section in README.md (or referenced runtime-contract doc) that explicitly defines compatibility guarantees and ownership for shared facades like Supabase client and runtime error reporting, including what is stable vs internal and expected migration policy when signatures change.",
+      "confidence": "medium",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

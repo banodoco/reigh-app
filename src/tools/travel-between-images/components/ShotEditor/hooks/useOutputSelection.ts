@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useToolSettings } from '@/shared/hooks/useToolSettings';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 
 interface UseOutputSelectionProps {
   projectId?: string;
@@ -31,7 +32,7 @@ export function useOutputSelection({
     isLoading: isOutputSelectionLoading
   } = useToolSettings<{
     selectedParentGenerationId?: string | null;
-  }>('travel-selected-output', {
+  }>(SETTINGS_IDS.TRAVEL_SELECTED_OUTPUT, {
     projectId,
     shotId,
     enabled: !!shotId

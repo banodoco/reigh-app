@@ -34,6 +34,8 @@ interface GenerationDetailsProps {
   task?: Task;
   /** Input images - derived from task if not provided */
   inputImages?: string[];
+  /** Optional project scope for task lookup */
+  projectId?: string | null;
   /** Display variant */
   variant: DisplayVariant;
   /** Mobile layout */
@@ -71,6 +73,7 @@ export const GenerationDetails: React.FC<GenerationDetailsProps> = ({
   taskId,
   task: taskProp,
   inputImages: inputImagesProp,
+  projectId,
   variant,
   isMobile = false,
   showAllImages,
@@ -87,6 +90,7 @@ export const GenerationDetails: React.FC<GenerationDetailsProps> = ({
     taskId,
     task: taskProp,
     inputImages: inputImagesProp,
+    projectId: projectId ?? taskProp?.projectId ?? null,
   });
 
   // Show loading state when fetching task

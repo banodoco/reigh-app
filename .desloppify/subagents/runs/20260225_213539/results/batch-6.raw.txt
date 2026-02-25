@@ -1,0 +1,209 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 6,
+  "assessments": {
+    "naming_quality": 94.0,
+    "logic_clarity": 90.0,
+    "type_safety": 92.0,
+    "contract_coherence": 91.0,
+    "error_consistency": 96.0,
+    "initialization_coupling": 88.0,
+    "convention_outlier": 92.0,
+    "authorization_consistency": 97.0
+  },
+  "dimension_notes": {
+    "naming_quality": {
+      "evidence": [
+        "Most reviewed modules use intent-revealing names (`normalizeAndPresentError`, `buildTravelBetweenImagesPayload`, `useDeleteGenerationWithConfirm`).",
+        "A few names are ambiguous against behavior, notably `isLoadingTask` in `useGenerationTaskDetails` returning only task-query loading while a broader loading model exists (`taskDetailsData.isLoading`)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Some exported names still imply broader semantics than the actual value returned."
+    },
+    "logic_clarity": {
+      "evidence": [
+        "`useGenerationTaskDetails` gates on-demand lookup with `taskMapping?.taskId === null`, so cache-miss `undefined` does not trigger fallback resolution even when `resolveMappingOnDemand` is true.",
+        "The same hook computes `hasNoTask` only when `taskMapping !== undefined`, causing undefined/miss and explicit-null/no-task to follow different control flow despite both representing missing mapping."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Missing-mapping states are not normalized, producing branch behavior that can silently skip intended lookup."
+    },
+    "type_safety": {
+      "evidence": [
+        "`useMobileInteractions` stores browser timeout handles as `NodeJS.Timeout`, which couples browser hook typing to Node ambient types.",
+        "This pattern can break in TS configs that do not include Node libs and is inconsistent with browser-safe typing (`ReturnType<typeof setTimeout>`)."
+      ],
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "issues_preventing_higher_score": "A browser runtime hook still uses Node-specific timeout typing."
+    },
+    "contract_coherence": {
+      "evidence": [
+        "`useGenerationTaskDetails` returns both `taskDetailsData.isLoading` (composite loading) and `isLoadingTask` (only `isLoadingTaskData`), creating two conflicting loading contracts from one hook.",
+        "The option name `resolveMappingOnDemand` suggests fallback resolution when mapping is absent, but behavior currently only resolves when mapping exists and is explicitly null."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Public hook fields and option semantics are not fully aligned with runtime behavior."
+    },
+    "error_consistency": {
+      "evidence": [
+        "Core task and mutation paths consistently use shared error normalization (`normalizeAndPresentError` / `normalizeAndPresentAndRethrow`) in `useTasks`, `useGenerationMutations`, and `runtimeError` helpers.",
+        "Task builders generally route failures through shared pipeline helpers rather than ad-hoc custom envelopes."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Bootstrap-level singleton accessors still throw raw errors before normalized error pathways can run."
+    },
+    "initialization_coupling": {
+      "evidence": [
+        "`getSupabaseClient` hard-throws until `initializeSupabase()` has run, while call sites such as `useDiscordSignIn`/`useAuthReferralFinalize` assume readiness.",
+        "`Toaster` calls `getToastManager()` during render; `getToastManager` hard-throws until `initializeToastManager()` runs.",
+        "Both runtime access patterns depend on global bootstrap ordering instead of self-healing lazy access or explicit injected dependencies."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Runtime-critical services remain vulnerable to order-dependent initialization faults."
+    },
+    "convention_outlier": {
+      "evidence": [
+        "Within sibling UI modules, quote/format conventions diverge (`button.tsx`, `tooltipPrimitives.tsx`, `sonner.tsx`, `DescriptionModal.tsx`) despite shared component-layer ownership.",
+        "Mixed style islands increase diff noise and reduce consistency of low-level UI primitives/contracts."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Shared UI layer is not consistently formatted to one convention baseline."
+    },
+    "authorization_consistency": {
+      "evidence": [
+        "Generation mutation paths enforce project scoping and no-row checks (`useGenerationMutations` verifies scope and filters by `project_id`).",
+        "No service-role key usage or obvious auth bypass patterns were observed in the assigned files."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Some data fetches still rely on implicit runtime auth state rather than explicit boundary-level auth assertions."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "initialization_coupling",
+      "identifier": "runtime_singleton_bootstrap_order",
+      "summary": "Supabase/toast runtime access depends on fragile bootstrap order and can crash when initialization is missed.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/pages/Home/hooks/useDiscordSignIn.ts",
+        "src/pages/Home/hooks/auth/useAuthReferralFinalize.ts",
+        "src/shared/components/ui/runtime/sonner.tsx",
+        "src/shared/components/ui/runtime/toastManager.ts"
+      ],
+      "evidence": [
+        "`getSupabaseClient()` throws until `initializeSupabase()` sets an internal flag; both auth hooks call `getSupabaseClient()` directly without guarding bootstrap readiness.",
+        "`Toaster` invokes `getToastManager()` at render time; underlying runtime accessor throws when manager is not initialized.",
+        "Failure mode is global-order dependent rather than dependency-injected or lazily self-initializing."
+      ],
+      "suggestion": "Introduce a single runtime accessor contract that is safe by default (`getOrInitialize...`) or inject initialized clients via provider/context; reserve throwing accessors for explicit test-only assertions.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "runtime_singleton_bootstrap_order"
+    },
+    {
+      "dimension": "logic_clarity",
+      "identifier": "generation_task_mapping_miss_path_skipped",
+      "summary": "On-demand mapping resolution is skipped for cache-miss `undefined`, so task lookup can silently never run.",
+      "related_files": [
+        "src/shared/components/TaskDetails/hooks/useGenerationTaskDetails.ts",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx"
+      ],
+      "evidence": [
+        "Fallback trigger requires `taskMapping?.taskId === null`; when `taskMapping` is `undefined` (no mapping object), `shouldResolveOnDemand` is false.",
+        "`hasNoTask` similarly treats only explicit-null mapping as missing, so undefined misses follow a different non-fallback branch.",
+        "This contradicts expected behavior of `resolveMappingOnDemand` for absent mapping states."
+      ],
+      "suggestion": "Normalize mapping status into explicit states (`loading|found|missing`) and trigger fallback for both explicit null and settled cache misses.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "task_mapping_state_model_gap"
+    },
+    {
+      "dimension": "contract_coherence",
+      "identifier": "dual_loading_contract_divergence",
+      "summary": "The hook exposes two loading fields with different semantics, creating a contradictory API contract.",
+      "related_files": [
+        "src/shared/components/TaskDetails/hooks/useGenerationTaskDetails.ts",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx"
+      ],
+      "evidence": [
+        "`taskDetailsData.isLoading` includes mapping/task/fallback pending states, while exported `isLoadingTask` returns only `isLoadingTaskData`.",
+        "Consumers can read conflicting loading values from the same hook result, making integration behavior non-obvious."
+      ],
+      "suggestion": "Unify to one canonical loading field (or rename secondary field to `isTaskQueryLoading` and document it), then update consumers to use the canonical semantic.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "task_mapping_state_model_gap"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "browser_hook_uses_node_timeout_type",
+      "summary": "A browser interaction hook uses `NodeJS.Timeout`, weakening portability and TS config compatibility.",
+      "related_files": [
+        "src/shared/components/MediaGallery/hooks/useMobileInteractions.ts",
+        "src/shared/components/MediaGallery/index.tsx"
+      ],
+      "evidence": [
+        "`doubleTapTimeoutRef` is typed as `useRef<NodeJS.Timeout | null>` in a browser-only hook.",
+        "Browser timeout handles should be typed with `ReturnType<typeof setTimeout>` to avoid Node ambient-type coupling."
+      ],
+      "suggestion": "Replace `NodeJS.Timeout` with `ReturnType<typeof setTimeout>` for timer refs in browser hooks.",
+      "confidence": "high",
+      "impact_scope": "local",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "ui_style_islands_in_shared_components",
+      "summary": "Shared UI primitives/components drift across formatting conventions, creating style islands in one subsystem.",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/ui/tooltipPrimitives.tsx",
+        "src/shared/components/ui/runtime/sonner.tsx",
+        "src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx"
+      ],
+      "evidence": [
+        "Sibling shared UI files mix quote styles and formatting patterns (single vs double quotes, semicolon/spacing patterns) without a consistent local convention.",
+        "The inconsistency is concentrated in core UI primitives/contracts used broadly across the app."
+      ],
+      "suggestion": "Enforce a single formatter/lint rule set for shared UI packages and run codemod/format over the affected subtree to remove style islands.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Runtime service access still relies on implicit global bootstrap sequencing.",
+      "Task-detail mapping uses an underspecified state model (`undefined` vs explicit null) that leaks into control flow and API shape.",
+      "Shared UI subsystem lacks uniformly enforced style conventions."
+    ],
+    "likely_symptoms": [
+      "generation_task_mapping_miss_path_skipped",
+      "dual_loading_contract_divergence",
+      "runtime_singleton_bootstrap_order"
+    ],
+    "possible_false_positives": [
+      "Some bootstrap-order assumptions may be satisfied by app entrypoint in normal production flow, reducing real-world frequency but not removing fragility."
+    ]
+  }
+}

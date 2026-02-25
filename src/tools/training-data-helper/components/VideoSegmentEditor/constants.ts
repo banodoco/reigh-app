@@ -1,5 +1,7 @@
+import { ASSUMED_INPUT_VIDEO_FPS } from '@/shared/lib/videoFrameRate';
+
 /** Assumed video frame rate for frame count estimates */
-export const ASSUMED_FPS = 30;
+export const ASSUMED_FPS = ASSUMED_INPUT_VIDEO_FPS;
 
 /** Milliseconds per second - used for ms/s time unit conversions */
 const MS_PER_SECOND = 1000;

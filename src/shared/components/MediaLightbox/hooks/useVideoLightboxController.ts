@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 import { useLoadVariantImages } from '@/shared/hooks/useLoadVariantImages';
 import type { SegmentSlotModeData } from '../types';
 import {
@@ -12,84 +12,98 @@ import {
   useVideoRegenerateMode,
 } from './index';
 import type { VideoLightboxEnvironment, VideoLightboxModeModel } from './useVideoLightboxEnvironment';
-import type { VideoLightboxProps } from '../VideoLightbox';
+import type { VideoLightboxProps } from '../videoLightboxContracts';
+
+type SharedLightboxInput = Parameters<typeof useSharedLightboxState>[0];
+
+function buildVideoSharedLightboxInput(params: {
+  props: VideoLightboxProps;
+  modeModel: VideoLightboxModeModel;
+  env: VideoLightboxEnvironment;
+}): SharedLightboxInput {
+  const { props, modeModel, env } = params;
+  const nav = props.navigation;
+  const sw = props.shotWorkflow;
+  const feat = props.features;
+  const act = props.actions;
+  const readOnly = props.readOnly ?? false;
+  const fallbackMedia = props.media || ({} as GenerationRow);
+
+  return {
+    core: {
+      media: fallbackMedia,
+      isVideo: true,
+      selectedProjectId: env.selectedProjectId,
+      isMobile: env.isMobile,
+      isFormOnlyMode: modeModel.isFormOnlyMode,
+      onClose: props.onClose,
+      readOnly,
+      variantFetchGenerationId: env.variantFetchGenerationId,
+      initialVariantId: props.initialVariantId,
+    },
+    navigation: {
+      showNavigation: nav?.showNavigation ?? true,
+      hasNext: modeModel.hasNext,
+      hasPrevious: modeModel.hasPrevious,
+      handleSlotNavNext: modeModel.handleSlotNavNext,
+      handleSlotNavPrev: modeModel.handleSlotNavPrev,
+      swipeDisabled: env.videoEditSubMode !== null || readOnly,
+    },
+    shots: {
+      shotId: props.shotId,
+      selectedShotId: sw?.selectedShotId,
+      allShots: sw?.allShots,
+      onShotChange: sw?.onShotChange,
+      onAddToShot: sw?.onAddToShot,
+      onAddToShotWithoutPosition: sw?.onAddToShotWithoutPosition,
+      onNavigateToShot: sw?.onNavigateToShot,
+      onShowTick: sw?.onShowTick,
+      onShowSecondaryTick: sw?.onShowSecondaryTick,
+      onOptimisticPositioned: sw?.onOptimisticPositioned,
+      onOptimisticUnpositioned: sw?.onOptimisticUnpositioned,
+      optimisticPositionedIds: sw?.optimisticPositionedIds,
+      optimisticUnpositionedIds: sw?.optimisticUnpositionedIds,
+      positionedInSelectedShot: sw?.positionedInSelectedShot,
+      associatedWithoutPositionInSelectedShot: sw?.associatedWithoutPositionInSelectedShot,
+    },
+    layout: {
+      showTaskDetails: feat?.showTaskDetails ?? false,
+      isSpecialEditMode: env.videoEditSubMode !== null,
+      isInpaintMode: false,
+      isMagicEditMode: false,
+    },
+    actions: {
+      isCloudMode: env.isCloudMode,
+      showDownload: feat?.showDownload ?? true,
+      isDownloading: env.isDownloading,
+      setIsDownloading: env.setIsDownloading,
+      onDelete: act?.onDelete,
+      isDeleting: act?.isDeleting,
+      isUpscaling: false,
+      handleUpscale: () => {},
+    },
+    media: {
+      effectiveImageUrl: env.effectiveImageUrl,
+      imageDimensions: env.imageDimensions || { width: 1024, height: 576 },
+      projectAspectRatio: env.projectAspectRatio,
+    },
+    starred: act?.starred,
+    onOpenExternalGeneration: props.onOpenExternalGeneration,
+  };
+}
 
 export function useVideoLightboxSharedState(
   props: VideoLightboxProps,
   modeModel: VideoLightboxModeModel,
   env: VideoLightboxEnvironment,
 ) {
-  const {
-    media,
-    onClose,
-    readOnly = false,
-    initialVariantId,
-    onOpenExternalGeneration,
-    shotId,
-  } = props;
-
-  const nav = props.navigation;
-  const sw = props.shotWorkflow;
-  const feat = props.features;
-  const act = props.actions;
-
-  const fallbackMedia = media || ({} as GenerationRow);
-
-  return useSharedLightboxState({
-    media: fallbackMedia,
-    isVideo: true,
-    selectedProjectId: env.selectedProjectId,
-    isMobile: env.isMobile,
-    isFormOnlyMode: modeModel.isFormOnlyMode,
-    onClose,
-    readOnly,
-    variantFetchGenerationId: env.variantFetchGenerationId,
-    initialVariantId,
-    starred: act?.starred,
-    onOpenExternalGeneration,
-    showNavigation: nav?.showNavigation ?? true,
-    hasNext: modeModel.hasNext,
-    hasPrevious: modeModel.hasPrevious,
-    handleSlotNavNext: modeModel.handleSlotNavNext,
-    handleSlotNavPrev: modeModel.handleSlotNavPrev,
-    swipeDisabled: env.videoEditSubMode !== null || readOnly,
-    shotId,
-    selectedShotId: sw?.selectedShotId,
-    allShots: sw?.allShots,
-    onShotChange: sw?.onShotChange,
-    onAddToShot: sw?.onAddToShot,
-    onAddToShotWithoutPosition: sw?.onAddToShotWithoutPosition,
-    onNavigateToShot: sw?.onNavigateToShot,
-    onShowTick: sw?.onShowTick,
-    onShowSecondaryTick: sw?.onShowSecondaryTick,
-    onOptimisticPositioned: sw?.onOptimisticPositioned,
-    onOptimisticUnpositioned: sw?.onOptimisticUnpositioned,
-    optimisticPositionedIds: sw?.optimisticPositionedIds,
-    optimisticUnpositionedIds: sw?.optimisticUnpositionedIds,
-    positionedInSelectedShot: sw?.positionedInSelectedShot,
-    associatedWithoutPositionInSelectedShot: sw?.associatedWithoutPositionInSelectedShot,
-    showTaskDetails: feat?.showTaskDetails ?? false,
-    isSpecialEditMode: env.videoEditSubMode !== null,
-    isInpaintMode: false,
-    isMagicEditMode: false,
-    isCloudMode: env.isCloudMode,
-    showDownload: feat?.showDownload ?? true,
-    isDownloading: env.isDownloading,
-    setIsDownloading: env.setIsDownloading,
-    onDelete: act?.onDelete,
-    isDeleting: act?.isDeleting,
-    isUpscaling: false,
-    handleUpscale: () => {},
-    handleEnterMagicEditMode: () => {},
-    effectiveImageUrl: env.effectiveImageUrl,
-    imageDimensions: env.imageDimensions || { width: 1024, height: 576 },
-    projectAspectRatio: env.projectAspectRatio,
-  });
+  const input = buildVideoSharedLightboxInput({ props, modeModel, env });
+  return useSharedLightboxState(input);
 }
 
 function buildVariantSegmentImages(
   segmentSlotMode?: SegmentSlotModeData,
-  currentSegmentImages?: VideoLightboxProps['currentSegmentImages'],
+  currentSegmentImages?: NonNullable<VideoLightboxProps['videoProps']>['currentSegmentImages'],
 ) {
   if (segmentSlotMode?.pairData) {
     return {
@@ -130,6 +144,7 @@ export function useVideoLightboxEditing(
   const fallbackMedia = media || ({} as GenerationRow);
 
   const { adjustedTaskDetailsData } = useAdjustedTaskDetails({
+    projectId: env.selectedProjectId ?? null,
     activeVariant: sharedState.variants.activeVariant,
     taskDetailsData,
     isLoadingVariants: sharedState.variants.isLoading,
@@ -180,9 +195,8 @@ export function useVideoLightboxEditing(
     isSpecialEditMode: false,
     isInVideoEditMode: videoMode.isInVideoEditMode,
     initialVideoTrimMode,
-    autoEnterInpaint: false,
+    initialEditActive: false,
     handleEnterVideoEditMode: videoMode.handleEnterVideoEditMode,
-    handleEnterMagicEditMode: () => {},
   });
 
   const videoEditValue = useVideoEditContextValue({

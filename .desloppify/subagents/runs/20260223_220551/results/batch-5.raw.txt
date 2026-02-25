@@ -1,0 +1,72 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 5,
+  "assessments": {
+    "high_level_elegance": 78.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/hooks/useAutoTopup.ts` mixes shared hook placement with credits/billing behavior: Supabase auth/session reads, `users` table fields, `setup-auto-topup` edge function call, and credit query keys.",
+        "`src/shared/components/ActiveLoRAsDisplay.tsx` and `src/shared/components/AspectRatioSelector.tsx` are in `shared/components` but embed generation-domain semantics (LoRA metadata, trigger words, model ID lookups, aspect-ratio domain mapping/visualization).",
+        "Root config files contain app/deployment-specific concerns rather than narrowly scoped tool config: `vite.config.ts` hardcodes production host allowlist/domain values while `tailwind.config.ts` carries extensive app-specific theme/palette definitions."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_hook_contains_billing_domain_logic",
+      "summary": "`useAutoTopup` is placed in `shared/hooks` but owns credits/billing integration behavior, blurring domain boundaries.",
+      "related_files": [
+        "src/shared/hooks/useAutoTopup.ts",
+        "src/shared/hooks/__tests__/useAutoTopup.test.ts"
+      ],
+      "evidence": [
+        "`src/shared/hooks/useAutoTopup.ts` directly performs auth/session access (`supabase.auth.getUser/getSession`), queries `users` billing fields, calls `setup-auto-topup`, and invalidates credit-specific query keys.",
+        "The colocated test is tightly coupled to this domain behavior and mocks billing-related paths, reinforcing that the hook is feature-specific rather than cross-domain shared."
+      ],
+      "suggestion": "Move this hook and its test into a credits/billing feature slice (for example `src/features/credits/hooks`) and expose a minimal shared-facing adapter only if multiple domains truly reuse it.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_components_are_generation_specific",
+      "summary": "Generation-specific UI components are stored in `shared/components`, making ownership and reuse expectations unclear.",
+      "related_files": [
+        "src/shared/components/ActiveLoRAsDisplay.tsx",
+        "src/shared/components/AspectRatioSelector.tsx"
+      ],
+      "evidence": [
+        "`ActiveLoRAsDisplay` depends on LoRA-specific types and behaviors (`ActiveLora`, trigger words, `Model ID`, media preview interpretation), which are generation-tool concepts.",
+        "`AspectRatioSelector` builds options from `ASPECT_RATIO_TO_RESOLUTION` and couples to `AspectRatioVisualizer`, indicating a domain workflow widget rather than a generic primitive."
+      ],
+      "suggestion": "Relocate these components to a generation/domain UI package (for example `src/domains/generation/components` or tool-specific folders), keeping `shared/components` for domain-agnostic primitives only.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "config_files_mix_tooling_and_product_deployment_concerns",
+      "summary": "Build/config entry points mix generic tooling setup with product/deployment-specific policy, reducing architectural clarity.",
+      "related_files": [
+        "vite.config.ts",
+        "tailwind.config.ts"
+      ],
+      "evidence": [
+        "`vite.config.ts` includes hardcoded production allowlist hosts/domains, coupling local bundler config to deployment environment policy.",
+        "`tailwind.config.ts` contains a large app-specific design system/palette footprint, making global tooling config a catch-all for product styling ownership."
+      ],
+      "suggestion": "Split deployment policy and design-token ownership from base tool config: keep root config thin, move environment host policy to environment-specific config inputs, and move large theme/token definitions to dedicated design-token/theme modules consumed by Tailwind.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

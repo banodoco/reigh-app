@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import config from '../../../vitest.edge.smoke.config.ts';
+import config from '../../../config/testing/vitest.edge.smoke.config.ts';
 
 describe('vitest.edge.smoke.config', () => {
   it('targets node smoke tests under supabase/functions/_tests', () => {

@@ -1,17 +1,18 @@
 import React, { useEffect, useRef, useMemo, useCallback } from 'react';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useQueryClient } from '@tanstack/react-query';
-import { unifiedGenerationQueryKeys } from '@/shared/lib/queryKeys/unified';
+import { queryKeys } from '@/shared/lib/queryKeys';
 import { useProjectGenerations, type GenerationsPaginatedResponse } from '@/shared/hooks/useProjectGenerations';
-import { useCreateGeneration } from '@/shared/hooks/useGenerationMutations';
-import { useDeleteGenerationWithConfirm } from '@/shared/hooks/useDeleteGenerationWithConfirm';
+import { useCreateGeneration } from '@/domains/generation/hooks/useGenerationMutations';
+import { useDeleteGenerationWithConfirm } from '@/domains/generation/hooks/useDeleteGenerationWithConfirm';
+import { DeleteGenerationConfirmDialog } from '@/shared/components/dialogs/DeleteGenerationConfirmDialog';
 import { MediaGallery } from '@/shared/components/MediaGallery';
 import MediaLightbox from '@/shared/components/MediaLightbox';
 import { SkeletonGallery } from '@/shared/components/ui/skeleton-gallery';
 import { Skeleton } from '@/shared/components/ui/skeleton';
 import { SKELETON_COLUMNS } from '@/shared/components/MediaGallery/utils';
-import { useIsMobile } from '@/shared/hooks/useMobile';
+import { useIsMobile } from '@/shared/hooks/mobile';
 import { useLoraManager } from '@/shared/hooks/useLoraManager';
 import { usePublicLoras } from '@/shared/hooks/useResources';
 import { Card } from '@/shared/components/ui/card';
@@ -158,7 +159,7 @@ function useRefreshOnVisibility(
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && selectedProjectId) {
         queryClient.invalidateQueries({
-          queryKey: unifiedGenerationQueryKeys.projectPrefix(selectedProjectId),
+          queryKey: queryKeys.unified.projectPrefix(selectedProjectId),
         });
       }
     };
@@ -171,7 +172,7 @@ function useRefreshOnVisibility(
 function JoinClipsSkeletonGrid({ cachedClipsCount }: { cachedClipsCount: number }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {Array.from({ length: Math.max(2, cachedClipsCount) + 1 }).map((_, index) => (
+      {Array.from({ length: cachedClipsCount >= 2 ? cachedClipsCount + 1 : 2 }).map((_, index) => (
         <div key={index} className="space-y-3">
           <div className="relative border rounded-lg p-3 space-y-3 bg-card">
             <div className="flex items-center justify-between">
@@ -323,14 +324,6 @@ function JoinClipsResults({
     );
   }
 
-  if (!isLoadingOrFetching) {
-    return (
-      <div className="text-sm text-muted-foreground text-center pt-4 border-t">
-        No joined clips yet. Create your first one above!
-      </div>
-    );
-  }
-
   return null;
 }
 
@@ -351,7 +344,93 @@ interface JoinClipsPageLayoutProps {
   videosFetching: boolean;
   deletingId: string | null;
   handleDeleteGeneration: (id: string) => void;
-  DeleteConfirmDialog: ReturnType<typeof useDeleteGenerationWithConfirm>['DeleteConfirmDialog'];
+  confirmDialogProps: ReturnType<typeof useDeleteGenerationWithConfirm>['confirmDialogProps'];
+}
+
+interface JoinClipsSettingsFormAdapterInput {
+  settings: JoinSettingsState['settings'];
+  joinSettings: JoinSettingsState;
+  clipManager: ClipManagerState;
+  validationResult: ValidationResult | null;
+  clipPairs: ClipPairInfo[];
+  availableLoras: ReturnType<typeof usePublicLoras>['data'];
+  selectedProjectId: string;
+  loraManager: LoraManagerState;
+  generateState: JoinGenerateState;
+}
+
+function buildJoinClipsSettingsFormProps({
+  settings,
+  joinSettings,
+  clipManager,
+  validationResult,
+  clipPairs,
+  availableLoras,
+  selectedProjectId,
+  loraManager,
+  generateState,
+}: JoinClipsSettingsFormAdapterInput): React.ComponentProps<typeof JoinClipsSettingsForm> {
+  return {
+    clipSettings: {
+      gapFrames: settings.gapFrameCount,
+      setGapFrames: (value) => joinSettings.updateField('gapFrameCount', value),
+      contextFrames: settings.contextFrameCount,
+      setContextFrames: (value) => joinSettings.updateField('contextFrameCount', value),
+      replaceMode: settings.replaceMode,
+      setReplaceMode: (value) => joinSettings.updateField('replaceMode', value),
+      keepBridgingImages: settings.keepBridgingImages,
+      setKeepBridgingImages: (value) => joinSettings.updateField('keepBridgingImages', value),
+      prompt: settings.prompt,
+      setPrompt: (value) => joinSettings.updateField('prompt', value),
+      negativePrompt: settings.negativePrompt,
+      setNegativePrompt: (value) => joinSettings.updateField('negativePrompt', value),
+      useIndividualPrompts: settings.useIndividualPrompts,
+      setUseIndividualPrompts: (value) => joinSettings.updateField('useIndividualPrompts', value),
+      clipCount: clipManager.clips.filter(clip => clip.url).length,
+      enhancePrompt: settings.enhancePrompt,
+      setEnhancePrompt: (value) => joinSettings.updateField('enhancePrompt', value),
+      useInputVideoResolution: settings.useInputVideoResolution,
+      setUseInputVideoResolution: (value) => joinSettings.updateField('useInputVideoResolution', value),
+      showResolutionToggle: true,
+      useInputVideoFps: settings.useInputVideoFps,
+      setUseInputVideoFps: (value) => joinSettings.updateField('useInputVideoFps', value),
+      showFpsToggle: true,
+      noisedInputVideo: settings.noisedInputVideo,
+      setNoisedInputVideo: (value) => joinSettings.updateField('noisedInputVideo', value),
+      shortestClipFrames: validationResult?.shortestClipFrames,
+      clipPairs,
+    },
+    motionConfig: {
+      availableLoras,
+      projectId: selectedProjectId,
+      loraPersistenceKey: TOOL_IDS.JOIN_CLIPS,
+      loraManager,
+      motionMode: settings.motionMode as 'basic' | 'advanced',
+      onMotionModeChange: (mode) => joinSettings.updateField('motionMode', mode),
+      phaseConfig: settings.phaseConfig ?? DEFAULT_JOIN_CLIPS_PHASE_CONFIG,
+      onPhaseConfigChange: (config) => joinSettings.updateField('phaseConfig', config),
+      randomSeed: settings.randomSeed,
+      onRandomSeedChange: (value) => joinSettings.updateField('randomSeed', value),
+      selectedPhasePresetId: settings.selectedPhasePresetId,
+      onPhasePresetSelect: (presetId, config) => {
+        joinSettings.updateFields({
+          selectedPhasePresetId: presetId,
+          phaseConfig: config,
+        });
+      },
+      onPhasePresetRemove: () => {
+        joinSettings.updateField('selectedPhasePresetId', null);
+      },
+    },
+    uiState: {
+      onGenerate: generateState.handleGenerate,
+      isGenerating: generateState.isGenerating,
+      generateSuccess: generateState.showSuccessState,
+      generateButtonText: generateState.generateButtonText,
+      isGenerateDisabled: generateState.isGenerateDisabled,
+      onRestoreDefaults: generateState.handleRestoreDefaults,
+    },
+  };
 }
 
 function JoinClipsPageLayout({
@@ -371,9 +450,30 @@ function JoinClipsPageLayout({
   videosFetching,
   deletingId,
   handleDeleteGeneration,
-  DeleteConfirmDialog,
+  confirmDialogProps,
 }: JoinClipsPageLayoutProps) {
   const settings = joinSettings.settings;
+  const settingsFormProps = useMemo(() => buildJoinClipsSettingsFormProps({
+    settings,
+    joinSettings,
+    clipManager,
+    validationResult,
+    clipPairs,
+    availableLoras,
+    selectedProjectId,
+    loraManager,
+    generateState,
+  }), [
+    settings,
+    joinSettings,
+    clipManager,
+    validationResult,
+    clipPairs,
+    availableLoras,
+    selectedProjectId,
+    loraManager,
+    generateState,
+  ]);
 
   return (
     <PageFadeIn>
@@ -389,67 +489,7 @@ function JoinClipsPageLayout({
         />
 
         <Card className="p-6 sm:p-8 shadow-sm border">
-          <JoinClipsSettingsForm
-            clipSettings={{
-              gapFrames: settings.gapFrameCount,
-              setGapFrames: (value) => joinSettings.updateField('gapFrameCount', value),
-              contextFrames: settings.contextFrameCount,
-              setContextFrames: (value) => joinSettings.updateField('contextFrameCount', value),
-              replaceMode: settings.replaceMode,
-              setReplaceMode: (value) => joinSettings.updateField('replaceMode', value),
-              keepBridgingImages: settings.keepBridgingImages,
-              setKeepBridgingImages: (value) => joinSettings.updateField('keepBridgingImages', value),
-              prompt: settings.prompt,
-              setPrompt: (value) => joinSettings.updateField('prompt', value),
-              negativePrompt: settings.negativePrompt,
-              setNegativePrompt: (value) => joinSettings.updateField('negativePrompt', value),
-              useIndividualPrompts: settings.useIndividualPrompts,
-              setUseIndividualPrompts: (value) => joinSettings.updateField('useIndividualPrompts', value),
-              clipCount: clipManager.clips.filter(clip => clip.url).length,
-              enhancePrompt: settings.enhancePrompt,
-              setEnhancePrompt: (value) => joinSettings.updateField('enhancePrompt', value),
-              useInputVideoResolution: settings.useInputVideoResolution,
-              setUseInputVideoResolution: (value) => joinSettings.updateField('useInputVideoResolution', value),
-              showResolutionToggle: true,
-              useInputVideoFps: settings.useInputVideoFps,
-              setUseInputVideoFps: (value) => joinSettings.updateField('useInputVideoFps', value),
-              showFpsToggle: true,
-              noisedInputVideo: settings.noisedInputVideo,
-              setNoisedInputVideo: (value) => joinSettings.updateField('noisedInputVideo', value),
-              shortestClipFrames: validationResult?.shortestClipFrames,
-              clipPairs,
-            }}
-            motionConfig={{
-              availableLoras,
-              projectId: selectedProjectId,
-              loraPersistenceKey: TOOL_IDS.JOIN_CLIPS,
-              loraManager,
-              motionMode: settings.motionMode as 'basic' | 'advanced',
-              onMotionModeChange: (mode) => joinSettings.updateField('motionMode', mode),
-              phaseConfig: settings.phaseConfig ?? DEFAULT_JOIN_CLIPS_PHASE_CONFIG,
-              onPhaseConfigChange: (config) => joinSettings.updateField('phaseConfig', config),
-              randomSeed: settings.randomSeed,
-              onRandomSeedChange: (value) => joinSettings.updateField('randomSeed', value),
-              selectedPhasePresetId: settings.selectedPhasePresetId,
-              onPhasePresetSelect: (presetId, config) => {
-                joinSettings.updateFields({
-                  selectedPhasePresetId: presetId,
-                  phaseConfig: config,
-                });
-              },
-              onPhasePresetRemove: () => {
-                joinSettings.updateField('selectedPhasePresetId', null);
-              },
-            }}
-            uiState={{
-              onGenerate: generateState.handleGenerate,
-              isGenerating: generateState.isGenerating,
-              generateSuccess: generateState.showSuccessState,
-              generateButtonText: generateState.generateButtonText,
-              isGenerateDisabled: generateState.isGenerateDisabled,
-              onRestoreDefaults: generateState.handleRestoreDefaults,
-            }}
-          />
+          <JoinClipsSettingsForm {...settingsFormProps} />
         </Card>
 
         <JoinClipsResults
@@ -478,7 +518,7 @@ function JoinClipsPageLayout({
         />
       )}
 
-      <DeleteConfirmDialog />
+      <DeleteGenerationConfirmDialog {...confirmDialogProps} />
     </PageFadeIn>
   );
 }
@@ -553,7 +593,7 @@ const JoinClipsPage: React.FC = () => {
   const videosLoading = generationsQuery.isLoading;
   const videosFetching = generationsQuery.isFetching;
 
-  const { requestDelete: requestDeleteGeneration, DeleteConfirmDialog, deletingId } = useDeleteGenerationWithConfirm();
+  const { requestDelete: requestDeleteGeneration, confirmDialogProps, deletingId } = useDeleteGenerationWithConfirm();
   const handleDeleteGeneration = useCallback((id: string) => {
     requestDeleteGeneration(id);
   }, [requestDeleteGeneration]);
@@ -592,7 +632,7 @@ const JoinClipsPage: React.FC = () => {
       videosFetching={videosFetching}
       deletingId={deletingId}
       handleDeleteGeneration={handleDeleteGeneration}
-      DeleteConfirmDialog={DeleteConfirmDialog}
+      confirmDialogProps={confirmDialogProps}
     />
   );
 };

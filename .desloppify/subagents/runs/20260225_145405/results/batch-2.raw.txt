@@ -1,0 +1,99 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 82.7
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "Inline edit flow builds a very large facade object that mostly forwards nested hook outputs (`buildInlineEditStateModels` + `InlineEditStateResult`) instead of exposing cohesive domain slices (`src/tools/edit-images/hooks/useInlineEditState.ts`).",
+        "Lightbox stack repeatedly re-bundles and forwards large prop/state bags (`useImageLightboxEnvironment` -> `useImageLightboxSharedState` -> `useVideoLightboxRenderModel` -> `LightboxLayout`) with long dependency arrays and little behavioral translation (`src/shared/components/MediaLightbox/ImageLightbox.tsx`, `src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx`, `src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx`).",
+        "Task creation modules use parallel bespoke payload/validation pipelines per tool with overlapping responsibilities (validate, normalize, build payload, compose request) rather than a stronger shared contract abstraction (`src/shared/lib/tasks/imageGeneration.ts`, `src/shared/lib/tasks/magicEdit.ts`, `src/shared/lib/tasks/joinClips.ts`, `src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 79.0,
+        "indirection_cost": 76.5,
+        "interface_honesty": 86.0
+      }
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "inline_edit_state_facade_overexpansion",
+      "summary": "Inline edit state abstraction is a low-leverage mega-facade that duplicates and forwards hook internals.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx"
+      ],
+      "evidence": [
+        "`buildInlineEditStateModels` manually re-maps a very large set of fields from `inpainting`, `magic`, `reposition`, and `img2img` into multiple parallel bags (`inpaintingState`, `transformState`, `generationState`, `imageEditValue`) in one place.",
+        "The view layer then forwards many of the same fields again into `EditModePanel` and control components, so abstraction adds translation cost without reducing API breadth.",
+        "The exported `InlineEditStateResult` type encodes implementation detail breadth (many nested passthrough fields), increasing change surface for any internal hook evolution."
+      ],
+      "suggestion": "Replace the single mega return object with 2-3 stable domain controllers (for example `canvasController`, `editController`, `generationController`) that each expose a minimal public contract. Keep implementation-specific hook outputs private and pass provider/context values directly where possible to remove manual field mirroring.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "ui_viewmodel_passthrough"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "lightbox_render_model_wrapper_chain",
+      "summary": "Lightbox rendering uses a wrapper chain with oversized state bags and minimal behavioral transformation.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "`useImageLightboxEnvironment` and `useImageLightboxSharedState` aggregate broad mixed concerns (layout, project context, variant operations, edit state, navigation) into large objects that are forwarded downstream.",
+        "`useVideoLightboxRenderModel` builds additional nested model objects (`lightboxVariants`, `lightboxStateValue`) and large memo dependency lists, indicating high indirection cost for mostly passthrough state.",
+        "`LightboxLayout` re-hydrates multiple context/state slices and still consumes large `props` bundles (`buttonGroups`, `segmentSlotMode`, `workflowBar`), so layers are additive rather than simplifying boundaries."
+      ],
+      "suggestion": "Define explicit lightbox boundary contracts by concern (navigation, media, edit tools, panel content), then move assembly to one composition layer per mode. Reduce cross-layer object rebundling by consuming context/selectors at the leaf components that need them.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "ui_viewmodel_passthrough"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "task_payload_pipeline_fragmentation",
+      "summary": "Task creation abstractions are fragmented across tool modules, causing repeated wide-bag mapping logic.",
+      "related_files": [
+        "src/shared/lib/tasks/imageGeneration.ts",
+        "src/shared/lib/tasks/magicEdit.ts",
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/videoEnhance.ts"
+      ],
+      "evidence": [
+        "Each module keeps its own shape-specific param interfaces and bespoke validate/build/compose flow, even though they all end in `composeTaskRequest` + `createTask`.",
+        "`magicEdit` duplicates single and batch param surfaces and manually remaps batch -> single objects, increasing pass-through churn.",
+        "`joinClips` and travel payload builder maintain large, manually constructed payload records with many optional field forwards, duplicating mapping patterns seen in other task modules."
+      ],
+      "suggestion": "Introduce a shared task-spec abstraction (schema + defaults + mapper + validator) and have each tool register only task-specific rules. Generate batch/single mappings from the same spec so field additions happen once and reduce repeated bag-to-bag copying.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "task_contract_passthrough"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Feature modules evolved by layering view-model wrappers instead of enforcing narrow contracts at boundaries.",
+      "Task tooling relies on per-feature payload assemblers rather than a unified task-spec abstraction."
+    ],
+    "likely_symptoms": [
+      "inline_edit_state_facade_overexpansion",
+      "lightbox_render_model_wrapper_chain",
+      "task_payload_pipeline_fragmentation"
+    ],
+    "possible_false_positives": []
+  }
+}

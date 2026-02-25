@@ -1,0 +1,78 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 5,
+  "assessments": {
+    "high_level_elegance": 78.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`vitest.edge.config.ts` and `vitest.edge.smoke.config.ts` are root-level but exclusively target `supabase/functions/**` tests, while `vitest.config.ts` imports edge include patterns just to exclude them from app tests.",
+        "`src/shared/hooks/useApiKeys.ts` directly binds to Supabase auth/user-table persistence and API key schema, indicating infrastructure/domain-specific ownership inside a global `shared/hooks` package.",
+        "`src/shared/hooks/useAIInteractionService.ts` hardcodes the `ai-prompt` edge function contract and AI task modes, but is packaged as generic shared hook.",
+        "Test placement is inconsistent: hook tests use `src/shared/hooks/__tests__/...`, while component tests are mixed as colocated files (`src/shared/components/ActiveLoRAsDisplay.test.tsx`, `src/shared/components/AppErrorBoundary.test.tsx`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "edge_test_config_ownership_at_root",
+      "summary": "Edge-function test config is rooted globally instead of owned by the Supabase test subsystem.",
+      "related_files": [
+        "vitest.edge.config.ts",
+        "vitest.edge.smoke.config.ts",
+        "vitest.config.ts"
+      ],
+      "evidence": [
+        "`vitest.edge.config.ts` and `vitest.edge.smoke.config.ts` only include `supabase/functions/**` paths and Deno/Supabase mock aliases.",
+        "`vitest.config.ts` imports `edgeVitestConfig` to derive excludes, creating cross-root coupling between app-test and edge-test config concerns."
+      ],
+      "suggestion": "Move edge-specific Vitest config into a `supabase/functions/_tests/config/` area and make the root `vitest.config.ts` reference a stable exported edge include list from that subsystem (or use separate Vitest projects) so ownership matches directory boundaries.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_hooks_contain_feature_specific_integrations",
+      "summary": "`shared/hooks` contains hooks with concrete backend/feature contracts, blurring shared-vs-feature boundaries.",
+      "related_files": [
+        "src/shared/hooks/useApiKeys.ts",
+        "src/shared/hooks/useAIInteractionService.ts",
+        "src/shared/hooks/__tests__/useApiKeys.test.ts"
+      ],
+      "evidence": [
+        "`useApiKeys` imports `supabase` client and reads/writes `users.api_keys`, which is backend persistence logic rather than cross-feature shared UI behavior.",
+        "`useAIInteractionService` hardcodes edge function invocation (`ai-prompt`) and AI task protocol (`generate_prompts`, `edit_prompt`, `generate_summary`).",
+        "These hooks are tested under the generic shared hook test tree, reinforcing the mixed ownership boundary."
+      ],
+      "suggestion": "Relocate these hooks under domain/integration packages (for example `src/features/ai/hooks` and `src/integrations/supabase/hooks`) and leave `src/shared/hooks` for cross-feature UI/runtime primitives.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "test_location_convention_drift",
+      "summary": "Test file placement conventions are split between `__tests__` folders and ad-hoc colocation.",
+      "related_files": [
+        "src/shared/hooks/__tests__/useAdjacentPagePreloader.test.ts",
+        "src/shared/components/ActiveLoRAsDisplay.test.tsx",
+        "src/shared/components/AppErrorBoundary.test.tsx"
+      ],
+      "evidence": [
+        "Hook tests are centralized in `src/shared/hooks/__tests__/...`.",
+        "Component tests are colocated with production files in `src/shared/components/` (`ActiveLoRAsDisplay.test.tsx`, `AppErrorBoundary.test.tsx`).",
+        "Within the same shared subsystem, mixed conventions reduce predictability for ownership and discovery."
+      ],
+      "suggestion": "Standardize on one test placement convention per layer (e.g., colocated `*.test.ts(x)` everywhere or `__tests__` everywhere) and apply it consistently across `src/shared/hooks` and `src/shared/components`.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

@@ -1,23 +1,11 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import Stripe from "https://esm.sh/stripe@14.21.0";
-import { SystemLogger } from "../_shared/systemLogger.ts";
-import { authenticateRequest } from "../_shared/auth.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      ...corsHeaders,
-      'Content-Type': 'application/json',
-    },
-  });
-}
+import { bootstrapEdgeHandler } from "../_shared/edgeHandler.ts";
+import { jsonResponse } from "../_shared/http.ts";
+import {
+  createStripeClient,
+  getAutoTopupConfigFailure,
+  validatePersistedAutoTopupConfig,
+} from "../_shared/autoTopupDomain.ts";
 
 /**
  * Edge function: process-auto-topup
@@ -34,53 +22,31 @@ function jsonResponse(body: unknown, status = 200) {
  * - 500 Internal Server Error
  */
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return jsonResponse({ ok: true });
-  }
-
-  if (req.method !== "POST") {
-    return jsonResponse({ error: "Method not allowed" }, 405);
-  }
-
-  // ─── 1. Parse body ──────────────────────────────────────────────
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return jsonResponse({ error: "Invalid JSON body" }, 400);
-  }
-  
-  const { userId } = body;
-
-  if (!userId || typeof userId !== 'string') {
-    return jsonResponse({ error: "userId is required and must be a string" }, 400);
-  }
-
-  // ─── 2. Verify service role authentication ──────────────────────
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  if (!supabaseUrl || !serviceRoleKey) {
-    console.error("Missing required environment variables");
-    return jsonResponse({ error: "Server configuration error" }, 500);
-  }
-
-  // ─── 3. Create Supabase admin client ────────────────────────────
-  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+  const bootstrap = await bootstrapEdgeHandler(req, {
+    functionName: "process-auto-topup",
+    logPrefix: "[PROCESS-AUTO-TOPUP]",
+    parseBody: "strict",
     auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
+      requireServiceRole: true,
+    },
+    runtimeOptions: {
+      clientOptions: {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      },
+    },
   });
-
-  const logger = new SystemLogger(supabaseAdmin, 'process-auto-topup');
-
-  const auth = await authenticateRequest(req, supabaseAdmin, "[PROCESS-AUTO-TOPUP]");
-  if (!auth.success) {
-    return jsonResponse({ error: auth.error || "Authentication failed" }, auth.statusCode || 401);
+  if (!bootstrap.ok) {
+    return bootstrap.response;
   }
-  if (!auth.isServiceRole) {
-    return jsonResponse({ error: "Unauthorized - service role required" }, 403);
+
+  const { supabaseAdmin, logger, body } = bootstrap.value;
+  const userId = typeof body.userId === "string" ? body.userId : null;
+
+  if (!userId) {
+    return jsonResponse({ error: "userId is required and must be a string" }, 400);
   }
 
   try {
@@ -116,8 +82,12 @@ serve(async (req) => {
       return jsonResponse({ error: 'Payment method not configured' }, 400);
     }
 
-    if (!user.auto_topup_amount || !user.auto_topup_threshold) {
-      return jsonResponse({ error: 'Auto-top-up amounts not configured' }, 400);
+    const autoTopupConfigError = validatePersistedAutoTopupConfig(
+      user.auto_topup_amount,
+      user.auto_topup_threshold,
+    );
+    if (autoTopupConfigError) {
+      return jsonResponse({ error: autoTopupConfigError }, 400);
     }
 
     // Check if balance is still above threshold (may have changed since trigger)
@@ -156,16 +126,7 @@ serve(async (req) => {
     }
 
     // ─── 6. Initialize Stripe and create Payment Intent ─────────────
-    const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeSecretKey) {
-      logger.error("Missing Stripe configuration");
-      await logger.flush();
-      return jsonResponse({ error: "Stripe not configured" }, 500);
-    }
-
-    const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: "2024-06-20",
-    });
+    const stripe = createStripeClient();
 
     // Create off-session payment intent
     const paymentIntent = await stripe.paymentIntents.create({
@@ -259,15 +220,24 @@ serve(async (req) => {
       }, 400);
     }
 
-  } catch (error) {
-    logger.error('Error in process-auto-topup', { error: error.message });
-    
+  } catch (error: unknown) {
+    const configFailure = getAutoTopupConfigFailure(error);
+    if (configFailure) {
+      logger.error(configFailure.logMessage);
+      await logger.flush();
+      return jsonResponse({ error: configFailure.userMessage }, 500);
+    }
+
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const stripeErrorType = (error as { type?: string } | null)?.type;
+    logger.error('Error in process-auto-topup', { error: errorMessage });
+
     // Handle specific Stripe errors
-    if (error.type === 'StripeCardError') {
+    if (stripeErrorType === 'StripeCardError') {
       return jsonResponse({
         error: 'Card error during auto-top-up',
-        code: error.code,
-        message: error.message,
+        code: (error as { code?: string } | null)?.code,
+        message: errorMessage,
       }, 400);
     }
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { Button } from '@/shared/components/ui/button';
 import { Settings, X } from 'lucide-react';
 import HoverScrubVideo from '@/shared/components/HoverScrubVideo';
@@ -29,8 +29,7 @@ export const SelectedPresetCard: React.FC<SelectedPresetCardProps> = ({
   const { data: preset, isLoading } = useQuery({
     queryKey: [queryKeyPrefix, 'preset', presetId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('resources')
+      const { data, error } = await supabase().from('resources')
         .select('*')
         .eq('id', presetId)
         .single();

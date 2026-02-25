@@ -2,7 +2,7 @@ import { useOutputSelection } from '../hooks';
 import { useSegmentOutputsForShot } from '@/shared/hooks/segments';
 import { useDemoteOrphanedVariants } from '../../../hooks/useDemoteOrphanedVariants';
 import { useEnsureSelectedOutput } from '../hooks/useEnsureSelectedOutput';
-import type { GenerationRow, Shot } from '@/types/shots';
+import type { GenerationRow, Shot } from '@/domains/generation/types';
 
 interface UseOutputControllerParams {
   selectedProjectId: string | null;

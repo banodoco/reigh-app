@@ -1,0 +1,127 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 4,
+  "assessments": {
+    "api_surface_coherence": 57.0,
+    "mid_level_elegance": 61.0
+  },
+  "dimension_notes": {
+    "api_surface_coherence": {
+      "evidence": [
+        "API contracts for similar cross-boundary operations diverge: `generateVideo()` returns `{ success, error? }` instead of throwing (`src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts:586`), while `loadClipDuration()` resolves fallback `durationSeconds: 0` on failure (`src/tools/join-clips/lib/clipManager/metadata.ts:11-24`) and `fetchLineageChain()` logs and returns `[]` (`src/shared/hooks/useLineageChain.ts:60-80`).",
+        "Two prop resolvers flatten nested sections via object spread (`resolveShotImagesEditorProps`, `resolveJoinClipsSettingsFormProps`), so key collisions are silently last-write-wins (`src/tools/travel-between-images/components/ShotImagesEditor/types.ts:168-181`, `src/shared/components/JoinClipsSettingsForm/types.ts:101-112`).",
+        "Legacy and current structure-video APIs coexist in one interface (`primaryStructureVideo*` fields plus `structureVideos[]` callbacks), creating parallel shapes for the same feature (`src/tools/travel-between-images/components/ShotImagesEditor/types.ts:76-136`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "`generateVideoService` mixes DB reads, mutation synchronization polling, model/phase selection, prompt override migration, payload shaping, and task submission in one seam-heavy module (`src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts:227-709`).",
+        "Boundary translation is split across many helper builders in the same file (`buildImagePayload`, `buildTimelinePairConfig`, `buildTravelRequestBodyV2`) and then recomposed in `generateVideo()`, increasing handoff complexity and making integration changes ripple through multiple ad-hoc mappers (`src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts:248-556,586-703`).",
+        "Cache/invalidation orchestration uses multiple APIs with different lifecycle semantics (`useInvalidateGenerations`, `invalidateGenerationsSync`, `scheduleGenerationsInvalidation`) while write orchestration uses a separate queue abstraction (`runSerializedTimelineWrite`), producing fragmented seam conventions (`src/shared/hooks/invalidation/useGenerationInvalidation.ts:68-162`, `src/shared/lib/timelineWriteQueue.ts:54-190`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "mixed_failure_contracts_generation_stack",
+      "summary": "Generation-related APIs expose inconsistent failure contracts (throw vs sentinel value vs success/error object), making callers handle errors non-uniformly.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/tools/join-clips/lib/clipManager/metadata.ts",
+        "src/shared/hooks/useLineageChain.ts",
+        "src/shared/lib/generationTaskBridge.ts"
+      ],
+      "evidence": [
+        "`generateVideo()` returns `{ success: false, error }` via `failureResult()` rather than throwing (`generateVideoService.ts:186-189,586-709`).",
+        "`loadClipDuration()` catches and returns `{ durationSeconds: 0 }` (`metadata.ts:17-24`).",
+        "`fetchLineageChain()` catches Supabase errors via `handleError` and returns `[]` (`useLineageChain.ts:60-80`).",
+        "`getPrimaryTaskIdForGeneration()` throws on query error (`generationTaskBridge.ts:39-41`)."
+      ],
+      "suggestion": "Define one explicit error contract for this subsystem (prefer typed Result or typed exceptions) and apply it consistently across service/hook boundaries, with adapters only at UI edges.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "flattened_props_collision_risk",
+      "summary": "Prop resolver helpers flatten multiple prop groups with spread-merges, which can silently override same-named keys.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/types.ts",
+        "src/shared/components/JoinClipsSettingsForm/types.ts"
+      ],
+      "evidence": [
+        "`resolveShotImagesEditorProps()` merges four sections (`displayOptions`, `imageState`, `editActions`, `shotWorkflow`) into one object without conflict checks (`ShotImagesEditor/types.ts:174-180`).",
+        "`resolveJoinClipsSettingsFormProps()` similarly merges `clipSettings`, `motionConfig`, `uiState` (`JoinClipsSettingsForm/types.ts:106-111`)."
+      ],
+      "suggestion": "Keep sectioned props at boundaries (no flattening), or add compile-time collision guards using mapped-type key-disjoint checks before merge.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "dual_structure_video_api_surface",
+      "summary": "Shot image editor types expose both legacy single-video and new multi-video structure APIs simultaneously, creating ambiguous integration paths.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/types.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/shared/components/ImageGenerationForm/hooks/legacyMigrations/legacyProjectImageSettings.ts"
+      ],
+      "evidence": [
+        "`ShotImagesEditorImageState` includes `primaryStructureVideo*` fields and also `structureVideos?: StructureVideoConfigWithMetadata[]` (`ShotImagesEditor/types.ts:76-87`).",
+        "`ShotImagesEditorEditActions` includes both `onPrimaryStructureVideoInputChange(...)` (6+ args) and array-based `onAddStructureVideo/onUpdateStructureVideo/onSetStructureVideos` (`ShotImagesEditor/types.ts:120-135`).",
+        "`buildStructureGuidance()` consumes only array-based shape (`generateVideoService.ts:82-124`), indicating single-video path is legacy but still publicly exposed."
+      ],
+      "suggestion": "Complete migration to one structure-video contract and isolate legacy adapters in a dedicated compatibility module, not in the main editor prop API.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "generate_video_service_overloaded_seam",
+      "summary": "The video generation seam is overloaded with orchestration, data access, translation, and submission concerns in one module.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/shared/lib/tasks/orchestrationContract.ts",
+        "src/shared/lib/generationTransformers.ts"
+      ],
+      "evidence": [
+        "Module handles query synchronization (`waitForPendingMutations`), DB fetching (`fetchFreshShotGenerations`), filtering/translation (`buildImagePayload`, `buildTimelinePairConfig`), model selection/validation, and task submit (`createTravelBetweenImagesTask`) in one flow (`generateVideoService.ts:227-709`).",
+        "The request body builder (`buildTravelRequestBodyV2`) requires nested parameter groups and many conditional fields (`generateVideoService.ts:465-556`), signaling seam complexity.",
+        "Adjacent modules already define separate transformation/contract utilities (`generationTransformers.ts`, `orchestrationContract.ts`), but this seam partially reinvents local mapping."
+      ],
+      "suggestion": "Split into explicit collaborators: `ShotGenerationRepository`, `PairConfigBuilder`, `TravelRequestBuilder`, and `TaskSubmissionService`; keep `generateVideo()` as thin orchestration only.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "fragmented_write_invalidation_lifecycle",
+      "summary": "Write serialization and cache invalidation lifecycle are coordinated through separate, inconsistent primitives, increasing seam friction.",
+      "related_files": [
+        "src/shared/lib/timelineWriteQueue.ts",
+        "src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+        "src/shared/hooks/shots/cacheUtils.ts"
+      ],
+      "evidence": [
+        "`timelineWriteQueue` exposes queue depth/phase events and timeout-wrapped write execution (`timelineWriteQueue.ts:54-190`), while invalidation uses independent timeout maps and scheduled callbacks (`useGenerationInvalidation.ts:68-114`).",
+        "Invalidation entry points have mixed contracts (`Promise<void>`, timeout handle, fire-and-forget query invalidation) for near-identical lifecycle intent (`useGenerationInvalidation.ts:96-120`).",
+        "Cache utils add another separate orchestration layer (`updateAllShotsCaches`, `rollbackShotsCaches`, `cancelShotsQueries`) without shared lifecycle primitive (`cacheUtils.ts:31-97`)."
+      ],
+      "suggestion": "Introduce a shared write-lifecycle coordinator abstraction that unifies serialize-write, cancel/refetch, and delayed invalidation semantics behind one subsystem API.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

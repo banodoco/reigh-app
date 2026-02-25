@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { getSourceTaskId, hasOrchestratorDetails } from '../taskIdHelpers';
+import {
+  getSourceTaskId,
+  getSourceTaskIdLegacyCompatible,
+  hasOrchestratorDetails,
+} from '../taskIdHelpers';
 
 describe('getSourceTaskId', () => {
   const validUuid = '12345678-1234-1234-1234-123456789abc';
@@ -13,20 +17,23 @@ describe('getSourceTaskId', () => {
     expect(getSourceTaskId({ source_task_id: validUuid })).toBe(validUuid);
   });
 
-  it('falls back to orchestrator_task_id', () => {
-    expect(getSourceTaskId({ orchestrator_task_id: validUuid })).toBe(validUuid);
+  it('falls back to orchestration_contract.orchestrator_task_id', () => {
+    expect(getSourceTaskId({
+      orchestration_contract: { orchestrator_task_id: validUuid },
+    })).toBe(validUuid);
   });
 
-  it('falls back to task_id', () => {
-    expect(getSourceTaskId({ task_id: validUuid })).toBe(validUuid);
+  it('does not read legacy fallback fields by default', () => {
+    expect(getSourceTaskId({ orchestrator_task_id: validUuid })).toBeNull();
+    expect(getSourceTaskId({ task_id: validUuid })).toBeNull();
   });
 
-  it('respects priority order: source_task_id > orchestrator_task_id > task_id', () => {
+  it('respects priority order: source_task_id > orchestration_contract.orchestrator_task_id', () => {
     const uuid1 = '11111111-1111-1111-1111-111111111111';
     const uuid2 = '22222222-2222-2222-2222-222222222222';
     expect(getSourceTaskId({
       source_task_id: uuid1,
-      orchestrator_task_id: uuid2,
+      orchestration_contract: { orchestrator_task_id: uuid2 },
     })).toBe(uuid1);
   });
 
@@ -47,6 +54,18 @@ describe('getSourceTaskId', () => {
   it('handles case-insensitive UUID validation', () => {
     const upperUuid = '12345678-1234-1234-1234-123456789ABC';
     expect(getSourceTaskId({ source_task_id: upperUuid })).toBe(upperUuid);
+  });
+});
+
+describe('getSourceTaskIdLegacyCompatible', () => {
+  const validUuid = '12345678-1234-1234-1234-123456789abc';
+
+  it('falls back to top-level orchestrator_task_id', () => {
+    expect(getSourceTaskIdLegacyCompatible({ orchestrator_task_id: validUuid })).toBe(validUuid);
+  });
+
+  it('falls back to task_id when canonical keys are absent', () => {
+    expect(getSourceTaskIdLegacyCompatible({ task_id: validUuid })).toBe(validUuid);
   });
 });
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { formatDistanceToNow, isValid } from 'date-fns';
-import { useIsMobile } from '@/shared/hooks/useMobile';
+import { useIsMobile } from '@/shared/hooks/mobile';
 import { useTimestampUpdater, useTimestampVisibility } from '@/shared/hooks/useTimestampUpdater';
 
 interface TimeStampProps {

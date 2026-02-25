@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 import { DerivedNavContext } from '../types';
 
 interface UseLightboxProps {

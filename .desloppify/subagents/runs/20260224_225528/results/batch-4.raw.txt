@@ -1,0 +1,91 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "low_level_elegance": 78.0
+  },
+  "dimension_notes": {
+    "low_level_elegance": {
+      "evidence": [
+        "Migration wrappers are still zero-behavior pass-through files (`src/integrations/supabase/client.ts`, `src/shared/components/ui/cn.ts`, `src/shared/hooks/useClickRipple.ts`).",
+        "Utility internals still rely on unchecked casts and fallback ladders (`src/shared/lib/galleryUtils.ts` casts unknown payload branches to `Record<string, unknown>`/`string[]`; `src/shared/lib/preloading/preloader.ts` casts preloadable items to `{ id: string }`; `src/shared/lib/supabaseTypeHelpers.ts` uses `as unknown as Json`).",
+        "Compatibility adapters keep broad mixed-shape payloads and infer behavior instead of enforcing clear input contracts (`src/shared/lib/tasks/joinClipsCompatAdapter.ts`, `src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "pure_migration_shims_still_active",
+      "summary": "Multiple migration shim files are still pure re-export wrappers with no local behavior.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/components/ui/cn.ts",
+        "src/shared/hooks/useClickRipple.ts"
+      ],
+      "evidence": [
+        "`src/integrations/supabase/client.ts` only re-exports `initializeSupabase` and `getSupabaseClient`.",
+        "`src/shared/components/ui/cn.ts` is only `export { cn } ...` with no adaptation.",
+        "`src/shared/hooks/useClickRipple.ts` is a deprecated compatibility re-export with no runtime logic."
+      ],
+      "suggestion": "Migrate remaining imports to canonical modules, add no-restricted-imports rules to block new shim usage, and remove these shim files once import count reaches zero.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "legacy_compat_layers_without_retirement_enforcement"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "unchecked_cast_fallback_ladders",
+      "summary": "Unchecked casts plus fallback ladders still hide malformed input shapes in utility internals.",
+      "related_files": [
+        "src/shared/lib/galleryUtils.ts",
+        "src/shared/lib/preloading/preloader.ts",
+        "src/shared/lib/supabaseTypeHelpers.ts"
+      ],
+      "evidence": [
+        "`extractSegmentImages` repeatedly coerces unknown nested values with `as Record<string, unknown>` and array casts (`as string[]`) before indexed access.",
+        "`preloadImages` calls `hasLoadedImage(img as { id: string })` and `setImageLoadStatus(img as { id: string }, true)` instead of narrowing `img.id` with a type guard first.",
+        "`toJson` centralizes but still performs an unconditional `as unknown as Json`, allowing non-JSON-safe values through compile-time contracts."
+      ],
+      "suggestion": "Introduce explicit narrowers/parsers at boundaries (e.g., `asRecord`, `asStringArray`, `hasStringId`, `isJsonValue`) and reject or sanitize invalid branches before fallback selection/indexing.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "unchecked_boundary_coercion"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "compat_param_bag_keeps_ambiguous_modes",
+      "summary": "Compat adapters keep oversized mixed-mode parameter bags that preserve ambiguous execution paths.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClipsCompatAdapter.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts"
+      ],
+      "evidence": [
+        "`JoinClipsTaskCompatParams` contains overlapping canonical and legacy fields (e.g., `clip_source` and legacy path fields, `video_edit` and `video_edit_mode`+source fields), then `toCanonicalJoinClipsTaskInput` infers mode and strips keys via large destructuring.",
+        "`LegacyTravelBetweenImagesTaskParams` keeps parallel deprecated structure-video fields beside newer guidance-oriented fields, sustaining dual-shape input handling."
+      ],
+      "suggestion": "Split compatibility handling into explicit legacy input unions with strict mutual-exclusion validation, emit warnings/errors for mixed-mode payloads, and progressively narrow/remove deprecated fields per removal targets.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "legacy_compat_layers_without_retirement_enforcement"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Compatibility layers were introduced but not aggressively retired, leaving migration wrappers and broad legacy input surfaces active.",
+      "Boundary typing relies on coercion helpers and fallback chains rather than parse/validate-first contracts."
+    ],
+    "likely_symptoms": [
+      "pure_migration_shims_still_active",
+      "unchecked_cast_fallback_ladders",
+      "compat_param_bag_keeps_ambiguous_modes"
+    ],
+    "possible_false_positives": []
+  }
+}

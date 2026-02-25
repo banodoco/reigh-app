@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '@/shared/components/ui/button';
-import { Label } from '@/shared/components/ui/label';
+import { Label } from '@/shared/components/ui/primitives/label';
 import FileInput from '@/shared/components/FileInput';
 import { Resource, PhaseConfigMetadata } from '@/shared/hooks/useResources';
 import { MediaPreview } from '../MediaPreview';

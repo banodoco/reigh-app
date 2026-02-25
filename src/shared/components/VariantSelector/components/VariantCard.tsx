@@ -11,7 +11,7 @@
 
 import React, { useState } from 'react';
 import { Check, ArrowDown, ArrowUp, Info, Loader2, Trash2, GitBranch, Star, Download, Image } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { Button } from '@/shared/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/shared/components/ui/hover-card';

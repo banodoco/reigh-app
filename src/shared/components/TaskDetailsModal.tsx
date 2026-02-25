@@ -8,8 +8,8 @@
  * to shared/ because it's used by MediaGalleryLightbox and other shared components.
  */
 
-import React, { useEffect, useState, ReactNode } from 'react';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import React, { useState, ReactNode } from 'react';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import {
   Dialog,
   DialogContent,
@@ -20,14 +20,15 @@ import {
 } from '@/shared/components/ui/dialog';
 import { Button } from '@/shared/components/ui/button';
 import { Checkbox } from '@/shared/components/ui/checkbox';
-import { useIsMobile } from '@/shared/hooks/useMobile';
+import { useIsMobile } from '@/shared/hooks/mobile';
 import { useLargeModal } from '@/shared/hooks/useModal';
-import { Label } from '@/shared/components/ui/label';
-import { useGetTaskIdForGeneration } from '@/shared/lib/generationTaskBridge';
-import { useGetTask } from '@/shared/hooks/useTasks';
+import { Label } from '@/shared/components/ui/primitives/label';
 import { Check, Copy } from 'lucide-react';
 import { GenerationDetails } from '@/shared/components/GenerationDetails';
 import { usePublicLoras } from '@/shared/hooks/useResources';
+import { normalizeTaskDetailsPayload } from '@/shared/components/TaskDetails/hooks/normalizeTaskDetailsPayload';
+import { useProject } from '@/shared/contexts/ProjectContext';
+import { useGenerationTaskDetails } from '@/shared/components/TaskDetails/hooks/useGenerationTaskDetails';
 
 interface TaskDetailsModalProps {
   generationId: string;
@@ -55,90 +56,38 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({ generationId, child
     }
   };
   const [replaceImages, setReplaceImages] = useState(true);
-  const [taskId, setTaskId] = useState<string | null>(null);
   const [showDetailedParams, setShowDetailedParams] = useState(false);
   const [showAllImages, setShowAllImages] = useState(false);
   const [showFullPrompt, setShowFullPrompt] = useState(false);
   const [showFullNegativePrompt, setShowFullNegativePrompt] = useState(false);
   const [paramsCopied, setParamsCopied] = useState(false);
   const [idCopied, setIdCopied] = useState(false);
+  const { selectedProjectId } = useProject();
 
-  // Use the new hooks
-  const getTaskIdMutation = useGetTaskIdForGeneration();
-  const getTaskId = getTaskIdMutation.mutateAsync;
-  const { data: task, isLoading: isLoadingTask } = useGetTask(taskId || '');
+  const {
+    taskId,
+    task,
+    inputImages,
+    isLoadingTask,
+  } = useGenerationTaskDetails({
+    generationId,
+    projectId: selectedProjectId ?? null,
+    enabled: isOpen,
+    resolveMappingOnDemand: true,
+  });
 
   // Fetch public LoRAs for proper name display
   const { data: availableLoras } = usePublicLoras();
 
-  // Derive input images from multiple possible locations within task params
-  // Strips any surrounding quotes from URLs that may have been improperly stored
-  const inputImages: string[] = React.useMemo(() => {
-    const cleanUrl = (url: string): string => {
-      if (typeof url !== 'string') return url;
-      // Remove surrounding quotes if present
-      return url.replace(/^["']|["']$/g, '');
-    };
-
-    const taskParams = (task?.params ?? {}) as Record<string, unknown>;
-    if (Array.isArray(taskParams.input_images) && taskParams.input_images.length > 0) {
-      return taskParams.input_images
-        .filter((url): url is string => typeof url === 'string')
-        .map(cleanUrl);
-    }
-    const fullOrchestratorPayload = taskParams.full_orchestrator_payload as Record<string, unknown> | undefined;
-    const payloadResolved = fullOrchestratorPayload?.input_image_paths_resolved;
-    if (Array.isArray(payloadResolved)) {
-      return payloadResolved
-        .filter((url): url is string => typeof url === 'string')
-        .map(cleanUrl);
-    }
-    if (Array.isArray(taskParams.input_image_paths_resolved)) {
-      return taskParams.input_image_paths_resolved
-        .filter((url): url is string => typeof url === 'string')
-        .map(cleanUrl);
-    }
-    return [];
-  }, [task]);
-
-  useEffect(() => {
-    let cancelled = false; // guard to avoid state updates after unmount
-    const fetchTaskDetails = async () => {
-      if (!isOpen || !generationId) return;
-
-      try {
-        // Step 1: Get the task ID from the generation using Supabase
-        const result = await getTaskId(generationId);
-
-        if (cancelled) return;
-
-        if (!result.taskId) {
-            setTaskId(null);
-            return;
-        }
-
-        setTaskId(result.taskId);
-        // The task data will be fetched by the useGetTask hook automatically
-
-      } catch (error: unknown) {
-        if (cancelled) return;
-        handleError(error, { context: 'TaskDetailsModal', showToast: false });
-        setTaskId(null);
-      }
-    };
-
-    fetchTaskDetails();
-
-    // Cleanup to avoid setting state after unmount
-    return () => {
-      cancelled = true;
-    };
-  }, [isOpen, generationId, getTaskId]);
+  const normalizedTaskPayload = React.useMemo(() => normalizeTaskDetailsPayload(task), [task]);
+  const detailInputImages = normalizedTaskPayload.inputImages.length > 0
+    ? normalizedTaskPayload.inputImages
+    : inputImages;
 
   const handleApplySettingsFromTask = () => {
     if (taskId && onApplySettingsFromTask && task) {
       // Pass the correctly ordered inputImages array (derived from task JSON sources)
-      onApplySettingsFromTask(taskId, replaceImages, inputImages);
+      onApplySettingsFromTask(taskId, replaceImages, detailInputImages);
     }
     setIsOpen(false);
     onClose?.();
@@ -151,11 +100,11 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({ generationId, child
       setParamsCopied(true);
       setTimeout(() => setParamsCopied(false), 2000);
     } catch (err) {
-      handleError(err, { context: 'TaskDetailsModal', showToast: false });
+      normalizeAndPresentError(err, { context: 'TaskDetailsModal', showToast: false });
     }
   };
 
-  const isLoading = getTaskIdMutation.isPending || isLoadingTask;
+  const isLoading = isLoadingTask;
 
   return (
     <Dialog
@@ -219,7 +168,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({ generationId, child
               <div className="space-y-3">
                 <GenerationDetails
                   task={task}
-                  inputImages={inputImages}
+                  inputImages={detailInputImages}
                   variant="modal"
                   isMobile={isMobile}
                   showAllImages={showAllImages}
@@ -297,7 +246,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({ generationId, child
         <div className={modal.footerClass}>
           <DialogFooter className="pt-4 border-t">
            <div className="flex w-full items-center gap-3">
-              {inputImages.length > 0 && (
+              {detailInputImages.length > 0 && (
                 <>
                   <div className="flex items-center gap-x-2">
                     <Checkbox

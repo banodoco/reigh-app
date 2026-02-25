@@ -1,7 +1,7 @@
 import * as React from "react"
 import { Switch as SwitchPrimitive } from "@base-ui-components/react/switch"
 import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from "../../lib/utils"
+import { cn } from "@/shared/components/ui/contracts/cn"
 
 const switchVariants = cva(
   "peer inline-flex shrink-0 cursor-pointer items-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50",

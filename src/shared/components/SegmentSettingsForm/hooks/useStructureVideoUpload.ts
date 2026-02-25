@@ -10,10 +10,10 @@
 
 import { useState, useCallback, useRef } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { extractVideoMetadata, uploadVideoToStorage } from '@/shared/lib/videoUploader';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { useCreateResource, type Resource, type StructureVideoMetadata } from '@/shared/hooks/useResources';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
@@ -194,7 +194,7 @@ function useVideoFileUploadProcessor(input: {
       const metadata = await extractVideoMetadata(file);
       setUploadProgress(25);
 
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase().auth.getUser();
       const videoUrl = await uploadVideoToStorage(
         file,
         '',
@@ -237,7 +237,7 @@ function useVideoFileUploadProcessor(input: {
       setPendingVideoUrl(videoUrl);
       onAddSegmentStructureVideo(newVideo);
     } catch (error) {
-      handleError(error, {
+      normalizeAndPresentError(error, {
         context: 'SegmentSettingsForm',
         toastTitle: 'Failed to upload video',
       });

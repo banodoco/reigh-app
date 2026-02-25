@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { getSupabaseClient } from '@/integrations/supabase/client';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { useOnboarding } from '@/shared/hooks/useOnboarding';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { useProject } from '@/shared/contexts/ProjectContext';
@@ -27,7 +27,8 @@ export function useOnboardingFlow() {
 
     if (selectedProjectId) {
       try {
-        const { data: shot } = await supabase
+        const client = getSupabaseClient();
+        const { data: shot } = await client
           .from('shots')
           .select('id')
           .eq('project_id', selectedProjectId)
@@ -43,7 +44,10 @@ export function useOnboardingFlow() {
           }, 1000);
         }
       } catch (err) {
-        handleError(err, { context: 'Layout', showToast: false });
+        normalizeAndPresentError(err, {
+          context: 'useOnboardingFlow.handleOnboardingClose',
+          showToast: false,
+        });
       }
     }
   }, [clearTourStartTimeout, closeOnboardingModal, selectedProjectId, navigate, startTour]);
@@ -54,8 +58,11 @@ export function useOnboardingFlow() {
   // Preload ProductTour chunk when onboarding is shown
   useEffect(() => {
     if (showOnboardingModal) {
-      import('@/shared/components/ProductTour').catch(() => {
-        // Silently ignore preload failures - not critical
+      import('@/shared/components/ProductTour').catch((error) => {
+        normalizeAndPresentError(error, {
+          context: 'useOnboardingFlow.preloadProductTour',
+          showToast: false,
+        });
       });
     }
   }, [showOnboardingModal]);

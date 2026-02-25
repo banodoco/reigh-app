@@ -1,0 +1,95 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "mid_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "The generation-to-task seam uses mixed error contracts: repository APIs return `OperationResult` (`src/shared/lib/generationTaskRepository.ts`), while bridge helpers immediately throw on `!ok` and some call sites swallow/log (`src/shared/lib/generationTaskBridge.ts`).",
+        "`transformGeneration` and `transformForTimeline` expose inconsistent output mapping for the same generation domain: timeline path hardcodes `thumbUrl` to `location` and skips thumbnail fallback/URL identity normalization used by the gallery path (`src/shared/lib/generationTransformers.ts`).",
+        "`useGenerationInvalidation` requires a `reason` field in options but never uses it in scheduling or invalidation execution (`src/shared/hooks/invalidation/useGenerationInvalidation.ts`), indicating a leaky boundary contract."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "generation_task_error_contract_split",
+      "summary": "Generation-task boundary mixes Result-style and throw-style failures across the same seam.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/lib/generationTaskBridge.ts",
+        "src/shared/lib/operationResult.ts"
+      ],
+      "evidence": [
+        "`getPrimaryTaskIdForGenerationResult` / `getPrimaryTaskIdsForGenerationsResult` return `OperationResult` values.",
+        "Bridge helpers (`getPrimaryTaskIdForGeneration`, `getPrimaryTaskIdsForGenerations`) convert `!ok` into thrown errors, while `preloadGenerationTaskMappings` catches and logs then continues.",
+        "Callers of the same conceptual API must handle both result objects and exceptions depending on entrypoint, increasing integration branching."
+      ],
+      "suggestion": "Standardize the seam to one failure model end-to-end (prefer `OperationResult` at repository + bridge layers, with one adapter at UI boundary if needed), and make all bridge exports follow that single contract.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "generation_transform_shape_drift",
+      "summary": "Generation transformers emit divergent media fields for timeline vs gallery consumers.",
+      "related_files": [
+        "src/shared/lib/generationTransformers.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/types.ts",
+        "src/shared/hooks/shots/cacheUtils.ts"
+      ],
+      "evidence": [
+        "`transformGeneration` computes `thumbUrl` via fallback logic and derives URL identity fields.",
+        "`transformForTimeline` sets `thumbUrl: genData.location` directly and does not reuse the thumbnail extraction logic.",
+        "This creates boundary drift for consumers sharing `GenerationRow`-like data, forcing downstream code to tolerate inconsistent media metadata depending on fetch path."
+      ],
+      "suggestion": "Route both transform paths through shared field builders (thumbnail/content/prompt normalization) so timeline and gallery hand off a consistent object contract.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "invalidation_reason_contract_not_honored",
+      "summary": "Invalidation API requires `reason` but drops it entirely during execution.",
+      "related_files": [
+        "src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+        "src/features/gallery/lib/adjacentPagePreloadCoordinator.ts"
+      ],
+      "evidence": [
+        "`InvalidationOptions` and `VariantInvalidationOptions` both require `reason`.",
+        "Neither `performInvalidation`, `runInvalidationLifecycle`, nor `invalidateVariantChange` uses or forwards `reason`.",
+        "In contrast, adjacent preload APIs explicitly propagate context into error callbacks (`onError(context, error, logData)`), showing a clearer seam."
+      ],
+      "suggestion": "Either remove `reason` from the public invalidation contract or propagate it into tracing/log hooks so callers get a truthful, useful boundary API.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "pending_clip_action_contract_mismatch",
+      "summary": "Pending clip action docs describe typed operations that the exported type does not encode.",
+      "related_files": [
+        "src/tools/join-clips/lib/clipInitService.ts",
+        "src/tools/join-clips/lib/clipManager/metadata.ts"
+      ],
+      "evidence": [
+        "The `consumePendingJoinClips` comment says each item is `{ type: 'fill' | 'append', clip }`.",
+        "`PendingClipAction` only contains `{ clip: VideoClip }`, and fill/append is implicitly recomputed later in `applyPendingClipActions`.",
+        "This blurs handoff intent between producer and consumer layers and makes the action payload under-specified for future integrations."
+      ],
+      "suggestion": "Align implementation and contract: either add explicit `type` to `PendingClipAction` and honor it in apply logic, or update docs and naming to reflect that actions are raw clip payloads only.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ]
+}

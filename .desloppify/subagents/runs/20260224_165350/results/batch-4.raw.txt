@@ -1,0 +1,128 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "ai_generated_debt": 61.0,
+    "low_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "Many assigned files are pure compatibility wrappers with no added behavior (for example `src/shared/components/BatchDropZone.tsx`, `src/shared/components/ConfirmDialog.tsx`, `src/shared/hooks/useBatchImageLoading.ts`, `src/shared/lib/aspectRatios.ts`, `src/shared/lib/clientThumbnailGenerator.ts`).",
+        "`src/integrations/supabase/client.ts` and `src/shared/lib/errorHandling/handleError.ts` both keep deprecated exports with dated removal targets, but there is no automated enforcement path in these files beyond comments.",
+        "The migration surface is still broad in high-traffic entrypoints (`src/shared/hooks/useMobile.tsx`, `src/shared/components/ui/cn.ts`, `src/integrations/supabase/client.ts`), indicating ongoing dual-path maintenance."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "`src/integrations/supabase/client.ts` uses a full compatibility `Proxy` with repeated trap-level `getSupabaseClient() as unknown as ...` lookups, adding indirection and duplicated runtime work in each trap.",
+        "`src/shared/hooks/useDeleteGenerationWithConfirm.tsx` mixes behavior and rendering by returning a hook-local component (`DeleteConfirmDialog`) and casts mutation variables to `string`, making control flow and data ownership less direct.",
+        "`src/shared/components/ShotImageManager/utils/image-utils.ts` contains a pass-through helper (`getAspectRatioStyle`) and heavy explanatory comments relative to simple operations, which adds reading overhead without equivalent logic value."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "migration_shim_sprawl",
+      "summary": "Compatibility re-export shims are over-retained across shared entrypoints, increasing migration debt and duplicate import surfaces.",
+      "related_files": [
+        "src/shared/components/BatchDropZone.tsx",
+        "src/shared/components/ConfirmDialog.tsx",
+        "src/shared/components/MediaLightbox/utils/download.ts",
+        "src/shared/hooks/useBatchImageLoading.ts",
+        "src/shared/hooks/useMobile.tsx",
+        "src/shared/lib/aspectRatios.ts"
+      ],
+      "evidence": [
+        "Each file above is effectively a one-line re-export behind `@deprecated` comments, preserving legacy and target paths simultaneously.",
+        "This pattern appears in multiple areas (components, hooks, lib), indicating systemic migration residue rather than isolated compatibility."
+      ],
+      "suggestion": "Create and execute a dated migration sweep: replace imports to canonical paths, then delete shim files in a single coordinated removal PR per subsystem.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "deadline_without_enforcement",
+      "summary": "Deprecation deadlines are documented but not enforced in code paths that remain active, so legacy APIs can survive indefinitely.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/ui/cn.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts"
+      ],
+      "evidence": [
+        "`src/integrations/supabase/client.ts` defines removal metadata and then suppresses it with `void LEGACY_SUPABASE_PROXY_REMOVE_BY;` and `void LEGACY_SUPABASE_PROXY_OWNER;`.",
+        "`src/shared/lib/errorHandling/handleError.ts` keeps deprecated alias exports (`reportRuntimeError`, `RuntimeErrorOptions`) with no escalation path in file.",
+        "`src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts` includes a remove-by contract in comments while preserving full legacy field interfaces."
+      ],
+      "suggestion": "Add enforceable migration checks (lint rule or CI grep guard for deprecated import paths/symbols) and fail builds when post-deadline legacy APIs are still imported.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "supabase_proxy_indirection",
+      "summary": "Supabase compatibility proxy adds avoidable trap-by-trap indirection and repeated casting that obscures control flow.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "`createSupabaseCompatibilityProxy()` implements `get/set/has/ownKeys/getOwnPropertyDescriptor` traps, each resolving the client via `getSupabaseClient() as unknown as SupabaseClientRecord`.",
+        "Error handling and fallback initialization logic are nested under this proxy path, increasing complexity for simple client access.",
+        "The proxy keeps legacy behavior alive while adding low-level runtime branching to every property access."
+      ],
+      "suggestion": "Remove proxy-based compatibility access and migrate call sites to `getSupabaseClient()` directly; until then, centralize client resolution once per operation instead of per trap.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "hook_returns_component_factory",
+      "summary": "Hook-local component factory pattern in delete-confirm flow mixes concerns and makes lifecycle/data flow harder to reason about.",
+      "related_files": [
+        "src/shared/hooks/useDeleteGenerationWithConfirm.tsx",
+        "src/shared/components/ConfirmDialog.tsx"
+      ],
+      "evidence": [
+        "`useDeleteGenerationWithConfirm` returns `DeleteConfirmDialog` from `useCallback`, coupling mutation state with JSX rendering API.",
+        "The hook also coerces `deleteGenerationMutation.variables as string`, which hides shape assumptions instead of expressing them structurally.",
+        "The dialog import comes through a deprecated shim path, compounding indirection."
+      ],
+      "suggestion": "Split into a state/action hook plus a separate presentational dialog component that receives explicit props; type mutation variables at source to avoid casts.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "pass_through_helpers_and_comment_bloat",
+      "summary": "Several helpers/comments restate obvious behavior and add wrapper layers without domain logic.",
+      "related_files": [
+        "src/shared/components/ShotImageManager/utils/image-utils.ts",
+        "src/shared/hooks/useDeleteGenerationWithConfirm.tsx",
+        "src/domains/generation/types/generationViewRow.ts"
+      ],
+      "evidence": [
+        "`getAspectRatioStyle` in `image-utils.ts` only forwards arguments to `getProjectAspectRatioStyle` with no added semantics.",
+        "`image-utils.ts` and `useDeleteGenerationWithConfirm.tsx` include long explanatory comment blocks for straightforward control flow.",
+        "`generationViewRow.ts` introduces multiple alias layers (`GenerationRow`, `GenerationUiRow`) that are thin compositional wrappers around existing types."
+      ],
+      "suggestion": "Trim comments to non-obvious constraints only, and delete pass-through wrappers/type aliases that do not create a stable domain boundary.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ]
+}

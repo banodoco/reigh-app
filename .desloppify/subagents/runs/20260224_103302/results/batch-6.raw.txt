@@ -1,0 +1,23 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "high_level_elegance": 93.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "README.md defines explicit governance for contract classes (runtime integration vs UI primitives), required markers, and staged compatibility migration policy.",
+        "src/integrations/supabase/client.ts implements a minimal public facade with @publicContract annotation and a narrow export surface (getSupabaseClient + initializeSupabaseClientRuntime).",
+        "src/shared/lib/errorHandling/handleError.ts exposes one stable runtime error facade with a focused options contract and clear ownership comment.",
+        "src/domains/generation/types/generationViewRow.ts documents a three-tier contract decomposition (persisted + derived + optimistic) and reflects it directly in exported type composition.",
+        "src/shared/components/ui/cn.ts and src/shared/components/ui/button.tsx carry @uiContract markers and present stable UI primitive entrypoints consistent with README governance scope."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "unreported_risk": "Governance relies heavily on comments/README alignment; if check coverage in contract enforcement drifts, documentation can remain clean while runtime contract boundaries erode."
+    }
+  },
+  "findings": []
+}

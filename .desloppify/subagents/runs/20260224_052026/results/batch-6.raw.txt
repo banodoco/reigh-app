@@ -1,0 +1,55 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "high_level_elegance": 78.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "README runtime contract states `src/types/generationRow.ts` is a compatibility facade with legacy aliases and alias-retirement policy, but the file is only a direct re-export (`export type { GenerationRow } ...`) with no compatibility layer behavior.",
+        "README states Supabase ownership should be explicit via bootstrap, while `getSupabaseClient()` in `src/integrations/supabase/client.ts` always lazy-initializes by delegating to `initializeSupabaseClient()`, making bootstrap optional in runtime behavior.",
+        "README embeds operational Supabase contract details (legacy proxy path, debug globals bootstrap hook) that are not represented in the exported contract surface of `src/integrations/supabase/client.ts`, increasing docs-vs-runtime drift risk."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "generationrow_contract_drift",
+      "summary": "GenerationRow compatibility policy in README no longer matches the actual facade implementation.",
+      "related_files": [
+        "README.md",
+        "src/types/generationRow.ts"
+      ],
+      "evidence": [
+        "README claims a two-layer ownership model with compatibility aliases and a migration rule to retire alias fields.",
+        "`src/types/generationRow.ts` contains only `export type { GenerationRow } from '@/domains/generation/types/generationRow';` and no alias fields or boundary mapping logic."
+      ],
+      "suggestion": "Either reduce README to document the current pure re-export contract, or reintroduce an actual compatibility facade (with explicit alias mapping and deprecation plan) so policy and runtime align.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "supabase_bootstrap_contract_ambiguity",
+      "summary": "Supabase ownership contract is ambiguous because explicit bootstrap is documented while lazy fallback is the real runtime path.",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "README says client ownership is centralized and should be accessed canonically with bootstrap-oriented contract language.",
+        "`initializeSupabaseClient()` says bootstrap should call it for explicit ownership, but `getSupabaseClient()` always calls it and therefore silently initializes when bootstrap did not run."
+      ],
+      "suggestion": "Choose one contract and enforce it: either require explicit bootstrap (throw/assert before init in non-bootstrap contexts) or document lazy-init as first-class and remove bootstrap-required wording from governance docs.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

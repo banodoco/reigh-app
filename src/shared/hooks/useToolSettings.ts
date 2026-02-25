@@ -1,21 +1,25 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRef, useEffect, useCallback, useMemo } from 'react';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { QUERY_PRESETS, STANDARD_RETRY_DELAY } from '@/shared/lib/queryDefaults';
 import {
   enqueueSettingsWrite,
   setSettingsWriteFunction,
   type QueuedWrite
 } from '@/shared/lib/settingsWriteQueue';
-import { deepMerge } from '@/shared/lib/deepEqual';
+import { deepMerge } from '@/shared/lib/utils/deepEqual';
 import { isCancellationError } from '@/shared/lib/errorHandling/errorUtils';
 import {
+  classifyToolSettingsError,
   fetchToolSettingsSupabase,
   getUserWithTimeout,
+  toToolSettingsErrorFromOperationFailure,
+  ToolSettingsError,
   type SettingsFetchResult,
 } from '@/shared/lib/toolSettingsService';
+import { getProjectSelectionFallbackId } from '@/shared/contexts/projectSelectionStore';
 
 export type SettingsScope = 'user' | 'project' | 'shot';
 
@@ -35,11 +39,11 @@ interface UpdateToolSettingsParams {
 async function fetchSettingsForScope(scope: SettingsScope, id: string) {
   switch (scope) {
     case 'user':
-      return supabase.from('users').select('settings').eq('id', id).single();
+      return supabase().from('users').select('settings').eq('id', id).single();
     case 'project':
-      return supabase.from('projects').select('settings').eq('id', id).single();
+      return supabase().from('projects').select('settings').eq('id', id).single();
     case 'shot':
-      return supabase.from('shots').select('settings').eq('id', id).single();
+      return supabase().from('shots').select('settings').eq('id', id).single();
   }
 }
 
@@ -59,7 +63,10 @@ async function rawUpdateToolSettings(write: QueuedWrite): Promise<Record<string,
         tableName = 'shots';
         break;
       default:
-        throw new Error(`Invalid scope: ${scope}`);
+        throw new ToolSettingsError(
+          'invalid_scope_identifier',
+          `Invalid scope: ${scope}`,
+        );
     }
 
     // For patch updates, we need to fetch current settings to merge
@@ -68,14 +75,21 @@ async function rawUpdateToolSettings(write: QueuedWrite): Promise<Record<string,
     const { data: currentEntity, error: fetchError } = await fetchSettingsForScope(scope, id);
 
     if (fetchError) {
-      // Check for network exhaustion - include the error type in the message for downstream handling
       const errorMessage = fetchError.message || '';
       if (errorMessage.includes('ERR_INSUFFICIENT_RESOURCES') ||
           errorMessage.includes('Failed to fetch') ||
           fetchError.code === 'ERR_INSUFFICIENT_RESOURCES') {
-        throw new Error(`Network exhaustion: ${errorMessage}`);
+        throw new ToolSettingsError(
+          'network',
+          `Network exhaustion: ${errorMessage}`,
+          { recoverable: true, cause: fetchError },
+        );
       }
-      throw new Error(`Failed to fetch current ${scope} settings: ${errorMessage}`);
+      throw new ToolSettingsError(
+        'scope_fetch_failed',
+        `Failed to fetch current ${scope} settings: ${errorMessage}`,
+        { recoverable: true, cause: fetchError },
+      );
     }
 
     // Merge patch with current tool settings
@@ -85,7 +99,7 @@ async function rawUpdateToolSettings(write: QueuedWrite): Promise<Record<string,
 
     // Use atomic PostgreSQL function to update settings
     // This is much faster than update() because it happens in a single DB operation
-    const { error: rpcError } = await supabase.rpc('update_tool_settings_atomic', {
+    const { error: rpcError } = await supabase().rpc('update_tool_settings_atomic', {
       p_table_name: tableName,
       p_id: id,
       p_tool_id: toolId,
@@ -93,7 +107,11 @@ async function rawUpdateToolSettings(write: QueuedWrite): Promise<Record<string,
     });
 
     if (rpcError) {
-      throw new Error(`Failed to update ${scope} settings: ${rpcError.message}`);
+      throw new ToolSettingsError(
+        'scope_fetch_failed',
+        `Failed to update ${scope} settings: ${rpcError.message}`,
+        { recoverable: true, cause: rpcError },
+      );
     }
 
     // CRITICAL: Return the full merged settings, not just the patch
@@ -104,8 +122,10 @@ async function rawUpdateToolSettings(write: QueuedWrite): Promise<Record<string,
   } catch (error: unknown) {
     // Handle abort errors silently to reduce noise during task cancellation
     if (isCancellationError(error)) {
-      // Don't log these as errors - they're expected during component unmounting
-      throw new Error('Request was cancelled');
+      throw new ToolSettingsError('cancelled', 'Request was cancelled', {
+        recoverable: true,
+        cause: error,
+      });
     }
 
     console.error('[rawUpdateToolSettings] Error:', error);
@@ -192,16 +212,12 @@ export function updateSettingsCache<T extends Record<string, unknown>>(
 
 /** Determines whether a failed settings query should be retried. */
 function shouldRetrySettingsQuery(failureCount: number, error: Error): boolean {
-  // Don't retry auth errors, cancelled requests, or abort errors
-  if (error?.message?.includes('Authentication required') ||
-      error?.message?.includes('Request was cancelled') ||
-      error?.name === 'AbortError' ||
-      error?.message?.includes('signal is aborted')) {
-    return false;
-  }
-  // Don't retry on network exhaustion - retrying just makes it worse
-  if (error?.message?.includes('ERR_INSUFFICIENT_RESOURCES') ||
-      error?.message?.includes('Network exhaustion')) {
+  const classified = classifyToolSettingsError(error);
+  if (
+    classified.code === 'auth_required'
+    || classified.code === 'cancelled'
+    || classified.code === 'network'
+  ) {
     return false;
   }
   return failureCount < 3;
@@ -250,18 +266,15 @@ function handleMutationError(
   shotId: string | undefined,
   queryClient: ReturnType<typeof useQueryClient>,
 ) {
-  if (error?.name === 'AbortError' ||
-      error?.message?.includes('Request was cancelled') ||
-      error?.message?.includes('signal is aborted')) {
+  const classified = classifyToolSettingsError(error);
+
+  if (classified.code === 'cancelled') {
     return;
   }
 
-  const isNetworkExhaustion = error?.message?.includes('ERR_INSUFFICIENT_RESOURCES') ||
-                               error?.message?.includes('Network exhaustion') ||
-                               error?.message?.includes('Failed to fetch');
-  if (isNetworkExhaustion) return;
+  if (classified.code === 'network') return;
 
-  handleError(error, { context: 'useToolSettings.update', toastTitle: `Failed to save ${toolId} settings` });
+  normalizeAndPresentError(classified, { context: 'useToolSettings.update', toastTitle: `Failed to save ${toolId} settings` });
 
   queryClient.invalidateQueries({
     queryKey: queryKeys.settings.tool(toolId, projectId, shotId)
@@ -302,12 +315,8 @@ export function useToolSettings<T>(
   const updateControllersRef = useRef<Set<AbortController>>(new Set());
 
   // Determine parameter shapes
-  const projectIdFromGlobal =
-    typeof window !== 'undefined'
-      ? (window as Window & { __PROJECT_CONTEXT__?: { selectedProjectId?: string | null } })
-          .__PROJECT_CONTEXT__?.selectedProjectId ?? undefined
-      : undefined;
-  const projectId: string | undefined = context?.projectId ?? projectIdFromGlobal ?? undefined;
+  const projectIdFromRuntime = getProjectSelectionFallbackId() ?? undefined;
+  const projectId: string | undefined = context?.projectId ?? projectIdFromRuntime ?? undefined;
   const shotId: string | undefined = context?.shotId;
   const fetchEnabled: boolean = context?.enabled ?? true;
 
@@ -332,16 +341,12 @@ export function useToolSettings<T>(
   // Fetch merged settings using Supabase with mobile optimizations
   const { data: queryResult, isLoading, error } = useQuery({
     queryKey: queryKeys.settings.tool(toolId, projectId, shotId),
-    queryFn: async ({ signal }) => {
-      try {
-        const result = await fetchToolSettingsSupabase(toolId, { projectId, shotId }, signal);
-        return result;
-      } catch (err: unknown) {
-        if (isCancellationError(err)) {
-          throw new Error('Request was cancelled');
-        }
-        throw err;
+    queryFn: async ({ signal }): Promise<SettingsFetchResult> => {
+      const result = await fetchToolSettingsSupabase(toolId, { projectId, shotId }, signal);
+      if (!result.ok) {
+        throw toToolSettingsErrorFromOperationFailure(result);
       }
+      return result.value;
     },
     enabled: !!toolId && fetchEnabled,
     ...QUERY_PRESETS.static,
@@ -357,8 +362,8 @@ export function useToolSettings<T>(
   const hasShotSettings = wrapper ? ((queryResult as SettingsFetchResult).hasShotSettings ?? false) : false;
 
   // Log errors for debugging (except expected cancellations)
-  if (error && !error?.message?.includes('Request was cancelled')) {
-    handleError(error, { context: 'useToolSettings', showToast: false });
+  if (error && classifyToolSettingsError(error).code !== 'cancelled') {
+    normalizeAndPresentError(error, { context: 'useToolSettings', showToast: false });
   }
 
   // Update settings mutation
@@ -384,7 +389,10 @@ export function useToolSettings<T>(
       }
 
       if (!idForScope) {
-        throw new Error(`Missing identifier for ${scope} tool settings update`);
+        throw new ToolSettingsError(
+          'invalid_scope_identifier',
+          `Missing identifier for ${scope} tool settings update`,
+        );
       }
 
       const fullMergedSettings = await updateToolSettingsSupabase({

@@ -1,6 +1,6 @@
 import type React from 'react';
 import type { SegmentSlot } from '@/shared/hooks/segments';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 
 export interface LayoutProps {
   layout: 'absolute' | 'flow';

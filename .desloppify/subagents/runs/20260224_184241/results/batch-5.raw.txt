@@ -1,0 +1,59 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 5,
+  "assessments": {
+    "high_level_elegance": 88.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "README.md defines explicit compatibility governance for shots (`strict` migration gate plus `npm run check:shots-shim-usage` in `npm run quality:check`), but similar deprecation contracts in `src/integrations/supabase/client.ts` and `src/shared/lib/errorHandling/handleError.ts` are comment-only metadata (`@removalTarget 2026-06-30`) with no visible enforcement hook in these files.",
+        "`src/integrations/supabase/client.ts` keeps a legacy `supabase` facade while also introducing the new bootstrap/runtime contract (`initializeSupabase` + `getSupabaseClient`), increasing dual-surface ownership during migration.",
+        "`src/shared/lib/utils.ts` is a broad barrel used by `src/shared/components/ui/button.tsx` for `cn`, while also exporting unrelated string utilities, which weakens clear boundary ownership for UI contracts compared to domain-specific barrels like `src/types/generationAndShots.ts`."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Contract governance is uneven: one migration path (shots) is CI-gated, while other documented deprecations and compatibility facades rely on manual follow-through and broad utility surfaces that blur ownership."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "contract-governance-inconsistent-gates",
+      "summary": "Deprecation and compatibility contracts are enforced unevenly across subsystems.",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "README.md documents a strict, automated removal gate for `@/types/shots` via `npm run check:shots-shim-usage` and `quality:check` integration.",
+        "`src/integrations/supabase/client.ts` and `src/shared/lib/errorHandling/handleError.ts` contain deprecation metadata (`@deprecationOwner`, `@removalTarget 2026-06-30`) but no equivalent in-file enforcement mechanism; legacy exports remain available (`supabase` alias, `reportRuntimeError`, `RuntimeErrorOptions`)."
+      ],
+      "suggestion": "Standardize migration governance by adding CI-enforced checks for legacy symbols/imports (matching the shots shim model), and require each deprecation contract to declare and wire a concrete removal gate command.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "ui-contract-boundary-blur-via-generic-utils",
+      "summary": "UI primitive contract depends on a mixed-purpose utility barrel, blurring ownership boundaries.",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/lib/utils.ts",
+        "src/types/generationAndShots.ts"
+      ],
+      "evidence": [
+        "`src/shared/components/ui/button.tsx` imports `cn` from `@/shared/lib/utils`.",
+        "`src/shared/lib/utils.ts` exports both UI class helper (`cn`) and unrelated string helpers (`cropFilename`, `truncateText`), creating a catch-all entry point.",
+        "In contrast, `src/types/generationAndShots.ts` is a tightly scoped canonical barrel for a single domain, showing a clearer contract pattern."
+      ],
+      "suggestion": "Split and enforce narrower contract surfaces (for example, import `cn` from a UI-focused module directly) and keep mixed-purpose barrels out of primitive UI dependencies to reduce accidental cross-domain coupling.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

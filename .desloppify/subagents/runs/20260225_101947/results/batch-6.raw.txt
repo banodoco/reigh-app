@@ -1,0 +1,79 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "cross_module_architecture": 84.0,
+    "package_organization": 86.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`README.md` declares `@/domains/generation/types/public` as the canonical generation/shot type surface, but `holistic_context.structure.directory_profiles[\"src/types/\"]` still contains parallel generation/shot contracts (`generationAndShots.ts`, `generationMetadata.ts`, `generationParams.ts`, `generationRow.ts`, `shot.ts`) with `avg_fan_in: 4.7` and active imports from multiple shared directories.",
+        "`src/domains/generation/types/public.ts` is a high fan-in boundary (`avg_fan_in: 25.0` at directory level), so parallel active type surfaces create boundary ambiguity at a core architecture contract seam."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "package_organization": {
+      "evidence": [
+        "`README.md` mixes onboarding material with multiple enforceable runtime governance contracts (Supabase bootstrap contract, deprecation policy gates, error handling ownership, shim migration gates), making the root doc a policy registry instead of a package-level entrypoint.",
+        "Structural data shows multiple mature boundary directories (`src/integrations/supabase/`, `src/shared/lib/errorHandling/`, `src/shared/components/ui/`, `src/domains/generation/types/`) with high fan-in; policy ownership is better colocated with those boundary packages than centralized in root prose."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Governance policy text is centralized in `README.md` rather than split into package-owned docs adjacent to the boundaries they govern, which increases docs-vs-runtime drift risk."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "split_generation_type_contract_surface",
+      "summary": "Generation/shot contracts remain split across two active type surfaces.",
+      "related_files": [
+        "README.md",
+        "src/domains/generation/types/public.ts"
+      ],
+      "evidence": [
+        "`README.md` states `@/domains/generation/types/public` is canonical and legacy shot aliasing is removed.",
+        "`public.ts` only re-exports domain types, but structure data shows `src/types/` still hosts parallel generation/shot contract files with non-trivial fan-in (`avg_fan_in: 4.7`) and active imports from shared layers."
+      ],
+      "suggestion": "Complete the contract convergence by deprecating direct generation/shot exports in `src/types/*` and funneling all generation/shot type imports through `src/domains/generation/types/public.ts`. Stage it: (1) add temporary re-export shims in `src/types/*` that point to domain types, (2) bulk-rewrite imports to the canonical domain barrel (`rg \"@/types/(generation|shot|generationAndShots)\" src` then codemod), (3) remove old files once usage is zero, (4) validate with `npm run check:shots-shim-usage && npm run check:contracts && npm run typecheck`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "canonical_contract_not_fully_enforced"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "root_readme_overloaded_with_governance_contracts",
+      "summary": "Root README is overloaded with package-specific governance policy details.",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "`README.md` contains detailed operational policy for Supabase bootstrap, legacy shim gates, error handling ownership, and contract enforcement commands.",
+        "These policies map to specific boundary packages (`src/integrations/supabase/*`, `src/shared/lib/errorHandling/*`) rather than repository-root concerns, so ownership is separated from implementation location."
+      ],
+      "suggestion": "Run a staged docs reorg so policy ownership matches package boundaries: (1) create `docs/governance/contracts/` with `supabase-runtime.md`, `error-handling.md`, and `compatibility-shims.md`; (2) move contract details out of `README.md` into those files, keeping README as index-level summary with links; (3) in each package (`src/integrations/supabase/`, `src/shared/lib/errorHandling/`, `src/domains/generation/types/`), add a short local `README.md` linking to the authoritative governance doc; (4) update references via `rg \"check:legacy-supabase-usage|check:error-runtime-alias-usage|check:shots-shim-usage\" README.md docs -n`; (5) validate link and policy consistency with `npm run quality:check`.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "policy_docs_not_colocated_with_owned_packages"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Canonical contract migration is documented but not fully enforced in type-surface placement.",
+      "Governance documentation is centralized at repo root instead of colocated with owning packages."
+    ],
+    "likely_symptoms": [
+      "split_generation_type_contract_surface",
+      "root_readme_overloaded_with_governance_contracts"
+    ],
+    "possible_false_positives": []
+  }
+}

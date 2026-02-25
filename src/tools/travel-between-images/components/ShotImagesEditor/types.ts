@@ -2,7 +2,7 @@
  * Types for ShotImagesEditor and its sub-components.
  */
 
-import type { GenerationRow, Shot } from '@/types/shots';
+import type { GenerationRow, Shot } from '@/domains/generation/types';
 import type { VideoMetadata } from '@/shared/lib/videoUploader';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 

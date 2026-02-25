@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useHuggingFaceToken } from '@/shared/hooks/useExternalApiKeys';
-import { useHuggingFaceUpload, LoraFiles } from '@/shared/hooks/useHuggingFaceUpload';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { useHuggingFaceToken } from '@/shared/services/externalApiKeys/hooks/useHuggingFaceToken';
+import { useHuggingFaceUpload, LoraFiles } from '@/features/lora/hooks/useHuggingFaceUpload';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 import type { Resource } from '@/shared/hooks/useResources';
 import { LoraModel, LoraFormState } from '../../../types';
@@ -95,11 +95,10 @@ export function useLoraFormState({ editingLora, defaultIsPublic }: UseLoraFormSt
   useEffect(() => {
     const fetchUserName = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user } } = await supabase().auth.getUser();
         if (!user) return;
 
-        const { data, error } = await supabase
-          .from('users')
+        const { data, error } = await supabase().from('users')
           .select('name')
           .eq('id', user.id)
           .single();
@@ -111,7 +110,7 @@ export function useLoraFormState({ editingLora, defaultIsPublic }: UseLoraFormSt
 
         setUserName(data?.name || '');
       } catch (error) {
-        handleError(error, { context: 'useLoraFormState', showToast: false });
+        normalizeAndPresentError(error, { context: 'useLoraFormState', showToast: false });
       }
     };
 

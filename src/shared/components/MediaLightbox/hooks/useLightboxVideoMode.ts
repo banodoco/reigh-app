@@ -14,7 +14,7 @@
  */
 
 import { useRef, useState, useEffect } from 'react';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 import type { GenerationVariant } from '@/shared/hooks/useVariants';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import { useVideoTrimming, useTrimSave } from '@/shared/components/VideoTrimEditor';

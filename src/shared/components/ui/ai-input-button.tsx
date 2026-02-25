@@ -1,14 +1,15 @@
 import * as React from "react"
 import { Mic, Square, Loader2, X, Check, Wand2, Send } from "lucide-react"
-import { cn } from "@/shared/lib/utils"
-import { Tooltip, TooltipContent, TooltipTrigger, TouchableTooltip } from "./tooltip"
+import { cn } from "@/shared/components/ui/contracts/cn"
+import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip"
+import { TouchableTooltip } from "./touchableTooltip"
 import { TextAction } from "./text-action"
 import { Popover, PopoverContent, PopoverTrigger } from "./popover"
 import { useVoiceRecording } from "@/shared/hooks/useVoiceRecording"
-import { useIsMobile } from "@/shared/hooks/useMobile"
-import { supabase } from "@/integrations/supabase/client"
+import { useIsMobile } from "@/shared/hooks/mobile"
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { useAIInputMode } from "@/shared/contexts/AIInputModeContext"
-import { handleError } from "@/shared/lib/errorHandling/handleError"
+import { normalizeAndPresentError } from "@/shared/lib/errorHandling/runtimeError"
 import { getErrorMessage } from "@/shared/lib/errorHandling/errorUtils"
 
 type TextProcessingState = "idle" | "open" | "processing" | "success"
@@ -105,7 +106,7 @@ export const AIInputButton = React.forwardRef<
     setTextState("processing")
     
     try {
-      const { data, error } = await supabase.functions.invoke("ai-voice-prompt", {
+      const { data, error } = await supabase().functions.invoke("ai-voice-prompt", {
         body: {
           textInstructions: inputValue.trim(),
           task: "transcribe_and_write",
@@ -116,14 +117,14 @@ export const AIInputButton = React.forwardRef<
       })
 
       if (error) {
-        handleError(error, { context: 'AIInputButton', showToast: false })
+        normalizeAndPresentError(error, { context: 'AIInputButton', showToast: false })
         onError?.(error.message || "Failed to process instructions")
         setTextState("open")
         return
       }
 
       if (data?.error) {
-        handleError(new Error(data.error), { context: 'AIInputButton', showToast: false })
+        normalizeAndPresentError(new Error(data.error), { context: 'AIInputButton', showToast: false })
         onError?.(data.error)
         setTextState("open")
         return
@@ -142,7 +143,7 @@ export const AIInputButton = React.forwardRef<
         setInputValue("")
       }, 500)
     } catch (err: unknown) {
-      handleError(err, { context: 'AIInputButton', showToast: false })
+      normalizeAndPresentError(err, { context: 'AIInputButton', showToast: false })
       onError?.(getErrorMessage(err) || "Failed to process instructions")
       setTextState("open")
     }

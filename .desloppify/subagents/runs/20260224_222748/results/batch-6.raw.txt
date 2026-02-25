@@ -1,0 +1,115 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "cross_module_architecture": 74.0,
+    "high_level_elegance": 76.0,
+    "test_strategy": 79.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "README.md defines a canonical Supabase runtime path while also documenting a legacy compatibility path, so two access surfaces are intentionally active at once.",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts exports a broad `supabase` facade (`from`, `rpc`, realtime channels, `auth`, `storage`, `functions`) that mirrors core client capabilities instead of a narrowly scoped adapter.",
+        "src/types/generationAndShots.ts is a high-fan-in cross-domain barrel (generation + shot types in one surface), which increases coupling pressure across unrelated feature modules."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "README.md presents governance contracts (canonical import paths, shim policy, strict migration gate) as project-level truth.",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts still exports the deprecated compatibility facade as a first-class runtime API, with sunset metadata only in comments.",
+        "src/shared/lib/errorHandling/handleError.ts and src/integrations/supabase/legacy/legacySupabaseFacade.ts both keep deprecated aliases with removal targets, indicating policy is documentation-led rather than structurally enforced."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "test_strategy": {
+      "evidence": [
+        "Critical governance contracts in README.md (shim policy, migration strictness, canonical path claims) are documentation statements and not self-verifying in the scoped modules.",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts relies on deprecation annotations and `@removalTarget` comments but has no in-module mechanism to fail fast as the deadline approaches.",
+        "Thin high-import contract surfaces (src/types/generationAndShots.ts and src/shared/components/ui/cn.ts) expose shared API boundaries without embedded guardrails against accidental surface drift."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "dual_supabase_surface_persists",
+      "summary": "Legacy Supabase facade remains a broad parallel client surface, preserving cross-module boundary drift.",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts"
+      ],
+      "evidence": [
+        "README.md explicitly documents both canonical runtime client access and legacy compatibility imports.",
+        "legacySupabaseFacade exports `supabase` with broad parity to the core client (`from`, `rpc`, channels, `auth`, `storage`, `realtime`, `functions`) rather than a minimal migration-only shim.",
+        "The facade’s removal condition is documented in comments, but the API remains fully exported and usable."
+      ],
+      "suggestion": "Constrain the legacy facade to a minimal, migration-only API (or internalize it), then drive remaining call sites to `getSupabaseClient()` behind a shrinking compatibility budget with a hard fail threshold before 2026-06-30.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "documentation_led_migration_without_enforced_boundary"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "policy_vs_runtime_contract_gap",
+      "summary": "Governance contracts are expressed as docs/comments but not reflected as strong runtime ownership boundaries.",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "README positions migration and shim policies as authoritative project contracts.",
+        "Both `legacySupabaseFacade.ts` and `handleError.ts` retain deprecated compatibility aliases with owner/removal metadata, but policy enforcement is not encoded at the same boundary where APIs are exposed.",
+        "In `legacySupabaseFacade.ts`, deprecation constants are only referenced via `void` expressions, signaling metadata preservation without operational governance behavior."
+      ],
+      "suggestion": "Move governance from passive annotations to active boundary controls: expose deprecated aliases only through explicitly named compat modules, add deadline-aware build/runtime assertions, and align README claims with enforceable import boundaries.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "documentation_led_migration_without_enforced_boundary"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "governance_contracts_not_test_oracle",
+      "summary": "Critical migration/deprecation contracts are not treated as executable test oracles in scoped modules.",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "src/types/generationAndShots.ts",
+        "src/shared/components/ui/cn.ts"
+      ],
+      "evidence": [
+        "README defines strict compatibility and canonical-surface expectations, but these expectations are not embedded as verifiable contracts in the listed boundary modules.",
+        "legacySupabaseFacade relies on comment metadata (`@deprecated`, `@removalTarget`) while continuing to export a production-ready facade.",
+        "High-fan-in barrel/alias files (`generationAndShots.ts`, `cn.ts`) provide central contracts without in-module safeguards against accidental API surface expansion or drift."
+      ],
+      "suggestion": "Add contract-focused tests that fail on governance drift: assert allowed exports for `generationAndShots`/`cn`, assert legacy facade surface remains migration-minimal, and add a deadline/budget test tied to the documented 2026-06-30 Supabase shim sunset.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "documentation_led_migration_without_enforced_boundary"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Governance is primarily encoded in README/deprecation annotations instead of enforceable architecture boundaries.",
+      "Compatibility migration strategy keeps broad legacy surfaces live, which weakens dependency-direction discipline."
+    ],
+    "likely_symptoms": [
+      "dual_supabase_surface_persists",
+      "policy_vs_runtime_contract_gap",
+      "governance_contracts_not_test_oracle"
+    ],
+    "possible_false_positives": []
+  }
+}

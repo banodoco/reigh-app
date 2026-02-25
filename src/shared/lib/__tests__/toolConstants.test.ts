@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { TOOL_IDS, TOOL_ROUTES, travelShotUrl } from '../toolConstants';
+import { TOOL_IDS } from '../toolIds';
+import { TOOL_ROUTES, travelShotUrl } from '../toolRoutes';
 
 describe('TOOL_IDS', () => {
   it('has expected tool IDs', () => {

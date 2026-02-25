@@ -10,10 +10,10 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { QueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import type { GenerationRow, Shot } from '@/types/shots';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import type { GenerationRow, Shot } from '@/domains/generation/types';
 
 interface ReorderUpdate {
   shotId: string;
@@ -78,8 +78,7 @@ export function useImageManagement({
 
     try {
       // 1. Clear the generation's location and thumbnail_url (keeps the generation record)
-      const { error: updateError } = await supabase
-        .from('generations')
+      const { error: updateError } = await supabase().from('generations')
         .update({
           location: null,
           thumbnail_url: null
@@ -87,19 +86,18 @@ export function useImageManagement({
         .eq('id', generationId);
 
       if (updateError) {
-        handleError(updateError, { context: 'FinalVideoDelete', toastTitle: 'Failed to clear final video output' });
+        normalizeAndPresentError(updateError, { context: 'FinalVideoDelete', toastTitle: 'Failed to clear final video output' });
         return;
       }
 
       // 2. Delete ALL variants of this generation (not just primary)
-      const { error: deleteVariantError } = await supabase
-        .from('generation_variants')
+      const { error: deleteVariantError } = await supabase().from('generation_variants')
         .delete()
         .eq('generation_id', generationId)
         .select('id');
 
       if (deleteVariantError) {
-        handleError(deleteVariantError, { context: 'FinalVideoDelete', showToast: false });
+        normalizeAndPresentError(deleteVariantError, { context: 'FinalVideoDelete', showToast: false });
       }
 
       // Invalidate queries to refresh the UI
@@ -109,7 +107,7 @@ export function useImageManagement({
       queryClient.invalidateQueries({ queryKey: queryKeys.generations.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.projectStats.videos(projectId!) });
     } catch (error) {
-      handleError(error, { context: 'FinalVideoDelete', toastTitle: 'Failed to clear final video output' });
+      normalizeAndPresentError(error, { context: 'FinalVideoDelete', toastTitle: 'Failed to clear final video output' });
     } finally {
       setIsClearingFinalVideo(false);
     }
@@ -121,7 +119,7 @@ export function useImageManagement({
     const projId = projectIdRef.current;
 
     if (!shot || !projId) {
-      handleError(new Error('Cannot reorder images: No shot or project selected.'), { context: 'ShotEditor', showToast: false });
+      normalizeAndPresentError(new Error('Cannot reorder images: No shot or project selected.'), { context: 'ShotEditor', showToast: false });
       return;
     }
 
@@ -144,7 +142,7 @@ export function useImageManagement({
         demoteOrphanedVariantsRef.current(shot.id, 'image-reorder');
       },
       onError: (error: unknown) => {
-        handleError(error, { context: 'ShotEditor', showToast: false });
+        normalizeAndPresentError(error, { context: 'ShotEditor', showToast: false });
       }
     });
   }, [selectedShotRef, projectIdRef, allShotImagesRef, batchVideoFramesRef]);

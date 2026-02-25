@@ -7,10 +7,13 @@
 
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 import { VARIANT_TYPE } from '@/shared/constants/variantTypes';
-import { getSourceTaskId, hasOrchestratorDetails } from '@/shared/lib/taskIdHelpers';
+import {
+  getSourceTaskIdLegacyCompatible,
+  hasOrchestratorDetails,
+} from '@/shared/lib/taskIdHelpers';
 import type { TaskDetailsData } from '../types';
 import type { Task } from '@/types/tasks';
 
@@ -45,6 +48,7 @@ function deriveInputImages(params: Record<string, unknown>): string[] {
 }
 
 interface UseAdjustedTaskDetailsProps {
+  projectId?: string | null;
   activeVariant: {
     id: string;
     params?: Record<string, unknown> | null;
@@ -63,6 +67,7 @@ interface UseAdjustedTaskDetailsReturn {
 }
 
 export function useAdjustedTaskDetails({
+  projectId,
   activeVariant,
   taskDetailsData,
   isLoadingVariants,
@@ -72,7 +77,7 @@ export function useAdjustedTaskDetails({
   const { variantSourceTaskId, variantHasOrchestratorDetails } = useMemo(() => {
     const variantParams = activeVariant?.params as Record<string, unknown> | undefined;
     return {
-      variantSourceTaskId: getSourceTaskId(variantParams),
+      variantSourceTaskId: getSourceTaskIdLegacyCompatible(variantParams),
       variantHasOrchestratorDetails: hasOrchestratorDetails(variantParams),
     };
   }, [activeVariant?.params]);
@@ -81,13 +86,13 @@ export function useAdjustedTaskDetails({
   // Skip fetch if variant already has orchestrator_details (e.g., clip_join variants)
   // NOTE: Uses ['tasks', 'single', taskId] query key to share cache with usePrefetchTaskData
   const { data: variantSourceTask, isLoading: isLoadingVariantTask } = useQuery({
-    queryKey: taskQueryKeys.single(variantSourceTaskId ?? ''),
+    queryKey: taskQueryKeys.single(variantSourceTaskId ?? '', projectId ?? null),
     queryFn: async () => {
-      if (!variantSourceTaskId) return null;
-      const { data, error } = await supabase
-        .from('tasks')
+      if (!variantSourceTaskId || !projectId) return null;
+      const { data, error } = await supabase().from('tasks')
         .select('*')
         .eq('id', variantSourceTaskId)
+        .eq('project_id', projectId)
         .single();
       if (error) {
         console.error('[VariantTaskDetails] Error fetching source task:', error);
@@ -96,7 +101,10 @@ export function useAdjustedTaskDetails({
       return data;
     },
     // Don't fetch if: no task ID, already have matching taskDetailsData, or variant has orchestrator_details
-    enabled: !!variantSourceTaskId && variantSourceTaskId !== taskDetailsData?.taskId && !variantHasOrchestratorDetails,
+    enabled: !!variantSourceTaskId
+      && !!projectId
+      && variantSourceTaskId !== taskDetailsData?.taskId
+      && !variantHasOrchestratorDetails,
     staleTime: Infinity, // Task data is immutable - cache forever (matches prefetch)
   });
 

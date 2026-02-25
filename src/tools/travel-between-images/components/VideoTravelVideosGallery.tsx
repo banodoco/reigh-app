@@ -8,12 +8,12 @@
  */
 
 import React, { type Dispatch, type SetStateAction } from 'react';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { MediaGallery, type GalleryFilterState } from '@/shared/components/MediaGallery';
 import { SkeletonGallery } from '@/shared/components/ui/skeleton-gallery';
 import { SKELETON_COLUMNS } from '@/shared/components/MediaGallery/utils';
 import type { GenerationsPaginatedResponse } from '@/shared/hooks/useProjectGenerations';
-import { Shot } from '@/types/shots';
+import { Shot } from '@/domains/generation/types';
 
 // =============================================================================
 // PROP TYPES (grouped for clarity)

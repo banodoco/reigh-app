@@ -1,0 +1,116 @@
+{
+  "batch": "Design coherence — Mechanical Concern Signals",
+  "batch_index": 1,
+  "assessments": {
+    "design_coherence": 78.4
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "Large orchestration components still carry broad contracts: `src/tools/travel-between-images/components/Timeline.tsx` defines a very wide `TimelineProps` and forwards many fields into both `TimelineContainer` and `MediaLightbox`.",
+        "`src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx` introduces grouped contract interfaces (`core`, `navigation`, `actions`, etc.) but still centralizes pagination logic, cache subscriptions, prefetching, shot workflow, and modal orchestration in one component.",
+        "`src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts` composes many concern-specific interfaces into one input surface and returns a large multi-section state object, increasing coupling between caller setup and internal feature changes.",
+        "Supabase edge handlers (`generate-upload-url`, `get-task-output`, `setup-auto-topup`, `update-shot-pair-prompts`) share bootstrapping primitives but repeatedly inline validation/auth/query/mutation/response choreography instead of extracting route-level policies and common flows."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "orchestrator_prop_bag_timeline_lightbox",
+      "summary": "Timeline and gallery lightbox rely on oversized pass-through contracts that blur ownership boundaries.",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline.tsx",
+        "src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx"
+      ],
+      "evidence": [
+        "`Timeline.tsx` declares a large `TimelineProps` contract and forwards many of those props almost directly into `TimelineContainer` and `MediaLightbox`, mixing domain orchestration with view wiring.",
+        "`MediaGalleryLightbox.tsx` groups props into many sub-contracts but still performs navigation-state computation, query-cache subscription, task prefetching, shot workflow, and modal handoff in one component.",
+        "`ImageLightbox.tsx` consumes broad grouped props (`navigation`, `shotWorkflow`, `features`, `actions`) and then reconstructs another large call into `useSharedLightboxState`, extending the pass-through chain."
+      ],
+      "suggestion": "Split orchestration into focused adapters per concern (navigation adapter, shot workflow adapter, task-details adapter) and pass only feature-local props to each rendered subtree. Move `MediaLightbox`/`TimelineContainer` dependency assembly into dedicated hooks that expose narrow, concern-specific contracts.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "wide_contract_orchestration"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "hook_surface_overcomposition",
+      "summary": "High-indirection hook APIs create low-leverage abstraction layers and rigid caller choreography.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts",
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineActionHandlers.ts",
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineViewportController.ts"
+      ],
+      "evidence": [
+        "`useSharedLightboxState.ts` composes many prop sub-interfaces into one mega-input plus a large nested return model, so small feature changes require touching broad contracts.",
+        "`useTimelineActionHandlers.ts` requires multiple pipeline objects (`dropPipeline`, `duplicatePipeline`, `tapToMovePipeline`, `structureVideoPipeline`, `endpointPipeline`) with many fields, indicating the abstraction is coordinating too many subsystems at once.",
+        "`useTimelineViewportController.ts` similarly bundles dimensions/refs/drag orchestration and timing guards in one hook, increasing hidden coupling between zoom, drag lifecycle, and frame geometry behavior."
+      ],
+      "suggestion": "Refactor these hooks into smaller single-purpose hooks with explicit composition at the call site (e.g., `useTimelineDropActions`, `useTimelineEndpointActions`, `useLightboxShotState`, `useLightboxVariantState`) and keep each hook’s input focused on one concern boundary.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "wide_contract_orchestration"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "edge_handler_flow_duplication",
+      "summary": "Edge functions duplicate request choreography despite shared primitives, causing structural drift.",
+      "related_files": [
+        "supabase/functions/generate-upload-url/index.ts",
+        "supabase/functions/get-task-output/index.ts",
+        "supabase/functions/setup-auto-topup/index.ts",
+        "supabase/functions/update-shot-pair-prompts/index.ts",
+        "supabase/functions/_shared/edgeRequest.ts"
+      ],
+      "evidence": [
+        "Each handler uses `bootstrapEdgeHandler` (or equivalent shared runtime utilities) but still re-implements similar method/body validation, auth branching, logging flush points, and error response shaping inline.",
+        "Response styles diverge across siblings (plain-text error bodies vs JSON envelopes), even for similar validation/auth failures, which indicates inconsistent handler-level conventions.",
+        "`update-shot-pair-prompts/index.ts` includes request parsing, ownership checks, filtering policy, and mutation loop in a single route body, combining domain policy and transport concerns."
+      ],
+      "suggestion": "Introduce reusable handler composition for common edge flows (auth policy, validation policy, response serializer, ownership guard) and keep each route focused on domain-specific data operations. Standardize one response envelope strategy for sibling functions.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "edge_handler_choreography_duplication"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "task_details_flow_split_across_components",
+      "summary": "Task-details behavior is split across modal and lightbox layers, creating duplicated orchestration paths.",
+      "related_files": [
+        "src/shared/components/TaskDetailsModal.tsx",
+        "src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx",
+        "src/tools/travel-between-images/components/Timeline.tsx"
+      ],
+      "evidence": [
+        "`TaskDetailsModal.tsx` owns task-id lookup, task fetch, apply-settings behavior, clipboard state, and full modal UI in one component.",
+        "`MediaGalleryLightbox.tsx` separately manages task modal toggling and task-related data flow while also providing task details to `MediaLightbox`.",
+        "`Timeline.tsx` passes task details plumbing into `MediaLightbox` via `taskDetailsData`, creating another parallel task-details orchestration entry point."
+      ],
+      "suggestion": "Create a single task-details controller hook/service that owns task-id resolution and task fetch lifecycle, then consume it from both timeline and gallery entry points with a shared presentational modal component.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "wide_contract_orchestration"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Preference for central orchestration components/hooks with broad contracts instead of smaller boundary-specific adapters.",
+      "Shared infra exists for edge handlers, but route-level composition standards are not enforced, allowing sibling divergence."
+    ],
+    "likely_symptoms": [
+      "orchestrator_prop_bag_timeline_lightbox",
+      "hook_surface_overcomposition",
+      "task_details_flow_split_across_components"
+    ],
+    "possible_false_positives": []
+  }
+}

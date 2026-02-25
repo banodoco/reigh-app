@@ -1,10 +1,11 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useTimelineCore } from '@/shared/hooks/useTimelineCore';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import type { Shot } from '@/types/shots';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import type { Shot } from '@/domains/generation/types';
 import { useGenerateBatch, useSteerableMotionHandlers } from '../hooks';
+import type { BatchGenerationRequest, StitchAfterGenerateConfig } from '../hooks/useGenerateBatch';
 
-interface UseGenerationControllerParams {
+interface GenerationControllerCore {
   projectId: string | null;
   selectedProjectId: string | null;
   selectedShotId: string;
@@ -12,15 +13,21 @@ interface UseGenerationControllerParams {
   queryClient: ReturnType<typeof import('@tanstack/react-query').useQueryClient>;
   onShotImagesUpdate?: () => void;
   effectiveAspectRatio: string | undefined;
-  generationMode: 'batch' | 'timeline' | 'join';
+  generationMode: 'batch' | 'timeline' | 'by-pair' | 'join';
+}
+
+interface GenerationControllerPromptSettings {
   prompt: string;
   onPromptChange: (prompt: string) => void;
   enhancePrompt: boolean;
   textBeforePrompts: string;
   textAfterPrompts: string;
   negativePrompt: string;
+}
+
+interface GenerationControllerMotionSettings {
   amountOfMotion: number;
-  motionMode: 'basic' | 'advanced';
+  motionMode: 'basic' | 'advanced' | 'presets';
   advancedMode: boolean;
   phaseConfig: ReturnType<typeof import('../hooks').useJoinSegmentsSetup>['joinPhaseConfig'];
   selectedPhasePresetId: string | null;
@@ -33,6 +40,9 @@ interface UseGenerationControllerParams {
   selectedLoras: Array<{ id: string; path: string; strength: number }>;
   structureVideos: ReturnType<typeof import('../hooks').useStructureVideo>['structureVideos'];
   selectedOutputId: string | null;
+}
+
+interface GenerationControllerJoinSettings {
   stitchAfterGenerate: boolean;
   joinContextFrames: number;
   joinGapFrames: number;
@@ -50,11 +60,14 @@ interface UseGenerationControllerParams {
   joinPhaseConfig: ReturnType<typeof import('../hooks').useJoinSegmentsSetup>['joinPhaseConfig'];
   joinSelectedPhasePresetId: string | null;
   joinSelectedLoras: Array<{ id: string; path: string; strength: number }>;
-  joinPriority: 'speed' | 'quality';
+  joinPriority: number;
   joinUseInputVideoResolution: boolean;
   joinUseInputVideoFps: boolean;
   joinNoisedInputVideo: number;
   joinLoopFirstClip: boolean;
+}
+
+interface GenerationControllerRuntime {
   accelerated: boolean;
   isShotUISettingsLoading: boolean;
   settingsLoadingFromContext: boolean;
@@ -64,93 +77,122 @@ interface UseGenerationControllerParams {
   setShowStepsNotification: (show: boolean) => void;
 }
 
+interface UseGenerationControllerParams {
+  core: GenerationControllerCore;
+  prompt: GenerationControllerPromptSettings;
+  motion: GenerationControllerMotionSettings;
+  join: GenerationControllerJoinSettings;
+  runtime: GenerationControllerRuntime;
+}
+
+function buildStitchAfterGenerateConfig(
+  join: GenerationControllerJoinSettings,
+): StitchAfterGenerateConfig | undefined {
+  if (!join.stitchAfterGenerate) {
+    return undefined;
+  }
+
+  return {
+    contextFrameCount: join.joinContextFrames,
+    gapFrames: join.joinGapFrames,
+    replaceMode: join.joinReplaceMode,
+    keepBridgingImages: join.joinKeepBridgingImages,
+    prompt: join.joinPrompt,
+    negativePrompt: join.joinNegativePrompt,
+    enhancePrompt: join.joinEnhancePrompt,
+    model: join.joinModel,
+    numInferenceSteps: join.joinNumInferenceSteps,
+    guidanceScale: join.joinGuidanceScale,
+    seed: join.joinSeed,
+    randomSeed: join.joinRandomSeed,
+    motionMode: join.joinMotionMode,
+    phaseConfig: join.joinPhaseConfig,
+    selectedPhasePresetId: join.joinSelectedPhasePresetId,
+    selectedLoras: join.joinSelectedLoras.map(({ path, strength }) => ({ path, strength })),
+    priority: join.joinPriority,
+    useInputVideoResolution: join.joinUseInputVideoResolution,
+    useInputVideoFps: join.joinUseInputVideoFps,
+    noisedInputVideo: join.joinNoisedInputVideo,
+    loopFirstClip: join.joinLoopFirstClip,
+  };
+}
+
+function buildBatchGenerationRequest(
+  prompt: GenerationControllerPromptSettings,
+  motion: GenerationControllerMotionSettings,
+  join: GenerationControllerJoinSettings,
+): BatchGenerationRequest {
+  return {
+    prompt: {
+      basePrompt: prompt.prompt,
+      enhancePrompt: prompt.enhancePrompt,
+      textBeforePrompts: prompt.textBeforePrompts,
+      textAfterPrompts: prompt.textAfterPrompts,
+      negativePrompt: prompt.negativePrompt,
+    },
+    motion: {
+      amountOfMotion: motion.amountOfMotion,
+      motionMode: motion.motionMode || 'basic',
+      advancedMode: motion.advancedMode,
+      phaseConfig: motion.phaseConfig,
+      selectedPhasePresetId: motion.selectedPhasePresetId,
+    },
+    model: {
+      steerableMotionSettings: motion.steerableMotionSettings,
+      randomSeed: motion.randomSeed,
+      turboMode: motion.turboMode,
+      generationTypeMode: motion.generationTypeMode,
+      smoothContinuations: motion.smoothContinuations,
+    },
+    batchVideoFrames: motion.batchVideoFrames,
+    selectedLoras: motion.selectedLoras,
+    structureVideos: motion.structureVideos,
+    selectedOutputId: motion.selectedOutputId,
+    stitchAfterGenerate: buildStitchAfterGenerateConfig(join),
+  };
+}
+
 export function useGenerationController({
-  projectId,
-  selectedProjectId,
-  selectedShotId,
-  selectedShot,
-  queryClient,
-  onShotImagesUpdate,
-  effectiveAspectRatio,
-  generationMode,
+  core,
   prompt,
-  onPromptChange,
-  enhancePrompt,
-  textBeforePrompts,
-  textAfterPrompts,
-  negativePrompt,
-  amountOfMotion,
-  motionMode,
-  advancedMode,
-  phaseConfig,
-  selectedPhasePresetId,
-  steerableMotionSettings,
-  randomSeed,
-  turboMode,
-  generationTypeMode,
-  smoothContinuations,
-  batchVideoFrames,
-  selectedLoras,
-  structureVideos,
-  selectedOutputId,
-  stitchAfterGenerate,
-  joinContextFrames,
-  joinGapFrames,
-  joinReplaceMode,
-  joinKeepBridgingImages,
-  joinPrompt,
-  joinNegativePrompt,
-  joinEnhancePrompt,
-  joinModel,
-  joinNumInferenceSteps,
-  joinGuidanceScale,
-  joinSeed,
-  joinRandomSeed,
-  joinMotionMode,
-  joinPhaseConfig,
-  joinSelectedPhasePresetId,
-  joinSelectedLoras,
-  joinPriority,
-  joinUseInputVideoResolution,
-  joinUseInputVideoFps,
-  joinNoisedInputVideo,
-  joinLoopFirstClip,
-  accelerated,
-  isShotUISettingsLoading,
-  settingsLoadingFromContext,
-  updateShotUISettings,
-  setSteerableMotionSettings,
-  setSteps,
-  setShowStepsNotification,
+  motion,
+  join,
+  runtime,
 }: UseGenerationControllerParams) {
-  const { clearAllEnhancedPrompts, updatePairPromptsByIndex, refetch: loadPositions } = useTimelineCore(selectedShotId);
+  const { clearAllEnhancedPrompts, updatePairPromptsByIndex, refetch: loadPositions } = useTimelineCore(core.selectedShotId);
+  const { onPromptChange } = prompt;
 
   const handleBatchVideoPromptChangeWithClear = useCallback(async (newPrompt: string) => {
     onPromptChange(newPrompt);
     try {
       await clearAllEnhancedPrompts();
     } catch (error) {
-      handleError(error, { context: 'PromptClearLog', showToast: false });
+      normalizeAndPresentError(error, { context: 'PromptClearLog', showToast: false });
     }
-  }, [onPromptChange, clearAllEnhancedPrompts]);
+  }, [clearAllEnhancedPrompts, onPromptChange]);
 
   const {
     handleRandomSeedChange,
     handleAcceleratedChange,
     handleStepsChange,
   } = useSteerableMotionHandlers({
-    accelerated,
-    randomSeed,
-    turboMode,
-    steerableMotionSettings,
-    isShotUISettingsLoading,
-    settingsLoadingFromContext,
-    updateShotUISettings,
-    setSteerableMotionSettings,
-    setSteps,
-    setShowStepsNotification,
-    selectedShotId: selectedShot?.id,
+    accelerated: runtime.accelerated,
+    randomSeed: motion.randomSeed,
+    turboMode: motion.turboMode,
+    steerableMotionSettings: motion.steerableMotionSettings,
+    isShotUISettingsLoading: runtime.isShotUISettingsLoading,
+    settingsLoadingFromContext: runtime.settingsLoadingFromContext,
+    updateShotUISettings: runtime.updateShotUISettings,
+    setSteerableMotionSettings: runtime.setSteerableMotionSettings,
+    setSteps: runtime.setSteps,
+    setShowStepsNotification: runtime.setShowStepsNotification,
+    selectedShotId: core.selectedShot?.id,
   });
+
+  const batchGenerationRequest = useMemo(
+    () => buildBatchGenerationRequest(prompt, motion, join),
+    [join, motion, prompt],
+  );
 
   const {
     handleGenerateBatch,
@@ -158,65 +200,18 @@ export function useGenerationController({
     steerableMotionJustQueued,
     isGenerationDisabled,
   } = useGenerateBatch({
-    projectId,
-    selectedProjectId,
-    selectedShotId,
-    selectedShot,
-    queryClient,
-    onShotImagesUpdate,
-    effectiveAspectRatio,
-    generationMode,
-    // Prompt config
-    prompt,
-    enhancePrompt,
-    textBeforePrompts,
-    textAfterPrompts,
-    negativePrompt,
-    // Motion config
-    amountOfMotion,
-    motionMode: motionMode || 'basic',
-    advancedMode,
-    phaseConfig,
-    selectedPhasePresetId,
-    // Model config
-    steerableMotionSettings,
-    randomSeed,
-    turboMode,
-    generationTypeMode,
-    smoothContinuations,
-    // Frame settings
-    batchVideoFrames,
-    // LoRAs
-    selectedLoras,
-    // Structure video
-    structureVideos,
-    // Clear prompts callback
+    core: {
+      projectId: core.projectId,
+      selectedProjectId: core.selectedProjectId,
+      selectedShotId: core.selectedShotId,
+      selectedShot: core.selectedShot,
+      queryClient: core.queryClient,
+      onShotImagesUpdate: core.onShotImagesUpdate,
+      effectiveAspectRatio: core.effectiveAspectRatio,
+      generationMode: core.generationMode,
+    },
+    request: batchGenerationRequest,
     clearAllEnhancedPrompts,
-    // Output selection
-    selectedOutputId,
-    // Stitch config
-    stitchAfterGenerate,
-    joinContextFrames,
-    joinGapFrames,
-    joinReplaceMode,
-    joinKeepBridgingImages,
-    joinPrompt,
-    joinNegativePrompt,
-    joinEnhancePrompt,
-    joinModel,
-    joinNumInferenceSteps,
-    joinGuidanceScale,
-    joinSeed,
-    joinRandomSeed,
-    joinMotionMode,
-    joinPhaseConfig,
-    joinSelectedPhasePresetId,
-    joinSelectedLoras,
-    joinPriority,
-    joinUseInputVideoResolution,
-    joinUseInputVideoFps,
-    joinNoisedInputVideo,
-    joinLoopFirstClip,
   });
 
   return {

@@ -23,13 +23,13 @@ vi.mock('@/shared/lib/storageKeys', () => ({
   },
 }));
 
-vi.mock('@/shared/lib/toolConstants', () => ({
+vi.mock('@/shared/lib/toolIds', () => ({
   TOOL_IDS: {
     TRAVEL_BETWEEN_IMAGES: 'travel-between-images',
   },
 }));
 
-vi.mock('@/shared/lib/errorHandler', () => ({
+vi.mock('@/shared/lib/compat/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 

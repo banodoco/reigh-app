@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Project } from '@/types/project';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { preloadingService } from '@/shared/lib/preloading';
 import { UserPreferences } from '@/shared/settings/userPreferences';
 import { determineProjectIdToSelect } from './useProjectCRUD';
+import { setProjectSelectionSnapshot } from '@/shared/contexts/projectSelectionStore';
 
 interface UseProjectSelectionOptions {
   userId: string | null;
@@ -56,6 +57,7 @@ export function useProjectSelection({
   const selectedProjectIdRef = useRef(selectedProjectId);
   useEffect(() => {
     selectedProjectIdRef.current = selectedProjectId;
+    setProjectSelectionSnapshot({ selectedProjectId });
   }, [selectedProjectId]);
 
   // CROSS-DEVICE SYNC: Reset sync flag when user logs out
@@ -82,7 +84,7 @@ export function useProjectSelection({
         try {
           localStorage.setItem('lastSelectedProjectId', serverLastOpenedId);
         } catch (e) {
-          handleError(e, { context: 'ProjectContext.crossDeviceSync', showToast: false });
+          normalizeAndPresentError(e, { context: 'ProjectContext.crossDeviceSync', showToast: false });
         }
       }
     }
@@ -99,14 +101,14 @@ export function useProjectSelection({
       try {
         localStorage.setItem('lastSelectedProjectId', projectId);
       } catch (e) {
-        handleError(e, { context: 'ProjectContext.fastResume', showToast: false });
+        normalizeAndPresentError(e, { context: 'ProjectContext.fastResume', showToast: false });
       }
       updateUserSettings('user', { lastOpenedProjectId: projectId });
     } else {
       try {
         localStorage.removeItem('lastSelectedProjectId');
       } catch (e) {
-        handleError(e, { context: 'ProjectContext.fastResume', showToast: false });
+        normalizeAndPresentError(e, { context: 'ProjectContext.fastResume', showToast: false });
       }
       updateUserSettings('user', { lastOpenedProjectId: undefined });
     }

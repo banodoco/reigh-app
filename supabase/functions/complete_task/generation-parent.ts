@@ -37,8 +37,16 @@ export async function getOrCreateParentGeneration(
     }
 
     // Check for parent_generation_id in orchestrator params
-    const parentGenId = orchTask?.params?.parent_generation_id ||
+    const orchestrationContract = (
+      orchTask?.params?.orchestration_contract && typeof orchTask.params.orchestration_contract === 'object'
+        ? orchTask.params.orchestration_contract
+        : null
+    ) as Record<string, unknown> | null;
+
+    const parentGenId = orchestrationContract?.parent_generation_id ||
+                        orchTask?.params?.parent_generation_id ||
                         orchTask?.params?.orchestrator_details?.parent_generation_id ||
+                        segmentParams?.orchestration_contract?.parent_generation_id ||
                         segmentParams?.full_orchestrator_payload?.parent_generation_id;
 
     if (parentGenId) {

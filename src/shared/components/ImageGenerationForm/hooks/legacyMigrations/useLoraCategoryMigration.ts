@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { LoraCategory } from '../../types';
 import { getLoraCategoryForModel } from '../../types';
-import type { ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';
+import type { ActiveLora } from '@/shared/types/lora';
 import type { LegacyMigrationsInput } from './types';
 
 type LoraCategoryMigrationInput = Pick<
@@ -71,7 +71,7 @@ export function useLoraCategoryMigration(input: LoraCategoryMigrationInput): voi
           selectedLorasByTextModel: undefined,
         });
       } catch (error) {
-        handleError(error, {
+        normalizeAndPresentError(error, {
           context: 'ImageGenerationForm.migrateLoraCategoryFormat',
           showToast: false,
         });

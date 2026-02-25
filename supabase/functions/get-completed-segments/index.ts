@@ -1,10 +1,7 @@
 // deno-lint-ignore-file
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { authenticateRequest } from "../_shared/auth.ts";
-import { SystemLogger } from "../_shared/systemLogger.ts";
-
-declare const Deno: { env: { get: (key: string) => string | undefined } };
+import { bootstrapEdgeHandler } from "../_shared/edgeHandler.ts";
+import { jsonResponse } from "../_shared/http.ts";
 
 /**
  * Edge Function: get-completed-segments
@@ -23,57 +20,29 @@ declare const Deno: { env: { get: (key: string) => string | undefined } };
  * Returns 200 with: [{ segment_index, output_location }]
  */
 serve(async (req) => {
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-
-  if (!serviceKey || !supabaseUrl) {
-    console.error("[GET-COMPLETED-SEGMENTS] Missing required environment variables");
-    return new Response("Server configuration error", { status: 500 });
+  const bootstrap = await bootstrapEdgeHandler(req, {
+    functionName: "get-completed-segments",
+    logPrefix: "[GET-COMPLETED-SEGMENTS]",
+    parseBody: "strict",
+  });
+  if (!bootstrap.ok) {
+    return bootstrap.response;
   }
 
-  // Create admin client for database operations
-  const supabaseAdmin = createClient(supabaseUrl, serviceKey);
-
-  // Create logger
-  const logger = new SystemLogger(supabaseAdmin, 'get-completed-segments');
-
-  if (req.method !== "POST") {
-    logger.warn("Method not allowed", { method: req.method });
-    await logger.flush();
-    return new Response("Method not allowed", { status: 405 });
-  }
-
-  // Parse request body
-  let requestBody: unknown = {};
-  try {
-    requestBody = await req.json();
-  } catch {
-    logger.error("Invalid JSON body");
-    await logger.flush();
-    return new Response("Invalid JSON body", { status: 400 });
-  }
-
-  const { run_id, project_id } = requestBody;
+  const { supabaseAdmin, logger, body: requestBody, auth } = bootstrap.value;
+  const run_id = typeof requestBody.run_id === "string" ? requestBody.run_id : null;
+  const project_id = typeof requestBody.project_id === "string" ? requestBody.project_id : null;
 
   if (!run_id) {
     logger.error("Missing run_id");
     await logger.flush();
-    return new Response("run_id is required", { status: 400 });
+    return jsonResponse({ error: "run_id is required" }, 400);
   }
 
   logger.info("Processing request", { run_id, project_id: project_id || "(none)" });
 
-  // Authenticate using shared auth module
-  const auth = await authenticateRequest(req, supabaseAdmin, "[GET-COMPLETED-SEGMENTS]");
-
-  if (!auth.success) {
-    logger.error("Authentication failed", { error: auth.error });
-    await logger.flush();
-    return new Response(auth.error || "Authentication failed", { status: auth.statusCode || 403 });
-  }
-
-  const isServiceRole = auth.isServiceRole;
-  const callerId = auth.userId;
+  const isServiceRole = auth!.isServiceRole;
+  const callerId = auth!.userId;
 
   try {
     // Authorization for non-service callers
@@ -83,7 +52,7 @@ serve(async (req) => {
       if (!effectiveProjectId) {
         logger.error("Missing project_id for authenticated user");
         await logger.flush();
-        return new Response("project_id required for user tokens", { status: 400 });
+        return jsonResponse({ error: "project_id required for user tokens" }, 400);
       }
 
       // Ensure caller owns the project
@@ -96,7 +65,7 @@ serve(async (req) => {
       if (projErr || !proj) {
         logger.error("Project not found", { project_id: effectiveProjectId, error: projErr?.message });
         await logger.flush();
-        return new Response("Project not found", { status: 404 });
+        return jsonResponse({ error: "Project not found" }, 404);
       }
 
       if (proj.user_id !== callerId) {
@@ -105,7 +74,7 @@ serve(async (req) => {
           project_owner: proj.user_id
         });
         await logger.flush();
-        return new Response("Forbidden: You don't own this project", { status: 403 });
+        return jsonResponse({ error: "Forbidden: You don't own this project" }, 403);
       }
 
       logger.debug("Project ownership verified");
@@ -117,7 +86,10 @@ serve(async (req) => {
       .select("params, output_location")
       .eq("task_type", "travel_segment")
       .eq("status", "Complete")
-      .eq("params->>orchestrator_run_id", run_id)
+      .or([
+        `params->orchestration_contract->>run_id.eq.${run_id}`,
+        `params->>orchestrator_run_id.eq.${run_id}`,
+      ].join(','))
       .limit(1000);
 
     if (!isServiceRole) {
@@ -129,7 +101,7 @@ serve(async (req) => {
     if (qErr) {
       logger.error("Database query error", { error: qErr.message });
       await logger.flush();
-      return new Response("Database query error", { status: 500 });
+      return jsonResponse({ error: "Database query error" }, 500);
     }
 
     const results: { segment_index: number; output_location: string }[] = [];
@@ -154,17 +126,12 @@ serve(async (req) => {
     });
     await logger.flush();
 
-    return new Response(JSON.stringify(results), {
-      status: 200,
-      headers: { "Content-Type": "application/json" }
-    });
+    return jsonResponse(results, 200);
 
   } catch (e: unknown) {
-    logger.critical("Unexpected error", { error: e?.message });
+    const message = e instanceof Error ? e.message : String(e);
+    logger.critical("Unexpected error", { error: message });
     await logger.flush();
-    return new Response(JSON.stringify({ error: e?.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" }
-    });
+    return jsonResponse({ error: message }, 500);
   }
 });

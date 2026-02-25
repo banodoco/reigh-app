@@ -7,9 +7,9 @@
 
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { extractAndUploadThumbnailOnly } from '@/shared/lib/videoThumbnailGenerator';
 import { invalidateVariantChange } from '@/shared/hooks/invalidation/useGenerationInvalidation';
 import type { TrimState, UseTrimSaveReturn } from '@/shared/types/videoTrim';
@@ -78,7 +78,7 @@ export const useTrimSave = ({
     }
 
     // Get user ID for storage path
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase().auth.getUser();
     if (!user) {
       setSaveError('Not authenticated');
       toast.error('Please log in to save');
@@ -94,7 +94,7 @@ export const useTrimSave = ({
       // Step 1: Call the Edge Function to trim and convert to MP4
       setSaveProgress(20);
 
-      const response = await supabase.functions.invoke<TrimVideoResponse>('trim-video', {
+      const response = await supabase().functions.invoke<TrimVideoResponse>('trim-video', {
         body: {
           video_url: sourceVideoUrl,
           start_time: startTrim,
@@ -133,8 +133,7 @@ export const useTrimSave = ({
       // Step 3: Fetch source variant params if we have a source variant ID
       let sourceVariantParams: Record<string, unknown> | null = null;
       if (sourceVariantId) {
-        const { data: sourceVariant, error: fetchError } = await supabase
-          .from('generation_variants')
+        const { data: sourceVariant, error: fetchError } = await supabase().from('generation_variants')
           .select('params')
           .eq('id', sourceVariantId)
           .single();
@@ -166,8 +165,7 @@ export const useTrimSave = ({
         ? { ...sourceVariantParams, ...trimParams }
         : trimParams;
 
-      const { data: insertedVariant, error: insertError } = await supabase
-        .from('generation_variants')
+      const { data: insertedVariant, error: insertError } = await supabase().from('generation_variants')
         .insert({
           generation_id: generationId,
           location: result.video_url,
@@ -181,7 +179,7 @@ export const useTrimSave = ({
         .single();
 
       if (insertError || !insertedVariant) {
-        handleError(insertError, { context: 'useTrimSave', showToast: false });
+        normalizeAndPresentError(insertError, { context: 'useTrimSave', showToast: false });
         throw new Error(`Failed to save variant: ${insertError?.message || 'No variant returned'}`);
       }
 
@@ -190,8 +188,7 @@ export const useTrimSave = ({
       setSaveProgress(90);
 
       // Step 5: Update the generation record directly
-      await supabase
-        .from('generations')
+      await supabase().from('generations')
         .update({
           location: result.video_url,
           thumbnail_url: thumbnailUrl,
@@ -216,7 +213,7 @@ export const useTrimSave = ({
       }, 2000);
 
     } catch (error) {
-      const appError = handleError(error, { context: 'useTrimSave', toastTitle: 'Failed to save' });
+      const appError = normalizeAndPresentError(error, { context: 'useTrimSave', toastTitle: 'Failed to save' });
       setSaveError(appError.message);
     } finally {
       setIsSaving(false);

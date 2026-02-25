@@ -1,0 +1,116 @@
+{
+  "batch": "Design coherence \u2014 Mechanical Concern Signals",
+  "batch_index": 1,
+  "assessments": {
+    "design_coherence": 79.4
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "`useTimelineOrchestrator` builds five nested pipeline objects (`dropPipeline`, `duplicatePipeline`, `tapToMovePipeline`, `structureVideoPipeline`, `endpointPipeline`) and forwards them into `useTimelineActionHandlers`, which mostly re-destructures and re-forwards values.",
+        "`useSegmentSlotMode` combines routing/deep-link synchronization, pair-data computation, frame-update debouncing, structure-video overlap policy, and lightbox view-model construction in one 593-line hook.",
+        "Edge handlers show design drift despite shared infrastructure: e.g. `revoke-pat` constructs `new SystemLogger(...)` instead of using bootstrap logger, while sibling handlers use `bootstrap.value.logger`; response contracts are mixed (`jsonResponse` vs raw `Response` text) across similar endpoints."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "timeline_pipeline_bag_overabstraction",
+      "summary": "Timeline orchestration relies on oversized pipeline-bag interfaces that add indirection without clear ownership boundaries.",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts",
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineActionHandlers.ts",
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineViewportController.ts"
+      ],
+      "evidence": [
+        "`useTimelineOrchestrator` assembles large nested pipeline objects and passes them to `useTimelineActionHandlers` instead of composing focused hooks directly.",
+        "`useTimelineActionHandlers` destructures many fields and mostly forwards them into `useUnifiedDrop`, `useTapToMove`, and `useEndpointDrag`, indicating a pass-through abstraction layer.",
+        "Viewport and action controller hooks each require broad input bags, increasing cross-hook coupling and making changes require synchronized edits in multiple wrappers."
+      ],
+      "suggestion": "Replace pipeline-bag inputs with smaller concern-specific hooks invoked directly in the orchestrator (drop, duplicate, tap-to-move, endpoint drag). Keep each hook contract minimal and localize ownership so adding/removing one concern does not force shape changes across all orchestrator layers.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "orchestrator_wrapper_overuse"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "segment_slot_mode_responsibility_mix",
+      "summary": "Segment slot mode hook mixes navigation state machine, domain policy, and UI view-model assembly in one module.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts",
+        "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts"
+      ],
+      "evidence": [
+        "`useSegmentSlotMode` includes deep-link routing effects (`useLocation`/`useNavigate`), state reset choreography, pair/trailing slot synthesis, structure video overlap resolution, and debounced frame update logic.",
+        "The same hook also constructs `SegmentSlotModeData` with many callbacks and rendering-facing fields, coupling domain computation and presentation concerns.",
+        "Lightbox-related navigation/state composition is handled in separate shared hooks elsewhere (`useSharedLightboxState`), showing uneven boundary decisions for similar orchestration responsibilities."
+      ],
+      "suggestion": "Split `useSegmentSlotMode` into: (1) URL/deep-link state synchronizer, (2) segment-pair domain calculator, and (3) presentation adapter that maps domain state to `SegmentSlotModeData`. Keep overlap-resolution policy in a standalone pure module with tests.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "orchestrator_wrapper_overuse"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "edge_handler_contract_drift",
+      "summary": "Supabase edge handlers follow inconsistent runtime/logger/response conventions, weakening a shared handler architecture.",
+      "related_files": [
+        "supabase/functions/revoke-pat/index.ts",
+        "supabase/functions/generate-pat/index.ts",
+        "supabase/functions/get-completed-segments/index.ts",
+        "supabase/functions/get-task-output/index.ts",
+        "supabase/functions/_shared/edgeRequest.ts"
+      ],
+      "evidence": [
+        "`revoke-pat` creates `new SystemLogger(...)` after bootstrap instead of using the logger returned by `bootstrapEdgeHandler`, unlike sibling handlers.",
+        "Sibling endpoints return different response envelope styles for similar validation/auth failures (`jsonResponse` JSON vs raw text `Response`).",
+        "Shared request/runtime utilities exist in `_shared/edgeRequest.ts`, but endpoint implementations still diverge in method/error contract patterns."
+      ],
+      "suggestion": "Enforce a single edge handler contract: always consume bootstrap logger/runtime, standardize error envelopes, and route response creation through shared helpers. Add a lightweight endpoint template or lint check to prevent logger/response drift in new functions.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "edge_template_drift"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "task_param_contract_scattered",
+      "summary": "Task-parameter extraction and precedence logic are duplicated across edge and app layers with no shared contract authority.",
+      "related_files": [
+        "supabase/functions/complete_task/params.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/imageGeneration.ts"
+      ],
+      "evidence": [
+        "`complete_task/params.ts` maintains many path-fallback extractors (`extractFromParams`, `extractShotAndPosition`, `extractBasedOn`) for evolving payload shapes.",
+        "Client task builders in `individualTravelSegment.ts` and `imageGeneration.ts` maintain separate precedence/normalization logic (`resolveByPrecedence`, parser helpers, mode-specific filtering).",
+        "The same domain concepts (shot IDs, orchestrator refs, optional field precedence) are encoded in multiple places, raising drift risk when payload shape changes."
+      ],
+      "suggestion": "Define a versioned shared task-params contract (schema + generated accessors) consumed by both edge functions and client task builders. Centralize fallback path lists and precedence rules in one module/package and deprecate ad hoc extractors.",
+      "confidence": "medium",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "task_contract_fragmentation"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Wrapper-heavy orchestration style created pass-through abstractions that obscure ownership rather than reducing complexity.",
+      "Shared infrastructure exists (edge bootstrap/request helpers) but is not enforced as a hard contract, allowing endpoint drift.",
+      "Task payload evolution has been handled by additive fallback logic in multiple layers instead of a single versioned contract."
+    ],
+    "likely_symptoms": [
+      "timeline_pipeline_bag_overabstraction",
+      "segment_slot_mode_responsibility_mix",
+      "edge_handler_contract_drift",
+      "task_param_contract_scattered"
+    ],
+    "possible_false_positives": []
+  }
+}

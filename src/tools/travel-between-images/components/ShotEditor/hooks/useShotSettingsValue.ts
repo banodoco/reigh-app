@@ -9,7 +9,7 @@
 
 import { useMemo } from 'react';
 import { QueryClient } from '@tanstack/react-query';
-import { Shot, GenerationRow } from '@/types/shots';
+import { Shot, GenerationRow } from '@/domains/generation/types';
 import type { Project } from '@/types/project';
 import {
   ShotSettingsContextValue,
@@ -95,7 +95,7 @@ export interface UseShotSettingsValueProps {
   // Generation actions
   generationActions: GenerationActionsReturn;
   handleImageReorder: (orderedShotGenerationIds: string[], draggedItemId?: string) => void;
-  handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
+  handleImageUpload: (files: File[]) => Promise<void>;
 
   // Shot management
   shots: Shot[] | undefined;

@@ -1,9 +1,9 @@
 import * as React from "react"
 import { X } from "lucide-react"
-import { cn } from "@/shared/lib/utils"
+import { cn } from "@/shared/components/ui/contracts/cn"
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip"
 import { AIInputButton } from "./ai-input-button"
-import { useIsMobile } from "@/shared/hooks/useMobile"
+import { useIsMobile } from "@/shared/hooks/mobile"
 import { useAIInputMode } from "@/shared/contexts/AIInputModeContext"
 
 export interface TextareaProps

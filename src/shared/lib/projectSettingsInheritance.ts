@@ -1,7 +1,7 @@
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { STORAGE_KEYS } from '@/shared/lib/storageKeys';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 /**
  * Filters project-level settings for inheritance into a new project.
@@ -66,8 +66,7 @@ export async function fetchInheritableProjectSettings(
   projectId: string
 ): Promise<Record<string, unknown>> {
   try {
-    const { data } = await supabase
-      .from('projects')
+    const { data } = await supabase().from('projects')
       .select('settings')
       .eq('id', projectId)
       .single();
@@ -108,13 +107,12 @@ export async function buildShotSettingsForNewProject(
       };
     }
   } catch (e) {
-    handleError(e, { context: 'projectSettingsInheritance.localStorage', showToast: false });
+    normalizeAndPresentError(e, { context: 'projectSettingsInheritance.localStorage', showToast: false });
   }
 
   // 2. Fallback: fetch the latest shot from the DB
   try {
-    const { data: latestShot } = await supabase
-      .from('shots')
+    const { data: latestShot } = await supabase().from('shots')
       .select('settings')
       .eq('project_id', sourceProjectId)
       .order('created_at', { ascending: false })

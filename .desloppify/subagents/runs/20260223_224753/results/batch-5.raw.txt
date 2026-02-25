@@ -1,0 +1,93 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 5,
+  "assessments": {
+    "ai_generated_debt": 78.0,
+    "incomplete_migration": 74.0,
+    "low_level_elegance": 76.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "Several files use high-comment, low-behavior patterns where comments restate obvious code paths (e.g., extensive explanatory blocks around tiny helpers in src/shared/components/ShotImageManager/utils/image-utils.ts and src/shared/lib/caseConversion.ts).",
+        "Pass-through wrappers add API surface without behavior (src/shared/components/ShotImageManager/utils/image-utils.ts:getAspectRatioStyle only delegates; src/shared/lib/supabaseTypeHelpers.ts:toJson is a single boundary cast wrapper)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "incomplete_migration": {
+      "evidence": [
+        "src/shared/components/ImageGenerationForm/hooks/legacyMigrations/legacyProjectImageSettings.ts retains many deprecated fields and a sunset contract, meaning legacy/new payload models still coexist.",
+        "src/shared/lib/taskIdHelpers.ts still resolves three historical task-id keys (source_task_id, orchestrator_task_id, task_id), preserving dual-path schema handling rather than a single canonical contract."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "src/shared/lib/preloading/preloader.ts swallows preload failures with an empty catch block and no status signal, making edge-case behavior opaque.",
+        "src/shared/lib/supabaseSession.ts uses catch { return null } while parsing session storage, conflating malformed-session failures with normal signed-out state."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_schema_dual_path_still_active",
+      "summary": "Legacy and canonical schema paths are both still active in settings and task-id resolution.",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/hooks/legacyMigrations/legacyProjectImageSettings.ts",
+        "src/shared/lib/taskIdHelpers.ts"
+      ],
+      "evidence": [
+        "LegacyProjectImageSettings keeps multiple @deprecated fields (selectedReferenceId, styleReference*, selectedLorasByTextModel) and is still part of accepted input shape via ProjectImageSettingsInput.",
+        "getSourceTaskId still accepts legacy key names (orchestrator_task_id, task_id) in addition to source_task_id."
+      ],
+      "suggestion": "Add a migration cutoff plan: instrument reads of deprecated fields/legacy task-id keys, report usage, then remove fallback keys and narrow accepted types to canonical fields only once usage reaches zero.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "ceremonial_wrappers_and_restatement_comments",
+      "summary": "Comment-heavy pass-through helpers add ceremony without meaningful behavior.",
+      "related_files": [
+        "src/shared/components/ShotImageManager/utils/image-utils.ts",
+        "src/shared/lib/supabaseTypeHelpers.ts",
+        "src/shared/lib/caseConversion.ts"
+      ],
+      "evidence": [
+        "getAspectRatioStyle in image-utils.ts only forwards projectAspectRatio to resolveAspectRatioStyle with no translation or guard logic.",
+        "toJson in supabaseTypeHelpers.ts is a single cast wrapper (`value as unknown as Json`) while carrying a long explanatory block.",
+        "caseConversion.ts contains extensive tutorial-style comments around straightforward key conversion logic."
+      ],
+      "suggestion": "Remove or inline pure pass-through helpers where they do not enforce policy, and trim comments to non-obvious constraints (why/contract) instead of narrating what the next line does.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "silent_failure_paths_hide_real_state",
+      "summary": "Core helpers swallow failures, reducing precision of edge-case handling.",
+      "related_files": [
+        "src/shared/lib/preloading/preloader.ts",
+        "src/shared/lib/supabaseSession.ts"
+      ],
+      "evidence": [
+        "preloader.ts catches queue/add failures and does nothing, so bad URLs/network failures are indistinguishable from normal best-effort skips.",
+        "supabaseSession.ts returns null for all JSON/localStorage parse errors, collapsing corrupted-session errors into the same return path as signed-out users."
+      ],
+      "suggestion": "Keep non-throwing behavior but expose explicit failure signals (debug logger, error counters, or discriminated result types) so callers can distinguish expected empty states from malformed/failed states.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

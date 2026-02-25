@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useToolSettings } from '@/shared/hooks/useToolSettings';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 
 export interface AudioMetadata {
   duration: number;
@@ -37,7 +38,7 @@ export function useAudio({
   } = useToolSettings<{
     url?: string | null;
     metadata?: AudioMetadata | null;
-  }>('travel-audio', {
+  }>(SETTINGS_IDS.TRAVEL_AUDIO, {
     projectId,
     shotId: shotId,
     enabled: !!shotId

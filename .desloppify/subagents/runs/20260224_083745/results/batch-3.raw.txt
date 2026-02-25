@@ -1,0 +1,78 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "mid_level_elegance": 71.0
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "src/shared/lib/generationTaskRepository.ts:109-131 computes `hasCrossProjectRows` once for the whole fetched set, then marks every requested generation as `scope_mismatch`, even for valid rows, whenever multiple project_ids are present.",
+        "src/shared/lib/generationTaskCache.ts:46-61 consumes those mappings and writes null taskIds/status into cache, propagating the broad scope mismatch to downstream consumers.",
+        "supabase/functions/_shared/edgeRequest.ts:73-89 returns an error envelope `{error,errorCode,message,recoverable}`, while supabase/functions/_shared/rateLimit.ts:217-223 returns `{error,retryAfter,message}` without `errorCode/recoverable`; boundary contracts differ across sibling edge helpers.",
+        "src/shared/lib/operationResult.ts:10-18 makes `errorCode` optional and `policy` optional, while supabase/functions/_shared/edgeOperation.ts:3-11 requires `errorCode` and `policy`; shared operation APIs diverge across frontend/edge seams."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "cross_project_mapping_overbroad_scope_mismatch",
+      "summary": "Batch task-mapping marks all items as scope mismatches when only mixed project rows are present, collapsing valid per-generation mappings.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/lib/generationTaskCache.ts"
+      ],
+      "evidence": [
+        "src/shared/lib/generationTaskRepository.ts:109-111 sets global `hasCrossProjectRows` from all fetched rows when no explicit projectId is provided.",
+        "src/shared/lib/generationTaskRepository.ts:125-131 then applies `status: 'scope_mismatch'` for every generation in the request, regardless of each row’s own validity.",
+        "src/shared/lib/generationTaskCache.ts:55-61 persists that status/taskId(null) into query cache, so consumers lose task linkage for otherwise valid generations."
+      ],
+      "suggestion": "Replace the global cross-project gate with per-generation scope validation (or group-by-project return semantics), and only emit `scope_mismatch` for rows that violate an explicit expected scope; add targeted tests for mixed-project input sets.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "edge_error_envelope_inconsistency",
+      "summary": "Shared edge helpers emit different error response shapes, creating unpredictable API seams for clients and middleware.",
+      "related_files": [
+        "supabase/functions/_shared/edgeRequest.ts",
+        "supabase/functions/_shared/rateLimit.ts",
+        "supabase/functions/complete_task/storage.ts"
+      ],
+      "evidence": [
+        "supabase/functions/_shared/edgeRequest.ts:73-89 serializes failures as `{error,errorCode,message,recoverable}`.",
+        "supabase/functions/_shared/rateLimit.ts:217-223 serializes 429 failures as `{error,retryAfter,message}` without `errorCode` or `recoverable`.",
+        "supabase/functions/complete_task/storage.ts:74-81 and 127-144 emits structured `edgeFailure(...)` results internally, but HTTP-level formatting depends on which helper path is used, not a unified serializer."
+      ],
+      "suggestion": "Adopt one canonical edge error envelope (including stable machine fields like `errorCode`, `recoverable`, optional `retryAfter`) and route rate-limit and validation responses through a shared response builder.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "operation_result_contract_drift",
+      "summary": "Frontend and edge operation result abstractions encode different required fields and defaults, increasing adapter friction at module boundaries.",
+      "related_files": [
+        "src/shared/lib/operationResult.ts",
+        "supabase/functions/_shared/edgeOperation.ts",
+        "src/shared/hooks/useLineageChain.ts"
+      ],
+      "evidence": [
+        "src/shared/lib/operationResult.ts:10-18 defines failure with optional `errorCode` and optional `policy`.",
+        "supabase/functions/_shared/edgeOperation.ts:3-11 requires both `errorCode` and `policy` on failures.",
+        "src/shared/hooks/useLineageChain.ts:96-103 converts `OperationResult` failures by throwing `result.error`, while edge utilities are designed around serializable failure metadata; this mismatch encourages bespoke conversions instead of one seam contract."
+      ],
+      "suggestion": "Define a shared cross-runtime result contract (or a strict adapter layer) with aligned required fields and policy semantics, then migrate both `operationResult` and `edgeOperation` to that contract with compatibility helpers.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

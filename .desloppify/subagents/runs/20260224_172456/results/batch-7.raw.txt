@@ -1,0 +1,98 @@
+{
+  "batch": "Design Coherence — Mechanical Concern Signals",
+  "batch_index": 7,
+  "assessments": {
+    "design_coherence": 78.5
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "Media lightbox flow uses very wide contracts: `MediaLightboxProps` defines 63 fields in `src/shared/components/MediaLightbox/MediaLightbox.tsx`, then data is re-bundled and forwarded into image/video-specific layers.",
+        "`useSharedLightboxState` is a 700+ line aggregator in `src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts` combining variants, navigation, references, shot operations, lineage, layout, and button models into one hook.",
+        "Timeline orchestration remains monolithic: `useTimelineOrchestrator` in `src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts` manages drag/drop, zoom, selection, endpoint drag, video browser integration, and returns a very large surface consumed by timeline UI.",
+        "Shot editor boundaries are still wide-bag APIs: `UseGenerationControllerParams` has 57 fields and `ShotEditorLayoutProps` has 64 fields, indicating responsibility partitioning by file but not by cohesive domain contract.",
+        "Task parameter extraction logic is duplicated across components: `TaskDetailsModal` manually checks `input_images`, `full_orchestrator_payload.input_image_paths_resolved`, and `input_image_paths_resolved`, while `useGenerationDetails` separately parses params and derives images."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "lightbox_wide_contract_chain",
+      "summary": "Lightbox subsystem uses oversized prop/hook contracts that blur ownership boundaries.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/MediaLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx"
+      ],
+      "evidence": [
+        "`MediaLightboxProps` carries 63 top-level fields and is re-grouped by `useBundledLightboxProps`, indicating a bag-of-props transport boundary.",
+        "`useSharedLightboxState` composes many unrelated domains (variants, star, references, join, lineage, shot creation/positioning, layout, button wiring) into one return model.",
+        "Image/Video lightboxes still depend on this aggregate state shape, so unrelated feature changes broaden call-site and dependency impact."
+      ],
+      "suggestion": "Introduce focused feature facades (for example `useLightboxVariants`, `useLightboxShotActions`, `useLightboxReferences`, `useLightboxLayout`) and pass a small per-mode contract into ImageLightbox/VideoLightbox instead of one shared mega-state object.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "timeline_orchestrator_multi_responsibility",
+      "summary": "Timeline orchestrator combines too many interaction domains in one hook.",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts",
+        "src/tools/travel-between-images/components/Timeline.tsx"
+      ],
+      "evidence": [
+        "`useTimelineOrchestrator` owns local UI state, geometry, zoom behavior, drag/drop interception, duplicate-placement policy, tap-to-move, endpoint dragging, and structure-video selection.",
+        "The returned object exposes a broad mixed API (state + domain operations + UI handlers), increasing coupling between timeline view and low-level interaction mechanics.",
+        "`Timeline.tsx` remains a high-fan-in consumer of this orchestration layer plus other services, reinforcing one large integration seam."
+      ],
+      "suggestion": "Split orchestrator output into cohesive controllers (`interaction`, `viewport`, `mediaPlacement`, `structureVideo`) and let `Timeline.tsx` compose these smaller contracts explicitly.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "shot_editor_controller_bag_params",
+      "summary": "Shot editor controllers/layout use very wide parameter surfaces instead of cohesive models.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/controllers/useGenerationController.ts",
+        "src/tools/travel-between-images/components/ShotEditor/ShotEditorLayout.tsx",
+        "src/tools/travel-between-images/components/ShotEditor/controllers/useEditingController.ts"
+      ],
+      "evidence": [
+        "`UseGenerationControllerParams` declares 57 fields, spanning prompt settings, motion settings, join settings, UI loading flags, and persistence callbacks.",
+        "`ShotEditorLayoutProps` declares 64 fields and mixes header concerns, timeline concerns, generation concerns, and modal concerns into one prop API.",
+        "`useEditingController` returns another very broad mixed object (name editing, audio, structure-video, join config/actions), creating multiple large contracts in the same subsystem."
+      ],
+      "suggestion": "Define stable domain view-models (`headerModel`, `timelineModel`, `generationModel`, `joinModel`, `modalModel`) and pass those models through controller/layout boundaries to reduce cross-cutting prop churn.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "task_input_image_derivation_duplicated",
+      "summary": "Input-image derivation logic is duplicated across task-details surfaces.",
+      "related_files": [
+        "src/shared/components/TaskDetailsModal.tsx",
+        "src/shared/components/GenerationDetails/useGenerationDetails.ts",
+        "src/shared/lib/taskParamsUtils.ts"
+      ],
+      "evidence": [
+        "`TaskDetailsModal` manually derives `inputImages` by checking multiple nested param paths and URL cleanup inline.",
+        "`useGenerationDetails` separately parses params and calls derivation logic, creating another path for the same concern.",
+        "This split makes behavior drift likely when task payload shape evolves."
+      ],
+      "suggestion": "Move all task input-image extraction/normalization into one shared utility or hook (including quote cleanup and fallback path order) and consume it from both modal and generation details paths.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

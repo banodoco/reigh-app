@@ -4,10 +4,10 @@ import {
   generateRunId,
   createTask,
 } from "../../taskCreation";
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import type { TravelBetweenImagesTaskParams, TravelBetweenImagesTaskResult } from './types';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import type { TravelBetweenImagesTaskInput, TravelBetweenImagesTaskResult } from './types';
 import { validateTravelBetweenImagesParams, buildTravelBetweenImagesPayload } from './payloadBuilder';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { ensureShotParentGenerationId } from '../shotParentGeneration';
 
 /**
@@ -17,7 +17,7 @@ import { ensureShotParentGenerationId } from '../shotParentGeneration';
  * @param params - Travel between images task parameters
  * @returns Promise resolving to the created task and parent generation ID
  */
-export async function createTravelBetweenImagesTask(params: TravelBetweenImagesTaskParams): Promise<TravelBetweenImagesTaskResult> {
+export async function createTravelBetweenImagesTask(params: TravelBetweenImagesTaskInput): Promise<TravelBetweenImagesTaskResult> {
 
   try {
     // 1. Validate parameters
@@ -75,6 +75,6 @@ export async function createTravelBetweenImagesTask(params: TravelBetweenImagesT
     };
 
   } catch (error) {
-    throw handleError(error, { context: 'TravelBetweenImages', showToast: false });
+    throw normalizeAndPresentError(error, { context: 'TravelBetweenImages', showToast: false });
   }
 }

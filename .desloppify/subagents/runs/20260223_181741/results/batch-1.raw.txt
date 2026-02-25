@@ -1,0 +1,105 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 59.0,
+    "high_level_elegance": 64.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/handleError.ts` imports UI toast (`@/shared/components/ui/toast`) while being used as a general shared error utility, so non-UI callers transitively depend on UI behavior.",
+        "`src/integrations/supabase/client.ts` eagerly executes `getOrCreateSupabaseClient()` at import time and documents that importing the module performs initialization side effects.",
+        "`src/types/shots.ts` is a deprecated re-export facade (`export * from '@/types/generationAndShots'`) but active code in `src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts` still imports from the deprecated path."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "`src/pages/Home/components/InstallInstructionsModal.tsx` mixes feature orchestration (`getMainVisual` branching by platform/browser/device) with a large library of embedded browser/device mockup components in the same file.",
+        "`src/pages/Home/components/CreativePartnerPane.tsx` combines long-form domain content, tooltip interaction state wiring, and embedded iframe behavior in one component, which broadens ownership boundaries.",
+        "`src/shared/components/ui/tooltip.tsx` combines primitive wrapper exports and app-specific touch behavior (`TouchableTooltip`) in the same shared UI entrypoint, blurring whether this module is framework adapter vs product behavior."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "shared_error_utility_ui_coupling",
+      "summary": "Global error utility is coupled to UI toast rendering, creating an upward dependency from shared logic into presentation.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+      ],
+      "evidence": [
+        "`handleError` directly imports and calls `toast(...)` in `src/shared/lib/errorHandling/handleError.ts`.",
+        "Feature hooks (`useMediaGalleryHandlers`, `useMediaGalleryItemState`) call `handleError(...)`, so each caller inherits UI side effects and toast dependency indirectly.",
+        "This makes error handling hard to reuse in non-UI execution paths and increases blast radius of UI/toast changes."
+      ],
+      "suggestion": "Split error normalization/logging from user notification: keep a pure shared error core (normalize/log/return) and inject notification behavior at feature/UI boundaries via callback or dedicated UI adapter.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "deprecated_type_facade_still_in_path",
+      "summary": "Deprecated type facade remains in active import paths, prolonging boundary ambiguity during migration.",
+      "related_files": [
+        "src/types/shots.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts"
+      ],
+      "evidence": [
+        "`src/types/shots.ts` is explicitly marked deprecated and only re-exports from `@/types/generationAndShots`.",
+        "`useMediaGalleryHandlers` still imports `Shot` from `@/types/shots` instead of the target module.",
+        "Keeping facade imports active delays migration completion and preserves a non-authoritative boundary."
+      ],
+      "suggestion": "Move remaining imports in assigned files to `@/types/generationAndShots`, then retire `src/types/shots.ts` once no callers remain.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "supabase_client_import_side_effects",
+      "summary": "Supabase client module performs eager runtime initialization at import boundary, creating import-time side effects.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/toolConstants.ts"
+      ],
+      "evidence": [
+        "`src/integrations/supabase/client.ts` exports `supabase = getOrCreateSupabaseClient()` (eager singleton).",
+        "The same file explicitly states importing the module performs client initialization side effects (instrumentation/global registration/runtime init).",
+        "This pattern increases hidden coupling versus pure constants modules like `src/shared/lib/toolConstants.ts`, where imports are side-effect free."
+      ],
+      "suggestion": "Expose a lazy accessor (`getSupabaseClient`) as primary API and keep eager singleton only behind an explicit compatibility entrypoint to reduce accidental initialization during unrelated imports/tests.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "home_components_mix_orchestration_and_asset_library",
+      "summary": "Home feature components bundle domain orchestration with extensive inline UI asset implementations, weakening ownership clarity.",
+      "related_files": [
+        "src/pages/Home/components/InstallInstructionsModal.tsx",
+        "src/pages/Home/components/CreativePartnerPane.tsx"
+      ],
+      "evidence": [
+        "`InstallInstructionsModal` defines many browser/device mockup subcomponents and also handles install decision orchestration (`getMainVisual`, title logic, fallback behavior) in one module.",
+        "`CreativePartnerPane` mixes static mission copy, tooltip/mobile interaction control, and embedded iframe behavior in a single component.",
+        "Both files broaden reasons-to-change for a single module, making domain boundaries less predictable for future edits."
+      ],
+      "suggestion": "Extract presentational mockups/content sections into focused child modules (e.g., `install-visuals/*`, `creative-partner-sections/*`) and keep parent files for orchestration and wiring only.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

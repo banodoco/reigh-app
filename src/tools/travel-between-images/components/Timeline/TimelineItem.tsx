@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback } from "react";
-import { GenerationRow } from "@/types/shots";
-import { cn } from "@/shared/lib/utils";
+import { GenerationRow } from "@/domains/generation/types";
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { getDisplayUrl } from "@/shared/lib/mediaUrl";
 import { Button } from "@/shared/components/ui/button";
 import { Trash2, Copy, Check, Pencil, Maximize2 } from "lucide-react";
@@ -10,76 +10,99 @@ import { framesToSeconds } from "./utils/time-utils";
 import { TIMELINE_PADDING_OFFSET } from "./constants";
 import { VariantBadge } from "@/shared/components/VariantBadge";
 import { useMarkVariantViewed } from "@/shared/hooks/useMarkVariantViewed";
-import { useIsTouchDevice } from "@/shared/hooks/useMobile";
+import { useIsTouchDevice } from "@/shared/hooks/mobile";
 import { getAspectRatioStyle as getProjectAspectRatioStyle } from "@/shared/components/ShotImageManager/utils/image-utils";
+import { INTERACTION_TIMING } from "@/shared/lib/interactions/timing";
 
-// Props for individual timeline items
-interface TimelineItemProps {
-  image: GenerationRow;
-  framePosition: number;
+interface TimelineItemLayoutModel {
+  timelineWidth: number;
+  fullMinFrames: number;
+  fullRange: number;
+}
+
+interface TimelineItemInteractionModel {
   isDragging: boolean;
   isSwapTarget: boolean;
   dragOffset: { x: number; y: number } | null;
   onMouseDown?: (e: React.MouseEvent, imageId: string) => void;
   onDoubleClick?: () => void;
   onMobileTap?: () => void;
-  zoomLevel: number;
-  timelineWidth: number;
-  fullMinFrames: number;
-  fullRange: number;
   currentDragFrame: number | null;
   originalFramePos: number;
-  /** When provided, image src will only be set once this is true */
-  shouldLoad?: boolean;
+  onPrefetch?: () => void;
+}
 
-  // Action handlers (optional in readOnly mode)
+interface TimelineItemActionModel {
   onDelete?: (imageId: string) => void;
   onDuplicate?: (imageId: string, timeline_frame: number) => void;
   onInpaintClick?: () => void;
   duplicatingImageId?: string;
   duplicateSuccessImageId?: string;
-  projectAspectRatio?: string;
-  // Read-only mode - hides all action buttons
-  readOnly?: boolean;
-  // Just-dropped effect - shows temporary hover state
-  isJustDropped?: boolean;
-  // Prefetch callback for task data (called on hover)
-  onPrefetch?: () => void;
-  // Multi-select state
+}
+
+interface TimelineItemSelectionModel {
   isSelected?: boolean;
   onSelectionClick?: (e: React.MouseEvent) => void;
-  /** Number of selected items (for badge display) */
   selectedCount?: number;
+}
+
+interface TimelineItemPresentationModel {
+  shouldLoad?: boolean;
+  projectAspectRatio?: string;
+  readOnly?: boolean;
+  isJustDropped?: boolean;
+}
+
+interface TimelineItemProps {
+  image: GenerationRow;
+  framePosition: number;
+  layout: TimelineItemLayoutModel;
+  interaction: TimelineItemInteractionModel;
+  actions?: TimelineItemActionModel;
+  selection?: TimelineItemSelectionModel;
+  presentation?: TimelineItemPresentationModel;
 }
 
 // TimelineItem component - simplified without dnd-kit
 const TimelineItem: React.FC<TimelineItemProps> = ({
   image,
   framePosition,
-  isDragging,
-  isSwapTarget,
-  dragOffset,
-  onMouseDown,
-  onDoubleClick,
-  onMobileTap,
-  timelineWidth,
-  fullMinFrames,
-  fullRange,
-  currentDragFrame,
-  originalFramePos,
-  shouldLoad = true,
-  onDelete,
-  onDuplicate,
-  onInpaintClick,
-  duplicatingImageId,
-  duplicateSuccessImageId,
-  projectAspectRatio = undefined,
-  readOnly = false,
-  isJustDropped = false,
-  onPrefetch,
-  isSelected = false,
-  onSelectionClick,
+  layout,
+  interaction,
+  actions,
+  selection,
+  presentation,
 }) => {
+  const { timelineWidth, fullMinFrames, fullRange } = layout;
+  const {
+    isDragging,
+    isSwapTarget,
+    dragOffset,
+    onMouseDown,
+    onDoubleClick,
+    onMobileTap,
+    currentDragFrame,
+    originalFramePos,
+    onPrefetch,
+  } = interaction;
+  const {
+    onDelete,
+    onDuplicate,
+    onInpaintClick,
+    duplicatingImageId,
+    duplicateSuccessImageId,
+  } = actions ?? {};
+  const {
+    isSelected = false,
+    onSelectionClick,
+    selectedCount,
+  } = selection ?? {};
+  const {
+    shouldLoad = true,
+    projectAspectRatio = undefined,
+    readOnly = false,
+    isJustDropped = false,
+  } = presentation ?? {};
   
   // Track hover state
   const [isHovered, setIsHovered] = useState(false);
@@ -103,10 +126,10 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
   React.useEffect(() => {
     if (isJustDropped) {
       setShowDropEffect(true);
-      // Clear the effect after 800ms (enough time for visual feedback)
+      // Clear the effect after the shared drop-highlight duration.
       const timer = setTimeout(() => {
         setShowDropEffect(false);
-      }, 800);
+      }, INTERACTION_TIMING.timelineDropHighlightMs);
       return () => clearTimeout(timer);
     }
   }, [isJustDropped]);
@@ -116,6 +139,11 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
   
   // Track if we just clicked a button to prevent drag from starting
   const buttonClickedRef = useRef(false);
+  const scheduleButtonClickReset = useCallback(() => {
+    setTimeout(() => {
+      buttonClickedRef.current = false;
+    }, INTERACTION_TIMING.minimalDeferralMs);
+  }, []);
 
   // Track mouse down position for drag detection (to prevent onClick after drag)
   const mouseDownPosRef = useRef<{ x: number; y: number } | null>(null);
@@ -393,17 +421,13 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
                     buttonClickedRef.current = true;
                     e.preventDefault();
                     e.stopPropagation();
-                    setTimeout(() => {
-                      buttonClickedRef.current = false;
-                    }, 100);
+                    scheduleButtonClickReset();
                   }}
                   onPointerDown={(e) => {
                     buttonClickedRef.current = true;
                     e.preventDefault();
                     e.stopPropagation();
-                    setTimeout(() => {
-                      buttonClickedRef.current = false;
-                    }, 100);
+                    scheduleButtonClickReset();
                   }}
                   onClick={(e) => {
                     e.preventDefault();
@@ -427,17 +451,13 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
                     buttonClickedRef.current = true;
                     e.preventDefault();
                     e.stopPropagation();
-                    setTimeout(() => {
-                      buttonClickedRef.current = false;
-                    }, 100);
+                    scheduleButtonClickReset();
                   }}
                   onPointerDown={(e) => {
                     buttonClickedRef.current = true;
                     e.preventDefault();
                     e.stopPropagation();
-                    setTimeout(() => {
-                      buttonClickedRef.current = false;
-                    }, 100);
+                    scheduleButtonClickReset();
                   }}
                   onTouchStart={(e) => {
                     // Prevent touch events from bubbling to parent's double-tap handler
@@ -474,17 +494,13 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
                   buttonClickedRef.current = true;
                   e.preventDefault();
                   e.stopPropagation();
-                  setTimeout(() => {
-                    buttonClickedRef.current = false;
-                  }, 100);
+                  scheduleButtonClickReset();
                 }}
                 onPointerDown={(e) => {
                   buttonClickedRef.current = true;
                   e.preventDefault();
                   e.stopPropagation();
-                  setTimeout(() => {
-                    buttonClickedRef.current = false;
-                  }, 100);
+                  scheduleButtonClickReset();
                 }}
                 onTouchStart={(e) => {
                   // Prevent touch events from bubbling to parent's double-tap handler
@@ -516,17 +532,13 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
                   buttonClickedRef.current = true;
                   e.preventDefault();
                   e.stopPropagation();
-                  setTimeout(() => {
-                    buttonClickedRef.current = false;
-                  }, 100);
+                  scheduleButtonClickReset();
                 }}
                 onPointerDown={(e) => {
                   buttonClickedRef.current = true;
                   e.preventDefault();
                   e.stopPropagation();
-                  setTimeout(() => {
-                    buttonClickedRef.current = false;
-                  }, 100);
+                  scheduleButtonClickReset();
                 }}
                 onTouchStart={(e) => {
                   // Prevent touch events from bubbling to parent's double-tap handler

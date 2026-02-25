@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 import { DOUBLE_TAP_THRESHOLD } from '../constants';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 interface UseMobileGesturesProps {
   currentImages: GenerationRow[];
@@ -104,7 +104,7 @@ export function useMobileGestures({
       setMobileSelectedIds(() => []);
       
     } catch (error) {
-      handleError(error, { context: 'useMobileGestures', showToast: false });
+      normalizeAndPresentError(error, { context: 'useMobileGestures', showToast: false });
     }
   }, [mobileSelectedIds, currentImages, onImageReorder, setMobileSelectedIds]);
   

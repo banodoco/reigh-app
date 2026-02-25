@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react';
-import { toast } from "@/shared/components/ui/sonner";
-import { handleError } from "@/shared/lib/errorHandling/handleError";
-import { GenerationRow, Shot } from "@/types/shots";
+import { toast } from "@/shared/components/ui/runtime/sonner";
+import { normalizeAndPresentError } from "@/shared/lib/errorHandling/runtimeError";
+import { GenerationRow, Shot } from "@/domains/generation/types";
 import { useRemoveImageFromShot } from "@/shared/hooks/shots";
 import { useQueryClient } from '@tanstack/react-query';
 import { isVideoGeneration } from '@/shared/lib/typeGuards';
@@ -41,7 +41,7 @@ export const useDeleteActions = ({
     const currentProjectId = projectIdRef.current;
 
     if (!currentShot || !currentProjectId) {
-      handleError(new Error('Missing shot or project context'), {
+      normalizeAndPresentError(new Error('Missing shot or project context'), {
         context: 'useDeleteActions.handleDeleteImageFromShot',
         showToast: true,
         toastTitle: 'Cannot remove image: No shot or project selected.',
@@ -64,7 +64,7 @@ export const useDeleteActions = ({
     const actualGenerationId = imageToDelete?.generation_id;
 
     if (!actualGenerationId) {
-      handleError(new Error('Could not find generation ID for shot image entry'), {
+      normalizeAndPresentError(new Error('Could not find generation ID for shot image entry'), {
         context: 'useDeleteActions.handleDeleteImageFromShot',
         showToast: true,
         toastTitle: 'Cannot remove image: Image not found.',
@@ -131,7 +131,7 @@ export const useDeleteActions = ({
         projectId: currentProjectId
       });
     } catch (error) {
-      handleError(error, { context: 'DeleteDebug', showToast: false });
+      normalizeAndPresentError(error, { context: 'DeleteDebug', showToast: false });
     }
   }, []);
 
@@ -154,7 +154,7 @@ export const useDeleteActions = ({
     try {
       await Promise.all(removePromises);
     } catch (error) {
-      handleError(error, {
+      normalizeAndPresentError(error, {
         context: 'useDeleteActions.handleBatchDeleteImages',
         showToast: true,
         toastTitle: 'Failed to remove some images from timeline',

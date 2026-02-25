@@ -1,0 +1,90 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "mid_level_elegance": 72.5
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "Generation-task lookup APIs in `src/shared/lib/generationTaskRepository.ts` mix incompatible boundary behaviors: `resolveGenerationProjectId` throws for missing/scope errors, while `getPrimaryTaskMappingsForGenerations` encodes missing/scope as status values, and `getPrimaryTaskIdForGeneration` throws again if mapping is absent.",
+        "Scoped mapping logic applies `.eq('project_id', options.projectId)` in query construction, then still checks `row.project_id !== options.projectId` afterward, making `scope_mismatch` effectively unreachable and collapsing distinct scope vs missing outcomes.",
+        "Error/result contracts are split across `src/shared/lib/operationResult.ts` and `supabase/functions/_shared/edgeOperation.ts` with near-duplicate concepts but incompatible shapes/construction patterns, and consumers handle failures differently (`useLineageChain` converts to structured error while `clipManager/metadata` throws raw error).",
+        "Edge JSON parsing has ambiguous fail-open behavior in `supabase/functions/_shared/edgeRequest.ts`: malformed/non-object JSON in loose mode becomes `{}` (same as empty body), reducing seam observability for downstream handlers."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "generation_task_api_semantics_split",
+      "summary": "Generation task repository exposes mixed throw-vs-status error semantics across adjacent APIs, making handoffs unpredictable.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/lib/generationTaskCache.ts"
+      ],
+      "evidence": [
+        "`resolveGenerationProjectId` throws on not found/project mismatch/missing scope, while `getPrimaryTaskMappingsForGenerations` returns status-coded records and null task IDs.",
+        "`getPrimaryTaskIdForGeneration` throws if no mapping exists even though mapping API already models absence with `missing_generation`."
+      ],
+      "suggestion": "Standardize repository outputs on one contract (prefer a typed result object with explicit status/error code), and keep throwing only at a single adapter boundary so cache/hook consumers can compose behavior consistently.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "scope_mismatch_status_unreliable",
+      "summary": "Project-scoped mapping can misclassify scope mismatches as missing generations due to contradictory filtering.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/lib/generationTaskCache.ts"
+      ],
+      "evidence": [
+        "Query adds `.eq('project_id', options.projectId)` before fetch, so rows with different project IDs are excluded up front.",
+        "Later branch still checks `row.project_id !== options.projectId` to emit `scope_mismatch`, but those rows generally cannot appear, so mismatches are reported as `missing_generation`."
+      ],
+      "suggestion": "Either remove server-side project filter and classify in-process, or keep filter and remove `scope_mismatch` from this API; if scope diagnostics are required, add a dedicated scoped-verification query path.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "operation_result_contract_divergence",
+      "summary": "Client and edge layers maintain parallel failure/success wrappers with incompatible shapes, increasing translation friction at integration seams.",
+      "related_files": [
+        "src/shared/lib/operationResult.ts",
+        "supabase/functions/_shared/edgeOperation.ts"
+      ],
+      "evidence": [
+        "`operationResult` includes `toOperationResultError` and options-based constructors; `edgeOperation` uses different constructor signatures and no equivalent error-conversion helper.",
+        "Consumers diverge: `src/shared/hooks/useLineageChain.ts` converts failures to structured errors, while `src/tools/join-clips/lib/clipManager/metadata.ts` throws `result.error` directly."
+      ],
+      "suggestion": "Define a shared result envelope spec (field names, error metadata, conversion rules) and align both modules plus callers to it, or centralize one cross-runtime helper package.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "loose_json_parsing_hides_client_faults",
+      "summary": "Loose JSON parsing collapses malformed payloads and empty bodies into the same `{}` result, obscuring boundary intent.",
+      "related_files": [
+        "supabase/functions/_shared/edgeRequest.ts",
+        "supabase/functions/complete_task/storage.ts"
+      ],
+      "evidence": [
+        "`parseJsonBodyLoose` returns `{}` for invalid JSON and non-object JSON via fail-open paths.",
+        "Downstream operations rely on parsed request data for storage behavior; without a parse-origin signal, handlers cannot distinguish omitted inputs from malformed client payloads."
+      ],
+      "suggestion": "Return a typed parse outcome (`body`, `parseStatus`, optional `parseErrorCode`) even in loose mode so handlers can decide whether to degrade, reject, or audit malformed payloads.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

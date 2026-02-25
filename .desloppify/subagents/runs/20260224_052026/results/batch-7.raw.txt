@@ -1,0 +1,56 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 7,
+  "assessments": {
+    "logic_clarity": 82.0
+  },
+  "dimension_notes": {
+    "logic_clarity": {
+      "evidence": [
+        "Delayed generation invalidation applies `delayMs` in `setTimeout(...)` and then again in `runInvalidationLifecycle(...)`, creating an effective 2x delay path for scheduled invalidations.",
+        "`useAuthReferralFinalize` awaits `supabase.rpc(...)` but never inspects returned `{ error }`, so non-throwing RPC failures are silently treated as success and referral storage is always cleared in `finally`."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "logic_clarity",
+      "identifier": "double_delay_invalidation_path",
+      "summary": "Scheduled generation invalidation waits twice, doubling intended delay.",
+      "related_files": [
+        "src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+        "src/shared/hooks/invalidation/__tests__/useGenerationInvalidation.test.ts"
+      ],
+      "evidence": [
+        "`scheduleDedupedInvalidation` sets `setTimeout(..., delayMs)` and invokes `runInvalidationLifecycle(queryClient, shotId, immediateOptions)`.",
+        "`runInvalidationLifecycle` reads `options.delayMs` and calls `await wait(delayMs)` before invalidating, so delayed calls can incur timeout delay plus internal wait delay.",
+        "The delayed test advances exactly 500ms and expects invalidation to fire, indicating intended single-delay behavior."
+      ],
+      "suggestion": "Use one delay mechanism only: either pass stripped options without `delayMs` into lifecycle and keep the outer timer, or remove outer timer and let lifecycle own waiting. Update delayed tests to assert exact timing with fake timers.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "logic_clarity",
+      "identifier": "rpc_error_not_checked_before_cleanup",
+      "summary": "Referral finalization ignores Supabase RPC error responses and clears referral state even when finalize fails.",
+      "related_files": [
+        "src/pages/Home/hooks/auth/useAuthReferralFinalize.ts",
+        "src/pages/Home/hooks/useDiscordSignIn.ts"
+      ],
+      "evidence": [
+        "`useAuthReferralFinalize` calls `await supabase.rpc('create_referral_from_session', ...)` but does not destructure/check returned `error` before proceeding.",
+        "The `finally` block always removes referral storage keys, so a non-throwing RPC failure can drop retry data.",
+        "A neighboring auth hook (`useDiscordSignIn`) explicitly checks `{ error }` after Supabase call, showing expected error-handling pattern in this area."
+      ],
+      "suggestion": "Capture RPC result (`const { error } = await supabase.rpc(...)`), handle `error` explicitly via `handleError`, and only clear referral keys after confirmed success (or preserve keys for retry on failure).",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

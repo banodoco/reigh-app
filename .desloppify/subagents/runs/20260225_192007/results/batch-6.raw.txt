@@ -1,0 +1,117 @@
+{
+  "batch": "Design coherence — Mechanical Concern Signals",
+  "batch_index": 6,
+  "assessments": {
+    "design_coherence": 78.4
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "Edge functions in the same subsystem use competing handler architectures: `bootstrapEdgeHandler` in `supabase/functions/get-task-output/index.ts` and `supabase/functions/get-completed-segments/index.ts` vs manual runtime/auth wiring in `supabase/functions/generate-upload-url/index.ts` and `supabase/functions/revoke-pat/index.ts`.",
+        "`src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx` aggregates a very large composed prop contract (state, navigation, actions, shot management, optimistic state, modal state, task data, integration) and passes this through to `MediaLightbox`, indicating orchestration and view concerns are not bounded.",
+        "`src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts` combines many concerns (variants, navigation, references, shot positioning, lineage, layout, button props) into one hook and one giant return object, increasing indirection and coupling.",
+        "`src/shared/hooks/useTimelineCore.ts` and `src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts` both mix DB operations, cache writes, invalidation policy, and UI-level operation semantics in the same hook bodies."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "edge_handler_pattern_drift",
+      "summary": "Edge endpoints implement request/auth/error flow through multiple incompatible patterns, creating structural duplication and inconsistent ownership.",
+      "related_files": [
+        "supabase/functions/get-task-output/index.ts",
+        "supabase/functions/get-completed-segments/index.ts",
+        "supabase/functions/claim-next-task/index.ts",
+        "supabase/functions/generate-upload-url/index.ts",
+        "supabase/functions/revoke-pat/index.ts"
+      ],
+      "evidence": [
+        "`get-task-output`/`get-completed-segments`/`claim-next-task` use `bootstrapEdgeHandler` with shared bootstrap contract.",
+        "`generate-upload-url` manually creates client/logger and directly orchestrates method/body/auth/error handling.",
+        "`revoke-pat` uses a third shape (`initEdgeRuntime` + `authenticateRequest` + ad-hoc method/CORS handling), so equivalent endpoint responsibilities are spread across divergent templates."
+      ],
+      "suggestion": "Standardize all edge functions on one request pipeline (preferably `bootstrapEdgeHandler`), then extract reusable authorization guards (task ownership, project ownership, PAT checks) into shared modules so endpoints only contain business logic.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "missing_boundary_standardization"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "lightbox_megaprop_surface",
+      "summary": "Lightbox orchestration is spread across oversized prop bags and state aggregators, obscuring component responsibilities.",
+      "related_files": [
+        "src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts"
+      ],
+      "evidence": [
+        "`MediaGalleryLightbox` defines and merges many prop interfaces (state/navigation/actions/shot/task/integration) into a single component contract.",
+        "`useSharedLightboxState` composes many unrelated feature hooks and returns a broad object containing navigation, variants, lineage, references, shots, layout, and button wiring.",
+        "`ImageLightbox` then layers additional environment/shared/orchestrator hooks, signaling the boundary between container orchestration and presentational behavior is blurred."
+      ],
+      "suggestion": "Introduce a lightbox view-model/facade per mode (gallery, image, video) with narrow typed contracts, and split shared state into focused hooks grouped by lifecycle domain (navigation, variants, shot actions, references) instead of one aggregate state hub.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "missing_boundary_standardization"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "timeline_hook_responsibility_mixing",
+      "summary": "Timeline hooks combine persistence, cache invalidation policy, and UI action semantics in the same units, making behavior hard to reason about and evolve.",
+      "related_files": [
+        "src/shared/hooks/useTimelineCore.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineActionHandlers.ts"
+      ],
+      "evidence": [
+        "`useTimelineCore` contains derived selectors, queueing/persistence logic, mutation orchestration, and metadata-specific behavior in one ~678-line module.",
+        "`useShotImagesEditorCallbacks` includes deletion business rules, Supabase queries/deletes, cache patching, invalidation, and UI callback assembly in one hook.",
+        "`useTimelineActionHandlers` accepts multiple pipeline bags and coordinates drop/duplicate/tap/endpoint/video-browser actions, indicating a central action-router rather than separated domain handlers."
+      ],
+      "suggestion": "Separate timeline domain services (DB operations + rules), cache synchronization adapters, and UI interaction hooks; keep hooks as composition boundaries over smaller services instead of embedding persistence and policy directly.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "state_and_io_cohabitation"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "lora_state_machine_coupling",
+      "summary": "LoRA management conflates UI state, persistence policy, and domain actions, producing hard-to-predict state transitions.",
+      "related_files": [
+        "src/shared/hooks/useLoraManager.tsx",
+        "src/shared/components/LoraSelectorModal/LoraSelectorModal.tsx",
+        "src/tools/travel-between-images/components/ShotEditor/hooks/useLoraSync.tsx"
+      ],
+      "evidence": [
+        "`useLoraManager` owns selection rules, duplicate cleanup, persistence, trigger-word prompt mutation, save feedback UI state, and render helper output (`renderHeaderActions`) in a single hook.",
+        "`LoraSelectorModal` manages tab/edit/filter/pagination state and performs render-time synchronization using ref comparisons with `setState` inside render path, coupling prop changes to implicit UI transitions.",
+        "`useLoraSync` exists as another synchronization layer, indicating cross-module state ownership is fragmented and requires glue hooks."
+      ],
+      "suggestion": "Split LoRA domain state (selection + validation), persistence adapter, and UI presentation state into separate hooks; move render-time synchronization to effect-driven reducers with explicit transition actions.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "state_and_io_cohabitation"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Missing standardized boundaries for request lifecycle and auth in edge functions.",
+      "Stateful React hooks acting as both domain service and UI coordinator.",
+      "Incremental feature growth added through aggregation layers instead of replacing old seams."
+    ],
+    "likely_symptoms": [
+      "lightbox_megaprop_surface",
+      "timeline_hook_responsibility_mixing",
+      "lora_state_machine_coupling"
+    ],
+    "possible_false_positives": []
+  }
+}

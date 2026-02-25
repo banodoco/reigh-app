@@ -1,0 +1,115 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 84.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "Project context writes selected project state to a process-global `window.__PROJECT_CONTEXT__` in `src/shared/contexts/ProjectContext.tsx:71-77`, creating hidden runtime coupling beyond React context boundaries.",
+        "The legacy Supabase facade remains an active compatibility boundary (`src/integrations/supabase/legacy/legacySupabaseFacade.ts:31-33`) and is still imported broadly across app modules, keeping old/new client access paths alive.",
+        "Adjacent preloading orchestration uses a global queue service and clears that queue on every schedule/unmount (`src/features/gallery/lib/adjacentPagePreloadCoordinator.ts:100-102,123-126`), so one caller can affect another caller’s in-flight preload work."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "global_project_context_backchannel",
+      "summary": "Project selection is propagated through a global window backchannel, bypassing declared module boundaries.",
+      "related_files": [
+        "src/shared/contexts/ProjectContext.tsx",
+        "src/shared/hooks/useTasks.ts",
+        "src/shared/hooks/useProjectGenerations.ts",
+        "src/shared/hooks/useTaskPrefetch.ts"
+      ],
+      "evidence": [
+        "`ProjectContext` mutates `window.__PROJECT_CONTEXT__` on state changes (`ProjectContext.tsx:71-77`).",
+        "Multiple data hooks read that global when `projectId` is absent (`useTasks.ts:63-67`, `useProjectGenerations.ts:391`, `useTaskPrefetch.ts:20-24`).",
+        "This creates implicit cross-module coordination that is not visible in function signatures or hook contracts."
+      ],
+      "suggestion": "Remove `window.__PROJECT_CONTEXT__` fallback reads and replace with an explicit project-scope provider/query-scope abstraction passed through hook parameters or a typed context consumed directly; then delete the global write path.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "implicit_global_state_for_cross_feature_coordination"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "legacy_supabase_boundary_not_converging",
+      "summary": "Deprecated Supabase facade remains a high-fanout dependency hub, preserving mixed runtime boundaries.",
+      "related_files": [
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "src/shared/contexts/AuthContext.tsx",
+        "src/shared/hooks/useProjectGenerations.ts",
+        "src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx"
+      ],
+      "evidence": [
+        "The legacy facade is still the active exported accessor (`legacySupabaseFacade.ts:31-33`) despite deprecation/removal target comments.",
+        "Current codebase usage includes many direct imports of `getLegacySupabaseClient` across contexts, hooks, and components (e.g. `AuthContext.tsx`, `useProjectGenerations.ts`, `MediaGalleryLightbox.tsx`).",
+        "This keeps the old compatibility layer as a cross-module choke point instead of converging callers onto one runtime client boundary."
+      ],
+      "suggestion": "Introduce a single canonical client entrypoint and migrate call sites in bounded slices (by feature or domain), enforcing no-new-imports on the legacy facade and shrinking an allowlist until facade removal.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "incomplete_runtime_boundary_migration"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "global_preload_queue_cross_instance_interference",
+      "summary": "Adjacent-page preloading relies on a global mutable queue that is cleared per-hook call, coupling independent galleries.",
+      "related_files": [
+        "src/features/gallery/hooks/useAdjacentPagePreloader.ts",
+        "src/features/gallery/lib/adjacentPagePreloadCoordinator.ts"
+      ],
+      "evidence": [
+        "`useAdjacentPagePreloader` delegates lifecycle directly to `scheduleAdjacentGenerationPagePreload` (`useAdjacentPagePreloader.ts:71-79`).",
+        "Coordinator performs `preloadingService.clearQueue()` before scheduling and again in cleanup (`adjacentPagePreloadCoordinator.ts:100-102,123-126`).",
+        "Because this service is module-global, one instance can cancel/clear another instance’s pending preload work, creating hidden cross-module contention."
+      ],
+      "suggestion": "Refactor preloading orchestration to instance-scoped queues or keyed channels (e.g., by project/gallery scope) so cleanup only affects the caller’s own work.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "implicit_global_state_for_cross_feature_coordination"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "toast_singleton_import_time_state",
+      "summary": "Toast infrastructure exports an import-time singleton manager, coupling notification behavior across unrelated module trees.",
+      "related_files": [
+        "src/shared/components/ui/sonner.tsx",
+        "src/shared/components/ui/toast.tsx"
+      ],
+      "evidence": [
+        "`sonner.tsx` imports and wires a shared `toastManager` into provider state (`sonner.tsx:2,27`).",
+        "`toast.tsx` creates `toastManager` at module load (`toast.tsx:11`), making global mutable UI state a side effect of import.",
+        "This makes toast isolation harder for multi-root rendering/tests and couples any consumer that imports the helper `toast` API to one process-wide manager."
+      ],
+      "suggestion": "Move toast manager creation behind an explicit app bootstrap/provider factory and pass manager via context, keeping `toast` helpers scoped to that provider instance.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "implicit_global_state_for_cross_feature_coordination"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Implicit global state is used as a coordination shortcut across feature boundaries (`window` globals and module singletons).",
+      "Compatibility layers are retained as long-lived hubs without strict convergence gates, increasing architectural drag."
+    ],
+    "likely_symptoms": [
+      "global_project_context_backchannel",
+      "global_preload_queue_cross_instance_interference",
+      "toast_singleton_import_time_state"
+    ],
+    "possible_false_positives": [
+      "toast_singleton_import_time_state may be partially intentional if the product explicitly requires one global toast bus per browser process."
+    ]
+  }
+}

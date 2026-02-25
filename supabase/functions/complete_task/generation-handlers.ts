@@ -120,8 +120,14 @@ export async function handleVariantCreation(
  */
 export async function handleVariantOnParent(ctx: HandlerContext): Promise<unknown | null> {
   const { supabase, taskId, taskData, publicUrl, thumbnailUrl, logger } = ctx;
+  const orchestrationContract = (
+    taskData.params?.orchestration_contract && typeof taskData.params.orchestration_contract === 'object'
+      ? taskData.params.orchestration_contract
+      : {}
+  ) as Record<string, unknown>;
 
-  const orchTaskId = taskData.params?.orchestrator_task_id_ref ||
+  const orchTaskId = orchestrationContract.orchestrator_task_id ||
+                     taskData.params?.orchestrator_task_id_ref ||
                      taskData.params?.orchestrator_task_id ||
                      taskData.params?.full_orchestrator_payload?.orchestrator_task_id;
 
@@ -161,7 +167,7 @@ export async function handleVariantOnParent(ctx: HandlerContext): Promise<unknow
   // For loop tasks with based_on (e.g., "Add to Join" loop), also create variant on source generation
   const orchDetails = taskData.params?.orchestrator_details || taskData.params?.full_orchestrator_payload || {};
   const isLoop = orchDetails.loop_first_clip === true;
-  const basedOnId = orchDetails.based_on || taskData.params?.based_on;
+  const basedOnId = orchDetails.based_on || orchestrationContract.based_on || taskData.params?.based_on;
 
   if (isLoop && basedOnId) {
     logger?.info(`${taskData.task_type}: creating loop variant on source`, {

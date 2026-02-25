@@ -1,6 +1,6 @@
 import React from 'react';
 import { Square } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 
 interface AnnotationModeToggleProps {
   mode: 'rectangle' | null;

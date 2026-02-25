@@ -1,0 +1,152 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "cross_module_architecture": 83.0,
+    "high_level_elegance": 82.0,
+    "test_strategy": 78.0,
+    "package_organization": 80.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/handleError.ts` is a backward-compatibility pass-through that keeps legacy entrypoints (`handleError`, `handleAndRethrow`) alive while directing callers to newer reporters in comments, which preserves dual API paths.",
+        "`src/integrations/supabase/client.ts` exposes both eager (`initializeSupabase`) and lazy (`getSupabaseClient`) initialization contracts; lazy bootstrap is allowed and only dev-logged, so boundary contract remains permissive rather than enforced.",
+        "Holistic context marks `handleError.ts` (240 importers), `client.ts` (158), `button.tsx` (157), and `cn.ts` (139) as high fan-in compatibility surfaces, increasing blast radius when contract boundaries change."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "README Governance Contracts section links contract docs, but the runtime-facing files keep compatibility wrappers and fallback behavior as first-class APIs (`handleError`, `button.tsx`, `cn.ts`, lazy Supabase accessor), so governance intent and active runtime surface are not tightly aligned.",
+        "README Quick Start includes broad environment setup but does not define which compatibility APIs are temporary vs canonical, leaving architecture ownership of legacy facades implicit.",
+        "`src/domains/generation/types/public.ts` is a domain barrel with very high reuse (209 importers in holistic context), but no deprecation/entrypoint policy is encoded near this public boundary."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    },
+    "test_strategy": {
+      "evidence": [
+        "README has no explicit verification gate section (no required CI/local commands for contract checks), despite governance-contract positioning.",
+        "`src/integrations/supabase/client.ts` contains behaviorful contract branches (lazy init detection + dev-only logging) but no adjacent test reference in this module; failures here affect a 158-importer surface.",
+        "High-fan-in compatibility wrappers (`handleError.ts`, `button.tsx`, `cn.ts`) rely on transitive tests of downstream modules rather than explicit contract tests at the public facade seams."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    },
+    "package_organization": {
+      "evidence": [
+        "UI public entry wrappers are split across `src/shared/components/ui/` (`button.tsx`, `cn.ts`) while implementations live in subpackages (`ui/theme/`, `ui/primitives/`), creating mixed facade+implementation concerns in a flat 60-file directory.",
+        "Directory profile for `src/shared/components/ui/` shows high breadth (`file_count: 60`, `total_loc: 4776`) and mixed roles (public exports, runtime bindings, primitives access), indicating weak package boundary signaling.",
+        "`src/shared/components/ui/cn.ts` is effectively domain-affined to `ui/primitives/` (imports there and is imported by `ui/theme/`) but remains at top-level facade layer, a placement mismatch."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "compat_facade_contract_sprawl",
+      "summary": "Compatibility facades keep legacy and canonical module contracts active in parallel.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/integrations/supabase/client.ts",
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/ui/cn.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` is a pure pass-through compatibility wrapper while comments instruct consumers to use different reporters.",
+        "`client.ts` permits both startup bootstrap and ad-hoc lazy bootstrap (`getOrInitialize...`) instead of enforcing one initialization contract.",
+        "`button.tsx` and `cn.ts` are pass-through re-export facades, adding additional public import paths over implementation packages."
+      ],
+      "suggestion": "Define one canonical entrypoint per subsystem and enforce it in stages: (1) add `@deprecated` JSDoc and telemetry tags to compatibility facades, (2) codemod imports to canonical modules (`presentationReporter`, `ui/theme/button`, `ui/primitives/cn`, runtime-only supabase accessor policy), (3) add lint rules to block new imports from deprecated facades, (4) remove facades after one release window with changelog notice.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "compatibility_entrypoint_sprawl"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "governance_docs_runtime_scope_drift",
+      "summary": "Governance README framing does not define runtime scope or sunset policy for compatibility layers.",
+      "related_files": [
+        "README.md",
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "README links governance contracts but does not state which APIs are transitional vs stable public surface.",
+        "`handleError.ts` explicitly labels itself backward-compatible while remaining importable as normal API.",
+        "`client.ts` keeps lazy init fallback behavior, but README governance section does not describe this as allowed exception or migration target."
+      ],
+      "suggestion": "Add a \"Contract Status\" matrix in README listing each public facade (file, canonical replacement, deprecation state, removal target date/version) and align module headers to that matrix so runtime and docs share a single policy source.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "compatibility_entrypoint_sprawl"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "missing_contract_gate_for_high_fanin_facades",
+      "summary": "High-fan-in contract entrypoints lack explicit governance-focused test gates.",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/ui/button.tsx"
+      ],
+      "evidence": [
+        "README does not provide required quality-gate commands for contract/facade validation in CI.",
+        "`client.ts` includes branchy contract behavior (lazy init warning path) with no nearby explicit contract test file reference.",
+        "Facade files (`handleError.ts`, `button.tsx`, `cn.ts`) are thin wrappers, so regressions can ship silently unless contract tests target those seams directly."
+      ],
+      "suggestion": "Introduce a governance test gate: add contract tests for facade invariants (export shape, behavior parity, lazy-init policy) and document required commands in README (for example: `npm run test:contracts`, `npm run test:arch`, plus CI enforcement to fail on facade drift).",
+      "confidence": "medium",
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "contracts_without_enforcement"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "ui_facade_impl_mixed_layout",
+      "summary": "UI package mixes facade entrypoints with implementation-level files in one overloaded directory.",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/ui/cn.ts",
+        "src/shared/components/ui/primitives/cn.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`button.tsx` and `cn.ts` are public passthrough facades in the same directory as many implementation components/utilities.",
+        "Directory profile for `src/shared/components/ui/` shows 60 files with mixed responsibilities, reducing boundary clarity.",
+        "`cn.ts` logically belongs to primitive utilities but is surfaced at top-level package without a dedicated public-entrypoint folder convention."
+      ],
+      "suggestion": "Staged reorg plan: 1) create `src/shared/components/ui/public/` as canonical facade folder; 2) move `button.tsx` and `cn.ts` there first (`git mv src/shared/components/ui/button.tsx src/shared/components/ui/public/button.tsx` and same for `cn.ts`); 3) add `src/shared/components/ui/index.ts` to re-export only approved public APIs; 4) update imports with `rg -l \"@/shared/components/ui/(button|cn)\" src | xargs sed -i '' 's|@/shared/components/ui/button|@/shared/components/ui/public/button|g; s|@/shared/components/ui/cn|@/shared/components/ui/public/cn|g'`; 5) validate with `npm run typecheck && npm run test` and architecture checks (`desloppify scan --path .`).",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "compatibility_entrypoint_sprawl"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Compatibility-first evolution left multiple public entrypoints active without strong sunset enforcement.",
+      "Governance docs describe contracts but do not act as executable policy via required test/CI gates.",
+      "Facade-vs-implementation boundaries are implicit in folder layout rather than encoded as package structure."
+    ],
+    "likely_symptoms": [
+      "compat_facade_contract_sprawl",
+      "governance_docs_runtime_scope_drift",
+      "ui_facade_impl_mixed_layout"
+    ],
+    "possible_false_positives": [
+      "If undocumented policy already treats these facades as permanent public APIs, some deprecation framing may be intentionally strict."
+    ]
+  }
+}

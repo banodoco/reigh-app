@@ -16,7 +16,7 @@ vi.mock('@/shared/hooks/useUserUIState', () => ({
   }),
 }));
 
-vi.mock('@/shared/hooks/useMobile', () => ({
+vi.mock('@/shared/hooks/mobile', () => ({
   useIsMobile: vi.fn().mockReturnValue(false),
   useIsTablet: vi.fn().mockReturnValue(false),
 }));
@@ -42,7 +42,7 @@ vi.mock('@/integrations/supabase/client', () => ({
   },
 }));
 
-vi.mock('@/shared/lib/errorHandler', () => ({
+vi.mock('@/shared/lib/compat/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 

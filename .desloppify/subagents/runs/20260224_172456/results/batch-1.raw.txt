@@ -1,0 +1,108 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 74.0,
+    "high_level_elegance": 78.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/integrations/supabase/client.ts` keeps a deprecated `supabase` proxy with lazy runtime fallback initialization, so import sites can bypass explicit bootstrap order.",
+        "`src/shared/lib/errorHandling/handleError.ts` exposes `setErrorPresenter` and mutates notifier behavior globally, creating cross-module hidden state coupling.",
+        "`src/shared/hooks/useMobile.tsx` and `src/types/generationAndShots.ts` are compatibility re-export surfaces that keep legacy import paths alive instead of enforcing domain boundaries."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "`src/features/gallery/hooks/useAdjacentPagePreloader.ts` ties its filter type to another hook’s positional parameter (`Parameters<typeof fetchGenerations>[3]`), making ownership and contracts implicit.",
+        "`src/shared/components/MediaGalleryItem/components/ShotActions.tsx` relies on four prop-bag interfaces (`selector`, `status`, `quickCreate`, `actions`) plus many callbacks, indicating orchestration spread across modules rather than a cohesive boundary.",
+        "`src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts` and `src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts` split related media-item flow (navigation, modal transitions, error handling, shot creation) across multiple surfaces with overlapping responsibilities."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "legacy_compatibility_hubs_blur_boundaries",
+      "summary": "Multiple compatibility facades preserve legacy paths and concentrate coupling in shared hubs.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/hooks/useMobile.tsx",
+        "src/types/generationAndShots.ts"
+      ],
+      "evidence": [
+        "`src/integrations/supabase/client.ts` exports deprecated `supabase` proxy and fallback lazy init path instead of hard bootstrap-only access.",
+        "`src/shared/hooks/useMobile.tsx` is explicitly marked deprecated but still acts as active compatibility entrypoint for mobile APIs.",
+        "`src/types/generationAndShots.ts` is a canonical barrel re-export, keeping broad cross-module dependence on a central alias surface."
+      ],
+      "suggestion": "Run an explicit migration to direct module imports, then remove these compatibility facades behind a dated cleanup milestone; enforce with lint/import rules banning the deprecated entrypoints.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "global_runtime_state_and_boot_order_coupling",
+      "summary": "Global mutable error/reporting and lazy runtime recovery create hidden startup-order dependencies.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/integrations/supabase/client.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` exposes `setErrorPresenter` which globally rewires notifier behavior via `configureErrorNotifier`.",
+        "`getSupabaseClient()` catches runtime access failures and mutates module-level warning state (`hasWarnedFallbackInitialization`) before retrying initialization.",
+        "Feature-level hooks such as `useMediaGalleryItemState.ts` call shared `handleError`, tying domain UI flow to a global runtime error singleton."
+      ],
+      "suggestion": "Move error presentation and runtime client access behind explicit app-level providers/context and make hooks consume injected dependencies instead of global mutable module state.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "implicit_cross_hook_contracts_in_gallery_preload",
+      "summary": "Gallery preloading depends on implicit contracts instead of stable domain-owned interfaces.",
+      "related_files": [
+        "src/features/gallery/hooks/useAdjacentPagePreloader.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaTypeFilter.tsx"
+      ],
+      "evidence": [
+        "`useAdjacentPagePreloader.ts` derives `GenerationFilters` from `Parameters<typeof fetchGenerations>[3]`, so a positional signature change silently breaks preloader typing/contracts.",
+        "The same hook passes both raw `filters` and serialized `filtersString`, indicating coordination logic distributed across call boundaries instead of one canonical query-key/filter contract.",
+        "`useMediaGalleryHandlers.ts` and `MediaTypeFilter.tsx` operate on filter state through literal values and callbacks, but no explicit shared filter domain contract is owned at one boundary."
+      ],
+      "suggestion": "Define a dedicated gallery filter/preload contract module (explicit `GenerationFilters` type + key builder + normalizer) and have preloader, handlers, and UI components depend on that stable interface.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "media_gallery_item_flow_has_split_ownership",
+      "summary": "Media gallery item behavior is fragmented across prop-bag orchestration surfaces.",
+      "related_files": [
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+      ],
+      "evidence": [
+        "`ShotActions.tsx` requires large grouped props (`selector`, `status`, `quickCreate`, `actions`) and embeds navigation/add business branching in UI component code.",
+        "`useMediaGalleryHandlers.ts` duplicates related action concerns (navigate, notifier jump, modal transitions) that are part of the same gallery-item interaction lifecycle.",
+        "`useMediaGalleryItemState.ts` owns additional workflow state and async create-shot error flow, further splitting one interaction domain across multiple modules."
+      ],
+      "suggestion": "Introduce a single `useMediaGalleryItemController` (or equivalent) that owns shot-action workflow and exposes a smaller view model to presentational components.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

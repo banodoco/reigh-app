@@ -24,7 +24,7 @@ vi.mock('@/shared/hooks/invalidation/useGenerationInvalidation', () => ({
   useInvalidateGenerations: vi.fn(() => vi.fn()),
 }));
 
-vi.mock('@/shared/lib/errorHandler', () => ({
+vi.mock('@/shared/lib/compat/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 

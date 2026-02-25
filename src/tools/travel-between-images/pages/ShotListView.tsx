@@ -1,17 +1,18 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
-import { Shot } from '@/types/shots';
+import { Shot } from '@/domains/generation/types';
 import { Button } from '@/shared/components/ui/button';
 import CreateShotModal from '@/shared/components/CreateShotModal';
 import ShotListDisplay from '../components/ShotListDisplay';
-import { useIsMobile } from '@/shared/hooks/useMobile';
+import { useIsMobile } from '@/shared/hooks/mobile';
 import { useShotCreation } from '@/shared/hooks/useShotCreation';
 import { useHandleExternalImageDrop, useAddImageToShot, useAddImageToShotWithoutPosition } from '@/shared/hooks/shots';
 import { useProjectGenerations } from '@/shared/hooks/useProjectGenerations';
 import type { GenerationsPaginatedResponse } from '@/shared/hooks/useProjectGenerations';
-import { useDeleteGenerationWithConfirm } from '@/shared/hooks/useDeleteGenerationWithConfirm';
+import { useDeleteGenerationWithConfirm } from '@/domains/generation/hooks/useDeleteGenerationWithConfirm';
+import { DeleteGenerationConfirmDialog } from '@/shared/components/dialogs/DeleteGenerationConfirmDialog';
 import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { useStableObject } from '@/shared/hooks/useStableObject';
 import {
   useVideoTravelViewMode,
@@ -69,7 +70,7 @@ export function ShotListView({
   const handleExternalImageDropMutation = useHandleExternalImageDrop();
   const addImageToShotMutation = useAddImageToShot();
   const addImageToShotWithoutPositionMutation = useAddImageToShotWithoutPosition();
-  const { requestDelete: requestDeleteGeneration, DeleteConfirmDialog, isPending: isDeletePending } = useDeleteGenerationWithConfirm();
+  const { requestDelete: requestDeleteGeneration, confirmDialogProps, isPending: isDeletePending } = useDeleteGenerationWithConfirm();
 
   // Navigation
   const { navigateToShot } = useShotNavigation();
@@ -259,7 +260,7 @@ export function ShotListView({
           return;
         }
       } catch (error) {
-        handleError(error, { context: 'ShotListView', toastTitle: 'Failed to create shot' });
+        normalizeAndPresentError(error, { context: 'ShotListView', toastTitle: 'Failed to create shot' });
         if (skeletonClearRef.current) {
           skeletonClearRef.current();
         }
@@ -343,6 +344,7 @@ export function ShotListView({
         ) : (
           <div className="max-w-7xl mx-auto">
             <ShotListDisplay
+              projectId={selectedProjectId}
               onSelectShot={handleShotSelect}
               onCreateNewShot={handleCreateNewShot}
               shots={filteredShots}
@@ -371,7 +373,7 @@ export function ShotListView({
       />
 
       {/* Delete generation confirmation dialog */}
-      <DeleteConfirmDialog />
+      <DeleteGenerationConfirmDialog {...confirmDialogProps} />
     </>
   );
 }

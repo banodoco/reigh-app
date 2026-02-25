@@ -2,11 +2,13 @@ import { useMemo } from 'react';
 import { useGetTask } from '@/shared/hooks/useTasks';
 import { deriveInputImages } from '@/shared/lib/taskParamsUtils';
 import { Task } from '@/types/tasks';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 interface UseGenerationDetailsOptions {
   taskId?: string;
   task?: Task;
   inputImages?: string[];
+  projectId?: string | null;
 }
 
 interface UseGenerationDetailsResult {
@@ -28,9 +30,10 @@ export function useGenerationDetails({
   taskId,
   task: taskProp,
   inputImages: inputImagesProp,
+  projectId,
 }: UseGenerationDetailsOptions): UseGenerationDetailsResult {
   // Fetch task data if taskId is provided and no task prop
-  const { data: fetchedTask, isLoading, isError } = useGetTask(taskId || '');
+  const { data: fetchedTask, isLoading, isError } = useGetTask(taskId || '', projectId);
 
   // Use provided task or fetched task
   const task = taskProp || fetchedTask;
@@ -45,7 +48,12 @@ export function useGenerationDetails({
     let params: Record<string, unknown>;
     try {
       params = typeof task.params === 'string' ? JSON.parse(task.params) : task.params;
-    } catch {
+    } catch (error) {
+      normalizeAndPresentError(error, {
+        context: 'useGenerationDetails.parseTaskParams',
+        showToast: false,
+        logData: { taskId: task?.id, hasStringParams: typeof task?.params === 'string' },
+      });
       return [];
     }
     return deriveInputImages(params);

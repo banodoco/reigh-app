@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { GenerationRow } from '@/types/shots';
-import { useIsMobile } from '@/shared/hooks/useMobile';
+import type { GenerationRow } from '@/domains/generation/types';
+import { useIsMobile } from '@/shared/hooks/mobile';
 import { isPositioned, isVideoGeneration } from '@/shared/lib/typeGuards';
 import { usePendingSegmentTasks } from '@/shared/hooks/usePendingSegmentTasks';
 import { useSegmentOutputsForShot } from '@/shared/hooks/segments';
@@ -45,27 +45,89 @@ interface SegmentVideoLightboxProps {
   readOnly?: boolean;
 }
 
-interface ShotImageManagerContainerState {
-  managers: {
-    optimistic: ReturnType<typeof useOptimisticOrder>;
-    externalGens: ReturnType<typeof useExternalGenerations>;
-    selection: ReturnType<typeof useSelection>;
-    lightbox: ReturnType<typeof useLightbox>;
-    dragAndDrop: ReturnType<typeof useDragAndDrop>;
-    batchOps: ReturnType<typeof useBatchOperations>;
-    mobileGestures: ReturnType<typeof useMobileGestures>;
-  };
+interface SelectionOrderController {
+  optimistic: ReturnType<typeof useOptimisticOrder>;
+  selection: ReturnType<typeof useSelection>;
+  dragAndDrop: ReturnType<typeof useDragAndDrop>;
+  batchOps: ReturnType<typeof useBatchOperations>;
+  mobileGestures: ReturnType<typeof useMobileGestures>;
+  getFramePosition: (index: number) => number | undefined;
+}
+
+interface NavigationController {
+  lightbox: ReturnType<typeof useLightbox>;
+  externalGens: ReturnType<typeof useExternalGenerations>;
   shotSelector: {
     lightboxSelectedShotId: string | undefined;
     setLightboxSelectedShotId: React.Dispatch<React.SetStateAction<string | undefined>>;
   };
-  segments: {
-    segmentSlots: SegmentSlot[];
-    selectedParentId: string | null;
-    hasPendingTask: (pairShotGenerationId: string | null | undefined) => boolean;
-    segmentLightbox: SegmentLightboxState;
+}
+
+interface SegmentController {
+  segmentSlots: SegmentSlot[];
+  selectedParentId: string | null;
+  hasPendingTask: (pairShotGenerationId: string | null | undefined) => boolean;
+  segmentLightbox: SegmentLightboxState;
+}
+
+interface ShotImageManagerContainerState {
+  selectionOrder: SelectionOrderController;
+  navigation: NavigationController;
+  segments: SegmentController;
+}
+
+function useSegmentController(
+  props: ShotImageManagerProps,
+  currentImages: GenerationRow[],
+): SegmentController {
+  const localShotGenPositions = useMemo(() => {
+    if (props.generationMode === 'timeline') {
+      return undefined;
+    }
+
+    const orderedImages = currentImages.filter(
+      (image) => isPositioned(image) && !isVideoGeneration(image)
+    );
+    if (orderedImages.length === 0) {
+      return undefined;
+    }
+
+    const positions = new Map<string, number>();
+    orderedImages.forEach((image, index) => {
+      if (image.id) {
+        positions.set(image.id, index);
+      }
+    });
+    return positions;
+  }, [currentImages, props.generationMode]);
+
+  const shouldFetchSegments = props.generationMode !== 'timeline' &&
+    (!props.segmentSlots || (localShotGenPositions && localShotGenPositions.size > 0));
+
+  const hookResult = useSegmentOutputsForShot(
+    shouldFetchSegments ? props.shotId || null : null,
+    shouldFetchSegments ? props.projectId || null : null,
+    shouldFetchSegments ? localShotGenPositions : undefined
+  );
+
+  const segmentSlots = (localShotGenPositions && localShotGenPositions.size > 0)
+    ? (hookResult.segmentSlots.length > 0 ? hookResult.segmentSlots : props.segmentSlots ?? [])
+    : (props.segmentSlots ?? hookResult.segmentSlots);
+
+  const selectedParentId = hookResult.selectedParentId;
+  const { hasPendingTask } = usePendingSegmentTasks(
+    props.generationMode !== 'timeline' ? props.shotId || null : null,
+    props.generationMode !== 'timeline' ? props.projectId || null : null
+  );
+
+  const segmentLightbox = useSegmentLightboxState(segmentSlots, props.onPairClick);
+
+  return {
+    segmentSlots,
+    selectedParentId,
+    hasPendingTask,
+    segmentLightbox,
   };
-  getFramePosition: (index: number) => number | undefined;
 }
 
 function useSegmentLightboxState(
@@ -86,7 +148,7 @@ function useSegmentLightboxState(
 
   const currentSegmentSlot = segmentLightboxIndex !== null ? segmentSlots[segmentLightboxIndex] : null;
   const currentSegmentMedia = currentSegmentSlot?.type === 'child'
-    ? (currentSegmentSlot.child as GenerationRow)
+    ? currentSegmentSlot.child
     : null;
 
   const segmentChildSlotIndices = useMemo(
@@ -163,48 +225,7 @@ function useShotImageManagerContainerState(
     derivedNavContext: externalGens.derivedNavContext,
     handleOpenExternalGeneration: externalGens.handleOpenExternalGeneration,
   });
-
-  const localShotGenPositions = useMemo(() => {
-    if (props.generationMode === 'timeline') {
-      return undefined;
-    }
-
-    const orderedImages = lightbox.currentImages.filter(
-      (image) => isPositioned(image) && !isVideoGeneration(image)
-    );
-    if (orderedImages.length === 0) {
-      return undefined;
-    }
-
-    const positions = new Map<string, number>();
-    orderedImages.forEach((image, index) => {
-      if (image.id) {
-        positions.set(image.id, index);
-      }
-    });
-    return positions;
-  }, [lightbox.currentImages, props.generationMode]);
-
-  const shouldFetchSegments = props.generationMode !== 'timeline' &&
-    (!props.segmentSlots || (localShotGenPositions && localShotGenPositions.size > 0));
-
-  const hookResult = useSegmentOutputsForShot(
-    shouldFetchSegments ? props.shotId || null : null,
-    shouldFetchSegments ? props.projectId || null : null,
-    shouldFetchSegments ? localShotGenPositions : undefined
-  );
-
-  const segmentSlots = (localShotGenPositions && localShotGenPositions.size > 0)
-    ? (hookResult.segmentSlots.length > 0 ? hookResult.segmentSlots : props.segmentSlots ?? [])
-    : (props.segmentSlots ?? hookResult.segmentSlots);
-
-  const selectedParentId = hookResult.selectedParentId;
-  const { hasPendingTask } = usePendingSegmentTasks(
-    props.generationMode !== 'timeline' ? props.shotId || null : null,
-    props.generationMode !== 'timeline' ? props.projectId || null : null
-  );
-
-  const segmentLightbox = useSegmentLightboxState(segmentSlots, props.onPairClick);
+  const segments = useSegmentController(props, lightbox.currentImages);
 
   useEffect(() => {
     setLightboxIndexRef.current = lightbox.setLightboxIndex;
@@ -251,27 +272,28 @@ function useShotImageManagerContainerState(
     [lightbox.currentImages, props.batchVideoFrames]
   );
 
-  return {
-    managers: {
-      optimistic,
-      externalGens,
-      selection,
-      lightbox,
-      dragAndDrop,
-      batchOps,
-      mobileGestures,
-    },
+  const selectionOrder: SelectionOrderController = {
+    optimistic,
+    selection,
+    dragAndDrop,
+    batchOps,
+    mobileGestures,
+    getFramePosition,
+  };
+
+  const navigation: NavigationController = {
+    lightbox,
+    externalGens,
     shotSelector: {
       lightboxSelectedShotId,
       setLightboxSelectedShotId,
     },
-    segments: {
-      segmentSlots,
-      selectedParentId,
-      hasPendingTask,
-      segmentLightbox,
-    },
-    getFramePosition,
+  };
+
+  return {
+    selectionOrder,
+    navigation,
+    segments,
   };
 }
 
@@ -292,10 +314,8 @@ const SegmentVideoLightbox: React.FC<SegmentVideoLightboxProps> = ({
 
   return (
     <MediaLightbox
-      media={{
-        ...currentSegmentMedia,
-        ...(selectedParentId ? { parent_generation_id: selectedParentId } : {}),
-      } as GenerationRow}
+      media={currentSegmentMedia}
+      parentGenerationIdOverride={selectedParentId}
       onClose={closeSegmentLightbox}
       onNext={handleSegmentLightboxNext}
       onPrevious={handleSegmentLightboxPrev}
@@ -346,14 +366,14 @@ export const ShotImageManagerContainer: React.FC<ShotImageManagerProps> = (props
       <>
         <ShotImageManagerMobileWrapper
           {...props}
-          selection={state.managers.selection}
-          lightbox={state.managers.lightbox}
-          batchOps={state.managers.batchOps}
-          mobileGestures={state.managers.mobileGestures}
-          optimistic={state.managers.optimistic}
-          externalGens={state.managers.externalGens}
-          lightboxSelectedShotId={state.shotSelector.lightboxSelectedShotId}
-          setLightboxSelectedShotId={state.shotSelector.setLightboxSelectedShotId}
+          selection={state.selectionOrder.selection}
+          lightbox={state.navigation.lightbox}
+          batchOps={state.selectionOrder.batchOps}
+          mobileGestures={state.selectionOrder.mobileGestures}
+          optimistic={state.selectionOrder.optimistic}
+          externalGens={state.navigation.externalGens}
+          lightboxSelectedShotId={state.navigation.shotSelector.lightboxSelectedShotId}
+          setLightboxSelectedShotId={state.navigation.shotSelector.setLightboxSelectedShotId}
           segmentSlots={state.segments.segmentSlots}
           onSegmentClick={state.segments.segmentLightbox.handleSegmentClick}
           hasPendingTask={state.segments.hasPendingTask}
@@ -380,15 +400,15 @@ export const ShotImageManagerContainer: React.FC<ShotImageManagerProps> = (props
     <>
       <ShotImageManagerDesktop
         {...props}
-        selection={state.managers.selection}
-        dragAndDrop={state.managers.dragAndDrop}
-        lightbox={state.managers.lightbox}
-        batchOps={state.managers.batchOps}
-        optimistic={state.managers.optimistic}
-        externalGens={state.managers.externalGens}
-        getFramePosition={state.getFramePosition}
-        lightboxSelectedShotId={state.shotSelector.lightboxSelectedShotId}
-        setLightboxSelectedShotId={state.shotSelector.setLightboxSelectedShotId}
+        selection={state.selectionOrder.selection}
+        dragAndDrop={state.selectionOrder.dragAndDrop}
+        lightbox={state.navigation.lightbox}
+        batchOps={state.selectionOrder.batchOps}
+        optimistic={state.selectionOrder.optimistic}
+        externalGens={state.navigation.externalGens}
+        getFramePosition={state.selectionOrder.getFramePosition}
+        lightboxSelectedShotId={state.navigation.shotSelector.lightboxSelectedShotId}
+        setLightboxSelectedShotId={state.navigation.shotSelector.setLightboxSelectedShotId}
         segmentSlots={state.segments.segmentSlots}
         onSegmentClick={state.segments.segmentLightbox.handleSegmentClick}
         hasPendingTask={state.segments.hasPendingTask}

@@ -1,0 +1,278 @@
+{
+  "batch": "Full Codebase Sweep",
+  "batch_index": 9,
+  "assessments": {
+    "cross_module_architecture": 72.0,
+    "convention_outlier": 100.0,
+    "error_consistency": 78.0,
+    "abstraction_fitness": 80.0,
+    "api_surface_coherence": 68.0,
+    "authorization_consistency": 100.0,
+    "ai_generated_debt": 100.0,
+    "incomplete_migration": 74.0,
+    "package_organization": 79.0,
+    "high_level_elegance": 100.0,
+    "mid_level_elegance": 100.0,
+    "low_level_elegance": 100.0,
+    "design_coherence": 100.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "Supabase client bootstrap is import-time and side-effectful (`src/integrations/supabase/client.ts` eagerly creates client and initializes runtime at module load).",
+        "Runtime state is coordinated through mutable globals (`window.__supabase_client__`, `window.supabase`, `window.__AUTH_MANAGER__`) across auth/client/debug modules.",
+        "Instrumentation modules patch global browser primitives (`window.onerror`, `window.onunhandledrejection`, `window.WebSocket`, and `console.warn`) from integration code."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "convention_outlier": {
+      "evidence": [
+        "Config, app, feature, and integration modules consistently use TypeScript + functional React patterns.",
+        "Naming within assigned files is largely stable by responsibility (`use*` hooks, `*Provider`, `*Manager`, `*Mapper`)."
+      ],
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "unreported_risk": "A few formatting/style drifts (quote style and comment verbosity islands) can still accumulate if not auto-formatted consistently."
+    },
+    "error_consistency": {
+      "evidence": [
+        "`useAIInteractionService` catches and returns `null`/`[]` on failures, while billing/account/settings hooks often throw errors for query layers.",
+        "`App` swallows initialization failure (`catch {}` around `getNetworkStatusManager`) whereas adjacent modules report with `handleError`/`reportRuntimeError`.",
+        "Some hooks convert upstream errors into new generic `Error` messages (`useCredits`), while others pass raw backend errors through."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "abstraction_fitness": {
+      "evidence": [
+        "`installRealtimeInstrumentation` and `installWindowOnlyInstrumentation` are pass-through wrappers that immediately delegate to `*Legacy` implementations with no policy differentiation.",
+        "Legacy-named implementation layers remain in active path (`installRealtimeInstrumentationLegacy`, `installWindowOnlyInstrumentationLegacy`) after manager removal comments.",
+        "Several feature hooks define local pass-through client helpers (`const getSupabase = () => getSupabaseClient()`) without adding behavior."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 76.0,
+        "indirection_cost": 83.0,
+        "interface_honesty": 81.0
+      }
+    },
+    "api_surface_coherence": {
+      "evidence": [
+        "Multiple assigned consumers import `getSupabaseClient` from `@/integrations/supabase/client` (`useApiTokens`, `useApiKeys`, `useCredits`, debug initializer), but `src/integrations/supabase/client.ts` exports only `supabase`.",
+        "Two competing runtime access contracts exist (`supabase` eager singleton vs runtime module `initializeSupabaseClientRuntime`/`getSupabaseRuntimeClient`).",
+        "Auth-facing contracts are split between context-level auth (`Layout` via `useAuth`) and direct supabase session fetch (`useAuthGuard`), increasing API predictability cost."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "authorization_consistency": {
+      "evidence": [
+        "Protected routes are consistently funneled through `Layout` auth gate and unauthenticated users are redirected to `/home`.",
+        "Data mutation/query hooks consistently call `requireSession`/`requireUserFromSession` before sensitive operations."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "unreported_risk": "Route-level public/private boundaries still rely on composition assumptions; accidental future route placement outside `Layout` could bypass expected guards."
+    },
+    "ai_generated_debt": {
+      "evidence": [
+        "Most comments explain operational intent (hydration race, auth redirect rationale, runtime wiring) rather than restating trivial code.",
+        "Error/reporting calls are purposeful in integration-heavy paths, not blanket function-entry logging."
+      ],
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "unreported_risk": "Some verbose explanatory blocks and compatibility comments may become stale and drift from runtime behavior if not pruned during refactors."
+    },
+    "incomplete_migration": {
+      "evidence": [
+        "Instrumentation files explicitly retain legacy execution path (`InstrumentationManager removed - calling legacy function directly`).",
+        "Runtime/client split indicates unfinished convergence (`src/integrations/supabase/client.ts` eager singleton path vs `src/integrations/supabase/runtime/supabaseRuntime.ts` explicit init path).",
+        "Generation transport types still carry explicit legacy alias surface (`GenerationRowLegacyAliases`, snake_case + camelCase coexistence)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "package_organization": {
+      "evidence": [
+        "Holistic structure shows `src/pages/Home/components/` at 26 files (flat directory overload beyond >10 threshold), mixing panes, modal mockups, motion subsystems, and hero sections.",
+        "`src/app/hooks/` has 14 files with mixed concerns (auth, onboarding, DnD, UI modal, route reset) and low avg fan-in (0.9), indicating weak cohesion per folder.",
+        "Tailwind config surface is split into large root config + theme fragments; structure signals show peripheral, low fan-in config artifacts that are navigationally disconnected."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Major capability seams are still domain-recognizable (`app`, `features`, `domains`, `integrations`, `pages`).",
+        "Supabase integration remains encapsulated under a dedicated subsystem rather than scattered ad hoc setup."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "unreported_risk": "If migration debt in integration/runtime paths persists, top-level ownership clarity can degrade despite current directory labels."
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Gallery preloading separates orchestration, coordination, and hook-level scheduling, keeping boundary responsibilities mostly explicit.",
+        "Generation type and mapper layers generally isolate snake_case transport from domain-facing shapes."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "unreported_risk": "Seam quality is sensitive to continued growth of compatibility wrappers; additional pass-through layers could quickly add glue entropy."
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Most hook/component internals use direct control flow and early exits.",
+        "Mutation handlers in assigned feature hooks are generally linear and state transitions are explicit."
+      ],
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "unreported_risk": "Complex UI components with long JSX blocks may become brittle without periodic extraction of repeated UI primitives."
+    },
+    "design_coherence": {
+      "evidence": [
+        "Assigned modules mostly keep focused responsibilities (routing, auth wiring, preloading, mapper conversion, theme config).",
+        "Domain typing and mapper boundaries are explicit enough to keep persisted/domain/view contracts distinguishable."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "unreported_risk": "Ongoing coexistence of old/new integration contracts can erode coherence if not retired with a clear cutover plan."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "supabase_client_contract_mismatch",
+      "summary": "Consumers import `getSupabaseClient`, but the declared client module does not export it.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/features/account/hooks/useApiTokens.ts",
+        "src/features/settings/hooks/useApiKeys.ts",
+        "src/features/billing/hooks/useCredits.ts",
+        "src/integrations/supabase/debug/initializeSupabaseDebugGlobals.ts"
+      ],
+      "evidence": [
+        "`src/integrations/supabase/client.ts` exports `supabase` only.",
+        "Assigned consumers import `getSupabaseClient` from that same module path, creating a broken/ambiguous API contract."
+      ],
+      "suggestion": "Make the client API explicit and singular: export `getSupabaseClient` from `client.ts` (or migrate all consumers to `supabase`/runtime accessors), then run `rg -n \"getSupabaseClient|from '@/integrations/supabase/client'\" src` and `pnpm -s tsc --noEmit` to validate callsites.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_instrumentation_runtime_dual_path",
+      "summary": "Legacy and new Supabase runtime paths coexist without a completed cutover.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/integrations/supabase/runtime/supabaseRuntime.ts",
+        "src/integrations/supabase/instrumentation/realtime/index.ts",
+        "src/integrations/supabase/instrumentation/window/index.ts"
+      ],
+      "evidence": [
+        "Instrumentation entrypoints still delegate to `*Legacy` functions with comments indicating manager removal.",
+        "A separate runtime module exists with explicit initializer/getter while active app usage centers on eager singleton client path."
+      ],
+      "suggestion": "Define a single runtime bootstrap contract and retire compatibility layers in phases: (1) choose one entrypoint (`initializeSupabaseClientRuntime` or eager singleton), (2) route all instrumentation/auth init through that entrypoint, (3) delete `*Legacy` wrappers after import migration, (4) verify with `rg -n \"Legacy|initializeSupabaseClientRuntime|getOrCreateSupabaseClient\" src` and full typecheck/tests.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "global_mutation_coupling_in_supabase_stack",
+      "summary": "Supabase integration crosses boundaries via mutable globals and global monkeypatching.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/integrations/supabase/auth/AuthStateManager.ts",
+        "src/integrations/supabase/instrumentation/window/index.ts",
+        "src/integrations/supabase/instrumentation/realtime/index.ts",
+        "src/app/hooks/useAuthGuard.ts"
+      ],
+      "evidence": [
+        "Auth/client state is shared via `window.__supabase_client__`, `window.supabase`, and `window.__AUTH_MANAGER__`.",
+        "Instrumentation rewrites browser/global behavior (`window.onerror`, `window.WebSocket`, `console.warn`) from module init paths."
+      ],
+      "suggestion": "Move to dependency-injected runtime services: expose a single `SupabaseRuntime` object, pass it to auth/hooks via providers, and confine monkeypatch logic behind explicit dev-only setup hooks called once at bootstrap.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "mixed_failure_contracts_across_hooks",
+      "summary": "Hook error contracts mix thrown exceptions, swallowed failures, and sentinel returns.",
+      "related_files": [
+        "src/features/ai/hooks/useAIInteractionService.ts",
+        "src/features/billing/hooks/useCredits.ts",
+        "src/app/App.tsx",
+        "src/features/gallery/hooks/useGalleryPageState.ts"
+      ],
+      "evidence": [
+        "`useAIInteractionService` catches and returns `null`/`[]` on error.",
+        "`useCredits` throws new `Error(...)` for query failures and relies on react-query error channel.",
+        "`App` silently ignores a startup exception from `getNetworkStatusManager`."
+      ],
+      "suggestion": "Standardize per-layer contracts: query/mutation functions should throw typed errors, UI adapters may map to user-friendly fallback states, and startup catches should at least emit `reportRuntimeError` with context instead of empty catches.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "low_leverage_wrapper_layers",
+      "summary": "Several wrappers add naming churn but no behavior or policy.",
+      "related_files": [
+        "src/integrations/supabase/instrumentation/realtime/index.ts",
+        "src/integrations/supabase/instrumentation/window/index.ts",
+        "src/features/account/hooks/useApiTokens.ts",
+        "src/features/settings/hooks/useApiKeys.ts",
+        "src/features/billing/hooks/useCredits.ts"
+      ],
+      "evidence": [
+        "`installRealtimeInstrumentation` and `installWindowOnlyInstrumentation` are direct delegations to legacy methods.",
+        "Feature hooks repeatedly define `getSupabase` pass-through helpers that only call imported `getSupabaseClient`."
+      ],
+      "suggestion": "Collapse no-op wrapper layers: inline or remove `*Legacy` delegation where no alternate implementation exists, and replace local one-line `getSupabase` helpers with direct shared accessor usage unless hook-specific behavior is added.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "home_components_flat_overload",
+      "summary": "`src/pages/Home/components` is an overloaded flat directory with mixed responsibilities.",
+      "related_files": [
+        "src/pages/Home/components/HeroSection.tsx",
+        "src/pages/Home/components/InstallInstructionsModal.tsx",
+        "src/pages/Home/components/MotionComparison.tsx",
+        "src/pages/Home/components/CreativePartnerPane.tsx",
+        "src/pages/Home/components/ExamplesPane.tsx",
+        "src/pages/Home/components/PhilosophyPane.tsx"
+      ],
+      "evidence": [
+        "Holistic structure reports `src/pages/Home/components/` with 26 files, exceeding the >10 mixed-concern threshold.",
+        "Single folder contains hero shell, pane system, install browser mockups, and motion-comparison subsystem files, reducing navigability and ownership clarity."
+      ],
+      "suggestion": "Staged reorg plan: Target folders: `src/pages/Home/components/hero/`, `src/pages/Home/components/panes/`, `src/pages/Home/components/install/`, `src/pages/Home/components/motion/`. Move order: (1) move motion files (`MotionComparison*` and related controller/overlays), (2) move install modal + browser mockup helpers, (3) move pane files (`CreativePartnerPane`, `ExamplesPane`, `PhilosophyPane`, shared pane primitives), (4) move hero files (`HeroSection`, `HeroCtaContent`, `GoldSpotlight`, `HomeBackground`). Import-update/validation commands: `rg -n \"pages/Home/components/\" src`, then apply path updates, then `pnpm -s tsc --noEmit` and `pnpm -s vitest --run`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

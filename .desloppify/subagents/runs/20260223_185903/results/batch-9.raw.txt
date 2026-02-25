@@ -1,0 +1,250 @@
+{
+  "batch": "Full Codebase Sweep",
+  "batch_index": 9,
+  "assessments": {
+    "cross_module_architecture": 68.0,
+    "convention_outlier": 72.0,
+    "error_consistency": 61.0,
+    "abstraction_fitness": 58.0,
+    "api_surface_coherence": 55.0,
+    "authorization_consistency": 57.0,
+    "ai_generated_debt": 63.0,
+    "incomplete_migration": 49.0,
+    "package_organization": 62.0,
+    "high_level_elegance": 64.0,
+    "mid_level_elegance": 59.0,
+    "low_level_elegance": 71.0,
+    "design_coherence": 60.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/integrations/supabase/client.ts` still exports an eager singleton (`export const supabase = getOrCreateSupabaseClient()`), so importing the module triggers runtime wiring side effects.",
+        "`src/integrations/supabase/bootstrap/initializeSupabaseRuntime.ts` performs auth manager init, reconnect scheduler setup, realtime instrumentation, and dev auto-login from that initialization path.",
+        "The blind packet flags `src/integrations/supabase/client.ts` as a high-fan-in hub (146 importers), so side-effectful initialization has broad blast radius."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "convention_outlier": {
+      "evidence": [
+        "Edge functions mix response conventions: some return plain text `new Response(\"...\")` (`supabase/functions/get-task-status/index.ts`), others use JSON helpers (`supabase/functions/tasks-list/index.ts`).",
+        "CORS handling is inconsistent across siblings: local ad-hoc header helpers in `supabase/functions/create-task/index.ts` and direct responses in others, while `_shared/http.ts` already defines `jsonResponse`."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "error_consistency": {
+      "evidence": [
+        "`supabase/functions/get-task-status/index.ts` returns plain-string errors and only logs in some failure branches, while `supabase/functions/tasks-list/index.ts` returns structured `{ error, details }` JSON.",
+        "`supabase/functions/create-task/index.ts` mixes string-body error responses (`createCorsResponse`) with JSON-looking success strings and ad-hoc logging paths.",
+        "Frontend mostly centralizes through `handleError`, but there are remaining raw `console.error` paths in production hooks/modules (for example `src/tools/travel-between-images/hooks/useShotSettings.ts`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "abstraction_fitness": {
+      "evidence": [
+        "`src/tools/travel-between-images/components/ShotEditor/services/applySettingsService.ts` is a compatibility facade that mostly re-exports lower-level services without behavior.",
+        "`src/tools/image-generation/components/ImageGenerationForm/index.tsx` is a compatibility re-export shell for shared implementation.",
+        "The migration/compat surface is split across wrappers and legacy adapters (`src/types/shots.ts`, `src/shared/components/segmentSettingsMigration.ts`), increasing indirection cost."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 54.0,
+        "indirection_cost": 43.0,
+        "interface_honesty": 58.0
+      }
+    },
+    "api_surface_coherence": {
+      "evidence": [
+        "Sibling edge APIs expose inconsistent contracts for similar failures: plain text (`get-task-status`, `generate-upload-url`) vs JSON envelopes (`tasks-list`).",
+        "Auth capability is documented as `JWT or PAT` in some handlers (`generate-upload-url`, `task-counts`) but their auth call omits JWT opt-in, so observed runtime behavior diverges from declared API."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "authorization_consistency": {
+      "evidence": [
+        "`authenticateRequest` only accepts JWT user auth when `allowJwtUserAuth: true` is passed.",
+        "`supabase/functions/generate-upload-url/index.ts` and `supabase/functions/task-counts/index.ts` document `Authorization: Bearer <JWT or PAT>` but call `authenticateRequest(req, supabaseAdmin, ...)` without JWT opt-in.",
+        "Other sibling endpoints do opt-in (`supabase/functions/tasks-list/index.ts`, `supabase/functions/create-task/index.ts`), creating inconsistent access behavior."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "ai_generated_debt": {
+      "evidence": [
+        "High volume of compatibility comments/wrappers with minimal behavior in tool-layer files (`ImageGenerationForm` and `applySettingsService` facades).",
+        "Several modules include verbose explanatory blocks around thin pass-through exports, indicating maintenance overhead from generated-style scaffolding instead of consolidated interfaces."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    },
+    "incomplete_migration": {
+      "evidence": [
+        "`src/types/shots.ts` remains a deprecated compatibility export with explicit remove-by date (`2026-05-31`) but is still a top-imported hub per packet (199 importers).",
+        "`src/shared/components/segmentSettingsMigration.ts` and `src/shared/components/segmentSettingsMigrationLegacy.ts` preserve parallel new/deprecated/legacy metadata shapes in active paths.",
+        "Tool/service layers still preserve compatibility facades (`applySettingsService.ts`, `tools/image-generation/.../ImageGenerationForm/index.tsx`) rather than completing import cutover."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "package_organization": {
+      "evidence": [
+        "Objective structure signals show large mixed-concern directories: `src/shared/components/` has 80 files (60 production) and imports from 10 distinct directories; `src/shared/hooks/` has 98 production files with 10-direction coupling.",
+        "Coupling matrix shows very heavy cross-directory edges (`src/shared/components/ → src/shared/components/ui/` = 111, `src/shared/components/ → src/shared/hooks/` = 58, `src/shared/hooks/ → src/shared/lib/` = 63).",
+        "Compatibility shims are distributed across `src/types/`, `src/tools/*`, and `src/shared/components/*`, making ownership and migration boundaries harder to navigate."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Domain-level decomposition exists (`app`, `shared`, `tools`, `integrations`), but migration debt and compatibility facades blur canonical ownership boundaries.",
+        "High-fan-in hubs (`src/integrations/supabase/client.ts`, `src/types/shots.ts`) centralize unrelated concerns and increase global-change risk."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Boundary handoffs are inconsistent in edge functions (auth and error contracts differ by sibling endpoint).",
+        "Settings/task metadata flow uses layered adapters across tool/shared services (`applySettingsService` + migration modules), indicating seam complexity and glue-code accumulation."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Many individual modules remain clear and type-annotated (for example, focused service functions under `applySettings/*`).",
+        "However, repeated fallback branches for legacy shape handling in extraction/migration code reduce local directness."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    },
+    "design_coherence": {
+      "evidence": [
+        "Design intent conflicts between 'canonical new formats' and long-lived backward-compat wrappers/types still in first-class paths.",
+        "Cross-cutting concerns (auth, response format, compatibility translation) are not consistently centralized despite existing shared utilities."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "authorization_consistency",
+      "identifier": "auth_jwt_option_drift",
+      "summary": "JWT support is documented for multiple edge endpoints but disabled in actual auth calls.",
+      "related_files": [
+        "supabase/functions/generate-upload-url/index.ts",
+        "supabase/functions/task-counts/index.ts",
+        "supabase/functions/tasks-list/index.ts",
+        "supabase/functions/_shared/auth.ts"
+      ],
+      "evidence": [
+        "`authenticateRequest` requires `allowJwtUserAuth: true` to accept JWT user tokens.",
+        "`generate-upload-url` and `task-counts` headers/docs state `Bearer <JWT or PAT>` but call `authenticateRequest(req, supabaseAdmin, ...)` without options.",
+        "`tasks-list` and `create-task` pass `{ allowJwtUserAuth: true }`, showing sibling divergence."
+      ],
+      "suggestion": "Normalize auth policy per endpoint class and enforce it in one helper: add explicit auth mode constants (service-only, pat-or-jwt-user, pat-only), wire each endpoint through that helper, and add integration tests for JWT and PAT paths on all user-facing endpoints.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "edge_response_contract_drift",
+      "summary": "Sibling edge APIs expose inconsistent error/response envelopes and CORS handling.",
+      "related_files": [
+        "supabase/functions/get-task-status/index.ts",
+        "supabase/functions/create-task/index.ts",
+        "supabase/functions/tasks-list/index.ts",
+        "supabase/functions/_shared/http.ts"
+      ],
+      "evidence": [
+        "`get-task-status` returns plain text errors (`new Response(\"...\")`) while `tasks-list` uses JSON envelopes via `jsonResponse`.",
+        "`create-task` uses custom `createCorsResponse` string bodies instead of shared response utility.",
+        "This creates client-side branching by endpoint for equivalent failure categories."
+      ],
+      "suggestion": "Adopt a single shared edge response contract (`{ error, code, details? }` for failures and JSON success envelopes) and a shared CORS+JSON helper module; migrate high-traffic endpoints first (`create-task`, `get-task-status`, `generate-upload-url`) and validate with endpoint contract tests.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "compatibility_layer_sprawl",
+      "summary": "Legacy/new model coexistence persists across types, metadata migration logic, and tool facades.",
+      "related_files": [
+        "src/types/shots.ts",
+        "src/shared/components/segmentSettingsMigration.ts",
+        "src/shared/components/segmentSettingsMigrationLegacy.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/applySettingsService.ts"
+      ],
+      "evidence": [
+        "`src/types/shots.ts` is explicitly deprecated with remove-by date but remains heavily imported per packet context.",
+        "`segmentSettingsMigration.ts` supports multiple generations of metadata fields (`segmentOverrides`, `pair_*`, `user_overrides`) in active path.",
+        "Compatibility facades still preserve old imports instead of forcing canonical module usage."
+      ],
+      "suggestion": "Run a migration completion plan: 1) freeze new legacy usages with lint/import rules, 2) codemod all `@/types/shots` imports to `@/types/generationAndShots`, 3) move legacy readers into an isolated `legacy/` boundary, 4) remove facade exports once callers hit zero, and 5) enforce with CI checks on deprecated symbol usage.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "thin_facade_indirection",
+      "summary": "Multiple compatibility facades add import indirection with little local behavior.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/applySettingsService.ts",
+        "src/tools/image-generation/components/ImageGenerationForm/index.tsx",
+        "src/tools/edit-video/hooks/useEditVideoSettings.ts"
+      ],
+      "evidence": [
+        "`applySettingsService.ts` is largely a re-export shell over `services/applySettings/*` modules.",
+        "`tools/image-generation/.../ImageGenerationForm/index.tsx` exists mainly as backward-compat re-export to shared implementation.",
+        "This pattern repeats in tool-local wrappers and increases mental overhead for locating authoritative logic."
+      ],
+      "suggestion": "Define canonical entrypoints per domain (for example `shared/*` or `tools/*`), deprecate wrapper modules with automated import rewrites, then remove wrappers in a timed batch after import counts reach zero.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "shared_dir_overload_and_reorg_gap",
+      "summary": "Large mixed-concern shared directories and distributed compatibility shims hurt navigability and ownership clarity.",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/index.tsx",
+        "src/shared/components/MediaLightbox/MediaLightbox.tsx",
+        "src/shared/hooks/useTasks.ts",
+        "src/types/shots.ts"
+      ],
+      "evidence": [
+        "From `holistic_context.structure`: `src/shared/components/` has 80 files and 10 import-source directories; `src/shared/hooks/` has 98 production files and 10-direction coupling.",
+        "From coupling matrix: heavy cross-edges (`shared/components -> shared/components/ui` 111, `shared/components -> shared/hooks` 58, `shared/hooks -> shared/lib` 63) indicate broad entanglement.",
+        "Compatibility concerns are scattered across `src/types`, `src/tools`, and `src/shared/components` instead of a bounded migration package."
+      ],
+      "suggestion": "Staged reorg plan: Stage 1 target folders: create `src/domains/image-generation/`, `src/domains/video-travel/`, and `src/legacy/compat/` for temporary adapters; Stage 2 move order: move leaf/shared feature modules first (ImageGenerationForm internals, ShotEditor applySettings services), then move compatibility re-exports/types (`src/types/shots.ts`, tool wrappers) into `src/legacy/compat/`; Stage 3 import update: run codemods and alias updates, then `rg -n \"@/types/shots|applySettingsService|tools/.*/components/ImageGenerationForm\" src`; Stage 4 validation commands: `pnpm -s tsc --noEmit`, `pnpm -s vitest run`, and a smoke run of edge-function tests to verify API paths.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

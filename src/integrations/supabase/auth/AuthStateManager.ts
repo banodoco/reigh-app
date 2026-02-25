@@ -1,4 +1,4 @@
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { SupabaseClient, Session } from '@supabase/supabase-js';
 
 type AuthCallback = (event: string, session: Session | null) => void;
@@ -24,7 +24,7 @@ export class AuthStateManager {
       try {
         callback(event, session);
       } catch (error) {
-        handleError(error, { context: 'AuthStateManager', showToast: false });
+        normalizeAndPresentError(error, { context: 'AuthStateManager', showToast: false });
       }
     });
   }
@@ -51,16 +51,16 @@ export class AuthStateManager {
                   priority: 'high'
                 });
               } catch (importError) {
-                handleError(importError, { context: 'AuthStateManager', showToast: false });
+                normalizeAndPresentError(importError, { context: 'AuthStateManager', showToast: false });
               }
             }
           } catch (healError) {
-            handleError(healError, { context: 'AuthStateManager', showToast: false });
+            normalizeAndPresentError(healError, { context: 'AuthStateManager', showToast: false });
           }
         }, 1000);
       }
     } catch (setAuthError) {
-      handleError(setAuthError, { context: 'AuthStateManager', showToast: false });
+      normalizeAndPresentError(setAuthError, { context: 'AuthStateManager', showToast: false });
     }
   }
 
@@ -76,15 +76,25 @@ export class AuthStateManager {
       });
       this.isInitialized = true;
     } catch (authError) {
-      handleError(authError, { context: 'AuthStateManager', showToast: false });
+      normalizeAndPresentError(authError, { context: 'AuthStateManager', showToast: false });
     }
   }
 }
 
-export function initAuthStateManager(supabase: SupabaseClient) {
-  if (typeof window !== 'undefined') {
-    window.__AUTH_MANAGER__ = new AuthStateManager(supabase);
-    window.__AUTH_MANAGER__.init();
+let authStateManager: AuthStateManager | null = null;
+
+export function initAuthStateManager(supabase: SupabaseClient): AuthStateManager {
+  if (!authStateManager) {
+    authStateManager = new AuthStateManager(supabase);
+    authStateManager.init();
   }
+  return authStateManager;
 }
 
+export function getAuthStateManager(): AuthStateManager | null {
+  return authStateManager;
+}
+
+export function resetAuthStateManagerForTests(): void {
+  authStateManager = null;
+}

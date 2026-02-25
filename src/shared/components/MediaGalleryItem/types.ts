@@ -1,4 +1,8 @@
-import type { GeneratedImageWithMetadata, DisplayableMetadata } from "../MediaGallery/types";
+import type {
+  GeneratedImageWithMetadata,
+  DisplayableMetadata,
+  SimplifiedShotOption,
+} from "../MediaGallery/types";
 import type { AddToShotHandler } from '@/shared/types/imageHandlers';
 
 // ── Shot workflow: selector state, optimistic IDs, adding-to-shot state ──
@@ -6,7 +10,7 @@ import type { AddToShotHandler } from '@/shared/types/imageHandlers';
 /** Shot selector state, optimistic position tracking, and add-to-shot loading state */
 export interface ItemShotWorkflow {
   selectedShotIdLocal: string;
-  simplifiedShotOptions: { id: string; name: string }[];
+  simplifiedShotOptions: SimplifiedShotOption[];
   setSelectedShotIdLocal: (id: string) => void;
   setLastAffectedShotId: (id: string) => void;
 
@@ -76,7 +80,7 @@ export interface ItemActions {
   onDownloadImage: (rawUrl: string, filename: string, imageId?: string, isVideo?: boolean, originalContentType?: string) => void;
   onToggleStar?: (id: string, starred: boolean) => void;
   onImageClick?: (image: GeneratedImageWithMetadata) => void;
-  toggleStarMutation: { mutate: (vars: { id: string; starred: boolean }, options?: { onSettled?: () => void }) => void };
+  toggleStarMutation: { mutate: (vars: { id: string; starred: boolean; projectId: string }, options?: { onSettled?: () => void }) => void };
   /** Callback when the image has fully loaded and is visible */
   onImageLoaded?: (imageId: string) => void;
 }

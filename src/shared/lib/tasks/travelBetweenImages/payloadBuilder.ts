@@ -1,29 +1,124 @@
 import {
   expandArrayToCount,
+  resolveSeed32Bit,
   validateRequiredFields,
   TaskValidationError,
   safeParseJson,
 } from "../../taskCreation";
-import type { TravelBetweenImagesTaskParams } from './types';
+import type { TravelBetweenImagesTaskInput } from './types';
 import {
   DEFAULT_VIDEO_STRUCTURE_PARAMS,
   DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES,
 } from './defaults';
+import { normalizeStructureGuidance } from '@/shared/lib/tasks/structureGuidance';
+import {
+  buildTravelBetweenImagesFamilyContract,
+  TASK_FAMILY_CONTRACT_VERSION,
+  type TravelBetweenImagesReadContract,
+} from '../taskFamilyContracts';
+import { composeTaskFamilyPayload } from '../taskPayloadContract';
+import { toRecordOrEmpty, asNumber } from '../taskParamParsers';
 
-function toRecordOrEmpty(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? value
-    : {};
+const LEGACY_TRAVEL_STRUCTURE_FIELDS = [
+  'structure_video_path',
+  'structure_video_treatment',
+  'structure_video_motion_strength',
+  'structure_video_type',
+  'use_uni3c',
+  'uni3c_start_percent',
+  'uni3c_end_percent',
+] as const;
+const LEGACY_TRAVEL_STRUCTURE_VIDEO_FIELDS = [
+  'motion_strength',
+  'structure_type',
+  'uni3c_start_percent',
+  'uni3c_end_percent',
+] as const;
+
+type LegacyTravelStructureField = (typeof LEGACY_TRAVEL_STRUCTURE_FIELDS)[number];
+type LegacyTravelStructureVideoField = (typeof LEGACY_TRAVEL_STRUCTURE_VIDEO_FIELDS)[number];
+
+function isLengthOneOrExpected(value: unknown, expected: number): boolean {
+  return Array.isArray(value) && (value.length === 1 || value.length === expected);
 }
 
-function asNumber(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value)
-    ? value
-    : undefined;
+function isLengthExpected(value: unknown, expected: number): boolean {
+  return Array.isArray(value) && value.length === expected;
 }
 
-function asString(value: unknown): string | undefined {
-  return typeof value === 'string' ? value : undefined;
+function validatePairScopedArray(
+  field: keyof TravelBetweenImagesTaskInput,
+  value: unknown,
+  pairCount: number,
+  label: string,
+  allowSingleValueExpansion = true,
+): void {
+  if (!Array.isArray(value)) {
+    return;
+  }
+  const isValid = allowSingleValueExpansion
+    ? isLengthOneOrExpected(value, pairCount)
+    : isLengthExpected(value, pairCount);
+  if (isValid) {
+    return;
+  }
+  const expectedText = allowSingleValueExpansion ? `1 or ${pairCount}` : `${pairCount}`;
+  throw new TaskValidationError(
+    `${label} must contain ${expectedText} item(s) to match ${pairCount} image pair(s)`,
+    field,
+  );
+}
+
+function validateImageScopedArray(
+  field: keyof TravelBetweenImagesTaskInput,
+  value: unknown,
+  imageCount: number,
+  label: string,
+): void {
+  if (!Array.isArray(value)) {
+    return;
+  }
+  if (value.length === imageCount) {
+    return;
+  }
+  throw new TaskValidationError(
+    `${label} must contain ${imageCount} item(s) to match image_urls`,
+    field,
+  );
+}
+
+function assertNoImplicitLegacyStructureFields(params: TravelBetweenImagesTaskInput): void {
+  const topLevelLegacyFields = LEGACY_TRAVEL_STRUCTURE_FIELDS.filter((field) => params[field] !== undefined);
+  const structureVideos = Array.isArray(params.structure_videos) ? params.structure_videos : [];
+  const structureVideoLegacyFields = LEGACY_TRAVEL_STRUCTURE_VIDEO_FIELDS.filter((field) =>
+    structureVideos.some((entry) =>
+      Boolean(
+        entry
+        && typeof entry === 'object'
+        && !Array.isArray(entry)
+        && (entry as Record<string, unknown>)[field] !== undefined,
+      )),
+  );
+  const usedLegacyFields = [...topLevelLegacyFields, ...structureVideoLegacyFields];
+  if (usedLegacyFields.length === 0) {
+    return;
+  }
+  throw new TaskValidationError(
+    `Legacy structure-video fields are not accepted in canonical mode (${usedLegacyFields.join(', ')}). ` +
+      'Use structure_guidance + structure_videos, or pass explicit legacyStructureCompatibility for temporary migration paths.',
+    usedLegacyFields[0],
+  );
+}
+
+function buildAdditionalLorasRecord(params: TravelBetweenImagesTaskInput): Record<string, number> | undefined {
+  if (!params.loras || params.loras.length === 0) {
+    return undefined;
+  }
+
+  return params.loras.reduce<Record<string, number>>((acc, lora) => {
+    acc[lora.path] = lora.strength;
+    return acc;
+  }, {});
 }
 
 /**
@@ -32,7 +127,7 @@ function asString(value: unknown): string | undefined {
  * @param params - Parameters to validate
  * @throws TaskValidationError if validation fails
  */
-export function validateTravelBetweenImagesParams(params: TravelBetweenImagesTaskParams): void {
+export function validateTravelBetweenImagesParams(params: TravelBetweenImagesTaskInput): void {
   validateRequiredFields({ ...params }, [
     'project_id',
     'image_urls',
@@ -57,6 +152,22 @@ export function validateTravelBetweenImagesParams(params: TravelBetweenImagesTas
   if (params.frame_overlap.length === 0) {
     throw new TaskValidationError("frame_overlap is required", 'frame_overlap');
   }
+
+  const imageCount = params.image_urls.length;
+  const pairCount = Math.max(1, imageCount - 1);
+
+  validatePairScopedArray('base_prompts', params.base_prompts, pairCount, 'base_prompts');
+  validatePairScopedArray('segment_frames', params.segment_frames, pairCount, 'segment_frames');
+  validatePairScopedArray('frame_overlap', params.frame_overlap, pairCount, 'frame_overlap');
+  validatePairScopedArray('negative_prompts', params.negative_prompts, pairCount, 'negative_prompts');
+  validatePairScopedArray('enhanced_prompts', params.enhanced_prompts, pairCount, 'enhanced_prompts');
+  validatePairScopedArray('pair_phase_configs', params.pair_phase_configs, pairCount, 'pair_phase_configs', false);
+  validatePairScopedArray('pair_loras', params.pair_loras, pairCount, 'pair_loras', false);
+  validatePairScopedArray('pair_motion_settings', params.pair_motion_settings, pairCount, 'pair_motion_settings', false);
+  validatePairScopedArray('pair_shot_generation_ids', params.pair_shot_generation_ids, pairCount, 'pair_shot_generation_ids', false);
+
+  validateImageScopedArray('image_generation_ids', params.image_generation_ids, imageCount, 'image_generation_ids');
+  validateImageScopedArray('image_variant_ids', params.image_variant_ids, imageCount, 'image_variant_ids');
 }
 
 /**
@@ -71,12 +182,14 @@ export function validateTravelBetweenImagesParams(params: TravelBetweenImagesTas
  * @returns Processed orchestrator payload
  */
 export function buildTravelBetweenImagesPayload(
-  params: TravelBetweenImagesTaskParams,
+  params: TravelBetweenImagesTaskInput,
   finalResolution: string,
   taskId: string,
   runId: string,
-  parentGenerationId?: string
+  parentGenerationId?: string,
 ): Record<string, unknown> {
+  assertNoImplicitLegacyStructureFields(params);
+
   // Calculate number of segments (matching original logic)
   const numSegments = Math.max(1, params.image_urls.length - 1);
 
@@ -111,9 +224,12 @@ export function buildTravelBetweenImagesPayload(
 
   // Handle random seed generation - if random_seed is true, generate a new random seed
   // Otherwise use the provided seed or default
-  const finalSeed = params.random_seed
-    ? Math.floor(Math.random() * 1000000)
-    : (params.seed ?? DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES.seed);
+  const finalSeed = resolveSeed32Bit({
+    seed: params.seed,
+    randomize: params.random_seed === true,
+    fallbackSeed: DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES.seed,
+    field: 'seed',
+  });
 
   // Build orchestrator payload matching the original edge function structure
   const orchestratorPayload: Record<string, unknown> = {
@@ -175,105 +291,20 @@ export function buildTravelBetweenImagesPayload(
     ...(params.text_after_prompts ? { text_after_prompts: params.text_after_prompts } : {}),
     // Motion control mode
     ...(params.motion_mode ? { motion_mode: params.motion_mode } : {}),
-    // HARDCODED: SVI (smooth continuations) feature has been removed from UX
-    // Always set to false regardless of any params passed
-    use_svi: false,
   };
 
-  // ============================================================================
-  // STRUCTURE GUIDANCE - NEW UNIFIED FORMAT (videos INSIDE structure_guidance)
-  // ============================================================================
-  // The unified format nests videos inside structure_guidance:
-  // {
-  //   "structure_guidance": {
-  //     "target": "uni3c" | "vace",
-  //     "videos": [{ path, start_frame, end_frame, treatment }],
-  //     "strength": 1.0,
-  //     // Uni3C: step_window, frame_policy, zero_empty_frames
-  //     // VACE: preprocessing, canny_intensity, depth_contrast
-  //   }
-  // }
-  // NO SEPARATE structure_videos array - everything is in structure_guidance.
-
-  if (params.structure_guidance) {
-    // New unified format - structure_guidance contains videos inside
-    orchestratorPayload.structure_guidance = params.structure_guidance;
-  } else if (params.structure_videos && params.structure_videos.length > 0) {
-    // LEGACY: Separate structure_videos array - convert to unified format
-    // Clean the array to only include backend-relevant fields
-    const cleanedVideos = params.structure_videos.map(video => ({
-      path: video.path,
-      start_frame: video.start_frame ?? 0,
-      end_frame: video.end_frame ?? null,
-      treatment: video.treatment ?? DEFAULT_VIDEO_STRUCTURE_PARAMS.structure_video_treatment,
-    }));
-
-    // Build unified structure_guidance from the first video's settings
-    const firstVideo = params.structure_videos[0];
-    const firstVideoRecord = toRecordOrEmpty(firstVideo);
-    const isUni3cTarget = firstVideoRecord.structure_type === 'uni3c';
-
-    const unifiedGuidance: Record<string, unknown> = {
-      target: isUni3cTarget ? 'uni3c' : 'vace',
-      videos: cleanedVideos,
-      strength: firstVideoRecord.motion_strength ?? 1.0,
-    };
-
-    if (isUni3cTarget) {
-      unifiedGuidance.step_window = [
-        firstVideoRecord.uni3c_start_percent ?? 0,
-        firstVideoRecord.uni3c_end_percent ?? 1.0,
-      ];
-      unifiedGuidance.frame_policy = 'fit';
-      unifiedGuidance.zero_empty_frames = true;
-    } else {
-      const preprocessingMap: Record<string, string> = {
-        'flow': 'flow', 'canny': 'canny', 'depth': 'depth', 'raw': 'none',
-      };
-      unifiedGuidance.preprocessing = preprocessingMap[asString(firstVideoRecord.structure_type) ?? 'flow'] ?? 'flow';
-    }
-
-    orchestratorPayload.structure_guidance = unifiedGuidance;
-
-  } else if (params.structure_video_path) {
-    // LEGACY: Single video path - convert to unified format
-    const isUni3cTarget = params.structure_video_type === 'uni3c' || params.use_uni3c;
-
-    const unifiedGuidance: Record<string, unknown> = {
-      target: isUni3cTarget ? 'uni3c' : 'vace',
-      videos: [{
-        path: params.structure_video_path,
-        start_frame: 0,
-        end_frame: null,
-        treatment: params.structure_video_treatment ?? DEFAULT_VIDEO_STRUCTURE_PARAMS.structure_video_treatment,
-      }],
-      strength: params.structure_video_motion_strength ?? 1.0,
-    };
-
-    if (isUni3cTarget) {
-      unifiedGuidance.step_window = [
-        params.uni3c_start_percent ?? 0,
-        params.uni3c_end_percent ?? 0.1,
-      ];
-      unifiedGuidance.frame_policy = 'fit';
-      unifiedGuidance.zero_empty_frames = true;
-    } else {
-      const preprocessingMap: Record<string, string> = {
-        'flow': 'flow', 'canny': 'canny', 'depth': 'depth', 'raw': 'none',
-      };
-      unifiedGuidance.preprocessing = preprocessingMap[params.structure_video_type ?? 'flow'] ?? 'flow';
-    }
-
-    orchestratorPayload.structure_guidance = unifiedGuidance;
-
+  const normalizedStructureGuidance = normalizeStructureGuidance({
+    structureGuidance: params.structure_guidance,
+    structureVideos: params.structure_videos,
+    defaultVideoTreatment: DEFAULT_VIDEO_STRUCTURE_PARAMS.structure_video_treatment,
+    defaultUni3cEndPercent: 0.1,
+  });
+  if (normalizedStructureGuidance) {
+    orchestratorPayload.structure_guidance = normalizedStructureGuidance;
   }
 
-  // Attach additional_loras mapping if provided (matching original logic)
-  if (params.loras && params.loras.length > 0) {
-    const additionalLoras: Record<string, number> = params.loras.reduce<Record<string, number>>((acc, lora) => {
-      acc[lora.path] = lora.strength;
-      return acc;
-    }, {});
+  const additionalLoras = buildAdditionalLorasRecord(params);
+  if (additionalLoras) {
     orchestratorPayload.additional_loras = additionalLoras;
   }
 
@@ -287,29 +318,57 @@ export function buildTravelBetweenImagesPayload(
     orchestratorPayload.selected_phase_preset_id = params.selected_phase_preset_id;
   }
 
-  // CLEANUP: Remove legacy structure video params that are now replaced by unified structure_guidance
-  // These may have been passed in params and are no longer needed in the output
-  const legacyStructureParams = [
-    'structure_type',
-    'structure_videos',
-    'structure_video_path',
-    'structure_video_treatment',
-    'structure_video_motion_strength',
-    'structure_video_type',
-    'structure_canny_intensity',
-    'structure_depth_contrast',
-    'structure_guidance_video_url',
-    'structure_guidance_frame_offset',
-    'use_uni3c',
-    'uni3c_guide_video',
-    'uni3c_strength',
-    'uni3c_start_percent',
-    'uni3c_end_percent',
-    'uni3c_guidance_frame_offset',
-  ];
-  for (const param of legacyStructureParams) {
-    delete orchestratorPayload[param];
-  }
+  const hasPairIds = Boolean(params.pair_shot_generation_ids?.length);
+  const segmentRegenerationMode = hasPairIds
+    ? 'segment_regen_from_pair'
+    : 'segment_regen_from_order';
 
-  return orchestratorPayload;
+  const travelReadContract: TravelBetweenImagesReadContract = {
+    contract_version: TASK_FAMILY_CONTRACT_VERSION,
+    prompt: params.base_prompt ?? params.base_prompts[0],
+    enhanced_prompt: enhancedPromptsExpanded?.[0],
+    negative_prompt: params.negative_prompts?.[0],
+    model_name: params.model_name ?? DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES.model_name,
+    resolution: finalResolution,
+    enhance_prompt: params.enhance_prompt ?? DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES.enhance_prompt,
+    motion_mode: params.motion_mode ?? 'basic',
+    selected_phase_preset_id: params.selected_phase_preset_id ?? null,
+    advanced_mode: params.advanced_mode ?? false,
+    amount_of_motion: params.amount_of_motion ?? DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES.amount_of_motion,
+    phase_config: params.phase_config,
+    additional_loras: additionalLoras,
+    segment_frames_expanded: segmentFramesExpanded,
+    frame_overlap_expanded: frameOverlapExpanded,
+    structure_guidance: normalizedStructureGuidance,
+  };
+
+  const familyContract = buildTravelBetweenImagesFamilyContract({
+    segmentRegenerationMode,
+    imageCount: params.image_urls.length,
+    segmentCount: numSegments,
+    hasPairIds,
+    readContract: travelReadContract,
+  });
+
+  return composeTaskFamilyPayload({
+    taskFamily: 'travel_between_images',
+    orchestratorDetails: orchestratorPayload,
+    orchestrationInput: {
+      taskFamily: 'travel_between_images',
+      orchestratorTaskId: taskId,
+      runId,
+      parentGenerationId,
+      shotId: params.shot_id,
+      generationRouting: 'orchestrator',
+      siblingLookup: 'run_id',
+    },
+    taskViewInput: {
+      inputImages: params.image_urls,
+      prompt: params.base_prompt ?? params.base_prompts[0],
+      negativePrompt: params.negative_prompts?.[0],
+      modelName: params.model_name,
+      resolution: finalResolution,
+    },
+    familyContract,
+  });
 }

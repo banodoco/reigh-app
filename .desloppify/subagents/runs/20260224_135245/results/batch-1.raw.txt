@@ -1,0 +1,95 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "high_level_elegance": 72.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/types/shots.ts` is a deprecated re-export shim with a removal date, but it remains a high-traffic entrypoint in this batch context, indicating unresolved ownership/migration boundaries.",
+        "`src/shared/lib/errorHandling/handleError.ts` centralizes normalization/logging/toast dispatch and holds module-global mutable presenter state (`errorPresenter`), creating hidden cross-subsystem coupling.",
+        "`src/integrations/supabase/client.ts` exports a lazy compatibility proxy (`supabase`) that initializes runtime implicitly on property access, coupling behavior to import/access timing rather than explicit bootstrap.",
+        "`src/shared/hooks/useMobile.tsx` combines low-level UA/media-query primitives, multiple public hooks, and a composite device model in one widely reused module, increasing change blast radius.",
+        "`src/shared/components/ui/button.tsx` and `src/shared/components/ui/tooltip.tsx` in the shared UI layer include many product/theme-specific behaviors, blurring boundary between design-system primitives and app-specific concerns."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "legacy_type_entrypoint_still_primary",
+      "summary": "Deprecated `@/types/shots` compatibility entrypoint remains architecturally active, preserving ambiguous type ownership.",
+      "related_files": [
+        "src/types/shots.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts"
+      ],
+      "evidence": [
+        "`src/types/shots.ts` is only a deprecated `export *` shim with a sunset contract, but it exists as a top-level canonical path.",
+        "`src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts` already consumes `@/types/generationAndShots`, showing dual-path type imports are tolerated concurrently."
+      ],
+      "suggestion": "Enforce a single canonical import path (`@/types/generationAndShots`) via lint rule/codemod, then demote `src/types/shots.ts` to a short-lived migration alias with CI gate on remaining imports.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "global_error_bridge_couples_layers",
+      "summary": "Global mutable error presenter in shared error handling creates hidden coupling between domain failures and UI bootstrap order.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` stores presenter in module scope (`let errorPresenter`) and conditionally emits toast side effects during generic error handling.",
+        "Feature hooks (`useMediaGalleryItemState.ts`, `useMediaGalleryHandlers.ts`) call `handleError(...)` directly, so behavior changes depending on whether presenter was registered elsewhere."
+      ],
+      "suggestion": "Split pure error normalization/logging from UI presentation and inject notification behavior at feature/app boundary (or expose explicit `handleErrorWithToast` adapter) to remove hidden global state dependency.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "lazy_supabase_proxy_hides_init_contract",
+      "summary": "Supabase client compatibility proxy hides initialization lifecycle behind property access, weakening architectural clarity of startup ownership.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/app/hooks/useSettingsModal.ts"
+      ],
+      "evidence": [
+        "`client.ts` exports `supabase = createSupabaseCompatibilityProxy()` that initializes lazily on trap access instead of explicit boot flow.",
+        "`getSupabaseClient()` catches runtime getter failures and auto-initializes, which masks missing bootstrap and makes startup correctness implicit."
+      ],
+      "suggestion": "Make runtime initialization explicit and mandatory at app bootstrap; keep legacy export only as temporary adapter that warns/telemeters on fallback initialization to drive migration.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_primitives_absorb_product_logic",
+      "summary": "Shared UI/device foundation files carry app-specific behavior, reducing predictability of ownership boundaries.",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/ui/tooltip.tsx",
+        "src/shared/hooks/useMobile.tsx",
+        "src/pages/Home/components/panes/CreativePartnerPane.tsx"
+      ],
+      "evidence": [
+        "`button.tsx` includes numerous project/theme-specific variants in a globally shared primitive.",
+        "`tooltip.tsx` contains `TouchableTooltip` with outside-click/touch orchestration beyond base primitive concerns.",
+        "`useMobile.tsx` bundles UA heuristics plus multiple hooks and composite view-model, and is consumed directly by feature components like `CreativePartnerPane.tsx`."
+      ],
+      "suggestion": "Separate base primitives (`ButtonBase`, `TooltipBase`, device primitives) from app-specific adapters/variants in feature or theme modules, leaving shared layer minimal and domain-agnostic.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

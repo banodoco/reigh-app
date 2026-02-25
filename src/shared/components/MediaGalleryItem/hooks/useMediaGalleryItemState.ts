@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { GeneratedImageWithMetadata } from "../../MediaGallery/types";
 
 interface UseMediaGalleryItemStateProps {
@@ -31,6 +31,41 @@ interface UseMediaGalleryItemStateReturn {
   handleCreateShot: (name: string, files: File[]) => Promise<void>;
 }
 
+interface UseShotCreationStateArgs {
+  onCreateShot?: (name: string, files: File[]) => Promise<void>;
+}
+
+function useShotCreationState({
+  onCreateShot,
+}: UseShotCreationStateArgs) {
+  const [isCreateShotModalOpen, setIsCreateShotModalOpen] = useState<boolean>(false);
+  const [isCreatingShot, setIsCreatingShot] = useState<boolean>(false);
+
+  const handleCreateShot = useCallback(async (shotName: string, files: File[]) => {
+    if (!onCreateShot) return;
+
+    setIsCreatingShot(true);
+    try {
+      await onCreateShot(shotName, files);
+      setIsCreateShotModalOpen(false);
+    } catch (error) {
+      normalizeAndPresentError(error, {
+        context: 'MediaGalleryItem.handleCreateShot',
+        toastTitle: 'Error Creating Shot',
+      });
+    } finally {
+      setIsCreatingShot(false);
+    }
+  }, [onCreateShot]);
+
+  return {
+    isCreateShotModalOpen,
+    setIsCreateShotModalOpen,
+    isCreatingShot,
+    handleCreateShot,
+  };
+}
+
 /**
  * Hook to consolidate local UI state for MediaGalleryItem
  */
@@ -53,24 +88,7 @@ export function useMediaGalleryItemState({
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [settingsApplied, setSettingsApplied] = useState<boolean>(false);
 
-  // Shot creation modal state
-  const [isCreateShotModalOpen, setIsCreateShotModalOpen] = useState<boolean>(false);
-  const [isCreatingShot, setIsCreatingShot] = useState<boolean>(false);
-
-  // Handle shot creation
-  const handleCreateShot = useCallback(async (shotName: string, files: File[]) => {
-    if (!onCreateShot) return;
-
-    setIsCreatingShot(true);
-    try {
-      await onCreateShot(shotName, files);
-      setIsCreateShotModalOpen(false);
-    } catch (error) {
-      handleError(error, { context: 'MediaGalleryItem', toastTitle: 'Error Creating Shot' });
-    } finally {
-      setIsCreatingShot(false);
-    }
-  }, [onCreateShot]);
+  const shotCreationState = useShotCreationState({ onCreateShot });
 
   return {
     // Star state
@@ -90,9 +108,9 @@ export function useMediaGalleryItemState({
     setSettingsApplied,
 
     // Shot creation modal
-    isCreateShotModalOpen,
-    setIsCreateShotModalOpen,
-    isCreatingShot,
-    handleCreateShot,
+    isCreateShotModalOpen: shotCreationState.isCreateShotModalOpen,
+    setIsCreateShotModalOpen: shotCreationState.setIsCreateShotModalOpen,
+    isCreatingShot: shotCreationState.isCreatingShot,
+    handleCreateShot: shotCreationState.handleCreateShot,
   };
 }

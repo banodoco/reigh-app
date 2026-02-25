@@ -53,4 +53,20 @@ describe('useTextCase', () => {
     });
     expect(result.current.preserveUserText).toBe(true);
   });
+
+  it('keeps class while another preserve-user-text hook instance is still mounted', () => {
+    const first = renderHook(() => useTextCase());
+    const second = renderHook(() => useTextCase());
+
+    act(() => {
+      first.result.current.setPreserveUserText(true);
+      second.result.current.setPreserveUserText(true);
+    });
+
+    first.unmount();
+    expect(document.documentElement.classList.contains('preserve-user-text')).toBe(true);
+
+    second.unmount();
+    expect(document.documentElement.classList.contains('preserve-user-text')).toBe(false);
+  });
 });

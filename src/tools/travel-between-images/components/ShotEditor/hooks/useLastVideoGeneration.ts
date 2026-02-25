@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
 
 export function useLastVideoGeneration(selectedShotId?: string): string | null {
@@ -11,8 +11,7 @@ export function useLastVideoGeneration(selectedShotId?: string): string | null {
         return null;
       }
 
-      const { data: shotGenerationRows, error } = await supabase
-        .from('shot_generations')
+      const { data: shotGenerationRows, error } = await supabase().from('shot_generations')
         .select(`
           generation:generations!shot_generations_generation_id_generations_id_fk (
             id,

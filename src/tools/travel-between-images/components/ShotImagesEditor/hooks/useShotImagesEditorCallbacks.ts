@@ -1,14 +1,20 @@
 import { useCallback, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { unifiedGenerationQueryKeys } from '@/shared/lib/queryKeys/unified';
-import { queryKeys } from '@/shared/lib/queryKeys';
 import { useEnhancedShotImageReorder } from '@/tools/travel-between-images/hooks/useEnhancedShotImageReorder';
-import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { isVideoAny } from '@/shared/lib/typeGuards';
-import type { GenerationRow } from '@/types/shots';
+import {
+  operationFailure,
+  operationSuccess,
+  type OperationResult,
+} from '@/shared/lib/operationResult';
+import type { GenerationRow } from '@/domains/generation/types';
 import type { ShotImagesEditorDataModel } from './useShotImagesEditorModel';
+import {
+  deleteSegmentGenerationGroup,
+  syncSegmentDeletionCaches,
+} from '../services/segmentDeletionService';
 
 type ShotDataForCallbacks = Pick<
   ShotImagesEditorDataModel,
@@ -24,104 +30,90 @@ type ShotDataForCallbacks = Pick<
 
 interface UseShotImagesEditorCallbacksOptions {
   selectedShotId: string;
+  projectId?: string;
   preloadedImages?: GenerationRow[];
   onImageDelete: (id: string) => void;
-  onAddToShot?: (shotId: string, generationId: string, position?: number) => Promise<void>;
+  onAddToShot?: (shotId: string, generationId: string, position?: number) => Promise<boolean | void>;
   onAddToShotWithoutPosition?: (shotId: string, generationId: string) => Promise<boolean>;
   onCreateShot?: (name: string) => Promise<string>;
   onDragStateChange?: (isDragging: boolean) => void;
   data: ShotDataForCallbacks;
 }
 
+interface ShotSelectionOperationResult {
+  added: boolean;
+}
+
+interface ShotCreationOperationResult {
+  shotId: string;
+  shotName: string;
+}
+
+interface SegmentDeleteOperationResult {
+  deleted: boolean;
+}
+
 function useDeleteSegmentHandler(
   queryClient: ReturnType<typeof useQueryClient>,
   setDeletingSegmentId: Dispatch<SetStateAction<string | null>>,
+  projectId?: string,
 ) {
-
   return useCallback(async (generationId: string) => {
+    if (!projectId) {
+      return operationFailure(new Error('Project scope is required for segment deletion'), {
+        policy: 'fail_closed',
+        recoverable: false,
+        errorCode: 'shot_editor_segment_delete_missing_project_scope',
+        message: 'Project scope is required for segment deletion',
+      });
+    }
+
     setDeletingSegmentId(generationId);
     try {
-      const { data: beforeData } = await supabase
-        .from('generations')
-        .select('id, parent_generation_id, pair_shot_generation_id, params')
-        .eq('id', generationId)
-        .single();
+      const deletion = await deleteSegmentGenerationGroup({
+        generationId,
+        projectId,
+      });
 
-      if (!beforeData) {
-        return;
+      if (!deletion.deleted) {
+        return operationSuccess(
+          { deleted: false } satisfies SegmentDeleteOperationResult,
+          { policy: 'best_effort' },
+        );
       }
 
-      const paramsObj = beforeData.params as Record<string, unknown> | null;
-      const individualParams = paramsObj?.individual_segment_params as Record<string, unknown> | undefined;
-      const pairShotGenId = beforeData.pair_shot_generation_id
-        || individualParams?.pair_shot_generation_id
-        || paramsObj?.pair_shot_generation_id;
-      const childrenQueryKey = beforeData.parent_generation_id
-        ? queryKeys.segments.children(beforeData.parent_generation_id)
-        : null;
+      await syncSegmentDeletionCaches({
+        queryClient,
+        projectId,
+        parentGenerationId: deletion.parentGenerationId,
+        idsToDelete: deletion.idsToDelete,
+      });
 
-      let idsToDelete = [generationId];
-      if (pairShotGenId && beforeData.parent_generation_id) {
-        const { data: siblings } = await supabase
-          .from('generations')
-          .select('id, pair_shot_generation_id, params')
-          .eq('parent_generation_id', beforeData.parent_generation_id);
-
-        idsToDelete = (siblings || [])
-          .filter((child) => {
-            const childParamsObj = child.params as Record<string, unknown> | null;
-            const childIndividualParams = childParamsObj?.individual_segment_params as Record<string, unknown> | undefined;
-            const childPairId = child.pair_shot_generation_id
-              || childIndividualParams?.pair_shot_generation_id
-              || childParamsObj?.pair_shot_generation_id;
-            return childPairId === pairShotGenId;
-          })
-          .map((child) => child.id);
-      }
-
-      const { error: deleteError } = await supabase.from('generations').delete().in('id', idsToDelete);
-      if (deleteError) {
-        throw new Error(`Failed to delete segment: ${deleteError.message}`);
-      }
-
-      if (childrenQueryKey) {
-        queryClient.setQueryData(childrenQueryKey, (oldData: unknown) => {
-          if (!Array.isArray(oldData)) return oldData;
-          return oldData.filter((item: { id: string }) => !idsToDelete.includes(item.id));
-        });
-      }
-
-      queryClient.setQueriesData(
-        { predicate: (query) => query.queryKey[0] === 'segment-child-generations' },
-        (oldData: unknown) => {
-          if (Array.isArray(oldData)) {
-            return oldData.filter((item: { id: string }) => !idsToDelete.includes(item.id));
-          }
-          return oldData;
-        },
+      return operationSuccess(
+        { deleted: true } satisfies SegmentDeleteOperationResult,
+        { policy: 'best_effort' },
       );
-
-      await queryClient.invalidateQueries({
-        predicate: (query) => query.queryKey[0] === 'segment-child-generations',
-        refetchType: 'all',
-      });
-      await queryClient.invalidateQueries({
-        predicate: (query) => query.queryKey[0] === queryKeys.segments.parentsAll[0],
-        refetchType: 'all',
-      });
-      await queryClient.invalidateQueries({ queryKey: unifiedGenerationQueryKeys.all });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.generations.all });
     } catch (error) {
-      handleError(error, { context: 'SegmentDelete', toastTitle: 'Failed to delete segment' });
+      normalizeAndPresentError(error, {
+        context: 'SegmentDelete',
+        toastTitle: 'Failed to delete segment',
+      });
+      return operationFailure(error, {
+        policy: 'best_effort',
+        recoverable: true,
+        errorCode: 'shot_editor_segment_delete_failed',
+        message: 'Failed to delete segment',
+      });
     } finally {
       setDeletingSegmentId(null);
     }
-  }, [queryClient, setDeletingSegmentId]);
+  }, [projectId, queryClient, setDeletingSegmentId]);
 }
 
 export function useShotImagesEditorCallbacks(options: UseShotImagesEditorCallbacksOptions) {
   const {
     selectedShotId,
+    projectId,
     preloadedImages,
     onImageDelete,
     onAddToShot,
@@ -149,37 +141,110 @@ export function useShotImagesEditorCallbacks(options: UseShotImagesEditorCallbac
     onDragStateChange?.(isDragging);
   }, [onDragStateChange]);
 
-  const handleDeleteSegment = useDeleteSegmentHandler(queryClient, setDeletingSegmentId);
+  const runDeleteSegmentOperation = useDeleteSegmentHandler(queryClient, setDeletingSegmentId, projectId);
 
-  const handleAddToShotAdapter = useCallback(async (targetShotId: string, generationId: string) => {
+  const runAddToShotOperation = useCallback(async (
+    targetShotId: string,
+    generationId: string,
+  ): Promise<OperationResult<ShotSelectionOperationResult>> => {
     if (!onAddToShot || !targetShotId) {
-      return false;
+      return operationFailure(new Error('Add-to-shot handler unavailable'), {
+        policy: 'fail_closed',
+        recoverable: false,
+        errorCode: 'shot_editor_add_to_shot_handler_missing',
+        message: 'Add-to-shot handler unavailable',
+      });
     }
     try {
-      await onAddToShot(targetShotId, generationId);
-      return true;
-    } catch {
-      return false;
+      const added = await onAddToShot(targetShotId, generationId);
+      return operationSuccess(
+        { added: added !== false },
+        { policy: 'best_effort' },
+      );
+    } catch (error) {
+      normalizeAndPresentError(error, {
+        context: 'useShotImagesEditorCallbacks.runAddToShotOperation',
+        showToast: false,
+      });
+      return operationFailure(error, {
+        policy: 'best_effort',
+        recoverable: true,
+        errorCode: 'shot_editor_add_to_shot_failed',
+        message: 'Failed to add generation to shot',
+      });
     }
   }, [onAddToShot]);
 
-  const handleAddToShotWithoutPositionAdapter = useCallback(async (targetShotId: string, generationId: string) => {
+  const runAddToShotWithoutPositionOperation = useCallback(async (
+    targetShotId: string,
+    generationId: string,
+  ): Promise<OperationResult<ShotSelectionOperationResult>> => {
     if (!onAddToShotWithoutPosition || !targetShotId) {
-      return false;
+      return operationFailure(new Error('Add-to-shot-without-position handler unavailable'), {
+        policy: 'fail_closed',
+        recoverable: false,
+        errorCode: 'shot_editor_add_to_shot_without_position_handler_missing',
+        message: 'Add-to-shot-without-position handler unavailable',
+      });
     }
     try {
-      return await onAddToShotWithoutPosition(targetShotId, generationId);
-    } catch {
-      return false;
+      const added = await onAddToShotWithoutPosition(targetShotId, generationId);
+      return operationSuccess(
+        { added: added !== false },
+        { policy: 'best_effort' },
+      );
+    } catch (error) {
+      normalizeAndPresentError(error, {
+        context: 'useShotImagesEditorCallbacks.runAddToShotWithoutPositionOperation',
+        showToast: false,
+      });
+      return operationFailure(error, {
+        policy: 'best_effort',
+        recoverable: true,
+        errorCode: 'shot_editor_add_to_shot_without_position_failed',
+        message: 'Failed to add generation to shot without position',
+      });
     }
   }, [onAddToShotWithoutPosition]);
 
-  const handleCreateShotAdapter = useCallback(async (shotName: string) => {
+  const runCreateShotOperation = useCallback(async (
+    shotName: string,
+  ): Promise<OperationResult<ShotCreationOperationResult>> => {
     if (!onCreateShot) {
-      return { shotId: '', shotName: '' };
+      return operationFailure(new Error('Create-shot handler unavailable'), {
+        policy: 'fail_closed',
+        recoverable: false,
+        errorCode: 'shot_editor_create_shot_handler_missing',
+        message: 'Create-shot handler unavailable',
+      });
     }
-    const shotId = await onCreateShot(shotName);
-    return { shotId, shotName };
+    try {
+      const shotId = await onCreateShot(shotName);
+      if (!shotId) {
+        return operationFailure(new Error('Create-shot handler returned no shot id'), {
+          policy: 'fail_closed',
+          recoverable: true,
+          errorCode: 'shot_editor_create_shot_empty_result',
+          message: 'Create-shot handler returned no shot id',
+        });
+      }
+
+      return operationSuccess(
+        { shotId, shotName },
+        { policy: 'best_effort' },
+      );
+    } catch (error) {
+      normalizeAndPresentError(error, {
+        context: 'useShotImagesEditorCallbacks.runCreateShotOperation',
+        showToast: false,
+      });
+      return operationFailure(error, {
+        policy: 'best_effort',
+        recoverable: true,
+        errorCode: 'shot_editor_create_shot_failed',
+        message: 'Failed to create shot',
+      });
+    }
   }, [onCreateShot]);
 
   const handleClearEnhancedPromptByIndex = useCallback(async (pairIndex: number) => {
@@ -214,10 +279,10 @@ export function useShotImagesEditorCallbacks(options: UseShotImagesEditorCallbac
 
   return {
     deletingSegmentId,
-    handleDeleteSegment,
-    handleAddToShotAdapter,
-    handleAddToShotWithoutPositionAdapter,
-    handleCreateShotAdapter,
+    runDeleteSegmentOperation,
+    runAddToShotOperation,
+    runAddToShotWithoutPositionOperation,
+    runCreateShotOperation,
     handleClearEnhancedPromptByIndex,
     handleDragStateChange,
     handleReorder,

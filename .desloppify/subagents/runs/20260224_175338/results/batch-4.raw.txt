@@ -1,0 +1,80 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "low_level_elegance": 83.4
+  },
+  "dimension_notes": {
+    "low_level_elegance": {
+      "evidence": [
+        "Multiple assigned files are migration shims that are only pass-through re-exports (for example `src/shared/components/BatchDropZone.tsx:1-5`, `src/shared/hooks/useBatchImageLoading.ts:1-5`, `src/shared/lib/aspectRatios.ts:1-5`), increasing low-level indirection without local behavior.",
+        "Several deprecated shim files do not include explicit sunset metadata (`@deprecationOwner`/`@removalTarget`) unlike better-specified cases such as `src/shared/components/ui/cn.ts:3-5` and `src/integrations/supabase/client.ts:86-98`, making cleanup mechanics inconsistent at function/file level.",
+        "`src/shared/hooks/useDeleteGenerationWithConfirm.tsx:3` imports `ConfirmDialog` via a deprecated compatibility path, and `src/shared/components/ConfirmDialog.tsx:1-5` adds another forwarding hop.",
+        "`src/integrations/supabase/client.ts:55-83` keeps a dynamic proxy compatibility surface with repeated runtime casts and traps plus sentinel `void` references (`:99-100`), indicating migration scaffolding still embedded in core runtime access."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "open_ended_deprecation_shims",
+      "summary": "Many compatibility shim files are deprecated but lack enforceable sunset metadata, leaving migration debt open-ended.",
+      "related_files": [
+        "src/shared/components/BatchDropZone.tsx",
+        "src/shared/components/ConfirmDialog.tsx",
+        "src/shared/hooks/useBatchImageLoading.ts",
+        "src/shared/lib/aspectRatios.ts",
+        "src/shared/lib/deepEqual.ts"
+      ],
+      "evidence": [
+        "`src/shared/components/BatchDropZone.tsx:1-5` and `src/shared/components/ConfirmDialog.tsx:1-5` mark deprecated paths but do not define owner/removal target tags.",
+        "`src/shared/hooks/useBatchImageLoading.ts:1-5`, `src/shared/lib/aspectRatios.ts:1-5`, and `src/shared/lib/deepEqual.ts:1-9` are pass-through deprecated shims without explicit removal metadata.",
+        "By contrast, `src/shared/components/ui/cn.ts:3-5` includes `@deprecationOwner` and `@removalTarget`, showing inconsistency in migration governance at file level."
+      ],
+      "suggestion": "Standardize all deprecated shim headers to include `@deprecationOwner` and `@removalTarget`, then track them with a single migration checklist and remove shims in priority order by import count.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "deprecated_path_used_in_new_logic",
+      "summary": "Active hook logic still imports through a deprecated shim path, preserving unnecessary indirection in runtime code.",
+      "related_files": [
+        "src/shared/hooks/useDeleteGenerationWithConfirm.tsx",
+        "src/shared/components/ConfirmDialog.tsx"
+      ],
+      "evidence": [
+        "`src/shared/hooks/useDeleteGenerationWithConfirm.tsx:3` imports `ConfirmDialog` from `@/shared/components/ConfirmDialog`.",
+        "`src/shared/components/ConfirmDialog.tsx:2-5` explicitly marks that module as deprecated and re-exports from `@/shared/components/dialogs/ConfirmDialog`."
+      ],
+      "suggestion": "Update `useDeleteGenerationWithConfirm` to import directly from `@/shared/components/dialogs/ConfirmDialog` and then remove or quarantine the deprecated shim to legacy-only callers.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "inconsistent_shim_export_shapes",
+      "summary": "Compatibility shims use mixed export forms (`export *`, named, default), which makes low-level API exposure and cleanup behavior unpredictable.",
+      "related_files": [
+        "src/features/prompt-editor/components/BulkEditControls.tsx",
+        "src/shared/hooks/useGalleryPageState.ts",
+        "src/shared/lib/NetworkStatusManager.ts",
+        "src/shared/components/ConfirmDialog.tsx",
+        "src/shared/components/BatchDropZone.tsx"
+      ],
+      "evidence": [
+        "`src/features/prompt-editor/components/BulkEditControls.tsx:5`, `src/shared/hooks/useGalleryPageState.ts:5`, and `src/shared/lib/NetworkStatusManager.ts:5` use `export *` passthroughs that can silently widen surface area.",
+        "`src/shared/components/ConfirmDialog.tsx:5` uses a named re-export and `src/shared/components/BatchDropZone.tsx:5` uses default re-export, creating mixed migration semantics across similar shim modules."
+      ],
+      "suggestion": "Use a single shim policy: avoid `export *` for deprecated bridges, re-export explicit symbols only, and align all shim modules to one consistent export style to reduce accidental API drift during migration.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

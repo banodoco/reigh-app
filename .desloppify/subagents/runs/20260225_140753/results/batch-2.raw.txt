@@ -1,0 +1,131 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 82.0,
+    "dependency_health": 79.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts defines both UseSegmentSlotModeInput and UseSegmentSlotModeResolvedProps, then resolveUseSegmentSlotModeInput() performs mostly 1:1 field forwarding across nested bags (scope/data/structureVideo/actions) before hook logic runs.",
+        "src/shared/hooks/useUpdatingTimestamp.ts exports useUpdatingTimestamp() as a pure pass-through to useRelativeTimestamp() with identical options surface and no behavior change.",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx constructs multiple large memoized model objects that primarily repackage existing nested state into another shape, increasing indirection at call boundaries."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 78.0,
+        "indirection_cost": 74.0,
+        "interface_honesty": 86.0
+      }
+    },
+    "dependency_health": {
+      "evidence": [
+        "Task contract keys are duplicated across client payload builders (src/shared/lib/tasks/joinClips.ts, src/shared/lib/tasks/individualTravelSegment.ts, src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts) and server completion/cost readers (supabase/functions/complete_task/orchestrator.ts, supabase/functions/complete_task/generation.ts, supabase/functions/calculate-task-cost/index.ts), creating multi-module schema lockstep.",
+        "src/shared/realtime/DataFreshnessManager.ts (data freshness/polling core) imports UI toast runtime from src/shared/components/ui/runtime/sonner.tsx, coupling non-UI coordination logic to presentation-layer dependency.",
+        "src/shared/hooks/useTasks.ts depends on realtime freshness side-effect helpers plus query/polling controls; this reinforces broad coupling around task fetching behavior rather than a narrow dependency boundary."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "segment_slot_param_bag_passthrough",
+      "summary": "Nested input/resolved interfaces add ceremony without reducing complexity.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts",
+        "src/shared/components/ShotImageManager/ShotImageManagerContainer.tsx",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx"
+      ],
+      "evidence": [
+        "useSegmentSlotMode() immediately calls resolveUseSegmentSlotModeInput(), which copies many fields from grouped bags into another flat object with mostly identical names.",
+        "Caller-side state in ShotImageManagerContainer and Lightbox flows is already structured; additional remapping layer does not enforce new invariants or validation.",
+        "This extra abstraction creates two public shapes to maintain and expands change surface when adding/removing one field."
+      ],
+      "suggestion": "Collapse to one public input contract: either keep grouped bags and consume them directly inside useSegmentSlotMode, or keep a single flat interface and remove resolveUseSegmentSlotModeInput(). Add only targeted derived helpers for real transformations (for example, location-state parsing), not full-structure forwarding.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "over_modeled_view_state_interfaces"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "thin_wrapper_hooks_without_behavior",
+      "summary": "Thin wrapper exports create API surface without behavioral leverage.",
+      "related_files": [
+        "src/shared/hooks/useUpdatingTimestamp.ts",
+        "src/pages/Home/hooks/auth/useAuthReferralFinalize.ts",
+        "src/pages/Home/hooks/useDiscordSignIn.ts"
+      ],
+      "evidence": [
+        "useUpdatingTimestamp() is a direct pass-through to useRelativeTimestamp(options) with no compatibility translation, policy, or defaults differing from the underlying hook.",
+        "Auth hooks mostly delegate to runAuthSupabaseOperation while adding little distinct domain behavior, resulting in several near-wrapper hooks with similar callback scaffolding.",
+        "These wrappers increase discovery cost and make behavior tracing harder because the call stack gains extra layers that do not transform contracts."
+      ],
+      "suggestion": "Prune zero-leverage wrappers and expose one canonical hook/function per behavior family. Keep wrapper exports only where they encode stable alias semantics or default policy differences; otherwise inline call sites to the canonical function.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "over_modeled_view_state_interfaces"
+    },
+    {
+      "dimension": "dependency_health",
+      "identifier": "task_contract_duplication_across_client_and_edge",
+      "summary": "Task schema is duplicated across client builders and edge readers.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/complete_task/generation.ts",
+        "supabase/functions/calculate-task-cost/index.ts"
+      ],
+      "evidence": [
+        "Client task creators emit many raw key contracts (e.g., orchestrator_details, run_id, segment/join counters, structure and lineage fields) as ad-hoc object literals.",
+        "Edge completion/cost code re-parses those keys with fallback heuristics and per-task branching, indicating no shared typed contract package.",
+        "Any field rename or shape drift requires coordinated edits across separate runtimes (browser TS and Deno edge TS), increasing regression risk and dependency churn."
+      ],
+      "suggestion": "Introduce a shared task-contract module (schema + encoder/decoder) imported by both client task builders and edge handlers. Centralize canonical keys and fallbacks there, then make each task-specific module depend on that contract instead of open-coded object literals.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "distributed_task_schema_without_shared_contract"
+    },
+    {
+      "dimension": "dependency_health",
+      "identifier": "realtime_core_depends_on_ui_runtime",
+      "summary": "Core freshness manager depends directly on UI toast runtime dependency.",
+      "related_files": [
+        "src/shared/realtime/DataFreshnessManager.ts",
+        "src/shared/hooks/useTasks.ts"
+      ],
+      "evidence": [
+        "DataFreshnessManager imports toast from UI runtime and emits user-facing notifications inside core polling/failure logic.",
+        "useTasks and other data hooks rely on freshness manager behavior, so UI dependency leaks into data coordination path.",
+        "This ties non-visual infrastructure to presentation dependencies and complicates isolated testing/reuse of freshness logic."
+      ],
+      "suggestion": "Invert the dependency: keep DataFreshnessManager UI-agnostic and publish typed failure events/callbacks; attach toast handling in a UI adapter subscribed at app boundary.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "distributed_task_schema_without_shared_contract"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Abstractions are frequently added as shape-preserving wrappers instead of behavior-bearing seams.",
+      "Task payload contracts are defined in multiple places instead of a shared canonical contract layer."
+    ],
+    "likely_symptoms": [
+      "segment_slot_param_bag_passthrough",
+      "thin_wrapper_hooks_without_behavior",
+      "task_contract_duplication_across_client_and_edge"
+    ],
+    "possible_false_positives": []
+  }
+}

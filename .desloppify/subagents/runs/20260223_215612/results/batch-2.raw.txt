@@ -1,0 +1,100 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "low_level_elegance": 76.0
+  },
+  "dimension_notes": {
+    "low_level_elegance": {
+      "evidence": [
+        "Task payload construction is repeated as large hand-built param bags across multiple task modules (e.g., join clips `buildJoinClipsPayload`, individual travel segment `buildOrchestratorDetails` + `buildTaskParamsPayload`, travel payload builder `buildTravelBetweenImagesPayload`, magic edit `buildMagicEditTaskParams`).",
+        "Edit/lightbox code has multi-layer wrapper chains that mostly remap data (e.g., `VideoLightboxContent` -> `useVideoLightboxRenderModel` -> `LightboxLayout`, plus separate `useButtonGroupProps` builders repeating shared fields).",
+        "Inline edit state/value has a dual-shape adapter path (`UseImageEditValueLegacyParams` and `toModelsFromLegacy`) plus parallel model assembly in `useInlineEditState`, increasing indirection cost.",
+        "Three timestamp hooks are thin wrappers over `useLiveRelativeTimestamp` with minor naming differences, indicating micro-fragmentation instead of one focused formatter-based API."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "duplicated_task_param_bags",
+      "summary": "Task creation internals rely on repeated hand-built payload bags, causing drift-prone low-level duplication.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/magicEdit.ts",
+        "src/shared/lib/tasks/imageGeneration.ts"
+      ],
+      "evidence": [
+        "`joinClips.ts` manually builds `orchestratorDetails` with many conditional assignments and nested override loops (`buildJoinClipsPayload`, lines ~292-409).",
+        "`individualTravelSegment.ts` repeats similar orchestration fields across both `buildOrchestratorDetails` and `buildTaskParamsPayload` (lines ~539-589 and ~606-658), including duplicated contract/context keys.",
+        "`travelBetweenImages/payloadBuilder.ts` constructs another large `orchestratorPayload` with many conditional spreads and defaults (lines ~119-217), overlapping responsibilities already present in sibling task builders."
+      ],
+      "suggestion": "Introduce a shared task-payload composition layer (base orchestration envelope + reusable optional-field helpers) and keep task-specific deltas small. Consolidate duplicated orchestration keys (`orchestration_contract`, parent/child linkage, run/orchestrator identifiers) into one typed builder used by all task modules.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "lightbox_wrapper_chain_overhead",
+      "summary": "Video lightbox rendering is split into multiple pass-through view-model layers with high indirection and limited leverage.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/VideoLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx",
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts"
+      ],
+      "evidence": [
+        "`VideoLightbox.tsx` builds mode/env/shared/edit/render models sequentially before rendering (`VideoLightboxContent`, lines ~95-131).",
+        "`useVideoLightboxRenderModel.tsx` creates several memoized pass-through objects (`lightboxCore`, `lightboxMedia`, `lightboxVariants`, `lightboxNavigation`) primarily reshaping existing values (lines ~180-257).",
+        "`useButtonGroupProps.ts` repeats the same shared fields into four separate builder functions, then wraps them in a `useMemo` keyed by whole `params` object (lines ~56-143), adding structure without reducing behavior complexity."
+      ],
+      "suggestion": "Collapse pass-through layers into a single typed render adapter per lightbox mode, and centralize shared button-context injection once. Keep only behavior-bearing transforms as separate hooks; inline pure property forwarding near the final consumer.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "inline_edit_dual_api_mapping",
+      "summary": "Inline edit state uses a legacy/new dual API with large field-by-field mapping, increasing maintenance cost and mismatch risk.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/hooks/useImageEditValue.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx"
+      ],
+      "evidence": [
+        "`useImageEditValue.ts` defines `UseImageEditValueLegacyParams` spanning six model interfaces, then remaps every field in `toModelsFromLegacy` (lines ~148-360).",
+        "`useInlineEditState.ts` already assembles `UseImageEditValueModels` via `buildImageEditValueModels` (lines ~252+), so the legacy conversion path duplicates the same shape translation responsibility.",
+        "`buildFormAndGenerationState` in `useImageEditValue.ts` contains duplicate assignment of `setLoraMode` (lines ~239-241), demonstrating drift/noise in manual mapping-heavy code."
+      ],
+      "suggestion": "Delete the legacy param shape and make `useImageEditValue` accept only `UseImageEditValueModels`. Generate model-to-state mapping via smaller grouped mappers (or typed pick helpers) to remove manual duplication and catch key drift at compile time.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "timestamp_hook_micro_fragmentation",
+      "summary": "Three near-identical timestamp hooks create micro-abstractions with minimal behavioral separation.",
+      "related_files": [
+        "src/shared/hooks/useCompletedTimestamp.ts",
+        "src/shared/hooks/useProcessingTimestamp.ts",
+        "src/shared/hooks/useUpdatingTimestamp.ts"
+      ],
+      "evidence": [
+        "`useCompletedTimestamp` and `useProcessingTimestamp` both forward to `useLiveRelativeTimestamp` with only formatter and input-key differences (lines ~18-27 and ~18-27 respectively).",
+        "`useUpdatingTimestamp` follows the same wrapper pattern and adds another thin wrapper (`useTaskTimestamp`) for a slight formatter variant (lines ~26-58)."
+      ],
+      "suggestion": "Replace these wrappers with one configurable timestamp hook (`useRelativeTimestamp({ dateInput, mode, abbreviate, includeDays })`) and keep optional task-specific formatter constants outside hooks.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 7,
+  "assessments": {
+    "convention_outlier": 84.0,
+    "error_consistency": 76.0,
+    "authorization_consistency": 88.0
+  },
+  "dimension_notes": {
+    "convention_outlier": {
+      "evidence": [
+        "UI primitives use a distinct formatting convention (double quotes, no semicolons) in `src/shared/components/ui/button.tsx:1`, `src/shared/components/ui/label.tsx:1`, and `src/shared/components/ui/tooltip.tsx:1`, while most neighboring app files use single quotes/semicolons.",
+        "A separate local style drift appears in routing imports (`src/app/routes.tsx:22`) where one import switches quote style inside an otherwise single-quote file."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    },
+    "error_consistency": {
+      "evidence": [
+        "Centralized error normalization exists (`src/shared/lib/errorHandling/handleError.ts:24`), but several paths bypass it with direct `toast.error` and early returns in `src/shared/components/LoraSelectorModal/components/MyLorasTab/hooks/useLoraSubmission.ts:161` and `src/shared/components/LoraSelectorModal/components/MyLorasTab/hooks/useLoraSubmission.ts:181`.",
+        "Other paths log raw console errors (`src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts:57`, `src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts:63`) while sibling paths use `handleError`.",
+        "Task batch flow uses direct `console.error` in dev (`src/shared/lib/tasks/imageGeneration.ts:508`) plus `handleError`/rethrow later (`src/shared/lib/tasks/imageGeneration.ts:519`), creating mixed failure reporting contracts."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "authorization_consistency": {
+      "evidence": [
+        "Auth redirect is applied on `/` via `authRedirectLoader` (`src/app/routes.tsx:50`, `src/app/routes.tsx:60`) but not on sibling `/home` (`src/app/routes.tsx:66`), even though both render the same page.",
+        "The redirect decision is based on localStorage token presence (`src/shared/lib/supabaseSession.ts:65`) rather than validated session freshness; comments explicitly defer authoritative checks to `Layout` (`src/app/routes.tsx:48`)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "unreported_risk": "If route-level auth handling continues to split between optimistic token checks and later authoritative checks, additional entry routes can drift and produce inconsistent signed-in/signed-out UX."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "error_consistency",
+      "identifier": "mixed_error_channels_bypass_normalizer",
+      "summary": "Related flows mix `handleError`, direct toasts, and console logs, fragmenting error contracts.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/LoraSelectorModal/components/MyLorasTab/hooks/useLoraSubmission.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/lib/tasks/imageGeneration.ts"
+      ],
+      "evidence": [
+        "`handleError` is the centralized normalize/log/toast path (`src/shared/lib/errorHandling/handleError.ts:24`), but LoRA upload failures use `toast.error` + `return null` (`src/shared/components/LoraSelectorModal/components/MyLorasTab/hooks/useLoraSubmission.ts:161`, `:181`) without normalization.",
+        "Gallery notifier failures log via `console.error` (`src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts:57`, `:63`) instead of a consistent app error contract.",
+        "Batch generation logs per-task failures to console (`src/shared/lib/tasks/imageGeneration.ts:508`) while outer failures also call `handleError` (`:519`), yielding mixed observability paths."
+      ],
+      "suggestion": "Standardize on `handleError` (or `handleAndRethrow`) for all caught operational failures; wrap direct toast/console branches in a shared adapter so each failure path emits normalized context and optional user toast from one contract.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "authorization_consistency",
+      "identifier": "home_route_auth_redirect_drift",
+      "summary": "Two routes serving HomePage apply different auth redirect behavior.",
+      "related_files": [
+        "src/app/routes.tsx",
+        "src/shared/lib/supabaseSession.ts"
+      ],
+      "evidence": [
+        "`/` uses `loader: authRedirectLoader` (`src/app/routes.tsx:60`) which redirects when `hasStoredSession()` is true (`src/app/routes.tsx:51`).",
+        "`/home` renders the same `HomePage` (`src/app/routes.tsx:67`) but has no equivalent redirect loader.",
+        "The loader relies on `hasStoredSessionToken()` (`src/shared/lib/supabaseSession.ts:65`), so auth flow differs by entry route and by token-presence heuristic."
+      ],
+      "suggestion": "Apply one shared loader policy to both `/` and `/home` (either both redirect-if-session or both remain neutral) and keep token-presence checks explicitly scoped as a UX optimization, not route-specific auth behavior.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "ui_primitive_style_island",
+      "summary": "UI primitive files follow a distinct code-style island that drifts from surrounding conventions.",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/ui/label.tsx",
+        "src/shared/components/ui/tooltip.tsx",
+        "src/app/routes.tsx"
+      ],
+      "evidence": [
+        "Multiple UI primitives use double-quote/no-semicolon formatting (`src/shared/components/ui/button.tsx:1`, `src/shared/components/ui/label.tsx:1`, `src/shared/components/ui/tooltip.tsx:1`) unlike most reviewed files.",
+        "Additional quote-style drift appears inside non-UI files (`src/app/routes.tsx:22`) in otherwise single-quote code."
+      ],
+      "suggestion": "Define formatter/lint ownership for vendored UI primitives vs app-owned code (for example, isolate generated/vendor-style files or normalize all files with one formatter profile) to remove recurring style outliers.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

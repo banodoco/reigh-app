@@ -1,0 +1,86 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 72.0,
+    "high_level_elegance": 78.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "src/domains/generation/types/generationRow.ts defines `GenerationRow = PersistedGenerationRow & GenerationViewModel`, mixing DB/API fields (`generation_id`, `timeline_frame`) with UI-only fields (`imageUrl`, `thumbUrl`, `hasUnviewedVariants`).",
+        "src/domains/generation/types/shot.ts repeats the same pattern with `Shot = PersistedShotRow & ShotViewModel`, causing nested coupling to `GenerationRow[]` inside UI-facing shot state.",
+        "Compatibility aliases are still exported in core boundary types (`GenerationRow`, `Shot`, and deprecated `handleError` in src/shared/lib/errorHandling/handleError.ts), preserving dual contracts across modules instead of enforcing one boundary shape."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "src/integrations/supabase/client.ts combines singleton lifecycle (`clientInstance`), instrumentation install gating (`instrumentationInstalled`), client construction, and runtime initialization in one module.",
+        "The first `getSupabaseClient()` call can trigger instrumentation and runtime setup transitively, so module consumers depend on hidden side effects instead of explicit app-bootstrap ownership.",
+        "src/shared/lib/errorHandling/handleError.ts also acts as a cross-cutting global entrypoint (normalize/log/toast/callback), indicating multiple central modules that blend orchestration with side-effect policy."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "generation_shot_boundary_intersection_aliases",
+      "summary": "Domain persistence and UI view models are merged via intersection aliases, blurring module boundaries.",
+      "related_files": [
+        "src/domains/generation/types/generationRow.ts",
+        "src/domains/generation/types/shot.ts"
+      ],
+      "evidence": [
+        "`GenerationRow` is an intersection of persisted DB/API fields and UI-only fields, so consumers cannot depend on a clear boundary contract.",
+        "`Shot` embeds `images?: GenerationRow[]`, propagating the mixed contract into parent domain objects and broadening coupling."
+      ],
+      "suggestion": "Stop exporting intersection compatibility aliases as primary contracts. Introduce explicit boundary types (e.g., `PersistedGenerationRow`, `GenerationViewModel`, `PersistedShotRow`, `ShotViewModel`) and require mapping at module edges where DB records become UI models.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "stale_compatibility_alias_surface",
+      "summary": "Deprecated and compatibility aliases keep old/new contracts active, increasing cross-module coupling.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/domains/generation/types/generationRow.ts",
+        "src/domains/generation/types/shot.ts"
+      ],
+      "evidence": [
+        "`handleError` is kept as a deprecated alias to `reportRuntimeError` instead of being removed or isolated behind a migration boundary.",
+        "`GenerationRow` and `Shot` are explicitly marked compatibility aliases, but still exported from core type modules.",
+        "Keeping these aliases in central modules prolongs wide importer dependence on transitional APIs."
+      ],
+      "suggestion": "Create a time-bounded migration layer (separate legacy entrypoint) and remove compatibility aliases from primary modules. Update importers to canonical names/types, then delete alias exports to restore single-source contracts.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "supabase_client_composition_root_overloaded",
+      "summary": "Supabase client module mixes bootstrap policy, instrumentation, and singleton access in one global entrypoint.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "`client.ts` owns mutable global flags (`instrumentationInstalled`, `clientInstance`) and both boot logic and accessor APIs.",
+        "`buildSupabaseClient()` triggers instrumentation and runtime initialization implicitly, so call sites cannot distinguish pure access from side-effectful startup.",
+        "Another shared global entrypoint (`reportRuntimeError`) similarly bundles multiple side-effect policies, reinforcing centralized orchestration modules with broad hidden behavior."
+      ],
+      "suggestion": "Split infra composition from runtime access: move instrumentation/runtime install to explicit app bootstrap, keep `client.ts` as a thin accessor/factory, and make side-effectful initialization an explicit one-time call from app startup.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

@@ -10,9 +10,9 @@
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { invalidateVariantChange } from '@/shared/hooks/invalidation/useGenerationInvalidation';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
 import { useAppEventListener } from '@/shared/lib/typedEvents';
 
@@ -76,8 +76,7 @@ export const useVariants = ({
     queryFn: async () => {
       if (!generationId) return [];
 
-      const { data, error } = await supabase
-        .from('generation_variants')
+      const { data, error } = await supabase().from('generation_variants')
         .select('*')
         .eq('generation_id', generationId)
         .order('created_at', { ascending: false });
@@ -138,8 +137,7 @@ export const useVariants = ({
 
       // Update the variant to be primary
       // The database trigger will handle unsetting the old primary
-      const { error } = await supabase
-        .from('generation_variants')
+      const { error } = await supabase().from('generation_variants')
         .update({ is_primary: true })
         .eq('id', variantId);
 
@@ -164,8 +162,7 @@ export const useVariants = ({
       // also create a variant on the parent so the main generation updates
       try {
         // Get the promoted variant's location and thumbnail
-        const { data: promotedVariant } = await supabase
-          .from('generation_variants')
+        const { data: promotedVariant } = await supabase().from('generation_variants')
           .select('location, thumbnail_url, params')
           .eq('id', variantId)
           .single();
@@ -173,8 +170,7 @@ export const useVariants = ({
         if (!promotedVariant || !generationId) return;
 
         // Check if this generation is a child with a parent
-        const { data: generation } = await supabase
-          .from('generations')
+        const { data: generation } = await supabase().from('generations')
           .select('is_child, parent_generation_id')
           .eq('id', generationId)
           .single();
@@ -182,8 +178,7 @@ export const useVariants = ({
         if (!generation?.is_child || !generation?.parent_generation_id) return;
 
         // Count how many children the parent has
-        const { count: childCount } = await supabase
-          .from('generations')
+        const { count: childCount } = await supabase().from('generations')
           .select('id', { count: 'exact', head: true })
           .eq('parent_generation_id', generation.parent_generation_id)
           .eq('is_child', true);
@@ -201,8 +196,7 @@ export const useVariants = ({
           ...paramsToPropagate
         } = (promotedVariant.params || {}) as Record<string, unknown>;
 
-        const { error: insertError } = await supabase
-          .from('generation_variants')
+        const { error: insertError } = await supabase().from('generation_variants')
           .insert({
             generation_id: generation.parent_generation_id,
             location: promotedVariant.location,
@@ -217,7 +211,7 @@ export const useVariants = ({
           });
 
         if (insertError) {
-          handleError(insertError, { context: 'useVariants', showToast: false });
+          normalizeAndPresentError(insertError, { context: 'useVariants', showToast: false });
         } else {
           // Invalidate parent's variant cache
           await invalidateVariantChange(queryClient, {
@@ -231,7 +225,7 @@ export const useVariants = ({
       }
     },
     onError: (error) => {
-      handleError(error, { context: 'useVariants.setPrimaryVariant', toastTitle: 'Failed to set primary variant' });
+      normalizeAndPresentError(error, { context: 'useVariants.setPrimaryVariant', toastTitle: 'Failed to set primary variant' });
     },
   });
 
@@ -252,8 +246,7 @@ export const useVariants = ({
         throw new Error('Cannot delete the primary variant');
       }
 
-      const { error } = await supabase
-        .from('generation_variants')
+      const { error } = await supabase().from('generation_variants')
         .delete()
         .eq('id', variantId);
 
@@ -280,7 +273,7 @@ export const useVariants = ({
       }
     },
     onError: (error) => {
-      handleError(error, { context: 'useVariants.deleteVariant', toastTitle: 'Failed to delete variant' });
+      normalizeAndPresentError(error, { context: 'useVariants.deleteVariant', toastTitle: 'Failed to delete variant' });
     },
   });
 

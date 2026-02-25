@@ -1,0 +1,99 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 82.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "Multiple top-imported entry modules in this batch are pure pass-through facades: `src/shared/components/ui/button.tsx`, `src/shared/components/ui/cn.ts`, `src/shared/components/ui/sonner.tsx`, `src/shared/components/ui/tooltip.tsx`, `src/shared/components/ui/label.tsx`, `src/shared/hooks/mobile/index.ts`, and `src/domains/generation/types/public.ts` only re-export symbols.",
+        "`src/shared/lib/errorHandling/handleError.ts` is explicitly marked as a backwards-compatible wrapper (lines 11-13) while still acting as a high-fan-in entrypoint, indicating migration-era facade paths remain active rather than isolated.",
+        "`src/shared/contexts/ProjectContext.tsx` composes auth, user settings, selection, CRUD, defaults, and provider-level error diagnostics in one module (imports and wiring across lines 1-66), making it a cross-subsystem coordination hub.",
+        "`src/integrations/supabase/client.ts` allows lazy runtime bootstrap inside `getSupabaseClient()` (lines 20-23), so any importer can implicitly trigger integration initialization instead of preserving a strict startup boundary."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "facade_hub_drift",
+      "summary": "High-fan-in compatibility/re-export facades blur ownership boundaries across modules.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/domains/generation/types/public.ts",
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/ui/cn.ts",
+        "src/shared/components/ui/sonner.tsx",
+        "src/shared/components/ui/tooltip.tsx",
+        "src/shared/components/ui/label.tsx",
+        "src/shared/hooks/mobile/index.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` is a pass-through wrapper (`handleError` -> `presentError`, `handleAndRethrow` -> `presentAndRethrow`) and documents itself as backwards-compatible (lines 11-13), but remains a central import surface.",
+        "`public.ts` and the UI/mobile files are single-purpose re-export shells with no local behavior, creating many alternate import paths disconnected from owning modules.",
+        "The batch context identifies these files among the most imported modules, so these facades are not edge aliases; they are primary dependency graph hubs."
+      ],
+      "suggestion": "Define one canonical import path per concern (error reporting, generation domain types, UI primitives, mobile signals), migrate callers to those canonical paths, then deprecate/remove transitional facades in phases with codemods and CI checks that block new legacy imports.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "legacy_facade_surface_without_enforced_contract"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "provider_orchestration_hub",
+      "summary": "Project provider acts as a multi-subsystem hub with broad coupling and large blast radius.",
+      "related_files": [
+        "src/shared/contexts/ProjectContext.tsx",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaLightbox/components/LightboxShell.tsx"
+      ],
+      "evidence": [
+        "`ProjectContext.tsx` couples auth, user settings sync, project selection persistence, CRUD lifecycle, and defaulting side effects in one provider wiring block (lines 35-99).",
+        "`useMediaGalleryHandlers.ts` and `LightboxShell.tsx` follow a similar pattern of hook-level orchestration across navigation/state/ui services, indicating coordination logic is repeatedly embedded in UI-facing modules instead of a thinner application-service boundary.",
+        "The result is cross-feature behavior coordination through shared hubs rather than explicit feature-local services, increasing change impact when any subsystem contract shifts."
+      ],
+      "suggestion": "Extract explicit domain coordinators (for project lifecycle and gallery/lightbox orchestration) behind narrow interfaces, keep providers/components focused on binding and rendering, and move cross-subsystem choreography into dedicated service modules with stable contracts.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "missing_application_coordination_layer"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "implicit_runtime_bootstrap_boundary",
+      "summary": "Supabase client access path permits implicit runtime initialization from arbitrary importers.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "`getSupabaseClient()` checks init state and performs `getOrInitializeSupabaseRuntimeClient()` if needed (lines 21-23), so initialization can occur opportunistically at call sites rather than only in bootstrap.",
+        "When lazy init occurs, `client.ts` emits diagnostic logging via shared error infrastructure (lines 24-27), adding cross-layer coupling between integration bootstrap and global error/reporting policy.",
+        "This makes dependency direction less explicit: feature modules can indirectly cause integration startup and logging behavior by simply requesting a client."
+      ],
+      "suggestion": "Split strict and lazy access APIs: keep `initializeSupabase()` as the required startup path, expose a `getInitializedSupabaseClient()` that fails fast if bootstrap was skipped, and confine any fallback lazy-init behavior to a clearly marked compatibility module with a removal deadline.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "implicit_lifecycle_management"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Legacy compatibility layers were retained as primary import surfaces instead of temporary migration edges.",
+      "Cross-subsystem coordination responsibilities are embedded in context/components instead of dedicated orchestration services.",
+      "Runtime lifecycle management is partially implicit (lazy bootstrap) rather than enforced by boundary contracts."
+    ],
+    "likely_symptoms": [
+      "facade_hub_drift",
+      "provider_orchestration_hub",
+      "implicit_runtime_bootstrap_boundary"
+    ],
+    "possible_false_positives": []
+  }
+}

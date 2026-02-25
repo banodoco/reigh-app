@@ -4,15 +4,14 @@ import {
   useRef,
   useCallback,
   Suspense,
-  useMemo,
-  type MutableRefObject,
+  type MutableRefObject
 } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Shot } from '@/types/shots';
+import { Shot } from '@/domains/generation/types';
 import { Button } from '@/shared/components/ui/button';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
 import { usePanes } from '@/shared/contexts/PanesContext';
-import { useIsMobile } from '@/shared/hooks/useMobile';
+import { useIsMobile } from '@/shared/hooks/mobile';
 import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
 import { useUpdateShotName } from '@/shared/hooks/shots';
 import { usePrimeShotImagesCache } from '@/shared/hooks/useShotImages';

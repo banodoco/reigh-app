@@ -6,7 +6,8 @@ import React, {
   useEffect,
   useMemo
 } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { getAuthStateManager } from '@/integrations/supabase/auth/AuthStateManager';
 import { setCachedUserId } from '@/shared/lib/toolSettingsService';
 import type { Session } from '@supabase/supabase-js';
 
@@ -94,7 +95,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }, 150);
     };
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase().auth.getSession().then(({ data: { session } }) => {
       // Seed toolSettingsService cache BEFORE opening AuthGate (setIsLoading(false)).
       // This guarantees getUserWithTimeout() returns from cache (no navigator.locks)
       // for all components that mount after the gate opens.
@@ -107,14 +108,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     // Use centralized auth manager instead of direct listener
-    const authManager = window.__AUTH_MANAGER__;
+    const authManager = getAuthStateManager();
     let unsubscribe: (() => void) | null = null;
 
     if (authManager) {
       unsubscribe = authManager.subscribe('AuthContext', handleAuthStateChange);
     } else {
       // Fallback to direct listener if auth manager not available
-      const { data: listener } = supabase.auth.onAuthStateChange(handleAuthStateChange);
+      const { data: listener } = supabase().auth.onAuthStateChange(handleAuthStateChange);
       unsubscribe = () => listener.subscription.unsubscribe();
     }
 

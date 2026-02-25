@@ -24,9 +24,9 @@ import {
   useEffect
 } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import type { GenerationRow } from '@/types/shots';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import type { GenerationRow } from '@/domains/generation/types';
 import { quantizePositions, TRAILING_ENDPOINT_KEY } from '../utils/timeline-utils';
 import { useInvalidateGenerations } from '@/shared/hooks/invalidation/useGenerationInvalidation';
 import {
@@ -517,7 +517,7 @@ export function useTimelinePositions({
       
     } catch (error) {
       const isTimeout = isTimelineWriteTimeoutError(error);
-      handleError(error, { context: 'TimelinePositions', showToast: false, logData: { operationId } });
+      normalizeAndPresentError(error, { context: 'TimelinePositions', showToast: false, logData: { operationId } });
 
       // Rollback optimistic update
       if (rollback) {

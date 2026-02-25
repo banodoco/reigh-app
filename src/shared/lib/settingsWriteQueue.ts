@@ -12,7 +12,7 @@
  * @see settings_system.md for the full settings architecture
  */
 
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 export interface QueuedWrite {
   scope: 'user' | 'project' | 'shot';
@@ -92,7 +92,7 @@ async function processQueue() {
       resolve(result);
     }
   } catch (error) {
-    handleError(error, { context: 'SettingsWriteQueue', showToast: false });
+    normalizeAndPresentError(error, { context: 'SettingsWriteQueue', showToast: false });
 
     // Reject all waiters
     for (const { reject } of pending.resolvers) {

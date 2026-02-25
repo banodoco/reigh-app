@@ -1,0 +1,104 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 68.0,
+    "high_level_elegance": 72.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/handleError.ts` imports UI toast (`@/shared/components/ui/toast`) and triggers toast side effects inside a widely shared error helper.",
+        "`src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts` and `src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts` both depend on that shared helper, so non-UI domain hooks inherit UI coupling through the error boundary.",
+        "`src/types/shots.ts` is a deprecated re-export shim, but active code (`src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts`) still imports through the legacy path, preserving migration-era indirection in a cross-module type boundary."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/components/ui/button.tsx` centralizes many feature/theme-specific variants (retro/theme/success) in a global primitive, mixing system-level UI ownership with page/tool-specific visual policy.",
+        "`src/pages/Home/components/InstallInstructionsModal.tsx` is a 441-line component containing many embedded mockup subcomponents plus scenario routing logic (`getMainVisual`), concentrating multiple responsibilities in one module.",
+        "Touch interaction behavior is split across unrelated layers (`src/shared/components/ui/tooltip.tsx`, `src/shared/components/MediaGallery/hooks/useMobileInteractions.ts`, and `src/pages/Home/components/CreativePartnerPane.tsx`), making ownership of mobile interaction rules hard to reason about."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "shared_error_boundary_leaks_ui",
+      "summary": "Core error helper directly depends on UI toast, creating cross-layer coupling.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+      ],
+      "evidence": [
+        "`handleError` imports `toast` and conditionally renders destructive toasts inside the core handler.",
+        "Feature hooks call `handleError` for operational failures, so their error path implicitly includes presentation behavior from shared UI."
+      ],
+      "suggestion": "Split error handling into a UI-agnostic core (`normalize/log/return`) and an optional UI adapter (`handleErrorWithToast`), then migrate non-UI hooks to the core API and call toast behavior only at explicit UI boundaries.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "deprecated_type_shim_still_active",
+      "summary": "Deprecated `types/shots` shim is still on active import paths.",
+      "related_files": [
+        "src/types/shots.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts"
+      ],
+      "evidence": [
+        "`src/types/shots.ts` is marked deprecated and only re-exports `@/types/generationAndShots`.",
+        "`useMediaGalleryHandlers` still imports `Shot` from `@/types/shots`, keeping the legacy boundary alive."
+      ],
+      "suggestion": "Replace remaining imports of `@/types/shots` with `@/types/generationAndShots`, then remove the shim once callers are migrated.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "global_button_owns_feature_variants",
+      "summary": "Shared Button primitive mixes design-system and feature-specific style policy.",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+        "src/shared/components/MediaTypeFilter.tsx"
+      ],
+      "evidence": [
+        "`button.tsx` includes broad variant sets (`retro*`, `theme*`, `success`) with page/tool-specific styling comments.",
+        "Feature components consume the same global primitive, so feature visual policy changes can force edits in the central shared module."
+      ],
+      "suggestion": "Keep `Button` to baseline variants only, and move feature- or page-specific presets into thin local wrappers (e.g., `HomeButton`, `MediaActionButton`) near their owning domains.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "touch_behavior_ownership_fragmented",
+      "summary": "Mobile/touch interaction policy is implemented in multiple unrelated modules.",
+      "related_files": [
+        "src/shared/components/ui/tooltip.tsx",
+        "src/shared/components/MediaGallery/hooks/useMobileInteractions.ts",
+        "src/pages/Home/components/CreativePartnerPane.tsx"
+      ],
+      "evidence": [
+        "`tooltip.tsx` defines touch-specific open/close behavior with pointer listeners.",
+        "`useMobileInteractions.ts` separately defines tap/double-tap and outside-close behavior for gallery interactions.",
+        "`CreativePartnerPane.tsx` adds custom mobile tooltip toggling/disable rules again at feature level."
+      ],
+      "suggestion": "Define a shared touch-interaction contract (state machine or small hook set) and have tooltip/gallery/home components compose that contract instead of each implementing bespoke tap/open/close semantics.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

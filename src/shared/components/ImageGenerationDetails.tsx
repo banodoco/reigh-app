@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
+import { writeClipboardTextSafe } from '@/shared/lib/clipboard';
 import type { DisplayableMetadata } from './MediaGallery/types';
-import { getDisplayNameFromUrl } from '@/shared/lib/loraUtils';
+import { useImageGenerationDetailsViewModel } from './useImageGenerationDetailsViewModel';
 
 // Helper function to map model names to display names
 const getModelDisplayName = (modelName: string | undefined): string => {
@@ -42,102 +43,35 @@ export const ImageGenerationDetails: React.FC<ImageGenerationDetailsProps> = ({
   showCopyButtons = false,
 }) => {
   const [copiedPrompt, setCopiedPrompt] = useState(false);
-  const formatLoraStrengthPercent = (value: unknown): string => {
-    const numeric = typeof value === 'number' ? value : Number(value);
-    if (!Number.isFinite(numeric)) return '100%';
-    return `${(numeric * 100).toFixed(0)}%`;
-  };
 
   const handleCopyPrompt = async (text: string) => {
-    await navigator.clipboard.writeText(text);
+    const copied = await writeClipboardTextSafe(text);
+    if (!copied) return;
     setCopiedPrompt(true);
     setTimeout(() => setCopiedPrompt(false), 2000);
   };
-  // Size configuration based on variant
-  const config = {
-    hover: {
-      textSize: 'text-xs',
-      fontWeight: 'font-light',
-      iconSize: 'h-2.5 w-2.5',
-      labelCase: 'uppercase tracking-wide',
-      gridCols: 'grid-cols-1',
-      promptLength: 100,
-      negativePromptLength: 80,
-      loraNameLength: 25,
-      maxLoras: 2,
-    },
-    modal: {
-      textSize: 'text-sm',
-      fontWeight: 'font-light',
-      iconSize: 'h-3 w-3',
-      labelCase: 'uppercase tracking-wide',
-      gridCols: 'grid-cols-2',
-      promptLength: 150,
-      negativePromptLength: 150,
-      loraNameLength: 30,
-      maxLoras: 10,
-    },
-    panel: {
-      textSize: 'text-sm',
-      fontWeight: 'font-light',
-      iconSize: 'h-3 w-3',
-      labelCase: 'uppercase tracking-wide',
-      gridCols: 'grid-cols-2',
-      promptLength: isMobile ? 100 : 150,
-      negativePromptLength: isMobile ? 100 : 150,
-      loraNameLength: 40,
-      maxLoras: 10,
-    },
-  }[variant];
-
-  // Extract data from metadata
-  const prompt = metadata.prompt ||
-                 metadata.originalParams?.orchestrator_details?.prompt;
-
-  const negativePrompt = metadata.originalParams?.orchestrator_details?.negative_prompt ||
-                        metadata.negative_prompt;
-
-  const model = metadata.model || metadata.originalParams?.model || metadata.originalParams?.orchestrator_details?.model;
-  const resolution = metadata.originalParams?.orchestrator_details?.resolution || metadata.resolution;
-  const dimensions = metadata.width && metadata.height ? `${metadata.width}×${metadata.height}` : resolution;
-
-  // Additional generation settings
-  const steps = metadata.steps || metadata.originalParams?.steps;
-  const hiresScale = metadata.hires_scale || metadata.originalParams?.hires_scale;
-  const hiresSteps = metadata.hires_steps || metadata.originalParams?.hires_steps;
-  const hiresDenoise = metadata.hires_denoise || metadata.originalParams?.hires_denoise;
-  const lightningPhase1 = metadata.lightning_lora_strength_phase_1 || metadata.originalParams?.lightning_lora_strength_phase_1;
-  const lightningPhase2 = metadata.lightning_lora_strength_phase_2 || metadata.originalParams?.lightning_lora_strength_phase_2;
-
-  // Get LoRAs from multiple possible locations
-  const additionalLoras = metadata.originalParams?.orchestrator_details?.additional_loras;
-  const activeLoras = metadata.activeLoras;
-
-  // Determine which LoRAs to display - use getDisplayNameFromUrl for consistent naming
-  const lorasToDisplay = activeLoras && activeLoras.length > 0
-    ? activeLoras.map(lora => ({
-        name: getDisplayNameFromUrl(lora.path, undefined, lora.name || lora.id) || 'Unknown',
-        strength: `${lora.strength}%`
-      }))
-    : additionalLoras && Object.keys(additionalLoras).length > 0
-    ? Object.entries(additionalLoras).map(([url, strength]) => ({
-        name: getDisplayNameFromUrl(url) || 'Unknown',
-        strength: formatLoraStrengthPercent(strength)
-      }))
-    : [];
-
-  // Additional settings
-  const hasAdditionalSettings = metadata.depthStrength !== undefined || 
-                               metadata.softEdgeStrength !== undefined || 
-                               metadata.userProvidedImageUrl;
-
-  // Check if this is a qwen_image_edit task with source image
-  // Check both top-level (for MediaGalleryItem) and originalParams (for TasksPane)
-  const isQwenImageEdit = metadata.tool_type === 'qwen_image_edit' ||
-                          metadata.qwen_endpoint === 'qwen-image-edit' ||
-                          metadata.originalParams?.qwen_endpoint === 'qwen-image-edit';
-  const qwenSourceImage = metadata.image ||
-                          metadata.originalParams?.image;
+  const {
+    config,
+    prompt,
+    negativePrompt,
+    model,
+    steps,
+    hiresScale,
+    hiresSteps,
+    hiresDenoise,
+    lightningPhase1,
+    lightningPhase2,
+    lorasToDisplay,
+    hasAdditionalSettings,
+    isQwenImageEdit,
+    qwenSourceImage,
+    styleReference,
+    userProvidedImageFilename,
+  } = useImageGenerationDetailsViewModel({
+    metadata,
+    variant,
+    isMobile,
+  });
 
   return (
     <div className={`space-y-3 p-3 bg-muted/30 rounded-lg border ${variant === 'panel' ? '' : 'w-[360px]'}`}>
@@ -176,91 +110,42 @@ export const ImageGenerationDetails: React.FC<ImageGenerationDetailsProps> = ({
       )}
 
       {/* Style Reference Image Section */}
-      {(() => {
-        // Check multiple possible locations for style reference data
-        // metadata.originalParams is the task params (when passed from TaskItem)
-        // metadata itself might have the params directly (from MediaGallery generations.params)
-        const styleImage = metadata.style_reference_image ||
-                          metadata.originalParams?.style_reference_image;
-        const styleStrength = metadata.style_reference_strength ??
-                             metadata.originalParams?.style_reference_strength;
-        const subjectStrength = metadata.subject_strength ??
-                               metadata.originalParams?.subject_strength;
-        const sceneStrength = metadata.scene_reference_strength ??
-                             metadata.originalParams?.scene_reference_strength;
-
-        const hasStyleReference = styleImage && styleImage !== '';
-
-        if (!hasStyleReference) return null;
-
-        // Calculate aspect ratio from dimensions - check multiple sources
-        let aspectRatio = 1; // Default to square
-
-        // Try to get resolution from metadata.resolution field first (for image generation tasks)
-        const metadataResolution = metadata.resolution ||
-                                   metadata.originalParams?.resolution;
-        
-        if (metadata.width && metadata.height) {
-          aspectRatio = metadata.width / metadata.height;
-        } else if (metadataResolution) {
-          // Parse resolution like "1152x864"
-          const match = metadataResolution.match(/(\d+)[×x](\d+)/);
-          if (match) {
-            const [, width, height] = match;
-            aspectRatio = parseInt(width) / parseInt(height);
-          }
-        } else if (dimensions) {
-          // Parse dimensions like "1152×864" or "1152x864"
-          const match = dimensions.match(/(\d+)[×x](\d+)/);
-          if (match) {
-            const [, width, height] = match;
-            aspectRatio = parseInt(width) / parseInt(height);
-          }
-        } else if (resolution) {
-          // Parse resolution like "1152x864"
-          const match = resolution.match(/(\d+)[×x](\d+)/);
-          if (match) {
-            const [, width, height] = match;
-            aspectRatio = parseInt(width) / parseInt(height);
-          }
-        }
-        const imageWidth = 120;
-        const imageHeight = imageWidth / aspectRatio;
-        
-        return (
-          <div className="space-y-2">
-            <p className={`${config.textSize} font-medium text-muted-foreground`}>
-              Reference
-            </p>
-            <div className="flex items-center gap-3">
-              <div className="relative group flex-shrink-0" style={{ width: `${imageWidth}px`, height: `${imageHeight}px` }}>
-                <img 
-                  src={styleImage} 
-                  alt="Style reference" 
-                  className="w-full h-full object-cover rounded border shadow-sm transition-transform group-hover:scale-105"
-                />
-              </div>
-              <div className="flex flex-col gap-1 text-left">
-                {styleStrength !== undefined && styleStrength !== null && (
-                  <div className={`${config.textSize} ${config.fontWeight} text-foreground`}>
-                    Style: {Math.round(styleStrength * 100)}%
-                  </div>
-                )}
-                {subjectStrength !== undefined && subjectStrength !== null && (
-                  <div className={`${config.textSize} ${config.fontWeight} text-foreground`}>
-                    Subject: {Math.round(subjectStrength * 100)}%
-                  </div>
-                )}
-                {sceneStrength !== undefined && sceneStrength !== null && (
-                  <div className={`${config.textSize} ${config.fontWeight} text-foreground`}>
-                    Scene: {Math.round(sceneStrength * 100)}%
-                  </div>
-                )}
-              </div>
+      {styleReference && (
+        <div className="space-y-2">
+          <p className={`${config.textSize} font-medium text-muted-foreground`}>
+            Reference
+          </p>
+          <div className="flex items-center gap-3">
+            <div
+              className="relative group flex-shrink-0"
+              style={{ width: `${styleReference.imageWidth}px`, height: `${styleReference.imageHeight}px` }}
+            >
+              <img
+                src={styleReference.image}
+                alt="Style reference"
+                className="w-full h-full object-cover rounded border shadow-sm transition-transform group-hover:scale-105"
+              />
+            </div>
+            <div className="flex flex-col gap-1 text-left">
+              {styleReference.styleStrength !== undefined && (
+                <div className={`${config.textSize} ${config.fontWeight} text-foreground`}>
+                  Style: {Math.round(styleReference.styleStrength * 100)}%
+                </div>
+              )}
+              {styleReference.subjectStrength !== undefined && (
+                <div className={`${config.textSize} ${config.fontWeight} text-foreground`}>
+                  Subject: {Math.round(styleReference.subjectStrength * 100)}%
+                </div>
+              )}
+              {styleReference.sceneStrength !== undefined && (
+                <div className={`${config.textSize} ${config.fontWeight} text-foreground`}>
+                  Scene: {Math.round(styleReference.sceneStrength * 100)}%
+                </div>
+              )}
             </div>
           </div>
-        );
-      })()}
+        </div>
+      )}
       
       {/* Prompts and Generation Settings */}
       <div className="grid gap-3 grid-cols-1">
@@ -367,14 +252,11 @@ export const ImageGenerationDetails: React.FC<ImageGenerationDetailsProps> = ({
                   </p>
                 </div>
               )}
-              {metadata.userProvidedImageUrl && (
+              {userProvidedImageFilename && (
                 <div className="space-y-1">
                   <p className={`${config.textSize} ${config.fontWeight} text-muted-foreground ${config.labelCase}`}>Reference Image</p>
                   <p className={`${config.textSize} ${config.fontWeight} text-foreground`}>
-                    {(() => {
-                      const urlParts = metadata.userProvidedImageUrl.split('/');
-                      return urlParts[urlParts.length - 1] || 'Image provided';
-                    })()}
+                    {userProvidedImageFilename}
                   </p>
                 </div>
               )}

@@ -1,0 +1,90 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 2,
+  "assessments": {
+    "api_surface_coherence": 84.0
+  },
+  "dimension_notes": {
+    "api_surface_coherence": {
+      "evidence": [
+        "`supabase/functions/_shared/edgeOperation.ts` exposes overlapping constructors (`operationSuccess/operationFailure` and `edgeSuccess/edgeFailure`) with different parameter shapes (options-object vs positional).",
+        "`src/shared/lib/tasks/joinClipsCompatAdapter.ts` and `src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts` both keep dual legacy+canonical input paths in single public entry points and rely on runtime branching.",
+        "`src/shared/lib/tasks/travelBetweenImages/types.ts` includes `ModelConfig.generation_type_mode`, but `generateVideoService.ts` hardcodes `model_type: 'i2v'` and never consumes that field."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "edge_operation_constructor_sprawl",
+      "summary": "Edge operation helpers expose duplicate APIs with conflicting call signatures",
+      "related_files": [
+        "supabase/functions/_shared/edgeOperation.ts",
+        "supabase/functions/_shared/edgeRequest.ts",
+        "supabase/functions/_shared/billing.ts",
+        "supabase/functions/_shared/rateLimit.ts"
+      ],
+      "evidence": [
+        "`edgeOperation.ts` defines both `operationSuccess(value, options?)` and `edgeSuccess(value, policy)` plus `operationFailure(error, options?)` and `edgeFailure(policy, errorCode, message, options?)`.",
+        "Consumers mix patterns: `edgeRequest.ts` and `billing.ts` use options-based helpers, while `rateLimit.ts` also constructs an inline `{ ok: true, ... }` result object directly."
+      ],
+      "suggestion": "Standardize on one constructor style (prefer options-object forms), deprecate aliases (`edgeSuccess/edgeFailure`), and require all modules to return results through the same helpers to keep result contracts predictable.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "result_contract_fragmentation"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "legacy_and_canonical_input_overload",
+      "summary": "Single APIs accept both legacy and canonical payloads, creating overloaded boundaries",
+      "related_files": [
+        "src/shared/lib/tasks/joinClipsCompatAdapter.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/shared/lib/governance/deprecationPolicy.ts"
+      ],
+      "evidence": [
+        "`JoinClipsTaskCompatParams` mixes canonical (`clip_source`, `video_edit`) and many legacy fields (`starting_video_path`, `video_edit_mode`, `source_video_*`) with runtime exclusivity checks.",
+        "`generateVideoService.ts` keeps `buildTravelRequestBody` union branching for V2 vs legacy params (`TravelRequestBodyV2Params | TravelRequestBodyLegacyParams`) and backfills defaults in `buildTravelRequestBodyInputFromLegacy`."
+      ],
+      "suggestion": "Move legacy parsing into isolated adapter functions at ingestion boundaries, and keep internal/public task builders strictly canonical-typed. Add explicit removal gates tied to deprecation policy dates so the dual-shape APIs can be deleted on schedule.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "migration_boundary_leakage"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "model_config_field_not_honored",
+      "summary": "Travel model config exposes `generation_type_mode` that request construction ignores",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/types.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts"
+      ],
+      "evidence": [
+        "`ModelConfig` defines `generation_type_mode: 'i2v' | 'vace'` in `travelBetweenImages/types.ts`.",
+        "`buildTravelRequestBodyV2` in `generateVideoService.ts` always sets `model_type: 'i2v'` and no path uses `modelConfig.generation_type_mode`."
+      ],
+      "suggestion": "Either wire `generation_type_mode` through to `model_type` during request construction, or remove/deprecate that field from `ModelConfig` to keep the exposed config surface truthful.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "interface_drift"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Long-running migrations kept legacy and canonical contracts in the same callable surfaces instead of isolated adapters.",
+      "No single enforced convention for async result contracts across edge/shared services."
+    ],
+    "likely_symptoms": [
+      "edge_operation_constructor_sprawl",
+      "legacy_and_canonical_input_overload",
+      "model_config_field_not_honored"
+    ],
+    "possible_false_positives": []
+  }
+}

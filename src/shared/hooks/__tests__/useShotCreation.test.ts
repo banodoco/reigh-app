@@ -50,13 +50,13 @@ vi.mock('@/shared/lib/shotSettingsInheritance', () => ({
   inheritSettingsForNewShot: vi.fn(),
 }));
 
-vi.mock('@/shared/components/ui/sonner', () => ({
+vi.mock('@/shared/components/ui/runtime/sonner', () => ({
   toast: {
     error: vi.fn(),
   },
 }));
 
-vi.mock('@/shared/lib/errorHandler', () => ({
+vi.mock('@/shared/lib/compat/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 

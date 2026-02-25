@@ -1,0 +1,272 @@
+{
+  "batch": "Full Codebase Sweep",
+  "batch_index": 9,
+  "assessments": {
+    "cross_module_architecture": 88.0,
+    "convention_outlier": 96.0,
+    "error_consistency": 87.0,
+    "abstraction_fitness": 86.0,
+    "api_surface_coherence": 95.0,
+    "authorization_consistency": 95.0,
+    "ai_generated_debt": 95.0,
+    "incomplete_migration": 84.0,
+    "package_organization": 95.0,
+    "high_level_elegance": 95.0,
+    "mid_level_elegance": 95.0,
+    "low_level_elegance": 95.0,
+    "design_coherence": 88.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "Supabase access is reachable through multiple boundary paths: canonical runtime accessor with lazy fallback in `src/integrations/supabase/client.ts:20-47`, deprecated compatibility re-export in `src/integrations/supabase/runtime/clientAccess.ts:1-7`, and reflective legacy facade in `src/integrations/supabase/legacy/legacySupabaseFacade.ts:62-86`.",
+        "Packet structure data shows `src/integrations/supabase/` as a high fan-in hub (avg_fan_in 18.0) imported broadly by app/hooks/features/pages, so boundary drift here has subsystem blast radius."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Runtime client ownership is not singular yet; transitional entry points still bypass intended initialization boundary."
+    },
+    "convention_outlier": {
+      "evidence": [
+        "Most files in scope follow consistent TS/React naming and hook conventions (`useX`, PascalCase components, feature-folder grouping).",
+        "Minor style islands exist (mixed quote style and spacing around imports in `src/app/routes.tsx`), but they are cosmetic and localized."
+      ],
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "issues_preventing_higher_score": "A few formatting/style inconsistencies remain in high-visibility files, but no systemic convention drift."
+    },
+    "error_consistency": {
+      "evidence": [
+        "Feature hooks mix incompatible failure contracts: `useApiTokens` wraps and rethrows (`src/features/account/hooks/useApiTokens.ts:41-46`), `useCredits` manually creates new Errors (`src/features/billing/hooks/useCredits.ts:62-99`), while `useAIInteractionService` sometimes swallows and returns fallback values (`null`/`[]`) unless `throwOnError` is set (`src/features/ai/hooks/useAIInteractionService.ts:48-57`, `103-112`, `138-147`).",
+        "This produces unpredictable caller behavior across adjacent modules that all represent service-layer hooks."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Error propagation semantics are not standardized across hooks with similar API responsibilities."
+    },
+    "abstraction_fitness": {
+      "evidence": [
+        "`useGalleryPageState` is a 300+ line orchestration hook mixing filter state, query fallback behavior, mutation orchestration, toasts, and event dispatch (`src/features/gallery/hooks/useGalleryPageState.ts:57-323`).",
+        "A legacy naming compatibility alias is retained (`useGalleryPageState = useGenerationsPageLogic` at `src/features/gallery/hooks/useGalleryPageState.ts:323`), adding surface-area ceremony without functional separation."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Abstraction boundaries are present but overloaded; one hook still carries multiple responsibilities and compatibility naming debt.",
+      "sub_axes": {
+        "abstraction_leverage": 84.0,
+        "indirection_cost": 87.0,
+        "interface_honesty": 86.0
+      }
+    },
+    "api_surface_coherence": {
+      "evidence": [
+        "Within the Supabase auth utility layer, helper APIs are coherent (`requireSession`, `requireUserFromSession`) and used consistently across account/settings/billing hooks.",
+        "Route and app bootstrap APIs expose clear entry points (`initializeAppEnvironment`, `renderApp`, `AppRoutes`) with stable signatures."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Some feature hooks still expose mixed fallback-return patterns that can blur consumer expectations."
+    },
+    "authorization_consistency": {
+      "evidence": [
+        "Sensitive user-scoped hooks consistently derive identity from session (`requireUserFromSession` / `requireSession`) before accessing token/key/credits data (`useApiTokens`, `useApiKeys`, `useCredits`).",
+        "Layout gate enforces authenticated access for protected routes (`src/app/Layout.tsx:73-81`)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Authorization behavior is mostly consistent in this batch, but client-side role intent is not uniformly explicit for elevated operations."
+    },
+    "ai_generated_debt": {
+      "evidence": [
+        "Most files avoid obvious LLM boilerplate smells; comments are generally purpose-oriented and tied to migration/runtime constraints.",
+        "Some files carry verbose explanatory blocks and compatibility scaffolding, but they are mostly justified by migration state and runtime quirks."
+      ],
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "A few modules contain high comment-to-logic ratios and defensive scaffolding that should be reduced once migrations complete."
+    },
+    "incomplete_migration": {
+      "evidence": [
+        "Legacy Supabase facade remains active with phased import budgets through `2026-06-30` (`src/integrations/supabase/legacy/legacySupabaseFacade.ts:7-14`, `50-60`), and still tries compatibility access paths (`75-84`).",
+        "Deprecated compatibility re-export remains in `src/integrations/supabase/runtime/clientAccess.ts:1-7`.",
+        "Canonical client still supports lazy fallback initialization for legacy call sites (`src/integrations/supabase/client.ts:20-47`), showing old and new runtime-init patterns coexist."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "package_organization": {
+      "evidence": [
+        "Structure metrics show focused directory sizing in this batch (`config/vite/` file_count 2, `config/testing/` file_count 4, `src/integrations/supabase/auth/` file_count 3), avoiding flat overload thresholds.",
+        "`src/integrations/supabase/` is intentionally central (avg_fan_in 18.0), while adjacent subfolders (auth/bootstrap/runtime/instrumentation/legacy) preserve discoverability for distinct concerns."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Runtime + legacy + instrumentation concerns are still tightly adjacent in Supabase integration tree, reflecting migration overlap rather than fully clean ownership boundaries."
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Top-level decomposition is mostly coherent: app shell (`src/app`), integration runtime (`src/integrations/supabase`), feature hooks (`src/features/*`), and page-specific composition (`src/pages/*`).",
+        "Public entry surfaces are reasonably clear in app bootstrap and routing."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Ongoing migration paths in Supabase runtime blur final subsystem ownership."
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Boundary mappers exist for generation payload translation (`src/domains/generation/mappers/generationParamsMapper.ts`), keeping storage/domain shape handoff explicit.",
+        "Preload seam is separated into hook + coordinator (`src/features/gallery/hooks/useAdjacentPagePreloader.ts`, `src/features/gallery/lib/adjacentPagePreloadCoordinator.ts`)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Some orchestration seams remain heavy and combine UI concerns with transport concerns."
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Most functions in scope are direct and readable, with guards and early returns used effectively (e.g., auth/session helper utilities, preload coordinator parsing helpers).",
+        "No severe control-flow tangles were found in the reviewed files."
+      ],
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "A few long hooks still include avoidable branching and repeated inline payload construction."
+    },
+    "design_coherence": {
+      "evidence": [
+        "Runtime instrumentation mutates global behaviors (`console.warn`, `window.onerror`, `window.onunhandledrejection`, and `window.WebSocket`) in `src/integrations/supabase/instrumentation/realtime/index.ts:111-137` and `src/integrations/supabase/instrumentation/window/index.ts:39-144`.",
+        "No central uninstall/restore lifecycle is provided in those modules, so design relies on process-lifetime patching and flag guards."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Global monkey-patching without explicit teardown contracts weakens design composability and test/runtime isolation."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "supabase_runtime_multi_entry_boundary",
+      "summary": "Supabase runtime access still spans canonical, compatibility, and legacy entry paths, weakening boundary integrity.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "src/integrations/supabase/runtime/clientAccess.ts"
+      ],
+      "evidence": [
+        "`getSupabaseClient()` catches uninitialized runtime and falls back to lazy initialization (`src/integrations/supabase/client.ts:20-47`).",
+        "Legacy facade uses reflective access + compatibility fallback (`src/integrations/supabase/legacy/legacySupabaseFacade.ts:62-84`).",
+        "Deprecated runtime compatibility re-export remains (`src/integrations/supabase/runtime/clientAccess.ts:1-7`)."
+      ],
+      "suggestion": "Converge on a single runtime accessor contract: (1) freeze new imports to canonical client path, (2) replace facade callers with codemod + import lint rule, (3) remove `runtime/clientAccess.ts` re-export, (4) turn lazy fallback into hard fail after migration window, validated with `rg \"legacySupabaseFacade|runtime/clientAccess\" src` and full test run.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "supabase_runtime_dual_path_migration"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_supabase_contract_still_operational",
+      "summary": "Legacy Supabase migration is still operationally active instead of isolated to a shrinking compatibility edge.",
+      "related_files": [
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "src/integrations/supabase/client.ts",
+        "src/integrations/supabase/runtime/clientAccess.ts"
+      ],
+      "evidence": [
+        "Facade includes phased import budgets and active removal target metadata (`src/integrations/supabase/legacy/legacySupabaseFacade.ts:7-14`, `50-60`).",
+        "Canonical client still preserves fallback init behavior specifically for legacy callers (`src/integrations/supabase/client.ts:20-47`).",
+        "Deprecated compatibility re-export remains present (`src/integrations/supabase/runtime/clientAccess.ts:1-7`)."
+      ],
+      "suggestion": "Execute migration in dated stages: Stage 1 (now) block new legacy imports and inventory current users; Stage 2 move remaining callers to `getSupabaseClient()` plus explicit bootstrap ordering; Stage 3 remove facade compatibility branch and deprecated re-export; Stage 4 enforce via CI check (`rg \"legacySupabaseFacade|runtime/clientAccess\" src` must be empty) and run `pnpm test`/`pnpm vitest`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "supabase_runtime_dual_path_migration"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "feature_hook_error_contract_drift",
+      "summary": "Adjacent service hooks expose mixed error contracts (throw, wrapped throw, and fallback returns), making failure handling unpredictable.",
+      "related_files": [
+        "src/features/account/hooks/useApiTokens.ts",
+        "src/features/billing/hooks/useCredits.ts",
+        "src/features/ai/hooks/useAIInteractionService.ts",
+        "src/features/settings/hooks/useApiKeys.ts"
+      ],
+      "evidence": [
+        "`useApiTokens` catches and `handleAndRethrow`s on fetch/mutations (`src/features/account/hooks/useApiTokens.ts:41-46`, `59-64`, `77-82`).",
+        "`useCredits` throws new generic errors from data fetchers (`src/features/billing/hooks/useCredits.ts:62-99`) and separately catches/rethrows in mutation paths (`160-165`, `211-216`).",
+        "`useAIInteractionService` often catches and returns fallback values (`null`, `[]`, `{success:false}`) unless optional throw mode is enabled (`src/features/ai/hooks/useAIInteractionService.ts:48-57`, `103-112`, `138-147`)."
+      ],
+      "suggestion": "Standardize hook-level failure contract with one pattern (recommended: typed `Result` for user-interaction hooks, throw for low-level fetchers), then refactor in order: `useAIInteractionService` -> `useCredits` -> `useApiTokens`/`useApiKeys`; add contract tests asserting error behavior per public method.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "service_hook_contract_inconsistency"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "gallery_state_orchestrator_overloaded",
+      "summary": "Gallery page state abstraction is overloaded with multiple concerns and compatibility aliasing, reducing clarity and leverage.",
+      "related_files": [
+        "src/features/gallery/hooks/useGalleryPageState.ts",
+        "src/features/gallery/hooks/useAdjacentPagePreloader.ts",
+        "src/features/gallery/lib/adjacentPagePreloadCoordinator.ts"
+      ],
+      "evidence": [
+        "`useGalleryPageState` combines filter state, pagination resets, query fallback, multiple mutations, event dispatch, and toast UX in one unit (`src/features/gallery/hooks/useGalleryPageState.ts:57-311`).",
+        "Legacy naming bridge (`useGalleryPageState = useGenerationsPageLogic`) keeps duplicate conceptual API surface (`src/features/gallery/hooks/useGalleryPageState.ts:323`)."
+      ],
+      "suggestion": "Split into focused hooks in staged order: (1) `useGalleryFiltersAndPaging`, (2) `useGalleryMutations`, (3) `useGalleryFallbackBehavior`; then keep one exported façade and remove legacy alias after caller migration; validate with hook tests and `rg \"useGenerationsPageLogic\" src` cleanup.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "gallery_orchestration_bloat"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "global_runtime_patching_without_teardown",
+      "summary": "Realtime instrumentation relies on global monkey-patching without explicit teardown contracts, reducing runtime/test composability.",
+      "related_files": [
+        "src/integrations/supabase/instrumentation/realtime/index.ts",
+        "src/integrations/supabase/instrumentation/window/index.ts",
+        "src/integrations/supabase/debug/initializeSupabaseDebugGlobals.ts",
+        "src/integrations/supabase/reconnect/ReconnectScheduler.ts"
+      ],
+      "evidence": [
+        "`console.warn` is patched in-place in realtime instrumentation (`src/integrations/supabase/instrumentation/realtime/index.ts:111-137`).",
+        "`window.onerror`, `window.onunhandledrejection`, and `window.WebSocket` are overwritten in window instrumentation (`src/integrations/supabase/instrumentation/window/index.ts:39-144`).",
+        "Initializer installs instrumentation but exposes no uninstall lifecycle (`src/integrations/supabase/debug/initializeSupabaseDebugGlobals.ts:21-29`)."
+      ],
+      "suggestion": "Introduce install/uninstall handles for each instrumentation module and register them in a runtime lifecycle manager; stage rollout: (1) return disposer closures from install functions, (2) wire teardown in dev hot-reload/test setup, (3) add idempotence tests ensuring original globals are restored.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "runtime_side_effect_surface"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Long-running Supabase runtime migration preserved multiple compatibility seams beyond a narrow edge adapter.",
+      "Feature hooks evolved independently without a shared error-contract standard.",
+      "Operational debugging fixes accumulated as global patches rather than lifecycle-managed instrumentation."
+    ],
+    "likely_symptoms": [
+      "supabase_runtime_multi_entry_boundary",
+      "legacy_supabase_contract_still_operational",
+      "feature_hook_error_contract_drift"
+    ],
+    "possible_false_positives": []
+  }
+}

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
-import { Shot, GenerationRow } from '@/types/shots';
+import { Shot, GenerationRow } from '@/domains/generation/types';
 import {
   updateAllShotsCaches,
   rollbackShotsCaches,

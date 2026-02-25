@@ -1,0 +1,55 @@
+{
+  "batch": "Conventions & Errors",
+  "batch_index": 2,
+  "assessments": {
+    "mid_level_elegance": 78.0
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "src/domains/generation/types/index.ts co-exports both canonical/domain contracts and transport/legacy contracts together (e.g., GenerationRow with GenerationRowDto and GenerationRowLegacyAliases), which weakens seam clarity for callers.",
+        "src/domains/generation/types/generationParams.ts keeps two boundary shapes (PersistedGenerationParams and GenerationParams) but both include broad pass-through bags (orchestrator_details/orchestratorDetails and extra) typed as Record<string, unknown>, leaving integration handoffs under-specified.",
+        "src/domains/generation/mappers/index.ts exposes mapping entry points, but the broad opaque fields in shared contracts reduce the mapper boundary’s ability to make translations explicit and predictable."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "mixed_boundary_exports_in_types_barrel",
+      "summary": "Single types barrel mixes domain and transport contracts, obscuring integration seams.",
+      "related_files": [
+        "src/domains/generation/types/index.ts",
+        "src/domains/generation/types/generationParams.ts"
+      ],
+      "evidence": [
+        "index.ts exports both domain-facing types (GenerationRow, GenerationParams) and boundary/legacy transport types (GenerationRowDto, GenerationRowLegacyAliases, PersistedGenerationParams) from one entry point.",
+        "Callers can import transport and domain contracts from the same barrel without an explicit boundary decision, increasing chance of cross-layer leakage."
+      ],
+      "suggestion": "Split exports by seam intent (for example, domain vs persisted/transport entry points) and keep the default barrel domain-focused so handoffs remain explicit.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "opaque_param_bags_cross_boundary",
+      "summary": "Opaque param bags make mapper handoffs under-specified and harder to reason about.",
+      "related_files": [
+        "src/domains/generation/types/generationParams.ts",
+        "src/domains/generation/mappers/index.ts"
+      ],
+      "evidence": [
+        "PersistedGenerationParams and GenerationParams both define open-ended fields (orchestrator_details/orchestratorDetails and extra) as Record<string, unknown>.",
+        "Mapper entry points are present, but these unbounded structures can pass through unchanged, enabling ad-hoc boundary behavior outside a clearly typed translation contract."
+      ],
+      "suggestion": "Replace broad bags with focused typed sub-interfaces (or discriminated unions where variants exist) and make mapper translations explicit for each supported key group.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

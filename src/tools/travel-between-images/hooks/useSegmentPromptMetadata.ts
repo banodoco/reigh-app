@@ -9,12 +9,12 @@
 
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { toJson } from '@/shared/lib/supabaseTypeHelpers';
 import type { ShotGeneration } from '@/shared/hooks/useTimelineCore';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 import { readSegmentOverrides, writeSegmentOverrides } from '@/shared/lib/settingsMigration';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { queryKeys } from '@/shared/lib/queryKeys';
 
 // ============================================================================
@@ -84,7 +84,7 @@ export function useSegmentPromptMetadata({
     const shotGen = shotGenerations.find(sg => sg.id === shotGenerationId);
     if (!shotGen?.id) {
       const err = new Error(`Shot generation not found for shot_generation.id ${shotGenerationId}`);
-      handleError(err, { context: 'useSegmentPromptMetadata', showToast: false, logData: {
+      normalizeAndPresentError(err, { context: 'useSegmentPromptMetadata', showToast: false, logData: {
         lookingForShotGenId: shotGenerationId.substring(0, 8),
         availableShotGenIds: shotGenerations.map(sg => sg.id?.substring(0, 8)),
         availableGenerationIds: shotGenerations.map(sg => sg.generation_id?.substring(0, 8)),
@@ -104,14 +104,13 @@ export function useSegmentPromptMetadata({
     delete updatedMetadata.pair_prompt;
     delete updatedMetadata.pair_negative_prompt;
 
-    const { error } = await supabase
-      .from('shot_generations')
+    const { error } = await supabase().from('shot_generations')
       .update({ metadata: toJson(updatedMetadata) })
       .eq('id', shotGen.id)
       .select();
 
     if (error) {
-      handleError(error, { context: 'useSegmentPromptMetadata', showToast: false });
+      normalizeAndPresentError(error, { context: 'useSegmentPromptMetadata', showToast: false });
       throw error;
     }
 
@@ -140,7 +139,7 @@ export function useSegmentPromptMetadata({
     const shotGen = shotGenerations.find(sg => sg.id === shotGenerationId);
     if (!shotGen?.id) {
       const err = new Error(`Shot generation not found for shot_generation.id ${shotGenerationId}`);
-      handleError(err, { context: 'useSegmentPromptMetadata', showToast: false, logData: {
+      normalizeAndPresentError(err, { context: 'useSegmentPromptMetadata', showToast: false, logData: {
         lookingForShotGenId: shotGenerationId.substring(0, 8),
         availableShotGenIds: shotGenerations.map(sg => sg.id?.substring(0, 8)),
       }});
@@ -164,13 +163,12 @@ export function useSegmentPromptMetadata({
     );
 
     // Persist to database
-    const { error } = await supabase
-      .from('shot_generations')
+    const { error } = await supabase().from('shot_generations')
       .update({ metadata: toJson(restMetadata) })
       .eq('id', shotGen.id);
 
     if (error) {
-      handleError(error, { context: 'useSegmentPromptMetadata', showToast: false });
+      normalizeAndPresentError(error, { context: 'useSegmentPromptMetadata', showToast: false });
       // Revert by refetching
       queryClient.refetchQueries({ queryKey: queryKeys.generations.byShot(shotId) });
       throw error;

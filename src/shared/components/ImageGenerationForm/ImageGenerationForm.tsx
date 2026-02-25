@@ -8,7 +8,7 @@ import { ShotSelector } from "./components/ShotSelector";
 import { ModelSection } from "./components/ModelSection";
 import { GenerateControls } from "./components/GenerateControls";
 import { GenerationSettingsSection } from "./components/GenerationSettingsSection";
-import { ChunkLoadErrorBoundary } from "@/shared/components/ChunkLoadErrorBoundary";
+import { ChunkLoadErrorBoundary } from "@/shared/runtime/ChunkLoadErrorBoundary";
 import { ImageGenerationFormProvider } from "./ImageGenerationFormContext";
 import { useImageGenForm } from "./hooks/useImageGenForm";
 

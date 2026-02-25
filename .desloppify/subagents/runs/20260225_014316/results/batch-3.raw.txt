@@ -1,0 +1,135 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "api_surface_coherence": 81.0
+  },
+  "dimension_notes": {
+    "api_surface_coherence": {
+      "evidence": [
+        "Failure contracts vary by module: `safePlay` returns `Promise<boolean>` on error (`src/shared/lib/media/safePlay.ts:3-14`), `useTaskStatusCounts` returns partial data with `degraded/failedQueries` (`src/shared/hooks/useTaskStatusCounts.ts:36-43,147-154`), `generateVideo` returns `{ success, error? }` (`src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts:103-107,608-730`), and `fetchToolSettingsSupabase` primarily throws `ToolSettingsError` but also returns fallback defaults for some failures (`src/shared/lib/toolSettingsService.ts:291-372`).",
+        "`edgeRequest` exports two concurrent body-parse contracts: `OperationResult` (`parseJsonBodyStrict`) and legacy `{ body?, errorResponse? }` (`parseJsonBodyStrictResponse`), increasing handler-level branching (`supabase/functions/_shared/edgeRequest.ts:195-223`).",
+        "`generationTaskRepository` exposes both status-preserving mapping APIs and status-dropping ID-only APIs (`getPrimaryTaskMappingsForGenerations` vs `getPrimaryTaskIdsForGenerations`), while consumers like task cache logic depend on status for degraded behavior (`src/shared/lib/generationTaskRepository.ts:108-185`, `src/shared/lib/generationTaskCache.ts:50-64`).",
+        "Root-task filtering contract is duplicated in separate API surfaces instead of centralized: `useTaskStatusCounts` hardcodes JSON-path null checks (`src/shared/hooks/useTaskStatusCounts.ts:16-34`) while repository helpers delegate to shared orchestration filtering (`src/shared/lib/generationTaskRepository.ts:92-94`).",
+        "`generateVideoService` keeps an overloaded request-builder input that mixes V2 grouped params with backward-compat scalar fields (`TravelRequestBodyInput`), then normalizes defaults silently before casting to `TravelBetweenImagesTaskInput` (`src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts:432-487,723`, `src/shared/lib/tasks/travelBetweenImages/types.ts:344-352`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "mixed_recoverable_failure_contracts",
+      "summary": "Shared APIs encode recoverable failures with incompatible result shapes.",
+      "related_files": [
+        "src/shared/lib/media/safePlay.ts",
+        "src/shared/hooks/useTaskStatusCounts.ts",
+        "src/shared/lib/toolSettingsService.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts"
+      ],
+      "evidence": [
+        "`safePlay` returns `false` on failure (`safePlay.ts:11-14`) instead of typed error context.",
+        "`useTaskStatusCounts` returns partial success with `degraded` and `failedQueries` (`useTaskStatusCounts.ts:147-154`).",
+        "`fetchToolSettingsSupabase` throws `ToolSettingsError` for most failures but returns defaults in specific error-string paths (`toolSettingsService.ts:353-371`).",
+        "`generateVideo` reports failures via `{ success: false, error }` (`generateVideoService.ts:142-145,725-729`)."
+      ],
+      "suggestion": "Adopt one shared recoverable-failure contract (for example a discriminated `Result<T, E>` with `ok`, `code`, `recoverable`, `message`) and migrate these APIs to it; keep adapters only at UI boundaries.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "inconsistent_error_contracts"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "edge_request_dual_parse_interfaces",
+      "summary": "Edge request parsing exposes two parallel public interfaces for the same operation.",
+      "related_files": [
+        "supabase/functions/_shared/edgeRequest.ts",
+        "supabase/functions/_shared/rateLimit.ts"
+      ],
+      "evidence": [
+        "`parseJsonBodyStrict` returns `OperationResult<Record<string, unknown>>` (`edgeRequest.ts:195-205`).",
+        "`parseJsonBodyStrictResponse` returns legacy `{ body?, errorResponse? }` envelope (`edgeRequest.ts:211-223`).",
+        "The module already standardizes response envelopes via `edgeErrorResponse`, so mixed parse return shapes create unnecessary handler adaptation paths (`edgeRequest.ts:95-117`, `rateLimit.ts:190-200`)."
+      ],
+      "suggestion": "Deprecate and remove `parseJsonBodyStrictResponse`; standardize handlers on `OperationResult` and provide a single helper to convert failures into `Response` at call sites.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "parallel_legacy_and_modern_surfaces"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "generation_mapping_status_loss_api",
+      "summary": "Repository exposes ID-only helper that discards mapping status needed by consumers.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/lib/generationTaskCache.ts"
+      ],
+      "evidence": [
+        "`getPrimaryTaskMappingsForGenerations` returns status-rich `GenerationTaskMapping` (`generationTaskRepository.ts:108-171`).",
+        "`getPrimaryTaskIdsForGenerations` strips status and returns only `Map<string, string | null>` (`generationTaskRepository.ts:173-185`).",
+        "Cache preload logic relies on status (`query_failed`, `missing_generation`) for degraded telemetry and behavior (`generationTaskCache.ts:52-64`)."
+      ],
+      "suggestion": "Make status-preserving mappings the only public repository contract; move any ID-only projection to internal call sites so failure semantics are not dropped at API boundaries.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "status_metadata_dropped_across_api_layers"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "root_task_filter_contract_drift",
+      "summary": "Parent-task filtering logic is duplicated across APIs with separate path lists.",
+      "related_files": [
+        "src/shared/hooks/useTaskStatusCounts.ts",
+        "src/shared/lib/generationTaskRepository.ts",
+        "supabase/functions/_shared/billing.ts"
+      ],
+      "evidence": [
+        "`useTaskStatusCounts` hardcodes `PARENT_TASK_REFERENCE_PATHS` and applies repeated `.is(path, null)` (`useTaskStatusCounts.ts:16-34`).",
+        "`generationTaskRepository` exposes `applyParentTaskFilter` delegating to shared `applyRootTaskFilter` (`generationTaskRepository.ts:92-94`).",
+        "Billing/orchestrator reference utilities maintain their own extraction/filter surface (`billing.ts:49-120`), indicating multiple API entry points for the same contract."
+      ],
+      "suggestion": "Centralize orchestrator/parent-task reference filtering into one exported contract used by hooks, repositories, and edge helpers to avoid behavior drift in sibling queries.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "duplicated_reference_contracts"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "overloaded_travel_request_builder_input",
+      "summary": "Travel request builder accepts mixed legacy/new param bags with silent defaulting.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/shared/lib/tasks/travelBetweenImages/types.ts"
+      ],
+      "evidence": [
+        "`TravelRequestBodyInput` includes V2 grouped fields plus many backward-compat scalar fields (`generateVideoService.ts:432-452`).",
+        "`normalizeTravelRequestBodyInput` silently fills defaults (`seed: 0`, `generationMode: 'timeline'`, basic phase config) when fields are omitted (`generateVideoService.ts:454-487`).",
+        "Final call casts built body to `TravelBetweenImagesTaskInput` (`generateVideoService.ts:723`) instead of constructing directly from canonical typed input in `types.ts`."
+      ],
+      "suggestion": "Split request-building into explicit constructors (`fromV2Params`, `fromLegacyParams`) and keep a strict canonical output type end-to-end without `as unknown as` casting.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "parallel_legacy_and_modern_surfaces"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Legacy-to-modern migrations are preserved as parallel public APIs instead of being isolated behind adapters.",
+      "No single cross-module standard for recoverable error/result contracts at service boundaries.",
+      "Reference/filtering semantics for orchestrator parent-child relationships are duplicated in multiple modules."
+    ],
+    "likely_symptoms": [
+      "edge_request_dual_parse_interfaces",
+      "generation_mapping_status_loss_api",
+      "overloaded_travel_request_builder_input"
+    ],
+    "possible_false_positives": []
+  }
+}

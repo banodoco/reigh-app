@@ -8,13 +8,13 @@
 import React, { useRef } from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { X, Loader2 } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { SegmentedControl, SegmentedControlItem } from '@/shared/components/ui/segmented-control';
 import { VariantBadge } from '@/shared/components/VariantBadge';
 import { useLightboxVariantsSafe } from '../contexts/LightboxStateContext';
 import { VariantSelector } from '@/shared/components/VariantSelector';
 import type { GenerationVariant } from '@/shared/hooks/useVariants';
-import { useCopyToClipboard } from '@/shared/hooks/useCopyToClipboard';
+import { useCopyToClipboard } from '@/shared/hooks/clipboard/useCopyToClipboard';
 
 interface EditPanelLayoutProps {
   /** Layout variant */

@@ -1,5 +1,5 @@
-import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { getSupabaseClient } from '@/integrations/supabase/client';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 interface EnsureShotParentGenerationInput {
   projectId: string;
@@ -18,6 +18,8 @@ export async function ensureShotParentGenerationId({
   parentGenerationId,
   context,
 }: EnsureShotParentGenerationInput): Promise<string> {
+  const supabase = getSupabaseClient();
+
   if (parentGenerationId) {
     return parentGenerationId;
   }
@@ -32,7 +34,7 @@ export async function ensureShotParentGenerationId({
   });
 
   if (error) {
-    handleError(error, {
+    normalizeAndPresentError(error, {
       context: `${context}:ensureShotParentGeneration`,
       showToast: false,
       logData: { shotId, projectId },

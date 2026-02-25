@@ -1,0 +1,137 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "api_surface_coherence": 81.0,
+    "mid_level_elegance": 79.0
+  },
+  "dimension_notes": {
+    "api_surface_coherence": {
+      "evidence": [
+        "`generateVideoService` accepts `generationMode: 'timeline' | 'batch' | 'by-pair'` but branches only on `generationMode === 'timeline'`, treating `'by-pair'` as batch behavior (`src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts:96`, `:637-639`).",
+        "`TravelBetweenImagesTaskParams` advertises a distinct `'by-pair'` API mode (`src/shared/lib/tasks/travelBetweenImages/types.ts:227`), but service orchestration does not preserve a distinct execution path.",
+        "`generateVideoService` comments that consumers should use only `generateVideo()`, but exports multiple internal builders (both `_` prefixed and non-prefixed), widening and blurring the module contract (`src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts:567-588`).",
+        "`cropFilename` lacks `maxLength <= 0` handling unlike sibling `truncateText`, creating inconsistent contract behavior for boundary values in the same utility surface (`src/shared/lib/stringFormatting.ts:1-23`, `:25-39`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "`fetchToolSettingsSupabase` accepts `AbortSignal` but only checks abort before/around startup; underlying scope fetches are not cancel-aware and coalesced callers await existing in-flight work even if aborted (`src/shared/lib/toolSettingsService.ts:350-389`, `:367-370`).",
+        "This cancellation gap causes seam dishonesty: caller intent (abort) is not propagated through the async boundary, unlike explicit abort-aware orchestration patterns used elsewhere (`src/shared/lib/timelineWriteQueue.ts:54-84`).",
+        "`consumePendingJoinClips` treats a single malformed pending entry as fatal for the entire payload (`parsePendingJoinClips` returns `null` on first bad item), then clears storage; valid clips in the same batch are dropped (`src/tools/join-clips/lib/clipInitService.ts:143-182`, `:203-217`, `:250`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "travel_mode_contract_drift",
+      "summary": "`by-pair` is exposed as a first-class API mode but executed as batch, creating contract/behavior drift.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/shared/lib/tasks/travelBetweenImages/types.ts"
+      ],
+      "evidence": [
+        "`GenerateVideoParams` includes `'by-pair'` (`generateVideoService.ts:96`) and request body forwards `generation_mode` unchanged (`:553`).",
+        "Pair config selection only distinguishes `timeline` vs non-`timeline` (`:637-639`), so `'by-pair'` silently takes batch config path.",
+        "Task param type explicitly documents `'by-pair'` as a separate mode (`types.ts:227`), implying dedicated semantics that are not honored in orchestration."
+      ],
+      "suggestion": "Make mode handling explicit: either implement a true `by-pair` branch with distinct pairConfig/build rules, or remove `'by-pair'` from public unions until behavior exists. Add contract tests that assert mode-specific payload differences.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "travel_mode_contract_drift"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "generate_video_service_public_surface_leak",
+      "summary": "The service advertises a single public API but exports many internal builders, creating an unstable and inconsistent module surface.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/shared/lib/tasks/travelBetweenImages/types.ts"
+      ],
+      "evidence": [
+        "Comment says consumers should use `generateVideo()` as the public API (`generateVideoService.ts:569-571`).",
+        "Module still exports multiple internals, including non-test-prefixed helpers (`:580-587`), making contract boundaries ambiguous.",
+        "These exported internals are tightly coupled to large request-shape types from travel task contracts, increasing blast radius for future API changes."
+      ],
+      "suggestion": "Reduce exports to a stable minimal surface (`generateVideo` + required types). Move test-only helpers to a dedicated internal module imported by tests, or gate with an explicit internal namespace to prevent accidental production coupling.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "travel_mode_contract_drift"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "settings_fetch_abort_contract_not_propagated",
+      "summary": "Abort semantics are accepted at the API boundary but not propagated through the async fetch seam, so canceled callers still wait on in-flight work.",
+      "related_files": [
+        "src/shared/lib/toolSettingsService.ts",
+        "src/shared/lib/timelineWriteQueue.ts"
+      ],
+      "evidence": [
+        "`fetchToolSettingsSupabase(..., signal?)` checks `signal.aborted` before start (`toolSettingsService.ts:358-363`) and once before querying (`:380-384`), but does not pass `signal` into `fetchAllScopes` calls (`:386-389`).",
+        "If an identical request is already in-flight, the function awaits it unconditionally (`:367-370`) without re-checking caller cancellation.",
+        "A contrasting module (`timelineWriteQueue`) uses abort-aware execution with timeout and explicit abort handling (`timelineWriteQueue.ts:54-84`), highlighting inconsistency at integration seams."
+      ],
+      "suggestion": "Honor cancellation end-to-end: thread `AbortSignal` through scope fetches (or race with an abort promise), and short-circuit coalesced callers on abort while leaving shared work for non-aborted callers.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "pending_clips_partial_data_drop",
+      "summary": "One malformed pending clip invalidates and clears the entire queue, dropping otherwise valid clip actions.",
+      "related_files": [
+        "src/tools/join-clips/lib/clipInitService.ts",
+        "src/tools/join-clips/lib/clipManager/metadata.ts"
+      ],
+      "evidence": [
+        "`parsePendingJoinClips` returns `null` immediately on first invalid item (`clipInitService.ts:155-169`), not a partial valid subset.",
+        "`consumePendingJoinClips` treats `null` as invalid payload, logs failure, removes storage key, and returns failure (`:203-217`, `:250`).",
+        "This makes localStorage handoff brittle: a single corrupted record can discard all pending user-intended clips in that batch."
+      ],
+      "suggestion": "Parse defensively per entry: keep valid items, record invalid-count diagnostics, and only clear/drop malformed records. Return success with surviving actions plus a degraded warning code when partial recovery occurs.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "crop_filename_boundary_contract_gap",
+      "summary": "`cropFilename` does not enforce boundary behavior for non-positive limits, unlike sibling truncation API.",
+      "related_files": [
+        "src/shared/lib/stringFormatting.ts"
+      ],
+      "evidence": [
+        "`truncateText` explicitly handles `maxLength <= 0` by returning empty string (`stringFormatting.ts:26-28`).",
+        "`cropFilename` has no equivalent guard (`:1-23`); for negative values it can return strings longer than the requested max, violating implied `maxLength` contract."
+      ],
+      "suggestion": "Align boundary semantics across formatting helpers by adding an early `maxLength <= 0` branch (and a small test matrix for 0/negative values).",
+      "confidence": "high",
+      "impact_scope": "local",
+      "fix_scope": "single_edit"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Public type unions were widened faster than behavior branches were implemented, creating enum-contract drift.",
+      "Module boundaries are blurred by exporting test-oriented internals directly from production services.",
+      "Async boundary contracts (abortability and partial-failure tolerance) are inconsistently enforced across services."
+    ],
+    "likely_symptoms": [
+      "travel_mode_contract_drift",
+      "generate_video_service_public_surface_leak",
+      "settings_fetch_abort_contract_not_propagated",
+      "pending_clips_partial_data_drop"
+    ],
+    "possible_false_positives": []
+  }
+}

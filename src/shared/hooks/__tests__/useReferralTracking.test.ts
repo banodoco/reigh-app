@@ -12,7 +12,7 @@ vi.mock('@/shared/lib/taskCreation', () => ({
   generateUUID: vi.fn(() => 'mock-uuid'),
 }));
 
-vi.mock('@/shared/lib/errorHandler', () => ({
+vi.mock('@/shared/lib/compat/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 

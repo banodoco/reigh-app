@@ -8,14 +8,14 @@ import {
   DialogFooter,
 } from "@/shared/components/ui/dialog";
 import { Button } from "@/shared/components/ui/button";
-import { useApiTokens } from "@/shared/hooks/useApiTokens";
+import { useApiTokens } from "@/features/account/hooks/useApiTokens";
 import usePersistentState from "@/shared/hooks/usePersistentState";
-import { supabase } from "@/integrations/supabase/client";
-import { useIsMobile } from "@/shared/hooks/useMobile";
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { useIsMobile } from "@/shared/hooks/mobile";
 import { useLargeModal } from '@/shared/hooks/useModal';
 import { useScrollFade } from "@/shared/hooks/useScrollFade";
 import { useUserUIState } from "@/shared/hooks/useUserUIState";
-import { useDarkMode } from "@/shared/hooks/useDarkMode";
+import { useDarkMode } from "@/shared/hooks/core/useDarkMode";
 import { useTextCase } from "@/shared/hooks/useTextCase";
 import { useAIInputMode } from "@/shared/contexts/AIInputModeContext";
 import { dispatchAppEvent } from '@/shared/lib/typedEvents';
@@ -137,7 +137,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    await supabase().auth.signOut();
     onOpenChange(false); // Close the modal after signing out
   };
 

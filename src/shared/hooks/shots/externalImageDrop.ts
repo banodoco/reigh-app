@@ -1,14 +1,14 @@
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
-import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { uploadImageToStorage } from '@/shared/lib/imageUploader';
 import {
   generateClientThumbnail,
   uploadImageWithThumbnail,
-} from '@/shared/lib/clientThumbnailGenerator';
+} from '@/shared/media/clientThumbnailGenerator';
 import { cropImageToProjectAspectRatio } from '@/shared/lib/imageCropper';
-import { parseRatio } from '@/shared/lib/aspectRatios';
+import { parseRatio } from '@/shared/lib/media/aspectRatios';
 import { VARIANT_TYPE } from '@/shared/constants/variantTypes';
 
 export interface ExternalImageDropVariables {
@@ -82,8 +82,7 @@ const createGenerationForUploadedImage = async (
     file_size: fileSize,
   };
 
-  const { data, error } = await supabase
-    .from('generations')
+  const { data, error } = await supabase().from('generations')
     .insert({
       project_id: projectId,
       type: 'image',
@@ -98,7 +97,7 @@ const createGenerationForUploadedImage = async (
     throw error;
   }
 
-  await supabase.from('generation_variants').insert({
+  await supabase().from('generation_variants').insert({
     generation_id: data.id,
     location: imageUrl,
     thumbnail_url: thumbnailUrl || imageUrl,
@@ -119,16 +118,14 @@ async function getCropConfig(projectId: string, shotId: string | null): Promise<
   };
 
   try {
-    const { data: projectData } = await supabase
-      .from('projects')
+    const { data: projectData } = await supabase().from('projects')
       .select('aspect_ratio, settings')
       .eq('id', projectId)
       .single();
 
     let shotAspectRatio: string | null = null;
     if (shotId) {
-      const { data: shotData } = await supabase
-        .from('shots')
+      const { data: shotData } = await supabase().from('shots')
         .select('aspect_ratio')
         .eq('id', shotId)
         .single();
@@ -145,7 +142,7 @@ async function getCropConfig(projectId: string, shotId: string | null): Promise<
       config.aspectRatioSource = shotAspectRatio ? 'shot' : 'project';
     }
   } catch (error) {
-    handleError(error, { context: 'useShotCreation:aspectRatio', showToast: false });
+    normalizeAndPresentError(error, { context: 'useShotCreation:aspectRatio', showToast: false });
   }
 
   return config;
@@ -167,14 +164,14 @@ async function cropFilesIfNeeded(imageFiles: File[], config: CropConfig): Promis
         const result = await cropImageToProjectAspectRatio(file, targetAspectRatio);
         return result?.croppedFile || file;
       } catch (error) {
-        handleError(error, { context: `useShotCreation:crop:${file.name}`, showToast: false });
+        normalizeAndPresentError(error, { context: `useShotCreation:crop:${file.name}`, showToast: false });
         return file;
       }
     });
 
     return await Promise.all(cropPromises);
   } catch (error) {
-    handleError(error, { context: 'useShotCreation:batchCrop', showToast: false });
+    normalizeAndPresentError(error, { context: 'useShotCreation:batchCrop', showToast: false });
     return imageFiles;
   }
 }
@@ -224,7 +221,7 @@ async function uploadImageWithFallback(
     imageUrl = uploadResult.imageUrl;
     thumbnailUrl = uploadResult.thumbnailUrl;
   } catch (error) {
-    handleError(error, { context: `useShotCreation:thumbnail:${imageFile.name}`, showToast: false });
+    normalizeAndPresentError(error, { context: `useShotCreation:thumbnail:${imageFile.name}`, showToast: false });
     imageUrl = await uploadImageToStorage(imageFile, 3, progressHandler);
     thumbnailUrl = imageUrl;
   }
@@ -391,7 +388,7 @@ export async function processDroppedImages(
         generationIds.push(generationId);
       }
     } catch (error) {
-      handleError(error, { context: 'useShotCreation', toastTitle: `Failed to process file ${imageFile.name}` });
+      normalizeAndPresentError(error, { context: 'useShotCreation', toastTitle: `Failed to process file ${imageFile.name}` });
     }
   }
 

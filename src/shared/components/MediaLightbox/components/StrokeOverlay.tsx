@@ -10,7 +10,7 @@ import { Stage, Layer, Line, Rect } from 'react-konva';
 import Konva from 'konva';
 import { nanoid } from 'nanoid';
 import type { KonvaEventObject } from 'konva/lib/Node';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { isPointOnShape, getClickedCornerIndex, getRectangleClickType, getRectangleCorners } from '../hooks/inpainting/shapeHelpers';
 
 export type { BrushStroke, StrokeOverlayHandle } from '../hooks/inpainting/types';
@@ -163,7 +163,15 @@ function useDrawing({
 
     const stage = e.target.getStage();
     if (stage?.content && e.evt.pointerId !== undefined) {
-      try { stage.content.setPointerCapture(e.evt.pointerId); } catch { /* ok */ }
+      try {
+        stage.content.setPointerCapture(e.evt.pointerId);
+      } catch (error) {
+        normalizeAndPresentError(error, {
+          context: 'StrokeOverlay.handlePointerDown.setPointerCapture',
+          showToast: false,
+          logData: { pointerId: e.evt.pointerId },
+        });
+      }
     }
 
     if (!isInpaintMode && !isAnnotateMode) return;
@@ -228,7 +236,15 @@ function useDrawing({
   const handlePointerUp = useCallback((e: KonvaEventObject<PointerEvent>) => {
     const stage = e.target.getStage();
     if (stage?.content && e.evt.pointerId !== undefined) {
-      try { stage.content.releasePointerCapture(e.evt.pointerId); } catch { /* ok */ }
+      try {
+        stage.content.releasePointerCapture(e.evt.pointerId);
+      } catch (error) {
+        normalizeAndPresentError(error, {
+          context: 'StrokeOverlay.handlePointerUp.releasePointerCapture',
+          showToast: false,
+          logData: { pointerId: e.evt.pointerId },
+        });
+      }
     }
 
     if (isDragging) { endDrag(); return; }
@@ -382,7 +398,7 @@ export const StrokeOverlay = forwardRef<StrokeOverlayHandle, StrokeOverlayProps>
         document.body.removeChild(container);
         return dataUrl;
       } catch (error) {
-        handleError(error, { context: 'StrokeOverlay', showToast: false });
+        normalizeAndPresentError(error, { context: 'StrokeOverlay', showToast: false });
         document.body.removeChild(container);
         return null;
       }

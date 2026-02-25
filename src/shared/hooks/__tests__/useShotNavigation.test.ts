@@ -15,17 +15,17 @@ vi.mock('@/shared/contexts/CurrentShotContext', () => ({
   }),
 }));
 
-vi.mock('@/shared/hooks/useMobile', () => ({
+vi.mock('@/shared/hooks/mobile', () => ({
   useIsMobile: () => false,
 }));
 
-vi.mock('@/shared/lib/toolConstants', () => ({
+vi.mock('@/shared/lib/toolRoutes', () => ({
   TOOL_ROUTES: { TRAVEL_BETWEEN_IMAGES: '/travel' },
   travelShotUrl: (shotId: string) => `/travel#shot=${shotId}`,
 }));
 
 import { useShotNavigation } from '../useShotNavigation';
-import type { Shot } from '@/types/shots';
+import type { Shot } from '@/domains/generation/types';
 
 describe('useShotNavigation', () => {
   beforeEach(() => {

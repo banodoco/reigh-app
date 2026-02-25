@@ -9,7 +9,7 @@ import {
 } from "@/shared/components/ui/tooltip";
 import { DraggableImage } from "@/shared/components/DraggableImage";
 import { TimeStamp } from "@/shared/components/TimeStamp";
-import type { Shot } from "@/types/shots";
+import type { Shot } from "@/domains/generation/types";
 import type { MediaGalleryItemProps } from "./MediaGalleryItem/types";
 import { ActionButtons } from "./MediaGalleryItem/components/ActionButtons";
 import { InfoTooltip } from "./MediaGalleryItem/components/InfoTooltip";
@@ -21,15 +21,15 @@ import { useImageLoading } from "./MediaGalleryItem/hooks/useImageLoading";
 import { useMediaGalleryItemState } from "./MediaGalleryItem/hooks/useMediaGalleryItemState";
 import { useStableMediaUrls } from "./MediaGalleryItem/hooks/useStableMediaUrls";
 import { useShotPositionChecks } from "./MediaGalleryItem/hooks/useShotPositionChecks";
-import { setGenerationDragData, createDragPreview } from '@/shared/lib/dragDrop';
-import { cn } from "@/shared/lib/utils";
+import { setGenerationDragData, createDragPreview } from '@/shared/lib/dnd/dragDrop';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import CreateShotModal from "@/shared/components/CreateShotModal";
 import { useProject } from "@/shared/contexts/ProjectContext";
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { useShotNavigation } from "@/shared/hooks/useShotNavigation";
 import { useLastAffectedShot } from "@/shared/hooks/useLastAffectedShot";
 import { useQuickShotCreate } from "@/shared/hooks/useQuickShotCreate";
-import { parseRatio } from "@/shared/lib/aspectRatios";
+import { parseRatio } from "@/shared/lib/media/aspectRatios";
 import { useTaskFromUnifiedCache, usePrefetchTaskData } from "@/shared/hooks/useTaskPrefetch";
 import { useTaskType } from "@/shared/hooks/useTaskType";
 import { useGetTask } from "@/shared/hooks/useTasks";
@@ -135,11 +135,12 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
   const taskIdFromMetadata = image.metadata?.taskId as string | undefined;
   const actualGenerationId = getGenerationId(image);
   const generationIdForActions = actualGenerationId || image.id;
+  const { selectedProjectId } = useProject();
   const { data: taskIdMapping } = useTaskFromUnifiedCache(actualGenerationId ?? '');
   const taskIdFromCache = typeof taskIdMapping?.taskId === 'string' ? taskIdMapping.taskId : null;
   const taskId: string | null = taskIdFromMetadata || taskIdFromCache;
 
-  const { data: taskData } = useGetTask(taskId ?? '');
+  const { data: taskData } = useGetTask(taskId ?? '', selectedProjectId ?? null);
 
   // Prefetch task data on mouse enter (desktop only)
   const handleMouseEnter = useCallback(() => {
@@ -166,7 +167,6 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
   // Share functionality
   const { handleShare, isCreatingShare, shareCopied, shareSlug } = useShareGeneration(image.id, taskId);
 
-  const { selectedProjectId } = useProject();
   const { markAllViewed } = useMarkVariantViewed();
 
   // Callback to mark all variants for this generation as viewed
@@ -654,6 +654,7 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
           {/* Bottom Buttons - Star (left), Edit (center), Delete (right) */}
           <ActionButtons
             image={image}
+            projectId={selectedProjectId}
             localStarred={localStarred}
             isTogglingStar={isTogglingStar}
             isDeleting={isCurrentDeleting}

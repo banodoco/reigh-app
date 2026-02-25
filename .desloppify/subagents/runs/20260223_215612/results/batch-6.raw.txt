@@ -1,0 +1,79 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 6,
+  "assessments": {
+    "error_consistency": 74.0
+  },
+  "dimension_notes": {
+    "error_consistency": {
+      "evidence": [
+        "Several async flows swallow failures without centralized reporting or propagation (e.g., `useAdjacentPagePreloader` has empty catch blocks at lines 159-161 and 191; `StrokeOverlay` ignores pointer-capture errors at lines 166 and 231).",
+        "Related task/generation utilities use different propagation contracts for similar failure types: `preloadGenerationTaskMappings` catches and suppresses errors after `handleError` (generationTaskBridge.ts:142-144), while task creators in `imageGeneration.ts`/`magicEdit.ts`/`joinClips.ts` call `handleError` and rethrow (e.g., imageGeneration.ts:428-430, 513-514).",
+        "User-action hooks also diverge: `useDiscordSignIn` handles returned auth errors via `handleError` but does not throw/return failure state (useDiscordSignIn.ts:26-31), while mutation hooks generally throw from mutationFn and surface through `onError` (useGenerationMutations.ts:48-50, 98-103, 136-142, 159-161)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "error_consistency",
+      "identifier": "silent_catch_without_shared_error_path",
+      "summary": "Non-fatal catch blocks silently ignore errors instead of using a consistent reporting path.",
+      "related_files": [
+        "src/features/gallery/hooks/useAdjacentPagePreloader.ts",
+        "src/shared/components/MediaLightbox/components/StrokeOverlay.tsx",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "`useAdjacentPagePreloader` catches prefetch failures with empty handlers (`catch {}` at lines 159-161 and 191), dropping context entirely.",
+        "`StrokeOverlay` also uses ignored catches for pointer capture/release (`catch { /* ok */ }` at lines 166 and 231), while other non-fatal UI errors in the same file call `handleError` (lines 384-387).",
+        "The codebase already has a standard non-fatal path (`handleError(..., { showToast: false })`), but these catches bypass it."
+      ],
+      "suggestion": "Standardize non-fatal catches to a shared helper (or direct `handleError`) with `showToast: false` and component-specific context so ignored operations are still observable and searchable.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "mixed_propagation_contract_in_task_generation_flows",
+      "summary": "Similar task/generation failures are sometimes rethrown and sometimes absorbed, creating unpredictable caller behavior.",
+      "related_files": [
+        "src/shared/lib/generationTaskBridge.ts",
+        "src/shared/lib/tasks/imageGeneration.ts",
+        "src/shared/lib/tasks/magicEdit.ts",
+        "src/shared/lib/tasks/joinClips.ts"
+      ],
+      "evidence": [
+        "`preloadGenerationTaskMappings` catches batch errors and only logs via `handleError` (lines 142-144), then continues without signaling partial failure.",
+        "Task creation modules (`imageGeneration`, `magicEdit`, `joinClips`) consistently `handleError` and then `throw` (imageGeneration.ts:428-430 and 513-514; magicEdit.ts:242-245 and 302-305; joinClips.ts:453-456).",
+        "These paths all operate in the same generation/task subsystem, but expose different failure contracts to callers."
+      ],
+      "suggestion": "Define one subsystem contract for these async helpers (e.g., always throw typed errors, or always return `{ ok, error }`), then align `generationTaskBridge` and task creators to that contract with explicit typing.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "oauth_signin_errors_not_propagated_to_caller",
+      "summary": "Discord sign-in handles errors locally but never propagates failure state, unlike adjacent mutation patterns.",
+      "related_files": [
+        "src/pages/Home/hooks/useDiscordSignIn.ts",
+        "src/shared/hooks/useGenerationMutations.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "`useDiscordSignIn` calls `handleError` on both returned auth errors and thrown exceptions (lines 26-31) but always resolves the callback with no error signal.",
+        "Mutation hooks in `useGenerationMutations` throw from mutation functions and let `onError` handle user messaging, preserving a usable failure signal for callers.",
+        "This causes inconsistent expectations for consumers of async user actions: some can branch on failure, while sign-in cannot."
+      ],
+      "suggestion": "Make `useDiscordSignIn` return a typed result (`{ ok: boolean; error?: AppError }`) or rethrow after `handleError`, and update callers to use the explicit contract.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

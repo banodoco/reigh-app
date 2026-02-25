@@ -1,0 +1,64 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "ai_generated_debt": 81.0,
+    "low_level_elegance": 76.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "src/shared/lib/supabaseSession.ts has a long prologue comment with operational latency claims (\"600ms-16s\") and usage listing that restates implementation context rather than code-local intent.",
+        "src/tools/travel-between-images/components/Timeline/hooks/useDragStable.ts includes multi-line explanatory comments that largely mirror the function body behavior line-by-line."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "src/shared/lib/supabaseSession.ts re-parses raw localStorage JSON for each accessor path and repeats ad-hoc shape probing (`access_token`, `user.id`) instead of a single narrow parser.",
+        "src/types/browser-extensions.d.ts contains dense inline anonymous object/function types (notably `__projectDebugLog`) within a very large global interface, reducing local readability and precision of intent."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "commentary_overstates_behavior",
+      "summary": "Commentary density and style exceed code complexity, creating generated-style noise.",
+      "related_files": [
+        "src/shared/lib/supabaseSession.ts",
+        "src/tools/travel-between-images/components/Timeline/hooks/useDragStable.ts"
+      ],
+      "evidence": [
+        "supabaseSession.ts uses a large header block with implementation-detail narration and hardcoded latency ranges, while function bodies are short and self-explanatory.",
+        "useDragStable.ts doc block repeats exact branch behavior and implementation technique already directly visible in ~10 lines of code."
+      ],
+      "suggestion": "Trim comments to non-obvious invariants and boundary assumptions only; move benchmark/perf rationale to architecture docs or dedicated perf notes instead of inline module prologues.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "ad_hoc_shape_parsing_and_dense_ambient_types",
+      "summary": "Local implementation clarity is reduced by repeated untyped shape probing and oversized inline ambient declarations.",
+      "related_files": [
+        "src/shared/lib/supabaseSession.ts",
+        "src/types/browser-extensions.d.ts"
+      ],
+      "evidence": [
+        "supabaseSession.ts parses `Record<string, unknown>` then performs scattered field extraction (`access_token`, `user.id`) across separate helpers instead of one typed decode path.",
+        "browser-extensions.d.ts mixes many structural/debug globals and embeds large anonymous object types inline, making individual contract boundaries harder to scan and maintain."
+      ],
+      "suggestion": "Introduce a small typed session decoder (single parse + typed return) in `supabaseSession.ts`, and extract named types for debug globals in `browser-extensions.d.ts` to reduce inline complexity and improve contract legibility.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

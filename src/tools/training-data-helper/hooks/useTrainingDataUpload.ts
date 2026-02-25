@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { transformVideo } from './transforms';
 import type { TrainingDataVideo } from './types';
 
@@ -52,7 +52,7 @@ export function useTrainingDataUpload({
     const fileExt = file.name.split('.').pop();
     const fileName = `${userId}/${Date.now()}.${fileExt}`;
 
-    const { error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase().storage
       .from('training-data')
       .upload(fileName, file);
 
@@ -61,8 +61,7 @@ export function useTrainingDataUpload({
       throw uploadError;
     }
 
-    const { data, error } = await supabase
-      .from('training_data')
+    const { data, error } = await supabase().from('training_data')
       .insert({
         user_id: userId,
         batch_id: selectedBatchId!,
@@ -98,8 +97,7 @@ export function useTrainingDataUpload({
       if (localVideo?.duration) {
         endTimeMs = Math.round(localVideo.duration * 1000);
       } else {
-        const { data, error } = await supabase
-          .from('training_data')
+        const { data, error } = await supabase().from('training_data')
           .select('duration')
           .eq('id', videoId)
           .single();
@@ -119,7 +117,7 @@ export function useTrainingDataUpload({
   const uploadVideo = async (file: File): Promise<string> => {
     setIsUploading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase().auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
       if (!selectedBatchId) {
@@ -143,7 +141,7 @@ export function useTrainingDataUpload({
   }>): Promise<void> => {
     setIsUploading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase().auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
       if (!selectedBatchId) {

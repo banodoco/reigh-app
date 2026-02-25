@@ -1,0 +1,149 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 4,
+  "assessments": {
+    "naming_quality": 90.0,
+    "logic_clarity": 78.0,
+    "type_safety": 82.0,
+    "contract_coherence": 86.0,
+    "initialization_coupling": 80.0
+  },
+  "dimension_notes": {
+    "naming_quality": {
+      "evidence": [
+        "`getUserWithTimeout` in `src/shared/lib/toolSettingsService.ts` no longer performs timeout behavior; it only reads cache/localStorage and returns immediately.",
+        "Nearby auth helpers in `src/app/routes.tsx` are named by behavior (`hasStoredSession`), highlighting naming drift for similarly scoped auth checks."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "issues_preventing_higher_score": "A few misleading legacy names remain and make behavior harder to infer at call sites."
+    },
+    "logic_clarity": {
+      "evidence": [
+        "In `waitForVariantDelay` (`src/shared/hooks/invalidation/useGenerationInvalidation.ts`), clearing an existing timeout before creating a new one leaves the earlier Promise unresolved forever.",
+        "The current tests (`src/shared/hooks/invalidation/__tests__/useGenerationInvalidation.test.ts`) validate delay timing but do not cover overlapping calls for the same generation key, so this control-flow deadlock is unguarded."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "type_safety": {
+      "evidence": [
+        "`supabase/functions/calculate-task-cost/index.ts` force-casts query results with `task as unknown as TaskWithProject | null` and then dereferences nested fields, bypassing runtime shape validation.",
+        "`supabase/functions/_shared/rateLimit.ts` force-casts RPC output (`data as { allowed: boolean; count: number; reset_at: string }`) without guards before constructing logic from those fields."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "contract_coherence": {
+      "evidence": [
+        "`src/integrations/supabase/client.ts` documents `supabase` export as deprecated compatibility-only and recommends explicit bootstrap via `initializeSupabase()` + `getSupabaseClient()`.",
+        "`src/shared/hooks/useTasks.ts` still imports and uses the deprecated `supabase` proxy directly, keeping the legacy path active in core query flows."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Core consumers still rely on deprecated compatibility API, so runtime contract migration is incomplete."
+    },
+    "initialization_coupling": {
+      "evidence": [
+        "`src/integrations/supabase/client.ts` exposes a module-level proxy (`export const supabase = createSupabaseCompatibilityProxy()`) that lazily initializes runtime on first property access, making call order matter.",
+        "`src/shared/hooks/useTasks.ts` accesses this proxy from data hooks, so query execution can implicitly initialize runtime instead of explicit bootstrap.",
+        "`src/shared/hooks/invalidation/useGenerationInvalidation.ts` keeps module-level timeout stores (`syncInvalidationTimeouts`, `variantInvalidationTimeouts`) shared across all callers/query clients, coupling independent lifecycles."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "logic_clarity",
+      "identifier": "variant_delay_promise_leak",
+      "summary": "Overlapping variant invalidations for the same generation can leave earlier calls awaiting forever.",
+      "related_files": [
+        "src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+        "src/shared/hooks/invalidation/__tests__/useGenerationInvalidation.test.ts"
+      ],
+      "evidence": [
+        "`waitForVariantDelay` clears a prior timeout from `variantInvalidationTimeouts` (lines ~100-104) but does not resolve the Promise created by the prior invocation.",
+        "The only resolve path is inside the timeout callback (lines ~112-116), so clearing that timeout strands the previous await permanently.",
+        "No test covers two concurrent `invalidateVariantChange` calls sharing the same `generationId` with delay."
+      ],
+      "suggestion": "Store and cancel with resolver-aware entries (timeoutId + resolve/reject) so superseded waits complete deterministically, and add a regression test for two overlapping calls on the same generation key.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "initialization_coupling",
+      "identifier": "implicit_supabase_bootstrap_path",
+      "summary": "Deprecated supabase proxy keeps runtime initialization order implicit in data hooks.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/hooks/useTasks.ts"
+      ],
+      "evidence": [
+        "`client.ts` catches runtime-access errors and lazily falls back to initialization inside `getSupabaseClient`, while exporting `supabase` as a compatibility Proxy.",
+        "`useTasks.ts` imports `supabase` and issues queries directly, so hook execution can trigger initialization side effects depending on access timing instead of explicit app bootstrap."
+      ],
+      "suggestion": "Migrate hook call sites to `getSupabaseClient()` after guaranteed `initializeSupabase()` at app startup, then remove proxy usage from hot paths.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "unchecked_rpc_db_shape_casts",
+      "summary": "Critical edge-function flows trust unknown database/RPC payloads through unchecked casts.",
+      "related_files": [
+        "supabase/functions/calculate-task-cost/index.ts",
+        "supabase/functions/_shared/rateLimit.ts"
+      ],
+      "evidence": [
+        "`calculate-task-cost` casts `task` to `TaskWithProject` using `as unknown as` and reads nested properties like `typedTask.projects.user_id` without validating shape.",
+        "`rateLimit.ts` casts `data` from RPC directly to `{ allowed; count; reset_at }` and computes retry windows from it without runtime guards."
+      ],
+      "suggestion": "Add small runtime validators/type guards for task row and rate-limit RPC payloads, then branch to explicit error handling when shape checks fail instead of force-casting.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "contract_coherence",
+      "identifier": "deprecated_client_contract_drift",
+      "summary": "Consumer hooks still depend on API documented as deprecated compatibility-only.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/hooks/useTasks.ts"
+      ],
+      "evidence": [
+        "`client.ts` deprecates `supabase` export with a removal target and recommends `getSupabaseClient()` plus explicit bootstrap.",
+        "`useTasks.ts` continues to import `supabase` directly for production queries, contradicting the declared migration contract."
+      ],
+      "suggestion": "Align implementation with documented contract by replacing deprecated proxy imports in hooks and tracking remaining usages until removal criteria are satisfied.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "naming_quality",
+      "identifier": "stale_timeout_naming",
+      "summary": "`getUserWithTimeout` name advertises timeout semantics that the implementation no longer provides.",
+      "related_files": [
+        "src/shared/lib/toolSettingsService.ts",
+        "src/app/routes.tsx"
+      ],
+      "evidence": [
+        "`getUserWithTimeout` now performs synchronous cache/storage reads and returns resolved Promises; there is no timeout path.",
+        "Same area uses behavior-revealing names like `hasStoredSession`, making `getUserWithTimeout` comparatively misleading."
+      ],
+      "suggestion": "Rename to behavior-accurate naming (for example `getCachedOrStoredUser`) and update call sites/docs to avoid implying timeout control.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ]
+}

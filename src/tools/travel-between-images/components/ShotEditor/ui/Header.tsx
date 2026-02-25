@@ -1,11 +1,11 @@
 import React from 'react';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
-import { Shot } from "@/types/shots";
+import { Shot } from "@/domains/generation/types";
 import { ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
-import { AspectRatioSelector } from '@/shared/components/AspectRatioSelector';
-import { supabase } from '@/integrations/supabase/client';
+import { AspectRatioSelector } from '@/shared/components/generation-controls/AspectRatioSelector';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { toJson } from '@/shared/lib/supabaseTypeHelpers';
@@ -83,8 +83,7 @@ const HeaderComponent: React.FC<HeaderProps> = ({
     updateTimeoutRef.current = setTimeout(async () => {
       try {
         // First, get current settings to preserve other settings while clearing custom dimensions
-        const { data: currentShot } = await supabase
-          .from('shots')
+        const { data: currentShot } = await supabase().from('shots')
           .select('settings')
           .eq('id', selectedShot.id)
           .single();
@@ -102,8 +101,7 @@ const HeaderComponent: React.FC<HeaderProps> = ({
         };
 
         // Update both aspect_ratio and settings
-        const { error } = await supabase
-          .from('shots')
+        const { error } = await supabase().from('shots')
           .update({
             aspect_ratio: newAspectRatio,
             settings: toJson({

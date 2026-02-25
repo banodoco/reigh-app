@@ -1,0 +1,57 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 5,
+  "assessments": {
+    "high_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/hooks/useCredits.ts` is only a re-export of `@/features/billing/hooks/useCredits`, so shared-layer ownership points inward to a feature-owned capability.",
+        "`src/shared/hooks/__tests__/useCredits.test.ts` tests the shared alias path (`../useCredits`) while mocking billing/supabase concerns, reinforcing a misplaced boundary where billing behavior appears shared.",
+        "`src/shared/lib/aspectRatios.ts` mixes generation-domain ratio/resolution mapping with UI-preview sizing helpers, while `src/shared/lib/autoplayMonitor.ts` is a browser/dev-only video monitor utility; both sit in a flat `shared/lib` bucket with weak domain boundaries."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_hook_leaks_feature_ownership",
+      "summary": "A shared hook entrypoint is owned by a feature module, reversing expected layer direction.",
+      "related_files": [
+        "src/shared/hooks/useCredits.ts",
+        "src/shared/hooks/__tests__/useCredits.test.ts"
+      ],
+      "evidence": [
+        "`src/shared/hooks/useCredits.ts` exports directly from `@/features/billing/hooks/useCredits` instead of owning shared behavior.",
+        "The colocated shared test imports `../useCredits` and exercises billing-specific behavior, so package placement implies shared ownership for feature-specific logic."
+      ],
+      "suggestion": "Choose one owner and align paths: either move the hook/tests into `features/billing` and remove the shared alias, or create a true shared contract with feature-specific adapters outside `shared/hooks`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_lib_flattening_hides_domain_boundaries",
+      "summary": "The `shared/lib` directory mixes unrelated concerns (domain constants, UI sizing helpers, and dev-only browser monitoring).",
+      "related_files": [
+        "src/shared/lib/aspectRatios.ts",
+        "src/shared/lib/autoplayMonitor.ts",
+        "src/shared/lib/ProjectScopedCache.ts"
+      ],
+      "evidence": [
+        "`aspectRatios.ts` combines core ratio-to-resolution mapping with UI preview dimension helpers in one utility file.",
+        "`autoplayMonitor.ts` is browser-only and gated by `import.meta.env.DEV`, but it is placed beside general-purpose shared utilities.",
+        "`ProjectScopedCache.ts` is generic infrastructure utility, further indicating `shared/lib` is a catch-all instead of domain-oriented packages."
+      ],
+      "suggestion": "Split `shared/lib` into intention-revealing subpackages (for example `shared/domain/media`, `shared/runtime/devtools`, `shared/infrastructure/cache`) and move these files to match ownership.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

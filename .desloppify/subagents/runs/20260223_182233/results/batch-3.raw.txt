@@ -1,0 +1,75 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 3,
+  "assessments": {
+    "initialization_coupling": 78.0
+  },
+  "dimension_notes": {
+    "initialization_coupling": {
+      "evidence": [
+        "`src/shared/realtime/DataFreshnessManager.ts` instantiates `dataFreshnessManager` at module scope and mutates `window.__DATA_FRESHNESS_MANAGER__` during module evaluation in dev mode.",
+        "`src/app/routes.tsx` reads `import.meta.env` and builds a singleton `router` via `createBrowserRouter(...)` at import time, while also eagerly importing multiple tool pages.",
+        "`src/shared/lib/toolSettingsService.ts` keeps module-level mutable singletons (`inflightSettingsFetches`, `cachedUser`, `cachedUserAt`) that persist across import order and require explicit reset hooks for isolation."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "initialization_coupling",
+      "identifier": "import_time_singleton_with_global_mutation",
+      "summary": "Realtime freshness manager initializes globally at import and mutates window in module scope.",
+      "related_files": [
+        "src/shared/realtime/DataFreshnessManager.ts",
+        "src/shared/hooks/useTasks.ts"
+      ],
+      "evidence": [
+        "`DataFreshnessManager.ts` exports `const dataFreshnessManager = new DataFreshnessManager()` at module scope, creating process-wide state before any consumer opts in.",
+        "The same module writes `window.__DATA_FRESHNESS_MANAGER__ = dataFreshnessManager` at top level in dev, which is an import-time side effect.",
+        "`useTasks.ts` imports this singleton directly, so behavior is coupled to global instance lifecycle rather than hook-owned initialization."
+      ],
+      "suggestion": "Replace eager singleton export with a lazy accessor/factory (`getDataFreshnessManager`) and move dev window registration into an explicit bootstrap call invoked from app startup, not module evaluation.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "initialization_coupling",
+      "identifier": "routes_module_bootstrap_at_import",
+      "summary": "Routing graph and environment branching are locked in at module load with eager feature imports.",
+      "related_files": [
+        "src/app/routes.tsx",
+        "src/tools/join-clips/pages/JoinClipsPage.tsx"
+      ],
+      "evidence": [
+        "`routes.tsx` computes `currentEnv` from `import.meta.env` at top level and immediately creates a module-scoped `router` via `createBrowserRouter(...)`.",
+        "The same module eagerly imports primary tool pages (including `JoinClipsPage`), forcing large feature modules to initialize whenever routes are imported.",
+        "Comments in `routes.tsx` already indicate prior initialization race behavior (hydration/Safari), confirming startup ordering sensitivity in this area."
+      ],
+      "suggestion": "Create the router inside a `createAppRouter()` function called from app bootstrap and convert more tool pages to guarded/lazy route elements where possible; keep env selection in bootstrap to reduce import-time coupling.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "initialization_coupling",
+      "identifier": "module_state_caches_create_order_sensitive_behavior",
+      "summary": "Tool settings service relies on module-level mutable caches shared across all callers.",
+      "related_files": [
+        "src/shared/lib/toolSettingsService.ts",
+        "src/shared/lib/supabaseSession.ts"
+      ],
+      "evidence": [
+        "`toolSettingsService.ts` defines module-global `inflightSettingsFetches`, `cachedUser`, and `cachedUserAt`, creating hidden shared state between unrelated consumers.",
+        "`setCachedUserId()` mutates that shared cache from external call sites, so behavior depends on whether another module has primed cache earlier in app lifetime.",
+        "Presence of `_resetCachedUserForTesting()` indicates tests must manually unwind global module state, a direct sign of initialization/lifecycle coupling."
+      ],
+      "suggestion": "Refactor to an injected service instance (per app/session/test) that owns cache and inflight maps, with consumers receiving the instance through context or explicit parameters instead of importing shared mutable module state.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

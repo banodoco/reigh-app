@@ -3,12 +3,8 @@ import { Toast } from "@base-ui-components/react/toast"
 import type { ToastRootToastObject } from "@base-ui-components/react/toast"
 import { cva, type VariantProps } from "class-variance-authority"
 import { X } from "lucide-react"
-import { cn } from "@/shared/lib/utils"
-
-// ── Global toast manager (singleton) ────────────────────────────────────────
-// This is created once and shared across the app. It can be used outside of
-// React components (e.g. in utility functions) via the `toast()` wrapper.
-export const toastManager = Toast.createToastManager()
+import { cn } from "@/shared/components/ui/contracts/cn"
+import { getToastManager, initializeUiToastManager } from "@/shared/components/ui/runtime/toastManager"
 
 // ── Variant styles ──────────────────────────────────────────────────────────
 const toastVariants = cva(
@@ -20,6 +16,8 @@ const toastVariants = cva(
         destructive:
           "destructive group border-destructive bg-destructive text-destructive-foreground",
         success: "border bg-background text-foreground",
+        warning: "border-amber-200 bg-amber-50 text-amber-950",
+        info: "border-sky-200 bg-sky-50 text-sky-950",
       },
     },
     defaultVariants: {
@@ -29,9 +27,11 @@ const toastVariants = cva(
 )
 
 // ── Toast type → variant mapping ────────────────────────────────────────────
-function typeToVariant(type?: string): "default" | "destructive" | "success" {
+function typeToVariant(type?: string): "default" | "destructive" | "success" | "warning" | "info" {
   if (type === "error" || type === "destructive") return "destructive"
   if (type === "success") return "success"
+  if (type === "warning") return "warning"
+  if (type === "info") return "info"
   return "default"
 }
 
@@ -93,7 +93,7 @@ export function ToastItem({ toast: t }: { toast: ToastRootToastObject }) {
 interface ToastObjectOptions {
   title?: React.ReactNode
   description?: React.ReactNode
-  variant?: "default" | "destructive"
+  variant?: "default" | "destructive" | "success" | "warning" | "info"
   action?: React.ReactElement
 }
 
@@ -103,6 +103,12 @@ interface SonnerMethodOptions {
   id?: string
 }
 
+function scheduleToastDispatch(dispatch: () => void): void {
+  // Macrotask scheduling keeps toast-manager updates out of the current React
+  // render/effect lifecycle, avoiding nested flushSync warnings.
+  setTimeout(dispatch, 0)
+}
+
 function addToast(
   type: string,
   title: React.ReactNode,
@@ -110,12 +116,12 @@ function addToast(
   opts?: SonnerMethodOptions
 ): string {
   // Pre-generate an ID so we can return it synchronously while deferring the
-  // actual add. This avoids a nested-flushSync warning when toasts are
-  // triggered from inside react-konva event handlers (which wrap their
-  // callbacks in flushSync for React 18 compatibility).
+  // actual add. We schedule on a macrotask so toast-manager updates do not run
+  // during the same React lifecycle turn as the caller.
   const id = opts?.id ?? `toast-${Date.now()}-${Math.random().toString(36).slice(2)}`
-  queueMicrotask(() => {
-    toastManager.add({
+  scheduleToastDispatch(() => {
+    const manager = initializeUiToastManager()
+    manager.add({
       type,
       title,
       description: description ?? opts?.description,
@@ -136,10 +142,11 @@ function toastFn(input: ToastInput, opts?: SonnerMethodOptions): string {
 
   // Object form: toast({ title, description, variant })
   const { title, description, variant } = input
-  const type = variant === "destructive" ? "error" : "default"
+  const type = variant === "destructive" ? "error" : (variant ?? "default")
   const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2)}`
-  queueMicrotask(() => {
-    toastManager.add({
+  scheduleToastDispatch(() => {
+    const manager = initializeUiToastManager()
+    manager.add({
       type,
       title: title ?? undefined,
       description: description ?? undefined,
@@ -180,7 +187,7 @@ toastFn.info = (
 export const toast = toastFn
 
 // ── Type exports (backwards compat) ─────────────────────────────────────────
-type ToastProps = React.ComponentPropsWithoutRef<typeof Toast.Root> & VariantProps<typeof toastVariants>
-type ToastActionElement = React.ReactElement<typeof Toast.Action>
+export type ToastProps = React.ComponentPropsWithoutRef<typeof Toast.Root> & VariantProps<typeof toastVariants>
+export type ToastActionElement = React.ReactElement<typeof Toast.Action>
 
-export { toastVariants }
+export { toastVariants, getToastManager }

@@ -112,16 +112,29 @@ export function useShotSortModeState(
   updateProjectUISettings: ShotListViewProps['updateProjectUISettings'],
 ) {
   const [shotSortMode, setShotSortModeState] = useState<ShotSortMode>(
-    initialSortMode || 'ordered'
+    initialSortMode || 'newest'
   );
+  const pendingPersistedSortModeRef = useRef<ShotSortMode | null>(null);
 
   const setShotSortMode = useCallback((mode: ShotSortMode) => {
+    pendingPersistedSortModeRef.current = mode;
     setShotSortModeState(mode);
     updateProjectUISettings?.('project', { shotSortMode: mode });
   }, [updateProjectUISettings]);
 
   useEffect(() => {
-    if (initialSortMode && initialSortMode !== shotSortMode) {
+    if (!initialSortMode) return;
+
+    // Ignore stale persisted echoes while a local preference write is in-flight.
+    const pendingSortMode = pendingPersistedSortModeRef.current;
+    if (pendingSortMode) {
+      if (initialSortMode === pendingSortMode) {
+        pendingPersistedSortModeRef.current = null;
+      }
+      return;
+    }
+
+    if (initialSortMode !== shotSortMode) {
       setShotSortModeState(initialSortMode);
     }
   }, [initialSortMode, shotSortMode]);

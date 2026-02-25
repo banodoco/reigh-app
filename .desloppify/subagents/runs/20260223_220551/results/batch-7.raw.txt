@@ -1,0 +1,95 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 7,
+  "assessments": {
+    "error_consistency": 72.0
+  },
+  "dimension_notes": {
+    "error_consistency": {
+      "evidence": [
+        "Silent catches drop prefetch failures in `src/features/gallery/hooks/useAdjacentPagePreloader.ts:159` and `src/features/gallery/hooks/useAdjacentPagePreloader.ts:191` (`catch {}` / ignored).",
+        "Mixed propagation contracts: `src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts:120-123` logs and swallows delete errors, while `src/shared/hooks/useGenerationMutations.ts:159-165` throws in mutationFn and propagates via React Query.",
+        "Batch preloading hides downstream fetch failures because `queryClient.prefetchQuery(...)` is not awaited/caught in `src/shared/lib/generationTaskBridge.ts:125-138`; outer catch only covers mapping fetch.",
+        "Edge/server handlers mix logging channels and exposure strategy: `supabase/functions/calculate-task-cost/index.ts:160` uses `console.error`, and `supabase/functions/calculate-task-cost/index.ts:494-497` returns raw `error?.message`; `supabase/functions/complete_task/generation.ts:143-149` logs via console+logger then rethrows."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "error_consistency",
+      "identifier": "silent_prefetch_catches",
+      "summary": "Adjacent-page preloading silently swallows network/query failures with empty catch blocks.",
+      "related_files": [
+        "src/features/gallery/hooks/useAdjacentPagePreloader.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "`src/features/gallery/hooks/useAdjacentPagePreloader.ts:159-161` catches and ignores next-page prefetch errors.",
+        "`src/features/gallery/hooks/useAdjacentPagePreloader.ts:191` intentionally ignores previous-page prefetch errors.",
+        "No `handleError`/structured log is emitted, unlike the shared error pathway."
+      ],
+      "suggestion": "Route both catch paths through `handleError(..., { context: 'useAdjacentPagePreloader', showToast: false, logData: { page, direction } })` and keep non-blocking behavior by still continuing execution.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "unobserved_prefetch_failures",
+      "summary": "Generation-task bridge inconsistently handles failures: mapping fetch is handled, task prefetch failures are fire-and-forget and untracked.",
+      "related_files": [
+        "src/shared/lib/generationTaskBridge.ts",
+        "src/shared/hooks/useGenerationMutations.ts"
+      ],
+      "evidence": [
+        "`src/shared/lib/generationTaskBridge.ts:115-144` has a try/catch around batch work.",
+        "Inside it, `queryClient.prefetchQuery(...)` at `src/shared/lib/generationTaskBridge.ts:125-138` is not awaited; failures are not captured by the surrounding catch.",
+        "Other async data operations in assigned files generally throw and are captured by React Query/onError pathways."
+      ],
+      "suggestion": "Collect prefetch promises per batch and `await Promise.allSettled(...)`, then normalize rejected results through `handleError` with task/generation IDs in `logData`.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "mixed_ui_action_failure_contract",
+      "summary": "UI async actions mix return-contract styles, causing some failures to be observable and others to be silently converted to success-like void completion.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/shared/hooks/useGenerationMutations.ts"
+      ],
+      "evidence": [
+        "`src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts:120-123` catches delete errors, calls `handleError`, and does not rethrow/return error state.",
+        "Same file already has explicit `CallbackResult` error reporting in `runCallback` (`:154-168`), but delete path bypasses it.",
+        "`src/shared/hooks/useGenerationMutations.ts:153-165` throws from mutationFn and surfaces errors through standard React Query `onError`, yielding a different caller-facing failure mode."
+      ],
+      "suggestion": "Standardize action hooks on one failure contract (prefer explicit `Result` return or throw+onError), and refactor delete-segment flow to use the same `runCallback` pattern or rethrow consistently.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "edge_error_reporting_divergence",
+      "summary": "Edge functions use inconsistent error reporting and response exposure patterns across similar server failure paths.",
+      "related_files": [
+        "supabase/functions/calculate-task-cost/index.ts",
+        "supabase/functions/complete_task/generation.ts",
+        "supabase/functions/complete_task/orchestrator.ts"
+      ],
+      "evidence": [
+        "`supabase/functions/calculate-task-cost/index.ts:160` logs startup failure via `console.error`, while other paths use `SystemLogger`.",
+        "Its catch block (`:494-497`) returns raw `error?.message` to clients, unlike other guarded/generic error responses in the same handler.",
+        "`supabase/functions/complete_task/generation.ts:143-149` logs via `console.error` plus optional logger and rethrows; `supabase/functions/complete_task/orchestrator.ts:346-348` logs degraded billing with `console.error` without structured normalization."
+      ],
+      "suggestion": "Adopt a shared edge error wrapper (or `edgeOperation`-style result adapter) to normalize logging sink, context fields, and client-facing message policy across handlers.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

@@ -6,34 +6,38 @@ const mockResolveProjectResolution = vi.fn();
 const mockGenerateTaskId = vi.fn();
 const mockProcessBatchResults = vi.fn();
 
-vi.mock('../../taskCreation', () => ({
-  createTask: (...args: unknown[]) => mockCreateTask(...args),
-  resolveProjectResolution: (...args: unknown[]) => mockResolveProjectResolution(...args),
-  generateTaskId: (...args: unknown[]) => mockGenerateTaskId(...args),
-  validateRequiredFields: (params: Record<string, unknown>, fields: string[]) => {
-    for (const field of fields) {
-      const value = params[field];
-      if (value === undefined || value === null) {
-        throw new TVE(`${field} is required`, field);
+vi.mock('../../taskCreation', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../taskCreation')>();
+  return {
+    ...actual,
+    createTask: (...args: unknown[]) => mockCreateTask(...args),
+    resolveProjectResolution: (...args: unknown[]) => mockResolveProjectResolution(...args),
+    generateTaskId: (...args: unknown[]) => mockGenerateTaskId(...args),
+    validateRequiredFields: (params: Record<string, unknown>, fields: string[]) => {
+      for (const field of fields) {
+        const value = params[field];
+        if (value === undefined || value === null) {
+          throw new TVE(`${field} is required`, field);
+        }
+        if (Array.isArray(value) && value.length === 0) {
+          throw new TVE(`${field} cannot be empty`, field);
+        }
+        if (typeof value === 'string' && value.trim() === '') {
+          throw new TVE(`${field} cannot be empty`, field);
+        }
       }
-      if (Array.isArray(value) && value.length === 0) {
-        throw new TVE(`${field} cannot be empty`, field);
+    },
+    TaskValidationError: class extends Error {
+      field?: string;
+      constructor(message: string, field?: string) {
+        super(message);
+        this.name = 'TaskValidationError';
+        this.field = field;
       }
-      if (typeof value === 'string' && value.trim() === '') {
-        throw new TVE(`${field} cannot be empty`, field);
-      }
-    }
-  },
-  TaskValidationError: class extends Error {
-    field?: string;
-    constructor(message: string, field?: string) {
-      super(message);
-      this.name = 'TaskValidationError';
-      this.field = field;
-    }
-  },
-  processBatchResults: (...args: unknown[]) => mockProcessBatchResults(...args),
-}));
+    },
+    processBatchResults: (...args: unknown[]) => mockProcessBatchResults(...args),
+  };
+});
 
 class TVE extends Error {
   field?: string;
@@ -44,15 +48,15 @@ class TVE extends Error {
   }
 }
 
-vi.mock('../../aspectRatios', () => ({
+vi.mock('@/shared/lib/media/aspectRatios', () => ({
   ASPECT_RATIO_TO_RESOLUTION: {
     '16:9': '902x508',
     '1:1': '670x670',
   },
 }));
 
-vi.mock('@/shared/lib/errorHandler', () => ({
-  handleError: vi.fn(),
+vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
+  normalizeAndPresentError: vi.fn(),
 }));
 
 describe('createBatchImageGenerationTasks', () => {

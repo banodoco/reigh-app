@@ -1,0 +1,100 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 8,
+  "assessments": {
+    "convention_outlier": 72.0,
+    "error_consistency": 76.0,
+    "authorization_consistency": 88.0
+  },
+  "dimension_notes": {
+    "convention_outlier": {
+      "evidence": [
+        "Duplicate test suites exist in parallel directories with near-identical bodies: `src/features/gallery/hooks/__tests__/useGalleryPageState.test.ts` and `src/shared/hooks/__tests__/useGalleryPageState.test.ts`.",
+        "Another duplicated pair exists for autosave settings: `src/shared/hooks/__tests__/useAutoSaveSettings.test.ts` and `src/shared/settings/hooks/__tests__/useAutoSaveSettings.test.ts`, but they use different mock import conventions (`@/shared/lib/errorHandler` vs `@/shared/lib/errorHandling/handleError`, `@/shared/lib/deepEqual` vs `@/shared/lib/utils/deepEqual`).",
+        "Dark mode tests are split across two locations (`src/shared/hooks/__tests__/useDarkMode.test.ts` and `src/shared/hooks/theme/__tests__/useDarkMode.test.ts`) with different scope and mocking style, indicating unresolved test placement conventions."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "error_consistency": {
+      "evidence": [
+        "Within related task flows, error signaling is mixed: `supabase/functions/complete_task/generation.ts` returns `null` for skip paths (`category === 'orchestration'`, `skip_generation`) while also throwing in catch paths.",
+        "`supabase/functions/complete_task/orchestrator.ts` suppresses DB errors by logging and returning `null` in `findSiblingSegments`, and the caller treats `!allSegments` as a normal early-return path.",
+        "`src/shared/hooks/useGenerationMutations.ts` mostly throws `Error` with normalized messages, but one path throws raw Supabase error (`throw variantError`), creating inconsistent downstream error shape."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "authorization_consistency": {
+      "evidence": [
+        "Auth-related hooks use divergent patterns: `src/pages/Home/hooks/auth/useAuthReferralFinalize.ts` routes through `runAuthSupabaseOperation` with structured context/error code handling.",
+        "`src/pages/Home/hooks/useDiscordSignIn.ts` directly calls `supabase.auth.signInWithOAuth` and reports errors via generic `handleError` context (`HomePage`) instead of the auth operation wrapper pattern.",
+        "The mixed auth operation patterns make auth failure handling/telemetry non-uniform across adjacent auth flows."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "unreported_risk": "Other auth-adjacent hooks outside this batch may also bypass the shared auth-operation wrapper, which can fragment auditability and incident debugging."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "convention_outlier",
+      "identifier": "duplicated_test_tree_conventions",
+      "summary": "Parallel duplicated test trees have drifted in imports and mocking conventions",
+      "related_files": [
+        "src/shared/hooks/__tests__/useAutoSaveSettings.test.ts",
+        "src/shared/settings/hooks/__tests__/useAutoSaveSettings.test.ts",
+        "src/features/gallery/hooks/__tests__/useGalleryPageState.test.ts",
+        "src/shared/hooks/__tests__/useGalleryPageState.test.ts",
+        "src/shared/hooks/__tests__/useDarkMode.test.ts",
+        "src/shared/hooks/theme/__tests__/useDarkMode.test.ts"
+      ],
+      "evidence": [
+        "The two `useGalleryPageState` test files are effectively identical line-for-line but live under different feature roots.",
+        "The two `useAutoSaveSettings` tests are near-duplicates yet use different dependency paths (`@/shared/lib/errorHandler` vs `@/shared/lib/errorHandling/handleError`, `@/shared/lib/deepEqual` vs `@/shared/lib/utils/deepEqual`).",
+        "Dark mode tests are duplicated across `hooks` and `hooks/theme`, with different test scope and mocks."
+      ],
+      "suggestion": "Pick one canonical test location convention (feature-local or shared), delete duplicate copies, and normalize all test mocks to current module paths in a single migration commit.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "mixed_error_signaling_complete_task",
+      "summary": "Complete-task modules mix thrown failures with null-return suppression",
+      "related_files": [
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/complete_task/generation.ts"
+      ],
+      "evidence": [
+        "`findSiblingSegments` logs query errors and returns `null` (`orchestrator.ts`), and upstream logic treats missing segments as a normal return path instead of a failure.",
+        "`createGenerationFromTask` uses nullable control returns for skip cases but throws on operational errors (`generation.ts`), creating inconsistent caller expectations for failure vs non-action."
+      ],
+      "suggestion": "Define a single contract for these orchestration helpers (e.g., explicit discriminated result `{status:'skipped'|'ok'|'error'}` or throw-on-error everywhere) and apply it consistently across `orchestrator.ts` and `generation.ts`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "authorization_consistency",
+      "identifier": "auth_flow_error_protocol_drift",
+      "summary": "Sibling auth flows use different authorization-operation handling protocols",
+      "related_files": [
+        "src/pages/Home/hooks/auth/useAuthReferralFinalize.ts",
+        "src/pages/Home/hooks/useDiscordSignIn.ts"
+      ],
+      "evidence": [
+        "`useAuthReferralFinalize` wraps Supabase RPC in `runAuthSupabaseOperation` with explicit auth context and error code.",
+        "`useDiscordSignIn` bypasses that wrapper and emits generic `handleError` calls with `context: 'HomePage'`, reducing auth-specific consistency."
+      ],
+      "suggestion": "Adopt one auth operation wrapper for both flows (including OAuth start), with standardized auth context/error codes and consistent surface for caller handling.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

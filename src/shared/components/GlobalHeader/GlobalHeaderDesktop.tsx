@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { Palette, Crown, Wrench, PlusCircle, Settings } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import type { Session } from '@supabase/supabase-js';
 import { ProjectSelectorPopover } from './ProjectSelectorPopover';
 import { darkIconColors, getDarkIconStyle, getReferralButtonText } from './types';

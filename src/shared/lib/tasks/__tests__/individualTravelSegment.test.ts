@@ -7,6 +7,15 @@ const mockResolveProjectResolution = vi.fn();
 vi.mock('../../taskCreation', () => ({
   createTask: (...args: unknown[]) => mockCreateTask(...args),
   resolveProjectResolution: (...args: unknown[]) => mockResolveProjectResolution(...args),
+  resolveSeed32Bit: ({
+    seed,
+    randomize,
+    fallbackSeed,
+  }: {
+    seed?: number;
+    randomize?: boolean;
+    fallbackSeed?: number;
+  }) => (randomize ? 424242 : (seed ?? fallbackSeed ?? 424242)),
   TaskValidationError: class extends Error {
     field?: string;
     constructor(message: string, field?: string) {
@@ -17,8 +26,8 @@ vi.mock('../../taskCreation', () => ({
   },
 }));
 
-vi.mock('@/shared/lib/errorHandler', () => ({
-  handleError: vi.fn(),
+vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
+  normalizeAndPresentError: vi.fn(),
 }));
 
 vi.mock('@/shared/lib/vaceDefaults', () => ({
@@ -27,7 +36,7 @@ vi.mock('@/shared/lib/vaceDefaults', () => ({
   },
 }));
 
-vi.mock('@/shared/lib/toolConstants', () => ({
+vi.mock('@/shared/lib/toolIds', () => ({
   TOOL_IDS: {
     TRAVEL_BETWEEN_IMAGES: 'travel-between-images',
   },
@@ -37,10 +46,10 @@ vi.mock('@/shared/lib/toolConstants', () => ({
 const mockSupabaseFrom = vi.fn();
 const mockSupabaseRpc = vi.fn();
 vi.mock('@/integrations/supabase/client', () => ({
-  supabase: {
+  getSupabaseClient: () => ({
     from: (...args: unknown[]) => mockSupabaseFrom(...args),
     rpc: (...args: unknown[]) => mockSupabaseRpc(...args),
-  },
+  }),
 }));
 
 vi.mock('@/shared/types/phaseConfig', () => ({
@@ -170,7 +179,7 @@ describe('createIndividualTravelSegmentTask', () => {
     const params = mockCreateTask.mock.calls[0][0].params;
     // Seed should be random, not 99999
     expect(typeof params.seed_to_use).toBe('number');
-    expect(params.seed_to_use).toBeLessThan(1000000);
+    expect(params.seed_to_use).toBeLessThan(0x7fffffff);
   });
 
   it('clamps num_frames to MAX_SEGMENT_FRAMES (81)', async () => {
@@ -277,18 +286,28 @@ describe('createIndividualTravelSegmentTask', () => {
     expect(params.child_generation_id).toBe('child-1');
   });
 
-  it('always sets use_svi to false', async () => {
+  it('strips legacy svi fields from orchestrator_details', async () => {
     await createIndividualTravelSegmentTask({
       project_id: 'proj-1',
       parent_generation_id: 'parent-1',
       segment_index: 0,
       start_image_url: 'https://example.com/start.jpg',
       end_image_url: 'https://example.com/end.jpg',
-      use_svi: true, // Explicitly try to enable
+      originalParams: {
+        orchestrator_details: {
+          use_svi: true,
+          svi_predecessor_video_url: 'https://example.com/prev.mp4',
+          svi_strength_1: 0.25,
+          svi_strength_2: 0.5,
+        },
+      },
     });
 
     const params = mockCreateTask.mock.calls[0][0].params;
-    expect(params.orchestrator_details.use_svi).toBe(false);
+    expect(params.orchestrator_details.use_svi).toBeUndefined();
+    expect(params.orchestrator_details.svi_predecessor_video_url).toBeUndefined();
+    expect(params.orchestrator_details.svi_strength_1).toBeUndefined();
+    expect(params.orchestrator_details.svi_strength_2).toBeUndefined();
   });
 
   it('removes orchestrator references from orchestrator_details', async () => {

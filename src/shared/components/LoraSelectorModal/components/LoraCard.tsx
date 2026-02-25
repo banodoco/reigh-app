@@ -1,11 +1,11 @@
 import React from 'react';
 import { Card, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
-import { Label } from "@/shared/components/ui/label";
+import { Label } from "@/shared/components/ui/primitives/label";
 import { Slider } from "@/shared/components/ui/slider";
 import { Pencil, Trash2 } from 'lucide-react';
 import HoverScrubVideo from '@/shared/components/HoverScrubVideo';
-import { useIsMobile } from '@/shared/hooks/useMobile';
+import { useIsMobile } from '@/shared/hooks/mobile';
 import type { Resource } from '@/shared/hooks/useResources';
 import type { LoraModel } from '../types';
 import { LoraCardProps } from '../types';

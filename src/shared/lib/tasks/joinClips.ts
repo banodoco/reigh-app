@@ -1,23 +1,29 @@
 import {
   generateTaskId,
   generateRunId,
-  createTask,
   validateRequiredFields,
-  TaskValidationError
+  TaskValidationError,
+  validateNonEmptyString,
+  mapPathLorasToStrengthRecord,
 } from "../taskCreation";
 import type { TaskCreationResult } from "../taskCreation";
-import { PhaseConfig, PhaseLoraConfig } from '@/shared/types/phaseConfig';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { PhaseConfig } from '@/shared/types/phaseConfig';
 import { joinClipsSettings } from '@/shared/lib/joinClipsDefaults';
-import { camelToSnakeKeys } from '@/shared/lib/caseConversion';
+import { camelToSnakeKeys } from '@/shared/lib/utils/caseConversion';
 import type { PathLoraConfig } from '@/shared/types/lora';
+import { buildPhaseConfigWithLoras } from '@/shared/lib/vaceDefaults';
+import { buildJoinClipsFamilyContract } from './taskFamilyContracts';
+import { composeTaskFamilyPayload } from './taskPayloadContract';
+import { assignMappedPayloadFields } from '../taskCreation/payloadMapping';
+import { composeTaskRequest } from './taskRequestComposer';
+import { runTaskCreationPipeline } from './taskCreatorPipeline';
 
 // ============================================================================
 
 /**
- * Describes an individual clip that will participate in the join workflow
+ * Describes an individual clip that will participate in the join workflow.
  */
-interface JoinClipDescriptor {
+export interface JoinClipDescriptor {
   url: string;
   name?: string;
 }
@@ -42,13 +48,9 @@ interface JoinClipsPerJoinSettings {
 }
 
 /**
- * Interface for join clips task parameters
- * Supports both the legacy two-video API and the new multi-clip orchestration flow
+ * Frame-accurate portion selection for video editing.
  */
-/**
- * Frame-accurate portion selection for video editing
- */
-interface PortionToRegenerate {
+export interface PortionToRegenerate {
   start_frame: number;
   end_frame: number;
   start_time_seconds: number;
@@ -56,21 +58,26 @@ interface PortionToRegenerate {
   frame_count: number;
 }
 
-export interface JoinClipsTaskParams {
+interface JoinClipsModernClipSource {
+  kind: 'clips';
+  clips: JoinClipDescriptor[];
+}
+
+export type JoinClipsClipSource = JoinClipsModernClipSource;
+
+export interface JoinClipsVideoEditConfig {
+  source_video_url: string;
+  source_video_fps?: number;
+  source_video_duration?: number;
+  source_video_total_frames?: number;
+  portions_to_regenerate?: PortionToRegenerate[];
+}
+
+interface JoinClipsSharedTaskParams {
   project_id: string;
   shot_id?: string; // Associate task with a shot for "Visit Shot" button in TasksPane
-
-  // New multi-clip structure
-  clips?: JoinClipDescriptor[];
   per_join_settings?: JoinClipsPerJoinSettings[];
   run_id?: string;
-
-  // Legacy structure (starting/ending video) for backwards compatibility
-  starting_video_path?: string;
-  ending_video_path?: string;
-  intermediate_video_paths?: string[];
-
-  // Global settings applied to the entire orchestration
   prompt?: string;
   context_frame_count?: number;
   gap_frame_count?: number;
@@ -96,17 +103,13 @@ export interface JoinClipsTaskParams {
   vid2vid_init_strength?: number; // Adds noise to input video frames (0 = disabled, higher = more noise/creative freedom)
   loop_first_clip?: boolean; // Loop first clip - use first clip as both start and end
   based_on?: string; // Source generation ID for variant creation (when looping from "Add to Join")
-
-  // Video edit mode - for regenerating portions of a single video
-  video_edit_mode?: boolean;
-  source_video_url?: string;
-  source_video_fps?: number;
-  source_video_duration?: number;
-  source_video_total_frames?: number;
-  portions_to_regenerate?: PortionToRegenerate[];
-
-  // Audio to mix into the final joined video
   audio_url?: string;
+}
+
+export interface CanonicalJoinClipsTaskInput extends JoinClipsSharedTaskParams {
+  mode: 'multi_clip' | 'video_edit';
+  clip_source: JoinClipsClipSource;
+  video_edit?: JoinClipsVideoEditConfig;
 }
 
 /**
@@ -115,6 +118,52 @@ export interface JoinClipsTaskParams {
  * so per-tool overrides (e.g., guidanceScale: 5.0) flow through automatically.
  */
 const TASK_DEFAULTS = camelToSnakeKeys(joinClipsSettings.defaults);
+
+type JoinMode = 'multi_clip_join' | 'video_edit_join';
+
+interface NormalizedJoinClipsParams {
+  clipSequence: JoinClipDescriptor[];
+  clipSourceKind: JoinClipsClipSource['kind'];
+  joinMode: JoinMode;
+  videoEdit?: JoinClipsVideoEditConfig;
+}
+
+const PER_JOIN_OVERRIDE_KEYS = [
+  'prompt',
+  'gap_frame_count',
+  'context_frame_count',
+  'replace_mode',
+  'model',
+  'num_inference_steps',
+  'guidance_scale',
+  'seed',
+  'negative_prompt',
+  'priority',
+  'resolution',
+  'fps',
+] as const satisfies readonly (keyof JoinClipsPerJoinSettings)[];
+
+function buildJoinOverrideRecord(
+  override?: JoinClipsPerJoinSettings,
+): Record<string, unknown> {
+  if (!override) {
+    return {};
+  }
+
+  const joinSettings: Record<string, unknown> = {};
+  for (const key of PER_JOIN_OVERRIDE_KEYS) {
+    const value = override[key];
+    if (value !== undefined) {
+      joinSettings[key] = value;
+    }
+  }
+
+  if (override.loras && override.loras.length > 0) {
+    joinSettings.additional_loras = mapPathLorasToStrengthRecord(override.loras);
+  }
+
+  return joinSettings;
+}
 
 /**
  * Build phase config for join clips (always uses VACE since we're joining existing videos).
@@ -126,86 +175,17 @@ const TASK_DEFAULTS = camelToSnakeKeys(joinClipsSettings.defaults);
 function buildJoinClipsPhaseConfig(
   userLoras: PathLoraConfig[] = []
 ): PhaseConfig {
-  // Default LoRA that's always included
-  const defaultLora: PhaseLoraConfig = {
-    url: "https://huggingface.co/peteromallet/random_junk/resolve/main/motion_scale_000006500_high_noise.safetensors",
-    multiplier: "1.25"
-  };
-
-  // Convert user LoRAs to phase config format
-  const additionalLoras: PhaseLoraConfig[] = userLoras
-    .filter(lora => lora.path)
-    .map(lora => ({
-      url: lora.path,
-      multiplier: lora.strength.toFixed(2)
-    }));
-
-  return {
-    num_phases: 3,
-    steps_per_phase: [2, 2, 5],
-    flow_shift: 5.0,
-    sample_solver: "euler",
-    model_switch_phase: 2,
-    phases: [
-      {
-        phase: 1,
-        guidance_scale: 3.0,
-        loras: [
-          { url: "https://huggingface.co/lightx2v/Wan2.2-Lightning/resolve/main/Wan2.2-T2V-A14B-4steps-lora-250928/high_noise_model.safetensors", multiplier: "0.75" },
-          defaultLora,
-          ...additionalLoras
-        ]
-      },
-      {
-        phase: 2,
-        guidance_scale: 1.0,
-        loras: [
-          { url: "https://huggingface.co/lightx2v/Wan2.2-Lightning/resolve/main/Wan2.2-T2V-A14B-4steps-lora-250928/high_noise_model.safetensors", multiplier: "1.0" },
-          defaultLora,
-          ...additionalLoras
-        ]
-      },
-      {
-        phase: 3,
-        guidance_scale: 1.0,
-        loras: [
-          { url: "https://huggingface.co/lightx2v/Wan2.2-Lightning/resolve/main/Wan2.2-T2V-A14B-4steps-lora-250928/low_noise_model.safetensors", multiplier: "1.0" },
-          defaultLora,
-          ...additionalLoras
-        ]
-      }
-    ]
-  };
+  return buildPhaseConfigWithLoras(userLoras);
 }
 
 /**
  * Builds the ordered clip sequence from the provided parameters.
  */
-function buildClipSequence(params: JoinClipsTaskParams): JoinClipDescriptor[] {
-  if (params.clips && params.clips.length > 0) {
-    return params.clips.map(clip => ({
-      url: clip.url,
-      ...(clip.name ? { name: clip.name } : {}),
-    }));
-  }
-
-  const legacySequence: JoinClipDescriptor[] = [];
-
-  if (params.starting_video_path) {
-    legacySequence.push({ url: params.starting_video_path });
-  }
-
-  if (params.intermediate_video_paths?.length) {
-    legacySequence.push(
-      ...params.intermediate_video_paths.map(path => ({ url: path }))
-    );
-  }
-
-  if (params.ending_video_path) {
-    legacySequence.push({ url: params.ending_video_path });
-  }
-
-  return legacySequence;
+function buildClipSequenceFromSource(source: JoinClipsClipSource): JoinClipDescriptor[] {
+  return source.clips.map((clip) => ({
+    url: clip.url,
+    ...(clip.name ? { name: clip.name } : {}),
+  }));
 }
 
 /**
@@ -214,19 +194,22 @@ function buildClipSequence(params: JoinClipsTaskParams): JoinClipDescriptor[] {
  * @param params - Parameters to validate
  * @throws TaskValidationError if validation fails
  */
-function validateJoinClipsParams(params: JoinClipsTaskParams): JoinClipDescriptor[] {
+function normalizeJoinClipsParams(params: CanonicalJoinClipsTaskInput): NormalizedJoinClipsParams {
   validateRequiredFields(params, [
     'project_id'
   ]);
 
-  const clipSequence = buildClipSequence(params);
+  const clipSource = params.clip_source;
+  const clipSequence = buildClipSequenceFromSource(clipSource);
 
   if (clipSequence.length < 2) {
     throw new TaskValidationError("At least two clips are required to create a join", 'clips');
   }
 
   clipSequence.forEach((clip, index) => {
-    if (!clip.url || clip.url.trim() === '') {
+    try {
+      validateNonEmptyString(clip.url, `clips[${index}]`, `Clip ${index + 1} URL`);
+    } catch {
       throw new TaskValidationError(`Clip at position ${index} is missing a URL`, 'clips');
     }
   });
@@ -240,19 +223,42 @@ function validateJoinClipsParams(params: JoinClipsTaskParams): JoinClipDescripto
     );
   }
 
-  return clipSequence;
-}
+  const videoEdit = params.video_edit;
+  if (params.mode === 'video_edit' && !videoEdit) {
+    throw new TaskValidationError(
+      "video_edit config is required when mode is video_edit",
+      'mode',
+    );
+  }
+  if (videoEdit && !videoEdit.source_video_url) {
+    throw new TaskValidationError(
+      "video_edit.source_video_url is required when video_edit config is provided",
+      'video_edit',
+    );
+  }
+  if (params.mode !== 'video_edit' && videoEdit) {
+    throw new TaskValidationError(
+      "video_edit config can only be provided when mode is video_edit",
+      'mode',
+    );
+  }
+  if (params.mode === 'multi_clip' && clipSource.kind !== 'clips') {
+    throw new TaskValidationError(
+      "clip_source.kind must be clips when mode is multi_clip",
+      'mode',
+    );
+  }
 
-/**
- * Converts an array of LoRA descriptors into the additional_loras map format.
- */
-function mapLorasToRecord(loras: PathLoraConfig[]): Record<string, number> {
-  return loras.reduce<Record<string, number>>((acc, lora) => {
-    if (lora.path) {
-      acc[lora.path] = lora.strength;
-    }
-    return acc;
-  }, {});
+  const joinMode: JoinMode = params.mode === 'video_edit'
+    ? 'video_edit_join'
+    : 'multi_clip_join';
+
+  return {
+    clipSequence,
+    clipSourceKind: clipSource.kind,
+    joinMode,
+    videoEdit,
+  };
 }
 
 /**
@@ -265,11 +271,12 @@ function mapLorasToRecord(loras: PathLoraConfig[]): Record<string, number> {
  * @returns Processed orchestrator payload
  */
 function buildJoinClipsPayload(
-  params: JoinClipsTaskParams,
-  clipSequence: JoinClipDescriptor[],
+  params: CanonicalJoinClipsTaskInput,
+  normalized: NormalizedJoinClipsParams,
   runId: string,
   orchestratorTaskId: string
 ): Record<string, unknown> {
+  const clipSequence = normalized.clipSequence;
   // Use provided phase config (advanced mode) or build from LoRAs (basic mode)
   const phaseConfig = params.phase_config || buildJoinClipsPhaseConfig(params.loras || []);
   
@@ -302,25 +309,20 @@ function buildJoinClipsPayload(
     selected_phase_preset_id: params.selected_phase_preset_id ?? TASK_DEFAULTS.selected_phase_preset_id,
   };
 
-  if (params.resolution) {
-    orchestratorDetails.resolution = params.resolution;
-  }
+  assignMappedPayloadFields(orchestratorDetails, params, [
+    { from: 'resolution' },
+    { from: 'fps' },
+    { from: 'use_input_video_resolution' },
+    { from: 'use_input_video_fps' },
+    { from: 'audio_url' },
+  ]);
 
-  if (params.fps !== undefined) {
-    orchestratorDetails.fps = params.fps;
-  }
-
-  if (params.use_input_video_resolution !== undefined) {
-    orchestratorDetails.use_input_video_resolution = params.use_input_video_resolution;
-  }
-
-  if (params.use_input_video_fps !== undefined) {
-    orchestratorDetails.use_input_video_fps = params.use_input_video_fps;
-  }
-
-  if (params.vid2vid_init_strength !== undefined && params.vid2vid_init_strength > 0) {
-    orchestratorDetails.vid2vid_init_strength = params.vid2vid_init_strength;
-  }
+  assignMappedPayloadFields(orchestratorDetails, params, [
+    {
+      from: 'vid2vid_init_strength',
+      include: (value) => typeof value === 'number' && value > 0,
+    },
+  ]);
 
   if (params.loop_first_clip) {
     orchestratorDetails.loop_first_clip = true;
@@ -333,22 +335,17 @@ function buildJoinClipsPayload(
 
   // Keep additional_loras for backward compatibility, but LoRAs are now primarily in phase_config
   if (params.loras && params.loras.length > 0) {
-    orchestratorDetails.additional_loras = mapLorasToRecord(params.loras);
+    orchestratorDetails.additional_loras = mapPathLorasToStrengthRecord(params.loras);
   }
   
   // Video edit mode - for regenerating portions of a single video
-  if (params.video_edit_mode) {
+  if (normalized.videoEdit) {
     orchestratorDetails.video_edit_mode = true;
-    orchestratorDetails.source_video_url = params.source_video_url;
-    orchestratorDetails.source_video_fps = params.source_video_fps;
-    orchestratorDetails.source_video_duration = params.source_video_duration;
-    orchestratorDetails.source_video_total_frames = params.source_video_total_frames;
-    orchestratorDetails.portions_to_regenerate = params.portions_to_regenerate;
-  }
-
-  // Audio to mix into the final joined video
-  if (params.audio_url) {
-    orchestratorDetails.audio_url = params.audio_url;
+    orchestratorDetails.source_video_url = normalized.videoEdit.source_video_url;
+    orchestratorDetails.source_video_fps = normalized.videoEdit.source_video_fps;
+    orchestratorDetails.source_video_duration = normalized.videoEdit.source_video_duration;
+    orchestratorDetails.source_video_total_frames = normalized.videoEdit.source_video_total_frames;
+    orchestratorDetails.portions_to_regenerate = normalized.videoEdit.portions_to_regenerate;
   }
 
   const totalJoins = Math.max(clipSequence.length - 1, 0);
@@ -357,26 +354,7 @@ function buildJoinClipsPayload(
     let hasOverrides = false;
 
     for (let index = 0; index < totalJoins; index++) {
-      const override = params.per_join_settings?.[index];
-      const joinSettings: Record<string, unknown> = {};
-
-      if (override) {
-        if (override.prompt !== undefined) joinSettings.prompt = override.prompt;
-        if (override.gap_frame_count !== undefined) joinSettings.gap_frame_count = override.gap_frame_count;
-        if (override.context_frame_count !== undefined) joinSettings.context_frame_count = override.context_frame_count;
-        if (override.replace_mode !== undefined) joinSettings.replace_mode = override.replace_mode;
-        if (override.model !== undefined) joinSettings.model = override.model;
-        if (override.num_inference_steps !== undefined) joinSettings.num_inference_steps = override.num_inference_steps;
-        if (override.guidance_scale !== undefined) joinSettings.guidance_scale = override.guidance_scale;
-        if (override.seed !== undefined) joinSettings.seed = override.seed;
-        if (override.negative_prompt !== undefined) joinSettings.negative_prompt = override.negative_prompt;
-        if (override.priority !== undefined) joinSettings.priority = override.priority;
-        if (override.resolution !== undefined) joinSettings.resolution = override.resolution;
-        if (override.fps !== undefined) joinSettings.fps = override.fps;
-        if (override.loras && override.loras.length > 0) {
-          joinSettings.additional_loras = mapLorasToRecord(override.loras);
-        }
-      }
+      const joinSettings = buildJoinOverrideRecord(params.per_join_settings?.[index]);
 
       if (Object.keys(joinSettings).length > 0) {
         hasOverrides = true;
@@ -391,8 +369,49 @@ function buildJoinClipsPayload(
     }
   }
 
+  const resolutionDisplay = params.resolution
+    ? `${params.resolution[0]}x${params.resolution[1]}`
+    : undefined;
+
+  const joinMode = normalized.joinMode;
+
+  const perJoinOverridesCount = params.per_join_settings?.filter((override) =>
+    !!override && Object.keys(override).length > 0
+  ).length ?? 0;
+
+  const familyContract = buildJoinClipsFamilyContract({
+    mode: joinMode,
+    runId,
+    clipUrls: clipSequence.map((clip) => clip.url),
+    overridesCount: perJoinOverridesCount,
+    hasAudio: Boolean(params.audio_url),
+  });
+
+  const payload = composeTaskFamilyPayload({
+    taskFamily: 'join_clips',
+    orchestratorDetails,
+    orchestrationInput: {
+      taskFamily: 'join_clips',
+      orchestratorTaskId,
+      runId,
+      parentGenerationId: params.parent_generation_id,
+      shotId: params.shot_id,
+      basedOn: params.based_on,
+      generationRouting: 'orchestrator',
+      siblingLookup: 'run_id',
+    },
+    taskViewInput: {
+      inputImages: clipSequence.map((clip) => clip.url),
+      prompt: params.prompt,
+      negativePrompt: params.negative_prompt,
+      modelName: params.model,
+      resolution: resolutionDisplay,
+    },
+    familyContract,
+  });
+
   return {
-    orchestrator_details: orchestratorDetails,
+    ...payload,
     parent_generation_id: params.parent_generation_id,
     // Only include tool_type if explicitly passed (Join Clips page passes it, ShotEditor doesn't)
     ...(params.tool_type && { tool_type: params.tool_type }),
@@ -405,38 +424,30 @@ function buildJoinClipsPayload(
  * @param params - Join clips task parameters
  * @returns Promise resolving to the created task
  */
-export async function createJoinClipsTask(params: JoinClipsTaskParams): Promise<TaskCreationResult> {
+export async function createCanonicalJoinClipsTask(
+  params: CanonicalJoinClipsTaskInput,
+): Promise<TaskCreationResult> {
+  return runTaskCreationPipeline({
+    params,
+    context: 'JoinClips',
+    buildTaskRequest: (requestParams) => {
+      const normalized = normalizeJoinClipsParams(requestParams);
+      const orchestratorTaskId = generateTaskId("join_clips_orchestrator");
+      const runId = requestParams.run_id ?? generateRunId();
+      const orchestratorPayload = buildJoinClipsPayload(
+        requestParams,
+        normalized,
+        runId,
+        orchestratorTaskId,
+      );
 
-  try {
-    // 1. Validate parameters
-    const clipSequence = validateJoinClipsParams(params);
-
-    // 2. Generate IDs for orchestrator payload
-    const orchestratorTaskId = generateTaskId("join_clips_orchestrator");
-    const runId = params.run_id ?? generateRunId();
-
-    // 3. Build orchestrator payload
-    const orchestratorPayload = buildJoinClipsPayload(
-      params, 
-      clipSequence,
-      runId,
-      orchestratorTaskId
-    );
-
-    // 4. Create task using unified create-task function
-    const result = await createTask({
-      project_id: params.project_id,
-      task_type: 'join_clips_orchestrator',
-      params: orchestratorPayload
-    });
-
-    return result;
-
-  } catch (error) {
-    handleError(error, { context: 'JoinClips', showToast: false });
-    throw error;
-  }
+      return composeTaskRequest({
+        source: requestParams,
+        taskType: 'join_clips_orchestrator',
+        params: orchestratorPayload,
+      });
+    },
+  });
 }
 
 // TaskValidationError is used internally - import from taskCreation.ts if needed externally
-

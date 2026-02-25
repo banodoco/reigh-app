@@ -1,0 +1,75 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 2,
+  "assessments": {
+    "ai_generated_debt": 78.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "Multiple files contain large comment blocks that restate immediate code behavior without adding non-obvious rationale (e.g., src/tools/travel-between-images/components/Timeline/hooks/useTimelinePositions.ts, src/tools/travel-between-images/hooks/useClickOutside.ts, src/types/gifenc.d.ts).",
+        "Wrapper functions in supabase/functions/_shared/billing.ts are pure pass-throughs to imported helpers (`extractOrchestratorRef`, `buildSubTaskFilter`) while carrying heavy local docs, adding indirection without behavior.",
+        "No-op/placeholder defensive branches appear in production paths (supabase/functions/_shared/billing.ts:118-122 and supabase/functions/ai-prompt/index.ts:91-98), indicating generated-style scaffolding kept after implementation."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "pass_through_wrapper_indirection",
+      "summary": "Billing helpers add pass-through wrappers with no behavioral value.",
+      "related_files": [
+        "supabase/functions/_shared/billing.ts",
+        "supabase/functions/_shared/storagePaths.ts"
+      ],
+      "evidence": [
+        "`extractOrchestratorRef` and `buildSubTaskFilter` in billing.ts only forward arguments to imported helpers and return directly.",
+        "This file-level wrapper pattern increases API surface and documentation burden while not adding auth/logging/validation behavior."
+      ],
+      "suggestion": "Inline direct imports at call sites (or re-export from an index barrel) and remove the zero-logic wrappers; keep only helpers that enforce local policy.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "commentary_overgrowth",
+      "summary": "Several modules contain generated-style explanatory comment volume that exceeds code complexity.",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelinePositions.ts",
+        "src/tools/travel-between-images/hooks/useClickOutside.ts",
+        "src/types/gifenc.d.ts",
+        "src/shared/types/presetMetadata.ts"
+      ],
+      "evidence": [
+        "useTimelinePositions.ts has extensive banner/comment sections and repeated inline rationale around straightforward operations, reducing signal-to-noise while reading logic.",
+        "useClickOutside.ts includes long JSDoc examples and parameter docs for a small, conventional hook implementation.",
+        "gifenc.d.ts and presetMetadata.ts include verbose top-level/type comments that mostly restate symbol names and obvious field meanings."
+      ],
+      "suggestion": "Trim comments to only non-obvious constraints/decisions, and remove repetitive doc text that mirrors signatures; keep concise API notes where behavior is surprising.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "placeholder_noop_branches",
+      "summary": "Production code contains no-op branches that look like retained generation scaffolding.",
+      "related_files": [
+        "supabase/functions/_shared/billing.ts",
+        "supabase/functions/ai-prompt/index.ts"
+      ],
+      "evidence": [
+        "billing.ts handles `costData.skipped` and numeric `costData.cost` with intentionally empty branches, adding branch complexity without behavior.",
+        "ai-prompt/index.ts validates prompt count but keeps a 'too few' branch as comment-only fallback, effectively preserving placeholder control flow."
+      ],
+      "suggestion": "Replace empty branches with explicit normalized handling (e.g., parse response into a typed result object once) or remove branches entirely when behavior is intentionally identical.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ]
+}

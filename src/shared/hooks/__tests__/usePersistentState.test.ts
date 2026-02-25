@@ -3,11 +3,11 @@ import { renderHook, act } from '@testing-library/react';
 import { dispatchAppEvent } from '@/shared/lib/typedEvents';
 
 // Mock errorHandler before importing hook
-vi.mock('@/shared/lib/errorHandler', () => ({
+vi.mock('@/shared/lib/compat/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 
-vi.mock('@/shared/components/ui/sonner', () => ({
+vi.mock('@/shared/components/ui/runtime/sonner', () => ({
   toast: {
     warning: vi.fn(),
     error: vi.fn(),

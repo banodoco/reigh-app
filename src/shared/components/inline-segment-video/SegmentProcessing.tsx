@@ -1,6 +1,6 @@
 import type React from 'react';
 import { Loader2, Sparkles } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import type { SegmentProcessingProps } from './types';
 
 export const SegmentProcessing: React.FC<SegmentProcessingProps> = ({

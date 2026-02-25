@@ -1,4 +1,4 @@
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 
 /** Extended GenerationRow with variant tracking fields added by hooks */
 interface GenerationRowWithVariant extends GenerationRow {

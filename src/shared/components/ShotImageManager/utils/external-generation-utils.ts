@@ -1,4 +1,4 @@
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 
 /** Shape of a shot_generations join row */
 interface ShotGenerationJoinRow {

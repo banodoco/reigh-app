@@ -1,4 +1,4 @@
-import type { GenerationRow, Shot, ShotOption } from '@/types/shots';
+import type { GenerationRow, Shot, ShotOption } from '@/domains/generation/types';
 import type { Task } from '@/types/database';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 
@@ -41,7 +41,7 @@ export interface LightboxFeatureFlags {
   showImageEditTools?: boolean;
   showDownload?: boolean;
   showMagicEdit?: boolean;
-  autoEnterInpaint?: boolean;
+  initialEditActive?: boolean;
   showTaskDetails?: boolean;
 }
 

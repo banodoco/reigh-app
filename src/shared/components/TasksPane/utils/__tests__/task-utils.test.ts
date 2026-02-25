@@ -24,7 +24,7 @@ import {
   checkSegmentConnection,
 } from '../task-utils';
 import type { Task } from '@/types/tasks';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 
 const makeTask = (overrides: Partial<Task> = {}): Task => ({
   id: 'task-1',
@@ -319,7 +319,7 @@ describe('checkSegmentConnection', () => {
     }));
     const mockEq = vi.fn(() => ({ maybeSingle: mockMaybeSingle }));
     const mockSelect = vi.fn(() => ({ eq: mockEq }));
-    vi.mocked(supabase.from).mockReturnValueOnce({ select: mockSelect } as unknown);
+    vi.mocked(supabase().from).mockReturnValueOnce({ select: mockSelect } as unknown);
 
     const result = await checkSegmentConnection('pair-1', 'shot-1');
     expect(result).toBe(true);
@@ -331,7 +331,7 @@ describe('checkSegmentConnection', () => {
     }));
     const mockEq = vi.fn(() => ({ maybeSingle: mockMaybeSingle }));
     const mockSelect = vi.fn(() => ({ eq: mockEq }));
-    vi.mocked(supabase.from).mockReturnValueOnce({ select: mockSelect } as unknown);
+    vi.mocked(supabase().from).mockReturnValueOnce({ select: mockSelect } as unknown);
 
     const result = await checkSegmentConnection('pair-1', 'shot-1');
     expect(result).toBe(false);

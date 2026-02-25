@@ -1,0 +1,78 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "high_level_elegance": 84.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "README.md defines strict compatibility/migration contracts (explicit Supabase runtime contract, strict shim gate, and quality check expectations), but `src/integrations/supabase/client.ts` keeps a broad legacy `supabase` proxy export with only comment-based deprecation metadata.",
+        "`src/integrations/supabase/client.ts` deprecation governance (`LEGACY_SUPABASE_PROXY_REMOVE_BY`, `LEGACY_SUPABASE_PROXY_OWNER`) is not connected to any runtime guard, build-time check, or CI-enforced usage cap inside the module; constants are no-op referenced with `void`.",
+        "Contract markers are distributed as comments (`@publicContract`, `@uiContract`, deprecation tags) across `src/shared/lib/errorHandling/handleError.ts`, `src/integrations/supabase/client.ts`, and `src/shared/components/ui/button.tsx`, but no in-file mechanism ties these contracts to executable policy.",
+        "`src/shared/lib/utils.ts` acts as a generic barrel while `src/shared/components/ui/button.tsx` consumes it for `cn`, creating an additional shared contract surface that is not explicitly documented in README governance sections."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "legacy_proxy_policy_not_enforced",
+      "summary": "Supabase compatibility policy is documented but not enforceable from the contract surface itself.",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "README states explicit runtime contract (`initializeSupabase()` / `getSupabaseClient()`) while allowing temporary legacy imports.",
+        "`client.ts` exports `supabase` compatibility proxy and marks removal metadata (`@removalTarget 2026-06-30`), but enforcement is only comments and unused marker constants (`void LEGACY_SUPABASE_PROXY_REMOVE_BY; void LEGACY_SUPABASE_PROXY_OWNER;`).",
+        "No hard failure path or contract guard exists in this module to prevent indefinite proxy retention."
+      ],
+      "suggestion": "Add an enforceable governance mechanism: fail CI when `supabase` legacy import count > 0 after deadline, and add runtime/dev warning tied to import/access telemetry so contract drift is measurable and actionable.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "comment_only_contracts",
+      "summary": "Public/deprecation contracts are encoded as comments without executable checks, weakening architecture governance.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/integrations/supabase/client.ts",
+        "src/shared/components/ui/button.tsx"
+      ],
+      "evidence": [
+        "`handleError.ts` and `button.tsx` declare `@publicContract` / `@uiContract` but export broad symbols with no guardrails around contract evolution.",
+        "`handleError.ts` keeps deprecated aliases (`reportRuntimeError`, `RuntimeErrorOptions`) with removal dates in comments only.",
+        "`client.ts` similarly uses comment deprecation annotations but no module-local enforcement hooks."
+      ],
+      "suggestion": "Back contract tags with automated checks (API surface snapshot tests, lint rules for deprecated symbol usage, and deadline-based CI assertions) so governance rules are enforced rather than advisory.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "undocumented_shared_surface_expansion",
+      "summary": "A generic shared barrel broadens cross-layer contracts without explicit governance documentation.",
+      "related_files": [
+        "src/shared/lib/utils.ts",
+        "src/shared/components/ui/button.tsx",
+        "README.md"
+      ],
+      "evidence": [
+        "`utils.ts` re-exports `cn` and string helpers as a shared convenience surface.",
+        "`button.tsx` depends on `@/shared/lib/utils` for UI-class composition, coupling a foundational UI primitive to a broad shared barrel.",
+        "README governance/contracts sections focus on explicit migration contracts but do not define policy for shared barrel surfaces, leaving this expansion unmanaged."
+      ],
+      "suggestion": "Define and document allowed import surfaces for UI primitives (for example, dedicated `ui/cn` contract) and restrict broad barrel usage via lint rules to keep ownership boundaries explicit.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

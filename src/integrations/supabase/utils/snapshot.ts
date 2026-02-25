@@ -1,3 +1,5 @@
+import { getSupabaseClient } from '@/integrations/supabase/client';
+
 // Snapshot utilities for realtime state inspection
 
 /** Shape of the Supabase realtime client as accessed at runtime for debugging */
@@ -33,8 +35,7 @@ interface RealtimeSnapshotError {
 // Helper: locate the effective Supabase WebSocket regardless of where it is stored
 function getEffectiveRealtimeSocket(): WebSocket | null {
   try {
-    const rt = (window as unknown as Record<string, unknown>).supabase as { realtime?: RealtimeDebugClient } | undefined;
-    const realtime = rt?.realtime;
+    const realtime = getSupabaseClient().realtime as unknown as RealtimeDebugClient;
     if (!realtime) return null;
     const direct = realtime.socket;
     if (direct && typeof direct.readyState === 'number') return direct;
@@ -60,8 +61,7 @@ function getEffectiveRealtimeSocket(): WebSocket | null {
 // Capture detailed realtime state as JSON (not "Object")
 export function captureRealtimeSnapshot(): RealtimeSnapshot | RealtimeSnapshotError {
   try {
-    const supabaseObj = (window as unknown as Record<string, unknown>).supabase as { realtime?: RealtimeDebugClient } | undefined;
-    const rt = supabaseObj?.realtime;
+    const rt = getSupabaseClient().realtime as unknown as RealtimeDebugClient;
     if (!rt) return { error: 'NO_REALTIME_CLIENT' };
 
     const channels = rt.channels || {};
@@ -102,4 +102,3 @@ export function captureRealtimeSnapshot(): RealtimeSnapshot | RealtimeSnapshotEr
     return { error: 'SNAPSHOT_FAILED', message: (error as Error)?.message };
   }
 }
-

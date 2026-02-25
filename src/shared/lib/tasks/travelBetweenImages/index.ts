@@ -1,13 +1,17 @@
 // Types
 export type {
   StructureVideoConfig,
-  StructureVideoConfigWithMetadata,
   PromptConfig,
   MotionConfig,
   ModelConfig,
-  TravelBetweenImagesTaskParams,
+  TravelBetweenImagesRequestPayload,
+  TravelBetweenImagesTaskInput,
   StitchConfig,
 } from './types';
+export type {
+  StructureVideoConfigWithMetadata,
+  TravelBetweenImagesUiState,
+} from './uiTypes';
 
 // convertLegacyStructureType is internal - import from types.ts if needed externally
 
@@ -20,5 +24,6 @@ export {
 
 // Main task creator
 export { createTravelBetweenImagesTask } from './createTravelBetweenImagesTask';
+export { validateTravelBetweenImagesParams } from './payloadBuilder';
 
 // TaskValidationError is used internally - import from taskCreation.ts if needed externally

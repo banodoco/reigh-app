@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Button } from "@/shared/components/ui/button";
-import { Label } from "@/shared/components/ui/label";
+import { Label } from "@/shared/components/ui/primitives/label";
 import { X, UploadCloud, ImagePlus, VideoIcon, FileText, Loader2, Trash2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/shared/components/ui/tooltip";
 import { toast } from "@/shared/components/ui/toast";
-import { cropFilename } from "@/shared/lib/utils";
+import { cropFilename } from "@/shared/lib/stringFormatting";
 
 interface FileInputProps {
   onFileChange: (files: File[]) => void;

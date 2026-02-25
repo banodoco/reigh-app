@@ -1,0 +1,93 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 7,
+  "assessments": {
+    "error_consistency": 84.0
+  },
+  "dimension_notes": {
+    "error_consistency": {
+      "evidence": [
+        "`src/shared/lib/tasks/videoEnhance.ts` does not wrap failures with `rethrowTaskCreationError`, while sibling task creators (`imageGeneration`, `magicEdit`, `joinClips`, `individualTravelSegment`) normalize/rethrow with context.",
+        "UI action hooks use mixed failure contracts for similar async callbacks: some catch+rethrow (`useMediaGalleryHandlers`), others catch+report+swallow (`useMediaGalleryItemState`, `useLoraSubmission`), and others convert to `OperationResult` (`useShotImagesEditorCallbacks`).",
+        "This inconsistency makes caller behavior non-uniform (some paths reject, some resolve with hidden failure, some require `ok` checks), increasing risk of missed failure handling."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "error_consistency",
+      "identifier": "task_creation_error_contract_drift",
+      "summary": "Video enhance task creation bypasses shared task error normalization used by sibling task modules",
+      "related_files": [
+        "src/shared/lib/tasks/videoEnhance.ts",
+        "src/shared/lib/tasks/imageGeneration.ts",
+        "src/shared/lib/tasks/magicEdit.ts",
+        "src/shared/lib/tasks/joinClips.ts"
+      ],
+      "evidence": [
+        "`createVideoEnhanceTask` validates/builds/calls `createTask` directly with no `try/catch` and no `rethrowTaskCreationError` context wrapping.",
+        "Sibling task creators (`createImageGenerationTask`, `createMagicEditTask`, `createCanonicalJoinClipsTask`) consistently catch and call `rethrowTaskCreationError(..., { context: ... })`."
+      ],
+      "suggestion": "Align `createVideoEnhanceTask` with the shared task-creation contract: wrap its body in `try/catch` and call `rethrowTaskCreationError(error, { context: 'VideoEnhance' })`, and apply the same pattern to any batch variant if added.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "task_error_contract_fragmentation"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "ui_async_failure_contract_mismatch",
+      "summary": "UI async handlers use incompatible failure semantics (rethrow vs swallow vs OperationResult)",
+      "related_files": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts",
+        "src/shared/components/LoraSelectorModal/components/MyLorasTab/hooks/useLoraSubmission.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts"
+      ],
+      "evidence": [
+        "`handleNavigateToShot` catches and calls `normalizeAndPresentAndRethrow`, propagating failure.",
+        "`handleCreateShot` and `handleAddLoraFromForm` catch and call `normalizeAndPresentError` but do not rethrow or return structured failure, so callers observe apparent success completion.",
+        "`useShotImagesEditorCallbacks` catches similar action failures but returns explicit `operationFailure(...)`, introducing a third pattern."
+      ],
+      "suggestion": "Define one UI async error contract per layer (for example: always return `OperationResult` from action hooks, or always rethrow after normalization) and refactor these handlers to one pattern so callers can handle failures predictably.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "no_standardized_ui_async_error_contract"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "error_reporting_as_terminal_sink_pattern",
+      "summary": "Normalized reporting is sometimes used as a terminal sink, masking programmatic failure signals",
+      "related_files": [
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts",
+        "src/shared/components/LoraSelectorModal/components/MyLorasTab/hooks/useLoraSubmission.ts",
+        "src/shared/realtime/DataFreshnessManager.ts"
+      ],
+      "evidence": [
+        "In `useMediaGalleryItemState` and `useLoraSubmission`, failures are reported but not surfaced to caller state as a structured error result.",
+        "In `DataFreshnessManager.notifySubscribers`, callback exceptions are reported then swallowed, preventing upstream observers from detecting subscriber failure.",
+        "Across these modules, `normalizeAndPresentError` is used inconsistently as both observability side-effect and final control-flow decision point."
+      ],
+      "suggestion": "Separate reporting from control flow: after normalization, either propagate (`throw`) or return typed failure (`OperationResult`) consistently, and reserve silent swallow for explicitly documented best-effort paths.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "no_standardized_ui_async_error_contract"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "No enforced cross-module contract for async error propagation in UI/service hooks.",
+      "Task modules partially migrated to a shared normalization wrapper, with at least one outlier."
+    ],
+    "likely_symptoms": [
+      "ui_async_failure_contract_mismatch",
+      "error_reporting_as_terminal_sink_pattern"
+    ],
+    "possible_false_positives": []
+  }
+}

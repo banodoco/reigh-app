@@ -1,40 +1,47 @@
 import type React from 'react';
-import type { Shot } from '@/types/shots';
+import type { Shot } from '@/domains/generation/types';
 import { useAudio, useJoinSegmentsHandler, useJoinSegmentsSetup, useNameEditing, useStructureVideo, useStructureVideoHandlers } from '../hooks';
 
-interface UseEditingControllerParams {
+interface EditingControllerCore {
   selectedShotId: string;
   projectId: string | null;
   selectedProjectId: string | null;
   selectedShot: Shot | null;
   effectiveAspectRatio: string | undefined;
   swapButtonRef: React.RefObject<HTMLButtonElement>;
+}
+
+interface EditingControllerNameState {
   onUpdateShotName?: (newName: string) => void;
   state: {
     isEditingName: boolean;
     editingName: string;
   };
   actions: ReturnType<typeof import('../state/useShotEditorState').useShotEditorState>['actions'];
+}
+
+interface EditingControllerGenerationType {
   generationTypeMode: 'i2v' | 'vace';
   setGenerationTypeMode: (mode: 'i2v' | 'vace') => void;
+}
+
+interface EditingControllerJoinInputs {
   joinSegmentSlots: ReturnType<typeof import('@/shared/hooks/segments').useSegmentOutputsForShot>['segmentSlots'];
   joinSelectedParent: ReturnType<typeof import('@/shared/hooks/segments').useSegmentOutputsForShot>['selectedParent'];
 }
 
+interface UseEditingControllerParams {
+  core: EditingControllerCore;
+  nameEditing: EditingControllerNameState;
+  generationType: EditingControllerGenerationType;
+  joinInputs: EditingControllerJoinInputs;
+}
+
 export function useEditingController({
-  selectedShotId,
-  projectId,
-  selectedProjectId,
-  selectedShot,
-  effectiveAspectRatio,
-  swapButtonRef,
-  onUpdateShotName,
-  state,
-  actions,
-  generationTypeMode,
-  setGenerationTypeMode,
-  joinSegmentSlots,
-  joinSelectedParent,
+  core,
+  nameEditing,
+  generationType,
+  joinInputs,
 }: UseEditingControllerParams) {
   // Structure video management
   const {
@@ -53,8 +60,8 @@ export function useEditingController({
     clearAllStructureVideos,
     setStructureVideos,
   } = useStructureVideo({
-    projectId,
-    shotId: selectedShot?.id,
+    projectId: core.projectId,
+    shotId: core.selectedShot?.id,
   });
 
   const {
@@ -68,8 +75,8 @@ export function useEditingController({
     updateStructureVideo,
     structureVideoPath,
     structureVideoType,
-    generationTypeMode,
-    setGenerationTypeMode,
+    generationTypeMode: generationType.generationTypeMode,
+    setGenerationTypeMode: generationType.setGenerationTypeMode,
   });
 
   // Audio management
@@ -79,8 +86,8 @@ export function useEditingController({
     handleAudioChange,
     isLoading: isAudioSettingsLoading,
   } = useAudio({
-    projectId,
-    shotId: selectedShot?.id,
+    projectId: core.projectId,
+    shotId: core.selectedShot?.id,
   });
 
   // Name editing
@@ -90,14 +97,14 @@ export function useEditingController({
     handleNameCancel,
     handleNameKeyDown,
   } = useNameEditing({
-    selectedShot,
-    state,
+    selectedShot: core.selectedShot,
+    state: nameEditing.state,
     actions: {
-      ...actions,
-      setEditingName: actions.setEditingName,
-      setEditingNameValue: actions.setEditingNameValue,
+      ...nameEditing.actions,
+      setEditingName: nameEditing.actions.setEditingName,
+      setEditingNameValue: nameEditing.actions.setEditingNameValue,
     },
-    onUpdateShotName,
+    onUpdateShotName: nameEditing.onUpdateShotName,
   });
 
   // Join segments setup
@@ -131,9 +138,9 @@ export function useEditingController({
     joinSettingsForHook,
     joinLoraManager,
   } = useJoinSegmentsSetup({
-    selectedShotId,
-    projectId,
-    swapButtonRef,
+    selectedShotId: core.selectedShotId,
+    projectId: core.projectId,
+    swapButtonRef: core.swapButtonRef,
   });
 
   // Join segments handler
@@ -144,18 +151,18 @@ export function useEditingController({
     handleJoinSegments,
     handleRestoreJoinDefaults,
   } = useJoinSegmentsHandler({
-    projectId,
-    selectedProjectId,
-    selectedShotId,
-    effectiveAspectRatio,
+    projectId: core.projectId,
+    selectedProjectId: core.selectedProjectId,
+    selectedShotId: core.selectedShotId,
+    effectiveAspectRatio: core.effectiveAspectRatio,
     audioUrl,
-    joinSegmentSlots,
-    joinSelectedParent,
+    joinSegmentSlots: joinInputs.joinSegmentSlots,
+    joinSelectedParent: joinInputs.joinSelectedParent,
     joinLoraManager,
     joinSettings: joinSettingsForHook,
   });
 
-  return {
+  const mediaEditing = {
     // Structure video + handlers
     structureVideoPath,
     structureVideoMetadata,
@@ -187,8 +194,9 @@ export function useEditingController({
     handleNameSave,
     handleNameCancel,
     handleNameKeyDown,
+  };
 
-    // Join configuration + actions
+  const joinWorkflow = {
     joinSettings,
     joinPrompt,
     joinNegativePrompt,
@@ -221,5 +229,10 @@ export function useEditingController({
     joinValidationData,
     handleJoinSegments,
     handleRestoreJoinDefaults,
+  };
+
+  return {
+    mediaEditing,
+    joinWorkflow,
   };
 }

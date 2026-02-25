@@ -1,8 +1,8 @@
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import type { AddImageToShotVariables } from '@/shared/hooks/shots/addImageToShotHelpers';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import type { GenerationRow } from '@/types/shots';
-import type { Shot } from '@/types/shots';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import type { GenerationRow } from '@/domains/generation/types';
+import type { Shot } from '@/domains/generation/types';
 import type { ApplyResult, ExtractedSettings } from './types';
 
 /**
@@ -45,13 +45,12 @@ export const applyFramePositionsToExistingImages = async (
         ? cumulativePositions[index]
         : cumulativePositions[cumulativePositions.length - 1] + (index - cumulativePositions.length + 1) * (segmentGaps[segmentGaps.length - 1] || 60);
 
-      const { error } = await supabase
-        .from('shot_generations')
+      const { error } = await supabase().from('shot_generations')
         .update({ timeline_frame: newTimelineFrame })
         .eq('id', img.id); // img.id is shot_generations.id
 
       if (error) {
-        handleError(error, {
+        normalizeAndPresentError(error, {
           context: 'ApplySettings.applyFramePositions',
           showToast: false,
           logData: { shotGenerationId: img.id },
@@ -71,7 +70,7 @@ export const applyFramePositionsToExistingImages = async (
       details: { updated: successCount, total: simpleFilteredImages.length },
     };
   } catch (e) {
-    const appError = handleError(e, {
+    const appError = normalizeAndPresentError(e, {
       context: 'ApplySettings.applyFramePositions',
       showToast: false,
     });
@@ -151,13 +150,12 @@ export const replaceImagesIfRequested = async (
     const uniformSpacing = settings.frames || 60;
 
     // Look up generation IDs for all input image URLs
-    const { data: generationLookup, error: lookupError } = await supabase
-      .from('generations')
+    const { data: generationLookup, error: lookupError } = await supabase().from('generations')
       .select('id, location, thumbnail_url')
       .in('location', effectiveInputImages);
 
     if (lookupError) {
-      handleError(lookupError, {
+      normalizeAndPresentError(lookupError, {
         context: 'ApplySettings.replaceImages',
         showToast: false,
         logData: { imageCount: effectiveInputImages.length },
@@ -210,7 +208,7 @@ export const replaceImagesIfRequested = async (
       details: { removed: imagesToDelete.length, added: effectiveInputImages.length },
     };
   } catch (e) {
-    const appError = handleError(e, {
+    const appError = normalizeAndPresentError(e, {
       context: 'ApplySettings.replaceImages',
       showToast: false,
     });

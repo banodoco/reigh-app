@@ -12,15 +12,16 @@
 
 import { useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
 import { extractSegmentImages } from '@/shared/lib/galleryUtils';
 import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import type { SegmentRegenerateFormProps } from '../components/SegmentRegenerateForm';
 import type { SegmentSlotModeData } from '../types';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
-import type { GenerationRow } from '@/types/shots';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
+import type { GenerationRow } from '@/domains/generation/types';
 import type { TaskDetailsData } from '../types';
 
 interface CurrentSegmentImages {
@@ -87,8 +88,7 @@ export function useVideoRegenerateMode({
     queryKey: queryKeys.shots.regenData(shotId!),
     queryFn: async () => {
       if (!shotId) return null;
-      const { data, error } = await supabase
-        .from('shots')
+      const { data, error } = await supabase().from('shots')
         .select('aspect_ratio, settings')
         .eq('id', shotId)
         .single();
@@ -98,7 +98,7 @@ export function useVideoRegenerateMode({
 
       const allSettings = data?.settings as Record<string, unknown>;
       // Structure videos are stored under 'travel-structure-video' key
-      const structureVideoSettings = (allSettings?.['travel-structure-video'] ?? {}) as Record<string, unknown>;
+      const structureVideoSettings = (allSettings?.[SETTINGS_IDS.TRAVEL_STRUCTURE_VIDEO] ?? {}) as Record<string, unknown>;
 
       return {
         aspect_ratio: data?.aspect_ratio,
@@ -141,7 +141,7 @@ export function useVideoRegenerateMode({
     await updateToolSettingsSupabase({
       scope: 'shot',
       id: shotId,
-      toolId: 'travel-structure-video',
+      toolId: SETTINGS_IDS.TRAVEL_STRUCTURE_VIDEO,
       patch: {
         structure_videos: updatedVideos,
       },
@@ -150,7 +150,7 @@ export function useVideoRegenerateMode({
     // Refetch to update UI - await so caller knows when complete
     await Promise.all([
       queryClient.refetchQueries({ queryKey: queryKeys.shots.regenData(shotId!) }),
-      queryClient.refetchQueries({ queryKey: queryKeys.settings.byTool('travel-structure-video') }),
+      queryClient.refetchQueries({ queryKey: queryKeys.settings.byTool(SETTINGS_IDS.TRAVEL_STRUCTURE_VIDEO) }),
     ]);
 
   }, [shotId, shotDataForRegen?.structure_videos, queryClient]);

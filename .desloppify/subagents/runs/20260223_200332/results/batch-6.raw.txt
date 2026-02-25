@@ -1,0 +1,100 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "cross_module_architecture": 74.0,
+    "high_level_elegance": 72.0,
+    "package_organization": 68.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "README.md defines runtime contracts (single startup notifier registration, legacy-only supabase proxy), but src/shared/lib/errorHandling/handleError.ts exposes configureErrorNotifier() as unrestricted mutable global reassignment.",
+        "src/integrations/supabase/client.ts exports a fully transparent Proxy (supabase) that keeps legacy access path alive without runtime deprecation/error gating, so dependency-direction policy is documentation-only.",
+        "Both contract hubs are extremely high fan-in modules in holistic context (handleError.ts importers: 226, client.ts importers: 147), increasing blast radius when policy drifts."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Governance-critical contracts are split between README prose and permissive runtime exports rather than enforced by narrow entrypoint APIs.",
+        "Assigned files are all listed as high-import hubs in holistic context (handleError.ts 226, generationAndShots.ts 206, button.tsx 155, client.ts 147, utils.ts 132), indicating ownership concentration in shared/global surfaces.",
+        "src/types/generationAndShots.ts is a canonical barrel for multiple type modules, which simplifies imports but also centralizes cross-domain coupling at a top-level shared namespace."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    },
+    "package_organization": {
+      "evidence": [
+        "holistic_context.structure.directory_profiles shows src/shared/lib/ has 72 production files (flat mixed concerns), well beyond the >10 mixed-concern overload signal.",
+        "Coupling matrix shows strong gravity into src/shared/lib/ (src/shared/hooks/ → src/shared/lib/ = 63, src/shared/components/ → src/shared/lib/ = 41), consistent with boundary dilution.",
+        "src/shared/lib/utils.ts is a generic barrel re-exporting unrelated concerns (uiClassNames + stringFormatting), reinforcing ambiguous package ownership."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "doc_only_contract_enforcement",
+      "summary": "Runtime contract policies are declared in docs but not enforced in high-fan-in entrypoints.",
+      "related_files": [
+        "README.md",
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "README.md states error notifier wiring is a one-time bootstrap contract, but configureErrorNotifier() allows unrestricted reassignment of module-global state.",
+        "README.md states supabase export is legacy compatibility, but client.ts still provides an unrestricted Proxy export with no deprecation gate.",
+        "These modules are high fan-in hubs, so policy drift propagates broadly."
+      ],
+      "suggestion": "Enforce contracts in code: add a single-registration guard in configureErrorNotifier() (throw or warn on second registration outside tests), wrap legacy supabase access in a one-time DEV deprecation warning path, and add a lint gate (`no-restricted-imports`) that blocks new `import { supabase }` usage except an allowlisted compatibility folder.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_hub_ownership_blur",
+      "summary": "Core ownership is concentrated in shared hubs, weakening domain-aligned decomposition.",
+      "related_files": [
+        "src/types/generationAndShots.ts",
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "generationAndShots.ts acts as a canonical cross-domain type barrel instead of domain-owned entrypoints.",
+        "handleError.ts and client.ts are platform-wide hubs with very high importer counts, while governance policies are kept mostly in README prose.",
+        "This combination makes change boundaries harder to explain and increases top-level coupling."
+      ],
+      "suggestion": "Introduce explicit domain/platform entrypoints with ownership boundaries: `src/platform/error/`, `src/platform/supabase/`, and `src/domains/generation/types/`; keep temporary compatibility re-exports but attach sunset metadata (owner + remove-by date) and enforce migration with CI checks on new imports.",
+      "confidence": "medium",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "shared_lib_flattening_debt",
+      "summary": "A flat, overloaded `src/shared/lib/` plus generic utility barrel obscures package ownership.",
+      "related_files": [
+        "src/shared/lib/utils.ts",
+        "src/shared/components/ui/button.tsx",
+        "src/types/generationAndShots.ts"
+      ],
+      "evidence": [
+        "holistic_context.structure reports 72 files in `src/shared/lib/` with mixed concerns and high inbound coupling from multiple directories.",
+        "`src/shared/lib/utils.ts` is a generic aggregator exporting UI and text helpers together, reducing navigability.",
+        "`button.tsx` already consumes specialized utility paths (`@/shared/lib/ui/cn`), indicating package structure is partially split but still backstopped by broad barrels."
+      ],
+      "suggestion": "Staged reorg plan: Stage 1 (target folders): create `src/shared/lib/text/`, `src/shared/lib/ui/`, `src/platform/error/`, `src/platform/supabase/`, `src/domains/generation/types/`. Stage 2 (move order): move `stringFormatting.ts` and `utils.ts` first, then error-handling entrypoints, then supabase client entrypoints, then generation type barrels. Stage 3 (import updates): run `desloppify move src/shared/lib/stringFormatting.ts src/shared/lib/text/stringFormatting.ts --dry-run` and `desloppify move src/shared/lib/utils.ts src/shared/lib/text/index.ts --dry-run`, apply equivalent real moves, then update remaining imports via `rg \"@/shared/lib/utils|@/types/generationAndShots|import \\{ supabase \\}\" src`. Stage 4 (validation): run `npm run typecheck` and targeted tests (`npm run test -- src/shared/lib src/integrations/supabase src/shared/components/ui`) before removing compatibility re-exports.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

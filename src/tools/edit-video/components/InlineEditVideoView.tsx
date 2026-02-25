@@ -3,24 +3,25 @@ import {
   useState,
   useEffect,
   useCallback,
+  type SyntheticEvent,
 } from 'react';
-import { GenerationRow } from '@/types/shots';
-import { useIsMobile, useIsTablet } from '@/shared/hooks/useMobile';
+import { GenerationRow } from '@/domains/generation/types';
+import { useIsMobile, useIsTablet } from '@/shared/hooks/mobile';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { Button } from '@/shared/components/ui/button';
+import { VariantSelector } from '@/shared/components/VariantSelector';
 import {
-  Play,
-  Pause,
   Scissors,
   RefreshCw,
   X,
   Sparkles
 } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { TooltipProvider } from '@/shared/components/ui/tooltip';
 import { useQueryClient } from '@tanstack/react-query';
 import { unifiedGenerationQueryKeys } from '@/shared/lib/queryKeys/unified';
-import { formatTime } from '@/shared/components/VideoPortionTimeline';
+import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
+import { useVariants } from '@/shared/hooks/useVariants';
 import type { PortionSelection } from '@/shared/components/VideoPortionTimeline';
 import { TrimControlsPanel } from '@/shared/components/VideoTrimEditor';
 import { useVideoTrimming, useTrimSave } from '@/shared/components/VideoTrimEditor';
@@ -29,10 +30,11 @@ import { VideoEnhanceForm } from '@/shared/components/MediaLightbox/components/V
 import { useVideoEnhance } from '@/shared/components/MediaLightbox/hooks/useVideoEnhance';
 import { DEFAULT_ENHANCE_SETTINGS } from '@/shared/components/MediaLightbox/hooks/editSettingsTypes';
 import type { VideoEnhanceSettings } from '@/shared/components/MediaLightbox/hooks/editSettingsTypes';
+import { VideoEditModeDisplay } from '@/shared/components/MediaLightbox/components/VideoEditModeDisplay';
+import { VideoTrimModeDisplay } from '@/shared/components/MediaLightbox/components/VideoTrimModeDisplay';
+import { MediaDisplayWithCanvas } from '@/shared/components/MediaLightbox/components/MediaDisplayWithCanvas';
 import {
   useReplaceMode,
-  ReplaceVideoOverlay,
-  ReplaceTimeline,
   ReplacePanelContent,
 } from './VideoReplaceMode';
 
@@ -64,24 +66,44 @@ export function InlineEditVideoView({
 
   // Video edit sub-mode state: 'trim', 'replace', or 'enhance'
   const [videoEditSubMode, setVideoEditSubMode] = useState<'trim' | 'replace' | 'enhance'>('replace');
+  const isReplaceModeActive = videoEditSubMode === 'replace';
 
-  // Get video URL
-  const videoUrl = media.location || media.imageUrl || null;
+  const generationId = getGenerationId(media);
+  const {
+    variants,
+    activeVariant,
+    isLoading: isLoadingVariants,
+    setActiveVariantId,
+    setPrimaryVariant,
+    deleteVariant,
+  } = useVariants({
+    generationId,
+    enabled: !!generationId,
+  });
 
-  // Video duration and FPS state
-  const [videoDuration, setVideoDuration] = useState(0);
-  const [videoFps, setVideoFps] = useState<number | null>(null);
-  const [fpsDetectionStatus, setFpsDetectionStatus] = useState<'pending' | 'detecting' | 'detected' | 'fallback'>('pending');
+  useEffect(() => {
+    if (variants.length === 0) {
+      return;
+    }
 
-  // Current video playhead time for overlay display
-  const [currentVideoTime, setCurrentVideoTime] = useState(0);
+    const mediaParams = media.params as Record<string, unknown> | null | undefined;
+    const mediaVariantId = typeof mediaParams?.variant_id === 'string'
+      ? mediaParams.variant_id
+      : null;
+    const initialVariantId = [mediaVariantId, media.id].find((id): id is string => (
+      typeof id === 'string' && variants.some(variant => variant.id === id)
+    ));
 
-  // Progressive loading: show thumbnail first, then video when ready
-  const [videoReady, setVideoReady] = useState(false);
-  const thumbnailUrl = media.thumbnail_url || media.thumbUrl;
+    if (initialVariantId) {
+      setActiveVariantId(initialVariantId);
+    }
+  }, [media.id, media.params, variants, setActiveVariantId]);
 
-  // Track if video is playing
-  const [isPlaying, setIsPlaying] = useState(false);
+  const sourceVideoUrl = media.location || media.imageUrl || null;
+  const sourceThumbnailUrl = media.thumbnail_url || media.thumbUrl;
+  const videoUrl = activeVariant?.location || sourceVideoUrl;
+  const thumbnailUrl = activeVariant?.thumbnail_url || sourceThumbnailUrl;
+  const activeVariantId = activeVariant?.id || null;
 
   // --- Trim mode state ---
   const {
@@ -101,7 +123,7 @@ export function InlineEditVideoView({
     saveSuccess: trimSaveSuccess,
     saveTrimmedVideo,
   } = useTrimSave({
-    generationId: media.id,
+    generationId: generationId ?? media.id,
     projectId: selectedProjectId,
     sourceVideoUrl: videoUrl ?? '',
     trimState,
@@ -110,13 +132,32 @@ export function InlineEditVideoView({
     },
   });
 
+  const [videoDuration, setVideoDuration] = useState(0);
+  const [videoFps, setVideoFps] = useState<number | null>(null);
+  const [currentVideoTime, setCurrentVideoTime] = useState(0);
+
+  const handleVideoDurationResolved = useCallback((duration: number) => {
+    if (!Number.isFinite(duration) || duration <= 0) {
+      return;
+    }
+
+    setVideoDuration(duration);
+    setTrimVideoDuration(duration);
+    setVideoFps(prev => prev ?? DEFAULT_VIDEO_FPS);
+  }, [setTrimVideoDuration]);
+
+  const handleEnhanceVideoLoadedMetadata = useCallback((event: SyntheticEvent<HTMLVideoElement>) => {
+    handleVideoDurationResolved(event.currentTarget.duration);
+  }, [handleVideoDurationResolved]);
+
   // --- Enhance mode state ---
   const [enhanceSettings, setEnhanceSettings] = useState<VideoEnhanceSettings>(DEFAULT_ENHANCE_SETTINGS);
 
   const videoEnhance = useVideoEnhance({
     projectId: selectedProjectId || undefined,
     videoUrl: videoUrl || undefined,
-    generationId: media.id,
+    generationId: generationId || undefined,
+    activeVariantId,
     settings: enhanceSettings,
     updateSettings: (updates) => setEnhanceSettings(prev => ({ ...prev, ...updates })),
   });
@@ -131,50 +172,6 @@ export function InlineEditVideoView({
     onSegmentsChange,
   });
 
-  // --- Shared video event tracking ---
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const handleTimeUpdate = () => {
-      setCurrentVideoTime(video.currentTime);
-    };
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
-
-    video.addEventListener('timeupdate', handleTimeUpdate);
-    video.addEventListener('play', handlePlay);
-    video.addEventListener('pause', handlePause);
-    return () => {
-      video.removeEventListener('timeupdate', handleTimeUpdate);
-      video.removeEventListener('play', handlePlay);
-      video.removeEventListener('pause', handlePause);
-    };
-  }, []);
-
-  // Handle video metadata loaded - set FPS and ensure paused
-  const handleVideoLoadedMetadata = useCallback(() => {
-    if (videoRef.current) {
-      // Ensure video is paused immediately
-      videoRef.current.pause();
-
-      // Mark video as ready to show (hide thumbnail)
-      setVideoReady(true);
-
-      const duration = videoRef.current.duration;
-      if (Number.isFinite(duration) && duration > 0) {
-        setVideoDuration(duration);
-        setTrimVideoDuration(duration); // Also set for trim mode
-
-        // Set FPS to default (16fps is standard for AI-generated videos)
-        if (fpsDetectionStatus === 'pending') {
-          setVideoFps(DEFAULT_VIDEO_FPS);
-          setFpsDetectionStatus('detected');
-        }
-      }
-    }
-  }, [fpsDetectionStatus, setTrimVideoDuration]);
-
   if (!media) return null;
 
   return (
@@ -188,130 +185,48 @@ export function InlineEditVideoView({
           "flex flex-col min-h-0",
           useStackedLayout ? "w-full" : "flex-1 h-full"
         )}>
-          {/* Video Display Area - constrained height on desktop to leave room for timeline */}
+          {/* Video display area - uses same rendering components as MediaLightbox */}
           <div className={cn(
-            "relative flex items-center justify-center bg-zinc-900 overflow-hidden",
-            useStackedLayout ? "w-full" : "flex-shrink rounded-t-lg"
+            "flex items-center justify-center relative overflow-hidden bg-zinc-900",
+            useStackedLayout ? "w-full min-h-[38vh] touch-none z-10" : "flex-1 touch-none rounded-t-lg"
           )}>
-            {/* Playhead info overlay - top left of video */}
-            {videoReady && videoDuration > 0 && (
-              <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 text-[11px] font-mono text-white/80 bg-black/50 backdrop-blur-sm rounded px-2 py-1">
-                {formatTime(currentVideoTime)}
-                {videoFps && <span className="text-white/50 ml-1">f{Math.round(currentVideoTime * videoFps)}</span>}
-                {/* Segment info overlay (shows keep/segment badge) */}
-                <ReplaceVideoOverlay
-                  currentVideoTime={currentVideoTime}
-                  selections={replaceState.selections}
-                  onRemoveSelection={replaceState.handleRemoveSelection}
-                />
-              </div>
-            )}
-
-            {/* Play/Pause button overlay - center, shows on hover (desktop only) */}
-            {videoReady && !useStackedLayout && (
-              <button
-                onClick={() => {
-                  const video = videoRef.current;
-                  if (!video) return;
-                  if (video.paused) {
-                    video.play().catch(() => {});
-                  } else {
-                    video.pause();
-                  }
-                }}
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-16 h-16 flex items-center justify-center rounded-full bg-black/50 text-white/80 hover:bg-black/70 hover:text-white transition-all opacity-0 hover:opacity-100 focus:opacity-100"
-              >
-                {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8 ml-1" />}
-              </button>
-            )}
-
-            {/* Video Player with progressive loading - thumbnail first, then video */}
-            <div className={cn(
-              "w-full flex items-center justify-center relative",
-              useStackedLayout
-                ? isTablet
-                  ? "p-2 pt-12 max-h-[35vh]" // Constrained height on iPad/tablet
-                  : "p-2 pt-20 aspect-video" // Mobile
-                : "p-4 pt-24" // Desktop
-            )}>
-              {/* Thumbnail shown while video loads */}
-              {thumbnailUrl && !videoReady && (
-                <img
-                  src={thumbnailUrl}
-                  alt="Video thumbnail"
-                  className={cn(
-                    "max-w-full object-contain rounded-lg",
-                    useStackedLayout
-                      ? isTablet
-                        ? "max-h-[30vh]"
-                        : "max-h-full"
-                      : "max-h-[40vh]"
-                  )}
-                />
-              )}
-
-              {/* Video element - hidden until ready if thumbnail is showing */}
-              <video
-                ref={videoRef}
-                src={videoUrl ?? undefined}
-                controls={false} // Hide controls
-                playsInline // Prevents fullscreen on iOS when video plays
-                poster={thumbnailUrl} // Fallback poster
-                className={cn(
-                  "max-w-full object-contain rounded-lg cursor-pointer",
-                  "[&::-webkit-media-controls-play-button]:hidden [&::-webkit-media-controls-start-playback-button]:hidden",
-                  useStackedLayout
-                    ? isTablet
-                      ? "max-h-[30vh]" // Smaller on tablet
-                      : "max-h-full"
-                    : "max-h-[40vh]", // Slightly smaller than original to accommodate buffer
-                  // Hide video until ready if we have a thumbnail showing
-                  thumbnailUrl && !videoReady ? "absolute opacity-0 pointer-events-none" : ""
-                )}
-                style={{
-                  // Additional CSS to hide native controls overlay
-                  WebkitAppearance: 'none',
-                }}
-                onLoadedMetadata={handleVideoLoadedMetadata}
-                preload="metadata"
-                // Prevent double-click fullscreen on mobile/tablet
-                onDoubleClick={useStackedLayout ? (e) => e.preventDefault() : undefined}
-                // Click to play/pause on all devices
-                onClick={(e) => {
-                  e.preventDefault();
-                  const video = e.currentTarget;
-                  if (video.paused) {
-                    video.play().catch(() => {
-                      // Ignore play errors (e.g., user interaction required)
-                    });
-                  } else {
-                    video.pause();
-                  }
-                }}
+            {isReplaceModeActive ? (
+              <VideoEditModeDisplay
+                videoRef={videoRef}
+                videoUrl={videoUrl ?? ''}
+                posterUrl={thumbnailUrl}
+                videoDuration={videoDuration}
+                onLoadedMetadata={handleVideoDurationResolved}
+                selections={replaceState.selections}
+                activeSelectionId={replaceState.activeSelectionId}
+                onSelectionChange={replaceState.handleUpdateSelection}
+                onSelectionClick={replaceState.setActiveSelectionId}
+                onRemoveSelection={replaceState.handleRemoveSelection}
+                onAddSelection={replaceState.handleAddSelection}
+                fps={videoFps ?? DEFAULT_VIDEO_FPS}
               />
-            </div>
+            ) : videoEditSubMode === 'trim' ? (
+              <VideoTrimModeDisplay
+                videoRef={videoRef}
+                videoUrl={videoUrl ?? ''}
+                posterUrl={thumbnailUrl}
+                trimState={trimState}
+                onLoadedMetadata={handleVideoDurationResolved}
+                onTimeUpdate={setCurrentVideoTime}
+                className="max-w-full max-h-full object-contain shadow-wes border border-border/20 rounded"
+              />
+            ) : (
+              <MediaDisplayWithCanvas
+                effectiveImageUrl={videoUrl ?? ''}
+                thumbUrl={thumbnailUrl ?? undefined}
+                isVideo={true}
+                onVideoLoadedMetadata={handleEnhanceVideoLoadedMetadata}
+                variant={useStackedLayout ? 'mobile-stacked' : 'desktop-side-panel'}
+                containerClassName={useStackedLayout ? 'w-full h-full p-2' : 'w-full h-full p-4'}
+                debugContext="InlineEditVideoView"
+              />
+            )}
           </div>
-
-          {/* Spacer between video and timeline on desktop - only in replace mode */}
-          {!useStackedLayout && videoDuration > 0 && videoEditSubMode === 'replace' && <div className="h-4 bg-zinc-900" />}
-
-          {/* Timeline Section - only in replace mode */}
-          {videoEditSubMode === 'replace' && (
-            <ReplaceTimeline
-              videoDuration={videoDuration}
-              selections={replaceState.selections}
-              activeSelectionId={replaceState.activeSelectionId}
-              onSelectionChange={replaceState.handleUpdateSelection}
-              onSelectionClick={replaceState.setActiveSelectionId}
-              onRemoveSelection={replaceState.handleRemoveSelection}
-              onAddSelection={replaceState.handleAddSelection}
-              videoRef={videoRef}
-              videoUrl={videoUrl}
-              videoFps={videoFps}
-              contextFrameCount={replaceState.contextFrameCount}
-              useStackedLayout={useStackedLayout}
-            />
-          )}
         </div>
 
         {/* Settings Panel */}
@@ -366,7 +281,7 @@ export function InlineEditVideoView({
           </div>
 
           {/* Panel Content - conditionally render based on mode */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto min-h-0">
             {videoEditSubMode === 'trim' && (
               <TrimControlsPanel
                 trimState={trimState}
@@ -388,7 +303,7 @@ export function InlineEditVideoView({
                 hideHeader
               />
             )}
-            {videoEditSubMode === 'replace' && (
+            {isReplaceModeActive && (
               <ReplacePanelContent
                 replaceState={replaceState}
                 videoUrl={videoUrl}
@@ -408,6 +323,19 @@ export function InlineEditVideoView({
                 videoUrl={videoUrl ?? undefined}
               />
             )}
+          </div>
+          <div className={cn(
+            'border-t border-border bg-background/95 backdrop-blur-sm px-3 pt-3 pb-6',
+            isMobile ? 'pb-8' : 'pb-6'
+          )}>
+            <VariantSelector
+              variants={variants}
+              activeVariantId={activeVariantId}
+              onVariantSelect={setActiveVariantId}
+              onMakePrimary={setPrimaryVariant}
+              isLoading={isLoadingVariants}
+              onDeleteVariant={deleteVariant}
+            />
           </div>
         </div>
       </div>

@@ -2,7 +2,7 @@ import * as React from "react";
 import { ChevronDown } from "lucide-react";
 import { Button } from "./button";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "./collapsible";
-import { cn } from "@/shared/lib/utils";
+import { cn } from "@/shared/components/ui/contracts/cn";
 
 interface CollapsibleSectionProps {
   /** The title displayed on the toggle button */

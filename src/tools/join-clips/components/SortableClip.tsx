@@ -1,11 +1,11 @@
 import React from 'react';
 import { Button } from '@/shared/components/ui/button';
-import { Label } from '@/shared/components/ui/label';
+import { Label } from '@/shared/components/ui/primitives/label';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { Checkbox } from '@/shared/components/ui/checkbox';
 import { Film, GripVertical, Trash2 } from 'lucide-react';
 import HoverScrubVideo from '@/shared/components/HoverScrubVideo';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { VideoClip, TransitionPrompt } from '../types';

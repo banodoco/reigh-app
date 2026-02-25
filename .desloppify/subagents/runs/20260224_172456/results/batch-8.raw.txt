@@ -1,0 +1,99 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 8,
+  "assessments": {
+    "convention_outlier": 88.0,
+    "error_consistency": 82.0,
+    "authorization_consistency": 96.0
+  },
+  "dimension_notes": {
+    "convention_outlier": {
+      "evidence": [
+        "UI primitives use inconsistent `cn` import conventions: `src/shared/components/ui/button.tsx` imports `cn` from `@/shared/lib/utils` while `src/shared/components/ui/badge.tsx`, `src/shared/components/ui/label.tsx`, and `src/shared/components/ui/toast.tsx` import from `@/shared/components/ui/cn`.",
+        "The same UI primitive cluster mixes style conventions (double-quote/no-semicolon style in `src/shared/components/ui/button.tsx` and siblings versus semicolon/single-quote style common in non-UI files like `src/shared/hooks/useGenerationMutations.ts`)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Sibling UI files still expose style and utility-import drift, making the UI layer less predictable to modify."
+    },
+    "error_consistency": {
+      "evidence": [
+        "`src/shared/hooks/useGenerationMutations.ts` mixes error channels: helper functions throw `new Error(...)` strings, one path throws raw Supabase error objects (`throw variantError`), and outer mutation callbacks normalize separately via `handleError(...)`.",
+        "`supabase/functions/complete_task/generation.ts` and `supabase/functions/complete_task/orchestrator.ts` rely on ad-hoc `throw new Error(...)` messages plus direct `console.error(...)` logging, without a shared normalization/wrapping strategy for preserving consistent error metadata."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "authorization_consistency": {
+      "evidence": [
+        "`supabase/functions/complete_task/index.ts` performs explicit auth and ownership enforcement (`authenticateRequest(... allowJwtUserAuth: true)`, service-role branching, and `verifyTaskOwnership` for user tokens).",
+        "`supabase/functions/calculate-task-cost/index.ts` consistently enforces service-role-only access via `authenticateRequest` plus `auth.isServiceRole` check before processing."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Client routing (`src/app/routes.tsx`) uses a local-storage token presence heuristic for redirect decisions before authoritative auth resolution, which is intentionally documented but still a separate gate style from server-side token/ownership checks."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "error_consistency",
+      "identifier": "mixed_error_shapes_generation_mutations",
+      "summary": "Generation mutation flows throw inconsistent error types and normalize only at selected boundaries.",
+      "related_files": [
+        "src/shared/hooks/useGenerationMutations.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "`updateGenerationLocation`, `createGeneration`, and `toggleGenerationStar` throw string-built `Error` instances, but variant creation path throws raw `variantError` (`throw variantError` at line 116) in `useGenerationMutations.ts`.",
+        "Normalization exists (`handleError`) but is applied in mutation `onError` callbacks, so thrown payload shape reaching that boundary is inconsistent and may lose uniform context fields."
+      ],
+      "suggestion": "Introduce a small shared mutation error adapter (e.g., wrap Supabase errors into a consistent app error with context) and use it in all mutation helpers before throwing.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "adhoc_edge_error_contract_complete_task",
+      "summary": "Complete-task submodules use ad-hoc throws/logging instead of one consistent edge error contract.",
+      "related_files": [
+        "supabase/functions/complete_task/generation.ts",
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/complete_task/index.ts"
+      ],
+      "evidence": [
+        "`generation.ts` catches and logs via `console.error(...)` then rethrows raw error.",
+        "`orchestrator.ts` builds and throws new string messages for query failures.",
+        "There is no shared wrapper in these files to standardize error shape, code, and context propagation across complete-task stages."
+      ],
+      "suggestion": "Centralize complete-task error construction/propagation (shared helper with code/context/cause) and replace direct `console.error` + raw throw paths in generation/orchestrator modules.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "ui_cn_import_convention_drift",
+      "summary": "UI primitive files use multiple conventions for the same class-name helper import.",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/ui/badge.tsx",
+        "src/shared/components/ui/label.tsx",
+        "src/shared/components/ui/toast.tsx",
+        "src/shared/lib/utils.ts"
+      ],
+      "evidence": [
+        "`button.tsx` imports `cn` from `@/shared/lib/utils`.",
+        "`badge.tsx`, `label.tsx`, and `toast.tsx` import `cn` from `@/shared/components/ui/cn`.",
+        "Both conventions coexist in sibling UI primitives, increasing local ambiguity for new components."
+      ],
+      "suggestion": "Choose one canonical `cn` import path for UI primitives (prefer a single source-of-truth module) and codify it with lint rules or import-order checks.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

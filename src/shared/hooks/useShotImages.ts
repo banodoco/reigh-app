@@ -4,11 +4,11 @@
  */
 
 import { useQuery, useQueryClient, UseQueryResult } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { GenerationRow } from '@/types/shots';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { GenerationRow } from '@/domains/generation/types';
 import { QUERY_PRESETS, STANDARD_RETRY, STANDARD_RETRY_DELAY } from '@/shared/lib/queryDefaults';
 import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import React from 'react';
 
 import { mapShotGenerationToRow } from '@/shared/hooks/shots';
@@ -52,8 +52,7 @@ const useAllShotGenerations = (
       // since there are two FKs between shot_generations and generations
       // We also fetch the primary_variant using the generations.primary_variant_id FK
       // to get the correct display URL (primary variant may differ from generation.location)
-      const response = await supabase
-        .from('shot_generations')
+      const response = await supabase().from('shot_generations')
         .select(`
           id,
           generation_id,
@@ -86,7 +85,7 @@ const useAllShotGenerations = (
           const cachedData = queryClient.getQueryData<GenerationRow[]>(generationQueryKeys.byShot(stableShotId!));
           return cachedData || [];
         }
-        handleError(response.error, {
+        normalizeAndPresentError(response.error, {
           context: 'useShotImages.queryFn',
           showToast: false,
           logData: { shotId: stableShotId },

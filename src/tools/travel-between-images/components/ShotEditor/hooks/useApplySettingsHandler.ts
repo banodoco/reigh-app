@@ -8,10 +8,10 @@
  */
 
 import { useCallback, useRef, useEffect } from 'react';
-import { toast } from '@/shared/components/ui/sonner';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import * as ApplySettingsService from '../services/applySettingsService';
-import { GenerationRow, Shot } from '@/types/generationAndShots';
+import { GenerationRow, Shot } from '@/domains/generation/types';
 import { LoraModel } from '@/shared/components/LoraSelectorModal';
 import type { SteerableMotionSettings } from '@/shared/types/steerableMotion';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';

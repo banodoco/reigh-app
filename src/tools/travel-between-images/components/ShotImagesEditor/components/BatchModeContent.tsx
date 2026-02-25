@@ -4,15 +4,16 @@
  */
 
 import React from 'react';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { Button } from '@/shared/components/ui/button';
 import { ShotImageManagerContainer as ShotImageManager } from '@/shared/components/ShotImageManager/ShotImageManagerContainer';
 import { BatchGuidanceVideo } from '../../BatchGuidanceVideo';
 import { SectionHeader } from '@/shared/components/ImageGenerationForm/components';
 import type { PairData } from '../../Timeline/TimelineContainer';
 import type { VideoMetadata } from '@/shared/lib/videoUploader';
-import type { GenerationRow, Shot } from '@/types/shots';
+import type { GenerationRow, Shot } from '@/domains/generation/types';
 import type { SegmentSlot } from '@/shared/hooks/segments';
+import type { OperationResult } from '@/shared/lib/operationResult';
 
 export interface BatchModeBatchConfig {
   selectedShotId: string;
@@ -73,7 +74,7 @@ export interface BatchModeUIOptions {
   onCreateShot?: (shotName: string) => Promise<{ shotId: string; shotName: string }>;
   onNewShotFromSelection?: (selectedIds: string[]) => Promise<string | void>;
 
-  onSegmentDelete: (generationId: string) => Promise<void>;
+  onSegmentDelete: (generationId: string) => Promise<OperationResult<{ deleted: boolean }>>;
   onClearPendingImageToOpen: () => void;
   navigateWithTransition: (doNavigation: () => void) => void;
 

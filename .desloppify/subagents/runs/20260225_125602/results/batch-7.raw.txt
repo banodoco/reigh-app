@@ -1,0 +1,140 @@
+{
+  "batch": "Design coherence — Mechanical Concern Signals",
+  "batch_index": 7,
+  "assessments": {
+    "design_coherence": 72.0
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "Large multi-responsibility contracts remain common in this batch: `BatchSettingsFormProps` includes UI state, persistence triggers, preset management, prompt controls, and phase controls in one component contract (`src/tools/travel-between-images/components/BatchSettingsForm.tsx`).",
+        "`useTimelineOrchestrator` exposes a very large input/output surface (drag, selection, drop, pending, endpoint, viewport, UI flags, device behaviors), indicating orchestration and UI concerns are fused (`src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts`).",
+        "Shot-association control logic is duplicated across sibling components with near-identical branching and optimistic tick updates (`src/shared/components/MediaLightbox/components/ShotSelectorControls.tsx`, `src/shared/components/MediaLightbox/components/WorkflowControls.tsx`).",
+        "Submission flow has stacked orchestration layers passing many values through (`useFormSubmission` -> `useSubmissionHandlers` -> `useSubmissionOrchestrator`) with limited reduction of coupling (`src/shared/components/ImageGenerationForm/hooks/useFormSubmission.ts`, `src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmissionHandlers.ts`, `src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmissionOrchestrator.ts`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "state_bag_contracts_across_timeline_ui",
+      "summary": "Travel/timeline UI relies on oversized prop/state contracts that mix domain logic, UI controls, and persistence triggers in single units.",
+      "related_files": [
+        "src/tools/travel-between-images/components/BatchSettingsForm.tsx",
+        "src/tools/travel-between-images/components/MotionControl.tsx",
+        "src/tools/travel-between-images/components/Timeline/TimelineItem.tsx",
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts"
+      ],
+      "evidence": [
+        "`BatchSettingsFormProps` carries many unrelated concerns (prompt editing, phase config, mode toggles, seed/turbo controls, preset callbacks, text-before/after, read-only behavior) in one interface.",
+        "`TimelineItemProps` includes drag mechanics, selection state, duplication/delete actions, prefetch, touch behavior, and layout parameters together.",
+        "`useTimelineOrchestrator` accepts and returns broad multi-domain structures (`viewport`, `drag`, `selection`, `pending`, `drop`, `actions`, `endpoint`, `uiState`, `device`), creating a high-coupling seam."
+      ],
+      "suggestion": "Split these contracts into focused capability modules: timeline interaction state, shot mutation actions, and presentation-only props. Introduce a typed coordinator object per concern (interaction, mutation, rendering) and compose in parent containers instead of passing a single mega-contract.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "feature_surface_accumulation"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "duplicated_shot_association_workflow",
+      "summary": "Shot-selector/add-to-shot behavior is duplicated across two lightbox control components, creating drift risk and inconsistent UX behavior.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/ShotSelectorControls.tsx",
+        "src/shared/components/MediaLightbox/components/WorkflowControls.tsx",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryActions.ts"
+      ],
+      "evidence": [
+        "Both `ShotSelectorControls` and `WorkflowControls` implement nearly the same `handleAddWithoutPosition` flow: guard `selectedShotId`, call `onAddToShotWithoutPosition`, then trigger secondary tick + optimistic update.",
+        "Both render `ShotSelectorWithAdd` with parallel parameter wiring and very similar tick/disabled conditions.",
+        "Behavior has already diverged: `ShotSelectorControls` includes jump-to-shot and variant-add flow, while `WorkflowControls` shows the same success tooltip text but lacks that navigation path."
+      ],
+      "suggestion": "Extract a shared `useShotAssociationControls` hook or a single reusable control component that owns add/jump/tick state transitions and is parameterized only by placement/layout concerns.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "missing_shared_interaction_abstraction"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "submission_pipeline_indirection_chain",
+      "summary": "Form submission logic is split across multiple pass-through hooks, adding indirection without a clear reduction in dependency complexity.",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/hooks/useFormSubmission.ts",
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmissionHandlers.ts",
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmissionOrchestrator.ts"
+      ],
+      "evidence": [
+        "`useFormSubmission` builds `formStateRef` and task params, then forwards a large argument set to `useSubmissionHandlers`.",
+        "`useSubmissionHandlers` mostly forwards the same values into `useSubmissionOrchestrator` and repackages command handlers.",
+        "`useSubmissionOrchestrator` then contains both queue orchestration and prompt-generation side effects, so layering does not isolate responsibilities cleanly."
+      ],
+      "suggestion": "Collapse pass-through layers into one primary hook with explicit submodules only where ownership changes (e.g., task plan builder vs queue executor). Keep a minimal command interface at the top boundary and move value derivation closer to use sites.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "orchestration_layering_without_boundary_gain"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "panes_context_overloaded_responsibility",
+      "summary": "Pane context combines persistence policy, device-specific lock rules, runtime visibility, dimensions, and active-task selection in one provider.",
+      "related_files": [
+        "src/shared/contexts/PanesContext.tsx",
+        "src/shared/components/TasksPane/TasksPane.tsx",
+        "src/shared/components/PaneControlTab.tsx"
+      ],
+      "evidence": [
+        "`PanesContextType` exposes many fields spanning unrelated concerns (locks, open states, dimensions, active task id, reset behavior).",
+        "`createPaneLockSetter` performs both state mutation and persistence policy branching (`isMobile`/`isTablet`/`isSmallMobile`) in the same closure.",
+        "`TasksPane` still contains lock/open synchronization logic (`onToggleLock`, `onOpenChange`) that partially duplicates context intent, indicating boundary leakage."
+      ],
+      "suggestion": "Split context into focused providers: `PaneLockPolicyContext`, `PaneLayoutContext`, and `PaneSelectionContext`. Keep persistence and device policy in a dedicated hook consumed by lock policy provider to reduce cross-cutting coupling.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "feature_surface_accumulation"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "ad_hoc_timer_coordination_pattern",
+      "summary": "Multiple components coordinate UX transitions with hardcoded timers, indicating a systemic ad-hoc interaction-state pattern.",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline/TimelineItem.tsx",
+        "src/shared/components/MediaLightbox/components/ShotSelectorControls.tsx",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryActions.ts",
+        "src/shared/components/ChunkLoadErrorBoundary.tsx"
+      ],
+      "evidence": [
+        "`TimelineItem` uses a fixed 800ms timeout for drop highlight clearing.",
+        "`ShotSelectorControls` uses a fixed 2000ms timeout to clear success UI state.",
+        "`useMediaGalleryActions` coordinates delete/backfill via 100ms and 750ms timers.",
+        "`ChunkLoadErrorBoundary` reloads after a fixed 100ms delay."
+      ],
+      "suggestion": "Introduce shared interaction timing constants and a small transition-state utility (or reducer) so timing decisions are centralized, testable, and behaviorally consistent.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "implicit_async_ui_state_management"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Feature growth is being absorbed by extending existing interfaces instead of introducing new bounded abstractions.",
+      "Shared interaction workflows are copied at component level rather than extracted into reusable behavioral units.",
+      "Coordination logic is often temporal (timeouts/refs) instead of modeled through explicit state transitions."
+    ],
+    "likely_symptoms": [
+      "state_bag_contracts_across_timeline_ui",
+      "duplicated_shot_association_workflow",
+      "submission_pipeline_indirection_chain"
+    ],
+    "possible_false_positives": [
+      "Some timer-based behavior may be intentional for perceptual UX polish, but the pattern is broad enough to merit standardization."
+    ]
+  }
+}

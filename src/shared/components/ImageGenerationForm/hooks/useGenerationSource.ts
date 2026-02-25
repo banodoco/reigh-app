@@ -4,8 +4,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import type { ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import type { ActiveLora } from '@/shared/types/lora';
 import {
   GenerationSource,
   TextToImageModel,
@@ -182,7 +182,7 @@ function useGenerationSourceHandlers(input: HandlersInput) {
             selectedLorasByCategory: updatedLorasByCategory,
           });
         } catch (error) {
-          handleError(error, {
+          normalizeAndPresentError(error, {
             context: 'useGenerationSource.handleGenerationSourceChange',
             showToast: false,
           });
@@ -194,7 +194,7 @@ function useGenerationSourceHandlers(input: HandlersInput) {
       try {
         await updateProjectImageSettings('project', { generationSource: source });
       } catch (error) {
-        handleError(error, {
+        normalizeAndPresentError(error, {
           context: 'useGenerationSource.handleGenerationSourceChange',
           showToast: false,
         });
@@ -242,7 +242,7 @@ function useGenerationSourceHandlers(input: HandlersInput) {
             selectedLorasByCategory: updatedLorasByCategory,
           });
         } catch (error) {
-          handleError(error, {
+          normalizeAndPresentError(error, {
             context: 'useGenerationSource.handleTextModelChange',
             showToast: false,
           });
@@ -254,7 +254,7 @@ function useGenerationSourceHandlers(input: HandlersInput) {
       try {
         await updateProjectImageSettings('project', { selectedTextModel: model });
       } catch (error) {
-        handleError(error, {
+        normalizeAndPresentError(error, {
           context: 'useGenerationSource.handleTextModelChange',
           showToast: false,
         });

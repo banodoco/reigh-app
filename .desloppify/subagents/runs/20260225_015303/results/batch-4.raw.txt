@@ -1,0 +1,88 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 4,
+  "assessments": {
+    "package_organization": 82.0
+  },
+  "dimension_notes": {
+    "package_organization": {
+      "evidence": [
+        "`src/shared/components/ui/` has 58 files (44 production + 14 tests) with mixed primitives, policy wiring, and interaction hooks, indicating flat-directory overload beyond the >10 mixed-concern threshold.",
+        "`src/integrations/supabase/legacy/legacySupabaseFacade.ts` is still a high-traffic dependency (133 importers; directory avg_fan_in 67.0), with strong inbound edges from `src/shared/hooks/` (36), showing compatibility code is not isolated at boundaries.",
+        "`src/types/generationAndShots.ts` (205 importers) acts as a canonical barrel while a parallel domain type tree exists in `src/domains/generation/types/` (8 files), creating split ownership of the same concern."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "package_organization",
+      "identifier": "legacy_supabase_boundary_not_contained",
+      "summary": "Legacy Supabase facade remains centrally placed and widely consumed across non-integration layers.",
+      "related_files": [
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "README defines legacy facade as compatibility-only with removal target 2026-06-30 and CI gates, but `legacySupabaseFacade.ts` remains a heavy shared dependency (133 importers; `src/shared/hooks/ -> src/integrations/supabase/legacy/` edge count 36).",
+        "Current folder location under `integrations/supabase/legacy` is correct for ownership, but call-site distribution shows the compatibility boundary is functionally acting as a runtime API."
+      ],
+      "suggestion": "Staged reorg plan: 1) add a stable runtime contract at `src/integrations/supabase/runtime/publicClient.ts` (target folder: runtime) and migrate direct consumers in `src/shared/hooks/` first, then `src/shared/components/`, then `src/tools/`; 2) keep `legacySupabaseFacade.ts` as a temporary forwarding shim only in `legacy/`; 3) run `rg \"legacySupabaseFacade|getLegacySupabaseClient\" src`, update imports in that order, then validate with `npm run check:legacy-supabase-usage && npm run check:contracts && npm run quality:check`.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "compatibility_layer_leaking_into_primary_api_surface"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "error_contract_policy_mixed_in_runtime_facade",
+      "summary": "Runtime error facade also exports governance policy constants, mixing operational and contract concerns.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`handleError.ts` exports both runtime handlers and governance metadata (`RUNTIME_ERROR_ALIAS_*`, budget helpers) from `src/shared/lib/governance/runtimeErrorAliasPolicy`.",
+        "This file is a hub (248 importers), so policy placement inside the runtime facade broadens policy coupling and makes the facade a mixed-responsibility import target."
+      ],
+      "suggestion": "Staged reorg plan: 1) create `src/shared/lib/governance/contracts/runtimeErrorAliasContract.ts` (target folder: governance/contracts) and move re-exported policy symbols there; 2) keep `handleError.ts` limited to runtime behavior (`handleError`, `handleAndRethrow`); 3) migrate imports by first replacing policy imports from `handleError.ts`, then keep deprecated alias exports temporarily if needed; 4) run `rg \"RUNTIME_ERROR_ALIAS_|getRuntimeErrorAliasImportBudget\" src`, update imports, then validate with `npm run check:error-runtime-alias-usage && npm run check:contracts && npm run quality:check`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "compatibility_layer_leaking_into_primary_api_surface"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "generation_type_ownership_split_across_roots",
+      "summary": "Generation/shot type contracts are split between global `src/types` and domain-local type directories.",
+      "related_files": [
+        "src/types/generationAndShots.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`src/types/generationAndShots.ts` is labeled canonical and heavily imported (205), while the codebase also maintains `src/domains/generation/types/` as a separate type package.",
+        "README migration guidance removed one shim (`@/types/shots`) but keeps canonical guidance centered on `@/types/generationAndShots`, reinforcing cross-root ownership split instead of converging on domain-owned contracts."
+      ],
+      "suggestion": "Staged reorg plan: 1) establish `src/domains/generation/contracts/index.ts` as the long-term canonical type surface (target folder: domain contracts); 2) convert `src/types/generationAndShots.ts` into a deprecated compatibility barrel forwarding to domain contracts; 3) migrate imports in waves (`src/tools/travel-between-images` first, then `src/shared/hooks`, then `src/shared/components`); 4) run `rg \"@/types/generationAndShots|@/types/(generationParams|generationMetadata|generationRow|shot)\" src`, update imports, then validate with `npm run check:shots-shim-usage && npm run check:contracts && npm run quality:check`.",
+      "confidence": "medium",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "contract_surface_distributed_across_multiple_roots"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Compatibility shims are correctly documented but remain embedded in high-traffic shared entry points, so legacy and canonical surfaces are not operationally separated.",
+      "Contract metadata and runtime APIs are co-located in import hubs, which increases cross-cutting coupling.",
+      "Type contracts evolved in parallel roots (`src/types` and `src/domains`) without a single ownership migration endpoint."
+    ],
+    "likely_symptoms": [
+      "legacy_supabase_boundary_not_contained",
+      "error_contract_policy_mixed_in_runtime_facade",
+      "generation_type_ownership_split_across_roots"
+    ],
+    "possible_false_positives": []
+  }
+}

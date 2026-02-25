@@ -4,8 +4,9 @@
  */
 
 import { useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import type { EditMode } from './types';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 const VALID_EDIT_MODES: EditMode[] = ['text', 'inpaint', 'annotate'];
 
@@ -15,13 +16,17 @@ export function useEditModePersistence() {
    */
   const loadEditModeFromDB = useCallback(async (generationId: string): Promise<EditMode | null> => {
     try {
-      const { data, error } = await supabase
-        .from('generations')
+      const { data, error } = await supabase().from('generations')
         .select('params')
         .eq('id', generationId)
         .maybeSingle();
 
       if (error) {
+        normalizeAndPresentError(error, {
+          context: 'useEditModePersistence.load.fetch',
+          showToast: false,
+          logData: { generationId },
+        });
         return null;
       }
 
@@ -35,7 +40,12 @@ export function useEditModePersistence() {
       }
 
       return null;
-    } catch {
+    } catch (error) {
+      normalizeAndPresentError(error, {
+        context: 'useEditModePersistence.load.exception',
+        showToast: false,
+        logData: { generationId },
+      });
       return null;
     }
   }, []);
@@ -46,13 +56,17 @@ export function useEditModePersistence() {
   const saveEditModeToDB = useCallback(async (generationId: string, mode: EditMode) => {
     try {
       // First, fetch current params to merge
-      const { data: current, error: fetchError } = await supabase
-        .from('generations')
+      const { data: current, error: fetchError } = await supabase().from('generations')
         .select('params')
         .eq('id', generationId)
         .maybeSingle();
 
       if (fetchError) {
+        normalizeAndPresentError(fetchError, {
+          context: 'useEditModePersistence.save.fetch',
+          showToast: false,
+          logData: { generationId, mode },
+        });
         return;
       }
 
@@ -71,12 +85,24 @@ export function useEditModePersistence() {
         }
       };
 
-      await supabase
-        .from('generations')
+      const { error: updateError } = await supabase().from('generations')
         .update({ params: updatedParams })
         .eq('id', generationId);
+      if (updateError) {
+        normalizeAndPresentError(updateError, {
+          context: 'useEditModePersistence.save.update',
+          showToast: false,
+          logData: { generationId, mode },
+        });
+      }
 
-    } catch { /* intentionally ignored */ }
+    } catch (error) {
+      normalizeAndPresentError(error, {
+        context: 'useEditModePersistence.save.exception',
+        showToast: false,
+        logData: { generationId, mode },
+      });
+    }
   }, []);
 
   return {

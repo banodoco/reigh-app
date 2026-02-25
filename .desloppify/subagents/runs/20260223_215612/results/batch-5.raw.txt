@@ -1,0 +1,73 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 5,
+  "assessments": {
+    "high_level_elegance": 78.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/components/ui/button.tsx` mixes generic design-system concerns with product-specific retro policy (`retroButtonPolicy`, `isRetroButtonVariant`, `isRetroButtonSize`) inside the core Button primitive.",
+        "`src/shared/lib/errorHandling/handleError.ts` owns normalization/logging plus a browser event transport (`window.dispatchEvent` with `reigh:error-notification`) and singleton notifier lifecycle, creating a cross-layer contract in one module.",
+        "`src/integrations/supabase/client.ts` combines singleton construction, runtime bootstrap (`initializeSupabaseRuntime`), instrumentation install, and dev globals (`window.__supabase_client__`, `window.supabase`) in one entrypoint.",
+        "`README.md` documents high-level runtime contracts but omits important behavioral constraints (e.g., `configureErrorNotifier` throws if reconfigured with a different notifier), leaving compatibility expectations partially implicit."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_button_policy_leakage",
+      "summary": "Core UI Button owns product-specific retro policy, blurring design-system ownership boundaries.",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/lib/uiClassNames.ts"
+      ],
+      "evidence": [
+        "`button.tsx` imports and applies `retroButtonPolicy` and retro-specific variant/size type guards directly in the base Button implementation.",
+        "The shared primitive now has dual policy paths (core variants plus retro coercion fallback to `ghost`/`default`), so a generic UI contract is coupled to one stylistic subsystem."
+      ],
+      "suggestion": "Split retro behavior into a separate wrapper (e.g., `RetroButton`) or compose policy externally so `Button` remains style-system neutral and predictable.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "error_contract_hidden_runtime_rules",
+      "summary": "Error handling module embeds global UI event protocol and reconfiguration rules that are only partially documented.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`handleError.ts` defines `ERROR_NOTIFICATION_EVENT`, dispatches browser `CustomEvent`s, and enforces one-notifier semantics by throwing on different re-registration.",
+        "`README.md` states notifier setup occurs at bootstrap, but does not specify strict single-notifier replacement behavior or event-channel coupling, leaving compatibility constraints implicit."
+      ],
+      "suggestion": "Promote notifier lifecycle/event semantics into an explicit contract doc (or typed public API) and separate core error normalization from UI transport wiring.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "supabase_entrypoint_multi_responsibility",
+      "summary": "Supabase client entrypoint combines production ownership, instrumentation boot, and dev diagnostics in one contract surface.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`client.ts` performs instrumentation install, runtime initialization, singleton lifecycle, and optional debug global exposure from the same module.",
+        "`README.md` presents this file as canonical ownership; combining these concerns increases contract scope and makes import/use expectations less narrow than a pure client factory boundary."
+      ],
+      "suggestion": "Split into explicit layers (`clientSingleton`, `runtimeBootstrap`, `debugGlobals`) and keep `getSupabaseClient()` contract minimal to reduce surprise and compatibility drift.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

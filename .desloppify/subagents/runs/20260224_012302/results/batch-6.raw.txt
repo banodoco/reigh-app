@@ -1,0 +1,73 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "high_level_elegance": 81.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "README.md defines governance contracts (central Supabase client ownership, bootstrap-only error notifier assumptions), but those contracts are only prose and are not represented as enforceable API boundaries in the reviewed modules.",
+        "src/domains/generation/types/generationRow.ts mixes cross-domain concerns and compatibility eras in one type (gallery/lightbox/timeline plus legacy aliases like shotImageEntryId and shot_generation_id, camelCase and snake_case forms).",
+        "src/shared/lib/errorHandling/handleError.ts combines normalization, logging, notification dispatch wiring surface, and rethrow helper in a single high-traffic entrypoint, which broadens ownership for one shared contract module."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "generation_row_multi_era_contract",
+      "summary": "GenerationRow is a multi-era compatibility bucket rather than a bounded domain contract",
+      "related_files": [
+        "README.md",
+        "src/domains/generation/types/generationRow.ts"
+      ],
+      "evidence": [
+        "GenerationRow includes both current and legacy aliases for the same concepts (id vs shotImageEntryId vs shot_generation_id, thumbUrl vs thumbnail_url, createdAt vs created_at).",
+        "Type comment says it is the base for galleries/lightboxes/timeline, so one shared type absorbs multiple subsystem contracts instead of boundary-specific models."
+      ],
+      "suggestion": "Split GenerationRow into a canonical core type plus explicit boundary adapters (e.g., DB row shape, UI view model, legacy compatibility mapper). Keep legacy aliases confined to adapter layers and mark the canonical type as the only writable contract.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "runtime_contracts_not_enforced",
+      "summary": "README governance rules rely on convention without enforceable module boundaries",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "README defines runtime contracts such as canonical Supabase access and bootstrap-scoped error notification assumptions.",
+        "Reviewed modules expose broad entrypoints (getSupabaseClient + initializeSupabaseDebugGlobals; handleError + configureErrorNotifier re-export) but contain no code-level policy guardrails preventing misuse from arbitrary call sites."
+      ],
+      "suggestion": "Convert README runtime contracts into enforceable architecture constraints: narrow public exports to policy-safe entrypoints, move privileged/debug configuration behind explicitly internal modules, and add static checks (lint/dep rules) that block disallowed import paths.",
+      "confidence": "medium",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "error_handling_entrypoint_role_blur",
+      "summary": "Central error module mixes multiple architectural responsibilities in one public surface",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "handleError.ts exports notifier configuration types/functions and also operational handlers (handleError, handleAndRethrow), while also doing normalization, logging, and notification dispatch in one flow.",
+        "README positions notifier wiring as bootstrap concern, but the same module is the ubiquitous runtime error entrypoint, which blurs ownership boundaries."
+      ],
+      "suggestion": "Separate configuration API from runtime handling API into distinct modules (e.g., errorHandling/config and errorHandling/runtime) and keep shared call sites importing only runtime helpers to preserve clear ownership boundaries.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

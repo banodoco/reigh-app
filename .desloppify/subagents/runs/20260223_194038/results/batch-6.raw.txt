@@ -1,0 +1,101 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "cross_module_architecture": 78.0,
+    "high_level_elegance": 81.0,
+    "package_organization": 73.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/handleError.ts` maintains process-wide mutable state (`let errorNotifier`) via `configureErrorNotifier`, creating hidden cross-module behavior based on initialization order.",
+        "`src/integrations/supabase/client.ts` exposes a backward-compat proxy (`export const supabase = new Proxy(...)`) while also using singleton/window globals (`clientInstance`, `window.__supabase_client__`), which preserves legacy import contracts at the cost of implicit runtime coupling.",
+        "Holistic context marks both files as high fan-in hubs (`handleError.ts` importers: 226, `client.ts` importers: 147), so boundary drift in either module has subsystem-level blast radius."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "`README.md` presents architecture as cleanly decomposed and points to structure docs, but key runtime contracts (global error notifier registration and lazy proxy-based Supabase compatibility surface) are not documented as architectural constraints.",
+        "`src/shared/lib/errorHandling/handleError.ts` claims UI-agnostic handling while still requiring external notifier wiring to realize notification behavior, making ownership of user-facing error behavior non-obvious.",
+        "`src/integrations/supabase/client.ts` mixes bootstrap, singleton lifecycle, debug-global registration, and backward-compat API surface in one entrypoint, so module purpose is broader than its location/name suggests."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    },
+    "package_organization": {
+      "evidence": [
+        "Holistic structure shows `src/shared/lib/` is a flat mixed-concern directory (`file_count`: 71), exceeding the >10 mixed-concern threshold and containing unrelated areas (task creation, media, timeline, UI classnames, storage, settings).",
+        "`src/shared/lib/utils.ts` is a high-fan-in generic barrel (listed as 134 importers in holistic context) that re-exports UI-centric (`cn`) and string helpers together, encouraging cross-domain imports through a non-specific entrypoint.",
+        "Directory coupling shows strong dependence from UI into shared-lib internals (`src/shared/components/ui/ → src/shared/lib/` = 36 edges), reinforcing that generic `shared/lib` placement is acting as a broad dependency sink rather than focused packages."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "hidden_global_contracts_in_core_singletons",
+      "summary": "Global singleton/notifier contracts create implicit cross-module runtime dependencies.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/integrations/supabase/client.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`handleError.ts` behavior changes globally after `configureErrorNotifier(...)`, but callers of `handleError(...)` cannot see that dependency from the function contract.",
+        "`client.ts` keeps legacy imports working via proxy while also mutating global/window state (`window.__supabase_client__`, `window.supabase`), which creates hidden architectural coupling to browser runtime and init timing.",
+        "These modules are top import hubs in holistic context, so implicit contracts propagate widely."
+      ],
+      "suggestion": "Define explicit contracts and ownership boundaries: (1) introduce `src/app/bootstrap/errorNotifier.ts` to register notifier once at app startup and keep `handleError` pure with injected notifier in call sites that need UI effects; (2) split `src/integrations/supabase/client.ts` into `clientFactory.ts` (creation/runtime init), `clientSingleton.ts` (lifecycle), and `legacyProxy.ts` (temporary compatibility export); (3) add a short “runtime contracts” section in README documenting required bootstrap order and temporary compatibility layers; validate with `npm run typecheck && npm run test` and dependency checks via `rg -n \"configureErrorNotifier|getSupabaseClient|import \\{ supabase \\}\" src`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "docs_runtime_contract_gap",
+      "summary": "Top-level docs omit runtime architecture contracts that materially affect behavior.",
+      "related_files": [
+        "README.md",
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "`README.md` links architecture docs but does not define compatibility/runtime invariants for error notification wiring or Supabase lazy singleton/proxy behavior.",
+        "`handleError.ts` includes app/UI registration semantics despite being in shared lib, so architectural ownership is not obvious from package role alone.",
+        "`client.ts` includes backward-compat and debug-global behavior, but this contract is not surfaced at top-level project contract documentation."
+      ],
+      "suggestion": "Add a governance-level contract section in `README.md` (or linked structure doc) that explicitly states: error notifier registration point, Supabase client singleton ownership, compatibility proxy sunset criteria, and permitted import surface (`getSupabaseClient` preferred over proxy). Pair that doc update with a small architectural decision record under docs and enforce with a CI grep check like `rg -n \"import \\{ supabase \\}\" src | wc -l` to track legacy proxy usage burn-down.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "shared_lib_flattening_and_generic_barrel_sink",
+      "summary": "Flat `shared/lib` plus generic `utils.ts` barrel obscures ownership and promotes broad coupling.",
+      "related_files": [
+        "src/shared/lib/utils.ts",
+        "src/shared/components/ui/button.tsx",
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/types/generationAndShots.ts"
+      ],
+      "evidence": [
+        "`src/shared/lib/` has 71 production files with mixed concerns (objective overload threshold exceeded).",
+        "`utils.ts` exports unrelated helpers (`cn`, `cropFilename`, `truncateText`) behind a generic path, and high fan-in indicates it is a dependency funnel.",
+        "`button.tsx` depends on `@/shared/lib/utils` only for `cn`, showing UI styling utility consumption through a broad shared-lib barrel instead of focused package ownership."
+      ],
+      "suggestion": "Staged reorg plan: Stage 1 target folders: create `src/shared/lib/ui/` for UI class helpers and `src/shared/lib/text/` for string formatting; move `uiClassNames.ts -> ui/cn.ts` and `stringFormatting.ts -> text/stringFormatting.ts`. Stage 2 move order: update `src/shared/lib/utils.ts` to re-export from new locations temporarily, then migrate direct imports in high-traffic UI files (start with `src/shared/components/ui/button.tsx` and sibling UI components), then remove mixed barrel exports. Stage 3 tighten package boundaries: keep error handling isolated under `src/shared/lib/errorHandling/` and prefer domain barrels like `src/types/generationAndShots.ts` only within type domains. Import-update/validation commands: `rg -n \"@/shared/lib/utils\" src`, apply replacements to `@/shared/lib/ui/cn` or `@/shared/lib/text/stringFormatting`, then run `npm run typecheck && npm run test` and `rg -n \"@/shared/lib/utils\" src` to ensure barrel usage is intentionally minimized.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Video } from 'lucide-react';
 import { TrainingDataSegment } from '../../../hooks/useTrainingData';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { msToSeconds, FRAME_CAPTURE_INITIAL_DELAY_MS, FRAME_CAPTURE_INTER_DELAY_MS, FRAME_LOAD_DEBOUNCE_MS } from '../constants';
 
 interface SegmentFramePreviewProps {
@@ -43,7 +43,7 @@ export function SegmentFramePreview({ segment, captureFrameAtTime, videoReady }:
         setEndFrame(endImg);
       } catch (error) {
         if (cancelled) return;
-        handleError(error, { context: 'VideoSegmentEditor', showToast: false, logData: { segmentId: segment.id } });
+        normalizeAndPresentError(error, { context: 'VideoSegmentEditor', showToast: false, logData: { segmentId: segment.id } });
         // Set to null so fallback UI shows
         setStartFrame(null);
         setEndFrame(null);

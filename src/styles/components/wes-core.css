@@ -1,0 +1,128 @@
+  .wes-header {
+    @apply flex flex-col items-center text-center backdrop-blur-md;
+    /* Note: position (sticky/relative) is controlled by Tailwind classes in the component */
+    background: 
+      linear-gradient(90deg, hsl(var(--background)) 0%, hsl(var(--wes-dusty-lavender) / 0.3) 50%, hsl(var(--background)) 100%),
+      repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 100px,
+        hsl(var(--wes-vintage-gold) / 0.05) 100px,
+        hsl(var(--wes-vintage-gold) / 0.05) 102px
+      );
+    border-bottom: 1px solid hsl(var(--wes-vintage-gold) / 0.5);
+    box-shadow: 0 1px 3px hsl(var(--primary) / 0.1);
+  }
+  
+  .dark .wes-header {
+    border-bottom: 1px solid hsl(var(--wes-vintage-gold) / 0.3);
+    box-shadow: 0 1px 4px hsl(0 0% 0% / 0.3);
+    background: 
+      linear-gradient(90deg, hsl(var(--background)) 0%, hsl(210 20% 18% / 0.6) 50%, hsl(var(--background)) 100%),
+      repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 80px,
+        hsl(var(--wes-vintage-gold) / 0.04) 80px,
+        hsl(var(--wes-vintage-gold) / 0.04) 82px
+      );
+    /* Note: position is controlled by Tailwind classes (sticky/relative) - don't override here */
+  }
+  
+  .dark .wes-header::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.015;
+    pointer-events: none;
+    mix-blend-mode: overlay;
+  }
+  
+  /* Project selector identity glow - the brand strip */
+  .dark .wes-header .shadow-wes-vintage {
+    position: relative;
+    background: linear-gradient(
+      135deg,
+      hsl(var(--card) / 0.9) 0%,
+      hsl(210 15% 18% / 0.95) 50%,
+      hsl(var(--card) / 0.9) 100%
+    );
+    box-shadow: 
+      0 0 30px hsl(var(--wes-vintage-gold) / 0.12),
+      0 0 60px hsl(210 20% 30% / 0.1),
+      inset 0 1px 0 hsl(var(--wes-vintage-gold) / 0.15),
+      inset 0 0 0 1px hsl(210 15% 35% / 0.2);
+  }
+  
+  /* Horizontal gradient band beneath header in dark mode */
+  .dark .wes-header > .absolute.bottom-0 {
+    height: 2px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      hsl(var(--wes-vintage-gold) / 0.3) 20%,
+      hsl(210 25% 50% / 0.25) 50%,
+      hsl(var(--wes-vintage-gold) / 0.3) 80%,
+      transparent 100%
+    );
+  }
+
+  .wes-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, 
+      hsl(var(--wes-vintage-gold)), 
+      hsl(var(--wes-dusty-lavender)), 
+      hsl(var(--wes-dusty-blue)), 
+      hsl(var(--wes-vintage-gold)), 
+      hsl(var(--wes-vintage-gold))
+    );
+  }
+  
+  /* Hide decorative header line on mobile */
+  @media (max-width: 767px) {
+    .wes-header::before {
+      display: none;
+    }
+  }
+
+  .wes-nav-item {
+    @apply relative px-6 py-3 font-light text-sm tracking-wider uppercase;
+    @apply transition-all duration-300 ease-out;
+    @apply hover:text-primary hover:bg-accent/30;
+    position: relative;
+  }
+
+  .wes-nav-item::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: radial-gradient(circle, hsl(var(--wes-vintage-gold) / 0.2), transparent);
+    transform: translate(-50%, -50%);
+    transition: all 0.4s ease;
+    border-radius: 50%;
+  }
+
+  .wes-nav-item:hover::before {
+    width: 100%;
+    height: 100%;
+  }
+
+  .wes-nav-item::after {
+    content: '';
+    @apply absolute bottom-0 left-1/2 w-0 h-0.5 bg-gradient-to-r from-wes-vintage-gold to-wes-coral;
+    @apply transition-all duration-300 ease-out;
+    transform: translateX(-50%);
+  }
+
+  .wes-nav-item:hover::after {
+    @apply w-full;
+  }

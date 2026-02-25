@@ -1,0 +1,95 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "mid_level_elegance": 78.0
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "Task mapping contracts diverge across modules: `parsePrimaryTaskId` rejects non-array `tasks` as invalid in `src/shared/lib/generationTaskRepository.ts:107-121`, while `extractTaskId` explicitly accepts string-or-array in `src/shared/lib/generationTransformers.ts:237-243`.",
+        "Travel task request boundaries are intentionally de-typed across module seams: `buildTaskParams` and `buildMotionTaskFields` return `Record<string, unknown>` in `src/shared/components/segmentSettingsUtils.ts:104-188`, and `generateVideo` sends `requestBody as unknown as TravelBetweenImagesTaskInput` in `src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts:761`.",
+        "Multiple integration services use module-global mutable state that can cross-interfere between callers: `preloadingService.clearQueue()` in `src/features/gallery/lib/adjacentPagePreloadCoordinator.ts:103-128`, global timeout maps in `src/shared/hooks/invalidation/useGenerationInvalidation.ts:26-28`, and single-flight cache in `src/shared/lib/toolSettingsService.ts:25-30`."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "task_field_contract_split",
+      "summary": "The `generations.tasks` boundary has conflicting accepted shapes across repository and transformer layers.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/lib/generationTransformers.ts",
+        "src/shared/lib/generationTaskCache.ts"
+      ],
+      "evidence": [
+        "`parsePrimaryTaskId` treats any non-array `tasks` value as `invalid_tasks_shape` (`generationTaskRepository.ts:112-118`).",
+        "`extractTaskId` in transformer logic accepts both string and array (`generationTransformers.ts:237-243`), so the same DB value can be considered valid in one path and invalid in another.",
+        "`generationTaskCache` depends on repository status semantics for cache hydration (`generationTaskCache.ts:44-66`), propagating inconsistent status behavior to query consumers."
+      ],
+      "suggestion": "Define one canonical `tasks` contract (array-only or string-or-array) in a shared parser module and reuse it in repository, transformers, and cache hydration so status/error semantics are consistent across all read paths.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "travel_request_boundary_untyped",
+      "summary": "Travel-generation request assembly crosses seams with weakly typed payloads and a final unsafe cast.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/shared/components/segmentSettingsUtils.ts"
+      ],
+      "evidence": [
+        "`buildMotionTaskFields`/`buildTaskParams` return generic `Record<string, unknown>` instead of task-schema types (`segmentSettingsUtils.ts:104-143`).",
+        "`generateVideo` builds a large request object and then forces compatibility via `requestBody as unknown as TravelBetweenImagesTaskInput` (`generateVideoService.ts:709-762`).",
+        "This removes compile-time verification at the integration seam where the API payload is finalized."
+      ],
+      "suggestion": "Promote a shared typed request DTO for travel task submission and have both `segmentSettingsUtils` and `generateVideoService` return/compose that DTO directly, removing `Record<string, unknown>` builders and `unknown` casts.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "lineage_model_boundary_mismatch",
+      "summary": "Lineage integration mixes incompatible models (variant-chain vs generation lineage), causing incomplete or inconsistent chain behavior.",
+      "related_files": [
+        "src/shared/hooks/useLineageChain.ts",
+        "src/shared/lib/generationTransformers.ts"
+      ],
+      "evidence": [
+        "`useLineageChain` advertises a full recursive chain but only loads variants from the current `generation_id` (`useLineageChain.ts:66-71`), so parent links outside that generation are not fetched.",
+        "The traversal then resolves parent IDs only from that in-memory map (`useLineageChain.ts:87-109`), truncating cross-generation ancestry.",
+        "Transformer output also exposes generation-level lineage via `based_on` (`generationTransformers.ts:300-309`), indicating two competing lineage contracts across integration seams."
+      ],
+      "suggestion": "Standardize lineage on one model (variant or generation), then update the hook query strategy to follow IDs across generations when needed; document and enforce the chosen contract in shared types.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "global_singleton_cross_talk",
+      "summary": "Shared singleton state in integration helpers creates cross-caller interference and nondeterministic boundary behavior.",
+      "related_files": [
+        "src/features/gallery/lib/adjacentPagePreloadCoordinator.ts",
+        "src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+        "src/shared/lib/toolSettingsService.ts"
+      ],
+      "evidence": [
+        "Adjacent preload scheduling calls `preloadingService.clearQueue()` before/after debounce (`adjacentPagePreloadCoordinator.ts:103-128`), which can cancel unrelated preload work sharing the singleton queue.",
+        "Invalidation utilities use module-level timeout maps (`useGenerationInvalidation.ts:26-28`), coupling independent callsites through shared mutable timers.",
+        "Tool settings fetch dedupe and user cache are module-global (`toolSettingsService.ts:25-30`), so concurrent consumers share hidden state regardless of lifecycle scope."
+      ],
+      "suggestion": "Scope queues/timers/caches by explicit context (e.g., projectId/request scope) and expose disposable instances for callers to avoid global mutable coordination across unrelated flows.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

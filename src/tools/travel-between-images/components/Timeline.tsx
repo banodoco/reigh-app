@@ -3,160 +3,158 @@
  * Modular sub-components live in ./Timeline/hooks/, ./Timeline/utils/, ./Timeline/ (components).
  */
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useAppEventListener } from "@/shared/lib/typedEvents";
-import { GenerationRow } from "@/types/shots";
-import { toast } from "@/shared/components/ui/sonner";
-import { handleError } from "@/shared/lib/errorHandling/handleError";
-import { TOOL_IDS } from "@/shared/lib/toolConstants";
-import MediaLightbox from "@/shared/components/MediaLightbox";
-import { useIsMobile } from "@/shared/hooks/useMobile";
+import { GenerationRow } from "@/domains/generation/types";
+import { toast } from "@/shared/components/ui/runtime/sonner";
+import { TOOL_IDS } from '@/shared/lib/toolIds';
+import { MediaLightboxFromAdapter, type MediaLightboxInputAdapter } from "@/shared/components/MediaLightbox";
 import { TimelineEmptyState } from "./TimelineEmptyState";
-import { isVideoGeneration } from "@/shared/lib/typeGuards";
-import { useTaskFromUnifiedCache } from "@/shared/hooks/useTaskPrefetch";
-import { useGetTask } from "@/shared/hooks/useTasks";
-import { deriveGalleryInputImages } from "@/shared/components/MediaGallery/utils";
 import type { SegmentSlot } from "@/shared/hooks/segments";
 import type { PairData } from "@/shared/types/pairData";
 
 
-import { useAdjacentSegments } from "./Timeline/hooks/useAdjacentSegments";
-import { usePositionManagement } from "./Timeline/hooks/usePositionManagement";
-import { useLightbox } from "./Timeline/hooks/useLightbox";
-import { useTimelineCore } from "@/shared/hooks/useTimelineCore";
-import { useTimelinePositionUtils } from "../hooks/useTimelinePositionUtils";
+import { useTimelineDomainService } from "./Timeline/hooks/useTimelineDomainService";
 import { quantizeGap } from "./Timeline/utils/time-utils";
-import { useExternalGenerations } from "@/shared/components/ShotImageManager/hooks/useExternalGenerations";
-import { useDerivedNavigation } from "../hooks/useDerivedNavigation";
-import { usePendingImageOpen } from "@/shared/hooks/usePendingImageOpen";
+import { useTimelineLightboxOrchestrator } from "./Timeline/hooks/useTimelineLightboxOrchestrator";
 
 import TimelineContainer from "./Timeline/TimelineContainer";
 import { useEmptyStateDrop } from "./Timeline/hooks/useEmptyStateDrop";
 
-// Main Timeline component props
-interface TimelineProps {
+interface TimelineCoreAdapter {
   shotId: string;
   projectId?: string;
   frameSpacing: number;
+  readOnly?: boolean;
+  shotGenerations?: GenerationRow[];
+  images?: GenerationRow[];
+  allGenerations?: GenerationRow[];
+}
+
+interface TimelineInteractionAdapter {
   onImageReorder: (orderedIds: string[], draggedItemId?: string) => void;
   onFramePositionsChange?: (framePositions: Map<string, number>) => void;
   onFileDrop?: (files: File[], targetFrame?: number) => Promise<void>;
   onGenerationDrop?: (generationId: string, imageUrl: string, thumbUrl: string | undefined, targetFrame?: number) => Promise<void>;
-  // Read-only mode - disables all interactions
-  readOnly?: boolean;
-  // Shared data props to prevent hook re-instantiation
-  shotGenerations?: GenerationRow[];
-  images?: GenerationRow[]; // Filtered images for display
-  allGenerations?: GenerationRow[]; // ALL generations for lookups (unfiltered)
-  // Pair-specific prompt editing
-  onPairClick?: (pairIndex: number, pairData: PairData) => void;
-  defaultPrompt?: string;
-  defaultNegativePrompt?: string;
-  onClearEnhancedPrompt?: (pairIndex: number) => void;
-  /** Callback to notify parent of drag state changes - used to suppress query refetches during drag */
-  onDragStateChange?: (isDragging: boolean) => void;
-  // Action handlers
   onImageDelete: (imageId: string) => void;
   onImageDuplicate?: (imageId: string, timeline_frame: number) => void;
   duplicatingImageId?: string | null;
   duplicateSuccessImageId?: string | null;
-  projectAspectRatio?: string;
-  // Image upload handler for empty state
-  onImageUpload?: (files: File[]) => Promise<void>;
-  isUploadingImage?: boolean;
-  uploadProgress?: number;
-  // Shot management for external generation viewing
-  allShots?: Array<{ id: string; name: string }>;
-  selectedShotId?: string;
-  onShotChange?: (shotId: string) => void;
-  // CRITICAL: targetShotId is the shot selected in the DROPDOWN, not the shot being viewed
-  onAddToShot?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
-  onAddToShotWithoutPosition?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
-  onCreateShot?: (shotName: string, files: File[]) => Promise<{shotId?: string; shotName?: string} | void>;
-  // Multi-select: callback to create a new shot from selected images (returns new shot ID)
+  onPairClick?: (pairIndex: number, pairData: PairData) => void;
+  onClearEnhancedPrompt?: (pairIndex: number) => void;
+  onDragStateChange?: (isDragging: boolean) => void;
   onNewShotFromSelection?: (selectedIds: string[]) => Promise<string | void>;
-  // Maximum frame limit for timeline gaps (77 with smooth continuations, 81 otherwise)
-  maxFrameLimit?: number;
-  // Shared output selection state (syncs FinalVideoSection with SegmentOutputStrip)
-  selectedOutputId?: string | null;
-  // Callback when segment frame count changes (for instant timeline updates)
   onSegmentFrameCountChange?: (pairShotGenerationId: string, frameCount: number) => void;
-  // Segment slots for adjacent segment navigation in lightbox
-  segmentSlots?: SegmentSlot[];
-  // Loading state for segment slots (from consolidated hook in ShotImagesEditor)
-  isSegmentsLoading?: boolean;
-  // Pending task checker (from consolidated hook in ShotImagesEditor — includes optimistic state)
-  hasPendingTask?: (pairShotGenerationId: string | null | undefined) => boolean;
-  // Callback to open segment slot in unified lightbox
-  onOpenSegmentSlot?: (pairIndex: number) => void;
-  // Request to open lightbox for specific image (from segment constituent navigation)
-  pendingImageToOpen?: string | null;
-  // Variant ID to auto-select when opening from pendingImageToOpen (e.g. from TasksPane)
-  pendingImageVariantId?: string | null;
-  // Callback to clear the pending image request after handling
-  onClearPendingImageToOpen?: () => void;
-  // Helper to navigate with transition overlay (prevents flash when component type changes)
-  navigateWithTransition?: (doNavigation: () => void) => void;
-  // Position system: register trailing end frame updater from TimelineContainer
   onRegisterTrailingUpdater?: (fn: (endFrame: number) => void) => void;
 }
 
+interface TimelineDisplayAdapter {
+  defaultPrompt?: string;
+  defaultNegativePrompt?: string;
+  projectAspectRatio?: string;
+  maxFrameLimit?: number;
+  selectedOutputId?: string | null;
+}
+
+interface TimelineUploadAdapter {
+  onImageUpload?: (files: File[]) => Promise<void>;
+  isUploadingImage?: boolean;
+  uploadProgress?: number;
+}
+
+interface TimelineShotWorkflowAdapter {
+  allShots?: Array<{ id: string; name: string }>;
+  selectedShotId?: string;
+  onShotChange?: (shotId: string) => void;
+  onAddToShot?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
+  onAddToShotWithoutPosition?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
+  onCreateShot?: (shotName: string, files: File[]) => Promise<{ shotId?: string; shotName?: string } | void>;
+}
+
+interface TimelineSegmentNavigationAdapter {
+  segmentSlots?: SegmentSlot[];
+  isSegmentsLoading?: boolean;
+  hasPendingTask?: (pairShotGenerationId: string | null | undefined) => boolean;
+  onOpenSegmentSlot?: (pairIndex: number) => void;
+  pendingImageToOpen?: string | null;
+  pendingImageVariantId?: string | null;
+  onClearPendingImageToOpen?: () => void;
+  navigateWithTransition?: (doNavigation: () => void) => void;
+}
+
+interface TimelineProps {
+  core: TimelineCoreAdapter;
+  interactions: TimelineInteractionAdapter;
+  display?: TimelineDisplayAdapter;
+  uploads?: TimelineUploadAdapter;
+  shotWorkflow?: TimelineShotWorkflowAdapter;
+  segmentNavigation?: TimelineSegmentNavigationAdapter;
+}
+
 const Timeline: React.FC<TimelineProps> = ({
-  shotId,
-  projectId,
-  frameSpacing,
-  onImageReorder,
-  onFramePositionsChange,
-  onFileDrop,
-  onGenerationDrop,
-  readOnly = false,
-  // Shared data props
-  shotGenerations: propShotGenerations,
-  images: propImages,
-  allGenerations: propAllGenerations,
-  onPairClick,
-  defaultPrompt,
-  defaultNegativePrompt,
-  onClearEnhancedPrompt,
-  onDragStateChange,
-  onImageDelete,
-  onImageDuplicate,
-  duplicatingImageId,
-  duplicateSuccessImageId,
-  projectAspectRatio,
-  onImageUpload,
-  isUploadingImage,
-  uploadProgress = 0,
-  // Shot management props
-  allShots,
-  selectedShotId,
-  onShotChange,
-  onAddToShot,
-  onAddToShotWithoutPosition,
-  onCreateShot,
-  onNewShotFromSelection,
-  // Frame limit
-  maxFrameLimit = 81,
-  // Shared output selection (syncs FinalVideoSection with SegmentOutputStrip)
-  selectedOutputId,
-  // Instant timeline updates from MediaLightbox
-  onSegmentFrameCountChange,
-  // Segment slots for adjacent segment navigation
-  segmentSlots,
-  isSegmentsLoading,
-  hasPendingTask,
-  onOpenSegmentSlot,
-  // Constituent image navigation support
-  pendingImageToOpen,
-  pendingImageVariantId,
-  onClearPendingImageToOpen,
-  // Lightbox transition support (prevents flash during navigation)
-  navigateWithTransition,
-  // Position system: trailing end frame updater registration
-  onRegisterTrailingUpdater,
+  core,
+  interactions,
+  display,
+  uploads,
+  shotWorkflow,
+  segmentNavigation,
 }) => {
-  // Local state for shot selector dropdown (separate from the shot being viewed)
-  const [lightboxSelectedShotId, setLightboxSelectedShotId] = useState<string | undefined>(selectedShotId || shotId);
+  const {
+    shotId,
+    projectId,
+    frameSpacing,
+    readOnly = false,
+    shotGenerations: propShotGenerations,
+    images: propImages,
+    allGenerations: propAllGenerations,
+  } = core;
+  const {
+    onImageReorder,
+    onFramePositionsChange,
+    onFileDrop,
+    onGenerationDrop,
+    onImageDelete,
+    onImageDuplicate,
+    duplicatingImageId,
+    duplicateSuccessImageId,
+    onPairClick,
+    onClearEnhancedPrompt,
+    onDragStateChange,
+    onNewShotFromSelection,
+    onSegmentFrameCountChange,
+    onRegisterTrailingUpdater,
+  } = interactions;
+  const {
+    defaultPrompt,
+    defaultNegativePrompt,
+    projectAspectRatio,
+    maxFrameLimit = 81,
+    selectedOutputId,
+  } = display ?? {};
+  const {
+    onImageUpload,
+    isUploadingImage,
+    uploadProgress = 0,
+  } = uploads ?? {};
+  const {
+    allShots,
+    selectedShotId,
+    onShotChange,
+    onAddToShot,
+    onAddToShotWithoutPosition,
+    onCreateShot,
+  } = shotWorkflow ?? {};
+  const {
+    segmentSlots,
+    isSegmentsLoading,
+    hasPendingTask,
+    onOpenSegmentSlot,
+    pendingImageToOpen,
+    pendingImageVariantId,
+    onClearPendingImageToOpen,
+    navigateWithTransition,
+  } = segmentNavigation ?? {};
+
   const [isDragInProgress, setIsDragInProgress] = useState<boolean>(false);
 
   // Notify parent when drag state changes - used to suppress query refetches
@@ -164,234 +162,46 @@ const Timeline: React.FC<TimelineProps> = ({
     onDragStateChange?.(isDragInProgress);
   }, [isDragInProgress, onDragStateChange]);
 
-  // Use shared hook data if provided, otherwise create new instance (for backward compatibility)
-  // NEW: When propAllGenerations is provided, use utility hook for position management with ALL data
-  const coreHookData = useTimelineCore(!propAllGenerations ? shotId : null);
-  const utilsHookData = useTimelinePositionUtils({
-    shotId: propAllGenerations ? shotId : null,
-    generations: propAllGenerations || [], // Use ALL generations for lookups, not filtered images
-    projectId: projectId, // Pass projectId to invalidate ShotsPane cache
-  });
-  
-  // Choose data source: props > utility hook (when allGenerations provided) > core hook
-  const shotGenerations: GenerationRow[] = propShotGenerations
-    || (propAllGenerations ? propAllGenerations : coreHookData.positionedItems);
-  const loadPositions = propAllGenerations
-    ? utilsHookData.loadPositions
-    : async (_opts?: { silent?: boolean; reason?: string }) => {
-        coreHookData.refetch();
-      };
-  const actualPairPrompts = propAllGenerations ? utilsHookData.pairPrompts : coreHookData.pairPrompts;
-  
-  // Use provided images or generate from shotGenerations
-  const images = React.useMemo(() => {
-    let result: GenerationRow[];
-    
-    if (propImages) {
-      result = propImages;
-    } else {
-      result = shotGenerations;
-    }
-    
-    // CRITICAL: Filter out videos - they should never appear on timeline
-    // Uses canonical isVideoGeneration from typeGuards
-    result = result.filter(img => !isVideoGeneration(img));
-    
-    // CRITICAL: Filter out unpositioned items (timeline_frame = null, undefined, or negative)
-    // These should NOT be included in timeline drag calculations
-    // Without this filter, unpositioned items get assigned frame 0 via ?? fallback
-    // and incorrectly get batch-updated when other items are dragged
-    // NOTE: -1 is used as a sentinel value in useTimelinePositionUtils for unpositioned items
-    result = result.filter(img => img.timeline_frame !== null && img.timeline_frame !== undefined && img.timeline_frame >= 0);
-
-    // Deterministic ordering: sort by timeline_frame, then by id as a stable tie-breaker.
-    // This matches backend ordering used by update-shot-pair-prompts.
-    result = result.sort((a, b) => {
-      const frameDiff = (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0);
-      if (frameDiff !== 0) return frameDiff;
-      return String(a.id ?? '').localeCompare(String(b.id ?? ''));
-    });
-
-    return result;
-  }, [shotGenerations, propImages]);
-
-  // In readOnly mode, pass all generations so SegmentOutputStrip can derive
-  // parent/child videos without database queries
-  const readOnlyGenerations = readOnly ? propAllGenerations : undefined;
-
-  // Position management hook
+  // Keep data/query orchestration out of the view layer.
   const {
+    images,
+    readOnlyGenerations,
     displayPositions,
     setFramePositions,
-  } = usePositionManagement({
+    actualPairPrompts,
+    loadPositions,
+  } = useTimelineDomainService({
     shotId,
-    shotGenerations,
+    projectId,
     frameSpacing,
     isDragInProgress,
     onFramePositionsChange,
+    propShotGenerations,
+    propImages,
+    propAllGenerations,
+    readOnly,
   });
 
-  // Ref for lightbox index setter (needed for external generations)
-  const setLightboxIndexRef = useRef<(index: number) => void>(() => {});
-  
-  // External generations hook (same as ShotImageManager)
-  const externalGens = useExternalGenerations({
-    selectedShotId: shotId,
-    optimisticOrder: images,
-    images: images,
-    setLightboxIndexRef
-  });
-  
-  // Combine timeline images with external generations for navigation
-  const currentImages = useMemo(() => {
-    return [...images, ...externalGens.externalGenerations, ...externalGens.tempDerivedGenerations];
-  }, [images, externalGens.externalGenerations, externalGens.tempDerivedGenerations]);
-
-  // Lightbox hook  
-  const isMobile = useIsMobile();
   const {
-    lightboxIndex,
-    autoEnterInpaint,
-    goNext,
-    goPrev,
-    closeLightbox: hookCloseLightbox,
-    openLightbox,
-    openLightboxWithInpaint,
-    handleDesktopDoubleClick,
-    handleMobileTap,
-    showNavigation,
-    setLightboxIndex,
-  } = useLightbox({ images: currentImages, shotId, isMobile });
-  
-  // Update the ref with the actual setter, using the raw state setter to avoid stale closures
-  useEffect(() => {
-    setLightboxIndexRef.current = setLightboxIndex;
-  }, [setLightboxIndex]);
-  
-  // Wrap closeLightbox to clear external generations
-  const closeLightbox = useCallback(() => {
-    externalGens.setExternalGenerations([]);
-    externalGens.setTempDerivedGenerations([]);
-    externalGens.setDerivedNavContext(null);
-    hookCloseLightbox();
-  }, [hookCloseLightbox, externalGens]);
-
-  // Handle pending image to open (from constituent image navigation / TasksPane deep-link)
-  const capturedVariantIdRef = usePendingImageOpen({
-    pendingImageToOpen,
-    pendingImageVariantId,
-    images: currentImages,
-    openLightbox,
-    onClear: onClearPendingImageToOpen,
-  });
-
-  // Add derived navigation mode support (navigates only through "Based on this" items when active)
-  const { wrappedGoNext, wrappedGoPrev, hasNext: derivedHasNext, hasPrevious: derivedHasPrevious } = useDerivedNavigation({
-    derivedNavContext: externalGens.derivedNavContext,
-    lightboxIndex,
-    currentImages,
-    handleOpenExternalGeneration: externalGens.handleOpenExternalGeneration,
-    goNext,
-    goPrev,
-    logPrefix: '[Timeline:DerivedNav]'
-  });
-  
-  // Use combined images for current image and navigation
-  const currentLightboxImage = lightboxIndex !== null ? currentImages[lightboxIndex] : null;
-  const hasNext = derivedHasNext;
-  const hasPrevious = derivedHasPrevious;
-
-  const adjacentSegmentsData = useAdjacentSegments({
+    lightbox,
+    media,
+    external,
+    shotSelection,
+    taskDetails,
+  } = useTimelineLightboxOrchestrator({
+    shotId,
+    projectId,
+    images,
+    selectedShotId,
+    onAddToShot,
+    onAddToShotWithoutPosition,
     segmentSlots,
     onOpenSegmentSlot,
-    lightboxIndex,
-    images,
-    currentImages,
-    closeLightbox,
+    pendingImageToOpen,
+    pendingImageVariantId,
+    onClearPendingImageToOpen,
     navigateWithTransition,
   });
-
-  // Adapter: adds error toasting over the raw onAddToShot/onAddToShotWithoutPosition props
-  const handleAddToShotAdapter = useCallback(async (
-    targetShotId: string,
-    generationId: string,
-  ): Promise<boolean> => {
-    if (!onAddToShot || !targetShotId) return false;
-    try {
-      await onAddToShot(targetShotId, generationId, undefined);
-      return true;
-    } catch (error) {
-      handleError(error, { context: 'Timeline', toastTitle: 'Failed to add to shot' });
-      return false;
-    }
-  }, [onAddToShot]);
-
-  const handleAddToShotWithoutPositionAdapter = useCallback(async (
-    targetShotId: string,
-    generationId: string,
-  ): Promise<boolean> => {
-    if (!onAddToShotWithoutPosition || !targetShotId) return false;
-    try {
-      await onAddToShotWithoutPosition(targetShotId, generationId);
-      return true;
-    } catch (error) {
-      handleError(error, { context: 'Timeline', toastTitle: 'Failed to add to shot' });
-      return false;
-    }
-  }, [onAddToShotWithoutPosition]);
-
-  // Fetch task ID mapping from unified cache
-  // Uses generation_id (the actual generation record) not id (shot_generations entry)
-  const { data: taskMapping } = useTaskFromUnifiedCache(
-    currentLightboxImage?.generation_id || ''
-  );
-
-  // Extract taskId and convert from Json to string
-  const taskId = React.useMemo(() => {
-    if (!taskMapping?.taskId) return undefined;
-    return String(taskMapping.taskId);
-  }, [taskMapping]);
-
-  // Fetch full task details using the task ID (only enabled when we have a taskId)
-  const { data: task, isLoading: isLoadingTask, error: taskError } = useGetTask(
-    taskId || ''  // Pass empty string if no taskId, hook will be disabled via enabled: !!taskId
-  );
-
-  // Derive input images from task metadata
-  const inputImages = React.useMemo(() => {
-    if (!task) return [];
-    return deriveGalleryInputImages(task);
-  }, [task]);
-
-  // Preload next/previous images when lightbox is open for faster navigation
-  useEffect(() => {
-    if (!currentLightboxImage) return;
-    
-    // Preload next image
-    if (hasNext && lightboxIndex !== null && lightboxIndex + 1 < images.length) {
-      const nextImage = images[lightboxIndex + 1];
-      if (nextImage?.imageUrl) {
-        const img = new window.Image();
-        img.src = nextImage.imageUrl;
-      }
-    }
-    
-    // Preload previous image
-    if (hasPrevious && lightboxIndex !== null && lightboxIndex > 0) {
-      const prevImage = images[lightboxIndex - 1];
-      if (prevImage?.imageUrl) {
-        const img = new window.Image();
-        img.src = prevImage.imageUrl;
-      }
-    }
-  }, [currentLightboxImage, lightboxIndex, images, hasNext, hasPrevious]);
-
-  // Close lightbox if current image no longer exists (e.g., deleted)
-  useEffect(() => {
-    if (lightboxIndex !== null && !currentLightboxImage) {
-      closeLightbox();
-    }
-  }, [lightboxIndex, currentLightboxImage, closeLightbox]);
 
   // Listen for star updates and refetch shot data
   useAppEventListener('generation-star-updated', useCallback(({ shotId: updatedShotId }) => {
@@ -435,30 +245,131 @@ const Timeline: React.FC<TimelineProps> = ({
     onImageUpload,
   });
 
-  // Derive lightbox shot state for the current image (replaces inline IIFE in JSX)
-  const lightboxShotState = useMemo(() => {
-    if (lightboxIndex === null || !currentLightboxImage) return null;
-    const isExternalGen = lightboxIndex >= images.length;
-    const imageWithAssociations = currentLightboxImage as GenerationRow & {
-      shot_id?: string;
-      all_shot_associations?: Array<{ shot_id: string; position: number | null; timeline_frame?: number | null }>;
-    };
-    const isInSelectedShot = !isExternalGen && lightboxSelectedShotId && (
-      shotId === lightboxSelectedShotId ||
-      imageWithAssociations.shot_id === lightboxSelectedShotId ||
-      (Array.isArray(imageWithAssociations.all_shot_associations) &&
-       imageWithAssociations.all_shot_associations.some((assoc) => assoc.shot_id === lightboxSelectedShotId))
-    );
+  const timelineLightboxAdapter = useMemo<MediaLightboxInputAdapter | null>(() => {
+    if (!shotSelection.lightboxShotState || !media.currentLightboxImage) {
+      return null;
+    }
+
+    const selectedLightboxShotId = shotSelection.lightboxShotState.isExternalGen
+      ? external.externalGenLightboxSelectedShot
+      : shotSelection.lightboxSelectedShotId;
+
     return {
-      isExternalGen,
-      positionedInSelectedShot: isInSelectedShot
-        ? currentLightboxImage.timeline_frame !== null && currentLightboxImage.timeline_frame !== undefined
-        : undefined,
-      associatedWithoutPositionInSelectedShot: isInSelectedShot
-        ? currentLightboxImage.timeline_frame === null || currentLightboxImage.timeline_frame === undefined
-        : undefined,
+      core: {
+        media: media.currentLightboxImage,
+        shotId,
+        onClose: () => {
+          lightbox.capturedVariantIdRef.current = null;
+          lightbox.closeLightbox();
+          shotSelection.setLightboxSelectedShotId(selectedShotId || shotId);
+        },
+        readOnly,
+        toolTypeOverride: TOOL_IDS.TRAVEL_BETWEEN_IMAGES,
+        initialVariantId: lightbox.capturedVariantIdRef.current ?? undefined,
+        adjacentSegments: !shotSelection.lightboxShotState.isExternalGen
+          ? shotSelection.adjacentSegmentsData
+          : undefined,
+      },
+      navigation: {
+        onNext: images.length > 1 ? lightbox.goNext : undefined,
+        onPrevious: images.length > 1 ? lightbox.goPrev : undefined,
+        showNavigation: lightbox.showNavigation,
+        hasNext: lightbox.hasNext,
+        hasPrevious: lightbox.hasPrevious,
+        onNavigateToGeneration: (generationId: string) => {
+          const index = media.currentImages.findIndex((img) => img.id === generationId);
+          if (index !== -1) {
+            lightbox.openLightbox(index);
+          } else {
+            toast.info('This generation is not currently loaded');
+          }
+        },
+        onOpenExternalGeneration: external.handleOpenExternalGeneration,
+      },
+      shotWorkflow: {
+        allShots,
+        selectedShotId: selectedLightboxShotId,
+        onShotChange: shotSelection.lightboxShotState.isExternalGen
+          ? (shotId) => {
+              external.setExternalGenLightboxSelectedShot(shotId);
+            }
+          : (shotId) => {
+              shotSelection.setLightboxSelectedShotId(shotId);
+              onShotChange?.(shotId);
+            },
+        onAddToShot: shotSelection.lightboxShotState.isExternalGen
+          ? external.handleExternalGenAddToShot
+          : shotSelection.addToShot,
+        onAddToShotWithoutPosition: shotSelection.lightboxShotState.isExternalGen
+          ? external.handleExternalGenAddToShotWithoutPosition
+          : shotSelection.addToShotWithoutPosition,
+        onCreateShot,
+        positionedInSelectedShot: shotSelection.lightboxShotState.positionedInSelectedShot,
+        associatedWithoutPositionInSelectedShot: shotSelection.lightboxShotState.associatedWithoutPositionInSelectedShot,
+      },
+      actions: {
+        onDelete: !readOnly
+          ? (_mediaId: string) => {
+              onImageDelete(media.currentLightboxImage.id);
+            }
+          : undefined,
+        starred: media.currentLightboxImage.starred ?? false,
+        onMagicEdit: (_imageUrl, _prompt, _numImages) => {
+          // TODO: Implement magic edit generation
+        },
+      },
+      taskDetails: {
+        showTaskDetails: true,
+        taskDetailsData: {
+          task: taskDetails.task ?? null,
+          isLoading: taskDetails.isLoadingTask,
+          error: taskDetails.taskError,
+          inputImages: taskDetails.inputImages,
+          taskId: taskDetails.task?.id || null,
+          onClose: lightbox.closeLightbox,
+        },
+      },
+      features: {
+        showMagicEdit: true,
+        initialEditActive: lightbox.initialEditActive,
+      },
     };
-  }, [lightboxIndex, currentLightboxImage, images.length, lightboxSelectedShotId, shotId]);
+  }, [
+    allShots,
+    external.externalGenLightboxSelectedShot,
+    external.handleExternalGenAddToShot,
+    external.handleExternalGenAddToShotWithoutPosition,
+    external.handleOpenExternalGeneration,
+    external.setExternalGenLightboxSelectedShot,
+    images.length,
+    lightbox.initialEditActive,
+    lightbox.capturedVariantIdRef,
+    lightbox.closeLightbox,
+    lightbox.goNext,
+    lightbox.goPrev,
+    lightbox.hasNext,
+    lightbox.hasPrevious,
+    lightbox.openLightbox,
+    lightbox.showNavigation,
+    media.currentImages,
+    media.currentLightboxImage,
+    onCreateShot,
+    onImageDelete,
+    onShotChange,
+    readOnly,
+    selectedShotId,
+    shotId,
+    shotSelection.addToShot,
+    shotSelection.addToShotWithoutPosition,
+    shotSelection.adjacentSegmentsData,
+    shotSelection.lightboxSelectedShotId,
+    shotSelection.lightboxShotState,
+    shotSelection.setLightboxSelectedShotId,
+    taskDetails.inputImages,
+    taskDetails.isLoadingTask,
+    taskDetails.task,
+    taskDetails.taskError,
+  ]);
 
   return (
     <div className="w-full overflow-x-hidden relative" data-tour="timeline">
@@ -500,9 +411,9 @@ const Timeline: React.FC<TimelineProps> = ({
         duplicatingImageId={duplicatingImageId}
         duplicateSuccessImageId={duplicateSuccessImageId}
         projectAspectRatio={projectAspectRatio}
-        handleDesktopDoubleClick={handleDesktopDoubleClick}
-        handleMobileTap={handleMobileTap}
-        handleInpaintClick={openLightboxWithInpaint}
+        handleDesktopDoubleClick={lightbox.handleDesktopDoubleClick}
+        handleMobileTap={lightbox.handleMobileTap}
+        handleInpaintClick={lightbox.openLightboxWithInpaint}
         hasNoImages={hasNoImages}
         readOnly={readOnly}
         isUploadingImage={isUploadingImage}
@@ -520,65 +431,8 @@ const Timeline: React.FC<TimelineProps> = ({
       />
 
       {/* Lightbox */}
-      {lightboxShotState && currentLightboxImage && (
-        <MediaLightbox
-          media={currentLightboxImage}
-          shotId={shotId}
-          starred={currentLightboxImage.starred ?? false}
-          autoEnterInpaint={autoEnterInpaint}
-          toolTypeOverride={TOOL_IDS.TRAVEL_BETWEEN_IMAGES}
-          initialVariantId={capturedVariantIdRef.current ?? undefined}
-          onClose={() => {
-            capturedVariantIdRef.current = null;
-            closeLightbox();
-            setLightboxSelectedShotId(selectedShotId || shotId);
-          }}
-          onNext={images.length > 1 ? wrappedGoNext : undefined}
-          onPrevious={images.length > 1 ? wrappedGoPrev : undefined}
-          readOnly={readOnly}
-          onDelete={!readOnly ? (_mediaId: string) => {
-            onImageDelete(currentLightboxImage.id);
-          } : undefined}
-          showNavigation={showNavigation}
-          showMagicEdit={true}
-          hasNext={hasNext}
-          hasPrevious={hasPrevious}
-          onNavigateToGeneration={(generationId: string) => {
-            const index = currentImages.findIndex((img) => img.id === generationId);
-            if (index !== -1) {
-              openLightbox(index);
-            } else {
-              toast.info('This generation is not currently loaded');
-            }
-          }}
-          onOpenExternalGeneration={externalGens.handleOpenExternalGeneration}
-          onMagicEdit={(_imageUrl, _prompt, _numImages) => {
-            // TODO: Implement magic edit generation
-          }}
-          showTaskDetails={true}
-          taskDetailsData={{
-            task: task ?? null,
-            isLoading: isLoadingTask,
-            error: taskError,
-            inputImages,
-            taskId: task?.id || null,
-            onClose: closeLightbox
-          }}
-          allShots={allShots}
-          selectedShotId={lightboxShotState.isExternalGen ? externalGens.externalGenLightboxSelectedShot : lightboxSelectedShotId}
-          onShotChange={lightboxShotState.isExternalGen ? (shotId) => {
-            externalGens.setExternalGenLightboxSelectedShot(shotId);
-          } : (shotId) => {
-            setLightboxSelectedShotId(shotId);
-            onShotChange?.(shotId);
-          }}
-          onAddToShot={lightboxShotState.isExternalGen ? externalGens.handleExternalGenAddToShot : (onAddToShot ? handleAddToShotAdapter : undefined)}
-          onAddToShotWithoutPosition={lightboxShotState.isExternalGen ? externalGens.handleExternalGenAddToShotWithoutPosition : (onAddToShotWithoutPosition ? handleAddToShotWithoutPositionAdapter : undefined)}
-          onCreateShot={onCreateShot}
-          positionedInSelectedShot={lightboxShotState.positionedInSelectedShot}
-          associatedWithoutPositionInSelectedShot={lightboxShotState.associatedWithoutPositionInSelectedShot}
-          adjacentSegments={!lightboxShotState.isExternalGen ? adjacentSegmentsData : undefined}
-        />
+      {timelineLightboxAdapter && (
+        <MediaLightboxFromAdapter adapter={timelineLightboxAdapter} />
       )}
     </div>
   );

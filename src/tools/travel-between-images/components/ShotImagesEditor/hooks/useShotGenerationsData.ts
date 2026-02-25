@@ -8,7 +8,7 @@ import { useTimelineCore } from '@/shared/hooks/useTimelineCore';
 import { useTimelinePositionUtils } from '../../../hooks/useTimelinePositionUtils';
 import { useVariantBadges } from '@/shared/hooks/useVariantBadges';
 import { isPositioned, isVideoGeneration } from '@/shared/lib/typeGuards';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 
 /** Generation row with badge data merged in */

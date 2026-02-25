@@ -1,0 +1,76 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "mid_level_elegance": 71.0
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "In `src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts`, `ShotGenRow` uses a singular `generation` payload, but `filterImageShotGenerations` passes rows through `isVideoShotGenerations(shotGen as ShotGenerationsLike)`, creating a boundary mismatch between local row shape and cross-module type guard expectations.",
+        "Video duration loading is split across two seams with different adapters and failure behavior: `src/tools/join-clips/lib/clipInitService.ts` uses a DOM `<video>` metadata probe, while `src/tools/join-clips/lib/clipManager/metadata.ts` uses `extractVideoMetadataFromUrl` and normalizes errors differently.",
+        "Multiple public options objects expose control fields that are not honored by implementation (`reason` in `src/shared/hooks/invalidation/useGenerationInvalidation.ts`, `identifierType` in `supabase/functions/_shared/rateLimit.ts`, `_isServiceRole` in `supabase/functions/complete_task/storage.ts`), making integration contracts less predictable."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "shotgen_video_guard_shape_mismatch",
+      "summary": "Shot-generation filtering mixes incompatible row shapes across module boundary, allowing video rows to slip through image-only filtering.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/types.ts"
+      ],
+      "evidence": [
+        "`ShotGenRow` is defined with `generation` (singular) in `generateVideoService.ts`.",
+        "`filterImageShotGenerations` calls `isVideoShotGenerations(shotGen as ShotGenerationsLike)` rather than checking the local `generation` shape directly.",
+        "The same service then builds image payloads from the filtered rows, so misclassification propagates into task request construction."
+      ],
+      "suggestion": "Replace the cast-based guard with an explicit local predicate over `ShotGenRow.generation` (or normalize into a single canonical row type before filtering), and keep one shape contract for shot-generation rows across the service boundary.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "join_clips_duration_adapter_split",
+      "summary": "Join-clips duration loading is implemented through two different boundary adapters with divergent behavior.",
+      "related_files": [
+        "src/tools/join-clips/lib/clipInitService.ts",
+        "src/tools/join-clips/lib/clipManager/metadata.ts"
+      ],
+      "evidence": [
+        "`clipInitService.ts` computes duration with a private DOM video probe (`getVideoDurationFromUrl`) while consuming pending clips.",
+        "`clipManager/metadata.ts` computes duration through shared uploader metadata extraction (`extractVideoMetadataFromUrl`).",
+        "Both paths return fallback `0` duration on error but with different operational mechanics and error context points, creating inconsistent integration semantics for the same clip field."
+      ],
+      "suggestion": "Introduce one shared `resolveClipDuration` boundary function and route both pending-clip ingestion and metadata refresh through it, with one error policy and one source of truth for duration extraction.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "unused_option_contracts",
+      "summary": "Several exported option contracts expose fields that are ignored, making cross-layer APIs misleading.",
+      "related_files": [
+        "src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+        "supabase/functions/_shared/rateLimit.ts",
+        "supabase/functions/complete_task/storage.ts"
+      ],
+      "evidence": [
+        "`InvalidationOptions.reason` and `VariantInvalidationOptions.reason` are required inputs in `useGenerationInvalidation.ts` but are never read in invalidation execution.",
+        "`RateLimitConfig.identifierType` is part of the public config in `rateLimit.ts`, but `checkRateLimit` keying logic only uses `functionName` and caller-provided `identifier` and never branches on `identifierType`.",
+        "`handleStorageOperations` in `storage.ts` accepts `_isServiceRole` but does not use it in any decision path."
+      ],
+      "suggestion": "Either remove these fields from public contracts or enforce them in execution (e.g., log/audit by `reason`, derive identifier from `identifierType`, gate storage behavior by role) so boundary APIs match runtime behavior.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

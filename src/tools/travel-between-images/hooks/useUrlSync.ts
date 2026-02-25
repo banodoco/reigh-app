@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Shot } from '@/types/shots';
+import { Shot } from '@/domains/generation/types';
 
 interface UseUrlSyncOptions {
   /** The currently selected shot */

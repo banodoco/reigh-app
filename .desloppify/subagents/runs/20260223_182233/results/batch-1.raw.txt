@@ -1,0 +1,83 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 1,
+  "assessments": {
+    "dependency_health": 73.0
+  },
+  "dimension_notes": {
+    "dependency_health": {
+      "evidence": [
+        "Type model imports are split between `@/types/shots` and `@/types/generationAndShots` inside the same feature surface (`src/shared/hooks/useGenerationMutations.ts`, `src/shared/components/MediaLightbox/ImageLightbox.tsx`, `src/shared/components/MediaLightbox/VideoLightbox.tsx`, `src/tools/edit-images/components/InlineEditView.tsx`, `src/shared/lib/generationTaskBridge.ts`), creating parallel dependency paths for the same domain entities.",
+        "`src/tools/edit-images/hooks/useInlineEditState.ts` and `src/tools/edit-images/components/InlineEditView.tsx` depend directly on deep internals of `src/shared/components/MediaLightbox` (hooks barrel, inpainting types, provider/context, utility functions, and UI subcomponents), indicating boundary inversion where a tool feature is coupled to another feature’s internal structure.",
+        "Task-creation modules (`src/shared/lib/tasks/imageGeneration.ts`, `src/shared/lib/tasks/magicEdit.ts`, `src/shared/lib/tasks/zImageTurboI2I.ts`, `src/shared/lib/tasks/individualTravelSegment.ts`, `src/shared/lib/tasks/joinClips.ts`) each re-implement overlapping validation/default-building logic while depending on shared infra (`taskCreation`, `handleError`, LoRA types), which increases dependency surface and drift risk."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "dependency_health",
+      "identifier": "dual_generation_type_source",
+      "summary": "Generation domain types are sourced from two parallel modules, increasing dependency drift risk.",
+      "related_files": [
+        "src/shared/hooks/useGenerationMutations.ts",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/VideoLightbox.tsx",
+        "src/tools/edit-images/components/InlineEditView.tsx",
+        "src/shared/lib/generationTaskBridge.ts"
+      ],
+      "evidence": [
+        "`useGenerationMutations`, `ImageLightbox`, and `VideoLightbox` import `GenerationRow` from `@/types/shots`.",
+        "`InlineEditView` and `generationTaskBridge` import `GenerationRow` from `@/types/generationAndShots`.",
+        "This creates two active dependency roots for the same entity in tightly related flows (gallery/lightbox/edit/mutations)."
+      ],
+      "suggestion": "Complete the migration to a single canonical generation type module and update all imports in lightbox/edit/task bridge/mutation paths to that source; then remove or hard-fail legacy re-export usage to prevent reintroduction.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "dependency_health",
+      "identifier": "edit_images_depends_on_lightbox_internals",
+      "summary": "Edit-images feature is tightly coupled to MediaLightbox internals instead of a stable shared edit contract.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "`useInlineEditState` imports many internals from `@/shared/components/MediaLightbox/hooks`, plus internal edit/inpainting types and utility functions.",
+        "`InlineEditView` imports `MediaDisplayWithCanvas`, controls, `EditModePanel`, `FloatingToolControls`, and `ImageEditProvider` directly from MediaLightbox internals.",
+        "The dependency direction ties edit-images evolution to MediaLightbox’s internal decomposition, so internal refactors in lightbox become cross-feature breaking changes."
+      ],
+      "suggestion": "Extract a shared `image-edit-core` interface layer (state contract + reusable edit primitives) and have both MediaLightbox and edit-images consume that layer, keeping MediaLightbox layout internals private.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "dependency_health",
+      "identifier": "task_builder_overlap_and_drift",
+      "summary": "Task builder modules duplicate validation/default shaping, creating overlapping dependency stacks.",
+      "related_files": [
+        "src/shared/lib/tasks/imageGeneration.ts",
+        "src/shared/lib/tasks/magicEdit.ts",
+        "src/shared/lib/tasks/zImageTurboI2I.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/joinClips.ts"
+      ],
+      "evidence": [
+        "Each module defines local parameter interfaces and local validation flows while importing the same shared infra (`taskCreation`, `TaskValidationError`, `handleError`).",
+        "LoRA and seed/range validation logic appears in multiple task modules with slightly different representations (`PathLoraConfig`, `ComfyLoraConfig`, `FalLoraConfig`) and repeated hand-written checks.",
+        "Parallel per-task parameter builders increase change cost when shared constraints evolve (e.g., prompt/seed/range rules or common lineage fields)."
+      ],
+      "suggestion": "Introduce shared task-schema utilities (common validators + normalized param builders) and let task-specific modules compose those schemas rather than re-implementing baseline checks and defaults.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

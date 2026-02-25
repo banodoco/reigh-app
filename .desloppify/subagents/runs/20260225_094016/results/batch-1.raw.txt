@@ -1,0 +1,145 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 78.4,
+    "high_level_elegance": 81.2
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/shared/contexts/ProjectContext.tsx` writes `window.__PROJECT_CONTEXT__` in an effect, creating an implicit global dependency channel outside React/context boundaries.",
+        "`src/integrations/supabase/legacy/legacySupabaseFacade.ts` is still an active compatibility path with a documented removal target (`2026-06-30`), but remains a runtime-accessible boundary instead of a compile-time migration fence.",
+        "UI boundary usage is inconsistent: `src/shared/components/MediaLightbox/components/LightboxShell.tsx` and `src/shared/components/ui/sonner.tsx` import Base UI primitives directly while `src/pages/Home/components/install/InstallInstructionsModal.tsx` uses shared `ui/dialog` wrappers."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Gallery behavior orchestration is spread across separate modules with large coordination surfaces (`useMediaGalleryHandlers`, `useMobileInteractions`, `ShotActions`) that pass many callbacks/refs/state handles rather than a single cohesive controller interface.",
+        "`src/shared/components/MediaGalleryItem/components/ShotActions.tsx` contains navigation, async action dispatch, quick-create wiring, tooltip UX, and selector control in one component-level contract, increasing ownership ambiguity.",
+        "`src/pages/Home/components/panes/CreativePartnerPane.tsx` mixes heavy marketing content, embedded iframe behavior, and tooltip interaction policy in one pane module, reducing top-level role clarity."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "project_context_global_backchannel",
+      "summary": "ProjectContext exports state through a window global, bypassing module boundaries",
+      "related_files": [
+        "src/shared/contexts/ProjectContext.tsx",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts"
+      ],
+      "evidence": [
+        "`ProjectContext` assigns `window.__PROJECT_CONTEXT__ = { selectedProjectId, projects }` on every relevant state change.",
+        "The file comment explicitly documents non-context consumers relying on this fallback, making dependency direction implicit and non-typed.",
+        "This introduces hidden cross-module coupling and out-of-band state reads that are not visible in import contracts."
+      ],
+      "suggestion": "Replace `window.__PROJECT_CONTEXT__` with an explicit access layer (for example, a small project-selection store module with typed subscribe/get APIs) and migrate callers to that API; then remove the global write path.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "implicit_global_state_channels"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "legacy_supabase_boundary_not_sealed",
+      "summary": "Legacy Supabase facade remains an active architectural seam past migration phase",
+      "related_files": [
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "src/shared/contexts/ProjectContext.tsx"
+      ],
+      "evidence": [
+        "`legacySupabaseFacade.ts` still exports `getLegacySupabaseClient()` and is designed as a compatibility access path.",
+        "The deprecation metadata includes a concrete removal target (`2026-06-30`) but the facade is still callable and part of runtime dependency flow.",
+        "Keeping live legacy accessors in shared runtime paths prolongs dual-boundary architecture and encourages continued coupling to old entry points."
+      ],
+      "suggestion": "Convert legacy facade usage into a hard migration boundary: block new imports via lint rule/path ban, add runtime assertion in non-test builds, and migrate remaining call sites to `getSupabaseClient()` before removal date.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "migration_boundary_drift"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "ui_boundary_inconsistency_base_vs_wrappers",
+      "summary": "UI modules bypass shared wrappers inconsistently, fragmenting component boundaries",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/LightboxShell.tsx",
+        "src/shared/components/ui/sonner.tsx",
+        "src/pages/Home/components/install/InstallInstructionsModal.tsx"
+      ],
+      "evidence": [
+        "`LightboxShell` imports `@base-ui-components/react/dialog` directly.",
+        "`sonner.tsx` imports `@base-ui-components/react/toast` directly and defines separate toast plumbing.",
+        "Other app modules in scope (for example `InstallInstructionsModal`) consume shared `ui/dialog` abstractions, so boundary usage is mixed for similar UI concerns."
+      ],
+      "suggestion": "Standardize one UI boundary policy: either route all app code through shared `ui/*` wrappers or define a strict exception layer; then move direct Base UI imports behind shared primitives to reduce cross-module volatility.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "ui_boundary_fragmentation"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "gallery_orchestration_surface_sprawl",
+      "summary": "Media gallery ownership is split across coordination-heavy hooks/components",
+      "related_files": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGallery/hooks/useMobileInteractions.ts",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+      ],
+      "evidence": [
+        "`useMediaGalleryHandlers` requires a broad argument bag mixing navigation, lightbox lifecycle, modal control, filters, and shot context reactions.",
+        "`useMobileInteractions` depends on externally managed timing refs (`lastTouchTimeRef`, `lastTappedImageIdRef`, `doubleTapTimeoutRef`) plus multiple setter callbacks.",
+        "`ShotActions` consumes multiple nested state/callback bundles (`selector`, `status`, `quickCreate`, `actions`) and performs both UI rendering and workflow decisions."
+      ],
+      "suggestion": "Introduce a single feature-level controller for gallery-item interactions (shot actions, mobile tap semantics, lightbox/task transitions) that exposes a narrower view-model to presentational components; move timing and workflow transitions into that controller.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "missing_feature_orchestrator"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "content_and_interaction_policy_mixed_in_pane",
+      "summary": "CreativePartnerPane combines static marketing content with complex tooltip behavior policy",
+      "related_files": [
+        "src/pages/Home/components/panes/CreativePartnerPane.tsx",
+        "src/pages/Home/components/install/InstallInstructionsModal.tsx"
+      ],
+      "evidence": [
+        "`CreativePartnerPane` contains long-form marketing copy/structure, external embed iframe, and platform-specific tooltip interaction state transitions in a single component.",
+        "The component contract receives multiple tooltip policy controls (`ecosystemTipOpen`, `ecosystemTipDisabled`, setters) in addition to pane navigation concerns.",
+        "Compared with `InstallInstructionsModal` (presentation + scenario resolution), this pane has mixed ownership boundaries that make role/purpose less focused."
+      ],
+      "suggestion": "Split `CreativePartnerPane` into: (1) static content sections, (2) a dedicated ecosystem-embed interaction component managing its own open/disable state policy, and (3) pane shell composition; keep the pane API focused on open/close and navigation only.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "mixed_content_and_behavior_ownership"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Implicit state sharing channels are used when explicit typed boundaries are missing.",
+      "Migration-era compatibility seams are still runtime-accessible, extending architectural drift.",
+      "Feature orchestration responsibilities are distributed across hooks/components without a single owning controller."
+    ],
+    "likely_symptoms": [
+      "project_context_global_backchannel",
+      "ui_boundary_inconsistency_base_vs_wrappers",
+      "gallery_orchestration_surface_sprawl"
+    ],
+    "possible_false_positives": [
+      "Some direct Base UI imports may be intentional for advanced modal/toast behavior not yet covered by shared wrappers."
+    ]
+  }
+}

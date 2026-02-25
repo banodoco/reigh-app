@@ -1,0 +1,117 @@
+{
+  "batch": "Design Coherence — Mechanical Concern Signals",
+  "batch_index": 7,
+  "assessments": {
+    "design_coherence": 82.0
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "Shot editor orchestration remains spread across oversized controller hooks: `useEditingController` aggregates structure video, audio, naming, and join-segment setup/execute concerns behind one broad return object (`src/tools/travel-between-images/components/ShotEditor/controllers/useEditingController.ts:5`, `:55`, `:81`, `:92`, `:133`, `:146`, `:158`).",
+        "Generation controller still accepts a very wide parameter surface (including duplicated join-generation configuration) and immediately forwards most of it downstream (`src/tools/travel-between-images/components/ShotEditor/controllers/useGenerationController.ts:7`, `:37`, `:57`, `:199`, `:219`).",
+        "Lightbox flow still re-bundles the same flat prop set into grouped objects, then re-composes those groups again for layout props without substantial behavior change (`src/shared/components/MediaLightbox/MediaLightbox.tsx:80`, `:81`, `:89`, `:115`, `:123`, `:131`; `src/shared/components/MediaLightbox/hooks/useLightboxWorkflowProps.ts:91`, `:124`, `:133`).",
+        "Image form submission still propagates a large state/option clump across multiple hooks and duplicates task-param construction logic in separate handlers (`src/shared/components/ImageGenerationForm/hooks/formSubmission/types.ts:33`; `src/shared/components/ImageGenerationForm/hooks/useFormSubmission.ts:73`, `:93`; `src/shared/components/ImageGenerationForm/hooks/formSubmission/useTaskParamsBuilder.ts:89`; `src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmitHandler.ts:92`, `:95`).",
+        "Task detail rendering still performs payload compatibility normalization inside UI components instead of via a shared adapter (`src/shared/components/TaskDetails/CharacterAnimateDetails.tsx:19`, `:20`, `:23`, `:24`, `:25`; `src/shared/components/TaskDetailsModal.tsx:74`, `:84`, `:89`, `:96`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "shot_editor_controller_surface_bloat",
+      "summary": "Shot editor controllers still mix unrelated responsibilities behind oversized interfaces.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/controllers/useEditingController.ts",
+        "src/tools/travel-between-images/components/ShotEditor/controllers/useGenerationController.ts",
+        "src/tools/travel-between-images/components/ShotEditor/useShotEditorController.ts"
+      ],
+      "evidence": [
+        "`UseEditingControllerParams` combines name editing, audio, structure-video, and join-clip concerns and returns a large mixed object (`useEditingController.ts:5`, `:55`, `:81`, `:92`, `:133`, `:146`, `:158`).",
+        "`UseGenerationControllerParams` has a broad cross-domain input surface (prompt/motion/model/join/stitch/UI loading/persistence callbacks), then mainly forwards the same values into `useGenerateBatch` (`useGenerationController.ts:7`, `:199`).",
+        "Parent controller passes a large fan-in object into each hook, confirming orchestration coupling at callsite (`useShotEditorController.ts:326`, `:439`)."
+      ],
+      "suggestion": "Split the controller layer by workflow boundary (e.g., `useShotMediaEditing`, `useJoinConfig`, `useBatchGeneration`) and pass stable domain objects (prompt settings, join settings, motion settings) rather than flattened scalar lists. Keep each hook responsible for one workflow and expose narrow command-style APIs.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "controller_orchestration_blob"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "lightbox_rebundling_indirection_chain",
+      "summary": "Lightbox layers still re-bundle and re-slice props without reducing conceptual load.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/MediaLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useLightboxWorkflowProps.ts",
+        "src/shared/components/MediaLightbox/hooks/useLightboxStateAssembly.ts"
+      ],
+      "evidence": [
+        "`MediaLightbox` builds `navigation`, `shotWorkflow`, `features`, `actions`, and `videoProps` via `useMemo` wrappers over incoming props (`MediaLightbox.tsx:80-146`).",
+        "`useLightboxWorkflowProps` re-composes these grouped objects into `workflowBarProps`, then spreads them again into `workflowControlsProps`, then into `layoutProps` (`useLightboxWorkflowProps.ts:91`, `:124`, `:133`).",
+        "`useLightboxStateAssembly` adds additional memoized slice wrappers that return mostly unchanged fields (`useLightboxStateAssembly.ts:4`, `:33`, `:65`)."
+      ],
+      "suggestion": "Define a single lightbox view-model contract built once at the feature boundary (image/video shared adapter), and pass that model directly to layout/render layers. Remove pass-through grouping/slicing hooks that do not validate, translate, or enforce invariants.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "lightbox_indirection_without_ownership"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "form_submission_data_clump_duplication",
+      "summary": "Image form submission still carries a large data clump and duplicates param-building behavior.",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/types.ts",
+        "src/shared/components/ImageGenerationForm/hooks/useFormSubmission.ts",
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/useTaskParamsBuilder.ts",
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmitHandler.ts"
+      ],
+      "evidence": [
+        "`UseFormSubmissionProps` and `FormStateSnapshot` define wide overlapping payloads (`types.ts:13`, `:33`) that are copied into refs and forwarded through multiple hooks (`useFormSubmission.ts:50`, `:73`, `:93`).",
+        "`useTaskParamsBuilder` builds `referenceParams` and `buildBatchTaskParams` using shared submission inputs (`useTaskParamsBuilder.ts:71`, `:89`).",
+        "`useSubmitHandler` independently rebuilds the same `referenceParams` + `buildBatchTaskParams` flow in automated mode (`useSubmitHandler.ts:92`, `:95`), creating divergence risk."
+      ],
+      "suggestion": "Introduce one submission-domain adapter (e.g., `buildSubmissionPlan(formState, mode, prompts)`), and make both managed and automated paths call that shared adapter. Replace wide prop threading with a typed `SubmissionContext` object owned by the form submission module.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "form_submission_state_ownership_blur"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "task_details_ui_contains_payload_compat_logic",
+      "summary": "Task detail UI components still embed payload normalization and legacy fallback resolution.",
+      "related_files": [
+        "src/shared/components/TaskDetails/CharacterAnimateDetails.tsx",
+        "src/shared/components/TaskDetailsModal.tsx",
+        "src/shared/components/TaskDetails/ImageEditTaskDetails.tsx"
+      ],
+      "evidence": [
+        "`CharacterAnimateDetails` resolves each field by probing three payload shapes (`parsedParams`, `orchestrator_details`, `full_orchestrator_payload`) inside render component logic (`CharacterAnimateDetails.tsx:19-25`).",
+        "`TaskDetailsModal` derives input images from multiple fallback paths (`input_images`, `full_orchestrator_payload.input_image_paths_resolved`, `input_image_paths_resolved`) and cleans URL quoting inline in the modal (`TaskDetailsModal.tsx:74-99`).",
+        "`ImageEditTaskDetails` also performs local fallback adaptation between provided inputs and derived params (`ImageEditTaskDetails.tsx:17-19`), reinforcing per-component data adaptation."
+      ],
+      "suggestion": "Create a centralized task-details normalization layer (e.g., `normalizeTaskDetailsPayload(task)`), version/fallback once there, and have UI components consume a stable normalized view model with no payload-shape probing in render.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "task_payload_compatibility_in_presentation"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Boundary objects are used as transport bags rather than ownership boundaries, so orchestration layers keep accumulating unrelated fields and callbacks.",
+      "Compatibility handling is not isolated at module boundaries, causing presentation components to absorb data-shape drift."
+    ],
+    "likely_symptoms": [
+      "shot_editor_controller_surface_bloat",
+      "lightbox_rebundling_indirection_chain",
+      "form_submission_data_clump_duplication",
+      "task_details_ui_contains_payload_compat_logic"
+    ],
+    "possible_false_positives": []
+  }
+}

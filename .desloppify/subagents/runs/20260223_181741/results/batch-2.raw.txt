@@ -1,0 +1,126 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 68.0,
+    "mid_level_elegance": 74.0,
+    "low_level_elegance": 72.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "Inline edit state is assembled through a very wide parameter object: `buildImageEditValueParams` forwards dozens of fields from multiple hook results, then `useImageEditValue` re-slices and re-assembles them again into `ImageEditState` (src/tools/edit-images/hooks/useInlineEditState.ts, src/tools/edit-images/hooks/useImageEditValue.ts).",
+        "`useImageEditValue` memoizes on `[params]`, but caller passes a fresh object literal each render (`useImageEditValue(buildImageEditValueParams(...))`), so memoization is structurally defeated and abstraction adds ceremony without stable caching value (src/tools/edit-images/hooks/useInlineEditState.ts, src/tools/edit-images/hooks/useImageEditValue.ts).",
+        "`useButtonGroupProps` and `buildTop*/buildBottom*` mostly copy shared flags into near-identical objects, adding an indirection layer that does not transform domain semantics (src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts, src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 62.0,
+        "indirection_cost": 74.0,
+        "interface_honesty": 68.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Video lightbox composition requires many seam translations: `VideoLightbox` -> environment/shared/edit hooks -> render model -> workflow props -> layout props, with repeated repacking of the same state into new shapes (`lightboxCore`, `lightboxMedia`, `lightboxVariants`, `buttonGroupProps` overrides) (src/shared/components/MediaLightbox/VideoLightbox.tsx, src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx).",
+        "Image and video lightbox paths keep similar orchestration responsibilities in separate pipelines, increasing seam-count and synchronization burden across sibling features (src/shared/components/MediaLightbox/ImageLightbox.tsx, src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx).",
+        "Layout consumption is broad and prop-heavy (`LightboxLayout` depends on many grouped prop bundles plus context state), so handoff contracts are large and hard to reason about during change (src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx, src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Task creation modules repeat a large validate/build/create/batch scaffold with similar control flow and near-duplicate optional field wiring (seed, lineage, shot/tool flags), creating local duplication and drift risk (src/shared/lib/tasks/magicEdit.ts, src/shared/lib/tasks/zImageTurboI2I.ts, src/shared/lib/tasks/imageGeneration.ts).",
+        "Repeated per-field assignment blocks in task param builders make internals verbose and branch-heavy rather than using a shared constrained helper for optional propagation (src/shared/lib/tasks/magicEdit.ts, src/shared/lib/tasks/zImageTurboI2I.ts).",
+        "Large dependency arrays and giant object assembly functions in render/model hooks increase local cognitive load and make fine-grained reasoning about recomputation difficult (src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx, src/tools/edit-images/hooks/useInlineEditState.ts)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "inline_edit_param_bag_reassembly",
+      "summary": "Inline edit state is over-abstracted into a wide pass-through param bag with low leverage.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/hooks/useImageEditValue.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx"
+      ],
+      "evidence": [
+        "`buildImageEditValueParams` constructs a very large object that mostly forwards fields from `inpainting`, `magic`, `reposition`, `img2img`, and env/editSettings without domain translation.",
+        "`useImageEditValue` then splits and re-merges that same object via `buildModeState`, `buildCanvasAndAnnotationState`, `buildRepositionAndPanelState`, and `buildFormAndGenerationState`, adding another pass-through layer.",
+        "The resulting abstraction chain is mostly shape management rather than behavior, making changes require edits across multiple assembly layers."
+      ],
+      "suggestion": "Collapse the assembly pipeline into a single domain model hook (`useInlineImageEditorModel`) that returns only UI-consumed submodels (canvas, actions, panel). Remove intermediate pass-through builders and keep translation points only where behavior changes.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "memoization_defeated_by_object_identity",
+      "summary": "Memoization is neutralized by unstable wrapper-object dependencies.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useImageEditValue.ts",
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts"
+      ],
+      "evidence": [
+        "`useImageEditValue` uses `useMemo(..., [params])`, but caller passes `buildImageEditValueParams(...)` inline, producing a new object identity every render.",
+        "`useButtonGroupProps` similarly memoizes on `[params]`; if callers build fresh `params` objects, all `topLeft/topRight/bottomLeft/bottomRight` prop objects are recreated each render.",
+        "These wrappers advertise memoized abstraction boundaries but operationally behave as non-memoized pass-throughs."
+      ],
+      "suggestion": "Change dependencies to stable primitives/sub-objects (or memoize inputs at call sites) and avoid monolithic `params` objects for memo keys. Prefer direct return of stable callbacks/state slices from source hooks where possible.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "lightbox_seam_choreography_overhead",
+      "summary": "Lightbox handoff seams are over-choreographed, making boundary changes expensive.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/VideoLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "Video path composes multiple layered models (`modeModel`, `env`, `sharedState`, `editModel`, `renderModel`) before rendering layout, with repeated restructuring of the same underlying state.",
+        "`useVideoLightboxRenderModel` rebuilds grouped objects (`lightboxCore/media/variants/navigation`) and then repackages again for `useLightboxWorkflowProps`, including nested `buttonGroupProps` overrides.",
+        "Image and video implementations use parallel but different orchestration shapes, increasing cross-feature seam complexity for shared lightbox behaviors."
+      ],
+      "suggestion": "Define a single normalized lightbox seam contract shared by image/video flows (core, media, variants, workflow actions) and move object-shape translation to one boundary adapter per mode.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "task_builder_scaffold_duplication",
+      "summary": "Task modules duplicate the same local creation scaffold, increasing internal clutter.",
+      "related_files": [
+        "src/shared/lib/tasks/magicEdit.ts",
+        "src/shared/lib/tasks/zImageTurboI2I.ts",
+        "src/shared/lib/tasks/imageGeneration.ts",
+        "src/shared/lib/tasks/joinClips.ts"
+      ],
+      "evidence": [
+        "Multiple modules repeat `validate*` + `build*TaskParams` + `create*Task` + batch loop with `Promise.allSettled` and `processBatchResults`.",
+        "Optional parameter propagation is repeated field-by-field (`based_on`, `source_variant_id`, `create_as_generation`, `shot_id`, `tool_type`, seed handling) with slight variations.",
+        "This repetition inflates local control-flow and maintenance surface in each file instead of centralizing common mechanics."
+      ],
+      "suggestion": "Extract a shared task builder utility for common flow (validation hook, payload mapping hook, batch fan-out, result processing) and keep each task file focused on domain-specific validation and payload mapping only.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

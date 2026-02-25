@@ -1,0 +1,121 @@
+* {
+    @apply border-border;
+    /* UI text is always lowercase for aesthetic consistency */
+    text-transform: lowercase;
+  }
+
+  /* When "preserve user text" setting is enabled, elements with .preserve-case
+   * show their original casing. This applies to user-inputted text like
+   * project names, shot names, prompts, etc. */
+  :root.preserve-user-text .preserve-case {
+    text-transform: none;
+  }
+
+  /* Force title case regardless of global lowercase setting */
+  .title-case {
+    text-transform: capitalize;
+  }
+
+  /* Support modern viewport units for iOS browser chrome handling */
+  /* dvh (dynamic viewport height) adjusts automatically when browser chrome shows/hides */
+  /* Fallback to 100vh for older browsers, then override with dvh where supported */
+  html {
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  body {
+    @apply text-foreground font-cocogoose font-light antialiased;
+    font-family: var(--theme-font-family, 'Cocogoose', 'Inter', sans-serif);
+    font-weight: var(--theme-body-weight, 350);
+    background-color: hsl(var(--background));
+    /* Removed decorative gradients that were creating visible grid artifacts */
+    letter-spacing: 0.015em;
+    position: relative;
+    min-height: 100vh;
+    min-height: 100dvh;
+    /* Prevent horizontal scroll on mobile - scale transforms on cards can extend beyond viewport */
+    overflow-x: hidden;
+  }
+
+  /* Lightbox body scroll lock.
+     overflow:hidden on <html> is set via inline style in LightboxShell on open.
+     This CSS class handles the persistent properties:
+       • overscroll-behavior:none prevents bounce at the page level
+       • overflow:hidden on body prevents content scroll
+     Additional layers in LightboxShell:
+       • touch-action:none on non-scrollable regions (backdrop, media area)
+       • overscroll-behavior:none on scrollable regions (panels)
+       • Scroll event listener snaps back any body scroll (WebKit #153852)
+     Auto-zoom prevention (font-size:16px on touch devices) is handled by
+     the unlayered @media (pointer:coarse) rule below, so overflow:hidden
+     stays stable during keyboard interactions — no focusin/focusout toggle needed. */
+  html.lightbox-open {
+    overscroll-behavior: none;
+  }
+  html.lightbox-open body {
+    overscroll-behavior: none;
+  }
+
+  /* Fix scroll lock interfering with Select scroll on mobile */
+  /* When body scroll is locked, it can prevent scrolling within Select dropdowns */
+  body[data-scroll-locked] [role="listbox"] {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--theme-heading-font, 'TTGertika', sans-serif);
+    font-weight: var(--theme-heading-weight, 700);
+    letter-spacing: 0.02em;
+    position: relative;
+  }
+  
+  /* Ensure root element has proper background coverage for iOS */
+  #root {
+    min-height: 100vh;
+    min-height: 100dvh;
+    background-color: hsl(var(--background));
+  }
+  
+  /* Force numbers to use system fonts since Cocogoose trial doesn't include them */
+  .font-cocogoose {
+    font-family: 'Cocogoose', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  /* Keep numeric glyph spacing stable for Cocogoose text. */
+  .font-cocogoose,
+  .font-cocogoose * {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Specific CSS to force numbers to use fallback fonts */
+  .font-cocogoose::before,
+  .font-cocogoose::after,
+  .font-cocogoose {
+    unicode-bidi: isolate;
+  }
+
+  /* Emergency fallback: Use Inter for any text containing numbers */
+  .force-numbers {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  /* Theme-adaptive shadows */
+  .shadow-theme {
+    box-shadow: 
+      0 10px 25px -5px hsl(var(--primary) / 0.15),
+      0 4px 6px -2px hsl(var(--primary) / 0.08),
+      inset 0 1px 0 hsl(var(--accent) / 0.3),
+      0 0 0 1px hsl(var(--wes-vintage-gold) / 0.1);
+  }
+
+  .shadow-theme-hover {
+    box-shadow: 
+      0 20px 40px -10px hsl(var(--primary) / 0.2),
+      0 8px 12px -4px hsl(var(--primary) / 0.15),
+      inset 0 1px 0 hsl(var(--accent) / 0.4),
+      0 0 0 2px hsl(var(--wes-vintage-gold) / 0.2),
+      0 0 30px hsl(var(--wes-pink) / 0.1);
+  }

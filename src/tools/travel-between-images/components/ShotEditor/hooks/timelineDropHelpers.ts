@@ -3,11 +3,11 @@
  * Extracted from useGenerationActions for better maintainability
  */
 
-import { handleError } from "@/shared/lib/errorHandling/handleError";
-import { Shot } from "@/types/shots";
+import { normalizeAndPresentError } from "@/shared/lib/errorHandling/runtimeError";
+import { Shot } from "@/domains/generation/types";
 import { cropImageToProjectAspectRatio } from '@/shared/lib/imageCropper';
-import { parseRatio } from '@/shared/lib/aspectRatios';
-import { supabase } from "@/integrations/supabase/client";
+import { parseRatio } from '@/shared/lib/media/aspectRatios';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { isVideoShotGenerations, type ShotGenerationsLike } from '@/shared/lib/typeGuards';
 import { 
   ensureUniqueFrame, 
@@ -87,7 +87,7 @@ export const cropImagesToShotAspectRatio = async (
       }
       return file; // Return original if cropping fails
     } catch (error) {
-      handleError(error, { context: 'ImageCrop', showToast: false });
+      normalizeAndPresentError(error, { context: 'ImageCrop', showToast: false });
       return file; // Return original on error
     }
   });
@@ -107,8 +107,7 @@ export const fetchNextAvailableFrameForShot = async (
 ): Promise<number> => {
   
   // Query shot_generations directly from database to get current positions
-  const { data: shotGenerationsData, error } = await supabase
-    .from('shot_generations')
+  const { data: shotGenerationsData, error } = await supabase().from('shot_generations')
     .select(`
       id,
       generation_id,
@@ -123,7 +122,7 @@ export const fetchNextAvailableFrameForShot = async (
     .order('timeline_frame', { ascending: true });
 
   if (error) {
-    handleError(error, { context: 'AddImagesDebug', showToast: false });
+    normalizeAndPresentError(error, { context: 'AddImagesDebug', showToast: false });
     // Default to 0 if query fails
     return targetFrame !== undefined ? targetFrame : 0;
   }
@@ -166,14 +165,13 @@ const queryShotGenerationRecords = async (
   generationIds: string[]
 ): Promise<ShotGenerationRecord[]> => {
   
-  const { data: shotGenRecords, error: queryError } = await supabase
-    .from('shot_generations')
+  const { data: shotGenRecords, error: queryError } = await supabase().from('shot_generations')
     .select('id, generation_id, timeline_frame')
     .eq('shot_id', shotId)
     .in('generation_id', generationIds);
   
   if (queryError) {
-    handleError(queryError, { context: 'AddImagesDebug', showToast: false });
+    normalizeAndPresentError(queryError, { context: 'AddImagesDebug', showToast: false });
     throw queryError;
   }
   
@@ -181,19 +179,18 @@ const queryShotGenerationRecords = async (
   if (!shotGenRecords || shotGenRecords.length === 0) {
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    const { data: retryRecords, error: retryQueryError } = await supabase
-      .from('shot_generations')
+    const { data: retryRecords, error: retryQueryError } = await supabase().from('shot_generations')
       .select('id, generation_id, timeline_frame')
       .eq('shot_id', shotId)
       .in('generation_id', generationIds);
     
     if (retryQueryError) {
-      handleError(retryQueryError, { context: 'AddImagesDebug', showToast: false });
+      normalizeAndPresentError(retryQueryError, { context: 'AddImagesDebug', showToast: false });
       throw retryQueryError;
     }
 
     if (!retryRecords || retryRecords.length === 0) {
-      handleError(new Error('Still no records found after retry'), { context: 'AddImagesDebug', showToast: false });
+      normalizeAndPresentError(new Error('Still no records found after retry'), { context: 'AddImagesDebug', showToast: false });
       throw new Error('Shot generation records not found after retry');
     }
 
@@ -226,8 +223,7 @@ const batchUpdateTimelineFrames = async (
     
     const framePosition = calculatedTargetFrame + (index * batchVideoFrames);
     
-    const updateResult = await supabase
-      .from('shot_generations')
+    const updateResult = await supabase().from('shot_generations')
       .update({ timeline_frame: framePosition })
       .eq('id', shotGenRecord.id);
     
@@ -253,14 +249,13 @@ const verifyPositionUpdates = async (
   generationIds: string[]
 ): Promise<void> => {
   
-  const { error: verifyError } = await supabase
-    .from('shot_generations')
+  const { error: verifyError } = await supabase().from('shot_generations')
     .select('id, generation_id, timeline_frame')
     .eq('shot_id', shotId)
     .in('generation_id', generationIds);
 
   if (verifyError) {
-    handleError(verifyError, { context: 'AddImagesDebug', showToast: false });
+    normalizeAndPresentError(verifyError, { context: 'AddImagesDebug', showToast: false });
     throw verifyError;
   }
 };
@@ -292,7 +287,7 @@ export const persistTimelinePositions = async (
     const errors = results.filter(r => !r.success);
     
     if (errors.length > 0) {
-      handleError(new Error(`Failed to update ${errors.length} position(s)`), {
+      normalizeAndPresentError(new Error(`Failed to update ${errors.length} position(s)`), {
         context: 'AddImagesDebug',
         toastTitle: `Failed to set ${errors.length} timeline position(s)`
       });
@@ -303,7 +298,7 @@ export const persistTimelinePositions = async (
     await verifyPositionUpdates(shotId, generationIds);
     
   } catch (dbError) {
-    handleError(dbError, { context: 'AddImagesDebug', showToast: false });
+    normalizeAndPresentError(dbError, { context: 'AddImagesDebug', showToast: false });
     throw dbError;
   }
 };

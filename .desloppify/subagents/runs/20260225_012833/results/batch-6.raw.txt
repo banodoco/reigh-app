@@ -1,0 +1,107 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "cross_module_architecture": 82.0,
+    "high_level_elegance": 84.0,
+    "package_organization": 79.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/integrations/supabase/legacy/legacySupabaseFacade.ts` is still a live runtime accessor (`getLegacySupabaseClient`) even past removal target, only emitting `console.error` warning (`warnIfPastRemovalTarget`, lines 27-35, 50-53).",
+        "README still documents legacy imports as a normal path (`README.md` lines 32-37), while holistic coupling shows `src/shared/hooks/ -> src/integrations/supabase/legacy/` with 36 edges and the facade itself has 133 importers, indicating boundary debt persists in active layers."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/handleError.ts` mixes runtime behavior (`handleError`) with governance metadata exports and deprecation aliases in the same module (`RUNTIME_ERROR_ALIAS_*`, `reportRuntimeError`, `RuntimeErrorOptions`; lines 13-19 and 57-63).",
+        "README points governance/deprecation ownership directly at this runtime file (`README.md` lines 39-48), reinforcing a mixed-responsibility role for a 248-importer hub."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "package_organization": {
+      "evidence": [
+        "`src/types/generationAndShots.ts` is labeled canonical and re-exports from `@/types/*` (lines 2-11), while the structure data also contains `src/domains/generation/types/` with overlapping generation/shot type filenames, creating split ownership for the same domain surface.",
+        "Holistic structure shows `src/types/` has 12 files (mixed domain contracts plus global/environment declarations), exceeding the >10 flat-directory threshold for mixed concerns."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "legacy_supabase_boundary_not_enforced",
+      "summary": "Deprecated Supabase facade remains a broad runtime dependency instead of a shrinking compatibility seam",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts"
+      ],
+      "evidence": [
+        "`getLegacySupabaseClient()` is still exported as active runtime API and only warns after removal date (`legacySupabaseFacade.ts` lines 27-35, 50-53), so removal policy is advisory at runtime.",
+        "README still presents `@/integrations/supabase/legacy` as compatibility import location (`README.md` line 32), and holistic coupling shows 36 imports from `src/shared/hooks/` into legacy, indicating widespread cross-layer reliance."
+      ],
+      "suggestion": "Enforce the contract as a real boundary: keep one temporary migration adapter package (for example `src/integrations/supabase/migration/`), block new imports to `legacy/` in CI, and switch `getLegacySupabaseClient()` to hard-throw past target date in non-test builds. Then migrate highest-fan-in callers first (`src/shared/hooks/`), followed by UI-level callers, and finally remove the legacy entrypoint.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "deprecation_contracts_not_runtime_enforced"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "runtime_error_hub_mixes_policy_and_behavior",
+      "summary": "Error runtime facade is overloaded with governance metadata and compatibility aliases",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "Core runtime behavior (`handleError`) coexists with deprecation-policy exports (`RUNTIME_ERROR_ALIAS_*`) and alias surface (`reportRuntimeError`, `RuntimeErrorOptions`) in the same file (`handleError.ts` lines 13-19, 35-45, 57-63).",
+        "README’s deprecation section references this same file as contract locus (`README.md` lines 41-47), making a high-import runtime utility also a governance manifest."
+      ],
+      "suggestion": "Split concerns: keep `handleError.ts` as runtime-only API (`handleError`, `handleAndRethrow`, `HandleErrorOptions`) and move alias lifecycle metadata/owner/remove-by exports into a governance contract module consumed by CI checks. Keep deprecated aliases in a dedicated compat file to isolate eventual deletion.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "deprecation_contracts_not_runtime_enforced"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "generation_types_split_across_root_and_domain",
+      "summary": "Canonical generation/shot type barrel stays in flat root types package despite domain-specific type subtree",
+      "related_files": [
+        "src/types/generationAndShots.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`generationAndShots.ts` defines canonical surface but re-exports from `@/types/*` root files (`generationAndShots.ts` lines 2-11).",
+        "README codifies that canonical path (`README.md` line 52), while structure data shows `src/types/` is a 12-file mixed-concern directory and a separate `src/domains/generation/types/` subtree exists, indicating package role overlap."
+      ],
+      "suggestion": "Staged reorg plan: (1) Create `src/domains/generation/contracts/` as the single public type surface. (2) Move generation/shot contracts from `src/types/` into that folder in this order: `generationParams`, `generationMetadata`, `generationRow`, `shot`. (3) Convert `src/types/generationAndShots.ts` into a temporary compatibility barrel that re-exports from the new domain contracts and add deprecation tags. (4) Update imports in waves: first `src/tools/travel-between-images/**`, then `src/shared/hooks/**`, then remaining consumers. (5) Validate with `rg \"@/types/(generation|shot|generationAndShots)\" src`, `npm run typecheck`, and `npm run check:contracts`; remove the compatibility barrel once import count reaches zero.",
+      "confidence": "medium",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "domain_boundaries_split_between_legacy_and_target_packages"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Deprecation policy is modeled strongly in docs/metadata but weakly enforced at runtime boundaries.",
+      "Compatibility surfaces are retained in high-fan-in hubs, so migration paths become de facto long-term APIs.",
+      "Domain contracts are split between legacy root packages and newer domain-oriented folders."
+    ],
+    "likely_symptoms": [
+      "legacy_supabase_boundary_not_enforced",
+      "runtime_error_hub_mixes_policy_and_behavior",
+      "generation_types_split_across_root_and_domain"
+    ],
+    "possible_false_positives": []
+  }
+}

@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Session } from '@supabase/supabase-js';
-import { AuthStateManager, initAuthStateManager } from './AuthStateManager';
+import {
+  AuthStateManager,
+  getAuthStateManager,
+  initAuthStateManager,
+  resetAuthStateManagerForTests,
+} from './AuthStateManager';
 
 const { handleErrorMock, requestReconnectMock, getReconnectSchedulerMock } = vi.hoisted(() => ({
   handleErrorMock: vi.fn(),
@@ -8,8 +13,8 @@ const { handleErrorMock, requestReconnectMock, getReconnectSchedulerMock } = vi.
   getReconnectSchedulerMock: vi.fn(),
 }));
 
-vi.mock('@/shared/lib/errorHandling/handleError', () => ({
-  handleError: handleErrorMock,
+vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
+  normalizeAndPresentError: handleErrorMock,
 }));
 
 vi.mock('@/integrations/supabase/reconnect/ReconnectScheduler', () => ({
@@ -19,6 +24,7 @@ vi.mock('@/integrations/supabase/reconnect/ReconnectScheduler', () => ({
 describe('AuthStateManager', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetAuthStateManagerForTests();
     getReconnectSchedulerMock.mockReturnValue({
       requestReconnect: requestReconnectMock,
     });
@@ -85,7 +91,7 @@ describe('AuthStateManager', () => {
     expect(handleErrorMock).not.toHaveBeenCalled();
   });
 
-  it('initializes window auth manager singleton', () => {
+  it('initializes module auth manager singleton', () => {
     const supabase = {
       auth: {
         onAuthStateChange: vi.fn(),
@@ -97,7 +103,8 @@ describe('AuthStateManager', () => {
 
     initAuthStateManager(supabase as never);
 
-    expect(window.__AUTH_MANAGER__).toBeDefined();
-    expect(typeof window.__AUTH_MANAGER__?.subscribe).toBe('function');
+    const manager = getAuthStateManager();
+    expect(manager).toBeDefined();
+    expect(typeof manager?.subscribe).toBe('function');
   });
 });

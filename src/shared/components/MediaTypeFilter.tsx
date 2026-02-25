@@ -6,7 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/components/ui/select';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 
 interface MediaTypeFilterProps {
   value: 'all' | 'image' | 'video';

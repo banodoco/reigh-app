@@ -1,0 +1,87 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 3,
+  "assessments": {
+    "low_level_elegance": 81.0
+  },
+  "dimension_notes": {
+    "low_level_elegance": {
+      "evidence": [
+        "A large share of assigned files are one-line compatibility re-exports with deprecation headers and 2026 removal targets (e.g., src/shared/components/BatchDropZone.tsx, src/shared/components/ConfirmDialog.tsx, src/shared/hooks/useBatchImageLoading.ts, src/shared/lib/aspectRatios.ts), which adds micro-indirection without local behavior.",
+        "src/integrations/supabase/client.ts implements a hand-written legacy facade (from/schema/rpc/channel/getters) and then force-casts it to SupabaseClientInstance (`as unknown as`), creating repetitive forwarding code and drift-prone internals.",
+        "src/shared/hooks/useTextCase.ts mutates `document.documentElement.classList` in an effect but does not return cleanup, so global DOM state can persist after unmount when `preserveUserText` is true."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "migration_shim_overhang",
+      "summary": "Compatibility shim files create excessive pass-through indirection and local-noise debt across core paths.",
+      "related_files": [
+        "src/features/prompt-editor/components/BulkEditControls.tsx",
+        "src/shared/components/BatchDropZone.tsx",
+        "src/shared/components/ConfirmDialog.tsx",
+        "src/shared/components/MediaLightbox/utils/download.ts",
+        "src/shared/components/ui/cn.ts",
+        "src/shared/hooks/useBatchImageLoading.ts",
+        "src/shared/hooks/useClickRipple.ts",
+        "src/shared/hooks/useEditVideoSettings.ts",
+        "src/shared/hooks/useGalleryPageState.ts",
+        "src/shared/hooks/useMobile.tsx",
+        "src/shared/lib/NetworkStatusManager.ts",
+        "src/shared/lib/aspectRatios.ts",
+        "src/shared/lib/autoplayMonitor.ts",
+        "src/shared/lib/clientThumbnailGenerator.ts",
+        "src/shared/lib/deepEqual.ts"
+      ],
+      "evidence": [
+        "Each file is effectively a re-export wrapper with deprecation metadata and no local behavior.",
+        "The batch contains many parallel wrappers sharing the same removal horizon, indicating long-lived migration residue rather than short-lived adapters.",
+        "These wrappers increase import-path ambiguity and create extra jump points during debugging."
+      ],
+      "suggestion": "Execute a bounded codemod migration to canonical paths now, then delete shim files in one sweep by owner/removalTarget cohort instead of keeping broad alias surfaces active.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "supabase_manual_proxy_drift",
+      "summary": "Legacy Supabase facade is hand-maintained and force-cast, making internals repetitive and brittle as client APIs evolve.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "src/integrations/supabase/client.ts defines a manual `legacySupabaseFacade` with repeated forwarding methods/getters (`from`, `schema`, `rpc`, `channel`, `auth`, `storage`, etc.).",
+        "The facade is exported as `legacySupabaseFacade as unknown as SupabaseClientInstance`, which suppresses structural mismatches instead of proving interface parity.",
+        "Control flow includes nested try/catch fallback initialization plus manual dev-warning gate, increasing local complexity in a hot integration boundary."
+      ],
+      "suggestion": "Replace the hand-written proxy with a typed lazy getter strategy (single `getSupabaseClient()` call-site helper) and remove `unknown` casting so API drift fails at compile time.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "use_text_case_missing_unmount_cleanup",
+      "summary": "Global class mutation in `useTextCase` lacks effect cleanup, allowing document-level UI state to leak after unmount.",
+      "related_files": [
+        "src/shared/hooks/useTextCase.ts",
+        "src/shared/hooks/useMobile.tsx"
+      ],
+      "evidence": [
+        "`useTextCase` adds/removes `preserve-user-text` on dependency changes but does not return cleanup from `useEffect`.",
+        "If a component using this hook unmounts while `preserveUserText` is true, the class remains on `document.documentElement` until some other code removes it."
+      ],
+      "suggestion": "Return an effect cleanup that removes `preserve-user-text` on unmount, or centralize this global class ownership in a root-level provider to avoid lifecycle leaks.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ]
+}

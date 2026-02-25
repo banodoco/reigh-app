@@ -53,11 +53,12 @@ export const useInpainting = ({
   advancedSettings,
   qwenEditModel,
   initialEditMode,
+  initialActive = false,
 }: UseInpaintingProps): UseInpaintingReturn => {
   // ============================================
   // Core state
   // ============================================
-  const [isInpaintMode, setIsInpaintMode] = useState(false);
+  const [isInpaintMode, setIsInpaintMode] = useState(initialActive);
   const [isGeneratingInpaint, setIsGeneratingInpaint] = useState(false);
   const [inpaintGenerateSuccess, setInpaintGenerateSuccess] = useState(false);
   const [showTextModeHint, setShowTextModeHint] = useState(false);

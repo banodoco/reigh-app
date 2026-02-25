@@ -1,0 +1,99 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "test_strategy": 88.0,
+    "api_surface_coherence": 82.0
+  },
+  "dimension_notes": {
+    "test_strategy": {
+      "evidence": [
+        "High-risk modules in scope have direct tests (for example: useTaskStatusCounts, useLineageChain, generationTaskRepository, generationTaskCache, generationTransformers, timelineWriteQueue, referenceDomainService, generateVideoService, edgeRequest, rateLimit, orchestrator), but smaller boundary helpers in this batch have no direct test files.",
+        "normalizeTaskDetailsPayload contains URL-cleaning and fallback selection logic (`cleanUrl`, `pickTaskDetailsString`) that can silently alter UI payload rendering but has no colocated test coverage in this batch.",
+        "safePlay wraps browser autoplay behavior and converts exceptions into OperationResult contracts, but there is no direct test coverage in this batch for rejection/Abort-like branches."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Critical paths are mostly tested, but untested normalization/media-boundary helpers still leave regressions possible in user-visible details and playback error handling."
+    },
+    "api_surface_coherence": {
+      "evidence": [
+        "Travel request contract declares `enhanced_prompts?: string[]` in `TravelBetweenImagesTaskParams`, but request-building path uses `Array<string | null>` (`PairConfigPayload.enhancedPromptsArray`) and forwards it directly when any entry is non-empty.",
+        "Non-2xx cost-calculation parsing only checks `errorCode` while the same module’s success-path parser accepts both `errorCode` and legacy `error`, creating split semantics for the same upstream API family."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "travel_enhanced_prompts_nullability_drift",
+      "summary": "Travel request builder can emit null-valued enhanced prompts against a string[] API contract.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/shared/lib/tasks/travelBetweenImages/types.ts"
+      ],
+      "evidence": [
+        "`TravelBetweenImagesTaskParams` declares `enhanced_prompts?: string[]` (`types.ts`, line 130).",
+        "`buildBatchPairConfig` creates `enhancedPromptsArray: Array(numPairs).fill(null)` (`generateVideoService.ts`, lines 364-365).",
+        "`buildTravelRequestBodyV2` forwards `enhanced_prompts: pairConfig.enhancedPromptsArray` when any prompt is non-empty (`generateVideoService.ts`, lines 491-511), so mixed arrays can include null values despite the contract type."
+      ],
+      "suggestion": "Normalize `enhancedPromptsArray` to a pure `string[]` before assignment (e.g., coerce null to '' or omit the field unless every element is string), and align `PairConfigPayload` typing with `TravelBetweenImagesTaskInput` so the compiler enforces the same shape.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "travel_request_contract_drift"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "cost_calc_error_envelope_inconsistent_parsing",
+      "summary": "Cost-calculation response parsing uses different error-key semantics for success vs non-success HTTP paths.",
+      "related_files": [
+        "supabase/functions/_shared/billing.ts",
+        "supabase/functions/_shared/edgeRequest.ts"
+      ],
+      "evidence": [
+        "In the 2xx branch, parser treats either `errorCode` or `error` as an error payload (`billing.ts`, lines 273-276).",
+        "In the non-2xx branch, parser only reads `errorCode` and falls back to `cost_calculation_failed` (`billing.ts`, lines 323-327), ignoring `error` if that is the populated key.",
+        "Shared error envelope utilities emit both fields today (`edgeRequest.ts`, `edgeErrorResponse`), but parser asymmetry means this caller is brittle to legacy/partial envelopes and can lose specific error identity."
+      ],
+      "suggestion": "Use a single helper for error-code extraction in both branches (prefer `errorCode`, fallback to `error`) and apply it uniformly so billing reconciliation decisions see stable codes regardless of HTTP status.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "error_envelope_dual_convention"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "missing_direct_tests_for_payload_and_media_helpers",
+      "summary": "Two boundary helpers in this batch lack direct tests despite behavior that can silently regress.",
+      "related_files": [
+        "src/shared/components/TaskDetails/hooks/normalizeTaskDetailsPayload.ts",
+        "src/shared/lib/media/safePlay.ts"
+      ],
+      "evidence": [
+        "`normalizeTaskDetailsPayload` includes behaviorful transforms (`cleanUrl`, multi-source `pickTaskDetailsString`) that affect rendered task details (`normalizeTaskDetailsPayload.ts`, lines 21-23 and 41-47).",
+        "`safePlay` maps browser `video.play()` failures into `OperationResult` and structured error metadata (`safePlay.ts`), a branch-heavy browser boundary.",
+        "Repository test file discovery shows no direct `*.test.*` files for these two modules in the current codebase, while neighboring complex modules in this batch are directly tested."
+      ],
+      "suggestion": "Add focused unit tests for `normalizeTaskDetailsPayload` (quote-cleaning, source precedence, null-task path) and `safePlay` (play resolves, play rejects, error mapping fields) to close boundary regressions.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Request/response contract evolution is happening in multiple layers without a single enforced schema boundary.",
+      "Test investment is strong on orchestration-heavy modules but thinner on small normalization helpers that still sit on user-visible boundaries."
+    ],
+    "likely_symptoms": [
+      "travel_enhanced_prompts_nullability_drift",
+      "cost_calc_error_envelope_inconsistent_parsing"
+    ],
+    "possible_false_positives": []
+  }
+}

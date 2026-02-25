@@ -1,10 +1,10 @@
 import { useState, useCallback } from 'react';
-import { toast } from '@/shared/components/ui/sonner';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { uploadImageToStorage } from '@/shared/lib/imageUploader';
 import { createImageInpaintTask } from '@/shared/lib/tasks/imageInpaint';
 import { generateMaskFromCanvas, createCanvasWithBackground } from '@/shared/lib/maskGeneration';
 import type { ImageTransform } from './types';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 import type { EditAdvancedSettings, QwenEditModel } from '../useGenerationEditSettings';
 import { convertToHiresFixApiParams } from '../useGenerationEditSettings';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';

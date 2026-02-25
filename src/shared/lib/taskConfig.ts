@@ -7,6 +7,10 @@
  */
 
 import { getTaskTypeConfigCache, isTaskTypeConfigCacheInitialized, type TaskTypeInfo } from '@/shared/hooks/useTaskType';
+import {
+  getTaskTypeConfigFallback,
+  getTaskTypeFallbackEntries,
+} from '@/shared/lib/taskTypeConfigFallback';
 
 interface TaskTypeConfig {
   /** Whether this task type should be visible in the UI */
@@ -22,49 +26,6 @@ interface TaskTypeConfig {
   /** Description for documentation/debugging */
   description?: string;
 }
-
-/**
- * HARDCODED FALLBACK: Task type configuration registry
- * Used when database cache is not yet initialized or as fallback for unknown types
- * 
- * NOTE: The source of truth is the task_types database table.
- * This is a fallback for backwards compatibility.
- */
-const HARDCODED_TASK_TYPE_CONFIG: Record<string, TaskTypeConfig> = {
-  // Visible orchestration tasks
-  travel_orchestrator: { isVisible: true, displayName: 'Travel Between Images', supportsProgress: true, category: 'orchestration' },
-  join_clips_orchestrator: { isVisible: true, displayName: 'Join Clips', supportsProgress: true, category: 'orchestration' },
-  edit_video_orchestrator: { isVisible: true, displayName: 'Edit Video', supportsProgress: true, category: 'orchestration' },
-  
-  // Visible generation tasks
-  animate_character: { isVisible: true, displayName: 'Animate Character', category: 'generation' },
-  individual_travel_segment: { isVisible: true, displayName: 'Travel Segment', category: 'generation' },
-  image_inpaint: { isVisible: true, displayName: 'Image Inpaint', category: 'generation' },
-  annotated_image_edit: { isVisible: true, displayName: 'Annotated Edit', category: 'generation' },
-  qwen_image: { isVisible: true, displayName: 'Qwen Image', category: 'generation' },
-  qwen_image_2512: { isVisible: true, displayName: 'Qwen Image 2512', category: 'generation' },
-  z_image_turbo: { isVisible: true, displayName: 'Z Image Turbo', category: 'generation' },
-  z_image_turbo_i2i: { isVisible: true, displayName: 'Z Image Img2Img', category: 'generation' },
-  qwen_image_style: { isVisible: true, displayName: 'Qwen w/ Reference', category: 'generation' },
-  qwen_image_edit: { isVisible: true, displayName: 'Qwen Image Edit', category: 'generation' },
-
-  // Visible processing tasks
-  video_enhance: { isVisible: true, displayName: 'Video Enhance', category: 'processing' },
-
-  // Hidden processing/utility tasks
-  travel_segment: { isVisible: false, category: 'processing' },
-  travel_stitch: { isVisible: false, category: 'processing' },
-  single_image: { isVisible: false, category: 'generation' },
-  edit_travel_kontext: { isVisible: false, category: 'generation' },
-  edit_travel_flux: { isVisible: false, category: 'generation' },
-  join_clips_segment: { isVisible: false, category: 'processing' },
-  edit_video_segment: { isVisible: false, category: 'processing' },
-  wan_2_2_t2i: { isVisible: false, category: 'generation' },
-  extract_frame: { isVisible: false, category: 'utility' },
-  generate_openpose: { isVisible: false, category: 'utility' },
-  rife_interpolate_images: { isVisible: false, category: 'utility' },
-  wgp: { isVisible: false, category: 'utility' },
-};
 
 /**
  * Convert database TaskTypeInfo to TaskTypeConfig format
@@ -93,10 +54,10 @@ function getTaskConfig(taskType: string): TaskTypeConfig {
     }
   }
   
-  // Fall back to hardcoded config
-  const hardcodedConfig = HARDCODED_TASK_TYPE_CONFIG[taskType];
-  if (hardcodedConfig) {
-    return hardcodedConfig;
+  // Fall back to the shared fallback snapshot.
+  const fallbackConfig = getTaskTypeConfigFallback(taskType);
+  if (fallbackConfig) {
+    return fallbackConfig;
   }
   
   // Default for completely unknown task types
@@ -141,8 +102,8 @@ function getTaskTypesByVisibility(visible: boolean): string[] {
       .map(([taskType]) => taskType);
   }
 
-  // Fall back to hardcoded
-  return Object.entries(HARDCODED_TASK_TYPE_CONFIG)
+  // Fall back to the versioned fallback snapshot.
+  return getTaskTypeFallbackEntries()
     .filter(([_, config]) => visible ? config.isVisible : !config.isVisible)
     .map(([taskType]) => taskType);
 }
@@ -167,5 +128,3 @@ export function getHiddenTaskTypes(): string[] {
 export function filterVisibleTasks<T extends { taskType: string }>(tasks: T[]): T[] {
   return tasks.filter(task => isTaskVisible(task.taskType));
 }
-
-// HARDCODED_TASK_TYPE_CONFIG is internal only - not exported

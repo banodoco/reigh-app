@@ -12,7 +12,7 @@ vi.mock('@/shared/lib/tasks/imageGeneration', () => ({
   createBatchImageGenerationTasks: (...args: unknown[]) => mockCreateBatchImageGenerationTasks(...args),
 }));
 
-vi.mock('@/shared/hooks/useApiKeys', () => ({
+vi.mock('@/features/settings/hooks/useApiKeys', () => ({
   useApiKeys: () => ({
     getApiKey: mockGetApiKey,
   }),
@@ -31,11 +31,11 @@ vi.mock('@/shared/lib/queryKeys', () => ({
   },
 }));
 
-vi.mock('@/shared/lib/errorHandling/handleError', () => ({
-  handleError: (...args: unknown[]) => mockHandleError(...args),
+vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
+  normalizeAndPresentError: (...args: unknown[]) => mockHandleError(...args),
 }));
 
-vi.mock('@/shared/components/ui/sonner', () => ({
+vi.mock('@/shared/components/ui/runtime/sonner', () => ({
   toast: {
     error: (...args: unknown[]) => mockToastError(...args),
     success: vi.fn(),

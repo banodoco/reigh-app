@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 /**
  * Manages video playback state: play/pause, seeking, playback rate,
@@ -75,9 +75,9 @@ function useVideoFrameCapture(
       return canvas.toDataURL('image/jpeg', 0.8);
     } catch (error) {
       if (error instanceof DOMException && error.name === 'SecurityError') {
-        handleError(error, { context: 'VideoSegmentEditor', toastTitle: 'Unable to capture frame due to security restrictions' });
+        normalizeAndPresentError(error, { context: 'VideoSegmentEditor', toastTitle: 'Unable to capture frame due to security restrictions' });
       } else {
-        handleError(error, { context: 'VideoSegmentEditor', toastTitle: 'Failed to capture video frame' });
+        normalizeAndPresentError(error, { context: 'VideoSegmentEditor', toastTitle: 'Failed to capture video frame' });
       }
       return null;
     }
@@ -103,7 +103,7 @@ function useVideoFrameCapture(
           video.currentTime = originalTime;
           resolve(frameImage);
         } catch (error) {
-          handleError(error, {
+          normalizeAndPresentError(error, {
             context: 'useVideoPlayback.captureFrameAtTime',
             toastTitle: 'Failed to capture frame',
             showToast: false,
@@ -169,7 +169,7 @@ export function useVideoPlayback() {
         setIsPlaying(true);
         if (playPromise !== undefined) {
           playPromise.catch((error) => {
-            handleError(error, {
+            normalizeAndPresentError(error, {
               context: 'useVideoPlayback.togglePlayPause.play',
               toastTitle: 'Unable to play video',
               showToast: false,
@@ -179,7 +179,7 @@ export function useVideoPlayback() {
         }
       }
     } catch (error) {
-      handleError(error, {
+      normalizeAndPresentError(error, {
         context: 'useVideoPlayback.togglePlayPause',
         toastTitle: 'Unable to toggle playback',
         showToast: false,

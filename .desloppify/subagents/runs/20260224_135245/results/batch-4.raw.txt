@@ -1,0 +1,21 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "low_level_elegance": 100.0
+  },
+  "dimension_notes": {
+    "low_level_elegance": {
+      "evidence": [
+        "Most assigned files are explicit compatibility shims with single-purpose re-exports and clear deprecation headers (for example: src/shared/hooks/useAIInteractionService.ts, src/shared/hooks/useAdjacentPagePreloader.ts, src/shared/hooks/useApiKeys.ts, src/shared/lib/aspectRatios.ts, src/shared/lib/autoplayMonitor.ts).",
+        "Migration surfaces include concrete sunset contracts and removal gates where legacy support remains (src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts, src/types/shots.ts), reducing ambiguous branching in current call paths.",
+        "Non-shim internals in this batch are direct and bounded: useBottomOffset uses a simple guard + ternary, useTextCase has a single effect tied to one state flag, and handleError performs a linear normalize/log/optional-present flow without defensive sprawl."
+      ],
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "unreported_risk": "Large numbers of temporary compatibility shims can accumulate stale import paths over time; this is migration governance risk rather than a current low-level control-flow defect in the reviewed files."
+    }
+  },
+  "findings": []
+}

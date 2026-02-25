@@ -11,7 +11,7 @@
 import React from 'react';
 import { ArrowLeftRight, Settings, ChevronDown } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/components/ui/collapsible';
-import { Label } from '@/shared/components/ui/label';
+import { Label } from '@/shared/components/ui/primitives/label';
 import { Switch } from '@/shared/components/ui/switch';
 import { Slider } from '@/shared/components/ui/slider';
 

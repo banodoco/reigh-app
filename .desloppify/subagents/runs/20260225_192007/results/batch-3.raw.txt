@@ -1,0 +1,111 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "mid_level_elegance": 78.6
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "Travel generation seam is split across two parallel APIs: `src/tools/travel-between-images/components/ShotEditor/services/generateVideo/modelPhase.ts` and `src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts` each define their own `buildBasicModeGenerationRequest`, `resolveModelPhaseSelection`, and phase validation logic.",
+        "`generateVideoService.ts` still owns large boundary-mapping responsibilities (image payload, pair config, request body assembly, and internal test surface), which duplicates logic already being extracted to `services/generateVideo/*` and increases drift risk at module boundaries.",
+        "Task-mapping seam returns ambiguous status in `src/shared/lib/generationTaskCache.ts` by defaulting missing cache entries to `missing_generation`, conflating 'not loaded yet' with 'generation missing'.",
+        "Variant scope seam misclassifies an existing variant row with missing `generation_id` as `missing_variant` in `src/shared/lib/generationTaskRepository.ts`, then `useLineageChain.ts` renders lineage errors based on that status."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "travel_generate_seam_duplication",
+      "summary": "Travel generation boundary logic is duplicated across legacy and extracted modules, creating divergence risk in request-building behavior.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideo/modelPhase.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts"
+      ],
+      "evidence": [
+        "`modelPhase.ts` defines `buildBasicModeGenerationRequest`, `resolveModelPhaseSelection`, and `validatePhaseConfigConsistency`.",
+        "`generateVideoService.ts` re-defines equivalent logic (same model selection constants and validation behavior) instead of consuming the extracted seam.",
+        "The service file also exports a large `__internal` test surface, indicating helper-level testing is still coupled to the monolith instead of stable modular contracts."
+      ],
+      "suggestion": "Make `generateVideoService.ts` consume the extracted `generateVideo/*` modules as the only source of phase/pair/request mapping logic, then remove duplicate helpers and move tests to module-level contracts (`modelPhase`, `pairConfig`, `requestBody`) to prevent drift.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "travel_generation_boundary_fragmentation"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "task_mapping_status_conflates_unknown_with_missing",
+      "summary": "Generation-task cache synthesis reports `missing_generation` when mapping is simply not loaded, making the integration status dishonest.",
+      "related_files": [
+        "src/shared/lib/generationTaskCache.ts",
+        "src/shared/lib/generationTaskRepository.ts"
+      ],
+      "evidence": [
+        "In `enhanceGenerationsWithTaskData` (`generationTaskCache.ts`), `taskMappingStatus` defaults to `cachedMapping?.status ?? (taskId ? 'ok' : 'missing_generation')`.",
+        "When no mapping query has run yet, `cachedMapping` is undefined and `taskId` is null, so the row is labeled `missing_generation` even though repository lookup was never attempted.",
+        "Repository status vocabulary (`generationTaskRepository.ts`) has no explicit 'unresolved/not_fetched' state, forcing cache layer to guess and overstate failure."
+      ],
+      "suggestion": "Introduce an explicit unresolved status (for example `not_loaded`) in the mapping contract and propagate it through cache hydration/UI so missing data is not mistaken for deleted/missing generations.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "status_contract_honesty"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "variant_scope_status_misclassification",
+      "summary": "Variant scope resolution maps a broken variant->generation relation to `missing_variant`, producing misleading lineage errors.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/hooks/useLineageChain.ts"
+      ],
+      "evidence": [
+        "In `resolveVariantProjectScope` (`generationTaskRepository.ts`), `if (!data?.generation_id)` returns status `missing_variant`.",
+        "This path means a variant row exists but linkage is broken; semantically it is closer to `missing_generation`/invalid relation, not variant absence.",
+        "`useLineageChain.ts` converts that status into user-facing error text via `buildScopeValidationErrorMessage`, so the wrong status produces incorrect diagnostics ('Variant not found')."
+      ],
+      "suggestion": "Return a distinct relation status (or reuse `missing_generation`) when variant exists without a valid generation link, and update lineage error mapping accordingly.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "status_contract_honesty"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "phase_config_type_surface_split",
+      "summary": "Phase config crosses boundaries through two different type entry points, weakening seam consistency for travel generation APIs.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideo/modelPhase.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/shared/lib/tasks/travelBetweenImages/types.ts"
+      ],
+      "evidence": [
+        "`modelPhase.ts` imports `PhaseConfig` from `@/shared/types/phaseConfig`.",
+        "`generateVideoService.ts` imports `PhaseConfig` from `../../../settings` while also building `TravelBetweenImagesRequestPayload` from shared task types.",
+        "This creates two seam entry points for the same cross-layer contract and increases the chance of silent mismatch as either alias evolves."
+      ],
+      "suggestion": "Standardize on one canonical `PhaseConfig` import surface for all travel generation request-building modules and enforce it with lint/import rules.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "travel_generation_boundary_fragmentation"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Partial extraction left legacy orchestration code and new module seams active in parallel.",
+      "Status enums model failure states but not lifecycle states (unresolved/not-fetched), causing semantic overloading."
+    ],
+    "likely_symptoms": [
+      "travel_generate_seam_duplication",
+      "phase_config_type_surface_split",
+      "task_mapping_status_conflates_unknown_with_missing"
+    ],
+    "possible_false_positives": []
+  }
+}

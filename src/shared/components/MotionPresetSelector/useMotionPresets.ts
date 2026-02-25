@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import type { BuiltinPreset, Preset, UseMotionPresetsReturn } from './types';
 
 interface UseMotionPresetsParams {
@@ -27,8 +27,7 @@ export function useMotionPresets({
     queryFn: async () => {
       if (!featuredPresetIds || featuredPresetIds.length === 0) return [];
       
-      const { data, error } = await supabase
-        .from('resources')
+      const { data, error } = await supabase().from('resources')
         .select('*')
         .in('id', featuredPresetIds);
       

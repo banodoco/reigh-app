@@ -1,0 +1,116 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 72.0,
+    "mid_level_elegance": 74.0,
+    "low_level_elegance": 79.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "`useButtonGroupProps` in `src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts` rebuilds and returns the same nested shape it receives, then that bag is re-wrapped again in `useVideoLightboxRenderModel.tsx` and `ImageLightbox.tsx` before reaching `LightboxLayout.tsx`.",
+        "`useInlineEditState` and `useImageEditValue` split one large state contract into many builder helpers but still pass through a single very wide parameter object with minimal transformation (`src/tools/edit-images/hooks/useInlineEditState.ts`, `src/tools/edit-images/hooks/useImageEditValue.ts`).",
+        "`useImageEditValue` memoizes on `[params]`, but `useInlineEditState` constructs a fresh params object per render, so the memoized abstraction does not reduce recomputation."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 67.0,
+        "indirection_cost": 78.0,
+        "interface_honesty": 71.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Image and video lightbox flows duplicate the same integration seam when constructing `useLightboxWorkflowProps` inputs (`src/shared/components/MediaLightbox/ImageLightbox.tsx` and `src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx`), including repeated wiring for `panel`, `shotWorkflow`, `actions`, and `buttonGroupProps`.",
+        "`tooltip.tsx` re-exports `TouchableTooltip` from `touchableTooltip.tsx` while `touchableTooltip.tsx` imports `Tooltip*` symbols from `tooltip.tsx`, creating a bidirectional module dependency for a core UI seam."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "The legacy structure-field cleanup list is duplicated in two task payload builders (`LEGACY_STRUCTURE_PARAMS` in `src/shared/lib/tasks/individualTravelSegment.ts` and `legacyStructureParams` in `src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts`) with identical delete loops.",
+        "Large object-construction blocks in task payload builders include many conditional spreads and manual deletes, increasing local edit risk and making invariants harder to verify (`src/shared/lib/tasks/individualTravelSegment.ts`, `src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts`)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "lightbox_pass_through_prop_bags",
+      "summary": "Lightbox button-group abstractions add indirection but mostly forward unchanged data.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "`useButtonGroupProps` reconstructs `topRight/bottomLeft/bottomRight` from the same input fields without validation/translation.",
+        "Both image and video render models then create another `buttonGroupProps` object and pass it into `LightboxLayout`, which immediately spreads the groups into controls."
+      ],
+      "suggestion": "Remove `useButtonGroupProps` and pass stable typed control props directly from state hooks to `LightboxLayout` (or keep one boundary mapper in a single place) to cut one wrapper layer and reduce prop-churn points.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "inline_edit_wide_param_contract",
+      "summary": "Inline edit state uses an oversized parameter contract that mostly re-exposes values.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/hooks/useImageEditValue.ts"
+      ],
+      "evidence": [
+        "`UseImageEditValueParams` contains dozens of fields, then `buildModeState/buildCanvasAndAnnotationState/buildRepositionAndPanelState/buildFormAndGenerationState` mostly mirror those fields into output.",
+        "`useImageEditValue` depends on `[params]`, but `buildImageEditValueParams(...)` creates a fresh object in `useInlineEditState`, so memoization does not provide meaningful stability."
+      ],
+      "suggestion": "Collapse this into smaller domain slices (for example `mode`, `canvas`, `generation`) with explicit sub-objects or context providers; memoize each slice on primitive deps and compose at the boundary instead of one monolithic params bag.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "duplicated_lightbox_workflow_seam",
+      "summary": "Image and video lightboxes duplicate boundary wiring into `useLightboxWorkflowProps`.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx"
+      ],
+      "evidence": [
+        "Both files construct nearly identical nested objects for `panel`, `shotWorkflow`, `actions`, and `buttonGroupProps` with slight variations.",
+        "This seam duplication increases divergence risk when adding or changing workflow props because both callsites must stay in lockstep."
+      ],
+      "suggestion": "Extract a shared workflow-props assembler (with typed overrides for image/video differences) and reuse it in both render paths.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "duplicated_legacy_structure_cleanup",
+      "summary": "Legacy structure-guidance key cleanup is duplicated in two payload builders.",
+      "related_files": [
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts"
+      ],
+      "evidence": [
+        "Both files maintain nearly identical arrays of legacy structure param names and run delete loops before returning payloads.",
+        "Any future key additions/removals must be synchronized manually, which is error-prone and easy to drift."
+      ],
+      "suggestion": "Move legacy-structure cleanup into one shared helper (for example `stripLegacyStructureParams(record)`) and reuse it across both builders.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ]
+}

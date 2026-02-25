@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { useCreateResource, type StyleReferenceMetadata } from '@/shared/hooks/useResources';
 import type { ReferenceImage } from '../../types';
 import type { LegacyMigrationsInput } from './types';
@@ -66,10 +66,10 @@ export function useResourceMigration(input: ResourceMigrationInput): void {
       try {
         const {
           data: { user },
-        } = await supabase.auth.getUser();
+        } = await supabase().auth.getUser();
 
         if (!user) {
-          handleError(new Error('Not authenticated during reference migration'), {
+          normalizeAndPresentError(new Error('Not authenticated during reference migration'), {
             context: 'useResourceMigration',
             showToast: false,
           });
@@ -122,7 +122,7 @@ export function useResourceMigration(input: ResourceMigrationInput): void {
           references: migratedPointers,
         });
       } catch (error) {
-        handleError(error, {
+        normalizeAndPresentError(error, {
           context: 'ImageGenerationForm.migrateToResources',
           toastTitle: 'Failed to migrate references',
         });

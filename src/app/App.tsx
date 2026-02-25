@@ -1,6 +1,6 @@
 import React, { useContext } from 'react';
 import { TooltipProvider } from '@/shared/components/ui/tooltip';
-import { Toaster as Sonner } from '@/shared/components/ui/sonner';
+import { Toaster as Sonner } from '@/shared/components/ui/runtime/sonner';
 import {
   DndContext,
   closestCenter,
@@ -20,7 +20,8 @@ import { useProject } from '@/shared/contexts/ProjectContext';
 import { AppProviders } from '@/app/providers/AppProviders';
 import { useAppDndOverlay } from '@/app/hooks/useAppDndOverlay';
 import { useAppExternalDrop } from '@/app/hooks/useAppExternalDrop';
-import { getNetworkStatusManager } from '@/shared/lib/NetworkStatusManager';
+import { getNetworkStatusManager } from '@/shared/services/network/networkStatusManager';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 const AppInternalContent: React.FC = () => {
   const { selectedProjectId } = useProject();
@@ -75,8 +76,11 @@ function App() {
   React.useEffect(() => {
     try {
       getNetworkStatusManager();
-    } catch {
-      // Intentionally ignored, manager can fail safely in test environments.
+    } catch (error) {
+      normalizeAndPresentError(error, {
+        context: 'App.startup.networkStatusManager',
+        showToast: false,
+      });
     }
   }, []);
 

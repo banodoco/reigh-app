@@ -1,7 +1,7 @@
 import React from "react";
 import { ImagePlus, FileUp } from "lucide-react";
 import { TIMELINE_PADDING_OFFSET } from "./constants";
-import type { DragType } from "@/shared/lib/dragDrop";
+import type { DragType } from "@/shared/lib/dnd/dragDrop";
 
 interface DropIndicatorProps {
   isVisible: boolean;

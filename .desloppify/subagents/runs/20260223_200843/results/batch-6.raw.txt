@@ -1,0 +1,108 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 6,
+  "assessments": {
+    "convention_outlier": 83.0,
+    "error_consistency": 74.0
+  },
+  "dimension_notes": {
+    "convention_outlier": {
+      "evidence": [
+        "src/shared/hooks/useMobile.tsx mixes quote/semicolon style (`import * as React from \"react\"`, multiple no-semicolon statements at lines 1, 3, 76-93) while neighboring shared UI modules use single quotes and semicolons consistently (src/shared/components/ui/button.tsx:1-4, src/shared/components/ui/tooltip.tsx:1-3, src/shared/components/ui/label.tsx:1-3).",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.tsx also starts with double-quoted React import and mixed import style (line 1) despite adjacent gallery/shared modules using the project’s dominant formatting convention."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "error_consistency": {
+      "evidence": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts uses centralized `handleError` in try/catch blocks (lines 51-53, 71-73) but uses raw `console.error(...); return;` for related failures (lines 59-60, 65-66), creating inconsistent error pathways in one hook.",
+        "supabase/functions/complete_task/orchestrator.ts logs and returns `null` or early `return` on query/fetch failures (lines 73-75, 213-216), while supabase/functions/complete_task/generation.ts logs then rethrows on failure (lines 137-144), producing different failure contracts in the same complete_task subsystem.",
+        "src/shared/lib/generationTaskBridge.ts and src/shared/hooks/useGenerationMutations.ts wrap DB errors with fresh `new Error(...)` messages (generationTaskBridge lines 37-39, 58-60; useGenerationMutations lines 46-48, 96-98, 131-137), dropping structured original error context/cause."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "convention_outlier",
+      "identifier": "shared_style_island_mixed_quotes_semicolons",
+      "summary": "Shared hooks include a formatting/style island that drifts from neighboring shared modules.",
+      "related_files": [
+        "src/shared/hooks/useMobile.tsx",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts",
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/ui/tooltip.tsx"
+      ],
+      "evidence": [
+        "useMobile.tsx uses double quotes and semicolonless statements in multiple places (lines 1, 3, 76-93).",
+        "Nearby shared UI modules follow single-quote + semicolon convention (button.tsx lines 1-4, tooltip.tsx lines 1-3).",
+        "useMediaGalleryItemState.ts starts with the same divergent style (`import { useState, useEffect, useCallback } from \"react\"` at line 1), indicating drift beyond one file."
+      ],
+      "suggestion": "Normalize these shared hook files to the same formatter/enforced style as the rest of `src/shared` (single quotes, semicolons). Add/verify a single formatting rule path (Prettier/ESLint) so these files are auto-aligned and future drift is prevented.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "mediagallery_mixed_error_channels",
+      "summary": "Media gallery handlers mix centralized error handling with ad-hoc console logging and silent returns.",
+      "related_files": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+      ],
+      "evidence": [
+        "In useMediaGalleryHandlers, navigation failures use `handleError` (lines 51-53, 71-73), but missing-shot failures use `console.error` then return (lines 59-60, 65-66).",
+        "The project has a centralized normalize/log/notify path in handleError.ts (lines 41-57).",
+        "Sibling gallery item state code routes async failures through `handleError` (useMediaGalleryItemState.ts lines 68-70), showing inconsistent behavior inside the same feature area."
+      ],
+      "suggestion": "Replace direct `console.error` branches in `useMediaGalleryHandlers` with `handleError` calls (using `showToast: false` if desired) and include structured context fields (e.g., `shotId`) so all gallery failures flow through one contract.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "complete_task_inconsistent_failure_contracts",
+      "summary": "Complete-task modules alternate between swallowing failures and throwing, making outcomes hard to predict.",
+      "related_files": [
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/complete_task/generation.ts",
+        "supabase/functions/calculate-task-cost/index.ts"
+      ],
+      "evidence": [
+        "orchestrator.ts logs DB errors and returns `null`/early `return` (lines 73-75, 213-216), so callers cannot distinguish true empty results from query failure.",
+        "generation.ts catches, logs, and rethrows (lines 137-144), surfacing failures to upstream handlers.",
+        "These are sibling complete_task paths with materially different failure propagation behavior for similar I/O boundaries."
+      ],
+      "suggestion": "Define one subsystem-level error contract for complete_task handlers (e.g., throw typed errors and handle only at the HTTP boundary, or return a discriminated `Result` type). Refactor orchestrator helpers to stop returning `null` on query errors and propagate explicit failure state.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "error_context_dropped_by_message_rewrap",
+      "summary": "Several data-layer helpers rewrap errors into plain `Error` strings, losing original cause metadata.",
+      "related_files": [
+        "src/shared/lib/generationTaskBridge.ts",
+        "src/shared/hooks/useGenerationMutations.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "generationTaskBridge throws new string-wrapped errors from Supabase errors (lines 37-39, 58-60).",
+        "useGenerationMutations repeatedly throws new `Error(...)` after Supabase failures (lines 46-48, 96-98, 131-137, 154-156).",
+        "Without `cause`/typed wrapping, upstream `handleError` receives flattened errors and loses structured provenance available from original Supabase error objects."
+      ],
+      "suggestion": "Preserve causal context when rethrowing (`throw new Error(msg, { cause: error })`) or map to a shared typed error that stores original DB error fields. Apply this consistently in generationTaskBridge and generation mutations before they reach `handleError`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

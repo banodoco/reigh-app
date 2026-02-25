@@ -139,12 +139,9 @@ export const BottomLeftControls: React.FC<BottomLeftControlsProps> = ({
 // ============================================================================
 
 interface BottomRightControlsProps {
-  localStarred: boolean;
-  handleToggleStar: () => void;
-  toggleStarPending?: boolean;
-  isAddingToReferences: boolean;
-  addToReferencesSuccess: boolean;
-  handleAddToReferences: () => Promise<void>;
+  isAddingToReferences?: boolean;
+  addToReferencesSuccess?: boolean;
+  handleAddToReferences?: () => Promise<void>;
   showAddToReferences?: boolean;
   // Add to Join Clips
   handleAddToJoin?: () => void;
@@ -154,8 +151,8 @@ interface BottomRightControlsProps {
 }
 
 export const BottomRightControls: React.FC<BottomRightControlsProps> = ({
-  isAddingToReferences,
-  addToReferencesSuccess,
+  isAddingToReferences = false,
+  addToReferencesSuccess = false,
   handleAddToReferences,
   showAddToReferences = true,
   handleAddToJoin,
@@ -171,7 +168,7 @@ export const BottomRightControls: React.FC<BottomRightControlsProps> = ({
   return (
     <div className="absolute bottom-4 right-4 flex items-center gap-x-2 z-10">
       {/* Add to References Button */}
-      {showAddToReferences && !readOnly && !isVideo && selectedProjectId && (
+      {showAddToReferences && !readOnly && !isVideo && selectedProjectId && handleAddToReferences && (
         <Tooltip>
           <TooltipTrigger asChild>
             <Button

@@ -2,7 +2,7 @@ import * as React from "react"
 import { Select as SelectPrimitive } from "@base-ui-components/react/select"
 import { Check, ChevronDown, ChevronUp } from "lucide-react"
 import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from "@/shared/lib/utils"
+import { cn } from "@/shared/components/ui/contracts/cn"
 
 type SelectRootProps = Omit<React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root>, 'onValueChange'> & {
   onValueChange?: (value: string) => void;

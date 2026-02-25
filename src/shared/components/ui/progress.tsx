@@ -1,7 +1,7 @@
 import * as React from "react"
 import { Progress as ProgressPrimitive } from "@base-ui-components/react/progress"
 
-import { cn } from "@/shared/lib/utils"
+import { cn } from "@/shared/components/ui/contracts/cn"
 
 const Progress = React.forwardRef<
   HTMLDivElement,

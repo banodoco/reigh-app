@@ -1,5 +1,5 @@
 import { PhaseConfig, DEFAULT_PHASE_CONFIG, DEFAULT_VACE_PHASE_CONFIG } from '@/shared/types/phaseConfig';
-import type { StructureVideoConfig } from '@/shared/lib/tasks/travelBetweenImages';
+import type { LegacyStructureVideoConfig } from '@/shared/lib/tasks/travelBetweenImages/legacyStructureVideo';
 import type { SegmentSettings, LoraConfig } from '@/shared/types/segmentSettings';
 
 export type { SegmentSettings };
@@ -93,6 +93,31 @@ export function stripModeFromPhaseConfig(config: PhaseConfig): PhaseConfig {
   return rest as PhaseConfig;
 }
 
+interface MotionTaskFieldsInput {
+  amountOfMotion: number;
+  motionMode: string;
+  phaseConfig: PhaseConfig;
+  selectedPhasePresetId?: string | null;
+  omitBasicPhaseConfig?: boolean;
+}
+
+export function buildMotionTaskFields({
+  amountOfMotion,
+  motionMode,
+  phaseConfig,
+  selectedPhasePresetId,
+  omitBasicPhaseConfig = false,
+}: MotionTaskFieldsInput): Record<string, unknown> {
+  const shouldIncludePhaseConfig = !omitBasicPhaseConfig || motionMode !== 'basic' || !!selectedPhasePresetId;
+
+  return {
+    amount_of_motion: amountOfMotion / 100,
+    motion_mode: motionMode,
+    phase_config: shouldIncludePhaseConfig ? stripModeFromPhaseConfig(phaseConfig) : undefined,
+    selected_phase_preset_id: selectedPhasePresetId || undefined,
+  };
+}
+
 export function buildTaskParams(
   settings: SegmentSettings,
   context: {
@@ -112,9 +137,17 @@ export function buildTaskParams(
     // Optional enhanced prompt (AI-enhanced version, kept separate from base_prompt)
     enhancedPrompt?: string;
     // Structure video config for this segment (from shot timeline data)
-    structureVideo?: StructureVideoConfig | null;
+    structureVideo?: LegacyStructureVideoConfig | null;
   }
 ): Record<string, unknown> {
+  const motionFields = buildMotionTaskFields({
+    amountOfMotion: settings.amountOfMotion,
+    motionMode: settings.motionMode,
+    phaseConfig: settings.phaseConfig ?? DEFAULT_PHASE_CONFIG,
+    selectedPhasePresetId: settings.selectedPhasePresetId,
+    omitBasicPhaseConfig: true,
+  });
+
   // Build structure_videos array if we have a structure video for this segment
   const structureVideos = context.structureVideo ? [context.structureVideo] : undefined;
 
@@ -144,10 +177,7 @@ export function buildTaskParams(
     num_frames: settings.numFrames,
     random_seed: settings.randomSeed,
     seed: settings.seed,
-    amount_of_motion: settings.amountOfMotion / 100, // Convert 0-100 to 0-1
-    motion_mode: settings.motionMode,
-    phase_config: settings.motionMode === 'basic' && !settings.selectedPhasePresetId ? undefined : settings.phaseConfig,
-    selected_phase_preset_id: settings.selectedPhasePresetId,
+    ...motionFields,
     loras: settings.loras.map(l => ({ path: l.path, strength: l.strength })),
     make_primary_variant: settings.makePrimaryVariant,
     // Resolution

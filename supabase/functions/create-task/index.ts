@@ -2,7 +2,12 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { authenticateRequest } from "../_shared/auth.ts";
 import { SystemLogger } from "../_shared/systemLogger.ts";
-import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
+import {
+  checkRateLimit,
+  isRateLimitExceededFailure,
+  rateLimitFailureResponse,
+  RATE_LIMITS,
+} from "../_shared/rateLimit.ts";
 import { buildTaskInsertObject, getErrorMessage, parseCreateTaskBody } from "./request.ts";
 
 declare const Deno: { env: { get: (key: string) => string | undefined } };
@@ -103,10 +108,28 @@ serve(async (req) => {
       "[CREATE-TASK]"
     );
 
-    if (!rateLimitResult.allowed) {
-      logger.warn("Rate limit exceeded", { user_id: callerId, retry_after: rateLimitResult.retryAfter });
+    if (!rateLimitResult.ok) {
+      if (isRateLimitExceededFailure(rateLimitResult)) {
+        logger.warn("Rate limit exceeded", { user_id: callerId });
+        await logger.flush();
+        return rateLimitFailureResponse(rateLimitResult, RATE_LIMITS.taskCreation);
+      }
+
+      logger.error("Rate limit check failed", {
+        user_id: callerId,
+        error_code: rateLimitResult.errorCode,
+        message: rateLimitResult.message,
+      });
       await logger.flush();
-      return rateLimitResponse(rateLimitResult, RATE_LIMITS.taskCreation);
+      return createCorsResponse("Rate limit service unavailable", 503);
+    }
+
+    if (rateLimitResult.policy === 'fail_open') {
+      logger.warn("Rate limit check degraded; allowing request", {
+        user_id: callerId,
+        reason: rateLimitResult.value.degraded?.reason,
+        message: rateLimitResult.value.degraded?.message,
+      });
     }
   }
 

@@ -1,0 +1,98 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "ai_generated_debt": 72.0,
+    "incomplete_migration": 58.0,
+    "low_level_elegance": 76.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "`src/shared/hooks/useDeleteGenerationWithConfirm.tsx` uses a long explanatory block (`@example`, multi-context usage notes) around a small hook with straightforward behavior.",
+        "`src/shared/components/ShotImageManager/utils/image-utils.ts` includes extensive narrative comments that restate field meanings and control flow already visible in code.",
+        "`src/shared/lib/storagePaths.ts` and `src/shared/lib/taskConfig.ts` contain heavy banner/comment scaffolding around simple path builders and config lookups, increasing maintenance noise."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium"
+    },
+    "incomplete_migration": {
+      "evidence": [
+        "`src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts` is an explicit compatibility shim with many deprecated fields and a sunset date (`2026-05-31`), indicating old/new payload coexistence is still active.",
+        "`src/types/shots.ts` is fully deprecated but still exists as a re-export shim, prolonging legacy import paths.",
+        "`src/shared/components/ImageGenerationForm/types.ts` retains multiple deprecated legacy fields in `ProjectImageSettings` for migration compatibility, showing migration is intentionally incomplete in active types."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Aspect-ratio style logic is duplicated across `src/shared/components/ShotImageManager/utils/image-utils.ts` (`getAspectRatioStyle`) and `src/shared/lib/imageAspectRatio.ts` (`getImageAspectRatioStyle`) with overlapping fallback behavior.",
+        "`src/shared/hooks/useUpdatingTimestamp.ts` mixes generic hook behavior with task-specific wrapper behavior in one file, reducing local cohesion.",
+        "`src/shared/lib/preloading/preloader.ts` uses repeated best-effort branches/early returns and silent catch paths that keep flow safe but slightly fragmented."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_payload_shims_still_primary",
+      "summary": "Legacy travel/image payload fields remain first-class in shared types, extending migration tail risk.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts",
+        "src/shared/components/ImageGenerationForm/types.ts",
+        "src/types/shots.ts"
+      ],
+      "evidence": [
+        "`legacyStructureVideo.ts` defines multiple deprecated fields (`structure_video_*`, `use_uni3c`, `motion_strength`) with an explicit sunset contract.",
+        "`ImageGenerationForm/types.ts` keeps deprecated project-level fields (`selectedReferenceId`, `styleReference*`, etc.) for backward migration compatibility.",
+        "`types/shots.ts` remains as a deprecated re-export shim instead of fully removing the old type entrypoint."
+      ],
+      "suggestion": "Set an enforcement path: add lint/codemod checks to block new legacy-field usage, migrate all internal callers to modern structures (`structure_guidance`, `generationAndShots`), and remove shim exports once importer count reaches zero.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "aspect_ratio_logic_split",
+      "summary": "Aspect-ratio fallback logic is duplicated across two utilities with partially overlapping responsibilities.",
+      "related_files": [
+        "src/shared/components/ShotImageManager/utils/image-utils.ts",
+        "src/shared/lib/imageAspectRatio.ts"
+      ],
+      "evidence": [
+        "Both files independently compute `{ aspectRatio: string }` with similar fallback to project ratio and default square.",
+        "One path parses only project ratio, while the other also parses metadata/orchestrator resolution, creating drift risk for future behavior changes."
+      ],
+      "suggestion": "Extract one canonical aspect-ratio resolver in `src/shared/lib/imageAspectRatio.ts` and make ShotImageManager call it with any source-specific inputs.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "commentary_overhead_exceeds_logic",
+      "summary": "Several small helpers are wrapped in heavy explanatory comments that restate behavior and obscure the operational core.",
+      "related_files": [
+        "src/shared/hooks/useDeleteGenerationWithConfirm.tsx",
+        "src/shared/components/ShotImageManager/utils/image-utils.ts",
+        "src/shared/lib/storagePaths.ts"
+      ],
+      "evidence": [
+        "`useDeleteGenerationWithConfirm.tsx` includes lengthy explanatory prose and example usage for a small, self-descriptive hook.",
+        "`image-utils.ts` includes comment blocks narrating obvious loop and field operations.",
+        "`storagePaths.ts` has long scaffolding comments for straightforward string template helpers."
+      ],
+      "suggestion": "Trim comments to non-obvious intent/constraints only; keep concise docblocks where API contracts are subtle and remove code-restating narration.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ]
+}

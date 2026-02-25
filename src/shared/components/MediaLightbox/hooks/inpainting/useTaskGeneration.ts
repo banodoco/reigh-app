@@ -4,8 +4,8 @@
  */
 
 import { useCallback } from 'react';
-import { toast } from '@/shared/components/ui/sonner';
-import type { GenerationRow } from '@/types/shots';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import type { GenerationRow } from '@/domains/generation/types';
 import { uploadImageToStorage } from '@/shared/lib/imageUploader';
 import { createImageInpaintTask } from '@/shared/lib/tasks/imageInpaint';
 import { createAnnotatedImageEditTask } from '@/shared/lib/tasks/annotatedImageEdit';

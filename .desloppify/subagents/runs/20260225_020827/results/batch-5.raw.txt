@@ -1,0 +1,91 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 5,
+  "assessments": {
+    "package_organization": 81.4
+  },
+  "dimension_notes": {
+    "package_organization": {
+      "evidence": [
+        "`src/integrations/supabase/legacy/` has only 2 files but very high average fan-in (65.5), and `legacySupabaseFacade.ts` is imported by broad non-integration layers (`src/shared/hooks/`: 34, `src/shared/components/MediaLightbox/hooks/`: 8, `src/tools/travel-between-images/components/`: 6).",
+        "Coupling matrix shows a strong downstream edge `src/shared/hooks/ -> src/integrations/supabase/legacy/` (34), indicating compatibility APIs are still a normal runtime dependency path rather than an isolated migration seam.",
+        "`src/types/generationAndShots.ts` is a top import hub (205 importers) while `src/types/` itself mixes concerns (env/database/project/tasks/generation/shot in 12 files), which weakens package ownership boundaries for domain contracts.",
+        "`src/shared/components/ui/button.tsx` (documented as shared primitive) imports app-theme overlays from `src/shared/components/theme/buttonVariants`, creating bidirectional conceptual coupling between primitive UI package and app-specific theme policy."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "package_organization",
+      "identifier": "legacy_supabase_surface_not_quarantined",
+      "summary": "Deprecated Supabase facade remains a cross-subsystem dependency hub.",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts"
+      ],
+      "evidence": [
+        "`legacySupabaseFacade.ts` is marked deprecated with removal target `2026-06-30` but remains high-fan-in (130 importers).",
+        "Structure profile shows `src/integrations/supabase/legacy/` average fan-in 65.5 with heavy consumers outside integrations (`src/shared/hooks/`: 34).",
+        "README states legacy usage is governance-gated, but current placement still allows broad direct runtime imports from application packages."
+      ],
+      "suggestion": "Staged reorg plan: (1) create `src/shared/services/supabase/clientAccess.ts` as the only app-layer client accessor wrapping canonical runtime API; (2) migrate imports in order `src/shared/hooks/**` -> `src/shared/components/**` -> `src/tools/**` away from `@/integrations/supabase/legacy/legacySupabaseFacade`; (3) move legacy files to `src/integrations/supabase/_deprecated/` and block new app-layer imports. Run `rg -n \"@/integrations/supabase/legacy/legacySupabaseFacade\" src`, then `desloppify move src/integrations/supabase/legacy src/integrations/supabase/_deprecated --dry-run`, then validate with `npm run check:legacy-supabase-usage && npm run check:contracts && npm run quality:check`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "deprecated_contracts_exposed_as_primary_runtime_api"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "global_types_barrel_blurs_domain_ownership",
+      "summary": "Canonical generation/shot types live in a mixed global types package.",
+      "related_files": [
+        "README.md",
+        "src/types/generationAndShots.ts"
+      ],
+      "evidence": [
+        "`generationAndShots.ts` is a top-imported contract hub (205 importers) but is housed in generic `src/types/`.",
+        "Directory profile for `src/types/` mixes unrelated concerns (`env.ts`, `database.ts`, `project.ts`, `tasks.ts`, generation/shot types), reducing navigability by ownership boundary.",
+        "README compatibility guidance references type-surface migration, but current package shape keeps a central global barrel rather than domain-scoped ownership."
+      ],
+      "suggestion": "Staged reorg plan: (1) create `src/domains/generation/types/` and `src/domains/shot/types/` with explicit domain barrels; (2) move `generationParams`, `generationMetadata`, `generationRow`, and `shot` exports into those folders; (3) keep `src/types/generationAndShots.ts` temporarily as deprecated shim re-export, then remove after import budget reaches zero. Use `rg -n \"@/types/(generationAndShots|generationParams|generationMetadata|generationRow|shot)\" src`, then `desloppify move src/types/generationAndShots.ts src/domains/generation/types/index.ts --dry-run`, and validate with `npm run check:shots-shim-usage && npm run check:contracts && npm run quality:check`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "deprecated_contracts_exposed_as_primary_runtime_api"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "ui_primitive_and_theme_policy_coupled",
+      "summary": "Shared UI primitive package embeds app-theme policy in core button contract.",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/ui/cn.ts"
+      ],
+      "evidence": [
+        "`button.tsx` imports `APP_BUTTON_SIZES` and `APP_BUTTON_VARIANTS` from `src/shared/components/theme/buttonVariants` while being a shared `@uiContract` primitive.",
+        "UI package (`src/shared/components/ui/`) is large (58 files) and already consumed widely; embedding app theme policy in primitive increases package responsibility mixing and makes the primitive less portable.",
+        "`cn.ts` is a pure UI utility in the same folder, highlighting inconsistency between primitive-only and app-policy-coupled files within one package boundary."
+      ],
+      "suggestion": "Staged reorg plan: (1) split primitive and app adapters by creating `src/shared/components/ui/primitives/buttonPrimitive.tsx` (base variants/sizes only) and `src/shared/components/theme/adapters/AppButton.tsx` (theme extensions); (2) migrate imports from `@/shared/components/ui/button` to the adapter where app styling is needed, keeping primitive imports for neutral use cases; (3) leave a temporary compatibility export in old path, then remove. Use `rg -n \"@/shared/components/ui/button\" src`, `desloppify move src/shared/components/ui/button.tsx src/shared/components/ui/primitives/buttonPrimitive.tsx --dry-run`, and validate with `npm run test -- src/shared/components/ui/button.test.tsx && npm run quality:check`.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "contract_and_policy_co_located_in_shared_packages"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Compatibility and governance surfaces are colocated with active runtime APIs, so deprecated entrypoints stay easy to consume.",
+      "Global contract barrels are used as convenience hubs, trading short-term import ergonomics for long-term ownership ambiguity."
+    ],
+    "likely_symptoms": [
+      "legacy_supabase_surface_not_quarantined",
+      "global_types_barrel_blurs_domain_ownership",
+      "ui_primitive_and_theme_policy_coupled"
+    ],
+    "possible_false_positives": []
+  }
+}

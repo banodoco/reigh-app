@@ -1,0 +1,93 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 4,
+  "assessments": {
+    "package_organization": 76.0,
+    "high_level_elegance": 79.0
+  },
+  "dimension_notes": {
+    "package_organization": {
+      "evidence": [
+        "All assigned root config files are marked peripheral with very low fan-in (vitest.edge.smoke.config.ts fan_in=1, vitest.edge.config.ts fan_in=0, vitest.config.ts fan_in=0, vite.config.ts fan_in=0, tailwind.config.ts fan_in=0), which matches the packet's root-straggler threshold (<5).",
+        "Root directory profile `.` has only 5 files but avg_fan_in=0.2 and avg_fan_out=0.4, indicating these files are not serving as core cross-cutting entry points despite being at the top level.",
+        "`src/shared/hooks/` has 95 production files (>10 threshold) and includes mixed concerns; assigned hooks include a broad async utility (`useAsyncOperation.ts`), persistence state machine (`useAutoSaveSettings.ts`), and a PAT/supabase workflow (`useApiTokens.ts`) in the same flat folder.",
+        "Coupling signals show heavy generic→infrastructure pull (`src/shared/hooks/ → src/integrations/supabase/` = 47 and `src/shared/hooks/ → src/shared/lib/errorHandling/` = 42), consistent with boundary dilution inside one large shared folder."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "`ActiveLoRAsDisplay.tsx` defines and exports `ActiveLora` data shape, and that type is imported by tool/domain logic (`src/tools/travel-between-images/hooks/useVideoTravelSettingsHandlers.ts`, `src/shared/hooks/useLoraManager.tsx`), so domain contracts depend on a UI leaf.",
+        "`useApiTokens.ts` is placed as a general shared hook but directly encodes PAT edge-function workflow (`generate-pat`/`revoke-pat`) and is used mainly by settings-focused UI (`src/shared/components/SettingsModal/SettingsModal.tsx`, `src/shared/components/ProcessingWarnings.tsx`), indicating ownership is feature-specific.",
+        "The current top-level shared placement makes ownership harder to explain quickly: domain entities (LoRA token/data contracts) and cross-cutting primitives coexist without clear package boundaries."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "package_organization",
+      "identifier": "root_config_stragglers_for_edge_vitest",
+      "summary": "Edge Vitest bridge configs are peripheral root stragglers instead of living with test-config ownership.",
+      "related_files": [
+        "vitest.edge.smoke.config.ts",
+        "vitest.edge.config.ts",
+        "vitest.config.ts",
+        "supabase/functions/_tests/vitestEdgeSmokeConfig.test.ts"
+      ],
+      "evidence": [
+        "Both `vitest.edge.smoke.config.ts` and `vitest.edge.config.ts` are 3-line pass-through exports to `supabase/functions/*` configs.",
+        "Packet structure marks these root files as `role: peripheral` with fan_in 0-1 (<5 threshold for root stragglers).",
+        "Root `.` profile has avg_fan_in 0.2, so these files are not broad entry points."
+      ],
+      "suggestion": "Stage 1: create `config/testing/` and move `vitest.config.ts`, `vitest.edge.config.ts`, and `vitest.edge.smoke.config.ts` there. Stage 2: keep root only as temporary shims (or remove once scripts are updated) and update npm scripts/CI paths to `config/testing/*`. Stage 3: update import references (`rg -n \"vitest\\.edge|vitest\\.config\" .`), then validate with `npx vitest --config config/testing/vitest.config.ts run` and `npx vitest --config config/testing/vitest.edge.smoke.config.ts run`.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "shared_hooks_flattening_mixed_ownership",
+      "summary": "`src/shared/hooks` mixes cross-cutting primitives and feature-specific persistence hooks in one overloaded folder.",
+      "related_files": [
+        "src/shared/hooks/useAsyncOperation.ts",
+        "src/shared/hooks/useAutoSaveSettings.ts",
+        "src/shared/hooks/useApiTokens.ts",
+        "src/shared/hooks/__tests__/useAutoSaveSettings.test.ts"
+      ],
+      "evidence": [
+        "`src/shared/hooks/` contains 95 production files, far above the mixed-concern split signal (>10 files).",
+        "`useAsyncOperation.ts` is a generic primitive, while `useApiTokens.ts` hardcodes PAT/supabase edge-function behavior and `useAutoSaveSettings.ts` implements a persistence state machine, indicating distinct ownership domains.",
+        "Directory-level coupling from hooks to infrastructure is high (`hooks → integrations/supabase` = 47), reinforcing that not all hooks are equally shared."
+      ],
+      "suggestion": "Stage 1: create target folders `src/shared/hooks/async/` (cross-cutting primitives), `src/shared/settings/hooks/` (settings persistence), and `src/features/account/hooks/` or `src/shared/auth/hooks/` (PAT-specific). Stage 2: move in order: `useAsyncOperation.ts` first, then `useAutoSaveSettings.ts`, then `useApiTokens.ts` plus their tests to mirrored `__tests__` folders. Stage 3: update imports via `rg -n \"useAsyncOperation|useAutoSaveSettings|useApiTokens\" src` and run automated refactors. Stage 4: validate with `npx vitest run src/shared/hooks/__tests__/useAsyncOperation.test.ts src/shared/hooks/__tests__/useAutoSaveSettings.test.ts src/shared/hooks/__tests__/useApiTokens.test.ts` and `npx tsc --noEmit`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "domain_type_owned_by_ui_component",
+      "summary": "LoRA domain contract is owned by a UI component module, inverting domain-to-UI ownership.",
+      "related_files": [
+        "src/shared/components/ActiveLoRAsDisplay.tsx",
+        "src/tools/travel-between-images/hooks/useVideoTravelSettingsHandlers.ts",
+        "src/shared/hooks/useLoraManager.tsx",
+        "src/shared/components/ImageGenerationForm/types.ts"
+      ],
+      "evidence": [
+        "`ActiveLoRAsDisplay.tsx` exports `ActiveLora`, and non-UI logic imports that type from the component path.",
+        "Tool and hook modules (`useVideoTravelSettingsHandlers.ts`, `useLoraManager.tsx`) depend on `@/shared/components/ActiveLoRAsDisplay` for data typing.",
+        "This makes a presentational file a de facto domain contract owner, which weakens top-level layering clarity."
+      ],
+      "suggestion": "Stage 1: create `src/shared/types/lora.ts` (or `src/shared/domain/lora/types.ts`) and move `ActiveLora` there. Stage 2: update all type imports to the new domain path before touching component exports; keep temporary re-export from `ActiveLoRAsDisplay.tsx` for one pass. Stage 3: remove the re-export once all consumers are migrated. Stage 4: validate with `rg -n \"ActiveLora\" src` to confirm no domain imports from component paths, then run `npx vitest run src/shared/components/__tests__/ActiveLoRAsDisplay.test.tsx` and `npx tsc --noEmit`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 import { AppError } from '@/shared/lib/errorHandling/errors';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { TaskCreationResult } from './types';
 
 /**
@@ -30,7 +30,7 @@ export function processBatchResults(
   if (failed > 0) {
     results.forEach((result, index) => {
       if (result.status === 'rejected') {
-        handleError(result.reason, { context: `${context}:task${index + 1}`, showToast: false });
+        normalizeAndPresentError(result.reason, { context: `${context}:task${index + 1}`, showToast: false });
       }
     });
   }

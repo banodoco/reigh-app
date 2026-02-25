@@ -1,0 +1,90 @@
+{
+  "batch": "Design coherence — Mechanical Concern Signals",
+  "batch_index": 1,
+  "assessments": {
+    "design_coherence": 78.0
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "`useSharedLightboxState` defines a very wide cross-concern contract (`UseSharedLightboxStateProps` and `UseSharedLightboxStateReturn`) and still orchestrates variants, navigation, shot actions, lineage, references, layout, and button wiring in one hook (`src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts:53-138`, `:144-218`, `:631-735`).",
+        "`useTimelineOrchestrator` exposes a very large API surface and combines timeline geometry, drag/drop, zoom, pending-state bookkeeping, selection, structure-video placement, and browser-modal UI state in a single hook (`src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts:21-139`, `:141-520`).",
+        "Travel generation settings are repeatedly re-shaped across controller and service boundaries (`useGenerationController` maps join/motion/prompt bags to a request DTO, then request builder maps again to transport payload), increasing translation layers and drift risk (`src/tools/travel-between-images/components/ShotEditor/controllers/useGenerationController.ts:45-153`, `src/tools/travel-between-images/components/ShotEditor/services/generateVideo/types.ts:80-114`, `src/tools/travel-between-images/components/ShotEditor/services/generateVideo/requestBody.ts:21-73`).",
+        "Large UI containers continue to combine presentation with data orchestration and side-effect policy (task prefetch/query resolution/shot mutations/lightbox wiring) instead of using thinner view models (`src/shared/components/MediaGalleryItem.tsx:128-203`, `src/shared/components/ShotImageManager/ShotImageManagerDesktop.tsx:120-177`, `src/shared/components/TasksPane/TasksPane.tsx:90-220`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "orchestrator_hook_surface_bloat",
+      "summary": "Core lightbox/timeline hooks act as god-orchestrators with oversized input/output contracts.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts",
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts"
+      ],
+      "evidence": [
+        "`UseSharedLightboxStateProps` composes six concern-specific interfaces and returns a similarly broad multi-section object, then `useSharedLightboxState` still wires all those concerns directly (`useSharedLightboxState.ts:127-138`, `:144-218`, `:631-735`).",
+        "`useTimelineOrchestrator` declares a very large return contract and manages unrelated responsibilities (drag/drop, zooming, selection, pending frames, structure video placement, local modal state) in one hook (`useTimelineOrchestrator.ts:54-139`, `:163-520`)."
+      ],
+      "suggestion": "Split both hooks into explicit domain adapters with narrow contracts (for example: `timelineInteractionModel`, `timelineViewportModel`, `timelineStructureVideoModel`; and `lightboxVariantModel`, `lightboxShotModel`, `lightboxActionsModel`). Keep a thin composition layer that only combines already-stable sub-models and pass these grouped models to consumers instead of wide prop bags.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "state_orchestration_without_bounded_context"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "generation_settings_translation_churn",
+      "summary": "Travel generation settings are repeatedly remapped across layers instead of sharing one canonical contract.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/controllers/useGenerationController.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideo/types.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideo/requestBody.ts"
+      ],
+      "evidence": [
+        "`GenerationControllerJoinSettings`/`GenerationControllerMotionSettings` are manually mapped to `BatchGenerationRequest` and stitch config (`useGenerationController.ts:28-68`, `:88-153`).",
+        "Service layer defines separate parameter interfaces (`MotionParams`, `GenerationParams`, `SeedParams`, `BuildTravelRequestBodyParams`) and then remaps those again into snake_case transport fields (`types.ts:80-114`, `requestBody.ts:21-73`)."
+      ],
+      "suggestion": "Introduce a single canonical `TravelGenerationCommand` (domain-level) shared by controller and service, with one serializer at the API boundary. Replace the current stepwise manual mapping with typed conversion helpers generated from that contract, so field additions/removals are changed once.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "manual_mapping_without_shared_contract"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "ui_container_responsibility_mixing",
+      "summary": "Large UI components mix rendering with data orchestration and workflow side effects.",
+      "related_files": [
+        "src/shared/components/MediaGalleryItem.tsx",
+        "src/shared/components/ShotImageManager/ShotImageManagerDesktop.tsx",
+        "src/shared/components/TasksPane/TasksPane.tsx"
+      ],
+      "evidence": [
+        "`MediaGalleryItem` is responsible for render logic plus task lookup/prefetch/type resolution/share/shot-creation orchestration in one component (`MediaGalleryItem.tsx:128-203`).",
+        "`ShotImageManagerDesktop` combines display logic with tick lifecycle timers, task prefetching, pending-image routing, and scrubbing orchestration (`ShotImageManagerDesktop.tsx:101-177`, `:185-220`).",
+        "`TasksPane` combines pane shell rendering with persistence policy (`sessionStorage`), task query composition, optimistic counting, cancellation orchestration, and lightbox/shot wiring (`TasksPane.tsx:68-83`, `:117-169`, `:201-220`)."
+      ],
+      "suggestion": "Move orchestration concerns into dedicated page-level view-model hooks (`useTasksPaneModel`, `useMediaGalleryItemModel`, `useShotImageManagerModel`) and keep component files primarily declarative. Enforce a convention: component files should not perform cross-resource query composition or persistence policy directly.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "state_orchestration_without_bounded_context"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Feature growth is absorbed by additive orchestrator hooks/components rather than bounded feature models.",
+      "Request-building logic is spread across controller and service layers without a single shared command contract."
+    ],
+    "likely_symptoms": [
+      "orchestrator_hook_surface_bloat",
+      "ui_container_responsibility_mixing"
+    ],
+    "possible_false_positives": []
+  }
+}

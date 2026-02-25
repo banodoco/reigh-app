@@ -1,10 +1,11 @@
 import { useEffect, useRef, useCallback, useMemo } from 'react';
-import { useAutoSaveSettings } from '@/shared/hooks/useAutoSaveSettings';
+import { useAutoSaveSettings } from '@/shared/hooks/settings/useAutoSaveSettings';
 import { useListShots } from '@/shared/hooks/shots';
 import { useShotCreation } from '@/shared/hooks/useShotCreation';
 import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { shotQueryKeys } from '@/shared/lib/queryKeys/shots';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 
 import type { FormUIActions } from '../state/useFormUIState';
 import type { PromptMode, ImageGenShotSettings } from '../types';
@@ -75,7 +76,7 @@ export function useShotManagement({
 
   // Shot-specific prompts using per-shot storage
   const shotPromptSettings = useAutoSaveSettings<ImageGenShotSettings>({
-    toolId: 'image-gen-prompts',
+    toolId: SETTINGS_IDS.IMAGE_GEN_PROMPTS,
     shotId: associatedShotId,
     projectId: selectedProjectId,
     scope: 'shot',
@@ -144,8 +145,9 @@ export function useShotManagement({
       dispatchSkeletonEvents: false, // No skeleton needed in form context
       onSuccess: () => {
         // Invalidate and refetch shots to update the list
-        queryClient.invalidateQueries({ queryKey: shotQueryKeys.list(selectedProjectId!) });
-        queryClient.refetchQueries({ queryKey: shotQueryKeys.list(selectedProjectId!) });
+        const projectShotKey = [...shotQueryKeys.all, selectedProjectId!];
+        queryClient.invalidateQueries({ queryKey: projectShotKey });
+        queryClient.refetchQueries({ queryKey: projectShotKey });
       },
     });
 

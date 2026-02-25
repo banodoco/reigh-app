@@ -1,0 +1,157 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "ai_generated_debt": 87.8,
+    "incomplete_migration": 71.6
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "`src/shared/lib/taskTypeUtils.ts`, `src/shared/lib/galleryUtils.ts`, `src/shared/lib/timelinePositionCalculator.ts`, and `src/shared/lib/typedEvents.ts` contain extensive explanatory block comments that restate obvious code mechanics and repeated 'single source of truth/canonical' phrasing.",
+        "`src/shared/lib/timelineNormalization.ts` and `src/shared/lib/uiSelectors.ts` currently carry header-style commentary with minimal or no substantive implementation, indicating template/comment residue outweighing code signal.",
+        "`src/shared/lib/toolConstants.ts` adds proxy-based warned aliases and an extra wrapper for `travelShotUrl`, increasing ceremony for a module explicitly marked deprecated."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Comment and wrapper ceremony is repeated across multiple utility modules, reducing signal-to-noise and making migration-state boundaries harder to read quickly."
+    },
+    "incomplete_migration": {
+      "evidence": [
+        "Deprecated shim modules `src/shared/hooks/useDeleteGenerationWithConfirm.tsx` and `src/shared/hooks/useDerivedItems.ts` remain in tree while no non-self imports were found, indicating migration completed but compatibility files not retired.",
+        "`src/shared/lib/toolConstants.ts` is deprecated, but references remain across tests, and the shim still exports behavior through runtime Proxy warnings instead of being removed and test imports updated.",
+        "`src/shared/lib/tasks/legacy/joinClipsCompatAdapter.ts` exports a deprecated migration adapter with no non-test callers.",
+        "Travel-between-images still carries dual modern+legacy contracts across `src/shared/lib/tasks/travelBetweenImages/types.ts` and `src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts`; `payloadBuilder.ts` still accepts `legacyStructureCompatibility` even though canonical creation path does not pass it.",
+        "`src/shared/lib/errorHandling/handleError.ts` keeps deprecated `handleError`/`handleAndRethrow` exports while broad production usage still targets those names, so migration to `normalizeAndPresent*` is incomplete."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "stale_generation_hook_shims_retained",
+      "summary": "Deprecated generation-hook compatibility files remain after call-site migration.",
+      "related_files": [
+        "src/shared/hooks/useDeleteGenerationWithConfirm.tsx",
+        "src/shared/hooks/useDerivedItems.ts"
+      ],
+      "evidence": [
+        "Both files are pure deprecated re-export shims.",
+        "No non-self imports of `@/shared/hooks/useDeleteGenerationWithConfirm` or `@/shared/hooks/useDerivedItems` were found in `src`."
+      ],
+      "suggestion": "Delete both shim files and keep only domain-owned hook entrypoints; if path stability is required, move aliases to a single barrel with an explicit removal deadline and CI guard for new imports.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "migration_shims_not_retired"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "deprecated_tool_constants_kept_for_tests",
+      "summary": "Deprecated tool constants alias persists as a runtime shim despite canonical replacements.",
+      "related_files": [
+        "src/shared/lib/toolConstants.ts",
+        "src/shared/lib/editVideoDefaults.ts"
+      ],
+      "evidence": [
+        "`toolConstants.ts` is marked deprecated and wraps canonical exports with Proxy warning indirection.",
+        "Non-test production imports of `@/shared/lib/toolConstants` were not found, but tests still reference it heavily, keeping migration debt alive."
+      ],
+      "suggestion": "Migrate tests to `toolIds`/`toolRoutes` directly, then remove `toolConstants.ts`; if temporary retention is needed, convert it to static re-exports without Proxy behavior to reduce drift before deletion.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "migration_shims_not_retired"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_task_adapters_without_runtime_callers",
+      "summary": "Legacy task migration adapters remain first-class exports without active runtime consumers.",
+      "related_files": [
+        "src/shared/lib/tasks/legacy/joinClipsCompatAdapter.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts"
+      ],
+      "evidence": [
+        "`createJoinClipsTaskCompat` is explicitly deprecated and had no non-test callers.",
+        "Travel-between-images still maintains dedicated legacy field contracts and enforcement helpers in parallel with canonical structures."
+      ],
+      "suggestion": "Move legacy-only behavior behind explicit ingress adapters (or test fixtures), stop exporting them as normal task APIs, and schedule physical removal once migration metrics reach zero.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "migration_shims_not_retired"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "error_api_rename_migration_stalled",
+      "summary": "Deprecated error helper names coexist with new canonical names and remain heavily used.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/lib/taskCreation/types.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` marks `handleError` and `handleAndRethrow` deprecated with a removal target but still exports them.",
+        "Repository usage still shows broad production call sites to deprecated names, indicating rename migration has not converged."
+      ],
+      "suggestion": "Run a codemod to migrate call sites to `normalizeAndPresentError`/`normalizeAndPresentAndRethrow`, keep temporary aliases in a separate migration file, then remove deprecated exports by target date.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "migration_shims_not_retired"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "comment_ceremony_outweighs_implementation",
+      "summary": "Multiple utility files show generated-style documentation ceremony that restates code.",
+      "related_files": [
+        "src/shared/lib/taskTypeUtils.ts",
+        "src/shared/lib/timelinePositionCalculator.ts"
+      ],
+      "evidence": [
+        "Large introductory comment blocks and repeated in-function commentary explain straightforward operations (e.g., spacing math, category checks) without adding domain constraints.",
+        "Similar style repeats across nearby files (`galleryUtils.ts`, `typedEvents.ts`, `taskIdHelpers.ts`) with 'canonical/single source of truth' phrasing."
+      ],
+      "suggestion": "Trim comments to intent-only notes (business constraints, invariants, migration policy), remove line-by-line narration, and enforce concise doc-comment rules for small utility modules.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "generated_style_ceremony"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "header_only_or_near_empty_utility_files",
+      "summary": "Near-empty utility modules preserve scaffold text instead of meaningful code or deletion.",
+      "related_files": [
+        "src/shared/lib/uiSelectors.ts",
+        "src/shared/lib/timelineNormalization.ts"
+      ],
+      "evidence": [
+        "`uiSelectors.ts` contains only a comment header and no selectors.",
+        "`timelineNormalization.ts` contains a single constant plus broad normalization framing, indicating leftover scaffold naming/structure."
+      ],
+      "suggestion": "Either populate these files with concrete exported contract content or inline/move the single constant into the active calculator module and delete empty scaffolds.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "generated_style_ceremony"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Migration work appears to stop at API compatibility layers, but retirement passes (deleting adapters/aliases after call-site migration) are not enforced.",
+      "Generated-style documentation and scaffold habits create verbose utility shells that survive even when code payload is minimal."
+    ],
+    "likely_symptoms": [
+      "stale_generation_hook_shims_retained",
+      "deprecated_tool_constants_kept_for_tests",
+      "header_only_or_near_empty_utility_files"
+    ],
+    "possible_false_positives": [
+      "Some legacy adapters may be intentionally retained for unpublished external import paths not visible in this repository scan."
+    ]
+  }
+}

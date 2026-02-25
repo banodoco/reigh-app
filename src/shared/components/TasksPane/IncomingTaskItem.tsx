@@ -1,7 +1,7 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { truncateText } from '@/shared/lib/stringFormatting';
 import { IncomingTask, useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
 import { getTaskDisplayName } from '@/shared/lib/taskConfig';

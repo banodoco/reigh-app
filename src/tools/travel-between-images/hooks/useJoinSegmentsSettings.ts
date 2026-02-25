@@ -1,9 +1,10 @@
 import { useRef, useMemo, useEffect } from 'react';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import { useAutoSaveSettings } from '@/shared/hooks/useAutoSaveSettings';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { useAutoSaveSettings } from '@/shared/hooks/settings/useAutoSaveSettings';
 import { joinClipsSettings, JoinClipsSettings } from '@/shared/lib/joinClipsDefaults';
 import { ActiveLora } from '@/shared/hooks/useLoraManager';
 import { STORAGE_KEYS } from '@/shared/lib/storageKeys';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 
 /**
  * Extended settings for Join Segments in travel-between-images
@@ -104,7 +105,7 @@ export function useJoinSegmentsSettings(
           ...defaults,
         } as JoinSegmentsSettings;
       } catch (e) {
-        handleError(e, { context: 'useJoinSegmentsSettings', showToast: false });
+        normalizeAndPresentError(e, { context: 'useJoinSegmentsSettings', showToast: false });
         sessionStorage.removeItem(storageKey);
       }
     }
@@ -114,7 +115,7 @@ export function useJoinSegmentsSettings(
   
   // Use the shared auto-save hook with inherited settings as initial defaults
   const autoSave = useAutoSaveSettings<JoinSegmentsSettings>({
-    toolId: 'join-segments',
+    toolId: SETTINGS_IDS.JOIN_SEGMENTS,
     shotId,
     projectId: projectId || undefined,
     scope: 'shot',
@@ -166,7 +167,7 @@ export function useJoinSegmentsSettings(
         const globalSettings = { ...settings, prompt: '', negativePrompt: '' };
         localStorage.setItem(STORAGE_KEYS.GLOBAL_LAST_ACTIVE_JOIN_SEGMENTS_SETTINGS, JSON.stringify(globalSettings));
       } catch (e) {
-        handleError(e, { context: 'useJoinSegmentsSettings', showToast: false });
+        normalizeAndPresentError(e, { context: 'useJoinSegmentsSettings', showToast: false });
       }
     }
   }, [settings, shotId, projectId, status]);

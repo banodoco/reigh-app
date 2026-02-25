@@ -1,0 +1,104 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 5,
+  "assessments": {
+    "package_organization": 74.5,
+    "high_level_elegance": 79.0
+  },
+  "dimension_notes": {
+    "package_organization": {
+      "evidence": [
+        "Packet structure metrics show `src/shared/hooks/` is highly flat (`file_count: 85`) while assigned files remain in root-level hook paths (`useAutoSaveSettings.ts`, `useContentResponsive.ts`, `useCopyToClipboard.ts`) instead of stable capability subfolders.",
+        "Assigned tests `src/shared/hooks/__tests__/useCopyToClipboard.test.ts` and `src/shared/hooks/__tests__/useContentResponsive.test.ts` still import via `../...`, reinforcing root-level placement even though these concerns are already subgroup-worthy (clipboard/responsive/settings).",
+        "Packet structure metrics show `src/shared/lib/` is also flat (`file_count: 73`) and assigned files mix unrelated concerns in one directory: UI composition primitive (`Slot.tsx`), cache container (`ProjectScopedCache.ts`), and key-transform utility (`caseConversion.ts`).",
+        "Coupling matrix confirms strong hooks→lib coupling (`src/shared/hooks/ → src/shared/lib/ = 50`) but current placement does not separate low-level utility, UI primitive, and feature-support responsibilities."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "`useContentResponsive.test.ts` encodes pane-aware expectations (`contentBreakpoints`, `usePanes` mock), while `useContentResponsive.ts` is viewport-only (`window.innerWidth/innerHeight`), signaling unclear ownership of 'content' vs 'viewport' responsibility.",
+        "The assigned `Slot.tsx` lives in `shared/lib` even though it is a UI composition primitive by behavior and API, which blurs architectural layer boundaries.",
+        "Assigned files indicate shared-root sprawl instead of domain-aligned ownership boundaries (clipboard behavior, responsive behavior, settings persistence, and low-level utilities all represented as root-level units)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "package_organization",
+      "identifier": "root_hook_sprawl_and_split_brain_paths",
+      "summary": "Hook files stay in shared root while behavior-specific ownership is split and hard to navigate",
+      "related_files": [
+        "src/shared/hooks/useCopyToClipboard.ts",
+        "src/shared/hooks/useContentResponsive.ts",
+        "src/shared/hooks/useAutoSaveSettings.ts",
+        "src/shared/hooks/__tests__/useCopyToClipboard.test.ts"
+      ],
+      "evidence": [
+        "All three assigned production hooks are placed directly under `src/shared/hooks/`, despite representing distinct capabilities (clipboard, responsive layout, settings persistence).",
+        "`src/shared/hooks/` has very high flatness (`file_count: 85` from packet structure), making root-level placement an active navigation burden.",
+        "The assigned copy hook test imports `../useCopyToClipboard`, which preserves root placement instead of converging on a single capability folder."
+      ],
+      "suggestion": "Stage the reorg in one pass: (1) create target folders `src/shared/hooks/clipboard/`, `src/shared/hooks/responsive/`, `src/shared/hooks/settings/`; (2) move files in order `useCopyToClipboard.ts`, `useContentResponsive.ts`, `useAutoSaveSettings.ts`; (3) update imports and test paths (including assigned tests) with `rg -n \"useCopyToClipboard|useContentResponsive|useAutoSaveSettings\" src`; (4) run `pnpm test src/shared/hooks/__tests__/useCopyToClipboard.test.ts src/shared/hooks/__tests__/useContentResponsive.test.ts` and `pnpm tsc --noEmit` to validate; (5) if temporary compatibility is needed, keep one-cycle re-export stubs then remove.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "flat_shared_root_without_capability_boundaries"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "content_vs_viewport_responsive_ownership_drift",
+      "summary": "Content-responsive naming and tests no longer match viewport-only implementation ownership",
+      "related_files": [
+        "src/shared/hooks/useContentResponsive.ts",
+        "src/shared/hooks/__tests__/useContentResponsive.test.ts"
+      ],
+      "evidence": [
+        "Implementation is purely viewport-based (`window.innerWidth`, resize listener), but test suite is structured around pane-context `contentBreakpoints` semantics.",
+        "This mismatch indicates architectural drift: the module name and boundary imply content-area ownership while implementation owns viewport behavior."
+      ],
+      "suggestion": "Use a staged boundary cleanup: (1) choose target folder and contract (`src/shared/hooks/responsive/useViewportResponsive.ts` for viewport behavior, or a true content-aware hook under pane/layout ownership); (2) move/rename implementation first; (3) update assigned tests to match selected contract and import path; (4) run `pnpm test src/shared/hooks/__tests__/useContentResponsive.test.ts` (or renamed test) and `pnpm tsc --noEmit`; (5) remove old alias exports after all imports are migrated.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "flat_shared_root_without_capability_boundaries"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "mixed_layer_artifacts_in_shared_lib_root",
+      "summary": "UI primitive, cache class, and key-conversion utility are co-located in one generic lib root",
+      "related_files": [
+        "src/shared/lib/Slot.tsx",
+        "src/shared/lib/ProjectScopedCache.ts",
+        "src/shared/lib/caseConversion.ts"
+      ],
+      "evidence": [
+        "`Slot.tsx` is a React UI composition primitive but is placed in `shared/lib/` rather than a UI/component boundary.",
+        "`ProjectScopedCache.ts` (state/cache concern) and `caseConversion.ts` (string/key transform concern) are also in the same root, indicating concern mixing.",
+        "Packet structure confirms `src/shared/lib/` is broad and flat (`file_count: 73`), and these assigned files reinforce that mixed-concern pattern."
+      ],
+      "suggestion": "Apply a staged lib decomposition: (1) create `src/shared/components/ui/` (or `src/shared/ui/primitives/`) target for `Slot.tsx`, `src/shared/lib/cache/` for `ProjectScopedCache.ts`, and `src/shared/lib/utils/` (or `src/shared/lib/formatting/`) for `caseConversion.ts`; (2) move in that order to minimize React/UI import churn first; (3) update imports with `rg -n \"@/shared/lib/(Slot|ProjectScopedCache|caseConversion)\" src`; (4) run `pnpm test src/shared/hooks/__tests__/useCopyToClipboard.test.ts src/shared/hooks/__tests__/useContentResponsive.test.ts src/shared/hooks/__tests__/useCredits.test.ts` and `pnpm tsc --noEmit`; (5) delete transient re-export shims after callers are migrated.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "flat_shared_root_without_capability_boundaries"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Flat shared-root directories (`hooks`, `lib`) are being used as catch-alls instead of capability/layer packages.",
+      "Contract ownership drift (naming/tests vs implementation role) is not resolved via package boundaries during evolution."
+    ],
+    "likely_symptoms": [
+      "root_hook_sprawl_and_split_brain_paths",
+      "content_vs_viewport_responsive_ownership_drift",
+      "mixed_layer_artifacts_in_shared_lib_root"
+    ],
+    "possible_false_positives": []
+  }
+}

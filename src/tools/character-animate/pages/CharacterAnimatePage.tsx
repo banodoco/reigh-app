@@ -1,7 +1,7 @@
 import React from 'react';
 
 import { Button } from '@/shared/components/ui/button';
-import { Label } from '@/shared/components/ui/label';
+import { Label } from '@/shared/components/ui/primitives/label';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { PageFadeIn } from '@/shared/components/transitions';
 
@@ -9,6 +9,7 @@ import { CharacterImagePanel } from './components/CharacterImagePanel';
 import { ModeSelector } from './components/ModeSelector';
 import { MotionVideoPanel } from './components/MotionVideoPanel';
 import { ResultsGallery } from './components/ResultsGallery';
+import { DeleteGenerationConfirmDialog } from '@/shared/components/dialogs/DeleteGenerationConfirmDialog';
 import { useCharacterAnimateBaseState } from './hooks/useCharacterAnimateBaseState';
 import { useCharacterAnimateDragHandlers } from './hooks/useCharacterAnimateDragHandlers';
 import { useCharacterAnimateEffects } from './hooks/useCharacterAnimateEffects';
@@ -127,7 +128,7 @@ const CharacterAnimatePage: React.FC = () => {
           onDelete={state.handleDeleteGeneration}
         />
       </div>
-      <state.DeleteConfirmDialog />
+      <DeleteGenerationConfirmDialog {...state.confirmDialogProps} />
     </PageFadeIn>
   );
 };

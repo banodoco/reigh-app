@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { useRenderLogger } from '@/shared/lib/debug/debugRendering';
 import type { Json } from '@/integrations/supabase/types';
 import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 
 // Module-level request deduplication cache for the raw `users.settings` DB fetch.
 //
@@ -98,8 +99,7 @@ const loadUserSettingsCached = async (userId: string) => {
   // Make new database call and cache the promise
   const loadingPromise: Promise<CachedSettingsResult> = (async () => {
     try {
-      const result = await supabase
-        .from('users')
+      const result = await supabase().from('users')
         .select('settings')
         .eq('id', userId)
         .single();
@@ -188,7 +188,7 @@ export function useUserUIState<K extends keyof UISettings>(
       await updateToolSettingsSupabase({
         scope: 'user',
         id: userId,
-        toolId: 'ui',
+        toolId: SETTINGS_IDS.USER_UI_STATE,
         patch: { [key]: fallbackToSave },
       }, undefined, 'immediate');
 
@@ -197,7 +197,7 @@ export function useUserUIState<K extends keyof UISettings>(
       settingsCache.delete(cacheKey);
       setValue(fallbackToSave); // Update local state after successful save
     } catch (error) {
-      handleError(error, { context: 'useUserUIState.saveFallbackToDatabase', showToast: false });
+      normalizeAndPresentError(error, { context: 'useUserUIState.saveFallbackToDatabase', showToast: false });
     }
   }, [key, normalizeIfGenerationMethods]);
 
@@ -205,7 +205,7 @@ export function useUserUIState<K extends keyof UISettings>(
   useEffect(() => {
     const loadUserSettings = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user } } = await supabase().auth.getUser();
         if (!user) {
           // Skip loading for unauthenticated users (e.g., on public share pages)
           setIsLoading(false);
@@ -219,7 +219,7 @@ export function useUserUIState<K extends keyof UISettings>(
         const error = cachedResult?.error ?? null;
 
         if (error) {
-          handleError(error, { context: 'useUserUIState.loadSettings', showToast: false });
+          normalizeAndPresentError(error, { context: 'useUserUIState.loadSettings', showToast: false });
           setIsLoading(false);
           return;
         }
@@ -250,13 +250,13 @@ export function useUserUIState<K extends keyof UISettings>(
             updateToolSettingsSupabase({
               scope: 'user',
               id: user.id,
-              toolId: 'ui',
+              toolId: SETTINGS_IDS.USER_UI_STATE,
               patch: { [key]: normalizedValue },
             }, undefined, 'immediate').then(() => {
               const cacheKey = `user_settings_${user.id}`;
               settingsCache.delete(cacheKey);
             }).catch(e => {
-              handleError(e, { context: 'useUserUIState.backfillFields', showToast: false });
+              normalizeAndPresentError(e, { context: 'useUserUIState.backfillFields', showToast: false });
             });
           }
         } else {
@@ -267,13 +267,13 @@ export function useUserUIState<K extends keyof UISettings>(
 
           // Save to database in background (don't block loading)
           saveFallbackToDatabase(user.id, settingsRecord || {}).catch(error => {
-            handleError(error, { context: 'useUserUIState.saveFallback', showToast: false });
+            normalizeAndPresentError(error, { context: 'useUserUIState.saveFallback', showToast: false });
           });
         }
 
         setIsLoading(false);
       } catch (error) {
-        handleError(error, { context: 'useUserUIState.loadUserSettings', showToast: false });
+        normalizeAndPresentError(error, { context: 'useUserUIState.loadUserSettings', showToast: false });
         setIsLoading(false);
       }
     };
@@ -309,7 +309,7 @@ export function useUserUIState<K extends keyof UISettings>(
         await updateToolSettingsSupabase({
           scope: 'user',
           id: userId,
-          toolId: 'ui',
+          toolId: SETTINGS_IDS.USER_UI_STATE,
           patch: { [key]: normalizedPatch },
         });
 
@@ -317,7 +317,7 @@ export function useUserUIState<K extends keyof UISettings>(
         const cacheKey = `user_settings_${userId}`;
         settingsCache.delete(cacheKey);
       } catch (error) {
-        handleError(error, { context: 'useUserUIState.update', showToast: false });
+        normalizeAndPresentError(error, { context: 'useUserUIState.update', showToast: false });
       }
     }, 200);
   }, [key, normalizeIfGenerationMethods]);

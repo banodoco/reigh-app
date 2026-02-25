@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 import { OPTIMISTIC_UPDATE_TIMEOUT } from '../constants';
 
 interface UseOptimisticOrderProps {

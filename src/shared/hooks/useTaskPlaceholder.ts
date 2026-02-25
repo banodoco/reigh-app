@@ -11,9 +11,9 @@
 
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 
 export interface TaskPlaceholderOptions {
@@ -65,8 +65,7 @@ export function extractTaskIds(result: unknown): string[] {
 /** Cancel specific task IDs in the database (used for mid-flight cancellation). */
 async function cancelTasksByIds(taskIds: string[]): Promise<void> {
   if (taskIds.length === 0) return;
-  await supabase
-    .from('tasks')
+  await supabase().from('tasks')
     .update({ status: 'Cancelled', updated_at: new Date().toISOString() })
     .in('id', taskIds);
 }
@@ -120,7 +119,7 @@ export function useTaskPlaceholder(): RunTaskPlaceholder {
         acknowledgeCancellation(incomingTaskId);
         return; // Swallow errors from cancelled tasks
       }
-      handleError(error, { context: options.context, toastTitle: options.toastTitle });
+      normalizeAndPresentError(error, { context: options.context, toastTitle: options.toastTitle });
     } finally {
       await queryClient.refetchQueries({ queryKey: taskQueryKeys.paginatedAll });
       await queryClient.refetchQueries({ queryKey: taskQueryKeys.statusCountsAll });

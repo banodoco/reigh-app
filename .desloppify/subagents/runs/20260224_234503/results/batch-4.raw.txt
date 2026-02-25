@@ -1,0 +1,86 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 4,
+  "assessments": {
+    "package_organization": 79.0,
+    "high_level_elegance": 86.0
+  },
+  "dimension_notes": {
+    "package_organization": {
+      "evidence": [
+        "4/5 production files in scope are compatibility shims only (`src/shared/hooks/useAsyncOperation.ts`, `src/shared/hooks/useBackgroundThumbnailGenerator.ts`, `src/shared/components/AppErrorBoundary.tsx`, `src/shared/components/AspectRatioSelector.tsx`) and each points to a different owning package path.",
+        "`holistic_context.structure.directory_profiles[\"src/shared/hooks/\"]` shows 88 files and `src/shared/components/` shows 76 files, both above the >10 mixed-concern overload signal for flat directories.",
+        "Coupling evidence shows strong cross-directory traffic from these broad folders (`src/shared/components/ → src/shared/hooks/` = 45 edges, `src/shared/hooks/ → src/shared/lib/` = 50, `src/shared/hooks/ → src/shared/lib/errorHandling/` = 38), so root-level shim placement increases navigation and ownership ambiguity."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Migration is represented as scattered per-file aliases in top-level shared folders instead of a single bounded legacy surface, which keeps old and new ownership models active simultaneously.",
+        "Scope tests include contract checks that primarily assert alias wiring (`useAsyncOperation.contract.test.ts`, `AppErrorBoundary.test.tsx`) rather than locating migration guarantees next to the canonical owning modules, blurring decomposition by capability.",
+        "Existing findings already flag migration-era duplication/decomposition pressure on nearby files (`src/shared/hooks/useAutoSaveSettings.ts` structural/dupe signals), consistent with unresolved boundary cleanup."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Legacy-to-canonical migration is not encapsulated behind one clear boundary, so ownership is still inferred from historical import paths rather than package roles."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "package_organization",
+      "identifier": "legacy_shims_in_primary_shared_roots",
+      "summary": "Deprecated compatibility entrypoints remain in primary shared folders, obscuring actual ownership boundaries.",
+      "related_files": [
+        "src/shared/hooks/useAsyncOperation.ts",
+        "src/shared/hooks/useBackgroundThumbnailGenerator.ts",
+        "src/shared/components/AppErrorBoundary.tsx",
+        "src/shared/components/AspectRatioSelector.tsx"
+      ],
+      "evidence": [
+        "Each file is a deprecation re-export with `@removalTarget 2026-06-30`, but they are placed in high-traffic root packages (`src/shared/hooks/`, `src/shared/components/`) rather than an explicit legacy namespace.",
+        "Directory profile signals show overloaded roots (`src/shared/hooks/` file_count=88, `src/shared/components/` file_count=76), so retaining migration aliases there increases mixed-concern density.",
+        "This reproduces the same placement pattern across hooks and components, indicating a systemic migration-boundary issue rather than isolated file placement."
+      ],
+      "suggestion": "Staged reorg plan: (1) create explicit legacy folders `src/shared/hooks/legacy/` and `src/shared/components/legacy/`; (2) move shim files there in order: `useAsyncOperation.ts`, `useBackgroundThumbnailGenerator.ts`, `AppErrorBoundary.tsx`, `AspectRatioSelector.tsx`; (3) add temporary `index.ts` barrels in legacy folders for discoverable migration docs; (4) update imports with `rg -l \"@/shared/hooks/useAsyncOperation|@/shared/hooks/useBackgroundThumbnailGenerator|@/shared/components/AppErrorBoundary|@/shared/components/AspectRatioSelector\" src | xargs sed -i '' ...` (or run `desloppify move <src> <dst> --dry-run` then execute); (5) validate with `pnpm -s tsc --noEmit`, `pnpm -s vitest run src/shared/hooks/__tests__/useAsyncOperation.contract.test.ts src/shared/components/AppErrorBoundary.test.tsx`, and a repo-wide `rg \"@deprecated Import from\" src/shared` to confirm only bounded legacy surfaces remain.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "unbounded_migration_alias_surface"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "migration_contracts_not_co_located_with_owners",
+      "summary": "Migration verification is anchored in shared-root tests, reinforcing dual ownership instead of canonical package ownership.",
+      "related_files": [
+        "src/shared/hooks/__tests__/useAsyncOperation.contract.test.ts",
+        "src/shared/components/AppErrorBoundary.test.tsx",
+        "src/shared/hooks/useAsyncOperation.ts",
+        "src/shared/components/AppErrorBoundary.tsx"
+      ],
+      "evidence": [
+        "`useAsyncOperation.contract.test.ts` validates legacy and canonical exports are the same symbol, but the test itself lives under shared-root tests rather than the canonical `shared/hooks/async` owner area.",
+        "`AppErrorBoundary.test.tsx` only checks exported function presence for a shim module, again keeping testing and ownership centered on legacy path continuity.",
+        "Together this preserves migration mechanics as a first-class top-level concern and delays convergence to a single decomposition model."
+      ],
+      "suggestion": "Staged reorg plan: (1) move migration contract tests to canonical-owner test directories (`src/shared/hooks/async/__tests__/` and `src/app/components/error/__tests__/`) and rename them `legacyEntrypoint.contract.test.ts`; (2) keep one temporary legacy smoke test file in old path that imports from new contract location and marks removal date; (3) move order: hook contract first, then component contract, then delete root test stubs once imports are clean; (4) update paths via `rg -l \"useAsyncOperation entrypoint contract|AppErrorBoundary module\" src/shared | xargs sed -i '' ...`; (5) validate with `pnpm -s vitest run src/shared/hooks/async/__tests__/legacyEntrypoint.contract.test.ts src/app/components/error/__tests__/legacyEntrypoint.contract.test.ts` and `pnpm -s tsc --noEmit`.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "unbounded_migration_alias_surface"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Migration aliases were added as local compatibility patches but not consolidated into a dedicated legacy boundary.",
+      "Directory-level ownership cleanup lagged behind implementation moves, so tests and entrypoints still anchor to historical locations."
+    ],
+    "likely_symptoms": [
+      "legacy_shims_in_primary_shared_roots",
+      "migration_contracts_not_co_located_with_owners"
+    ],
+    "possible_false_positives": []
+  }
+}

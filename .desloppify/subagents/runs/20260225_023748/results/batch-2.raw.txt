@@ -1,0 +1,94 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "low_level_elegance": 83.0
+  },
+  "dimension_notes": {
+    "low_level_elegance": {
+      "evidence": [
+        "Task payload construction and payload reading are split across multiple files with duplicated field-level fallback logic (`src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts`, `src/shared/lib/tasks/individualTravelSegment.ts`, `supabase/functions/complete_task/orchestrator.ts`).",
+        "Lightbox/edit hooks build very large projected state objects and memo models repeatedly (`src/tools/edit-images/hooks/useInlineEditState.ts`, `src/shared/components/MediaLightbox/ImageLightbox.tsx`, `src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx`).",
+        "Broad interfaces are being satisfied with explicit no-op callbacks (`src/shared/components/MediaLightbox/ImageLightbox.tsx`), indicating abstraction mismatch at call boundaries."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "payload_contract_scatter",
+      "summary": "Task payload fields are duplicated across builders/readers, forcing fallback probing and weakening interface honesty.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "supabase/functions/complete_task/orchestrator.ts",
+        "src/shared/lib/tasks/joinClips.ts"
+      ],
+      "evidence": [
+        "`buildTravelBetweenImagesPayload` writes `num_new_segments_to_generate` and many orchestrator fields manually (`payloadBuilder.ts`), while `resolveExpectedSegmentCount` must read both `orchestrator_details.num_new_segments_to_generate` and top-level `num_new_segments_to_generate` (`orchestrator.ts:240-245`).",
+        "`individualTravelSegment.ts` emits overlapping data in multiple locations (e.g., `orchestrator_details`, top-level pair fields, and `individual_segment_params` around lines 493, 499, 526, 618), which increases drift risk when adding/changing fields.",
+        "Join-clips follows a separate manual payload composition path (`joinClips.ts`) instead of a shared codec, continuing the same per-family duplication pattern."
+      ],
+      "suggestion": "Introduce one typed payload codec per task family (encode/decode + defaults) and make builders/readers consume that single contract; remove reader-side fallback probing once canonical field placement is enforced.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "task_payload_contract_fragmentation"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "state_projection_duplication",
+      "summary": "Edit/lightbox hooks repeatedly project the same state into multiple large objects, creating high indirection cost and update drift.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx"
+      ],
+      "evidence": [
+        "`useInlineEditState` constructs `imageEditValue` plus separate `inpaintingState`/`transformState`/`generationState` sections with overlapping members (notably around lines 344-492).",
+        "`ImageLightbox.tsx` and `useVideoLightboxRenderModel.tsx` both build large memoized view-model bundles (`lightboxVariants`, `lightboxStateValue`, controls-panel payloads), duplicating projection logic for image vs video paths.",
+        "Large projection objects require very long dependency lists, increasing maintenance overhead and chance of stale or inconsistent wiring during feature changes."
+      ],
+      "suggestion": "Extract a shared lightbox/edit state adapter layer that exposes smaller domain-specific selectors (variants/media/navigation/edit) and compose UI props from those selectors near the consuming components.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "overgrown_view_models"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "noop_interface_adapters",
+      "summary": "No-op callbacks are passed to satisfy broad mode APIs, signaling that the interface contract does not match actual mode capabilities.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx"
+      ],
+      "evidence": [
+        "`ImageLightbox.tsx` passes `handleEnterMagicEditMode: () => {}` (line ~275) and `handleEnterVideoEditMode: () => {}` (line ~376) in different setup paths.",
+        "These placeholders exist because shared orchestration/layout contracts include handlers that are irrelevant in the current mode, but still mandatory at call sites.",
+        "This pattern hides invalid states behind silent no-ops instead of making impossible states unrepresentable at the type level."
+      ],
+      "suggestion": "Refactor mode contracts into discriminated unions (image-edit vs video-edit) so handlers are required only in valid modes; remove no-op fillers and branch on mode-specific interfaces.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "overgrown_view_models"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Task-family contracts are encoded as ad-hoc objects instead of shared codecs.",
+      "UI orchestration favors mega view-model objects over narrow mode-specific interfaces."
+    ],
+    "likely_symptoms": [
+      "payload_contract_scatter",
+      "state_projection_duplication",
+      "noop_interface_adapters"
+    ],
+    "possible_false_positives": []
+  }
+}

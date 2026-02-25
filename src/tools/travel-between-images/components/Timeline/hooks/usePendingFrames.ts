@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 import { useAppEventListener } from '@/shared/lib/typedEvents';
 
 interface UsePendingFramesProps {

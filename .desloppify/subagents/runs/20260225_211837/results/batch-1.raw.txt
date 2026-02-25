@@ -1,0 +1,117 @@
+{
+  "batch": "Design coherence — Mechanical Concern Signals",
+  "batch_index": 1,
+  "assessments": {
+    "design_coherence": 78.4
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "Timeline trailing-end derivation is duplicated in multiple hooks instead of being centralized (`resolveTrailingEffectiveEnd` in `src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts:155` and near-identical `trailingEffectiveEnd` logic in `src/tools/travel-between-images/components/Timeline/hooks/useTimelineViewportController.ts:67`).",
+        "Lightbox state composition uses very wide config and return bags (`UseSharedLightboxStateInput` / `UseSharedLightboxStateReturn` in `src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts:122` and `:137`), then `ImageLightbox` builds/threads these through several orchestration layers (`src/shared/components/MediaLightbox/ImageLightbox.tsx:200`, `:568`, `:893`).",
+        "Timeline view layer and orchestrator both expose broad multi-concern interfaces (`TimelineProps` in `src/tools/travel-between-images/components/Timeline.tsx:25` and `UseTimelineOrchestratorProps` + `UseTimelineOrchestratorReturn` in `src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts:28` and `:64`), increasing coupling between rendering, drag/drop, selection, endpoint editing, and lightbox integration.",
+        "Edge function completion flow remains a long coordinator doing request parsing, auth, rate-limit, storage, generation creation, orchestrator reconciliation, and billing sequencing in one handler (`src/supabase/functions/complete_task/index.ts:98` through `:387`), while similarly complex service-role/user-path branching is repeated in sibling handlers (`src/supabase/functions/claim-next-task/index.ts:61`, `:163`; `src/supabase/functions/generate-upload-url/index.ts:59`, `:74`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "timeline_trailing_end_logic_duplicated",
+      "summary": "Trailing-end timeline math is duplicated across hooks, creating drift risk.",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts",
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineViewportController.ts",
+        "src/tools/travel-between-images/components/Timeline/utils/timeline-utils.ts"
+      ],
+      "evidence": [
+        "`resolveTrailingEffectiveEnd` is implemented in `useTimelineOrchestrator` (`:155-177`), while `useTimelineViewportController` reimplements the same conditional logic and offsets (`:67-83`).",
+        "A shared timeline utilities module already exists (`timeline-utils.ts`), but this computation is not sourced from it, so future behavior changes must be applied in multiple places."
+      ],
+      "suggestion": "Extract one shared helper (for example `getTrailingEffectiveEnd`) into `Timeline/utils/timeline-utils.ts`, then have both hooks consume it; add a focused unit test for single-image and multi-image-with/without-trailing-video cases.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "timeline_orchestration_fragmentation"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "lightbox_state_surface_too_wide",
+      "summary": "Lightbox orchestration relies on oversized state contracts that blur ownership.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/components/EditModePanel.tsx"
+      ],
+      "evidence": [
+        "`UseSharedLightboxStateInput` groups six nested concern buckets and many callbacks (`useSharedLightboxState.ts:122-131`), and returns another large multi-section object (`:137-246`).",
+        "`ImageLightbox` builds this composite input (`ImageLightbox.tsx:200-276`), then additionally builds separate render/workflow models with very large dependency lists (`:568-892`), indicating orchestration concerns remain spread across layers instead of sharply bounded.",
+        "Panel rendering is selected via orchestration conditionals in the same model builder (`ImageLightbox.tsx:462-525`), mixing state integration with UI branching and action wiring."
+      ],
+      "suggestion": "Split the current shared contract into narrower adapters by capability (navigation/variants/shot-actions/edit-panel), and pass only capability-specific interfaces to each panel/composer; enforce boundaries with dedicated types per consumer instead of one umbrella return type.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "ui_orchestrator_god_contracts"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "timeline_component_contract_bloat",
+      "summary": "Timeline container API is over-broad, causing cross-feature coupling.",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline.tsx",
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts",
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineViewportController.ts"
+      ],
+      "evidence": [
+        "`TimelineProps` includes a large mix of concerns: data loading coordination, reorder/drop operations, prompt editing, shot creation, segment navigation, lightbox control, and trailing updater registration (`Timeline.tsx:25-90`).",
+        "`UseTimelineOrchestratorProps` and return type mirror similar breadth (`useTimelineOrchestrator.ts:28-153`), making the hook a central god-orchestrator for drag, selection, pending operations, viewport, endpoint, and structure-video interactions.",
+        "Because both component and hook expose broad contracts, call sites must understand internal orchestration details (for example wiring lightbox adapter and timeline container with many interdependent callbacks in `Timeline.tsx:236-419`)."
+      ],
+      "suggestion": "Introduce feature-scoped sub-adapters (e.g., `timelineInteraction`, `timelineViewport`, `timelineLightboxBridge`) and refactor `Timeline` to compose them, reducing top-level prop count and preventing unrelated feature changes from forcing shared contract churn.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "ui_orchestrator_god_contracts"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "edge_completion_flow_still_monolithic",
+      "summary": "Edge task-completion handlers still centralize too many workflow responsibilities.",
+      "related_files": [
+        "supabase/functions/complete_task/index.ts",
+        "supabase/functions/claim-next-task/index.ts",
+        "supabase/functions/generate-upload-url/index.ts",
+        "supabase/functions/_shared/edgeRequest.ts"
+      ],
+      "evidence": [
+        "`completeTaskHandler` sequences parse/auth/rate-limit/storage/mutation/orchestrator/billing in one flow (`complete_task/index.ts:98-387`), so lifecycle policy changes touch one large coordinator.",
+        "`claim-next-task` duplicates substantial service-role vs PAT path logic, including parallel claim/empty/debug/success branches (`claim-next-task/index.ts:61-163` and `:163-240`).",
+        "`generate-upload-url` has similar split branch structure for actor resolution and ownership checks (`generate-upload-url/index.ts:59-93`), despite shared request/runtime helpers existing in `_shared`.",
+        "This repeated branching pattern across handlers indicates boundary reuse is partial: transport/runtime concerns are centralized, but business-path orchestration is still repeated per endpoint."
+      ],
+      "suggestion": "Extract shared actor-resolution and task-ownership decision policies into `_shared` workflow helpers and refactor each handler to small declarative steps (validate -> authorize actor -> execute domain command -> map response), keeping endpoint files thin coordinators.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "edge_workflow_duplication"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Feature orchestration is concentrated in broad adapter/hook contracts instead of capability-scoped interfaces.",
+      "Shared utility modules exist but are not consistently used as single sources of truth for repeated domain calculations.",
+      "Edge runtime helpers centralize low-level transport concerns, but mid-level workflow policies remain duplicated in endpoint handlers."
+    ],
+    "likely_symptoms": [
+      "lightbox_state_surface_too_wide",
+      "timeline_component_contract_bloat",
+      "timeline_trailing_end_logic_duplicated",
+      "edge_completion_flow_still_monolithic"
+    ],
+    "possible_false_positives": []
+  }
+}

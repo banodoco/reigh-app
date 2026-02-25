@@ -1,0 +1,140 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 1,
+  "assessments": {
+    "abstraction_fitness": 78.0,
+    "mid_level_elegance": 80.0,
+    "low_level_elegance": 82.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "`JoinClipsTaskParams` in `src/shared/lib/tasks/joinClips.ts` mixes legacy and new orchestration fields in one interface and `buildJoinClipsPayload` conditionally rewrites many of them, creating a wide, weak contract surface.",
+        "`src/shared/lib/tasks/individualTravelSegment.ts` and `src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts` both rely on `Record<string, unknown>` plus repeated key probing/fallbacks, indicating abstraction layers are not carrying a stable typed boundary.",
+        "`useInlineEditState` builds a very large adapter object only to feed `useImageEditValue`, which then re-spreads it into `ImageEditState`; this is mostly ceremony/pass-through rather than abstraction leverage."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 74.0,
+        "indirection_cost": 79.0,
+        "interface_honesty": 76.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Task completion boundaries require multi-shape seam logic: `supabase/functions/complete_task/orchestrator.ts` queries run IDs and orchestrator IDs across multiple param paths, while producers write those IDs in varying locations.",
+        "`supabase/functions/complete_task/generation.ts` reads routing fields from both top-level params and `orchestrator_details`, reflecting inconsistent producer/consumer boundary conventions from task builders.",
+        "UI composition seams in lightbox/editing are heavily choreographed across multiple controller/render-model hooks with broad prop drilling (`useVideoLightboxRenderModel.tsx`, `useInlineEditState.ts`), increasing integration friction."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "`useImageEditValue` memoizes on `[params]`, but caller `useInlineEditState` constructs a fresh params object each render; the memo wrapper is effectively bypassed while still adding code overhead.",
+        "Legacy-structure cleanup logic is duplicated as string lists and deletion loops in multiple files (`payloadBuilder.ts`, `individualTravelSegment.ts`), increasing local maintenance burden and drift risk.",
+        "Several functions construct large mutable `Record<string, unknown>` objects with many conditional inserts/deletes, which makes internals harder to reason about and validate."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "param_bag_contract_drift",
+      "summary": "Task builders expose oversized mixed-era param bags, forcing consumers to support multiple incompatible shapes.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/components/TaskDetails/VideoTravelDetails.tsx"
+      ],
+      "evidence": [
+        "`JoinClipsTaskParams` includes both legacy clip fields and new orchestration fields, then `buildJoinClipsPayload` conditionally emits overlapping payload fields.",
+        "`individualTravelSegment` and `payloadBuilder` both perform broad `Record<string, unknown>` extraction and fallback chains across `orchestrator_details`, top-level params, and nested blobs.",
+        "`VideoTravelDetails` must read from `individual_segment_params`, `orchestrator_details`, `full_orchestrator_payload`, and top-level params to reconstruct one view."
+      ],
+      "suggestion": "Introduce a versioned canonical payload schema per task type (single normalized shape), add explicit migration mappers at ingress, and remove direct multi-path fallback reads from downstream consumers.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "inline_edit_pass_through_layer",
+      "summary": "Inline edit state assembly is dominated by pass-through adapter layers with little behavioral compression.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/hooks/useImageEditValue.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx"
+      ],
+      "evidence": [
+        "`useInlineEditState` builds large grouped objects (`buildImageEdit*Params`) mostly by forwarding values and callbacks from other hooks.",
+        "`useImageEditValue` then reassembles those same fields into `ImageEditState` via four more builder functions with minimal transformation.",
+        "Consumers (`InlineEditView`) depend on the massive returned shape, reinforcing a broad implicit interface."
+      ],
+      "suggestion": "Replace the broad adapter object with smaller domain slices (mode, canvas, generation) and pass those slices directly to consumers; keep one thin compatibility adapter only where legacy API is required.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "producer_consumer_param_mismatch",
+      "summary": "Producer and completion pipelines rely on defensive multi-path lookups instead of a predictable handoff contract.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClips.ts",
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/complete_task/generation.ts"
+      ],
+      "evidence": [
+        "`checkOrchestratorCompletion` must query sibling tasks using several alternate param paths for run/orchestrator IDs.",
+        "`createGenerationFromTask` derives parent routing from top-level params or nested `orchestrator_details`, reflecting non-uniform producer outputs.",
+        "Task producers include duplicated routing data (`orchestrator_details` plus top-level fields), creating ambiguity about source of truth."
+      ],
+      "suggestion": "Define one required routing envelope (e.g., `routing: { orchestratorTaskId, runId, parentGenerationId, childOrder }`) and enforce it in task creation and completion readers with strict schema validation.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "ineffective_memoization_wrapper",
+      "summary": "Memoization in image edit state construction is neutralized by object-identity churn.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/hooks/useImageEditValue.ts"
+      ],
+      "evidence": [
+        "`useInlineEditState` calls `useImageEditValue(buildImageEditValueParams(...))`, creating a new params object each render.",
+        "`useImageEditValue` uses `useMemo(..., [params])`, so memo recomputes whenever object identity changes, negating intended optimization."
+      ],
+      "suggestion": "Memoize the params object at call site using granular dependencies, or change `useImageEditValue` to accept stable primitive/slice deps directly and remove the ineffective wrapper memo.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "duplicated_legacy_cleanup_lists",
+      "summary": "Legacy structure-parameter cleanup is duplicated, increasing drift risk and local complexity.",
+      "related_files": [
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts"
+      ],
+      "evidence": [
+        "Both files maintain overlapping legacy structure parameter key lists and cleanup logic around structure guidance migration.",
+        "This duplication requires parallel updates whenever legacy keys evolve, making low-level code more error-prone."
+      ],
+      "suggestion": "Extract a shared constant + helper (e.g., `stripLegacyStructureParams`) in one module and reuse it in both payload builders.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

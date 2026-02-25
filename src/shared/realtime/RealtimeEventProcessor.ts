@@ -8,7 +8,7 @@
  * React layer's job.
  */
 
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import {
   RawDatabaseEvent,
   ProcessedEvent,
@@ -451,7 +451,7 @@ export class RealtimeEventProcessor {
       try {
         callback(event);
       } catch (error) {
-        handleError(error, { context: 'RealtimeEventProcessor.callback', showToast: false });
+        normalizeAndPresentError(error, { context: 'RealtimeEventProcessor.callback', showToast: false });
       }
     });
   }

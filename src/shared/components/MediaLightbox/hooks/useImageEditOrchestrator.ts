@@ -10,7 +10,7 @@
  */
 
 import { useMemo, useCallback } from 'react';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 import type { ImageEditState } from '../contexts/ImageEditContext';
 import type { EditAdvancedSettings, EditMode, LoraMode, QwenEditModel } from './editSettingsTypes';
 import type { UseLoraManagerReturn } from '@/shared/hooks/useLoraManager';
@@ -30,20 +30,26 @@ import { useImg2ImgMode } from './useImg2ImgMode';
 // ============================================================================
 
 interface UseImageEditOrchestratorProps {
-  // Media & project
-  media: GenerationRow;
-  selectedProjectId: string | null;
-  actualGenerationId: string | null;
-  shotId?: string;
-  toolTypeOverride?: string;
-  autoEnterInpaint: boolean;
+  // Media & project context
+  mediaContext: {
+    media: GenerationRow;
+    selectedProjectId: string | null;
+    actualGenerationId: string | null;
+    shotId?: string;
+    toolTypeOverride?: string;
+    initialActive: boolean;
+    thumbnailUrl?: string;
+  };
 
-  // Image display
-  imageDimensions: { width: number; height: number } | null;
-  imageContainerRef: React.RefObject<HTMLDivElement | null>;
-  effectiveImageUrl: string;
+  // Image display context
+  displayContext: {
+    imageDimensions: { width: number; height: number } | null;
+    imageContainerRef: React.RefObject<HTMLDivElement | null>;
+    effectiveImageUrl: string;
+  };
 
-  // Variant state (from useSharedLightboxState)
+  // Variant state context (from useSharedLightboxState)
+  variantContext: {
   activeVariant: {
     id?: string | null;
     location?: string | null;
@@ -52,9 +58,10 @@ interface UseImageEditOrchestratorProps {
   } | null;
   setActiveVariantId: (id: string) => void;
   refetchVariants: () => void;
+  };
 
-  // Edit settings persistence (from useEditSettingsPersistence)
-  editSettingsPersistence: {
+  // Edit settings persistence context (from useEditSettingsPersistence)
+  settingsContext: {
     loraMode: LoraMode;
     setLoraMode: (mode: LoraMode) => void;
     customLoraUrl: string;
@@ -83,12 +90,11 @@ interface UseImageEditOrchestratorProps {
     hasPersistedSettings: boolean;
   };
 
-  // LoRA managers
-  effectiveEditModeLoRAs: Array<{ url: string; strength: number }> | undefined;
-  availableLoras?: LoraModel[];
-
-  // Thumbnail URL for magic edit
-  thumbnailUrl?: string;
+  // LoRA context
+  loraContext: {
+    effectiveEditModeLoRAs: Array<{ url: string; strength: number }> | undefined;
+    availableLoras?: LoraModel[];
+  };
 }
 
 // ============================================================================
@@ -126,23 +132,35 @@ interface UseImageEditOrchestratorReturn {
 // ============================================================================
 
 export function useImageEditOrchestrator({
-  media,
-  selectedProjectId,
-  actualGenerationId,
-  shotId,
-  toolTypeOverride,
-  autoEnterInpaint,
-  imageDimensions,
-  imageContainerRef,
-  effectiveImageUrl,
-  activeVariant,
-  setActiveVariantId,
-  refetchVariants,
-  editSettingsPersistence,
-  effectiveEditModeLoRAs,
-  availableLoras,
-  thumbnailUrl,
+  mediaContext,
+  displayContext,
+  variantContext,
+  settingsContext,
+  loraContext,
 }: UseImageEditOrchestratorProps): UseImageEditOrchestratorReturn {
+  const {
+    media,
+    selectedProjectId,
+    actualGenerationId,
+    shotId,
+    toolTypeOverride,
+    initialActive,
+    thumbnailUrl,
+  } = mediaContext;
+  const {
+    imageDimensions,
+    imageContainerRef,
+    effectiveImageUrl,
+  } = displayContext;
+  const {
+    activeVariant,
+    setActiveVariantId,
+    refetchVariants,
+  } = variantContext;
+  const {
+    effectiveEditModeLoRAs,
+    availableLoras,
+  } = loraContext;
 
   const {
     loraMode, setLoraMode,
@@ -160,7 +178,7 @@ export function useImageEditOrchestrator({
     editMode: persistedEditMode, setEditMode: setPersistedEditMode,
     isReady: isEditSettingsReady,
     hasPersistedSettings,
-  } = editSettingsPersistence;
+  } = settingsContext;
 
   const toInpaintingEditMode = useCallback((mode: EditMode): InpaintingEditMode => {
     if (mode === 'inpaint' || mode === 'annotate' || mode === 'text') {
@@ -262,7 +280,6 @@ export function useImageEditOrchestrator({
   const magicEditHook = useMagicEditMode({
     media,
     selectedProjectId,
-    autoEnterInpaint,
     isVideo: false,
     isInpaintMode,
     setIsInpaintMode,
@@ -285,6 +302,7 @@ export function useImageEditOrchestrator({
     advancedSettings,
     qwenEditModel,
     enabled: true,
+    initialActive,
   });
 
   const {
@@ -385,9 +403,8 @@ export function useImageEditOrchestrator({
   // BUILD ImageEditContext VALUE
   // ========================================
 
-  // Placeholder values for context fields not yet wired to real state
-  const isFlippedHorizontally = false;
-  const isSaving = false;
+  const isFlippedHorizontally = Boolean(repositionTransform?.flipH);
+  const isSaving = isGeneratingReposition || isSavingAsVariant;
 
   const imageEditValue = useMemo<ImageEditState>(() => ({
     // Mode state

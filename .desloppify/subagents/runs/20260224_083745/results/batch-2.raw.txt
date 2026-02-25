@@ -1,0 +1,106 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 72.0,
+    "mid_level_elegance": 70.0,
+    "low_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "src/integrations/supabase/client.ts is a single-function façade (`getSupabaseClient` -> `getSupabaseRuntimeClient`) with no policy/translation, but it is imported broadly.",
+        "src/shared/hooks/useGetPrimaryTaskIdForGeneration.ts and src/pages/Home/hooks/useDiscordSignIn.ts/useAuthReferralFinalize.ts add thin wrapper layers around one call path (mutation/callback + immediate delegated call) with little abstraction leverage.",
+        "Task payload modules (src/shared/lib/tasks/joinClips.ts, src/shared/lib/tasks/individualTravelSegment.ts, src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts) each carry their own normalization/optional-field helper stacks, increasing indirection cost for similar orchestration concerns."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 68.0,
+        "indirection_cost": 64.0,
+        "interface_honesty": 84.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Task-parameter boundary translation is split across shared mappers and UI surfaces: src/shared/lib/taskParamsUtils.ts provides canonical extraction, but src/shared/components/ImageGenerationDetails.tsx and src/shared/components/TaskDetails/VideoTravelDetails.tsx still perform local fallback parsing/shape handling.",
+        "Orchestration-seam construction is repeated across src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts, src/shared/lib/tasks/individualTravelSegment.ts, and src/shared/lib/tasks/joinClips.ts, with similar contract fields and mode branching implemented in separate places.",
+        "src/shared/components/TaskDetails/VideoTravelDetails.tsx performs data fetching (`resources` query for preset name) inside rendering-focused detail UI, coupling presentation and integration seam logic."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx contains very large memoized object assembly and extensive dependency lists, making local intent hard to follow and easy to regress.",
+        "src/shared/components/MediaGallery/index.tsx accumulates many responsibilities (layout math, filtering, pagination resets, optimistic behavior wiring, lightbox/nav actions) in one component-level orchestration body.",
+        "src/tools/edit-images/components/InlineEditView.tsx and src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx mirror similar overlay/control composition patterns, creating local duplication and maintenance drag."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "thin_wrapper_stack_supabase_and_hooks",
+      "summary": "Multiple thin wrapper layers add naming indirection without adding behavior or safety boundaries.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/hooks/useGetPrimaryTaskIdForGeneration.ts",
+        "src/pages/Home/hooks/useDiscordSignIn.ts",
+        "src/pages/Home/hooks/auth/useAuthReferralFinalize.ts"
+      ],
+      "evidence": [
+        "getSupabaseClient() only forwards to getSupabaseRuntimeClient() and re-exports initializeSupabaseClientRuntime, but acts as a global access seam.",
+        "useGetPrimaryTaskIdForGeneration is primarily normalize->delegate->error-reporting with no additional policy.",
+        "useDiscordSignIn and useAuthReferralFinalize each expose callback wrappers around one Supabase operation plus local storage/error plumbing."
+      ],
+      "suggestion": "Collapse no-op facades and standardize one integration boundary per concern: keep either direct runtime client usage with a typed service module, or consolidate these wrappers into a single auth/task service hook layer that enforces clear policy (validation, retry, telemetry) so each abstraction carries concrete value.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "task_param_translation_scattered",
+      "summary": "Task-parameter translation and display mapping are duplicated across boundary layers, causing seam drift risk.",
+      "related_files": [
+        "src/shared/lib/taskParamsUtils.ts",
+        "src/shared/components/ImageGenerationDetails.tsx",
+        "src/shared/components/TaskDetails/VideoTravelDetails.tsx"
+      ],
+      "evidence": [
+        "taskParamsUtils defines canonical parsing/extraction view models.",
+        "ImageGenerationDetails still performs additional multi-source fallback parsing for resolution/aspect/style fields after building view models.",
+        "VideoTravelDetails mixes shared parsing with ad-hoc conversion helpers and data-fetch seam work in the same component."
+      ],
+      "suggestion": "Move all task-param translation (including fallback precedence and enrichment like preset-name resolution inputs) into shared mapper modules and keep detail components strictly render-only against stable view models.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "oversized_render_model_assemblies",
+      "summary": "Large render-model assembly functions create high local cognitive load and brittle dependency management.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaGallery/index.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "useVideoLightboxRenderModel builds multiple large memoized submodels with long dependency arrays and mixed concerns (layout, variants, workflow, download/actions).",
+        "MediaGallery main component orchestrates many independent behaviors in one function body, increasing branch/synchronization complexity.",
+        "LightboxLayout has broad composition logic plus mode-specific rendering branches, overlapping responsibilities with screen-model hooks."
+      ],
+      "suggestion": "Split render-model construction into smaller feature-scoped hooks with narrow outputs (navigation, variants, panel content, workflow actions) and reduce top-level assembly to composition only; co-locate mode-specific logic with owning feature hook to shrink dependency surfaces.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

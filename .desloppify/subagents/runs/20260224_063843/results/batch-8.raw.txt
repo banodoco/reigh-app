@@ -1,0 +1,103 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 8,
+  "assessments": {
+    "convention_outlier": 76.0,
+    "error_consistency": 69.0,
+    "authorization_consistency": 63.0
+  },
+  "dimension_notes": {
+    "convention_outlier": {
+      "evidence": [
+        "Export style is mixed within closely related UI/page surfaces: `src/shared/components/MediaGallery/index.tsx` exports both named and default (`export { MediaGallery }; export default MediaGallery;`), while many sibling shared UI modules use named-only exports (for example `src/shared/components/ui/button.tsx`).",
+        "Route/page modules also vary (`src/tools/join-clips/pages/JoinClipsPage.tsx` default export only) versus hook/component areas preferring named exports.",
+        "Error context naming convention is inconsistent in auth hooks: `src/pages/Home/hooks/useDiscordSignIn.ts` logs with generic `context: 'HomePage'` while nearby auth/storage flows use scoped contexts like `useAuthReferralFinalize.*` and call-site-provided context strings."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "error_consistency": {
+      "evidence": [
+        "Canonical runtime error path exists (`src/shared/lib/errorHandling/handleError.ts`), but several paths bypass it and use direct `console.error` in production/runtime code (`supabase/functions/complete_task/generation.ts`, `supabase/functions/complete_task/orchestrator.ts`).",
+        "Mixed error contracts in task/generation data access: some APIs throw (`resolveGenerationProjectId` in `src/shared/lib/generationTaskRepository.ts`), while adjacent APIs return `OperationResult` failures (`getPrimaryTaskIdForGenerationResult`, `getPrimaryTaskIdsForGenerationsResult`), forcing callers to handle multiple paradigms.",
+        "Mutation layer mixes throw-and-bubble with side-effect reporting (`src/shared/hooks/useGenerationMutations.ts` throws in mutationFns but reports in `onError`), while other flows log and return early (`src/pages/Home/hooks/auth/useAuthReferralFinalize.ts`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "authorization_consistency": {
+      "evidence": [
+        "Project scoping is optional in generation repository helpers (`src/shared/lib/generationTaskRepository.ts` returns early when `expectedProjectId` is missing; generation/task queries only add `.eq('project_id', ...)` when option provided).",
+        "Mutation coverage is uneven: generation mutations can apply project checks when `projectId` is passed (`useDeleteGeneration`, `useUpdateGenerationLocation`, `useToggleGenerationStar`), but variant deletion path (`useDeleteVariant` via `useDeleteFromTable`) deletes by `id` only with no project scope in `src/shared/hooks/useGenerationMutations.ts`.",
+        "Edge-function auth posture is not uniform across reviewed files: `supabase/functions/calculate-task-cost/index.ts` enforces `authenticateRequest` and service-role checks, while reviewed `complete_task` modules operate on privileged inputs/service key parameters without local actor validation boundaries."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "authorization_consistency",
+      "identifier": "auth_optional_project_scope_in_generation_paths",
+      "summary": "Generation and variant mutation paths do not enforce a uniform project-bound authorization scope.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/hooks/useGenerationMutations.ts",
+        "src/shared/hooks/useGetPrimaryTaskIdForGeneration.ts"
+      ],
+      "evidence": [
+        "`resolveGenerationProjectId` returns `null` when `expectedProjectId` is absent, so no project equality check is applied (`src/shared/lib/generationTaskRepository.ts`).",
+        "`useDeleteVariant` deletes from `generation_variants` with `.eq('id', id)` only, unlike generation delete/update paths that can include project scoping (`src/shared/hooks/useGenerationMutations.ts`).",
+        "Task-id lookup helpers only apply `.eq('project_id', ...)` when caller supplies it, making authorization behavior caller-dependent (`src/shared/lib/generationTaskRepository.ts`)."
+      ],
+      "suggestion": "Make project scoping mandatory for generation/variant mutations and lookup helpers (accept required `projectId`, enforce `.eq('project_id', projectId)` in all mutation/query paths, and reject calls missing scope). For variant deletes, join/resolve parent generation project before delete or add DB-side constrained RPC.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "mixed_error_channels_frontend_edge",
+      "summary": "Error handling is fragmented between canonical handlers, direct console logging, thrown exceptions, and result-return APIs.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "supabase/functions/complete_task/generation.ts",
+        "supabase/functions/complete_task/orchestrator.ts",
+        "src/shared/lib/generationTaskRepository.ts"
+      ],
+      "evidence": [
+        "Canonical `reportRuntimeError/handleError` exists as the standardized runtime entrypoint (`src/shared/lib/errorHandling/handleError.ts`).",
+        "Complete-task modules directly emit `console.error` in catch/degraded paths instead of a shared error envelope (`supabase/functions/complete_task/generation.ts`, `supabase/functions/complete_task/orchestrator.ts`).",
+        "Repository APIs mix `throw` and `OperationResult` failure returns in the same module, creating inconsistent caller obligations (`src/shared/lib/generationTaskRepository.ts`)."
+      ],
+      "suggestion": "Define per-layer error contract boundaries and enforce one pattern per boundary: e.g., edge functions return structured failure objects/log via one logger utility; client repositories either throw consistently or return `OperationResult` consistently (not both).",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "inconsistent_export_and_error_context_conventions",
+      "summary": "Module conventions drift in export style and error context naming, reducing predictability across sibling code.",
+      "related_files": [
+        "src/shared/components/MediaGallery/index.tsx",
+        "src/tools/join-clips/pages/JoinClipsPage.tsx",
+        "src/shared/components/ui/button.tsx",
+        "src/pages/Home/hooks/useDiscordSignIn.ts",
+        "src/pages/Home/hooks/auth/useAuthReferralFinalize.ts"
+      ],
+      "evidence": [
+        "`MediaGallery` exports both named and default in one module, while nearby shared UI modules use named-only (`src/shared/components/MediaGallery/index.tsx`, `src/shared/components/ui/button.tsx`).",
+        "`JoinClipsPage` uses default export only (`src/tools/join-clips/pages/JoinClipsPage.tsx`), contributing to mixed import conventions across related surfaces.",
+        "Error context strings in auth hooks are inconsistent: generic `HomePage` in `useDiscordSignIn` vs scoped `useAuthReferralFinalize.*` in referral finalize flow."
+      ],
+      "suggestion": "Adopt and enforce one export convention per layer (prefer named-only for shared/component-hook modules) and standardize error context format (e.g., `feature.hook.operation`) via lint rule or helper constants.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

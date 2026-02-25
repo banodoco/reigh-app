@@ -1,0 +1,122 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 68.0,
+    "mid_level_elegance": 64.0,
+    "low_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "Three near-pass-through hooks (`useCompletedTimestamp`, `useProcessingTimestamp`, `useUpdatingTimestamp`) mostly remap option names into `useRelativeTimestamp` with minimal behavior added.",
+        "Task-creation modules carry very large parameter interfaces and reconstruction layers (`JoinClipsTaskParams`, `IndividualTravelSegmentParams`, `TravelBetweenImagesTaskParamsInput` payload assembly) with substantial field forwarding and defaulting rather than domain-narrow abstractions.",
+        "Orchestration identifiers are duplicated across surfaces (`orchestration_contract`, nested `orchestrator_details`, top-level `run_id`/`orchestrator_task_id` variants), indicating abstraction leakage instead of one authoritative contract shape."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 62.0,
+        "indirection_cost": 66.0,
+        "interface_honesty": 61.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Boundary handoff for orchestration identity is inconsistent enough that server completion logic must query multiple JSON paths (`buildRunIdFilter`, `buildOrchestratorTaskFilter`) to find siblings.",
+        "Client cache invalidation in `useShotImagesEditorCallbacks` relies on mixed specific keys and raw `query.queryKey[0]` string predicates (`'segment-child-generations'`), creating fragile seam contracts between modules.",
+        "`useTasks` directly drives `DataFreshnessManager` with ad-hoc query-key serialization and fetch failure routing, coupling query implementation details to freshness orchestration behavior."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "`calculateDistributedFrames`/`calculateDropAtPositionZero` assumes non-empty dragged collections and directly indexes `draggedShotGens[0]`/`draggedShotGens[i]` without local guards, making the function brittle to upstream call-site mistakes.",
+        "`useDiscordSignIn` uses nested `try/catch` with partially duplicated error channels, complicating control flow for a short operation.",
+        "Large UI model builders (for example `useVideoLightboxRenderModel`) contain extensive dependency and prop assembly blocks, making local reasoning and safe edits harder than necessary."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "timestamp_wrapper_chain",
+      "summary": "Multiple timestamp hooks are thin renaming wrappers over one primitive, adding indirection without meaningful behavioral boundaries.",
+      "related_files": [
+        "src/features/tasks/hooks/useCompletedTimestamp.ts",
+        "src/shared/hooks/useProcessingTimestamp.ts",
+        "src/shared/hooks/useUpdatingTimestamp.ts"
+      ],
+      "evidence": [
+        "Each hook forwards to `useRelativeTimestamp` with mostly renamed fields (`generationProcessedAt`/`generationStartedAt`/`date` -> `dateInput`) and fixed mode strings.",
+        "Only `useUpdatingTimestamp` adds a single default formatter, while still duplicating wrapper structure."
+      ],
+      "suggestion": "Collapse to one exported hook with mode-specific option aliases (or explicit call sites using `useRelativeTimestamp`) and keep only wrappers that add real policy/validation.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "param_bag_orchestration_leakage",
+      "summary": "Task payload builders expose oversized param bags and duplicate orchestration metadata across layers, weakening interface honesty.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "supabase/functions/complete_task/orchestrator.ts"
+      ],
+      "evidence": [
+        "`buildJoinClipsPayload` and `buildTravelBetweenImagesPayload` emit orchestration identity in multiple places (top-level and nested objects).",
+        "`checkOrchestratorCompletion` compensates by querying many possible JSON locations (`params->orchestration_contract`, `params->run_id`, `params->orchestrator_details->run_id`, etc.).",
+        "`IndividualTravelSegmentParams` and `JoinClipsTaskParams` include broad optional fields for multiple modes, then reconstruct normalized state via large fallback chains."
+      ],
+      "suggestion": "Define one canonical orchestration envelope type shared by task creators and completion handlers, migrate producers to emit only that envelope, and remove fallback path probing once migrated.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "cache_contract_fragmentation",
+      "summary": "Cross-module cache invalidation relies on mixed key conventions and raw key-shape assumptions, making integration seams brittle.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/shared/hooks/useTasks.ts",
+        "src/shared/realtime/DataFreshnessManager.ts"
+      ],
+      "evidence": [
+        "`useShotImagesEditorCallbacks` invalidates some queries via explicit key factories and others via predicates on `query.queryKey[0]` string literals.",
+        "`DataFreshnessManager` depends on `JSON.stringify(queryKey)` identity and consumers manually pass keys from different key systems.",
+        "`useTasks` manually routes fetch success/failure into `dataFreshnessManager` using constructed keys, coupling query composition and freshness orchestration."
+      ],
+      "suggestion": "Adopt a typed query-key contract module for segment/task domains and refactor invalidation/freshness APIs to accept those typed keys only (no raw string-prefix predicates).",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "unguarded_drag_indexing",
+      "summary": "Timeline frame calculators perform direct index access on dragged arrays without local precondition guards.",
+      "related_files": [
+        "src/shared/hooks/timeline/timelineFrameCalculators.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts"
+      ],
+      "evidence": [
+        "`calculateDropAtPositionZero` immediately calls `pushUpdate(draggedShotGens[0].id, ...)` and later indexes by loop without checking non-empty alignment.",
+        "The algorithm assumes `draggedShotGens.length === draggedItemIds.length`, but this invariant is not asserted in the calculator itself."
+      ],
+      "suggestion": "Add explicit early-return/assert guards in calculator entry points for empty/mismatched dragged collections and surface a typed error or noop path.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ]
+}

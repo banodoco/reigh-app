@@ -1,0 +1,75 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "high_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/handleError.ts` is a highly imported shared entry point (noted in the blind packet) and combines normalization, logging, notifier-state probing, toast behavior, and callback orchestration in one API.",
+        "`src/types/generationRow.ts` is a global alias re-export while `src/domains/generation/types/shot.ts` imports the domain-local type path directly, indicating split canonical ownership for the same contract.",
+        "`src/integrations/supabase/client.ts` and `src/shared/components/ui/sonner.tsx` both expose global singleton-style runtime access patterns (module-level client/flags, shared toast manager/function), increasing hidden global coupling."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_error_hub_mixes_concerns",
+      "summary": "Central error entry point mixes multiple responsibilities and becomes a cross-cutting ownership hotspot.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/ui/sonner.tsx"
+      ],
+      "evidence": [
+        "`handleError` performs normalization/logging, notifier-state checks, optional UI toast triggering, and callback dispatch in one function.",
+        "Blind packet flags this module as very widely imported, so policy changes in this file ripple broadly.",
+        "Toast infrastructure is globally exported from shared UI (`Toaster`, `toast`), reinforcing app-wide coupling between domain error handling and presentation concerns."
+      ],
+      "suggestion": "Split into explicit layers: keep `handleError` domain/logging-only, move UI notification into a separate adapter (for example, `handleAndNotifyError`) used at UI boundaries, and keep notifier wiring out of the default shared path.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "duplicate_type_ownership_path",
+      "summary": "GenerationRow has dual ownership paths, weakening domain boundary clarity.",
+      "related_files": [
+        "src/types/generationRow.ts",
+        "src/domains/generation/types/shot.ts"
+      ],
+      "evidence": [
+        "`src/types/generationRow.ts` is only a re-export of `@/domains/generation/types/generationRow`.",
+        "`Shot` uses domain-local typing (`./generationRow`) while the blind packet identifies the top-level alias as heavily imported elsewhere.",
+        "This creates two valid import surfaces for one domain contract, making ownership and migration rules less predictable."
+      ],
+      "suggestion": "Choose one canonical import surface for `GenerationRow` (prefer domain path or a documented domain barrel), deprecate the other, and codify with lint/import rules to prevent reintroduction.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "hidden_global_runtime_bootstrap",
+      "summary": "Singleton runtime initialization patterns hide global side effects behind regular function calls.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/components/ui/sonner.tsx"
+      ],
+      "evidence": [
+        "`getSupabaseClient()` mutates module-level state (`instrumentationInstalled`, `clientInstance`) and triggers instrumentation/runtime initialization when first invoked.",
+        "`sonner.tsx` depends on a shared `toastManager` and re-exports global `toast`, another singleton-style runtime surface.",
+        "These implicit globals make subsystem behavior dependent on call order and startup usage patterns rather than explicit composition roots."
+      ],
+      "suggestion": "Introduce explicit app bootstrap/composition wiring that initializes Supabase instrumentation and toast manager once at startup, and expose injected instances/hooks instead of hidden singleton-backed accessors.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

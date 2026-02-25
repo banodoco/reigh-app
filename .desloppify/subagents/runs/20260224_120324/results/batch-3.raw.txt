@@ -1,0 +1,90 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "mid_level_elegance": 76.0
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "`generationTaskRepository.parsePrimaryTaskId` treats non-array `tasks` as `invalid_tasks_shape`, while `generationTransformers.extractTaskId` accepts both `string` and `string[]`, creating divergent interpretation of the same DB field.",
+        "`generationTaskCache` reduces repository mapping payload to `{ taskId, status }`, dropping `queryError` returned by `generationTaskRepository`, so failure context is lost at the cache seam.",
+        "Join-clips metadata initialization uses two different duration-loading boundaries: `clipInitService.getVideoDurationFromUrl` (raw `<video>` element, resolves `0` on error) vs `clipManager/metadata.loadClipDurationResult` (shared uploader extractor + structured failure result), producing inconsistent behavior and error semantics for similar operations.",
+        "Storage boundary usage is split across abstractions: `pages/Home/hooks/auth/storage.ts` uses storage contracts exclusively, while `clipInitService.ts` mixes contract reads with direct local-storage-safe helpers and ad-hoc key handling, increasing seam entropy."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "task_field_shape_divergence",
+      "summary": "Task mapping and generation transformation disagree on accepted `tasks` payload shape.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/lib/generationTransformers.ts"
+      ],
+      "evidence": [
+        "`parsePrimaryTaskId` returns `invalid_tasks_shape` when `tasks` is not an array of strings.",
+        "`extractTaskId` accepts `tasks` as `string | string[] | null` and treats a single string as valid task id."
+      ],
+      "suggestion": "Define a single shared decoder for generation `tasks` payload (e.g., in a shared contract module) and use it in both repository and transformers so status reporting and UI extraction follow one contract.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "mapping_error_context_lost_in_cache",
+      "summary": "Generation-task cache drops query diagnostics from repository results at the handoff.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/lib/generationTaskCache.ts"
+      ],
+      "evidence": [
+        "`GenerationTaskMapping` includes `queryError` for `query_failed` status.",
+        "`GenerationTaskCacheEntry` only stores `taskId` and `status`, so downstream consumers cannot inspect why mapping failed."
+      ],
+      "suggestion": "Extend `GenerationTaskCacheEntry` to include optional `queryError` (or structured failure info) and preserve it when caching mappings to keep the boundary lossless.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "join_clips_duration_boundary_split",
+      "summary": "Join-clips uses two incompatible metadata-loading seams for clip duration.",
+      "related_files": [
+        "src/tools/join-clips/lib/clipInitService.ts",
+        "src/tools/join-clips/lib/clipManager/metadata.ts"
+      ],
+      "evidence": [
+        "`clipInitService` computes duration via a local `<video>` metadata probe and resolves `0` on errors.",
+        "`clipManager/metadata` computes duration via `extractVideoMetadataFromUrl` and returns structured `OperationResult` with explicit failure metadata."
+      ],
+      "suggestion": "Consolidate duration loading behind one shared service that returns a single result contract, then reuse it from both pending-clip consumption and clip manager metadata loading paths.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "storage_seam_inconsistency",
+      "summary": "Storage integration alternates between contract-based and ad-hoc APIs across adjacent modules.",
+      "related_files": [
+        "src/pages/Home/hooks/auth/storage.ts",
+        "src/tools/join-clips/lib/clipInitService.ts"
+      ],
+      "evidence": [
+        "Auth storage wrapper consistently delegates reads/writes/clears through `storageContract` APIs.",
+        "Join-clips initialization mixes `readStorageContract` with direct `readLocalStorageItem`/`writeLocalStorageItem` and manual key shaping."
+      ],
+      "suggestion": "Standardize on one storage boundary for feature code (prefer contract-based decoding/migration), and move ad-hoc localStorage key access behind shared contract helpers.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

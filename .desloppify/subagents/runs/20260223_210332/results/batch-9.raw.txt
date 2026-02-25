@@ -1,0 +1,257 @@
+{
+  "batch": "Full Codebase Sweep",
+  "batch_index": 9,
+  "assessments": {
+    "cross_module_architecture": 61.0,
+    "convention_outlier": 68.0,
+    "error_consistency": 54.0,
+    "abstraction_fitness": 57.0,
+    "api_surface_coherence": 59.0,
+    "authorization_consistency": 38.0,
+    "ai_generated_debt": 63.0,
+    "incomplete_migration": 42.0,
+    "package_organization": 56.0,
+    "high_level_elegance": 58.0,
+    "mid_level_elegance": 52.0,
+    "low_level_elegance": 64.0,
+    "design_coherence": 55.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "holistic_context.architecture lists `src/domains/generation/types/index.ts` as a 207-importer hub while it only re-exports from `src/types/*`, creating a broad type dependency choke point.",
+        "`src/integrations/supabase/client.ts` (148 importers) plus `src/integrations/supabase/legacy/clientProxy.ts` keep two access paths alive for the same client boundary."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "convention_outlier": {
+      "evidence": [
+        "`supabase/functions/complete_task/generation-core.ts` declares `_extractFromArray` with underscore naming unlike prevailing camelCase patterns and it is unused.",
+        "`src/tools/travel-between-images/components/Timeline/utils/time-utils.ts` exists as a pure re-export compatibility file while sibling utilities are concrete implementations."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium"
+    },
+    "error_consistency": {
+      "evidence": [
+        "`supabase/functions/complete_task/generation-core.ts` mixes `throw new Error(...)` (`insertGeneration`, `createVariant`) with null-return error handling (`findExistingGeneration`, `findSourceGenerationByImageUrl`).",
+        "`supabase/functions/complete_task/generation-parent.ts` and `generation-handlers.ts` frequently swallow failures into `null`/`false`, causing heterogeneous caller contracts in the same flow."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "abstraction_fitness": {
+      "evidence": [
+        "`src/shared/components/MediaGallery/hooks/useMediaGalleryPagination.ts` exposes both unified state and backward-compatible legacy setters, increasing indirection and contract surface.",
+        "`src/tools/travel-between-images/components/ShotEditor/hooks/useStructureVideo.ts` carries dual schemas (array + legacy single-video + older camelCase) and dual return APIs (array + primary-field projections).",
+        "Compatibility wrappers (`src/tools/travel-between-images/components/Timeline/utils/time-utils.ts`, `src/integrations/supabase/legacy/clientProxy.ts`) add forwarding layers without new behavior."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 52.0,
+        "indirection_cost": 43.0,
+        "interface_honesty": 56.0
+      }
+    },
+    "api_surface_coherence": {
+      "evidence": [
+        "`useStructureVideo` returns both new (`structureVideos`, mutators) and legacy (`structureVideoPath`, `structureVideoType`, etc.) API shapes in one hook contract.",
+        "`useMediaGalleryPagination` publishes canonical navigation API plus compatibility methods (`setLoadingButton`, `setIsGalleryLoading`) that can drive alternate state transitions."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "authorization_consistency": {
+      "evidence": [
+        "`supabase/functions/_shared/auth.ts` accepts JWT user auth by base64-decoding token payload and trusting `payload.sub` when role is not service-role, without signature verification.",
+        "Multiple endpoints pass `{ allowJwtUserAuth: true }` (e.g., `supabase/functions/create-task/index.ts`, `supabase/functions/ai-prompt/index.ts`, `supabase/functions/stripe-checkout/index.ts`), so this weak path is reused broadly."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "ai_generated_debt": {
+      "evidence": [
+        "Compatibility comments and adapter scaffolding are widespread (`backward compatibility`, `legacy`) across `useStructureVideo`, `useMediaGalleryPagination`, and timeline utility wrappers.",
+        "`supabase/functions/complete_task/generation-core.ts` includes unused helper `_extractFromArray`, indicative of templated or over-generated residue."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    },
+    "incomplete_migration": {
+      "evidence": [
+        "`src/shared/components/ImageGenerationForm/hooks/useLegacyMigrations.ts` still executes six migration hooks at runtime, indicating legacy payloads remain in active path.",
+        "`src/tools/travel-between-images/components/ShotEditor/hooks/useStructureVideo.ts` still migrates snake_case and camelCase legacy keys and coerces deprecated structure types.",
+        "`src/integrations/supabase/legacy/clientProxy.ts` remains exported as a compatibility proxy."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "package_organization": {
+      "evidence": [
+        "holistic_context.structure.directory_profiles shows `src/shared/components/` at 78 files (>10 threshold) with high cross-directory spread (imports_from 10 dirs, imported_by 10 dirs), indicating mixed concerns in one flat package.",
+        "`src/pages/Home/components/` has 26 files and `src/shared/components/MediaLightbox/components/` has 26 files, suggesting broad UI/logic co-location rather than narrower purpose folders.",
+        "holistic_context.structure.coupling_matrix shows heavy edges like `src/shared/components/ → src/shared/components/ui/ = 111` and `src/tools/travel-between-images/components/ → src/shared/components/ui/ = 57`, reinforcing high central coupling."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Major subsystems (MediaLightbox, ImageGenerationForm, travel-between-images) are feature-rich but currently carry migration and compatibility ownership simultaneously.",
+        "Type and error hubs (`src/domains/generation/types/index.ts`, `src/shared/lib/errorHandling/handleError.ts`) centralize cross-cutting concerns but increase blast radius."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Generation completion handoff (`generation-handlers.ts` + `generation-parent.ts` + `generation-core.ts`) uses mixed failure channels (`throw`, `null`, `false`) and multiple fallback branches.",
+        "Pagination and structure-video seams maintain dual old/new protocols, causing extra glue logic at module boundaries."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "`useMediaGalleryPagination` performs `setTimeout(() => setRawPage(page), 0)` during render-path correction, which is brittle and hard to reason about.",
+        "Most files still keep readable naming and functional decomposition despite compatibility overhead."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    },
+    "design_coherence": {
+      "evidence": [
+        "Several modules are explicitly bi-modal (new API + legacy adapter) rather than single-responsibility designs (`useStructureVideo`, `useMediaGalleryPagination`).",
+        "Runtime migration logic is embedded in core feature hooks, blending persistence migration, UI behavior, and domain logic."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "authorization_consistency",
+      "identifier": "unverified_jwt_sub_acceptance",
+      "summary": "JWT user auth path trusts decoded payload without cryptographic verification, enabling forged user impersonation.",
+      "related_files": [
+        "supabase/functions/_shared/auth.ts",
+        "supabase/functions/create-task/index.ts",
+        "supabase/functions/ai-prompt/index.ts",
+        "supabase/functions/stripe-checkout/index.ts"
+      ],
+      "evidence": [
+        "`authenticateRequest` parses JWT via `atob` and returns `userId: payload.sub` when `allowJwtUserAuth` is enabled, but does not verify signature/issuer/audience/expiry.",
+        "Endpoints that set `{ allowJwtUserAuth: true }` inherit this trust model, widening impact across task creation, AI prompting, and billing flows."
+      ],
+      "suggestion": "Replace payload-decoding auth with verified JWT validation via Supabase auth (`supabaseAdmin.auth.getUser(token)` or JWKS signature verification with claim checks), then stage rollout: (1) add `verifyJwtToken` helper in `_shared/auth.ts`, (2) switch all `allowJwtUserAuth` call sites to verified path behind a temporary feature flag, (3) remove the raw decode branch; validate with `deno test supabase/functions/_shared/auth.test.ts supabase/functions/create-task/index.test.ts supabase/functions/stripe-checkout/index.test.ts`.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "runtime_legacy_migration_stack_persists",
+      "summary": "Legacy data migrations are still executed inside live feature hooks, indicating the migration has not completed and keeps complexity in hot paths.",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/hooks/useLegacyMigrations.ts",
+        "src/shared/components/ImageGenerationForm/types.ts",
+        "src/tools/travel-between-images/components/ShotEditor/hooks/useStructureVideo.ts"
+      ],
+      "evidence": [
+        "`useLegacyMigrations` invokes six migration hooks on active render paths (base64/resource/reference/lora/scene cleanup).",
+        "`useStructureVideo` supports array format plus legacy snake_case/camelCase fields and actively migrates old structure types to `uni3c`."
+      ],
+      "suggestion": "Execute a staged migration retirement: (1) add telemetry counters on each legacy branch and migration hook, (2) run a backfill script to normalize persisted settings to new schema, (3) remove legacy fields and adapters in `useStructureVideo` and `ImageGenerationForm` once legacy-hit rate is near zero, (4) enforce schema via runtime validator in write path; validate with `pnpm vitest src/shared/components/ImageGenerationForm src/tools/travel-between-images/components/ShotEditor/hooks/useStructureVideo.ts` and targeted e2e smoke.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "mixed_throw_null_bool_error_contracts",
+      "summary": "Generation completion modules use incompatible failure contracts (`throw`, `null`, `false`) across sibling handlers.",
+      "related_files": [
+        "supabase/functions/complete_task/generation-core.ts",
+        "supabase/functions/complete_task/generation-parent.ts",
+        "supabase/functions/complete_task/generation-handlers.ts"
+      ],
+      "evidence": [
+        "`insertGeneration`/`createVariant` throw on DB errors, while lookup helpers in the same module return `null` and log.",
+        "Parent/handler modules frequently return `null`/`false` on failure, requiring callers to infer failure semantics per function."
+      ],
+      "suggestion": "Standardize on one explicit result contract (`Result<T, AppError>` or throw-only with top-level boundary): (1) define shared completion error type, (2) refactor core helpers to return consistent typed outcomes, (3) adapt callers once, (4) centralize logging at boundary to prevent duplicate logs; validate with `deno test supabase/functions/complete_task` plus regression tests for each handler branch.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "dual_mode_hook_contracts",
+      "summary": "Hooks expose simultaneous old/new APIs, producing oversized and internally competing public contracts.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/hooks/useStructureVideo.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryPagination.ts"
+      ],
+      "evidence": [
+        "`useStructureVideo` returns both array-first API and legacy singular projection fields from the same state.",
+        "`useMediaGalleryPagination` exposes canonical `navigationState` plus legacy mutators (`setLoadingButton`, `setIsGalleryLoading`) that can bypass preferred flow."
+      ],
+      "suggestion": "Split into explicit v2 APIs with adapters: (1) introduce `useStructureVideosV2` and `useNavigationPaginationV2`, (2) migrate call sites module-by-module, (3) keep thin adapter wrappers temporarily in deprecated files, (4) remove legacy setters/projections; validate with `pnpm vitest src/shared/components/MediaGallery/hooks src/tools/travel-between-images/components/ShotEditor/hooks` and TypeScript `pnpm tsc --noEmit`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "shared_components_flat_sprawl",
+      "summary": "Large flat UI directories exceed cohesion thresholds and create heavy cross-directory coupling.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/index.ts",
+        "src/shared/components/ImageGenerationForm/index.tsx",
+        "src/tools/travel-between-images/components/Timeline.tsx"
+      ],
+      "evidence": [
+        "holistic_context.structure reports `src/shared/components/` with 78 files and 10 import source dirs/10 importer dirs, indicating mixed ownership.",
+        "Coupling matrix edges are high (`src/shared/components/ → src/shared/components/ui/ = 111`, `src/tools/travel-between-images/components/ → src/shared/components/ui/ = 57`), showing central dependency concentration."
+      ],
+      "suggestion": "Staged reorg plan: (1) create target folders `src/shared/components/{feedback,media,forms,modals,layout}` and `src/shared/components/feature/{image-generation,media-lightbox}`; (2) move leaf/pure UI files first, then feature composites, then hook-adjacent components; (3) after each move run import updates with `pnpm tsx scripts/update-imports.ts` (or `tsc`-guided codemod) and verify via `pnpm tsc --noEmit` + `pnpm vitest`; (4) finalize with barrel cleanup and enforce boundaries via eslint import rules.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "compat_wrappers_and_dead_helpers",
+      "summary": "Residual compatibility wrappers and dead helper code increase maintenance noise without delivering behavior.",
+      "related_files": [
+        "supabase/functions/complete_task/generation-core.ts",
+        "src/tools/travel-between-images/components/Timeline/utils/time-utils.ts",
+        "src/integrations/supabase/legacy/clientProxy.ts"
+      ],
+      "evidence": [
+        "`generation-core.ts` contains unused `_extractFromArray` helper.",
+        "`time-utils.ts` is a pure re-export compatibility shim.",
+        "`clientProxy.ts` proxies every property to canonical client while only warning in DEV."
+      ],
+      "suggestion": "Trim debt in phases: (1) remove unused helpers immediately, (2) replace shim imports at call sites with canonical modules, (3) delete compatibility files after one release window; validate with `rg` import checks (`rg \"Timeline/utils/time-utils|legacy/clientProxy|_extractFromArray\" src supabase/functions`) and full `pnpm tsc --noEmit` + tests.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

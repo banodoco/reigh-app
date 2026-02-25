@@ -35,13 +35,13 @@ vi.mock('react-router-dom', () => ({
 }));
 
 vi.mock('@/integrations/supabase/client', () => ({
-  supabase: {
+  getSupabaseClient: () => ({
     from: fromMock,
-  },
+  }),
 }));
 
-vi.mock('@/shared/lib/errorHandling/handleError', () => ({
-  handleError: handleErrorMock,
+vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
+  normalizeAndPresentError: handleErrorMock,
 }));
 
 vi.mock('@/shared/hooks/useOnboarding', () => ({
@@ -114,7 +114,7 @@ describe('useOnboardingFlow', () => {
     expect(handleErrorMock).toHaveBeenCalledWith(
       expect.any(Error),
       expect.objectContaining({
-        context: 'Layout',
+        context: 'useOnboardingFlow.handleOnboardingClose',
         showToast: false,
       })
     );

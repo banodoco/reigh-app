@@ -4,8 +4,8 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import type { GenerationRow } from '@/types/shots';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import type { GenerationRow } from '@/domains/generation/types';
 
 interface UseSmoothContinuationsProps {
   /** Whether smooth continuations is enabled */
@@ -76,7 +76,7 @@ export function useSmoothContinuations({
         updates.map(({ id, newFrame }) => updateTimelineFrame(id, newFrame))
       ).then(() => {
       }).catch((err) => {
-        handleError(err, { context: 'SmoothContinuations', showToast: false });
+        normalizeAndPresentError(err, { context: 'SmoothContinuations', showToast: false });
       });
     }
   }, [smoothContinuations, images, maxFrameLimit, updateTimelineFrame, readOnly]);

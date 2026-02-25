@@ -1,0 +1,147 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 62.0,
+    "mid_level_elegance": 58.0,
+    "low_level_elegance": 61.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "Task payload construction is spread across large param-bag builders with many conditional spreads and legacy compatibility branches (`src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts`, `src/shared/lib/tasks/joinClips.ts`, `src/shared/lib/tasks/individualTravelSegment.ts`, `src/shared/lib/tasks/magicEdit.ts`).",
+        "Multiple wrappers mainly forward context/props with little semantic translation, e.g. `useButtonGroupProps` copies shared fields into four almost-identical objects and is consumed by `LightboxLayout`.",
+        "There are broad orchestrator hooks that aggregate many sub-hooks and expose very large return contracts (`src/tools/edit-images/hooks/useInlineEditState.ts`, `src/shared/components/MediaLightbox/ImageLightbox.tsx`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 57.0,
+        "indirection_cost": 45.0,
+        "interface_honesty": 64.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Cross-boundary task identity/routing fields are resolved via repeated fallback paths (`orchestrator_task_id`, `run_id`, nested `orchestrator_details`, etc.) in both client builders and edge completion logic, creating seam entropy (`src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts`, `src/shared/lib/tasks/joinClips.ts`, `supabase/functions/complete_task/orchestrator.ts`, `supabase/functions/complete_task/generation.ts`).",
+        "Realtime freshness/invalidation concerns are split across query hooks and global manager with multiple side-channel notifications (`src/shared/hooks/useTasks.ts`, `src/shared/realtime/DataFreshnessManager.ts`).",
+        "Video/image lightbox composition requires many adapter layers before rendering (`ImageLightbox` -> `toLightboxLayoutProps` -> `LightboxLayout` + grouped button/workflow props), increasing handoff complexity."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Several files contain long control-flow blocks with many branch-specific mutations to mutable objects (notably orchestrator payload assembly in `src/shared/lib/tasks/joinClips.ts` and `src/shared/lib/tasks/individualTravelSegment.ts`).",
+        "Local helper extraction is mixed: some modules are decomposed into many thin helpers while still returning huge state objects (`useInlineEditState`), which leaves callsites difficult to reason about.",
+        "`realtime` instrumentation performs runtime monkey-patching (`console.warn`, `Object.defineProperty` on third-party client internals), which is direct but brittle and hard to locally reason about under failure."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "task-routing-field-fragmentation",
+      "summary": "Task orchestration identity is passed through inconsistent field paths, forcing fallback-heavy seam logic across client and edge layers.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/joinClips.ts",
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/complete_task/generation.ts"
+      ],
+      "evidence": [
+        "Payload builders emit orchestration identifiers in mixed locations (`orchestration_contract`, top-level ids, nested `orchestrator_details`).",
+        "Completion code queries sibling tasks by multiple JSON paths with OR predicates and fallback strategy (run_id paths, orchestrator_task_id paths).",
+        "Generation routing then re-extracts parent/child/based_on semantics via a separate params extractor layer."
+      ],
+      "suggestion": "Define a single canonical orchestration envelope schema (shared TS + edge contract) with one source path per identity field, then migrate builders and completion queries to only that schema.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "lightbox-prop-forwarding-layer",
+      "summary": "Lightbox control prop-building adds indirection cost while performing mostly mechanical field forwarding.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx"
+      ],
+      "evidence": [
+        "`useButtonGroupProps` duplicates shared context injection in four builders with near-identical field sets.",
+        "The hook memoizes on `[params]`, so upstream object identity changes can negate memo value.",
+        "`LightboxLayout` still consumes broad prop objects and context hooks, so this layer does not substantially reduce interface complexity."
+      ],
+      "suggestion": "Replace builder fan-out with one typed `LightboxControlsContext` object consumed directly by button groups, and keep per-group additions local at callsites where behavior differs.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "mega-orchestrator-hooks",
+      "summary": "Large orchestration hooks accumulate many responsibilities and return oversized state contracts, reducing local clarity.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/ShotImageManager/ShotImageManagerContainer.tsx"
+      ],
+      "evidence": [
+        "`useInlineEditState` coordinates environment, persistence, inpainting, magic edit, reposition, img2img, source generation, star toggling, and model assembly in one hook.",
+        "Callers consume very wide nested return trees (`canvasEnvironment`, `inpaintingState`, `transformState`, `generationState`, etc.), which increases coupling.",
+        "Similar orchestration-heavy composition exists in image lightbox and shot image manager container, suggesting a recurring pattern."
+      ],
+      "suggestion": "Split by lifecycle boundary (data loading, edit-mode state machine, action commands, presentational selectors) and expose narrower hook APIs per panel/view.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "param-bag-payload-builders",
+      "summary": "Task payload modules rely on very large optional parameter bags with mutation-heavy assembly, obscuring stable contracts.",
+      "related_files": [
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/magicEdit.ts",
+        "src/shared/lib/tasks/imageGeneration.ts"
+      ],
+      "evidence": [
+        "Each module defines broad params interfaces with many optional compatibility fields and mixed legacy/current concerns.",
+        "Payload construction uses long conditional assignment blocks and ad-hoc normalization helpers.",
+        "Similar patterns repeat across task families, but without one shared typed composition strategy."
+      ],
+      "suggestion": "Introduce per-task discriminated input modes (legacy/current, basic/advanced, single/batch) and compile to a strict canonical payload via shared composable builders.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "global-realtime-monkeypatch-seam",
+      "summary": "Realtime instrumentation crosses module boundaries via global monkey-patching, creating brittle integration seams.",
+      "related_files": [
+        "src/integrations/supabase/instrumentation/realtime/index.ts",
+        "src/shared/realtime/DataFreshnessManager.ts",
+        "src/shared/hooks/useTasks.ts"
+      ],
+      "evidence": [
+        "Instrumentation rewires `console.warn` and internal `realtime.socket`/`conn.transport` properties through `Object.defineProperty` interception.",
+        "Polling behavior and fetch-failure backoff are managed elsewhere in `DataFreshnessManager`, so stability logic spans disconnected mechanisms.",
+        "`useTasks` depends on this ecosystem via freshness callbacks and polling config, coupling query behavior to hidden runtime patches."
+      ],
+      "suggestion": "Move to explicit realtime health adapters (event emitters/hooks) instead of monkey-patches, and centralize connection-state transitions in one observable contract used by both instrumentation and query polling.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
-import type { GenerationRow } from '@/types/shots';
-import type { Shot } from '@/types/shot';
+import type { GenerationRow } from '@/domains/generation/types';
+import type { Shot } from '@/domains/generation/types';
 import { queryKeys } from '@/shared/lib/queryKeys';
 
 // ---------------------------------------------------------------------------

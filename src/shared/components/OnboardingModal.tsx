@@ -7,7 +7,7 @@ import { SegmentedControl, SegmentedControlItem } from '@/shared/components/ui/s
 import { PrivacyToggle } from '@/shared/components/ui/privacy-toggle';
 
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
-import { useDarkMode } from '@/shared/hooks/useDarkMode';
+import { useDarkMode } from '@/shared/hooks/core/useDarkMode';
 import { useMediumModal } from '@/shared/hooks/useModal';
 import { useScrollFade } from '@/shared/hooks/useScrollFade';
 import { dispatchAppEvent } from '@/shared/lib/typedEvents';

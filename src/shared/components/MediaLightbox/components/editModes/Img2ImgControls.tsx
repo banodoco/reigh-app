@@ -9,8 +9,8 @@ import { Button } from '@/shared/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { CheckCircle, Loader2, Plus, Wand2 } from 'lucide-react';
 import { Textarea } from '@/shared/components/ui/textarea';
-import { cn } from '@/shared/lib/utils';
-import { ActiveLoRAsDisplay } from '@/shared/components/ActiveLoRAsDisplay';
+import { cn } from '@/shared/components/ui/contracts/cn';
+import { ActiveLoRAsDisplay } from '@/features/lora/components/ActiveLoRAsDisplay';
 import { LoraSelectorModal, LoraModel } from '@/shared/components/LoraSelectorModal';
 import type { UseLoraManagerReturn } from '@/shared/hooks/useLoraManager';
 

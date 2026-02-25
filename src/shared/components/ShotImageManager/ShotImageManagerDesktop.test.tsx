@@ -48,7 +48,7 @@ vi.mock('../ImageDragPreview', () => ({
   SingleImagePreview: () => <div data-testid="single-image-preview" />,
 }));
 
-vi.mock('../BatchDropZone', () => ({
+vi.mock('./components/BatchDropZone', () => ({
   default: ({ children }: { children: (isFileDragOver: boolean, dropTargetIndex: number | null) => React.ReactNode }) => (
     <div data-testid="batch-drop-zone">{children(false, null)}</div>
   ),
@@ -62,7 +62,7 @@ vi.mock('../MediaLightbox', () => ({
   ),
 }));
 
-vi.mock('@/shared/hooks/useMobile', () => ({
+vi.mock('@/shared/hooks/mobile', () => ({
   useIsMobile: () => mocks.isMobile,
 }));
 
@@ -99,7 +99,7 @@ vi.mock('./hooks/useAdjacentSegmentsData', () => ({
   useAdjacentSegmentsData: () => [],
 }));
 
-vi.mock('@/shared/lib/aspectRatios', () => ({
+vi.mock('@/shared/lib/media/aspectRatios', () => ({
   getPreviewDimensions: () => ({ width: 200, height: 112 }),
 }));
 

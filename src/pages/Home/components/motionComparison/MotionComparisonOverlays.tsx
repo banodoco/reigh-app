@@ -1,4 +1,4 @@
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import type { MouseEvent } from 'react';
 
 interface MotionComparisonOverlaysProps {

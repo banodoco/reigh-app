@@ -2,7 +2,12 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import Groq from "npm:groq-sdk@0.26.0";
-import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
+import {
+  checkRateLimit,
+  isRateLimitExceededFailure,
+  rateLimitFailureResponse,
+  RATE_LIMITS,
+} from "../_shared/rateLimit.ts";
 import { authenticateRequest } from "../_shared/auth.ts";
 import { jsonResponse } from "../_shared/http.ts";
 
@@ -41,8 +46,19 @@ serve(async (req) => {
     RATE_LIMITS.expensive,
     '[AI-PROMPT]'
   );
-  if (!rateLimitResult.allowed) {
-    return rateLimitResponse(rateLimitResult, RATE_LIMITS.expensive);
+  if (!rateLimitResult.ok) {
+    if (isRateLimitExceededFailure(rateLimitResult)) {
+      return rateLimitFailureResponse(rateLimitResult, RATE_LIMITS.expensive);
+    }
+    return jsonResponse({ error: 'Rate limit service unavailable' }, 503);
+  }
+
+  if (rateLimitResult.policy === 'fail_open') {
+    console.warn('[AI-PROMPT] Rate limit check degraded; allowing request', {
+      userId: auth.userId,
+      reason: rateLimitResult.value.degraded?.reason,
+      message: rateLimitResult.value.degraded?.message,
+    });
   }
 
   let body: Record<string, unknown>;

@@ -1,0 +1,109 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 77.0,
+    "dependency_health": 84.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "Task payload handling is split across multiple overlapping contracts and raw fallbacks: `buildTravelBetweenImagesPayload` writes `orchestrator_details` plus family/task-view contracts, while `createIndividualTravelSegmentTask` rehydrates by probing `rawParams`, `orchestratorDetails`, `taskViewContract`, and `familyContract` for the same semantic fields.",
+        "`VideoTravelDetails` must read many alternate shapes (`individualSegmentParams`, `orchestratorDetails`, `taskViewContract`, `rawParams`) to derive one UI model, indicating interface ambiguity and leaky abstraction boundaries.",
+        "Editing UI contains duplicated behavior abstractions instead of one shared unit: both `InlineEditView` and `LightboxLayout` implement near-identical annotation delete/free-form floating controls with separate styling and wiring."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 74.0,
+        "indirection_cost": 79.0,
+        "interface_honesty": 73.0
+      }
+    },
+    "dependency_health": {
+      "evidence": [
+        "Credits hook access remains three-layered (`shared/hooks/useCredits` -> `shared/hooks/compat/useCredits` -> `features/billing/hooks/useCredits`), creating duplicate entry points and a persistent alias dependency edge.",
+        "The compat layer introduces governance/deprecation dependencies into runtime hook calls (`getDeprecationPolicy`, `signalPastRemovalTargetUsage`), so consumers retain coupling to migration plumbing instead of a single stable import path."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "travel_payload_contract_fragmentation",
+      "summary": "Travel task payload abstraction is fragmented across overlapping contracts and raw fallback reads.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/components/TaskDetails/VideoTravelDetails.tsx",
+        "src/shared/lib/tasks/__tests__/travelPayloadReader.test.ts"
+      ],
+      "evidence": [
+        "`payloadBuilder` writes both top-level orchestrator fields and contract blocks (`orchestration_contract`, `task_view_contract`, `family_contract`) for the same task.",
+        "`individualTravelSegment` rebuilds state by repeatedly probing multiple sources (`rawParams`, `orchestratorDetails`, `taskViewContract`) for identical semantics like model/prompt/segment frames.",
+        "`VideoTravelDetails` repeats the same multi-source probing pattern to render details, proving the write/read contract is not singular."
+      ],
+      "suggestion": "Define one canonical read/write schema for travel-family fields (prefer contract blocks), migrate builders/readers/UI to that schema only, and gate legacy fallback parsing behind a temporary adapter with explicit removal criteria.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "contract_multiplicity_in_task_payloads"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "duplicate_annotation_overlay_logic",
+      "summary": "Annotation floating controls are duplicated between inline editor and lightbox layout.",
+      "related_files": [
+        "src/tools/edit-images/components/InlineEditView.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx",
+        "src/shared/components/MediaLightbox/components/StrokeOverlay.tsx"
+      ],
+      "evidence": [
+        "`InlineEditView` defines `AnnotationButtons` with selected-shape lookup, free-form toggle, and delete positioning logic.",
+        "`LightboxLayout` defines a separate `AnnotationButtons` with the same interaction model and near-identical control semantics.",
+        "Behavioral parity is maintained by duplication, increasing drift risk when annotation interaction changes."
+      ],
+      "suggestion": "Extract a shared annotation-control component/hook (position resolution + free-form/delete actions + button rendering variants) and consume it in both inline and lightbox surfaces.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "ui_behavior_reimplemented_across_surfaces"
+    },
+    {
+      "dimension": "dependency_health",
+      "identifier": "credits_hook_alias_chain_persists",
+      "summary": "Credits hook compatibility alias chain keeps redundant dependency paths active.",
+      "related_files": [
+        "src/shared/hooks/useCredits.ts",
+        "src/shared/hooks/compat/useCredits.ts"
+      ],
+      "evidence": [
+        "`useCredits.ts` is a pure re-export layer pointing to `compat/useCredits`.",
+        "`compat/useCredits` forwards to `features/billing/hooks/useCredits` while adding governance/deprecation runtime calls, preserving multiple valid import paths for the same dependency.",
+        "Removal target metadata exists, but the alias remains first-class and continues to add cross-module coupling."
+      ],
+      "suggestion": "Complete the migration to `@/features/billing/hooks/useCredits`, remove `shared/hooks/useCredits` entrypoint, and restrict any remaining deprecation signaling to compile-time or dev-only tooling rather than runtime hook wrappers.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "legacy_alias_dependency_surface"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Canonical data contracts are defined but not enforced as the single read/write path.",
+      "Cross-surface UI behavior is copied instead of centralized behind reusable interaction primitives.",
+      "Migration shims remain in active runtime paths longer than necessary, preserving redundant dependency edges."
+    ],
+    "likely_symptoms": [
+      "travel_payload_contract_fragmentation",
+      "duplicate_annotation_overlay_logic",
+      "credits_hook_alias_chain_persists"
+    ],
+    "possible_false_positives": []
+  }
+}

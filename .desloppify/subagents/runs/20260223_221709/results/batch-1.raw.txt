@@ -1,0 +1,68 @@
+{
+  "batch": "Conventions & Errors",
+  "batch_index": 1,
+  "assessments": {
+    "error_consistency": 76.0,
+    "mid_level_elegance": 81.0
+  },
+  "dimension_notes": {
+    "error_consistency": {
+      "evidence": [
+        "In `src/domains/generation/types/generationParams.ts`, every declared field in `GenerationParams` is optional (`prompt?`, `seed?`, etc.), so the type does not express any required invariant for valid generation input.",
+        "The same interface includes an unrestricted index signature (`[key: string]: unknown`), which permits arbitrary misspelled or unsupported keys to pass type-checking.",
+        "In `src/domains/generation/types/index.ts`, `GenerationParams` is re-exported from the domain barrel, spreading this loose error contract across many consumers."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "`GenerationParams` mixes persistence-style snake_case keys (`base_prompt`, `guidance_scale`, `num_inference_steps`) directly in a domain-shared type.",
+        "The barrel in `src/domains/generation/types/index.ts` re-exports this boundary-shaped type as a first-class domain contract, rather than isolating translation at a seam.",
+        "The broad index signature in `GenerationParams` adds ad-hoc extension behavior at the same boundary, increasing glue-code ambiguity for callers."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "error_consistency",
+      "identifier": "generation_params_over_permissive_contract",
+      "summary": "GenerationParams is too permissive, letting invalid inputs bypass typed failure paths.",
+      "related_files": [
+        "src/domains/generation/types/generationParams.ts",
+        "src/domains/generation/types/index.ts"
+      ],
+      "evidence": [
+        "All known fields are optional in `GenerationParams`, so missing critical values are type-valid.",
+        "The `[key: string]: unknown` index signature allows arbitrary keys and typoed params without compile-time feedback.",
+        "The barrel export makes this permissive contract the shared default across generation call paths."
+      ],
+      "suggestion": "Split strict core fields from extensibility: define required/validated core keys, replace the global index signature with an explicit `extra?: Record<string, unknown>`, and validate unknown payloads at ingestion before exposing `GenerationParams` to the rest of the domain.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "boundary_shape_leaks_into_domain_type",
+      "summary": "Storage-oriented param naming is exported as the domain API without an explicit translation seam.",
+      "related_files": [
+        "src/domains/generation/types/generationParams.ts",
+        "src/domains/generation/types/index.ts"
+      ],
+      "evidence": [
+        "`GenerationParams` encodes snake_case keys that appear persistence/API-oriented rather than internal TS domain conventions.",
+        "`index.ts` re-exports `GenerationParams` directly, so callers consume boundary naming instead of a normalized domain shape.",
+        "No separate mapped type in this module distinguishes persistence contract from internal orchestration contract."
+      ],
+      "suggestion": "Introduce two explicit contracts (e.g., `PersistedGenerationParams` and `GenerationParams`), keep snake_case only at storage/API edges, and add a single mapper at the boundary so internal handoffs stay consistent and predictable.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

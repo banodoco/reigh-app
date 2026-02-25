@@ -24,7 +24,8 @@ import Layout from './Layout'; // Import the new Layout component
 import { AppEnv } from '@/types/env';
 import { ReighLoading } from '@/shared/components/ReighLoading';
 import { ToolErrorBoundary } from '@/shared/components/ToolErrorBoundary';
-import { hasStoredSessionToken } from '@/shared/lib/supabaseSession';
+import { probeStoredSessionToken } from '@/shared/lib/supabaseSession';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 // Determine the environment
 const currentEnv = (import.meta.env.VITE_APP_ENV?.toLowerCase() || AppEnv.WEB);
@@ -34,21 +35,25 @@ const LazyLoadingFallback = () => (
   <ReighLoading />
 );
 
-// Read cached session from localStorage without acquiring navigator.locks.
-// Key format matches GoTrueClient: sb-${projectRef}-auth-token
-function hasStoredSession(): boolean {
-  try {
-    return hasStoredSessionToken();
-  } catch {
-    return false;
-  }
-}
-
 // Synchronous loader — no navigator.locks, no network request.
 // Layout handles the authoritative auth check; if the stored session is expired,
 // AuthContext will detect it and Layout will redirect back to /home.
 function authRedirectLoader() {
-  return hasStoredSession() ? redirect('/tools/travel-between-images') : null;
+  const storedSessionProbe = probeStoredSessionToken();
+  if (!storedSessionProbe.ok) {
+    normalizeAndPresentError(storedSessionProbe.error, {
+      context: 'routes.authRedirect.storageProbe',
+      showToast: false,
+      logData: {
+        errorCode: storedSessionProbe.errorCode,
+        recoverable: storedSessionProbe.recoverable,
+        policy: storedSessionProbe.policy,
+      },
+    });
+    return null;
+  }
+
+  return storedSessionProbe.value ? redirect('/tools/travel-between-images') : null;
 }
 
 const router = createBrowserRouter([

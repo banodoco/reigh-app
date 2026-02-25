@@ -7,8 +7,7 @@
  * - Realtime connection health status
  */
 
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import { toast } from '@/shared/components/ui/sonner';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 type RealtimeStatus = 'connected' | 'disconnected' | 'error';
 type PollingInterval = number | false; // false = no polling
@@ -183,15 +182,34 @@ class DataFreshnessManager {
       if (now - this.lastErrorToastTime > this.ERROR_TOAST_THROTTLE_MS) {
         this.lastErrorToastTime = now;
 
-        // Customize message based on error type
-        const userMessage = this.getUserFriendlyErrorMessage(errorType, newCount);
-        toast.error(userMessage, {
-          duration: 8000,
-          description: 'Data may be outdated. Will retry automatically.',
-          id: 'network-error-toast', // Prevent duplicate toasts
+        this.reportCircuitBreakerError({
+          queryKey: key,
+          failureCount: newCount,
+          errorType,
+          error,
         });
       }
     }
+  }
+
+  private reportCircuitBreakerError(input: {
+    queryKey: string;
+    failureCount: number;
+    errorType: string;
+    error: Error;
+  }) {
+    const userMessage = this.getUserFriendlyErrorMessage(input.errorType, input.failureCount);
+    normalizeAndPresentError(new Error('Data may be outdated. Will retry automatically.'), {
+      context: 'DataFreshnessManager.onFetchFailure',
+      toastTitle: userMessage,
+      showToast: true,
+      logData: {
+        queryKey: this.parseQueryKey(input.queryKey),
+        failureCount: input.failureCount,
+        errorType: input.errorType,
+        errorMessage: input.error.message,
+      },
+    });
   }
 
   /**
@@ -333,7 +351,7 @@ class DataFreshnessManager {
       try {
         callback();
       } catch (error) {
-        handleError(error, { context: 'DataFreshnessManager', showToast: false });
+        normalizeAndPresentError(error, { context: 'DataFreshnessManager', showToast: false });
       }
     });
   }
@@ -342,7 +360,10 @@ class DataFreshnessManager {
 // Singleton instance - single source of truth for the entire app
 export const dataFreshnessManager = new DataFreshnessManager();
 
-// Export for debugging in browser console (dev only)
-if (import.meta.env.DEV && typeof window !== 'undefined') {
+/** Dev-only helper for wiring debug globals during app bootstrap. */
+export function registerDataFreshnessManagerDebugGlobal(): void {
+  if (!import.meta.env.DEV || typeof window === 'undefined') {
+    return;
+  }
   window.__DATA_FRESHNESS_MANAGER__ = dataFreshnessManager;
 }

@@ -3,7 +3,7 @@ import { Input } from "@/shared/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
 import { Search } from 'lucide-react';
-import { useIsMobile } from '@/shared/hooks/useMobile';
+import { useIsMobile } from '@/shared/hooks/mobile';
 
 import { CommunityLorasTabProps, LoraModel, ModelFilterCategory, SortOption } from '../types';
 import { useLoraFilters } from '../hooks/useLoraFilters';
@@ -195,8 +195,8 @@ export const CommunityLorasTab: React.FC<CommunityLorasTabProps> = ({
 
       {/* Description Modal */}
       <DescriptionModal
-        isOpen={descriptionModalOpen}
-        onClose={() => setDescriptionModalOpen(false)}
+        open={descriptionModalOpen}
+        onOpenChange={setDescriptionModalOpen}
         title={selectedDescription.title}
         description={selectedDescription.description}
       />

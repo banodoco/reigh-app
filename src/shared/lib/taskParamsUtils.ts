@@ -4,6 +4,8 @@
  * This module provides a single source of truth for parsing task parameters,
  * ensuring consistent behavior across TasksPane, MediaLightbox, and other components.
  */
+import { buildTaskPayloadSnapshot } from './tasks/taskPayloadSnapshot';
+import { createTravelPayloadReader, type TravelPayloadSource } from './tasks/travelPayloadReader';
 
 /**
  * Parse task params, handling both string and object formats
@@ -33,6 +35,13 @@ export function parseTaskParams(params: string | Record<string, unknown> | null 
  */
 export function deriveInputImages(parsedParams: Record<string, unknown>): string[] {
   const params = parsedParams;
+  if (isTravelTaskParams(params)) {
+    const travelImages = deriveTravelInputImages(params);
+    if (travelImages.length > 0) {
+      return travelImages;
+    }
+  }
+
   const orchestratorDetails = asRecord(params.orchestrator_details);
   const orchestratorPayload = asRecord(params.full_orchestrator_payload);
   const segmentParams = asRecord(params.individual_segment_params);
@@ -100,6 +109,10 @@ export function deriveInputImages(parsedParams: Record<string, unknown>): string
  */
 export function derivePrompt(parsedParams: Record<string, unknown>): string | null {
   const params = parsedParams;
+  if (isTravelTaskParams(params)) {
+    return deriveTravelPrompt(params);
+  }
+
   const orchestratorDetails = asRecord(params.orchestrator_details);
   const orchestratorPayload = asRecord(params.full_orchestrator_payload);
   const segmentParams = asRecord(params.individual_segment_params);
@@ -132,21 +145,22 @@ export function derivePrompt(parsedParams: Record<string, unknown>): string | nu
   }
 
   // For full timeline/orchestrated tasks
-  // Prefer enhanced prompts (AI-improved) over base prompts when available
+  // The global base_prompt is what the user typed in the prompt field.
+  // Per-pair overrides (base_prompts_expanded) are segment-specific and shouldn't
+  // be shown as the task-level prompt — they're misleading when the user explicitly
+  // cleared the global prompt.
   const enhancedFromOrchestratorDetails = asStringArray(orchestratorDetails?.enhanced_prompts_expanded);
   const enhancedFromOrchestratorPayload = asStringArray(orchestratorPayload?.enhanced_prompts_expanded);
-  const baseFromOrchestratorDetails = asStringArray(orchestratorDetails?.base_prompts_expanded);
-  const baseFromOrchestratorPayload = asStringArray(orchestratorPayload?.base_prompts_expanded);
   return (
     pickFirstString(
-      enhancedFromOrchestratorDetails?.[0],
-      enhancedFromOrchestratorPayload?.[0],
-      baseFromOrchestratorDetails?.[0],
-      baseFromOrchestratorPayload?.[0],
       orchestratorDetails?.base_prompt,
       orchestratorPayload?.base_prompt,
       params.base_prompt,
       params.prompt,
+      // Fall back to enhanced prompts (AI-improved) but NOT base_prompts_expanded
+      // which are per-pair overrides, not task-level prompts.
+      enhancedFromOrchestratorDetails?.[0],
+      enhancedFromOrchestratorPayload?.[0],
     ) ?? null
   );
 }
@@ -232,6 +246,114 @@ export function extractLoras(parsedParams: Record<string, unknown>): LoraInfo[] 
 function extractLoraDisplayName(url: string): string {
   const fileName = url.split('/').pop() || 'Unknown';
   return fileName.replace(/\.(safetensors|ckpt|pt)$/i, '').replace(/_/g, ' ');
+}
+
+const TRAVEL_SEGMENT_IMAGE_SOURCE_ORDER: TravelPayloadSource[] = [
+  'individualSegmentParams',
+  'taskViewContract',
+  'familyContract',
+  'rawParams',
+];
+
+const TRAVEL_TIMELINE_IMAGE_SOURCE_ORDER: TravelPayloadSource[] = [
+  'taskViewContract',
+  'familyContract',
+  'orchestratorDetails',
+  'fullOrchestratorPayload',
+  'rawParams',
+];
+
+const TRAVEL_PROMPT_SOURCE_ORDER: TravelPayloadSource[] = [
+  'taskViewContract',
+  'familyContract',
+  'individualSegmentParams',
+  'orchestratorDetails',
+  'fullOrchestratorPayload',
+  'rawParams',
+];
+
+function dedupeTruthyStrings(values: Array<string | undefined>): string[] {
+  return Array.from(new Set(values.filter((value): value is string => typeof value === 'string' && value.length > 0)));
+}
+
+function isTravelTaskParams(params: Record<string, unknown>): boolean {
+  const familyContract = asRecord(params.task_family_contract);
+  return (
+    params.task_family === 'travel_between_images'
+    || familyContract?.task_family === 'travel_between_images'
+    || params.orchestrator_details !== undefined
+    || params.full_orchestrator_payload !== undefined
+    || params.individual_segment_params !== undefined
+    || Array.isArray(params.image_urls)
+    || Array.isArray(params.input_image_paths_resolved)
+  );
+}
+
+function deriveTravelInputImages(params: Record<string, unknown>): string[] {
+  const snapshot = buildTaskPayloadSnapshot(params);
+  const reader = createTravelPayloadReader(snapshot);
+  const isSegmentTask = params.segment_index !== undefined;
+
+  if (isSegmentTask) {
+    const segmentInputImages = reader.pickStringArray('input_image_paths_resolved', TRAVEL_SEGMENT_IMAGE_SOURCE_ORDER);
+    if (segmentInputImages && segmentInputImages.length > 0) {
+      return dedupeTruthyStrings(segmentInputImages);
+    }
+
+    const startImage = reader.pickString('start_image_url', TRAVEL_SEGMENT_IMAGE_SOURCE_ORDER);
+    const endImage = reader.pickString('end_image_url', TRAVEL_SEGMENT_IMAGE_SOURCE_ORDER);
+    return dedupeTruthyStrings([startImage, endImage]);
+  }
+
+  const timelineSources = [
+    reader.pickStringArray('input_images', TRAVEL_TIMELINE_IMAGE_SOURCE_ORDER),
+    reader.pickStringArray('input_image_paths_resolved', TRAVEL_TIMELINE_IMAGE_SOURCE_ORDER),
+    reader.pickStringArray('image_urls', TRAVEL_TIMELINE_IMAGE_SOURCE_ORDER),
+  ];
+  for (const candidate of timelineSources) {
+    if (candidate && candidate.length > 0) {
+      return dedupeTruthyStrings(candidate);
+    }
+  }
+
+  return [];
+}
+
+function deriveTravelPrompt(params: Record<string, unknown>): string | null {
+  const snapshot = buildTaskPayloadSnapshot(params);
+  const reader = createTravelPayloadReader(snapshot);
+  const segmentIndex = toIntegerOrNull(params.segment_index);
+  const isSegmentTask = params.segment_index !== undefined;
+
+  if (isSegmentTask) {
+    const enhancedPromptsExpanded = reader.pickStringArray('enhanced_prompts_expanded', [
+      'orchestratorDetails',
+      'fullOrchestratorPayload',
+      'rawParams',
+    ]);
+    const enhancedPrompt = pickFirstString(
+      reader.pickString('enhanced_prompt', TRAVEL_PROMPT_SOURCE_ORDER),
+      segmentIndex === null ? undefined : enhancedPromptsExpanded?.[segmentIndex],
+    );
+    if (enhancedPrompt) {
+      return enhancedPrompt;
+    }
+
+    return (
+      pickFirstString(
+        reader.pickString('prompt', TRAVEL_PROMPT_SOURCE_ORDER),
+        reader.pickString('base_prompt', TRAVEL_PROMPT_SOURCE_ORDER),
+      ) ?? null
+    );
+  }
+
+  return (
+    pickFirstString(
+      reader.pickString('prompt', TRAVEL_PROMPT_SOURCE_ORDER),
+      reader.pickString('base_prompt', TRAVEL_PROMPT_SOURCE_ORDER),
+      reader.pickString('enhanced_prompt', TRAVEL_PROMPT_SOURCE_ORDER),
+    ) ?? null
+  );
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {

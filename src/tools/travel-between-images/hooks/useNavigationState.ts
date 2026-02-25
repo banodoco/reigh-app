@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Shot } from '@/types/shots';
+import { Shot } from '@/domains/generation/types';
 
 type ShotSortMode = 'ordered' | 'newest' | 'oldest';
 

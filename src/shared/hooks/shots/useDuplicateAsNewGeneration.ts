@@ -4,9 +4,9 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
-import { toast } from '@/shared/components/ui/sonner';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { invalidateGenerationsSync } from '@/shared/hooks/invalidation';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { VARIANT_TYPE } from '@/shared/constants/variantTypes';
@@ -95,8 +95,7 @@ function toJsonObject(value: unknown): Record<string, Json | undefined> {
 }
 
 async function fetchSourceGenerationData(generationId: string): Promise<SourceGenerationData> {
-  const { data: primaryVariant, error: variantError } = await supabase
-    .from('generation_variants')
+  const { data: primaryVariant, error: variantError } = await supabase().from('generation_variants')
     .select('*')
     .eq('generation_id', generationId)
     .eq('is_primary', true)
@@ -114,8 +113,7 @@ async function fetchSourceGenerationData(generationId: string): Promise<SourceGe
     };
   }
 
-  const { data: generation, error: generationError } = await supabase
-    .from('generations')
+  const { data: generation, error: generationError } = await supabase().from('generations')
     .select('location, thumbnail_url, params, type')
     .eq('id', generationId)
     .single();
@@ -147,8 +145,7 @@ async function createDuplicatedGeneration(input: {
     duplicated_at: new Date().toISOString(),
   };
 
-  const { data: newGeneration, error: insertError } = await supabase
-    .from('generations')
+  const { data: newGeneration, error: insertError } = await supabase().from('generations')
     .insert({
       location: input.source.sourceLocation,
       thumbnail_url: input.source.sourceThumbnail,
@@ -175,7 +172,7 @@ async function insertPrimaryVariant(input: {
   source: SourceGenerationData;
   params: Record<string, Json | undefined>;
 }): Promise<void> {
-  await supabase.from('generation_variants').insert({
+  await supabase().from('generation_variants').insert({
     generation_id: input.generationId,
     location: input.source.sourceLocation,
     thumbnail_url: input.source.sourceThumbnail,
@@ -187,8 +184,7 @@ async function insertPrimaryVariant(input: {
 }
 
 async function fetchExistingTimelineFrames(shotId: string): Promise<number[]> {
-  const { data: existingFramesData } = await supabase
-    .from('shot_generations')
+  const { data: existingFramesData } = await supabase().from('shot_generations')
     .select('timeline_frame')
     .eq('shot_id', shotId);
 
@@ -202,8 +198,7 @@ async function insertShotGeneration(input: {
   generationId: string;
   timelineFrame: number;
 }): Promise<{ id: string }> {
-  const { data: newShotGeneration, error: addError } = await supabase
-    .from('shot_generations')
+  const { data: newShotGeneration, error: addError } = await supabase().from('shot_generations')
     .insert({
       shot_id: input.shotId,
       generation_id: input.generationId,

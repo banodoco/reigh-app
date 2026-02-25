@@ -5,9 +5,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/shared/components/ui/tooltip';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { Task } from '@/types/tasks';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 
 // Orchestrator task types don't have their own video output - they spawn subtasks
 const ORCHESTRATOR_TASK_TYPES = [

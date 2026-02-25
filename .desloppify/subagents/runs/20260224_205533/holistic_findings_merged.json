@@ -1,0 +1,298 @@
+{
+  "assessments": {
+    "abstraction_fitness": {
+      "score": 60.0,
+      "components": [
+        "Abstraction Leverage",
+        "Indirection Cost",
+        "Interface Honesty"
+      ],
+      "component_scores": {
+        "Abstraction Leverage": 90.1,
+        "Indirection Cost": 88.2,
+        "Interface Honesty": 84.6
+      }
+    },
+    "error_consistency": 72.6
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "Task payload consumers still read both canonical contract fields and multiple legacy param paths: `src/shared/components/TaskDetails/VideoTravelDetails.tsx` (advanced_mode/motion_mode/phase/video refs/model fallbacks at lines 94-99, 156-163, 205-208), `supabase/functions/complete_task/generation.ts` (child/parent/order fallbacks at lines 112-124), `supabase/functions/complete_task/orchestrator.ts` (legacy run_id/orchestrator fallback queries at lines 290-377, 406-431), and `supabase/functions/calculate-task-cost/index.ts` (legacy sub-task fallback query at lines 313-334).",
+        "`src/shared/lib/tasks/joinClips.ts` still exposes a mixed-mode input interface with canonical + legacy + video-edit fields in one param bag (`JoinClipsTaskParams`, lines 90-159), then resolves mode via runtime branching (`resolveClipSource` lines 269-295, `resolveVideoEditConfig` lines 297-322, `normalizeJoinClipsParams` lines 330-389).",
+        "Lightbox/gallery composition still relies on very large prop tunnels and orchestration wrappers: `src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx` forwards extensive grouped props into `WorkflowControlsBar`/`WorkflowControls` (lines 241-270, 466-491), while `src/shared/components/MediaGallery/index.tsx` assembles and passes broad grouped objects (`itemShotWorkflow`, `itemActions`, lightbox props at lines 520-620)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Canonical contract migration is incomplete across task-read paths and UI boundaries still depend on oversized prop bags/runtime branching, so abstraction layers do not yet enforce a single honest interface.",
+      "sub_axes": {
+        "abstraction_leverage": 90.1,
+        "indirection_cost": 88.2,
+        "interface_honesty": 84.6
+      }
+    },
+    "error_consistency": {
+      "evidence": [
+        "In `supabase/functions/complete_task/orchestrator.ts`, DB state-update failures throw (`markOrchestratorComplete` update at lines 515-527), but billing-path failures in the same flow are downgraded to log-only (`billingPersistError` at lines 555-560, `!billingResult.ok` at lines 562-567).",
+        "The billing service (`supabase/functions/calculate-task-cost/index.ts`) returns structured recoverable/failure signals (for example `subtask_query_failed` and `ledger_write_failed` responses), but orchestrator completion does not enforce a deterministic failure policy from those signals.",
+        "Current behavior preserves observability via `billing_outcome`, but persistence of that metadata itself is not guaranteed because write failure is only logged and completion still returns success."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Completion and billing still lack a single enforced failure policy; critical side effects can fail without changing orchestration outcome state."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "task_payload_contract_dual_readers",
+      "summary": "Task-family readers still implement contract-plus-legacy fallback ladders instead of a single canonical payload read path.",
+      "related_files": [
+        "src/shared/components/TaskDetails/VideoTravelDetails.tsx",
+        "supabase/functions/complete_task/generation.ts",
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/calculate-task-cost/index.ts"
+      ],
+      "evidence": [
+        "`VideoTravelDetails` resolves the same semantics from `individualSegmentParams`, `orchestratorDetails`, and `parsedParams` (lines 94-99, 156-163, 205-208).",
+        "`generation.ts` still resolves lineage/order from both contract and legacy fields (`child_generation_id`, `parent_generation_id`, `segment_index`, `join_index`) at lines 112-124.",
+        "`orchestrator.ts` and `calculate-task-cost` both execute explicit legacy fallback DB filters when canonical queries return empty (orchestrator lines 290-377 and 406-431; billing lines 313-334)."
+      ],
+      "suggestion": "Introduce one shared payload read adapter used by UI and edge functions (contract-only outputs with explicit migration state), then route all legacy reads through that adapter and remove ad-hoc per-module fallback chains once migration telemetry reaches zero.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "task_payload_contract_duality"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "join_clips_param_surface_still_mixed",
+      "summary": "Join-clips input contract still exposes legacy and modern modes in one oversized interface, keeping runtime branching in core task creation.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/tools/join-clips/pages/JoinClipsPage.tsx"
+      ],
+      "evidence": [
+        "`JoinClipsTaskParams` includes canonical descriptors (`mode`, `clip_source`, `video_edit`) plus legacy top-level fields (`starting_video_path`, `video_edit_mode`, `source_video_*`, etc.) in one type (lines 90-159).",
+        "Task creation still infers mode/source at runtime (`resolveClipSource` and `resolveVideoEditConfig`) before validating mode consistency in `normalizeJoinClipsParams` (lines 269-389), indicating call sites are not constrained to explicit mode-specific contracts."
+      ],
+      "suggestion": "Split creation entry points into explicit mode contracts (e.g., `createMultiClipJoin`, `createLegacyJoinCompat`, `createVideoEditJoin`) and keep one small legacy adapter at the boundary that normalizes to strict internal DTOs.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "task_payload_contract_duality"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "lightbox_gallery_prop_tunneling",
+      "summary": "Lightbox/gallery orchestration relies on broad prop-bag tunneling, increasing indirection and weakening ownership boundaries.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx",
+        "src/shared/components/MediaGallery/index.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx"
+      ],
+      "evidence": [
+        "`LightboxLayout` forwards many fields from nested grouped props to multiple downstream controls (`WorkflowControlsBar` lines 241-270 and `WorkflowControls` lines 466-491).",
+        "`MediaGallery` builds and passes several large grouped objects (`itemShotWorkflow`, `itemMobileInteraction`, `itemActions`, plus large lightbox prop sets) at lines 520-620.",
+        "`useVideoLightboxRenderModel`/`ImageLightbox` construct expansive environment/state models and pass through broad slices, creating wrapper layers with low policy density."
+      ],
+      "suggestion": "Extract explicit feature-level controller interfaces (shot actions, variant actions, segment navigation) and let leaf components consume context/selectors directly instead of passing full orchestration bags through layout components.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "legacy_supabase_facade_still_first_class",
+      "summary": "The deprecated Supabase legacy facade remains an active exported abstraction layer, preserving dual client surfaces.",
+      "related_files": [
+        "src/integrations/supabase/legacy/index.ts",
+        "src/shared/hooks/useTasks.ts",
+        "src/shared/hooks/useGenerationMutations.ts"
+      ],
+      "evidence": [
+        "`src/integrations/supabase/legacy/index.ts` is still a public re-export surface (`export { supabase, getLegacySupabaseClient }` at line 10) despite deprecation metadata.",
+        "Parallel active usage of the modern client API exists in hooks (`useTasks` line 3 and `useGenerationMutations` line 19 import `getSupabaseClient`), confirming dual abstraction surfaces remain available."
+      ],
+      "suggestion": "Convert legacy facade to an internal-only migration shim (or hard-fail in non-allowlisted importers), then enforce a single client entry point and track remaining callers with a shrinking allowlist.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "migration_surface_duplication"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "completion_billing_failure_policy_gap",
+      "summary": "Orchestrator completion mixes fatal and log-only failure handling for billing in one control path.",
+      "related_files": [
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/calculate-task-cost/index.ts"
+      ],
+      "evidence": [
+        "`markOrchestratorComplete` throws on orchestrator task update failure (`updateOrchError`), but does not throw when `triggerCostCalculation` returns `ok: false`.",
+        "When persisting `billing_outcome` fails (`billingPersistError`), code only logs and continues, despite this metadata being the reconciliation artifact for non-success billing outcomes.",
+        "`calculate-task-cost` emits structured error codes/recoverability, but no shared policy maps those to required orchestrator state transitions or retry scheduling."
+      ],
+      "suggestion": "Introduce a shared billing completion policy helper used by orchestrator completion: map billing result classes (`recorded`, `skipped`, `recoverable_failure`, `nonrecoverable_failure`, `persistence_failure`) to explicit actions (complete-with-retry-flag, fail-task, or enqueue compensating retry), and enforce that policy before returning.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "billing_completion_policy_fragmentation"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "billing_outcome_persistence_failure_is_silent",
+      "summary": "Failure to persist billing outcome metadata is logged but not propagated or compensated.",
+      "related_files": [
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/calculate-task-cost/index.ts"
+      ],
+      "evidence": [
+        "After billing call, `billing_outcome` is written to `tasks.result_data`; on write failure (`billingPersistError`) only `console.error` is emitted and function continues.",
+        "If billing call itself fails, orchestrator logs and exits without guaranteed durable retry marker beyond best-effort metadata write.",
+        "Because `calculate-task-cost` returns machine-readable error metadata, dropping persistence removes the primary durable context needed for later reconciliation."
+      ],
+      "suggestion": "Make billing-outcome persistence part of a required post-completion contract: if metadata write fails, either mark task with a dedicated reconciliation-needed state via fallback update path or raise a handled error that triggers retry workflow.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "billing_completion_policy_fragmentation"
+    }
+  ],
+  "review_quality": {
+    "batch_count": 2,
+    "dimension_coverage": 0.5,
+    "evidence_density": 1.125,
+    "high_score_missing_issue_note": 0,
+    "finding_pressure": 14.2,
+    "dimensions_with_findings": 2
+  },
+  "review_scope": {
+    "reviewed_files_count": 51,
+    "successful_batch_count": 2,
+    "full_sweep_included": false,
+    "total_files": 2288
+  },
+  "reviewed_files": [
+    "src/shared/components/JoinClipsSettingsForm/utils.ts",
+    "src/shared/lib/utils.ts",
+    "src/shared/hooks/useGenerationMutations.ts",
+    "src/tools/edit-images/hooks/useInlineEditState.ts",
+    "src/app/routes.tsx",
+    "src/pages/Home/hooks/auth/useAuthReferralFinalize.ts",
+    "src/pages/Home/hooks/useDiscordSignIn.ts",
+    "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+    "src/shared/hooks/__tests__/useDarkMode.test.ts",
+    "src/shared/hooks/__tests__/useTextCase.test.ts",
+    "src/shared/hooks/useTasks.ts",
+    "src/shared/hooks/useUpdatingTimestamp.ts",
+    "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+    "supabase/functions/calculate-task-cost/index.ts",
+    "src/shared/components/ShotImageManager/ShotImageManagerContainer.tsx",
+    "supabase/functions/_tests/vitestEdgeSmokeConfig.test.ts",
+    "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx",
+    "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+    "src/shared/hooks/__tests__/useVideoScrubbing.test.ts",
+    "src/shared/hooks/__tests__/usePlatformInstall.test.ts",
+    "src/shared/hooks/settings/__tests__/useAutoSaveSettings.test.ts",
+    "src/shared/components/LoraSelectorModal/components/MyLorasTab/hooks/useLoraSubmission.ts",
+    "src/shared/components/MediaGallery/index.tsx",
+    "src/shared/hooks/__tests__/useTaskCancellation.test.ts",
+    "src/shared/hooks/gallery/__tests__/useGalleryFilterState.test.ts",
+    "src/shared/hooks/__tests__/useSegmentSettingsForm.test.ts",
+    "src/shared/hooks/invalidation/__tests__/useGenerationInvalidation.test.ts",
+    "src/shared/hooks/__tests__/useServerForm.test.ts",
+    "src/shared/realtime/DataFreshnessManager.ts",
+    "src/shared/lib/tasks/__tests__/joinClips.test.ts",
+    "src/shared/hooks/__tests__/useGalleryPageState.test.ts",
+    "src/tools/edit-images/hooks/__tests__/useInlineEditState.test.ts",
+    "src/tools/join-clips/pages/JoinClipsPage.tsx",
+    "src/shared/lib/tasks/imageGeneration.ts",
+    "supabase/functions/complete_task/generation.ts",
+    "supabase/functions/complete_task/orchestrator.ts",
+    "src/shared/components/MediaLightbox/components/StrokeOverlay.tsx",
+    "src/shared/hooks/timeline/timelineFrameCalculators.ts",
+    "src/shared/components/ProductTour/index.tsx",
+    "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts",
+    "src/tools/edit-images/components/InlineEditView.tsx",
+    "src/shared/lib/tasks/individualTravelSegment.ts",
+    "src/shared/lib/tasks/joinClips.ts",
+    "src/shared/components/ImageGenerationDetails.tsx",
+    "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+    "src/shared/components/TaskDetails/VideoTravelDetails.tsx",
+    "src/shared/lib/tasks/magicEdit.ts",
+    "src/shared/lib/tasks/__tests__/individualTravelSegment.test.ts",
+    "src/shared/lib/tasks/__tests__/imageGeneration.test.ts",
+    "src/shared/components/MediaLightbox/VideoLightbox.tsx",
+    "src/integrations/supabase/legacy/index.ts"
+  ],
+  "provenance": {
+    "kind": "blind_review_batch_import",
+    "blind": true,
+    "runner": "codex",
+    "run_stamp": "20260224_205533",
+    "created_at": "2026-02-24T20:57:51+00:00",
+    "batch_count": 2,
+    "batch_indexes": [
+      1,
+      2
+    ],
+    "packet_path": "/Users/peteromalley/Documents/reigh/.desloppify/review_packet_blind.json",
+    "packet_sha256": "b40a88ef5b83669e8dc726807659edda65aa532b2c38f6dc971a334ef406695f"
+  },
+  "assessment_coverage": {
+    "scored_dimensions": [
+      "naming_quality",
+      "logic_clarity",
+      "type_safety",
+      "contract_coherence",
+      "error_consistency",
+      "abstraction_fitness",
+      "ai_generated_debt",
+      "high_level_elegance",
+      "mid_level_elegance",
+      "low_level_elegance",
+      "cross_module_architecture",
+      "initialization_coupling",
+      "convention_outlier",
+      "dependency_health",
+      "test_strategy",
+      "api_surface_coherence",
+      "authorization_consistency",
+      "incomplete_migration",
+      "package_organization",
+      "design_coherence"
+    ],
+    "selected_dimensions": [
+      "abstraction_fitness",
+      "error_consistency"
+    ],
+    "imported_dimensions": [
+      "abstraction_fitness",
+      "error_consistency"
+    ],
+    "missing_dimensions": [
+      "naming_quality",
+      "logic_clarity",
+      "type_safety",
+      "contract_coherence",
+      "ai_generated_debt",
+      "high_level_elegance",
+      "mid_level_elegance",
+      "low_level_elegance",
+      "cross_module_architecture",
+      "initialization_coupling",
+      "convention_outlier",
+      "dependency_health",
+      "test_strategy",
+      "api_surface_coherence",
+      "authorization_consistency",
+      "incomplete_migration",
+      "package_organization",
+      "design_coherence"
+    ]
+  }
+}

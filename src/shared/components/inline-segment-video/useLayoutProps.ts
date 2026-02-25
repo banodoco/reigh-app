@@ -1,5 +1,5 @@
 import type React from 'react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import type { LayoutProps } from './types';
 
 export function useLayoutProps(
@@ -21,6 +21,9 @@ export function useLayoutProps(
           width: `calc(${widthPercent}% - 4px)`,
           top: 0,
           bottom: 0,
+          // Disable ALL transitions for absolute-positioned segments so
+          // left/width updates during timeline drag apply instantly.
+          transition: 'none',
         }
       : undefined;
 

@@ -1,0 +1,75 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "mid_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "Result-envelope contracts are split across boundaries: frontend utilities use `OperationResult<T>` (`ok/value/error`) while edge/shared utilities use `EdgeOperationResult<T>` (`ok/value` vs `errorCode/message/recoverable/policy`), creating adapter/friction points instead of one predictable seam (`src/shared/lib/operationResult.ts`, `supabase/functions/_shared/edgeOperation.ts`, `src/tools/join-clips/lib/clipManager/metadata.ts`, `supabase/functions/complete_task/storage.ts`).",
+        "`getPrimaryTaskIdForGeneration` does two-step querying (resolve project scope, then fetch tasks), while `getPrimaryTaskIdsForGenerations` uses a different scoping model and silently omits non-returned generation IDs from its map; downstream cache preloading then writes only returned keys, so consumers can observe partial mappings with no explicit missing-id contract (`src/shared/lib/generationTaskRepository.ts`, `src/shared/lib/generationTaskCache.ts`).",
+        "Invalidation seams mix behaviors across closely related paths (`invalidateQueries` for most keys, but `refetchQueries` for shot list in variant invalidation), and scheduling/dedupe is only implemented for shot invalidation, not variant invalidation, producing non-uniform lifecycle semantics (`src/shared/hooks/invalidation/useGenerationInvalidation.ts`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "split_result_contracts_across_seams",
+      "summary": "Cross-module operations use incompatible success/failure envelopes, making boundary handoffs inconsistent.",
+      "related_files": [
+        "src/shared/lib/operationResult.ts",
+        "supabase/functions/_shared/edgeOperation.ts",
+        "src/tools/join-clips/lib/clipManager/metadata.ts",
+        "supabase/functions/complete_task/storage.ts"
+      ],
+      "evidence": [
+        "`OperationResult<T>` exposes `{ ok: false, error: Error }`, while edge paths expose `{ ok: false, errorCode, message, recoverable, policy }`.",
+        "Both patterns are used for similarly shaped operation wrappers (e.g., metadata loading vs edge storage/billing flow), but callers must branch on different failure fields depending on module origin."
+      ],
+      "suggestion": "Define a shared cross-layer result contract (or explicit adapters) so app-layer and edge-layer operations expose one predictable failure shape; keep edge-specific metadata optional extensions rather than a separate envelope.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "generation_task_mapping_partial_contract",
+      "summary": "Generation-to-task lookup APIs have inconsistent scoping and return semantics that can produce silent partial cache state.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/lib/generationTaskCache.ts"
+      ],
+      "evidence": [
+        "`getPrimaryTaskIdsForGenerations` returns mappings only for rows returned by the DB query and does not backfill missing generation IDs with explicit null/error entries.",
+        "`preloadGenerationTaskMappings` iterates returned mappings and sets cache entries only for those keys, so missing IDs remain unstated and consumers cannot distinguish 'not found' vs 'not loaded'.",
+        "Single-ID and batch-ID APIs use different orchestration/scoping paths (`resolveGenerationProjectId` precheck for single fetch, but direct batch fetch with post-check for distinct projects)."
+      ],
+      "suggestion": "Normalize both repository methods to one contract: always return every requested generation ID with an explicit status (`taskId|null|missing|scope_mismatch`), and share a single scoping strategy used by both single and batch paths.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "invalidation_lifecycle_inconsistency",
+      "summary": "Invalidation utilities mix deduped invalidation, immediate refetch, and project-wide invalidation without a single lifecycle policy.",
+      "related_files": [
+        "src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+        "src/features/gallery/lib/adjacentPagePreloadCoordinator.ts"
+      ],
+      "evidence": [
+        "Shot invalidation path supports deduped scheduled invalidation keyed by shot ID, while variant invalidation has no equivalent dedupe and may run delayed refetch/invalidate bursts independently.",
+        "Variant flow uses `refetchQueries` for shot generations but `invalidateQueries` for most other keys, creating different freshness guarantees for sibling caches with no unified policy."
+      ],
+      "suggestion": "Introduce a shared invalidation policy layer (invalidate vs refetch, dedupe keying, delay handling) and route both shot and variant invalidation through it so cache lifecycle behavior is uniform and predictable.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

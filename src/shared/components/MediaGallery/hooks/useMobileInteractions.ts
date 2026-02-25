@@ -1,15 +1,11 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { GeneratedImageWithMetadata } from '../types';
 
 interface UseMobileInteractionsProps {
   isMobile: boolean;
-  mobileActiveImageId: string | null;
   setMobileActiveImageId: (id: string | null) => void;
   mobilePopoverOpenImageId: string | null;
   setMobilePopoverOpenImageId: (id: string | null) => void;
-  lastTouchTimeRef: React.MutableRefObject<number>;
-  lastTappedImageIdRef: React.MutableRefObject<string | null>;
-  doubleTapTimeoutRef: React.MutableRefObject<NodeJS.Timeout | null>;
   onOpenLightbox: (image: GeneratedImageWithMetadata) => void;
 }
 
@@ -22,11 +18,11 @@ export const useMobileInteractions = ({
   setMobileActiveImageId,
   mobilePopoverOpenImageId,
   setMobilePopoverOpenImageId,
-  lastTouchTimeRef,
-  lastTappedImageIdRef,
-  doubleTapTimeoutRef,
   onOpenLightbox,
 }: UseMobileInteractionsProps): UseMobileInteractionsReturn => {
+  const lastTouchTimeRef = useRef<number>(0);
+  const lastTappedImageIdRef = useRef<string | null>(null);
+  const doubleTapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Handle mobile double-tap detection
   // Using 400ms window for snappier, more reliable double-tap detection
@@ -68,7 +64,7 @@ export const useMobileInteractions = ({
       lastTappedImageIdRef.current = image.id;
       lastTouchTimeRef.current = currentTime;
     }
-  }, [lastTouchTimeRef, lastTappedImageIdRef, doubleTapTimeoutRef, onOpenLightbox, mobilePopoverOpenImageId, setMobilePopoverOpenImageId, setMobileActiveImageId]);
+  }, [onOpenLightbox, mobilePopoverOpenImageId, setMobilePopoverOpenImageId, setMobileActiveImageId]);
 
   // Close mobile popover on scroll or when clicking outside
   useEffect(() => {
@@ -94,6 +90,15 @@ export const useMobileInteractions = ({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isMobile, mobilePopoverOpenImageId, setMobilePopoverOpenImageId]);
+
+  useEffect(() => {
+    return () => {
+      if (doubleTapTimeoutRef.current) {
+        clearTimeout(doubleTapTimeoutRef.current);
+        doubleTapTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   return {
     handleMobileTap,

@@ -8,7 +8,7 @@
 import React from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { CheckCircle, Loader2, Paintbrush, Pencil, Sparkles } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import type { BrushStroke } from '../../hooks/inpainting/types';
 
 interface GenerateButtonProps {

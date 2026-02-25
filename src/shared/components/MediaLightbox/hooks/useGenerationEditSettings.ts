@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
-import { useAutoSaveSettings } from '@/shared/hooks/useAutoSaveSettings';
+import { useAutoSaveSettings } from '@/shared/hooks/settings/useAutoSaveSettings';
 import type { Json } from '@/integrations/supabase/types';
 import { toJson } from '@/shared/lib/supabaseTypeHelpers';
 
@@ -106,8 +106,7 @@ interface UseGenerationEditSettingsProps {
  * Load settings from generations.params.ui.editSettings
  */
 async function loadGenerationSettings(generationId: string): Promise<AutoSaveGenerationEditSettings | null> {
-  const { data, error } = await supabase
-    .from('generations')
+  const { data, error } = await supabase().from('generations')
     .select('params')
     .eq('id', generationId)
     .maybeSingle();
@@ -138,8 +137,7 @@ async function loadGenerationSettings(generationId: string): Promise<AutoSaveGen
  */
 async function saveGenerationSettings(generationId: string, settings: AutoSaveGenerationEditSettings): Promise<void> {
   // Fetch current params to merge
-  const { data: current, error: fetchError } = await supabase
-    .from('generations')
+  const { data: current, error: fetchError } = await supabase().from('generations')
     .select('params')
     .eq('id', generationId)
     .maybeSingle();
@@ -166,8 +164,7 @@ async function saveGenerationSettings(generationId: string, settings: AutoSaveGe
     }
   };
 
-  const { error: updateError } = await supabase
-    .from('generations')
+  const { error: updateError } = await supabase().from('generations')
     .update({ params: updatedParams })
     .eq('id', generationId);
 

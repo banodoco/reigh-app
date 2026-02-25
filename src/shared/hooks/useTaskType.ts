@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 
 export interface TaskTypeInfo {
@@ -22,8 +22,7 @@ export const useTaskType = (taskType: string) => {
   return useQuery({
     queryKey: taskQueryKeys.type(taskType),
     queryFn: async (): Promise<TaskTypeInfo | null> => {
-      const { data, error } = await supabase
-        .from('task_types')
+      const { data, error } = await supabase().from('task_types')
         .select('id, name, content_type, tool_type, display_name, category, is_visible, supports_progress')
         .eq('name', taskType)
         .maybeSingle();
@@ -77,8 +76,7 @@ export function isTaskTypeConfigCacheInitialized(): boolean {
  * This is called once on app load to populate the cache
  */
 async function fetchAllTaskTypesConfig(): Promise<Record<string, TaskTypeInfo>> {
-  const { data, error } = await supabase
-    .from('task_types')
+  const { data, error } = await supabase().from('task_types')
     .select('id, name, content_type, tool_type, display_name, category, is_visible, supports_progress')
     .eq('is_active', true);
 

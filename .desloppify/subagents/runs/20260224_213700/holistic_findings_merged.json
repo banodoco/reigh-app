@@ -1,0 +1,293 @@
+{
+  "assessments": {
+    "abstraction_fitness": {
+      "score": 59.5,
+      "components": [
+        "Abstraction Leverage",
+        "Indirection Cost",
+        "Interface Honesty"
+      ],
+      "component_scores": {
+        "Abstraction Leverage": 79.0,
+        "Indirection Cost": 74.0,
+        "Interface Honesty": 82.0
+      }
+    },
+    "error_consistency": 72.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "Join-clips exposes multiple overlapping input shapes (`JoinClipsTaskCompatParams`, `CanonicalJoinClipsTaskInput`, plus mode-specific inputs), then immediately normalizes via `toCanonicalJoinClipsTaskInput`, creating a large migration-only parameter bag that is still a public API surface.",
+        "Task payload builders repeatedly construct `orchestrationContract`, `taskViewContract`, and `payloadContract` and then spread them back into large raw payload objects, adding indirection layers without reducing call-site complexity.",
+        "Video lightbox rendering is split across environment/shared/edit/render-model hooks where several layers mostly remap and forward nested state/handlers, increasing indirection cost for behavior changes."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "",
+      "sub_axes": {
+        "abstraction_leverage": 79.0,
+        "indirection_cost": 74.0,
+        "interface_honesty": 82.0
+      }
+    },
+    "error_consistency": {
+      "evidence": [
+        "Database lookup failures are treated as normal control flow in multiple paths: `useShotImagesEditorCallbacks` returns early when `beforeData` is missing without checking query error, and `individualTravelSegment` ignores `pairIdError`/`orderError` and continues with fallback matching.",
+        "Related hooks expose mixed failure contracts for similar async actions: some paths propagate structured `OperationResult` failures, while adapter wrappers collapse failure into primitive `false`/`undefined`, discarding error context."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": ""
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "join_clips_compat_param_bag_overhang",
+      "summary": "Join-clips keeps a wide legacy compat bag that duplicates canonical interfaces and mode contracts.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClipsCompatAdapter.ts",
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/__tests__/joinClips.test.ts"
+      ],
+      "evidence": [
+        "`JoinClipsTaskCompatParams` includes legacy fields, canonical fields, and mode-specific fields in one interface, then `toCanonicalJoinClipsTaskInput` strips many fields via rest/destructure before calling canonical flow.",
+        "`createJoinClipsTask` remains exported and accepts the mixed-shape compat type even though mode-specific APIs (`createMultiClipJoinTask`, `createLegacyJoinTask`, `createVideoEditJoinTask`) already exist."
+      ],
+      "suggestion": "Demote compat input to an internal-only migration adapter: keep only canonical/mode-specific exported APIs, move compat normalization behind a temporary shim file, and add a removal deadline with call-site telemetry to eliminate the mixed-shape contract.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "legacy_compatibility_layers"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "payload_contract_stack_redundancy",
+      "summary": "Task builders repeat contract-wrapper choreography that adds layers but not stronger boundaries.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/joinClips.ts"
+      ],
+      "evidence": [
+        "All three builders create raw payload objects, then separately build orchestration/task-view/family contracts, then merge them back into the same payload via `buildTaskPayloadContract` spread.",
+        "The repeated 3-step contract assembly appears per task family with slight variations, suggesting a broad pattern of wrapper ceremony rather than a single stable abstraction."
+      ],
+      "suggestion": "Introduce one typed payload composer per task family (or a generic shared composer with typed schema inputs) that emits final payload once, so contract fields are produced in a single place instead of merged through repeated intermediate wrappers.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "contract_wrapper_ceremony"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "lightbox_render_model_passthrough_layers",
+      "summary": "Video lightbox state assembly is over-layered with pass-through render-model adapters.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/VideoLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "`VideoLightboxContent` chains multiple orchestration hooks (`useVideoLightboxMode` -> `useVideoLightboxEnvironment` -> shared/edit hooks -> `useVideoLightboxRenderModel`) before rendering a single `LightboxLayout` tree.",
+        "`useVideoLightboxRenderModel` constructs multiple memoized mapping objects (`variants model`, `layout flags`, controls panel model) that primarily forward nested fields and callbacks from prior models."
+      ],
+      "suggestion": "Collapse render-model layers by defining one explicit presenter state interface consumed by `LightboxLayout`, and move only behavior-owning logic into hooks; eliminate pass-through mapping hooks that only repackage existing state.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "ui_presenter_over_abstraction"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "legacy_shim_surfaces_without_behavior",
+      "summary": "Legacy shim modules expose low-leverage compatibility surfaces that add dependency hops.",
+      "related_files": [
+        "src/shared/lib/utils.ts",
+        "src/integrations/supabase/legacy/index.ts",
+        "src/pages/Home/hooks/useDiscordSignIn.ts"
+      ],
+      "evidence": [
+        "`src/shared/lib/utils.ts` is a compatibility facade that mostly forwards to focused modules with minor argument clamping, preserving an umbrella utility entry point and extra import indirection.",
+        "`src/integrations/supabase/legacy/index.ts` is an intentionally empty marker module kept for migration signaling, which keeps a legacy path in the dependency graph without runtime behavior."
+      ],
+      "suggestion": "Define and enforce deprecation removal windows for shims, migrate remaining imports to canonical modules directly, and remove zero-behavior compatibility entry points once migration metrics show safe coverage.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "legacy_compatibility_layers"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "silent_lookup_error_fallbacks",
+      "summary": "Supabase lookup errors are silently downgraded to fallback/no-op paths",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts"
+      ],
+      "evidence": [
+        "`useShotImagesEditorCallbacks` fetches `beforeData` (`.single()`) and returns when `!beforeData` (line 62) without checking the query error, and sibling lookup (`siblings`) also proceeds without inspecting error before deriving `idsToDelete`.",
+        "`createIndividualTravelSegmentTask` checks `!pairIdError && childByPairId` and `!orderError && childByOrder`, but any lookup error is otherwise ignored, causing error cases to be treated the same as \"not found\"."
+      ],
+      "suggestion": "Normalize lookup boundaries to one contract: explicitly handle query errors (wrap with `handleAndRethrow`/domain error and context), and keep fallback behavior only for true not-found results. Distinguish \"lookup failed\" from \"lookup empty\" in both modules.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "error_path_demoted_to_control_flow"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "lossy_error_adapters",
+      "summary": "Adapter layers drop structured failure details into primitives",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/pages/Home/hooks/useDiscordSignIn.ts"
+      ],
+      "evidence": [
+        "`useShotImagesEditorCallbacks` internal operations return `OperationResult` with policy/error metadata, but `handleAddToShotAdapter` and `handleAddToShotWithoutPositionAdapter` return only `false` on failure, and `handleCreateShotAdapter` returns `undefined`, discarding failure context.",
+        "`useDiscordSignIn` returns full `OperationResult` to callers, preserving `errorCode`, `policy`, and recoverability details; this contrast creates inconsistent caller expectations for handling failures across action hooks."
+      ],
+      "suggestion": "Standardize exported async action hooks to return a single error contract (prefer `OperationResult` end-to-end). If compatibility adapters must remain, add explicit typed \"legacy\" naming and expose parallel non-lossy variants so callers can opt into consistent structured handling.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "mixed_error_contracts"
+    }
+  ],
+  "review_quality": {
+    "batch_count": 2,
+    "dimension_coverage": 0.5,
+    "evidence_density": 0.875,
+    "high_score_missing_issue_note": 0,
+    "finding_pressure": 13.326,
+    "dimensions_with_findings": 2
+  },
+  "review_scope": {
+    "reviewed_files_count": 51,
+    "successful_batch_count": 2,
+    "full_sweep_included": false,
+    "total_files": 2293
+  },
+  "reviewed_files": [
+    "src/shared/components/JoinClipsSettingsForm/utils.ts",
+    "src/shared/lib/utils.ts",
+    "src/shared/hooks/useGenerationMutations.ts",
+    "src/tools/edit-images/hooks/useInlineEditState.ts",
+    "src/pages/Home/hooks/auth/useAuthReferralFinalize.ts",
+    "src/pages/Home/hooks/useDiscordSignIn.ts",
+    "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+    "src/shared/hooks/__tests__/useDarkMode.test.ts",
+    "src/shared/hooks/__tests__/useTextCase.test.ts",
+    "src/shared/hooks/useTasks.ts",
+    "src/shared/hooks/useUpdatingTimestamp.ts",
+    "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+    "supabase/functions/calculate-task-cost/index.ts",
+    "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx",
+    "src/shared/components/ShotImageManager/ShotImageManagerContainer.tsx",
+    "supabase/functions/_tests/vitestEdgeSmokeConfig.test.ts",
+    "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+    "src/shared/hooks/__tests__/useVideoScrubbing.test.ts",
+    "src/shared/hooks/__tests__/usePlatformInstall.test.ts",
+    "src/shared/hooks/settings/__tests__/useAutoSaveSettings.test.ts",
+    "src/shared/components/LoraSelectorModal/components/MyLorasTab/hooks/useLoraSubmission.ts",
+    "src/shared/components/MediaGallery/index.tsx",
+    "src/shared/hooks/__tests__/useTaskCancellation.test.ts",
+    "src/shared/hooks/gallery/__tests__/useGalleryFilterState.test.ts",
+    "src/shared/hooks/__tests__/useSegmentSettingsForm.test.ts",
+    "src/shared/hooks/invalidation/__tests__/useGenerationInvalidation.test.ts",
+    "src/shared/lib/tasks/__tests__/joinClips.test.ts",
+    "src/shared/hooks/__tests__/useServerForm.test.ts",
+    "src/shared/realtime/DataFreshnessManager.ts",
+    "src/shared/hooks/__tests__/useGalleryPageState.test.ts",
+    "src/tools/edit-images/hooks/__tests__/useInlineEditState.test.ts",
+    "supabase/functions/complete_task/orchestrator.ts",
+    "src/tools/join-clips/pages/JoinClipsPage.tsx",
+    "src/shared/lib/tasks/imageGeneration.ts",
+    "supabase/functions/complete_task/generation.ts",
+    "src/shared/components/MediaLightbox/components/StrokeOverlay.tsx",
+    "src/shared/hooks/timeline/timelineFrameCalculators.ts",
+    "src/shared/components/ProductTour/index.tsx",
+    "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts",
+    "src/tools/edit-images/components/InlineEditView.tsx",
+    "src/shared/lib/tasks/individualTravelSegment.ts",
+    "src/shared/components/ImageGenerationDetails.tsx",
+    "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+    "src/shared/lib/tasks/joinClips.ts",
+    "src/shared/components/TaskDetails/VideoTravelDetails.tsx",
+    "src/shared/lib/tasks/magicEdit.ts",
+    "src/shared/lib/tasks/__tests__/individualTravelSegment.test.ts",
+    "src/shared/lib/tasks/__tests__/imageGeneration.test.ts",
+    "src/shared/components/MediaLightbox/VideoLightbox.tsx",
+    "src/integrations/supabase/legacy/index.ts",
+    "src/shared/lib/tasks/joinClipsCompatAdapter.ts"
+  ],
+  "provenance": {
+    "kind": "blind_review_batch_import",
+    "blind": true,
+    "runner": "codex",
+    "run_stamp": "20260224_213700",
+    "created_at": "2026-02-24T21:38:39+00:00",
+    "batch_count": 2,
+    "batch_indexes": [
+      1,
+      2
+    ],
+    "packet_path": "/Users/peteromalley/Documents/reigh/.desloppify/review_packet_blind.json",
+    "packet_sha256": "6bcf0068bd767f6fbe75e28d8a8b1de969b9076ab8cdf328e684d3c846938914"
+  },
+  "assessment_coverage": {
+    "scored_dimensions": [
+      "naming_quality",
+      "logic_clarity",
+      "type_safety",
+      "contract_coherence",
+      "error_consistency",
+      "abstraction_fitness",
+      "ai_generated_debt",
+      "high_level_elegance",
+      "mid_level_elegance",
+      "low_level_elegance",
+      "cross_module_architecture",
+      "initialization_coupling",
+      "convention_outlier",
+      "dependency_health",
+      "test_strategy",
+      "api_surface_coherence",
+      "authorization_consistency",
+      "incomplete_migration",
+      "package_organization",
+      "design_coherence"
+    ],
+    "selected_dimensions": [
+      "abstraction_fitness",
+      "error_consistency"
+    ],
+    "imported_dimensions": [
+      "abstraction_fitness",
+      "error_consistency"
+    ],
+    "missing_dimensions": [
+      "naming_quality",
+      "logic_clarity",
+      "type_safety",
+      "contract_coherence",
+      "ai_generated_debt",
+      "high_level_elegance",
+      "mid_level_elegance",
+      "low_level_elegance",
+      "cross_module_architecture",
+      "initialization_coupling",
+      "convention_outlier",
+      "dependency_health",
+      "test_strategy",
+      "api_surface_coherence",
+      "authorization_consistency",
+      "incomplete_migration",
+      "package_organization",
+      "design_coherence"
+    ]
+  }
+}

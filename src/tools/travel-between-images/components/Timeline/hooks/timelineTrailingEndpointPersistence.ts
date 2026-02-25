@@ -1,6 +1,6 @@
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 import { runTimelineWriteWithTimeout } from '@/shared/lib/timelineWriteQueue';
 
 interface PersistTrailingEndpointArgs {
@@ -36,8 +36,7 @@ async function loadShotGenerationMetadata(
   const current = await runTimelineWriteWithTimeout(
     timeoutOperation,
     async () => {
-      const { data, error } = await supabase
-        .from('shot_generations')
+      const { data, error } = await supabase().from('shot_generations')
         .select('metadata')
         .eq('id', shotGenerationId)
         .single();
@@ -69,8 +68,7 @@ async function writeShotGenerationMetadata(
   await runTimelineWriteWithTimeout(
     timeoutOperation,
     async (signal) => {
-      const { error } = await supabase
-        .from('shot_generations')
+      const { error } = await supabase().from('shot_generations')
         .update({ metadata: metadata as Json })
         .eq('id', shotGenerationId)
         .abortSignal(signal);

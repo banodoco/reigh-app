@@ -1,0 +1,114 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "cross_module_architecture": 78.0,
+    "test_strategy": 74.0,
+    "package_organization": 76.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "README.md contract matrix declares canonical UI contract paths as src/shared/components/ui/contracts/button.tsx and src/shared/components/ui/contracts/cn.ts, but active high-fan-in runtime modules for the same surfaces are src/shared/components/ui/theme/button.tsx (155 importers) and src/shared/components/ui/primitives/cn.ts (139 importers) per holistic_context god_modules.",
+        "runtimeError.ts is declared as canonical runtime helper while README also documents deprecated alias lifecycle in a different file (handleError.ts), indicating governance is split between docs-level contracts and runtime entrypoints."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "test_strategy": {
+      "evidence": [
+        "README.md defines governance gates only as command names (test:contracts, test:arch, quality:check) without mapping each gate to specific contract surfaces in this batch (runtimeError.ts, public.ts, supabase/client.ts, button.tsx, cn.ts).",
+        "README.md sets a dated removal target (2026-06-30) for compatibility aliases, but runtimeError.ts exports HandleErrorOptions alias with no deprecation metadata or test-visible expiry marker, so date-based enforcement cannot be validated from code contracts."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    },
+    "package_organization": {
+      "evidence": [
+        "Contract surfaces are fragmented across ui/theme (button), ui/primitives (cn), shared/lib/errorHandling (runtime), and integrations/supabase (client) while README presents a unified governance-contract model.",
+        "holistic_context.structure.coupling_matrix shows strong UI coupling across sibling folders: src/shared/components/ -> src/shared/components/ui/primitives/ (35), src/shared/components/ -> src/shared/components/ui/theme/ (26), and src/shared/components/ui/ -> src/shared/components/ui/primitives/ (36), indicating the current placement creates boundary ambiguity for consumers."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "contract_canonical_path_drift",
+      "summary": "Documented canonical contract paths diverge from actual high-traffic runtime entrypoints.",
+      "related_files": [
+        "README.md",
+        "src/shared/components/ui/theme/button.tsx",
+        "src/shared/components/ui/primitives/cn.ts"
+      ],
+      "evidence": [
+        "README.md contract matrix marks src/shared/components/ui/contracts/button.tsx and src/shared/components/ui/contracts/cn.ts as canonical.",
+        "The assigned runtime modules are src/shared/components/ui/theme/button.tsx and src/shared/components/ui/primitives/cn.ts, each with very high importer counts in packet context, so consumers are centered on non-canonical locations."
+      ],
+      "suggestion": "Choose one boundary as authoritative and enforce it. Either: (a) move implementation ownership to contracts/* and make theme/primitives internal, or (b) update README canonical paths to the true entrypoints and treat contracts/* as pure compatibility shims with explicit deprecation timeline and importer reduction tracking.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "governance_runtime_contract_drift"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "governance_gates_not_surface_bound",
+      "summary": "Governance test gates are declared, but not traceably bound to specific contract surfaces.",
+      "related_files": [
+        "README.md",
+        "src/shared/lib/errorHandling/runtimeError.ts",
+        "src/integrations/supabase/client.ts",
+        "src/domains/generation/types/public.ts"
+      ],
+      "evidence": [
+        "README.md lists three required gates but does not define which contract files each gate must fail on when changed.",
+        "High-impact contract surfaces in this batch are thin wrappers/re-export surfaces, which are especially prone to silent drift without explicit gate-to-surface mapping."
+      ],
+      "suggestion": "Add a governance table in README mapping each gate to owned files and expected assertions (for example: test:contracts must cover runtimeError/supabase client/public type barrel API shape). Add CI checks that diff touched contract files and require the mapped gate(s) to run.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "governance_runtime_contract_drift"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "contract_surface_scattered_layout",
+      "summary": "Contract-facing APIs are spread across multiple folders with high cross-folder affinity.",
+      "related_files": [
+        "README.md",
+        "src/shared/components/ui/theme/button.tsx",
+        "src/shared/components/ui/primitives/cn.ts",
+        "src/shared/lib/errorHandling/runtimeError.ts",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "README presents governance contracts as a coherent surface, but contract entrypoints are split by implementation-style folders (theme/primitives/lib/integrations) rather than a single contract boundary.",
+        "Packet coupling metrics show strong UI folder cross-edges (35/26/36), consistent with organizational fragmentation rather than clear ownership seams."
+      ],
+      "suggestion": "Stage reorg plan: 1) Create target folders `src/shared/contracts/ui/`, `src/shared/contracts/runtime/`, `src/shared/contracts/integrations/`. 2) Move `ui/theme/button.tsx` and `ui/primitives/cn.ts` into `contracts/ui/` first, keeping re-export shims at old paths. 3) Move `runtimeError.ts` and `integrations/supabase/client.ts` into matching contracts folders with old-path shims. 4) Update README canonical matrix to new contract roots. 5) Update imports via `desloppify move <src> <dst> --dry-run` then real move, validate with `npm run test:contracts && npm run test:arch && npm run quality:check`, and finish with `rg -n \"shared/components/ui/(theme/button|primitives/cn)|shared/lib/errorHandling/runtimeError|integrations/supabase/client\" src` to confirm legacy path drain-down.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "governance_runtime_contract_drift"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Governance documentation defines canonical contracts, but runtime import gravity remains anchored to legacy implementation locations.",
+      "Quality gates are command-level policies without explicit contract-surface traceability."
+    ],
+    "likely_symptoms": [
+      "contract_canonical_path_drift",
+      "governance_gates_not_surface_bound",
+      "contract_surface_scattered_layout"
+    ],
+    "possible_false_positives": [
+      "If contracts/* currently re-export these exact modules and CI already maps changed files to gate subsets outside README, the test-strategy finding severity would reduce."
+    ]
+  }
+}

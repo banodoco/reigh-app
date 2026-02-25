@@ -1,5 +1,5 @@
 import React from 'react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { formatTime } from '@/shared/lib/timeFormatting';
 import type { PortionSelection, HandleDragState, DragOffset } from '../types';
 import { SELECTION_COLORS } from '../types';

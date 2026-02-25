@@ -1,7 +1,7 @@
 import * as React from "react"
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui-components/react/alert-dialog"
 
-import { cn } from "@/shared/lib/utils"
+import { cn } from "@/shared/components/ui/contracts/cn"
 import { buttonVariants } from "@/shared/components/ui/button"
 
 const AlertDialog = AlertDialogPrimitive.Root

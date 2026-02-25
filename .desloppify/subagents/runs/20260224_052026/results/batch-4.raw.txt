@@ -1,0 +1,119 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "ai_generated_debt": 68.0,
+    "low_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "supabase/functions/_shared/storagePaths.ts declares it is a direct copy of another runtime file and requires manual sync (lines 4-5), creating migration residue by design.",
+        "src/shared/lib/generationTaskBridge.ts is explicitly a legacy compatibility re-export shim (lines 2-6) instead of a removed migration layer.",
+        "supabase/functions/ai-prompt/index.ts contains very large repetitive instruction blocks with repeated 'CRITICAL' framing across tasks (lines 67-111, 205-251), consistent with LLM-style prompt bloat in production logic.",
+        "supabase/functions/_shared/systemLogger.ts and supabase/functions/ai-prompt/index.ts both use file-wide deno lint suppression (line 1 in each), which masks cleanup pressure on generated/boilerplate patterns."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelinePositions.ts has high-comment-density defensive orchestration around refs/locks/timers (e.g., lines 157-213, 260-267, 394-397, 514-531), signaling brittle local control flow.",
+        "supabase/functions/update-task-status/request.ts repeatedly flushes and returns near-identical validation error branches (lines 40-109), creating verbose branch duplication.",
+        "supabase/functions/ai-prompt/index.ts uses long inline string assembly and multi-branch task handling in one file (lines 59-292), reducing local readability and increasing mutation risk.",
+        "supabase/functions/_shared/billing.ts uses broad unchecked casts from unknown object fields (lines 46-50), reducing interface honesty and pushing validation burden to downstream branches."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "manual-sync-storagepaths-duplication",
+      "summary": "Edge storage path utilities are maintained as a manual copy, preserving migration debt and divergence risk.",
+      "related_files": [
+        "supabase/functions/_shared/storagePaths.ts",
+        "src/shared/lib/segmentColors.ts"
+      ],
+      "evidence": [
+        "supabase/functions/_shared/storagePaths.ts line 4 states it is a copy of another file and line 5 instructs manual synchronization.",
+        "The pattern mirrors static duplicated constant structures (e.g., palette arrays in src/shared/lib/segmentColors.ts lines 12-27) that can drift when edited independently."
+      ],
+      "suggestion": "Create a shared path contract package for both runtimes or generate the edge variant from a single source during build, then remove the manual-sync comment path.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "legacy-compatibility-layer-not-retired",
+      "summary": "Legacy bridge/shim code remains as permanent compatibility infrastructure rather than a bounded migration.",
+      "related_files": [
+        "src/shared/lib/generationTaskBridge.ts",
+        "supabase/functions/_shared/billing.ts"
+      ],
+      "evidence": [
+        "src/shared/lib/generationTaskBridge.ts lines 2-6 describe backward-compatible legacy import behavior instead of direct ownership.",
+        "supabase/functions/_shared/billing.ts lines 27-33 and 89-94 keep multiple legacy parameter paths active in extract/filter logic."
+      ],
+      "suggestion": "Define a migration cutoff, remove deprecated input paths, and collapse bridge exports to canonical modules once callers are updated.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "prompt-endpoint-instruction-bloat",
+      "summary": "AI prompt endpoint embeds repetitive mega-prompts and duplicated guard text, increasing maintenance debt.",
+      "related_files": [
+        "supabase/functions/ai-prompt/index.ts",
+        "supabase/functions/_shared/systemLogger.ts"
+      ],
+      "evidence": [
+        "supabase/functions/ai-prompt/index.ts uses extensive repeated instruction strings with overlapping constraints across branches (generate_prompts/edit_prompt/enhance_segment_prompt).",
+        "supabase/functions/ai-prompt/index.ts and supabase/functions/_shared/systemLogger.ts both start with file-wide lint ignore directives, reducing pressure to keep these large implementations tidy."
+      ],
+      "suggestion": "Extract prompt templates into versioned constants/builders, deduplicate repeated policy clauses, and remove file-wide lint ignores in favor of targeted suppressions.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "timeline-hook-race-guard-complexity",
+      "summary": "Timeline position hook has over-defensive local state choreography that is difficult to reason about safely.",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelinePositions.ts",
+        "src/tools/travel-between-images/hooks/useOperationTracking.ts"
+      ],
+      "evidence": [
+        "useTimelinePositions coordinates multiple mutable refs (isLockedRef/isUpdatingRef/writeInFlightRef/pendingUpdatesRef/snapshotRef) plus delayed status reset timer, spreading invariants across many branches.",
+        "useOperationTracking also relies on timeout-based suppression (100ms window), indicating related timing-driven coordination instead of explicit transactional lifecycle boundaries."
+      ],
+      "suggestion": "Refactor both flows around an explicit finite-state reducer (idle/optimistic/persisting/error) with one lock source and deterministic transitions, minimizing timeout-based synchronization.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "validation-response-branch-duplication",
+      "summary": "Request validation repeats near-identical error branches and mixed response construction styles.",
+      "related_files": [
+        "supabase/functions/update-task-status/request.ts",
+        "supabase/functions/ai-prompt/index.ts"
+      ],
+      "evidence": [
+        "update-task-status/request.ts repeats logger.error + flush + response construction for each field check (lines 40-109).",
+        "The module mixes plain Response and jsonResponse helper, while ai-prompt/index.ts consistently uses a centralized jsonResponse helper, showing seam inconsistency."
+      ],
+      "suggestion": "Introduce a small validation helper that emits standardized errors (log+flush+json response) and use one response strategy across edge handlers.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ]
+}

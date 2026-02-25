@@ -5,7 +5,7 @@
 
 import { useMemo } from 'react';
 import type { PairData } from '../../Timeline/TimelineContainer';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 import { isVideoAny } from '@/shared/lib/typeGuards';
 import { readSegmentOverrides } from '@/shared/lib/settingsMigration';
 

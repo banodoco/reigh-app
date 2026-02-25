@@ -1,34 +1,41 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createJoinClipsTask } from '../joinClips';
+import {
+  createCanonicalJoinClipsTask,
+} from '../joinClips';
+import { createJoinClipsTaskCompat } from './helpers/joinClipsCompatAdapter';
 
 const mockCreateTask = vi.fn();
 const mockGenerateTaskId = vi.fn();
 const mockGenerateRunId = vi.fn();
 
-vi.mock('../../taskCreation', () => ({
-  createTask: (...args: unknown[]) => mockCreateTask(...args),
-  generateTaskId: (...args: unknown[]) => mockGenerateTaskId(...args),
-  generateRunId: (...args: unknown[]) => mockGenerateRunId(...args),
-  validateRequiredFields: (params: Record<string, unknown>, fields: string[]) => {
-    for (const field of fields) {
-      const value = params[field];
-      if (value === undefined || value === null) {
-        throw new TVE(`${field} is required`, field);
+vi.mock('../../taskCreation', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../taskCreation')>();
+  return {
+    ...actual,
+    createTask: (...args: unknown[]) => mockCreateTask(...args),
+    generateTaskId: (...args: unknown[]) => mockGenerateTaskId(...args),
+    generateRunId: (...args: unknown[]) => mockGenerateRunId(...args),
+    validateRequiredFields: (params: Record<string, unknown>, fields: string[]) => {
+      for (const field of fields) {
+        const value = params[field];
+        if (value === undefined || value === null) {
+          throw new TVE(`${field} is required`, field);
+        }
+        if (typeof value === 'string' && value.trim() === '') {
+          throw new TVE(`${field} cannot be empty`, field);
+        }
       }
-      if (typeof value === 'string' && value.trim() === '') {
-        throw new TVE(`${field} cannot be empty`, field);
+    },
+    TaskValidationError: class extends Error {
+      field?: string;
+      constructor(message: string, field?: string) {
+        super(message);
+        this.name = 'TaskValidationError';
+        this.field = field;
       }
-    }
-  },
-  TaskValidationError: class extends Error {
-    field?: string;
-    constructor(message: string, field?: string) {
-      super(message);
-      this.name = 'TaskValidationError';
-      this.field = field;
-    }
-  },
-}));
+    },
+  };
+});
 
 class TVE extends Error {
   field?: string;
@@ -39,8 +46,8 @@ class TVE extends Error {
   }
 }
 
-vi.mock('@/shared/lib/errorHandler', () => ({
-  handleError: vi.fn(),
+vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
+  normalizeAndPresentError: vi.fn(),
 }));
 
 vi.mock('@/shared/lib/joinClipsDefaults', () => ({
@@ -65,7 +72,7 @@ vi.mock('@/shared/lib/joinClipsDefaults', () => ({
   },
 }));
 
-vi.mock('@/shared/lib/caseConversion', () => ({
+vi.mock('@/shared/lib/utils/caseConversion', () => ({
   camelToSnakeKeys: (obj: Record<string, unknown>) => {
     const result: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj)) {
@@ -76,7 +83,7 @@ vi.mock('@/shared/lib/caseConversion', () => ({
   },
 }));
 
-describe('createJoinClipsTask', () => {
+describe('createJoinClipsTaskCompat', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockCreateTask.mockResolvedValue({ task_id: 'task-1', status: 'pending' });
@@ -85,7 +92,7 @@ describe('createJoinClipsTask', () => {
   });
 
   it('creates a task with clips array', async () => {
-    const result = await createJoinClipsTask({
+    const result = await createJoinClipsTaskCompat({
       project_id: 'proj-1',
       clips: [
         { url: 'https://example.com/clip1.mp4' },
@@ -108,8 +115,65 @@ describe('createJoinClipsTask', () => {
     expect(orch.run_id).toBe('20250101T000000000');
   });
 
+  it('creates a multi-clip task through the canonical entrypoint', async () => {
+    await createCanonicalJoinClipsTask({
+      project_id: 'proj-1',
+      mode: 'multi_clip',
+      clip_source: {
+        kind: 'clips',
+        clips: [
+          { url: 'https://example.com/clip1.mp4' },
+          { url: 'https://example.com/clip2.mp4' },
+        ],
+      },
+    });
+
+    const orch = mockCreateTask.mock.calls[0][0].params.orchestrator_details;
+    expect(orch.clip_list).toHaveLength(2);
+  });
+
+  it('creates a video-edit task through the canonical entrypoint', async () => {
+    await createCanonicalJoinClipsTask({
+      project_id: 'proj-1',
+      mode: 'video_edit',
+      clip_source: {
+        kind: 'clips',
+        clips: [
+          { url: 'https://example.com/clip1.mp4' },
+          { url: 'https://example.com/clip2.mp4' },
+        ],
+      },
+      video_edit: {
+        source_video_url: 'https://example.com/source.mp4',
+      },
+    });
+
+    const orch = mockCreateTask.mock.calls[0][0].params.orchestrator_details;
+    expect(orch.video_edit_mode).toBe(true);
+    expect(orch.source_video_url).toBe('https://example.com/source.mp4');
+  });
+
+  it('creates a task from canonical clip_source descriptor', async () => {
+    await createJoinClipsTaskCompat({
+      project_id: 'proj-1',
+      mode: 'multi_clip',
+      clip_source: {
+        kind: 'clips',
+        clips: [
+          { url: 'https://example.com/clip-a.mp4', name: 'A' },
+          { url: 'https://example.com/clip-b.mp4', name: 'B' },
+        ],
+      },
+    });
+
+    const orch = mockCreateTask.mock.calls[0][0].params.orchestrator_details;
+    expect(orch.clip_list).toHaveLength(2);
+    expect(orch.clip_list[0]).toEqual({ url: 'https://example.com/clip-a.mp4', name: 'A' });
+    expect(orch.clip_list[1]).toEqual({ url: 'https://example.com/clip-b.mp4', name: 'B' });
+  });
+
   it('uses legacy starting/ending video paths', async () => {
-    await createJoinClipsTask({
+    await createJoinClipsTaskCompat({
       project_id: 'proj-1',
       starting_video_path: 'https://example.com/start.mp4',
       ending_video_path: 'https://example.com/end.mp4',
@@ -122,7 +186,7 @@ describe('createJoinClipsTask', () => {
   });
 
   it('includes intermediate video paths in legacy mode', async () => {
-    await createJoinClipsTask({
+    await createJoinClipsTaskCompat({
       project_id: 'proj-1',
       starting_video_path: 'https://example.com/start.mp4',
       intermediate_video_paths: [
@@ -137,7 +201,7 @@ describe('createJoinClipsTask', () => {
   });
 
   it('prefers clips array over legacy format', async () => {
-    await createJoinClipsTask({
+    await createJoinClipsTaskCompat({
       project_id: 'proj-1',
       clips: [
         { url: 'https://example.com/a.mp4' },
@@ -154,7 +218,7 @@ describe('createJoinClipsTask', () => {
 
   it('throws when fewer than 2 clips', async () => {
     await expect(
-      createJoinClipsTask({
+      createJoinClipsTaskCompat({
         project_id: 'proj-1',
         clips: [{ url: 'https://example.com/only-one.mp4' }],
       })
@@ -163,7 +227,7 @@ describe('createJoinClipsTask', () => {
 
   it('throws when a clip URL is empty', async () => {
     await expect(
-      createJoinClipsTask({
+      createJoinClipsTaskCompat({
         project_id: 'proj-1',
         clips: [
           { url: 'https://example.com/clip1.mp4' },
@@ -174,7 +238,7 @@ describe('createJoinClipsTask', () => {
   });
 
   it('uses provided run_id instead of generating one', async () => {
-    await createJoinClipsTask({
+    await createJoinClipsTaskCompat({
       project_id: 'proj-1',
       clips: [
         { url: 'https://example.com/clip1.mp4' },
@@ -188,7 +252,7 @@ describe('createJoinClipsTask', () => {
   });
 
   it('passes through optional global settings', async () => {
-    await createJoinClipsTask({
+    await createJoinClipsTaskCompat({
       project_id: 'proj-1',
       clips: [
         { url: 'https://example.com/clip1.mp4' },
@@ -214,7 +278,7 @@ describe('createJoinClipsTask', () => {
   });
 
   it('includes per_join_settings when provided', async () => {
-    await createJoinClipsTask({
+    await createJoinClipsTaskCompat({
       project_id: 'proj-1',
       clips: [
         { url: 'https://example.com/clip1.mp4' },
@@ -236,7 +300,7 @@ describe('createJoinClipsTask', () => {
 
   it('throws when per_join_settings exceeds number of joins', async () => {
     await expect(
-      createJoinClipsTask({
+      createJoinClipsTaskCompat({
         project_id: 'proj-1',
         clips: [
           { url: 'https://example.com/clip1.mp4' },
@@ -251,7 +315,7 @@ describe('createJoinClipsTask', () => {
   });
 
   it('includes parent_generation_id in both payload and top level', async () => {
-    await createJoinClipsTask({
+    await createJoinClipsTaskCompat({
       project_id: 'proj-1',
       clips: [
         { url: 'https://example.com/clip1.mp4' },
@@ -267,7 +331,7 @@ describe('createJoinClipsTask', () => {
 
   it('includes tool_type only when explicitly provided', async () => {
     // Without tool_type
-    await createJoinClipsTask({
+    await createJoinClipsTaskCompat({
       project_id: 'proj-1',
       clips: [
         { url: 'https://example.com/clip1.mp4' },
@@ -281,7 +345,7 @@ describe('createJoinClipsTask', () => {
     vi.clearAllMocks();
     mockCreateTask.mockResolvedValue({ task_id: 'task-2', status: 'pending' });
 
-    await createJoinClipsTask({
+    await createJoinClipsTaskCompat({
       project_id: 'proj-1',
       clips: [
         { url: 'https://example.com/clip1.mp4' },
@@ -294,7 +358,7 @@ describe('createJoinClipsTask', () => {
   });
 
   it('includes video_edit_mode params when enabled', async () => {
-    await createJoinClipsTask({
+    await createJoinClipsTaskCompat({
       project_id: 'proj-1',
       clips: [
         { url: 'https://example.com/clip1.mp4' },
@@ -318,8 +382,38 @@ describe('createJoinClipsTask', () => {
     expect(orch.portions_to_regenerate).toHaveLength(1);
   });
 
+  it('supports canonical video_edit config block', async () => {
+    await createJoinClipsTaskCompat({
+      project_id: 'proj-1',
+      mode: 'video_edit',
+      clip_source: {
+        kind: 'clips',
+        clips: [
+          { url: 'https://example.com/clip1.mp4' },
+          { url: 'https://example.com/clip2.mp4' },
+        ],
+      },
+      video_edit: {
+        source_video_url: 'https://example.com/source.mp4',
+        source_video_fps: 30,
+        source_video_duration: 8.5,
+        source_video_total_frames: 255,
+        portions_to_regenerate: [
+          { start_frame: 0, end_frame: 50, start_time_seconds: 0, end_time_seconds: 1.7, frame_count: 50 },
+        ],
+      },
+    });
+
+    const orch = mockCreateTask.mock.calls[0][0].params.orchestrator_details;
+    expect(orch.video_edit_mode).toBe(true);
+    expect(orch.source_video_url).toBe('https://example.com/source.mp4');
+    expect(orch.source_video_fps).toBe(30);
+    expect(orch.source_video_total_frames).toBe(255);
+    expect(orch.portions_to_regenerate).toHaveLength(1);
+  });
+
   it('includes audio_url when provided', async () => {
-    await createJoinClipsTask({
+    await createJoinClipsTaskCompat({
       project_id: 'proj-1',
       clips: [
         { url: 'https://example.com/clip1.mp4' },
@@ -333,7 +427,7 @@ describe('createJoinClipsTask', () => {
   });
 
   it('includes additional_loras from loras array', async () => {
-    await createJoinClipsTask({
+    await createJoinClipsTaskCompat({
       project_id: 'proj-1',
       clips: [
         { url: 'https://example.com/clip1.mp4' },
@@ -351,7 +445,7 @@ describe('createJoinClipsTask', () => {
   });
 
   it('includes based_on for variant creation', async () => {
-    await createJoinClipsTask({
+    await createJoinClipsTaskCompat({
       project_id: 'proj-1',
       clips: [
         { url: 'https://example.com/clip1.mp4' },
@@ -365,7 +459,7 @@ describe('createJoinClipsTask', () => {
   });
 
   it('includes loop_first_clip when set', async () => {
-    await createJoinClipsTask({
+    await createJoinClipsTaskCompat({
       project_id: 'proj-1',
       clips: [
         { url: 'https://example.com/clip1.mp4' },
@@ -379,7 +473,7 @@ describe('createJoinClipsTask', () => {
   });
 
   it('always sets advanced_mode to true', async () => {
-    await createJoinClipsTask({
+    await createJoinClipsTaskCompat({
       project_id: 'proj-1',
       clips: [
         { url: 'https://example.com/clip1.mp4' },
@@ -392,7 +486,7 @@ describe('createJoinClipsTask', () => {
   });
 
   it('builds phase_config with default lora', async () => {
-    await createJoinClipsTask({
+    await createJoinClipsTaskCompat({
       project_id: 'proj-1',
       clips: [
         { url: 'https://example.com/clip1.mp4' },
@@ -427,7 +521,7 @@ describe('createJoinClipsTask', () => {
       ],
     };
 
-    await createJoinClipsTask({
+    await createJoinClipsTaskCompat({
       project_id: 'proj-1',
       clips: [
         { url: 'https://example.com/clip1.mp4' },
@@ -441,7 +535,7 @@ describe('createJoinClipsTask', () => {
   });
 
   it('includes clip names when provided', async () => {
-    await createJoinClipsTask({
+    await createJoinClipsTaskCompat({
       project_id: 'proj-1',
       clips: [
         { url: 'https://example.com/clip1.mp4', name: 'Intro' },
@@ -455,7 +549,7 @@ describe('createJoinClipsTask', () => {
   });
 
   it('maps per-join loras to additional_loras format', async () => {
-    await createJoinClipsTask({
+    await createJoinClipsTaskCompat({
       project_id: 'proj-1',
       clips: [
         { url: 'https://example.com/clip1.mp4' },
@@ -472,5 +566,71 @@ describe('createJoinClipsTask', () => {
     expect(orch.per_join_settings[0].additional_loras).toEqual({
       'https://example.com/join-lora.safetensors': 0.5,
     });
+  });
+
+  it('rejects explicit legacy mode', async () => {
+    await expect(
+      createJoinClipsTaskCompat({
+        project_id: 'proj-1',
+        mode: 'legacy',
+        clip_source: {
+          kind: 'clips',
+          clips: [
+            { url: 'https://example.com/clip1.mp4' },
+            { url: 'https://example.com/clip2.mp4' },
+          ],
+        },
+      }),
+    ).rejects.toThrow("mode='legacy' is no longer supported");
+  });
+
+  it('rejects mixed clip source compatibility fields', async () => {
+    await expect(
+      createJoinClipsTaskCompat({
+        project_id: 'proj-1',
+        clip_source: {
+          kind: 'clips',
+          clips: [
+            { url: 'https://example.com/clip1.mp4' },
+            { url: 'https://example.com/clip2.mp4' },
+          ],
+        },
+        clips: [
+          { url: 'https://example.com/clip3.mp4' },
+          { url: 'https://example.com/clip4.mp4' },
+        ],
+      }),
+    ).rejects.toThrow('Provide exactly one clip-source mode');
+  });
+
+  it('rejects mixed video edit compatibility fields', async () => {
+    await expect(
+      createJoinClipsTaskCompat({
+        project_id: 'proj-1',
+        mode: 'video_edit',
+        clips: [
+          { url: 'https://example.com/clip1.mp4' },
+          { url: 'https://example.com/clip2.mp4' },
+        ],
+        video_edit: {
+          source_video_url: 'https://example.com/source.mp4',
+        },
+        video_edit_mode: true,
+        source_video_url: 'https://example.com/source.mp4',
+      }),
+    ).rejects.toThrow('Provide exactly one video-edit mode');
+  });
+
+  it('rejects partial legacy video-edit payloads without video_edit_mode', async () => {
+    await expect(
+      createJoinClipsTaskCompat({
+        project_id: 'proj-1',
+        clips: [
+          { url: 'https://example.com/clip1.mp4' },
+          { url: 'https://example.com/clip2.mp4' },
+        ],
+        source_video_url: 'https://example.com/source.mp4',
+      }),
+    ).rejects.toThrow('Legacy source_* video edit fields require video_edit_mode=true');
   });
 });

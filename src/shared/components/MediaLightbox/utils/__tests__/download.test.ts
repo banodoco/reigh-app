@@ -1,18 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-vi.mock('@/shared/components/ui/sonner', () => ({
+vi.mock('@/shared/components/ui/runtime/sonner', () => ({
   toast: { info: vi.fn(), error: vi.fn() },
 }));
 
-vi.mock('@/shared/lib/errorHandler', () => ({
-  handleError: vi.fn(),
+vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
+  normalizeAndPresentError: vi.fn(),
 }));
 
 vi.mock('@/shared/lib/errorHandling/errorUtils', () => ({
   isAbortError: vi.fn((error: unknown) => error instanceof Error && error.name === 'AbortError'),
 }));
 
-import { downloadMedia } from '../download';
+import { downloadMedia } from '@/shared/lib/media/downloadMedia';
 
 describe('downloadMedia', () => {
   let mockLink: { href: string; download: string; target: string; click: ReturnType<typeof vi.fn> };

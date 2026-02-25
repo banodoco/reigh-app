@@ -1,0 +1,105 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 5,
+  "assessments": {
+    "package_organization": 82.0,
+    "high_level_elegance": 84.0
+  },
+  "dimension_notes": {
+    "package_organization": {
+      "evidence": [
+        "The deprecated shim `src/shared/hooks/useGenerationMutations.ts` is only a re-export to `src/domains/generation/hooks/useGenerationMutations.ts`, keeping a legacy path alive in the wrong package boundary.",
+        "`src/shared/hooks/__tests__/useGalleryPageState.test.ts` imports from `@/features/gallery/hooks/useGalleryPageState`, so a feature-owned hook test is physically located in shared hooks tests.",
+        "Holistic structure shows `src/shared/hooks/__tests__/` has 74 files and imports mostly from `src/shared/hooks/` (73 edges) but also from `src/features/gallery/hooks/` (1 edge), indicating cross-boundary leakage in a high-volume test folder.",
+        "`src/shared/lib/__tests__/clientThumbnailGenerator.test.ts` tests `@/shared/media/clientThumbnailGenerator` while living under `shared/lib/__tests__`, and reaches `shared/lib/imageUploader` via `../imageUploader`, mixing media-vs-lib ownership."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "The generation mutation capability already has a domain home (`src/domains/generation/hooks/useGenerationMutations.ts`), but a second shared-level entrypoint remains (`src/shared/hooks/useGenerationMutations.ts`), diluting ownership clarity.",
+        "Test placement is not consistently domain-aligned: gallery hook test is in shared hooks test directory, and media thumbnail test is in shared lib test directory despite testing `src/shared/media/clientThumbnailGenerator.ts`.",
+        "Feature directory profile is small and coherent (`src/features/gallery/hooks/` has 2 files), so keeping feature tests in shared test folders adds avoidable indirection for navigation and ownership discovery."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "package_organization",
+      "identifier": "legacy_shared_shim_for_domain_hook",
+      "summary": "Deprecated shared hook shim preserves a stale package boundary for generation mutations.",
+      "related_files": [
+        "src/shared/hooks/useGenerationMutations.ts",
+        "src/domains/generation/hooks/useGenerationMutations.ts",
+        "src/shared/hooks/__tests__/useGalleryPageState.test.ts"
+      ],
+      "evidence": [
+        "`src/shared/hooks/useGenerationMutations.ts` contains only a deprecated re-export of domain hook symbols.",
+        "Search for `@/shared/hooks/useGenerationMutations` in `src/` returns no active imports, indicating the compatibility file is now residue.",
+        "Downstream tests and feature hooks already reference domain paths directly (`@/domains/generation/hooks/useGenerationMutations`)."
+      ],
+      "suggestion": "Staged reorg plan: (1) target folder: keep canonical mutations in `src/domains/generation/hooks/` only; (2) move order: first update any remaining imports to `@/domains/generation/hooks/useGenerationMutations`, then remove `src/shared/hooks/useGenerationMutations.ts`; (3) import-update/validation commands: `rg -n \"@/shared/hooks/useGenerationMutations\" src`, apply replacements, then run `pnpm test -w 1 src/shared/hooks/__tests__/useGalleryPageState.test.ts` and `pnpm typecheck`.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shared_vs_domain_boundary_drift"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "feature_test_misplaced_in_shared_hooks_tests",
+      "summary": "Gallery feature hook test is stored in shared hooks test package, obscuring ownership.",
+      "related_files": [
+        "src/shared/hooks/__tests__/useGalleryPageState.test.ts",
+        "src/features/gallery/hooks/useGalleryPageState.ts",
+        "src/features/gallery/hooks/__tests__/useAdjacentPagePreloader.test.ts"
+      ],
+      "evidence": [
+        "`useGalleryPageState.test.ts` imports the hook from `@/features/gallery/hooks/useGalleryPageState` while residing under `src/shared/hooks/__tests__/`.",
+        "The feature already has a dedicated test folder (`src/features/gallery/hooks/__tests__/`) used by `useAdjacentPagePreloader.test.ts`.",
+        "Holistic coupling records `src/shared/hooks/__tests__/ -> src/features/gallery/hooks/` edge, a placement mismatch against dominant shared-hook mirroring."
+      ],
+      "suggestion": "Staged reorg plan: (1) target folder: `src/features/gallery/hooks/__tests__/`; (2) move order: move `useGalleryPageState.test.ts` first, then normalize its imports to local feature paths; (3) import-update/validation commands: `git mv src/shared/hooks/__tests__/useGalleryPageState.test.ts src/features/gallery/hooks/__tests__/useGalleryPageState.test.ts`, then `rg -n \"useGalleryPageState\" src/features/gallery/hooks/__tests__`, run `pnpm test -w 1 src/features/gallery/hooks/__tests__/useGalleryPageState.test.ts` and `pnpm typecheck`.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shared_vs_domain_boundary_drift"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "media_vs_lib_test_ownership_blur",
+      "summary": "Client thumbnail test location blurs the boundary between media capability and generic lib utilities.",
+      "related_files": [
+        "src/shared/lib/__tests__/clientThumbnailGenerator.test.ts",
+        "src/shared/media/clientThumbnailGenerator.ts",
+        "src/shared/lib/imageUploader.ts"
+      ],
+      "evidence": [
+        "The test file lives under `src/shared/lib/__tests__/` but its primary unit under test is `@/shared/media/clientThumbnailGenerator`.",
+        "Within that same test, uploader mocks are imported via `../imageUploader`, coupling the test to lib internals while validating media behavior.",
+        "This split forces cross-package reasoning for one capability (thumbnail generation + upload), reducing top-level role clarity."
+      ],
+      "suggestion": "Staged reorg plan: (1) target folders: move the test to `src/shared/media/__tests__/` and keep storage-upload contract tests in `src/shared/lib/__tests__/`; (2) move order: relocate `clientThumbnailGenerator.test.ts`, then switch mocked importer path to `@/shared/lib/imageUploader`; (3) import-update/validation commands: `mkdir -p src/shared/media/__tests__ && git mv src/shared/lib/__tests__/clientThumbnailGenerator.test.ts src/shared/media/__tests__/clientThumbnailGenerator.test.ts`, then `rg -n \"clientThumbnailGenerator|imageUploader\" src/shared/media/__tests__`, run `pnpm test -w 1 src/shared/media/__tests__/clientThumbnailGenerator.test.ts` and `pnpm typecheck`.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "shared_vs_domain_boundary_drift"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Transitional compatibility aliases were left in place after ownership moved to domain packages.",
+      "Test files are organized partly by legacy shared buckets instead of current capability ownership."
+    ],
+    "likely_symptoms": [
+      "legacy_shared_shim_for_domain_hook",
+      "feature_test_misplaced_in_shared_hooks_tests",
+      "media_vs_lib_test_ownership_blur"
+    ],
+    "possible_false_positives": []
+  }
+}

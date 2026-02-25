@@ -15,7 +15,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import { Label } from '@/shared/components/ui/label';
+import { Label } from '@/shared/components/ui/primitives/label';
 import { Input } from '@/shared/components/ui/input';
 import { NumberInput } from '@/shared/components/ui/number-input';
 import { Button } from '@/shared/components/ui/button';

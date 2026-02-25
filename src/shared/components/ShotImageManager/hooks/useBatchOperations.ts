@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef, type Dispatch, type SetStateAction } from 'react';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 
 interface UseBatchOperationsProps {

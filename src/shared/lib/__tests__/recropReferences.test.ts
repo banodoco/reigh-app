@@ -13,7 +13,7 @@ vi.mock('@/shared/lib/fileConversion', () => ({
   dataURLtoFile: vi.fn().mockReturnValue(new File(['test'], 'test.png', { type: 'image/png' })),
 }));
 
-vi.mock('@/shared/lib/clientThumbnailGenerator', () => ({
+vi.mock('@/shared/media/clientThumbnailGenerator', () => ({
   generateClientThumbnail: vi.fn().mockResolvedValue({
     thumbnailBlob: new Blob(['thumb'], { type: 'image/jpeg' }),
     thumbnailWidth: 150,
@@ -37,8 +37,8 @@ vi.mock('@/integrations/supabase/client', () => ({
   },
 }));
 
-vi.mock('@/shared/lib/errorHandling/handleError', () => ({
-  handleError: vi.fn(),
+vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
+  normalizeAndPresentError: vi.fn(),
 }));
 
 // Mock fetch

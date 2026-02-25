@@ -11,7 +11,6 @@ export { useAdjustedTaskDetails } from './useAdjustedTaskDetails';
 export { useVideoRegenerateMode } from './useVideoRegenerateMode';
 export { usePanelModeRestore } from './usePanelModeRestore';
 export { useEditSettingsSync } from './useEditSettingsSync';
-export { useLightboxWorkflowProps } from './useLightboxWorkflowProps';
 export { useLightboxStateValue } from './useLightboxStateValue';
 export { useLightboxVideoMode } from './useLightboxVideoMode';
 export { useSharedLightboxState } from './useSharedLightboxState';

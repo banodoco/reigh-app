@@ -1,5 +1,5 @@
 import React from 'react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { CreateProjectModal } from '@/shared/components/CreateProjectModal';
 import { ProjectSettingsModal } from '@/shared/components/ProjectSettingsModal';
 import { ReferralModal } from '@/shared/components/ReferralModal';

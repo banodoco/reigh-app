@@ -1,0 +1,21 @@
+/* Override Tailwind's min-h-screen to account for mobile dynamic viewport height */
+.min-h-screen {
+  /* Fallback for older browsers */
+  min-height: 100vh;
+  /* Use dynamic viewport unit where supported to avoid address-bar shift issues */
+  min-height: 100dvh;
+}
+
+/* Hide fullscreen and picture-in-picture buttons on videos */
+.hide-video-controls::-webkit-media-controls-fullscreen-button {
+  display: none !important;
+}
+
+.hide-video-controls::-webkit-media-controls-picture-in-picture-button {
+  display: none !important;
+}
+
+/* For Firefox */
+.hide-video-controls::-moz-media-controls-fullscreen-button {
+  display: none !important;
+}

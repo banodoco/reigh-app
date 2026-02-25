@@ -1,0 +1,461 @@
+{
+  "assessments": {
+    "authorization_consistency": 82.7,
+    "convention_outlier": 84.1,
+    "design_coherence": 48.0,
+    "error_consistency": 82.8
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "Large multi-responsibility contracts remain common in this batch: `BatchSettingsFormProps` includes UI state, persistence triggers, preset management, prompt controls, and phase controls in one component contract (`src/tools/travel-between-images/components/BatchSettingsForm.tsx`).",
+        "`useTimelineOrchestrator` exposes a very large input/output surface (drag, selection, drop, pending, endpoint, viewport, UI flags, device behaviors), indicating orchestration and UI concerns are fused (`src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts`).",
+        "Shot-association control logic is duplicated across sibling components with near-identical branching and optimistic tick updates (`src/shared/components/MediaLightbox/components/ShotSelectorControls.tsx`, `src/shared/components/MediaLightbox/components/WorkflowControls.tsx`).",
+        "Submission flow has stacked orchestration layers passing many values through (`useFormSubmission` -> `useSubmissionHandlers` -> `useSubmissionOrchestrator`) with limited reduction of coupling (`src/shared/components/ImageGenerationForm/hooks/useFormSubmission.ts`, `src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmissionHandlers.ts`, `src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmissionOrchestrator.ts`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "issues_preventing_higher_score": ""
+    },
+    "convention_outlier": {
+      "evidence": [
+        "Tooltip usage is split across two sibling entry patterns: `src/shared/components/ui/tooltip.tsx` re-exports from `primitives/tooltip`, while `src/shared/components/ui/touchableTooltip.tsx` directly imports `./tooltipPrimitives`.",
+        "Gallery/lightbox UI components (`src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx`, `ShotActions.tsx`) use the barrel tooltip API, but `TouchableTooltip` bypasses that shared surface and composes against a separate primitive wrapper."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Sibling tooltip components do not consistently use one canonical primitive/export path, which increases drift risk and makes interaction behavior harder to reason about."
+    },
+    "error_consistency": {
+      "evidence": [
+        "In `supabase/functions/complete_task/generation.ts`, `handleRegeneration` performs `supabase.from('tasks').update({ generation_created: true }).eq('id', taskId)` without checking or handling returned `error`.",
+        "Other nearby completion flows (for example `markOrchestratorFailed` in `supabase/functions/complete_task/orchestrator.ts`) explicitly inspect update errors and convert them to typed `CompletionError`s."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "issues_preventing_higher_score": "A DB write in the completion path can fail silently, while sibling paths enforce explicit error conversion and propagation."
+    },
+    "authorization_consistency": {
+      "evidence": [
+        "`createGenerationFromTask` in `supabase/functions/complete_task/generation.ts` accepts `authContext?: CompletionAuthContext` and fabricates a default unauthenticated context when omitted.",
+        "`checkOrchestratorCompletion` in `supabase/functions/complete_task/orchestrator.ts` requires a non-optional `authContext` parameter and asserts it directly.",
+        "`supabase/functions/calculate-task-cost/index.ts` performs explicit request authentication and service-role gating before proceeding."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Sibling completion/auth-sensitive flows use different auth contracts (optional context vs required context vs inline request auth), which weakens a uniform fail-closed boundary."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "state_bag_contracts_across_timeline_ui",
+      "summary": "Travel/timeline UI relies on oversized prop/state contracts that mix domain logic, UI controls, and persistence triggers in single units.",
+      "related_files": [
+        "src/tools/travel-between-images/components/BatchSettingsForm.tsx",
+        "src/tools/travel-between-images/components/MotionControl.tsx",
+        "src/tools/travel-between-images/components/Timeline/TimelineItem.tsx",
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts"
+      ],
+      "evidence": [
+        "`BatchSettingsFormProps` carries many unrelated concerns (prompt editing, phase config, mode toggles, seed/turbo controls, preset callbacks, text-before/after, read-only behavior) in one interface.",
+        "`TimelineItemProps` includes drag mechanics, selection state, duplication/delete actions, prefetch, touch behavior, and layout parameters together.",
+        "`useTimelineOrchestrator` accepts and returns broad multi-domain structures (`viewport`, `drag`, `selection`, `pending`, `drop`, `actions`, `endpoint`, `uiState`, `device`), creating a high-coupling seam."
+      ],
+      "suggestion": "Split these contracts into focused capability modules: timeline interaction state, shot mutation actions, and presentation-only props. Introduce a typed coordinator object per concern (interaction, mutation, rendering) and compose in parent containers instead of passing a single mega-contract.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "feature_surface_accumulation"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "duplicated_shot_association_workflow",
+      "summary": "Shot-selector/add-to-shot behavior is duplicated across two lightbox control components, creating drift risk and inconsistent UX behavior.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/ShotSelectorControls.tsx",
+        "src/shared/components/MediaLightbox/components/WorkflowControls.tsx",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryActions.ts"
+      ],
+      "evidence": [
+        "Both `ShotSelectorControls` and `WorkflowControls` implement nearly the same `handleAddWithoutPosition` flow: guard `selectedShotId`, call `onAddToShotWithoutPosition`, then trigger secondary tick + optimistic update.",
+        "Both render `ShotSelectorWithAdd` with parallel parameter wiring and very similar tick/disabled conditions.",
+        "Behavior has already diverged: `ShotSelectorControls` includes jump-to-shot and variant-add flow, while `WorkflowControls` shows the same success tooltip text but lacks that navigation path."
+      ],
+      "suggestion": "Extract a shared `useShotAssociationControls` hook or a single reusable control component that owns add/jump/tick state transitions and is parameterized only by placement/layout concerns.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "missing_shared_interaction_abstraction"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "submission_pipeline_indirection_chain",
+      "summary": "Form submission logic is split across multiple pass-through hooks, adding indirection without a clear reduction in dependency complexity.",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/hooks/useFormSubmission.ts",
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmissionHandlers.ts",
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmissionOrchestrator.ts"
+      ],
+      "evidence": [
+        "`useFormSubmission` builds `formStateRef` and task params, then forwards a large argument set to `useSubmissionHandlers`.",
+        "`useSubmissionHandlers` mostly forwards the same values into `useSubmissionOrchestrator` and repackages command handlers.",
+        "`useSubmissionOrchestrator` then contains both queue orchestration and prompt-generation side effects, so layering does not isolate responsibilities cleanly."
+      ],
+      "suggestion": "Collapse pass-through layers into one primary hook with explicit submodules only where ownership changes (e.g., task plan builder vs queue executor). Keep a minimal command interface at the top boundary and move value derivation closer to use sites.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "orchestration_layering_without_boundary_gain"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "panes_context_overloaded_responsibility",
+      "summary": "Pane context combines persistence policy, device-specific lock rules, runtime visibility, dimensions, and active-task selection in one provider.",
+      "related_files": [
+        "src/shared/contexts/PanesContext.tsx",
+        "src/shared/components/TasksPane/TasksPane.tsx",
+        "src/shared/components/PaneControlTab.tsx"
+      ],
+      "evidence": [
+        "`PanesContextType` exposes many fields spanning unrelated concerns (locks, open states, dimensions, active task id, reset behavior).",
+        "`createPaneLockSetter` performs both state mutation and persistence policy branching (`isMobile`/`isTablet`/`isSmallMobile`) in the same closure.",
+        "`TasksPane` still contains lock/open synchronization logic (`onToggleLock`, `onOpenChange`) that partially duplicates context intent, indicating boundary leakage."
+      ],
+      "suggestion": "Split context into focused providers: `PaneLockPolicyContext`, `PaneLayoutContext`, and `PaneSelectionContext`. Keep persistence and device policy in a dedicated hook consumed by lock policy provider to reduce cross-cutting coupling.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "feature_surface_accumulation"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "ad_hoc_timer_coordination_pattern",
+      "summary": "Multiple components coordinate UX transitions with hardcoded timers, indicating a systemic ad-hoc interaction-state pattern.",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline/TimelineItem.tsx",
+        "src/shared/components/MediaLightbox/components/ShotSelectorControls.tsx",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryActions.ts",
+        "src/shared/components/ChunkLoadErrorBoundary.tsx"
+      ],
+      "evidence": [
+        "`TimelineItem` uses a fixed 800ms timeout for drop highlight clearing.",
+        "`ShotSelectorControls` uses a fixed 2000ms timeout to clear success UI state.",
+        "`useMediaGalleryActions` coordinates delete/backfill via 100ms and 750ms timers.",
+        "`ChunkLoadErrorBoundary` reloads after a fixed 100ms delay."
+      ],
+      "suggestion": "Introduce shared interaction timing constants and a small transition-state utility (or reducer) so timing decisions are centralized, testable, and behaviorally consistent.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "implicit_async_ui_state_management"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "complete_task_generation_update_silent_failure",
+      "summary": "Generation completion path performs an unchecked DB update that can fail silently",
+      "related_files": [
+        "supabase/functions/complete_task/generation.ts",
+        "supabase/functions/complete_task/orchestrator.ts"
+      ],
+      "evidence": [
+        "`handleRegeneration` updates `tasks.generation_created` but does not read or branch on `{ error }` from Supabase.",
+        "Sibling orchestration updates in the same subsystem check errors and throw `CompletionError` with metadata."
+      ],
+      "suggestion": "Capture `{ error }` from the `generation_created` update in `handleRegeneration`; if present, throw `CompletionError` (or `toCompletionError`) with task id/context metadata to keep completion writes fail-fast and traceable.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "inconsistent_db_write_error_contracts"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "tooltip_entrypoint_drift",
+      "summary": "Tooltip primitives are consumed through inconsistent sibling entrypoints",
+      "related_files": [
+        "src/shared/components/ui/touchableTooltip.tsx",
+        "src/shared/components/ui/tooltip.tsx",
+        "src/shared/components/ui/tooltipPrimitives.tsx"
+      ],
+      "evidence": [
+        "`TouchableTooltip` imports tooltip primitives from local `./tooltipPrimitives`.",
+        "Other UI modules consume tooltip via the shared barrel (`@/shared/components/ui/tooltip`) that re-exports from `primitives/tooltip`."
+      ],
+      "suggestion": "Standardize on one tooltip import surface for UI consumers (prefer the shared barrel), and remove/bound alternate primitive paths unless they are explicitly versioned for different behavior.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "ui_primitive_surface_fragmentation"
+    },
+    {
+      "dimension": "authorization_consistency",
+      "identifier": "completion_auth_contract_mismatch",
+      "summary": "Sibling completion flows use inconsistent auth precondition contracts",
+      "related_files": [
+        "supabase/functions/complete_task/generation.ts",
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/calculate-task-cost/index.ts"
+      ],
+      "evidence": [
+        "`createGenerationFromTask` accepts optional `authContext` and substitutes a fallback unauthenticated object before assertion.",
+        "`checkOrchestratorCompletion` requires `authContext` from the caller and asserts that required context directly.",
+        "`calculate-task-cost` enforces authenticate-and-authorize at handler entry with service-role requirement."
+      ],
+      "suggestion": "Make `authContext` mandatory in `createGenerationFromTask` and align complete-task internal call sites to a single explicit auth precondition pattern (no fabricated fallback context objects).",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "inconsistent_auth_precondition_contracts"
+    }
+  ],
+  "review_quality": {
+    "batch_count": 2,
+    "dimension_coverage": 0.154,
+    "evidence_density": 1.567,
+    "high_score_missing_issue_note": 0,
+    "finding_pressure": 17.81,
+    "dimensions_with_findings": 4
+  },
+  "review_scope": {
+    "reviewed_files_count": 147,
+    "successful_batch_count": 2,
+    "full_sweep_included": false,
+    "total_files": 2313,
+    "imported_dimensions": [
+      "authorization_consistency",
+      "convention_outlier",
+      "design_coherence",
+      "error_consistency"
+    ]
+  },
+  "reviewed_files": [
+    "src/features/account/hooks/__tests__/useApiTokens.test.ts",
+    "src/pages/Home/components/panes/PhilosophyPane.tsx",
+    "src/shared/components/GlobalHeader/ProjectSelectorPopover.tsx",
+    "src/shared/components/ImageGenerationForm/components/ShotSelector.tsx",
+    "src/shared/components/ImageGenerationForm/components/reference/ReferenceThumbnail.tsx",
+    "src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmissionOrchestrator.ts",
+    "src/shared/components/LoraSelectorModal/utils/validation-utils.ts",
+    "src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx",
+    "src/shared/components/MediaLightbox/components/StrokeOverlay.tsx",
+    "src/shared/components/PaneControlTab.tsx",
+    "src/shared/components/PhaseConfigSelectorModal/components/BrowsePresetsTab.tsx",
+    "src/shared/components/StyledVideoPlayer.tsx",
+    "src/shared/components/TasksPane/TaskList.tsx",
+    "src/shared/components/TasksPane/TasksPane.tsx",
+    "src/shared/contexts/PanesContext.tsx",
+    "src/shared/hooks/segments/__tests__/useSegmentOutputsForShot.test.ts",
+    "src/shared/hooks/segments/useSegmentOutputsForShot.ts",
+    "src/shared/hooks/shots/__tests__/addImageToShotHelpers.test.ts",
+    "src/shared/hooks/useGenerationMutations.ts",
+    "src/shared/hooks/useProjectCRUD.ts",
+    "src/shared/hooks/useTaskStatusCounts.ts",
+    "src/shared/lib/media/downloadMedia.ts",
+    "src/shared/lib/tasks/imageGeneration.ts",
+    "src/shared/lib/tasks/individualTravelSegment.ts",
+    "src/tools/edit-images/hooks/useInlineEditState.ts",
+    "src/tools/join-clips/hooks/__tests__/useJoinClipsGenerate.test.ts",
+    "src/tools/join-clips/pages/JoinClipsPage.tsx",
+    "src/tools/training-data-helper/components/BatchSelector.tsx",
+    "src/tools/travel-between-images/components/BatchSettingsForm.tsx",
+    "src/tools/travel-between-images/components/MotionControl.tsx",
+    "src/tools/travel-between-images/components/ShotEditor/ShotSettingsContext.tsx",
+    "src/tools/travel-between-images/components/ShotEditor/hooks/useLoraSync.tsx",
+    "src/tools/travel-between-images/components/ShotEditor/services/__tests__/generateVideoService.test.ts",
+    "src/tools/travel-between-images/components/ShotEditor/ui/Header.tsx",
+    "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts",
+    "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+    "src/tools/travel-between-images/components/SortableShotItem.tsx",
+    "src/tools/travel-between-images/components/Timeline/GuidanceVideoStrip.tsx",
+    "src/tools/travel-between-images/components/Timeline/TimelineItem.tsx",
+    "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts",
+    "src/tools/travel-between-images/components/VideoShotDisplay.tsx",
+    "supabase/functions/complete_task/orchestrator.ts",
+    "src/app/components/error/AppErrorBoundary.tsx",
+    "src/domains/generation/types/generationMetadata.ts",
+    "src/pages/Home/components/panes/CreativePartnerPane.tsx",
+    "src/shared/components/ChunkLoadErrorBoundary.tsx",
+    "src/shared/components/CreditsManagement/components/TaskLogFilters.tsx",
+    "src/shared/components/CreditsManagement/hooks/useTaskLogDownload.ts",
+    "src/shared/components/DefaultableTextarea.tsx",
+    "src/shared/components/GlobalHeader/GlobalHeaderDesktop.tsx",
+    "src/shared/components/ImageGenerationDetails.tsx",
+    "src/shared/components/ImageGenerationForm/components/GenerationSettingsSection.tsx",
+    "src/shared/components/ImageGenerationForm/components/PromptsSection.tsx",
+    "src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmissionHandlers.ts",
+    "src/shared/components/ImageGenerationForm/hooks/legacyMigrations/useResourceMigration.ts",
+    "src/shared/components/ImageGenerationForm/hooks/promptManagement/types.ts",
+    "src/shared/components/ImageGenerationForm/hooks/referenceManagement/types.ts",
+    "src/shared/components/ImageGenerationForm/hooks/referenceUpload/useResourceSelectHandler.ts",
+    "src/shared/components/ImageGenerationForm/hooks/referenceUpload/useStyleReferenceUploadHandler.ts",
+    "src/shared/components/ImageGenerationForm/hooks/useFormSubmission.ts",
+    "src/shared/components/ImageGenerationModal.tsx",
+    "src/shared/components/ImageUploadActions.tsx",
+    "src/shared/components/LoraManager.tsx",
+    "src/shared/components/LoraSelectorModal/components/CommunityLorasTab.tsx",
+    "src/shared/components/LoraSelectorModal/components/MyLorasTab/components/FileDropZone.tsx",
+    "src/shared/components/LoraSelectorModal/components/MyLorasTab/components/SampleGenerationsSection.tsx",
+    "src/shared/components/MediaGallery/hooks/useMediaGalleryActions.ts",
+    "src/shared/components/MediaGallery/hooks/useMediaGalleryPagination.ts",
+    "src/shared/components/MediaGalleryItem.tsx",
+    "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+    "src/shared/components/MediaLightbox/components/EditPanelLayout.tsx",
+    "src/shared/components/MediaLightbox/components/ShotSelectorControls.tsx",
+    "src/shared/components/MediaLightbox/components/WorkflowControls.tsx",
+    "src/shared/components/MediaLightbox/components/editModes/Img2ImgControls.tsx",
+    "src/shared/components/MediaLightbox/hooks/reposition/types.ts",
+    "src/shared/components/MediaLightbox/hooks/reposition/useRepositionDrag.ts",
+    "src/shared/components/MediaLightbox/hooks/useEditSettingsPersistence.ts",
+    "src/shared/components/MediaLightbox/hooks/useEffectiveMedia.ts",
+    "src/shared/components/MediaLightbox/hooks/useVideoEditing.ts",
+    "src/shared/components/ModalContainer.tsx",
+    "src/shared/lib/errorHandling/handleError.ts",
+    "src/domains/generation/types/public.ts",
+    "src/integrations/supabase/client.ts",
+    "src/shared/components/ui/button.tsx",
+    "src/shared/components/ui/cn.ts",
+    "src/shared/components/ui/sonner.tsx",
+    "src/shared/components/ui/tooltip.tsx",
+    "src/shared/hooks/mobile/index.ts",
+    "src/shared/components/ui/label.tsx",
+    "src/shared/contexts/ProjectContext.tsx",
+    "src/features/gallery/hooks/useAdjacentPagePreloader.ts",
+    "src/features/layout/hooks/useBottomOffset.test.ts",
+    "src/pages/Home/components/install/InstallInstructionsModal.tsx",
+    "src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx",
+    "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+    "src/shared/components/MediaGallery/hooks/useMobileInteractions.ts",
+    "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx",
+    "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts",
+    "src/shared/components/MediaLightbox/components/LightboxShell.tsx",
+    "src/shared/components/JoinClipsSettingsForm/utils.ts",
+    "src/pages/Home/hooks/auth/useAuthReferralFinalize.ts",
+    "src/pages/Home/hooks/useDiscordSignIn.ts",
+    "src/shared/hooks/__tests__/useTextCase.test.ts",
+    "src/shared/hooks/core/useDarkMode.test.ts",
+    "src/shared/hooks/useTasks.ts",
+    "src/shared/hooks/useUpdatingTimestamp.ts",
+    "src/shared/lib/tasks/__tests__/travelPayloadReader.test.ts",
+    "supabase/functions/calculate-task-cost/index.ts",
+    "src/shared/components/ShotImageManager/ShotImageManagerContainer.tsx",
+    "supabase/functions/_tests/vitestEdgeSmokeConfig.test.ts",
+    "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+    "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+    "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx",
+    "src/shared/hooks/__tests__/useVideoScrubbing.test.ts",
+    "src/shared/hooks/__tests__/usePlatformInstall.test.ts",
+    "src/shared/hooks/settings/__tests__/useAutoSaveSettings.test.ts",
+    "src/shared/components/LoraSelectorModal/components/MyLorasTab/hooks/useLoraSubmission.ts",
+    "src/shared/components/MediaGallery/index.tsx",
+    "src/shared/hooks/__tests__/useTaskCancellation.test.ts",
+    "src/shared/hooks/gallery/__tests__/useGalleryFilterState.test.ts",
+    "src/shared/hooks/__tests__/useSegmentSettingsForm.test.ts",
+    "src/shared/hooks/invalidation/__tests__/useGenerationInvalidation.test.ts",
+    "src/shared/hooks/__tests__/useServerForm.test.ts",
+    "src/shared/lib/tasks/__tests__/joinClips.test.ts",
+    "src/shared/realtime/DataFreshnessManager.ts",
+    "src/tools/edit-images/components/InlineEditView.tsx",
+    "src/shared/hooks/__tests__/useGalleryPageState.test.ts",
+    "src/tools/edit-images/hooks/__tests__/useInlineEditState.test.ts",
+    "supabase/functions/complete_task/generation.ts",
+    "src/shared/hooks/timeline/timelineFrameCalculators.ts",
+    "src/shared/components/ProductTour/index.tsx",
+    "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+    "src/shared/components/TaskDetails/VideoTravelDetails.tsx",
+    "src/shared/lib/tasks/joinClips.ts",
+    "src/shared/lib/tasks/magicEdit.ts",
+    "src/shared/lib/tasks/__tests__/individualTravelSegment.test.ts",
+    "src/shared/lib/tasks/__tests__/imageGeneration.test.ts",
+    "src/shared/lib/toolIds.ts",
+    "src/shared/lib/stringFormatting.ts",
+    "src/shared/components/dialogs/DeleteGenerationConfirmDialog.tsx",
+    "src/shared/lib/governance/deprecationPolicy.ts",
+    "supabase/functions/_shared/edgeOperation.ts",
+    "src/shared/lib/errorHandling/recoverableError.ts",
+    "src/shared/components/ui/touchableTooltip.tsx",
+    "src/shared/components/ui/useTooltipInteractionPolicy.ts",
+    "src/shared/lib/media/safePlay.ts",
+    "src/features/gallery/lib/adjacentPagePreloadCoordinator.ts"
+  ],
+  "provenance": {
+    "kind": "blind_review_batch_import",
+    "blind": true,
+    "runner": "codex",
+    "run_stamp": "20260225_125602",
+    "created_at": "2026-02-25T13:00:09+00:00",
+    "batch_count": 2,
+    "batch_indexes": [
+      7,
+      8
+    ],
+    "packet_path": "/Users/peteromalley/Documents/reigh/.desloppify/review_packet_blind.json",
+    "packet_sha256": "89346c9ae74e2efe70157b7e1f115bd54066b5e793c66c514127a02a54d6dd23"
+  },
+  "assessment_coverage": {
+    "scored_dimensions": [
+      "naming_quality",
+      "logic_clarity",
+      "type_safety",
+      "contract_coherence",
+      "error_consistency",
+      "abstraction_fitness",
+      "ai_generated_debt",
+      "high_level_elegance",
+      "mid_level_elegance",
+      "low_level_elegance",
+      "cross_module_architecture",
+      "initialization_coupling",
+      "convention_outlier",
+      "dependency_health",
+      "test_strategy",
+      "api_surface_coherence",
+      "authorization_consistency",
+      "incomplete_migration",
+      "package_organization",
+      "design_coherence"
+    ],
+    "selected_dimensions": [
+      "cross_module_architecture",
+      "convention_outlier",
+      "error_consistency",
+      "abstraction_fitness",
+      "api_surface_coherence",
+      "authorization_consistency",
+      "ai_generated_debt",
+      "incomplete_migration",
+      "package_organization",
+      "high_level_elegance",
+      "mid_level_elegance",
+      "low_level_elegance",
+      "design_coherence"
+    ],
+    "imported_dimensions": [
+      "authorization_consistency",
+      "convention_outlier",
+      "design_coherence",
+      "error_consistency"
+    ],
+    "missing_dimensions": [
+      "naming_quality",
+      "logic_clarity",
+      "type_safety",
+      "contract_coherence",
+      "abstraction_fitness",
+      "ai_generated_debt",
+      "high_level_elegance",
+      "mid_level_elegance",
+      "low_level_elegance",
+      "cross_module_architecture",
+      "initialization_coupling",
+      "dependency_health",
+      "test_strategy",
+      "api_surface_coherence",
+      "incomplete_migration",
+      "package_organization"
+    ]
+  }
+}

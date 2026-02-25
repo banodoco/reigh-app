@@ -1,0 +1,264 @@
+{
+  "assessments": {
+    "design_coherence": 54.4
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "Lightbox flow is split across very large adapter surfaces: `ImageLightbox` (925 LOC) builds a deeply nested input object for `useSharedLightboxState` (`src/shared/components/MediaLightbox/ImageLightbox.tsx` lines 200-260), while `useSharedLightboxState` defines a broad multi-domain contract (`src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts` lines 122-246).",
+        "Timeline orchestration exposes a very wide returned contract and composes many concerns (drag, selection, drop, viewport, endpoint, prefetch, device) from one hook (`src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts` lines 65-154, 156-260), with another adapter-heavy layer in `Timeline.tsx` (`src/tools/travel-between-images/components/Timeline.tsx` lines 24-92, 248-357).",
+        "`complete_task` still centralizes request parsing, auth/rate-limit checks, storage validation, task context loading, generation creation, status transitions, orchestrator follow-up, and billing follow-up in one handler (`supabase/functions/complete_task/index.ts` lines 98-394), indicating orchestration concentration despite helper extraction.",
+        "`DataFreshnessManager` bundles polling policy, realtime status state machine, circuit breaker, error classification, and toast/reporting side-effects in one singleton class (`src/shared/realtime/DataFreshnessManager.ts` lines 24-313), making policy changes tightly coupled to UX/logging behavior."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": ""
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "lightbox_adapter_surface_bloat",
+      "summary": "Lightbox abstractions rely on oversized adapter contracts that re-centralize many concerns.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts",
+        "src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx",
+        "src/shared/components/MediaLightbox/components/EditModePanel.tsx"
+      ],
+      "evidence": [
+        "`ImageLightbox` constructs a large `SharedLightboxInput` object with core/navigation/shots/layout/actions/media sections in one mapper (`ImageLightbox.tsx` lines 200-260), while the component already owns environment state, edit orchestration, and layout behavior.",
+        "`useSharedLightboxState` exposes a very broad return model (variants/navigation/star/references/lineage/shots/source/make-main/effective-media/layout/button props) in a single hook contract (`useSharedLightboxState.ts` lines 137-246).",
+        "`MediaGalleryLightbox` repeats the same adapter construction pattern and local data-shaping logic (cache subscription + media enhancement + adapter assembly) before handing off to `MediaLightboxFromAdapter` (`MediaGalleryLightbox.tsx` lines 193-237, 281-357)."
+      ],
+      "suggestion": "Split the lightbox into explicit capability modules (for example `variants`, `shotActions`, `navigation`, `taskDetails`) with narrow typed ports, then compose these in thin container components. Replace the monolithic adapter object with feature-specific props so each caller wires only the capabilities it uses.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "oversized_adapter_contracts"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "timeline_orchestrator_god_hook",
+      "summary": "Timeline orchestration concentrates unrelated behaviors behind one expansive hook interface.",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts",
+        "src/tools/travel-between-images/components/Timeline.tsx",
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineViewportController.ts"
+      ],
+      "evidence": [
+        "`useTimelineOrchestrator` defines a large props surface and return surface covering refs/viewport/drag/selection/pending/drop/computed/actions/endpoint/ui/device (`useTimelineOrchestrator.ts` lines 29-154).",
+        "The hook directly coordinates many subordinate hooks and mutable refs in one function (`useTimelineOrchestrator.ts` lines 187-260), so behavior changes in one concern alter the central orchestrator contract.",
+        "`Timeline.tsx` also uses grouped mega-adapters (`core`, `interactions`, `display`, `uploads`, `shotWorkflow`, `segmentNavigation`) and performs substantial translation into a `MediaLightboxInputAdapter` (`Timeline.tsx` lines 24-92, 248-357), duplicating orchestration at component level."
+      ],
+      "suggestion": "Refactor timeline orchestration into composable controllers with stable boundaries (e.g., `useTimelineInteractionController`, `useTimelineViewportController`, `useTimelineLightboxController`) and expose minimal, feature-scoped return contracts. Keep `Timeline.tsx` as a view composition layer rather than another adapter assembler.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "oversized_adapter_contracts"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "complete_task_workflow_concentration",
+      "summary": "The complete-task edge handler still mixes too many workflow phases in one procedure.",
+      "related_files": [
+        "supabase/functions/complete_task/index.ts",
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/claim-next-task/index.ts"
+      ],
+      "evidence": [
+        "`completeTaskHandler` performs end-to-end control flow from auth/rate limit to storage checks, task context loading, optional params mutation, generation creation, task completion DB write, orchestrator completion, billing follow-up, and response assembly in one handler (`index.ts` lines 98-394).",
+        "Even with extracted helpers, the top-level function remains a sequential 15-step transactional script (`index.ts` comments/steps around lines 122-375), making it hard to reason about failure boundaries and ownership.",
+        "`orchestrator.ts` itself contains additional policy branching and persistence behavior (`orchestrator.ts` lines 131-315), reinforcing a layered orchestration stack where policy and IO remain tightly coupled."
+      ],
+      "suggestion": "Introduce a pipeline-style application service with explicit stage boundaries (`validateRequest`, `authorizeActor`, `resolveStorage`, `persistTaskCompletion`, `postCompletionHooks`) and stage result types. Keep edge handlers thin and move policy/side-effect choreography into reusable domain workflows with focused test seams.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "workflow_concentration"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "freshness_manager_multi_role_singleton",
+      "summary": "DataFreshnessManager conflates policy engine, state store, and user-facing error behavior.",
+      "related_files": [
+        "src/shared/realtime/DataFreshnessManager.ts",
+        "src/shared/lib/toolSettingsService.ts"
+      ],
+      "evidence": [
+        "`DataFreshnessManager` stores mutable realtime/query state and also computes polling intervals, classifies errors, enforces circuit breaker policy, and triggers toast/log reporting (`DataFreshnessManager.ts` lines 24-313).",
+        "Methods like `onFetchFailure` both mutate circuit-breaker counters and dispatch user-facing error reporting (`DataFreshnessManager.ts` lines 162-213), coupling reliability policy to presentation side-effects.",
+        "A similar pattern of module-level mutable caches plus cross-cutting behavior appears in `toolSettingsService` (`inflightSettingsFetches`, `cachedUser`, unknown-id reporting; `toolSettingsService.ts` lines 31-61, 71-80), suggesting recurring stateful service design without clear boundary separation."
+      ],
+      "suggestion": "Split freshness concerns into separate units: a pure polling-policy evaluator, a state repository/store, and a notifier/logger adapter. Keep singleton orchestration thin and injectable so policy changes and UX/reporting changes can evolve independently.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "workflow_concentration"
+    }
+  ],
+  "review_quality": {
+    "batch_count": 1,
+    "dimension_coverage": 1.0,
+    "evidence_density": 1.0,
+    "high_score_missing_issue_note": 0,
+    "finding_pressure": 10.714,
+    "dimensions_with_findings": 1
+  },
+  "review_scope": {
+    "reviewed_files_count": 80,
+    "successful_batch_count": 1,
+    "full_sweep_included": false,
+    "total_files": 2223,
+    "imported_dimensions": [
+      "design_coherence"
+    ]
+  },
+  "reviewed_files": [
+    "src/shared/lib/timelineEligibility.ts",
+    "src/domains/generation/hooks/__tests__/useDerivedItems.test.ts",
+    "src/pages/Home/components/panes/PhilosophyPane.tsx",
+    "src/shared/components/GenerationsPane/GenerationsPane.tsx",
+    "src/shared/components/GlobalHeader/ProjectSelectorPopover.tsx",
+    "src/shared/components/ImageGenerationForm/components/reference/ReferenceThumbnail.tsx",
+    "src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx",
+    "src/shared/components/MediaLightbox/components/EditModePanel.tsx",
+    "src/shared/components/MediaLightbox/components/StrokeOverlay.tsx",
+    "src/shared/components/MediaLightbox/components/VideoEditModeDisplay.tsx",
+    "src/shared/components/MediaLightbox/hooks/inpainting/useTaskGeneration.ts",
+    "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts",
+    "src/shared/components/PaneControlTab.tsx",
+    "src/shared/components/PhaseConfigSelectorModal/components/BrowsePresetsTab.tsx",
+    "src/shared/components/SegmentSettingsForm/components/AdvancedSettingsSection.tsx",
+    "src/shared/components/StyledVideoPlayer.tsx",
+    "src/shared/components/TasksPane/TaskList.tsx",
+    "src/shared/components/VideoPortionEditor/index.tsx",
+    "src/shared/hooks/segments/__tests__/useSegmentOutputsForShot.test.ts",
+    "src/shared/hooks/segments/useSegmentOutputsForShot.ts",
+    "src/shared/hooks/shots/__tests__/addImageToShotHelpers.test.ts",
+    "src/shared/hooks/timeline/timelineMutationService.ts",
+    "src/shared/hooks/timeline/useTimelineFrameUpdates.ts",
+    "src/shared/hooks/useLoraManager.tsx",
+    "src/shared/hooks/useTaskStatusCounts.ts",
+    "src/shared/lib/tasks/imageGeneration.ts",
+    "src/shared/lib/tasks/individualTravelSegment.ts",
+    "src/tools/join-clips/hooks/__tests__/useJoinClipsGenerate.test.ts",
+    "src/tools/join-clips/pages/JoinClipsPage.tsx",
+    "src/tools/training-data-helper/components/BatchSelector.tsx",
+    "src/tools/travel-between-images/components/BatchGuidanceVideo.tsx",
+    "src/tools/travel-between-images/components/MotionControl.tsx",
+    "src/tools/travel-between-images/components/SharedGenerationView.tsx",
+    "src/tools/travel-between-images/components/ShotEditor/ShotSettingsContext.tsx",
+    "src/tools/travel-between-images/components/ShotEditor/services/__tests__/generateVideoService.test.ts",
+    "src/tools/travel-between-images/components/ShotEditor/ui/Header.tsx",
+    "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+    "src/tools/travel-between-images/components/ShotListDisplay.tsx",
+    "src/tools/travel-between-images/components/SortableShotItem.tsx",
+    "src/tools/travel-between-images/components/Timeline.tsx",
+    "src/tools/travel-between-images/components/Timeline/GuidanceVideoStrip.tsx",
+    "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts",
+    "src/tools/travel-between-images/components/Timeline/hooks/useTimelineViewportController.ts",
+    "supabase/functions/complete_task/orchestrator.ts",
+    "src/shared/lib/debug/debugConsole.ts",
+    "src/shared/lib/videoPosterExtractor.ts",
+    "supabase/functions/claim-next-task/index.ts",
+    "supabase/functions/complete-auto-topup-setup/index.ts",
+    "supabase/functions/complete_task/generation-child.ts",
+    "supabase/functions/complete_task/index.ts",
+    "supabase/functions/generate-pat/index.ts",
+    "supabase/functions/generate-upload-url/index.ts",
+    "supabase/functions/get-completed-segments/index.ts",
+    "supabase/functions/get-orchestrator-children/index.ts",
+    "supabase/functions/get-task-output/index.ts",
+    "supabase/functions/process-auto-topup/index.ts",
+    "supabase/functions/revoke-pat/index.ts",
+    "supabase/functions/setup-auto-topup/index.ts",
+    "supabase/functions/stripe-checkout/index.ts",
+    "supabase/functions/update-shot-pair-prompts/index.ts",
+    "config/testing/vitest.edge.config.ts",
+    "src/shared/components/FileInput.tsx",
+    "src/shared/components/HoverScrubVideo.tsx",
+    "src/shared/components/ImageGenerationForm/components/PromptInputRow.tsx",
+    "src/shared/components/LoraSelectorModal/LoraSelectorModal.tsx",
+    "src/shared/components/MediaGalleryItem/hooks/useShotActions.ts",
+    "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+    "src/shared/components/PhaseConfigSelectorModal/components/AddNewPresetTab.tsx",
+    "src/shared/components/SettingsModal/sections/GenerationSection.tsx",
+    "src/shared/components/ShotSelector.tsx",
+    "src/shared/components/ui/ai-input-button.tsx",
+    "src/shared/lib/generationTaskRepository.ts",
+    "src/shared/lib/preloading/service.ts",
+    "src/shared/lib/toolSettingsService.ts",
+    "src/shared/realtime/DataFreshnessManager.ts",
+    "src/tools/join-clips/lib/clipInitService.ts",
+    "src/tools/travel-between-images/components/FinalVideoSection.tsx",
+    "src/tools/travel-between-images/components/Timeline/utils/timeline-utils.ts",
+    "supabase/functions/_shared/edgeRequest.ts",
+    "supabase/functions/complete_task/params.ts"
+  ],
+  "provenance": {
+    "kind": "blind_review_batch_import",
+    "blind": true,
+    "runner": "codex",
+    "run_stamp": "20260225_212630",
+    "created_at": "2026-02-25T21:28:04+00:00",
+    "batch_count": 1,
+    "batch_indexes": [
+      1
+    ],
+    "packet_path": "/Users/peteromalley/Documents/reigh/.desloppify/review_packet_blind.json",
+    "packet_sha256": "dc147125b7fecb669bad4e6ec4c48e7696c115908fd941664fc020d97c3374b9"
+  },
+  "assessment_coverage": {
+    "scored_dimensions": [
+      "naming_quality",
+      "logic_clarity",
+      "type_safety",
+      "contract_coherence",
+      "error_consistency",
+      "abstraction_fitness",
+      "ai_generated_debt",
+      "high_level_elegance",
+      "mid_level_elegance",
+      "low_level_elegance",
+      "cross_module_architecture",
+      "initialization_coupling",
+      "convention_outlier",
+      "dependency_health",
+      "test_strategy",
+      "api_surface_coherence",
+      "authorization_consistency",
+      "incomplete_migration",
+      "package_organization",
+      "design_coherence"
+    ],
+    "selected_dimensions": [
+      "design_coherence"
+    ],
+    "imported_dimensions": [
+      "design_coherence"
+    ],
+    "missing_dimensions": [
+      "naming_quality",
+      "logic_clarity",
+      "type_safety",
+      "contract_coherence",
+      "error_consistency",
+      "abstraction_fitness",
+      "ai_generated_debt",
+      "high_level_elegance",
+      "mid_level_elegance",
+      "low_level_elegance",
+      "cross_module_architecture",
+      "initialization_coupling",
+      "convention_outlier",
+      "dependency_health",
+      "test_strategy",
+      "api_surface_coherence",
+      "authorization_consistency",
+      "incomplete_migration",
+      "package_organization"
+    ]
+  }
+}

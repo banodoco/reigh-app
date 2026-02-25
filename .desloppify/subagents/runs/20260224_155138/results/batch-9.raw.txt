@@ -1,0 +1,245 @@
+{
+  "batch": "Full Codebase Sweep",
+  "batch_index": 9,
+  "assessments": {
+    "cross_module_architecture": 72.0,
+    "convention_outlier": 78.0,
+    "error_consistency": 68.0,
+    "abstraction_fitness": 66.0,
+    "api_surface_coherence": 69.0,
+    "authorization_consistency": 71.0,
+    "ai_generated_debt": 74.0,
+    "incomplete_migration": 62.0,
+    "package_organization": 70.0,
+    "high_level_elegance": 73.0,
+    "mid_level_elegance": 67.0,
+    "low_level_elegance": 80.0,
+    "design_coherence": 68.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "Supabase runtime access still supports lazy fallback plus deprecated proxy path (`src/integrations/supabase/client.ts`) while bootstrap expects eager init (`src/app/bootstrap.tsx`, `src/integrations/supabase/runtime/supabaseRuntime.ts`).",
+        "`installRealtimeInstrumentation` monkey-patches `console.warn` and dynamically imports reconnect scheduler from inside warning interception (`src/integrations/supabase/instrumentation/realtime/index.ts`).",
+        "`installWindowOnlyInstrumentation` mutates global `window.onerror`, `window.onunhandledrejection`, and `window.WebSocket` (`src/integrations/supabase/instrumentation/window/index.ts`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "convention_outlier": {
+      "evidence": [
+        "Mixed migration-era naming/export protocols in adjacent modules: `useGenerationsPageLogic` exported as `useGalleryPageState` alias (`src/features/gallery/hooks/useGalleryPageState.ts`) while other hooks are single-name exports.",
+        "Feature-level files acting as compatibility re-exports (`src/features/prompt-editor/components/BulkEditControls.tsx`, `src/domains/generation/hooks/useSmartPolling.ts`) create style islands versus direct implementation files."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    },
+    "error_consistency": {
+      "evidence": [
+        "`useAIInteractionService` provides throw/safe variants and swallows failures to `null`/`[]` (`generateSummarySafe`, `generatePromptsSafe`) while sibling hooks throw explicit `Error` on data fetch failures (`src/features/billing/hooks/useCredits.ts`).",
+        "React Query retry policy checks only message substrings ('unauthorized'/'forbidden') (`src/app/providers/queryClient.ts`), but auth helpers throw context-prefixed errors ('Not authenticated', 'Failed to get session') (`src/integrations/supabase/auth/ensureAuthenticatedSession.ts`), creating inconsistent retry behavior.",
+        "Several catches intentionally suppress failures (`src/app/hooks/useOnboardingFlow.ts` product-tour preload catch; `src/features/gallery/hooks/useGalleryPageState.ts` converts mutation failures to `false`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "abstraction_fitness": {
+      "evidence": [
+        "Thin pass-through APIs with no added behavior: `src/domains/generation/hooks/useSmartPolling.ts` re-exports shared hook; `src/features/prompt-editor/components/BulkEditControls.tsx` re-exports shared component.",
+        "`useAIInteractionService` triples API surface with `OrThrow`/normal/`Safe` variants for same operations, increasing indirection without strong type-level contract separation."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 61.0,
+        "indirection_cost": 64.0,
+        "interface_honesty": 73.0
+      }
+    },
+    "api_surface_coherence": {
+      "evidence": [
+        "`useAIInteractionService` exposes overlapping method families (`generateSummaryOrThrow`/`generateSummary`/`generateSummarySafe`, same for prompts and edits) with different failure contracts.",
+        "Hooks in similar data-access tier expose different contract shapes: some return mutation objects/errors directly (`useApiKeys`, `useApiTokens`), others hide details behind boolean and convenience wrappers (`useCredits`, `useGalleryPageState`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    },
+    "authorization_consistency": {
+      "evidence": [
+        "Route auth redirection uses local storage token presence (`authRedirectLoader` in `src/app/routes.tsx`) while protected data hooks rely on server-validated `requireSession/requireUserFromSession` (`src/integrations/supabase/auth/ensureAuthenticatedSession.ts`, `src/features/account/hooks/useApiTokens.ts`, `src/features/settings/hooks/useApiKeys.ts`).",
+        "Protected UI routes rely on Layout redirect via auth context (`src/app/Layout.tsx`) but direct Supabase calls exist in non-helper paths (`src/app/hooks/useOnboardingFlow.ts`), producing mixed auth entrypoints."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    },
+    "ai_generated_debt": {
+      "evidence": [
+        "Multiple files contain high-volume explanatory block comments for straightforward behavior (`src/features/gallery/hooks/useGalleryPageState.ts`, `src/app/bootstrap.tsx`) and repetitive compatibility prose (`src/integrations/supabase/client.ts`).",
+        "Repeated wrapper boilerplate around same core call patterns (`src/features/ai/hooks/useAIInteractionService.ts`, `src/features/gallery/lib/adjacentPagePreloadOrchestrator.ts`)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium"
+    },
+    "incomplete_migration": {
+      "evidence": [
+        "Explicit deprecated compatibility export remains active with removal target (`src/integrations/supabase/client.ts`, `@removalTarget 2026-06-30`).",
+        "Feature migration shim is still in place (`src/features/prompt-editor/components/BulkEditControls.tsx`: 'retained for migration compatibility').",
+        "Domain hook path still forwards to shared implementation (`src/domains/generation/hooks/useSmartPolling.ts`) rather than owning implementation."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "package_organization": {
+      "evidence": [
+        "Objective structure signal: `src/domains/generation/hooks/` has `file_count=2`, `total_loc=4`, `avg_fan_in=0.0`; one file is a pure cross-package re-export (`useSmartPolling.ts`), indicating low-cohesion package presence.",
+        "Objective structure signal: root config stragglers are all peripheral (`fan_in` 0-1 in `holistic_context.structure.root_files`) and currently mirror into `config/*`, showing partially-completed organization cleanup.",
+        "Import-affinity mismatch: `src/features/prompt-editor/components/BulkEditControls.tsx` and `src/domains/generation/hooks/useSmartPolling.ts` are fully dependent on `src/shared/*` targets (>60% affinity to external domain by construction)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Top-level app composition is coherent (`src/app/bootstrap.tsx`, `src/app/providers/AppProviders.tsx`), but legacy compatibility paths in Supabase and prompt-editor dilute ownership boundaries.",
+        "Domain types are cleaner and boundary-oriented (`src/domains/generation/types/*` + mapper), yet coexist with migration bridges and older shared entrypoints."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Gallery orchestration spans state, pagination, mutation, and UI-event signaling in one hook (`src/features/gallery/hooks/useGalleryPageState.ts`), increasing seam complexity.",
+        "Supabase runtime setup plus instrumentation plus reconnect healing is spread across bootstrap/runtime/auth/instrumentation files with dynamic imports and global side effects."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Most functions are readable and bounded; examples include clean auth helpers (`src/integrations/supabase/auth/ensureAuthenticatedSession.ts`) and straightforward Vite policy utilities (`config/vite/policy.ts`).",
+        "There are localized complexity spikes in long UI/controller files (`src/pages/Home/components/hero/HeroSection.tsx`, `src/features/gallery/hooks/useGalleryPageState.ts`)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "high"
+    },
+    "design_coherence": {
+      "evidence": [
+        "Several components/hooks mix multiple concerns (UI rendering + platform install logic + auth flow in `HeroSection`; state + I/O + mutation orchestration in `useGalleryPageState`).",
+        "Multiple compatibility layers (legacy proxy, migration re-exports, alias exports) indicate transitional architecture not yet converged."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_supabase_proxy_and_shims_persist",
+      "summary": "Migration shims remain active across auth/runtime and feature entrypoints, keeping old and new access paths alive.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/features/prompt-editor/components/BulkEditControls.tsx",
+        "src/domains/generation/hooks/useSmartPolling.ts",
+        "src/app/hooks/useAuthGuard.ts"
+      ],
+      "evidence": [
+        "`src/integrations/supabase/client.ts` exports deprecated `supabase` proxy with removal target 2026-06-30 while also introducing `getSupabaseClient()`/`initializeSupabase()`.",
+        "`src/features/prompt-editor/components/BulkEditControls.tsx` is an explicit migration compatibility re-export.",
+        "`src/domains/generation/hooks/useSmartPolling.ts` is a pure forwarder to shared hook; no domain-owned behavior.",
+        "`src/app/hooks/useAuthGuard.ts` still imports `supabase` proxy instead of `getSupabaseClient`."
+      ],
+      "suggestion": "Complete migration in phases: Stage 1 target folders `src/features/prompt-editor/components/` and `src/domains/generation/hooks/` by replacing re-export shims with direct imports at call sites; Stage 2 remove `supabase` proxy imports by codemodding to `getSupabaseClient()` in app/hooks and feature hooks; Stage 3 delete deprecated exports and shim files. Move order: consumers first, shim files second, deprecated exports last. Validate with `rg \"from '@/integrations/supabase/client'.*supabase|BulkEditControls|useSmartPolling\" src`, `pnpm test -w 1`, and `pnpm build`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "mixed_throw_safe_null_error_contracts",
+      "summary": "Similar async operations expose incompatible failure contracts (throw vs null/empty fallback), making callers and retries inconsistent.",
+      "related_files": [
+        "src/features/ai/hooks/useAIInteractionService.ts",
+        "src/features/billing/hooks/useCredits.ts",
+        "src/app/providers/queryClient.ts",
+        "src/integrations/supabase/auth/ensureAuthenticatedSession.ts"
+      ],
+      "evidence": [
+        "`useAIInteractionService` has `*Safe` wrappers returning `null`/`[]` after catch, while `useCredits` throws explicit `Error` objects for failed reads.",
+        "Query retry classifier in `queryClient.ts` depends on message text containing 'unauthorized'/'forbidden', but auth helpers throw context strings like 'Not authenticated' and 'Failed to get session'.",
+        "This creates diverging caller expectations and retry paths for equivalent auth/network failures."
+      ],
+      "suggestion": "Define one app-wide async error contract per layer (data hooks throw typed errors; UI adaptors convert to toast/null once at boundary), then normalize retry classification to error codes/types instead of substring matching.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "global_runtime_monkeypatch_side_effects",
+      "summary": "Supabase instrumentation relies on global monkey-patching and runtime interception, increasing hidden coupling and blast radius.",
+      "related_files": [
+        "src/integrations/supabase/instrumentation/realtime/index.ts",
+        "src/integrations/supabase/instrumentation/window/index.ts",
+        "src/integrations/supabase/bootstrap/initializeSupabaseRuntime.ts"
+      ],
+      "evidence": [
+        "`installRealtimeInstrumentation` overrides `console.warn` globally and uses dynamic import side effects to trigger reconnect behavior.",
+        "`installWindowOnlyInstrumentation` overrides `window.WebSocket`, `window.onerror`, and `window.onunhandledrejection` globally.",
+        "These effects are installed during shared runtime initialization, so unrelated modules are impacted by instrumentation policy."
+      ],
+      "suggestion": "Isolate instrumentation into opt-in adapters: move global patching behind explicit debug-only bootstrap flags and replace console interception with direct event hooks from owned reconnect/auth modules.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "triad_api_wrapper_overexpansion",
+      "summary": "Service hook API is inflated by parallel `OrThrow`/normal/`Safe` variants that mostly forward behavior.",
+      "related_files": [
+        "src/features/ai/hooks/useAIInteractionService.ts",
+        "src/features/gallery/lib/adjacentPagePreloadOrchestrator.ts"
+      ],
+      "evidence": [
+        "`useAIInteractionService` exports 9 operation variants for 3 core actions, with substantial duplication and thin wrappers around shared invokes.",
+        "Adjacent preload orchestration similarly wraps one coordinator call with minimal additional logic, indicating repeated indirection style."
+      ],
+      "suggestion": "Collapse to one canonical method per action plus one boundary adapter (UI-safe wrapper) in consuming layer; keep throw semantics in service layer and remove duplicated wrapper methods.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "low_fanin_bridge_files_blur_ownership",
+      "summary": "Low-fan-in bridge files remain in feature/domain folders even though implementation ownership lives in shared packages.",
+      "related_files": [
+        "src/features/prompt-editor/components/BulkEditControls.tsx",
+        "src/domains/generation/hooks/useSmartPolling.ts",
+        "src/domains/generation/hooks/index.ts"
+      ],
+      "evidence": [
+        "Objective structure: `src/domains/generation/hooks/` has `avg_fan_in=0.0`, `total_loc=4`, dominated by forwarding exports rather than owned module logic.",
+        "Both listed files are pure re-exports to `src/shared/*`, a direct import-affinity mismatch (>60% external ownership by construction).",
+        "This creates extra navigation hops and weakens package-by-ownership boundaries."
+      ],
+      "suggestion": "Staged reorg plan: Stage 1 target folders `src/shared/hooks/` and `src/shared/components/` as canonical ownership, and update all imports to point there directly; Stage 2 delete bridge files in `src/domains/generation/hooks/` and `src/features/prompt-editor/components/`; Stage 3 keep only domain-owned files under those folders (or remove folder if empty). Move order: consumer import updates -> barrel cleanup -> file deletion. Run `rg \"domains/generation/hooks/useSmartPolling|features/prompt-editor/components/BulkEditControls\" src`, then `pnpm test -w 1`, then `pnpm build` to validate import graph and bundling.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

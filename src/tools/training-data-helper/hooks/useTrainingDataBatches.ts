@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { transformBatch } from './transforms';
 import type { TrainingDataBatch, TrainingDataVideo } from './types';
 
@@ -16,8 +16,7 @@ export function useTrainingDataBatches({ videos }: UseTrainingDataBatchesProps) 
 
   const fetchBatches = async () => {
     try {
-      const { data, error } = await supabase
-        .from('training_data_batches')
+      const { data, error } = await supabase().from('training_data_batches')
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -30,17 +29,16 @@ export function useTrainingDataBatches({ videos }: UseTrainingDataBatchesProps) 
         setSelectedBatchId(batchesData[0].id);
       }
     } catch (error) {
-      handleError(error, { context: 'useTrainingData.fetchBatches', toastTitle: 'Failed to load batches' });
+      normalizeAndPresentError(error, { context: 'useTrainingData.fetchBatches', toastTitle: 'Failed to load batches' });
     }
   };
 
   const createBatch = async (name: string, description?: string): Promise<string> => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase().auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      const { data, error } = await supabase
-        .from('training_data_batches')
+      const { data, error } = await supabase().from('training_data_batches')
         .insert({
           user_id: user.id,
           name,
@@ -58,15 +56,14 @@ export function useTrainingDataBatches({ videos }: UseTrainingDataBatchesProps) 
 
       return newBatch.id;
     } catch (error) {
-      handleError(error, { context: 'useTrainingData.createBatch', toastTitle: 'Failed to create batch' });
+      normalizeAndPresentError(error, { context: 'useTrainingData.createBatch', toastTitle: 'Failed to create batch' });
       throw error;
     }
   };
 
   const updateBatch = async (id: string, updates: { name?: string; description?: string }) => {
     try {
-      const { data, error } = await supabase
-        .from('training_data_batches')
+      const { data, error } = await supabase().from('training_data_batches')
         .update({
           name: updates.name,
           description: updates.description,
@@ -80,7 +77,7 @@ export function useTrainingDataBatches({ videos }: UseTrainingDataBatchesProps) 
 
       setBatches(prev => prev.map(b => b.id === id ? transformBatch(data) : b));
     } catch (error) {
-      handleError(error, { context: 'useTrainingData.updateBatch', toastTitle: 'Failed to update batch' });
+      normalizeAndPresentError(error, { context: 'useTrainingData.updateBatch', toastTitle: 'Failed to update batch' });
       throw error;
     }
   };
@@ -93,8 +90,7 @@ export function useTrainingDataBatches({ videos }: UseTrainingDataBatchesProps) 
         return;
       }
 
-      const { error } = await supabase
-        .from('training_data_batches')
+      const { error } = await supabase().from('training_data_batches')
         .delete()
         .eq('id', id);
 
@@ -108,7 +104,7 @@ export function useTrainingDataBatches({ videos }: UseTrainingDataBatchesProps) 
         setSelectedBatchId(remainingBatches.length > 0 ? remainingBatches[0].id : null);
       }
     } catch (error) {
-      handleError(error, { context: 'useTrainingData.deleteBatch', toastTitle: 'Failed to delete batch' });
+      normalizeAndPresentError(error, { context: 'useTrainingData.deleteBatch', toastTitle: 'Failed to delete batch' });
     }
   };
 

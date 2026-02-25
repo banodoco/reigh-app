@@ -1,6 +1,6 @@
 import React from 'react';
 import { Clock, Settings2 } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 
 interface TrailingDurationIndicatorProps {
   /** Duration in frames */

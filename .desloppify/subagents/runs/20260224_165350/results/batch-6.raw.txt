@@ -1,0 +1,76 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "high_level_elegance": 86.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "README defines a strict compatibility gate for `@/types/shots` (`npm run check:shots-shim-usage`) but provides no equivalent governance gate for the deprecated Supabase proxy export.",
+        "`src/integrations/supabase/client.ts` includes a sunset contract for the legacy `supabase` proxy (`@removalTarget 2026-06-30`) and a comment-level removal gate, but no enforceable mechanism in this file or README quality checks.",
+        "`src/shared/lib/errorHandling/handleError.ts` exports deprecated aliases (`reportRuntimeError`, `RuntimeErrorOptions`) with removal targets, but README compatibility/governance sections do not include migration policy or enforcement for them.",
+        "`src/shared/components/ui/button.tsx` imports `cn` from `@/shared/lib/utils`, while `src/shared/lib/utils.ts` is a mixed barrel that also exports string helpers, which weakens boundary clarity for UI primitives."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Contract governance is inconsistently enforced: one migration path has explicit quality gates while other deprecated public surfaces rely on comments and dates without automated policy checks."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "missing_supabase_sunset_gate",
+      "summary": "Supabase compatibility-proxy deprecation is documented but not governed by an enforceable quality gate.",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "README lists a strict compatibility enforcement command for `@/types/shots` imports, but no equivalent command/policy for legacy `supabase` proxy usage.",
+        "`src/integrations/supabase/client.ts` states a removal target and textual removal gate for `supabase` proxy imports, but enforcement is comment-only."
+      ],
+      "suggestion": "Add an automated check (wired into `quality:check`) that fails on `import { supabase } from '@/integrations/supabase/client'`, and document the migration/owner/removal date in README alongside the existing shim policy.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "undergoverned_error_alias_deprecation",
+      "summary": "Deprecated error-handling aliases have sunset metadata but no visible governance contract or migration enforcement.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`handleError.ts` exports deprecated `reportRuntimeError` and `RuntimeErrorOptions` with `@removalTarget 2026-06-30`.",
+        "README compatibility/governance sections describe migration contracts for shots and Supabase, but omit policy and quality-gate coverage for these error API deprecations."
+      ],
+      "suggestion": "Define this deprecation in README governance docs and add a lint/check rule preventing new imports of deprecated aliases, with a clear owner and target removal release.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "ui_contract_through_mixed_barrel",
+      "summary": "UI button primitive depends on a mixed shared-lib barrel, blurring contract boundaries between UI and generic utilities.",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/lib/utils.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`button.tsx` imports `cn` from `@/shared/lib/utils`.",
+        "`src/shared/lib/utils.ts` exports both `cn` and string-formatting helpers, creating a broad utility surface rather than a focused UI contract.",
+        "README emphasizes architecture/structure trustworthiness, but this import pattern weakens ownership clarity for shared UI primitives."
+      ],
+      "suggestion": "Move UI primitives to import `cn` from a dedicated UI classnames module (or a UI-only barrel), and keep generic string utilities in a separate barrel to preserve layer-specific contracts.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

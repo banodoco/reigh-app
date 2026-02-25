@@ -1,0 +1,415 @@
+{
+  "assessments": {
+    "error_consistency": 67.1,
+    "mid_level_elegance": 54.2
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "Lightbox render-model assembly remains duplicated across image/video paths: `useImageLightboxRenderModel` in `src/shared/components/MediaLightbox/ImageLightbox.tsx` (e.g. lightboxState/layout/workflow assembly around lines 550-852) and `useVideoLightboxRenderModel` in `src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx` (parallel assembly around lines 176-530).",
+        "Inline edit still creates a separate integration seam by directly composing MediaLightbox internals (`useInlineEditState` imports/assembles many hooks from `@/shared/components/MediaLightbox/hooks` and contexts) instead of going through the main lightbox controller path.",
+        "Task creation boundaries still leak weakly typed params: `createIndividualTravelSegmentTask` reads `parsed_resolution_wh` through `(params as unknown as Record<string, unknown>)` in `src/shared/lib/tasks/individualTravelSegment.ts:714`.",
+        "Payload read precedence is inconsistent across consumers: `ImageGenerationDetails` manually prefers different fields/order than `VideoTravelDetails` (which uses `buildTaskPayloadSnapshot` + `createTravelPayloadReader` precedence helpers), creating cross-surface drift risk."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "issues_preventing_higher_score": ""
+    },
+    "error_consistency": {
+      "evidence": [
+        "Previously flagged issues in this dimension appear fixed: `useShotImagesEditorCallbacks` now converts failed `OperationResult` values via `toOperationResultError` and throws, `calculate-task-cost` maps `SubTaskLookupError.stage` to stage-specific codes, and `rateLimit` now carries degraded metadata.",
+        "`src/shared/lib/toolSettingsService.ts` still throws generic `Error` wrappers (`Failed to load ... settings`, `Network connection issue...`) and classifies failures via `errorMsg.includes(...)`, which drops structured error identity and cause chains.",
+        "`src/tools/join-clips/lib/clipInitService.ts` uses silent `catch {}` fallbacks for localStorage paths and does not validate `parseInt` output; malformed persisted values can propagate as `NaN` into UI skeleton sizing in `src/tools/join-clips/pages/JoinClipsPage.tsx`."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Error propagation is still split between structured `OperationResult` contracts and ad-hoc string/generic-error fallbacks, causing context loss and less predictable caller behavior."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "lightbox_render_model_fork_still_present",
+      "summary": "Image and video lightbox flows still maintain duplicated render-model assembly contracts, so behavior changes must be manually synchronized across forks.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/VideoLightbox.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "`ImageLightbox` builds `lightboxVariants`, `lightboxStateValue`, `workflowBar`, `workflowControls`, and `layoutProps` inline in one hook (`src/shared/components/MediaLightbox/ImageLightbox.tsx:550-852`).",
+        "`useVideoLightboxRenderModel` re-implements the same state/layout/workflow assembly shape with video-specific deltas (`src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx:176-530`).",
+        "Both paths then feed the same `LightboxLayout` and `LightboxShell`, so the seam is duplicated in adapters instead of centralized."
+      ],
+      "suggestion": "Extract one shared render-model composer with capability adapters (image/video feature providers) so shared state/layout/workflow wiring is single-source, and modality-specific logic is isolated to small strategy functions.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "lightbox_boundary_fragmentation"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "inline_edit_third_integration_seam",
+      "summary": "Inline edit still assembles MediaLightbox editing primitives through a separate path, creating a third controller seam and increasing drift risk.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx"
+      ],
+      "evidence": [
+        "`useInlineEditState` imports and wires `useInpainting`, `useMagicEditMode`, `useRepositionMode`, `useImg2ImgMode`, `useEditSettingsPersistence`, and related MediaLightbox internals directly (`src/tools/edit-images/hooks/useInlineEditState.ts:17-34`, `124-220`, `319+`).",
+        "`InlineEditView` recreates canvas/control/sidebar composition with `MediaDisplayWithCanvas`, `EditModePanel`, button groups, and providers (`src/tools/edit-images/components/InlineEditView.tsx:109-189`, `217-275`).",
+        "Main lightbox flow already has an independent composition pipeline (`useImageLightboxSharedState`/`useImageLightboxEditing`/`useImageLightboxRenderModel` in `ImageLightbox.tsx`), so edit behavior now exists in parallel orchestration surfaces."
+      ],
+      "suggestion": "Route inline edit through a shared lightbox edit-controller contract (or extract a reusable edit orchestration module consumed by both lightbox and inline edit) so edit lifecycle, settings sync, and action wiring are authored once.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "lightbox_boundary_fragmentation"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "travel_segment_resolution_contract_bypass",
+      "summary": "Individual travel-segment task creation still bypasses typed input contracts via double-cast access for resolution, keeping a weak seam at task boundary.",
+      "related_files": [
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/__tests__/individualTravelSegment.test.ts"
+      ],
+      "evidence": [
+        "Resolution is read with `const directResolution = asString((params as unknown as Record<string, unknown>).parsed_resolution_wh);` (`src/shared/lib/tasks/individualTravelSegment.ts:714`).",
+        "The helper then merges multiple fallback sources (`originalParams.parsed_resolution_wh` and `originalParams.orchestrator_details.parsed_resolution_wh`) before calling `resolveProjectResolution` (`lines 715-724`), but the first hop is not compile-time checked.",
+        "Current tests validate many payload fields but do not assert this contract seam against malformed/non-string `parsed_resolution_wh` inputs (`src/shared/lib/tasks/__tests__/individualTravelSegment.test.ts`)."
+      ],
+      "suggestion": "Promote `parsed_resolution_wh` into the typed task input seam (or parse params through a dedicated runtime parser before use), then remove the double cast and add regression tests for invalid resolution-shape inputs.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "task_payload_contract_drift"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "payload_precedence_rules_diverge_across_readers",
+      "summary": "Different payload readers still apply divergent field-precedence rules, causing inconsistent cross-layer behavior for equivalent task metadata.",
+      "related_files": [
+        "src/shared/components/ImageGenerationDetails.tsx",
+        "src/shared/components/TaskDetails/VideoTravelDetails.tsx"
+      ],
+      "evidence": [
+        "`ImageGenerationDetails` manually mixes top-level/original/orchestrator fields with bespoke precedence (`prompt`, `negativePrompt`, `model`, `resolution`) (`src/shared/components/ImageGenerationDetails.tsx:94-102`).",
+        "`VideoTravelDetails` uses `buildTaskPayloadSnapshot` + `createTravelPayloadReader` and explicit source-order picks (`taskViewContract`/`individualSegmentParams`/`orchestratorDetails`/`rawParams`) (`src/shared/components/TaskDetails/VideoTravelDetails.tsx:64-72`, `133-142`, `205-217`).",
+        "These surfaces are both rendering task details, but one uses ad-hoc field fallback logic while the other uses centralized reader precedence, so metadata display can disagree by route/component."
+      ],
+      "suggestion": "Standardize task metadata reads on shared payload-reader contracts for all details surfaces (including image details), and codify canonical precedence once in common utilities with cross-component tests.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "task_payload_contract_drift"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "task_payload_composition_entropy_across_families",
+      "summary": "Task families still hand-roll large payload translation blocks, indicating a missing shared boundary abstraction and ongoing glue-code entropy.",
+      "related_files": [
+        "src/shared/lib/tasks/imageGeneration.ts",
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/magicEdit.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts"
+      ],
+      "evidence": [
+        "`imageGeneration` manually assembles `taskParamsToSend` with custom Object.assign + mapped fields (`src/shared/lib/tasks/imageGeneration.ts:417-443`).",
+        "`joinClips` builds a large `orchestratorDetails` object with per-field inclusion logic and separate per-join override loops (`src/shared/lib/tasks/joinClips.ts:333-439`).",
+        "`travelBetweenImages/payloadBuilder` contains another monolithic orchestrator payload writer with many conditional field rules (`src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts:114-213`).",
+        "`magicEdit` and `individualTravelSegment` perform separate bespoke payload builds and resolution/lineage mapping (`src/shared/lib/tasks/magicEdit.ts:134-183`, `src/shared/lib/tasks/individualTravelSegment.ts` payload builders)."
+      ],
+      "suggestion": "Introduce a shared task-boundary composition layer (declarative field maps + reusable precedence/lineage/resolution plugins) and migrate each family to thin adapters, reducing duplicated mapper logic and cross-family divergence.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "task_payload_contract_drift"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "travel_task_input_double_cast_seam",
+      "summary": "Travel task creation still bypasses compile-time contract with a double cast at the integration seam.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/shared/lib/tasks/travelBetweenImages/types.ts"
+      ],
+      "evidence": [
+        "`buildTravelRequestBodyV2` returns `Record<string, unknown>` rather than the canonical task-input type.",
+        "`generateVideo` mutates this loose object (`requestBody.resolution`, `requestBody.structure_guidance`, optional `loras`) and calls `createTravelBetweenImagesTask(requestBody as unknown as TravelBetweenImagesTaskInput)`.",
+        "This preserves the previously flagged seam weakness: compile-time guarantees are bypassed at the task creation boundary."
+      ],
+      "suggestion": "Make `buildTravelRequestBodyV2` (and wrapper `buildTravelRequestBody`) return `TravelBetweenImagesTaskInput` directly, model optional post-build fields in that type, and remove the `as unknown as` cast from `generateVideo`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "task_payload_boundary_contract_drift"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "travel_payload_precedence_drift",
+      "summary": "Travel payload readers use divergent source-precedence rules, causing non-obvious cross-layer behavior.",
+      "related_files": [
+        "src/shared/lib/tasks/travelPayloadReader.ts",
+        "src/shared/lib/tasks/taskFamilyContracts.ts",
+        "src/shared/lib/generationTransformers.ts"
+      ],
+      "evidence": [
+        "`travelPayloadReader` defines a default ordered source precedence via `DEFAULT_SOURCE_ORDER` and uses a family `read_contract` fallback.",
+        "`resolveTravelPairShotGenerationId` in the same module hard-codes a different order (`individualSegmentParams`, `rawParams`, `orchestratorDetails`) and ignores task-view/family contract sources.",
+        "Adjacent consumers still perform bespoke extraction paths (e.g., `generationTransformers` probing `originalParams.orchestrator_details`, `full_orchestrator_payload`, etc.), reinforcing inconsistent boundary precedence."
+      ],
+      "suggestion": "Define one canonical precedence contract for travel payload reads (including pair-shot ID lookup), expose it via shared reader helpers, and migrate ad-hoc extractors to that contract to eliminate drift.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "task_payload_boundary_contract_drift"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "edge_payload_normalization_fragmentation",
+      "summary": "Edge-layer payload normalization is still reimplemented per module instead of flowing through one boundary utility.",
+      "related_files": [
+        "supabase/functions/_shared/payloadNormalization.ts",
+        "supabase/functions/_shared/billing.ts",
+        "supabase/functions/_shared/edgeRequest.ts"
+      ],
+      "evidence": [
+        "`payloadNormalization.ts` provides shared helpers (`isObjectRecord`, `asObjectRecord`, `asObjectOrEmpty`).",
+        "`billing.ts` defines separate `isObjectRecord` and `parseJsonRecord` for response parsing.",
+        "`edgeRequest.ts` defines separate `isJsonObject`/`coerceLooseObject` for request parsing.",
+        "This duplicated boundary glue increases integration entropy and makes malformed-input behavior harder to keep aligned."
+      ],
+      "suggestion": "Unify edge JSON/object normalization behind shared helpers (or a small shared parser module with strict/loose modes) and replace local copies in billing and edgeRequest.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "boundary_parser_duplication"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "task_status_counts_silent_degrade",
+      "summary": "Task status counts silently degrade to zeros on query failures, masking operational errors as valid data.",
+      "related_files": [
+        "src/shared/hooks/useTaskStatusCounts.ts",
+        "src/shared/lib/generationTransformers.ts"
+      ],
+      "evidence": [
+        "`useTaskStatusCounts` handles `Promise.allSettled` failures by logging via `handleError` but still returns `{ processing: 0, recentSuccesses: 0, recentFailures: 0 }` components for failed queries.",
+        "No degraded/error field is returned to consumers, so UI cannot distinguish failures from real zero counts.",
+        "`generationTransformers.calculateDerivedCountsSafe` already uses explicit degraded signaling (`degraded`, `errorCode`), showing an inconsistency in error strategy at similar read boundaries."
+      ],
+      "suggestion": "Return explicit degraded metadata from `useTaskStatusCounts` (e.g., `degraded: true`, `failedQueries`, `errorCode`) and let callers decide whether to render stale values, fallback UI, or retry indicators.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "tool_settings_generic_error_wrapping",
+      "summary": "Tool settings fetch path converts upstream failures into generic Errors and message-string branching, losing machine-readable error context.",
+      "related_files": [
+        "src/shared/lib/toolSettingsService.ts",
+        "src/shared/lib/operationResult.ts",
+        "src/pages/Home/hooks/useDiscordSignIn.ts"
+      ],
+      "evidence": [
+        "`extractAndMergeSettings` throws new `Error(...)` strings for scope query failures (`toolSettingsService.ts:160-168`) rather than preserving typed/coded failure metadata.",
+        "`fetchToolSettingsSupabase` then branches on `errorMsg.includes('Failed to fetch')` and `includes('Auth timeout')` (`toolSettingsService.ts:258-265`), making behavior dependent on message text.",
+        "Elsewhere in the same batch, failures are handled with explicit structured metadata (`OperationResult.errorCode/policy/recoverable` in `operationResult.ts` and `useDiscordSignIn.ts:17-41`), so this path is inconsistent with prevailing contract style."
+      ],
+      "suggestion": "Return a structured failure type from tool settings fetch (e.g., `OperationResult` or a typed error class with `errorCode`, `recoverable`, and `cause`) and replace message-substring checks with explicit code-based branching.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "typed_error_contract_drift"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "join_clips_storage_fallback_masks_corruption",
+      "summary": "Join Clips storage helpers silently swallow localStorage failures and malformed cache values, creating unobservable degraded behavior.",
+      "related_files": [
+        "src/tools/join-clips/lib/clipInitService.ts",
+        "src/tools/join-clips/pages/JoinClipsPage.tsx",
+        "src/pages/Home/hooks/useDiscordSignIn.ts"
+      ],
+      "evidence": [
+        "`getCachedClipsCount` catches all errors and returns `0` (`clipInitService.ts:36-41`), while `setCachedClipsCount` also uses silent `catch {}` (`clipInitService.ts:46-54`).",
+        "`getCachedClipsCount` uses `parseInt` without `Number.isFinite` validation (`clipInitService.ts:38`), so corrupted storage can yield `NaN` while still typed as `number`.",
+        "That value feeds skeleton length math in `JoinClipsPage` (`Math.max(2, cachedClipsCount) + 1`), so malformed persistence can alter rendering without any machine-readable degraded signal.",
+        "In contrast, similar localStorage-risk code in `useDiscordSignIn` returns structured `operationFailure` with `errorCode` (`useDiscordSignIn.ts:17-24`) and logs metadata."
+      ],
+      "suggestion": "Normalize this path to explicit degraded signaling: validate parsed counts (`Number.isFinite` + sane bounds), emit a structured recoverable failure/log code on storage errors, and fall back to a deterministic safe count.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "typed_error_contract_drift"
+    }
+  ],
+  "review_quality": {
+    "batch_count": 3,
+    "dimension_coverage": 0.667,
+    "evidence_density": 1.183,
+    "high_score_missing_issue_note": 0,
+    "finding_pressure": 27.872,
+    "dimensions_with_findings": 2
+  },
+  "review_scope": {
+    "reviewed_files_count": 74,
+    "successful_batch_count": 3,
+    "full_sweep_included": false,
+    "total_files": 2298,
+    "imported_dimensions": [
+      "error_consistency",
+      "mid_level_elegance"
+    ]
+  },
+  "reviewed_files": [
+    "src/shared/components/JoinClipsSettingsForm/utils.ts",
+    "src/shared/hooks/useGenerationMutations.ts",
+    "src/tools/edit-images/hooks/useInlineEditState.ts",
+    "src/pages/Home/hooks/auth/useAuthReferralFinalize.ts",
+    "src/pages/Home/hooks/useDiscordSignIn.ts",
+    "src/shared/hooks/__tests__/useDarkMode.test.ts",
+    "src/shared/hooks/__tests__/useTextCase.test.ts",
+    "src/shared/hooks/useTasks.ts",
+    "src/shared/hooks/useUpdatingTimestamp.ts",
+    "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+    "supabase/functions/calculate-task-cost/index.ts",
+    "src/shared/components/ShotImageManager/ShotImageManagerContainer.tsx",
+    "supabase/functions/_tests/vitestEdgeSmokeConfig.test.ts",
+    "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+    "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+    "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx",
+    "src/shared/hooks/__tests__/useVideoScrubbing.test.ts",
+    "src/shared/hooks/__tests__/usePlatformInstall.test.ts",
+    "src/shared/hooks/settings/__tests__/useAutoSaveSettings.test.ts",
+    "src/shared/components/LoraSelectorModal/components/MyLorasTab/hooks/useLoraSubmission.ts",
+    "src/shared/components/MediaGallery/index.tsx",
+    "src/shared/hooks/__tests__/useTaskCancellation.test.ts",
+    "src/shared/hooks/gallery/__tests__/useGalleryFilterState.test.ts",
+    "src/shared/hooks/__tests__/useSegmentSettingsForm.test.ts",
+    "src/shared/hooks/invalidation/__tests__/useGenerationInvalidation.test.ts",
+    "src/shared/lib/tasks/__tests__/joinClips.test.ts",
+    "src/shared/hooks/__tests__/useServerForm.test.ts",
+    "src/shared/realtime/DataFreshnessManager.ts",
+    "src/tools/edit-images/components/InlineEditView.tsx",
+    "src/shared/hooks/__tests__/useGalleryPageState.test.ts",
+    "src/tools/edit-images/hooks/__tests__/useInlineEditState.test.ts",
+    "supabase/functions/complete_task/orchestrator.ts",
+    "src/tools/join-clips/pages/JoinClipsPage.tsx",
+    "src/shared/lib/tasks/imageGeneration.ts",
+    "supabase/functions/complete_task/generation.ts",
+    "src/shared/components/MediaLightbox/components/StrokeOverlay.tsx",
+    "src/shared/hooks/timeline/timelineFrameCalculators.ts",
+    "src/shared/components/ProductTour/index.tsx",
+    "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts",
+    "src/shared/lib/tasks/individualTravelSegment.ts",
+    "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+    "src/shared/components/ImageGenerationDetails.tsx",
+    "src/shared/components/TaskDetails/VideoTravelDetails.tsx",
+    "src/shared/lib/tasks/joinClips.ts",
+    "src/shared/lib/tasks/magicEdit.ts",
+    "src/shared/lib/tasks/__tests__/individualTravelSegment.test.ts",
+    "src/shared/lib/tasks/__tests__/imageGeneration.test.ts",
+    "src/shared/components/MediaLightbox/VideoLightbox.tsx",
+    "src/shared/lib/stringFormatting.ts",
+    "src/shared/components/dialogs/DeleteGenerationConfirmDialog.tsx",
+    "src/shared/lib/operationResult.ts",
+    "src/shared/components/ui/touchableTooltip.tsx",
+    "src/shared/lib/tasks/travelBetweenImages/types.ts",
+    "src/shared/hooks/useTaskStatusCounts.ts",
+    "src/shared/lib/tasks/taskFamilyContracts.ts",
+    "src/shared/lib/tasks/travelPayloadReader.ts",
+    "supabase/functions/_shared/payloadNormalization.ts",
+    "src/shared/lib/tasks/taskPayloadContract.ts",
+    "src/features/gallery/lib/adjacentPagePreloadCoordinator.ts",
+    "src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+    "src/shared/hooks/shots/cacheUtils.ts",
+    "src/shared/hooks/useLineageChain.ts",
+    "src/shared/lib/generationTaskCache.ts",
+    "src/shared/lib/generationTaskRepository.ts",
+    "src/shared/lib/generationTransformers.ts",
+    "src/shared/lib/tasks/joinClipsCompatAdapter.ts",
+    "src/shared/lib/timelineWriteQueue.ts",
+    "src/shared/lib/toolSettingsService.ts",
+    "src/tools/join-clips/lib/clipInitService.ts",
+    "src/tools/join-clips/lib/clipManager/metadata.ts",
+    "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+    "supabase/functions/_shared/billing.ts",
+    "supabase/functions/_shared/edgeRequest.ts",
+    "supabase/functions/_shared/rateLimit.ts"
+  ],
+  "provenance": {
+    "kind": "blind_review_batch_import",
+    "blind": true,
+    "runner": "codex",
+    "run_stamp": "20260225_000626",
+    "created_at": "2026-02-25T00:08:11+00:00",
+    "batch_count": 3,
+    "batch_indexes": [
+      1,
+      2,
+      3
+    ],
+    "packet_path": "/Users/peteromalley/Documents/reigh/.desloppify/review_packet_blind.json",
+    "packet_sha256": "4b6b6e35a006fb9b59f680758ad5956a98aeb28bafad3ab623033dd95a44b0b3"
+  },
+  "assessment_coverage": {
+    "scored_dimensions": [
+      "naming_quality",
+      "logic_clarity",
+      "type_safety",
+      "contract_coherence",
+      "error_consistency",
+      "abstraction_fitness",
+      "ai_generated_debt",
+      "high_level_elegance",
+      "mid_level_elegance",
+      "low_level_elegance",
+      "cross_module_architecture",
+      "initialization_coupling",
+      "convention_outlier",
+      "dependency_health",
+      "test_strategy",
+      "api_surface_coherence",
+      "authorization_consistency",
+      "incomplete_migration",
+      "package_organization",
+      "design_coherence"
+    ],
+    "selected_dimensions": [
+      "error_consistency",
+      "mid_level_elegance"
+    ],
+    "imported_dimensions": [
+      "error_consistency",
+      "mid_level_elegance"
+    ],
+    "missing_dimensions": [
+      "naming_quality",
+      "logic_clarity",
+      "type_safety",
+      "contract_coherence",
+      "abstraction_fitness",
+      "ai_generated_debt",
+      "high_level_elegance",
+      "low_level_elegance",
+      "cross_module_architecture",
+      "initialization_coupling",
+      "convention_outlier",
+      "dependency_health",
+      "test_strategy",
+      "api_surface_coherence",
+      "authorization_consistency",
+      "incomplete_migration",
+      "package_organization",
+      "design_coherence"
+    ]
+  }
+}

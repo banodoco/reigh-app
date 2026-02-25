@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from "@/shared/components/ui/input";
-import { Label } from "@/shared/components/ui/label";
+import { Label } from "@/shared/components/ui/primitives/label";
 import { useProject } from '@/shared/contexts/ProjectContext';
-import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import { getRandomDummyName } from '../lib/dummyNames';
-import { AspectRatioSelector } from '@/shared/components/AspectRatioSelector';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { getRandomDummyName } from '@/shared/lib/seeding/dummyNames';
+import { AspectRatioSelector } from '@/shared/components/generation-controls/AspectRatioSelector';
 import { ModalContainer, ModalFooterButtons } from '@/shared/components/ModalContainer';
 
 interface CreateProjectModalProps {
@@ -80,7 +80,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
         navigate('/tools');
       }
     } catch (error) {
-      handleError(error, { context: 'CreateProjectModal', toastTitle: 'An error occurred while creating the project' });
+      normalizeAndPresentError(error, { context: 'CreateProjectModal', toastTitle: 'An error occurred while creating the project' });
     }
   };
 

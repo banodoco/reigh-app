@@ -41,11 +41,17 @@ describe('truncateText', () => {
   });
 
   it('truncates long text with ellipsis', () => {
-    expect(truncateText('hello world', 5)).toBe('hello...');
+    expect(truncateText('hello world', 5)).toBe('he...');
   });
 
   it('handles empty string', () => {
     expect(truncateText('', 10)).toBe('');
+  });
+
+  it('keeps output within max length for very small limits', () => {
+    expect(truncateText('hello world', 3)).toBe('...');
+    expect(truncateText('hello world', 2)).toBe('..');
+    expect(truncateText('hello world', 1)).toBe('.');
   });
 });
 

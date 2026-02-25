@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import type { ImageTransform } from './types';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 import { getMediaUrl } from '@/shared/lib/mediaTypeHelpers';
 
 interface UseCanvasTransformProps {

@@ -12,6 +12,11 @@
  */
 
 import { getSupabaseUrl } from '@/integrations/supabase/config/env';
+import {
+  operationFailure,
+  operationSuccess,
+  type OperationResult,
+} from '@/shared/lib/operationResult';
 
 /**
  * Parse the Supabase project ref from the configured URL.
@@ -26,13 +31,41 @@ function getProjectRef(): string {
  * Returns null if no session exists or if running in a non-browser environment.
  */
 function readRawSession(): Record<string, unknown> | null {
-  if (typeof window === 'undefined') return null;
+  const probe = probeRawSession();
+  return probe.ok ? probe.value : null;
+}
+
+function probeRawSession(): OperationResult<Record<string, unknown> | null> {
+  if (typeof window === 'undefined') {
+    return operationSuccess(null, { policy: 'best_effort' });
+  }
   try {
     const raw = localStorage.getItem(`sb-${getProjectRef()}-auth-token`);
-    if (!raw) return null;
-    return JSON.parse(raw) as Record<string, unknown>;
-  } catch {
-    return null;
+    if (!raw) {
+      return operationSuccess(null, { policy: 'best_effort' });
+    }
+
+    try {
+      return operationSuccess(JSON.parse(raw) as Record<string, unknown>, {
+        policy: 'best_effort',
+      });
+    } catch (parseError) {
+      return operationFailure(parseError, {
+        policy: 'degrade',
+        recoverable: true,
+        errorCode: 'session_storage_parse_failed',
+        message: 'Failed to parse cached Supabase session.',
+        cause: parseError,
+      });
+    }
+  } catch (storageError) {
+    return operationFailure(storageError, {
+      policy: 'degrade',
+      recoverable: true,
+      errorCode: 'session_storage_unavailable',
+      message: 'Unable to access localStorage for cached Supabase session.',
+      cause: storageError,
+    });
   }
 }
 
@@ -64,4 +97,16 @@ export function readUserIdFromStorage(): string | null {
 
 export function hasStoredSessionToken(): boolean {
   return readAccessTokenFromStorage() !== null;
+}
+
+export function probeStoredSessionToken(): OperationResult<boolean> {
+  const rawSessionProbe = probeRawSession();
+  if (!rawSessionProbe.ok) {
+    return rawSessionProbe;
+  }
+
+  return operationSuccess(
+    readString(rawSessionProbe.value?.access_token) !== null,
+    { policy: rawSessionProbe.policy },
+  );
 }

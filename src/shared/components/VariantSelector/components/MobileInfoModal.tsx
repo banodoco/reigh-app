@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { X, Star, Download, Image, Check } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { Button } from '@/shared/components/ui/button';
 import type { LoraModel } from '@/shared/components/LoraSelectorModal';
 import type { GenerationVariant } from '@/shared/hooks/useVariants';

@@ -25,7 +25,7 @@ vi.mock('@/shared/hooks/useToolSettings', () => ({
   updateToolSettingsSupabase: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('@/shared/lib/errorHandler', () => ({
+vi.mock('@/shared/lib/compat/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 

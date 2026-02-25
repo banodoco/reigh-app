@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
-import { GenerationRow, GenerationParams } from '@/types/shots';
-import { supabase } from '@/integrations/supabase/client';
+import { GenerationRow, GenerationParams } from '@/domains/generation/types';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { toast } from '@/shared/components/ui/toast';
-import { createJoinClipsTask } from '@/shared/lib/tasks/joinClips';
+import { createCanonicalJoinClipsTask } from '@/shared/lib/tasks/joinClips';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { VACE_GENERATION_DEFAULTS } from '@/shared/lib/vaceDefaults';
 import { useTaskPlaceholder, type RunTaskPlaceholder } from '@/shared/hooks/useTaskPlaceholder';
 
@@ -80,8 +80,7 @@ function deduplicateChildGenerations(children: GenerationRow[]): GenerationRow[]
 }
 
 async function fetchChildGenerations(parentGenerationId: string): Promise<GenerationRow[]> {
-  const { data, error } = await supabase
-    .from('generations')
+  const { data, error } = await supabase().from('generations')
     .select('*')
     .eq('parent_generation_id', parentGenerationId)
     .order('child_order', { ascending: true })
@@ -129,7 +128,7 @@ function useParentChildGenerations(video: GenerationRow) {
         }
       } catch (error) {
         if (!cancelled) {
-          handleError(error, { context: 'JoinClips', showToast: false });
+          normalizeAndPresentError(error, { context: 'JoinClips', showToast: false });
         }
       } finally {
         if (!cancelled) {
@@ -236,10 +235,14 @@ function useConfirmJoinHandler(params: UseConfirmJoinHandlerParams) {
           const resolutionTuple = resolveResolutionTuple(projectAspectRatio);
           const videoShotId = getVideoShotId(video);
 
-          return createJoinClipsTask({
+          return createCanonicalJoinClipsTask({
             project_id: projectId,
             ...(videoShotId && { shot_id: videoShotId }),
-            clips,
+            mode: 'multi_clip',
+            clip_source: {
+              kind: 'clips',
+              clips,
+            },
             prompt: joinPrompt,
             negative_prompt: joinNegativePrompt,
             context_frame_count: joinContextFrames,

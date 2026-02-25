@@ -1,0 +1,93 @@
+{
+  "batch": "Design coherence — Mechanical Concern Signals",
+  "batch_index": 1,
+  "assessments": {
+    "design_coherence": 82.8
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "`useSharedLightboxState` composes a very wide API surface (many concern-specific prop groups merged into one input contract and one large return contract), and `ImageLightbox` still has to assemble and pass a large mixed-concern bag into it.",
+        "Edge function architecture is inconsistent in the same subsystem: `complete_task/index.ts` manually handles CORS/method/env/bootstrap concerns while sibling functions (for example `claim-next-task`) rely on `bootstrapEdgeHandler`, despite shared request/runtime helpers existing under `_shared`.",
+        "`useShotImagesEditorCallbacks` and `useTimelineFrameUpdates` each combine domain rules, direct Supabase writes, cache mutation/invalidation strategy, and UI error behavior in single hooks, making behavior coupling high when any one part changes."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "lightbox_state_surface_overloaded",
+      "summary": "Shared lightbox hook exposes a broad mixed-responsibility contract that weakens boundaries.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/components/EditModePanel.tsx"
+      ],
+      "evidence": [
+        "`UseSharedLightboxStateProps` merges core, navigation, shot, layout, button, and media concerns into one interface (`useSharedLightboxState.ts` lines 53-137).",
+        "`UseSharedLightboxStateReturn` similarly bundles many unrelated sections (variants, navigation, star, references, lineage, shots, source generation, make-main, layout, button props) in one return object (`useSharedLightboxState.ts` lines 143-258).",
+        "`ImageLightbox` must construct and pass a large multi-domain argument bag into `useSharedLightboxState` (`ImageLightbox.tsx` lines 238-260+), showing the abstraction did not significantly reduce call-site complexity."
+      ],
+      "suggestion": "Split the shared lightbox contract into smaller feature-specific hooks with narrow inputs (`variants`, `navigation`, `shot-actions`, `references`), then compose only the needed subsets in `ImageLightbox` and `VideoLightbox` via explicit adapter objects rather than a single mega-prop object.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "lightbox_orchestration_over_aggregation"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "edge_runtime_pattern_drift",
+      "summary": "Edge handlers use divergent bootstrap patterns, creating structural drift in request lifecycle handling.",
+      "related_files": [
+        "supabase/functions/complete_task/index.ts",
+        "supabase/functions/claim-next-task/index.ts",
+        "supabase/functions/_shared/edgeRequest.ts"
+      ],
+      "evidence": [
+        "`complete_task/index.ts` manually defines CORS headers and method gate (`withCorsHeaders`, `OPTIONS`/`POST` checks, env resolution) at lines 38-54 and 142-168.",
+        "`claim-next-task/index.ts` uses centralized `bootstrapEdgeHandler` flow at lines 37-46 for parsing/auth/bootstrap concerns.",
+        "`_shared/edgeRequest.ts` already provides reusable method/env/json failure primitives (`initEdgeRuntime`, `ensureRequestMethod`, parse helpers; lines 21-74 and 150-220), but `complete_task` does not align with that shared lifecycle."
+      ],
+      "suggestion": "Standardize edge function entrypoints on a single bootstrap/request contract (either fully `bootstrapEdgeHandler` or a shared `edgeRequest` wrapper) and migrate `complete_task` to it so method/CORS/env/auth/error semantics are defined once.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "edge_handler_bootstrap_fragmentation"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "ui_hooks_embed_data_orchestration",
+      "summary": "UI-facing hooks combine domain mutations, persistence, and cache choreography in single units.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/shared/hooks/timeline/useTimelineFrameUpdates.ts",
+        "src/tools/travel-between-images/components/Timeline.tsx"
+      ],
+      "evidence": [
+        "`useDeleteSegmentHandler` in `useShotImagesEditorCallbacks` performs DB lookups, business-rule sibling selection, deletes, cache writes, and multi-query invalidation in one callback (lines 62-176).",
+        "`useTimelineFrameUpdates` owns write queueing, persistence calls, sync behavior, timeout/logging handling, and cache refetch policy in the same hook (lines 102-257).",
+        "`Timeline.tsx` depends on multiple orchestration hooks and passes many mutation handlers/coordination props into container/lightbox layers, indicating high coupling across view and mutation orchestration boundaries."
+      ],
+      "suggestion": "Extract persistence + cache invalidation choreography into domain services (e.g., `timelineMutationService`, `segmentDeletionService`) and keep UI hooks as thin adapters that invoke those services and expose UI state only.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "client_mutation_orchestration_coupling"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Abstractions are being introduced as aggregators (large facades) rather than boundary reducers (narrow, composable contracts).",
+      "Edge-function infrastructure migration is partial, leaving parallel request lifecycle patterns active.",
+      "Mutation logic lacks a clear service boundary, so hooks absorb domain + infra concerns."
+    ],
+    "likely_symptoms": [
+      "lightbox_state_surface_overloaded",
+      "ui_hooks_embed_data_orchestration"
+    ],
+    "possible_false_positives": []
+  }
+}

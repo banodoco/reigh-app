@@ -1,10 +1,7 @@
 // deno-lint-ignore-file
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { authenticateRequest } from "../_shared/auth.ts";
-import { SystemLogger } from "../_shared/systemLogger.ts";
-
-declare const Deno: { env: { get: (key: string) => string | undefined } };
+import { buildOrchestratorRefOrFilter } from "../_shared/orchestratorReference.ts";
+import { bootstrapEdgeHandler } from "../_shared/edgeHandler.ts";
 
 /**
  * Edge function: get-orchestrator-children
@@ -27,41 +24,20 @@ declare const Deno: { env: { get: (key: string) => string | undefined } };
  * - 500 Internal Server Error
  */
 serve(async (req) => {
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-
-  if (!serviceKey || !supabaseUrl) {
-    console.error("[GET-ORCHESTRATOR-CHILDREN] Missing required environment variables");
-    return new Response("Server configuration error", { status: 500 });
+  const bootstrap = await bootstrapEdgeHandler(req, {
+    functionName: "get-orchestrator-children",
+    logPrefix: "[GET-ORCHESTRATOR-CHILDREN]",
+    parseBody: "strict",
+    errorResponseFormat: "text",
+  });
+  if (!bootstrap.ok) {
+    return bootstrap.response;
   }
 
-  // Create admin client for database operations
-  const supabaseAdmin = createClient(supabaseUrl, serviceKey);
-
-  // Create logger
-  const logger = new SystemLogger(supabaseAdmin, 'get-orchestrator-children');
-
-  // Only accept POST requests
-  if (req.method !== "POST") {
-    logger.warn("Method not allowed", { method: req.method });
-    await logger.flush();
-    return new Response("Method not allowed", { status: 405 });
-  }
-
-  // Parse request body
-  let requestBody: unknown = {};
-  try {
-    const bodyText = await req.text();
-    if (bodyText) {
-      requestBody = JSON.parse(bodyText);
-    }
-  } catch {
-    logger.error("Invalid JSON body");
-    await logger.flush();
-    return new Response("Invalid JSON body", { status: 400 });
-  }
-
-  const orchestratorTaskId = requestBody.orchestrator_task_id;
+  const { supabaseAdmin, logger, body: requestBody, auth } = bootstrap.value;
+  const orchestratorTaskId = typeof requestBody.orchestrator_task_id === "string"
+    ? requestBody.orchestrator_task_id
+    : null;
   if (!orchestratorTaskId) {
     logger.error("Missing orchestrator_task_id");
     await logger.flush();
@@ -71,24 +47,19 @@ serve(async (req) => {
   // Set orchestrator task_id for logs
   logger.setDefaultTaskId(orchestratorTaskId);
 
-  // Authenticate using shared auth module
-  const auth = await authenticateRequest(req, supabaseAdmin, "[GET-ORCHESTRATOR-CHILDREN]");
-
-  if (!auth.success) {
-    logger.error("Authentication failed", { error: auth.error });
-    await logger.flush();
-    return new Response(auth.error || "Authentication failed", { status: auth.statusCode || 403 });
-  }
-
-  const isServiceRole = auth.isServiceRole;
-  const callerId = auth.userId;
+  const isServiceRole = auth!.isServiceRole;
+  const callerId = auth!.userId;
 
   try {
-    // Query child tasks - those with orchestrator_task_id_ref in params matching the given ID
+    // Query child tasks by orchestration contract + legacy orchestrator reference fields.
     const { data: tasks, error: tasksError } = await supabaseAdmin
       .from("tasks")
       .select("id, task_type, status, params, output_location, project_id")
-      .contains("params", { orchestrator_task_id_ref: orchestratorTaskId })
+      .or([
+        buildOrchestratorRefOrFilter(orchestratorTaskId),
+        `params->>orchestrator_task_id.eq.${orchestratorTaskId}`,
+        `params->orchestrator_details->>orchestrator_task_id.eq.${orchestratorTaskId}`,
+      ].join(','))
       .order("created_at", { ascending: true });
 
     if (tasksError) {

@@ -1,0 +1,137 @@
+{
+  "batch": "Design Coherence — Mechanical Concern Signals",
+  "batch_index": 7,
+  "assessments": {
+    "design_coherence": 57.0
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "Large orchestration hooks centralize multiple concerns instead of a single cohesive responsibility: `src/shared/components/MediaLightbox/hooks/useImageEditOrchestrator.ts` (541 lines) composes mode hooks, persistence sync, and context shaping in one unit, with a very large dependency list for one `useMemo` context object (~lines 392-520).",
+        "`src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts` (706 lines) combines variants, navigation, star state, references, join clips, lineage, shot management, and layout composition in one API surface (~lines 602-620).",
+        "`src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts` (663 lines) mixes drag, zoom, selection, drop pipeline, endpoint dragging, and structure-video placement logic in one hook (~lines 141-577).",
+        "`supabase/functions/complete_task/index.ts` runs a 15-step flow (auth, rate limit, ownership, storage, params mutation, generation creation, orchestrator completion, billing) in one handler (~lines 142-353), indicating mixed responsibilities at the function boundary.",
+        "`src/tools/travel-between-images/components/ShotEditor/controllers/useGenerationController.ts` uses a very large parameter object and mostly forwards it to collaborator hooks (~lines 67-220), and `useEditingController.ts` similarly aggregates and re-exports many unrelated concerns (~lines 39-224)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "lightbox_orchestrator_god_hook",
+      "summary": "Image edit orchestration hook mixes composition, state syncing, and context assembly into one oversized control surface.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useImageEditOrchestrator.ts",
+        "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts",
+        "src/shared/components/MediaLightbox/hooks/useLightboxWorkflowProps.ts"
+      ],
+      "evidence": [
+        "`useImageEditOrchestrator` takes a broad prop contract spanning media/project info, variant state, persistence state, LoRA setup, and UI refs (~lines 32-92, 128-145).",
+        "It composes multiple mode subsystems (`useInpainting`, `useMagicEditMode`, `useRepositionMode`, `useImg2ImgMode`) and then flattens almost all state/actions into a single context value (~lines 176-382, 392-520).",
+        "Placeholder context fields (`isFlippedHorizontally = false`, `isSaving = false`) suggest the abstraction boundary is carrying fields it does not own (~lines 388-391)."
+      ],
+      "suggestion": "Split by mode orchestration boundaries (e.g., inpaint/magic, reposition, img2img) and build a thin composition layer that only chooses active mode contracts; move context shaping into smaller typed builders per mode.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "timeline_orchestrator_mixed_responsibilities",
+      "summary": "Timeline orchestrator combines unrelated interaction systems (drag, zoom, drop, endpoint edit, video browser) in one hook.",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts",
+        "src/tools/travel-between-images/components/Timeline/utils/timeline-utils.ts",
+        "src/tools/travel-between-images/components/Timeline/hooks/useTapToMove.ts"
+      ],
+      "evidence": [
+        "Single hook owns local UI state, drag freeze mechanics, zoom center math, deferred rerender timers, drop interceptors, duplicate collision resolution, and structure video placement (~lines 163-540).",
+        "Timing-based synchronization (`setTimeout` for rerender and drag end/zoom recentering) is embedded with domain behavior (~lines 340-343, 356-387).",
+        "The return contract exposes a very broad API surface (refs, dimensions, drag/drop/selection/zoom handlers, pending states, device info), increasing coupling for consumers (~lines 54-139, 577-620)."
+      ],
+      "suggestion": "Decompose into dedicated coordinators (`useTimelineViewport`, `useTimelineDnD`, `useTimelineDropPipeline`, `useStructureVideoPlacement`) with an integration hook that only merges already-cohesive outputs.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "controller_pass_through_surface",
+      "summary": "Shot editor controllers behave mostly as pass-through aggregators with oversized parameter and return surfaces.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/controllers/useGenerationController.ts",
+        "src/tools/travel-between-images/components/ShotEditor/controllers/useEditingController.ts",
+        "src/tools/travel-between-images/components/ShotEditor/sections/generation/BatchModeContent.tsx"
+      ],
+      "evidence": [
+        "`useGenerationController` accepts dozens of fields (~lines 7-65) and forwards most directly into `useGenerateBatch` with little local transformation (~lines 155-220).",
+        "`useEditingController` aggregates structure video, audio, naming, and join configuration, then returns a wide flattened object (~lines 39-224).",
+        "This creates broad call signatures that force unrelated updates to cross the same controller boundary."
+      ],
+      "suggestion": "Introduce scenario-specific controller inputs (`batchGenerationConfig`, `joinConfig`, `structureMediaConfig`) and return grouped sub-objects instead of flattened exports; keep each controller scoped to one user workflow.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "complete_task_pipeline_overloaded",
+      "summary": "Edge handler combines policy, storage, generation side-effects, orchestration, and billing in a single sequential function.",
+      "related_files": [
+        "supabase/functions/complete_task/index.ts",
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/complete_task/generation-handlers.ts"
+      ],
+      "evidence": [
+        "`completeTaskHandler` executes many distinct concerns inline (request parse, auth/rate limit, ownership, storage verification/upload, task params mutation, generation creation, task completion update, orchestrator completion, billing) (~lines 142-353).",
+        "`generation-handlers.ts` is explicitly an all-handlers file and contains variant-on-source, variant-on-parent, variant-on-child, and standalone generation logic in one module (~lines 1-406).",
+        "Cross-cutting orchestration logic is split across entrypoint + handlers + orchestrator module with shared task param shape assumptions, increasing change ripple risk."
+      ],
+      "suggestion": "Refactor into an explicit completion pipeline with isolated stages (authorization, storage resolution, generation mutation, orchestrator mutation, billing), each with typed stage input/output and failure policy.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "tasks_pane_multi_concern_component",
+      "summary": "Tasks pane component mixes pane shell behavior, data orchestration, mutation logic, filter state, and lightbox wiring in one file.",
+      "related_files": [
+        "src/shared/components/TasksPane/TasksPane.tsx",
+        "src/shared/components/TasksPane/TaskList.tsx",
+        "src/shared/components/TasksPane/TaskItem.tsx"
+      ],
+      "evidence": [
+        "`TasksPane.tsx` (610 lines) owns session persistence, multiple filters/pagination, optimistic cancellation cache mutation, sliding pane behavior, and `MediaLightbox` portal rendering (~lines 59-603).",
+        "`TaskList.tsx` and `TaskItem.tsx` add their own local orchestration layers (transition state, new-task detection, optimistic cancellation, navigation/lightbox behavior), indicating responsibilities are distributed by convenience rather than bounded feature seams.",
+        "Pane and task domain logic are tightly coupled through large prop surfaces (`TaskList` + `TaskItem` props include navigation, lightbox openers, mobile interaction state, project indicators)."
+      ],
+      "suggestion": "Split into container/presenter layers: isolate query+mutation state into hooks (`useTasksPaneFilters`, `useTasksPaneMutations`) and keep pane shell + lightbox host as separate components with narrower prop contracts.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "prompt_queue_flow_duplication",
+      "summary": "Prompt submission queue paths repeat similar orchestration patterns instead of sharing a single queue execution strategy.",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/usePromptQueueHandlers.ts",
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmissionHandlers.ts",
+        "src/shared/components/ImageGenerationForm/hooks/useFormSubmission.ts"
+      ],
+      "evidence": [
+        "`handleUseExistingPrompts` and `handleNewPromptsLikeExisting` both run: task param creation, submit trigger, runIncomingTask envelope, and generate call with similar scaffolding (~lines 58-87 and 88-147).",
+        "`useSubmissionHandlers` and `useFormSubmission` layer additional wrapper hooks that mostly pass through the same dependencies, increasing indirection without reducing surface complexity (~useSubmissionHandlers lines 24-86; useFormSubmission lines 20-109).",
+        "Guard/queue/report behavior is duplicated at multiple levels, making flow changes error-prone."
+      ],
+      "suggestion": "Create a shared `runQueuedSubmission` helper that owns trigger/label/error envelope and accepts only strategy callbacks (build prompts, build params, execute generation).",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

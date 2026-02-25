@@ -4,14 +4,14 @@ import { useProject } from '@/shared/contexts/ProjectContext';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
 import { toast } from '@/shared/components/ui/toast';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { parseTaskParams } from '@/shared/lib/taskTypeUtils';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { Task } from '@/types/tasks';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 import { isSegmentVideoTask, extractPairShotGenerationId, checkSegmentConnection } from '../utils/task-utils';
 import { getTaskVariantId } from '../utils/getTaskVariantId';
-import { travelShotUrl } from '@/shared/lib/toolConstants';
+import { travelShotUrl } from '@/shared/lib/toolRoutes';
 
 type ActionEvent = React.MouseEvent | React.TouchEvent;
 
@@ -112,7 +112,7 @@ export function useTaskNavigation({
         clearVideoWaiting();
       } else {
         // Query finished but no video found - show error
-        handleError(new Error(`Video query completed but no outputs found for task: ${task.id}`), { context: 'useTaskNavigation' });
+        normalizeAndPresentError(new Error(`Video query completed but no outputs found for task: ${task.id}`), { context: 'useTaskNavigation' });
         toast({
           title: 'Video not found',
           description: 'Could not locate the video output for this task.',
@@ -173,8 +173,7 @@ export function useTaskNavigation({
         );
       }
 
-      const { data: subtasks, error } = await supabase
-        .from('tasks')
+      const { data: subtasks, error } = await supabase().from('tasks')
         .select('id, status')
         .eq('project_id', taskProjectId)
         .neq('id', task.id)
@@ -192,7 +191,7 @@ export function useTaskNavigation({
       }
       progressTimeoutRef.current = setTimeout(() => setProgressPercent(null), 5000);
     } catch (error) {
-      handleError(error, { context: 'TaskItem', toastTitle: 'Progress Check Failed' });
+      normalizeAndPresentError(error, { context: 'TaskItem', toastTitle: 'Progress Check Failed' });
     }
   }, [task.projectId, task.params, task.id]);
 

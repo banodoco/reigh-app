@@ -4,13 +4,13 @@ import { ScrollArea } from "@/shared/components/ui/scroll-area";
 import { DescriptionModalProps } from '../types';
 
 export const DescriptionModal: React.FC<DescriptionModalProps> = ({
-  isOpen,
-  onClose,
+  open,
+  onOpenChange,
   title,
   description
 }) => {
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-lg font-light">{title}</DialogTitle>

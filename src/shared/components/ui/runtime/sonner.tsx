@@ -1,0 +1,38 @@
+import { Toast } from "@base-ui-components/react/toast";
+import { ToastItem, toast } from "@/shared/components/ui/toast";
+import { getToastManager } from "@/shared/components/ui/runtime/toastManager";
+import { UI_Z_LAYERS } from '@/shared/lib/uiLayers';
+
+interface ToasterProps {
+  /** Max toasts visible at once. @default 3 */
+  limit?: number;
+  /** Default timeout in ms. @default 5000 */
+  timeout?: number;
+}
+
+function ToastList() {
+  const { toasts } = Toast.useToastManager();
+
+  return (
+    <Toast.Viewport
+      className="fixed bottom-0 right-0 flex max-h-screen w-full flex-col gap-2 p-4 md:max-w-[420px]"
+      style={{ zIndex: UI_Z_LAYERS.TOAST_VIEWPORT }}
+    >
+      {toasts.map((t) => (
+        <ToastItem key={t.id} toast={t} />
+      ))}
+    </Toast.Viewport>
+  );
+}
+
+const Toaster = ({ limit = 3, timeout = 5000 }: ToasterProps = {}) => {
+  const toastManager = getToastManager();
+
+  return (
+    <Toast.Provider toastManager={toastManager} timeout={timeout} limit={limit}>
+      <ToastList />
+    </Toast.Provider>
+  );
+};
+
+export { Toaster, toast };

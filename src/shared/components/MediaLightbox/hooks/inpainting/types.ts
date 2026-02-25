@@ -1,4 +1,4 @@
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 
 // Import canonical types from single source of truth
 import type { EditAdvancedSettings, QwenEditModel } from '../editSettingsTypes';
@@ -62,6 +62,8 @@ export interface UseInpaintingProps {
   imageUrl?: string;
   thumbnailUrl?: string;
   initialEditMode?: EditMode;
+  /** Start with isInpaintMode=true (skips the "select an option" step) */
+  initialActive?: boolean;
 }
 
 export interface UseInpaintingReturn {

@@ -1,0 +1,121 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "api_surface_coherence": 78.0,
+    "mid_level_elegance": 80.0
+  },
+  "dimension_notes": {
+    "api_surface_coherence": {
+      "evidence": [
+        "`TravelBetweenImagesTaskParams` combines modern API fields, legacy migration fields, UI-only metadata-bearing variants, and worker orchestration controls in one wide contract (`src/shared/lib/tasks/travelBetweenImages/types.ts`).",
+        "`buildTravelRequestBodyV2` conditionally omits semantically important arrays (`image_generation_ids`, `image_variant_ids`, `pair_shot_generation_ids`) when lengths drift, instead of failing contract validation (`src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts`).",
+        "`useLineageChain` surfaces a mixed error API (custom `LineageScopeError` plus normalized runtime errors), while `generationTaskRepository` exposes status-object contracts for similar scope checks."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Task-mapping seam duplicates contract shape in two places (`GenerationTaskMapping` in repository vs `GenerationTaskCacheEntry` in cache), creating avoidable drift risk.",
+        "Travel request assembly performs multiple independent filter/sort/derive passes for the same shot-generation set, then silently drops mismatched fields rather than enforcing one boundary invariant.",
+        "Join-clips init path documents action modes (`fill`/`append`) but uses a mode-less action type, forcing downstream merge behavior to be implicit in implementation instead of explicit in the seam."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "travel_task_params_overloaded_contract",
+      "summary": "Travel task API type mixes backend, migration, and UI concerns into one unstable surface",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/types.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts"
+      ],
+      "evidence": [
+        "`TravelBetweenImagesTaskParams` extends multiple partial interfaces and also includes legacy, migration, orchestration, and UI-restoration fields in one interface.",
+        "`StructureVideoConfigWithMetadata` carries UI-only fields (`metadata`, `resource_id`) in the same type family as request payload contracts.",
+        "`generateVideoService` builds request bodies against this broad type, making it easy to leak non-API concerns across the boundary."
+      ],
+      "suggestion": "Split the contract into explicit boundary DTOs: `TravelUiState`, `TravelRequestPayload`, and `TravelLegacyInput`. Keep conversion in one adapter module and have `createTravelBetweenImagesTask` accept only the strict request payload type.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "mixed_boundary_contracts"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "lineage_error_contract_is_mixed",
+      "summary": "Lineage scope API returns status objects in one layer but throws heterogeneous errors in another",
+      "related_files": [
+        "src/shared/hooks/useLineageChain.ts",
+        "src/shared/lib/generationTaskRepository.ts"
+      ],
+      "evidence": [
+        "`resolveVariantProjectScope` returns a structured status union (`ok`, `scope_mismatch`, `query_failed`, etc.).",
+        "`fetchVariantById` converts some scope states into `LineageScopeError` but DB read failures into `normalizeAndPresentError(...)` throws, producing mixed runtime error types for callers.",
+        "`useLineageChain` then exposes `error: Error | null`, losing typed discriminants from the repository contract."
+      ],
+      "suggestion": "Unify to one error/result contract across the seam (prefer a discriminated `Result` object) and keep hook return typing aligned with that contract so consumers can branch predictably without instanceof checks.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "mixed_boundary_contracts"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "task_mapping_contract_duplicated_between_layers",
+      "summary": "Generation-task mapping shape is duplicated across cache and repository layers",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/lib/generationTaskCache.ts"
+      ],
+      "evidence": [
+        "`GenerationTaskMapping` and local `GenerationTaskCacheEntry` both represent `{ taskId, status, queryError }` with separate definitions.",
+        "`preloadGenerationTaskMappings` re-maps repository output into a parallel cache type instead of reusing one canonical boundary type.",
+        "Any future status/code change requires synchronized edits in both files, increasing seam drift risk."
+      ],
+      "suggestion": "Export and reuse a single mapping DTO type (or shared serializer) from repository to cache layer, and store that canonical type directly in query cache.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "duplicated_boundary_models"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "pair_payload_integrity_is_fail_open",
+      "summary": "Travel payload assembly hides pair-mapping inconsistencies by dropping fields",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/shared/lib/tasks/travelBetweenImages/types.ts"
+      ],
+      "evidence": [
+        "`buildTravelRequestBodyV2` only includes `image_generation_ids`, `image_variant_ids`, and `pair_shot_generation_ids` when lengths exactly match expected counts; otherwise it silently omits them.",
+        "These arrays are generated from separately filtered data paths (`buildImagePayload`, pair derivations), so drift can happen without a hard failure.",
+        "Type comments in task types indicate these IDs are important for lineage/tethering, but current seam degrades silently instead of enforcing consistency."
+      ],
+      "suggestion": "Introduce an explicit payload integrity check before request construction; if counts drift, return a validation failure with diagnostics instead of omitting fields. Centralize image/pair derivation into one immutable intermediate model used by all downstream arrays.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "mixed_boundary_contracts"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Boundary contracts are carrying multiple responsibilities (UI state, migration compatibility, transport schema) without strict adapters.",
+      "Related modules re-declare seam models instead of sharing canonical DTOs, increasing drift probability.",
+      "Several integration paths choose fail-open behavior on contract mismatch, reducing observability of boundary breakage."
+    ],
+    "likely_symptoms": [
+      "travel_task_params_overloaded_contract",
+      "pair_payload_integrity_is_fail_open",
+      "task_mapping_contract_duplicated_between_layers"
+    ],
+    "possible_false_positives": []
+  }
+}

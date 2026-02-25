@@ -1,0 +1,74 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 5,
+  "assessments": {
+    "package_organization": 56.0,
+    "high_level_elegance": 63.0
+  },
+  "dimension_notes": {
+    "package_organization": {
+      "evidence": [
+        "All assigned root configs are marked peripheral in holistic root_files: vitest.edge.smoke.config.ts (fan_in 1, fan_out 1), vitest.edge.config.ts (fan_in 0, fan_out 1), vitest.config.ts (fan_in 0, fan_out 0), vite.config.ts (fan_in 0, fan_out 0), tailwind.config.ts (fan_in 0, fan_out 0).",
+        "vitest.edge.smoke.config.ts and vitest.edge.config.ts are thin re-export wrappers over supabase/functions configs, indicating split ownership across root and supabase/functions without a focused config package.",
+        "src/shared/hooks/ and src/shared/components/ are large catch-all directories (95 and 78 files respectively) while containing heterogeneous concerns in assigned files (API token persistence, generic async orchestration, autosave state machine, LoRA UI, app error boundary, aspect-ratio selector)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Assigned files in shared folders encode feature/domain behavior rather than universally shared primitives: useApiTokens.ts directly couples to PAT RPCs (generate-pat/revoke-pat), useAutoSaveSettings.ts couples to tool/shot/project persistence semantics, ActiveLoRAsDisplay.tsx is model-domain UI.",
+        "Directory profile and coupling signals show broad hub-like shared folders instead of capability ownership: src/shared/components/ imports from src/shared/hooks/ 56 times and src/shared/lib/ 41 times; src/shared/hooks/ imports from src/integrations/supabase/ 48 times and src/shared/lib/ 62 times.",
+        "The current top-level structure makes ownership prediction harder: new feature behavior is plausibly added to shared/hooks or shared/components instead of feature-scoped packages."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "package_organization",
+      "identifier": "root_config_stragglers",
+      "summary": "Root-level config files are low-fan-in stragglers and include thin test-config pass-throughs that should be grouped into a dedicated config package.",
+      "related_files": [
+        "vitest.edge.smoke.config.ts",
+        "vitest.edge.config.ts",
+        "vitest.config.ts",
+        "vite.config.ts",
+        "tailwind.config.ts"
+      ],
+      "evidence": [
+        "Holistic root_files marks all five assigned root configs as peripheral with fan_in < 5 (mostly 0-1).",
+        "vitest.edge.smoke.config.ts and vitest.edge.config.ts only re-export supabase/functions vitest configs, creating split placement between root and supabase/functions.",
+        "tailwind.config.ts is large (743 LOC) but still root-peripheral with fan_in 0, making root navigation noisier without cross-package reuse justification."
+      ],
+      "suggestion": "Staged reorg plan: 1) Create target folders `config/build/` and `config/test/`. 2) Move `vite.config.ts` and `tailwind.config.ts` to `config/build/`; move `vitest.config.ts`, `vitest.edge.config.ts`, and `vitest.edge.smoke.config.ts` to `config/test/`. 3) Update script/tool references to explicit config paths and keep compatibility stubs only if CI requires them. 4) Run import/update checks with `rg -n \"vitest\\.edge\\.config|vitest\\.config|vite\\.config|tailwind\\.config\" .` and validate with `vitest --config config/test/vitest.config.ts`, `vitest --config config/test/vitest.edge.config.ts`, and `vite build --config config/build/vite.config.ts`.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_folder_overreach",
+      "summary": "`src/shared/hooks` and `src/shared/components` currently mix domain features with generic utilities, weakening capability-based ownership boundaries.",
+      "related_files": [
+        "src/shared/hooks/useApiTokens.ts",
+        "src/shared/hooks/useAutoSaveSettings.ts",
+        "src/shared/components/ActiveLoRAsDisplay.tsx",
+        "src/shared/components/AspectRatioSelector.tsx",
+        "src/shared/components/AppErrorBoundary.tsx"
+      ],
+      "evidence": [
+        "`useApiTokens.ts` is feature-specific (PAT management and Supabase edge functions) but lives in generic shared hooks.",
+        "`useAutoSaveSettings.ts` implements a substantial persistence lifecycle for tool settings (shot/project/custom modes), indicating settings-subsystem ownership rather than global shared placement.",
+        "`ActiveLoRAsDisplay.tsx` and `AspectRatioSelector.tsx` are model/generation UI behavior mixed into general shared components, while holistic directory profiles already show high volume and broad coupling in shared directories."
+      ],
+      "suggestion": "Staged reorg plan: 1) Establish target folders `src/features/api-tokens/hooks/`, `src/features/settings/hooks/`, `src/features/generation/components/`, and reserve `src/shared/*` for reusable primitives only. 2) Move feature-specific hooks first (`useApiTokens`, `useAutoSaveSettings`), then domain components (`ActiveLoRAsDisplay`, `AspectRatioSelector`), and keep `AppErrorBoundary` in `shared/components` as app-shell infrastructure. 3) Update imports incrementally with `rg -l \"@/shared/hooks/use(ApiTokens|AutoSaveSettings|AsyncOperation)\" src` and `rg -l \"@/shared/components/(ActiveLoRAsDisplay|AspectRatioSelector)\" src`, then rewrite paths. 4) Validate with `tsc --noEmit` and targeted tests `vitest src/shared/hooks/__tests__/useApiTokens.test.ts src/shared/hooks/__tests__/useAutoSaveSettings.test.ts src/shared/hooks/__tests__/useAsyncOperation.test.ts`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

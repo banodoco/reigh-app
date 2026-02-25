@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { dispatchAppEvent, useAppEventListener } from '@/shared/lib/typedEvents';
 
 const MAX_LOCAL_STORAGE_ITEM_LENGTH = 4 * 1024 * 1024; // 4MB
@@ -30,7 +30,7 @@ function usePersistentState<T>(key: string, defaultValue: T): [T, React.Dispatch
         return JSON.parse(storedValue) as T;
       }
     } catch (error) {
-      handleError(error, { context: 'usePersistentState', showToast: false });
+      normalizeAndPresentError(error, { context: 'usePersistentState', showToast: false });
     }
     return defaultValue;
   });
@@ -69,7 +69,7 @@ function usePersistentState<T>(key: string, defaultValue: T): [T, React.Dispatch
         ? "Local storage may be disabled in private browsing mode. Settings will be lost when the tab is closed."
         : "There was an error writing to your browser's local storage.";
 
-      handleError(error, {
+      normalizeAndPresentError(error, {
         context: 'usePersistentState',
         toastTitle: 'Could not save settings locally.',
         logData: { reason: errorDescription }

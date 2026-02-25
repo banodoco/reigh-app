@@ -1,0 +1,90 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "mid_level_elegance": 72.0
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "Invalidation seam exposes two conflicting contracts: `useInvalidateGenerations` debounces and cancels per-shot timeouts, while `invalidateGenerationsSync` still schedules delayed async `setTimeout` work and cannot be cancelled (`src/shared/hooks/invalidation/useGenerationInvalidation.ts`).",
+        "Clip metadata integration is split across two paths with different behavior and observability: `clipInitService` reads duration through ad-hoc `<video>` probing and silently resolves `0`, while `clipManager/metadata` uses `extractVideoMetadataFromUrl` and centralized `handleError` (`src/tools/join-clips/lib/clipInitService.ts`, `src/tools/join-clips/lib/clipManager/metadata.ts`).",
+        "Two large form APIs flatten grouped props via spread composition (`resolveShotImagesEditorProps`, `resolveJoinClipsSettingsFormProps`), creating fragile cross-module handoffs where later groups can silently override earlier fields (`src/tools/travel-between-images/components/ShotImagesEditor/types.ts`, `src/shared/components/JoinClipsSettingsForm/types.ts`).",
+        "Lineage boundary logic claims recursive traversal via `params.source_variant_id` but only fetches variants within the current `generation_id`, truncating cross-generation chains while failing closed to empty data (`src/shared/hooks/useLineageChain.ts`) despite generation flows carrying parent linkage (`src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "invalidation_contract_split",
+      "summary": "Generation invalidation APIs expose inconsistent lifecycle semantics, causing race-prone cache refresh behavior.",
+      "related_files": [
+        "src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+        "src/shared/lib/timelineWriteQueue.ts"
+      ],
+      "evidence": [
+        "`useInvalidateGenerations` tracks and cancels per-shot delayed invalidations with `timeoutRefs`, but `invalidateGenerationsSync` still uses uncancellable `setTimeout` while its name implies immediate/synchronous behavior.",
+        "`timelineWriteQueue` explicitly serializes writes and surfaces active state/timeouts, yet invalidation timing is decoupled and may fire after write ordering assumptions have changed."
+      ],
+      "suggestion": "Unify on one invalidation contract: either always immediate and awaitable, or explicitly async/debounced with returned cancellation handles. Rename `invalidateGenerationsSync` to reflect async scheduling, and optionally integrate invalidation triggering with timeline write queue completion hooks.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "join_clips_metadata_dual_path",
+      "summary": "Join-clips clip duration loading uses two divergent adapters, producing inconsistent errors and fallback values.",
+      "related_files": [
+        "src/tools/join-clips/lib/clipInitService.ts",
+        "src/tools/join-clips/lib/clipManager/metadata.ts"
+      ],
+      "evidence": [
+        "`clipInitService.getVideoDurationFromUrl` creates a DOM `<video>` and resolves `0` on `onerror` without structured logging context.",
+        "`clipManager/metadata.loadClipDuration` calls shared `extractVideoMetadataFromUrl` and routes failures through `handleError` with `clipId` context before returning `0`."
+      ],
+      "suggestion": "Consolidate duration extraction behind one shared service function returning a typed result (`ok/value/error`), then reuse it in both initialization and metadata refresh paths so fallback policy and logging are identical.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "prop_resolver_collision_risk",
+      "summary": "Prop-group flatteners rely on spread order, making integration seams brittle to silent key collisions.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/types.ts",
+        "src/shared/components/JoinClipsSettingsForm/types.ts"
+      ],
+      "evidence": [
+        "`resolveShotImagesEditorProps` merges four objects via spread with no collision guards, so overlapping keys are silently overwritten by later groups.",
+        "`resolveJoinClipsSettingsFormProps` repeats the same pattern across `clipSettings`, `motionConfig`, and `uiState`, expanding the chance of accidental contract break when groups evolve."
+      ],
+      "suggestion": "Keep grouped props at call boundaries (avoid flattening), or add explicit namespacing/merge guards (compile-time utility types plus runtime assertion in development) to prevent silent override behavior.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "lineage_boundary_truncation",
+      "summary": "Variant lineage traversal is scoped to one generation, conflicting with source-pointer semantics and silently truncating chains.",
+      "related_files": [
+        "src/shared/hooks/useLineageChain.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts"
+      ],
+      "evidence": [
+        "`useLineageChain.fetchLineageChain` fetches `currentVariant`, then loads only rows where `generation_id = currentVariant.generation_id`, but traversal follows `params.source_variant_id` which can reference variants outside that set.",
+        "`generateVideoService` sends `parent_generation_id` in request body, indicating cross-generation ancestry is part of generation workflow, making single-generation lineage resolution an unreliable seam."
+      ],
+      "suggestion": "Resolve lineage iteratively by fetching parent variant records by ID until null/visited, not by preloading a single generation. Return a typed partial-chain/error state so callers can distinguish 'no lineage' from 'incomplete lineage'.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

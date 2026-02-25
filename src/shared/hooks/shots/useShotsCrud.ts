@@ -4,9 +4,9 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { Shot } from '@/types/shots';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { Shot } from '@/domains/generation/types';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { invalidateGenerationsSync } from '@/shared/hooks/invalidation/useGenerationInvalidation';
 import { isNotFoundError } from '@/shared/constants/supabaseErrors';
 import { shotQueryKeys } from '@/shared/lib/queryKeys/shots';
@@ -26,8 +26,7 @@ export const useDeleteShot = () => {
 
   return useMutation({
     mutationFn: async ({ shotId, projectId }: { shotId: string; projectId: string }) => {
-      const { error } = await supabase
-        .from('shots')
+      const { error } = await supabase().from('shots')
         .delete()
         .eq('id', shotId);
 
@@ -71,7 +70,7 @@ export const useDeleteShot = () => {
         rollbackShotsCaches(queryClient, context.projectId, context.previousShots);
       }
 
-      handleError(error, { context: 'useDeleteShot', toastTitle: 'Failed to delete shot' });
+      normalizeAndPresentError(error, { context: 'useDeleteShot', toastTitle: 'Failed to delete shot' });
     },
   });
 };
@@ -100,8 +99,7 @@ export const useCreateShot = () => {
       let resolvedPosition = position;
 
       if (resolvedPosition === undefined) {
-        const { data: lastShot, error: lastShotError } = await supabase
-          .from('shots')
+        const { data: lastShot, error: lastShotError } = await supabase().from('shots')
           .select('position')
           .eq('project_id', projectId)
           .order('position', { ascending: false })
@@ -116,8 +114,7 @@ export const useCreateShot = () => {
         resolvedPosition = lastPosition + 1;
       }
 
-      const { data, error } = await supabase
-        .rpc('insert_shot_at_position', {
+      const { data, error } = await supabase().rpc('insert_shot_at_position', {
           p_project_id: projectId,
           p_shot_name: name,
           p_position: resolvedPosition,
@@ -133,18 +130,16 @@ export const useCreateShot = () => {
 
       // Update shot with aspect ratio if provided
       if (aspectRatio) {
-        const { error: updateError } = await supabase
-          .from('shots')
+        const { error: updateError } = await supabase().from('shots')
           .update({ aspect_ratio: aspectRatio })
           .eq('id', result.shot_id);
 
         if (updateError) {
-          handleError(updateError, { context: 'useCreateShot', showToast: false });
+          normalizeAndPresentError(updateError, { context: 'useCreateShot', showToast: false });
         }
       }
 
-      const { data: shotData, error: fetchError } = await supabase
-        .from('shots')
+      const { data: shotData, error: fetchError } = await supabase().from('shots')
         .select()
         .eq('id', result.shot_id)
         .single();
@@ -186,7 +181,7 @@ export const useCreateShot = () => {
     },
 
     onError: (error: Error) => {
-      handleError(error, { context: 'useCreateShot', toastTitle: 'Failed to create shot' });
+      normalizeAndPresentError(error, { context: 'useCreateShot', toastTitle: 'Failed to create shot' });
     },
   });
 };
@@ -200,7 +195,7 @@ export const useDuplicateShot = () => {
 
   return useMutation({
     mutationFn: async ({ shotId, projectId }: { shotId: string; projectId: string }) => {
-      const { data, error } = await supabase.rpc('duplicate_shot', {
+      const { data, error } = await supabase().rpc('duplicate_shot', {
         original_shot_id: shotId,
         project_id: projectId,
       });
@@ -209,8 +204,7 @@ export const useDuplicateShot = () => {
 
       const newShotId = data;
 
-      const { data: shotData, error: fetchError } = await supabase
-        .from('shots')
+      const { data: shotData, error: fetchError } = await supabase().from('shots')
         .select()
         .eq('id', newShotId)
         .single();
@@ -266,15 +260,15 @@ export const useDuplicateShot = () => {
         );
       }
 
-      // Invalidate to ensure full sync
-      queryClient.invalidateQueries({ queryKey: shotQueryKeys.list(projectId) });
+      // Invalidate all list variants for this project (maxImages variants share this prefix).
+      queryClient.invalidateQueries({ queryKey: [...shotQueryKeys.all, projectId] });
     },
 
     onError: (error: Error, _variables, context) => {
       if (context?.previousShots && context.projectId) {
         rollbackShotsCaches(queryClient, context.projectId, context.previousShots);
       }
-      handleError(error, { context: 'useDuplicateShot', toastTitle: 'Failed to duplicate shot' });
+      normalizeAndPresentError(error, { context: 'useDuplicateShot', toastTitle: 'Failed to duplicate shot' });
     },
   });
 };
@@ -295,8 +289,7 @@ export const useReorderShots = () => {
       shotOrders: Array<{ shotId: string; position: number }>;
     }) => {
       const promises = shotOrders.map(({ shotId, position }) =>
-        supabase
-          .from('shots')
+        supabase().from('shots')
           .update({ position })
           .eq('id', shotId)
           .eq('project_id', projectId)
@@ -342,11 +335,12 @@ export const useReorderShots = () => {
       if (context?.previousShots && context.projectId) {
         rollbackShotsCaches(queryClient, context.projectId, context.previousShots);
       }
-      handleError(error, { context: 'useReorderShots', toastTitle: 'Failed to reorder shots' });
+      normalizeAndPresentError(error, { context: 'useReorderShots', toastTitle: 'Failed to reorder shots' });
     },
 
     onSuccess: ({ projectId }) => {
-      queryClient.invalidateQueries({ queryKey: shotQueryKeys.list(projectId) });
+      // Invalidate all list variants for this project (maxImages variants share this prefix).
+      queryClient.invalidateQueries({ queryKey: [...shotQueryKeys.all, projectId] });
     },
   });
 };

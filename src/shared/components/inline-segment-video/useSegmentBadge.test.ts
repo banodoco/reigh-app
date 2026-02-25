@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GenerationRow } from '@/types/generationRow';
+import type { GenerationRow } from '@/domains/generation/types';
 import { useSegmentBadge } from './useSegmentBadge';
 
 const markAllViewed = vi.fn();

@@ -6,10 +6,10 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { shotQueryKeys } from '@/shared/lib/queryKeys/shots';
 import { readShotSettings, type ShotVideoSettings } from '@/shared/lib/settingsMigration';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
 
 interface UseShotVideoSettingsReturn {
   data: ShotVideoSettings | null | undefined;
@@ -26,8 +26,7 @@ export function useShotVideoSettings(
     queryFn: async (): Promise<ShotVideoSettings | null> => {
       if (!shotId) return null;
 
-      const { data, error } = await supabase
-        .from('shots')
+      const { data, error } = await supabase().from('shots')
         .select('settings')
         .eq('id', shotId)
         .single();

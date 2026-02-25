@@ -1,0 +1,117 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 1,
+  "assessments": {
+    "abstraction_fitness": 78.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "Task payload consumers still rely on multi-source fallback resolution across `task_view_contract`, `individual_segment_params`, `orchestrator_details`, `full_orchestrator_payload`, and raw parsed params in `src/shared/components/TaskDetails/VideoTravelDetails.tsx` (e.g. lines 83-87, 91-99, 118-123, 139-143, 152-176, 182-229).",
+        "Task builders continue to accept oversized mixed-mode parameter bags and branch at runtime: `JoinClipsTaskParams` combines multi-clip, legacy start/end paths, and video-edit mode in one interface (`src/shared/lib/tasks/joinClips.ts`, lines 66-117), with downstream mode branching in payload construction (lines 331-339, 385-388).",
+        "Schema compatibility is still distributed instead of canonicalized: `individualTravelSegment` reconstructs values from `originalParams` and nested `orchestrator_details` with repeated fallback chains (`src/shared/lib/tasks/individualTravelSegment.ts`, lines 224-227, 263-266, 301-325, 332-338), while orchestrator sibling lookup still checks multiple legacy/new key paths (`supabase/functions/complete_task/orchestrator.ts`, lines 263-290).",
+        "Thin pass-through surfaces remain: `src/shared/lib/utils.ts` is only a re-export shell (line 1), and `src/integrations/supabase/legacy/index.ts` is a legacy export hop (line 9) that still fronts a widely-used parallel client surface."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 76.0,
+        "indirection_cost": 75.0,
+        "interface_honesty": 83.0
+      }
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "task_payload_canonical_contract_not_enforced",
+      "summary": "Video-travel task display and execution still depend on multi-path fallback chains instead of a single canonical payload contract.",
+      "related_files": [
+        "src/shared/components/TaskDetails/VideoTravelDetails.tsx",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "supabase/functions/complete_task/orchestrator.ts"
+      ],
+      "evidence": [
+        "`VideoTravelDetails` repeatedly resolves each field from 3-4 alternative locations (e.g. phase config, motion mode, prompts, structure guidance, preset, frames) across `individual_segment_params`, `orchestrator_payload`, `orchestrator_details`, and parsed root params.",
+        "`individualTravelSegment` reconstructs runtime state using layered fallbacks from `originalParams` and nested `orchestrator_details` for seed, loras, mode flags, model, and flow settings, indicating the contract is not trusted as singular.",
+        "`orchestrator.ts` sibling queries still support multiple run-id/orchestrator-id key locations (`params->>run_id`, `params->orchestrator_details->>run_id`, etc.), which is another compatibility layer for drifted schemas."
+      ],
+      "suggestion": "Define one canonical persisted schema for travel/join task metadata (contract-first), migrate builders to write only that shape, and move all readers to a single adapter that normalizes old payloads once at ingress before business logic/UI rendering.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "task_payload_schema_drift_fallback_chains"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "join_clips_param_bag_mixed_modes",
+      "summary": "Join clips task creation still uses an oversized mixed-mode parameter bag that bundles legacy, modern, and video-edit contracts into one runtime-branching interface.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/tools/join-clips/pages/JoinClipsPage.tsx"
+      ],
+      "evidence": [
+        "`JoinClipsTaskParams` includes multi-clip (`clips`), legacy path trio (`starting_video_path`/`ending_video_path`/`intermediate_video_paths`), and video-edit fields (`video_edit_mode`, `source_video_*`, `portions_to_regenerate`) in one type.",
+        "Builder logic branches by mode (`buildClipSequence` legacy vs new list; `joinMode` resolves to `video_edit_join`/`multi_clip_join`/`legacy_join`), so invalid cross-mode combinations are representable and only constrained at runtime."
+      ],
+      "suggestion": "Split `JoinClipsTaskParams` into discriminated unions per mode (`multi_clip`, `legacy_clip_paths`, `video_edit`) with mode-specific builders/validators, then keep only shared fields in a base type.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "task_param_bag_mixed_modes_persist"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "legacy_supabase_surface_still_active_indirection",
+      "summary": "Deprecated Supabase legacy facade remains an active abstraction layer, preserving dual client access patterns and migration drag.",
+      "related_files": [
+        "src/integrations/supabase/legacy/index.ts",
+        "src/shared/hooks/useTasks.ts",
+        "src/shared/hooks/useGenerationMutations.ts"
+      ],
+      "evidence": [
+        "Assigned modules increasingly use `getSupabaseClient` directly (`useTasks`, `useGenerationMutations`), but `legacy/index.ts` still exports `supabase`/`getLegacySupabaseClient` as a top-level compatibility surface.",
+        "Repository usage still shows many imports of `@/integrations/supabase/legacy`, so both abstractions remain first-class in parallel."
+      ],
+      "suggestion": "Narrow the legacy export to a migration-only shim (or forbid new imports via lint rule), then migrate remaining importers to `getSupabaseClient` and remove the extra facade hop once usage reaches zero.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "legacy_supabase_surface_split"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "thin_utils_export_hop",
+      "summary": "`src/shared/lib/utils.ts` is a pure pass-through module that adds an import hop without policy, validation, or translation.",
+      "related_files": [
+        "src/shared/lib/utils.ts",
+        "src/shared/components/FileInput.tsx"
+      ],
+      "evidence": [
+        "`src/shared/lib/utils.ts` only re-exports `cropFilename` and `truncateText` from `./stringFormatting`.",
+        "Consumers such as `FileInput.tsx` import from this shell, introducing indirection with no abstraction value."
+      ],
+      "suggestion": "Either remove the wrapper and import directly from `stringFormatting`, or turn this into a deliberate stable facade with documented ownership and enforced boundary policy.",
+      "confidence": "high",
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "thin_pass_through_exports_add_hops"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Backward-compatibility handling is spread across UI readers, task builders, and edge orchestration instead of being isolated in a single normalization boundary.",
+      "Mode evolution happened by accreting optional fields into shared parameter bags rather than introducing explicit mode contracts.",
+      "Migration strategy kept legacy facades active without hard enforcement gates, so indirection layers persisted."
+    ],
+    "likely_symptoms": [
+      "task_payload_canonical_contract_not_enforced",
+      "join_clips_param_bag_mixed_modes"
+    ],
+    "possible_false_positives": [
+      "Some grouped lightbox prop models are intentional composition boundaries rather than harmful indirection."
+    ]
+  }
+}

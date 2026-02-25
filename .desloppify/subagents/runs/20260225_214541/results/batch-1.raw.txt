@@ -1,0 +1,82 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 84.0,
+    "high_level_elegance": 82.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "src/shared/contexts/ProjectContext.tsx imports normalizeAndPresentAndRethrow from shared runtime error infrastructure (line 5) and routes provider-misuse guard failures through it (lines 45-55).",
+        "normalizeAndPresentAndRethrow in src/shared/lib/errorHandling/runtimeError.ts delegates to reportError/notifyError path before throwing (lines 14-21, 27-28), coupling foundational context guard failures to global error presentation/reporting.",
+        "This creates an unnecessary dependency edge from context boundary enforcement to app-wide runtime error plumbing, increasing blast radius for changes in shared error presenter behavior."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "ShotActions exposes a large multi-bag contract (selector/status/quickCreate/actions) with many state setters and control callbacks (src/shared/components/MediaGalleryItem/components/ShotActions.tsx lines 18-66, 75-107).",
+        "useMediaGalleryHandlers similarly requires broad orchestration inputs and setter callbacks (src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts lines 14-27, 160-172), indicating responsibility split across call sites rather than a single owner boundary.",
+        "The same gallery interaction path still depends on choreography between setter-driven contracts and intent handlers, which keeps ownership diffuse and raises change coupling across gallery item, gallery handlers, and parent orchestration."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "project_context_guard_depends_on_runtime_presenter",
+      "summary": "Project context guard errors are coupled to global runtime reporting/presentation",
+      "related_files": [
+        "src/shared/contexts/ProjectContext.tsx",
+        "src/shared/lib/errorHandling/runtimeError.ts"
+      ],
+      "evidence": [
+        "throwMissingProvider in ProjectContext calls normalizeAndPresentAndRethrow instead of throwing a local invariant error (ProjectContext.tsx lines 45-55).",
+        "normalizeAndPresentAndRethrow routes through reportError and conditional notifyError before throwing (runtimeError.ts lines 14-21, 27-28).",
+        "Provider misuse is a local invariant violation, but currently depends on cross-cutting runtime error infra."
+      ],
+      "suggestion": "Introduce a lightweight invariant error helper for provider guard failures (pure throw, no presenter/report side effects), use it in ProjectContext guard hooks, and reserve runtimeError presenter pipeline for user/runtime failures that need centralized reporting.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "boundary_checks_routed_through_global_runtime_pipeline"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "gallery_interaction_contract_sprawl",
+      "summary": "Gallery interaction ownership remains split across wide prop-bag orchestration contracts",
+      "related_files": [
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+      ],
+      "evidence": [
+        "ShotActions consumes four grouped contracts plus many setters/callbacks, then maps those into lower-level action controller inputs (ShotActions.tsx lines 18-66, 75-122).",
+        "useMediaGalleryHandlers accepts many cross-cutting setter/callback inputs for navigation, filter, task-details, and lightbox transitions (useMediaGalleryHandlers.ts lines 14-27, 160-216).",
+        "State handling remains distributed across separate hooks/components (including item-local state hook), so the interaction boundary is still coordination-heavy instead of centered in one controller owner."
+      ],
+      "suggestion": "Create a single gallery interaction controller boundary that owns shot-navigation/filter/task-detail/lightbox transitions and exposes narrow intent APIs plus read-only view models to item components; migrate ShotActions and handler hooks to consume that boundary instead of setter bags.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "gallery_interaction_contract_sprawl"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Invariant/boundary errors are still funneled through cross-cutting runtime infrastructure instead of local boundary contracts.",
+      "Gallery interaction logic still relies on distributed orchestration contracts rather than a single ownership boundary."
+    ],
+    "likely_symptoms": [
+      "project_context_guard_depends_on_runtime_presenter",
+      "gallery_interaction_contract_sprawl"
+    ],
+    "possible_false_positives": []
+  }
+}

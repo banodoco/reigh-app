@@ -1,0 +1,100 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "mid_level_elegance": 78.0
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "Client-boundary access is inconsistent across collaborating data modules: `getSupabaseClient()` is used in `generationTaskRepository.ts` and `generationTaskCache.ts`, while `generationTransformers.ts`, `useLineageChain.ts`, and `generateVideoService.ts` import a module-level `supabase` client directly.",
+        "Error/lifecycle handoff is not predictable across adjacent seams: `useLineageChain.ts` logs and returns `[]` on fetch failures, `generationTaskRepository.ts` returns status-tagged mappings (`query_failed`, `scope_mismatch`), and `generateVideoService.ts` converts exceptions to `{ success: false, error }`.",
+        "Repository status metadata is dropped at the cache-to-UI seam: `generationTaskCache.ts` stores `{ taskId, status }`, but `enhanceGenerationsWithTaskData` only forwards `taskId/taskData`, discarding failure states needed by downstream consumers.",
+        "Rate-limit enforcement seam is fail-open without explicit degraded signal: `checkRateLimit` returns `allowed: true` on RPC failures and catch paths, but the API surface exposes no degradation marker to callers."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "supabase_client_boundary_drift",
+      "summary": "Supabase access seam mixes singleton and runtime getter patterns across linked services.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/lib/generationTaskCache.ts",
+        "src/shared/lib/generationTransformers.ts",
+        "src/shared/hooks/useLineageChain.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts"
+      ],
+      "evidence": [
+        "`generationTaskRepository.ts` and `generationTaskCache.ts` call `getSupabaseClient()`.",
+        "`generationTransformers.ts`, `useLineageChain.ts`, and `generateVideoService.ts` import `supabase` directly.",
+        "These modules participate in the same generation/task data flow, but their boundary contract for obtaining DB clients is inconsistent."
+      ],
+      "suggestion": "Standardize one data-access seam for this subsystem (prefer injected or getter-based runtime client), then update these services to use that seam consistently so auth lifecycle and test mocking behavior are predictable.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "error_contract_fragmentation",
+      "summary": "Adjacent generation APIs propagate failures with incompatible contracts.",
+      "related_files": [
+        "src/shared/hooks/useLineageChain.ts",
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/shared/lib/toolSettingsService.ts"
+      ],
+      "evidence": [
+        "`useLineageChain.ts` catches query errors, calls `handleError`, and returns `[]` (same shape as a real empty lineage).",
+        "`generationTaskRepository.ts` encodes failures in typed statuses like `query_failed` and `scope_mismatch`.",
+        "`generateVideoService.ts` converts errors into `{ success: false, error }` return values.",
+        "`toolSettingsService.ts` throws on most failures (except select fallback paths), adding another behavior pattern."
+      ],
+      "suggestion": "Adopt a shared operation-result contract for generation-related seams (for example `{ ok, value, errorCode }`) and avoid returning data-like success values for failure paths; this lets consumers handle retries, UX messaging, and telemetry consistently.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "mapping_status_dropped_between_layers",
+      "summary": "Task-mapping failure status is lost when cache data is transformed for UI use.",
+      "related_files": [
+        "src/shared/lib/generationTaskCache.ts",
+        "src/shared/lib/generationTaskRepository.ts"
+      ],
+      "evidence": [
+        "`generationTaskRepository.ts` returns rich mapping statuses (`ok`, `missing_generation`, `scope_mismatch`, `invalid_tasks_shape`, `query_failed`).",
+        "`generationTaskCache.ts` stores `{ taskId, status }` in query cache via `taskQueryKeys.generationMapping(...)`.",
+        "`enhanceGenerationsWithTaskData` reads cached mapping but only forwards `taskId/taskData`, dropping `status` so downstream layers cannot distinguish missing data from failed lookups."
+      ],
+      "suggestion": "Expose mapping `status` (and optional `queryError`) in the enhanced generation shape or a parallel field, then use it in consuming UI/hooks to branch behavior for retry/error messaging instead of treating all null-task outcomes equally.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "rate_limit_degraded_mode_hidden",
+      "summary": "Rate-limit helper fail-open path hides infrastructure failure from API callers.",
+      "related_files": [
+        "supabase/functions/_shared/rateLimit.ts",
+        "supabase/functions/_shared/edgeRequest.ts"
+      ],
+      "evidence": [
+        "`checkRateLimit` returns `allowed: true` when RPC fails or throws (both error paths).",
+        "The returned contract does not include a degraded-state flag, so callers cannot distinguish legit allowance from rate-limiter outage.",
+        "`edgeRequest.ts` provides structured error/response envelope helpers, but the degraded condition is not surfaced through a comparable response contract."
+      ],
+      "suggestion": "Extend `RateLimitResult` with a degradation signal (for example `enforcement: 'active' | 'degraded'`) and propagate it via headers/log context so handlers can emit observability signals and optional defensive policy when limiter infrastructure is unhealthy.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

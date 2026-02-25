@@ -1,0 +1,74 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "high_level_elegance": 72.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/components/ProductTour/index.tsx` combines tooltip rendering, tour progression state, DOM querying, timer orchestration, pane-lock side effects, routing, and event dispatch in one module.",
+        "`src/shared/components/ProductTour/tourSteps.ts` encodes selector contracts (`[data-tour=...]`) that are implicitly depended on by `ProductTour/index.tsx` and UI controls like `src/shared/components/PaneControlTab.tsx`, creating cross-file string coupling.",
+        "Dialog ownership is split across overlapping layers: `src/shared/components/ModalContainer.tsx` provides a generic modal shell, while feature components (`src/pages/Home/components/InstallInstructionsModal.tsx`, `src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx`) reimplement separate dialog structure and policy."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "product_tour_god_module",
+      "summary": "Product tour orchestration is concentrated in a single mixed-responsibility module.",
+      "related_files": [
+        "src/shared/components/ProductTour/index.tsx",
+        "src/shared/components/ProductTour/tourSteps.ts"
+      ],
+      "evidence": [
+        "`ProductTour/index.tsx` contains UI rendering (`CustomTooltip`), state progression hooks, imperative DOM control (`document.querySelector`, `.click()`), timer scheduling (`setTimeout` chains), app event dispatch, pane lock coordination, and route navigation.",
+        "Step-transition rules (`SPOTLIGHT_CLICK_ADVANCE_RULES`, `STEP_AFTER_ADVANCE_RULES`) and behavior execution are colocated with component rendering, making ownership and change boundaries unclear."
+      ],
+      "suggestion": "Split into: a pure tour state machine/service (rules + transitions), a DOM adapter (query/click/wait concerns), and a presentational Joyride wrapper. Keep `tourSteps.ts` as data-only and have the runtime consume typed step IDs instead of raw indices.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "string_selector_contract_coupling",
+      "summary": "Tour behavior relies on brittle string selector contracts spread across modules.",
+      "related_files": [
+        "src/shared/components/ProductTour/tourSteps.ts",
+        "src/shared/components/ProductTour/index.tsx",
+        "src/shared/components/PaneControlTab.tsx"
+      ],
+      "evidence": [
+        "`tourSteps.ts` and `ProductTour/index.tsx` hardcode selectors like `[data-tour=\"generations-lock\"]`, `[data-tour=\"first-shot\"]`, and use them for logic decisions and synthetic clicks.",
+        "`PaneControlTab.tsx` exposes `dataTour`, `dataTourLock`, and `dataTourFourthButton` props that must match those selectors exactly, but there is no typed shared contract or compile-time linkage."
+      ],
+      "suggestion": "Introduce a shared typed registry of tour targets (constants/enums) used by both step definitions and component props; resolve selectors in one adapter layer so UI components do not carry ad hoc string identifiers.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "modal_ownership_fragmentation",
+      "summary": "Modal architecture is fragmented between shared and feature-level implementations with overlapping responsibilities.",
+      "related_files": [
+        "src/shared/components/ModalContainer.tsx",
+        "src/pages/Home/components/InstallInstructionsModal.tsx",
+        "src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx"
+      ],
+      "evidence": [
+        "`ModalContainer.tsx` defines shared modal policy (size, close handling, header/body/footer structure), but feature modals bypass it and directly compose `Dialog`/`DialogContent` in separate files.",
+        "Feature modals duplicate container-level concerns (header/content layout, open-state handling), creating parallel patterns instead of a single coherent public surface for overlays."
+      ],
+      "suggestion": "Define a clear modal ownership boundary: either standardize on `ModalContainer` as the single shell with extension slots, or intentionally split into separate modal families with documented criteria and shared contracts.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

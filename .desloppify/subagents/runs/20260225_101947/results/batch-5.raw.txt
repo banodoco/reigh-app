@@ -1,0 +1,75 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 5,
+  "assessments": {
+    "package_organization": 84.0
+  },
+  "dimension_notes": {
+    "package_organization": {
+      "evidence": [
+        "Five assigned files are compatibility entrypoints that only re-export from deeper packages (`src/shared/hooks/useCredits.ts` -> `src/shared/hooks/compat/useCredits`, `src/shared/hooks/useDarkMode.ts` and `src/shared/hooks/useDebounce.ts` -> `src/shared/hooks/core/*`, `src/shared/components/AspectRatioVisualizer.tsx` -> `src/shared/components/generation-controls/AspectRatioVisualizer`, `src/shared/components/AuthGate.tsx` -> `src/shared/auth/components/AuthGate`).",
+        "Assigned tests are still organized around legacy locations instead of canonical ownership boundaries (`src/shared/hooks/__tests__/useDarkMode.test.ts` imports `../useDarkMode`, `src/shared/hooks/__tests__/useDebounce.test.ts` imports `../useDebounce`), which couples test ownership to alias paths.",
+        "Holistic structure shows flat overload in both parent directories: `src/shared/hooks/` has 81 production files and `src/shared/components/` has 70 files (well above the >10 mixed-concern split threshold), while these alias files add extra top-level surface area without owning behavior."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "package_organization",
+      "identifier": "legacy_alias_entrypoints_blur_boundaries",
+      "summary": "Legacy top-level alias files duplicate canonical package entrypoints and blur ownership.",
+      "related_files": [
+        "src/shared/hooks/useCredits.ts",
+        "src/shared/hooks/useDarkMode.ts",
+        "src/shared/hooks/useDebounce.ts",
+        "src/shared/components/AspectRatioVisualizer.tsx",
+        "src/shared/components/AuthGate.tsx"
+      ],
+      "evidence": [
+        "Each file is a pass-through re-export with no local behavior, but is placed in high-traffic top-level directories (`shared/hooks`, `shared/components`) instead of the domain-owned package.",
+        "`useCredits.ts` points to `shared/hooks/compat/useCredits` (which itself bridges to `features/billing/hooks/useCredits`), while UI aliases point into `shared/auth/components` and `shared/components/generation-controls`.",
+        "This creates two importable homes per module, so package boundaries are discoverability-ambiguous and migrations stay partially complete."
+      ],
+      "suggestion": "Staged reorg plan: 1) Define canonical homes as `src/shared/hooks/core/*`, `src/features/billing/hooks/*`, `src/shared/components/generation-controls/*`, and `src/shared/auth/components/*` in an ADR/readme note. 2) Update imports in consumers to canonical paths first (`rg -n \"@/shared/hooks/useDarkMode|@/shared/hooks/useDebounce|@/shared/hooks/useCredits|@/shared/components/AuthGate|@/shared/components/AspectRatioVisualizer\" src` then replace). 3) Keep temporary aliases only in one dedicated legacy folder (`src/shared/legacy/aliases/*`) with removal dates, then remove current top-level alias files. 4) Validate with `pnpm -s tsc --noEmit`, `pnpm vitest src/shared/hooks/__tests__/useDarkMode.test.ts src/shared/hooks/__tests__/useDebounce.test.ts src/shared/components/BulkEditControls.test.tsx`, and a zero-usage check using the same `rg` patterns.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "legacy_alias_surface_drift"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "tests_attached_to_alias_paths",
+      "summary": "Hook tests are organized under legacy alias locations instead of canonical module directories.",
+      "related_files": [
+        "src/shared/hooks/__tests__/useDarkMode.test.ts",
+        "src/shared/hooks/__tests__/useDebounce.test.ts",
+        "src/shared/hooks/useDarkMode.ts",
+        "src/shared/hooks/useDebounce.ts"
+      ],
+      "evidence": [
+        "`useDarkMode.test.ts` imports `../useDarkMode` and `useDebounce.test.ts` imports `../useDebounce`, which tests alias entrypoints rather than canonical files now in `src/shared/hooks/core/`.",
+        "Because the alias files are migration shims, colocating tests under `shared/hooks/__tests__` preserves obsolete package boundaries and makes canonical ownership less obvious.",
+        "The same pattern appears in component alias tests outside this batch (`shared/components/__tests__/AuthGate.test.tsx`, `shared/components/__tests__/AspectRatioVisualizer.test.tsx`), indicating systemic organization drift."
+      ],
+      "suggestion": "Staged reorg plan: 1) Move tests to canonical owners (`git mv src/shared/hooks/__tests__/useDarkMode.test.ts src/shared/hooks/core/useDarkMode.test.ts` and `git mv src/shared/hooks/__tests__/useDebounce.test.ts src/shared/hooks/core/useDebounce.test.ts`; keep `useDebouncedSettingsSave.test.ts` with its real module if it remains in `shared/hooks`). 2) Update imports to local canonical paths (`./useDarkMode`, `./useDebounce`). 3) Add a temporary compatibility smoke test only where alias contracts are still required, then retire it with the alias removal. 4) Validate with `pnpm vitest src/shared/hooks/core/useDarkMode.test.ts src/shared/hooks/core/useDebounce.test.ts src/shared/hooks/__tests__/useDebouncedSettingsSave.test.ts` and `pnpm -s tsc --noEmit`.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "legacy_alias_surface_drift"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Incremental migration introduced compatibility aliases but left them in primary top-level package locations.",
+      "Test organization was not migrated with implementation ownership, so old boundaries remained encoded in test paths."
+    ],
+    "likely_symptoms": [
+      "legacy_alias_entrypoints_blur_boundaries",
+      "tests_attached_to_alias_paths"
+    ],
+    "possible_false_positives": []
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "cross_module_architecture": 79.0,
+    "package_organization": 73.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "README documents legacy Supabase facade as compatibility-only with governance gates, but `src/integrations/supabase/legacy/legacySupabaseFacade.ts` still has very high fan-in (129 importers; 33 from `src/shared/hooks/`), so the compatibility seam is functioning as a primary runtime dependency.",
+        "`src/shared/components/ui/button.tsx` (a UI primitive package) imports `APP_BUTTON_*` from `src/shared/components/theme/buttonVariants`, creating upward dependency from primitive layer into app-theme layer and weakening boundary direction guarantees."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "package_organization": {
+      "evidence": [
+        "`src/types/generationAndShots.ts` is documented as canonical barrel, but it re-exports from legacy `src/types/*` while `holistic_context.structure` also shows a parallel `src/domains/generation/types/` package (8 files, low avg fan-in 2.1), indicating split ownership for the same domain contracts.",
+        "`src/shared/components/ui/` is a large flat folder (58 files) with mixed concerns (primitives, hooks, runtime registration helpers, tests). This exceeds the >10 mixed-concern overload signal and makes package boundaries hard to navigate."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "legacy_supabase_facade_became_core_boundary",
+      "summary": "Legacy Supabase compatibility facade remains a core dependency instead of an edge shim.",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts"
+      ],
+      "evidence": [
+        "README positions `@/integrations/supabase/legacy` as transitional with removal target and governance checks.",
+        "`legacySupabaseFacade.ts` still exports live runtime accessor (`getLegacySupabaseClient`) and packet metrics show 129 importers, including broad usage from shared hooks/components, which means migration boundary has not contracted."
+      ],
+      "suggestion": "Enforce architectural quarantine for legacy Supabase access: (1) create `src/integrations/supabase/runtime/publicClient.ts` as the only supported app-facing accessor, (2) migrate high-volume importers from `@/integrations/supabase/legacy/legacySupabaseFacade` to runtime accessor in waves (`src/shared/hooks/` -> `src/shared/components/` -> `src/tools/**`), (3) demote legacy facade to throwing stub behind explicit env-guard after budget reaches zero, and (4) keep gate commands in CI (`npm run check:legacy-supabase-usage && npm run check:contracts && npm run quality:check`) to validate no regressions.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "migration_contract_not_converted_to_runtime_boundary"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "ui_primitive_depends_on_theme_layer",
+      "summary": "UI primitive button depends on theme package, inverting expected layer direction.",
+      "related_files": [
+        "README.md",
+        "src/shared/components/ui/button.tsx"
+      ],
+      "evidence": [
+        "`button.tsx` imports `APP_BUTTON_SIZES` and `APP_BUTTON_VARIANTS` from `src/shared/components/theme/buttonVariants` while serving as shared primitive (`@uiContract`).",
+        "This couples foundational UI package behavior to a higher-level theme module, making primitive contracts contingent on app-layer configuration."
+      ],
+      "suggestion": "Move extensibility seam to explicit composition boundary: keep base variants inside `ui/button.tsx`, then apply app-specific variants in a wrapper like `src/shared/components/theme/AppButton.tsx` that composes `Button` rather than mutating primitive variant map via import-time merge.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "ui_boundary_inversion"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "generation_types_split_across_parallel_packages",
+      "summary": "Generation type contracts are split between `src/types` and `src/domains/generation/types`.",
+      "related_files": [
+        "README.md",
+        "src/types/generationAndShots.ts"
+      ],
+      "evidence": [
+        "`generationAndShots.ts` is the canonical barrel but re-exports legacy `@/types/*` files.",
+        "Packet structure shows a second contract package at `src/domains/generation/types/` with overlapping filenames (`generationParams.ts`, `generationMetadata.ts`, `generationRow.ts`, `shot.ts`) and much lower adoption, indicating unresolved package migration."
+      ],
+      "suggestion": "Run staged reorg to converge ownership: Stage 1 target folder `src/domains/generation/contracts/` (move domain type files there, keep temporary re-export shims in `src/types/`); Stage 2 move barrel to `src/domains/generation/contracts/index.ts` and repoint imports by area (`src/shared/hooks/**` then `src/shared/components/**` then `src/tools/**`); Stage 3 delete temporary shims once zero imports remain. Validate each stage with `rg \"@/types/(generation|shot|generationAndShots)\" src`, `npm run typecheck`, and `npm run quality:check`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "domain_contracts_have_dual_homes"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "ui_folder_flattening_mixes_multiple_concerns",
+      "summary": "The `shared/components/ui` package is overloaded and too flat for its concern breadth.",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/ui/cn.ts"
+      ],
+      "evidence": [
+        "Holistic structure reports `src/shared/components/ui/` has 58 files with mixed primitives, helpers, hooks, and runtime registration artifacts.",
+        "Assigned files (`button.tsx`, `cn.ts`) sit beside policy/runtime helpers in the same top-level folder, obscuring ownership and increasing navigation cost."
+      ],
+      "suggestion": "Use staged folder reorg inside `src/shared/components/ui/`: Stage 1 create `primitives/`, `styles/`, `runtime/`, `hooks/`; Stage 2 move low-risk utilities first (`cn.ts` -> `styles/cn.ts`, `button.tsx` -> `primitives/button.tsx`) and add index re-exports; Stage 3 move runtime/hook files and then update direct imports with `rg \"@/shared/components/ui/\" src --glob '!**/*.test.*'` plus codemod/search-replace. Validate with `npm run typecheck`, `npm test -- src/shared/components/ui`, and `npm run quality:check`.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "ui_package_flattening_without_subpackages"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Compatibility shims were introduced with governance metadata but remained on hot paths, so temporary boundaries became architectural dependencies.",
+      "Domain/package migrations were partially executed without enforcing single ownership location for contracts and UI concerns."
+    ],
+    "likely_symptoms": [
+      "legacy_supabase_facade_became_core_boundary",
+      "generation_types_split_across_parallel_packages",
+      "ui_folder_flattening_mixes_multiple_concerns"
+    ],
+    "possible_false_positives": []
+  }
+}

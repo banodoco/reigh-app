@@ -1,0 +1,132 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 2,
+  "assessments": {
+    "error_consistency": 74.0
+  },
+  "dimension_notes": {
+    "error_consistency": {
+      "evidence": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryActions.ts:217-251 throws inside XMLHttpRequest callbacks; those throws are outside the enclosing try/catch at :212-258, so failures bypass local handleError and can surface as uncaught async errors.",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryActions.ts:257 clears download state in finally immediately after xhr.send(), before request completion, creating misleading success/failure timing.",
+        "src/shared/components/MediaLightbox/hooks/inpainting/useEditModePersistence.ts:37-39 and :76 silently swallow persistence/read failures with bare catch returning null/void, while neighboring modules typically call handleError/reportRuntimeError.",
+        "src/shared/components/ChunkLoadErrorBoundary.tsx:48-53 catches and reloads without logging context, while src/app/components/error/AppErrorBoundary.tsx:40-49 records structured error context via handleError.",
+        "src/pages/Home/components/panes/PhilosophyPane.tsx:124-126 and :165-167 and src/shared/components/MediaLightbox/components/VideoEditModeDisplay.tsx:161 swallow play() failures without logging or user feedback."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "error_consistency",
+      "identifier": "xhr_async_errors_escape_local_handler",
+      "summary": "Download path throws in XHR callbacks that bypass the local error pipeline",
+      "related_files": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryActions.ts",
+        "src/shared/components/CreditsManagement/hooks/useTaskLogDownload.ts"
+      ],
+      "evidence": [
+        "useMediaGalleryActions.ts:217-251 throws inside `xhr.onload`/`xhr.onerror`; those callbacks run after the outer try block and are not caught by catch at :254-256.",
+        "useMediaGalleryActions.ts:257 clears `setDownloadingImageId(null)` in finally immediately after `xhr.send()` (:253), so UI reports completion even if request later fails.",
+        "In contrast, useTaskLogDownload.ts uses awaited calls inside one try/catch and routes errors through `handleError` at :127-128."
+      ],
+      "suggestion": "Wrap XHR in a Promise and `await` it (or replace with `fetch` + await) so failures are caught in one catch path; move `setDownloadingImageId(null)` to after awaited completion/failure.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "async_error_channel_drift"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "silent_persistence_failures",
+      "summary": "Persistence hooks silently drop DB failures and return fallback values",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/inpainting/useEditModePersistence.ts",
+        "src/shared/components/GenerationDetails/useGenerationDetails.ts"
+      ],
+      "evidence": [
+        "useEditModePersistence.ts:37-39 catches load errors and returns null with no logging/context.",
+        "useEditModePersistence.ts:76 catches save errors and intentionally ignores them, hiding failed writes.",
+        "useGenerationDetails.ts:46-50 catches JSON parse failure and returns empty images, masking malformed task payloads."
+      ],
+      "suggestion": "Standardize these catches to call `handleError` with non-toast telemetry context (and include identifiers like generationId/taskId), while still returning safe fallbacks for UX.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "silent_fallback_over_logging"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "boundary_logging_strategy_mismatch",
+      "summary": "Error boundaries use inconsistent capture strategy, reducing incident traceability",
+      "related_files": [
+        "src/shared/components/ChunkLoadErrorBoundary.tsx",
+        "src/app/components/error/AppErrorBoundary.tsx"
+      ],
+      "evidence": [
+        "ChunkLoadErrorBoundary.tsx:48-53 triggers reload on catch without recording error details.",
+        "AppErrorBoundary.tsx:40-49 logs structured context via handleError before rendering fallback.",
+        "Both are top-level crash-recovery boundaries but only one preserves diagnostic context."
+      ],
+      "suggestion": "Apply a shared boundary error helper so both boundaries log normalized context before recovery actions (reload/fallback), with a consistent `context` naming convention.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "error_boundary_policy_drift"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "media_play_rejections_swallowed",
+      "summary": "play() promise failures are ignored in multiple media surfaces",
+      "related_files": [
+        "src/pages/Home/components/panes/PhilosophyPane.tsx",
+        "src/shared/components/MediaLightbox/components/VideoEditModeDisplay.tsx",
+        "src/shared/components/HoverScrubVideo.tsx"
+      ],
+      "evidence": [
+        "PhilosophyPane.tsx:124-126 and :165-167 use `video.play().catch(() => ...)` but only remove listeners; no logging/telemetry.",
+        "VideoEditModeDisplay.tsx:161 uses `video.play().catch(() => {})` with fully empty catch.",
+        "HoverScrubVideo.tsx:192 calls `videoRef.current?.play()` without handling returned promise rejection; related file also uses ignored catches in load paths (:180-182, :205-207)."
+      ],
+      "suggestion": "Create a shared `safePlay(video, context)` helper that catches rejections and routes them to `handleError` (showToast false) so autoplay-policy/device failures are traceable and consistent.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "async_error_channel_drift"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "optimistic_cache_failure_handling_diverges",
+      "summary": "Similar optimistic-update failures are logged in one hook and ignored in another",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/hooks/referenceUpload/useStyleReferenceUploadHandler.ts",
+        "src/shared/components/ImageGenerationForm/hooks/referenceUpload/useResourceSelectHandler.ts"
+      ],
+      "evidence": [
+        "useStyleReferenceUploadHandler.ts:235-245 wraps optimistic cache update in catch that intentionally ignores the error.",
+        "useResourceSelectHandler.ts:162-174 performs a comparable optimistic cache update but reports failures through `handleError` with explicit context.",
+        "Both paths affect the same project-image-settings cache and reference workflows, but produce different observability behavior on failure."
+      ],
+      "suggestion": "Unify optimistic cache error policy across both handlers: either log all best-effort failures with `showToast:false` or encapsulate both in a shared helper that enforces one strategy.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "silent_fallback_over_logging"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "No single enforced policy for best-effort failures (ignore vs log-only vs toast).",
+      "Async APIs with callback error channels are handled ad hoc rather than normalized to awaited Promise flows.",
+      "Parallel components implementing similar recovery behavior (boundaries/media controls/reference uploads) evolved separate error contracts."
+    ],
+    "likely_symptoms": [
+      "xhr_async_errors_escape_local_handler",
+      "media_play_rejections_swallowed",
+      "optimistic_cache_failure_handling_diverges"
+    ],
+    "possible_false_positives": []
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "high_level_elegance": 82.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "src/integrations/supabase/client.ts combines runtime bootstrap (`initializeSupabase`), runtime recovery/error handling (`getSupabaseClient` with fallback init), legacy migration policy metadata, and a broad compatibility facade export (`supabase`) in one module.",
+        "Multiple high-fan-in compatibility barrels remain active in shared surface area (src/shared/hooks/useMobile.tsx, src/shared/components/ui/tooltip.tsx, src/shared/lib/utils.ts, src/types/generationAndShots.ts), which hides true ownership and prolongs dual-entry imports.",
+        "Media gallery behavior is split across several peer modules with overlapping UI-control responsibility (src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts, src/shared/components/MediaGallery/hooks/useMobileInteractions.ts, src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts, src/shared/components/MediaGalleryItem/components/ShotActions.tsx), increasing cross-file coordination to reason about one feature flow."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "supabase_client_multi_role_facade",
+      "summary": "Supabase client entrypoint mixes bootstrap lifecycle, recovery policy, and legacy API compatibility into one ownership boundary.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "src/integrations/supabase/client.ts handles initialization (`initializeSupabase`), lazy fallback recovery in `getSupabaseClient`, dev warning policy, and exports a method-by-method legacy facade with deprecation metadata.",
+        "The module also directly encodes migration-governance constants (`LEGACY_SUPABASE_ALIAS_REMOVE_BY`, owner) and operational error routing via `handleError`, making it both runtime adapter and migration coordinator."
+      ],
+      "suggestion": "Split into explicit modules: a minimal runtime accessor, a bootstrap initializer, and a temporary legacy adapter module (re-exported only where needed). Keep deprecation/governance metadata in the legacy adapter so the main runtime client has one responsibility.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_surface_ownership_blur",
+      "summary": "Compatibility and barrel surfaces create ambiguous canonical ownership for core shared APIs.",
+      "related_files": [
+        "src/shared/hooks/useMobile.tsx",
+        "src/shared/components/ui/tooltip.tsx",
+        "src/shared/lib/utils.ts",
+        "src/types/generationAndShots.ts"
+      ],
+      "evidence": [
+        "Each file is largely a re-export surface; at least one is explicitly deprecated (`useMobile.tsx`) but still maintained as a broad import target.",
+        "These modules are high import fan-in surfaces per review packet context, so callers depend on aliases rather than stable domain-owned entrypoints, increasing migration and boundary ambiguity."
+      ],
+      "suggestion": "Define and enforce one canonical entrypoint per domain (mobile hooks, tooltip primitives, string/ui utilities, generation types), then shrink compatibility barrels to thin temporary shims with usage gates and progressive codemods.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "media_gallery_behavior_fragmentation",
+      "summary": "Media gallery interaction ownership is fragmented across multiple hooks/components with overlapping control responsibilities.",
+      "related_files": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGallery/hooks/useMobileInteractions.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx"
+      ],
+      "evidence": [
+        "State and flow for opening details, shot selection/addition, mobile tap semantics, and modal/popup visibility are spread across separate modules with shared mutable concerns (open flags, selected IDs, lightbox transitions).",
+        "ShotActions receives deeply structured prop objects (`selector`, `status`, `quickCreate`, `actions`) while related state transitions also live in separate hooks, making feature ownership harder to trace and change in one place."
+      ],
+      "suggestion": "Introduce a single feature-level interaction controller (or state machine) for MediaGallery item actions and mobile/desktop interaction modes, with leaf components consuming a narrowed view-model instead of coordinating peer hooks.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

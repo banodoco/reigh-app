@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useShotImages } from '@/shared/hooks/useShotImages';
-import type { Shot, GenerationRow, ShotOption } from '@/types/shots';
+import type { Shot, GenerationRow, ShotOption } from '@/domains/generation/types';
 
 interface UseShotSelectionInput {
   shots: Shot[] | undefined;

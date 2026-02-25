@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { GenerationRow } from '@/types/shots';
-import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { GenerationRow } from '@/domains/generation/types';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
 import { useShotGenerationMetadata } from '@/shared/hooks/useShotGenerationMetadata';
 import { createBatchMagicEditTasks } from '@/shared/lib/tasks/magicEdit';
@@ -14,7 +14,6 @@ import { useTaskPlaceholder } from '@/shared/hooks/useTaskPlaceholder';
 interface UseMagicEditModeParams {
   media: GenerationRow;
   selectedProjectId: string | null;
-  autoEnterInpaint: boolean;
   isVideo: boolean;
   isInpaintMode: boolean;
   setIsInpaintMode: (value: boolean) => void;
@@ -42,6 +41,8 @@ interface UseMagicEditModeParams {
   qwenEditModel?: QwenEditModel;
   // Disable DB queries (for form-only mode with placeholder media)
   enabled?: boolean;
+  /** Start with isMagicEditMode=true (skips the "select an option" step) */
+  initialActive?: boolean;
 }
 
 interface UseMagicEditModeReturn {
@@ -68,7 +69,6 @@ interface UseMagicEditModeReturn {
 export const useMagicEditMode = ({
   media,
   selectedProjectId,
-  autoEnterInpaint,
   isVideo,
   isInpaintMode,
   setIsInpaintMode,
@@ -91,9 +91,10 @@ export const useMagicEditMode = ({
   advancedSettings,
   qwenEditModel,
   enabled = true,
+  initialActive = false,
 }: UseMagicEditModeParams): UseMagicEditModeReturn => {
   // Magic Edit mode state
-  const [isMagicEditMode, setIsMagicEditMode] = useState(false);
+  const [isMagicEditMode, setIsMagicEditMode] = useState(initialActive);
   const [magicEditPrompt, setMagicEditPrompt] = useState('');
   const [magicEditNumImages, setMagicEditNumImages] = useState(4);
   const [isCreatingMagicEditTasks, setIsCreatingMagicEditTasks] = useState(false);
@@ -115,8 +116,6 @@ export const useMagicEditMode = ({
     enabled: !!(currentShotId && media.id) && enabled !== false
   });
 
-  // Track if user has manually exited edit mode to prevent auto-re-enter
-  const hasManuallyExitedRef = useRef(false);
   // Guard against double-entry during async state updates
   const isEnteringEditModeRef = useRef(false);
   // Track if we've already restored the prompt for this mode entry (prevents re-restore on clear)
@@ -124,7 +123,6 @@ export const useMagicEditMode = ({
 
   // Reset flags when media changes
   useEffect(() => {
-    hasManuallyExitedRef.current = false;
     isEnteringEditModeRef.current = false;
     hasRestoredPromptRef.current = false;
   }, [media.id]);
@@ -141,24 +139,10 @@ export const useMagicEditMode = ({
   }, [handleEnterInpaintMode]);
 
   const handleExitMagicEditMode = useCallback(() => {
-    hasManuallyExitedRef.current = true;
     hasRestoredPromptRef.current = false; // Reset so re-entering can restore again
     setIsMagicEditMode(false);
     setIsInpaintMode(false);
   }, [setIsInpaintMode]);
-
-  // Auto-enter unified edit mode if requested (only once, not after manual exit)
-  useEffect(() => {
-    // Reset entry guard once we're actually in edit mode
-    if (isInpaintMode || isMagicEditMode) {
-      isEnteringEditModeRef.current = false;
-      return;
-    }
-
-    if (autoEnterInpaint && !isVideo && selectedProjectId && !hasManuallyExitedRef.current) {
-      handleEnterMagicEditMode();
-    }
-  }, [autoEnterInpaint, isInpaintMode, isMagicEditMode, isVideo, selectedProjectId, handleEnterMagicEditMode]);
 
   // Load saved prompt and settings when entering magic edit mode (without brush strokes)
   // Only restore once per mode entry to prevent re-restoring when user clears the prompt
@@ -247,7 +231,7 @@ export const useMagicEditMode = ({
                   isInSceneBoostEnabled
                 );
               } catch (error) {
-                handleError(error, { context: 'useMagicEditMode', showToast: false });
+                normalizeAndPresentError(error, { context: 'useMagicEditMode', showToast: false });
                 // Don't fail the entire operation if metadata save fails
               }
             }

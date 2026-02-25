@@ -2,18 +2,16 @@ import React, { useState, useMemo } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Task } from '@/types/tasks';
 import { getTaskDisplayName, taskSupportsProgress } from '@/shared/lib/taskConfig';
-import { useCancelTask } from '@/shared/hooks/useTasks';
+import { useCancelTask } from '@/shared/hooks/useTaskCancellation';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { toast } from '@/shared/components/ui/toast';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 import { useNavigate } from 'react-router-dom';
-import { useTaskTimestamp } from '@/shared/hooks/useUpdatingTimestamp';
-import { useProcessingTimestamp } from '@/shared/hooks/useProcessingTimestamp';
-import { useCompletedTimestamp } from '@/shared/hooks/useCompletedTimestamp';
-import { GenerationRow } from '@/types/shots';
+import { useRelativeTimestamp, useTaskTimestamp } from '@/shared/hooks/useUpdatingTimestamp';
+import { GenerationRow } from '@/domains/generation/types';
 import { useQueryClient } from '@tanstack/react-query';
-import { useIsMobile } from '@/shared/hooks/useMobile';
+import { useIsMobile } from '@/shared/hooks/mobile';
 import { useTaskType } from '@/shared/hooks/useTaskType';
 import { usePublicLoras } from '@/shared/hooks/useResources';
 
@@ -70,11 +68,13 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
   // Timestamps - task may have snake_case aliases from raw DB responses
   const taskWithDbFields = task as TaskWithDbFields;
   const createdTimeAgo = useTaskTimestamp(task.createdAt || taskWithDbFields.created_at);
-  const processingTime = useProcessingTimestamp({
-    generationStartedAt: task.generationStartedAt || taskWithDbFields.generation_started_at
+  const processingTime = useRelativeTimestamp({
+    date: task.generationStartedAt || taskWithDbFields.generation_started_at,
+    preset: 'processing',
   });
-  const completedTime = useCompletedTimestamp({
-    generationProcessedAt: task.generationProcessedAt || taskWithDbFields.generation_processed_at
+  const completedTime = useRelativeTimestamp({
+    date: task.generationProcessedAt || taskWithDbFields.generation_processed_at,
+    preset: 'completed',
   });
 
   // Mutations

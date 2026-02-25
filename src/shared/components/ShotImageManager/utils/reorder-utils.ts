@@ -1,4 +1,4 @@
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 
 /**
  * Calculate new order for multi-drag operation

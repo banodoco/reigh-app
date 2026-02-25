@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { toast } from '@/shared/components/ui/sonner';
-import { GenerationRow } from '@/types/generationAndShots';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { GenerationRow } from '@/domains/generation/types';
 import { createBatchZImageTurboImageToImageTasks } from '@/shared/lib/tasks/zImageTurboI2I';
 import type { FalLoraConfig } from '@/shared/types/lora';
 import { useLoraManager, UseLoraManagerReturn, ActiveLora, LoraModel } from '@/shared/hooks/useLoraManager';

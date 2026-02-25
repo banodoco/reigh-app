@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Film } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import {
     Tooltip,
     TooltipContent,

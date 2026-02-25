@@ -1,0 +1,98 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "mid_level_elegance": 82.0
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "Task identity handoff is non-canonical: payload writers place run/orchestrator IDs in different shapes (`run_id`, `orchestrator_run_id`, nested `orchestrator_details.run_id`), and readers compensate with broad OR lookups in `supabase/functions/complete_task/orchestrator.ts`.",
+        "Boundary translation for structure guidance is duplicated across modules: both `src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts` and `src/shared/lib/tasks/individualTravelSegment.ts` normalize and then manually strip legacy keys.",
+        "UI integration seams rely on wide pass-through bags with minimal transformation (`src/tools/edit-images/hooks/useInlineEditState.ts`, `src/tools/edit-images/hooks/useImageEditValue.ts`, `src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts`), increasing indirection cost without reducing coupling."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "orchestrator_id_contract_drift",
+      "summary": "Orchestrator/run ID handoffs use multiple param shapes, forcing fragile fallback queries.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/joinClips.ts",
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/complete_task/generation.ts"
+      ],
+      "evidence": [
+        "`payloadBuilder` emits top-level `orchestrator_task_id` and `run_id`, while `joinClips` nests equivalents under `orchestrator_details`.",
+        "`orchestrator.ts` must query multiple JSON paths for the same identifiers (`params->>orchestrator_run_id`, `params->>run_id`, `params->orchestrator_details->>run_id` and analogous orchestrator_task_id variants).",
+        "Generation routing also reads parent linkage from mixed locations (`params.parent_generation_id` and `params.orchestrator_details.parent_generation_id`)."
+      ],
+      "suggestion": "Define one canonical task-linkage contract (single location for run ID, orchestrator ID, parent ID), add a shared adapter used by all task builders, and simplify completion queries to that canonical shape.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "duplicated_structure_guidance_adapters",
+      "summary": "Structure-guidance normalization and legacy-key cleanup is duplicated across task builders.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/components/TaskDetails/VideoTravelDetails.tsx"
+      ],
+      "evidence": [
+        "`payloadBuilder.ts` builds unified `structure_guidance` then deletes a local `legacyStructureParams` list.",
+        "`individualTravelSegment.ts` repeats the same cleanup pattern via `LEGACY_STRUCTURE_PARAMS` and additional deletes in orchestrator/task payload builders.",
+        "`VideoTravelDetails.tsx` must read structure data from several fallback locations (`individual_segment_params`, `orchestrator_details`, `full_orchestrator_payload`, top-level params), indicating boundary translation is not centralized."
+      ],
+      "suggestion": "Extract a single shared task-param canonicalizer for structure guidance (normalize + strip legacy + read helpers) and use it in both task creation and task detail rendering paths.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "low_leverage_prop_wrappers",
+      "summary": "Several hooks add pass-through wrapper layers without meaningful boundary reduction.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/hooks/useImageEditValue.ts",
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx"
+      ],
+      "evidence": [
+        "`useImageEditValue` defines a very wide `UseImageEditValueParams` contract and mostly re-emits fields into another object, creating extra seam surface.",
+        "`useButtonGroupProps` performs nearly pure field copying into grouped objects with long dependency lists, but no real translation or policy.",
+        "`useInlineEditState` orchestrates many sub-hooks and forwards large state bags into view/components, making integration changes ripple across multiple wrappers."
+      ],
+      "suggestion": "Replace copy-through wrappers with cohesive domain slices (e.g., `inpaintModel`, `variantModel`, `actions`) exposed directly from one controller hook, and remove wrapper hooks that only remap property names.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "dual_api_surface_in_join_clips",
+      "summary": "Join-clips creation keeps dual legacy/new input formats in one boundary, increasing seam ambiguity.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/tools/join-clips/pages/JoinClipsPage.tsx"
+      ],
+      "evidence": [
+        "`JoinClipsTaskParams` supports both `clips[]` and legacy `starting_video_path`/`ending_video_path`/`intermediate_video_paths`.",
+        "`buildClipSequence` conditionally constructs a normalized list from either shape, so the seam accepts multiple caller contracts indefinitely.",
+        "Additional options (per-join overrides, loop mode, edit mode, audio) are mixed into the same payload builder, increasing boundary condition combinations."
+      ],
+      "suggestion": "Introduce a strict v2 input contract for join creation (single clip-list shape), move legacy mapping to a compatibility adapter at the callsite, and deprecate legacy fields from the core task builder.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

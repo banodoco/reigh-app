@@ -1,0 +1,75 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "high_level_elegance": 78.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/domains/generation/types/shot.ts` imports `GenerationRow` from `@/types/generationRow` while `src/types/generationRow.ts` immediately re-exports from the domain path, creating a back-reference shim instead of direct domain ownership.",
+        "`src/integrations/supabase/client.ts` documents explicit bootstrap ownership but `getSupabaseClient()` always falls back to lazy initialization, so lifecycle policy is split between explicit and implicit startup paths.",
+        "Tooltip/dialog behavior ownership is fragmented: `src/shared/components/ui/tooltip.tsx` is a primitive wrapper, while feature components (`src/pages/Home/components/CreativePartnerPane.tsx`, `src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx`) each implement separate open/close state policy and interaction rules."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "domain-type-ownership-shim",
+      "summary": "Domain type ownership is blurred by a reverse alias shim that routes domain code through a global `src/types` entrypoint.",
+      "related_files": [
+        "src/domains/generation/types/shot.ts",
+        "src/types/generationRow.ts"
+      ],
+      "evidence": [
+        "`shot.ts` imports `GenerationRow` from `@/types/generationRow`.",
+        "`src/types/generationRow.ts` is only `export type { GenerationRow } from '@/domains/generation/types/generationRow';`, so the dependency direction is domain -> global alias -> domain."
+      ],
+      "suggestion": "Choose one canonical ownership path for generation domain types (prefer direct `@/domains/generation/types/*` imports in domain code), then keep `src/types/*` only as temporary compatibility adapters with a deprecation/removal plan.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "implicit-bootstrap-fallback",
+      "summary": "Infrastructure lifecycle boundaries are ambiguous because explicit bootstrap is undermined by implicit lazy initialization.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "`initializeSupabaseClient()` is documented as bootstrap-owned, but `getSupabaseClient()` always calls it, allowing hidden first-use initialization anywhere.",
+        "`buildSupabaseClient()` performs one-time instrumentation install and runtime initialization, making first caller location architecturally significant.",
+        "`handleError()` similarly mixes normalization/logging with notifier state checks and optional UI notification, concentrating multiple responsibilities in a globally imported helper."
+      ],
+      "suggestion": "Split service boot from service access: make initialization explicit and required at app startup, make getters fail fast if uninitialized in non-test contexts, and move notification/presentation policy out of core error normalization helpers.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "scattered-overlay-interaction-policy",
+      "summary": "Overlay interaction rules are owned by individual feature components instead of a shared interaction contract, increasing drift risk.",
+      "related_files": [
+        "src/shared/components/ui/tooltip.tsx",
+        "src/pages/Home/components/CreativePartnerPane.tsx",
+        "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx"
+      ],
+      "evidence": [
+        "`tooltip.tsx` provides only low-level trigger/content primitives.",
+        "`CreativePartnerPane.tsx` implements custom mobile/desktop tooltip-open and disable toggling logic via `useEcosystemTooltipController`.",
+        "`InfoTooltip.tsx` implements separate controlled/uncontrolled open-state orchestration and conditional rendering policy."
+      ],
+      "suggestion": "Introduce a small shared overlay interaction adapter (for controlled/uncontrolled open state + mobile behavior policy) and have feature components provide only content-specific rules.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

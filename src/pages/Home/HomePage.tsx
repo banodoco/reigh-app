@@ -2,15 +2,15 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useReferralTracking } from '@/shared/hooks/useReferralTracking';
-import { useDebounce } from '@/shared/hooks/useDebounce';
-import { useIsMobile } from '@/shared/hooks/useMobile';
+import { useDebounce } from '@/shared/hooks/core/useDebounce';
+import { useIsMobile } from '@/shared/hooks/mobile';
 import usePersistentState from '@/shared/hooks/usePersistentState';
 
-import { HeroSection } from './components/HeroSection';
-import { CreativePartnerPane } from './components/CreativePartnerPane';
-import { PhilosophyPane } from './components/PhilosophyPane';
-import { ExamplesPane } from './components/ExamplesPane';
-import { HomeBackground } from './components/HomeBackground';
+import { HeroSection } from './components/hero/HeroSection';
+import { CreativePartnerPane } from './components/panes/CreativePartnerPane';
+import { PhilosophyPane } from './components/panes/PhilosophyPane';
+import { ExamplesPane } from './components/panes/ExamplesPane';
+import { HomeBackground } from './components/hero/HomeBackground';
 
 import { usePaneState } from './hooks/usePaneState';
 import { useVideoPreload } from './hooks/useVideoPreload';
@@ -107,8 +107,8 @@ export default function HomePage() {
         isOpening={paneState.isCreativePartnerPaneOpening}
         ecosystemTipOpen={ecosystemTipOpen}
         ecosystemTipDisabled={ecosystemTipDisabled}
-        setEcosystemTipOpen={setEcosystemTipOpen}
-        setEcosystemTipDisabled={setEcosystemTipDisabled}
+        onEcosystemTipOpenChange={setEcosystemTipOpen}
+        onEcosystemTipDisabledChange={setEcosystemTipDisabled}
         navigate={navigate}
       />
 

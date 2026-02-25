@@ -1,0 +1,326 @@
+{
+  "assessments": {
+    "api_surface_coherence": 62.6,
+    "cross_module_architecture": 53.2
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "High-import hub modules bind governance policy at import time: `runtimeErrorAliasPolicy = getDeprecationPolicy('runtime_error_alias')` in `src/shared/lib/errorHandling/handleError.ts` and `legacySupabaseFacadePolicy = getDeprecationPolicy('legacy_supabase_facade')` in `src/integrations/supabase/legacy/legacySupabaseFacade.ts`.",
+        "Deprecated compatibility surfaces are still colocated with active runtime entry points (`reportRuntimeError` in `handleError.ts`, `getLegacySupabaseClient` in `legacySupabaseFacade.ts`) with explicit removal target `2026-06-30`, indicating ongoing dual-path boundary blur.",
+        "`src/shared/contexts/ProjectContext.tsx` writes runtime state to `window.__PROJECT_CONTEXT__`, while gallery/lightbox state is coordinated across multiple hooks/components (`useMediaGalleryItemState`, `InfoTooltip`, `ShotActions`, `useMobileInteractions`) through prop/ref choreography rather than a single subsystem boundary."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "issues_preventing_higher_score": ""
+    },
+    "api_surface_coherence": {
+      "evidence": [
+        "Outcome contracts are fragmented across the same batch: `supabase/functions/_shared/edgeOperation.ts` uses `{ ok, value|errorCode }`, `src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts` uses `{ success, error? }`, and `src/shared/lib/media/safePlay.ts` collapses failures to `boolean`.",
+        "`src/shared/lib/toolSettingsService.ts` mixes throw-based failure (`ToolSettingsError`) with silent success fallback to defaults for some auth/network-adjacent states, so callers cannot rely on one error channel.",
+        "`supabase/functions/_shared/edgeOperation.ts` exports parallel alias families (`Edge*` and `Operation*`) for the same result types, creating multiple canonical names for one API surface."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": ""
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "import_time_governance_on_hot_hubs",
+      "summary": "Governance policy lookup runs at import time in high-fan-in core modules.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` computes `runtimeErrorAliasPolicy` at module load via `getDeprecationPolicy(...)`.",
+        "`legacySupabaseFacade.ts` computes `legacySupabaseFacadePolicy` at module load via `getDeprecationPolicy(...)`.",
+        "Both files are listed as heavily imported hubs in the packet context, so import-time coupling amplifies startup and boundary fragility."
+      ],
+      "suggestion": "Move governance resolution behind call-time boundaries (inside deprecated functions) or inject policy from a dedicated governance adapter. Keep hot-path runtime helpers free of governance imports to avoid global initialization coupling.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "governance_runtime_coupling"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "legacy_and_primary_paths_share_entrypoints",
+      "summary": "Legacy compatibility APIs remain on primary module entrypoints instead of isolated legacy boundaries.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` exports both canonical APIs and deprecated alias `reportRuntimeError` in the same module.",
+        "`legacySupabaseFacade.ts` is explicitly transitional and deprecated, but still serves as an active compatibility accessor.",
+        "Both include future removal target `2026-06-30`, showing migration is unresolved while these symbols stay in high-traffic import surfaces."
+      ],
+      "suggestion": "Split deprecated exports into dedicated `legacy/` entrypoints and keep canonical modules strict. Add boundary guardrails (lint/import restriction) to block new imports from legacy paths and force migration through explicit adapter modules.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "legacy_boundary_drift"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "gallery_interaction_state_spans_multiple_modules",
+      "summary": "Media gallery interaction state is scattered across hooks/components with cross-module mutable choreography.",
+      "related_files": [
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts",
+        "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+        "src/shared/components/MediaGallery/hooks/useMobileInteractions.ts",
+        "src/shared/contexts/ProjectContext.tsx"
+      ],
+      "evidence": [
+        "`useMediaGalleryItemState.ts` exposes many mutable setters (`setIsInfoOpen`, `setIsShotSelectorOpen`, `setIsCreateShotModalOpen`, etc.) for other modules to coordinate.",
+        "`InfoTooltip.tsx` and `ShotActions.tsx` each depend on externally managed open/selection state callbacks, creating distributed UI-state ownership.",
+        "`useMobileInteractions.ts` introduces additional mutable refs/timeouts and global event listeners for related interaction behavior.",
+        "`ProjectContext.tsx` also uses a global window bridge (`window.__PROJECT_CONTEXT__`) for fallback coordination, reinforcing subsystem-level shared mutable state patterns."
+      ],
+      "suggestion": "Introduce a single gallery interaction controller (reducer/state machine) that owns tooltip/selector/popover/lightbox transitions and exposes declarative events. Remove ad-hoc setter/ref passing and eliminate global fallback channels for interaction/state handoff.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "distributed_ui_state_ownership"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "mixed_result_envelopes_across_services",
+      "summary": "Service APIs expose incompatible success/failure shapes, forcing per-call adapters.",
+      "related_files": [
+        "supabase/functions/_shared/edgeOperation.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/shared/lib/media/safePlay.ts",
+        "src/shared/hooks/useTaskStatusCounts.ts"
+      ],
+      "evidence": [
+        "`edgeOperation` defines a discriminated union with `ok: true/false`, `errorCode`, and `recoverable`.",
+        "`generateVideoService` returns `{ success: boolean, error?: string }` and drops structured error metadata in `failureResult`.",
+        "`safePlay` returns only `Promise<boolean>`, so callers cannot inspect reason/category for playback failures.",
+        "`useTaskStatusCounts` encodes partial failure as domain fields (`degraded`, `failedQueries`, `errorCode`) instead of a shared result envelope."
+      ],
+      "suggestion": "Standardize on one discriminated result contract (for example `{ ok, value } | { ok, errorCode, message, recoverable, cause }`) for service-layer boundaries and add small adapter shims at UI edges only.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "result_contract_fragmentation"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "tool_settings_dual_error_channel",
+      "summary": "Tool settings fetch mixes exceptions with silent fallback success, making failure semantics unpredictable.",
+      "related_files": [
+        "src/shared/lib/toolSettingsService.ts",
+        "supabase/functions/_shared/rateLimit.ts"
+      ],
+      "evidence": [
+        "`fetchToolSettingsSupabase` throws `ToolSettingsError` for many failures (`auth_required`, `network`, `scope_fetch_failed`) but returns successful default settings for some auth-timeout string paths.",
+        "In contrast, `checkRateLimit` consistently returns `OperationResult` and marks fail-open behavior inside the returned payload (`degraded.reason`) without switching channels."
+      ],
+      "suggestion": "Use one error channel for tool settings: either always return a typed `OperationResult` (including a degraded/defaults mode with reason codes) or always throw typed errors, but avoid mixing both in one API.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "result_contract_fragmentation"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "edge_operation_dual_naming_surface",
+      "summary": "Edge operation result types expose duplicate naming families for identical contracts.",
+      "related_files": [
+        "supabase/functions/_shared/edgeOperation.ts",
+        "supabase/functions/_shared/edgeRequest.ts",
+        "supabase/functions/_shared/billing.ts"
+      ],
+      "evidence": [
+        "`edgeOperation.ts` exports both `EdgeOperationResult` and `OperationResult` aliases (and matching success/failure aliases) for the same shape.",
+        "Downstream files import the `Operation*` names, while the same module also advertises `Edge*` names, leaving two valid public vocabularies for one API."
+      ],
+      "suggestion": "Choose a single canonical naming family (`Operation*` or `Edge*`), deprecate the other with a removal window, and update imports to one consistent surface.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "result_contract_fragmentation"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "non_enforcing_deprecation_entrypoints",
+      "summary": "Deprecated compatibility APIs remain first-class module boundaries, so contract enforcement is mostly advisory.",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "README.md describes governance gates and removal targets, but runtime still exports deprecated APIs directly.",
+        "legacySupabaseFacade exposes `getLegacySupabaseClient()` and only signals via `signalPastRemovalTargetUsage(...)` before returning the runtime client.",
+        "handleError.ts keeps `reportRuntimeError(...)` as a forwarding alias with deprecation metadata, leaving two importable paths for the same boundary behavior."
+      ],
+      "suggestion": "Convert deprecation contracts into enforceable architecture controls: add lint/build-time restricted-import rules for deprecated paths, add a staged runtime hard-fail mode before the removal date, and remove deprecated exports once import budget reaches zero so only canonical entry points remain.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "deprecation_contracts_not_enforced_at_boundary"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "canonical_types_barrel_cross_domain_coupling",
+      "summary": "Single canonical type barrel mixes generation and shot domains, creating a broad cross-module coupling hub.",
+      "related_files": [
+        "README.md",
+        "src/types/generationAndShots.ts"
+      ],
+      "evidence": [
+        "README.md declares `@/types/generationAndShots` as canonical after compatibility-shim removal.",
+        "src/types/generationAndShots.ts combines re-exports from separate domains (`generation*` and `shot`) behind one import surface, forcing shared dependency direction through a single high-fan-in module."
+      ],
+      "suggestion": "Split the canonical surface into domain barrels (for example `@/types/generation` and `@/types/shots`) and keep a temporary compatibility index with explicit deprecation metadata and import-budget checks, so modules depend only on their domain boundary.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "deprecation_contracts_not_enforced_at_boundary"
+    }
+  ],
+  "review_quality": {
+    "batch_count": 3,
+    "dimension_coverage": 0.5,
+    "evidence_density": 1.167,
+    "high_score_missing_issue_note": 0,
+    "finding_pressure": 22.828,
+    "dimensions_with_findings": 2
+  },
+  "review_scope": {
+    "reviewed_files_count": 49,
+    "successful_batch_count": 3,
+    "full_sweep_included": false,
+    "total_files": 2309,
+    "imported_dimensions": [
+      "api_surface_coherence",
+      "cross_module_architecture"
+    ]
+  },
+  "reviewed_files": [
+    "src/shared/lib/errorHandling/handleError.ts",
+    "src/types/generationAndShots.ts",
+    "src/shared/components/ui/button.tsx",
+    "src/shared/components/ui/cn.ts",
+    "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+    "src/shared/components/ui/sonner.tsx",
+    "src/shared/components/ui/tooltip.tsx",
+    "src/shared/hooks/mobile/index.ts",
+    "src/shared/components/ui/label.tsx",
+    "src/shared/contexts/ProjectContext.tsx",
+    "src/features/gallery/hooks/useAdjacentPagePreloader.ts",
+    "src/features/layout/hooks/useBottomOffset.test.ts",
+    "src/pages/Home/components/install/InstallInstructionsModal.tsx",
+    "src/pages/Home/components/panes/CreativePartnerPane.tsx",
+    "src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx",
+    "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+    "src/shared/components/MediaGallery/hooks/useMobileInteractions.ts",
+    "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx",
+    "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+    "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts",
+    "src/shared/components/MediaLightbox/components/LightboxShell.tsx",
+    "src/shared/components/MediaTypeFilter.tsx",
+    "src/shared/lib/governance/deprecationPolicy.ts",
+    "src/shared/lib/stringFormatting.ts",
+    "src/shared/components/dialogs/DeleteGenerationConfirmDialog.tsx",
+    "src/shared/lib/errorHandling/recoverableError.ts",
+    "supabase/functions/_shared/edgeOperation.ts",
+    "src/shared/hooks/useTaskStatusCounts.ts",
+    "src/shared/lib/tasks/travelBetweenImages/types.ts",
+    "src/shared/components/JoinClipsSettingsForm/types.ts",
+    "src/shared/lib/governance/deprecationEnforcement.ts",
+    "src/shared/lib/media/safePlay.ts",
+    "src/features/gallery/lib/adjacentPagePreloadCoordinator.ts",
+    "src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+    "src/shared/hooks/shots/cacheUtils.ts",
+    "src/shared/hooks/useLineageChain.ts",
+    "src/shared/lib/generationTaskCache.ts",
+    "src/shared/lib/generationTaskRepository.ts",
+    "src/shared/lib/generationTransformers.ts",
+    "src/shared/lib/timelineWriteQueue.ts",
+    "src/shared/lib/toolSettingsService.ts",
+    "src/tools/join-clips/lib/clipInitService.ts",
+    "src/tools/join-clips/lib/clipManager/metadata.ts",
+    "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+    "supabase/functions/_shared/billing.ts",
+    "supabase/functions/_shared/edgeRequest.ts",
+    "supabase/functions/_shared/rateLimit.ts",
+    "supabase/functions/complete_task/orchestrator.ts",
+    "README.md"
+  ],
+  "provenance": {
+    "kind": "blind_review_batch_import",
+    "blind": true,
+    "runner": "codex",
+    "run_stamp": "20260225_034321",
+    "created_at": "2026-02-25T03:47:02+00:00",
+    "batch_count": 3,
+    "batch_indexes": [
+      1,
+      2,
+      3
+    ],
+    "packet_path": "/Users/peteromalley/Documents/reigh/.desloppify/review_packet_blind.json",
+    "packet_sha256": "8a16a8a08915cc2da4b3daaffb87dd0334c535bf0f4870755e3b0c68d81be53c"
+  },
+  "assessment_coverage": {
+    "scored_dimensions": [
+      "naming_quality",
+      "logic_clarity",
+      "type_safety",
+      "contract_coherence",
+      "error_consistency",
+      "abstraction_fitness",
+      "ai_generated_debt",
+      "high_level_elegance",
+      "mid_level_elegance",
+      "low_level_elegance",
+      "cross_module_architecture",
+      "initialization_coupling",
+      "convention_outlier",
+      "dependency_health",
+      "test_strategy",
+      "api_surface_coherence",
+      "authorization_consistency",
+      "incomplete_migration",
+      "package_organization",
+      "design_coherence"
+    ],
+    "selected_dimensions": [
+      "api_surface_coherence",
+      "cross_module_architecture"
+    ],
+    "imported_dimensions": [
+      "api_surface_coherence",
+      "cross_module_architecture"
+    ],
+    "missing_dimensions": [
+      "naming_quality",
+      "logic_clarity",
+      "type_safety",
+      "contract_coherence",
+      "error_consistency",
+      "abstraction_fitness",
+      "ai_generated_debt",
+      "high_level_elegance",
+      "mid_level_elegance",
+      "low_level_elegance",
+      "initialization_coupling",
+      "convention_outlier",
+      "dependency_health",
+      "test_strategy",
+      "authorization_consistency",
+      "incomplete_migration",
+      "package_organization",
+      "design_coherence"
+    ]
+  }
+}

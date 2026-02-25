@@ -1,11 +1,13 @@
 /**
- * Canonical barrel for generation + shot domain types.
+ * @publicContract Compatibility barrel for generation + shot domain types.
+ * Prefer importing from `@/domains/generation/types`.
  */
-export type { GenerationParams } from '@/types/generationParams';
 export type {
+  GenerationParams,
   GenerationMetadata,
   PairLoraConfig,
   PairMotionSettings,
-} from '@/types/generationMetadata';
-export type { GenerationRow } from '@/types/generationRow';
-export type { Shot, ShotOption } from '@/types/shot';
+  GenerationRow,
+  Shot,
+  ShotOption,
+} from '@/domains/generation/types';

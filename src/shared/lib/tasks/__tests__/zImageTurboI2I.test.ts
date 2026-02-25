@@ -4,25 +4,29 @@ import { createBatchZImageTurboImageToImageTasks } from '../zImageTurboI2I';
 const mockCreateTask = vi.fn();
 const mockProcessBatchResults = vi.fn();
 
-vi.mock('../../taskCreation', () => ({
-  createTask: (...args: unknown[]) => mockCreateTask(...args),
-  validateRequiredFields: (params: Record<string, unknown>, fields: string[]) => {
-    for (const field of fields) {
-      if (params[field] === undefined || params[field] === null) {
-        throw new TVE(`${field} is required`, field);
+vi.mock('../../taskCreation', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../taskCreation')>();
+  return {
+    ...actual,
+    createTask: (...args: unknown[]) => mockCreateTask(...args),
+    validateRequiredFields: (params: Record<string, unknown>, fields: string[]) => {
+      for (const field of fields) {
+        if (params[field] === undefined || params[field] === null) {
+          throw new TVE(`${field} is required`, field);
+        }
       }
-    }
-  },
-  TaskValidationError: class extends Error {
-    field?: string;
-    constructor(message: string, field?: string) {
-      super(message);
-      this.name = 'TaskValidationError';
-      this.field = field;
-    }
-  },
-  processBatchResults: (...args: unknown[]) => mockProcessBatchResults(...args),
-}));
+    },
+    TaskValidationError: class extends Error {
+      field?: string;
+      constructor(message: string, field?: string) {
+        super(message);
+        this.name = 'TaskValidationError';
+        this.field = field;
+      }
+    },
+    processBatchResults: (...args: unknown[]) => mockProcessBatchResults(...args),
+  };
+});
 
 // Local alias for throw
 class TVE extends Error {
@@ -34,7 +38,7 @@ class TVE extends Error {
   }
 }
 
-vi.mock('@/shared/lib/errorHandler', () => ({
+vi.mock('@/shared/lib/compat/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 

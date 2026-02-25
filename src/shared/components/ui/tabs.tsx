@@ -1,7 +1,7 @@
 import * as React from "react"
 import { Tabs as TabsPrimitive } from "@base-ui-components/react/tabs"
 import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from "@/shared/lib/utils"
+import { cn } from "@/shared/components/ui/contracts/cn"
 
 const Tabs = TabsPrimitive.Root
 

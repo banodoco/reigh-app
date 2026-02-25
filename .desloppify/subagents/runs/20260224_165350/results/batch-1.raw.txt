@@ -1,0 +1,78 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "high_level_elegance": 84.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/integrations/supabase/client.ts` keeps two access paths (`getSupabaseClient()` plus deprecated exported `supabase` proxy) and lazy-fallback initialization, which preserves legacy behavior but blurs the intended runtime boundary.",
+        "`src/shared/lib/errorHandling/handleError.ts` still exports deprecated aliases (`reportRuntimeError`, `RuntimeErrorOptions`) while acting as a cross-cutting facade used broadly, concentrating ownership in a shared singleton-style entrypoint.",
+        "`src/shared/hooks/useMobile.tsx` is a deprecated compatibility barrel that re-exports from multiple mobile modules, extending migration overlap instead of enforcing one import surface.",
+        "Event-driven orchestration is spread across feature hooks (`src/app/hooks/useSettingsModal.ts` listening for `openSettings`, `src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts` listening for `selectShotForAddition`), creating implicit cross-feature coupling."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "legacy_dual_path_surfaces",
+      "summary": "Deprecated compatibility surfaces keep parallel access paths active across core shared/runtime modules.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/hooks/useMobile.tsx"
+      ],
+      "evidence": [
+        "`src/integrations/supabase/client.ts` exports deprecated `supabase` proxy while also exposing bootstrap/runtime APIs, and keeps removal metadata as inert constants.",
+        "`src/shared/lib/errorHandling/handleError.ts` exports deprecated alias API next to the current contract, preserving old call patterns.",
+        "`src/shared/hooks/useMobile.tsx` remains a compatibility barrel explicitly marked deprecated but still serving as a broad entrypoint."
+      ],
+      "suggestion": "Set and enforce a single public entrypoint per subsystem (Supabase runtime, error handling, mobile signals), then remove compatibility exports behind a tracked migration checklist and import-codemod pass.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "implicit_global_runtime_state",
+      "summary": "Global mutable runtime state and lazy side-effect wiring create hidden coupling at module boundaries.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/ui/sonner.tsx"
+      ],
+      "evidence": [
+        "`src/integrations/supabase/client.ts` uses module-level mutable flag (`hasWarnedFallbackInitialization`) and a `Proxy` that initializes runtime on property access.",
+        "`src/shared/lib/errorHandling/handleError.ts` mutates process-wide notifier behavior through `setErrorPresenter`/`configureErrorNotifier`.",
+        "`src/shared/components/ui/sonner.tsx` binds shared `toastManager` globally, reinforcing singleton-oriented notification flow."
+      ],
+      "suggestion": "Move singleton wiring into explicit app-bootstrap composition (dependency injection of client/notifier instances), and keep shared modules pure by removing lazy initialization side effects from exports.",
+      "confidence": "medium",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "cross_feature_event_contract_blur",
+      "summary": "Feature behavior depends on app-wide event names rather than explicit domain-owned interfaces.",
+      "related_files": [
+        "src/app/hooks/useSettingsModal.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts"
+      ],
+      "evidence": [
+        "`useSettingsModal` opens modal state from global `openSettings` events and location-state parsing in the same hook.",
+        "`useMediaGalleryHandlers` reacts to global `selectShotForAddition` events to mutate gallery shot state.",
+        "These string-keyed app events couple distant features through implicit contracts rather than typed domain service boundaries."
+      ],
+      "suggestion": "Replace cross-feature event-name coupling with explicit domain coordinators (e.g., settings coordinator, gallery selection coordinator) that expose typed command APIs and isolate router/event translation at the boundary.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

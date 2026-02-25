@@ -1,0 +1,74 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "high_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "README.md documents a strict migration gate for the removed `@/types/shots` alias, but similar deprecation/removal targets in runtime contracts (`reportRuntimeError`, `RuntimeErrorOptions`, and legacy `supabase` proxy) are only comments/constants without an enforcement command or CI gate.",
+        "`src/integrations/supabase/client.ts` states `initializeSupabase()` as the explicit bootstrap contract, but `getSupabaseClient()` still auto-recovers through lazy fallback; in production this contract breach is non-fatal and only observable via error handling side effects.",
+        "`src/shared/components/ui/button.tsx` imports `cn` through the generic barrel `src/shared/lib/utils.ts`, which hides ownership behind a broad `utils` surface and weakens domain-aligned boundaries."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "uneven_deprecation_governance",
+      "summary": "Deprecation governance is strict for one shim but informal for other public contracts.",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "README.md defines an explicit enforcement command for `@/types/shots` removal (`npm run check:shots-shim-usage`).",
+        "`client.ts` and `handleError.ts` include deprecation metadata and removal dates (`@removalTarget 2026-06-30`) but no corresponding automated gate; `client.ts` even `void`s governance constants to keep them compile-visible only."
+      ],
+      "suggestion": "Add a shared deprecation policy gate in `quality:check` that fails on expired `@removalTarget` markers and legacy import usage (including `supabase` compatibility proxy and `reportRuntimeError` aliases), so all contract sunsets are enforced consistently.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "bootstrap_contract_softened_by_fallback",
+      "summary": "Supabase bootstrap contract is documented as explicit but runtime still relies on hidden lazy recovery.",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "README.md says bootstrap calls `initializeSupabase()` once and frames this as the runtime contract.",
+        "`getSupabaseClient()` catches runtime-access errors and initializes lazily as fallback; warning is DEV-only and production path silently tolerates pre-bootstrap access."
+      ],
+      "suggestion": "Time-box the fallback: keep it behind an explicit migration flag, emit telemetry in all environments, and switch to fail-fast after the sunset date so runtime behavior matches the documented contract.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "generic_utils_surface_blurs_ownership",
+      "summary": "A generic shared utils barrel obscures UI utility ownership and weakens boundary clarity.",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/lib/utils.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`button.tsx` imports `cn` from `@/shared/lib/utils`.",
+        "`utils.ts` is a tiny barrel that re-exports unrelated helpers (`cn`, `cropFilename`, `truncateText`) under a generic name, encouraging cross-domain catch-all imports."
+      ],
+      "suggestion": "Replace broad `@/shared/lib/utils` imports with ownership-specific paths (for example `@/shared/lib/uiClassNames` for `cn`) and retire or narrow the generic barrel to prevent future boundary erosion.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

@@ -1,0 +1,146 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 7,
+  "assessments": {
+    "abstraction_leverage": 74.0,
+    "indirection_cost": 68.0,
+    "interface_honesty": 66.0,
+    "error_consistency": 62.0
+  },
+  "dimension_notes": {
+    "abstraction_leverage": {
+      "evidence": [
+        "src/shared/hooks/useMobile.tsx implements overlapping device heuristics across useIsMobile/useIsTablet/useIsTouchDevice/useDeviceInfo, each with separate state/effects.",
+        "src/shared/components/MediaGallery/index.tsx composes multiple mobile/tablet signals plus an extra window-width fallback, showing the abstraction is not trusted as a single source of truth.",
+        "src/shared/hooks/useUpdatingTimestamp.ts, useCompletedTimestamp.ts, and useProcessingTimestamp.ts each wrap useLiveRelativeTimestamp with similar adapter logic, increasing wrapper count for small behavior differences."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "indirection_cost": {
+      "evidence": [
+        "src/shared/realtime/DataFreshnessManager.ts exposes class API, lazy getter, and a forwarded facade object with one-line method pass-throughs for every method.",
+        "src/shared/hooks/useTasks.ts imports the forwarded facade (dataFreshnessManager), adding an extra hop with no semantic change versus direct instance usage.",
+        "src/shared/lib/ui/cn.ts is a pure re-export wrapper; high-import UI modules (e.g., src/shared/components/ui/button.tsx, src/shared/components/ui/tooltip.tsx) add an extra alias layer without behavior."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "interface_honesty": {
+      "evidence": [
+        "src/shared/lib/tasks/orchestrationContract.ts returns Record<string, unknown>, so producers and consumers are not compile-time aligned on contract shape.",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts emits orchestration fields in multiple locations/keys (e.g., orchestration_contract plus other top-level orchestration keys).",
+        "supabase/functions/complete_task/orchestrator.ts must query multiple legacy param paths (orchestrator_run_id, run_id, orchestrator_details.run_id and similar for task IDs), indicating no single honest interface."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "error_consistency": {
+      "evidence": [
+        "src/shared/lib/tasks/magicEdit.ts catches errors, calls handleError(...), then rethrows; failure propagates after normalization.",
+        "src/pages/Home/hooks/useDiscordSignIn.ts calls handleError for OAuth failures but does not rethrow/return structured failure, so callers cannot uniformly react.",
+        "src/shared/hooks/useGenerationMutations.ts throws raw Error objects from Supabase branches while onError handlers also call handleError, creating mixed throw-vs-handle semantics across similar boundaries.",
+        "supabase/functions/calculate-task-cost/index.ts uses JSON error responses and logger returns, while shared client modules use thrown exceptions, yielding inconsistent cross-layer failure contracts."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "interface_honesty",
+      "identifier": "orchestration_contract_shape_drift",
+      "summary": "Orchestration metadata is effectively untyped and consumed through multi-path fallbacks, so producers and consumers disagree on the true contract.",
+      "related_files": [
+        "src/shared/lib/tasks/orchestrationContract.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "supabase/functions/complete_task/orchestrator.ts"
+      ],
+      "evidence": [
+        "buildOrchestrationContract returns Record<string, unknown> instead of a concrete type.",
+        "Payload builders emit orchestration-related fields both inside and outside orchestration_contract.",
+        "Orchestrator completion queries several alternate JSON paths for run/task identifiers, which is a runtime compatibility workaround for schema drift."
+      ],
+      "suggestion": "Define a strict shared OrchestrationContract type/schema, enforce a single canonical storage path, and add a single compatibility parser at boundary entrypoints to translate legacy payloads once.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "indirection_cost",
+      "identifier": "redundant_freshness_api_layers",
+      "summary": "Data freshness access is wrapped by parallel APIs (class, getter, forwarded facade), adding call indirection without additional policy value.",
+      "related_files": [
+        "src/shared/realtime/DataFreshnessManager.ts",
+        "src/shared/hooks/useTasks.ts"
+      ],
+      "evidence": [
+        "DataFreshnessManager.ts defines getDataFreshnessManager plus a dataFreshnessManager object that forwards every method to getOrCreateDataFreshnessManager.",
+        "useTasks.ts uses the facade methods directly, so behavior depends on forwarding wrappers rather than a single explicit API."
+      ],
+      "suggestion": "Choose one public API surface (prefer explicit getter + concrete instance usage), deprecate the forwarded facade, and migrate consumers to reduce mental and debugging hops.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_leverage",
+      "identifier": "fragmented_device_detection_contract",
+      "summary": "Device detection is split across overlapping hooks and local fallbacks, so the abstraction does not provide a trusted single source of truth.",
+      "related_files": [
+        "src/shared/hooks/useMobile.tsx",
+        "src/shared/components/MediaGallery/index.tsx"
+      ],
+      "evidence": [
+        "useMobile.tsx computes similar signals in several hooks with separate listeners and state lifecycles.",
+        "MediaGallery consumes useIsMobile/useIsTablet and still adds a manual window-width fallback, indicating abstraction leakage and low caller confidence."
+      ],
+      "suggestion": "Consolidate to one canonical device-state hook/object, expose derived flags from that source, and remove per-consumer fallbacks unless explicitly justified.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "mixed_throw_and_handle_patterns",
+      "summary": "Error handling alternates between throw-only, handle-and-rethrow, and handle-without-propagation, making failure behavior unpredictable across similar operations.",
+      "related_files": [
+        "src/shared/lib/tasks/magicEdit.ts",
+        "src/pages/Home/hooks/useDiscordSignIn.ts",
+        "src/shared/hooks/useGenerationMutations.ts",
+        "supabase/functions/calculate-task-cost/index.ts"
+      ],
+      "evidence": [
+        "magicEdit task creation catches, normalizes via handleError, then throws.",
+        "useDiscordSignIn normalizes errors but does not rethrow or return a structured failure result.",
+        "useGenerationMutations throws raw Error in data-layer helpers while mutation onError also routes through handleError.",
+        "Edge function handlers return HTTP JSON errors instead of exception propagation, diverging from client-side throw-based contracts."
+      ],
+      "suggestion": "Define per-layer error contracts (e.g., data layer throws typed errors, UI layer converts to user notifications, edge layer returns standardized error payload schema) and apply consistently across hooks/task builders.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "interface_honesty",
+      "identifier": "label_variant_api_misleading",
+      "summary": "Label exposes variant typing but has no actual variant definitions, creating an interface that promises flexibility it does not implement.",
+      "related_files": [
+        "src/shared/components/ui/label.tsx",
+        "src/shared/components/ui/button.tsx"
+      ],
+      "evidence": [
+        "label.tsx uses VariantProps<typeof labelVariants> even though labelVariants has no variants configured.",
+        "button.tsx demonstrates a real variant/size API, highlighting mismatch in component interface semantics across adjacent UI primitives."
+      ],
+      "suggestion": "Either remove VariantProps from Label to make the API honest, or add explicit label variants and corresponding class mappings.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ]
+}

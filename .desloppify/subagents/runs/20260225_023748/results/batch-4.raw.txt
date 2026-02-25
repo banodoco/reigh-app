@@ -1,0 +1,123 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "incomplete_migration": 62.0,
+    "low_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "incomplete_migration": {
+      "evidence": [
+        "`src/shared/hooks/useCredits.ts` is a pure deprecated re-export shim with no owner/removal target metadata.",
+        "`src/shared/lib/errorHandling/handleError.ts` and `src/integrations/supabase/legacy/legacySupabaseFacade.ts` use explicit deprecation contracts, but migration governance is inconsistent across shims.",
+        "`src/shared/lib/tasks/joinClipsCompatAdapter.ts` still accepts legacy path and legacy video-edit shapes and only partially gates legacy usage by removal target.",
+        "`src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts` retains deprecated payload shape contracts as active exported types."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Fallback/compat extraction logic is repeated with slightly different precedence rules in `galleryUtils.ts`, `mediaTypeHelpers.ts`, and `taskIdHelpers.ts`.",
+        "`joinClipsCompatAdapter.ts` centralizes many mixed-shape branches, mode checks, and destructive field-stripping in one long function path, increasing local reasoning cost.",
+        "`storagePaths.ts` and `taskCreation/ids.ts` implement separate ad-hoc randomness/timestamp ID-generation patterns (`Math.random` vs `crypto.randomUUID`/`nanoid`)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "migration_governance_drift",
+      "summary": "Compatibility shims follow inconsistent sunset governance, so legacy surfaces can persist without a uniform removal mechanism.",
+      "related_files": [
+        "src/shared/hooks/useCredits.ts",
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts"
+      ],
+      "evidence": [
+        "`useCredits.ts` has only a deprecation comment and re-export, with no owner/removal target contract.",
+        "`handleError.ts` and `legacySupabaseFacade.ts` include explicit `@deprecationOwner`/`@removalTarget` metadata and policy hooks, showing a different governance style from other shims.",
+        "`legacyStructureVideo.ts` uses policy-backed owner/remove-by exports, but remains an active compatibility contract."
+      ],
+      "suggestion": "Define one deprecation contract standard (owner, remove-by, enforcement path, telemetry) and apply it to every compatibility surface, including thin re-export shims like `useCredits`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "legacy_contract_fragmentation"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "join_clips_partial_sunset_enforcement",
+      "summary": "Join-clips compatibility enforcement is asymmetric: legacy clip-path fields are sunset-gated, but legacy video-edit fields are still open-ended.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClipsCompatAdapter.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts"
+      ],
+      "evidence": [
+        "`joinClipsCompatAdapter.ts` enforces remove-by only for legacy clip-path mode via `assertLegacyClipSourceAllowed` + `isPastRemovalTarget`.",
+        "The same adapter still accepts `video_edit_mode` + `source_*` payload fields in `resolveVideoEditConfig` without equivalent post-target rejection.",
+        "Error messaging still treats legacy video-edit fields as first-class migration fallback (`video_edit ... or legacy video_edit_mode/source_* fields`)."
+      ],
+      "suggestion": "Add the same remove-by gate for legacy video-edit payload fields and emit structured migration telemetry whenever any legacy path is used.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "legacy_contract_fragmentation"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "schema_fallback_logic_scattered",
+      "summary": "Field-normalization fallback chains are duplicated across utilities, which increases branch complexity and drift risk.",
+      "related_files": [
+        "src/shared/lib/galleryUtils.ts",
+        "src/shared/lib/mediaTypeHelpers.ts",
+        "src/shared/lib/taskIdHelpers.ts"
+      ],
+      "evidence": [
+        "`galleryUtils.ts` resolves explicit vs orchestrator array fields with custom precedence and inline coercion.",
+        "`mediaTypeHelpers.ts` separately resolves `generation_id` from multiple candidate fields (`generation_id`, `metadata.generation_id`, `id`).",
+        "`taskIdHelpers.ts` independently resolves task IDs via `source_task_id || orchestrator_task_id || task_id` with local UUID validation."
+      ],
+      "suggestion": "Create a shared normalization layer for legacy/current generation/task param shapes and reuse it in these utilities to remove repeated precedence logic.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shape_normalization_duplication"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "id_generation_primitives_inconsistent",
+      "summary": "ID/filename uniqueness generation uses inconsistent primitives and formatting conventions across nearby utilities.",
+      "related_files": [
+        "src/shared/lib/storagePaths.ts",
+        "src/shared/lib/taskCreation/ids.ts"
+      ],
+      "evidence": [
+        "`storagePaths.ts` uses `Math.random().toString(36)` for filename entropy in both `generateUniqueFilename` and `generateThumbnailFilename`.",
+        "`taskCreation/ids.ts` uses `crypto.randomUUID` with `nanoid` fallback and then truncates UUID entropy for task IDs.",
+        "Both modules implement separate timestamp formatting logic instead of a shared utility."
+      ],
+      "suggestion": "Standardize on one entropy source and one timestamp/identifier formatter (shared utility) for storage names and task/run IDs.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "utility_inconsistency"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Legacy migration work was distributed incrementally without a single enforced deprecation lifecycle.",
+      "Canonical schema normalization responsibilities are spread across small utilities instead of one boundary adapter."
+    ],
+    "likely_symptoms": [
+      "join_clips_partial_sunset_enforcement",
+      "schema_fallback_logic_scattered"
+    ],
+    "possible_false_positives": []
+  }
+}

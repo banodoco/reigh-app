@@ -1,5 +1,5 @@
 import React from "react";
-import { Label } from "@/shared/components/ui/label";
+import { Label } from "@/shared/components/ui/primitives/label";
 import { RadioGroup, RadioGroupItem } from "@/shared/components/ui/radio-group";
 import { SegmentedControl, SegmentedControlItem } from "@/shared/components/ui/segmented-control";
 import { SectionHeader } from "./SectionHeader";

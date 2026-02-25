@@ -1,6 +1,6 @@
 import React from 'react';
 import { Skeleton } from '@/shared/components/ui/skeleton';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 import { Image } from 'lucide-react';
 import { isVideoGeneration } from '@/shared/lib/typeGuards';
 

@@ -1,0 +1,21 @@
+{
+  "batch": "Conventions & Errors",
+  "batch_index": 1,
+  "assessments": {
+    "error_consistency": 100.0
+  },
+  "dimension_notes": {
+    "error_consistency": {
+      "evidence": [
+        "src/domains/generation/types/generationParams.ts defines only type interfaces with no runtime control flow, so no throw/return-null/catch strategy divergence exists in-file.",
+        "src/domains/generation/mappers/index.ts and src/domains/generation/types/index.ts are barrel re-exports only; they do not introduce local error handling behavior.",
+        "No catch blocks, thrown errors, sentinel null returns, or Result-style contracts are present in any of the three reviewed files."
+      ],
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "unreported_risk": "These files re-export runtime mappers (e.g., ./generationParamsMapper) where error behavior may diverge, but that implementation is outside this batch scope."
+    }
+  },
+  "findings": []
+}

@@ -1,0 +1,114 @@
+{
+  "batch": "Design coherence — Mechanical Concern Signals",
+  "batch_index": 7,
+  "assessments": {
+    "design_coherence": 76.4
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "Submission flow has two parallel composition hooks: `useFormSubmission` wires `useSubmissionOrchestrator` + `useSubmitHandler` directly, while `formSubmission/useSubmissionHandlers.ts` repeats the same wiring and appears unreferenced in the assigned scope.",
+        "State synchronization is done during render in multiple UI modules (`LoraSelectorModal.tsx`, `BrowsePresetsTab.tsx`) via `prev*Ref` checks followed by immediate `setState`, which embeds side effects in render control flow.",
+        "Lightbox/timeline orchestration has very wide prop and return surfaces (`useSharedLightboxState.ts` and `useTimelineOrchestrator.ts`), indicating coordinator hooks are carrying multiple responsibilities and high coupling.",
+        "`complete_task` contract handling is spread across modules with many fallback paths for the same fields (`params.ts` extractors and `orchestrator.ts` segment/orchestrator resolution), showing schema drift and repeated defensive parsing."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "submission_wrapper_duplication",
+      "summary": "Form submission orchestration is duplicated by an unused pass-through hook",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/hooks/useFormSubmission.ts",
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmissionHandlers.ts",
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmissionOrchestrator.ts"
+      ],
+      "evidence": [
+        "`useFormSubmission` composes `useSubmissionOrchestrator` + `useSubmitHandler` and returns queue handlers directly.",
+        "`useSubmissionHandlers` repeats the same dependency bag and orchestration wiring, adding only pass-through indirection.",
+        "Within assigned files, `useSubmissionHandlers` has no callsites, so the duplicate abstraction increases maintenance surface without behavior."
+      ],
+      "suggestion": "Remove `useSubmissionHandlers` (or replace `useFormSubmission` with it, but keep only one composition entrypoint). Keep a single exported hook for submission flow and move shared queue wiring to one tested helper if needed.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "orchestrator_wrapper_sprawl"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "render_phase_state_sync",
+      "summary": "Components mutate state during render to sync filters, obscuring control flow",
+      "related_files": [
+        "src/shared/components/LoraSelectorModal/LoraSelectorModal.tsx",
+        "src/shared/components/PhaseConfigSelectorModal/components/BrowsePresetsTab.tsx"
+      ],
+      "evidence": [
+        "`LoraSelectorModal` compares refs in render (`prevLoraTypeRef`, `prevValidOptionsRef`) and calls `setSelectedModelFilter`/`setSelectedSubFilter` inside render branches.",
+        "`BrowsePresetsTab` uses a render-time `prevFilterKeyRef` check and calls `setPage(0)` in render when filter key changes.",
+        "Both components encode synchronization side effects in render rather than event handlers/effects, which makes render behavior stateful and harder to reason about."
+      ],
+      "suggestion": "Move these resets to explicit transitions: either derive values from props without local mirror state, or use `useEffect`/event-driven reducers that react to dependency changes. Keep render pure and side-effect free.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "ui_state_sync_without_explicit_model"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "god_orchestrator_hooks",
+      "summary": "Lightbox/timeline orchestrators are oversized coordination hubs with broad prop bags",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts"
+      ],
+      "evidence": [
+        "`useSharedLightboxState` composes many concern-specific interfaces into one large `UseSharedLightboxStateProps` and returns a deeply nested mega-object covering variants, navigation, star, references, lineage, shots, source generation, layout, and button-group wiring.",
+        "`ImageLightbox` must construct and pass a very large argument object into `useSharedLightboxState`, mixing navigation, shot workflows, edit-mode flags, media calculations, and action handlers in one callsite.",
+        "`useTimelineOrchestrator` combines drag/drop, zoom, endpoint drag, selection, pending-state, prefetching, structure-video placement, and device behavior in a single 600+ LOC coordinator hook."
+      ],
+      "suggestion": "Split orchestration by stable bounded contexts (e.g., navigation, variants, shot actions, edit-mode state, structure-video timeline). Introduce thin composition layers that pass smaller typed contracts between sub-hooks instead of one wide omniscient input/output API.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "orchestrator_wrapper_sprawl"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "task_param_contract_drift",
+      "summary": "Complete-task pipeline relies on scattered fallback extraction instead of one canonical schema",
+      "related_files": [
+        "supabase/functions/complete_task/params.ts",
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/complete_task/index.ts"
+      ],
+      "evidence": [
+        "`params.ts` explicitly supports multiple historical paths for the same semantic fields (`run_id`, `based_on`, `shot_id`, `add_in_position`) via repeated path lists.",
+        "`orchestrator.ts` includes additional multi-source resolution logic (`resolveExpectedSegmentCount`, orchestrator lookup fallback paths) to recover missing/shifted payload shape.",
+        "`index.ts` must coordinate mode-specific checks and security/auth/orchestrator/billing branches around these variable shapes, indicating contract normalization is not centralized early."
+      ],
+      "suggestion": "Define a versioned canonical completion payload contract and normalize once at the boundary (request parse stage). Downstream modules should consume a single typed normalized object and drop path-by-path fallback extraction.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "schema_drift_and_defensive_fallbacks"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Incremental feature growth favored wrapper/facade accretion over retiring older entrypoints.",
+      "State synchronization patterns rely on render-time patching instead of explicit state machines or reducers.",
+      "Task payload schema evolution lacked a strict canonical normalization boundary."
+    ],
+    "likely_symptoms": [
+      "submission_wrapper_duplication",
+      "god_orchestrator_hooks",
+      "task_param_contract_drift"
+    ],
+    "possible_false_positives": []
+  }
+}

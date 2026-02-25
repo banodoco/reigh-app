@@ -1,0 +1,57 @@
+{
+  "contracts": [
+    {
+      "id": "supabase-client-runtime-facade",
+      "class": "runtime_integration",
+      "path": "src/integrations/supabase/client.ts",
+      "requiredTags": [
+        "@publicContract"
+      ],
+      "expectedExports": [
+        "initializeSupabase",
+        "getSupabaseClient"
+      ]
+    },
+    {
+      "id": "ui-cn-primitive",
+      "class": "ui_primitive",
+      "path": "src/shared/components/ui/contracts/cn.ts",
+      "requiredTags": [
+        "@uiContract"
+      ],
+      "expectedExports": [
+        "cn"
+      ]
+    },
+    {
+      "id": "ui-button-primitive",
+      "class": "ui_primitive",
+      "path": "src/shared/components/ui/contracts/button.tsx",
+      "requiredTags": [
+        "@uiContract"
+      ],
+      "expectedExports": [
+        "Button",
+        "buttonVariants",
+        "ButtonProps"
+      ]
+    },
+    {
+      "id": "generation-and-shots-type-barrel",
+      "class": "domain_contract",
+      "path": "src/types/generationAndShots.ts",
+      "requiredTags": [
+        "@publicContract"
+      ],
+      "expectedExports": [
+        "GenerationParams",
+        "GenerationMetadata",
+        "PairLoraConfig",
+        "PairMotionSettings",
+        "GenerationRow",
+        "Shot",
+        "ShotOption"
+      ]
+    }
+  ]
+}

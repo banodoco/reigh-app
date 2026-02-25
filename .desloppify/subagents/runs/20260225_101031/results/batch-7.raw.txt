@@ -1,0 +1,114 @@
+{
+  "batch": "Design coherence \u2014 Mechanical Concern Signals",
+  "batch_index": 7,
+  "assessments": {
+    "design_coherence": 82.4
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "`src/shared/components/ImageGenerationForm/hooks/useFormSubmission.ts` passes a wide prop bag into `useSubmissionHandlers`, which immediately repackages it again for `useSubmissionOrchestrator` with little behavioral transformation.",
+        "`src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts` reimplements frame-collision placement logic inline even though `src/shared/lib/timelinePositionCalculator.ts` already defines `ensureUniqueFrame`/placement helpers.",
+        "`supabase/functions/complete_task/index.ts` still centralizes request parsing, auth, rate-limiting, storage verification, task mutation, generation creation, orchestrator follow-up, and billing follow-up in a single request function.",
+        "`src/shared/components/MediaLightbox/ImageLightbox.tsx` plus `src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts` rely on very wide composed prop/return interfaces, indicating boundary seams that are broad and costly to evolve."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "timeline_collision_logic_duplicated",
+      "summary": "Timeline duplicate-placement logic is duplicated instead of using shared calculator utilities.",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts",
+        "src/shared/lib/timelinePositionCalculator.ts",
+        "src/shared/hooks/useTimelineCore.ts"
+      ],
+      "evidence": [
+        "`useTimelineOrchestrator` (around lines 427-450) manually performs expanding collision search (`+1/-1/+2/-2`) for duplicate target frames.",
+        "`timelinePositionCalculator.ts` already provides `ensureUniqueFrame` and placement helpers for exactly this uniqueness concern.",
+        "The hook comment says it uses the same logic as server-side mutation, but the logic is copied inline, creating drift risk when one side changes."
+      ],
+      "suggestion": "Extract duplicate-target computation into a shared `calculateDuplicateFrame(...)` helper built on `ensureUniqueFrame`, and call it from timeline orchestrator and any server/client mutation paths so placement rules are defined once.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "timeline_logic_fragmentation"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "submission_hooks_wrapper_chain",
+      "summary": "Form submission flow uses low-leverage wrapper layers with repeated wide prop plumbing.",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/hooks/useFormSubmission.ts",
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmissionHandlers.ts",
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmissionOrchestrator.ts"
+      ],
+      "evidence": [
+        "`useFormSubmission` destructures dozens of fields, writes `formStateRef`, builds `getTaskParams`, then forwards another large object to `useSubmissionHandlers`.",
+        "`useSubmissionHandlers` mainly re-forwards nearly the same fields to `useSubmissionOrchestrator` and then remaps command names.",
+        "`useSubmissionOrchestrator` contains repeated queue-task patterns (`submitManaged`, `queueExisting`, `queueLikeExisting`) with similar label/expectedCount/execute scaffolding."
+      ],
+      "suggestion": "Collapse this into a single domain hook (or a reducer-style submission service) with a typed `SubmissionContext` and reusable `queueSubmission(...)` primitive, so behavior branches differ only by policy inputs rather than repeated orchestration boilerplate.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "wide_prop_bag_orchestration"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "complete_task_pipeline_god_function",
+      "summary": "Edge `complete_task` handler still mixes too many workflow responsibilities in one flow.",
+      "related_files": [
+        "supabase/functions/complete_task/index.ts",
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/complete_task/params.ts"
+      ],
+      "evidence": [
+        "`completeTaskHandler` sequentially performs transport handling, auth, rate limit checks, storage checks, task-context fetch, param mutation, generation creation, task status update, orchestrator completion, and billing follow-up.",
+        "`orchestrator.ts` itself is another large control-flow hub, so orchestration complexity is split across two large procedural modules rather than explicit pipeline stages.",
+        "The composition boundary is centered on call order in one long function rather than a small set of cohesive lifecycle steps with narrow interfaces."
+      ],
+      "suggestion": "Refactor `complete_task` into explicit pipeline stages (request validation, authorization, storage resolution, task mutation, post-completion hooks) with stage contracts and a shared context object; keep orchestrator/billing hooks as pluggable post-processors.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "workflow_orchestrator_accumulation"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "lightbox_state_interface_overexpansion",
+      "summary": "Lightbox split introduced very wide interfaces that obscure ownership boundaries.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts"
+      ],
+      "evidence": [
+        "`ImageLightbox` imports many hooks and constructs multiple environment/shared/edit layers before render, indicating orchestration and view concerns remain intertwined.",
+        "`useSharedLightboxState` defines many grouped prop sub-interfaces and a large nested return contract, effectively functioning as a broad parameter bag API.",
+        "The breadth of inputs/outputs increases coupling cost for each feature addition because many call sites and type groupings must be updated together."
+      ],
+      "suggestion": "Split shared lightbox state into narrower domain slices (variants, shot-actions, references/join, navigation) behind composable hooks with minimal contracts, and have `ImageLightbox` assemble only the slices required for active feature flags.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "wide_prop_bag_orchestration"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Boundary design favors large pass-through orchestrators over narrow domain contracts.",
+      "Shared behavior exists but is not consistently centralized, leading to local re-implementations.",
+      "Legacy/migration flexibility has been preserved as runtime branching rather than retired into canonical shapes."
+    ],
+    "likely_symptoms": [
+      "submission_hooks_wrapper_chain",
+      "timeline_collision_logic_duplicated",
+      "lightbox_state_interface_overexpansion"
+    ],
+    "possible_false_positives": []
+  }
+}

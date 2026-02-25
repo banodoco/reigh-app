@@ -20,7 +20,7 @@ const {
   onMouseLeaveMock: vi.fn(),
 }));
 
-vi.mock('@/shared/hooks/useMobile', () => ({
+vi.mock('@/shared/hooks/mobile', () => ({
   useIsMobile: () => false,
 }));
 
@@ -50,8 +50,8 @@ vi.mock('@/shared/hooks/useVideoScrubbing', () => ({
   }),
 }));
 
-vi.mock('@/shared/lib/errorHandling/handleError', () => ({
-  handleError: handleErrorMock,
+vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
+  normalizeAndPresentError: handleErrorMock,
 }));
 
 describe('HoverScrubVideo', () => {

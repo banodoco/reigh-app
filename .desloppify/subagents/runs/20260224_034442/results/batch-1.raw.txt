@@ -1,0 +1,80 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "high_level_elegance": 84.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "Boundary hubs in shared/root layers are mostly pass-through aliases rather than clear ownership seams (`src/types/generationRow.ts`, `src/shared/hooks/useMobile.tsx`, `src/shared/lib/uiClassNames.ts`).",
+        "Overlay/dialog state contracts drift across peer components for the same interaction model (`open/onOpenChange` in `src/shared/components/ConfirmDialog.tsx` and `src/pages/Home/components/InstallInstructionsModal.tsx`, but `isOpen/onClose` in `src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx`, plus `isInfoOpen/onInfoOpenChange` in `src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx`).",
+        "Feature decomposition around gallery item actions is still broad: `src/shared/components/MediaGalleryItem/components/ShotActions.tsx` coordinates selector state, quick-create flow, add actions, and navigation while `src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts` aggregates unrelated UI concerns in one state hook.",
+        "Import-time bootstrap risk is reduced in `src/integrations/supabase/client.ts` via lazy singleton creation, but this improvement is isolated and does not remove broader ownership blur in shared entry points."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_alias_hubs_blur_boundaries",
+      "summary": "High-traffic shared aliases flatten ownership boundaries across domains.",
+      "related_files": [
+        "src/types/generationRow.ts",
+        "src/shared/hooks/useMobile.tsx",
+        "src/shared/lib/uiClassNames.ts"
+      ],
+      "evidence": [
+        "`src/types/generationRow.ts` is a root-level type gateway that re-exports both canonical and legacy DTO contracts, making migration layering globally visible.",
+        "`src/shared/hooks/useMobile.tsx` is a pure re-export surface that centralizes unrelated device signal and view-model exports.",
+        "`src/shared/lib/uiClassNames.ts` acts as a global utility choke point imported by many UI modules, encouraging broad shared coupling instead of feature-local ownership."
+      ],
+      "suggestion": "Define explicit domain/feature entry points and migrate imports away from root alias hubs; keep legacy DTO aliases in a dedicated compatibility module with a deprecation path.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "overlay_contract_inconsistency",
+      "summary": "Dialog/tooltip controllable-state APIs are inconsistent across sibling components.",
+      "related_files": [
+        "src/shared/components/ConfirmDialog.tsx",
+        "src/pages/Home/components/InstallInstructionsModal.tsx",
+        "src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx",
+        "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx"
+      ],
+      "evidence": [
+        "`ConfirmDialog` and `InstallInstructionsModal` use `open/onOpenChange`, while `DescriptionModal` uses `isOpen/onClose` for the same controllable-overlay pattern.",
+        "`InfoTooltip` introduces another naming pair (`isInfoOpen/onInfoOpenChange`), increasing API shape variance for similar state ownership.",
+        "These components live across shared and page/feature layers, so inconsistency propagates into callers and weakens predictable change boundaries."
+      ],
+      "suggestion": "Adopt one overlay control contract (prefer `open` + `onOpenChange`) and apply it across shared/page components, with compatibility adapters only where migration is staged.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "gallery_item_responsibility_sprawl",
+      "summary": "Media gallery item behavior is split across broad components/hooks with mixed ownership.",
+      "related_files": [
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts",
+        "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx"
+      ],
+      "evidence": [
+        "`ShotActions` consumes multiple grouped prop-bags (`selector`, `status`, `quickCreate`, `actions`) and coordinates navigation, selector behavior, async add flows, and UI affordances in one component.",
+        "`useMediaGalleryItemState` manages star toggling, drag state, info tooltip state, shot selector state, and create-shot modal lifecycle in a single hook.",
+        "`InfoTooltip` relies on parent-managed open state contracts, reinforcing a broad parent ownership surface instead of narrower sub-feature ownership."
+      ],
+      "suggestion": "Refactor MediaGalleryItem into smaller sub-feature modules (selection, shot-association actions, metadata/info overlay) with localized state hooks and thinner parent orchestration.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

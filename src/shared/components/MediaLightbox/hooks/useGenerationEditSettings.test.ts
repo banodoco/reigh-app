@@ -8,7 +8,7 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
 }));
 
-vi.mock('@/shared/hooks/useAutoSaveSettings', () => ({
+vi.mock('@/shared/hooks/settings/useAutoSaveSettings', () => ({
   useAutoSaveSettings: vi.fn(),
 }));
 

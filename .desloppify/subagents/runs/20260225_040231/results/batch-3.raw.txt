@@ -1,0 +1,136 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "api_surface_coherence": 83.5
+  },
+  "dimension_notes": {
+    "api_surface_coherence": {
+      "evidence": [
+        "In edge shared helpers, `initEdgeRuntime` returns `{ runtime?: ..., errorResponse?: ... }` while sibling helpers (`ensureRequestMethod`, `parseJsonBody`) return `OperationResult`, forcing callers to handle different control shapes in the same API family.",
+        "`checkRateLimit` is typed as `OperationResult<RateLimitResult>` but all error/degraded paths still return `operationSuccess`, while `triggerCostCalculation` uses `operationFailure` for non-OK states; `ok` means different things across sibling APIs.",
+        "Invalidation APIs with near-identical naming expose different completion guarantees: `invalidateGenerationsSync` schedules deferred work and returns `void`, while `invalidateVariantChange` awaits internal delays/refetch and returns `Promise<void>`.",
+        "`generateVideoService` explicitly marks internals as test-only but exports several unprefixed helpers plus alias exports, creating a broad and ambiguous public surface."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "edge_runtime_result_shape_split",
+      "summary": "Edge request helpers expose incompatible result contracts in the same module family",
+      "related_files": [
+        "supabase/functions/_shared/edgeRequest.ts",
+        "supabase/functions/_shared/edgeOperation.ts",
+        "supabase/functions/_shared/rateLimit.ts"
+      ],
+      "evidence": [
+        "`initEdgeRuntime` returns `EdgeRuntimeResult` with optional `runtime`/`errorResponse` (`edgeRequest.ts` lines 17-20, 26-54), not `OperationResult`.",
+        "Sibling helpers `ensureRequestMethod` and `parseJsonBody` return `OperationResult` (`edgeRequest.ts` lines 56-60, 146-150).",
+        "Downstream helpers in same edge shared layer (`checkRateLimit`) also return `OperationResult`, so consumers must branch by multiple incompatible patterns."
+      ],
+      "suggestion": "Normalize edge helper contracts to a single envelope (prefer `OperationResult<T>`) and provide one adapter that maps failures to `Response`, instead of mixing optional-object and discriminated-union patterns.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "edge_contract_fragmentation"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "operation_result_ok_semantics_drift",
+      "summary": "`OperationResult.ok` carries different semantics across billing and rate-limit APIs",
+      "related_files": [
+        "supabase/functions/_shared/rateLimit.ts",
+        "supabase/functions/_shared/billing.ts",
+        "supabase/functions/complete_task/orchestrator.ts"
+      ],
+      "evidence": [
+        "`checkRateLimit` returns `operationSuccess` even for RPC/runtime errors (`rateLimit.ts` lines 149, 163, 200), encoding failures as degraded success payloads.",
+        "`triggerCostCalculation` uses `operationFailure` for invalid payloads, non-OK HTTP responses, and request errors (`billing.ts` lines 264-267, 331-336, 340-346).",
+        "`classifyBillingOutcome` in orchestrator treats `ok` as a primary decision boundary (`orchestrator.ts` lines 85-114), which would produce different policy behavior if reused with rate-limit-style degraded-success results."
+      ],
+      "suggestion": "Define a shared policy for `OperationResult` semantics: either reserve `ok=true` for true success only, or add an explicit `state` enum (`success|degraded|failure`) and migrate both billing and rate-limit helpers to that contract.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "edge_contract_fragmentation"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "invalidation_api_completion_mismatch",
+      "summary": "Invalidation functions with similar names have mismatched async completion guarantees",
+      "related_files": [
+        "src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+        "src/features/gallery/lib/adjacentPagePreloadCoordinator.ts"
+      ],
+      "evidence": [
+        "`invalidateGenerationsSync` implies immediate behavior but schedules timeout-based execution and returns `void` (`useGenerationInvalidation.ts` lines 164-170).",
+        "`useInvalidateGenerations` returns a callback with the same deferred behavior and no completion signal (`useGenerationInvalidation.ts` lines 155-161).",
+        "`invalidateVariantChange` in the same module is `async` and explicitly awaits delay/refetch operations (`useGenerationInvalidation.ts` lines 178-218).",
+        "Related preloading APIs use explicit `schedule...` naming and cleanup-return contracts (`adjacentPagePreloadCoordinator.ts` lines 90-127), highlighting inconsistency in invalidation API intent signaling."
+      ],
+      "suggestion": "Split invalidation API into clearly named tiers (`scheduleInvalidate...` vs `invalidate...AndWait`) and return a `Promise` or cancel handle consistently for operations that may defer work.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "async_contract_ambiguity"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "generate_video_public_surface_leaks_test_helpers",
+      "summary": "Generate-video service exposes broad test-only internals and duplicate naming aliases",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/tools/join-clips/lib/clipInitService.ts",
+        "src/tools/join-clips/lib/clipManager/metadata.ts"
+      ],
+      "evidence": [
+        "The file declares a `TEST-ONLY EXPORTS` section but exports multiple unprefixed internals (`buildImagePayload`, `buildTimelinePairConfig`, etc.) (`generateVideoService.ts` lines 519-540).",
+        "It also aliases `buildBasicModeGenerationRequest` as `buildBasicModePhaseConfig` (`generateVideoService.ts` line 538) while the original function is already exported (`line 54`), creating dual names for one behavior.",
+        "Sibling join-clips service modules keep narrower, purpose-focused public exports (`clipInitService.ts`, `metadata.ts`) rather than exposing broad internal helper surfaces."
+      ],
+      "suggestion": "Move test-only helpers to an internal module imported by tests, keep one canonical exported name per behavior, and restrict the main service public API to `generateVideo` plus explicitly supported utility contracts.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "public_api_scope_creep"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "recoverability_contract_hidden_throw",
+      "summary": "Recoverability helpers mix boolean/void APIs with hidden throw behavior",
+      "related_files": [
+        "src/shared/lib/governance/deprecationEnforcement.ts",
+        "src/shared/lib/media/safePlay.ts",
+        "src/shared/lib/errorHandling/recoverableError.ts"
+      ],
+      "evidence": [
+        "`signalPastRemovalTargetUsage` returns `boolean` but can throw depending on runtime enforcement mode (`deprecationEnforcement.ts` lines 42-65).",
+        "`safePlay` and `reportRecoverableError` expose non-throwing recoverable paths (`safePlay.ts` lines 3-14, `recoverableError.ts` lines 16-34), encouraging callers to expect non-throwing behavior from recoverability utilities.",
+        "The mixed throw/no-throw contract is not encoded in the deprecation API signature, making failure behavior hard to predict at call sites."
+      ],
+      "suggestion": "Split deprecation enforcement into explicit APIs (`checkPastRemovalTarget` pure boolean + `enforcePastRemovalTarget` throwing) or return a discriminated result that encodes `thrown|warned|noop` state.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "async_contract_ambiguity"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Shared utility layers evolved multiple parallel contract styles (optional-object results, OperationResult, throws) without a single API contract standard.",
+      "Testability concerns were handled by expanding production export surfaces instead of using internal test seams."
+    ],
+    "likely_symptoms": [
+      "edge_runtime_result_shape_split",
+      "operation_result_ok_semantics_drift",
+      "invalidation_api_completion_mismatch",
+      "generate_video_public_surface_leaks_test_helpers",
+      "recoverability_contract_hidden_throw"
+    ],
+    "possible_false_positives": []
+  }
+}

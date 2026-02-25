@@ -1,0 +1,69 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 2,
+  "assessments": {
+    "error_consistency": 89.0
+  },
+  "dimension_notes": {
+    "error_consistency": {
+      "evidence": [
+        "Server completion flow is partially standardized: `supabase/functions/complete_task/generation.ts` normalizes failures into `CompletionError` with `code/context/recoverable/metadata`, but `supabase/functions/complete_task/orchestrator.ts` still throws ad-hoc `Error` strings for fetch/update/persistence failures.",
+        "Shot editor callback adapters in `src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts` use mixed failure contracts for neighboring actions: delete path throws via `handleAndRethrow`, add-to-shot paths return `false`, and create-shot path returns `undefined` on failure."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Error contracts are still not uniform across completion/billing and shot-editor interaction boundaries, so callers cannot reliably branch on one stable failure shape."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "error_consistency",
+      "identifier": "orchestrator_completion_error_envelope_drift",
+      "summary": "Orchestrator completion still emits stringified `Error` failures while sibling completion code uses structured error envelopes.",
+      "related_files": [
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/complete_task/generation.ts"
+      ],
+      "evidence": [
+        "`orchestrator.ts` throws raw `Error` with interpolated strings in multiple paths (e.g., orchestrator fetch failure, failed status update, billing metadata persistence fallback failure).",
+        "`generation.ts` catches and rethrows normalized `CompletionError` via `toCompletionError(...)`, preserving `error_code`, `recoverable`, `context`, and `metadata` for downstream policy/logging."
+      ],
+      "suggestion": "Adopt the same structured completion error type in `orchestrator.ts` (or a shared edge error wrapper) and include stable fields (`code`, `context`, `recoverable`, `metadata`) for all thrown failures, especially billing persistence/update branches.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "completion_error_contract_drift"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "shot_editor_callback_failure_contract_mixed",
+      "summary": "Shot editor callback adapters still mix throw/sentinel failure semantics across comparable operations.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/shared/components/ShotImageManager/ShotImageManagerContainer.tsx"
+      ],
+      "evidence": [
+        "`handleDeleteSegment` uses `handleAndRethrow(...)` and propagates exceptions for failure.",
+        "`handleAddToShotAdapter` and `handleAddToShotWithoutPositionAdapter` catch and return `false`, while `handleCreateShotAdapter` catches and returns `undefined`.",
+        "These are peer user actions in one adapter surface, but they expose different caller contracts for failure detection."
+      ],
+      "suggestion": "Standardize all adapter callbacks on one explicit result contract (for example `OperationResult<T>`), and make callers consume that contract instead of mixing exception flow with boolean/undefined sentinels.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "ui_callback_error_contract_drift"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Partial migrations to structured error envelopes left neighboring modules on legacy ad-hoc throw patterns.",
+      "UI callback surfaces evolved incrementally without a single shared failure-type convention."
+    ],
+    "likely_symptoms": [
+      "orchestrator_completion_error_envelope_drift",
+      "shot_editor_callback_failure_contract_mixed"
+    ],
+    "possible_false_positives": []
+  }
+}

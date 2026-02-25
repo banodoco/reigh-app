@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Trash2 } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { SEGMENT_OVERLAY_COLORS } from '@/shared/lib/segmentColors';
 import type { PortionSelection } from '@/shared/components/VideoPortionTimeline';
 

@@ -1,0 +1,112 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "high_level_elegance": 72.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/handleError.ts` combines normalization/logging with a browser event transport and singleton notifier lifecycle (`configureErrorNotifier`, `window.addEventListener`, module-level mutable state), making one highly-imported module own multiple architectural responsibilities.",
+        "`src/shared/components/ui/tooltip.tsx` exports both low-level design-system wrappers and a stateful touch interaction implementation (`TouchableTooltip`) that installs document-level listeners, while multiple features consume the same shared entrypoint (`CreativePartnerPane.tsx`, `ShotActions.tsx`, `InfoTooltip.tsx`).",
+        "Gallery behavior is spread across orchestration-heavy hooks with large nested context bags (`useMediaGalleryController.ts`, `useMediaGalleryHandlers.ts`) plus UI action components with large grouped prop interfaces (`ShotActions.tsx`), which obscures ownership boundaries.",
+        "Install-instructions flow is split across a key decision tree (`scenarios.ts`) and a separate manual key union/registry (`visuals.tsx`) consumed by `InstallInstructionsModal.tsx`, creating cross-file synchronization burden for one feature path.",
+        "`useAdjacentPagePreloader.ts` centralizes query prefetching, image queue control, and cache eviction in one hook, creating a broad coupling point between data-fetch and UI preloading concerns."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "error-hub-mixed-responsibilities",
+      "summary": "Global error handler is a high-fan-in hub that mixes core error policy with browser notification transport.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` owns normalization/logging (`normalizeAppError`, `logAppError`) and UI-facing event dispatch/listener registration (`CustomEvent`, `configureErrorNotifier`) with module-level mutable singletons.",
+        "`useMediaGalleryHandlers.ts` imports `handleError` for feature-local flows, so many domain handlers become transitively coupled to shared global notifier behavior and lifecycle constraints."
+      ],
+      "suggestion": "Split `handleError` into a pure core error service (normalize/log/return) and a separate app-shell adapter for notification transport; have feature modules depend only on the core contract and wire notifier transport at composition root.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "tooltip-layer-boundary-blur",
+      "summary": "Shared tooltip module conflates primitive UI wrapper ownership with app-specific touch interaction behavior.",
+      "related_files": [
+        "src/shared/components/ui/tooltip.tsx",
+        "src/pages/Home/components/CreativePartnerPane.tsx",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx"
+      ],
+      "evidence": [
+        "`tooltip.tsx` exports both primitive wrappers and `TouchableTooltip`, including behaviorful state and `document.addEventListener('pointerdown', ...)` logic.",
+        "Feature modules (`CreativePartnerPane.tsx`, `ShotActions.tsx`) import from the same shared UI module, so design-system changes and touch-policy changes share one blast radius."
+      ],
+      "suggestion": "Separate primitive tooltip exports from higher-level interaction patterns (for example `ui/tooltip-primitives` vs `patterns/touchable-tooltip`) so feature-specific behavior evolves independently from core UI contracts.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "media-gallery-ownership-fragmentation",
+      "summary": "Media gallery coordination relies on large context/prop bags across modules, making ownership boundaries difficult to reason about.",
+      "related_files": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryController.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx"
+      ],
+      "evidence": [
+        "`useMediaGalleryController.ts` defines deeply nested `shotContext`, `taskDetailsContext`, and `mobileContext` bags and mainly remaps them into other hooks.",
+        "`useMediaGalleryHandlers.ts` defines additional grouped interfaces and mixes shot navigation, task modal control, and selection synchronization.",
+        "`ShotActions.tsx` depends on multiple grouped prop contracts (`selector`, `status`, `quickCreate`, `actions`), indicating orchestration spread rather than clear vertical ownership."
+      ],
+      "suggestion": "Create a single feature-level gallery controller boundary (state + intents) and pass smaller intent-focused props to leaf components; keep shot-selection, task-details, and mobile gesture concerns in separate sub-controllers with explicit interfaces.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "install-visual-contract-drift-risk",
+      "summary": "Install instruction scenario logic and visual key registry are manually synchronized across files, increasing coupling and drift risk.",
+      "related_files": [
+        "src/pages/Home/components/installInstructions/scenarios.ts",
+        "src/pages/Home/components/installInstructions/visuals.tsx",
+        "src/pages/Home/components/InstallInstructionsModal.tsx"
+      ],
+      "evidence": [
+        "`scenarios.ts` returns string keys from `resolveInstallVisualKey`, while `visuals.tsx` separately defines the `InstallVisualKey` union and registry mapping.",
+        "`InstallInstructionsModal.tsx` bridges both pieces (`resolveInstallVisualKey` + `installVisualRegistry[visualKey]`), so adding a scenario requires synchronized edits across multiple files."
+      ],
+      "suggestion": "Move to a single declarative install-scenario table that binds predicates, title, and visual component in one source of truth, and derive the key type from the table instead of maintaining a manual union.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "gallery-preloader-god-hook",
+      "summary": "Adjacent page preloader acts as a multi-concern orchestrator that couples caching, network prefetch, and image preload lifecycle in one hook.",
+      "related_files": [
+        "src/features/gallery/hooks/useAdjacentPagePreloader.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryController.ts"
+      ],
+      "evidence": [
+        "`useAdjacentPagePreloader.ts` performs query key inspection/removal, query prefetch, preload queue management, and loaded-image cleanup in one module.",
+        "Its own file header documents consolidation of previously separate behaviors, indicating one growing architectural hotspot for gallery runtime behavior."
+      ],
+      "suggestion": "Split preloader responsibilities into composable services (query prefetch policy, image preload policy, cache-retention policy) and keep the hook as a thin coordinator over those explicit collaborators.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

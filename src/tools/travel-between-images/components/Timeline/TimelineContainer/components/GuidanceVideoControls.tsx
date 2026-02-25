@@ -1,14 +1,14 @@
 import React, { useRef } from 'react';
 import { Button } from '@/shared/components/ui/button';
-import { Label } from '@/shared/components/ui/label';
-import { supabase } from '@/integrations/supabase/client';
+import { Label } from '@/shared/components/ui/primitives/label';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { useCreateResource, StructureVideoMetadata } from '@/shared/hooks/useResources';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { calculateNewVideoPlacement } from '../../utils/timeline-utils';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 import { extractVideoMetadata, uploadVideoToStorage, type VideoMetadata } from '@/shared/lib/videoUploader';
-import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 interface GuidanceVideoControlsProps {
   shotId: string;
@@ -68,7 +68,7 @@ export const GuidanceVideoControls = React.memo<GuidanceVideoControlsProps>(func
       const videoUrl = await uploadVideoToStorage(file, projectId!, shotId);
 
       // Create resource for reuse
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase().auth.getUser();
       const now = new Date().toISOString();
       const resourceMetadata: StructureVideoMetadata = {
         name: `Guidance Video ${new Date().toLocaleString()}`,
@@ -112,7 +112,7 @@ export const GuidanceVideoControls = React.memo<GuidanceVideoControlsProps>(func
       }
       e.target.value = '';
     } catch (error) {
-      handleError(error, { context: 'GuidanceVideoControls.upload' });
+      normalizeAndPresentError(error, { context: 'GuidanceVideoControls.upload' });
       toast.error('Failed to upload guidance video');
     } finally {
       setIsUploadingStructureVideo(false);

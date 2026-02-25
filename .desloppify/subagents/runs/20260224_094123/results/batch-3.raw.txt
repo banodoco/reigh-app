@@ -1,0 +1,98 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "mid_level_elegance": 72.0
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "Two parallel operation-result contracts are maintained with near-identical fields but different constructor APIs (`operationFailure(error, options)` vs `edgeFailure(policy, errorCode, message, options)`), forcing boundary-specific adapters instead of one predictable seam.",
+        "Edge JSON parsing exposes overlapping APIs with different result shapes (`parseJsonBodyLoose` returns `{parseStatus, parseErrorCode}` while `parseJsonBody` returns `EdgeOperationResult`), so downstream handlers must branch by parser choice rather than one stable request contract.",
+        "`resolveGenerationProjectScope` ignores Supabase query errors and maps to `missing_generation`, while `getPrimaryTaskMappingsForGenerations` throws on query error; same repository layer propagates failures differently across sibling read paths.",
+        "`useGenerationInvalidation` dedupes scheduled work by `shot:${shotId}` only, so a later invalidation with different scope/options replaces earlier queued invalidation actions for the same shot.",
+        "Join-clips duration loading uses conflicting integration semantics: pending-clip ingestion degrades to `durationSeconds=0` on media read failure, while clip metadata loader emits/throws structured operation failures."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "dual_operation_result_contracts",
+      "summary": "Client and edge layers duplicate similar operation-result APIs with incompatible constructors",
+      "related_files": [
+        "src/shared/lib/operationResult.ts",
+        "supabase/functions/_shared/edgeOperation.ts",
+        "src/tools/join-clips/lib/clipManager/metadata.ts"
+      ],
+      "evidence": [
+        "`operationFailure` takes `(error, options)` and normalizes internally, while `edgeFailure` requires `(policy, errorCode, message, options)`.",
+        "Both contracts carry overlapping fields (`ok`, `policy`, `recoverable`, `errorCode`, `message`, `cause`) but are not interoperable types.",
+        "Feature code (`clipManager/metadata.ts`) must pick one contract by runtime location, not by domain behavior."
+      ],
+      "suggestion": "Define one shared result envelope contract and helper factory semantics (or a strict adapter layer) used by both app and edge code; keep only runtime-specific transport wrappers around that common shape.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "edge_json_parser_shape_drift",
+      "summary": "Edge request parsing exposes multiple incompatible handoff shapes for the same concern",
+      "related_files": [
+        "supabase/functions/_shared/edgeRequest.ts",
+        "supabase/functions/_shared/edgeOperation.ts",
+        "supabase/functions/_shared/rateLimit.ts"
+      ],
+      "evidence": [
+        "`parseJsonBodyLoose` returns `{ body, parseStatus, parseErrorCode }` and never returns `EdgeOperationResult`.",
+        "`parseJsonBody`/`parseJsonBodyStrict` return operation envelopes / response wrappers with error metadata suitable for unified error handling.",
+        "This creates parser-specific branching and uneven downstream contract handling at edge integration boundaries."
+      ],
+      "suggestion": "Collapse to one parser contract (prefer `EdgeOperationResult<Record<string, unknown>>` plus optional diagnostics fields) and implement strict/loose as mode flags on that single shape.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "generation_task_repo_error_policy_split",
+      "summary": "Sibling repository methods propagate data-source failures inconsistently",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/lib/generationTaskCache.ts"
+      ],
+      "evidence": [
+        "`resolveGenerationProjectScope` discards query error (`error: _error`) and maps missing data to `missing_generation`.",
+        "`getPrimaryTaskMappingsForGenerations` throws on query failure with `Failed to fetch task mappings`.",
+        "Callers integrating both methods cannot rely on one predictable error/lifecycle contract from the same repository seam."
+      ],
+      "suggestion": "Standardize repository failure behavior (all return structured failure status or all throw typed errors) and update cache preloading callers to handle one consistent pattern.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "shot_invalidation_dedupe_overwrites_scope",
+      "summary": "Scheduled invalidations for the same shot can overwrite each other across different scopes",
+      "related_files": [
+        "src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+        "src/features/gallery/lib/adjacentPagePreloadCoordinator.ts",
+        "src/shared/lib/timelineWriteQueue.ts"
+      ],
+      "evidence": [
+        "`buildShotInvalidationPlan` sets `dedupeKey` to only `shot:${shotId}` regardless of `scope`, `includeShots`, or `includeProjectUnified`.",
+        "`scheduleInvalidationPlan` clears existing timeout by dedupe key before scheduling next plan.",
+        "Close-together invalidation calls with different scopes/options for one shot can drop earlier actions, causing boundary refresh gaps."
+      ],
+      "suggestion": "Include scope/options in dedupe identity (or merge pending actions per shot) so rapid multi-source invalidations compose rather than replace each other.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

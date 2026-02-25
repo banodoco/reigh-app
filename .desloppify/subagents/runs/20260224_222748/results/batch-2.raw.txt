@@ -1,0 +1,116 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 87.5,
+    "mid_level_elegance": 89.0,
+    "low_level_elegance": 96.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "`useInlineEditState` still exports `toInlineEditCanvasState` and `toInlineEditSidebarState` as pure field-forwarding selectors with no translation/validation, preserving an extra adapter layer (`src/tools/edit-images/hooks/useInlineEditState.ts:537`, `src/tools/edit-images/hooks/useInlineEditState.ts:558`).",
+        "`InlineEditView` still satisfies shared button contracts with inert placeholder values (`handleAddToReferences={async () => {}}`, static false flags), which indicates the shared control interface remains broader than inline-edit needs (`src/tools/edit-images/components/InlineEditView.tsx:152`).",
+        "`ShotImageManagerContainer` fabricates and casts a synthetic media object to satisfy lightbox expectations (`as GenerationRow`), showing a seam mismatch between caller data and lightbox media contract (`src/shared/components/ShotImageManager/ShotImageManagerContainer.tsx:316`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Residual interface inflation remains in inline-edit/lightbox integration: adapters and no-op shims still exist where feature-specific contracts should be narrower.",
+      "sub_axes": {
+        "abstraction_leverage": 84.0,
+        "indirection_cost": 88.0,
+        "interface_honesty": 86.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Segment deletion flow still performs ad-hoc multi-source contract reads (`pair_shot_generation_id` from row, `individual_segment_params`, and top-level params) directly in the callback layer (`src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts:81`).",
+        "Task builders already introduced a canonical payload reader pattern (`createTravelPayloadReader`) for the same family, so UI seam logic is now split between canonical and manual fallback styles (`src/shared/lib/tasks/individualTravelSegment.ts:299`).",
+        "Lightbox handoff from shot manager mutates payload shape at call-site instead of passing explicit seam data, making boundary behavior less predictable (`src/shared/components/ShotImageManager/ShotImageManagerContainer.tsx:316`, `src/shared/components/MediaLightbox/VideoLightbox.tsx:90`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Boundary translation is still duplicated across UI and task layers, and some seams still rely on call-site adaptation instead of explicit contracts."
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "`ProductTour` callback logic is long and branch-heavy with repeated step-index conditionals and nested timer choreography, which increases local reasoning cost (`src/shared/components/ProductTour/index.tsx:245`).",
+        "`timelineFrameCalculators` remains clear overall but has several dense branch paths and non-null assertions in distribution logic (`src/shared/hooks/timeline/timelineFrameCalculators.ts:121`)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "A few local control-flow blocks are still denser than necessary, especially in tour step orchestration and frame distribution branches."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "inline_edit_pass_through_contracts",
+      "summary": "Inline-edit still carries low-leverage adapter/shim layers around shared controls",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx"
+      ],
+      "evidence": [
+        "`toInlineEditCanvasState` and `toInlineEditSidebarState` are straight pass-through mappers over `InlineEditStateResult` with no behavior change (`useInlineEditState.ts:537-575`).",
+        "`InlineEditView` passes no-op and static placeholder props (`handleAddToReferences`, `isAddingToReferences`, `addToReferencesSuccess`) solely to satisfy `BottomRightControls` shape (`InlineEditView.tsx:152-160`)."
+      ],
+      "suggestion": "Collapse inline-edit selectors into direct state usage at render sites, and split shared button props into variant-specific contracts so inline-edit can omit add-to-reference semantics instead of supplying no-op shims.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "ui_control_contract_inflation"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "segment_pair_id_read_path_fragmentation",
+      "summary": "Segment callback seam reintroduces manual fallback ladders instead of canonical readers",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts"
+      ],
+      "evidence": [
+        "Deletion logic manually probes `pair_shot_generation_id` in three different locations (`beforeData.pair_shot_generation_id`, `individual_segment_params`, top-level `params`) and repeats similar lookup for siblings (`useShotImagesEditorCallbacks.ts:83-115`).",
+        "Task-family code already centralized comparable fallback policy via `buildTaskPayloadSnapshot` + `createTravelPayloadReader` (`individualTravelSegment.ts:298-319`)."
+      ],
+      "suggestion": "Introduce a shared travel/segment payload accessor for UI callbacks (mirroring `createTravelPayloadReader` policy) and replace in-callback fallback ladders with one canonical read API.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "contract_reader_drift"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "lightbox_media_shape_fabrication",
+      "summary": "Shot manager still fabricates/casts lightbox media payloads at the boundary",
+      "related_files": [
+        "src/shared/components/ShotImageManager/ShotImageManagerContainer.tsx",
+        "src/shared/components/MediaLightbox/VideoLightbox.tsx"
+      ],
+      "evidence": [
+        "`SegmentVideoLightbox` creates a spread object with conditional `parent_generation_id` and force-casts it as `GenerationRow` before passing to `MediaLightbox` (`ShotImageManagerContainer.tsx:316-320`).",
+        "Video lightbox flow expects a concrete media contract in media mode (`VideoLightboxPropsWithMedia`), so caller-side casting is masking seam mismatch instead of expressing it in the interface (`VideoLightbox.tsx:90`)."
+      ],
+      "suggestion": "Move parent-generation override into an explicit lightbox prop (or a typed adapter at the lightbox boundary) and remove caller-side `GenerationRow` casts so data-shape translation is centralized and type-checked.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "ui_control_contract_inflation"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Shared UI contracts remain broader than individual feature needs, causing no-op prop shims and adapter forwarding.",
+      "Canonical payload-reader migration is incomplete at some UI seams, leaving duplicated fallback ladders."
+    ],
+    "likely_symptoms": [
+      "inline_edit_pass_through_contracts",
+      "segment_pair_id_read_path_fragmentation",
+      "lightbox_media_shape_fabrication"
+    ],
+    "possible_false_positives": []
+  }
+}

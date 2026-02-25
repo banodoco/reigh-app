@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { useMarkVariantViewed } from '@/shared/hooks/useMarkVariantViewed';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 
 // Type for variant from useVariants hook

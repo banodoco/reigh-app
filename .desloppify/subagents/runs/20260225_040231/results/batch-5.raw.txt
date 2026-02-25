@@ -1,0 +1,71 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 5,
+  "assessments": {
+    "cross_module_architecture": 84.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "README.md states deprecated aliases `reportRuntimeError` and `RuntimeErrorOptions` live in `src/shared/lib/errorHandling/handleError.ts` (README.md:42-45), but `handleError.ts` currently exports only `reportError`, `reportAndRethrow`, `handleError`, and `handleAndRethrow`.",
+        "Governance enforcement is implemented in `legacySupabaseFacade.ts` through `getDeprecationPolicy(...)` + `signalPastRemovalTargetUsage(...)` (lines 10-16, 31-33), but other high-import contract hubs in this batch (`generationAndShots.ts`, `cn.ts`, `button.tsx`) rely on comment-only markers like `@publicContract`/`@uiContract` without equivalent executable contract hooks."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "docs_runtime_contract_drift_handle_error_aliases",
+      "summary": "README governance contract references deprecated error aliases that are not present in the documented runtime module.",
+      "related_files": [
+        "README.md",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "README.md:42-45 says `reportRuntimeError` and `RuntimeErrorOptions` are deprecated aliases in `handleError.ts`.",
+        "`handleError.ts` (lines 1-50) does not export those aliases; only `reportError`, `reportAndRethrow`, `handleError`, and `handleAndRethrow` exist."
+      ],
+      "suggestion": "Align contract and implementation in one direction: either update README to the actual exported API, or intentionally reintroduce those aliases with explicit deprecation metadata and a removal target so migration tooling can enforce the contract consistently.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "contract_source_of_truth_fragmentation"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "inconsistent_contract_enforcement_across_hubs",
+      "summary": "Cross-module contract governance is uneven: one compatibility seam is executable while other canonical hubs are comment-only, increasing boundary drift risk.",
+      "related_files": [
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "src/types/generationAndShots.ts",
+        "src/shared/components/ui/cn.ts",
+        "src/shared/components/ui/button.tsx",
+        "README.md"
+      ],
+      "evidence": [
+        "`legacySupabaseFacade.ts` encodes governance behavior at runtime (`signalPastRemovalTargetUsage` with policy lookup).",
+        "`generationAndShots.ts`, `cn.ts`, and `button.tsx` define high-traffic contract surfaces via comments (`@publicContract`/`@uiContract`) but expose no local enforcement mechanism tied to deprecation/removal policy.",
+        "README.md asserts canonical import and compatibility-shim governance gates, but the enforcement model is not represented uniformly at the module boundaries in this batch."
+      ],
+      "suggestion": "Standardize boundary contracts through a shared contract descriptor/enforcement pattern (for example, declarative metadata consumed by one checker/runtime hook) so all major hub modules use the same governable mechanism, not a mix of executable policy and comment-only declarations.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "contract_source_of_truth_fragmentation"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Contract definitions are split across README prose, inline comments, and selective runtime enforcement.",
+      "No single uniform contract-enforcement pattern is applied to all high-import boundary modules."
+    ],
+    "likely_symptoms": [
+      "docs_runtime_contract_drift_handle_error_aliases",
+      "inconsistent_contract_enforcement_across_hubs"
+    ],
+    "possible_false_positives": []
+  }
+}

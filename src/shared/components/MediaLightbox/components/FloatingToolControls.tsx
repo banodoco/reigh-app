@@ -1,7 +1,7 @@
 import React from 'react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { Type, Paintbrush, Pencil, Move, Wand2 } from 'lucide-react';
-import { useIsMobile } from '@/shared/hooks/useMobile';
+import { useIsMobile } from '@/shared/hooks/mobile';
 import { useImageEditCanvasSafe } from '../contexts/ImageEditCanvasContext';
 import { BrushSizeSlider } from './controls/BrushSizeSlider';
 import { PaintEraseToggle } from './controls/PaintEraseToggle';

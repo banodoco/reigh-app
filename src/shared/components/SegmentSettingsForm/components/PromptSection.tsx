@@ -9,7 +9,7 @@
 
 import React from 'react';
 import { Textarea } from '@/shared/components/ui/textarea';
-import { Label } from '@/shared/components/ui/label';
+import { Label } from '@/shared/components/ui/primitives/label';
 import { Switch } from '@/shared/components/ui/switch';
 import { FieldDefaultControls } from './FieldDefaultControls';
 import { EnhancedPromptBadge } from './EnhancedPromptBadge';

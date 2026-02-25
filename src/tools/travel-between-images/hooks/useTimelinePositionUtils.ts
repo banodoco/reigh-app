@@ -17,8 +17,8 @@
 
 import { useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import { GenerationRow } from '@/types/shots';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { GenerationRow } from '@/domains/generation/types';
 import type { ShotGeneration, PositionMetadata } from '@/shared/hooks/useTimelineCore';
 import { isVideoGeneration } from '@/shared/lib/typeGuards';
 import { useInvalidateGenerations } from '@/shared/hooks/invalidation';
@@ -98,7 +98,7 @@ export function useTimelinePositionUtils({ shotId, generations, projectId }: Use
       const error = err instanceof Error ? err : new Error(String(err));
       setError(error);
       setIsLoading(false);
-      handleError(error, { context: 'useTimelinePositionUtils', showToast: false });
+      normalizeAndPresentError(error, { context: 'useTimelinePositionUtils', showToast: false });
     }
   }, [shotId, queryClient, invalidateGenerations, projectId]);
 

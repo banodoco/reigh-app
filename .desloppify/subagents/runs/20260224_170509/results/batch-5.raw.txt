@@ -1,0 +1,79 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 5,
+  "assessments": {
+    "high_level_elegance": 87.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "README.md defines explicit runtime and migration contracts (Supabase boot contract and strict shots-shim gate), but the listed runtime modules rely on comment-only deprecation metadata (`@removalTarget 2026-06-30`) without machine-checked enforcement in those modules.",
+        "`src/integrations/supabase/client.ts` documents `initializeSupabase()` as preferred bootstrap contract, yet `getSupabaseClient()` still performs silent lazy recovery and exposes a legacy proxy export, making ownership boundaries permissive instead of explicit.",
+        "`src/shared/lib/errorHandling/handleError.ts` and `src/integrations/supabase/client.ts` both carry compatibility aliases with separate deprecation tags, but there is no shared, centralized compatibility-governance mechanism visible in this scope."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Compatibility and deprecation policy is documented but not consistently enforced by code-level gates, leaving architecture contracts easy to bypass during ongoing migration."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "deprecation_contracts_not_enforced",
+      "summary": "Removal/deprecation contracts are comments only, not enforceable quality gates.",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "`README.md` lists an enforced gate for `@/types/shots` migration, but no equivalent enforcement is declared for Supabase or error-handling deprecations.",
+        "`src/integrations/supabase/client.ts` defines `LEGACY_SUPABASE_PROXY_REMOVE_BY` and `@removalTarget 2026-06-30` only as metadata/comments.",
+        "`src/shared/lib/errorHandling/handleError.ts` keeps deprecated aliases (`reportRuntimeError`, `RuntimeErrorOptions`) with removal tags but no runtime/build-time guard."
+      ],
+      "suggestion": "Add explicit CI checks (lint/script) for deprecated import/export usage tied to each removal target and fail builds when deadlines pass; keep one shared deprecation registry rather than per-file comments.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "bootstrap_boundary_is_soft",
+      "summary": "Supabase bootstrap contract is undermined by permissive fallback initialization.",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "`README.md` frames bootstrap as explicit (`initializeSupabase()` called once), indicating a clear architecture boundary.",
+        "`getSupabaseClient()` catches runtime-access failures and initializes lazily as fallback, allowing call sites to bypass bootstrap ordering without immediate failure.",
+        "Legacy `supabase` proxy remains exported, keeping pre-contract usage patterns alive while runtime still recovers automatically."
+      ],
+      "suggestion": "Make fallback behavior environment-gated (e.g., tests/dev only) and fail fast in production when bootstrap order is violated; phase out proxy usage behind a hard migration deadline with automated detection.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "compatibility_governance_fragmented",
+      "summary": "Compatibility policy is fragmented across modules instead of one coherent contract layer.",
+      "related_files": [
+        "README.md",
+        "src/types/generationAndShots.ts",
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "`README.md` declares `generationAndShots` as canonical and advertises strict migration governance for that path.",
+        "Other critical compatibility surfaces (`supabase` proxy and error alias exports) use local, module-specific deprecation annotations and owners, creating parallel governance styles.",
+        "No single compatibility entrypoint or policy module is referenced from these files, so contract discoverability depends on scanning individual files."
+      ],
+      "suggestion": "Create a centralized compatibility-policy module/doc that lists active shims, owners, deadlines, and enforcement command(s), and reference it from README plus each shim module.",
+      "confidence": "medium",
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

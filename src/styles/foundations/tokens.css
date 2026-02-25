@@ -1,0 +1,214 @@
+/* Reigh App Styles */
+  :root {
+    /* ========================================= */
+    /* DECORATIVE PALETTE                        */
+    /* Static colors for gradients, accents,     */
+    /* badges - DO NOT change with dark mode     */
+    /* ========================================= */
+    --wes-pink: 333 30% 93%;
+    --wes-pink-dark: 333 25% 82%;
+    --wes-yellow: 48 85% 88%;
+    --wes-yellow-dark: 48 65% 75%;
+    --wes-mint: 145 35% 85%;
+    --wes-mint-dark: 145 30% 70%;
+    --wes-lavender: 280 35% 88%;
+    --wes-lavender-dark: 280 25% 75%;
+    --wes-cream: 120 25% 92%;
+    --wes-salmon: 15 60% 85%;
+    --wes-sage: 120 20% 80%;
+    --wes-dusty-blue: 210 35% 82%;
+    --wes-burgundy: 25 70% 35%;
+    --wes-forest: 150 30% 25%;
+    --wes-coral: 10 70% 82%;
+    --wes-mustard: 45 80% 70%;
+    --wes-teal: 180 40% 75%;
+    --wes-vintage-gold: 40 60% 80%;
+    /* Aliases for clarity */
+    --wes-soft-pink: 333 30% 93%;
+    --wes-soft-pink-dark: 333 25% 82%;
+    --wes-pale-yellow: 48 85% 88%;
+    --wes-pale-yellow-dark: 48 65% 75%;
+    --wes-mint-green: 145 35% 85%;
+    --wes-mint-green-dark: 145 30% 70%;
+    --wes-dusty-lavender: 280 35% 88%;
+    --wes-dusty-lavender-dark: 280 25% 75%;
+    --wes-pastel-cream: 120 25% 92%;
+    --wes-coral-salmon: 15 60% 85%;
+    --wes-sage-green: 120 20% 80%;
+    --wes-dark-orange: 25 70% 35%;
+    --wes-forest-green: 150 30% 25%;
+    --wes-warm-coral: 10 70% 82%;
+    --wes-vintage-mustard: 45 80% 70%;
+    --wes-muted-teal: 180 40% 75%;
+
+    /* ========================================= */
+    /* TYPOGRAPHY                                */
+    /* ========================================= */
+    --theme-font-family: 'Crimson Text', serif;
+    --theme-heading-font: 'TTGertika', sans-serif;
+    --theme-heading-weight: 700;
+    --theme-body-weight: 600;
+    --theme-light-weight: 600;
+    --theme-medium-weight: 700;
+    --theme-bold-weight: 800;
+
+    /* ========================================= */
+    /* SEMANTIC COLORS - LIGHT MODE              */
+    /* These change with dark mode               */
+    /* ========================================= */
+    
+    /* Core backgrounds */
+    --background: 120 25% 92%;              /* Pastel Green */
+    --foreground: 25 70% 35%;               /* Dark Warm Orange */
+    
+    /* Cards & Popovers */
+    --card: 0 0% 100%;                      /* White */
+    --card-foreground: 150 30% 25%;         /* Forest */
+    --popover: 0 0% 100%;
+    --popover-foreground: 150 30% 25%;
+    
+    /* Primary action color */
+    --primary: 25 70% 35%;                  /* Dark Warm Orange */
+    --primary-foreground: 120 25% 92%;      /* Pastel Green */
+    
+    /* Secondary */
+    --secondary: 210 35% 82%;               /* Dusty Blue */
+    --secondary-foreground: 25 70% 35%;     /* Dark Warm Orange */
+    
+    /* Muted/subtle */
+    --muted: 120 20% 80%;                   /* Sage */
+    --muted-foreground: 150 30% 25%;        /* Forest */
+    
+    /* Accent */
+    --accent: 333 30% 93%;                  /* Soft Pink */
+    --accent-foreground: 25 70% 35%;        /* Dark Warm Orange */
+    
+    /* Destructive */
+    --destructive: 0 70% 60%;
+    --destructive-foreground: 0 0% 100%;
+    
+    /* Borders & Inputs */
+    --border: 120 20% 80%;                  /* Sage */
+    --input: 145 35% 85%;                   /* Mint */
+    --ring: 25 70% 35%;                     /* Dark Warm Orange */
+    
+    /* Sidebar */
+    --sidebar-background: 333 30% 93%;      /* Soft Pink */
+    --sidebar-foreground: 150 30% 25%;      /* Forest */
+    --sidebar-primary: 40 60% 80%;          /* Vintage Gold */
+    --sidebar-primary-foreground: 150 30% 25%;
+    --sidebar-accent: 40 60% 80%;
+    --sidebar-accent-foreground: 150 30% 25%;
+    --sidebar-border: 25 75% 25%;
+    --sidebar-ring: 40 60% 80%;
+    
+    /* Icon colors */
+    --icon-primary: 25 70% 35%;             /* Dark Warm Orange */
+    --icon-secondary: 40 60% 80%;           /* Vintage Gold */
+    --icon-muted: 210 35% 82%;              /* Dusty Blue */
+    --icon-interactive: 333 30% 93%;        /* Soft Pink */
+    --icon-success: 150 30% 25%;            /* Forest */
+    --icon-warning: 40 60% 80%;             /* Vintage Gold */
+    --icon-danger: 0 70% 60%;               /* Red */
+
+    /* Retro button palette */
+    --retro: 42 22% 88%;                    /* Warm cream bg #e8e4db */
+    --retro-hover: 42 14% 82%;             /* Darker cream hover #d8d4cb */
+    --retro-border: 180 13% 48%;           /* Teal border #6a8a8a */
+    --retro-foreground: 180 15% 42%;       /* Deeper teal text #5a7a7a */
+    --retro-shadow: 180 13% 48%;           /* Teal shadow (matches border in light) */
+
+    /* Retro offset-shadow palette (header + retro buttons) */
+    --shadow-retro: 180 13% 48%;            /* Teal #6a8a8a — light-mode retro */
+    --shadow-retro-deep: 180 20% 10%;       /* Near-black teal — dark-mode retro */
+    --shadow-header: 0 0% 0%;              /* Pure black — light-mode header icons */
+    --shadow-header-dark: 60 6% 33%;       /* Dark olive — dark-mode header icons */
+    --shadow-header-hover: 45 33% 55%;     /* Muted gold — dark-mode header hover */
+    --hero-retro-bg: 195 12% 26%;
+    --hero-retro-border: 180 10% 57%;
+    --hero-retro-text: 45 14% 82%;
+    --hero-retro-light: 45 22% 91%;
+
+    /* Visualization stripe colors (join-clips transition preview) */
+    --viz-yellow: 48 96% 47%;              /* Tailwind yellow-500 — generated frames */
+    --viz-blue: 217 91% 60%;              /* Tailwind blue-500 — clip A frames */
+    --viz-green: 142 71% 45%;             /* Tailwind green-500 — clip B frames */
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    /* ========================================= */
+    /* SEMANTIC COLORS - DARK MODE               */
+    /* ========================================= */
+    
+    /* Wes Anderson palette - darker/more saturated for dark mode */
+    --wes-vintage-gold: 40 65% 50%;         /* Richer gold */
+    --wes-coral: 10 70% 55%;                /* Warmer coral */
+    
+    /* Core backgrounds - subtle green tint, not overwhelming */
+    --background: 150 12% 10%;              /* Dark with subtle green */
+    --foreground: 45 20% 88%;               /* Warm cream white */
+    
+    /* Cards & Popovers - warmer, clear depth separation */
+    --card: 140 8% 14%;                     /* Elevated, hint of green - slightly darker for contrast */
+    --card-foreground: 45 20% 88%;
+    --popover: 130 6% 17%;                  /* Highest elevation */
+    --popover-foreground: 45 20% 88%;
+    
+    /* Primary - vintage gold */
+    --primary: 40 55% 58%;                  /* Warm gold */
+    --primary-foreground: 150 20% 10%;
+    
+    /* Secondary - dusty blue as cool counter-hue */
+    --secondary: 210 20% 28%;               /* Cool dusty blue */
+    --secondary-foreground: 210 25% 85%;
+    
+    /* Muted/subtle - cooler for contrast with green */
+    --muted: 200 10% 20%;                   /* Blue-gray muted - lighter for contrast */
+    --muted-foreground: 200 8% 58%;
+
+    --hero-retro-bg: 195 12% 26%;
+    --hero-retro-border: 180 10% 57%;
+    --hero-retro-text: 45 14% 82%;
+    --hero-retro-light: 45 22% 91%;
+
+    /* Retro button palette - dark mode overrides */
+    --retro: 180 12% 26%;                    /* Dark teal bg #3a4a4a */
+    --retro-hover: 180 24% 23%;             /* Darker teal hover #2d4a4a */
+    --retro-border: 180 7% 57%;             /* Lighter teal border #8a9a9a */
+    --retro-foreground: 42 14% 82%;         /* Warm cream text #d8d4cb */
+    --retro-shadow: 180 20% 10%;            /* Deep dark teal shadow #141e1e */
+
+    /* Accent - subtle forest highlight */
+    --accent: 150 15% 25%;                  /* Forest green hover */
+    --accent-foreground: 45 20% 88%;        /* Cream text for readability */
+    
+    /* Destructive */
+    --destructive: 0 60% 45%;
+    --destructive-foreground: 0 0% 100%;
+    
+    /* Borders & Inputs - more visible for panel separation */
+    --border: 150 10% 28%;                  /* Green-tinted border - more contrast */
+    --input: 140 8% 16%;
+    --ring: 40 55% 58%;
+    
+    /* Sidebar - signature forest green */
+    --sidebar-background: 150 25% 12%;      /* Forest green sidebar */
+    --sidebar-foreground: 45 20% 88%;
+    --sidebar-primary: 40 55% 58%;
+    --sidebar-primary-foreground: 150 25% 10%;
+    --sidebar-accent: 150 20% 22%;          /* Lighter forest for hover */
+    --sidebar-accent-foreground: 45 20% 90%;
+    --sidebar-border: 150 18% 18%;
+    --sidebar-ring: 40 55% 58%;
+    
+    /* Icon colors for dark mode */
+    --icon-primary: 40 55% 60%;             /* Warm gold */
+    --icon-secondary: 210 25% 65%;          /* Dusty blue (cool counter-hue) */
+    --icon-muted: 150 10% 45%;              /* Muted forest */
+    --icon-interactive: 40 50% 70%;
+    --icon-success: 150 30% 45%;            /* Forest green */
+    --icon-danger: 0 55% 50%;
+    --icon-warning: 45 70% 55%;             /* Mustard */
+  }

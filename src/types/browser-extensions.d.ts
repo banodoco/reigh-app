@@ -20,14 +20,10 @@ interface NavigatorWithDeviceInfo extends Navigator {
 declare global {
   interface Window {
     // ── Structural globals ──────────────────────────────────────────────
-    /** [structural] Supabase client singleton — survives HMR, used by edge-function helpers */
+    /** [debug] Supabase client reference for console inspection */
     __supabase_client__?: import('@supabase/supabase-js').SupabaseClient;
-    /** [structural] Shorthand alias for __supabase_client__ (console convenience) */
+    /** [debug] Shorthand alias for __supabase_client__ (console convenience) */
     supabase?: import('@supabase/supabase-js').SupabaseClient;
-    /** [structural] Centralized auth-state listener — all auth subscribers go through this */
-    __AUTH_MANAGER__?: import('../integrations/supabase/auth/AuthStateManager').AuthStateManager;
-    /** [structural] Project context snapshot — fallback for hooks that run before React context is available */
-    __PROJECT_CONTEXT__?: { selectedProjectId?: string; projects?: unknown[] };
     // ── Debug-only globals (gate behind import.meta.env.DEV) ────────────
     /** [debug] React Query client reference — diagnostics only */
     __REACT_QUERY_CLIENT__?: import('@tanstack/react-query').QueryClient;

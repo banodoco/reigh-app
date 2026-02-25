@@ -1,0 +1,106 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 71.0,
+    "high_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "src/shared/lib/errorHandling/handleError.ts uses module-level singleton state (`registeredNotifier`, `removeNotifierListener`) and a global `window` event channel (`reigh:error-notification`) to bridge core error handling and UI notification flow.",
+        "src/shared/hooks/useMobile.tsx and src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts both depend on `handleError`, which makes the global error event path a high-fan-in dependency surface.",
+        "src/domains/generation/types/index.ts is a broad barrel; consumers in src/shared/components/MediaGallery/hooks/useMediaGalleryController.ts and src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts import `Shot` from this hub rather than narrower type modules."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryController.ts mainly re-groups and forwards nested context bags into src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts and `useMobileInteractions`, adding orchestration indirection with limited domain behavior at the controller boundary.",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts and src/shared/components/MediaGalleryItem/components/ShotActions.tsx both maintain large argument/prop surface areas (multiple grouped state/action bundles), signaling ownership spread across adjacent layers.",
+        "UI composition patterns are inconsistent across neighboring files: raw `<button>` usage in src/pages/Home/components/InstallInstructionsModal.tsx and src/pages/Home/components/CreativePartnerPane.tsx alongside shared primitives in src/shared/components/ui/button.tsx and tooltip wrappers in src/shared/components/ui/tooltip.tsx."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "global_error_event_bus_coupling",
+      "summary": "Shared error handling relies on global browser event bus and singleton notifier state, creating hidden cross-layer coupling.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/hooks/useMobile.tsx",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts"
+      ],
+      "evidence": [
+        "handleError.ts lines 25-35 and 42-70 define and manage a global `window` event channel plus module-level mutable notifier state.",
+        "useMobile.tsx line 14 and useMediaGalleryHandlers.ts lines 74, 81-85, 91-95, 102, 118 call `handleError`, so many feature hooks transitively depend on this global dispatch path."
+      ],
+      "suggestion": "Extract a small error-reporting port interface and inject notifier wiring at app bootstrap, so shared hooks depend on a pure reporter API instead of implicit global event state.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "generation_types_barrel_hub",
+      "summary": "The generation types barrel acts as a cross-domain type hub, increasing coupling and broadening change blast radius.",
+      "related_files": [
+        "src/domains/generation/types/index.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryController.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts"
+      ],
+      "evidence": [
+        "domains/generation/types/index.ts re-exports many domain types from multiple files.",
+        "useMediaGalleryController.ts line 3 and useMediaGalleryHandlers.ts line 5 import `Shot` from the barrel rather than a narrower module path, reinforcing hub usage."
+      ],
+      "suggestion": "Prefer direct type imports from specific files (or a smaller scoped facade per subdomain) for internal feature code; reserve the broad barrel for explicit public API boundaries.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "media_gallery_orchestration_indirection",
+      "summary": "Media gallery behavior is split into pass-through controller and handler layers with large context bundles, weakening ownership clarity.",
+      "related_files": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryController.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx"
+      ],
+      "evidence": [
+        "useMediaGalleryController.ts lines 13-41 define a large nested args contract, then lines 48-78 mostly forward/repackage inputs into other hooks.",
+        "useMediaGalleryHandlers.ts lines 16-41 and 48-65 unpack grouped contexts before implementing actions.",
+        "ShotActions.tsx uses four grouped prop objects (`selector`, `status`, `quickCreate`, `actions`), indicating boundary complexity propagating into UI components."
+      ],
+      "suggestion": "Re-cut boundaries around feature capabilities (e.g., shot-navigation actions, task-details actions, mobile tap logic) with smaller hook APIs and colocated state ownership to reduce pass-through layers.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "design_system_boundary_drift",
+      "summary": "Shared UI primitives and raw element usage are mixed inconsistently across adjacent features, blurring the intended design-system boundary.",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/pages/Home/components/InstallInstructionsModal.tsx",
+        "src/pages/Home/components/CreativePartnerPane.tsx",
+        "src/shared/components/ui/tooltip.tsx"
+      ],
+      "evidence": [
+        "button.tsx defines a shared button primitive, but InstallInstructionsModal.tsx line 68 and CreativePartnerPane.tsx use raw `<button>` elements for interactive actions.",
+        "Tooltip behavior is partially centralized in ui/tooltip.tsx, while CreativePartnerPane.tsx implements additional local tooltip controller state, resulting in mixed ownership of interaction policy."
+      ],
+      "suggestion": "Document and enforce UI boundary rules (when to use shared primitives vs local raw elements) and extract repeated interaction policies into shared composable hooks/components where reuse is expected.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

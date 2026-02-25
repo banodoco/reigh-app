@@ -10,9 +10,9 @@
 
 import { useCallback, useRef, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { invalidateVariantChange } from '@/shared/hooks/invalidation/useGenerationInvalidation';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { GenerationVariant } from '@/shared/hooks/useVariants';
 import type { CurrentSegmentImagesData } from '@/shared/components/VariantSelector/variantSourceImages';
 
@@ -134,7 +134,7 @@ export function useLoadVariantImages({ currentSegmentImages }: UseLoadVariantIma
         if (signal.aborted) return;
       } catch (error) {
         if (signal.aborted) return;
-        handleError(error, { context: 'LoadVariantImages', showToast: false });
+        normalizeAndPresentError(error, { context: 'LoadVariantImages', showToast: false });
       }
     }
   }, [currentSegmentImages, queryClient]);
@@ -173,8 +173,7 @@ async function loadSingleImage(pos: {
 
   // Strategy 2: Find variant by URL match on the current generation
   if (pos.variantUrl) {
-    const { data: existingVariants } = await supabase
-      .from('generation_variants')
+    const { data: existingVariants } = await supabase().from('generation_variants')
       .select('id, location')
       .eq('generation_id', targetGenerationId);
 
@@ -187,8 +186,7 @@ async function loadSingleImage(pos: {
     }
 
     // Strategy 3: Create new variant with the source URL
-    const { error } = await supabase
-      .from('generation_variants')
+    const { error } = await supabase().from('generation_variants')
       .insert({
         generation_id: targetGenerationId,
         location: pos.variantUrl,
@@ -214,8 +212,7 @@ async function loadSingleImage(pos: {
  * Set a variant as primary by ID. DB trigger handles unsetting the old primary.
  */
 async function setPrimaryById(variantId: string) {
-  const { error } = await supabase
-    .from('generation_variants')
+  const { error } = await supabase().from('generation_variants')
     .update({ is_primary: true })
     .eq('id', variantId);
 

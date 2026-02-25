@@ -1,11 +1,11 @@
 import { useCallback, useRef, useMemo, useEffect } from 'react';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import { useAutoSaveSettings } from '@/shared/hooks/useAutoSaveSettings';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { useAutoSaveSettings } from '@/shared/hooks/settings/useAutoSaveSettings';
 import { VideoTravelSettings, DEFAULT_PHASE_CONFIG, videoTravelSettings } from '../settings';
 import { STORAGE_KEYS } from '@/shared/lib/storageKeys';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/shared/components/ui/sonner';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { DEFAULT_STEERABLE_MOTION_SETTINGS } from '../components/ShotEditor/state/types';
 
 export interface UseShotSettingsReturn {
@@ -82,7 +82,7 @@ export const useShotSettings = (
           },
         } as VideoTravelSettings;
       } catch (e) {
-        handleError(e, { context: 'useShotSettings', showToast: false });
+        normalizeAndPresentError(e, { context: 'useShotSettings', showToast: false });
         sessionStorage.removeItem(storageKey);
       }
     }
@@ -143,7 +143,7 @@ export const useShotSettings = (
         const globalSettings = { ...settings, pairConfigs: [] };
         localStorage.setItem(STORAGE_KEYS.GLOBAL_LAST_ACTIVE_SHOT_SETTINGS, JSON.stringify(globalSettings));
       } catch (e) {
-        handleError(e, { context: 'useShotSettings', showToast: false });
+        normalizeAndPresentError(e, { context: 'useShotSettings', showToast: false });
       }
     }
   }, [settings, shotId, projectId, status]);
@@ -194,8 +194,7 @@ export const useShotSettings = (
     }
 
     try {
-      const { data, error: fetchError } = await supabase
-        .from('shots')
+      const { data, error: fetchError } = await supabase().from('shots')
         .select('settings')
         .eq('id', sourceShotId)
         .single();
@@ -210,7 +209,7 @@ export const useShotSettings = (
         toast.error('Source shot has no settings');
       }
     } catch (err) {
-      handleError(err, { context: 'useShotSettings', toastTitle: 'Failed to apply settings' });
+      normalizeAndPresentError(err, { context: 'useShotSettings', toastTitle: 'Failed to apply settings' });
     }
   }, [autoSaveUpdateFields]);
 
@@ -222,8 +221,7 @@ export const useShotSettings = (
     }
 
     try {
-      const { data, error: fetchError } = await supabase
-        .from('projects')
+      const { data, error: fetchError } = await supabase().from('projects')
         .select('settings')
         .eq('id', projectIdRef.current)
         .single();
@@ -238,7 +236,7 @@ export const useShotSettings = (
         toast.error('Project has no default settings');
       }
     } catch (err) {
-      handleError(err, { context: 'useShotSettings', toastTitle: 'Failed to apply defaults' });
+      normalizeAndPresentError(err, { context: 'useShotSettings', toastTitle: 'Failed to apply defaults' });
     }
   }, [autoSaveUpdateFields]);
 

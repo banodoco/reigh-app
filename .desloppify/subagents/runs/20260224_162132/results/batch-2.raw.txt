@@ -1,0 +1,97 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 74.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "`useButtonGroupProps` rebuilds the same `topRight`/`bottomLeft`/`bottomRight` object shape field-by-field and tracks a long dependency list, adding a pass-through abstraction layer with no behavioral translation (`src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts`).",
+        "`useVideoLightboxRenderModel` composes multiple large param bags (`panel`, `shotWorkflow`, `actions`, `buttonGroupProps`) and forwards many fields unchanged into downstream layout/workflow plumbing, increasing indirection cost (`src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx`, `src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx`).",
+        "`useInlineEditState` and `useImageEditValue` rely on an oversized interface (`UseImageEditValueParams`) and repeated `Pick<...>`+mapping builders that mostly copy hook outputs into a new object graph, creating ceremony-heavy abstraction rather than reducing complexity (`src/tools/edit-images/hooks/useInlineEditState.ts`, `src/tools/edit-images/hooks/useImageEditValue.ts`).",
+        "`tooltip.tsx` re-exports `TouchableTooltip` while `touchableTooltip.tsx` imports from `tooltip.tsx`, creating a circular wrapper dependency for a convenience export (`src/shared/components/ui/tooltip.tsx`, `src/shared/components/ui/touchableTooltip.tsx`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 70.0,
+        "indirection_cost": 68.0,
+        "interface_honesty": 74.0
+      }
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "lightbox_button_props_passthrough",
+      "summary": "Button-group hook is a pure pass-through wrapper that adds dependency and maintenance overhead without adding behavior.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "`useButtonGroupProps` copies every input field directly into a returned object and uses a dependency array mirroring those same fields.",
+        "`LightboxLayout` consumes `props.buttonGroupProps.*` directly, so the intermediate wrapper does not validate, normalize, or reduce coupling."
+      ],
+      "suggestion": "Remove `useButtonGroupProps` and pass grouped props directly from the source model, or replace it with a small normalizer that performs actual translation/defaulting so the abstraction has clear leverage.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "video_lightbox_wide_bag_handoff",
+      "summary": "Video lightbox render-model builds and forwards broad option bags across layers, obscuring ownership and inflating interface surface.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/VideoLightbox.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "`useVideoLightboxRenderModel` takes five high-entropy inputs (`props`, `modeModel`, `env`, `sharedState`, `editModel`) and forwards many values unchanged into `useLightboxWorkflowProps` via nested `panel/shotWorkflow/actions/buttonGroupProps` objects.",
+        "The resulting `layoutProps` is then handed to layout rendering, creating a long wrapper chain (`VideoLightbox` -> render model -> layout props -> `LightboxLayout`) where much of the data remains structurally identical."
+      ],
+      "suggestion": "Split render-model construction into narrower contracts per concern (navigation, panel, workflow actions), and pass typed domain objects rather than full cross-cutting bags to reduce pass-through coupling.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "inline_edit_param_bag_ceremony",
+      "summary": "Inline edit state uses an oversized parameter interface and mapping builders that mostly restate existing hook outputs.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/hooks/useImageEditValue.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx"
+      ],
+      "evidence": [
+        "`UseImageEditValueParams` defines a very large all-in-one contract spanning mode state, canvas, transform, form values, and generation status.",
+        "`useInlineEditState` builds this through three `Pick<ImageEditValueParams, ...>` helper assemblers and then `useImageEditValue` reassembles it into `ImageEditState` via four more builder functions, with mostly field-for-field forwarding."
+      ],
+      "suggestion": "Replace the monolithic `UseImageEditValueParams` with composable sub-interfaces (e.g., mode/canvas/transform/generation slices) and allow downstream consumers to read slice objects directly instead of remapping every field.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "tooltip_reexport_cycle",
+      "summary": "UI tooltip convenience re-export creates a circular dependency between base tooltip and touchable wrapper modules.",
+      "related_files": [
+        "src/shared/components/ui/tooltip.tsx",
+        "src/shared/components/ui/touchableTooltip.tsx"
+      ],
+      "evidence": [
+        "`tooltip.tsx` exports `TouchableTooltip` from `touchableTooltip.tsx`.",
+        "`touchableTooltip.tsx` imports `Tooltip`, `TooltipContent`, `TooltipProvider`, and `TooltipTrigger` from `tooltip.tsx`, creating a cycle rooted in a re-export abstraction."
+      ],
+      "suggestion": "Break the cycle by moving shared tooltip primitives to a third module (or importing primitive package directly in `touchableTooltip.tsx`) and keep re-export barrels acyclic.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

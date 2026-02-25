@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
-import { useIsMobile } from '@/shared/hooks/useMobile';
-import { Shot } from '@/types/shots';
-import { TOOL_ROUTES, travelShotUrl } from '@/shared/lib/toolConstants';
+import { useIsMobile } from '@/shared/hooks/mobile';
+import { Shot } from '@/domains/generation/types';
+import { TOOL_ROUTES, travelShotUrl } from '@/shared/lib/toolRoutes';
 import { dispatchAppEvent } from '@/shared/lib/typedEvents';
 
 interface ShotNavigationOptions {

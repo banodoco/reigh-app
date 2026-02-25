@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { TrainingDataBatch, TrainingDataVideo, TrainingDataSegment } from './useTrainingData';
-import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { extractVideoSegment } from '../lib/extractVideoSegment';
 
 interface UseBatchDownloadParams {
@@ -87,7 +87,7 @@ File Size: ${segmentBlob.size} bytes`;
 
           processedSegments++;
         } catch (error) {
-          handleError(error, { context: 'BatchSelector', toastTitle: `Failed to process segment from ${video.originalFilename}` });
+          normalizeAndPresentError(error, { context: 'BatchSelector', toastTitle: `Failed to process segment from ${video.originalFilename}` });
         }
       }
 
@@ -112,7 +112,7 @@ File Size: ${segmentBlob.size} bytes`;
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
-      handleError(error, { context: 'BatchSelector', toastTitle: 'Failed to prepare download. Please try again.' });
+      normalizeAndPresentError(error, { context: 'BatchSelector', toastTitle: 'Failed to prepare download. Please try again.' });
     } finally {
       setIsDownloading(false);
     }

@@ -1,0 +1,95 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "low_level_elegance": 68.5
+  },
+  "dimension_notes": {
+    "low_level_elegance": {
+      "evidence": [
+        "`src/types/shots.ts` is a deprecated re-export shim with a sunset contract, but assigned files still import it directly (`src/shared/components/ShotImageManager/utils/image-utils.ts`, `src/shared/lib/mediaTypeHelpers.ts`).",
+        "`src/shared/components/ImageGenerationForm/types.ts` and `src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts` expose many deprecated fields in primary exported interfaces, keeping dual old/new payload shapes alive in normal typing surfaces.",
+        "Aspect-ratio logic is split across `src/shared/components/ShotImageManager/utils/image-utils.ts` and `src/shared/lib/imageAspectRatio.ts` with overlapping fallback behavior (`parseRatio` then `'1'`), creating copy-and-drift risk.",
+        "`src/shared/lib/taskConfig.ts` carries a large hardcoded fallback registry while `src/shared/components/ImageGenerationForm/types.ts` also hardcodes model/default registries, increasing low-level maintenance drift during migrations."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "deprecated-shim-still-in-live-imports",
+      "summary": "Deprecated `@/types/shots` compatibility shim is still part of active imports, extending migration debt into current utility code.",
+      "related_files": [
+        "src/types/shots.ts",
+        "src/shared/components/ShotImageManager/utils/image-utils.ts",
+        "src/shared/lib/mediaTypeHelpers.ts"
+      ],
+      "evidence": [
+        "`src/types/shots.ts` is explicitly marked deprecated with a removal gate and date (2026-05-31).",
+        "`src/shared/components/ShotImageManager/utils/image-utils.ts:1` imports `GenerationRow` from `@/types/shots`.",
+        "`src/shared/lib/mediaTypeHelpers.ts:5` imports `GenerationRow` from `@/types/shots`."
+      ],
+      "suggestion": "Migrate these imports to `@/types/generationAndShots` (or a non-deprecated shared alias), then block new `@/types/shots` imports with lint/no-restricted-imports until the shim is removed.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "legacy-fields-mixed-into-primary-types",
+      "summary": "Primary exported type contracts still embed many deprecated migration fields, causing persistent dual-shape handling pressure.",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/types.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts"
+      ],
+      "evidence": [
+        "`ProjectImageSettings` in `src/shared/components/ImageGenerationForm/types.ts` includes multiple `@deprecated` fields alongside current fields.",
+        "`src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts` defines broad deprecated task params and a compatibility shim with a sunset contract.",
+        "Both files keep legacy keys in first-class exported interfaces instead of isolating them to conversion boundaries."
+      ],
+      "suggestion": "Move deprecated fields into explicit legacy-only adapter types/functions and keep primary exported interfaces modern-only; perform read-time migration once and write only modern schema.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "aspect-ratio-helper-duplication",
+      "summary": "Aspect-ratio fallback logic is duplicated across utilities, increasing inconsistency risk during future migration edits.",
+      "related_files": [
+        "src/shared/components/ShotImageManager/utils/image-utils.ts",
+        "src/shared/lib/imageAspectRatio.ts"
+      ],
+      "evidence": [
+        "`getAspectRatioStyle` in `src/shared/components/ShotImageManager/utils/image-utils.ts` parses project ratio and falls back to `'1'`.",
+        "`getImageAspectRatioStyle` in `src/shared/lib/imageAspectRatio.ts` also parses project ratio and falls back to `'1'`, with extra metadata resolution handling.",
+        "Overlapping behavior is implemented separately rather than composed from shared primitives."
+      ],
+      "suggestion": "Extract a single shared aspect-ratio resolver (metadata/resolution/project fallback chain) and have both call sites delegate to it.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "scattered-hardcoded-registries",
+      "summary": "Multiple hardcoded registries/default maps across migration-sensitive areas increase drift risk and manual update burden.",
+      "related_files": [
+        "src/shared/lib/taskConfig.ts",
+        "src/shared/components/ImageGenerationForm/types.ts"
+      ],
+      "evidence": [
+        "`src/shared/lib/taskConfig.ts` contains a large `HARDCODED_TASK_TYPE_CONFIG` fallback map plus default behaviors for unknown types.",
+        "`src/shared/components/ImageGenerationForm/types.ts` defines `TEXT_TO_IMAGE_MODELS` and `MODEL_HIRES_FIX_DEFAULTS` as separate hardcoded registries.",
+        "Migration-sensitive defaults are spread across files with no single synchronization mechanism."
+      ],
+      "suggestion": "Introduce a central typed registry source (or generated config) for task/model metadata and derive UI/default maps from it to reduce drift during migrations.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

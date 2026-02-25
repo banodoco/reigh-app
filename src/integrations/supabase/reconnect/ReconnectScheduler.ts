@@ -1,6 +1,6 @@
 // Network status integration can be added later if needed
 
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { dispatchAppEvent } from '@/shared/lib/typedEvents';
 
 /**
@@ -108,7 +108,7 @@ export class ReconnectScheduler {
       });
       
     } catch (error) {
-      handleError(error, { context: 'ReconnectScheduler', showToast: false });
+      normalizeAndPresentError(error, { context: 'ReconnectScheduler', showToast: false });
     } finally {
       this.isProcessing = false;
     }

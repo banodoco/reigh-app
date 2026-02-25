@@ -1,10 +1,8 @@
 // deno-lint-ignore-file
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { authenticateRequest } from "../_shared/auth.ts";
-import { SystemLogger } from "../_shared/systemLogger.ts";
-
-declare const Deno: { env: { get: (key: string) => string | undefined } };
+import { withEdgeRequest } from "../_shared/edgeHandler.ts";
+import { jsonResponse } from "../_shared/http.ts";
+import { authorizeTaskActor } from "../_shared/taskActorPolicy.ts";
 
 /**
  * Edge function: get-task-output
@@ -27,118 +25,53 @@ declare const Deno: { env: { get: (key: string) => string | undefined } };
  * - 404 Not Found if task doesn't exist
  * - 500 Internal Server Error
  */
-serve(async (req) => {
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-
-  if (!serviceKey || !supabaseUrl) {
-    console.error("[GET-TASK-OUTPUT] Missing required environment variables");
-    return new Response("Server configuration error", { status: 500 });
-  }
-
-  // Create admin client for database operations
-  const supabaseAdmin = createClient(supabaseUrl, serviceKey);
-
-  // Create logger
-  const logger = new SystemLogger(supabaseAdmin, 'get-task-output');
-
-  // Only accept POST requests
-  if (req.method !== "POST") {
-    logger.warn("Method not allowed", { method: req.method });
-    await logger.flush();
-    return new Response("Method not allowed", { status: 405 });
-  }
-
-  // Parse request body
-  let requestBody: unknown = {};
-  try {
-    const bodyText = await req.text();
-    if (bodyText) {
-      requestBody = JSON.parse(bodyText);
-    }
-  } catch {
-    logger.error("Invalid JSON body");
-    await logger.flush();
-    return new Response("Invalid JSON body", { status: 400 });
-  }
-
-  const taskId = requestBody.task_id;
+serve((req) => withEdgeRequest(req, {
+  functionName: "get-task-output",
+  logPrefix: "[GET-TASK-OUTPUT]",
+  parseBody: "strict",
+}, async ({ supabaseAdmin, logger, body, auth }) => {
+  const taskId = typeof body.task_id === 'string' || typeof body.task_id === 'number'
+    ? String(body.task_id)
+    : '';
   if (!taskId) {
     logger.error("Missing task_id");
-    await logger.flush();
-    return new Response("task_id is required", { status: 400 });
+    return jsonResponse({ error: "task_id is required" }, 400);
   }
 
-  // Set task_id for all subsequent logs
   logger.setDefaultTaskId(taskId);
 
-  // Authenticate using shared auth module
-  const auth = await authenticateRequest(req, supabaseAdmin, "[GET-TASK-OUTPUT]");
-
-  if (!auth.success) {
-    logger.error("Authentication failed", { error: auth.error });
-    await logger.flush();
-    return new Response(auth.error || "Authentication failed", { status: auth.statusCode || 403 });
-  }
-
-  const isServiceRole = auth.isServiceRole;
-  const callerId = auth.userId;
-
-  try {
-    // Fetch the task with all needed fields
-    const { data: task, error: taskError } = await supabaseAdmin
-      .from("tasks")
-      .select("id, status, output_location, project_id, params, dependant_on")
-      .eq("id", taskId)
-      .single();
-
-    if (taskError || !task) {
-      logger.error("Task not found", { error: taskError?.message });
-      await logger.flush();
-      return new Response("Task not found", { status: 404 });
-    }
-
-    // If user token (not service role), verify ownership
-    if (!isServiceRole && callerId) {
-      // Check if user owns the project
-      const { data: project, error: projectError } = await supabaseAdmin
-        .from("projects")
-        .select("user_id")
-        .eq("id", task.project_id)
-        .single();
-
-      if (projectError || !project) {
-        logger.error("Project not found", { error: projectError?.message });
-        await logger.flush();
-        return new Response("Project not found", { status: 404 });
-      }
-
-      if (project.user_id !== callerId) {
-        logger.error("Access denied - user doesn't own project", {
-          user_id: callerId,
-          project_id: task.project_id
-        });
-        await logger.flush();
-        return new Response("Access denied - you don't own this task's project", { status: 403 });
-      }
-    }
-
-    // Return the task data
-    logger.info("Returning task output", { status: task.status, has_output: !!task.output_location });
-    await logger.flush();
-    return new Response(JSON.stringify({
-      status: task.status,
-      output_location: task.output_location,
-      params: task.params,
-      dependant_on: task.dependant_on
-    }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" }
+  const actor = await authorizeTaskActor({
+    supabaseAdmin,
+    taskId,
+    auth: auth!,
+    logPrefix: "[GET-TASK-OUTPUT]",
+  });
+  if (!actor.ok) {
+    logger.error("Task access denied", {
+      task_id: taskId,
+      error: actor.error,
+      status_code: actor.statusCode,
     });
-
-  } catch (error: unknown) {
-    logger.critical("Unexpected error", { error: error?.message });
-    await logger.flush();
-    return new Response(`Internal server error: ${error?.message}`, { status: 500 });
+    return jsonResponse({ error: actor.error }, actor.statusCode);
   }
-});
+
+  // Fetch the task with all needed fields
+  const { data: task, error: taskError } = await supabaseAdmin
+    .from("tasks")
+    .select("id, status, output_location, project_id, params, dependant_on")
+    .eq("id", taskId)
+    .single();
+
+  if (taskError || !task) {
+    logger.error("Task not found", { error: taskError?.message });
+    return jsonResponse({ error: "Task not found" }, 404);
+  }
+
+  logger.info("Returning task output", { status: task.status, has_output: !!task.output_location });
+  return jsonResponse({
+    status: task.status,
+    output_location: task.output_location,
+    params: task.params,
+    dependant_on: task.dependant_on,
+  }, 200);
+}));

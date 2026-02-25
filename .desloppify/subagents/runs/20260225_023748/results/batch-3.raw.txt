@@ -1,0 +1,71 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "api_surface_coherence": 83.0
+  },
+  "dimension_notes": {
+    "api_surface_coherence": {
+      "evidence": [
+        "Rate-limit helper documents fail-open behavior and computes a fallback allowed result, but error paths return `operationFailure(...)` (`ok:false`) instead of an allowed value (`supabase/functions/_shared/rateLimit.ts` lines 72-95, 141-159, 188-195).",
+        "Result contract (`supabase/functions/_shared/edgeOperation.ts`) treats `ok:false` as failure regardless of policy, so fail-open semantics are encoded in `policy` while the primary success/failure discriminator says failure.",
+        "Travel request building exports both legacy and V2 constructors plus test-only public exports, while widening `motionMode` to `string` despite canonical motion mode being a strict union in task types (`src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts` lines 396-449, 572-589; `src/shared/lib/tasks/travelBetweenImages/types.ts` lines 218-223)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "rate_limit_fail_open_contract_mismatch",
+      "summary": "Fail-open rate-limit paths still return `ok:false`, conflicting with allow-request semantics.",
+      "related_files": [
+        "supabase/functions/_shared/rateLimit.ts",
+        "supabase/functions/_shared/edgeOperation.ts",
+        "supabase/functions/_shared/edgeRequest.ts"
+      ],
+      "evidence": [
+        "`checkRateLimit` logs \"allowing request\" and computes `fallback = failOpenRateLimit(...)`, but returns `operationFailure(...)` for RPC/runtime/payload issues (`rateLimit.ts` lines 141-159, 188-195).",
+        "In the shared result model, `ok:false` is the canonical failure branch (`edgeOperation.ts` lines 4-24, 50-67), so callers that branch on `ok` will treat fail-open conditions as hard failures.",
+        "This creates two parallel meanings of failure (`ok:false` vs `policy:'fail_open'`), increasing caller inconsistency risk at API boundaries."
+      ],
+      "suggestion": "Make fail-open paths return `operationSuccess(fallback, { policy: 'fail_open' })` (or a dedicated degraded-success variant) and reserve `ok:false` for true deny/error paths; update shared helpers so callers can branch consistently on one discriminator.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "policy_vs_result_semantics"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "travel_request_surface_legacy_leak",
+      "summary": "Travel request builders expose overlapping legacy/V2 APIs and widen typed motion mode to `string`.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/shared/lib/tasks/travelBetweenImages/types.ts"
+      ],
+      "evidence": [
+        "`generateVideoService` defines both `TravelRequestBodyV2Params` and `TravelRequestBodyLegacyParams`, plus exports `_buildTravelRequestBody` and `_buildTravelRequestBodyV2` (lines 420-449, 572-589), creating multiple external construction surfaces for the same payload.",
+        "`MotionParams.motionMode` and legacy `motionMode` are typed as `string` (lines 396-399, 446), while canonical task API expects `motion_mode?: 'basic' | 'presets' | 'advanced'` (`types.ts` lines 141-146, 218-223).",
+        "The widened internal API permits invalid modes to flow into `buildMotionTaskFields(...)`, weakening contract predictability at the request boundary."
+      ],
+      "suggestion": "Collapse to one public request-construction path (V2), keep legacy adapter private/internal, and narrow `motionMode` types to `MotionConfig['motion_mode']` (or shared union alias) across builder params so invalid modes are rejected at compile time.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "legacy_compat_surface_leakage"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Policy metadata and success/failure discriminators are modeled separately, allowing contradictory states in public result contracts.",
+      "Compatibility layers are kept on exported surfaces too long, causing canonical and legacy API shapes to coexist in the same module."
+    ],
+    "likely_symptoms": [
+      "rate_limit_fail_open_contract_mismatch",
+      "travel_request_surface_legacy_leak"
+    ],
+    "possible_false_positives": []
+  }
+}

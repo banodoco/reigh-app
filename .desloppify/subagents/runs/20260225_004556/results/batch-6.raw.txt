@@ -1,0 +1,117 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "cross_module_architecture": 82.0,
+    "high_level_elegance": 84.0,
+    "package_organization": 80.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/integrations/supabase/legacy/legacySupabaseFacade.ts` dynamically probes both `getSupabaseClient` and legacy `supabase` exports, so deprecated and canonical runtime contracts stay coupled at runtime instead of being structurally isolated.",
+        "Coupling matrix shows `src/shared/hooks/ → src/integrations/supabase/legacy/ => 36`, indicating the legacy boundary is still a heavily used dependency path rather than a contained migration edge.",
+        "`src/shared/lib/errorHandling/handleError.ts` combines core runtime handler behavior with deprecation alias governance constants and alias exports, increasing boundary responsibility in a single high-fan-in module (holistic context marks it as a god module)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Governance metadata is duplicated across docs and runtime modules: README hard-codes removal targets and gate narratives, while `handleError.ts` and `legacySupabaseFacade.ts` each hard-code owner/date/budget policy constants.",
+        "Both runtime files mix two roles: operational behavior (`handleError`, `getLegacySupabaseClient`) and lifecycle policy governance (owner/removal date/import budgets), which blurs top-level ownership boundaries.",
+        "Compatibility policy appears per-shim rather than from a single contract source, raising drift risk between docs and runtime declarations."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "package_organization": {
+      "evidence": [
+        "`src/shared/components/ui/` has 58 files (>10 threshold) and mixed concerns (UI primitives alongside governance/runtime integration helpers like `registerToastErrorPresenter.ts` in the same folder profile), indicating flat directory overload.",
+        "`src/integrations/supabase/legacy/legacySupabaseFacade.ts` remains inside the primary integration tree while README declares it temporary compatibility; coupling matrix still shows high adoption (`src/shared/hooks/ → src/integrations/supabase/legacy/ => 36`), so temporary code is packaged like core runtime.",
+        "`src/types/generationAndShots.ts` is a canonical compatibility barrel but domain ownership is split across multiple type files, while governance around compatibility is documented in README instead of colocated package contracts."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "legacy_runtime_contract_coupling",
+      "summary": "Legacy Supabase facade keeps deprecated and canonical runtime contracts coupled.",
+      "related_files": [
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`getLegacySupabaseClient()` reflectively falls back to both `getSupabaseClient` and legacy `supabase`, so the old API remains a live runtime branch.",
+        "README states canonical runtime boot through `initializeSupabase()`/`getSupabaseClient()` with legacy path as compatibility-only, but facade logic preserves dual-path behavior indefinitely unless manually removed.",
+        "Coupling matrix reports strong dependency into legacy path (`src/shared/hooks/ → src/integrations/supabase/legacy/ => 36`)."
+      ],
+      "suggestion": "Replace reflective dual-access with a single delegated call to `getSupabaseClient()` and fail-fast when bootstrap was not initialized; keep migration pressure at compile/import level (budget checks) instead of runtime fallback behavior. Then remove exported legacy `supabase` fallback branch and validate with `npm run check:legacy-supabase-usage` and `npm run quality:check`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "governance_embedded_in_runtime_paths"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "policy_runtime_role_mixing",
+      "summary": "Runtime modules embed governance policy constants instead of consuming a single contract source.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "Both files define owner/removal/import-budget constants directly next to runtime behavior (`handleError`, `getLegacySupabaseClient`).",
+        "README independently repeats governance targets/gates, creating multiple truth sources for the same contract lifecycle data.",
+        "This structure forces policy edits to touch docs plus multiple runtime files, increasing drift and review surface."
+      ],
+      "suggestion": "Introduce a centralized contract manifest (for example `src/contracts/deprecations/*`) for owner/removal/budget metadata, import it from runtime shims, and generate/sync README contract snippets from that manifest. Keep runtime files focused on behavior and contract files focused on governance metadata.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "governance_embedded_in_runtime_paths"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "compat_and_ui_folder_overload",
+      "summary": "Temporary compatibility and mixed-concern UI utilities are organized as core stable packages.",
+      "related_files": [
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/ui/cn.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "Directory profile shows `src/shared/components/ui/` has 58 files and mixed roles, exceeding flat-folder cohesion thresholds.",
+        "Legacy Supabase shim lives under `src/integrations/supabase/` despite being explicitly temporary in README policy, and has high live usage via hooks coupling.",
+        "Canonical contracts for compatibility are documented in README but not reflected by dedicated package boundaries that distinguish stable runtime vs transitional compatibility."
+      ],
+      "suggestion": "Staged reorg plan: 1) Create `src/contracts/deprecations/` (contract metadata) and `src/compat/supabase/` (temporary adapters). 2) Move `legacySupabaseFacade.ts` into `src/compat/supabase/` and keep `src/integrations/supabase/` canonical-only. 3) Split `src/shared/components/ui/` into `ui/primitives/` (button, cn, Slot, controls) and `ui/runtime/` (presenter/registration wiring). 4) Update aliases/imports with `rg -n \"integrations/supabase/legacy|shared/components/ui/\" src README.md` and project-wide replace. 5) Validate with `npm run check:contracts`, `npm run check:legacy-supabase-usage`, `npm run check:error-runtime-alias-usage`, and `npm run quality:check`.",
+      "confidence": "medium",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "governance_embedded_in_runtime_paths"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Lifecycle governance is implemented inside runtime modules instead of isolated contract/compatibility layers.",
+      "Temporary migration surfaces are packaged and imported like stable APIs, reducing architectural pressure to retire them."
+    ],
+    "likely_symptoms": [
+      "legacy_runtime_contract_coupling",
+      "policy_runtime_role_mixing",
+      "compat_and_ui_folder_overload"
+    ],
+    "possible_false_positives": [
+      "Directory profile data does not include a standalone profile object for `src/integrations/supabase/legacy/`, so package-depth conclusions for that folder rely on coupling edges plus file inspection."
+    ]
+  }
+}

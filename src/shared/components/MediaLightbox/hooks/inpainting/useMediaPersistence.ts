@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 import type { BrushStroke, EditMode, AnnotationMode, MediaStateCache, StrokeCache } from './types';
 import { useEditModePersistence } from './useEditModePersistence';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';

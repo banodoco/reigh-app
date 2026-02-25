@@ -1,0 +1,138 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "mid_level_elegance": 89.4,
+    "low_level_elegance": 86.8
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "Travel task payloads are emitted in multiple overlapping shapes (`orchestrator_details`, top-level fields, `individual_segment_params`, family payload contracts), then consumers re-derive from many fallback sources instead of one boundary model (`src/shared/lib/tasks/individualTravelSegment.ts:539`, `src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts:235`, `src/shared/lib/taskParamsUtils.ts:36`, `src/shared/components/TaskDetails/VideoTravelDetails.tsx:143`).",
+        "Join Clips handoff uses large ad-hoc prop/config bags with many inline setter adapters at the page boundary instead of a stable seam contract (`src/tools/join-clips/pages/JoinClipsPage.tsx:394`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Boundary translation logic is spread across task builders and UI readers, so changes to task shape require synchronized edits in several modules and are easy to drift.",
+      "sub_axes": {
+        "abstraction_leverage": 87.9,
+        "indirection_cost": 88.3,
+        "interface_honesty": 92.0
+      }
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Inline edit state is repeatedly remapped through large pass-through objects (state model + view model), including duplicate edit-mode adapter functions (`setEditMode` wrappers) rather than direct narrow interfaces (`src/tools/edit-images/hooks/useInlineEditState.ts:240`, `src/tools/edit-images/hooks/useInlineEditState.ts:326`, `src/tools/edit-images/components/InlineEditView.tsx:67`).",
+        "`useSegmentSlotModeData` memoization depends on full `props` and a freshly-created `state` object, so the heavy model recomputes on nearly every render, undermining memo intent while increasing closure complexity (`src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts:287`, `src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts:420`, `src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts:472`).",
+        "Image lightbox render model assembles very large memoized object graphs with broad dependency lists and nested inline callbacks, making local edits high-risk for accidental stale deps or over-recompute (`src/shared/components/MediaLightbox/ImageLightbox.tsx:780`, `src/shared/components/MediaLightbox/ImageLightbox.tsx:828`)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Several hotspot modules rely on manual object reshaping and oversized memo/callback surfaces, increasing cognitive load and making internals harder to change safely.",
+      "sub_axes": {
+        "abstraction_leverage": 85.8,
+        "indirection_cost": 84.9,
+        "interface_honesty": 89.7
+      }
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "travel_task_contract_shape_drift",
+      "summary": "Travel task handoffs use overlapping payload contracts, forcing repeated fallback translation downstream",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/taskParamsUtils.ts",
+        "src/shared/components/TaskDetails/VideoTravelDetails.tsx"
+      ],
+      "evidence": [
+        "`buildTravelBetweenImagesPayload` emits many top-level fields plus orchestration metadata and conditional legacy-compatible fields (`src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts:235`).",
+        "`buildIndividualTravelSegmentParams` merges composed family payload with another large top-level object and also nests `individual_segment_params` (`src/shared/lib/tasks/individualTravelSegment.ts:756`).",
+        "Reader code must probe many locations (`orchestrator_details`, `full_orchestrator_payload`, segment payload, raw params) to reconstruct one semantic value (`src/shared/lib/taskParamsUtils.ts:45`, `src/shared/components/TaskDetails/VideoTravelDetails.tsx:148`)."
+      ],
+      "suggestion": "Define a single canonical read/write contract for travel tasks (versioned typed DTO), generate both builder and reader accessors from that contract, and keep legacy compatibility at one adapter boundary instead of spread across payload builder, segment builder, and UI readers.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "task_payload_contract_fragmentation"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "join_clips_prop_bag_adapter_churn",
+      "summary": "Join Clips page builds a large inline adapter bag that weakens boundary stability",
+      "related_files": [
+        "src/tools/join-clips/pages/JoinClipsPage.tsx",
+        "src/shared/components/JoinClipsSettingsForm/utils.ts",
+        "src/shared/lib/tasks/joinClips.ts"
+      ],
+      "evidence": [
+        "The page passes `clipSettings`/`motionConfig` with many inline lambdas translating field names to `joinSettings.updateField(...)`, creating a broad ad-hoc boundary contract (`src/tools/join-clips/pages/JoinClipsPage.tsx:394`).",
+        "Task creation for Join Clips uses a separate canonical snake_case contract and normalization path (`src/shared/lib/tasks/joinClips.ts:197`), so UI and task seams are maintained independently rather than through one shared typed boundary."
+      ],
+      "suggestion": "Introduce a shared `JoinClipsSettingsViewModel` factory/hook that returns stable handlers and typed grouped settings once, and consume that same normalized model in both page/form orchestration and task request assembly mapping.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "manual_boundary_adapters"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "inline_edit_state_mirror_overabstraction",
+      "summary": "Inline edit internals mirror large state surfaces through pass-through mapping layers",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx"
+      ],
+      "evidence": [
+        "`buildInlineEditStateModels` constructs very large mapped objects from hook outputs with many direct forwards (`src/tools/edit-images/hooks/useInlineEditState.ts:260`).",
+        "Equivalent edit-mode conversion wrappers appear in multiple places (`src/tools/edit-images/hooks/useInlineEditState.ts:240`, `src/tools/edit-images/hooks/useInlineEditState.ts:326`).",
+        "`InlineEditView` then remaps the already-mapped state again into canvas/sidebar models (`src/tools/edit-images/components/InlineEditView.tsx:67`, `src/tools/edit-images/components/InlineEditView.tsx:177`)."
+      ],
+      "suggestion": "Collapse these mirror layers into a smaller domain model with focused sub-hooks (`useInlineEditCanvasModel`, `useInlineEditSidebarModel`) that expose only directly consumed fields and shared adapter helpers (for edit-mode translation) in one place.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "manual_boundary_adapters"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "segment_slot_memo_invalidated_by_object_identity",
+      "summary": "Segment slot model memoization is defeated by unstable object dependencies",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx"
+      ],
+      "evidence": [
+        "`state` is recreated as a new object each render (`src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts:472`).",
+        "`useSegmentSlotModeData` memo depends on full `props` and `state`, so it invalidates each render despite heavy construction (`src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts:287`, `src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts:420`).",
+        "The returned model includes many inline callbacks and derived structures, amplifying recompute cost and closure complexity (`src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts:330`, `src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts:391`)."
+      ],
+      "suggestion": "Split `useSegmentSlotModeData` into smaller memoized selectors keyed by primitive dependencies, pass stable callback refs (`useEvent`/`useCallback`) instead of full object deps, and avoid passing umbrella `props`/`state` objects into model builders.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "oversized_render_models"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Task payload evolution preserved multiple compatibility shapes without a single canonical DTO boundary.",
+      "UI orchestration favors local prop-bag adapters and state mirroring over shared seam models.",
+      "Large render models are memoized at coarse granularity, causing high indirection cost."
+    ],
+    "likely_symptoms": [
+      "travel_task_contract_shape_drift",
+      "inline_edit_state_mirror_overabstraction",
+      "segment_slot_memo_invalidated_by_object_identity"
+    ],
+    "possible_false_positives": [
+      "Some compatibility shape overlap may be intentionally retained until migration deadlines, but current spread still imposes measurable seam complexity."
+    ]
+  }
+}

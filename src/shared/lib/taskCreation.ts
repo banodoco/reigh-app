@@ -48,3 +48,23 @@ export {
 export {
   processBatchResults,
 } from './taskCreation/batchResults';
+
+export {
+  generateSeed32Bit,
+  resolveSeed32Bit,
+  MAX_SEED_32_BIT,
+  validateLoraConfigs,
+  validateNonEmptyString,
+  validateNumericRange,
+  validateSeed32Bit,
+  validateUrlString,
+  mapPathLorasToStrengthRecord,
+} from './taskCreation/schemaUtils';
+
+export {
+  setPayloadField,
+  setPayloadFieldIf,
+  setPayloadFieldIfDefined,
+  setPayloadFieldIfTruthy,
+  setTaskLineageFields,
+} from './taskCreation/payloadFields';

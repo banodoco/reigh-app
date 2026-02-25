@@ -11,9 +11,9 @@ import { toast } from '@/shared/components/ui/toast';
 import { useShotNavigation } from "@/shared/hooks/useShotNavigation";
 import { useLastAffectedShot } from "@/shared/hooks/useLastAffectedShot";
 import { useQuickShotCreate } from "@/shared/hooks/useQuickShotCreate";
-import { cn } from "@/shared/lib/utils";
-import type { Shot } from "@/types/shots";
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { cn } from '@/shared/components/ui/contracts/cn';
+import type { Shot } from "@/domains/generation/types";
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 interface ShotSelectorWithAddProps {
   // Image data
@@ -138,7 +138,7 @@ export const ShotSelectorWithAdd: React.FC<ShotSelectorWithAddProps> = ({
         onOptimisticPositioned?.(imageId, selectedShotId);
       }
     } catch (error) {
-      handleError(error, { context: 'ShotSelectorWithAdd', toastTitle: 'Could not add image to shot' });
+      normalizeAndPresentError(error, { context: 'ShotSelectorWithAdd', toastTitle: 'Could not add image to shot' });
     }
   }, [showTick, isAlreadyPositionedInSelectedShot, selectedShotId, shots, navigateToShot, onAddToShot, imageId, imageUrl, thumbUrl, onShowTick, onOptimisticPositioned, toast, onClose]);
   

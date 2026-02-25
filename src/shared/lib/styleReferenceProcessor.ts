@@ -4,7 +4,7 @@
  * Images are scaled to 1.5x the project resolution for higher quality style reference.
  */
 
-import { parseRatio, ASPECT_RATIO_TO_RESOLUTION } from './aspectRatios';
+import { parseRatio, ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
 
 /**
  * Gets the scaled dimensions (1.5x) for a given aspect ratio string

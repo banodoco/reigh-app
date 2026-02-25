@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { nanoid } from 'nanoid';
-import { toast } from '@/shared/components/ui/sonner';
-import { GenerationRow } from '@/types/shots';
-import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { GenerationRow } from '@/domains/generation/types';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { dataURLtoFile } from '@/shared/lib/fileConversion';
 import { uploadImageToStorage } from '@/shared/lib/imageUploader';
-import { generateClientThumbnail } from '@/shared/lib/clientThumbnailGenerator';
+import { generateClientThumbnail } from '@/shared/media/clientThumbnailGenerator';
 import {
   generateThumbnailFilename,
   MEDIA_BUCKET,
@@ -16,6 +16,7 @@ import { processStyleReferenceForAspectRatioString } from '@/shared/lib/styleRef
 import { resolveProjectResolution } from '@/shared/lib/taskCreation';
 import { useCreateResource, type StyleReferenceMetadata } from '@/shared/hooks/useResources';
 import { useToolSettings } from '@/shared/hooks/useToolSettings';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 import type { ReferenceImage } from '@/shared/types/referenceImage';
 
 /** Settings shape for project-image-settings tool */
@@ -67,14 +68,14 @@ function blobToDataUrl(blob: Blob): Promise<string> {
 async function uploadThumbnail(originalFile: File, originalUploadedUrl: string): Promise<string> {
   try {
     const thumbnailResult = await generateClientThumbnail(originalFile, 300, 0.8);
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await supabase().auth.getSession();
     if (!session?.user?.id) {
       throw new Error('User not authenticated');
     }
 
     const thumbnailFilename = generateThumbnailFilename();
     const thumbnailPath = storagePaths.thumbnail(session.user.id, thumbnailFilename);
-    const { error: thumbnailUploadError } = await supabase.storage
+    const { error: thumbnailUploadError } = await supabase().storage
       .from(MEDIA_BUCKET)
       .upload(thumbnailPath, thumbnailResult.thumbnailBlob, {
         contentType: 'image/jpeg',
@@ -82,19 +83,19 @@ async function uploadThumbnail(originalFile: File, originalUploadedUrl: string):
       });
 
     if (thumbnailUploadError) {
-      handleError(thumbnailUploadError, {
+      normalizeAndPresentError(thumbnailUploadError, {
         context: 'useReferences.thumbnailUpload',
         showToast: false,
       });
       return originalUploadedUrl;
     }
 
-    const { data: thumbnailUrlData } = supabase.storage
+    const { data: thumbnailUrlData } = supabase().storage
       .from(MEDIA_BUCKET)
       .getPublicUrl(thumbnailPath);
     return thumbnailUrlData.publicUrl;
   } catch (thumbnailError) {
-    handleError(thumbnailError, { context: 'useReferences.thumbnailGeneration', showToast: false });
+    normalizeAndPresentError(thumbnailError, { context: 'useReferences.thumbnailGeneration', showToast: false });
     return originalUploadedUrl;
   }
 }
@@ -194,7 +195,7 @@ export const useReferences = ({
   const {
     settings: projectImageSettings,
     update: updateProjectImageSettings,
-  } = useToolSettings<ProjectImageSettingsForReferences>('project-image-settings', {
+  } = useToolSettings<ProjectImageSettingsForReferences>(SETTINGS_IDS.PROJECT_IMAGE_SETTINGS, {
     projectId: selectedProjectId ?? undefined,
     enabled: !!selectedProjectId,
   });
@@ -248,7 +249,7 @@ export const useReferences = ({
         setAddToReferencesSuccess(false);
       }, 2000);
     } catch (error) {
-      handleError(error, { context: 'useReferences', toastTitle: 'Failed to add to references' });
+      normalizeAndPresentError(error, { context: 'useReferences', toastTitle: 'Failed to add to references' });
     } finally {
       setIsAddingToReferences(false);
     }

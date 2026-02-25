@@ -14,7 +14,7 @@ vi.mock('@/shared/lib/timelinePositionCalculator', () => ({
 }));
 
 import { getFramePositionForIndex, getImageRange, getAspectRatioStyle } from '../image-utils';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 
 describe('getFramePositionForIndex', () => {
   it('returns a frame position for given index', () => {

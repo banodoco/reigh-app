@@ -4,8 +4,8 @@ import { AlertTriangle, ImageOff, Loader2, Play, Trash2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { VariantBadge } from '@/shared/components/VariantBadge';
 import { getDisplayUrl } from '@/shared/lib/mediaUrl';
-import { cn } from '@/shared/lib/utils';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { cn } from '@/shared/components/ui/contracts/cn';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { SegmentPreviewProps } from './types';
 
 const FRAMES_PER_SECOND = 16;
@@ -175,7 +175,7 @@ export const SegmentPreview: React.FC<SegmentPreviewProps> = ({
           try {
             onClick();
           } catch (err) {
-            handleError(err, { context: 'SegmentPreview.onClick' });
+            normalizeAndPresentError(err, { context: 'SegmentPreview.onClick' });
           }
         }}
         onMouseEnter={handleMouseEnter}

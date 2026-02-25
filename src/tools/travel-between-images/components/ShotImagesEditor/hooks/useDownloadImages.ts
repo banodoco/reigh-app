@@ -3,10 +3,10 @@
  */
 
 import { useCallback, useState } from 'react';
-import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { getDisplayUrl } from '@/shared/lib/mediaUrl';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 
 export interface UseDownloadImagesReturn {
   /** Whether a download is currently in progress */
@@ -85,7 +85,7 @@ export function useDownloadImages({
           // Add to zip
           zip.file(filename, blob);
         } catch (error) {
-          handleError(error, { context: 'ImageDownload', toastTitle: `Failed to process image ${i + 1}` });
+          normalizeAndPresentError(error, { context: 'ImageDownload', toastTitle: `Failed to process image ${i + 1}` });
           // Continue with other images, don't fail the entire operation
         }
       }
@@ -111,7 +111,7 @@ export function useDownloadImages({
       document.body.removeChild(a);
 
     } catch (error) {
-      handleError(error, { context: 'ImageDownload', toastTitle: 'Could not create zip file' });
+      normalizeAndPresentError(error, { context: 'ImageDownload', toastTitle: 'Could not create zip file' });
     } finally {
       setIsDownloadingImages(false);
     }

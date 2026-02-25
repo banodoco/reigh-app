@@ -1,0 +1,158 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 3,
+  "assessments": {
+    "abstraction_fitness": 68.0,
+    "mid_level_elegance": 71.0,
+    "low_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "Task parameter models are wide multi-era bags instead of explicit variants: `JoinClipsTaskParams` in `src/shared/lib/tasks/joinClips.ts` and `IndividualTravelSegmentParams` in `src/shared/lib/tasks/individualTravelSegment.ts` mix legacy/new/orchestrator fields in one interface.",
+        "Task-param interpretation is duplicated across layers: `src/shared/lib/taskParamsUtils.ts` (deriveInputImages/derivePrompt fallback chains) and `src/shared/components/TaskDetails/VideoTravelDetails.tsx` re-implement similar fallback traversal over `orchestrator_details`, `full_orchestrator_payload`, and `individual_segment_params`.",
+        "Multiple thin wrappers/adapters add indirection without much behavioral leverage, e.g. `handleAddToShotResult` + `handleAddToShotAdapter` patterns in `src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts`."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 65.0,
+        "indirection_cost": 63.0,
+        "interface_honesty": 69.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Generation/task data seams are split across separate helpers and hooks with overlapping responsibility (`src/shared/lib/generationTaskBridge.ts`, `src/shared/hooks/useTasks.ts`, `src/shared/hooks/useGenerationMutations.ts`) rather than one cohesive boundary.",
+        "Error/result contracts are inconsistent at module handoff points: `useShotImagesEditorCallbacks` returns rich `CallbackResult<T>` in some handlers but also exports boolean/empty-object adapters that erase error context.",
+        "Realtime recovery coordination crosses modules through global side effects (`console.warn` interception in `src/integrations/supabase/instrumentation/realtime/index.ts`) while polling/retry decisions live elsewhere (`src/shared/realtime/DataFreshnessManager.ts`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "UI behavior duplication exists for annotation controls in both `src/tools/edit-images/components/InlineEditView.tsx` and `src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx` with near-parallel button logic and diverging styling literals.",
+        "Some local control-flow paths mask failures with sentinel values (e.g. `handleCreateShotAdapter` returning `{ shotId: '', shotName: '' }` in `src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts`) instead of explicit error signaling.",
+        "Inline style/class complexity is high in lightbox/layout orchestration (`src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx`), with many branch-specific UI states and hardcoded style choices."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "task_param_union_missing",
+      "summary": "Task APIs use oversized optional param bags instead of explicit mode variants",
+      "related_files": [
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts"
+      ],
+      "evidence": [
+        "`JoinClipsTaskParams` combines multi-clip, legacy start/end/intermediate, loop/edit/audio, and orchestration metadata in one interface with many optional fields.",
+        "`IndividualTravelSegmentParams` similarly merges current and legacy fields plus `originalParams` fallback behavior, then branch-heavy builders reconstruct payloads.",
+        "Builder logic repeatedly conditionally spreads fields to assemble payloads, indicating missing discriminated task-mode contracts."
+      ],
+      "suggestion": "Split each task API into discriminated unions by mode (e.g., legacy_join | multi_clip_join | video_edit_join; segment_regen_from_pair | segment_regen_from_order) and move conversion from legacy input to canonical shape into a single adapter per task type.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "task_param_fallback_duplication",
+      "summary": "Task param interpretation is duplicated across utility and UI layers",
+      "related_files": [
+        "src/shared/lib/taskParamsUtils.ts",
+        "src/shared/components/TaskDetails/VideoTravelDetails.tsx",
+        "src/shared/components/ImageGenerationDetails.tsx"
+      ],
+      "evidence": [
+        "`taskParamsUtils` already defines multi-source fallback logic for prompt/images/loras.",
+        "`VideoTravelDetails` re-traverses the same nested parameter sources with local `asRecordOrUndefined`/`pickString` and separate precedence rules.",
+        "`ImageGenerationDetails` also performs independent nested metadata fallback chains for prompt/model/resolution/loras."
+      ],
+      "suggestion": "Introduce a canonical `TaskParamsViewModel` mapper in one module and make details components consume that typed view model, removing per-component fallback trees.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "generation_task_seam_fragmentation",
+      "summary": "Generation-task integration seam is split across overlapping modules",
+      "related_files": [
+        "src/shared/lib/generationTaskBridge.ts",
+        "src/shared/hooks/useTasks.ts",
+        "src/shared/hooks/useGenerationMutations.ts"
+      ],
+      "evidence": [
+        "`generationTaskBridge` handles mapping/preload/cache enrichment of task associations.",
+        "`useTasks` separately owns task querying/polling/filtering mechanics and freshness signaling.",
+        "`useGenerationMutations` contains its own generation scoping and cache mutation patterns, creating multiple places to reason about generation↔task consistency."
+      ],
+      "suggestion": "Create a single generation-task repository layer (query + mutation + cache policy) and have hooks delegate to it, so project scoping, mapping, and invalidation contracts are centralized.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "callback_contract_erosion",
+      "summary": "Callback APIs mix rich results and lossy adapters, obscuring failure semantics",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "`useShotImagesEditorCallbacks` defines `CallbackResult<T>` and detailed result handlers, then wraps them with boolean/object adapters (`handleAddToShotAdapter`, `handleCreateShotAdapter`).",
+        "`handleCreateShotAdapter` returns empty identifiers on failure, collapsing actionable error state.",
+        "Downstream UI wiring expects simple callback shapes, so errors become hidden at boundary seams."
+      ],
+      "suggestion": "Standardize boundary callbacks on one result contract (prefer `Result` shape) and let UI callsites map errors to UX explicitly rather than returning sentinel values.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "annotation_controls_duplicated",
+      "summary": "Annotation button behavior is duplicated with diverging implementations",
+      "related_files": [
+        "src/tools/edit-images/components/InlineEditView.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "Both files implement shape-mode toggle + delete overlays with parallel selection-position logic and near-identical control sets.",
+        "The duplicated implementations already diverge in styling/token usage (theme classes vs hardcoded color classes), increasing drift risk."
+      ],
+      "suggestion": "Extract one shared `AnnotationActionOverlay` component with styling variants and reuse it in inline edit and lightbox layouts.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "global_console_patch_side_effect",
+      "summary": "Realtime instrumentation monkey-patches global console.warn at runtime",
+      "related_files": [
+        "src/integrations/supabase/instrumentation/realtime/index.ts",
+        "src/shared/realtime/DataFreshnessManager.ts"
+      ],
+      "evidence": [
+        "`installRealtimeInstrumentationImpl` replaces `console.warn` and inspects message strings to trigger reconnect behavior.",
+        "This creates hidden global side effects and string-coupled control flow unrelated to callsite intent.",
+        "Retry/polling policy already exists in `DataFreshnessManager`, so recovery logic is split between explicit state handlers and implicit console interception."
+      ],
+      "suggestion": "Replace console interception with explicit realtime status/event hooks that publish typed signals to reconnect/polling coordinators.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

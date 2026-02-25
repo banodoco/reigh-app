@@ -1,0 +1,263 @@
+  .sparkle-underline {
+    position: relative;
+    padding-bottom: 5px; /* Keeps text from getting too close to line */
+  }
+
+  /* Shared container for both underlines */
+  .sparkle-underline::before,
+  .sparkle-underline::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 2px;
+    width: 100%;
+    height: 2px;
+    pointer-events: none;
+    transition: opacity 0.4s ease-in-out;
+  }
+
+  /* Static, default underline */
+  .sparkle-underline::after {
+    background-image: repeating-linear-gradient(
+      to right,
+      hsl(var(--muted-foreground) / 0.5) 0 2px,
+      transparent 2px 4px
+    );
+    background-size: 4px 1px;
+    background-repeat: repeat-x;
+    opacity: 1; /* Visible by default */
+  }
+
+  .sparkle-underline:hover::after {
+    opacity: 0; /* Fade out on hover */
+  }
+
+  /* Animated, colorful underline */
+  .sparkle-underline::before {
+    background-image: linear-gradient(
+      90deg,
+      hsl(var(--wes-pink)),
+      hsl(var(--wes-vintage-gold)),
+      hsl(var(--wes-coral)),
+      hsl(var(--wes-pink)) /* Loop back */
+    );
+    background-size: 200% 100%;
+    opacity: 0; /* Hidden by default */
+    animation: sparkleColorWave 3s linear infinite;
+  }
+
+  /* Dark mode: match gold-first palette */
+  .dark .sparkle-underline::after {
+    background-image: repeating-linear-gradient(
+      to right,
+      hsl(var(--wes-vintage-gold) / 0.45) 0 2px,
+      transparent 2px 4px
+    );
+  }
+
+  .dark .sparkle-underline::before {
+    background-image: linear-gradient(
+      90deg,
+      hsl(var(--wes-vintage-gold) / 0.8),
+      hsl(var(--wes-vintage-gold)),
+      hsl(var(--wes-vintage-gold) / 0.9),
+      hsl(var(--wes-vintage-gold) / 0.8) /* Loop back */
+    );
+  }
+
+  .sparkle-underline:hover::before {
+    opacity: 1; /* Fade in on hover */
+  }
+
+  /* Enhance persistence for sparkle-underline when tooltip open */
+  .sparkle-underline[data-state="open"]::before {
+    opacity: 1;
+    animation: sparkleColorWave 3s linear infinite;
+  }
+  .sparkle-underline[data-state="open"]::after {
+    opacity: 0;
+  }
+
+  /* Keep colorful underline when tooltip is open (React state-based) */
+  .sparkle-underline.tooltip-open::before {
+    opacity: 1;
+    animation: sparkleColorWave 3s linear infinite;
+  }
+  
+  .sparkle-underline.tooltip-open::after {
+    opacity: 0;
+  }
+
+  /* Additional fallback for tooltip hover states */
+  .sparkle-underline:has(+ [data-state="open"])::before,
+  .sparkle-underline[data-state="open"]:hover::before {
+    opacity: 1;
+    animation: sparkleColorWave 3s linear infinite;
+  }
+  
+  .sparkle-underline:has(+ [data-state="open"])::after,
+  .sparkle-underline[data-state="open"]:hover::after {
+    opacity: 0;
+  }
+   
+  /* Wave animation for underlines on page load */
+  @keyframes underlineWaveIn {
+    0% {
+      opacity: 0;
+    }
+    50% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes underlineWaveOut {
+    0% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  .underline-wave-first::before {
+    animation: sparkleColorWave 3s linear infinite, underlineWaveIn 2.4s ease-in-out 1;
+  }
+
+  .underline-wave-first::after {
+    animation: underlineWaveOut 2.4s ease-in-out 1;
+  }
+
+  .underline-wave-second::before {
+    animation: sparkleColorWave 3s linear infinite, underlineWaveIn 2.7s ease-in-out 0.15s 1;
+  }
+
+  .underline-wave-second::after {
+    animation: underlineWaveOut 2.7s ease-in-out 0.15s 1;
+  }
+
+  /* Subtitle wrap-arrow + underline (inline SVG tails) */
+  .subtitle-container {
+    position: relative;
+  }
+
+  .subtitle-link-left,
+  .subtitle-link-right {
+    position: relative;
+    padding-bottom: 2px;
+    transition: color 0.2s ease;
+  }
+  
+  .subtitle-link-text {
+    transition: color 0.2s ease;
+  }
+  
+  .subtitle-link-left:hover .subtitle-link-text,
+  .subtitle-link-right:hover .subtitle-link-text {
+    color: hsl(var(--wes-vintage-gold));
+  }
+
+  /* Underline sits just under the baseline - dotted */
+  .subtitle-link-left::after,
+  .subtitle-link-right::after {
+    content: '';
+    position: absolute;
+    bottom: 1px;
+    height: 1.5px;
+    background-image: repeating-linear-gradient(
+      to right,
+      rgba(236, 237, 227, 0.5) 0px,
+      rgba(236, 237, 227, 0.5) 3px,
+      transparent 3px,
+      transparent 6px
+    );
+    transition: background-image 0.2s ease;
+  }
+  
+  /* Left underline: starts at beginning, ends a bit early */
+  .subtitle-link-left::after {
+    left: 0;
+    right: 0.75em;
+    transition: background-image 0.2s ease, background-color 0.2s ease, right 0.2s ease;
+  }
+  
+  /* Right underline: starts a bit late, extends to end */
+  .subtitle-link-right::after {
+    left: 0.75em;
+    right: 0;
+    transition: background-image 0.2s ease, background-color 0.2s ease, left 0.2s ease;
+  }
+  
+  /* Hover: left shrinks to just "an open source tool" */
+  .subtitle-link-left:hover::after {
+    right: 1.6em;
+  }
+  
+  /* Hover: right expands to cover full text */
+  .subtitle-link-right:hover::after {
+    left: 0;
+  }
+
+  /* Hover: brighten underline + SVG group together */
+  .arrow-group-left,
+  .arrow-group-right {
+    transition: opacity 0.2s ease;
+  }
+  
+  .arrow-group-left path,
+  .arrow-group-right path {
+    transition: stroke 0.2s ease, stroke-dasharray 0.2s ease;
+  }
+  
+  .subtitle-link-left:hover .arrow-group-left path,
+  .subtitle-link-right:hover .arrow-group-right path {
+    stroke-dasharray: none;
+  }
+
+  .subtitle-link-left:hover::after,
+  .subtitle-link-right:hover::after {
+    background-image: none;
+    background-color: hsl(var(--wes-vintage-gold));
+  }
+
+  .subtitle-link-left:hover .arrow-group-left,
+  .subtitle-link-right:hover .arrow-group-right {
+    opacity: 1;
+  }
+  
+  .subtitle-link-left:hover .arrow-group-left path,
+  .subtitle-link-right:hover .arrow-group-right path {
+    stroke: hsl(var(--wes-vintage-gold));
+  }
+  
+  /* Hero CTA button hover state */
+  .hero-cta {
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  
+  .hero-cta:hover {
+    background-color: #5a6a6a;
+    border-color: hsl(var(--wes-vintage-gold));
+    color: hsl(var(--wes-vintage-gold));
+  }
+  
+  /* Arrow sway animation on hover */
+  .subtitle-link-left:hover .arrow-wrap-left {
+    animation: arrowSwayLeft 1s ease-in-out infinite;
+  }
+  
+  .subtitle-link-right:hover .arrow-wrap-right {
+    animation: arrowSwayRight 1s ease-in-out infinite;
+  }
+   
+  /* Multicolour border for tooltips on hover */
+  .tooltip-content:hover {
+    border-image: linear-gradient(to right, hsl(var(--wes-pink)), hsl(var(--wes-vintage-gold)), hsl(var(--wes-coral))) 1;
+    border-image-slice: 1;
+    border-width: 2px;
+  }

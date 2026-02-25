@@ -1,0 +1,660 @@
+{
+  "assessments": {
+    "abstraction_fitness": {
+      "score": 55.6,
+      "components": [
+        "Abstraction Leverage",
+        "Indirection Cost",
+        "Interface Honesty"
+      ],
+      "component_scores": {
+        "Abstraction Leverage": 62.0,
+        "Indirection Cost": 66.0,
+        "Interface Honesty": 61.0
+      }
+    },
+    "ai_generated_debt": 50.2,
+    "high_level_elegance": 50.6,
+    "logic_clarity": 71.2,
+    "low_level_elegance": 60.1,
+    "mid_level_elegance": 43.6
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/hooks/useCredits.ts` mixes domain billing flows (ledger queries, Stripe checkout, admin grant-credits mutation) with UI concerns (`toast`, `window.location.assign`) inside a generic `shared/hooks` location.",
+        "`src/shared/hooks/__tests__/useCredits.test.ts` mocks legacy/different module boundaries (`@/shared/lib/errorHandler`, `@/shared/lib/queryKeys`) while production code uses `@/shared/lib/errorHandling/handleError` and `@/shared/lib/queryKeys/credits`, signaling unstable package contracts.",
+        "`src/shared/lib/autoplayMonitor.ts` performs import-time dev behavior (auto-start `setTimeout` + `setInterval`) from `shared/lib`, blurring pure utility vs runtime bootstrap responsibilities.",
+        "`src/shared/lib/aspectRatios.ts` combines canonical ratio constants with UI preview/render helpers and retains an intentionally-unused internal function (`void getDisplayDimensions`), indicating boundary mixing within a foundational shared module."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "abstraction_fitness": {
+      "evidence": [
+        "Three near-pass-through hooks (`useCompletedTimestamp`, `useProcessingTimestamp`, `useUpdatingTimestamp`) mostly remap option names into `useRelativeTimestamp` with minimal behavior added.",
+        "Task-creation modules carry very large parameter interfaces and reconstruction layers (`JoinClipsTaskParams`, `IndividualTravelSegmentParams`, `TravelBetweenImagesTaskParamsInput` payload assembly) with substantial field forwarding and defaulting rather than domain-narrow abstractions.",
+        "Orchestration identifiers are duplicated across surfaces (`orchestration_contract`, nested `orchestrator_details`, top-level `run_id`/`orchestrator_task_id` variants), indicating abstraction leakage instead of one authoritative contract shape."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "unreported_risk": "",
+      "sub_axes": {
+        "abstraction_leverage": 62.0,
+        "indirection_cost": 66.0,
+        "interface_honesty": 61.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Orchestrator-subtask JSON path contract is duplicated across modules: `applyParentTaskFilter` hardcodes five null checks in `src/shared/lib/generationTaskRepository.ts` lines 45-49, while `buildSubTaskFilter`/`extractOrchestratorRef` hardcode the same path family in `supabase/functions/_shared/billing.ts` lines 45-50 and 87-94.",
+        "Scheduled invalidation lifecycle applies delay twice: `scheduleDedupedInvalidation` waits `delayMs` before calling `runInvalidationLifecycle` (`src/shared/hooks/invalidation/useGenerationInvalidation.ts` lines 86-89), and `runInvalidationLifecycle` waits `delayMs` again (lines 143-146).",
+        "`preloadGenerationTaskMappings` advertises optional full task preloading but does not await `queryClient.prefetchQuery` calls (`src/shared/lib/generationTaskCache.ts` lines 49-63), so downstream consumers can observe partially preloaded state from the same API call.",
+        "Edge helper response contracts are inconsistent: `parseJsonBodyStrict` emits plain-text responses via `toErrorResponse` (`supabase/functions/_shared/edgeRequest.ts` lines 73-75, 161-163) while `rateLimitResponse` emits JSON + CORS headers (`supabase/functions/_shared/rateLimit.ts` lines 216-230), creating non-uniform boundary behavior for sibling edge endpoints."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelinePositions.ts has high-comment-density defensive orchestration around refs/locks/timers (e.g., lines 157-213, 260-267, 394-397, 514-531), signaling brittle local control flow.",
+        "supabase/functions/update-task-status/request.ts repeatedly flushes and returns near-identical validation error branches (lines 40-109), creating verbose branch duplication.",
+        "supabase/functions/ai-prompt/index.ts uses long inline string assembly and multi-branch task handling in one file (lines 59-292), reducing local readability and increasing mutation risk.",
+        "supabase/functions/_shared/billing.ts uses broad unchecked casts from unknown object fields (lines 46-50), reducing interface honesty and pushing validation burden to downstream branches."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "unreported_risk": ""
+    },
+    "ai_generated_debt": {
+      "evidence": [
+        "supabase/functions/_shared/storagePaths.ts declares it is a direct copy of another runtime file and requires manual sync (lines 4-5), creating migration residue by design.",
+        "src/shared/lib/generationTaskBridge.ts is explicitly a legacy compatibility re-export shim (lines 2-6) instead of a removed migration layer.",
+        "supabase/functions/ai-prompt/index.ts contains very large repetitive instruction blocks with repeated 'CRITICAL' framing across tasks (lines 67-111, 205-251), consistent with LLM-style prompt bloat in production logic.",
+        "supabase/functions/_shared/systemLogger.ts and supabase/functions/ai-prompt/index.ts both use file-wide deno lint suppression (line 1 in each), which masks cleanup pressure on generated/boilerplate patterns."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "logic_clarity": {
+      "evidence": [
+        "Delayed generation invalidation applies `delayMs` in `setTimeout(...)` and then again in `runInvalidationLifecycle(...)`, creating an effective 2x delay path for scheduled invalidations.",
+        "`useAuthReferralFinalize` awaits `supabase.rpc(...)` but never inspects returned `{ error }`, so non-throwing RPC failures are silently treated as success and referral storage is always cleared in `finally`."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "domain-type-ownership-shim",
+      "summary": "Domain type ownership is blurred by a reverse alias shim that routes domain code through a global `src/types` entrypoint.",
+      "related_files": [
+        "src/domains/generation/types/shot.ts",
+        "src/types/generationRow.ts"
+      ],
+      "evidence": [
+        "`shot.ts` imports `GenerationRow` from `@/types/generationRow`.",
+        "`src/types/generationRow.ts` is only `export type { GenerationRow } from '@/domains/generation/types/generationRow';`, so the dependency direction is domain -> global alias -> domain."
+      ],
+      "suggestion": "Choose one canonical ownership path for generation domain types (prefer direct `@/domains/generation/types/*` imports in domain code), then keep `src/types/*` only as temporary compatibility adapters with a deprecation/removal plan.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "implicit-bootstrap-fallback",
+      "summary": "Infrastructure lifecycle boundaries are ambiguous because explicit bootstrap is undermined by implicit lazy initialization.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "`initializeSupabaseClient()` is documented as bootstrap-owned, but `getSupabaseClient()` always calls it, allowing hidden first-use initialization anywhere.",
+        "`buildSupabaseClient()` performs one-time instrumentation install and runtime initialization, making first caller location architecturally significant.",
+        "`handleError()` similarly mixes normalization/logging with notifier state checks and optional UI notification, concentrating multiple responsibilities in a globally imported helper."
+      ],
+      "suggestion": "Split service boot from service access: make initialization explicit and required at app startup, make getters fail fast if uninitialized in non-test contexts, and move notification/presentation policy out of core error normalization helpers.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "scattered-overlay-interaction-policy",
+      "summary": "Overlay interaction rules are owned by individual feature components instead of a shared interaction contract, increasing drift risk.",
+      "related_files": [
+        "src/shared/components/ui/tooltip.tsx",
+        "src/pages/Home/components/CreativePartnerPane.tsx",
+        "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx"
+      ],
+      "evidence": [
+        "`tooltip.tsx` provides only low-level trigger/content primitives.",
+        "`CreativePartnerPane.tsx` implements custom mobile/desktop tooltip-open and disable toggling logic via `useEcosystemTooltipController`.",
+        "`InfoTooltip.tsx` implements separate controlled/uncontrolled open-state orchestration and conditional rendering policy."
+      ],
+      "suggestion": "Introduce a small shared overlay interaction adapter (for controlled/uncontrolled open state + mobile behavior policy) and have feature components provide only content-specific rules.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "timestamp_wrapper_chain",
+      "summary": "Multiple timestamp hooks are thin renaming wrappers over one primitive, adding indirection without meaningful behavioral boundaries.",
+      "related_files": [
+        "src/features/tasks/hooks/useCompletedTimestamp.ts",
+        "src/shared/hooks/useProcessingTimestamp.ts",
+        "src/shared/hooks/useUpdatingTimestamp.ts"
+      ],
+      "evidence": [
+        "Each hook forwards to `useRelativeTimestamp` with mostly renamed fields (`generationProcessedAt`/`generationStartedAt`/`date` -> `dateInput`) and fixed mode strings.",
+        "Only `useUpdatingTimestamp` adds a single default formatter, while still duplicating wrapper structure."
+      ],
+      "suggestion": "Collapse to one exported hook with mode-specific option aliases (or explicit call sites using `useRelativeTimestamp`) and keep only wrappers that add real policy/validation.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "param_bag_orchestration_leakage",
+      "summary": "Task payload builders expose oversized param bags and duplicate orchestration metadata across layers, weakening interface honesty.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "supabase/functions/complete_task/orchestrator.ts"
+      ],
+      "evidence": [
+        "`buildJoinClipsPayload` and `buildTravelBetweenImagesPayload` emit orchestration identity in multiple places (top-level and nested objects).",
+        "`checkOrchestratorCompletion` compensates by querying many possible JSON locations (`params->orchestration_contract`, `params->run_id`, `params->orchestrator_details->run_id`, etc.).",
+        "`IndividualTravelSegmentParams` and `JoinClipsTaskParams` include broad optional fields for multiple modes, then reconstruct normalized state via large fallback chains."
+      ],
+      "suggestion": "Define one canonical orchestration envelope type shared by task creators and completion handlers, migrate producers to emit only that envelope, and remove fallback path probing once migrated.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "cache_contract_fragmentation",
+      "summary": "Cross-module cache invalidation relies on mixed key conventions and raw key-shape assumptions, making integration seams brittle.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/shared/hooks/useTasks.ts",
+        "src/shared/realtime/DataFreshnessManager.ts"
+      ],
+      "evidence": [
+        "`useShotImagesEditorCallbacks` invalidates some queries via explicit key factories and others via predicates on `query.queryKey[0]` string literals.",
+        "`DataFreshnessManager` depends on `JSON.stringify(queryKey)` identity and consumers manually pass keys from different key systems.",
+        "`useTasks` manually routes fetch success/failure into `dataFreshnessManager` using constructed keys, coupling query composition and freshness orchestration."
+      ],
+      "suggestion": "Adopt a typed query-key contract module for segment/task domains and refactor invalidation/freshness APIs to accept those typed keys only (no raw string-prefix predicates).",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "unguarded_drag_indexing",
+      "summary": "Timeline frame calculators perform direct index access on dragged arrays without local precondition guards.",
+      "related_files": [
+        "src/shared/hooks/timeline/timelineFrameCalculators.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts"
+      ],
+      "evidence": [
+        "`calculateDropAtPositionZero` immediately calls `pushUpdate(draggedShotGens[0].id, ...)` and later indexes by loop without checking non-empty alignment.",
+        "The algorithm assumes `draggedShotGens.length === draggedItemIds.length`, but this invariant is not asserted in the calculator itself."
+      ],
+      "suggestion": "Add explicit early-return/assert guards in calculator entry points for empty/mismatched dragged collections and surface a typed error or noop path.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "duplicated_orchestrator_contract_paths",
+      "summary": "Sub-task/orchestrator contract is hardcoded in multiple modules, risking drift across boundaries.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "supabase/functions/_shared/billing.ts",
+        "src/shared/lib/generationTaskQueries.ts"
+      ],
+      "evidence": [
+        "`applyParentTaskFilter` encodes orchestrator paths in frontend query helpers (`params->orchestration_contract->orchestrator_task_id`, `params->orchestrator_task_id_ref`, etc.) in `generationTaskRepository.ts` lines 45-49.",
+        "`buildSubTaskFilter` and `extractOrchestratorRef` encode the same contract independently in edge billing utilities (`billing.ts` lines 45-50 and 87-94).",
+        "Any schema/path evolution now requires synchronized edits across client and edge codepaths, with no shared contract source."
+      ],
+      "suggestion": "Define one shared orchestrator-reference schema helper (single exported list of JSON paths + extractor/filter builders) and consume it from both repository and edge billing modules to eliminate path drift.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "double_delay_invalidation_schedule",
+      "summary": "Delayed generation invalidation applies delay twice, making lifecycle timing unpredictable.",
+      "related_files": [
+        "src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+        "src/features/gallery/lib/adjacentPagePreloadCoordinator.ts"
+      ],
+      "evidence": [
+        "`scheduleDedupedInvalidation` sets `setTimeout(..., delayMs)` before invoking `runInvalidationLifecycle` (`useGenerationInvalidation.ts` lines 86-89).",
+        "`runInvalidationLifecycle` then does `await wait(delayMs)` again (`useGenerationInvalidation.ts` lines 143-146).",
+        "Callers coordinating cache freshness/preload timing (for example adjacent-page prefetch + cleanup flows) receive invalidation later than requested, causing seam-level timing mismatch."
+      ],
+      "suggestion": "Apply delay in only one layer: either keep timer scheduling and remove delay handling from `runInvalidationLifecycle`, or pass zeroed options into lifecycle after scheduled wait.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "preload_api_returns_before_full_prefetch",
+      "summary": "Generation-task preload API returns before promised full task prefetch completes.",
+      "related_files": [
+        "src/shared/lib/generationTaskCache.ts",
+        "src/shared/lib/generationTaskQueries.ts",
+        "src/shared/contexts/GenerationTaskContext.tsx"
+      ],
+      "evidence": [
+        "Inside `preloadGenerationTaskMappings`, each `prefetchQuery` is fired in `mappings.forEach` but never awaited (`generationTaskCache.ts` lines 45-63).",
+        "The function name/options (`preloadFullTaskData`) imply lifecycle completion semantics, but returned promise only guarantees mapping fetch loop completion.",
+        "Consumers relying on this seam for readiness can observe missing `taskQueryKeys.single(taskId)` cache entries immediately after await."
+      ],
+      "suggestion": "Collect `prefetchQuery` promises per batch and `await Promise.all` before advancing; alternatively rename the option/function to explicitly document fire-and-forget semantics.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "edge_error_response_shape_drift",
+      "summary": "Shared edge helpers emit mixed error response shapes, reducing API predictability.",
+      "related_files": [
+        "supabase/functions/_shared/edgeRequest.ts",
+        "supabase/functions/_shared/rateLimit.ts",
+        "supabase/functions/complete_task/index.ts"
+      ],
+      "evidence": [
+        "`parseJsonBodyStrict` maps failures to `new Response(result.message, { status })` (plain text, no JSON envelope) via `toErrorResponse` (`edgeRequest.ts` lines 73-75, 161-163).",
+        "`rateLimitResponse` returns structured JSON body plus CORS/ratelimit headers (`rateLimit.ts` lines 216-230).",
+        "Endpoints using both helpers can return different content types and error schemas for similar client-visible failures."
+      ],
+      "suggestion": "Standardize shared edge error serialization (single helper returning JSON envelope + consistent headers), then route `parseJsonBodyStrict` and `rateLimitResponse` through that helper.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "manual-sync-storagepaths-duplication",
+      "summary": "Edge storage path utilities are maintained as a manual copy, preserving migration debt and divergence risk.",
+      "related_files": [
+        "supabase/functions/_shared/storagePaths.ts",
+        "src/shared/lib/segmentColors.ts"
+      ],
+      "evidence": [
+        "supabase/functions/_shared/storagePaths.ts line 4 states it is a copy of another file and line 5 instructs manual synchronization.",
+        "The pattern mirrors static duplicated constant structures (e.g., palette arrays in src/shared/lib/segmentColors.ts lines 12-27) that can drift when edited independently."
+      ],
+      "suggestion": "Create a shared path contract package for both runtimes or generate the edge variant from a single source during build, then remove the manual-sync comment path.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "legacy-compatibility-layer-not-retired",
+      "summary": "Legacy bridge/shim code remains as permanent compatibility infrastructure rather than a bounded migration.",
+      "related_files": [
+        "src/shared/lib/generationTaskBridge.ts",
+        "supabase/functions/_shared/billing.ts"
+      ],
+      "evidence": [
+        "src/shared/lib/generationTaskBridge.ts lines 2-6 describe backward-compatible legacy import behavior instead of direct ownership.",
+        "supabase/functions/_shared/billing.ts lines 27-33 and 89-94 keep multiple legacy parameter paths active in extract/filter logic."
+      ],
+      "suggestion": "Define a migration cutoff, remove deprecated input paths, and collapse bridge exports to canonical modules once callers are updated.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "prompt-endpoint-instruction-bloat",
+      "summary": "AI prompt endpoint embeds repetitive mega-prompts and duplicated guard text, increasing maintenance debt.",
+      "related_files": [
+        "supabase/functions/ai-prompt/index.ts",
+        "supabase/functions/_shared/systemLogger.ts"
+      ],
+      "evidence": [
+        "supabase/functions/ai-prompt/index.ts uses extensive repeated instruction strings with overlapping constraints across branches (generate_prompts/edit_prompt/enhance_segment_prompt).",
+        "supabase/functions/ai-prompt/index.ts and supabase/functions/_shared/systemLogger.ts both start with file-wide lint ignore directives, reducing pressure to keep these large implementations tidy."
+      ],
+      "suggestion": "Extract prompt templates into versioned constants/builders, deduplicate repeated policy clauses, and remove file-wide lint ignores in favor of targeted suppressions.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "timeline-hook-race-guard-complexity",
+      "summary": "Timeline position hook has over-defensive local state choreography that is difficult to reason about safely.",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelinePositions.ts",
+        "src/tools/travel-between-images/hooks/useOperationTracking.ts"
+      ],
+      "evidence": [
+        "useTimelinePositions coordinates multiple mutable refs (isLockedRef/isUpdatingRef/writeInFlightRef/pendingUpdatesRef/snapshotRef) plus delayed status reset timer, spreading invariants across many branches.",
+        "useOperationTracking also relies on timeout-based suppression (100ms window), indicating related timing-driven coordination instead of explicit transactional lifecycle boundaries."
+      ],
+      "suggestion": "Refactor both flows around an explicit finite-state reducer (idle/optimistic/persisting/error) with one lock source and deterministic transitions, minimizing timeout-based synchronization.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "validation-response-branch-duplication",
+      "summary": "Request validation repeats near-identical error branches and mixed response construction styles.",
+      "related_files": [
+        "supabase/functions/update-task-status/request.ts",
+        "supabase/functions/ai-prompt/index.ts"
+      ],
+      "evidence": [
+        "update-task-status/request.ts repeats logger.error + flush + response construction for each field check (lines 40-109).",
+        "The module mixes plain Response and jsonResponse helper, while ai-prompt/index.ts consistently uses a centralized jsonResponse helper, showing seam inconsistency."
+      ],
+      "suggestion": "Introduce a small validation helper that emits standardized errors (log+flush+json response) and use one response strategy across edge handlers.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_hook_contains_billing_service_layer",
+      "summary": "`useCredits` is placed as a shared hook but owns billing-domain orchestration and payment flow concerns.",
+      "related_files": [
+        "src/shared/hooks/useCredits.ts",
+        "src/shared/hooks/__tests__/useCredits.test.ts"
+      ],
+      "evidence": [
+        "`useCredits.ts` includes Supabase table access (`users`, `credits_ledger`), Stripe checkout invocation, admin grant-credits mutation, and navigation side effects, which are domain/service responsibilities rather than generic shared UI hook behavior.",
+        "Its test file has to mock multiple infra modules and payment flow dependencies, showing this hook sits above a simple hook-layer boundary."
+      ],
+      "suggestion": "Move credit/billing orchestration into a domain package (for example `src/domains/credits/` or `src/features/billing/`) with separate data-access/service modules, then keep `useCredits` as a thin adapter hook near that domain.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "test_import_contract_drift",
+      "summary": "The credits hook test reflects stale or inconsistent package boundaries compared with the production module structure.",
+      "related_files": [
+        "src/shared/hooks/useCredits.ts",
+        "src/shared/hooks/__tests__/useCredits.test.ts"
+      ],
+      "evidence": [
+        "Production imports `handleError` from `@/shared/lib/errorHandling/handleError`, but test mocks `@/shared/lib/errorHandler`.",
+        "Production imports `creditQueryKeys` from `@/shared/lib/queryKeys/credits`, but test mocks `@/shared/lib/queryKeys` with a different object shape."
+      ],
+      "suggestion": "Align test mocks to current package entry points and consolidate query-key/error modules behind stable public paths so tests and runtime use the same boundary contracts.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_lib_contains_bootstrap_side_effects",
+      "summary": "`autoplayMonitor` resides in `shared/lib` but behaves like dev-runtime bootstrap code with automatic global side effects.",
+      "related_files": [
+        "src/shared/lib/autoplayMonitor.ts",
+        "vite.config.ts"
+      ],
+      "evidence": [
+        "`autoplayMonitor.ts` auto-starts monitoring at module load in dev (`if (import.meta.env.DEV && typeof window !== 'undefined')` + `setTimeout`/`setInterval`).",
+        "This behavior is environment/bootstrap-oriented and not a pure reusable library pattern expected from `shared/lib`."
+      ],
+      "suggestion": "Relocate this module under a diagnostics/devtools/bootstrap area and require explicit initialization from app startup instead of import-time auto-execution.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "generationrow_contract_drift",
+      "summary": "GenerationRow compatibility policy in README no longer matches the actual facade implementation.",
+      "related_files": [
+        "README.md",
+        "src/types/generationRow.ts"
+      ],
+      "evidence": [
+        "README claims a two-layer ownership model with compatibility aliases and a migration rule to retire alias fields.",
+        "`src/types/generationRow.ts` contains only `export type { GenerationRow } from '@/domains/generation/types/generationRow';` and no alias fields or boundary mapping logic."
+      ],
+      "suggestion": "Either reduce README to document the current pure re-export contract, or reintroduce an actual compatibility facade (with explicit alias mapping and deprecation plan) so policy and runtime align.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "supabase_bootstrap_contract_ambiguity",
+      "summary": "Supabase ownership contract is ambiguous because explicit bootstrap is documented while lazy fallback is the real runtime path.",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "README says client ownership is centralized and should be accessed canonically with bootstrap-oriented contract language.",
+        "`initializeSupabaseClient()` says bootstrap should call it for explicit ownership, but `getSupabaseClient()` always calls it and therefore silently initializes when bootstrap did not run."
+      ],
+      "suggestion": "Choose one contract and enforce it: either require explicit bootstrap (throw/assert before init in non-bootstrap contexts) or document lazy-init as first-class and remove bootstrap-required wording from governance docs.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "logic_clarity",
+      "identifier": "double_delay_invalidation_path",
+      "summary": "Scheduled generation invalidation waits twice, doubling intended delay.",
+      "related_files": [
+        "src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+        "src/shared/hooks/invalidation/__tests__/useGenerationInvalidation.test.ts"
+      ],
+      "evidence": [
+        "`scheduleDedupedInvalidation` sets `setTimeout(..., delayMs)` and invokes `runInvalidationLifecycle(queryClient, shotId, immediateOptions)`.",
+        "`runInvalidationLifecycle` reads `options.delayMs` and calls `await wait(delayMs)` before invalidating, so delayed calls can incur timeout delay plus internal wait delay.",
+        "The delayed test advances exactly 500ms and expects invalidation to fire, indicating intended single-delay behavior."
+      ],
+      "suggestion": "Use one delay mechanism only: either pass stripped options without `delayMs` into lifecycle and keep the outer timer, or remove outer timer and let lifecycle own waiting. Update delayed tests to assert exact timing with fake timers.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "logic_clarity",
+      "identifier": "rpc_error_not_checked_before_cleanup",
+      "summary": "Referral finalization ignores Supabase RPC error responses and clears referral state even when finalize fails.",
+      "related_files": [
+        "src/pages/Home/hooks/auth/useAuthReferralFinalize.ts",
+        "src/pages/Home/hooks/useDiscordSignIn.ts"
+      ],
+      "evidence": [
+        "`useAuthReferralFinalize` calls `await supabase.rpc('create_referral_from_session', ...)` but does not destructure/check returned `error` before proceeding.",
+        "The `finally` block always removes referral storage keys, so a non-throwing RPC failure can drop retry data.",
+        "A neighboring auth hook (`useDiscordSignIn`) explicitly checks `{ error }` after Supabase call, showing expected error-handling pattern in this area."
+      ],
+      "suggestion": "Capture RPC result (`const { error } = await supabase.rpc(...)`), handle `error` explicitly via `handleError`, and only clear referral keys after confirmed success (or preserve keys for retry on failure).",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ],
+  "review_quality": {
+    "batch_count": 7,
+    "dimension_coverage": 0.238,
+    "evidence_density": 1.383,
+    "high_score_without_risk": 0,
+    "finding_pressure": 51.672,
+    "dimensions_with_findings": 6
+  },
+  "reviewed_files": [
+    "src/shared/lib/errorHandling/handleError.ts",
+    "src/types/generationRow.ts",
+    "src/integrations/supabase/client.ts",
+    "src/shared/components/ui/cn.ts",
+    "src/shared/components/ui/button.tsx",
+    "src/shared/components/ui/sonner.tsx",
+    "src/domains/generation/types/shot.ts",
+    "src/shared/components/ui/tooltip.tsx",
+    "src/shared/hooks/mobile/index.ts",
+    "src/shared/components/ui/label.tsx",
+    "src/features/gallery/hooks/useAdjacentPagePreloader.ts",
+    "src/features/layout/hooks/useBottomOffset.test.ts",
+    "src/pages/Home/components/CreativePartnerPane.tsx",
+    "src/pages/Home/components/InstallInstructionsModal.tsx",
+    "src/shared/components/ConfirmDialog.tsx",
+    "src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx",
+    "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx",
+    "src/shared/components/JoinClipsSettingsForm/utils.ts",
+    "src/shared/hooks/useGenerationMutations.ts",
+    "src/features/tasks/hooks/useCompletedTimestamp.ts",
+    "src/integrations/supabase/instrumentation/realtime/index.ts",
+    "src/pages/Home/hooks/auth/useAuthReferralFinalize.ts",
+    "src/pages/Home/hooks/useDiscordSignIn.ts",
+    "src/shared/hooks/__tests__/useDarkMode.test.ts",
+    "src/shared/hooks/__tests__/useTextCase.test.ts",
+    "src/shared/hooks/useGetPrimaryTaskIdForGeneration.ts",
+    "src/shared/hooks/useProcessingTimestamp.ts",
+    "src/shared/hooks/useTasks.ts",
+    "src/shared/hooks/useUpdatingTimestamp.ts",
+    "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+    "src/shared/components/ShotImageManager/ShotImageManagerContainer.tsx",
+    "supabase/functions/_tests/vitestEdgeSmokeConfig.test.ts",
+    "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx",
+    "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+    "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+    "src/shared/hooks/__tests__/useVideoScrubbing.test.ts",
+    "src/shared/hooks/__tests__/usePlatformInstall.test.ts",
+    "src/shared/settings/hooks/__tests__/useAutoSaveSettings.test.ts",
+    "src/shared/components/LoraSelectorModal/components/MyLorasTab/hooks/useLoraSubmission.ts",
+    "src/shared/components/MediaGallery/index.tsx",
+    "src/shared/hooks/__tests__/useTaskCancellation.test.ts",
+    "src/shared/hooks/gallery/__tests__/useGalleryFilterState.test.ts",
+    "src/shared/hooks/__tests__/useSegmentSettingsForm.test.ts",
+    "src/shared/hooks/invalidation/__tests__/useGenerationInvalidation.test.ts",
+    "src/shared/hooks/__tests__/useServerForm.test.ts",
+    "src/tools/edit-images/components/InlineEditView.tsx",
+    "src/shared/realtime/DataFreshnessManager.ts",
+    "src/shared/hooks/__tests__/useGalleryPageState.test.ts",
+    "src/shared/lib/tasks/__tests__/joinClips.test.ts",
+    "src/tools/edit-images/hooks/__tests__/useInlineEditState.test.ts",
+    "src/tools/join-clips/pages/JoinClipsPage.tsx",
+    "src/shared/lib/tasks/imageGeneration.ts",
+    "supabase/functions/complete_task/orchestrator.ts",
+    "supabase/functions/complete_task/generation.ts",
+    "supabase/functions/calculate-task-cost/index.ts",
+    "src/shared/components/MediaLightbox/components/StrokeOverlay.tsx",
+    "src/shared/hooks/timeline/timelineFrameCalculators.ts",
+    "src/shared/components/ProductTour/index.tsx",
+    "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts",
+    "src/shared/lib/tasks/individualTravelSegment.ts",
+    "src/shared/components/ImageGenerationDetails.tsx",
+    "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+    "src/shared/lib/tasks/joinClips.ts",
+    "src/shared/lib/taskParamsUtils.ts",
+    "src/shared/components/TaskDetails/VideoTravelDetails.tsx",
+    "src/tools/travel-between-images/components/ShotEditor/services/__tests__/generateVideoService.test.ts",
+    "src/shared/lib/tasks/__tests__/individualTravelSegment.test.ts",
+    "src/shared/components/MediaLightbox/VideoLightbox.tsx",
+    "src/shared/lib/typedEvents.ts",
+    "src/shared/lib/stringFormatting.ts",
+    "src/tools/travel-between-images/components/ShotEditor/state/types.ts",
+    "src/domains/generation/types/generationMetadata.ts",
+    "src/shared/lib/tasks/taskCreatorPipeline.ts",
+    "supabase/functions/_shared/edgeOperation.ts",
+    "src/shared/contexts/ShotAdditionSelectionContext.tsx",
+    "src/shared/lib/generationTaskRepository.ts",
+    "src/shared/lib/operationResult.ts",
+    "src/shared/hooks/useRelativeTimestamp.ts",
+    "src/features/gallery/lib/adjacentPagePreloadCoordinator.ts",
+    "src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+    "src/shared/hooks/shots/cacheUtils.ts",
+    "src/shared/hooks/useLineageChain.ts",
+    "src/shared/lib/generationTaskCache.ts",
+    "src/shared/lib/generationTaskQueries.ts",
+    "src/shared/lib/generationTransformers.ts",
+    "src/shared/lib/timelineWriteQueue.ts",
+    "src/tools/join-clips/lib/clipInitService.ts",
+    "src/tools/join-clips/lib/clipManager/metadata.ts",
+    "supabase/functions/_shared/billing.ts",
+    "supabase/functions/_shared/edgeRequest.ts",
+    "supabase/functions/_shared/rateLimit.ts",
+    "supabase/functions/complete_task/storage.ts",
+    "src/shared/lib/generationTaskBridge.ts",
+    "src/shared/lib/segmentColors.ts",
+    "src/shared/lib/supabaseSession.ts",
+    "src/shared/types/presetMetadata.ts",
+    "src/tools/join-clips/utils/validation.ts",
+    "src/tools/training-data-helper/components/VideoSegmentEditor/constants.ts",
+    "src/tools/travel-between-images/components/Timeline/constants.ts",
+    "src/tools/travel-between-images/components/Timeline/hooks/useDragStable.ts",
+    "src/tools/travel-between-images/components/Timeline/hooks/useTimelinePositions.ts",
+    "src/tools/travel-between-images/hooks/useClickOutside.ts",
+    "src/tools/travel-between-images/hooks/useOperationTracking.ts",
+    "src/types/browser-extensions.d.ts",
+    "src/types/gifenc.d.ts",
+    "src/vite-env.d.ts",
+    "supabase/functions/_shared/storagePaths.ts",
+    "supabase/functions/_shared/systemLogger.ts",
+    "supabase/functions/ai-prompt/index.ts",
+    "supabase/functions/update-task-status/request.ts",
+    "tailwind.config.ts",
+    "vite.config.ts",
+    "src/shared/hooks/useClickRipple.ts",
+    "src/shared/hooks/useCopyToClipboard.ts",
+    "src/shared/hooks/useCredits.ts",
+    "src/shared/hooks/__tests__/useClickRipple.test.ts",
+    "src/shared/hooks/__tests__/useCopyToClipboard.test.ts",
+    "src/shared/hooks/__tests__/useCredits.test.ts",
+    "src/shared/lib/ProjectScopedCache.ts",
+    "src/shared/lib/aspectRatios.ts",
+    "src/shared/lib/autoplayMonitor.ts",
+    "README.md"
+  ],
+  "provenance": {
+    "kind": "blind_review_batch_import",
+    "blind": true,
+    "runner": "codex",
+    "run_stamp": "20260224_052026",
+    "created_at": "2026-02-24T05:22:10+00:00",
+    "batch_count": 7,
+    "batch_indexes": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "packet_path": "/Users/peteromalley/Documents/reigh/.desloppify/review_packet_blind.json",
+    "packet_sha256": "2b0982bd0f18122ba833bd8710bf8b27a48b876a27a38fe27d0b5f96a541347a"
+  }
+}

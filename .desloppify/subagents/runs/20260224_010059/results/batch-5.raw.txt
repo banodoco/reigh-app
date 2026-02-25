@@ -1,0 +1,76 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 5,
+  "assessments": {
+    "high_level_elegance": 73.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/hooks/useBottomOffset.ts` depends on pane/lightbox layout state (`usePanes`, `useLightboxOpen`), which ties it to a specific shell/layout subsystem despite being placed in a global `shared/hooks` package.",
+        "`src/shared/hooks/useCompletedTimestamp.ts` encodes generation-domain language (`generationProcessedAt`, \"Completed ... ago\") while living in `shared/hooks`, blurring domain ownership boundaries.",
+        "`tailwind.config.ts` is a large catch-all for global tokens plus highly specific effect families (`paper-plane-*`, `wes-*`, many bespoke keyframes/animations), indicating multiple styling concerns are flattened into one config surface.",
+        "Test placement conventions are mixed in the same area: hooks tests are grouped in `src/shared/hooks/__tests__/*`, while component tests are colocated as `src/shared/components/AuthGate.test.tsx` and `src/shared/components/BatchDropZone.test.tsx`, making ownership and discovery less predictable."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_hooks_feature_leakage",
+      "summary": "`shared/hooks` contains layout- and domain-specific hooks, weakening package ownership boundaries.",
+      "related_files": [
+        "src/shared/hooks/useBottomOffset.ts",
+        "src/shared/hooks/useCompletedTimestamp.ts"
+      ],
+      "evidence": [
+        "`useBottomOffset` reads pane lock/open state and lightbox visibility to compute shell positioning behavior.",
+        "`useCompletedTimestamp` is coupled to generation-task semantics via `generationProcessedAt` and completion phrasing."
+      ],
+      "suggestion": "Move these hooks into feature-owned packages (for example, pane/layout and generation/task presentation modules), then keep `shared/hooks` for truly cross-domain primitives.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "tailwind_config_concern_flattening",
+      "summary": "Global Tailwind config acts as a monolithic container for unrelated styling concerns.",
+      "related_files": [
+        "tailwind.config.ts",
+        "vite.config.ts"
+      ],
+      "evidence": [
+        "`tailwind.config.ts` contains extensive app-specific animation families and brand palettes alongside baseline theme primitives.",
+        "Root-level build/config files already hold multiple responsibilities (`vite.config.ts` includes runtime hosts, chunk policy, dependency dedupe), reinforcing top-level config flattening rather than bounded ownership."
+      ],
+      "suggestion": "Split styling concerns into imported modules (tokens, shared animations, feature/theme packs) and keep root config files as thin composition entry points.",
+      "confidence": "medium",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "test_location_policy_drift",
+      "summary": "Test file placement is inconsistent across adjacent shared packages, reducing discoverability.",
+      "related_files": [
+        "src/shared/hooks/__tests__/useBottomOffset.test.ts",
+        "src/shared/components/AuthGate.test.tsx",
+        "src/shared/components/BatchDropZone.test.tsx",
+        "src/shared/hooks/__tests__/useContentResponsive.test.ts"
+      ],
+      "evidence": [
+        "Hooks tests are centralized under `src/shared/hooks/__tests__/...`.",
+        "Component tests are colocated beside component files (`AuthGate.test.tsx`, `BatchDropZone.test.tsx`).",
+        "Within the reviewed shared area, no single directory-boundary rule is evident for where tests belong."
+      ],
+      "suggestion": "Adopt one explicit test placement convention per package type (all colocated or all `__tests__`) and apply it consistently in `shared/hooks` and `shared/components`.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

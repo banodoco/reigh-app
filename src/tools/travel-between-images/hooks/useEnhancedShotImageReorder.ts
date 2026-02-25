@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
-import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { log } from '@/shared/lib/logger';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 
 function shortId(id: string | null | undefined): string | null {
   return id ? id.slice(0, 8) : null;
@@ -134,7 +134,7 @@ export const useEnhancedShotImageReorder = (
 
       if (orderedShotImageEntryIds.length !== currentImages.length) {
         const missingIds = orderedShotImageEntryIds.filter((id) => !currentOrder.includes(id));
-        handleError(new Error('Data sync issue - array length mismatch'), {
+        normalizeAndPresentError(new Error('Data sync issue - array length mismatch'), {
           context: 'useEnhancedShotImageReorder',
           showToast: false,
           logData: {
@@ -191,7 +191,7 @@ export const useEnhancedShotImageReorder = (
         updateCount: changedUpdates.length,
       });
     } catch (error) {
-      handleError(error, { context: 'useEnhancedShotImageReorder', toastTitle: 'Failed to reorder items' });
+      normalizeAndPresentError(error, { context: 'useEnhancedShotImageReorder', toastTitle: 'Failed to reorder items' });
       throw error;
     }
   }, [shotId, getImagesForMode, batchExchangePositions, loadPositions, moveItemsToMidpoint, shotGenerations]);
@@ -211,7 +211,7 @@ export const useEnhancedShotImageReorder = (
 
       await deleteItem(id);
     } catch (error) {
-      handleError(error, { context: 'useEnhancedShotImageReorder', toastTitle: 'Failed to delete item' });
+      normalizeAndPresentError(error, { context: 'useEnhancedShotImageReorder', toastTitle: 'Failed to delete item' });
       throw error;
     }
   }, [shotId, shotGenerations, deleteItem]);

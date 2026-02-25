@@ -1,6 +1,6 @@
 import React, { useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
 import { useSmartPollingConfig } from '@/shared/hooks/useSmartPolling';
 import {
@@ -8,9 +8,9 @@ import {
   extractToolSettings,
   type GenerationModeNormalized
 } from '@/shared/lib/settingsResolution';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { settingsQueryKeys } from '@/shared/lib/queryKeys/settings';
-import { ProjectScopedCache } from '@/shared/lib/ProjectScopedCache';
+import { ProjectScopedCache } from '@/shared/lib/cache/ProjectScopedCache';
 
 // Global cache instance that persists across component remounts
 const globalProjectGenerationModesCache = new ProjectScopedCache<GenerationModeNormalized>();
@@ -33,7 +33,7 @@ async function fetchProjectGenerationModesFromDB(projectId: string): Promise<Map
   //
   // If we only look at shots.settings, we will be wrong for shots that inherit
   // generationMode from user/project defaults.
-  const { data: sessionData } = await supabase.auth.getSession();
+  const { data: sessionData } = await supabase().auth.getSession();
   const userId = sessionData?.session?.user?.id ?? null;
 
   // Skip queries if user is not authenticated (e.g., on public share pages)
@@ -43,9 +43,9 @@ async function fetchProjectGenerationModesFromDB(projectId: string): Promise<Map
   }
 
   const [userResult, projectResult, shotsResult] = await Promise.all([
-    supabase.from('users').select('settings').eq('id', userId).maybeSingle(),
-    supabase.from('projects').select('settings').eq('id', projectId).maybeSingle(),
-    supabase.from('shots').select('id, settings').eq('project_id', projectId),
+    supabase().from('users').select('settings').eq('id', userId).maybeSingle(),
+    supabase().from('projects').select('settings').eq('id', projectId).maybeSingle(),
+    supabase().from('shots').select('id, settings').eq('project_id', projectId),
   ]);
 
   if (shotsResult.error) {

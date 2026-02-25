@@ -1,11 +1,17 @@
 import { useCallback, useRef, useEffect } from 'react';
 import { useLastAffectedShot } from '@/shared/hooks/useLastAffectedShot';
 import { toast } from '@/shared/components/ui/toast';
-import { getDisplayUrl } from '@/shared/lib/mediaUrl';
 import type { GeneratedImageWithMetadata, DisplayableMetadata } from '../types';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import type { AddToShotHandler } from '@/shared/types/imageHandlers';
+import { INTERACTION_TIMING } from '@/shared/lib/interactions/timing';
+import { computeBackfillLastPage } from '@/shared/components/MediaGallery/services/backfillPolicy';
+import {
+  downloadSingleMedia,
+  downloadStarredMediaArchive,
+  DownloadServiceError,
+} from '@/shared/components/MediaGallery/services/downloadService';
 
 interface UseMediaGalleryActionsProps {
   onDelete?: (id: string) => void;
@@ -130,12 +136,14 @@ export const useMediaGalleryActions = ({
             await onBackfillRequest();
 
             // Check page bounds after refetch
-            // The new total is totalCount minus all pending deletes
-            const newTotal = (totalCount ?? 0) - pendingDeletesRef.current.size;
-            const newTotalPages = Math.max(1, Math.ceil(newTotal / itemsPerPage));
+            const newLastPage = computeBackfillLastPage(
+              totalCount,
+              pendingDeletesRef.current.size,
+              itemsPerPage,
+            );
 
-            if (serverPage && serverPage > newTotalPages) {
-              onPageBoundsExceeded?.(newTotalPages);
+            if (serverPage && serverPage > newLastPage) {
+              onPageBoundsExceeded?.(newLastPage);
             }
 
             // Clear backfill loading after a short delay to allow image to load
@@ -144,18 +152,18 @@ export const useMediaGalleryActions = ({
             clearLoadingTimeoutRef.current = setTimeout(() => {
               setIsBackfillLoading(false);
               clearLoadingTimeoutRef.current = null;
-            }, 750);
+            }, INTERACTION_TIMING.galleryBackfillLoadingClearMs);
           } catch (error) {
-            handleError(error, { context: 'useMediaGalleryActions', showToast: false });
+            normalizeAndPresentError(error, { context: 'useMediaGalleryActions', showToast: false });
             setIsBackfillLoading(false);
           }
           // Clear pending deletes after refetch attempt
           pendingDeletesRef.current.clear();
-        }, 100); // 100ms debounce - fast but batches rapid clicks
+        }, INTERACTION_TIMING.galleryDeleteRefetchDebounceMs);
       }
 
     } catch (error) {
-      handleError(error, { context: 'useMediaGalleryActions', toastTitle: 'Delete Failed' });
+      normalizeAndPresentError(error, { context: 'useMediaGalleryActions', toastTitle: 'Delete Failed' });
 
       // Revert optimistic state
       removeOptimisticDeleted(imageId);
@@ -207,63 +215,39 @@ export const useMediaGalleryActions = ({
   const handleDownloadImage = useCallback(async (rawUrl: string, filename: string, imageId?: string, isVideo?: boolean, originalContentType?: string) => {
     const currentDownloadId = imageId || filename;
     setDownloadingImageId(currentDownloadId);
-    const accessibleImageUrl = getDisplayUrl(rawUrl);
 
     try {
-      const xhr = new XMLHttpRequest();
-      xhr.open('GET', accessibleImageUrl, true);
-      xhr.responseType = 'blob';
-
-      xhr.onload = function() {
-        if (this.status === 200) {
-          const responseContentType = this.getResponseHeader('content-type');
-          const blobContentType = originalContentType || responseContentType || (isVideo ? 'video/mp4' : 'image/png');
-          const blob = new Blob([this.response], { type: blobContentType });
-          const url = URL.createObjectURL(blob);
-          const downloadLink = document.createElement('a');
-          downloadLink.style.display = 'none';
-          downloadLink.href = url;
-
-          let fileExtension = blobContentType.split('/')[1];
-          if (fileExtension) {
-            fileExtension = fileExtension.split(';')[0].trim();
-          }
-          if (!fileExtension || fileExtension === 'octet-stream') {
-            const urlWithoutParams = accessibleImageUrl.split('?')[0];
-            const urlParts = urlWithoutParams.split('.');
-            fileExtension = urlParts.length > 1 ? urlParts.pop()! : (isVideo ? 'mp4' : 'png');
-          }
-          const downloadFilename = filename.includes('.') ? filename : `${filename}.${fileExtension}`;
-          downloadLink.download = downloadFilename;
-
-          document.body.appendChild(downloadLink);
-          downloadLink.click();
-          URL.revokeObjectURL(url);
-          document.body.removeChild(downloadLink);
-          toast({ title: "Download Started", description: filename });
-        } else {
-          throw new Error(`Failed to fetch image: ${this.status} ${this.statusText}`);
-        }
-      };
-
-      xhr.onerror = function() {
-        throw new Error('Network request failed');
-      };
-
-      xhr.send();
+      await downloadSingleMedia({
+        rawUrl,
+        filename,
+        isVideo,
+        originalContentType,
+      });
+      toast({ title: "Download Started", description: filename });
     } catch (error) {
-      handleError(error, { context: 'useMediaGalleryActions', toastTitle: 'Download Failed' });
+      normalizeAndPresentError(error, {
+        context: 'useMediaGalleryActions.handleDownloadImage',
+        toastTitle: 'Download Failed',
+        ...(error instanceof DownloadServiceError ? {
+          logData: {
+            code: error.code,
+            status: error.status,
+            statusText: error.statusText,
+            url: error.url,
+          },
+        } : {}),
+      });
     } finally {
       setDownloadingImageId(null);
     }
-  }, [setDownloadingImageId, toast]);
+  }, [setDownloadingImageId]);
 
   const handleShowTick = useCallback((imageId: string) => {
     setShowTickForImageId(imageId);
     if (mainTickTimeoutRef.current) clearTimeout(mainTickTimeoutRef.current);
     mainTickTimeoutRef.current = setTimeout(() => {
       setShowTickForImageId(null);
-    }, 1000);
+    }, INTERACTION_TIMING.galleryTickResetMs);
   }, [setShowTickForImageId, mainTickTimeoutRef]);
 
   const handleShowSecondaryTick = useCallback((imageId: string) => {
@@ -271,7 +255,7 @@ export const useMediaGalleryActions = ({
     if (secondaryTickTimeoutRef.current) clearTimeout(secondaryTickTimeoutRef.current);
     secondaryTickTimeoutRef.current = setTimeout(() => {
       setShowTickForSecondaryImageId(null);
-    }, 1000);
+    }, INTERACTION_TIMING.galleryTickResetMs);
   }, [setShowTickForSecondaryImageId, secondaryTickTimeoutRef]);
 
   const handleShotChange = useCallback((shotId: string) => {
@@ -292,113 +276,47 @@ export const useMediaGalleryActions = ({
       return;
     }
 
-    const sortedImages = [...starredImages].sort((a, b) => {
-      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-
-      if (dateA !== dateB) {
-        return dateA - dateB;
-      }
-
-      return a.id.localeCompare(b.id);
-    });
-
     setIsDownloadingStarred(true);
 
     try {
-      const JSZipModule = await import('jszip');
-      const zip = new JSZipModule.default();
-
       toast({
         title: "Starting download",
-        description: `Processing ${sortedImages.length} starred images...`
+        description: `Processing ${starredImages.length} starred images...`
       });
-
-      for (let i = 0; i < sortedImages.length; i++) {
-        const image = sortedImages[i];
-        const accessibleImageUrl = getDisplayUrl(image.url);
-
-        try {
-          const response = await fetch(accessibleImageUrl);
-          if (!response.ok) {
-            throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-          }
-
-          const blob = await response.blob();
-
-          let fileExtension = 'png';
-          const contentType = blob.type || image.metadata?.content_type;
-
-          if (contentType) {
-            if (contentType.includes('jpeg') || contentType.includes('jpg')) {
-              fileExtension = 'jpg';
-            } else if (contentType.includes('png')) {
-              fileExtension = 'png';
-            } else if (contentType.includes('webp')) {
-              fileExtension = 'webp';
-            } else if (contentType.includes('gif')) {
-              fileExtension = 'gif';
-            } else if (image.isVideo) {
-              if (contentType.includes('mp4')) {
-                fileExtension = 'mp4';
-              } else if (contentType.includes('webm')) {
-                fileExtension = 'webm';
-              } else {
-                fileExtension = 'mp4';
-              }
-            }
-          } else if (image.isVideo) {
-            fileExtension = 'mp4';
-          }
-
-          const paddedNumber = String(i + 1).padStart(3, '0');
-          const filename = `${paddedNumber}.${fileExtension}`;
-
-          zip.file(filename, blob);
-
-          if ((i + 1) % 5 === 0 || i === sortedImages.length - 1) {
+      await downloadStarredMediaArchive({
+        images: starredImages,
+        onProgress: (processed, total) => {
+          if (processed % 5 === 0 || processed === total) {
             toast({
               title: "Processing images",
-              description: `Processed ${i + 1}/${sortedImages.length} images...`
+              description: `Processed ${processed}/${total} images...`
             });
           }
-        } catch (error) {
-          handleError(error, { context: 'useMediaGalleryActions', toastTitle: `Image processing error` });
-        }
-      }
-
-      toast({
-        title: "Creating zip file",
-        description: "Finalizing download..."
+        },
       });
-
-      const zipBlob = await zip.generateAsync({ type: 'blob' });
-
-      const url = URL.createObjectURL(zipBlob);
-      const downloadLink = document.createElement('a');
-      downloadLink.style.display = 'none';
-      downloadLink.href = url;
-
-      const now = new Date();
-      const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
-      downloadLink.download = `starred-images-${dateStr}.zip`;
-
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      URL.revokeObjectURL(url);
-      document.body.removeChild(downloadLink);
 
       toast({
         title: "Download complete",
-        description: `Successfully downloaded ${sortedImages.length} starred images.`
+        description: `Successfully downloaded ${starredImages.length} starred images.`
       });
 
     } catch (error) {
-      handleError(error, { context: 'useMediaGalleryActions', toastTitle: 'Download failed' });
+      normalizeAndPresentError(error, {
+        context: 'useMediaGalleryActions.handleDownloadStarred',
+        toastTitle: 'Download failed',
+        ...(error instanceof DownloadServiceError ? {
+          logData: {
+            code: error.code,
+            status: error.status,
+            statusText: error.statusText,
+            url: error.url,
+          },
+        } : {}),
+      });
     } finally {
       setIsDownloadingStarred(false);
     }
-  }, [filteredImages, toast, setIsDownloadingStarred]);
+  }, [filteredImages, setIsDownloadingStarred]);
 
   // Cleanup on unmount
   useEffect(() => {

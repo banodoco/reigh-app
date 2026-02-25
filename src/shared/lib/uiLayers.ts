@@ -1,0 +1,8 @@
+/** Shared z-layer contract for cross-module overlay ordering. */
+export const UI_Z_LAYERS = {
+  HOME_GLASS_PANE: 100,
+  LIGHTBOX_MODAL: 100000,
+  TASKS_PANE_TAB_ABOVE_LIGHTBOX: 100001,
+  TOAST_VIEWPORT: 100002,
+  TASKS_PANE_TAB_BEHIND_LIGHTBOX: 99,
+} as const;

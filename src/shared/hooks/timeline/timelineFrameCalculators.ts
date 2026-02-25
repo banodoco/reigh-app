@@ -11,7 +11,9 @@
 
 import type { ShotGeneration } from '@/shared/hooks/useTimelineCore';
 import { calculateAverageSpacing, DEFAULT_FRAME_SPACING } from '@/shared/lib/timelinePositionCalculator';
-import { MAX_FRAME_GAP } from '@/shared/lib/timelineNormalization';
+
+/** Maximum allowed gap between timeline frames (5s at 16fps). */
+const MAX_FRAME_GAP = 81;
 
 // ============================================================================
 // Types

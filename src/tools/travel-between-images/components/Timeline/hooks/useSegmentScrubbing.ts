@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { useIsMobile } from '@/shared/hooks/useMobile';
+import { useIsMobile } from '@/shared/hooks/mobile';
 import { useVideoScrubbing } from '@/shared/hooks/useVideoScrubbing';
-import { getPreviewDimensions } from '@/shared/lib/aspectRatios';
+import { getPreviewDimensions } from '@/shared/lib/media/aspectRatios';
 import type { SegmentSlot } from '@/shared/hooks/segments';
 
 interface UseSegmentScrubbingProps {

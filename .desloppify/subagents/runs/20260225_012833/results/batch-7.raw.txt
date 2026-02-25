@@ -1,0 +1,135 @@
+{
+  "batch": "Design coherence \u2014 Mechanical Concern Signals",
+  "batch_index": 7,
+  "assessments": {
+    "design_coherence": 82.0
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "Task-construction modules repeat similar orchestration assembly patterns with separate ad-hoc builders (`buildJoinClipsPayload`, `buildIndividualTravelSegmentParams`, and `createImageGenerationTask` payload composition), creating parallel contract-writing paths.",
+        "`useTimelineOrchestrator.ts` (656 lines) coordinates drag, zoom, selection, drop interception, endpoint drag, prefetch, and structure-video placement in one hook, while `useEditingController.ts` composes another wide state/action bundle for unrelated editing and join workflows.",
+        "Image generation submission flow tunnels a large prop/state surface through `useFormSubmission -> useSubmissionHandlers -> useSubmissionOrchestrator`, and by-reference validation/toast logic is duplicated in both `useSubmissionOrchestrator.ts` and `submissionTaskPlan.ts`.",
+        "Edge functions show inconsistent request pipeline architecture: some use runtime/bootstrap helpers (`initEdgeRuntime`, `jsonResponse`) while others manually implement env boot, method checks, auth, JSON parsing, and raw `Response` handling."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "task_payload_assembly_duplication",
+      "summary": "Multiple task families reimplement orchestration payload assembly, increasing contract drift risk.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/imageGeneration.ts"
+      ],
+      "evidence": [
+        "`joinClips.ts` builds a large `orchestratorDetails` object and then composes family payload (`buildJoinClipsPayload`, around lines 324+).",
+        "`individualTravelSegment.ts` separately rebuilds orchestration + task-view + family contract paths (`buildIndividualTravelSegmentParams`, around lines 555+).",
+        "`imageGeneration.ts` has a third payload path via `composeTaskParams` with custom segments/mapped fields in `createImageGenerationTask` (around lines 359+), rather than a single canonical contract builder."
+      ],
+      "suggestion": "Introduce one shared task-family payload composer with declarative field maps/validators per family, and keep per-task files focused on family-specific rules only.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "contract_assembly_fragmentation"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "form_submission_param_tunneling",
+      "summary": "Form submission hooks rely on long prop tunneling and duplicate guard logic across layers.",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/hooks/useFormSubmission.ts",
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmissionHandlers.ts",
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmissionOrchestrator.ts",
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/submissionTaskPlan.ts"
+      ],
+      "evidence": [
+        "`useFormSubmission.ts` constructs and forwards a very large argument set (project, prompt, reference, hi-res, model, state refs) to downstream hooks.",
+        "`useSubmissionHandlers.ts` mostly forwards the same surface again into `useSubmissionOrchestrator`, indicating indirection without boundary reduction.",
+        "By-reference validation/toast (`Please upload a style reference image...`) is implemented in `useSubmissionOrchestrator.ts` and again in `submissionTaskPlan.ts`, so business rule ownership is split."
+      ],
+      "suggestion": "Create a single submission domain object (context + validators + command factory) and centralize validation rules so UI commands call one policy source.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "ui_submission_boundary_leak"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "timeline_editing_god_hooks",
+      "summary": "Timeline/editing orchestration hooks aggregate too many responsibilities into broad control hubs.",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts",
+        "src/tools/travel-between-images/components/ShotEditor/controllers/useEditingController.ts"
+      ],
+      "evidence": [
+        "`useTimelineOrchestrator.ts` defines a very broad return contract including drag, zoom, selection, pending/drop state, endpoint editing, video browser handling, and computed pair data.",
+        "The hook performs orchestration for many independent concerns (drop interceptors, duplicate placement logic, zoom-center behavior, global event binding, structure-video placement) in one unit.",
+        "`useEditingController.ts` similarly merges structure video management, audio management, naming, and join workflow setup/handlers, then returns two large bundles (`mediaEditing`, `joinWorkflow`)."
+      ],
+      "suggestion": "Split into smaller orchestration slices by concern (timeline interaction core, media-source insertion, selection/move workflow, join workflow) with a thin top-level composer.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "orchestrator_hub_growth"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "edge_function_pipeline_inconsistency",
+      "summary": "Edge functions in the same subsystem use conflicting request/auth/response patterns instead of one coherent pipeline.",
+      "related_files": [
+        "supabase/functions/generate-pat/index.ts",
+        "supabase/functions/generate-upload-url/index.ts",
+        "supabase/functions/update-shot-pair-prompts/index.ts"
+      ],
+      "evidence": [
+        "`generate-pat` uses `initEdgeRuntime` + `jsonResponse` and handles CORS preflight explicitly.",
+        "`generate-upload-url` and `update-shot-pair-prompts` manually load env vars, create clients, parse request bodies differently (`req.json()` vs `req.text()+JSON.parse`), and return raw `Response` with varied error formatting.",
+        "Auth/logging/method-check flow is conceptually similar but implemented separately in each file."
+      ],
+      "suggestion": "Adopt a shared edge-function request pipeline helper (method/cors/auth/body parsing/error mapping/logger binding) and migrate endpoints incrementally to the same contract.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "edge_handler_pattern_drift"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "image_lightbox_multi_role_component",
+      "summary": "Image lightbox remains a multi-role component with high coordination surface despite internal helper extraction.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/VideoLightbox.tsx",
+        "src/shared/components/MediaLightbox/MediaLightbox.tsx"
+      ],
+      "evidence": [
+        "`ImageLightbox.tsx` is 884 lines and combines environment setup, shared state, editing orchestration, controls panel assembly, render model construction, download/delete actions, and workflow wiring.",
+        "The file builds large callback bundles (`workflowBar`, `workflowControls`, `layoutProps`) with many optional handlers, indicating multiple concerns crossing a single boundary.",
+        "`VideoLightbox.tsx` is substantially smaller (206 lines), showing the image path has accumulated broader responsibilities than sibling lightbox modes."
+      ],
+      "suggestion": "Move render-model assembly and edit/workflow action wiring into dedicated modules, leaving `ImageLightbox` as a thin composition shell with stricter prop contracts.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "orchestrator_hub_growth"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Subsystems evolved via feature accretion without converging on shared composition contracts.",
+      "Cross-cutting orchestration logic is frequently implemented at call sites instead of centralized policy/pipeline layers."
+    ],
+    "likely_symptoms": [
+      "form_submission_param_tunneling",
+      "image_lightbox_multi_role_component"
+    ],
+    "possible_false_positives": [
+      "Some orchestration breadth may be intentional for latency-sensitive UX paths, but current interfaces still indicate high coupling."
+    ]
+  }
+}

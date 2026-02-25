@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { Task } from '@/types/tasks';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 import { extractTaskParentGenerationId } from '../utils/task-utils';
 import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
 
@@ -53,8 +53,7 @@ export function useVideoGenerations({
           ? taskParams.parsed.child_generation_id
           : null;
       if (task.taskType === 'individual_travel_segment' && childGenerationId) {
-        const { data: childGen, error: childError } = await supabase
-          .from('generations')
+        const { data: childGen, error: childError } = await supabase().from('generations')
           .select('*, generation_variants(*)')
           .eq('id', childGenerationId)
           .single();
@@ -80,8 +79,7 @@ export function useVideoGenerations({
 
       // Try to find generation by output location first (most reliable)
       if (task.outputLocation) {
-        const { data: byLocation, error: locError } = await supabase
-          .from('generations')
+        const { data: byLocation, error: locError } = await supabase().from('generations')
           .select('*')
           .eq('location', task.outputLocation)
           .eq('project_id', task.projectId);
@@ -91,16 +89,14 @@ export function useVideoGenerations({
         }
 
         // If not found in generations, check generation_variants by location
-        const { data: variantByLocation, error: variantError } = await supabase
-          .from('generation_variants')
+        const { data: variantByLocation, error: variantError } = await supabase().from('generation_variants')
           .select('id, generation_id, location, thumbnail_url, is_primary, params')
           .eq('location', task.outputLocation)
           .limit(1);
 
         if (!variantError && variantByLocation && variantByLocation.length > 0) {
           const variant = variantByLocation[0];
-          const { data: parentGen, error: parentError } = await supabase
-            .from('generations')
+          const { data: parentGen, error: parentError } = await supabase().from('generations')
             .select('*')
             .eq('id', variant.generation_id)
             .single();
@@ -118,8 +114,7 @@ export function useVideoGenerations({
       }
 
       // Fallback: Search by task ID in the tasks JSONB array
-      const { data, error } = await supabase
-        .from('generations')
+      const { data, error } = await supabase().from('generations')
         .select('*')
         .filter('tasks', 'cs', JSON.stringify([task.id]))
         .eq('project_id', task.projectId)

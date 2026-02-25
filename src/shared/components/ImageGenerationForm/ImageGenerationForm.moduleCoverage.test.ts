@@ -18,7 +18,6 @@ import * as module15 from './components/reference/ReferenceThumbnail';
 import * as module16 from './hooks/buildBatchTaskParams';
 import * as module17 from './hooks/formSubmission/useIncomingTaskRunner';
 import * as module18 from './hooks/formSubmission/usePromptQueueHandlers';
-import * as module19 from './hooks/formSubmission/useSubmissionHandlers';
 import * as module20 from './hooks/formSubmission/useSubmitHandler';
 import * as module21 from './hooks/formSubmission/useTaskParamsBuilder';
 import * as module22 from './hooks/formSubmission/promptSubmissionTransforms';
@@ -80,7 +79,6 @@ describe('ImageGenerationForm module coverage surface', () => {
     expect(module16).toBeDefined();
     expect(module17).toBeDefined();
     expect(module18).toBeDefined();
-    expect(module19).toBeDefined();
     expect(module20).toBeDefined();
     expect(module21).toBeDefined();
     expect(module22).toBeDefined();

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 
 interface FadeInSectionProps {
   children: React.ReactNode;

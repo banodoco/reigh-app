@@ -3,7 +3,7 @@ import { ToggleGroup as ToggleGroupPrimitive } from "@base-ui-components/react/t
 import { Toggle as TogglePrimitive } from "@base-ui-components/react/toggle"
 import { cva, type VariantProps } from "class-variance-authority"
 
-import { cn } from "@/shared/lib/utils"
+import { cn } from "@/shared/components/ui/contracts/cn"
 import { toggleVariants } from "@/shared/components/ui/toggle"
 
 const toggleGroupVariants = cva(

@@ -1,7 +1,18 @@
-import { createTask, validateRequiredFields, TaskValidationError, processBatchResults } from '../taskCreation';
+import {
+  createTask,
+  validateRequiredFields,
+  TaskValidationError,
+  validateNonEmptyString,
+  validateUrlString,
+  validateNumericRange,
+  validateSeed32Bit,
+  validateLoraConfigs,
+  setTaskLineageFields,
+} from '../taskCreation';
 import type { TaskCreationResult } from '../taskCreation';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { FalLoraConfig } from '@/shared/types/lora';
+import { runBatchTaskPipeline } from './batchTaskPipeline';
 
 /**
  * Parameters for creating a Z Image Turbo image-to-image task
@@ -48,39 +59,31 @@ interface BatchZImageTurboImageToImageTaskParams {
 function validateZImageTurboImageToImageParams(params: ZImageTurboImageToImageTaskParams): void {
   validateRequiredFields(params, ['project_id', 'image_url']);
 
-  if (!params.image_url || params.image_url.trim() === '') {
-    throw new TaskValidationError('Image URL cannot be empty', 'image_url');
-  }
-
-  // Validate URL format
-  try {
-    new URL(params.image_url);
-  } catch {
-    throw new TaskValidationError('Image URL must be a valid URL', 'image_url');
-  }
-
-  if (params.strength !== undefined && (params.strength < 0 || params.strength > 1)) {
-    throw new TaskValidationError('Strength must be between 0 and 1', 'strength');
-  }
-
-  if (params.numImages !== undefined && (params.numImages < 1 || params.numImages > 4)) {
-    throw new TaskValidationError('Number of images must be between 1 and 4', 'numImages');
-  }
-
-  if (params.seed !== undefined && (params.seed < 0 || params.seed > 0x7fffffff)) {
-    throw new TaskValidationError('Seed must be a 32-bit positive integer', 'seed');
-  }
-
-  if (params.loras && params.loras.length > 0) {
-    params.loras.forEach((lora, index) => {
-      if (!lora.path || lora.path.trim() === '') {
-        throw new TaskValidationError(`LoRA ${index + 1}: path is required`, `loras[${index}].path`);
-      }
-      if (lora.scale !== undefined && (lora.scale < 0 || lora.scale > 2)) {
-        throw new TaskValidationError(`LoRA ${index + 1}: scale must be between 0 and 2`, `loras[${index}].scale`);
-      }
-    });
-  }
+  validateNonEmptyString(params.image_url, 'image_url', 'Image URL');
+  validateUrlString(params.image_url, 'image_url', 'Image URL');
+  validateNumericRange(params.strength, {
+    field: 'strength',
+    label: 'Strength',
+    min: 0,
+    max: 1,
+  });
+  validateNumericRange(params.numImages, {
+    field: 'numImages',
+    label: 'Number of images',
+    min: 1,
+    max: 4,
+  });
+  validateSeed32Bit(params.seed);
+  validateLoraConfigs(
+    params.loras?.map((lora) => ({ ...lora, scale: lora.scale ?? 1.0 })),
+    {
+    pathField: 'path',
+    strengthField: 'scale',
+    strengthLabel: 'scale',
+    min: 0,
+    max: 2,
+    },
+  );
 }
 
 /**
@@ -118,6 +121,7 @@ function buildTaskParams(params: ZImageTurboImageToImageTaskParams): Record<stri
     num_inference_steps: 8,
     output_format: 'png',
     enable_safety_checker: true,
+    add_in_position: false,
   };
 
   // Add seed if provided
@@ -138,31 +142,13 @@ function buildTaskParams(params: ZImageTurboImageToImageTaskParams): Record<stri
     taskParams.acceleration = 'high';
   }
 
-  // Add lineage tracking
-  if (params.based_on) {
-    taskParams.based_on = params.based_on;
-  }
-
-  if (params.source_variant_id) {
-    taskParams.source_variant_id = params.source_variant_id;
-  }
-
-  if (params.create_as_generation) {
-    taskParams.create_as_generation = true;
-  }
-
-  // Add shot association
-  if (params.shot_id) {
-    taskParams.shot_id = params.shot_id;
-  }
-
-  // Add tool type override
-  if (params.tool_type) {
-    taskParams.tool_type = params.tool_type;
-  }
-
-  // Make edits unpositioned by default
-  taskParams.add_in_position = false;
+  setTaskLineageFields(taskParams, {
+    shotId: params.shot_id,
+    basedOn: params.based_on,
+    sourceVariantId: params.source_variant_id,
+    createAsGeneration: params.create_as_generation,
+    toolType: params.tool_type,
+  });
 
   return taskParams;
 }
@@ -190,7 +176,7 @@ async function createZImageTurboImageToImageTask(params: ZImageTurboImageToImage
     return result;
 
   } catch (error) {
-    handleError(error, { context: 'ZImageTurboImageToImage', showToast: false });
+    normalizeAndPresentError(error, { context: 'ZImageTurboImageToImage', showToast: false });
     throw error;
   }
 }
@@ -203,40 +189,36 @@ export async function createBatchZImageTurboImageToImageTasks(
 ): Promise<TaskCreationResult[]> {
 
   try {
-    // 1. Validate parameters
-    validateBatchParams(params);
+    return await runBatchTaskPipeline({
+      batchParams: params,
+      validateBatchParams: validateBatchParams,
+      buildSingleTaskParams: (batchParams): ZImageTurboImageToImageTaskParams[] => (
+        Array.from({ length: batchParams.numImages }, (_, index) => {
+          const seed = batchParams.seed ?? Math.floor(Math.random() * 0x7fffffff);
 
-    // 2. Generate individual task parameters for each image
-    const taskParams = Array.from({ length: params.numImages }, (_, index) => {
-      // Generate a different seed for each task
-      const seed = params.seed ?? Math.floor(Math.random() * 0x7fffffff);
-
-      return {
-        project_id: params.project_id,
-        image_url: params.image_url,
-        prompt: params.prompt,
-        strength: params.strength,
-        enable_prompt_expansion: params.enable_prompt_expansion,
-        seed: seed + index, // Increment seed for variation
-        numImages: 1, // Each task creates one image
-        loras: params.loras,
-        shot_id: params.shot_id,
-        based_on: params.based_on,
-        source_variant_id: params.source_variant_id,
-        create_as_generation: params.create_as_generation,
-        tool_type: params.tool_type,
-      } as ZImageTurboImageToImageTaskParams;
+          return {
+            project_id: batchParams.project_id,
+            image_url: batchParams.image_url,
+            prompt: batchParams.prompt,
+            strength: batchParams.strength,
+            enable_prompt_expansion: batchParams.enable_prompt_expansion,
+            seed: seed + index,
+            numImages: 1,
+            loras: batchParams.loras,
+            shot_id: batchParams.shot_id,
+            based_on: batchParams.based_on,
+            source_variant_id: batchParams.source_variant_id,
+            create_as_generation: batchParams.create_as_generation,
+            tool_type: batchParams.tool_type,
+          } as ZImageTurboImageToImageTaskParams;
+        })
+      ),
+      createSingleTask: createZImageTurboImageToImageTask,
+      operationName: 'createBatchZImageTurboImageToImageTasks',
     });
 
-    // 3. Create all tasks in parallel
-    const results = await Promise.allSettled(
-      taskParams.map(taskParam => createZImageTurboImageToImageTask(taskParam))
-    );
-
-    return processBatchResults(results, 'createBatchZImageTurboImageToImageTasks');
-
   } catch (error) {
-    handleError(error, { context: 'BatchZImageTurboImageToImage', showToast: false });
+    normalizeAndPresentError(error, { context: 'BatchZImageTurboImageToImage', showToast: false });
     throw error;
   }
 }

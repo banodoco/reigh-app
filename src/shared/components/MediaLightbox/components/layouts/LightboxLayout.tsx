@@ -3,10 +3,10 @@
  */
 
 import React from 'react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { Button } from '@/shared/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
-import { Eraser, Square, Undo2, X, Diamond, Trash2 } from 'lucide-react';
+import { Eraser, Square, Undo2, X } from 'lucide-react';
 import type { LightboxLayoutProps } from './types';
 import {
   useLightboxCoreSafe,
@@ -23,6 +23,7 @@ import { PreviewSequencePill } from './PreviewSequencePill';
 import { ConstituentImageNavigation } from './ConstituentImageNavigation';
 import { NavigationArrows } from '../NavigationArrows';
 import { FloatingToolControls } from '../FloatingToolControls';
+import { AnnotationFloatingControls } from '../AnnotationFloatingControls';
 import {
   TopRightControls,
   BottomLeftControls,
@@ -133,46 +134,6 @@ function MediaContent({ model }: { model: LightboxLayoutModel }) {
   );
 }
 
-function AnnotationButtons({ model }: { model: LightboxLayoutModel }) {
-  const imageEdit = model.imageEdit;
-  if (!imageEdit.selectedShapeId || !imageEdit.isAnnotateMode) return null;
-
-  const buttonPos = imageEdit.getDeleteButtonPosition();
-  if (!buttonPos) return null;
-
-  const selectedShape = imageEdit.brushStrokes.find(shape => shape.id === imageEdit.selectedShapeId);
-  const isFreeForm = selectedShape?.isFreeForm || false;
-
-  return (
-    <div
-      className="fixed z-[100] flex gap-2"
-      style={{ left: `${buttonPos.x}px`, top: `${buttonPos.y}px`, transform: 'translate(-50%, -50%)' }}
-    >
-      <button
-        onClick={imageEdit.handleToggleFreeForm}
-        className={cn(
-          'rounded-full p-2 shadow-lg transition-colors',
-          isFreeForm
-            ? 'bg-purple-600 hover:bg-purple-700 text-white'
-            : 'bg-gray-700 hover:bg-gray-600 text-white'
-        )}
-        title={isFreeForm
-          ? 'Switch to rectangle mode (edges move linearly)'
-          : 'Switch to free-form mode (rhombus/non-orthogonal angles)'}
-      >
-        {isFreeForm ? <Diamond className="h-4 w-4" /> : <Square className="h-4 w-4" />}
-      </button>
-      <button
-        onClick={imageEdit.handleDeleteSelected}
-        className="bg-red-600 hover:bg-red-700 text-white rounded-full p-2 shadow-lg transition-colors"
-        title="Delete annotation (or press DELETE key)"
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
-    </div>
-  );
-}
-
 function TopCenterOverlay({ model, className }: { model: LightboxLayoutModel; className: string }) {
   return (
     <div className={className}>
@@ -203,6 +164,7 @@ function OverlayElements({ model, topCenterClassName, showFloatingTools }: {
   showFloatingTools: boolean;
 }) {
   const { core, mediaState, variantsState, props } = model;
+  const buttonGroups = props.buttonGroups;
 
   return (
     <>
@@ -223,9 +185,9 @@ function OverlayElements({ model, topCenterClassName, showFloatingTools }: {
         <FloatingToolControls variant={model.floatingToolVariant} />
       )}
 
-      <BottomLeftControls {...props.buttonGroupProps.bottomLeft} />
-      <BottomRightControls {...props.buttonGroupProps.bottomRight} />
-      <TopRightControls {...props.buttonGroupProps.topRight} />
+      <BottomLeftControls {...buttonGroups.bottomLeft} />
+      <BottomRightControls {...buttonGroups.bottomRight} />
+      <TopRightControls {...buttonGroups.topRight} />
 
       {props.segmentSlotMode?.onNavigateToImage && (
         <ConstituentImageNavigation
@@ -238,36 +200,7 @@ function OverlayElements({ model, topCenterClassName, showFloatingTools }: {
         />
       )}
 
-      <WorkflowControlsBar
-        onAddToShot={props.workflowBarProps.onAddToShot}
-        onDelete={props.workflowBarProps.onDelete}
-        onApplySettings={props.workflowBarProps.onApplySettings}
-        isSpecialEditMode={model.imageEdit.isSpecialEditMode}
-        isVideo={mediaState.isVideo}
-        mediaId={core.actualGenerationId ?? mediaState.media.id}
-        imageUrl={mediaState.effectiveMediaUrl}
-        thumbUrl={mediaState.media.thumbUrl}
-        allShots={props.workflowBarProps.allShots}
-        selectedShotId={props.workflowBarProps.selectedShotId}
-        onShotChange={props.workflowBarProps.onShotChange}
-        onCreateShot={props.workflowBarProps.onCreateShot}
-        isAlreadyPositionedInSelectedShot={props.workflowBarProps.isAlreadyPositionedInSelectedShot}
-        isAlreadyAssociatedWithoutPosition={props.workflowBarProps.isAlreadyAssociatedWithoutPosition}
-        showTickForImageId={props.workflowBarProps.showTickForImageId}
-        showTickForSecondaryImageId={props.workflowBarProps.showTickForSecondaryImageId}
-        onAddToShotWithoutPosition={props.workflowBarProps.onAddToShotWithoutPosition}
-        onShowTick={props.workflowBarProps.onShowTick}
-        onShowSecondaryTick={props.workflowBarProps.onShowSecondaryTick}
-        onOptimisticPositioned={props.workflowBarProps.onOptimisticPositioned}
-        onOptimisticUnpositioned={props.workflowBarProps.onOptimisticUnpositioned}
-        contentRef={props.workflowBarProps.contentRef}
-        handleApplySettings={props.workflowBarProps.handleApplySettings}
-        onNavigateToShot={props.workflowBarProps.handleNavigateToShotFromSelector}
-        onClose={core.onClose}
-        onAddVariantAsNewGeneration={props.workflowBarProps.handleAddVariantAsNewGenerationToShot}
-        activeVariantId={variantsState.activeVariant?.id || variantsState.primaryVariant?.id}
-        currentTimelineFrame={mediaState.media.timeline_frame ?? undefined}
-      />
+      <WorkflowControlsBar {...props.workflowBar} />
     </>
   );
 }
@@ -354,6 +287,7 @@ function CompactEditControls({ model }: { model: LightboxLayoutModel }) {
 
 function PanelLayoutView({ model }: { model: LightboxLayoutModel }) {
   const isDesktopPanel = model.isSidePanelLayout;
+  const showAnnotationControls = model.imageEdit.isSpecialEditMode && model.imageEdit.editMode === 'annotate';
 
   return (
     <div
@@ -389,7 +323,20 @@ function PanelLayoutView({ model }: { model: LightboxLayoutModel }) {
         )}
 
         <MediaContent model={model} />
-        <AnnotationButtons model={model} />
+        {showAnnotationControls && (
+          <AnnotationFloatingControls
+            selectedShapeId={model.imageEdit.selectedShapeId}
+            isAnnotateMode={model.imageEdit.isAnnotateMode}
+            brushStrokes={model.imageEdit.brushStrokes}
+            getDeleteButtonPosition={model.imageEdit.getDeleteButtonPosition}
+            onToggleFreeForm={model.imageEdit.handleToggleFreeForm}
+            onDeleteSelected={model.imageEdit.handleDeleteSelected}
+            positionStrategy="fixed"
+            freeFormActiveClassName="bg-purple-600 hover:bg-purple-700 text-white"
+            freeFormInactiveClassName="bg-gray-700 hover:bg-gray-600 text-white"
+            deleteButtonClassName="bg-red-600 hover:bg-red-700 text-white"
+          />
+        )}
         <OverlayElements model={model} topCenterClassName={model.topCenterClassName} showFloatingTools={true} />
 
         {!isDesktopPanel && (
@@ -417,6 +364,9 @@ function PanelLayoutView({ model }: { model: LightboxLayoutModel }) {
 }
 
 function CenteredLayoutView({ model }: { model: LightboxLayoutModel }) {
+  const workflowControlsProps = model.props.workflowControls ?? null;
+  const showAnnotationControls = model.imageEdit.isSpecialEditMode && model.imageEdit.editMode === 'annotate';
+
   return (
     <div
       data-lightbox-bg
@@ -442,7 +392,20 @@ function CenteredLayoutView({ model }: { model: LightboxLayoutModel }) {
         {...model.navigation.swipeNavigation.swipeHandlers}
       >
         <MediaContent model={model} />
-        <AnnotationButtons model={model} />
+        {showAnnotationControls && (
+          <AnnotationFloatingControls
+            selectedShapeId={model.imageEdit.selectedShapeId}
+            isAnnotateMode={model.imageEdit.isAnnotateMode}
+            brushStrokes={model.imageEdit.brushStrokes}
+            getDeleteButtonPosition={model.imageEdit.getDeleteButtonPosition}
+            onToggleFreeForm={model.imageEdit.handleToggleFreeForm}
+            onDeleteSelected={model.imageEdit.handleDeleteSelected}
+            positionStrategy="fixed"
+            freeFormActiveClassName="bg-purple-600 hover:bg-purple-700 text-white"
+            freeFormInactiveClassName="bg-gray-700 hover:bg-gray-600 text-white"
+            deleteButtonClassName="bg-red-600 hover:bg-red-700 text-white"
+          />
+        )}
         <OverlayElements
           model={model}
           topCenterClassName="absolute top-4 left-1/2 transform -translate-x-1/2 z-[60] flex flex-col items-center gap-2"
@@ -461,34 +424,9 @@ function CenteredLayoutView({ model }: { model: LightboxLayoutModel }) {
         />
       </div>
 
-      {!model.core.readOnly && !model.imageEdit.isSpecialEditMode && model.props.workflowControlsProps && (
+      {!model.core.readOnly && !model.imageEdit.isSpecialEditMode && workflowControlsProps && (
         <div className="w-full" onClick={(event) => event.stopPropagation()}>
-          <WorkflowControls
-            mediaId={model.core.actualGenerationId ?? ''}
-            imageUrl={model.mediaState.effectiveMediaUrl ?? ''}
-            thumbUrl={model.mediaState.media.thumbUrl}
-            isVideo={model.mediaState.isVideo}
-            isInpaintMode={model.imageEdit.isInpaintMode}
-            allShots={model.props.workflowControlsProps.allShots}
-            selectedShotId={model.props.workflowControlsProps.selectedShotId}
-            onShotChange={model.props.workflowControlsProps.onShotChange}
-            onCreateShot={model.props.workflowControlsProps.onCreateShot}
-            contentRef={model.props.workflowControlsProps.contentRef}
-            isAlreadyPositionedInSelectedShot={model.props.workflowControlsProps.isAlreadyPositionedInSelectedShot}
-            isAlreadyAssociatedWithoutPosition={model.props.workflowControlsProps.isAlreadyAssociatedWithoutPosition}
-            showTickForImageId={model.props.workflowControlsProps.showTickForImageId}
-            showTickForSecondaryImageId={model.props.workflowControlsProps.showTickForSecondaryImageId}
-            onAddToShot={model.props.workflowControlsProps.onAddToShot}
-            onAddToShotWithoutPosition={model.props.workflowControlsProps.onAddToShotWithoutPosition}
-            onShowTick={model.props.workflowControlsProps.onShowTick}
-            onApplySettings={model.props.workflowControlsProps.onApplySettings}
-            handleApplySettings={model.props.workflowControlsProps.handleApplySettings}
-            onDelete={model.props.workflowControlsProps.onDelete}
-            handleDelete={model.props.workflowControlsProps.handleDelete}
-            isDeleting={model.props.workflowControlsProps.isDeleting}
-            onNavigateToShot={model.props.workflowControlsProps.handleNavigateToShotFromSelector}
-            onClose={model.core.onClose}
-          />
+          <WorkflowControls {...workflowControlsProps} />
         </div>
       )}
     </div>

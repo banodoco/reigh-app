@@ -1,0 +1,107 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 61.0,
+    "mid_level_elegance": 58.0,
+    "low_level_elegance": 66.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "Near-identical runtime shape guards and coercion helpers are redefined in multiple modules (`toRecordOrEmpty`/`asString`/`asNumber` families in `src/shared/lib/tasks/individualTravelSegment.ts:193-219`, `src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts:13-27`, `src/shared/lib/taskParamsUtils.ts:237-260`, `src/shared/components/TaskDetails/VideoTravelDetails.tsx:20-52`).",
+        "Lightbox state is re-wrapped into multiple large intermediate objects (`lightboxCore`, `lightboxMedia`, `lightboxVariants`, `lightboxNavigation`) before passing into another adapter (`useLightboxStateValue`) in `src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx:180-279`.",
+        "Broad parameter bags with many optional branches are accepted and forwarded in task builders (`JoinClipsTaskParams` in `src/shared/lib/tasks/joinClips.ts:59-110`, and orchestrator payload assembly in `src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts:118-180`), increasing interface surface area without clear bounded sub-contracts."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 59.0,
+        "indirection_cost": 54.0,
+        "interface_honesty": 63.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Task-details seam duplicates translation logic that was already centralized in `taskParamsUtils`; `VideoTravelDetails` still performs its own fallback ladders for negative prompts, phase config, structure guidance, and arrays (`src/shared/components/TaskDetails/VideoTravelDetails.tsx:93-230`) instead of consuming one boundary-normalized model.",
+        "Query boundary filtering is duplicated between count and data queries in `useTasks` (`buildCountQuery` at `src/shared/hooks/useTasks.ts:93-115` and `buildDataQuery` at `src/shared/hooks/useTasks.ts:117-162`), creating two integration seams that must stay manually in sync.",
+        "Video lightbox handoff requires a large nested object transfer into `useLightboxWorkflowProps` (`src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx:357-400`), making cross-module contracts hard to reason about and easy to drift."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Several files are internally coherent but contain very long branch-heavy assembly functions with repeated optional-spread patterns, e.g. `buildTravelBetweenImagesPayload` (`src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts:118-315`) and `buildMagicEditTaskParams` (`src/shared/lib/tasks/magicEdit.ts:136-203`).",
+        "`useVideoLightboxControlsPanel` has an extremely large `useMemo` dependency list (`src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx:97-142`), signaling brittle local internals and high accidental complexity for simple render branching.",
+        "`useSegmentSlotMode` combines URL deep-linking, pair selection, structure-video overlap mutation, and frame update orchestration in one hook (`src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts:184-260` plus surrounding helpers), reducing local intent clarity."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "duplicated_param_normalizers",
+      "summary": "Runtime task-param normalization is duplicated across builders and consumers, creating parallel abstractions with inconsistent contracts.",
+      "related_files": [
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/taskParamsUtils.ts",
+        "src/shared/components/TaskDetails/VideoTravelDetails.tsx"
+      ],
+      "evidence": [
+        "`individualTravelSegment.ts:193-251` defines local `toRecordOrEmpty/asNumber/asString/asBoolean/asPhaseConfig`.",
+        "`payloadBuilder.ts:13-27` redefines equivalent `toRecordOrEmpty/asNumber/asString`.",
+        "`taskParamsUtils.ts:237-268` defines another `asRecord/asString/toFiniteNumber/pickFirstString` stack.",
+        "`VideoTravelDetails.tsx:20-52` introduces yet another guard/coercion layer (`asRecordOrUndefined`, `asStringArray`, etc.)."
+      ],
+      "suggestion": "Create one shared boundary-normalization module for task-param decoding (record guards, scalar coercion, array extraction, prompt/image derivation) and make task builders/details consume that typed normalized model instead of re-implementing guards per file.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "lightbox_state_bag_seam",
+      "summary": "Lightbox orchestration uses oversized state/prop bags across seams, increasing integration fragility and indirection cost.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx"
+      ],
+      "evidence": [
+        "`useVideoLightboxRenderModel.tsx:180-279` builds multiple intermediate lightbox state objects before handing off to another composition hook.",
+        "`useVideoLightboxRenderModel.tsx:357-400` passes a deeply nested orchestration object into `useLightboxWorkflowProps` containing panel, shotWorkflow, actions, buttonGroupProps, refs, and segment mode data.",
+        "`ImageLightbox.tsx:68-88` plus `192-260` shows similarly broad grouped props (navigation/shotWorkflow/features/actions) and large handoff to shared state hook.",
+        "`LightboxLayout.tsx:37-76` rebuilds an additional model from multiple contexts and props, then fans into many child controls."
+      ],
+      "suggestion": "Introduce narrower seam contracts by splitting lightbox workflow into feature-specific adapters (navigation, variants, shot-actions, edit-mode) with smaller typed inputs; avoid one mega render-model object and one mega workflow call.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "tasks_query_filter_duplication",
+      "summary": "Task query filtering logic is duplicated for count and data paths, making boundary behavior easy to desynchronize.",
+      "related_files": [
+        "src/shared/hooks/useTasks.ts",
+        "src/shared/realtime/DataFreshnessManager.ts"
+      ],
+      "evidence": [
+        "`useTasks.ts:93-115` (`buildCountQuery`) and `117-162` (`buildDataQuery`) repeat the same project/status/taskType visibility filters with separate maintenance paths.",
+        "Both queries are executed together in `createPaginatedTasksQueryFn` (`useTasks.ts:218-223`), so any filter drift would silently produce inconsistent total counts vs returned rows.",
+        "Failures from either path route to the shared freshness manager (`useTasks.ts:225-234`), amplifying coupling between correctness of duplicated query seams and polling behavior."
+      ],
+      "suggestion": "Extract a single query-filter applicator used by both count and data builders (or construct one base filtered query and derive count/data variants), then keep ordering/range logic as the only divergence.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ]
+}

@@ -7,7 +7,7 @@ import { usePanes } from '@/shared/contexts/PanesContext';
 import { ReighLoading } from '@/shared/components/ReighLoading';
 import SettingsModal from '@/shared/components/SettingsModal/SettingsModal';
 import { OnboardingModal } from '@/shared/components/OnboardingModal';
-import { ChunkLoadErrorBoundary } from '@/shared/components/ChunkLoadErrorBoundary';
+import { ChunkLoadErrorBoundary } from '@/shared/runtime/ChunkLoadErrorBoundary';
 import { dispatchAppEvent } from '@/shared/lib/typedEvents';
 
 // Lazy load ProductTour since it only shows during onboarding
@@ -17,7 +17,7 @@ const LazyProductTour = React.lazy(() =>
   }))
 );
 import { AIInputModeProvider } from '@/shared/contexts/AIInputModeContext';
-import { useIsMobile, useIsTablet } from '@/shared/hooks/useMobile';
+import { useIsMobile, useIsTablet } from '@/shared/hooks/mobile';
 import { SocialIcons } from './components/SocialIcons';
 
 import { useAuth } from '@/shared/contexts/AuthContext';

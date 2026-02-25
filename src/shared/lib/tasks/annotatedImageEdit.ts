@@ -1,6 +1,6 @@
 import { createTask, buildHiresFixParams } from '../taskCreation';
 import type { HiresFixApiParams } from '../taskCreation';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { ComfyLoraConfig } from '@/shared/types/lora';
 
 interface CreateAnnotatedImageEditTaskParams {
@@ -47,6 +47,7 @@ async function createSingleAnnotatedEditTask(params: Omit<CreateAnnotatedImageEd
     num_generations: 1, // Each task creates one generation
     generation_id,
     based_on: generation_id, // Explicitly track source generation for lineage
+    parent_generation_id: generation_id, // Compatibility for workers that key off parent_generation_id
     ...(shot_id ? { shot_id } : {}),
     ...(tool_type ? { tool_type } : {}),
     ...(loras && loras.length > 0 ? { loras } : {}),
@@ -102,7 +103,7 @@ export async function createAnnotatedImageEditTask(params: CreateAnnotatedImageE
   if (failed.length > 0) {
     failed.forEach((result, index) => {
       if (result.status === 'rejected') {
-        handleError(result.reason, { context: `AnnotatedImageEdit:task${index + 1}`, showToast: false });
+        normalizeAndPresentError(result.reason, { context: `AnnotatedImageEdit:task${index + 1}`, showToast: false });
       }
     });
   }

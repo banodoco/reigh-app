@@ -1,8 +1,8 @@
 import type {
   HydratedReferenceImage,
-  ProjectImageSettings,
   ReferenceImage,
 } from '../../types';
+import type { ProjectImageSettingsInput } from './legacyProjectImageSettings';
 
 export interface LegacyMigrationsInput {
   selectedProjectId: string | null;
@@ -15,10 +15,10 @@ export interface LegacyMigrationsInput {
   isLoadingReferences: boolean;
   selectedReferenceIdByShot: Record<string, string | null>;
 
-  projectImageSettings: ProjectImageSettings | null;
+  projectImageSettings: ProjectImageSettingsInput | null;
   updateProjectImageSettings: (
     scope: 'project' | 'shot',
-    updates: Partial<ProjectImageSettings>
+    updates: Partial<ProjectImageSettingsInput>
   ) => Promise<void>;
 
   privacyDefaults: { resourcesPublic: boolean };

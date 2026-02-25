@@ -1,0 +1,118 @@
+{
+  "batch": "Design coherence — Mechanical Concern Signals",
+  "batch_index": 4,
+  "assessments": {
+    "design_coherence": 74.8
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "`src/shared/components/ImageGenerationForm/hooks/useFormSubmission.ts` and `.../formSubmission/useSubmissionHandlers.ts` repeatedly forward the same large state surface through multiple wrapper hooks before execution.",
+        "`src/shared/components/MediaLightbox/MediaLightbox.tsx` still exposes a very wide flat prop API and then re-bundles it (`useBundledLightboxProps`) rather than reducing the contract at the boundary; `.../hooks/useSharedLightboxState.ts` mirrors this with a very large composed input/return surface.",
+        "`src/shared/hooks/useTimelineCore.ts` and `src/shared/hooks/timeline/useTimelineFrameUpdates.ts` duplicate queue logging/write orchestration primitives (`shortId`, queued/start/end logging branches, serialized write plumbing), indicating parallel implementations of the same workflow.",
+        "Supabase functions in the same area use two different structural patterns: `initEdgeRuntime` + shared HTTP helpers (`generate-pat`, `revoke-pat`, `setup-auto-topup`, `complete-auto-topup-setup`) versus manual env/client/Response plumbing (`stripe-checkout`, `generate-upload-url`, `get-task-output`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "image_form_submission_prop_tunnel",
+      "summary": "Image form submission flow is split across wrappers that mostly shuttle the same wide state object.",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/hooks/useFormSubmission.ts",
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmissionHandlers.ts",
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmissionOrchestrator.ts"
+      ],
+      "evidence": [
+        "`useFormSubmission` destructures and repackages a large prop set, writes a parallel `formStateRef`, and forwards nearly the same fields to `useTaskParamsBuilder` and `useSubmissionHandlers`.",
+        "`useSubmissionHandlers` mostly re-forwards those fields into `useSubmissionOrchestrator` and then re-wraps returned commands through `useSubmitHandler` and `usePromptQueueHandlers`.",
+        "`useSubmissionOrchestrator` defines another large input interface tied to `UseFormSubmissionProps`, showing orchestration depends on many leaf fields instead of a tighter domain object."
+      ],
+      "suggestion": "Introduce a single `SubmissionContext` (state + derived helpers + validators) produced once in `useFormSubmission`, and pass that context through strategy-style handlers (`managed`, `automated`, `queueExisting`) instead of re-threading individual fields across each hook layer.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "wide_contract_passthrough"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "lightbox_boundary_overwide",
+      "summary": "Lightbox boundary uses over-wide contracts and repackaging indirection instead of cohesive feature APIs.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/MediaLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts",
+        "src/shared/components/MediaLightbox/hooks/useVideoEditing.ts"
+      ],
+      "evidence": [
+        "`MediaLightboxProps` contains a very large flat surface and `useBundledLightboxProps` repackages many of the same values into grouped objects, adding indirection without reducing the upstream contract.",
+        "`useSharedLightboxState` composes many concern-specific interfaces into one monolithic hook input and returns a deeply nested mega-result object spanning variants, navigation, references, shots, lineage, layout, and button props.",
+        "`useVideoEditing` combines UI mode state, selection geometry, validation rules, LoRA state, and task dispatch in one hook, reinforcing a broad 'do-everything' pattern around lightbox editing features."
+      ],
+      "suggestion": "Define explicit feature modules with narrow interfaces (e.g., `lightboxNavigation`, `variantOps`, `shotOps`, `videoEditSession`) and have `MediaLightbox` compose them via typed feature adapters rather than one aggregate prop bag and one aggregate state hook.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "wide_contract_passthrough"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "timeline_write_flow_duplicated",
+      "summary": "Timeline persistence orchestration is duplicated across core and frame-update hooks.",
+      "related_files": [
+        "src/shared/hooks/useTimelineCore.ts",
+        "src/shared/hooks/timeline/useTimelineFrameUpdates.ts"
+      ],
+      "evidence": [
+        "Both files define near-identical queue logging structure (`queued/start/end` branches), local `shortId` helpers, and write execution scaffolding around `runSerializedTimelineWrite` / timeout wrappers.",
+        "Both files implement similar persist-and-refresh choreography (write, sync metadata, invalidate/refetch caches) with slightly different local conventions, which increases drift risk.",
+        "The same persistence primitives (`persistTimelineFrameBatch`, legacy supabase writes, queue utilities) are orchestrated independently in each hook rather than behind one timeline write service."
+      ],
+      "suggestion": "Extract a shared timeline write coordinator (queue logging, timeout behavior, cache invalidation contract, and failure handling) and make both hooks call that coordinator with operation-specific payloads only.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "parallel_orchestration_paths"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "edge_function_runtime_split_brain",
+      "summary": "Supabase edge functions follow conflicting runtime/response patterns in the same subsystem.",
+      "related_files": [
+        "supabase/functions/generate-pat/index.ts",
+        "supabase/functions/revoke-pat/index.ts",
+        "supabase/functions/setup-auto-topup/index.ts",
+        "supabase/functions/complete-auto-topup-setup/index.ts",
+        "supabase/functions/stripe-checkout/index.ts",
+        "supabase/functions/generate-upload-url/index.ts",
+        "supabase/functions/get-task-output/index.ts"
+      ],
+      "evidence": [
+        "Some functions use shared runtime/bootstrap helpers (`initEdgeRuntime`, shared `jsonResponse`, strict JSON parser helpers), while others still manually read env vars, create clients, and return raw `Response` objects.",
+        "`stripe-checkout` defines a local `jsonResponse` helper despite shared HTTP helpers existing in the same function suite.",
+        "`generate-upload-url` and `get-task-output` keep bespoke auth/body/response flow, creating parallel patterns for the same concerns (method guard, auth, parse, error mapping, response formatting)."
+      ],
+      "suggestion": "Standardize all edge functions on a single request pipeline (bootstrap, method guard, auth, body parsing, response/error mapping) from `_shared`, and leave each function file responsible only for domain logic.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "parallel_orchestration_paths"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Boundary contracts are too wide, so intermediate layers become pass-through wrappers instead of true abstractions.",
+      "Shared orchestration concerns (write queueing, edge runtime plumbing) are implemented in parallel in multiple places instead of enforced via one platform path."
+    ],
+    "likely_symptoms": [
+      "image_form_submission_prop_tunnel",
+      "lightbox_boundary_overwide",
+      "timeline_write_flow_duplicated",
+      "edge_function_runtime_split_brain"
+    ],
+    "possible_false_positives": []
+  }
+}

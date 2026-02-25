@@ -1,13 +1,13 @@
 import { useMemo, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { toast } from '@/shared/components/ui/sonner';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { useAddImageToShot, useAddImageToShotWithoutPosition, usePositionExistingGenerationInShot } from '@/shared/hooks/shots';
 import { useShotCreation } from '@/shared/hooks/useShotCreation';
 import { useShots } from '@/shared/contexts/ShotsContext';
 import { useLastAffectedShot } from '@/shared/hooks/useLastAffectedShot';
-import { useDeleteGenerationWithConfirm } from '@/shared/hooks/useDeleteGenerationWithConfirm';
+import { useDeleteGenerationWithConfirm } from '@/domains/generation/hooks/useDeleteGenerationWithConfirm';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 interface UseImageGenActionsParams {
   projectId: string | null;
@@ -33,7 +33,7 @@ export function useImageGenActions({
   const addImageToShotMutation = useAddImageToShot();
   const addImageToShotWithoutPositionMutation = useAddImageToShotWithoutPosition();
   const positionExistingGenerationMutation = usePositionExistingGenerationInShot();
-  const { requestDelete, DeleteConfirmDialog } = useDeleteGenerationWithConfirm();
+  const { requestDelete, confirmDialogProps } = useDeleteGenerationWithConfirm();
   const { createShot } = useShotCreation();
   const { shots } = useShots();
 
@@ -91,7 +91,7 @@ export function useImageGenActions({
       queryClient.invalidateQueries({ queryKey: queryKeys.unified.projectPrefix(effectiveProjectId) });
       return true;
     } catch (error) {
-      handleError(error, { context: 'ImageGenerationToolPage.handleAddImageToTargetShot', toastTitle: 'Failed to add image to shot.' });
+      normalizeAndPresentError(error, { context: 'ImageGenerationToolPage.handleAddImageToTargetShot', toastTitle: 'Failed to add image to shot.' });
       return false;
     }
   }, [targetShotInfo.targetShotIdForButton, projectId, addImageToShotMutation, positionExistingGenerationMutation, setLastAffectedShotId, selectedShotFilter, excludePositioned, queryClient, effectiveProjectId]);
@@ -123,7 +123,7 @@ export function useImageGenActions({
       queryClient.invalidateQueries({ queryKey: queryKeys.unified.projectPrefix(effectiveProjectId) });
       return true;
     } catch (error) {
-      handleError(error, { context: 'ImageGenerationToolPage.handleAddImageToTargetShotWithoutPosition', toastTitle: 'Failed to add image to shot without position.' });
+      normalizeAndPresentError(error, { context: 'ImageGenerationToolPage.handleAddImageToTargetShotWithoutPosition', toastTitle: 'Failed to add image to shot without position.' });
       return false;
     }
   }, [targetShotInfo.targetShotIdForButton, projectId, addImageToShotWithoutPositionMutation, setLastAffectedShotId, queryClient, effectiveProjectId]);
@@ -144,7 +144,7 @@ export function useImageGenActions({
         ),
       });
     } catch (error) {
-      handleError(error, { context: 'ImageGenerationToolPage.refetchGenerationsAfterChange', showToast: false });
+      normalizeAndPresentError(error, { context: 'ImageGenerationToolPage.refetchGenerationsAfterChange', showToast: false });
       throw error;
     }
   }, [projectId, effectiveProjectId, currentPage, itemsPerPage, queryClient, generationsFilters]);
@@ -174,6 +174,6 @@ export function useImageGenActions({
     handleBackfillRequest,
     handleCreateShot,
     setLastAffectedShotId,
-    DeleteConfirmDialog,
+    confirmDialogProps,
   };
 }

@@ -1,16 +1,17 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useRenderLogger } from '@/shared/lib/debug/debugRendering';
 import { useSlidingPane } from '@/shared/hooks/useSlidingPane';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { useQueryClient } from '@tanstack/react-query';
 import { shotQueryKeys } from '@/shared/lib/queryKeys/shots';
 import { Button } from '@/shared/components/ui/button';
 import { Checkbox } from '@/shared/components/ui/checkbox';
-import { Label } from '@/shared/components/ui/label';
+import { Label } from '@/shared/components/ui/primitives/label';
 import { ChevronLeft, ChevronRight, Star, Sparkles, ExternalLink, Search, X } from 'lucide-react';
 import { ImageGenerationModal } from '@/shared/components/ImageGenerationModal';
+import { DeleteGenerationConfirmDialog } from '@/shared/components/dialogs/DeleteGenerationConfirmDialog';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { TOOL_ROUTES } from '@/shared/lib/toolConstants';
+import { TOOL_ROUTES } from '@/shared/lib/toolRoutes';
 import { MediaGallery, type GalleryFilterState } from '@/shared/components/MediaGallery';
 import { useContainerWidth } from '@/shared/components/MediaGallery/hooks';
 import { calculateGalleryLayout } from '@/shared/components/MediaGallery/utils';
@@ -18,13 +19,14 @@ import { usePanes } from '@/shared/contexts/PanesContext';
 import PaneControlTab from '../PaneControlTab';
 import { SkeletonGallery } from '@/shared/components/ui/skeleton-gallery';
 import { ShotFilter } from '@/shared/components/ShotFilter';
-import { useGalleryPageState } from '@/shared/hooks/useGalleryPageState';
-import { useIsMobile } from '@/shared/hooks/useMobile';
+import { useGalleryPageState } from '@/features/gallery/hooks/useGalleryPageState';
+import { useIsMobile } from '@/shared/hooks/mobile';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
 import { useShots } from '@/shared/contexts/ShotsContext';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useShotCreation } from '@/shared/hooks/useShotCreation';
 import { useStableObject } from '@/shared/hooks/useStableObject';
+import { usePaneInteractionLifecycle } from '@/shared/components/panes/usePaneInteractionLifecycle';
 
 import {
   Select,
@@ -127,7 +129,7 @@ const GenerationsPaneComponent: React.FC = () => {
     handleAddToShot,
     handleAddToShotWithoutPosition,
     expectedItemCount, // Pre-computed count for instant skeleton display
-    DeleteConfirmDialog,
+    confirmDialogProps,
   } = useGalleryPageState({
     itemsPerPage: GENERATIONS_PER_PAGE,
     mediaType: mediaTypeFilter,
@@ -154,7 +156,7 @@ const GenerationsPaneComponent: React.FC = () => {
       onSuccess: () => {
         // Invalidate and refetch shots to update the list
         if (selectedProjectId) {
-          void queryClient.invalidateQueries({ queryKey: shotQueryKeys.list(selectedProjectId) });
+          void queryClient.invalidateQueries({ queryKey: [...shotQueryKeys.all, selectedProjectId] });
         }
       },
     });
@@ -206,21 +208,14 @@ const GenerationsPaneComponent: React.FC = () => {
   });
   const paneIsOpen = Boolean(isOpen);
 
-  // Delay pointer events until animation completes to prevent tap bleed-through on mobile
-  const [isPointerEventsEnabled, setIsPointerEventsEnabled] = useState(false);
-  
-  useEffect(() => {
-    if (paneIsOpen) {
-      // Delay enabling pointer events by 300ms (matching the transition duration)
-      const timeoutId = setTimeout(() => {
-        setIsPointerEventsEnabled(true);
-      }, 300);
-      return () => clearTimeout(timeoutId);
-    } else {
-      // Disable immediately when closing
-      setIsPointerEventsEnabled(false);
-    }
-  }, [paneIsOpen]);
+  const { isPointerEventsEnabled, isInteractionDisabled } = usePaneInteractionLifecycle({
+    isOpen: paneIsOpen,
+    disableInteractionsDuringOpen: true,
+    onOpenStart: () => {
+      setShotFilterOpen(false);
+      setMediaTypeFilterOpen(false);
+    },
+  });
 
   // Listen for custom event to open the pane (used on mobile from other components)
   const handleOpenGenerationsPane = useCallback(() => {
@@ -228,19 +223,6 @@ const GenerationsPaneComponent: React.FC = () => {
   }, [openPane]);
 
   useAppEventListener('openGenerationsPane', handleOpenGenerationsPane);
-
-  // Prevent immediate interaction after pane opens (especially on mobile)
-  const [isInteractionDisabled, setIsInteractionDisabled] = useState(false);
-  
-  useEffect(() => {
-    if (paneIsOpen) {
-      setIsInteractionDisabled(true);
-      setShotFilterOpen(false); // Ensure shot filter is closed when pane opens
-      setMediaTypeFilterOpen(false); // Ensure media type filter is closed when pane opens
-      const timer = setTimeout(() => setIsInteractionDisabled(false), 300);
-      return () => clearTimeout(timer);
-    }
-  }, [paneIsOpen]);
 
   // Sync open state with context so Layout can access it
   useEffect(() => {
@@ -630,7 +612,7 @@ const GenerationsPaneComponent: React.FC = () => {
       />
 
       {/* Delete generation confirmation dialog */}
-      <DeleteConfirmDialog />
+      <DeleteGenerationConfirmDialog {...confirmDialogProps} />
     </>
   );
 };

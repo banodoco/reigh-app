@@ -1,0 +1,104 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 68.0,
+    "mid_level_elegance": 72.0,
+    "low_level_elegance": 70.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "src/shared/lib/tasks/joinClips.ts defines JoinClipsTaskParams with legacy fields, multi-clip fields, video-edit fields, global settings, and lineage metadata in one interface (lines 70-122), then conditionally normalizes mode later (lines 243-253, 523-537).",
+        "src/shared/lib/tasks/individualTravelSegment.ts defines IndividualTravelSegmentParams mixing source extraction, orchestration metadata, UI/runtime flags, and override settings in one object (lines 31-98).",
+        "Both task builders carry large optional bags and mode checks before payload creation, so interfaces overstate what each concrete call path actually needs."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 62.0,
+        "indirection_cost": 69.0,
+        "interface_honesty": 58.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts writes both task_view_contract and many legacy/top-level fields into payloads (e.g., base_prompt, expanded arrays, orchestration details; lines 255-283, 299-320).",
+        "src/shared/lib/tasks/joinClips.ts similarly duplicates display-relevant values into both task_view_contract and orchestrator_details (lines 360-393, 464-470).",
+        "src/shared/lib/taskParamsUtils.ts must resolve the same conceptual data from many boundary locations (task_view_contract, individual_segment_params, orchestrator_details, full_orchestrator_payload, top-level) across deriveInputImages/derivePrompt/deriveNegativePrompt/deriveModelName/deriveResolution (lines 24-35, 63-122, 138-291)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx constructs large render models and callback graphs in a single hook path, including wide memoized objects and long dependency arrays (e.g., useImageLightboxControlsPanel deps lines 483-523; useImageLightboxRenderModel lines 526-731).",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx mirrors the same wide object assembly pattern (variants/navigation/layout/actions/panel orchestration) in one function (lines 103-280).",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx receives broad composite props and context slices, then mixes many rendering branches and overlay orchestration in one module (lines 38-269+), increasing local reasoning cost."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "mode_param_bag_overreach",
+      "summary": "Task APIs use oversized multi-mode parameter bags instead of mode-specific contracts",
+      "related_files": [
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts"
+      ],
+      "evidence": [
+        "JoinClipsTaskParams combines legacy join, multi-clip join, video-edit join, UI restoration, and lineage fields in one interface (joinClips.ts lines 70-122).",
+        "IndividualTravelSegmentParams similarly mixes regeneration modes, source extraction, runtime flags, and UI state hints (individualTravelSegment.ts lines 31-98).",
+        "Both files then branch to recover actual mode requirements later (joinClips.ts lines 243-253 and 523-537; individualTravelSegment.ts lines 103-129)."
+      ],
+      "suggestion": "Replace bag-style params with discriminated unions keyed by mode (e.g., `mode: 'legacy_join' | 'multi_clip_join' | 'video_edit_join'`) and move each payload builder behind its own typed branch so invalid field combinations become unrepresentable.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "contract_fallback_chain_entropy",
+      "summary": "Task producer/consumer seams rely on duplicated contracts and multi-hop fallbacks",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/taskParamsUtils.ts"
+      ],
+      "evidence": [
+        "Payload builders emit `task_view_contract` while also emitting legacy/top-level fields for the same concepts (travelBetweenImages/payloadBuilder.ts lines 255-283, joinClips.ts lines 360-393).",
+        "TaskParams readers must probe multiple locations in precedence order to derive one value (taskParamsUtils.ts lines 24-35, 63-122, 138-291).",
+        "This creates translation logic at many seams instead of one boundary adapter."
+      ],
+      "suggestion": "Promote `task_view_contract` to the single authoritative read model at boundaries, add one explicit migration adapter for legacy payloads, and delete multi-source fallback branches once backfilled.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "lightbox_render_model_sprawl",
+      "summary": "Lightbox internals are over-concentrated into large render-model assembly functions",
+      "related_files": [
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "Image lightbox render path builds and passes a very wide state/action surface, with long dependency lists and many inline closures (ImageLightbox.tsx lines 526-731, 483-523).",
+        "Video lightbox render model repeats the same high-fan-in assembly pattern (useVideoLightboxRenderModel.tsx lines 103-280).",
+        "Layout component mixes many conditional overlays and control groups from large prop bags/context slices (LightboxLayout.tsx lines 38-269+)."
+      ],
+      "suggestion": "Split render-model assembly into small presenter hooks per concern (navigation, variants, workflow controls, edit overlays) and pass narrow command objects into `LightboxLayout` to reduce dependency fan-out and local branch density.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

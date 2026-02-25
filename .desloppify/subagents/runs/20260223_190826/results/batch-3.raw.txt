@@ -1,0 +1,81 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 3,
+  "assessments": {
+    "high_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`vitest.edge.config.ts` hardcodes many Supabase function-specific include/exclude globs and remote-module alias shims, while `vitest.config.ts` imports that file just to derive excludes, making root test config ownership depend on edge-function internals.",
+        "`vitest.edge.smoke.config.ts` and `vitest.edge.config.ts` are both root-level and both target `supabase/functions/**` tests, but suite boundaries (smoke vs unit) are encoded by filename conventions rather than a directory-owned test config under `supabase/functions`.",
+        "`src/shared/hooks/useAIInteractionService.ts`, `src/shared/hooks/useAdjacentPagePreloader.ts`, and `src/shared/hooks/useApiKeys.ts` each embed feature-specific behavior (AI prompt RPCs, media gallery pagination preloading, user API-key persistence) despite being placed in a broad `shared/hooks` namespace.",
+        "Test placement is inconsistent across the same shared layer: hook tests live under `src/shared/hooks/__tests__/...` while component tests like `src/shared/components/ActiveLoRAsDisplay.test.tsx` and `src/shared/components/AppErrorBoundary.test.tsx` are colocated, reducing predictability of ownership and discovery."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "root_test_config_owns_edge_domain_details",
+      "summary": "Root Vitest configs absorb edge-function domain details and blur test-suite ownership boundaries.",
+      "related_files": [
+        "vitest.edge.config.ts",
+        "vitest.edge.smoke.config.ts",
+        "vitest.config.ts"
+      ],
+      "evidence": [
+        "`vitest.edge.config.ts` contains function-by-function include globs and Deno/esm alias mappings specific to `supabase/functions` internals.",
+        "`vitest.config.ts` imports `vitest.edge.config.ts` and reuses its include list for exclusion, coupling browser/jsdom suite shape to edge suite internals.",
+        "`vitest.edge.smoke.config.ts` duplicates top-level edge suite setup but is separated only by root filename, not by domain-owned folder structure."
+      ],
+      "suggestion": "Move edge test configuration ownership into `supabase/functions/` (for example `supabase/functions/vitest.unit.config.ts` and `supabase/functions/vitest.smoke.config.ts`) and make the root `vitest.config.ts` only compose named projects or top-level suite entries, not import edge internals to compute excludes.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_hooks_contains_feature_specific_services",
+      "summary": "`shared/hooks` hosts multiple domain-specific hooks, obscuring ownership and change boundaries.",
+      "related_files": [
+        "src/shared/hooks/useAIInteractionService.ts",
+        "src/shared/hooks/useAdjacentPagePreloader.ts",
+        "src/shared/hooks/useApiKeys.ts"
+      ],
+      "evidence": [
+        "`useAIInteractionService` directly implements AI prompt generation/edit/summarize RPC workflows (`ai-prompt` tasks), which are feature semantics rather than cross-app generic hook behavior.",
+        "`useAdjacentPagePreloader` is tightly coupled to gallery generations (`fetchGenerations`, `unifiedGenerationQueryKeys`, image preloading priorities), indicating media-gallery ownership.",
+        "`useApiKeys` encapsulates authenticated `users.api_keys` persistence and query-key wiring, which maps to account/settings data boundaries rather than generic shared primitives."
+      ],
+      "suggestion": "Relocate these hooks under feature-scoped directories (for example `src/features/ai/hooks`, `src/features/gallery/hooks`, `src/features/settings/hooks`) and keep `src/shared/hooks` for reusable, domain-agnostic hooks only; then update imports through explicit feature entry points.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "test_file_placement_conventions_are_mixed",
+      "summary": "Mixed test placement conventions in shared modules reduce structural predictability.",
+      "related_files": [
+        "src/shared/hooks/__tests__/useAIInteractionService.test.ts",
+        "src/shared/hooks/__tests__/useAdjacentPagePreloader.test.ts",
+        "src/shared/hooks/__tests__/useApiKeys.test.ts",
+        "src/shared/components/ActiveLoRAsDisplay.test.tsx",
+        "src/shared/components/AppErrorBoundary.test.tsx"
+      ],
+      "evidence": [
+        "Hook tests are grouped in a centralized `__tests__` folder under `src/shared/hooks/`.",
+        "Component tests in the same `src/shared` tree are colocated beside source files (`ActiveLoRAsDisplay.test.tsx`, `AppErrorBoundary.test.tsx`).",
+        "No single placement rule is evident from these files, so new files cannot follow a predictable ownership convention."
+      ],
+      "suggestion": "Adopt one repository-wide test placement rule per layer (either strict co-location or strict `__tests__` grouping) and normalize existing files in `src/shared/hooks` and `src/shared/components` to that rule to make discovery and ownership consistent.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

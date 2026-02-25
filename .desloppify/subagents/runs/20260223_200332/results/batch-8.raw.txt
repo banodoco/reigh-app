@@ -1,0 +1,114 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 8,
+  "assessments": {
+    "convention_outlier": 72.0,
+    "error_consistency": 58.0,
+    "authorization_consistency": 74.0
+  },
+  "dimension_notes": {
+    "convention_outlier": {
+      "evidence": [
+        "`src/shared/hooks/useMobile.tsx` uses a different style island (double quotes, omitted semicolons on many statements) while nearby shared hooks use single quotes + semicolons (`src/shared/hooks/useCompletedTimestamp.ts`, `src/shared/hooks/useProcessingTimestamp.ts`, `src/shared/hooks/useUpdatingTimestamp.ts`).",
+        "Within `src/shared/hooks/useMobile.tsx` itself, style is mixed (early section no-semicolon style, later sections semicolons), indicating intra-file convention drift."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "high"
+    },
+    "error_consistency": {
+      "evidence": [
+        "Centralized handler exists (`src/shared/lib/errorHandling/handleError.ts`) but many call sites still use direct `console.error` and early returns (`src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts:59-66`, `supabase/functions/complete_task/orchestrator.ts:73,214,239,279,326`).",
+        "Error outcomes are inconsistent: some paths normalize and throw (`handleAndRethrow` exists), others log and continue/return sentinel values (`checkFinalStitchStatus` returns `'not_found'` on query error at `supabase/functions/complete_task/orchestrator.ts:238-240`).",
+        "Task modules often call `handleError` then rethrow raw unknown (`src/shared/lib/tasks/imageGeneration.ts:423-425,504-509`, `src/shared/lib/tasks/joinClips.ts:442-444`), while other modules throw freshly wrapped `Error` values (`src/shared/hooks/useGenerationMutations.ts:47,97,114,132,136,155`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "authorization_consistency": {
+      "evidence": [
+        "Server endpoint `supabase/functions/calculate-task-cost/index.ts` explicitly enforces authenticated service-role-only access (`authenticateRequest`, `auth.isServiceRole` checks at lines 186-196).",
+        "Client route gating in `src/app/routes.tsx` uses local cached token presence (`hasStoredSessionToken`) for redirect decisions (`authRedirectLoader`), which is a different trust mechanism than verified server-side auth.",
+        "OAuth start flow in `src/pages/Home/hooks/useDiscordSignIn.ts` stores local `oauthInProgress` flag and proceeds without server-validated session context in that layer, further mixing auth-state signals."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "error_consistency",
+      "identifier": "error-channel-fragmentation",
+      "summary": "Error handling channels are fragmented across centralized handling, raw console logging, and sentinel returns.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "supabase/functions/complete_task/orchestrator.ts"
+      ],
+      "evidence": [
+        "`handleError` provides normalization/logging/notifier flow (`handleError.ts:41-57`), but `useMediaGalleryHandlers` logs missing-shot cases directly with `console.error` and returns (`useMediaGalleryHandlers.ts:59-66`).",
+        "`orchestrator.ts` repeatedly logs errors via `console.error` and returns/nulls in control flow (`:73-75`, `:214-215`, `:239-240`, `:326-327`) instead of a shared error contract."
+      ],
+      "suggestion": "Define and enforce per-layer error protocol: UI hooks should route through `handleError` (or typed `AppError` helpers), and orchestrator helpers should return a typed `Result`/error enum instead of logging+null. Keep `console.error` only at top process boundaries.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "error-semantics-collapsed",
+      "summary": "Operational failures are collapsed into success-like or ambiguous statuses, masking real failures.",
+      "related_files": [
+        "supabase/functions/complete_task/orchestrator.ts",
+        "src/shared/lib/tasks/imageGeneration.ts"
+      ],
+      "evidence": [
+        "`checkFinalStitchStatus` returns `'not_found'` when DB query errors (`orchestrator.ts:238-240`), conflating transport/query failure with legitimate not-found.",
+        "`createBatchImageGenerationTasks` logs dev-only details but still rethrows raw `error` after `handleError` (`imageGeneration.ts:504-509`), producing inconsistent downstream error typing versus normalized paths."
+      ],
+      "suggestion": "Separate error states from domain statuses (e.g., `'query_error'` distinct from `'not_found'`) and standardize rethrow behavior to normalized `AppError` or typed domain errors throughout task orchestration and batch creation.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "shared-hook-style-island",
+      "summary": "`useMobile.tsx` forms a style island versus neighboring shared hooks and even has mixed style internally.",
+      "related_files": [
+        "src/shared/hooks/useMobile.tsx",
+        "src/shared/hooks/useCompletedTimestamp.ts",
+        "src/shared/hooks/useProcessingTimestamp.ts"
+      ],
+      "evidence": [
+        "`useMobile.tsx` starts with no-semicolon/double-quote formatting (`lines 1-4, 76-93`), while adjacent hooks consistently use semicolons and single quotes (`useCompletedTimestamp.ts`, `useProcessingTimestamp.ts`).",
+        "`useMobile.tsx` later switches back to semicolon-heavy style (`lines 98+`), indicating intra-file convention drift."
+      ],
+      "suggestion": "Apply the project formatter/lint profile to `useMobile.tsx` and enforce one shared style in `src/shared/hooks` via lint rules/prettier to prevent further style islands.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "authorization_consistency",
+      "identifier": "mixed-auth-trust-signals",
+      "summary": "Auth/authorization trust signals differ between route gating, OAuth flow state, and server enforcement.",
+      "related_files": [
+        "src/app/routes.tsx",
+        "src/pages/Home/hooks/useDiscordSignIn.ts",
+        "supabase/functions/calculate-task-cost/index.ts"
+      ],
+      "evidence": [
+        "Client redirect guard uses cached local token presence (`routes.tsx:40-53`) as access signal.",
+        "OAuth bootstrap stores local `oauthInProgress` marker (`useDiscordSignIn.ts:8-12`) as another state signal.",
+        "Server-side privileged endpoint requires verified service role (`calculate-task-cost/index.ts:186-196`), a stricter and different trust boundary."
+      ],
+      "suggestion": "Document and align auth-state contracts across layers: use explicit server-verified session checks for access decisions where possible, and constrain local-storage flags to UX-only states with clear naming and isolation from authorization decisions.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

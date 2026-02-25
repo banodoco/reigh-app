@@ -1,0 +1,211 @@
+  .wes-tool-card {
+    @apply backdrop-blur-sm border-2 border-primary/10 rounded-xl shadow-lg relative;
+    @apply transition-all duration-500 ease-out cursor-pointer;
+    @apply hover:shadow-2xl hover:border-primary/20;
+    @apply rounded-md; /* Sharper edges like buttons */
+    position: relative;
+    overflow: hidden;
+    background: hsl(var(--card));
+    padding: 12px;
+    box-shadow:
+      0 4px 8px hsl(var(--primary) / 0.1),
+      0 0 0 1px hsl(var(--primary) / 0.05),
+      inset 0 0 0 1px hsl(var(--primary) / 0.1);
+  }
+  
+  .dark .wes-tool-card {
+    background: hsl(var(--card));
+    box-shadow: 
+      0 4px 8px hsl(var(--primary) / 0.2),
+      0 0 0 1px hsl(var(--primary) / 0.1),
+      inset 0 0 0 1px hsl(var(--primary) / 0.15);
+  }
+
+  /* Reusable click ripple effect */
+  .click-ripple::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 300px;
+    height: 300px;
+    background:
+      radial-gradient(circle,
+        hsl(var(--wes-vintage-gold) / 0.35) 0%,
+        hsl(var(--wes-vintage-gold) / 0.1) 40%,
+        transparent 70%
+      );
+    transform: translate(-50%, -50%) translate(var(--ripple-x, 0), var(--ripple-y, 0)) scale(0);
+    transition: transform 0s; /* No transition by default */
+    pointer-events: none;
+    z-index: 5;
+    border-radius: 50%;
+  }
+
+  .click-ripple.ripple-active::before {
+    transform: translate(-50%, -50%) translate(var(--ripple-x, 0), var(--ripple-y, 0)) scale(1);
+    transition: transform 0.15s ease-out;
+  }
+
+  /* Tool card specific implementation */
+  .wes-tool-card::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 300px;
+    height: 300px;
+    background:
+      radial-gradient(circle,
+        hsl(var(--wes-vintage-gold) / 0.35) 0%,
+        hsl(var(--wes-vintage-gold) / 0.1) 40%,
+        transparent 70%
+      );
+    transform: translate(-50%, -50%) translate(var(--ripple-x, 0), var(--ripple-y, 0)) scale(0);
+    transition: transform 0s; /* No transition by default */
+    pointer-events: none;
+    z-index: 5;
+    border-radius: 50%;
+  }
+
+  .wes-tool-card.clicked::before {
+    transform: translate(-50%, -50%) translate(var(--ripple-x, 0), var(--ripple-y, 0)) scale(1);
+    transition: transform 0.15s ease-out; /* Much faster animation */
+  }
+
+  .wes-tool-card:hover {
+    /* Reduced scale and removed translateY to prevent flicker */
+    transform: scale(1.02);
+  }
+
+  .wes-modal {
+    @apply max-w-2xl mx-auto animate-in fade-in-0 zoom-in-95 duration-300 backdrop-blur-sm border-2 border-primary/10 rounded-xl shadow-lg relative;
+    background:
+      linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--accent) / 0.15) 100%),
+      radial-gradient(circle at top right, hsl(var(--accent) / 0.1), transparent 50%),
+      radial-gradient(circle at bottom left, hsl(var(--secondary) / 0.1), transparent 50%);
+  }
+
+  .wes-input {
+    @apply bg-card/90 dark:bg-card/80 border-2 border-primary/20 rounded-lg relative;
+    @apply focus:border-primary focus:ring-2 focus:ring-primary/20;
+    @apply transition-all duration-200 ease-out;
+    box-shadow: 
+      inset 0 1px 3px hsl(var(--primary) / 0.1),
+      0 0 0 1px hsl(var(--wes-vintage-gold) / 0.2);
+  }
+
+  .wes-input:focus {
+    box-shadow: 
+      inset 0 1px 3px hsl(var(--primary) / 0.1),
+      0 0 0 1px hsl(var(--wes-vintage-gold) / 0.4),
+      0 0 10px hsl(var(--primary) / 0.2);
+  }
+
+  .wes-select {
+    @apply bg-card/90 dark:bg-card/80 border-2 border-primary/20 rounded-lg relative focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 ease-out appearance-none;
+    background-image: 
+      linear-gradient(45deg, transparent 50%, hsl(var(--primary)) 50%),
+      linear-gradient(135deg, hsl(var(--primary)) 50%, transparent 50%);
+    background-position: 
+      calc(100% - 15px) calc(1em + 2px),
+      calc(100% - 10px) calc(1em + 2px);
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+  }
+
+  /* Enhanced decorative elements */
+  .wes-ornament {
+    position: relative;
+  }
+
+  .wes-ornament::before {
+    content: '❋';
+    position: absolute;
+    top: -15px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 20px;
+    color: hsl(var(--wes-vintage-gold));
+    text-shadow: 0 0 10px hsl(var(--wes-vintage-gold) / 0.5);
+  }
+
+  .wes-divider {
+    position: relative;
+    text-align: center;
+    margin: 2rem 0;
+  }
+
+  .wes-divider::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      transparent,
+      hsl(var(--wes-vintage-gold) / 0.3) 20%,
+      hsl(var(--wes-dusty-lavender) / 0.3) 50%,
+      hsl(var(--wes-dusty-blue) / 0.3) 80%,
+      transparent
+    );
+  }
+
+  .wes-divider::after {
+    content: '◆';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: hsl(var(--background));
+    padding: 0 1rem;
+    color: hsl(var(--wes-vintage-gold));
+    font-size: 12px;
+  }
+
+  /* Vintage camera aperture effect */
+  .wes-aperture {
+    position: relative;
+    border-radius: 50%;
+    overflow: hidden;
+  }
+
+  .wes-aperture::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: 
+      conic-gradient(from 0deg at 50% 50%,
+        transparent 0deg,
+        hsl(var(--primary) / 0.1) 45deg,
+        transparent 90deg,
+        hsl(var(--primary) / 0.1) 135deg,
+        transparent 180deg,
+        hsl(var(--primary) / 0.1) 225deg,
+        transparent 270deg,
+        hsl(var(--primary) / 0.1) 315deg,
+        transparent 360deg
+      );
+    animation: rotate 20s linear infinite;
+  }
+
+  /* Vintage stamp effect */
+  .wes-stamp {
+    position: relative;
+    border: 3px dashed hsl(var(--primary) / 0.4);
+    background: hsl(var(--wes-cream));
+    /* Keep stamps upright by default */
+    transform: rotate(0deg);
+  }
+
+  .wes-stamp::before {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border: 2px solid hsl(var(--primary) / 0.2);
+    background: 
+      radial-gradient(circle at 4px 4px, hsl(var(--primary) / 0.3) 2px, transparent 2px);
+    background-size: 8px 8px;
+  }

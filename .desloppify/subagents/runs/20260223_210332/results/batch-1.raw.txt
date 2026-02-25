@@ -1,0 +1,89 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 74.0,
+    "high_level_elegance": 78.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/handleError.ts` keeps global mutable singleton state (`registeredNotifier`, `removeNotifierListener`) and dispatches browser `CustomEvent` for app-wide error notifications.",
+        "`src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts` directly imports and calls the shared global `handleError`, so feature modules are coupled to the same process-wide notification/logging behavior.",
+        "`src/domains/generation/types/index.ts` re-exports from top-level `@/types/*` rather than owning domain-local type definitions, while downstream feature modules (`useMediaGalleryController.ts`, `useMediaGalleryHandlers.ts`) import through that domain barrel, creating a thin alias boundary instead of a true domain boundary."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Install flow behavior is split across three coordinated files: decision logic in `installInstructions/scenarios.ts`, visual mapping keys in `installInstructions/visuals.tsx`, and orchestration in `InstallInstructionsModal.tsx`.",
+        "The scenario-to-visual linkage depends on string-key coordination (`InstallVisualKey` union + `resolveInstallVisualKey` + `installVisualRegistry`) spread across files, so adding/changing one install path requires synchronized multi-file edits.",
+        "`src/shared/components/MediaGallery/hooks/useMediaGalleryController.ts` and `useMediaGalleryHandlers.ts` expose large nested context argument bags (`shotContext`, `taskDetailsContext`, `mobileContext`), indicating orchestration ownership is distributed rather than centered in a single cohesive boundary."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "global_error_bus_in_shared_layer",
+      "summary": "Shared error module uses global browser event bus and singleton notifier state across features.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/ui/sonner.tsx"
+      ],
+      "evidence": [
+        "`handleError.ts` defines process-wide mutable notifier state and `window` event dispatch (`reigh:error-notification`) instead of explicit dependency injection at call sites.",
+        "Feature hook `useMediaGalleryHandlers.ts` invokes `handleError(...)` directly, so feature behavior depends on whichever notifier is globally configured at runtime.",
+        "Toast UI is separately implemented in `ui/sonner.tsx`, implying notification transport and presentation are decoupled via ambient global wiring rather than explicit module boundaries."
+      ],
+      "suggestion": "Introduce an explicit `ErrorReporter` interface at app composition root and pass/report through context or injected services. Keep `handleError` pure (normalize/log/return) and move UI notification wiring into a dedicated app-layer adapter module.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "domain_types_barrel_is_alias_not_boundary",
+      "summary": "Domain type barrel re-exports global types, weakening domain boundary ownership.",
+      "related_files": [
+        "src/domains/generation/types/index.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryController.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts"
+      ],
+      "evidence": [
+        "`domains/generation/types/index.ts` only re-exports from `@/types/*` and defines no domain-owned contracts.",
+        "Media gallery hooks import `Shot` from `@/domains/generation/types`, but that symbol is actually sourced from top-level global types, so dependency direction is obscured.",
+        "This creates a facade that looks domain-local while preserving coupling to generic root type files."
+      ],
+      "suggestion": "Either (a) move generation-owned contracts into `src/domains/generation/types/*` and export from there, or (b) remove the domain alias barrel and import from `@/types/*` directly to make coupling explicit. Prefer option (a) for stronger boundary ownership.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "install_flow_split_requires_manual_key_sync",
+      "summary": "Install-instructions architecture is fragmented across logic, key mapping, and visuals.",
+      "related_files": [
+        "src/pages/Home/components/InstallInstructionsModal.tsx",
+        "src/pages/Home/components/installInstructions/scenarios.ts",
+        "src/pages/Home/components/installInstructions/visuals.tsx"
+      ],
+      "evidence": [
+        "`InstallInstructionsModal.tsx` computes `visualKey` and then resolves `installVisualRegistry[visualKey]`, while selection logic lives separately in `scenarios.ts`.",
+        "`scenarios.ts` returns string literal keys and `visuals.tsx` maintains the union plus registry, so scenario additions require synchronized edits in both files.",
+        "The decomposition increases coordination cost and makes ownership of a single install scenario spread across multiple modules."
+      ],
+      "suggestion": "Collapse each install scenario into one typed object (conditions, title, instructions, visual component) in a single scenario registry file; have the modal consume that registry directly so adding a scenario is a one-place change.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

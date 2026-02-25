@@ -27,8 +27,8 @@ describe('isTravelTaskType', () => {
     expect(isTravelTaskType('individual_travel_segment')).toBe(true);
   });
 
-  it('returns true for partial travel match', () => {
-    expect(isTravelTaskType('custom_travel_task')).toBe(true);
+  it('returns false for unknown travel-like strings', () => {
+    expect(isTravelTaskType('custom_travel_task')).toBe(false);
   });
 
   it('returns false for non-travel types', () => {

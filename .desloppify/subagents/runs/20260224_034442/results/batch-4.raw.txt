@@ -1,0 +1,107 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "ai_generated_debt": 80.0,
+    "low_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "Multiple assigned files are pure compatibility/pass-through layers with no behavior (`src/tools/travel-between-images/components/Timeline/utils/time-utils.ts`, `src/shared/hooks/useContentResponsive.ts`, `src/types/generationRow.ts`).",
+        "Several short hooks/types carry long generated-style explanatory blocks and inline narration that restate obvious code paths (`src/tools/travel-between-images/hooks/useTemporaryVisibility.ts`, `src/shared/lib/taskCreation/types.ts`, `src/shared/lib/typedEvents.ts`, `src/shared/hooks/useTextCase.ts`, `src/tools/travel-between-images/hooks/useStableSkeletonVisibility.ts`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "`src/tools/travel-between-images/components/Timeline/hooks/useTimelinePositions.ts` contains dead locals and redundant control paths in the main mutation flow (`_queryClient` unused, `unmatchedChangeIds` written but never consumed, `isTimeout` assigned but unused, and nested `try/catch` that only rethrows).",
+        "`src/tools/travel-between-images/hooks/useClickOutside.ts` uses `events = ['mousedown']` and includes `events` in effect dependencies, causing avoidable unsubscribe/resubscribe churn on rerenders when options are omitted."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "timeline_positions_dead_paths",
+      "summary": "Timeline position update path contains dead locals and rethrow-only branches",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelinePositions.ts",
+        "src/tools/travel-between-images/hooks/useOperationTracking.ts"
+      ],
+      "evidence": [
+        "`useTimelinePositions` declares `const _queryClient = useQueryClient();` but never uses it.",
+        "`unmatchedChangeIds` is populated in the DB update loop but never read after collection.",
+        "`const isTimeout = isTimelineWriteTimeoutError(error);` is assigned in catch and never used.",
+        "Inner `try/catch` around `persistTimelineFrameBatch` only rethrows the same error, adding branch noise without behavior change."
+      ],
+      "suggestion": "Remove unused locals (`_queryClient`, `unmatchedChangeIds`, `isTimeout` unless acted on) and collapse rethrow-only nested catch blocks. If unmatched IDs are important, surface them via `handleError` logData or toast; otherwise delete the tracking.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "use_click_outside_dependency_churn",
+      "summary": "Default events array recreates listeners on each render",
+      "related_files": [
+        "src/tools/travel-between-images/hooks/useClickOutside.ts",
+        "src/tools/travel-between-images/hooks/useTemporaryVisibility.ts"
+      ],
+      "evidence": [
+        "`useClickOutside` defaults `events` with an inline array literal (`events = ['mousedown']`).",
+        "The listener effect depends on `events`, so with omitted options this default array identity changes per render and forces unnecessary teardown/re-subscription."
+      ],
+      "suggestion": "Hoist a module-level constant like `const DEFAULT_EVENTS: EventType[] = ['mousedown'];` and use it for the default, or memoize normalized options before the effect.",
+      "confidence": "high",
+      "impact_scope": "local",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "compatibility_shim_passthroughs",
+      "summary": "Compatibility wrappers accumulate pass-through indirection without clear retirement",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline/utils/time-utils.ts",
+        "src/shared/hooks/useContentResponsive.ts",
+        "src/types/generationRow.ts",
+        "src/tools/travel-between-images/components/ShotEditor/sections/generation/index.ts"
+      ],
+      "evidence": [
+        "`time-utils.ts` is only a backward-compat re-export surface with no local behavior.",
+        "`useContentResponsive` is a deprecated alias that directly exports `useViewportResponsive`.",
+        "`generationRow.ts` is only canonical/legacy type forwarding aliases.",
+        "`generation/index.ts` is an index-only pass-through export file for two subcomponents."
+      ],
+      "suggestion": "Pick canonical import paths, run a codemod to update consumers, and remove or sharply limit compatibility shims. Add lint/import rules to prevent new usage of deprecated alias modules.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "comment_ceremony_over_signal",
+      "summary": "Verbose narrative comments/docblocks restate obvious logic across simple files",
+      "related_files": [
+        "src/shared/lib/typedEvents.ts",
+        "src/tools/travel-between-images/hooks/useTemporaryVisibility.ts",
+        "src/shared/lib/taskCreation/types.ts",
+        "src/shared/hooks/useTextCase.ts",
+        "src/tools/travel-between-images/hooks/useStableSkeletonVisibility.ts"
+      ],
+      "evidence": [
+        "Large file headers and multi-example docblocks are used on straightforward hooks/types with little hidden behavior.",
+        "Inline step-by-step comments frequently narrate obvious statements (e.g., timeout clear/set flows and simple boolean toggles) rather than documenting non-obvious constraints."
+      ],
+      "suggestion": "Trim comments to rationale/constraints only, remove explanatory restatements of obvious lines, and move usage examples to dedicated docs or tests where needed.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

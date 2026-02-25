@@ -1,0 +1,74 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 2,
+  "assessments": {
+    "incomplete_migration": 72.0
+  },
+  "dimension_notes": {
+    "incomplete_migration": {
+      "evidence": [
+        "`ProjectImageSettings` keeps a large deprecated surface (`selectedLorasByTextModel`, `selectedReferenceId`, `styleReference*`, `subject*`, `inThisScene`) alongside replacement fields with no removal gate/date in `src/shared/components/ImageGenerationForm/types.ts:98`-`src/shared/components/ImageGenerationForm/types.ts:118`.",
+        "A dedicated compatibility shim still exports legacy travel payload fields (`structure_video_*`, `use_uni3c`, legacy LoRA format) while newer `phase_config`/`structure_guidance` paths coexist in `src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts:5`-`src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts:44`.",
+        "Runtime readers normalize multiple historical payload shapes instead of a versioned canonical schema (e.g., `individual_segment_params.*` vs root params arrays; `generation_id` vs `metadata.generation_id` vs `id`) in `src/shared/lib/galleryUtils.ts:23`-`src/shared/lib/galleryUtils.ts:66` and `src/shared/lib/mediaTypeHelpers.ts:14`-`src/shared/lib/mediaTypeHelpers.ts:31`."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "project_image_settings_deprecated_surface",
+      "summary": "Image settings type still embeds many deprecated fields next to new fields without a bounded removal contract.",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/types.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts"
+      ],
+      "evidence": [
+        "`ProjectImageSettings` documents legacy migration support and retains multiple `@deprecated` properties in the same interface as replacement fields (`selectedLorasByCategory`, `selectedReferenceIdByShot`) at `src/shared/components/ImageGenerationForm/types.ts:98`-`src/shared/components/ImageGenerationForm/types.ts:118`.",
+        "The same pattern appears in travel task types where deprecated fields remain first-class interface members in `src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts:28`-`src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts:41`."
+      ],
+      "suggestion": "Split legacy input types from canonical settings types: keep canonical interfaces strict, add an explicit `Legacy...` decode/upgrade function that transforms old payloads once on load, then persist only canonical fields. Add a concrete removal owner/date for each deprecated settings field, mirroring the shim sunset style.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_travel_shim_still_expands_api_surface",
+      "summary": "Legacy travel payload shim preserves old fields in active contracts, extending dual-path maintenance.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts",
+        "src/shared/lib/galleryUtils.ts"
+      ],
+      "evidence": [
+        "The shim explicitly keeps deprecated `structure_video_*`, `uni3c_*`, and `use_uni3c` fields in `LegacyTravelBetweenImagesTaskParams` at `src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts:24`-`src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts:41`.",
+        "Downstream extraction logic still handles multiple legacy/current param shapes (`individual_segment_params.*` and root/orchestrator arrays), indicating continued dual-path payload handling in `src/shared/lib/galleryUtils.ts:42`-`src/shared/lib/galleryUtils.ts:66`."
+      ],
+      "suggestion": "Introduce a single migration boundary at task ingestion: parse old travel payloads into a canonical schema, then remove deprecated fields from shared exported interfaces and utility readers. Gate deletion with telemetry/caller audit rather than keeping both shapes indefinitely.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "multi_shape_media_param_readers_without_versioning",
+      "summary": "Utilities normalize several historical object shapes at read-time instead of enforcing one migrated schema.",
+      "related_files": [
+        "src/shared/lib/mediaTypeHelpers.ts",
+        "src/shared/lib/galleryUtils.ts",
+        "src/shared/lib/taskConfig.ts"
+      ],
+      "evidence": [
+        "`getGenerationId` accepts three competing ID locations (`generation_id`, `metadata.generation_id`, `id`) in `src/shared/lib/mediaTypeHelpers.ts:16`-`src/shared/lib/mediaTypeHelpers.ts:31`.",
+        "`extractSegmentImages` merges explicit per-segment fields and array-based orchestrator fields in `src/shared/lib/galleryUtils.ts:23`-`src/shared/lib/galleryUtils.ts:66`.",
+        "`taskConfig` also keeps a hardcoded compatibility registry next to DB-backed config (`HARDCODED_TASK_TYPE_CONFIG`) in `src/shared/lib/taskConfig.ts:27`-`src/shared/lib/taskConfig.ts:99`."
+      ],
+      "suggestion": "Add schema versioning and one normalization pass per domain object (media rows, segment params, task types). After normalization, enforce canonical keys in downstream helpers and gradually delete fallback branches tied to older versions.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "high_level_elegance": 77.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/handleError.ts`, `src/integrations/supabase/client.ts`, and `src/shared/components/ui/cn.ts` are tiny shared facades with very high fan-in in the packet context, concentrating cross-cutting ownership in generic shared entry points rather than domain-owned boundaries.",
+        "Overlay state contracts (`open`, `onOpenChange`) and modal/tooltip wiring are repeated across `src/pages/Home/components/InstallInstructionsModal.tsx`, `src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx`, `src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx`, `src/shared/components/MediaTypeFilter.tsx`, and `src/shared/components/ModalContainer.tsx` instead of converging on one higher-level overlay API.",
+        "UI foundation ownership is blurred: `src/shared/components/ModalContainer.tsx` uses `theme/RetroButton` while other files in the same batch (for example `src/pages/Home/components/InstallInstructionsModal.tsx`, `src/pages/Home/components/CreativePartnerPane.tsx`) use `ui/button`, signaling parallel component systems at the same architectural layer.",
+        "`src/domains/generation/types/generationViewRow.ts` and `src/domains/generation/types/shotViewRow.ts` combine persisted types, view-model augmentation, and composition functions in `types/` files, mixing role boundaries between schema typing and view shaping."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "overlay-api-fragmentation",
+      "summary": "Overlay/dialog ownership is fragmented across many components with duplicated control contracts.",
+      "related_files": [
+        "src/pages/Home/components/InstallInstructionsModal.tsx",
+        "src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx",
+        "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx",
+        "src/shared/components/MediaTypeFilter.tsx",
+        "src/shared/components/ModalContainer.tsx"
+      ],
+      "evidence": [
+        "Each component defines its own `open` and `onOpenChange` prop shape and wires the same lifecycle directly to `Dialog`/`Tooltip`/`Select` primitives.",
+        "No shared feature-level overlay contract is used despite repeated behavior across home page, lora modal, gallery tooltip, filter dropdown, and generic modal container."
+      ],
+      "suggestion": "Introduce a single overlay state contract and adapter layer (for dialog/tooltip/select) in one shared boundary, then migrate consumers to that API to centralize ownership and reduce cross-feature duplication.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "parallel-ui-foundations",
+      "summary": "Two UI foundation layers (`ui/*` and `theme/*`) are used interchangeably in the same architectural tier.",
+      "related_files": [
+        "src/shared/components/ModalContainer.tsx",
+        "src/shared/components/ui/button.tsx",
+        "src/pages/Home/components/InstallInstructionsModal.tsx",
+        "src/pages/Home/components/CreativePartnerPane.tsx"
+      ],
+      "evidence": [
+        "`ModalContainer` imports `Button` from `@/shared/components/theme/RetroButton`.",
+        "Other modal/action surfaces in this batch import `Button` from `@/shared/components/ui/button`.",
+        "This creates unclear ownership for canonical button semantics and styling contracts."
+      ],
+      "suggestion": "Define one canonical design-system entry point for primitive actions (or explicit layer policy for `theme` vs `ui`) and refactor shared containers first so feature components depend on a single foundation.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "types-layer-role-mixing",
+      "summary": "Domain `types` modules also perform view-model composition, mixing schema and shaping responsibilities.",
+      "related_files": [
+        "src/domains/generation/types/generationViewRow.ts",
+        "src/domains/generation/types/shotViewRow.ts"
+      ],
+      "evidence": [
+        "Both files define interfaces/types and `compose*` functions that merge persisted and view-model data.",
+        "Placing composition behavior inside `types/` blurs whether this layer is declarative schema or runtime mapping logic."
+      ],
+      "suggestion": "Split pure type declarations from runtime row/shot mappers (for example move `composeGenerationRow` and `composeShot` into a mapper/factory module) and keep `types/` declarative.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

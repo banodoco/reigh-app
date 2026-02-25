@@ -7,7 +7,7 @@
  */
 
 import { useEffect } from 'react';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 import { useTimelinePositions } from './useTimelinePositions';
 import { runSerializedTimelineWrite } from '@/shared/lib/timelineWriteQueue';
 

@@ -9,8 +9,8 @@
 import React from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { Shot } from '@/types/shots';
-import { useIsTablet } from '@/shared/hooks/useMobile';
+import { Shot } from '@/domains/generation/types';
+import { useIsTablet } from '@/shared/hooks/mobile';
 
 // =============================================================================
 // PROP TYPES

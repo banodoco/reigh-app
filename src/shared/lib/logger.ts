@@ -170,7 +170,8 @@ async function flushLogs(): Promise<void> {
   
   try {
     // Dynamically import supabase to avoid circular dependencies
-    const { supabase } = await import('@/integrations/supabase/client');
+    const { getSupabaseClient } = await import('@/integrations/supabase/client');
+    const supabase = getSupabaseClient();
     
     const { error } = await supabase.rpc('func_insert_logs_batch', { 
       logs: toJson(logsToSend),

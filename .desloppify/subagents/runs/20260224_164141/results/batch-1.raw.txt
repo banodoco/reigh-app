@@ -1,0 +1,78 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "high_level_elegance": 82.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/integrations/supabase/client.ts` keeps two public access patterns (`getSupabaseClient()` and deprecated `supabase` proxy) with a lazy fallback path and legacy sunset constants, so ownership of runtime initialization remains split instead of converging on one bootstrap contract.",
+        "`src/shared/lib/errorHandling/handleError.ts` combines normalization/logging, UI presentation wiring (`setErrorPresenter`), and deprecated compatibility exports in one globally imported facade, which broadens this module beyond a single architectural role.",
+        "Compatibility barrels in `src/shared/hooks/useMobile.tsx` and `src/types/generationAndShots.ts` remain high-traffic entry points while also instructing callers to import deeper modules, signaling unresolved boundary migration and keeping dependency direction ambiguous."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "legacy_dual_surface_supabase_client",
+      "summary": "Supabase client layer still exposes competing legacy and modern entry points, preventing a clear ownership boundary for runtime bootstrap.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/app/hooks/useSettingsModal.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts"
+      ],
+      "evidence": [
+        "`src/integrations/supabase/client.ts` exports both `initializeSupabase()/getSupabaseClient()` and deprecated `supabase` proxy with lazy runtime recovery.",
+        "The module keeps migration metadata (`LEGACY_SUPABASE_PROXY_REMOVE_BY`, owner) and fallback warning state, indicating incomplete convergence on a single access contract.",
+        "Feature/hooks files in this batch use shared facades heavily, so keeping dual DB access surfaces increases ripple risk during initialization or auth/runtime changes."
+      ],
+      "suggestion": "Finish migration to a single explicit runtime client contract: remove proxy export, fail fast when bootstrap is missing, and isolate temporary compatibility in a dedicated legacy adapter module with limited import reach.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "error_facade_mixes_infrastructure_and_ui",
+      "summary": "Global error facade owns both infrastructure concerns and UI presentation wiring, creating a cross-layer god module.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` handles normalization/logging, toast notification policy, presenter configuration (`setErrorPresenter`), and deprecated aliases in one public surface.",
+        "Gallery hooks call `handleError(...)` directly from feature logic, so domain modules are coupled to a shared global error presentation pathway instead of a boundary-specific error port.",
+        "The module is intentionally a broad facade (`@publicContract`) and is imported across many contexts, amplifying ownership blur when changing error UX or logging strategy."
+      ],
+      "suggestion": "Split error architecture into separate modules: pure normalization/logging core, UI notifier adapter, and migration-only compatibility layer; have features depend on the core contract and inject UI presentation at app composition boundaries.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "permanent_compatibility_barrels_blur_boundaries",
+      "summary": "Deprecated compatibility barrels remain as canonical imports, keeping package boundaries ambiguous and migration debt permanent.",
+      "related_files": [
+        "src/shared/hooks/useMobile.tsx",
+        "src/types/generationAndShots.ts",
+        "src/pages/Home/components/panes/CreativePartnerPane.tsx"
+      ],
+      "evidence": [
+        "`src/shared/hooks/useMobile.tsx` is marked deprecated but still re-exports multiple mobile modules as a compatibility surface.",
+        "`src/types/generationAndShots.ts` is a broad canonical barrel for multiple domain types and remains a high-traffic import concentrator.",
+        "`CreativePartnerPane.tsx` still imports `useIsMobile` from the deprecated compatibility path, showing that boundary migration is not confined or enforced."
+      ],
+      "suggestion": "Define and enforce target import boundaries (lint rule/codemod), migrate callers to direct domain entry points, then remove compatibility barrels on a fixed schedule to restore predictable ownership.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

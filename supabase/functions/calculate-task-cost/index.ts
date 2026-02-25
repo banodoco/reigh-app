@@ -1,9 +1,19 @@
 // deno-lint-ignore-file
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
+import { createClient } from "../_shared/supabaseClient.ts";
 import { SystemLogger } from "../_shared/systemLogger.ts";
-import { getSubTaskOrchestratorId, buildSubTaskFilter } from "../_shared/billing.ts";
-import { authenticateRequest } from "../_shared/auth.ts";
+import {
+  getSubTaskOrchestratorId,
+  lookupCompletedSubTasksForOrchestrator,
+  SubTaskLookupError,
+  type CompletedSubTaskRow,
+} from "../_shared/billing.ts";
+import { authenticateRequest, verifyTaskOwnership } from "../_shared/auth.ts";
+import { edgeErrorResponse } from "../_shared/edgeRequest.ts";
+import {
+  asObjectRecord,
+  asString,
+} from "../_shared/payloadNormalization.ts";
 
 declare const Deno: { env: { get: (key: string) => string | undefined } };
 
@@ -19,6 +29,126 @@ interface TaskWithProject {
   projects: { user_id: string };
 }
 
+interface TaskParseFailure {
+  errorCode: "task_shape_invalid";
+  message: string;
+  details: Record<string, unknown>;
+}
+
+type TaskParseResult =
+  | { ok: true; task: TaskWithProject }
+  | { ok: false; failure: TaskParseFailure };
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function parseTaskCostParams(value: unknown): TaskCostParams {
+  const record = asObjectRecord(value) ?? {};
+  const parsed: TaskCostParams = {};
+
+  const resolution = asString(record.resolution);
+  if (resolution) {
+    parsed.resolution = resolution;
+  }
+
+  const frameCount = asNumber(record.frame_count);
+  if (frameCount !== undefined) {
+    parsed.frame_count = frameCount;
+  }
+
+  const modelType = asString(record.model_type);
+  if (modelType) {
+    parsed.model_type = modelType;
+  }
+
+  const result = asObjectRecord(record.result);
+  if (result) {
+    parsed.result = result as VideoEnhanceResult;
+  }
+
+  for (const [key, rawValue] of Object.entries(record)) {
+    // Never re-inject known billing keys unless they pass explicit normalization.
+    if (key === 'resolution' || key === 'frame_count' || key === 'model_type' || key === 'result') {
+      continue;
+    }
+    parsed[key] = rawValue;
+  }
+
+  return parsed;
+}
+
+export const __internal = {
+  parseTaskCostParams,
+};
+
+function parseTaskWithProject(value: unknown): TaskParseResult {
+  const task = asObjectRecord(value);
+  if (!task) {
+    return {
+      ok: false,
+      failure: {
+        errorCode: "task_shape_invalid",
+        message: "Task payload is not an object",
+        details: { received_type: typeof value },
+      },
+    };
+  }
+
+  const id = asString(task.id);
+  const taskType = asString(task.task_type);
+  const projectId = asString(task.project_id);
+  if (!id || !taskType || !projectId) {
+    return {
+      ok: false,
+      failure: {
+        errorCode: "task_shape_invalid",
+        message: "Task payload missing required fields: id, task_type, or project_id",
+        details: {
+          has_id: !!id,
+          has_task_type: !!taskType,
+          has_project_id: !!projectId,
+        },
+      },
+    };
+  }
+
+  const projectsRaw = task.projects;
+  const projectRecord = asObjectRecord(projectsRaw)
+    ?? (Array.isArray(projectsRaw) ? asObjectRecord(projectsRaw[0]) : null);
+  const userId = asString(projectRecord?.user_id);
+  if (!userId) {
+    return {
+      ok: false,
+      failure: {
+        errorCode: "task_shape_invalid",
+        message: "Task payload missing projects.user_id",
+        details: {
+          projects_type: Array.isArray(projectsRaw) ? "array" : typeof projectsRaw,
+          has_projects_user_id: false,
+        },
+      },
+    };
+  }
+
+  const params = parseTaskCostParams(task.params);
+  const status = asString(task.status) ?? "unknown";
+
+  return {
+    ok: true,
+    task: {
+      id,
+      task_type: taskType,
+      params,
+      status,
+      generation_started_at: asString(task.generation_started_at),
+      generation_processed_at: asString(task.generation_processed_at),
+      project_id: projectId,
+      projects: { user_id: userId },
+    },
+  };
+}
+
 // Helper for standard JSON responses with CORS headers
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -30,6 +160,22 @@ function jsonResponse(body: unknown, status = 200) {
       "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type"
     }
   });
+}
+
+function errorResponse(
+  errorCode: string,
+  message: string,
+  status: number,
+  recoverable: boolean = false,
+) {
+  return edgeErrorResponse(
+    { errorCode, message, recoverable },
+    status,
+    {
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    },
+  );
 }
 
 // Pricing constants for video_enhance task (fal.ai rates)
@@ -158,7 +304,7 @@ serve(async (req) => {
 
   if (!supabaseUrl || !serviceKey) {
     console.error("[CALCULATE-TASK-COST] Missing required environment variables");
-    return jsonResponse({ error: 'Server configuration error' }, 500);
+    return errorResponse('server_configuration_error', 'Server configuration error', 500);
   }
 
   const supabaseAdmin = createClient(supabaseUrl, serviceKey, {
@@ -179,29 +325,68 @@ serve(async (req) => {
   if (req.method !== 'POST') {
     logger.warn("Method not allowed", { method: req.method });
     await logger.flush();
-    return jsonResponse({ error: 'Method not allowed' }, 405);
+    return errorResponse('method_not_allowed', 'Method not allowed', 405);
   }
 
-  // Service-role only endpoint
+  // Authenticated endpoint: service-role or owner-verified user token.
   const auth = await authenticateRequest(req, supabaseAdmin, "[CALCULATE-TASK-COST]");
   if (!auth.success) {
     logger.warn(auth.error || "Authentication failed");
     await logger.flush();
-    return jsonResponse({ error: auth.error || "Authentication failed" }, auth.statusCode || 401);
+    return errorResponse('authentication_failed', auth.error || "Authentication failed", auth.statusCode || 401);
   }
-  if (!auth.isServiceRole) {
-    logger.warn("Unauthorized - service role required");
+
+  let requestBody: Record<string, unknown>;
+  try {
+    const parsed = await req.json();
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      logger.warn("Invalid JSON body shape");
+      await logger.flush();
+      return errorResponse('invalid_json', 'Request body must be a JSON object', 400);
+    }
+    requestBody = parsed as Record<string, unknown>;
+  } catch (jsonError) {
+    logger.warn("Invalid JSON body", {
+      error: jsonError instanceof Error ? jsonError.message : String(jsonError),
+    });
     await logger.flush();
-    return jsonResponse({ error: "Unauthorized - service role required" }, 403);
+    return errorResponse('invalid_json', 'Request body must be valid JSON', 400);
   }
 
   try {
-    const { task_id } = await req.json();
+    const task_id = typeof requestBody.task_id === 'string' ? requestBody.task_id : undefined;
 
     if (!task_id) {
       logger.error("Missing task_id in request");
       await logger.flush();
-      return jsonResponse({ error: 'task_id is required' }, 400);
+      return errorResponse('missing_task_id', 'task_id is required', 400);
+    }
+
+    if (!auth.isServiceRole) {
+      if (!auth.userId) {
+        logger.warn("Missing authenticated user id for non-service request");
+        await logger.flush();
+        return errorResponse('authentication_failed', 'Authentication failed', 401);
+      }
+      const ownership = await verifyTaskOwnership(
+        supabaseAdmin,
+        task_id,
+        auth.userId,
+        "[CALCULATE-TASK-COST]",
+      );
+      if (!ownership.success) {
+        logger.warn("Task ownership verification failed", {
+          task_id,
+          user_id: auth.userId,
+          reason: ownership.error,
+        });
+        await logger.flush();
+        return errorResponse(
+          ownership.statusCode === 404 ? 'task_not_found' : 'forbidden',
+          ownership.error || "Forbidden",
+          ownership.statusCode || 403,
+        );
+      }
     }
 
     // Set task_id for all subsequent logs
@@ -224,13 +409,26 @@ serve(async (req) => {
       .eq('id', task_id)
       .single();
 
-    const typedTask = task as unknown as TaskWithProject | null;
-
-    if (taskError || !typedTask) {
+    if (taskError) {
       logger.error("Task not found", { error: taskError?.message });
       await logger.flush();
-      return jsonResponse({ error: 'Task not found' }, 404);
+      return errorResponse('task_not_found', 'Task not found', 404);
     }
+
+    const typedTaskResult = parseTaskWithProject(task);
+    if (!typedTaskResult.ok) {
+      logger.error("Task payload shape invalid", {
+        failure: typedTaskResult.failure,
+        task_id,
+      });
+      await logger.flush();
+      return errorResponse(
+        typedTaskResult.failure.errorCode,
+        typedTaskResult.failure.message,
+        422,
+      );
+    }
+    const typedTask = typedTaskResult.task;
 
     logger.debug("Task found", {
       task_type: typedTask.task_type,
@@ -245,9 +443,11 @@ serve(async (req) => {
         has_processed_at: !!typedTask.generation_processed_at
       });
       await logger.flush();
-      return jsonResponse({
-        error: 'Task must have both generation_started_at and generation_processed_at timestamps'
-      }, 400);
+      return errorResponse(
+        'missing_generation_timestamps',
+        'Task must have both generation_started_at and generation_processed_at timestamps',
+        400,
+      );
     }
 
     // Check if task is a sub-task of an orchestrator - skip billing if so (parent will be billed)
@@ -269,16 +469,27 @@ serve(async (req) => {
     }
 
     // Check if this is an orchestrator task - calculate cost based on sub-task durations
-    const { data: subTasks, error: _subTasksError } = await supabaseAdmin
-      .from('tasks')
-      .select(`
-        id,
-        generation_started_at,
-        generation_processed_at,
-        status
-      `)
-      .or(buildSubTaskFilter(task_id))
-      .eq('status', 'Complete');
+    let subTasks: CompletedSubTaskRow[] = [];
+    try {
+      subTasks = await lookupCompletedSubTasksForOrchestrator(supabaseAdmin, task_id);
+    } catch (subTaskLookupError) {
+      const stage = subTaskLookupError instanceof SubTaskLookupError
+        ? subTaskLookupError.stage
+        : 'unknown';
+      const errorCode = stage === 'canonical'
+        ? 'subtask_query_failed_canonical'
+        : stage === 'legacy'
+          ? 'subtask_query_failed_legacy'
+          : 'subtask_query_failed';
+      logger.error("Failed to query sub-task references", {
+        error: subTaskLookupError instanceof Error
+          ? subTaskLookupError.message
+          : String(subTaskLookupError),
+        stage,
+      });
+      await logger.flush();
+      return errorResponse(errorCode, 'Failed to query sub-task references', 500, true);
+    }
 
     let durationSeconds;
     if (subTasks && subTasks.length > 0) {
@@ -320,7 +531,7 @@ serve(async (req) => {
     if (existingSpendError) {
       logger.error("Failed to check existing credit ledger entries", { error: existingSpendError.message });
       await logger.flush();
-      return jsonResponse({ error: 'Failed to check existing cost records' }, 500);
+      return errorResponse('cost_record_check_failed', 'Failed to check existing cost records', 500, true);
     }
 
     if (existingSpendEntries && existingSpendEntries.length > 0) {
@@ -374,7 +585,7 @@ serve(async (req) => {
       if (ledgerError) {
         logger.error("Failed to insert into credit ledger (default)", { error: ledgerError.message });
         await logger.flush();
-        return jsonResponse({ error: 'Failed to record cost in ledger' }, 500);
+        return errorResponse('ledger_write_failed', 'Failed to record cost in ledger', 500, true);
       }
 
       logger.info("Cost calculated (default rates)", { 
@@ -418,7 +629,7 @@ serve(async (req) => {
         breakdown: costBreakdown
       });
       await logger.flush();
-      return jsonResponse({ error: 'Invalid cost calculation' }, 500);
+      return errorResponse('invalid_cost_calculation', 'Invalid cost calculation', 500);
     }
 
     // Ensure user exists before inserting credit ledger entry
@@ -434,7 +645,7 @@ serve(async (req) => {
         error: userError?.message 
       });
       await logger.flush();
-      return jsonResponse({ error: 'User not found for credit calculation' }, 400);
+      return errorResponse('billing_user_not_found', 'User not found for credit calculation', 400);
     }
 
     // Insert cost into credit ledger
@@ -465,7 +676,7 @@ serve(async (req) => {
         cost
       });
       await logger.flush();
-      return jsonResponse({ error: `Failed to record cost in ledger: ${ledgerError.message}` }, 500);
+      return errorResponse('ledger_write_failed', 'Failed to record cost in ledger', 500, true);
     }
 
     logger.info("Cost calculated and recorded", {
@@ -492,8 +703,10 @@ serve(async (req) => {
     });
 
   } catch (error: unknown) {
-    logger.critical("Unexpected error", { error: error?.message, stack: error?.stack?.substring(0, 500) });
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack?.substring(0, 500) : undefined;
+    logger.critical("Unexpected error", { error: errorMessage, stack: errorStack });
     await logger.flush();
-    return jsonResponse({ error: error?.message || 'Unknown error occurred' }, 500);
+    return errorResponse('internal_server_error', 'Internal server error', 500, false);
   }
 });

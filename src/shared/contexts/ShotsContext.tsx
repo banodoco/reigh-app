@@ -1,7 +1,7 @@
 import React, { createContext, useContext, ReactNode, useMemo } from 'react';
 import { useListShots, useProjectImageStats } from '@/shared/hooks/shots';
 import { useProject } from '@/shared/contexts/ProjectContext';
-import { Shot } from '@/types/shots';
+import { Shot } from '@/domains/generation/types';
 
 interface ShotsContextType {
   shots: Shot[] | undefined;

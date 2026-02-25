@@ -1,0 +1,77 @@
+/* Add a reverse animation for dehovering */
+@keyframes palette-exit {
+  from { stroke: rgba(253, 226, 228, 0.6); } /* Last color from hover animation */
+  to { stroke: currentColor; }
+}
+
+.dehovering .palette-icon path {
+  /* Use the new exit animation */
+  animation: palette-exit 800ms ease forwards;
+  /* Remove the transition property as animation is now used */
+}
+.dehovering .palette-icon circle {
+  /* Allow circles to continue their smooth transition back to empty */
+  fill: transparent;
+  stroke: currentColor;
+  transition: fill 800ms ease, stroke 800ms ease;
+}
+
+
+
+/* Banodoco Icon Burst Animation */
+@keyframes burstAndFlash {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  80% {
+    transform: scale(0.95);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-burst-and-flash {
+  animation: burstAndFlash 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Touch-friendly hover: only apply hover on devices that support it, use active for touch */
+@media (hover: hover) {
+  .group:hover .touch-hover-gold {
+    color: #f0ebe3;
+  }
+  .dark .group:hover .touch-hover-gold {
+    color: hsl(var(--wes-vintage-gold));
+  }
+
+  .dark .group:hover .touch-border-gold {
+    border-color: hsl(var(--wes-vintage-gold));
+  }
+}
+
+/* Note: mobile tap "flash" is handled in React to avoid sticky :hover */
+
+/* Lightbox transition overlay - prevents flash when navigating between image/segment lightboxes */
+/* z-index 99999 = BELOW lightboxes (100000) so new lightbox appears on top immediately */
+body.lightbox-transitioning::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 1);
+  z-index: 99999;
+  pointer-events: none;
+}
+
+/* Also disable animations on the dialogs during transition for instant close/open */
+body.lightbox-transitioning [data-dialog-backdrop],
+body.lightbox-transitioning [data-dialog-content] {
+  animation: none;
+  transition: none;
+}

@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 
 /**
@@ -9,8 +9,7 @@ import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
  */
 async function cancelTask(taskId: string): Promise<void> {
   // First, get the task to check if it's an orchestrator
-  const { data: task, error: fetchError } = await supabase
-    .from('tasks')
+  const { data: task, error: fetchError } = await supabase().from('tasks')
     .select('*')
     .eq('id', taskId)
     .single();
@@ -25,8 +24,7 @@ async function cancelTask(taskId: string): Promise<void> {
   }
 
   // Cancel the main task - use .select() to verify the update happened
-  const { data: updatedTask, error: cancelError } = await supabase
-    .from('tasks')
+  const { data: updatedTask, error: cancelError } = await supabase().from('tasks')
     .update({
       status: 'Cancelled',
       updated_at: new Date().toISOString()
@@ -42,15 +40,14 @@ async function cancelTask(taskId: string): Promise<void> {
   // Verify the update actually happened
   if (!updatedTask || updatedTask.status !== 'Cancelled') {
     const err = new Error('Task cancellation failed - status not updated');
-    handleError(err, { context: 'useCancelTask', showToast: false, logData: { updatedTask } });
+    normalizeAndPresentError(err, { context: 'useCancelTask', showToast: false, logData: { updatedTask } });
     throw err;
   }
 
   // If it's an orchestrator task, cancel all subtasks
   if (task && task.task_type?.includes('orchestrator')) {
     // Find all subtasks that reference this orchestrator
-    const { data: subtasks, error: subtaskFetchError } = await supabase
-      .from('tasks')
+    const { data: subtasks, error: subtaskFetchError } = await supabase().from('tasks')
       .select('id, params')
       .eq('project_id', task.project_id)
       .in('status', ['Queued']);
@@ -64,8 +61,7 @@ async function cancelTask(taskId: string): Promise<void> {
 
       if (subtaskIds.length > 0) {
         // Cancel all subtasks
-        const { error: subtaskCancelError } = await supabase
-          .from('tasks')
+        const { error: subtaskCancelError } = await supabase().from('tasks')
           .update({
             status: 'Cancelled',
             updated_at: new Date().toISOString()
@@ -73,7 +69,7 @@ async function cancelTask(taskId: string): Promise<void> {
           .in('id', subtaskIds);
 
         if (subtaskCancelError) {
-          handleError(subtaskCancelError, { context: 'useCancelTask', showToast: false });
+          normalizeAndPresentError(subtaskCancelError, { context: 'useCancelTask', showToast: false });
         }
       }
     }
@@ -98,7 +94,7 @@ export const useCancelTask = (_projectId: string | null) => {
       });
     },
     onError: (error: Error) => {
-      handleError(error, { context: 'useCancelTask', toastTitle: 'Failed to cancel task' });
+      normalizeAndPresentError(error, { context: 'useCancelTask', toastTitle: 'Failed to cancel task' });
     },
   });
 };
@@ -114,8 +110,7 @@ interface CancelAllPendingTasksResponse {
  */
 async function cancelPendingTasks(projectId: string): Promise<CancelAllPendingTasksResponse> {
   // First, get all pending tasks to check for orchestrators
-  const { data: pendingTasks, error: fetchError } = await supabase
-    .from('tasks')
+  const { data: pendingTasks, error: fetchError } = await supabase().from('tasks')
     .select('id, task_type')
     .eq('project_id', projectId)
     .in('status', ['Queued']);
@@ -137,8 +132,7 @@ async function cancelPendingTasks(projectId: string): Promise<CancelAllPendingTa
 
   // If there are orchestrators, find their subtasks
   if (orchestratorIds.length > 0) {
-    const { data: allProjectTasks, error: allTasksError } = await supabase
-      .from('tasks')
+    const { data: allProjectTasks, error: allTasksError } = await supabase().from('tasks')
       .select('id, params')
       .eq('project_id', projectId)
       .in('status', ['Queued']);
@@ -159,8 +153,7 @@ async function cancelPendingTasks(projectId: string): Promise<CancelAllPendingTa
   const taskIdsArray = Array.from(tasksToCancel);
 
   if (taskIdsArray.length > 0) {
-    const { error: cancelError } = await supabase
-      .from('tasks')
+    const { error: cancelError } = await supabase().from('tasks')
       .update({
         status: 'Cancelled',
         updated_at: new Date().toISOString()
@@ -190,7 +183,7 @@ const useCancelPendingTasks = () => {
       queryClient.invalidateQueries({ queryKey: taskQueryKeys.statusCountsAll });
     },
     onError: (error: Error) => {
-      handleError(error, { context: 'useCancelPendingTasks', toastTitle: 'Failed to cancel pending tasks' });
+      normalizeAndPresentError(error, { context: 'useCancelPendingTasks', toastTitle: 'Failed to cancel pending tasks' });
     },
   });
 };

@@ -9,6 +9,30 @@
  * Consumers: calculate-task-cost, update-task-status, complete_task
  */
 
+import { buildOrchestratorRefOrFilter, extractOrchestratorRefFromParams } from './orchestratorReference.ts';
+import { readEdgeErrorCode } from './edgeRequest.ts';
+import {
+  operationFailure,
+  operationSuccess,
+  type OperationResult,
+} from './edgeOperation.ts';
+
+interface TaskQueryResponse {
+  data: unknown[] | null;
+  error: unknown;
+}
+
+interface TaskQueryBuilder extends PromiseLike<TaskQueryResponse> {
+  eq(column: string, value: string): TaskQueryBuilder;
+  or(filter: string): TaskQueryBuilder;
+}
+
+interface TaskQueryClient {
+  from(table: string): {
+    select(columns: string): TaskQueryBuilder;
+  };
+}
+
 // ===== Constants =====
 
 /** UUID v4 regex — used to distinguish real orchestrator FK refs from human-readable IDs */
@@ -29,6 +53,11 @@ export const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9
  * Returns the raw string value (may not be a valid UUID) or null.
  */
 export function extractOrchestratorRef(params: unknown): string | null {
+  const contractOrReferencePath = extractOrchestratorRefFromParams(params);
+  if (contractOrReferencePath) {
+    return contractOrReferencePath;
+  }
+
   if (!params || typeof params !== 'object') return null;
 
   const p = params as Record<string, unknown>;
@@ -79,11 +108,94 @@ export function getSubTaskOrchestratorId(params: unknown, taskId: string): strin
  */
 export function buildSubTaskFilter(orchestratorTaskId: string): string {
   return [
-    `params->>orchestrator_task_id_ref.eq.${orchestratorTaskId}`,
+    buildCanonicalSubTaskFilter(orchestratorTaskId),
+    buildLegacySubTaskFilter(orchestratorTaskId),
+  ].join(',');
+}
+
+export function buildCanonicalSubTaskFilter(orchestratorTaskId: string): string {
+  return buildOrchestratorRefOrFilter(orchestratorTaskId);
+}
+
+export function buildLegacySubTaskFilter(orchestratorTaskId: string): string {
+  return [
     `params->orchestrator_details->>orchestrator_task_id.eq.${orchestratorTaskId}`,
     `params->originalParams->orchestrator_details->>orchestrator_task_id.eq.${orchestratorTaskId}`,
     `params->>orchestrator_task_id.eq.${orchestratorTaskId}`,
   ].join(',');
+}
+
+export interface CompletedSubTaskRow {
+  id: string;
+  generation_started_at: string | null;
+  generation_processed_at: string | null;
+  status: string;
+}
+
+export type SubTaskLookupStage = 'canonical' | 'legacy';
+
+export class SubTaskLookupError extends Error {
+  readonly code = 'subtask_lookup_failed';
+  readonly stage: SubTaskLookupStage;
+  readonly cause?: unknown;
+
+  constructor(stage: SubTaskLookupStage, cause: unknown) {
+    super(`[Billing] Failed to query ${stage} sub-task references`);
+    this.name = 'SubTaskLookupError';
+    this.stage = stage;
+    this.cause = cause;
+  }
+}
+
+export async function lookupCompletedSubTasksForOrchestrator(
+  supabaseAdmin: TaskQueryClient,
+  orchestratorTaskId: string,
+): Promise<CompletedSubTaskRow[]> {
+  const canonicalResult = await supabaseAdmin
+    .from('tasks')
+    .select(`
+      id,
+      generation_started_at,
+      generation_processed_at,
+      status
+    `)
+    .or(buildCanonicalSubTaskFilter(orchestratorTaskId))
+    .eq('status', 'Complete');
+
+  if (canonicalResult.error) {
+    throw new SubTaskLookupError('canonical', canonicalResult.error);
+  }
+
+  const canonicalTasks = (canonicalResult.data ?? []) as CompletedSubTaskRow[];
+  if (canonicalTasks.length > 0) {
+    return canonicalTasks;
+  }
+
+  const legacyResult = await supabaseAdmin
+    .from('tasks')
+    .select(`
+      id,
+      generation_started_at,
+      generation_processed_at,
+      status
+    `)
+    .or(buildLegacySubTaskFilter(orchestratorTaskId))
+    .eq('status', 'Complete');
+
+  if (legacyResult.error) {
+    throw new SubTaskLookupError('legacy', legacyResult.error);
+  }
+
+  const legacyTasks = (legacyResult.data ?? []) as CompletedSubTaskRow[];
+  if (legacyTasks.length > 0) {
+    console.warn('[Billing] Legacy sub-task reference fallback matched records', {
+      orchestratorTaskId,
+      count: legacyTasks.length,
+    });
+    return legacyTasks;
+  }
+
+  return [];
 }
 
 // ===== Cost calculation trigger =====
@@ -91,19 +203,51 @@ export function buildSubTaskFilter(orchestratorTaskId: string): string {
 /**
  * Trigger the calculate-task-cost edge function for a given task.
  *
- * This is a fire-and-forget HTTP call (errors are logged, not thrown).
+ * Returns an explicit outcome so callers can branch on billing success/failure.
  *
  * @param supabaseUrl - The Supabase project URL
  * @param serviceKey  - The service role key for authentication
  * @param taskId      - The task ID to calculate cost for
  * @param logTag      - Optional log tag prefix (default: 'CostCalc')
  */
+export interface CostCalculationTriggerValue {
+  status: number | null;
+  skipped?: boolean;
+  cost?: number;
+}
+
+export type CostCalculationTriggerResult = OperationResult<CostCalculationTriggerValue>;
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function parseJsonRecord(text: string): Record<string, unknown> | null {
+  if (!text.trim()) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(text);
+    return isObjectRecord(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function triggerCostCalculation(
-  supabaseUrl: string,
-  serviceKey: string,
-  taskId: string,
-  logTag: string = 'CostCalc'
-): Promise<void> {
+  params: {
+    supabaseUrl: string;
+    serviceKey: string;
+    taskId: string;
+    logTag?: string;
+  },
+): Promise<CostCalculationTriggerResult> {
+  const {
+    supabaseUrl,
+    serviceKey,
+    taskId,
+    logTag = 'CostCalc',
+  } = params;
   try {
     const costResp = await fetch(`${supabaseUrl}/functions/v1/calculate-task-cost`, {
       method: "POST",
@@ -115,17 +259,87 @@ export async function triggerCostCalculation(
     });
 
     if (costResp.ok) {
-      const costData = await costResp.json();
-      if (costData.skipped) {
-        // Intentionally no-op: caller may skip billing for non-billable tasks.
-      } else if (typeof costData.cost === 'number') {
-        // Intentionally no-op: successful billing response.
+      const bodyText = await costResp.text();
+      const costData = parseJsonRecord(bodyText);
+      if (!costData) {
+        return operationFailure(new Error(`[${logTag}] Cost calculation returned an invalid success payload`), {
+          policy: 'degrade',
+          errorCode: 'cost_calculation_invalid_response',
+          message: `[${logTag}] Cost calculation returned an invalid success payload`,
+          recoverable: true,
+          cause: { status: costResp.status },
+        });
       }
-    } else {
-      const errTxt = await costResp.text();
-      console.error(`[${logTag}] Cost calculation failed: ${errTxt}`);
+
+      const costErrorCode = readEdgeErrorCode(costData);
+      if (costErrorCode) {
+        return operationFailure(new Error(`[${logTag}] Cost calculation returned an error payload`), {
+          policy: 'degrade',
+          errorCode: costErrorCode,
+          message: typeof costData.message === 'string'
+            ? costData.message
+            : `[${logTag}] Cost calculation returned an error payload`,
+          recoverable: true,
+          cause: { status: costResp.status, payload: costData },
+        });
+      }
+
+      const skipped = costData.skipped === true;
+      const successFlag = costData.success;
+      if (!skipped && successFlag !== true) {
+        return operationFailure(new Error(`[${logTag}] Cost calculation returned success status without success=true`), {
+          policy: 'degrade',
+          errorCode: 'cost_calculation_invalid_response',
+          message: `[${logTag}] Cost calculation returned success status without success=true`,
+          recoverable: true,
+          cause: { status: costResp.status, payload: costData },
+        });
+      }
+
+      const costValue = costData.cost;
+      if (!skipped && (typeof costValue !== 'number' || !Number.isFinite(costValue))) {
+        return operationFailure(new Error(`[${logTag}] Cost calculation success payload missing numeric cost`), {
+          policy: 'degrade',
+          errorCode: 'cost_calculation_invalid_response',
+          message: `[${logTag}] Cost calculation success payload missing numeric cost`,
+          recoverable: true,
+          cause: { status: costResp.status, payload: costData },
+        });
+      }
+
+      return operationSuccess(
+        {
+          status: costResp.status,
+          skipped,
+          cost: typeof costValue === 'number' && Number.isFinite(costValue)
+            ? costValue
+            : undefined,
+        },
+        { policy: 'best_effort' },
+      );
     }
+
+    const errTxt = await costResp.text();
+    const errPayload = parseJsonRecord(errTxt);
+    const errorCode = readEdgeErrorCode(errPayload) ?? 'cost_calculation_failed';
+    const message = typeof errPayload?.message === 'string'
+      ? errPayload.message
+      : (errTxt || 'Cost calculation failed');
+    return operationFailure(new Error(message), {
+      policy: 'degrade',
+      errorCode,
+      message,
+      recoverable: costResp.status >= 500,
+      cause: { status: costResp.status, payload: errPayload ?? errTxt },
+    });
   } catch (costErr) {
-    console.error(`[${logTag}] Error triggering cost calculation:`, costErr);
+    const message = costErr instanceof Error ? costErr.message : String(costErr);
+    return operationFailure(new Error(`[${logTag}] ${message}`), {
+      policy: 'degrade',
+      errorCode: 'cost_calculation_request_error',
+      message: `[${logTag}] ${message}`,
+      recoverable: true,
+      cause: costErr,
+    });
   }
 }

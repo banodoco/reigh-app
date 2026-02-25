@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { TaskDetailsProps, getVariantConfig } from '@/shared/types/taskDetailsTypes';
-import { parseTaskParams, deriveInputImages, extractLoras } from '@/shared/lib/taskParamsUtils';
+import { extractLoras } from '@/shared/lib/taskParamsUtils';
+import { normalizeTaskDetailsPayload } from '@/shared/components/TaskDetails/hooks/normalizeTaskDetailsPayload';
 
 /**
  * Task details for image editing tasks (img2img, inpaint, magic edit, etc.)
@@ -13,14 +14,13 @@ export const ImageEditTaskDetails: React.FC<TaskDetailsProps> = ({
   isMobile = false,
 }) => {
   const config = getVariantConfig(variant, isMobile, inputImages.length);
-  const parsedParams = useMemo(() => parseTaskParams(task?.params), [task?.params]);
-  const derivedImages = useMemo(() => deriveInputImages(parsedParams), [parsedParams]);
-  const effectiveInputImages = inputImages.length > 0 ? inputImages : derivedImages;
-  const loras = useMemo(() => extractLoras(parsedParams), [parsedParams]);
+  const normalized = useMemo(() => normalizeTaskDetailsPayload(task), [task]);
+  const effectiveInputImages = inputImages.length > 0 ? inputImages : normalized.inputImages;
+  const loras = useMemo(() => extractLoras(normalized.parsedParams), [normalized.parsedParams]);
 
-  const prompt = typeof parsedParams?.prompt === 'string' ? parsedParams.prompt : undefined;
-  const strength = typeof parsedParams?.strength === 'number' ? parsedParams.strength : undefined;
-  const qwenEditModel = typeof parsedParams?.qwen_edit_model === 'string' ? parsedParams.qwen_edit_model : undefined;
+  const prompt = typeof normalized.parsedParams?.prompt === 'string' ? normalized.parsedParams.prompt : undefined;
+  const strength = typeof normalized.parsedParams?.strength === 'number' ? normalized.parsedParams.strength : undefined;
+  const qwenEditModel = typeof normalized.parsedParams?.qwen_edit_model === 'string' ? normalized.parsedParams.qwen_edit_model : undefined;
   const isImg2Img = task?.taskType === 'z_image_turbo_i2i';
 
   return (

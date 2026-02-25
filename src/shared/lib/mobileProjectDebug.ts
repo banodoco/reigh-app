@@ -16,8 +16,8 @@
  * > getProjectDebugHistory()
  */
 
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import { getNetworkStatusManager } from '@/shared/lib/NetworkStatusManager';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { getNetworkStatusManager } from '@/shared/services/network/networkStatusManager';
 
 // All window globals are typed centrally in src/types/browser-extensions.d.ts
 
@@ -108,7 +108,7 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
         }
       });
     } catch (e) {
-      handleError(e, { context: 'mobileProjectDebug.forceRecovery', showToast: false });
+      normalizeAndPresentError(e, { context: 'mobileProjectDebug.forceRecovery', showToast: false });
     }
 
     // Try to trigger auth refresh

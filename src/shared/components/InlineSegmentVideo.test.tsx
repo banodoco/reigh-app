@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { SegmentSlot } from '@/shared/hooks/segments/useSegmentOutputsForShot';
-import type { GenerationRow } from '@/types/generationRow';
+import type { GenerationRow } from '@/domains/generation/types';
 import { InlineSegmentVideo } from './InlineSegmentVideo';
 
 vi.mock('@/shared/hooks/useVariantBadges', () => ({

@@ -1,7 +1,7 @@
 import * as React from "react"
 import { NumberField } from "@base-ui-components/react/number-field"
 import { ChevronUp, ChevronDown } from "lucide-react"
-import { cn } from "@/shared/lib/utils"
+import { cn } from "@/shared/components/ui/contracts/cn"
 
 interface NumberInputProps {
   value: number

@@ -4,10 +4,10 @@ import { SkeletonGallery } from "@/shared/components/ui/skeleton-gallery";
 import { ProgressiveLoadingManager } from "@/shared/components/ProgressiveLoadingManager";
 import { MediaGalleryItem } from "@/shared/components/MediaGalleryItem";
 import { getImageLoadingStrategy } from '@/shared/lib/imageLoadingPriority';
-import { useAdjacentPagePreloader } from '@/shared/hooks/useAdjacentPagePreloader';
+import { useAdjacentPagePreloader } from '@/features/gallery/hooks/useAdjacentPagePreloader';
 import type { ItemShotWorkflow, ItemMobileInteraction, ItemFeatures, ItemActions, ItemLoading } from '@/shared/components/MediaGalleryItem/types';
 import type { GeneratedImageWithMetadata } from '../types';
-import { parseRatio } from '@/shared/lib/aspectRatios';
+import { parseRatio } from '@/shared/lib/media/aspectRatios';
 
 interface MediaGalleryGridDataProps {
   images: GeneratedImageWithMetadata[];
@@ -29,9 +29,6 @@ interface MediaGalleryGridLoadingProps {
   isGalleryLoading: boolean;
   isServerPagination: boolean;
   clearNavigation: () => void;
-  setIsGalleryLoading?: (loading: boolean) => void;
-  setLoadingButton?: (button: 'prev' | 'next' | null) => void;
-  safetyTimeoutRef?: React.MutableRefObject<NodeJS.Timeout | null>;
   isBackfillLoading?: boolean;
   setIsBackfillLoading?: (loading: boolean) => void;
 }
@@ -103,11 +100,6 @@ const MediaGalleryGridInner: React.FC<MediaGalleryGridProps> = ({
 
   // Navigation completion - the SINGLE way to clear loading state
   clearNavigation,
-
-  // Legacy props (kept for backwards compatibility)
-  setIsGalleryLoading,
-  setLoadingButton,
-  safetyTimeoutRef,
 
   // Progressive loading props
   effectivePage,

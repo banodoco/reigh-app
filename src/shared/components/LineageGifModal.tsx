@@ -10,6 +10,7 @@ import { Download, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Progress } from '@/shared/components/ui/progress';
 import { useLineageChain } from '@/shared/hooks/useLineageChain';
+import { useProject } from '@/shared/contexts/ProjectContext';
 import { GIFEncoder, quantize, applyPalette } from 'gifenc';
 
 interface CreateGifProgress {
@@ -124,7 +125,7 @@ function downloadBlob(blob: Blob, filename: string): void {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { ModalContainer } from '@/shared/components/ModalContainer';
 
 interface LineageGifModalProps {
@@ -143,11 +144,13 @@ export const LineageGifModal: React.FC<LineageGifModalProps> = ({
   onClose,
   variantId,
 }) => {
+  const { selectedProjectId } = useProject();
   const [downloadState, setDownloadState] = useState<DownloadState>({ status: 'idle' });
 
   // Fetch the lineage chain
   const { chain, isLoading: isChainLoading, hasLineage, error: chainError } = useLineageChain(
-    open ? variantId : null
+    open ? variantId : null,
+    selectedProjectId ?? null,
   );
 
   const handleDownloadGif = async () => {
@@ -166,7 +169,7 @@ export const LineageGifModal: React.FC<LineageGifModalProps> = ({
       downloadBlob(blob, `lineage-${timestamp}.gif`);
       setDownloadState({ status: 'idle' });
     } catch (err) {
-      handleError(err, { context: 'LineageGifModal', showToast: false });
+      normalizeAndPresentError(err, { context: 'LineageGifModal', showToast: false });
       setDownloadState({
         status: 'error',
         message: err instanceof Error ? err.message : 'Failed to generate GIF',

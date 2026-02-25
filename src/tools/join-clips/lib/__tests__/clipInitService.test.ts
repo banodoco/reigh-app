@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock dependencies
-vi.mock('@/shared/lib/errorHandler', () => ({
-  handleError: vi.fn(),
+vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
+  normalizeAndPresentError: vi.fn(),
 }));
 
 vi.mock('@/shared/lib/taskCreation', () => ({
@@ -14,11 +14,13 @@ import {
   getCachedClipsCount,
   setCachedClipsCount,
   preloadPosterImages,
+  consumePendingJoinClips,
   applyPendingClipActions,
   buildInitialClipsFromSettings,
   padClipsWithEmptySlots,
   type PendingClipAction,
 } from '../clipInitService';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 describe('createEmptyClip', () => {
   it('creates an empty clip with default values', () => {
@@ -33,6 +35,7 @@ describe('createEmptyClip', () => {
 describe('getCachedClipsCount', () => {
   beforeEach(() => {
     localStorage.clear();
+    vi.mocked(normalizeAndPresentError).mockClear();
   });
 
   it('returns 0 for null projectId', () => {
@@ -46,6 +49,15 @@ describe('getCachedClipsCount', () => {
   it('returns cached count', () => {
     localStorage.setItem('join-clips-count-project-1', '5');
     expect(getCachedClipsCount('project-1')).toBe(5);
+  });
+
+  it('returns 0 and logs when cached count is malformed', () => {
+    localStorage.setItem('join-clips-count-project-1', 'not-a-number');
+    expect(getCachedClipsCount('project-1')).toBe(0);
+    expect(normalizeAndPresentError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ context: 'JoinClipsCache.read.invalid' }),
+    );
   });
 });
 
@@ -159,6 +171,94 @@ describe('applyPendingClipActions', () => {
     const result = applyPendingClipActions(prevClips, actions);
     expect(result[0].url).toBe('c1.mp4');
     expect(result[1].url).toBe('c2.mp4');
+  });
+});
+
+describe('consumePendingJoinClips', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.mocked(normalizeAndPresentError).mockClear();
+  });
+
+  it('returns empty array when no pending clips exist', async () => {
+    const result = await consumePendingJoinClips();
+    expect(result).toEqual({
+      ok: true,
+      value: [],
+      policy: 'best_effort',
+      recoverable: false,
+    });
+  });
+
+  it('drops expired entries and clears storage', async () => {
+    const now = Date.now();
+    localStorage.setItem('pendingJoinClips', JSON.stringify([
+      {
+        videoUrl: 'https://example.com/old.mp4',
+        generationId: 'old',
+        timestamp: now - (6 * 60 * 1000),
+      },
+    ]));
+
+    const result = await consumePendingJoinClips();
+    expect(result).toEqual({
+      ok: true,
+      value: [],
+      policy: 'best_effort',
+      recoverable: false,
+    });
+    expect(localStorage.getItem('pendingJoinClips')).toBeNull();
+  });
+
+  it('maps recent pending clips and consumes storage', async () => {
+    const now = Date.now();
+    localStorage.setItem('pendingJoinClips', JSON.stringify([
+      {
+        videoUrl: 'https://example.com/a.mp4',
+        thumbnailUrl: 'https://example.com/a.jpg',
+        generationId: 'gen-a',
+        timestamp: now,
+      },
+      {
+        videoUrl: '',
+        generationId: 'skip-empty',
+        timestamp: now,
+      },
+    ]));
+
+    const readVideoDuration = vi.fn().mockResolvedValue(12);
+    const result = await consumePendingJoinClips(readVideoDuration);
+
+    expect(readVideoDuration).toHaveBeenCalledTimes(1);
+    expect(readVideoDuration).toHaveBeenCalledWith('https://example.com/a.mp4');
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    expect(result.value).toHaveLength(1);
+    expect(result.value[0].clip.url).toBe('https://example.com/a.mp4');
+    expect(result.value[0].clip.posterUrl).toBe('https://example.com/a.jpg');
+    expect(result.value[0].clip.durationSeconds).toBe(12);
+    expect(result.value[0].clip.generationId).toBe('gen-a');
+    expect(localStorage.getItem('pendingJoinClips')).toBeNull();
+  });
+
+  it('clears malformed pending payloads and logs explicitly', async () => {
+    localStorage.setItem('pendingJoinClips', '{"bad":"shape"}');
+
+    const result = await consumePendingJoinClips();
+
+    expect(result).toMatchObject({
+      ok: false,
+      errorCode: 'pending_join_clips_invalid_payload',
+      policy: 'degrade',
+      recoverable: true,
+    });
+    expect(localStorage.getItem('pendingJoinClips')).toBeNull();
+    expect(normalizeAndPresentError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ context: 'JoinClipsPage.pendingClipsInvalid' }),
+    );
   });
 });
 

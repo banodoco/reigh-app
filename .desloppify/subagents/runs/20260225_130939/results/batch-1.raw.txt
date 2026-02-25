@@ -1,0 +1,109 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 78.0,
+    "high_level_elegance": 81.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "Media gallery behavior is spread across multiple modules with shared mutable coordination primitives: `useMediaGalleryHandlers` wires shot selection, notifier navigation, modal state, and context side effects, while `useMobileInteractions` requires external timeout/tap refs from callers and `ShotActions` consumes four separate state/callback bags.",
+        "`LightboxShell` depends directly on tasks-pane state (`effectiveTasksPaneOpen`, `effectiveTasksPaneWidth`, `isTasksPaneLocked`, `needsTasksPaneOffset`) and hard-coded z-index contract comments, creating direct coupling between media overlay and layout/pane subsystems.",
+        "Boundary ownership is blurred by transitional and facade layers (`handleError` as compatibility wrapper, multiple one-line UI/mobile re-export wrappers), increasing import-path indirection without reducing cross-feature coordination complexity."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "`ProjectProvider` composes auth, user settings, selection, CRUD, and defaulting/sync effects in one provider, with bidirectional callback contracts between selection and CRUD hooks (`onProjectsLoaded`, `onProjectCreated`, `onProjectDeleted`, `applyCrossDeviceSync`), which makes ownership harder to explain as one coherent role.",
+        "Gallery/lightbox modules show a repeated 'orchestration shell' pattern (`LightboxShell`, `useMediaGalleryHandlers`, `ShotActions`) where each unit owns partial workflow state and behavior, requiring large prop/hook contracts to preserve flow instead of a single feature boundary.",
+        "Public API shape includes compatibility/delegation wrappers (`handleError`, UI re-export files, mobile index re-export) while feature modules still depend on deep internals, signaling unresolved architectural layering rather than a clean, small top-level surface."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "media_gallery_distributed_state_machine",
+      "summary": "Media gallery flow is implemented as a distributed state machine across hooks/components.",
+      "related_files": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGallery/hooks/useMobileInteractions.ts",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+      ],
+      "evidence": [
+        "`useMediaGalleryHandlers` accepts a broad orchestration contract (shot arrays, navigation, filter mutators, modal setters, lightbox setter, optional associated-shot flow) and performs both command handling and effectful context reconciliation.",
+        "`useMobileInteractions` requires caller-owned mutable refs (`lastTouchTimeRef`, `lastTappedImageIdRef`, `doubleTapTimeoutRef`) to coordinate tap semantics, indicating shared state ownership across module boundaries.",
+        "`ShotActions` consumes four grouped prop objects (`selector`, `status`, `quickCreate`, `actions`) and still performs control-flow decisions (navigate vs add) using cross-cutting flags, showing state/decision logic split across layers."
+      ],
+      "suggestion": "Introduce a feature-level gallery interaction controller (single hook/service) that owns tap/selection/add-to-shot workflow state and exposes a narrow command/query API to UI components; move mutable refs and transition logic inside that controller, and make presentational components receive only derived view models plus intent callbacks.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "missing_feature_controller_boundary"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "lightbox_tasks_pane_boundary_leak",
+      "summary": "Lightbox shell is tightly coupled to tasks-pane layout internals and global layering contract.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/LightboxShell.tsx",
+        "src/features/layout/hooks/useBottomOffset.test.ts"
+      ],
+      "evidence": [
+        "`LightboxShell` directly models tasks-pane internals via multiple props (`effectiveTasksPaneOpen`, `effectiveTasksPaneWidth`, `isTasksPaneLocked`, `needsTasksPaneOffset`) and comments about pane control z-index hierarchy.",
+        "The same pane/lightbox state relationship appears in layout behavior tests (`useBottomOffset.test.ts` mocks pane lock/open state plus lightbox-open state), indicating cross-subsystem knowledge requirements rather than a single boundary contract."
+      ],
+      "suggestion": "Define a dedicated layout contract for overlays (e.g., `OverlayViewportConstraints`) produced by layout subsystem hooks, and make lightbox consume that contract only; encapsulate pane/open/lock mechanics and z-index assumptions inside layout modules so media modules stop depending on pane semantics.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "missing_feature_controller_boundary"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "compatibility_facade_sprawl",
+      "summary": "Compatibility and pass-through facade layers blur canonical ownership of public APIs.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/ui/cn.ts",
+        "src/shared/components/ui/tooltip.tsx",
+        "src/shared/components/ui/label.tsx",
+        "src/shared/components/ui/sonner.tsx",
+        "src/shared/hooks/mobile/index.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` is explicitly a backward-compatibility wrapper that forwards to newer reporters while advising callers to import elsewhere, signaling an unresolved migration path in the active surface.",
+        "Multiple UI modules are one-line re-export façades to deeper `theme/primitives/runtime` modules, and mobile exports similarly re-forward from `index.ts`, increasing API indirection layers.",
+        "This pattern creates many nominal entrypoints without adding behavior or strong boundary rules, making it harder to identify the true canonical module for each concern."
+      ],
+      "suggestion": "Publish and enforce a single canonical import surface per concern (error reporting, UI primitives, mobile signals), then complete migration by deprecating/removing compatibility wrappers in phases; add lint/import rules to prevent new deep-or-legacy import paths from reappearing.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "transitional_api_surface_drift"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Missing feature-level controller boundaries for complex UI workflows leads to state and decision logic split across hooks/components.",
+      "Long-lived transitional wrappers/facades remain in the primary import surface, preserving ambiguity about canonical ownership."
+    ],
+    "likely_symptoms": [
+      "media_gallery_distributed_state_machine",
+      "lightbox_tasks_pane_boundary_leak",
+      "compatibility_facade_sprawl"
+    ],
+    "possible_false_positives": [
+      "Some one-line re-export modules may be intentional stable facades; if so, the defect is not facades themselves but unresolved coexistence of legacy and canonical paths."
+    ]
+  }
+}

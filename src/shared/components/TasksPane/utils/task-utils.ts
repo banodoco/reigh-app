@@ -1,6 +1,6 @@
 import { Task } from '@/types/tasks';
 import { TASK_NAME_ABBREVIATIONS } from '../constants';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 
 type JsonObject = Record<string, unknown>;
 
@@ -162,8 +162,7 @@ export const checkSegmentConnection = async (
     return false;
   }
 
-  const { data } = await supabase
-    .from('shot_generations')
+  const { data } = await supabase().from('shot_generations')
     .select('id, shot_id, timeline_frame')
     .eq('id', pairShotGenerationId)
     .maybeSingle();

@@ -1,11 +1,15 @@
 // deno-lint-ignore-file
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { authenticateRequest, verifyTaskOwnership, getTaskUserId } from "../_shared/auth.ts";
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
 import { jsonResponse } from "../_shared/http.ts";
-import { SystemLogger } from "../_shared/systemLogger.ts";
-import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
+import {
+  checkRateLimit,
+  isRateLimitExceededFailure,
+  rateLimitFailureResponse,
+  RATE_LIMITS,
+} from "../_shared/rateLimit.ts";
+import { bootstrapEdgeHandler } from "../_shared/edgeHandler.ts";
+import { resolveTaskStorageActor } from "../_shared/taskActorPolicy.ts";
 
 // Import from refactored modules
 import { parseCompleteTaskRequest, validateStoragePathSecurity } from './request.ts';
@@ -30,24 +34,6 @@ interface TaskContext {
   variant_type: string | null;
 }
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-} as const;
-
-function withCorsHeaders(response: Response): Response {
-  const headers = new Headers(response.headers);
-  Object.entries(CORS_HEADERS).forEach(([key, value]) => {
-    headers.set(key, value);
-  });
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
-}
-
 /**
  * Fetch task context with all required fields for the completion flow.
  * Uses a single query with FK join (tasks.task_type -> task_types.name).
@@ -55,7 +41,10 @@ function withCorsHeaders(response: Response): Response {
  */
 async function fetchTaskContext(
   supabase: SupabaseClient,
-  taskId: string
+  taskId: string,
+  logger?: {
+    error: (message: string, context?: Record<string, unknown>) => void;
+  },
 ): Promise<TaskContext | null> {
   const { data: task, error } = await supabase
     .from("tasks")
@@ -64,7 +53,10 @@ async function fetchTaskContext(
     .single();
 
   if (error || !task) {
-    console.error(`[TaskContext] Failed to fetch task ${taskId}:`, error);
+    logger?.error('Failed to fetch task context', {
+      task_id: taskId,
+      fetch_error: error instanceof Error ? error.message : String(error),
+    });
     return null;
   }
 
@@ -103,69 +95,47 @@ async function fetchTaskContext(
  * MODE 4 (REFERENCE EXISTING PATH):
  *   Body: { task_id, storage_path: "user_id/filename", ... }
  */
-export interface CompleteTaskDeps {
-  /**
-   * Override Supabase client factory for tests.
-   */
-  createClient?: (supabaseUrl: string, serviceKey: string) => SupabaseClient;
-  /**
-   * Provide a pre-constructed Supabase client (bypasses createClient).
-   */
-  supabaseAdmin?: SupabaseClient;
-  /**
-   * Override auth + ownership utilities for tests.
-   */
-  authenticateRequest?: typeof authenticateRequest;
-  verifyTaskOwnership?: typeof verifyTaskOwnership;
-  getTaskUserId?: typeof getTaskUserId;
-  /**
-   * Override logger implementation for tests.
-   */
-  LoggerClass?: typeof SystemLogger;
-  /**
-   * Override env var access for tests.
-   */
-  env?: { get: (key: string) => string | undefined };
-}
-
-export async function completeTaskHandler(req: Request, deps: CompleteTaskDeps = {}): Promise<Response> {
-  const finalize = (response: Response): Response => withCorsHeaders(response);
-
-  if (req.method === "OPTIONS") {
-    return finalize(new Response("ok", { status: 200 }));
+export async function completeTaskHandler(req: Request): Promise<Response> {
+  const bootstrap = await bootstrapEdgeHandler(req, {
+    functionName: "complete-task",
+    logPrefix: "[COMPLETE-TASK]",
+    parseBody: "none",
+    auth: {
+      required: true,
+      options: { allowJwtUserAuth: true },
+    },
+    runtimeOptions: {
+      clientOptions: {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      },
+    },
+  });
+  if (!bootstrap.ok) {
+    return bootstrap.response;
   }
 
-  if (req.method !== "POST") {
-    return finalize(jsonResponse({ error: "Method not allowed" }, 405));
-  }
+  const { supabaseAdmin, logger, auth } = bootstrap.value;
 
   // 1) Parse and validate request
   const parseResult = await parseCompleteTaskRequest(req);
   if (!parseResult.success) {
-    return finalize(parseResult.response);
+    return parseResult.response;
   }
   const parsedRequest = parseResult.data;
   const taskIdString = parsedRequest.taskId;
 
-  // 2) Get environment variables and create Supabase client
-  const env = deps.env ?? Deno.env;
-  const serviceKey = env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const supabaseUrl = env.get("SUPABASE_URL");
-  if (!serviceKey || !supabaseUrl) {
-    console.error("Missing required environment variables");
-    return finalize(jsonResponse({ error: "Server configuration error" }, 500));
-  }
-  const createClientFn = deps.createClient ?? createClient;
-  const supabaseAdmin = deps.supabaseAdmin ?? createClientFn(supabaseUrl, serviceKey);
-  
-  // Create logger
-  const LoggerClass = deps.LoggerClass ?? SystemLogger;
-  const logger = new LoggerClass(supabaseAdmin, 'complete-task', taskIdString);
-  logger.info("Processing task", { 
-    task_id: taskIdString, 
+  logger.setDefaultTaskId?.(taskIdString);
+  logger.info("Processing task", {
+    task_id: taskIdString,
     mode: parsedRequest.mode,
-    filename: parsedRequest.filename
+    filename: parsedRequest.filename,
   });
+
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 
   // 3) Security check: Validate storage path for orchestrator references
   if (parsedRequest.requiresOrchestratorCheck && parsedRequest.storagePath) {
@@ -178,21 +148,13 @@ export async function completeTaskHandler(req: Request, deps: CompleteTaskDeps =
     if (!securityResult.allowed) {
       logger.error("Storage path security check failed", { error: securityResult.error });
       await logger.flush();
-      return finalize(jsonResponse({ error: securityResult.error || "Access denied" }, 403));
+      return jsonResponse({ error: securityResult.error || "Access denied" }, 403);
     }
   }
 
-  // 4) Authenticate request
-  const authenticateFn = deps.authenticateRequest ?? authenticateRequest;
-  const auth = await authenticateFn(req, supabaseAdmin, "[COMPLETE-TASK]", { allowJwtUserAuth: true });
-  if (!auth.success) {
-    logger.error("Authentication failed", { error: auth.error });
-    await logger.flush();
-    return finalize(jsonResponse({ error: auth.error || "Authentication failed" }, auth.statusCode || 403));
-  }
-
-  const isServiceRole = auth.isServiceRole;
-  const callerId = auth.userId;
+  // 4) Authentication is handled by bootstrapEdgeHandler.
+  const isServiceRole = auth!.isServiceRole;
+  const callerId = auth!.userId;
 
   // 4b) Rate limit non-service-role callers (workers use service-role and are not rate limited)
   if (!isServiceRole && callerId) {
@@ -203,22 +165,54 @@ export async function completeTaskHandler(req: Request, deps: CompleteTaskDeps =
       RATE_LIMITS.userAction,
       '[COMPLETE-TASK]'
     );
-    if (!rateLimitResult.allowed) {
-      logger.warn("Rate limit exceeded", { user_id: callerId });
+    if (!rateLimitResult.ok) {
+      if (isRateLimitExceededFailure(rateLimitResult)) {
+        logger.warn("Rate limit exceeded", { user_id: callerId });
+        await logger.flush();
+        return rateLimitFailureResponse(rateLimitResult, RATE_LIMITS.userAction);
+      }
+
+      logger.error("Rate limit check failed", {
+        user_id: callerId,
+        error_code: rateLimitResult.errorCode,
+        message: rateLimitResult.message,
+      });
       await logger.flush();
-      return finalize(rateLimitResponse(rateLimitResult, RATE_LIMITS.userAction));
+      return jsonResponse({ error: "Rate limit service unavailable" }, 503);
+    }
+
+    if (rateLimitResult.policy === 'fail_open') {
+      logger.warn("Rate limit check degraded; allowing request", {
+        user_id: callerId,
+        reason: rateLimitResult.value.degraded?.reason,
+        message: rateLimitResult.value.degraded?.message,
+      });
     }
   }
 
   try {
-    // 5) Verify task ownership if user token
-    if (!isServiceRole && callerId) {
-      const verifyOwnershipFn = deps.verifyTaskOwnership ?? verifyTaskOwnership;
-      const ownershipResult = await verifyOwnershipFn(supabaseAdmin, taskIdString, callerId, "[COMPLETE-TASK]");
-      if (!ownershipResult.success) {
-        return finalize(jsonResponse({ error: ownershipResult.error || "Forbidden" }, ownershipResult.statusCode || 403));
-      }
+    // 5) Resolve actor policy once (ownership + task user resolution).
+    const taskActor = await resolveTaskStorageActor({
+      supabaseAdmin,
+      taskId: taskIdString,
+      auth: auth!,
+      logPrefix: "[COMPLETE-TASK]",
+    });
+    if (!taskActor.ok) {
+      logger.error("Task actor resolution failed", {
+        task_id: taskIdString,
+        error: taskActor.error,
+        status_code: taskActor.statusCode,
+      });
+      await logger.flush();
+      return jsonResponse({ error: taskActor.error }, taskActor.statusCode);
     }
+
+    const completionAuthContext = {
+      isServiceRole: taskActor.value.isServiceRole,
+      taskOwnerVerified: taskActor.value.taskOwnerVerified,
+      actorId: taskActor.value.callerId,
+    };
 
     // 6) MODE 4: Verify referenced file exists
     if (parsedRequest.storagePath) {
@@ -226,32 +220,22 @@ export async function completeTaskHandler(req: Request, deps: CompleteTaskDeps =
       const isMode3Format = pathParts.length >= 4 && pathParts[1] === 'tasks';
 
       if (!isMode3Format) {
-        const fileCheck = getStoragePublicUrl(supabaseAdmin, parsedRequest.storagePath);
+        const fileCheck = await getStoragePublicUrl(supabaseAdmin, parsedRequest.storagePath);
         if (!fileCheck.exists) {
-          return finalize(jsonResponse({ error: "Referenced file does not exist or is not accessible in storage" }, 404));
+          return jsonResponse({ error: "Referenced file does not exist or is not accessible in storage" }, 404);
         }
       }
     }
 
-    // 7) Determine user ID for storage path
-    let userId: string;
-    if (isServiceRole) {
-      const getTaskUserIdFn = deps.getTaskUserId ?? getTaskUserId;
-      const taskUserResult = await getTaskUserIdFn(supabaseAdmin, taskIdString, "[COMPLETE-TASK]");
-      if (taskUserResult.error) {
-        return finalize(jsonResponse({ error: taskUserResult.error }, taskUserResult.statusCode || 404));
-      }
-      userId = taskUserResult.userId!;
-    } else {
-      userId = callerId!;
-    }
+    // 7) Determine user ID for storage path from shared actor policy.
+    const userId = taskActor.value.taskUserId;
 
     // 8) Fetch task context once (used by validation, generation creation, orchestrator check)
-    const taskContext = await fetchTaskContext(supabaseAdmin, taskIdString);
+    const taskContext = await fetchTaskContext(supabaseAdmin, taskIdString, logger);
     if (!taskContext) {
       logger.error("Failed to fetch task context", { task_id: taskIdString });
       await logger.flush();
-      return finalize(jsonResponse({ error: "Task not found" }, 404));
+      return jsonResponse({ error: "Task not found" }, 404);
     }
 
     // 9) Handle storage operations
@@ -283,7 +267,10 @@ export async function completeTaskHandler(req: Request, deps: CompleteTaskDeps =
         taskContext.params = updatedParams;
       }
     } catch (validationError) {
-      console.error(`[COMPLETE-TASK] Error during validation:`, validationError);
+      logger.warn("Validation follow-up failed; continuing completion flow", {
+        task_id: taskIdString,
+        error: validationError instanceof Error ? validationError.message : String(validationError),
+      });
       // Continue anyway - don't fail task completion due to validation errors
     }
 
@@ -291,7 +278,7 @@ export async function completeTaskHandler(req: Request, deps: CompleteTaskDeps =
     const CREATE_GENERATION_IN_EDGE = Deno.env.get("CREATE_GENERATION_IN_EDGE") !== "false";
     if (CREATE_GENERATION_IN_EDGE) {
       try {
-        await createGenerationFromTask(
+        const generationOutcome = await createGenerationFromTask(
           supabaseAdmin,
           taskContext.id,
           {
@@ -306,15 +293,22 @@ export async function completeTaskHandler(req: Request, deps: CompleteTaskDeps =
           },
           publicUrl,
           thumbnailUrl,
-          logger
+          logger,
+          completionAuthContext,
         );
+
+        if (generationOutcome.status === 'skipped') {
+          logger.info('Generation creation skipped', {
+            task_id: taskContext.id,
+            reason: generationOutcome.reason,
+          });
+        }
       } catch (genErr: unknown) {
         const msg = genErr?.message || String(genErr);
         logger.error("Generation creation failed", { error: msg });
-        console.error("[COMPLETE-TASK] Generation creation failed:", genErr);
         await logger.flush();
         // Preserve atomic semantics: do NOT mark the task Complete if generation creation failed.
-        return finalize(jsonResponse({ error: "Internal server error" }, 500));
+        return jsonResponse({ error: "Internal server error" }, 500);
       }
     }
 
@@ -326,28 +320,50 @@ export async function completeTaskHandler(req: Request, deps: CompleteTaskDeps =
     }).eq("id", taskIdString).eq("status", "In Progress");
 
     if (dbError) {
-      console.error("[COMPLETE-TASK] Database update failed:", dbError);
+      logger.error("Database update failed", {
+        task_id: taskIdString,
+        error: dbError instanceof Error ? dbError.message : String(dbError),
+      });
+      await logger.flush();
       await cleanupFile(supabaseAdmin, objectPath);
-      return finalize(jsonResponse({ error: "Internal server error" }, 500));
+      return jsonResponse({ error: "Internal server error" }, 500);
     }
 
     // 13) Check orchestrator completion (for segment tasks) - uses task context
     try {
       await checkOrchestratorCompletion(
-        supabaseAdmin,
-        taskIdString,
-        taskContext, // Pass context instead of fetching again
-        publicUrl,
-        supabaseUrl,
-        serviceKey
+        {
+          supabase: supabaseAdmin,
+          taskIdString,
+          completedTask: taskContext, // Pass context instead of fetching again
+          publicUrl,
+          supabaseUrl,
+          serviceKey,
+          authContext: completionAuthContext,
+          logger,
+        },
       );
     } catch (orchErr) {
-      console.error("[COMPLETE-TASK] Error checking orchestrator completion:", orchErr);
+      logger.warn("Orchestrator completion follow-up failed", {
+        task_id: taskIdString,
+        error: orchErr instanceof Error ? orchErr.message : String(orchErr),
+      });
     }
 
     // 14) Calculate cost (service role only)
     if (isServiceRole) {
-      await triggerCostCalculationIfNotSubTask(supabaseAdmin, supabaseUrl, serviceKey, taskIdString);
+      const billingResult = await triggerCostCalculationIfNotSubTask(
+        supabaseAdmin,
+        supabaseUrl,
+        serviceKey,
+        taskIdString,
+      );
+      if (!billingResult.ok) {
+        logger.warn("Cost calculation follow-up failed", {
+          task_id: taskIdString,
+          billing_result: billingResult,
+        });
+      }
     }
 
     // 15) Return success
@@ -365,7 +381,7 @@ export async function completeTaskHandler(req: Request, deps: CompleteTaskDeps =
     });
     await logger.flush();
 
-    return finalize(jsonResponse(responseData, 200));
+    return jsonResponse(responseData, 200);
 
   } catch (error: unknown) {
     logger.critical("Unexpected error", {
@@ -373,9 +389,8 @@ export async function completeTaskHandler(req: Request, deps: CompleteTaskDeps =
       error: error?.message,
       stack: error?.stack?.substring(0, 500)
     });
-    console.error("[COMPLETE-TASK] Internal error:", error);
     await logger.flush();
-    return finalize(jsonResponse({ error: "Internal server error" }, 500));
+    return jsonResponse({ error: "Internal server error" }, 500);
   }
 }
 

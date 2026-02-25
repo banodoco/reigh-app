@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useDarkMode } from '@/shared/hooks/useDarkMode';
+import { useDarkMode } from '@/shared/hooks/core/useDarkMode';
 import { useProject } from '@/shared/contexts/ProjectContext';
 
 interface UseGlobalHeaderProjectOptions {

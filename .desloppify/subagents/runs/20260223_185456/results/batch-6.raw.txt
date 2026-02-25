@@ -1,0 +1,75 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "high_level_elegance": 72.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "README.md documents setup and links but does not define architectural runtime contracts for shared singletons or import-time side effects, while src/integrations/supabase/client.ts explicitly states eager import-time client initialization and side effects (lines 16-20, 47-49).",
+        "src/integrations/supabase/client.ts mutates global window state (window.__supabase_client__ and window.supabase at lines 9-10) without any top-level governance note in README.md about this browser-global contract.",
+        "src/types/shots.ts declares a deprecation and a dated sunset contract (remove by 2026-05-31) but remains a compatibility re-export shim; README.md does not describe compatibility policy or deprecation enforcement process.",
+        "src/shared/components/ui/button.tsx includes many product/theme-specific variants (retro/theme/success families) in a shared primitive, which blurs ownership boundaries for what should be design-system vs product-theme policy."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "missing_runtime_contract_docs",
+      "summary": "README omits documented contract for eager Supabase singleton side effects",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "README.md has setup instructions and doc links but no statement about import-time initialization behavior or global client exposure.",
+        "src/integrations/supabase/client.ts comments confirm eager singleton creation at module import (lines 16-20, 47-49) and runtime global registration (lines 9-10)."
+      ],
+      "suggestion": "Add an explicit \"Runtime Contracts\" section in README.md describing that importing the Supabase client triggers initialization, installs instrumentation, and writes browser globals; include allowed import locations and a policy for future lazy-init migration.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "unenforced_deprecation_policy",
+      "summary": "Deprecation shim has sunset metadata but no visible governance enforcement path",
+      "related_files": [
+        "src/types/shots.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "src/types/shots.ts is a pure re-export shim with a deprecation notice and fixed removal date (2026-05-31).",
+        "README.md does not define compatibility/deprecation policy, CI checks, or migration ownership process for dated shims."
+      ],
+      "suggestion": "Define repo-level deprecation governance in README.md (owner, required migration steps, CI rule/check for banned imports after sunset) and link it from src/types/shots.ts so the date-based contract is enforceable rather than advisory.",
+      "confidence": "medium",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_primitive_ownership_blur",
+      "summary": "Shared Button primitive mixes system-level and product-theme responsibilities",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "README.md",
+        "src/shared/lib/utils.ts"
+      ],
+      "evidence": [
+        "src/shared/components/ui/button.tsx defines baseline variants plus retro/theme/product-oriented variants in the same shared primitive, expanding the public surface of a core UI contract.",
+        "README.md describes stack and documentation links but not ownership boundaries for what belongs in shared UI primitives versus app/theme layers.",
+        "src/shared/lib/utils.ts exposes a minimal shared barrel while button.tsx carries broad theme policy, indicating inconsistent boundary strictness in shared surface design."
+      ],
+      "suggestion": "Split button contracts into a minimal shared primitive and a separate theme/product extension layer (e.g., feature- or theme-scoped wrappers), then document this ownership rule in README.md or structure docs to keep shared APIs stable.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

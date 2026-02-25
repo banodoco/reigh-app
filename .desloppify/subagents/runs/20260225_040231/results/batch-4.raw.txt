@@ -1,0 +1,126 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "incomplete_migration": 71.0,
+    "low_level_elegance": 82.0
+  },
+  "dimension_notes": {
+    "incomplete_migration": {
+      "evidence": [
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts:20-33 is marked deprecated with removal target 2026-06-30, but repository search still shows broad active imports of getLegacySupabaseClient across app/hooks/tools modules.",
+        "src/shared/lib/toolConstants.ts:1-23 and src/shared/components/theme/buttonVariants.ts:1-24 are deprecated compatibility shims that are still imported broadly (TOOL_IDS usage is widespread), indicating migration is not near completion.",
+        "src/shared/lib/errorHandling/reportRuntimeError.ts:17-31 is deprecated but still heavily referenced; alias surface remains a primary error API in practice.",
+        "src/shared/lib/tasks/joinClipsCompatAdapter.ts:32-96 and 303-393 accepts both canonical and many legacy fields in one contract, preserving dual-path behavior.",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts:18-49 keeps deprecated legacy travel payload fields in exported task parameter types, extending mixed-shape compatibility."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "src/shared/lib/tasks/joinClipsCompatAdapter.ts carries a very wide compat parameter bag and multiple legacy-detection branches (hasLegacyPathFields/hasLegacyVideoEditFields/hasLegacyVideoEditPayloadFields), increasing local branching and maintenance cost.",
+        "src/shared/components/theme/buttonVariants.ts:21 and src/shared/lib/toolConstants.ts:19 execute deprecation checks at import time, introducing hidden module side effects for what should be constant re-exports.",
+        "src/shared/components/ShotImageManager/utils/image-utils.ts:58-60 adds a pure pass-through wrapper (getAspectRatioStyle) with no transformation, creating extra indirection with little leverage."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "deprecated_shims_remain_primary_surfaces",
+      "summary": "Deprecated alias modules remain actively used as primary APIs instead of shrinking to edge adapters.",
+      "related_files": [
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "src/shared/lib/toolConstants.ts",
+        "src/shared/lib/errorHandling/reportRuntimeError.ts",
+        "src/shared/hooks/useCredits.ts"
+      ],
+      "evidence": [
+        "Each file declares deprecated compatibility intent with removal targets/remediation, but these aliases are still broadly consumed in the repository (notably legacy Supabase and toolConstants imports).",
+        "Deprecated wrappers still expose stable exports (`getLegacySupabaseClient`, `TOOL_IDS`, `reportRuntimeError`, `useCredits`) that callers keep depending on, so migration pressure is weak."
+      ],
+      "suggestion": "Switch from open-ended alias exports to staged migration enforcement: (1) publish canonical import codemods, (2) block new alias imports in lint/CI, (3) migrate top callsite clusters, (4) keep aliases only in explicitly scoped boundary adapters, then remove aliases by removal date.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "deprecation_shims_without_cutover"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "join_clips_dual_shape_contract_persists",
+      "summary": "Join-clips compat adapter keeps legacy and canonical payload shapes merged into one long-lived API.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClipsCompatAdapter.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts"
+      ],
+      "evidence": [
+        "JoinClipsTaskCompatParams includes canonical fields (`clip_source`, `video_edit`) and many legacy fields (`starting_video_path`, `video_edit_mode`, `source_video_*`, `portions_to_regenerate`) in one interface.",
+        "Conversion function `toCanonicalJoinClipsTaskInput` performs large shape normalization and legacy stripping, indicating migration logic is still embedded in normal execution path.",
+        "legacyStructureVideo.ts continues to export deprecated payload fields as part of task param contracts."
+      ],
+      "suggestion": "Separate APIs by lifecycle: keep canonical task creator as default path and move legacy parsing into an explicit legacy entrypoint used only by migration boundaries. Add typed boundary converters and remove legacy fields from core interfaces once boundary callers are migrated.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "deprecation_shims_without_cutover"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "import_time_deprecation_side_effects",
+      "summary": "Compatibility constant modules execute runtime side effects at import time.",
+      "related_files": [
+        "src/shared/lib/toolConstants.ts",
+        "src/shared/components/theme/buttonVariants.ts"
+      ],
+      "evidence": [
+        "`warnIfPastRemovalTarget()` is invoked at module top level in both files, so any import of constants triggers governance signaling.",
+        "These modules are primarily re-export shims; import-time behavior is implicit and not visible at call sites."
+      ],
+      "suggestion": "Remove top-level warning calls and shift enforcement to explicit runtime call sites (or build-time checks) so constant imports remain pure and side effects are intentional and testable.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "hidden_side_effect_reexports"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "thin_wrapper_indirection_chain",
+      "summary": "Several helpers are thin wrappers that add hops but little behavior, reducing directness.",
+      "related_files": [
+        "src/shared/components/ShotImageManager/utils/image-utils.ts",
+        "src/shared/lib/errorHandling/reportRuntimeError.ts",
+        "src/shared/hooks/useCredits.ts"
+      ],
+      "evidence": [
+        "`getAspectRatioStyle` in image-utils simply forwards to `getProjectAspectRatioStyle` without adapting inputs or outputs.",
+        "`reportRuntimeError` and `useCredits` wrapper exports mostly warn and immediately forward to canonical implementations, extending call depth and import surface area."
+      ],
+      "suggestion": "Inline or delete no-op wrappers where migration is complete; where migration is still needed, keep wrappers only at boundary modules and replace generic pass-through exports with direct canonical imports.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "hidden_side_effect_reexports"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Deprecation strategy relies on long-lived compatibility exports without strong import-reduction gates.",
+      "Legacy-to-canonical normalization is implemented inside core execution modules instead of isolated migration boundaries.",
+      "Re-export shims include runtime behavior, making migration layers harder to reason about and remove."
+    ],
+    "likely_symptoms": [
+      "deprecated_shims_remain_primary_surfaces",
+      "join_clips_dual_shape_contract_persists",
+      "import_time_deprecation_side_effects",
+      "thin_wrapper_indirection_chain"
+    ],
+    "possible_false_positives": [
+      "Some compat layers may be intentionally retained for active external/shared package consumers not visible in this file batch."
+    ]
+  }
+}

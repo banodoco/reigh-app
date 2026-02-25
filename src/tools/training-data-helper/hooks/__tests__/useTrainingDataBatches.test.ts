@@ -39,14 +39,14 @@ vi.mock('@/integrations/supabase/client', () => ({
   },
 }));
 
-vi.mock('@/shared/components/ui/sonner', () => ({
+vi.mock('@/shared/components/ui/runtime/sonner', () => ({
   toast: {
     error: (...args: unknown[]) => mockToastError(...args),
   },
 }));
 
-vi.mock('@/shared/lib/errorHandling/handleError', () => ({
-  handleError: (...args: unknown[]) => mockHandleError(...args),
+vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
+  normalizeAndPresentError: (...args: unknown[]) => mockHandleError(...args),
 }));
 
 import { useTrainingDataBatches } from '../useTrainingDataBatches';

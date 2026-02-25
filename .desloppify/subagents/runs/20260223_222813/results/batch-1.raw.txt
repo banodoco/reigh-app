@@ -1,0 +1,96 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "high_level_elegance": 71.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/handleError.ts` combines normalization/logging with UI notification transport and global listener lifecycle (`configureErrorNotifier`, `window.addEventListener`, `window.dispatchEvent`), so shared error core also owns app notification wiring.",
+        "Unrelated modules (`src/shared/hooks/useMobile.tsx`, `src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts`) depend directly on `handleError`, making this shared module a cross-domain behavioral hub rather than a narrow boundary.",
+        "`src/shared/hooks/useMobile.tsx` exports many responsibilities (UA heuristics, coarse-pointer checks, orientation state, phone/tablet/touch hooks, composite `useDeviceInfo`) and also reports through centralized error infra, widening its ownership boundary.",
+        "`src/shared/components/MediaGallery/hooks/useMediaGalleryController.ts` and `src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts` split one flow across large nested context bags (`shotContext`, `taskDetailsContext`, `mobileContext`) with many pass-through callbacks, increasing ripple edits when gallery behavior changes.",
+        "Install-instruction path uses string-key coupling across `src/pages/Home/components/installInstructions/scenarios.ts`, `src/pages/Home/components/installInstructions/visuals.tsx`, and `src/pages/Home/components/InstallInstructionsModal.tsx`; scenario logic and visual registry must stay manually synchronized."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "error-core-owns-ui-transport",
+      "summary": "Shared error core mixes domain error handling with UI notification transport and global listener lifecycle.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/hooks/useMobile.tsx",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` defines `ErrorNotificationPayload`, `configureErrorNotifier`, `emitErrorNotification`, window event wiring, and normalized logging in one module.",
+        "`useMobile.tsx` and `useMediaGalleryHandlers.ts` both call `handleError(...)`, pulling feature hooks/components into a centralized cross-cutting runtime contract."
+      ],
+      "suggestion": "Split into two explicit layers: a pure error-core module (normalize/classify/log) and a UI adapter module (toast/event transport). Keep shared hooks calling only the core; register UI notifier in app-shell code.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "device-detection-god-hook",
+      "summary": "`useMobile.tsx` has expanded into a multi-purpose device platform subsystem with mixed ownership.",
+      "related_files": [
+        "src/shared/hooks/useMobile.tsx",
+        "src/pages/Home/components/CreativePartnerPane.tsx",
+        "src/shared/components/ui/tooltip.tsx"
+      ],
+      "evidence": [
+        "`useMobile.tsx` contains non-hook utility (`isMobileUA`), multiple low-level detectors, three separate hooks, and a composite `useDeviceInfo` API.",
+        "`CreativePartnerPane.tsx` depends on `useIsMobile`, while tooltip behavior is separately implemented in `tooltip.tsx` (`TouchableTooltip`), indicating mobile-interaction policy is distributed rather than owned by one boundary."
+      ],
+      "suggestion": "Decompose into focused modules (`deviceSignals`, `responsiveHooks`, `touchInteractionPolicy`) and define one canonical mobile-interaction contract used by tooltip/home/gallery consumers.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "gallery-controller-boundary-blur",
+      "summary": "Media gallery behavior is split across controller/handler hooks with large param-bag seams and unclear ownership boundaries.",
+      "related_files": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryController.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx"
+      ],
+      "evidence": [
+        "`useMediaGalleryController.ts` receives three nested context objects and mostly forwards subfields into `useMediaGalleryHandlers` and `useMobileInteractions`.",
+        "`useMediaGalleryHandlers.ts` orchestrates shot navigation, notifier-driven behavior, lightbox/task-detail transitions, and selection-context syncing in one hook.",
+        "`ShotActions.tsx` carries substantial shot-action state/contracts that overlap with gallery handler responsibilities, suggesting responsibilities are spread across multiple semi-coordinators."
+      ],
+      "suggestion": "Introduce a single `MediaGalleryDomainController` boundary (state + commands) and let UI hooks/components consume a smaller stable interface; move shot-specific actions into a dedicated shot-action service.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "install-flow-string-key-coupling",
+      "summary": "Install instruction flow relies on manually synchronized string-key contracts between scenario selection and visual registry.",
+      "related_files": [
+        "src/pages/Home/components/installInstructions/scenarios.ts",
+        "src/pages/Home/components/installInstructions/visuals.tsx",
+        "src/pages/Home/components/InstallInstructionsModal.tsx"
+      ],
+      "evidence": [
+        "`scenarios.ts` returns `InstallVisualKey | null` through branching rules; `InstallInstructionsModal.tsx` indexes `installVisualRegistry[visualKey]` at runtime.",
+        "`visuals.tsx` co-locates a large set of concrete mockup components and registry mapping, so rule changes and visual-key evolution require synchronized edits across files."
+      ],
+      "suggestion": "Replace ad-hoc key coupling with a typed scenario descriptor table (title + instructions + visual component reference) so scenario resolution and rendering contract live in one authoritative structure.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

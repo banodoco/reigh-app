@@ -1,22 +1,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { authenticateRequest } from "../_shared/auth.ts";
-import { SystemLogger } from "../_shared/systemLogger.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      ...corsHeaders,
-      'Content-Type': 'application/json',
-    },
-  });
-}
+import { jsonResponse } from "../_shared/http.ts";
+import { bootstrapEdgeHandler } from "../_shared/edgeHandler.ts";
+import { dollarsToCents, validateAutoTopupConfig } from "../_shared/autoTopupDomain.ts";
 
 /**
  * Edge function: setup-auto-topup
@@ -40,22 +25,27 @@ function jsonResponse(body: unknown, status = 200) {
  * - 500 Internal Server Error
  */
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return jsonResponse({ ok: true });
+  const bootstrap = await bootstrapEdgeHandler(req, {
+    functionName: "setup-auto-topup",
+    logPrefix: "[SETUP-AUTO-TOPUP]",
+    parseBody: "strict",
+    auth: {
+      options: { allowJwtUserAuth: true },
+    },
+    runtimeOptions: {
+      clientOptions: {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      },
+    },
+  });
+  if (!bootstrap.ok) {
+    return bootstrap.response;
   }
 
-  if (req.method !== "POST") {
-    return jsonResponse({ error: "Method not allowed" }, 405);
-  }
-
-  // ─── 1. Parse body ──────────────────────────────────────────────
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return jsonResponse({ error: "Invalid JSON body" }, 400);
-  }
+  const { supabaseAdmin, logger, body, auth } = bootstrap.value;
   
   const { 
     autoTopupEnabled, 
@@ -70,44 +60,31 @@ serve(async (req) => {
     return jsonResponse({ error: "autoTopupEnabled must be a boolean" }, 400);
   }
 
-  if (autoTopupEnabled) {
-    if (!autoTopupAmount || typeof autoTopupAmount !== 'number' || autoTopupAmount < 5 || autoTopupAmount > 100) {
-      return jsonResponse({ error: "autoTopupAmount must be a number between $5 and $100" }, 400);
-    }
-    if (!autoTopupThreshold || typeof autoTopupThreshold !== 'number' || autoTopupThreshold < 1) {
-      return jsonResponse({ error: "autoTopupThreshold must be a positive number" }, 400);
-    }
-    if (autoTopupThreshold >= autoTopupAmount) {
-      return jsonResponse({ error: "autoTopupThreshold must be less than autoTopupAmount" }, 400);
-    }
+  const autoTopupValidationError = validateAutoTopupConfig({
+    autoTopupEnabled,
+    autoTopupAmount,
+    autoTopupThreshold,
+  });
+  if (autoTopupValidationError) {
+    return jsonResponse({ error: autoTopupValidationError }, 400);
   }
 
   // ─── 2. Authenticate request ────────────────────────────────────
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-  if (!supabaseUrl || !serviceKey) {
-    console.error("Missing required environment variables");
-    return jsonResponse({ error: "Server configuration error" }, 500);
-  }
-
-  const supabaseAdmin = createClient(supabaseUrl, serviceKey);
-  const logger = new SystemLogger(supabaseAdmin, 'setup-auto-topup');
-
-  const auth = await authenticateRequest(req, supabaseAdmin, "[SETUP-AUTO-TOPUP]", { allowJwtUserAuth: true });
-  if (!auth.success || !auth.userId) {
-    return jsonResponse({ error: auth.error || "Authentication failed" }, auth.statusCode || 401);
+  if (!auth?.userId) {
+    return jsonResponse({ error: "Authentication failed" }, 401);
   }
 
   try {
     // ─── 3. Update user auto-top-up preferences ─────────────────────
-    const updateData: unknown = {
+    const updateData: Record<string, unknown> = {
       auto_topup_enabled: autoTopupEnabled,
     };
 
     if (autoTopupEnabled) {
-      updateData.auto_topup_amount = Math.round(autoTopupAmount * 100); // Convert to cents
-      updateData.auto_topup_threshold = Math.round(autoTopupThreshold * 100); // Convert to cents
+      const normalizedAutoTopupAmount = autoTopupAmount as number;
+      const normalizedAutoTopupThreshold = autoTopupThreshold as number;
+      updateData.auto_topup_amount = dollarsToCents(normalizedAutoTopupAmount);
+      updateData.auto_topup_threshold = dollarsToCents(normalizedAutoTopupThreshold);
       
       // If Stripe data provided, save it
       if (stripeCustomerId) {
@@ -148,8 +125,10 @@ serve(async (req) => {
         : 'Auto-top-up disabled'
     });
 
-  } catch (error) {
-    logger.error('Error in setup-auto-topup', { error: error.message });
+  } catch (error: unknown) {
+    logger.error('Error in setup-auto-topup', {
+      error: error instanceof Error ? error.message : String(error),
+    });
     await logger.flush();
     return jsonResponse({ error: 'Internal server error' }, 500);
   }

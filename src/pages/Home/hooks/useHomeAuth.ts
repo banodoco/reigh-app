@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { getAuthStateManager } from '@/integrations/supabase/auth/AuthStateManager';
 import type { Session } from '@supabase/supabase-js';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { NavigatorWithDeviceInfo } from '@/types/browser-extensions';
 
 // Full home page auth flow: iPad OAuth hash parsing, PWA redirect,
@@ -25,21 +26,21 @@ export function useHomeAuth() {
           if (accessToken && refreshToken) {
             try { localStorage.setItem('oauthInProgress', 'true'); } catch { /* intentionally ignored */ }
 
-            const { data, error } = await supabase.auth.setSession({
+            const { data, error } = await supabase().auth.setSession({
               access_token: accessToken,
               refresh_token: refreshToken,
             });
 
             if (error) {
-              handleError(error, { context: 'HomePage', showToast: false });
+              normalizeAndPresentError(error, { context: 'HomePage', showToast: false });
               try { localStorage.removeItem('oauthInProgress'); } catch { /* intentionally ignored */ }
             } else if (data.session) {
               setSession(data.session);
             }
           } else {
-            const { data, error } = await supabase.auth.getSession();
+            const { data, error } = await supabase().auth.getSession();
             if (error) {
-              handleError(error, { context: 'HomePage', showToast: false });
+              normalizeAndPresentError(error, { context: 'HomePage', showToast: false });
             } else if (data.session) {
               setSession(data.session);
             }
@@ -47,7 +48,7 @@ export function useHomeAuth() {
 
           window.history.replaceState(null, '', window.location.pathname + window.location.search);
         } catch (err) {
-          handleError(err, { context: 'HomePage', showToast: false });
+          normalizeAndPresentError(err, { context: 'HomePage', showToast: false });
         }
       }
     };
@@ -60,7 +61,7 @@ export function useHomeAuth() {
                         window.matchMedia('(display-mode: fullscreen)').matches ||
                         nav.standalone === true;
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase().auth.getSession().then(({ data: { session } }) => {
       setSession(session);
 
       if (session && isStandalone) {
@@ -72,7 +73,7 @@ export function useHomeAuth() {
     if (isStandalone) {
       const checkSessionAndRedirect = async () => {
         await new Promise(resolve => setTimeout(resolve, 500));
-        const { data: { session: delayedSession } } = await supabase.auth.getSession();
+        const { data: { session: delayedSession } } = await supabase().auth.getSession();
         if (delayedSession) {
           navigate('/tools');
         }
@@ -80,7 +81,7 @@ export function useHomeAuth() {
       checkSessionAndRedirect();
     }
 
-    const authManager = window.__AUTH_MANAGER__;
+    const authManager = getAuthStateManager();
     let unsubscribe: (() => void) | null = null;
 
     const handleAuthChange = (event: string, session: Session | null) => {
@@ -107,7 +108,7 @@ export function useHomeAuth() {
             if (referralCode && referralSessionId && referralFingerprint) {
               (async () => {
                 try {
-                  await supabase.rpc('create_referral_from_session', {
+                  await supabase().rpc('create_referral_from_session', {
                     p_session_id: referralSessionId,
                     p_fingerprint: referralFingerprint,
                   });
@@ -133,7 +134,7 @@ export function useHomeAuth() {
     if (authManager) {
       unsubscribe = authManager.subscribe('HomePage', handleAuthChange);
     } else {
-      const { data: listener } = supabase.auth.onAuthStateChange(handleAuthChange);
+      const { data: listener } = supabase().auth.onAuthStateChange(handleAuthChange);
       unsubscribe = () => listener.subscription.unsubscribe();
     }
 

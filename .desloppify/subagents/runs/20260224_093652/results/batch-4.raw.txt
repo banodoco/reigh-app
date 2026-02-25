@@ -1,0 +1,56 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "low_level_elegance": 88.0
+  },
+  "dimension_notes": {
+    "low_level_elegance": {
+      "evidence": [
+        "src/integrations/supabase/client.ts defines getSupabaseClient as a pure pass-through to getSupabaseRuntimeClient with no local behavior, validation, or narrowing.",
+        "src/integrations/supabase/client.ts includes a compatibility/migration policy comment mentioning deprecated names, but no deprecated aliases or migration markers are present in-file, which makes the guidance non-operational.",
+        "src/domains/generation/types/generationViewRow.ts layers two tiny interfaces plus an intermediate type alias before GenerationRow, adding local indirection for a very small shape."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "unreported_risk": "High importer counts for these files increase the chance that comment-contract drift or unnecessary pass-through layers become sticky migration debt across many call sites."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "supabase-facade-pass-through-indirection",
+      "summary": "Supabase client facade adds a wrapper layer without local behavior, increasing migration surface with little implementation value.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/components/ui/cn.ts"
+      ],
+      "evidence": [
+        "src/integrations/supabase/client.ts:10-12 returns getSupabaseRuntimeClient() directly with no adaptation.",
+        "src/shared/components/ui/cn.ts:7-8 is another one-line forwarding utility pattern; repeated micro-wrappers normalize low-information indirection style in high-import files."
+      ],
+      "suggestion": "Either export getSupabaseRuntimeClient under the canonical public name directly, or make the facade earn its existence by enforcing runtime invariants/telemetry/versioned behavior; document a concrete deprecation map in code if this file remains a compatibility boundary.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "comment-contract-migration-drift",
+      "summary": "Documentation-heavy contract/migration comments are broader than the executable logic, creating AI-style ceremony and unclear migration state.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/domains/generation/types/generationViewRow.ts"
+      ],
+      "evidence": [
+        "src/integrations/supabase/client.ts:7-9 describes a deprecation migration policy, but the file exposes only current exports and no concrete deprecated symbols.",
+        "src/domains/generation/types/generationViewRow.ts:3-25 uses extensive ownership prose for simple type composition, while internals remain purely structural and minimal."
+      ],
+      "suggestion": "Tighten comments to executable reality: replace broad policy prose with explicit current contract and, when applicable, concrete deprecated symbol list/timeline; keep type files focused on concise structural intent.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ]
+}

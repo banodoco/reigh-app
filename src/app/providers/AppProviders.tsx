@@ -1,7 +1,7 @@
 import React from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/shared/contexts/AuthContext';
-import { AuthGate } from '@/shared/components/AuthGate';
+import { AuthGate } from '@/shared/auth/components/AuthGate';
 import { UserSettingsProvider } from '@/shared/contexts/UserSettingsContext';
 import { ProjectProvider } from '@/shared/contexts/ProjectContext';
 import { RealtimeProvider } from '@/shared/providers/RealtimeProvider';
@@ -12,7 +12,9 @@ import { PanesProvider } from '@/shared/contexts/PanesContext';
 import { LastAffectedShotProvider } from '@/shared/contexts/LastAffectedShotContext';
 import { CurrentShotProvider } from '@/shared/contexts/CurrentShotContext';
 import { ToolPageHeaderProvider } from '@/shared/contexts/ToolPageHeaderContext';
+import { ShotAdditionSelectionProvider } from '@/shared/contexts/ShotAdditionSelectionContext';
 import { TaskTypeConfigInitializer } from '@/shared/components/TaskTypeConfigInitializer';
+import { TooltipProvider } from '@/shared/components/ui/tooltip';
 import { queryClient } from '@/app/providers/queryClient';
 
 interface AppProvidersProps {
@@ -40,6 +42,7 @@ const AppProviderTree = composeProviders([
   GenerationTaskProvider,
   IncomingTasksProvider,
   PanesProvider,
+  ShotAdditionSelectionProvider,
   LastAffectedShotProvider,
   CurrentShotProvider,
   ToolPageHeaderProvider,
@@ -48,8 +51,10 @@ const AppProviderTree = composeProviders([
 export function AppProviders({ children }: AppProvidersProps) {
   return (
     <QueryClientProvider client={queryClient}>
-      <TaskTypeConfigInitializer />
-      <AppProviderTree>{children}</AppProviderTree>
+      <TooltipProvider delayDuration={300}>
+        <TaskTypeConfigInitializer />
+        <AppProviderTree>{children}</AppProviderTree>
+      </TooltipProvider>
     </QueryClientProvider>
   );
 }

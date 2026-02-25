@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 
 // Mock all heavy dependencies
-vi.mock('@/shared/hooks/useMobile', () => ({
+vi.mock('@/shared/hooks/mobile', () => ({
   useIsMobile: () => false,
 }));
 
@@ -23,9 +23,9 @@ vi.mock('@/shared/hooks/useResources', () => ({
   usePublicLoras: () => ({ data: [] }),
 }));
 
-vi.mock('@/shared/lib/toolConstants', () => ({
+vi.mock('@/shared/lib/toolIds', () => ({
   TOOL_IDS: {
-    EDIT_IMAGES: 'edit_images',
+    EDIT_IMAGES: 'edit-images',
   },
 }));
 
@@ -124,7 +124,7 @@ const mockUseImg2ImgMode = vi.fn().mockReturnValue({
   loraManager: { selectedLoras: [], setSelectedLoras: vi.fn() },
 });
 
-vi.mock('@/shared/components/MediaLightbox/hooks', () => ({
+vi.mock('@/features/image-edit', () => ({
   useUpscale: (...args: unknown[]) => mockUseUpscale(...args),
   useInpainting: (...args: unknown[]) => mockUseInpainting(...args),
   useEditModeLoRAs: () => ({
@@ -165,6 +165,7 @@ vi.mock('@/shared/components/MediaLightbox/hooks', () => ({
     hasPersistedSettings: false,
   }),
   useEditSettingsSync: vi.fn(),
+  downloadMedia: vi.fn(),
 }));
 
 vi.mock('@/shared/hooks/useVariants', () => ({
@@ -173,24 +174,6 @@ vi.mock('@/shared/hooks/useVariants', () => ({
     setActiveVariantId: vi.fn(),
     refetch: vi.fn(),
   }),
-}));
-
-vi.mock('@/shared/components/MediaLightbox/utils', () => ({
-  downloadMedia: vi.fn(),
-}));
-
-vi.mock('@/shared/components/MediaLightbox/hooks/editSettingsTypes', () => ({
-  DEFAULT_ADVANCED_SETTINGS: {
-    enabled: false,
-    num_inference_steps: 12,
-    resolution_scale: 1.5,
-    base_steps: 8,
-    hires_scale: 1.1,
-    hires_steps: 8,
-    hires_denoise: 0.5,
-    lightning_lora_strength_phase_1: 0.9,
-    lightning_lora_strength_phase_2: 0.5,
-  },
 }));
 
 import { useInlineEditState } from '../useInlineEditState';
@@ -289,7 +272,7 @@ describe('useInlineEditState', () => {
 
     expect(mockUseInpainting).toHaveBeenCalledWith(
       expect.objectContaining({
-        toolTypeOverride: 'edit_images',
+        toolTypeOverride: 'edit-images',
       }),
     );
   });
@@ -309,8 +292,7 @@ describe('useInlineEditState', () => {
     expect(result.current.canvasEnvironment.imageDimensions).toEqual({ width: 1024, height: 768 });
   });
 
-  it('auto-enters magic edit mode when not in special edit mode', () => {
-    // The useEffect calls handleEnterMagicEditMode when !isSpecialEditMode
+  it('does not auto-enter magic edit mode on mount', () => {
     const mockEnterMagicEdit = vi.fn();
     mockUseMagicEditMode.mockReturnValue({
       isCreatingMagicEditTasks: false,
@@ -321,27 +303,6 @@ describe('useInlineEditState', () => {
       handleExitMagicEditMode: vi.fn(),
       handleUnifiedGenerate: vi.fn(),
       isSpecialEditMode: false,
-    });
-
-    renderHook(
-      () => useInlineEditState(mockMedia),
-      { wrapper: createWrapper() },
-    );
-
-    expect(mockEnterMagicEdit).toHaveBeenCalled();
-  });
-
-  it('does not auto-enter magic edit mode when already in special edit mode', () => {
-    const mockEnterMagicEdit = vi.fn();
-    mockUseMagicEditMode.mockReturnValue({
-      isCreatingMagicEditTasks: false,
-      magicEditTasksCreated: false,
-      inpaintPanelPosition: 'right',
-      setInpaintPanelPosition: vi.fn(),
-      handleEnterMagicEditMode: mockEnterMagicEdit,
-      handleExitMagicEditMode: vi.fn(),
-      handleUnifiedGenerate: vi.fn(),
-      isSpecialEditMode: true,
     });
 
     renderHook(

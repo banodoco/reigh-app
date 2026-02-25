@@ -285,4 +285,32 @@ describe('invalidateVariantChange', () => {
     expect(invalidateSpy).toHaveBeenCalled();
     vi.useRealTimers();
   });
+
+  it('settles superseded delayed callers instead of leaving pending awaits', async () => {
+    vi.useFakeTimers();
+
+    const first = invalidateVariantChange(queryClient, {
+      generationId: 'gen-123',
+      reason: 'first',
+      delayMs: 500,
+    });
+
+    // Queue a superseding call before the first delay elapses.
+    await vi.advanceTimersByTimeAsync(100);
+
+    const second = invalidateVariantChange(queryClient, {
+      generationId: 'gen-123',
+      reason: 'second',
+      delayMs: 500,
+    });
+
+    // First caller should settle immediately once superseded.
+    await expect(first).resolves.toBeUndefined();
+
+    // Second caller settles after its own delay window.
+    await vi.advanceTimersByTimeAsync(500);
+    await expect(second).resolves.toBeUndefined();
+
+    vi.useRealTimers();
+  });
 });

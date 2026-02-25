@@ -3,9 +3,9 @@ import { Button } from '@/shared/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { Settings } from 'lucide-react';
 import { ShotSelectorControls } from './ShotSelectorControls';
-import type { ShotOption } from '@/types/shots';
+import type { ShotOption } from '@/domains/generation/types';
 
-interface WorkflowControlsBarProps {
+export interface WorkflowControlsBarProps {
   // Visibility
   // CRITICAL: targetShotId is the shot selected in the DROPDOWN, not the shot being viewed
   onAddToShot?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;

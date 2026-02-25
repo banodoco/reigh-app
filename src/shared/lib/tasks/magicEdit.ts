@@ -1,14 +1,21 @@
 import {
-  createTask,
   resolveProjectResolution,
+  resolveSeed32Bit,
+  validateSeed32Bit,
   validateRequiredFields,
   TaskValidationError,
   buildHiresFixParams,
+  validateNonEmptyString,
+  validateUrlString,
+  setTaskLineageFields,
 } from '../taskCreation';
-import { processBatchResults, type TaskCreationResult } from '../taskCreation';
+import type { TaskCreationResult } from '../taskCreation';
 import type { HiresFixApiParams } from '../taskCreation';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
 import type { ComfyLoraConfig } from '@/shared/types/lora';
+import { runBatchTaskPipeline } from './batchTaskPipeline';
+import { rethrowTaskCreationError } from './taskCreationError';
+import { composeTaskRequest } from './taskRequestComposer';
+import { runTaskCreationPipeline } from './taskCreatorPipeline';
 
 /**
  * Parameters for creating a magic edit task
@@ -74,24 +81,16 @@ interface BatchMagicEditTaskParams {
 function validateMagicEditParams(params: MagicEditTaskParams): void {
   validateRequiredFields(params, ['project_id', 'prompt', 'image_url']);
 
-  // Additional validation specific to magic edit
-  if (params.prompt.trim() === '') {
-    throw new TaskValidationError('Prompt cannot be empty', 'prompt');
-  }
+  validateNonEmptyString(params.prompt, 'prompt', 'Prompt');
+  validateNonEmptyString(params.image_url, 'image_url', 'Image URL');
+  validateUrlString(params.image_url, 'image_url', 'Image URL');
 
-  if (params.image_url.trim() === '') {
-    throw new TaskValidationError('Image URL cannot be empty', 'image_url');
-  }
-
-  // Validate URL format
-  try {
-    new URL(params.image_url);
-  } catch {
-    throw new TaskValidationError('Image URL must be a valid URL', 'image_url');
-  }
-
-  if (params.seed !== undefined && (params.seed < 0 || params.seed > 0x7fffffff)) {
-    throw new TaskValidationError('Seed must be a 32-bit positive integer', 'seed');
+  if (params.seed !== undefined) {
+    try {
+      validateSeed32Bit(params.seed, 'seed');
+    } catch {
+      throw new TaskValidationError('Seed must be a 32-bit positive integer', 'seed');
+    }
   }
 
   if (params.max_wait_seconds !== undefined && params.max_wait_seconds < 1) {
@@ -139,7 +138,7 @@ function buildMagicEditTaskParams(
 ): Record<string, unknown> {
   // Build the task params in the format expected by image_edit
   const taskParams: Record<string, unknown> = {
-    seed: params.seed ?? Math.floor(Math.random() * 0x7fffffff),
+    seed: resolveSeed32Bit({ seed: params.seed, field: 'seed' }),
     image: params.image_url,
     prompt: params.prompt,
     output_format: params.output_format ?? "jpeg",
@@ -163,38 +162,21 @@ function buildMagicEditTaskParams(
     taskParams.resolution = finalResolution;
   }
 
-  // Add shot_id as top-level parameter if provided
-  if (params.shot_id) {
-    taskParams.shot_id = params.shot_id;
-  }
-
   // Always add add_in_position as false for magic edit tasks (unpositioned by default)
   taskParams.add_in_position = false;
-  
-  // Add tool_type override if provided (for generation association)
-  if (params.tool_type) {
-    taskParams.tool_type = params.tool_type;
-  }
 
   // Add loras if provided
   if (params.loras && params.loras.length > 0) {
     taskParams.loras = params.loras;
   }
 
-  // Add based_on if provided (for lineage tracking)
-  if (params.based_on) {
-    taskParams.based_on = params.based_on;
-  }
-
-  // Add source_variant_id if provided (for variant relationship tracking)
-  if (params.source_variant_id) {
-    taskParams.source_variant_id = params.source_variant_id;
-  }
-
-  // Add create_as_generation if true (create new generation instead of variant)
-  if (params.create_as_generation) {
-    taskParams.create_as_generation = true;
-  }
+  setTaskLineageFields(taskParams, {
+    shotId: params.shot_id,
+    basedOn: params.based_on,
+    sourceVariantId: params.source_variant_id,
+    createAsGeneration: params.create_as_generation,
+    toolType: params.tool_type,
+  });
 
   // Add hires fix / inference params if provided
   Object.assign(taskParams, buildHiresFixParams(params.hires_fix));
@@ -211,33 +193,25 @@ function buildMagicEditTaskParams(
  * @returns Promise resolving to the created task
  */
 async function createMagicEditTask(params: MagicEditTaskParams): Promise<TaskCreationResult> {
+  return runTaskCreationPipeline({
+    params,
+    context: 'MagicEdit',
+    validate: validateMagicEditParams,
+    buildTaskRequest: async (requestParams) => {
+      const { resolution: finalResolution } = await resolveProjectResolution(
+        requestParams.project_id,
+        requestParams.resolution,
+      );
 
-  try {
-    // 1. Validate parameters
-    validateMagicEditParams(params);
+      const taskParams = buildMagicEditTaskParams(requestParams, finalResolution);
 
-    // 2. Resolve project resolution (client-side)
-    const { resolution: finalResolution } = await resolveProjectResolution(
-      params.project_id,
-      params.resolution
-    );
-
-    // 3. Build task params in the image_edit format
-    const taskParams = buildMagicEditTaskParams(params, finalResolution);
-
-    // 4. Create task using unified create-task function
-    const result = await createTask({
-      project_id: params.project_id,
-      task_type: "qwen_image_edit",
-      params: taskParams,
-    });
-
-    return result;
-
-  } catch (error) {
-    handleError(error, { context: 'MagicEdit', showToast: false });
-    throw error;
-  }
+      return composeTaskRequest({
+        source: requestParams,
+        taskType: "qwen_image_edit",
+        params: taskParams,
+      });
+    },
+  });
 }
 
 /**
@@ -250,53 +224,48 @@ async function createMagicEditTask(params: MagicEditTaskParams): Promise<TaskCre
 export async function createBatchMagicEditTasks(params: BatchMagicEditTaskParams): Promise<TaskCreationResult[]> {
 
   try {
-    // 1. Validate parameters
-    validateBatchMagicEditParams(params);
+    return await runBatchTaskPipeline({
+      batchParams: params,
+      validateBatchParams: validateBatchMagicEditParams,
+      buildSingleTaskParams: async (batchParams): Promise<MagicEditTaskParams[]> => {
+        const { resolution: finalResolution } = await resolveProjectResolution(
+          batchParams.project_id,
+          batchParams.resolution,
+        );
 
-    // 2. Resolve project resolution once for all tasks
-    const { resolution: finalResolution } = await resolveProjectResolution(
-      params.project_id,
-      params.resolution
-    );
+        return Array.from({ length: batchParams.numImages }, (_, index) => {
+          const seedBase = resolveSeed32Bit({ seed: batchParams.seed, field: 'seed' });
+          const seed = seedBase + index;
 
-    // 3. Generate individual task parameters for each image
-    const taskParams = Array.from({ length: params.numImages }, (_, index) => {
-      // Generate a different seed for each task to ensure variety
-      const seed = params.seed ?? Math.floor(Math.random() * 0x7fffffff);
-
-      return {
-        project_id: params.project_id,
-        prompt: params.prompt,
-        image_url: params.image_url,
-        negative_prompt: params.negative_prompt,
-        resolution: finalResolution,
-        seed: seed + index, // Increment seed for variation
-        in_scene: params.in_scene,
-        shot_id: params.shot_id,
-        output_format: params.output_format,
-        enable_sync_mode: params.enable_sync_mode,
-        max_wait_seconds: params.max_wait_seconds,
-        enable_base64_output: params.enable_base64_output,
-        tool_type: params.tool_type, // Pass through tool type override
-        loras: params.loras, // Pass through lora configurations
-        based_on: params.based_on, // Pass through source generation ID for lineage tracking
-        source_variant_id: params.source_variant_id, // Pass through source variant ID for relationship tracking
-        create_as_generation: params.create_as_generation, // Pass through create as generation flag
-        hires_fix: params.hires_fix, // Pass through hires fix settings
-        qwen_edit_model: params.qwen_edit_model, // Pass through model selection
-      } as MagicEditTaskParams;
+          return {
+            project_id: batchParams.project_id,
+            prompt: batchParams.prompt,
+            image_url: batchParams.image_url,
+            negative_prompt: batchParams.negative_prompt,
+            resolution: finalResolution,
+            seed,
+            in_scene: batchParams.in_scene,
+            shot_id: batchParams.shot_id,
+            output_format: batchParams.output_format,
+            enable_sync_mode: batchParams.enable_sync_mode,
+            max_wait_seconds: batchParams.max_wait_seconds,
+            enable_base64_output: batchParams.enable_base64_output,
+            tool_type: batchParams.tool_type,
+            loras: batchParams.loras,
+            based_on: batchParams.based_on,
+            source_variant_id: batchParams.source_variant_id,
+            create_as_generation: batchParams.create_as_generation,
+            hires_fix: batchParams.hires_fix,
+            qwen_edit_model: batchParams.qwen_edit_model,
+          } as MagicEditTaskParams;
+        });
+      },
+      createSingleTask: createMagicEditTask,
+      operationName: 'createBatchMagicEditTasks',
     });
 
-    // 4. Create all tasks in parallel
-    const results = await Promise.allSettled(
-      taskParams.map(taskParam => createMagicEditTask(taskParam))
-    );
-
-    return processBatchResults(results, 'createBatchMagicEditTasks');
-
   } catch (error) {
-    handleError(error, { context: 'BatchMagicEdit', showToast: false });
-    throw error;
+    rethrowTaskCreationError(error, { context: 'BatchMagicEdit' });
   }
 }
 

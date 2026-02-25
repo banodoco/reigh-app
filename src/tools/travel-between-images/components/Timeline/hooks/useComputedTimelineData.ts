@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { getPairInfo, TRAILING_ENDPOINT_KEY } from '../utils/timeline-utils';
 import { TIMELINE_PADDING_OFFSET } from '../constants';
-import type { GenerationRow } from '@/types/generationAndShots';
+import type { GenerationRow } from '@/domains/generation/types';
 import type { PairData } from '../TimelineContainer/types';
 
 interface UseComputedTimelineDataProps {

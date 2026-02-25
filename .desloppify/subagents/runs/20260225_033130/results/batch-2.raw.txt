@@ -1,0 +1,116 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "dependency_health": 82.4
+  },
+  "dimension_notes": {
+    "dependency_health": {
+      "evidence": [
+        "Join-clips task creation keeps parallel canonical and legacy input contracts: `CanonicalJoinClipsTaskInput` in `src/shared/lib/tasks/joinClips.ts` and a large mirrored `JoinClipsTaskCompatParams` in `src/shared/lib/tasks/joinClipsCompatAdapter.ts`.",
+        "Legacy-path behavior is still actively exercised in tests (`src/shared/lib/tasks/__tests__/joinClips.test.ts` cases for `starting_video_path`, `intermediate_video_paths`, and `source_*` video-edit fields), indicating dual dependency paths are still maintained.",
+        "`src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts` explicitly widens input to `TravelBetweenImagesTaskInput & Partial<LegacyTravelBetweenImagesTaskParams>`, preserving mixed modern+legacy dependency surfaces.",
+        "Media lightbox has reverse type dependencies where hooks import component-level types from `../VideoLightbox` while `VideoLightbox.tsx` imports those hooks (`useVideoLightboxRenderModel`, `useVideoLightboxController`), creating a cycle-prone module graph."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "dependency_health",
+      "identifier": "legacy_dual_contract_task_inputs",
+      "summary": "Task builders still depend on mixed canonical and legacy input contracts across core flows",
+      "related_files": [
+        "src/shared/lib/tasks/joinClipsCompatAdapter.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts"
+      ],
+      "evidence": [
+        "`joinClipsCompatAdapter` defines a broad legacy+modern input bag (`JoinClipsTaskCompatParams`) and conditionally maps legacy fields to canonical inputs.",
+        "`buildTravelBetweenImagesPayload` accepts `TravelBetweenImagesTaskInput & Partial<LegacyTravelBetweenImagesTaskParams>`, which keeps legacy structure fields in the main builder surface.",
+        "`individualTravelSegment` still imports and applies `stripLegacyStructureParams`, showing legacy schema translation remains in hot-path task construction."
+      ],
+      "suggestion": "Introduce a strict canonical DTO boundary at task-entry points and move legacy parsing into isolated adapter modules scheduled for removal. Keep core builders (`joinClips`, `travelBetweenImages`, `individualTravelSegment`) accepting only canonical types; enforce with compile-time types and adapter-only tests.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "legacy_contract_overlap"
+    },
+    {
+      "dimension": "dependency_health",
+      "identifier": "join_clips_param_bag_duplication",
+      "summary": "Join-clips compatibility wrapper duplicates canonical schema, increasing drift risk",
+      "related_files": [
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/joinClipsCompatAdapter.ts",
+        "src/shared/lib/tasks/__tests__/joinClips.test.ts"
+      ],
+      "evidence": [
+        "`JoinClipsSharedTaskParams` in `joinClips.ts` and `JoinClipsTaskCompatParams` in `joinClipsCompatAdapter.ts` repeat many of the same fields (`prompt`, `context_frame_count`, `gap_frame_count`, `loras`, `phase_config`, `tool_type`, etc.).",
+        "The compat adapter adds additional legacy alternatives (`starting_video_path`, `intermediate_video_paths`, `video_edit_mode`, `source_*`) and complex exclusion rules, increasing branch surface.",
+        "Tests explicitly verify both canonical and legacy paths in the same suite, confirming long-lived dual maintenance burden."
+      ],
+      "suggestion": "Replace field-by-field duplicated type definitions with a shared canonical base type plus a small legacy extension type used only by the adapter parser. Generate canonical input once, then validate once in `joinClips.ts` to eliminate schema drift between wrapper and implementation.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "legacy_contract_overlap"
+    },
+    {
+      "dimension": "dependency_health",
+      "identifier": "video_lightbox_type_cycle",
+      "summary": "VideoLightbox hooks import types from the component module that imports them back",
+      "related_files": [
+        "src/shared/components/MediaLightbox/VideoLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxController.ts"
+      ],
+      "evidence": [
+        "`VideoLightbox.tsx` imports `useVideoLightboxRenderModel` and `useVideoLightboxController`.",
+        "`useVideoLightboxRenderModel.tsx` imports `VideoLightboxPropsWithMedia`, `VideoLightboxSharedStateModel`, and `VideoLightboxEditModel` from `../VideoLightbox`.",
+        "`useVideoLightboxController.ts` imports `VideoLightboxProps` from `../VideoLightbox`.",
+        "This creates a reverse dependency edge from hooks to component module, making the graph cycle-prone and harder to split independently."
+      ],
+      "suggestion": "Extract shared lightbox contracts into a neutral `VideoLightbox.types.ts` (or existing `types.ts`) and have both `VideoLightbox.tsx` and hooks import from that file. Keep component modules dependency-leaf where possible.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "type_contract_placement"
+    },
+    {
+      "dimension": "dependency_health",
+      "identifier": "inline_edit_depends_on_lightbox_internals",
+      "summary": "Inline editor is tightly coupled to MediaLightbox internal hook bundle",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx"
+      ],
+      "evidence": [
+        "`useInlineEditState.ts` imports many internals from `@/shared/components/MediaLightbox/hooks` (`useInpainting`, `useMagicEditMode`, `useRepositionMode`, `useImg2ImgMode`, `useEditSettingsPersistence`, etc.), effectively binding tool behavior to lightbox internals.",
+        "Inline edit view composes these states through `ImageEditProvider` and `EditModePanel`, reusing lightbox presentation/state machinery rather than a stable tool-level interface.",
+        "ImageLightbox maintains overlapping orchestration responsibilities (`useImageEditOrchestrator`, shared lightbox state, edit-mode persistence), so internal lightbox changes can ripple into the standalone edit-images tool."
+      ],
+      "suggestion": "Define a stable `image-edit-core` hook interface (tool-agnostic domain layer) and have both `ImageLightbox` and `InlineEdit` consume it. Keep UI-shell hooks in MediaLightbox thin wrappers over that core to reduce cross-subsystem dependency blast radius.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "editing_surface_coupling"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Long-lived migration strategy keeps legacy and canonical contracts active in the same core modules instead of isolating compatibility at boundaries.",
+      "Type contracts are defined in component modules rather than neutral contract modules, producing reverse dependencies.",
+      "Edit functionality ownership is split across Lightbox and tool-specific modules without a stable shared core."
+    ],
+    "likely_symptoms": [
+      "join_clips_param_bag_duplication",
+      "video_lightbox_type_cycle",
+      "inline_edit_depends_on_lightbox_internals"
+    ],
+    "possible_false_positives": []
+  }
+}

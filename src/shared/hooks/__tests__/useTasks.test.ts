@@ -20,9 +20,9 @@ vi.mock('@/integrations/supabase/client', () => {
   };
 
   return {
-    supabase: {
+    getSupabaseClient: vi.fn(() => ({
       from: vi.fn(() => createChain()),
-    },
+    })),
   };
 });
 
@@ -148,7 +148,7 @@ describe('useGetTask', () => {
   });
 
   it('is disabled when taskId is empty', () => {
-    const { result } = renderHook(() => useGetTask(''), {
+    const { result } = renderHook(() => useGetTask('', 'project-1'), {
       wrapper: createWrapper(),
     });
 
@@ -157,7 +157,7 @@ describe('useGetTask', () => {
   });
 
   it('fetches task data for valid taskId', () => {
-    const { result } = renderHook(() => useGetTask('task-1'), {
+    const { result } = renderHook(() => useGetTask('task-1', 'project-1'), {
       wrapper: createWrapper(),
     });
 

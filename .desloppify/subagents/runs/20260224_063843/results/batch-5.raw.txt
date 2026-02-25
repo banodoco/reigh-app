@@ -1,0 +1,69 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 5,
+  "assessments": {
+    "package_organization": 81.0,
+    "high_level_elegance": 79.0
+  },
+  "dimension_notes": {
+    "package_organization": {
+      "evidence": [
+        "holistic_context.structure.root_files marks `tailwind.config.ts` (fan_in 0, fan_out 3, role peripheral) and `vite.config.ts` (fan_in 0, fan_out 1, role peripheral) as root stragglers.",
+        "Both root files import from dedicated config packages (`config/tailwind/theme/*`, `config/vite/policy`) but remain at project root, creating import-affinity mismatch for low-fan-in files.",
+        "`src/shared/components/` is a flat, overloaded directory (file_count 69) containing unrelated concerns; assigned files show mixed roles (`AuthGate.tsx`, `BulkEditControls.tsx`, `ChunkLoadErrorBoundary.test.tsx`) under one level."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Top-level ownership is less explainable because peripheral config entrypoints stay at root while implementation already lives in `config/*` folders.",
+        "Assigned shared component files represent different capability boundaries (auth gating, prompt bulk-edit workflow UI, error-boundary test) but are colocated in a broad `src/shared/components/` bucket, weakening domain-aligned decomposition.",
+        "Directory profile for `src/shared/components/` (69 files, high cross-import breadth) indicates the package is acting as a general sink instead of predictable capability slices."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "package_organization",
+      "identifier": "root_config_stragglers",
+      "summary": "Root-level config files are peripheral stragglers despite config-domain affinity",
+      "related_files": [
+        "tailwind.config.ts",
+        "vite.config.ts"
+      ],
+      "evidence": [
+        "Packet root_files: `tailwind.config.ts` fan_in 0, `vite.config.ts` fan_in 0 (both peripheral).",
+        "`tailwind.config.ts` imports only `./config/tailwind/theme/*`; `vite.config.ts` imports only `./config/vite/policy`.",
+        "These files are low-fan-in entrypoints colocated away from their owning config domains."
+      ],
+      "suggestion": "Staged reorg plan: 1) create `config/tailwind/tailwind.config.ts` and `config/vite/vite.config.ts` as canonical configs; 2) keep thin root bridge files temporarily that re-export from new locations to avoid breaking tooling; 3) update scripts/tooling to point directly to new paths, then remove root bridges. Import update/validation commands: `rg -n \"tailwind.config|vite.config\" .`, `git mv tailwind.config.ts config/tailwind/tailwind.config.ts`, `git mv vite.config.ts config/vite/vite.config.ts`, `npm run build` (or `pnpm build`), `npm run test` (or `pnpm test`).",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_components_grab_bag_boundary",
+      "summary": "Shared components package mixes unrelated responsibilities, blurring ownership boundaries",
+      "related_files": [
+        "src/shared/components/AuthGate.tsx",
+        "src/shared/components/BulkEditControls.tsx",
+        "src/shared/components/ChunkLoadErrorBoundary.test.tsx"
+      ],
+      "evidence": [
+        "`AuthGate.tsx` is an app/session gating concern, while `BulkEditControls.tsx` is prompt-edit workflow UI; both live in the same broad shared bucket.",
+        "`ChunkLoadErrorBoundary.test.tsx` sits at the same top-level component directory, reinforcing a flat mixed-concern package shape.",
+        "Packet directory profile shows `src/shared/components/` has 69 files with broad inbound/outbound coupling, indicating weak capability partitioning."
+      ],
+      "suggestion": "Staged reorg plan: 1) create capability folders (`src/shared/components/auth/`, `src/shared/components/prompt-editing/`, `src/shared/components/error-boundaries/` and matching `__tests__` mirrors); 2) move `AuthGate.tsx`, `BulkEditControls.tsx`, and `ChunkLoadErrorBoundary*` into those folders first; 3) add short-lived barrel exports in `src/shared/components/index.ts` for compatibility, then migrate imports and remove deprecated barrels. Import update/validation commands: `rg -n \"@/shared/components/(AuthGate|BulkEditControls|ChunkLoadErrorBoundary)\" src`, `git mv src/shared/components/AuthGate.tsx src/shared/components/auth/AuthGate.tsx`, `git mv src/shared/components/BulkEditControls.tsx src/shared/components/prompt-editing/BulkEditControls.tsx`, `git mv src/shared/components/ChunkLoadErrorBoundary.test.tsx src/shared/components/error-boundaries/__tests__/ChunkLoadErrorBoundary.test.tsx`, `npm run typecheck` (or `pnpm -s tsc --noEmit`), `npm run test` (or `pnpm test`).",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

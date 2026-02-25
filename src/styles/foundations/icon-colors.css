@@ -1,0 +1,114 @@
+/* ========================================= */
+/* THEME-ADAPTIVE ICON COLORS */
+/* ========================================= */
+
+/* Primary icon colors - for main navigation, important actions */
+.icon-primary {
+    color: hsl(var(--icon-primary));
+  }
+  
+  .icon-primary svg {
+    fill: hsl(var(--icon-primary));
+    stroke: hsl(var(--icon-primary));
+  }
+  
+  /* Secondary icon colors - for accent elements, highlights */
+  .icon-secondary {
+    color: hsl(var(--icon-secondary));
+  }
+  
+  .icon-secondary svg {
+    fill: hsl(var(--icon-secondary));
+    stroke: hsl(var(--icon-secondary));
+  }
+  
+  /* Muted icon colors - for subtle, background icons */
+  .icon-muted {
+    color: hsl(var(--icon-muted));
+  }
+  
+  .icon-muted svg {
+    fill: hsl(var(--icon-muted));
+    stroke: hsl(var(--icon-muted));
+  }
+  
+  /* Interactive icon colors - for buttons, clickable elements */
+  .icon-interactive {
+    color: hsl(var(--icon-interactive));
+    transition: color 0.2s ease, transform 0.2s ease;
+  }
+  
+  .icon-interactive:hover {
+    color: hsl(var(--icon-interactive) / 0.8);
+    transform: scale(1.1);
+  }
+  
+  .icon-interactive svg {
+    fill: hsl(var(--icon-interactive));
+    stroke: hsl(var(--icon-interactive));
+    transition: fill 0.2s ease, stroke 0.2s ease;
+  }
+  
+  .icon-interactive:hover svg {
+    fill: hsl(var(--icon-interactive) / 0.8);
+    stroke: hsl(var(--icon-interactive) / 0.8);
+  }
+  
+  /* Success state icons - for completed actions, positive feedback */
+  .icon-success {
+    color: hsl(var(--icon-success));
+  }
+  
+  .icon-success svg {
+    fill: hsl(var(--icon-success));
+    stroke: hsl(var(--icon-success));
+  }
+  
+  /* Warning state icons - for cautionary messages */
+  .icon-warning {
+    color: hsl(var(--icon-warning));
+  }
+  
+  .icon-warning svg {
+    fill: hsl(var(--icon-warning));
+    stroke: hsl(var(--icon-warning));
+  }
+  
+  /* Danger state icons - for destructive actions, errors */
+  .icon-danger {
+    color: hsl(var(--icon-danger));
+  }
+  
+  .icon-danger svg {
+    fill: hsl(var(--icon-danger));
+    stroke: hsl(var(--icon-danger));
+  }
+  
+  /* Utility classes for icon sizing with theme colors */
+  .icon-sm { width: 1rem; height: 1rem; }
+  .icon-md { width: 1.5rem; height: 1.5rem; }
+  .icon-lg { width: 2rem; height: 2rem; }
+  .icon-xl { width: 2.5rem; height: 2.5rem; }
+
+  /* ========================================= */
+  /* SELECTIVE ICON COLOR OVERRIDES */
+  /* ========================================= */
+  
+  /* Only override icons that explicitly use theme classes */
+  .icon-theme-primary {
+    color: hsl(var(--icon-primary));
+  }
+  
+  .icon-theme-secondary {
+    color: hsl(var(--icon-secondary));
+  }
+  
+  /* Keep default white/inherit behavior for most icons */
+  .text-white {
+    color: white;
+  }
+  
+/* Preserve existing icon colors by default */
+svg {
+  color: inherit;
+}

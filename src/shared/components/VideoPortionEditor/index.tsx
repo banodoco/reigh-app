@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Label } from '@/shared/components/ui/label';
+import { Label } from '@/shared/components/ui/primitives/label';
 import { Slider } from '@/shared/components/ui/slider';
 import { Switch } from '@/shared/components/ui/switch';
 import { Textarea } from '@/shared/components/ui/textarea';
@@ -19,15 +19,15 @@ import {
 } from 'lucide-react';
 import { LoraManager } from '@/shared/components/LoraManager';
 import type { LoraModel, UseLoraManagerReturn } from '@/shared/hooks/useLoraManager';
-import { cn } from '@/shared/lib/utils';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { cn } from '@/shared/components/ui/contracts/cn';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { PortionSelection, formatTime } from '@/shared/components/VideoPortionTimeline';
 import { MotionPresetSelector } from '@/shared/components/MotionPresetSelector';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
 import type { PresetMetadata } from '@/shared/components/MotionPresetSelector/types';
 import { BUILTIN_VACE_PRESET, VACE_FEATURED_PRESET_IDS } from '@/shared/lib/vaceDefaults';
 import { getSegmentFormColor } from '@/shared/lib/segmentColors';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { getQuantizedGap } from '@/shared/components/JoinClipsSettingsForm/utils';
 
 // Thumbnail component for segment preview - supports different sizes
@@ -95,7 +95,7 @@ function SegmentThumbnail({ videoUrl, time, size = 'small' }: { videoUrl: string
             loadedRef.current = true;
             setLoaded(true);
           } catch (e) {
-            handleError(e, { context: 'SegmentThumbnail', showToast: false });
+            normalizeAndPresentError(e, { context: 'SegmentThumbnail', showToast: false });
             setError(true);
           }
         }
@@ -128,7 +128,7 @@ function SegmentThumbnail({ videoUrl, time, size = 'small' }: { videoUrl: string
     };
 
     const handleVideoError = () => {
-      handleError(new Error(`Video load error for ${videoUrl}`), { context: 'SegmentThumbnail', showToast: false });
+      normalizeAndPresentError(new Error(`Video load error for ${videoUrl}`), { context: 'SegmentThumbnail', showToast: false });
       setError(true);
     };
 

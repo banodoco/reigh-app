@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { generateUUID } from '@/shared/lib/taskCreation';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 function getOrCreateSessionId(): string {
   try {
@@ -73,7 +73,7 @@ export function useReferralTracking(): void {
           if (fingerprint) localStorage.setItem('referralFingerprint', fingerprint);
         } catch { /* intentionally ignored */ }
 
-        const { data, error } = await supabase.rpc('track_referral_visit', {
+        const { data, error } = await supabase().rpc('track_referral_visit', {
           p_referrer_username: referrerCode,
           p_visitor_fingerprint: fingerprint || undefined,
           p_session_id: sessionId || undefined,
@@ -84,7 +84,7 @@ export function useReferralTracking(): void {
           try { localStorage.setItem('referralSessionId', data); } catch { /* intentionally ignored */ }
         }
       } catch (err) {
-        handleError(err, { context: 'useReferralTracking', showToast: false });
+        normalizeAndPresentError(err, { context: 'useReferralTracking', showToast: false });
       }
     };
 

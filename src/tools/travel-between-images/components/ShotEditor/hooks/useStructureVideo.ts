@@ -6,6 +6,7 @@ import {
   StructureVideoConfig,
   StructureVideoConfigWithMetadata,
 } from '@/shared/lib/tasks/travelBetweenImages';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 
 interface UseStructureVideoParams {
   projectId: string;
@@ -127,7 +128,7 @@ export function useStructureVideo({
     settings: structureVideoSettings,
     update: updateStructureVideoSettings,
     isLoading: isStructureVideoSettingsLoading
-  } = useToolSettings<StructureVideoSettings>('travel-structure-video', {
+  } = useToolSettings<StructureVideoSettings>(SETTINGS_IDS.TRAVEL_STRUCTURE_VIDEO, {
     projectId,
     shotId: shotId,
     enabled: !!shotId

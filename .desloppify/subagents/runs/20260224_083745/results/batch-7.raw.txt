@@ -1,0 +1,74 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 7,
+  "assessments": {
+    "type_safety": 81.0
+  },
+  "dimension_notes": {
+    "type_safety": {
+      "evidence": [
+        "Non-null assertions are used to satisfy APIs instead of narrowing first (`generationQueryKeys.lineageChain(variantId!)`, `fetchLineageChain(variantId!)` in `src/shared/hooks/useLineageChain.ts`), which weakens static guarantees around nullable input.",
+        "Frame-calculation code relies on non-null assertions after filtered arrays (`item.timeline_frame!`, `predecessor.timeline_frame!`) in `src/shared/hooks/timeline/timelineFrameCalculators.ts`, creating type/runtime drift if list contents change.",
+        "Several metadata flows cast broad unknown objects into stronger shapes without structural validation (`metadata as Record<string, unknown>` in `src/shared/components/ImageGenerationDetails.tsx`, `segmentOverrides as SegmentOverrides` in `src/domains/generation/types/generationMetadata.ts`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "type_safety",
+      "identifier": "non_null_assertion_contract_bypass",
+      "summary": "Nullable values are forced through APIs with `!`, bypassing type narrowing and hiding possible null-state regressions.",
+      "related_files": [
+        "src/shared/hooks/useLineageChain.ts",
+        "src/shared/hooks/timeline/timelineFrameCalculators.ts"
+      ],
+      "evidence": [
+        "`useLineageChain` accepts `variantId: string | null` but calls both query key and fetcher with `variantId!`.",
+        "Timeline frame calculations use `timeline_frame!` after filtering logic; this assumes invariants that are not encoded in the types."
+      ],
+      "suggestion": "Replace non-null assertions with explicit guards and narrowed local variables (early-return when null in hooks, typed helper predicates for frame-bearing items before arithmetic).",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "unchecked_metadata_casts",
+      "summary": "Unknown metadata is cast directly to stronger record/types without full shape checks, making type contracts optimistic.",
+      "related_files": [
+        "src/shared/components/ImageGenerationDetails.tsx",
+        "src/domains/generation/types/generationMetadata.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts"
+      ],
+      "evidence": [
+        "`ImageGenerationDetails` uses `metadata.originalParams as Record<string, unknown>` and `metadata as Record<string, unknown>` before parsing.",
+        "`toGenerationMetadata` assigns `segmentOverrides as SegmentOverrides` based only on object-ness, not field validation.",
+        "`useSegmentSlotMode` consumes metadata-derived overrides via `toGenerationMetadataRecord(...)` and downstream override reading, so weak upstream casts propagate."
+      ],
+      "suggestion": "Introduce schema-style narrowing helpers for metadata/originalParams and validate `segmentOverrides` fields before exposing typed objects; return `null`/empty defaults when validation fails.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "type_cast_after_shape_mutation",
+      "summary": "Phase config is structurally mutated then cast back to the original type, obscuring the actual returned shape.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideo/modelPhase.ts",
+        "src/shared/components/TaskDetails/VideoTravelDetails.tsx"
+      ],
+      "evidence": [
+        "`stripModeFromPhaseConfig` removes `mode` then returns `rest as PhaseConfig`.",
+        "Downstream detail rendering treats phase config as a fully-typed `PhaseConfig` object, so this cast can hide missing-field assumptions from the compiler."
+      ],
+      "suggestion": "Define and return an explicit serialized/request phase-config type (e.g., `Omit<PhaseConfig, 'mode'>` or dedicated API DTO) instead of recasting mutated objects to `PhaseConfig`.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

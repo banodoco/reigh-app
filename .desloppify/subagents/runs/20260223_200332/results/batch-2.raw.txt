@@ -1,0 +1,145 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 61.0,
+    "mid_level_elegance": 58.0,
+    "low_level_elegance": 63.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "Inline edit state is moved through a very large pass-through interface (`UseImageEditValueParams`) and then copied back into another object shape with minimal transformation (`src/tools/edit-images/hooks/useImageEditValue.ts:18-127`, `:133-245`; `src/tools/edit-images/hooks/useInlineEditState.ts:249-333`).",
+        "Lightbox rendering introduces multiple intermediate model objects (`lightboxCore`, `lightboxMedia`, `lightboxVariants`, controls panel model) with high dependency fan-in before a final layout render (`src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx:15-255`, `src/shared/components/MediaLightbox/VideoLightbox.tsx:95-153`, `src/shared/components/MediaLightbox/ImageLightbox.tsx:90-260`).",
+        "Small wrapper/alias abstractions add names without behavior gain (e.g., `useGetTaskIdForGeneration` alias and single-line utility re-export files) (`src/shared/lib/generationTaskBridge.ts:79-93`, `src/shared/lib/utils.ts:1-2`, `src/shared/imageEditCore/utils.ts:1`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 57.0,
+        "indirection_cost": 52.0,
+        "interface_honesty": 64.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "The inline edit seam between orchestration (`useInlineEditState`) and value assembly (`useImageEditValue`) requires a broad, brittle handoff object where most fields are forwarded unchanged (`src/tools/edit-images/hooks/useInlineEditState.ts:249-333`, `:438-440`; `src/tools/edit-images/hooks/useImageEditValue.ts:133-245`).",
+        "Video lightbox integration seams compose many collaborators, but handoffs are spread across deeply nested prop groups and large dependency lists, increasing change ripple for mode/panel updates (`src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx:39-142`, `:145-255`; `src/shared/components/MediaLightbox/VideoLightbox.tsx:95-153`).",
+        "Task metadata fallback/translation paths are repeated across UI and task-builder layers rather than centralized at one boundary (`src/shared/components/TaskDetails/VideoTravelDetails.tsx:93-139`, `:105-125`; `src/shared/lib/tasks/individualTravelSegment.ts:222-279`; `src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts:16-26`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Repeated local parsing helpers (`asString`, `asNumber`, record/array guards) appear in multiple files with near-identical logic, creating maintenance duplication and drift risk (`src/shared/components/TaskDetails/VideoTravelDetails.tsx:18-52`, `src/shared/lib/tasks/individualTravelSegment.ts:222-280`, `src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts:16-26`).",
+        "A large memoized object in `useSegmentSlotModeData` captures full `props` and `state` object identities in dependencies, reducing precision and forcing broad recomputation (`src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts:315-424`).",
+        "Several files use thin wrappers around existing behavior, increasing local navigation cost without materially simplifying internals (`src/shared/hooks/useCompletedTimestamp.ts:18-27`, `src/shared/hooks/useProcessingTimestamp.ts:18-27`, `src/shared/hooks/useUpdatingTimestamp.ts:26-58`)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "inline_edit_param_bag_passthrough",
+      "summary": "Inline edit state uses a giant pass-through parameter bag that adds indirection more than abstraction value.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/hooks/useImageEditValue.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx"
+      ],
+      "evidence": [
+        "`buildImageEditValueParams` constructs a very large object mostly by direct forwarding from sub-hooks (`useInlineEditState.ts:249-333`), then `useImageEditValue` re-copies these fields into grouped partials (`useImageEditValue.ts:133-245`).",
+        "`UseImageEditValueParams` is extensive (`useImageEditValue.ts:18-127`), but behavior added by the abstraction is minimal (mostly regrouping and shape copying).",
+        "The resulting state object is consumed downstream as a broad context value (`InlineEditView.tsx` via `ImageEditProvider`), so small interface changes propagate across multiple layers."
+      ],
+      "suggestion": "Replace the monolithic bag with a few domain slices (mode, canvas, generation) passed directly from source hooks, or expose a single `useImageEditState` composer that owns both assembly and consumption contract in one place.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "lightbox_render_model_overchoreography",
+      "summary": "Video lightbox orchestration has heavy model layering and dependency fan-in at the integration seam.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/VideoLightbox.tsx",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx"
+      ],
+      "evidence": [
+        "`useVideoLightboxControlsPanel` has a very large dependency list and switches between two large component payloads (`useVideoLightboxRenderModel.tsx:39-142`).",
+        "`useVideoLightboxRenderModel` builds multiple memoized sub-models (`lightboxCore`, `lightboxMedia`, `lightboxVariants`, etc.) before a final layout model (`:170-255`), increasing seam complexity.",
+        "`VideoLightbox` and `ImageLightbox` both maintain sizable grouped prop contracts and multi-stage composition pipelines (`VideoLightbox.tsx:68-153`, `ImageLightbox.tsx:68-260`), making behavior changes cross-cutting."
+      ],
+      "suggestion": "Introduce a normalized lightbox domain model (single typed state object + focused action group) shared by image/video adapters, and keep render hooks narrowly scoped to view-only derivation.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "duplicate_unknown_parsers",
+      "summary": "Near-identical unknown-value parser helpers are duplicated across task and UI modules.",
+      "related_files": [
+        "src/shared/components/TaskDetails/VideoTravelDetails.tsx",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts"
+      ],
+      "evidence": [
+        "`VideoTravelDetails` defines `asRecordOrUndefined`, `asString`, `asNumber`, and array guards (`VideoTravelDetails.tsx:20-44`).",
+        "`individualTravelSegment` redefines very similar helpers (`toRecordOrEmpty`, `asNumber`, `asString`, `asBoolean`) (`individualTravelSegment.ts:222-248`).",
+        "`payloadBuilder` repeats `toRecordOrEmpty` and `asNumber` logic (`payloadBuilder.ts:16-26`)."
+      ],
+      "suggestion": "Extract a shared parsing module for task-param decoding (UI-safe and task-builder-safe variants if needed) to remove duplication and enforce one coercion policy.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "broad_memo_dependencies_segment_slot_mode",
+      "summary": "Segment slot mode memoization depends on whole objects (`props`, `state`), causing unnecessary rebuild churn.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts"
+      ],
+      "evidence": [
+        "`useSegmentSlotModeData` returns a large object with many closures and references (`useSegmentSlotMode.ts:315-416`).",
+        "Its dependency list includes full object identities (`props`, `state`) (`:417-424`), so unrelated prop/state changes invalidate all derived callbacks and computed payload.",
+        "This hook is part of a callback-heavy editor flow, so avoidable identity churn propagates across downstream interactions."
+      ],
+      "suggestion": "Destructure only required primitives/callbacks before `useMemo`, then depend on those narrow values; split heavy derived blocks into smaller memos (navigation, structure video actions, frame-change handlers).",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "thin_wrappers_and_aliases",
+      "summary": "Several wrappers/aliases are effectively pass-through, increasing symbol count without meaningful behavioral isolation.",
+      "related_files": [
+        "src/shared/lib/generationTaskBridge.ts",
+        "src/shared/lib/utils.ts",
+        "src/shared/imageEditCore/utils.ts",
+        "src/shared/hooks/useCompletedTimestamp.ts",
+        "src/shared/hooks/useProcessingTimestamp.ts",
+        "src/shared/hooks/useUpdatingTimestamp.ts"
+      ],
+      "evidence": [
+        "`useGetTaskIdForGeneration` is a direct alias of `useGetPrimaryTaskIdForGeneration` (`generationTaskBridge.ts:92`).",
+        "`src/shared/lib/utils.ts` and `src/shared/imageEditCore/utils.ts` are pure re-export files (`utils.ts:1-2`, `imageEditCore/utils.ts:1`).",
+        "Timestamp hooks are thin wrappers around `useLiveRelativeTimestamp` with minor string formatting differences (`useCompletedTimestamp.ts:18-27`, `useProcessingTimestamp.ts:18-27`, `useUpdatingTimestamp.ts:26-58`)."
+      ],
+      "suggestion": "Keep only wrappers that enforce a stable boundary or policy; otherwise consolidate call sites to the underlying module and retain one clearly documented compatibility layer where necessary.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ]
+}

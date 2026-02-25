@@ -1,0 +1,123 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "mid_level_elegance": 71.0,
+    "low_level_elegance": 68.0
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "Task payload construction/normalization is split across modules with duplicated boundary helpers: `toRecordOrEmpty` and `asNumber` appear in both `src/shared/lib/tasks/individualTravelSegment.ts` (lines 225-243) and `src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts` (lines 17-27).",
+        "Lightbox seam wiring relies on multi-layer object shaping before rendering: `useVideoLightboxRenderModel` builds many memoized boundary objects (`lightboxCore`, `lightboxMedia`, `lightboxVariants`, etc., lines 180-255) which are then transformed again in `LightboxLayout` via `props.buttonGroupProps.*` and context selectors (`src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx`, lines 37-76, 226-229).",
+        "`useButtonGroupProps` repeats the same shared fields into four prop bags and memoizes on `[params]` (`src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts`, lines 56-143), so the seam incurs mapping cost without stable contracts."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Timestamp hooks are fragmented into near-identical wrappers over `useLiveRelativeTimestamp`: `useCompletedTimestamp` (lines 18-27), `useProcessingTimestamp` (lines 18-27), and `useUpdatingTimestamp` (lines 26-39), with repeated option shells and tiny formatter differences.",
+        "`useInlineEditState` returns a very large manually reassembled object surface (`src/tools/edit-images/hooks/useInlineEditState.ts`, lines 351-524), and `useImageEditValue` repeats another large state reshaping layer including legacy adapter mapping (`src/tools/edit-images/hooks/useImageEditValue.ts`, lines 273-381).",
+        "`complete_task/generation.ts` keeps `taskData` and `existingGeneration` as `unknown` while accessing many fields (`taskData.params`, `taskData.category`, `existingGeneration.id`, lines 55-59, 128, 167), reducing local intent clarity and increasing defensive mental parsing."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "timestamp_wrapper_fragmentation",
+      "summary": "Three timestamp hooks duplicate the same wrapper structure, creating micro-abstractions with high maintenance overlap.",
+      "related_files": [
+        "src/shared/hooks/useCompletedTimestamp.ts",
+        "src/shared/hooks/useProcessingTimestamp.ts",
+        "src/shared/hooks/useUpdatingTimestamp.ts"
+      ],
+      "evidence": [
+        "`useCompletedTimestamp` and `useProcessingTimestamp` both only forward `{ dateInput, disabled, formatter }` into `useLiveRelativeTimestamp` with small format-string variation (lines 18-27 in both files).",
+        "`useUpdatingTimestamp` follows the same wrapper pattern (lines 31-39) and then adds `useTaskTimestamp` as another wrapper (lines 53-57)."
+      ],
+      "suggestion": "Unify these into one typed `useRelativeTimestamp` API with formatter presets (e.g., `completed`, `processing`, `compactTask`) so call sites select behavior instead of introducing new wrapper hooks.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "task_payload_normalization_duplication",
+      "summary": "Travel-task payload boundaries duplicate normalization logic across modules, increasing drift risk at integration seams.",
+      "related_files": [
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts"
+      ],
+      "evidence": [
+        "Both files define the same shape guards/helpers (`toRecordOrEmpty`, `asNumber`) with equivalent behavior (`individualTravelSegment.ts` lines 225-243; `payloadBuilder.ts` lines 17-27).",
+        "Both modules perform overlapping orchestrator payload preparation and legacy field handling instead of delegating to one boundary normalization layer."
+      ],
+      "suggestion": "Extract shared payload-normalization primitives (record/number/string/boolean coercion + legacy stripping) into a single task-boundary utility and reuse from both builders.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "lightbox_prop_bag_indirection",
+      "summary": "Lightbox composition relies on repeated prop-bag reshaping layers that add indirection without reducing coupling.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "`useVideoLightboxRenderModel` creates multiple large memoized boundary objects with extensive dependency lists (e.g., lines 180-255), then passes them to layout.",
+        "`useButtonGroupProps` repeats the same shared fields into each group (lines 56-132) and memoizes using `[params]` (line 142), which is unstable when `params` is rebuilt.",
+        "`LightboxLayout` consumes deeply nested prop bags (`props.buttonGroupProps.bottomLeft/right/topRight`, lines 226-229), making behavior tracing cross several wrappers."
+      ],
+      "suggestion": "Collapse to a single typed `LightboxActions` contract (or context selector set) and remove per-group remapping; memoize on primitive dependencies rather than container objects.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "inline_edit_double_mapping_surface",
+      "summary": "Inline edit state is mapped twice through large object reconstruction paths, inflating local complexity.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/hooks/useImageEditValue.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx"
+      ],
+      "evidence": [
+        "`useInlineEditState` assembles a broad `InlineEditStateResult` object manually (lines 351-524), including many direct pass-through fields.",
+        "`useImageEditValue` then performs another large structural mapping (`build*State` helpers plus `toModelsFromLegacy`, lines 160-381), effectively rematerializing the same state with legacy compatibility overhead.",
+        "Primary integration path in this batch (`useInlineEditState` calling `useImageEditValue`, lines 453-455) already provides structured models, making the legacy conversion branch extra indirection on the main path."
+      ],
+      "suggestion": "Retire legacy input mode for `useImageEditValue` (or isolate it in an adapter file), and pass a narrower immutable state object from `useInlineEditState` to reduce remapping layers.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "unknown_typed_generation_routing",
+      "summary": "Generation completion routing uses `unknown` for core task objects while performing deep property access, obscuring control flow intent.",
+      "related_files": [
+        "supabase/functions/complete_task/generation.ts",
+        "supabase/functions/complete_task/orchestrator.ts"
+      ],
+      "evidence": [
+        "`createGenerationFromTask` accepts `taskData: unknown` and then directly reads `taskData.params`, `taskData.category`, `taskData.task_type` (generation.ts lines 55-59, 128).",
+        "`handleRegeneration` takes `existingGeneration: unknown` but accesses `existingGeneration.id` (generation.ts lines 156-167), relying on implicit runtime assumptions.",
+        "Adjacent module `orchestrator.ts` already models task inputs with explicit interfaces (`TaskContext`, `OrchestratorTask`, lines 18-29), showing an inconsistent boundary typing standard."
+      ],
+      "suggestion": "Define a shared `CompleteTaskContext`/`GenerationTaskContext` interface in the `complete_task` module and replace `unknown` usage with explicit guards at the edge only.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

@@ -1,0 +1,1166 @@
+{
+  "assessments": {
+    "abstraction_fitness": {
+      "score": 53.2,
+      "components": [
+        "Abstraction Leverage",
+        "Indirection Cost",
+        "Interface Honesty"
+      ],
+      "component_scores": {
+        "Abstraction Leverage": 64.6,
+        "Indirection Cost": 72.4,
+        "Interface Honesty": 71.8
+      }
+    },
+    "ai_generated_debt": 75.5,
+    "api_surface_coherence": 47.0,
+    "authorization_consistency": 71.7,
+    "convention_outlier": 69.3,
+    "cross_module_architecture": 43.8,
+    "design_coherence": 45.7,
+    "error_consistency": 50.8,
+    "high_level_elegance": 47.2,
+    "incomplete_migration": 44.5,
+    "low_level_elegance": 80.2,
+    "mid_level_elegance": 46.4,
+    "package_organization": 39.3
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "src/integrations/supabase/client.ts keeps a deprecated compatibility export (`supabase`) implemented via `createSupabaseCompatibilityProxy()`, which preserves legacy access patterns while bypassing explicit bootstrap boundaries (`getSupabaseClient`/`initializeSupabase`).",
+        "src/shared/hooks/useMobile.tsx is a deprecated compatibility barrel that re-exports from `@/shared/hooks/mobile/*`, so old and new module paths coexist and keep coupling to legacy entry points.",
+        "src/shared/components/ui/button.tsx imports `cn` via `@/shared/lib/utils`, while src/shared/components/ui/tooltip.tsx and src/shared/components/ui/label.tsx import `cn` from `@/shared/components/ui/cn`, indicating split dependency paths for the same UI primitive concern."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "src/shared/components/MediaLightbox/components/LightboxShell.tsx mixes responsibilities: modal shell rendering, browser-specific viewport repair logic, body scroll locking policy, task-pane offset layout logic, and interaction wiring.",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts combines cross-cutting concerns (event-bus subscription, navigation orchestration, lightbox lifecycle, shot filter control, task details modal activation) inside one hook, creating a broad ownership surface.",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx accepts grouped state/callback objects but still centralizes multiple UI action policies (shot selection, add-with-position, add-without-position, quick-create success navigation), making role boundaries less obvious at the component layer."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "unreported_risk": ""
+    },
+    "abstraction_fitness": {
+      "evidence": [
+        "`useButtonGroupProps` in `src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts` rebuilds and returns the same nested shape it receives, then that bag is re-wrapped again in `useVideoLightboxRenderModel.tsx` and `ImageLightbox.tsx` before reaching `LightboxLayout.tsx`.",
+        "`useInlineEditState` and `useImageEditValue` split one large state contract into many builder helpers but still pass through a single very wide parameter object with minimal transformation (`src/tools/edit-images/hooks/useInlineEditState.ts`, `src/tools/edit-images/hooks/useImageEditValue.ts`).",
+        "`useImageEditValue` memoizes on `[params]`, but `useInlineEditState` constructs a fresh params object per render, so the memoized abstraction does not reduce recomputation."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": "",
+      "sub_axes": {
+        "abstraction_leverage": 67.0,
+        "indirection_cost": 78.0,
+        "interface_honesty": 71.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Boundary translation logic (UI settings -> task request payload) is duplicated in separate modules (`segmentSettingsUtils` and `generateVideoService`) instead of a single seam, increasing drift risk at integration points.",
+        "`generationTaskRepository` preserves mapping status (`ok`, `query_failed`, `scope_mismatch`, etc.) but `enhanceGenerationsWithTaskData` discards status and only forwards `taskId/taskData`, weakening downstream error-aware orchestration.",
+        "`prefetchAdjacentGenerationPages` serially awaits next then previous prefetch, making a symmetric boundary operation unnecessarily sequential."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "unreported_risk": ""
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "The legacy structure-field cleanup list is duplicated in two task payload builders (`LEGACY_STRUCTURE_PARAMS` in `src/shared/lib/tasks/individualTravelSegment.ts` and `legacyStructureParams` in `src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts`) with identical delete loops.",
+        "Large object-construction blocks in task payload builders include many conditional spreads and manual deletes, increasing local edit risk and making invariants harder to verify (`src/shared/lib/tasks/individualTravelSegment.ts`, `src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts`)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "api_surface_coherence": {
+      "evidence": [
+        "Shot image upload/drop contracts diverge between shared handler types and component props: `ImageUploadHandler` uses a DOM change event while `ShotUploadProps.onImageUpload` takes `File[]`, and both are presented as part of the same shared handler surface.",
+        "Travel task payload construction is split across multiple public helpers (`buildTaskParams`, `buildTravelRequestBody`, `buildTravelRequestBodyV2`) with overlapping but non-identical field conventions and fallback behavior.",
+        "Edge request body parsing exposes two parallel response shapes (`OperationResult` and legacy `{ body, errorResponse }` adapter), which keeps multiple caller protocols alive."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "ai_generated_debt": {
+      "evidence": [
+        "src/shared/components/ShotImageManager/utils/image-utils.ts contains long explanatory comment blocks (lines 8-20) that restate type fields and call-site behavior instead of encoding that intent via types/tests.",
+        "src/shared/components/ShotImageManager/utils/image-utils.ts exports a pass-through wrapper getAspectRatioStyle() (lines 58-60) that only forwards to getProjectAspectRatioStyle with no translation/guarding.",
+        "src/shared/hooks/useDeleteGenerationWithConfirm.tsx has a large usage tutorial block (lines 5-26) for a small hook, increasing maintenance noise in production code."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "unreported_risk": ""
+    },
+    "incomplete_migration": {
+      "evidence": [
+        "Multiple compatibility shims remain active and export old paths: src/shared/components/BatchDropZone.tsx, src/shared/components/ConfirmDialog.tsx, src/shared/components/MediaLightbox/utils/download.ts, src/shared/hooks/useBatchImageLoading.ts, src/shared/hooks/useClickRipple.ts, src/shared/hooks/useGalleryPageState.ts, src/shared/hooks/useMobile.tsx, src/shared/lib/NetworkStatusManager.ts, src/shared/lib/aspectRatios.ts, src/shared/lib/autoplayMonitor.ts, src/shared/lib/clientThumbnailGenerator.ts, src/shared/lib/deepEqual.ts.",
+        "src/integrations/supabase/client.ts keeps both the new API (initializeSupabase/getSupabaseClient) and deprecated lazy proxy export supabase (lines 85-98), prolonging dual-path usage.",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts preserves a broad deprecated payload surface (motion_strength, structure_video_* fields, use_uni3c) alongside newer structure_guidance contracts."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "package_organization": {
+      "evidence": [
+        "Objective structure signal: `src/shared/lib/` has 79 production files (>10 threshold) with mixed concerns (UI helpers, Supabase helpers, task utilities, media utilities), indicating low cohesion for a single package bucket.",
+        "`src/shared/lib/utils.ts` is a thin generic barrel (2 re-exports) yet has high fan-in (101 importers), making it a navigational choke point with ambiguous ownership.",
+        "Objective structure signal: both `src/types/` (12 files, avg fan-in 22.3) and `src/domains/generation/types/` (8 files) exist for generation/shot contracts, showing package boundary overlap rather than one domain-owned type home.",
+        "Objective structure signal: root config files are all peripheral (`fan_in < 5`), while package-level organization burden sits in large shared directories; this increases dependency on broad shared buckets instead of focused domain packages."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "design_coherence": {
+      "evidence": [
+        "Timeline flow is split across both `Timeline.tsx` and `useTimelineOrchestrator.ts`, but `Timeline.tsx` still owns data fetching (`useGetTask`), preloading, event listeners, adapter error handling, and lightbox composition in one component (`src/tools/travel-between-images/components/Timeline.tsx:265-533`).",
+        "`useSharedLightboxState` uses a very wide composed props contract and returns a large multi-section state object spanning variants/navigation/shots/layout/button wiring (`src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts:53-253`), while `ImageLightbox.tsx` adds additional environment/state assembly before passing through (`src/shared/components/MediaLightbox/ImageLightbox.tsx:95-193`).",
+        "LoRA management behavior is duplicated in two hooks (`useLoraManager` and `useLoraSync`) including add/remove/strength updates, save/load persistence, trigger-word handling, and header-action rendering (`src/shared/hooks/useLoraManager.tsx:151-459`, `src/tools/travel-between-images/components/ShotEditor/hooks/useLoraSync.tsx:111-260`).",
+        "Timeline image-selection/filtering semantics are implemented in multiple places (`useTimelineCore` positioned item filter vs `pairConfig` image shot-generation filter), increasing drift risk in what counts as a timeline image (`src/shared/hooks/useTimelineCore.ts:159-183`, `src/tools/travel-between-images/components/ShotEditor/services/generateVideo/pairConfig.ts:24-37`).",
+        "Task modules bundle multiple layers in single files: validation, defaults, model selection, payload assembly, and task creation; `individualTravelSegment.ts` additionally performs child-generation lookup and legacy field cleanup in the same module (`src/shared/lib/tasks/imageGeneration.ts:183-529`, `src/shared/lib/tasks/individualTravelSegment.ts:92-709`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "convention_outlier": {
+      "evidence": [
+        "UI primitive siblings use different formatting conventions: `src/shared/components/ui/button.tsx`, `src/shared/components/ui/label.tsx`, `src/shared/components/ui/toast.tsx`, and `src/shared/components/ui/tooltip.tsx` use double-quote/no-semicolon style, while `src/shared/components/ui/touchableTooltip.tsx` uses single-quote/semicolon style.",
+        "Utility import conventions drift inside the same UI layer: `button.tsx` imports `cn` from `@/shared/lib/utils`, while `label.tsx`/`toast.tsx`/`tooltip.tsx` import `cn` from `@/shared/components/ui/cn`."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "error_consistency": {
+      "evidence": [
+        "`useAIInteractionService` provides throw/safe variants and swallows failures to `null`/`[]` (`generateSummarySafe`, `generatePromptsSafe`) while sibling hooks throw explicit `Error` on data fetch failures (`src/features/billing/hooks/useCredits.ts`).",
+        "React Query retry policy checks only message substrings ('unauthorized'/'forbidden') (`src/app/providers/queryClient.ts`), but auth helpers throw context-prefixed errors ('Not authenticated', 'Failed to get session') (`src/integrations/supabase/auth/ensureAuthenticatedSession.ts`), creating inconsistent retry behavior.",
+        "Several catches intentionally suppress failures (`src/app/hooks/useOnboardingFlow.ts` product-tour preload catch; `src/features/gallery/hooks/useGalleryPageState.ts` converts mutation failures to `false`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "authorization_consistency": {
+      "evidence": [
+        "Route redirection uses a localStorage token presence heuristic in `src/app/routes.tsx` (`hasStoredSessionToken`) before routing users to protected tool paths.",
+        "Auth-sensitive operations in `src/pages/Home/hooks/auth/useAuthReferralFinalize.ts` and `src/pages/Home/hooks/useDiscordSignIn.ts` rely on Supabase auth/RPC execution via `runAuthSupabaseOperation`, creating two different auth-source patterns (storage hint vs authenticated operation).",
+        "`supabase/functions/calculate-task-cost/index.ts` enforces explicit service-role auth via `authenticateRequest`, showing stricter server-boundary checks than client-side route prechecks."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "unreported_risk": ""
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "legacy_compat_surfaces_blur_boundaries",
+      "summary": "Long-lived compatibility facades keep old access paths active and weaken architectural boundaries.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/hooks/useMobile.tsx",
+        "src/pages/Home/components/panes/CreativePartnerPane.tsx"
+      ],
+      "evidence": [
+        "Supabase client exports deprecated `supabase` proxy with a removal target but still supports implicit lazy runtime initialization through proxy traps.",
+        "`useMobile.tsx` is explicitly marked deprecated yet remains an active compatibility surface re-exporting the newer mobile modules.",
+        "Active feature code (e.g., `CreativePartnerPane`) still imports `useIsMobile` from the deprecated surface, showing migration not fully enforced."
+      ],
+      "suggestion": "Enforce a migration cutoff by replacing remaining imports to direct mobile module paths, then remove deprecated barrels/proxy exports behind a tracked codemod + CI lint rule that forbids legacy import specifiers.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "split_ui_utility_entrypoints",
+      "summary": "UI primitives depend on duplicated utility entrypoints, creating inconsistent module boundaries.",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/ui/tooltip.tsx",
+        "src/shared/components/ui/label.tsx",
+        "src/shared/lib/utils.ts"
+      ],
+      "evidence": [
+        "`button.tsx` imports `cn` from `@/shared/lib/utils` (a broad shared barrel).",
+        "`tooltip.tsx` and `label.tsx` import `cn` from `@/shared/components/ui/cn` (UI-local path).",
+        "`src/shared/lib/utils.ts` is a tiny re-export barrel, but UI components are split between lib-level and UI-level utility entrypoints."
+      ],
+      "suggestion": "Choose a single canonical UI classnames entrypoint and migrate all UI primitives to it; keep `shared/lib/utils` focused on non-UI helpers or decompose it to avoid cross-layer ambiguity.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "lightbox_and_gallery_orchestration_overloaded",
+      "summary": "Key shared modules blend orchestration, platform quirks, and feature behavior, reducing ownership clarity.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/LightboxShell.tsx",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGallery/hooks/useMobileInteractions.ts"
+      ],
+      "evidence": [
+        "`LightboxShell` contains dialog rendering plus iOS viewport repair behavior, scroll locking, overlay geometry for tasks pane, and event handling glue.",
+        "`useMediaGalleryHandlers` handles event-bus integration (`useAppEventListener`), shot navigation, filter state, lightbox closure, and task-details modal transitions.",
+        "`useMobileInteractions` owns gesture recognition timing and global window/document listeners for UI dismissal, further distributing interaction policy across multiple shared hooks."
+      ],
+      "suggestion": "Extract platform/browser-behavior policies into dedicated infrastructure hooks (e.g., viewport lock/repair), and split gallery orchestration into smaller domain-specific hooks (navigation, event-bus bridge, task-details flow) with a thin composition layer.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "lightbox_pass_through_prop_bags",
+      "summary": "Lightbox button-group abstractions add indirection but mostly forward unchanged data.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "`useButtonGroupProps` reconstructs `topRight/bottomLeft/bottomRight` from the same input fields without validation/translation.",
+        "Both image and video render models then create another `buttonGroupProps` object and pass it into `LightboxLayout`, which immediately spreads the groups into controls."
+      ],
+      "suggestion": "Remove `useButtonGroupProps` and pass stable typed control props directly from state hooks to `LightboxLayout` (or keep one boundary mapper in a single place) to cut one wrapper layer and reduce prop-churn points.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "inline_edit_wide_param_contract",
+      "summary": "Inline edit state uses an oversized parameter contract that mostly re-exposes values.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/hooks/useImageEditValue.ts"
+      ],
+      "evidence": [
+        "`UseImageEditValueParams` contains dozens of fields, then `buildModeState/buildCanvasAndAnnotationState/buildRepositionAndPanelState/buildFormAndGenerationState` mostly mirror those fields into output.",
+        "`useImageEditValue` depends on `[params]`, but `buildImageEditValueParams(...)` creates a fresh object in `useInlineEditState`, so memoization does not provide meaningful stability."
+      ],
+      "suggestion": "Collapse this into smaller domain slices (for example `mode`, `canvas`, `generation`) with explicit sub-objects or context providers; memoize each slice on primitive deps and compose at the boundary instead of one monolithic params bag.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "duplicated_lightbox_workflow_seam",
+      "summary": "Image and video lightboxes duplicate boundary wiring into `useLightboxWorkflowProps`.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx"
+      ],
+      "evidence": [
+        "Both files construct nearly identical nested objects for `panel`, `shotWorkflow`, `actions`, and `buttonGroupProps` with slight variations.",
+        "This seam duplication increases divergence risk when adding or changing workflow props because both callsites must stay in lockstep."
+      ],
+      "suggestion": "Extract a shared workflow-props assembler (with typed overrides for image/video differences) and reuse it in both render paths.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "duplicated_legacy_structure_cleanup",
+      "summary": "Legacy structure-guidance key cleanup is duplicated in two payload builders.",
+      "related_files": [
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts"
+      ],
+      "evidence": [
+        "Both files maintain nearly identical arrays of legacy structure param names and run delete loops before returning payloads.",
+        "Any future key additions/removals must be synchronized manually, which is error-prone and easy to drift."
+      ],
+      "suggestion": "Move legacy-structure cleanup into one shared helper (for example `stripLegacyStructureParams(record)`) and reuse it across both builders.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "shot_image_handler_contract_split",
+      "summary": "Shared shot-image handler API exposes conflicting upload signatures across adjacent types.",
+      "related_files": [
+        "src/shared/types/imageHandlers.ts",
+        "src/shared/components/ShotImageManager/types.ts"
+      ],
+      "evidence": [
+        "`ImageUploadHandler` is defined as `(event: React.ChangeEvent<HTMLInputElement>) => Promise<void>` in shared handler types.",
+        "`ShotUploadProps.onImageUpload` is separately defined as `(files: File[]) => Promise<void>`, while the same file also imports shared handler types for related operations.",
+        "This forces consumers/adapters to special-case one operation with a different shape inside the same handler family."
+      ],
+      "suggestion": "Standardize on one upload contract at the boundary (prefer `File[]` for non-UI domain handlers), update `imageHandlers.ts` and manager prop groups accordingly, and keep DOM event parsing at component edge only.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "duplicated_task_payload_translation_seam",
+      "summary": "Task payload mapping is duplicated across modules, creating drift-prone integration seams.",
+      "related_files": [
+        "src/shared/components/segmentSettingsUtils.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts"
+      ],
+      "evidence": [
+        "`buildTaskParams` assembles snake_case task payload fields and motion fields from segment settings/context.",
+        "`generateVideoService` independently normalizes request input and rebuilds a largely overlapping payload (`buildTravelRequestBodyV2`) including motion/prompt/model fields and per-pair overrides.",
+        "Both modules perform boundary translation and conditional field inclusion, but with different composition paths and defaults."
+      ],
+      "suggestion": "Extract a single shared request-builder seam for travel-between-images payloads (with explicit mode-specific extensions), then have both modules call it so field naming/default rules are owned in one place.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "generate_video_request_api_overload",
+      "summary": "Generate-video request builder keeps legacy and v2 input protocols in one overloaded API surface.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/shared/components/segmentSettingsUtils.ts"
+      ],
+      "evidence": [
+        "`TravelRequestBodyInput` accepts both grouped params (`motionParams/generationParams/seedParams`) and many legacy flat fields, then `normalizeTravelRequestBodyInput` reconciles both.",
+        "The same module publicly exports multiple internal builders (`_buildTravelRequestBody`, `_buildTravelRequestBodyV2`, and additional internals), widening the callable surface beyond a single canonical contract.",
+        "Parallel payload construction exists in `segmentSettingsUtils`, compounding protocol ambiguity for callers."
+      ],
+      "suggestion": "Freeze one canonical request DTO (v2), move legacy flattening into a temporary adapter with deprecation boundary, and narrow exports to a minimal stable API.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "edge_json_parse_dual_protocol",
+      "summary": "Edge request parsing utilities expose two incompatible caller protocols for the same operation.",
+      "related_files": [
+        "supabase/functions/_shared/edgeRequest.ts",
+        "supabase/functions/_shared/rateLimit.ts"
+      ],
+      "evidence": [
+        "`parseJsonBody/parseJsonBodyStrict` return `OperationResult<Record<string, unknown>>`.",
+        "`parseJsonBodyStrictResponse` returns legacy `{ body?: ..., errorResponse?: Response }` and is explicitly marked as an adapter.",
+        "Shared edge helpers like `rateLimitResponse` and `edgeErrorResponse` promote direct response construction, so mixed parse protocols increase handler-level branching patterns."
+      ],
+      "suggestion": "Migrate handlers to `OperationResult` only, keep the legacy adapter internal/private, and remove it after callsite migration to enforce one edge-handler parsing contract.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "task_mapping_status_dropped_at_cache_seam",
+      "summary": "Task-mapping status is lost when data crosses from repository to generation enhancement layer.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/lib/generationTaskCache.ts"
+      ],
+      "evidence": [
+        "Repository APIs return `GenerationTaskMapping` with explicit statuses (`query_failed`, `scope_mismatch`, etc.).",
+        "Cache preloading stores `{ taskId, status }`, but `enhanceGenerationsWithTaskData` emits only `taskId` and `taskData` on generation rows.",
+        "Downstream callers cannot distinguish missing tasks from query/scope failures at the integration seam."
+      ],
+      "suggestion": "Propagate mapping status in the enhanced generation output (or a companion field) so UI/orchestrators can react deterministically to failure modes.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "adjacent_prefetch_sequential_orchestration",
+      "summary": "Adjacent page prefetch orchestration is serialized despite independent operations.",
+      "related_files": [
+        "src/features/gallery/lib/adjacentPagePreloadCoordinator.ts",
+        "src/shared/hooks/invalidation/useGenerationInvalidation.ts"
+      ],
+      "evidence": [
+        "`prefetchAdjacentGenerationPages` awaits next-page prefetch before starting previous-page prefetch.",
+        "Both prefetches are independent reads with separate priorities and identical error handling shape.",
+        "The surrounding cache/invalidation infrastructure is already asynchronous and batched, so this serialized seam adds avoidable latency."
+      ],
+      "suggestion": "Run previous/next prefetches in parallel (e.g., `Promise.allSettled`) while preserving priority arguments and current cleanup behavior.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "compat_shims_still_primary_surface",
+      "summary": "Legacy import-path shims are still widespread, extending dual API surfaces.",
+      "related_files": [
+        "src/shared/components/BatchDropZone.tsx",
+        "src/shared/components/ConfirmDialog.tsx",
+        "src/shared/hooks/useGalleryPageState.ts",
+        "src/shared/lib/aspectRatios.ts"
+      ],
+      "evidence": [
+        "Each file is a deprecated compatibility re-export with comments directing callers to new module ownership.",
+        "The volume of active shim files in this batch indicates migration is not bounded to isolated holdouts."
+      ],
+      "suggestion": "Add a migration cutoff plan: (1) codemod remaining imports to canonical targets, (2) block new imports of shim paths via ESLint no-restricted-imports, and (3) delete shim files in one removal PR once import count reaches zero.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "supabase_legacy_proxy_extends_dual_path",
+      "summary": "Deprecated Supabase proxy keeps runtime dual-path behavior alive.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "src/integrations/supabase/client.ts exports deprecated `supabase` proxy (lines 85-98) while also exposing `getSupabaseClient()` and `initializeSupabase()`.",
+        "Proxy traps dynamically forward property reads/writes (lines 55-82), so legacy usage remains hard to statically detect and easy to keep shipping.",
+        "Fallback initialization/error path logs runtime recovery (lines 25-51), confirming old and new initialization modes still coexist."
+      ],
+      "suggestion": "Replace `supabase` proxy with a temporary throwing getter in development once migration starts, migrate all imports to `getSupabaseClient()`, then remove proxy export and fallback lazy-init path together.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "commentary_and_passthrough_noise",
+      "summary": "Several modules carry formulaic explanatory noise and zero-value forwarding wrappers.",
+      "related_files": [
+        "src/shared/components/ShotImageManager/utils/image-utils.ts",
+        "src/shared/hooks/useDeleteGenerationWithConfirm.tsx"
+      ],
+      "evidence": [
+        "image-utils.ts includes a long narrative comment (lines 8-20) that reiterates field meaning and caller context rather than documenting non-obvious constraints.",
+        "image-utils.ts `getAspectRatioStyle` (lines 58-60) is a one-line pass-through to another helper without added behavior.",
+        "useDeleteGenerationWithConfirm.tsx embeds an extended usage example block (lines 15-25) for a simple hook API, adding maintenance overhead with limited runtime value."
+      ],
+      "suggestion": "Trim comments to only non-obvious invariants, remove pass-through wrappers unless they enforce a boundary, and move usage examples into tests/docs so code files keep high signal-to-noise.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "root_config_stragglers",
+      "summary": "Root-level config files are low-fan-in pass-through shims that should be consolidated behind a single config entry pattern.",
+      "related_files": [
+        "tailwind.config.ts",
+        "vite.config.ts",
+        "vitest.config.ts",
+        "vitest.edge.config.ts",
+        "vitest.edge.smoke.config.ts"
+      ],
+      "evidence": [
+        "Each file is a one-line `export { default } from './config/...';` wrapper.",
+        "Holistic root-file metrics classify all five as peripheral with `fan_in` 0-1, matching the straggler signal (`fan_in < 5`).",
+        "The actual concern-specific directories already exist (`config/tailwind/`, `config/vite/`, `config/testing/`), so root placement is compatibility-only rather than ownership-based."
+      ],
+      "suggestion": "Staged reorg plan: (1) choose one canonical config surface (`config/*`) and document it in project scripts/tooling; (2) move consumers to canonical paths first (`desloppify move vite.config.ts config/vite/vite.config.ts --dry-run`, `desloppify move vitest.config.ts config/testing/vitest.config.ts --dry-run`, same for edge configs and tailwind); (3) after consumer migration, delete root wrappers in one commit; (4) validate with `pnpm vitest -c config/testing/vitest.config.ts`, `pnpm vitest -c config/testing/vitest.edge.config.ts`, and `pnpm vite --config config/vite/vite.config.ts build`.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "shared_hooks_catchall",
+      "summary": "`src/shared/hooks` is an oversized mixed-concern directory, reducing navigability and ownership clarity.",
+      "related_files": [
+        "src/shared/hooks/useApiTokens.ts",
+        "src/shared/hooks/useAsyncOperation.ts",
+        "src/shared/hooks/useAutoSaveSettings.ts",
+        "src/shared/hooks/__tests__/useAutoTopup.test.ts",
+        "src/shared/hooks/__tests__/useAutoSaveSettings.test.ts"
+      ],
+      "evidence": [
+        "Assigned files in this single folder span unrelated domains: auth/billing API token workflows (`useApiTokens.ts`), generic infra helper (`useAsyncOperation.ts`), and settings persistence orchestration (`useAutoSaveSettings.ts`).",
+        "Holistic directory profile reports `src/shared/hooks/` at 95 files (16,727 LOC), exceeding the >10 mixed-concern threshold by a wide margin.",
+        "Test placement (`useAutoTopup.test.ts`, `useAutoSaveSettings.test.ts`) mirrors the same catch-all layout, reinforcing a flat shared namespace."
+      ],
+      "suggestion": "Staged reorg plan: (1) create target folders `src/shared/hooks/async/`, `src/shared/hooks/settings/`, `src/features/account/hooks/` (or `src/features/billing/hooks/` for billing-specific hooks/tests); (2) move infra hooks first (`useAsyncOperation.ts` + test), then settings hooks (`useAutoSaveSettings.ts` + test), then domain hooks/tests (`useApiTokens.ts`, `useAutoTopup.test.ts`) into feature folders; (3) run import updates via `desloppify move <src> <dst> --dry-run` then real moves; (4) validate with `pnpm vitest src/shared/hooks/__tests__/useAsyncOperation.test.ts src/shared/hooks/__tests__/useAutoSaveSettings.test.ts src/shared/hooks/__tests__/useAutoTopup.test.ts` and `pnpm tsc --noEmit`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_vs_app_boundary_blur",
+      "summary": "App-shell and feature-specific UI components are placed in `shared/components`, weakening domain-aligned top-level decomposition.",
+      "related_files": [
+        "src/shared/components/AppErrorBoundary.test.tsx",
+        "src/shared/components/AppErrorBoundary.tsx",
+        "src/shared/components/ActiveLoRAsDisplay.tsx",
+        "src/shared/components/ActiveLoRAsDisplay.test.tsx"
+      ],
+      "evidence": [
+        "`AppErrorBoundary.tsx` describes itself as an app-level boundary for wrapping the entire app but is housed under `shared/components`.",
+        "`ActiveLoRAsDisplay.tsx` includes feature/domain behavior (LoRA trigger words, model-specific multi-stage fields, video preview heuristics) not broadly reusable as generic shared UI.",
+        "Tests are colocated in the same shared area, indicating the architecture currently codifies these as shared primitives."
+      ],
+      "suggestion": "Staged reorg plan: (1) create `src/app/components/error/` for app-shell boundaries and `src/features/lora/components/` for LoRA-specific UI; (2) move `AppErrorBoundary.tsx` + test first to app folder, then `ActiveLoRAsDisplay.tsx` + test to feature folder; (3) update import sites with `desloppify move src/shared/components/AppErrorBoundary.tsx src/app/components/error/AppErrorBoundary.tsx --dry-run` and equivalent move commands for tests and LoRA display; (4) validate with `pnpm vitest src/shared/components/AppErrorBoundary.test.tsx src/shared/components/ActiveLoRAsDisplay.test.tsx` (updated paths) and `pnpm tsc --noEmit`.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "error_facade_ui_contract_leak",
+      "summary": "Core error facade acts as a global hub while encoding UI presentation contract details, increasing cross-layer coupling.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/ui/button.tsx",
+        "README.md"
+      ],
+      "evidence": [
+        "`handleError.ts` defines `ErrorPresentationPayload` with UI-facing `variant: 'destructive'` and exposes `setErrorPresenter`, so a core error utility governs presentation semantics.",
+        "The same file is a 247-importer hub per holistic context, so any contract drift affects a wide blast radius.",
+        "UI primitives live under `src/shared/components/ui/` (57 files), but presentation contract defaults originate in shared lib instead of UI boundary."
+      ],
+      "suggestion": "Staged reorg plan: Stage 1 create `src/shared/contracts/errorPresentation.ts` (payload type only) and move default presentation mapping into `src/shared/components/ui/registerToastErrorPresenter.ts`; Stage 2 keep `handleError` pure (normalize/log/notify by interface) and remove direct `variant` semantics from lib; Stage 3 migrate imports from `setErrorPresenter` to UI registration module. Move order: contract type -> UI adapter -> lib cleanup -> callsite updates. Import update/validation commands: `rg \"setErrorPresenter|ErrorPresentationPayload\" src`, `npm run typecheck`, `npm run test -- handleError button`, `npm run quality:check`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "compat_policy_enforcement_gap",
+      "summary": "Compatibility policy is documented but enforcement is inconsistent between type shims and Supabase runtime shims.",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "README explicitly declares strict enforcement for removed `@/types/shots` alias and names a dedicated check command.",
+        "`src/integrations/supabase/client.ts` still exports deprecated `supabase` proxy with removal target `2026-06-30`, but README does not define an equivalent quality gate command for this shim.",
+        "`src/integrations/supabase/client.ts` contains fallback lazy init behavior that preserves legacy path even when bootstrap contract is declared as preferred."
+      ],
+      "suggestion": "Staged reorg plan: Stage 1 add governance checks script under `scripts/contracts/` to fail CI on `import { supabase } from '@/integrations/supabase/client'`; Stage 2 update README Compatibility Shims with explicit gate command and sunset criteria; Stage 3 remove proxy export after zero-usage period and keep only `initializeSupabase/getSupabaseClient`. Move order: add check -> wire to `quality:check` -> remediate imports -> remove proxy. Import update/validation commands: `rg \"import\\s*\\{\\s*supabase\\s*\\}\" src`, `npm run quality:check`, `npm run typecheck`, `npm run test -- supabase`.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "split_type_ownership_and_generic_barrel",
+      "summary": "Type ownership and utility packaging are split across broad shared buckets, reducing navigability and contract locality.",
+      "related_files": [
+        "src/types/generationAndShots.ts",
+        "src/shared/lib/utils.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`generationAndShots.ts` is a high-fan-in barrel (205 importers) over legacy `src/types/*` while holistic structure also contains `src/domains/generation/types/`, creating two potential homes for generation contracts.",
+        "`src/shared/lib/utils.ts` is a generic name with only two exports but very high usage (101 importers), a classic package straggler/choke point.",
+        "Holistic structure shows `src/shared/lib/` has 79 files with mixed responsibilities (>10 mixed-concern threshold), indicating over-broad package boundaries."
+      ],
+      "suggestion": "Staged reorg plan: Stage 1 create target folders `src/domains/generation/contracts/` and `src/shared/lib/text/` + `src/shared/lib/ui/`; Stage 2 move generation type exports from `src/types/generationAndShots.ts` to `src/domains/generation/contracts/index.ts` and keep a temporary re-export shim; Stage 3 split `src/shared/lib/utils.ts` into explicit barrels (`uiClassNames` under `shared/lib/ui`, `stringFormatting` under `shared/lib/text`) and delete generic `utils.ts`; Stage 4 update imports and remove shims after zero-usage check. Move order: add new barrels -> dual-export transitional phase -> import rewrites -> shim removal. Import update/validation commands: `rg \"@/types/generationAndShots|@/shared/lib/utils\" src`, `npm run typecheck`, `npm run test`, `npm run quality:check`.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "timeline_orchestration_still_split_across_two_centers",
+      "summary": "Timeline responsibilities are split across component and orchestrator, leaving two orchestration centers.",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline.tsx",
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts"
+      ],
+      "evidence": [
+        "`Timeline.tsx` still owns adapter error handling, task fetch/wiring, image preloading, event subscription, and lightbox behavior (`265-533`) despite introducing dedicated timeline hooks.",
+        "`useTimelineOrchestrator.ts` simultaneously manages drag, zoom, drop, duplication, tap-to-move, endpoint drag, and structure-video selection (`141-620`), creating overlapping orchestration boundaries with `Timeline.tsx`."
+      ],
+      "suggestion": "Make `Timeline.tsx` a thin composition layer only. Move remaining task/lightbox/preload/event logic into focused hooks (`useTimelineLightboxData`, `useTimelineTaskDetails`, `useTimelinePreload`) and let `useTimelineOrchestrator` own only interaction state/commands.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "lightbox_state_contract_is_kitchen_sink",
+      "summary": "Shared lightbox state abstraction has a kitchen-sink API that mixes many concerns.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx"
+      ],
+      "evidence": [
+        "`UseSharedLightboxStateProps` composes six concern-specific interfaces plus extra fields into one broad input contract (`53-138`).",
+        "`UseSharedLightboxStateReturn` returns a large nested object spanning variants, navigation, star, references, lineage, shots, source generation, make-main, effective media, layout, and button props (`144-253`).",
+        "`ImageLightbox.tsx` then adds another large environment builder (`95-193`) and forwards many pieces into shared state, indicating abstraction leakage rather than simplification."
+      ],
+      "suggestion": "Split `useSharedLightboxState` into narrower hooks per concern (`useLightboxVariants`, `useLightboxShotActions`, `useLightboxLayout`) and have `ImageLightbox` compose only what it needs via small typed adapters.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "lora_manager_logic_duplicated_between_hooks",
+      "summary": "LoRA manager behavior is duplicated in two hooks with near-parallel logic.",
+      "related_files": [
+        "src/shared/hooks/useLoraManager.tsx",
+        "src/tools/travel-between-images/components/ShotEditor/hooks/useLoraSync.tsx"
+      ],
+      "evidence": [
+        "Both hooks implement add/remove/strength handlers (`useLoraManager` `151-217`; `useLoraSync` `111-147`).",
+        "Both implement trigger-word prompt append using a latest prompt ref (`useLoraManager` `219-231`; `useLoraSync` `149-158`).",
+        "Both implement project save/load flows and expose `renderHeaderActions` with `LoraHeaderActions` (`useLoraManager` `234-427`; `useLoraSync` `161-243`)."
+      ],
+      "suggestion": "Extract a shared, UI-agnostic LoRA domain hook/service for state transforms + persistence, then keep tool-specific wrappers only for data-shape adaptation.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "timeline_image_selection_rules_reimplemented",
+      "summary": "Timeline image eligibility/filter rules are reimplemented in separate modules.",
+      "related_files": [
+        "src/shared/hooks/useTimelineCore.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideo/pairConfig.ts"
+      ],
+      "evidence": [
+        "`useTimelineCore` computes positioned/unpositioned items using local filters for timeline_frame, video exclusion, and valid location (`159-183`).",
+        "`pairConfig.ts` defines `filterImageShotGenerations` with a separate but similar eligibility rule set (`24-31`) before building image and pair payloads (`34-67`, `81-89`)."
+      ],
+      "suggestion": "Create one shared timeline-image selector utility (or typed query adapter) and reuse it in both timeline state and pair-config building to prevent semantic drift.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "task_modules_mix_validation_mapping_and_io",
+      "summary": "Task creation modules mix validation, payload mapping, defaults, and I/O in single files.",
+      "related_files": [
+        "src/shared/lib/tasks/imageGeneration.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts"
+      ],
+      "evidence": [
+        "`imageGeneration.ts` contains mode filtering, validation, resolution/model selection, parameter synthesis, and createTask execution in one module (`46-529`).",
+        "`individualTravelSegment.ts` combines validation, coercion helpers, legacy cleanup, state derivation, payload assembly, parent/child lookup queries, resolution resolution, and createTask call (`92-709`)."
+      ],
+      "suggestion": "Split each task module into: `validate.ts`, `deriveState.ts`, `buildPayload.ts`, and `submitTask.ts`; keep I/O boundaries thin and move pure transforms into testable pure functions.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "ui_style_and_import_convention_split",
+      "summary": "Shared UI primitives diverge on code style and `cn` import source, creating a style island in a high-visibility module.",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/ui/label.tsx",
+        "src/shared/components/ui/toast.tsx",
+        "src/shared/components/ui/tooltip.tsx",
+        "src/shared/components/ui/touchableTooltip.tsx",
+        "src/shared/lib/utils.ts"
+      ],
+      "evidence": [
+        "`button.tsx` uses `cn` from `@/shared/lib/utils`, while `label.tsx`/`toast.tsx`/`tooltip.tsx` use `@/shared/components/ui/cn`.",
+        "`touchableTooltip.tsx` uses single quotes + semicolons, unlike neighboring UI primitives that use double quotes + no semicolons."
+      ],
+      "suggestion": "Choose one canonical `cn` import path for UI primitives and enforce one formatting profile for `src/shared/components/ui/**` (formatter/lint autofix plus a brief module convention note).",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "task_error_contract_mismatch",
+      "summary": "Task and mutation flows mix normalized AppError handling with raw thrown errors and ad-hoc console logging.",
+      "related_files": [
+        "src/shared/lib/tasks/imageGeneration.ts",
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/hooks/useGenerationMutations.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "Task modules typically use `handleError(error, ...); throw error;`, but `useGenerationMutations.ts` logs with `console.error` and throws `variantError` directly in one path.",
+        "This yields inconsistent downstream error shapes/context (normalized `AppError` in some paths, raw provider errors in others)."
+      ],
+      "suggestion": "Standardize mutation/task failures on one boundary contract: always normalize/wrap before throw (or always return typed operation results), and remove direct `console.error` in favor of centralized error instrumentation.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "edge_completion_error_strategy_drift",
+      "summary": "Sibling `complete_task` modules use different error-context strategies, reducing predictability in logs and failure diagnostics.",
+      "related_files": [
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/complete_task/generation.ts",
+        "supabase/functions/calculate-task-cost/index.ts"
+      ],
+      "evidence": [
+        "`orchestrator.ts` frequently throws contextual `new Error('[OrchestratorComplete] ...')` messages around DB failures.",
+        "`generation.ts` catches, logs via `console.error`, and rethrows without equivalent contextual wrapping.",
+        "`calculate-task-cost/index.ts` primarily maps failures to structured HTTP JSON errors with logger flushes."
+      ],
+      "suggestion": "Adopt one edge-function error policy across task-related functions (context-rich error wrapping + structured logger fields + consistent HTTP mapping at handler boundary).",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "authorization_consistency",
+      "identifier": "mixed_auth_source_of_truth_in_navigation",
+      "summary": "Client navigation prechecks use stored-token heuristics while auth actions use Supabase-validated flows, creating inconsistent authorization semantics.",
+      "related_files": [
+        "src/app/routes.tsx",
+        "src/pages/Home/hooks/auth/useAuthReferralFinalize.ts",
+        "src/pages/Home/hooks/useDiscordSignIn.ts"
+      ],
+      "evidence": [
+        "`routes.tsx` redirects based on `hasStoredSessionToken()` from local storage, which checks token presence rather than validated session state.",
+        "Auth operations (`useAuthReferralFinalize`, `useDiscordSignIn`) rely on Supabase RPC/OAuth through `runAuthSupabaseOperation`, i.e., validated backend/session paths."
+      ],
+      "suggestion": "Use a single auth decision source for navigation (e.g., resolved session state from auth manager/context) and keep local-storage checks as non-authoritative optimization only.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_supabase_proxy_and_shims_persist",
+      "summary": "Migration shims remain active across auth/runtime and feature entrypoints, keeping old and new access paths alive.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/features/prompt-editor/components/BulkEditControls.tsx",
+        "src/domains/generation/hooks/useSmartPolling.ts",
+        "src/app/hooks/useAuthGuard.ts"
+      ],
+      "evidence": [
+        "`src/integrations/supabase/client.ts` exports deprecated `supabase` proxy with removal target 2026-06-30 while also introducing `getSupabaseClient()`/`initializeSupabase()`.",
+        "`src/features/prompt-editor/components/BulkEditControls.tsx` is an explicit migration compatibility re-export.",
+        "`src/domains/generation/hooks/useSmartPolling.ts` is a pure forwarder to shared hook; no domain-owned behavior.",
+        "`src/app/hooks/useAuthGuard.ts` still imports `supabase` proxy instead of `getSupabaseClient`."
+      ],
+      "suggestion": "Complete migration in phases: Stage 1 target folders `src/features/prompt-editor/components/` and `src/domains/generation/hooks/` by replacing re-export shims with direct imports at call sites; Stage 2 remove `supabase` proxy imports by codemodding to `getSupabaseClient()` in app/hooks and feature hooks; Stage 3 delete deprecated exports and shim files. Move order: consumers first, shim files second, deprecated exports last. Validate with `rg \"from '@/integrations/supabase/client'.*supabase|BulkEditControls|useSmartPolling\" src`, `pnpm test -w 1`, and `pnpm build`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "mixed_throw_safe_null_error_contracts",
+      "summary": "Similar async operations expose incompatible failure contracts (throw vs null/empty fallback), making callers and retries inconsistent.",
+      "related_files": [
+        "src/features/ai/hooks/useAIInteractionService.ts",
+        "src/features/billing/hooks/useCredits.ts",
+        "src/app/providers/queryClient.ts",
+        "src/integrations/supabase/auth/ensureAuthenticatedSession.ts"
+      ],
+      "evidence": [
+        "`useAIInteractionService` has `*Safe` wrappers returning `null`/`[]` after catch, while `useCredits` throws explicit `Error` objects for failed reads.",
+        "Query retry classifier in `queryClient.ts` depends on message text containing 'unauthorized'/'forbidden', but auth helpers throw context strings like 'Not authenticated' and 'Failed to get session'.",
+        "This creates diverging caller expectations and retry paths for equivalent auth/network failures."
+      ],
+      "suggestion": "Define one app-wide async error contract per layer (data hooks throw typed errors; UI adaptors convert to toast/null once at boundary), then normalize retry classification to error codes/types instead of substring matching.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "global_runtime_monkeypatch_side_effects",
+      "summary": "Supabase instrumentation relies on global monkey-patching and runtime interception, increasing hidden coupling and blast radius.",
+      "related_files": [
+        "src/integrations/supabase/instrumentation/realtime/index.ts",
+        "src/integrations/supabase/instrumentation/window/index.ts",
+        "src/integrations/supabase/bootstrap/initializeSupabaseRuntime.ts"
+      ],
+      "evidence": [
+        "`installRealtimeInstrumentation` overrides `console.warn` globally and uses dynamic import side effects to trigger reconnect behavior.",
+        "`installWindowOnlyInstrumentation` overrides `window.WebSocket`, `window.onerror`, and `window.onunhandledrejection` globally.",
+        "These effects are installed during shared runtime initialization, so unrelated modules are impacted by instrumentation policy."
+      ],
+      "suggestion": "Isolate instrumentation into opt-in adapters: move global patching behind explicit debug-only bootstrap flags and replace console interception with direct event hooks from owned reconnect/auth modules.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "triad_api_wrapper_overexpansion",
+      "summary": "Service hook API is inflated by parallel `OrThrow`/normal/`Safe` variants that mostly forward behavior.",
+      "related_files": [
+        "src/features/ai/hooks/useAIInteractionService.ts",
+        "src/features/gallery/lib/adjacentPagePreloadOrchestrator.ts"
+      ],
+      "evidence": [
+        "`useAIInteractionService` exports 9 operation variants for 3 core actions, with substantial duplication and thin wrappers around shared invokes.",
+        "Adjacent preload orchestration similarly wraps one coordinator call with minimal additional logic, indicating repeated indirection style."
+      ],
+      "suggestion": "Collapse to one canonical method per action plus one boundary adapter (UI-safe wrapper) in consuming layer; keep throw semantics in service layer and remove duplicated wrapper methods.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "low_fanin_bridge_files_blur_ownership",
+      "summary": "Low-fan-in bridge files remain in feature/domain folders even though implementation ownership lives in shared packages.",
+      "related_files": [
+        "src/features/prompt-editor/components/BulkEditControls.tsx",
+        "src/domains/generation/hooks/useSmartPolling.ts",
+        "src/domains/generation/hooks/index.ts"
+      ],
+      "evidence": [
+        "Objective structure: `src/domains/generation/hooks/` has `avg_fan_in=0.0`, `total_loc=4`, dominated by forwarding exports rather than owned module logic.",
+        "Both listed files are pure re-exports to `src/shared/*`, a direct import-affinity mismatch (>60% external ownership by construction).",
+        "This creates extra navigation hops and weakens package-by-ownership boundaries."
+      ],
+      "suggestion": "Staged reorg plan: Stage 1 target folders `src/shared/hooks/` and `src/shared/components/` as canonical ownership, and update all imports to point there directly; Stage 2 delete bridge files in `src/domains/generation/hooks/` and `src/features/prompt-editor/components/`; Stage 3 keep only domain-owned files under those folders (or remove folder if empty). Move order: consumer import updates -> barrel cleanup -> file deletion. Run `rg \"domains/generation/hooks/useSmartPolling|features/prompt-editor/components/BulkEditControls\" src`, then `pnpm test -w 1`, then `pnpm build` to validate import graph and bundling.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ],
+  "review_quality": {
+    "batch_count": 9,
+    "dimension_coverage": 0.274,
+    "evidence_density": 2.389,
+    "high_score_without_risk": 0,
+    "finding_pressure": 88.75,
+    "dimensions_with_findings": 13
+  },
+  "review_scope": {
+    "reviewed_files_count": 276,
+    "successful_batch_count": 9,
+    "full_sweep_included": true,
+    "total_files": 2306
+  },
+  "reviewed_files": [
+    "src/shared/lib/errorHandling/handleError.ts",
+    "src/types/generationAndShots.ts",
+    "src/integrations/supabase/client.ts",
+    "src/shared/components/ui/button.tsx",
+    "src/shared/lib/utils.ts",
+    "src/shared/components/ui/sonner.tsx",
+    "src/shared/components/ui/tooltip.tsx",
+    "src/shared/hooks/useMobile.tsx",
+    "src/shared/lib/toolConstants.ts",
+    "src/shared/components/ui/label.tsx",
+    "src/app/hooks/useSettingsModal.ts",
+    "src/features/gallery/hooks/useAdjacentPagePreloader.ts",
+    "src/features/layout/hooks/useBottomOffset.test.ts",
+    "src/pages/Home/components/install/InstallInstructionsModal.tsx",
+    "src/pages/Home/components/panes/CreativePartnerPane.tsx",
+    "src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx",
+    "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+    "src/shared/components/MediaGallery/hooks/useMobileInteractions.ts",
+    "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx",
+    "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+    "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts",
+    "src/shared/components/MediaLightbox/components/LightboxShell.tsx",
+    "src/shared/components/MediaTypeFilter.tsx",
+    "src/shared/components/JoinClipsSettingsForm/utils.ts",
+    "src/shared/hooks/useGenerationMutations.ts",
+    "src/tools/edit-images/hooks/useInlineEditState.ts",
+    "src/app/routes.tsx",
+    "src/pages/Home/hooks/auth/useAuthReferralFinalize.ts",
+    "src/pages/Home/hooks/useDiscordSignIn.ts",
+    "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts",
+    "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+    "src/shared/hooks/__tests__/useDarkMode.test.ts",
+    "src/shared/hooks/__tests__/useTextCase.test.ts",
+    "src/shared/hooks/useTasks.ts",
+    "src/shared/hooks/useUpdatingTimestamp.ts",
+    "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+    "src/shared/components/ShotImageManager/ShotImageManagerContainer.tsx",
+    "supabase/functions/_tests/vitestEdgeSmokeConfig.test.ts",
+    "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx",
+    "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+    "src/shared/hooks/__tests__/useVideoScrubbing.test.ts",
+    "src/shared/hooks/__tests__/usePlatformInstall.test.ts",
+    "src/shared/hooks/__tests__/useAutoSaveSettings.test.ts",
+    "src/shared/components/LoraSelectorModal/components/MyLorasTab/hooks/useLoraSubmission.ts",
+    "src/shared/components/MediaGallery/index.tsx",
+    "src/shared/hooks/__tests__/useTaskCancellation.test.ts",
+    "src/shared/hooks/gallery/__tests__/useGalleryFilterState.test.ts",
+    "src/shared/hooks/__tests__/useSegmentSettingsForm.test.ts",
+    "src/shared/hooks/invalidation/__tests__/useGenerationInvalidation.test.ts",
+    "src/shared/hooks/__tests__/useServerForm.test.ts",
+    "src/tools/edit-images/components/InlineEditView.tsx",
+    "src/shared/realtime/DataFreshnessManager.ts",
+    "src/shared/hooks/__tests__/useGalleryPageState.test.ts",
+    "src/shared/lib/tasks/__tests__/joinClips.test.ts",
+    "src/tools/edit-images/hooks/__tests__/useInlineEditState.test.ts",
+    "src/tools/join-clips/pages/JoinClipsPage.tsx",
+    "src/shared/lib/tasks/imageGeneration.ts",
+    "supabase/functions/complete_task/orchestrator.ts",
+    "supabase/functions/complete_task/generation.ts",
+    "supabase/functions/calculate-task-cost/index.ts",
+    "src/shared/components/MediaLightbox/components/StrokeOverlay.tsx",
+    "src/shared/hooks/timeline/timelineFrameCalculators.ts",
+    "src/shared/components/ProductTour/index.tsx",
+    "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts",
+    "src/shared/lib/tasks/individualTravelSegment.ts",
+    "src/shared/components/ImageGenerationDetails.tsx",
+    "src/shared/lib/tasks/magicEdit.ts",
+    "src/tools/edit-images/hooks/useImageEditValue.ts",
+    "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+    "src/shared/components/TaskDetails/VideoTravelDetails.tsx",
+    "src/shared/lib/tasks/joinClips.ts",
+    "src/shared/lib/tasks/__tests__/individualTravelSegment.test.ts",
+    "src/integrations/supabase/bootstrap/initializeSupabaseRuntime.ts",
+    "src/shared/components/MediaLightbox/VideoLightbox.tsx",
+    "src/shared/components/ui/touchableTooltip.tsx",
+    "src/shared/lib/typedEvents.ts",
+    "src/shared/components/ui/toast.tsx",
+    "src/shared/lib/debug/debugRendering.ts",
+    "src/shared/components/segmentSettingsUtils.ts",
+    "src/shared/components/VariantBadge.tsx",
+    "src/shared/components/ui/badge.tsx",
+    "src/shared/components/VideoPortionTimeline/index.tsx",
+    "src/shared/types/imageHandlers.ts",
+    "src/shared/components/ShotImageManager/types.ts",
+    "src/shared/components/ui/collapsible.tsx",
+    "src/features/gallery/lib/adjacentPagePreloadCoordinator.ts",
+    "src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+    "src/shared/hooks/shots/cacheUtils.ts",
+    "src/shared/hooks/useLineageChain.ts",
+    "src/shared/lib/generationTaskCache.ts",
+    "src/shared/lib/generationTaskRepository.ts",
+    "src/shared/lib/generationTransformers.ts",
+    "src/shared/lib/timelineWriteQueue.ts",
+    "src/shared/lib/toolSettingsService.ts",
+    "src/tools/join-clips/lib/clipInitService.ts",
+    "src/tools/join-clips/lib/clipManager/metadata.ts",
+    "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+    "supabase/functions/_shared/billing.ts",
+    "supabase/functions/_shared/edgeRequest.ts",
+    "supabase/functions/_shared/rateLimit.ts",
+    "src/domains/generation/types/generationViewRow.ts",
+    "src/features/prompt-editor/components/BulkEditControls.tsx",
+    "src/shared/components/BatchDropZone.tsx",
+    "src/shared/components/ConfirmDialog.tsx",
+    "src/shared/components/MediaLightbox/utils/download.ts",
+    "src/shared/components/ShotImageManager/utils/image-utils.ts",
+    "src/shared/components/ui/cn.ts",
+    "src/shared/hooks/useBatchImageLoading.ts",
+    "src/shared/hooks/useBottomOffset.ts",
+    "src/shared/hooks/useClickRipple.ts",
+    "src/shared/hooks/useDeleteGenerationWithConfirm.tsx",
+    "src/shared/hooks/useEditVideoSettings.ts",
+    "src/shared/hooks/useGalleryPageState.ts",
+    "src/shared/hooks/useTextCase.ts",
+    "src/shared/lib/NetworkStatusManager.ts",
+    "src/shared/lib/aspectRatios.ts",
+    "src/shared/lib/autoplayMonitor.ts",
+    "src/shared/lib/clientThumbnailGenerator.ts",
+    "src/shared/lib/deepEqual.ts",
+    "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts",
+    "vitest.edge.smoke.config.ts",
+    "tailwind.config.ts",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "vitest.edge.config.ts",
+    "src/shared/hooks/useApiTokens.ts",
+    "src/shared/hooks/useAsyncOperation.ts",
+    "src/shared/hooks/useAutoSaveSettings.ts",
+    "src/shared/hooks/__tests__/useAsyncOperation.test.ts",
+    "src/shared/hooks/__tests__/useAutoTopup.test.ts",
+    "src/shared/components/ActiveLoRAsDisplay.test.tsx",
+    "src/shared/components/ActiveLoRAsDisplay.tsx",
+    "src/shared/components/AppErrorBoundary.test.tsx",
+    "README.md",
+    "src/features/account/hooks/__tests__/useApiTokens.test.ts",
+    "src/features/account/hooks/useApiTokens.ts",
+    "src/pages/Home/components/panes/PhilosophyPane.tsx",
+    "src/shared/components/FileInput.tsx",
+    "src/shared/components/GenerationsPane/GenerationsPane.tsx",
+    "src/shared/components/GlobalHeader/ProjectSelectorPopover.tsx",
+    "src/shared/components/HoverScrubVideo.tsx",
+    "src/shared/components/ImageGenerationForm/components/PromptInputRow.tsx",
+    "src/shared/components/ImageGenerationForm/components/ShotSelector.tsx",
+    "src/shared/components/ImageGenerationForm/components/reference/ReferenceThumbnail.tsx",
+    "src/shared/components/LoraSelectorModal/LoraSelectorModal.tsx",
+    "src/shared/components/LoraSelectorModal/utils/validation-utils.ts",
+    "src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx",
+    "src/shared/components/MediaGalleryItem/hooks/useShotActions.ts",
+    "src/shared/components/MediaLightbox/components/EditModePanel.tsx",
+    "src/shared/components/MediaLightbox/components/VideoEditModeDisplay.tsx",
+    "src/shared/components/MediaLightbox/hooks/inpainting/useTaskGeneration.ts",
+    "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts",
+    "src/shared/components/PaneControlTab.tsx",
+    "src/shared/components/PhaseConfigSelectorModal/components/AddNewPresetTab.tsx",
+    "src/shared/components/PhaseConfigSelectorModal/components/BrowsePresetsTab.tsx",
+    "src/shared/components/SegmentSettingsForm/components/AdvancedSettingsSection.tsx",
+    "src/shared/components/SettingsModal/sections/GenerationSection.tsx",
+    "src/shared/components/ShotSelector.tsx",
+    "src/shared/components/StyledVideoPlayer.tsx",
+    "src/shared/components/TaskDetailsModal.tsx",
+    "src/shared/components/TasksPane/TaskList.tsx",
+    "src/shared/components/TasksPane/TasksPane.tsx",
+    "src/shared/components/VideoPortionEditor/index.tsx",
+    "src/shared/components/ui/__tests__",
+    "src/shared/components/ui/ai-input-button.tsx",
+    "src/shared/contexts/PanesContext.tsx",
+    "src/shared/hooks/async/useAsyncOperation.ts",
+    "src/shared/hooks/billing/useAutoTopup.ts",
+    "src/shared/hooks/media/useBackgroundThumbnailGenerator.ts",
+    "src/shared/hooks/media/useEditToolMediaPersistence.ts",
+    "src/shared/hooks/segments/__tests__/useSegmentOutputsForShot.test.ts",
+    "src/shared/hooks/segments/useSegmentOutputsForShot.ts",
+    "src/shared/hooks/shots/__tests__/addImageToShotHelpers.test.ts",
+    "src/shared/hooks/timeline/useTimelineFrameUpdates.ts",
+    "src/shared/hooks/useDebouncedSettingsSave.ts",
+    "src/shared/hooks/useLoraManager.tsx",
+    "src/shared/hooks/useProjectCRUD.ts",
+    "src/shared/hooks/useTimelineCore.ts",
+    "src/shared/lib/debug/debugConsole.ts",
+    "src/shared/lib/media/downloadMedia.ts",
+    "src/shared/lib/preloading/service.ts",
+    "src/shared/lib/videoPosterExtractor.ts",
+    "src/tools/join-clips/hooks/__tests__/useJoinClipsGenerate.test.ts",
+    "src/tools/training-data-helper/components/BatchSelector.tsx",
+    "src/tools/travel-between-images/components/BatchGuidanceVideo.tsx",
+    "src/tools/travel-between-images/components/BatchSettingsForm.tsx",
+    "src/tools/travel-between-images/components/FinalVideoSection.tsx",
+    "src/tools/travel-between-images/components/MotionControl.tsx",
+    "src/tools/travel-between-images/components/SharedGenerationView.tsx",
+    "src/tools/travel-between-images/components/ShotEditor/ShotSettingsContext.tsx",
+    "src/tools/travel-between-images/components/ShotEditor/hooks/useLoraSync.tsx",
+    "src/tools/travel-between-images/components/ShotEditor/services/__tests__/generateVideoService.test.ts",
+    "src/tools/travel-between-images/components/ShotEditor/services/generateVideo/modelPhase.ts",
+    "src/tools/travel-between-images/components/ShotEditor/services/generateVideo/pairConfig.ts",
+    "src/tools/travel-between-images/components/ShotEditor/services/generateVideo/structureGuidance.ts",
+    "src/tools/travel-between-images/components/ShotEditor/ui/Header.tsx",
+    "src/tools/travel-between-images/components/ShotListDisplay.tsx",
+    "src/tools/travel-between-images/components/SortableShotItem.tsx",
+    "src/tools/travel-between-images/components/Timeline.tsx",
+    "src/tools/travel-between-images/components/Timeline/GuidanceVideoStrip.tsx",
+    "src/tools/travel-between-images/components/Timeline/TimelineItem.tsx",
+    "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts",
+    "src/tools/travel-between-images/components/Timeline/utils/timeline-utils.ts",
+    "src/tools/travel-between-images/components/VideoShotDisplay.tsx",
+    "supabase/functions/complete_task",
+    "supabase/functions/complete_task/params.ts",
+    "config/tailwind/tailwind.config.ts",
+    "config/tailwind/theme/themeAnimations.ts",
+    "config/tailwind/theme/themeColors.ts",
+    "config/tailwind/theme/themeKeyframes.ts",
+    "config/testing/vitest.config.ts",
+    "config/testing/vitest.edge.config.ts",
+    "config/testing/vitest.edge.smoke.config.ts",
+    "config/vite/policy.ts",
+    "config/vite/vite.config.ts",
+    "src/app/App.tsx",
+    "src/app/Layout.tsx",
+    "src/app/bootstrap.tsx",
+    "src/app/components/LayoutMainContent.tsx",
+    "src/app/components/SocialIcons.tsx",
+    "src/app/components/error/AppErrorBoundary.tsx",
+    "src/app/hooks/useAppDndOverlay.tsx",
+    "src/app/hooks/useAppExternalDrop.ts",
+    "src/app/hooks/useApplyDarkModeTheme.ts",
+    "src/app/hooks/useAuthGuard.ts",
+    "src/app/hooks/useOnboardingFlow.ts",
+    "src/app/hooks/useResetCurrentShotOnRouteChange.ts",
+    "src/app/hooks/useSplitViewScroll.ts",
+    "src/app/main.tsx",
+    "src/app/providers/AppProviders.tsx",
+    "src/app/providers/queryClient.ts",
+    "src/domains/generation/hooks/index.ts",
+    "src/domains/generation/hooks/useSmartPolling.ts",
+    "src/domains/generation/mappers/generationParamsMapper.ts",
+    "src/domains/generation/mappers/index.ts",
+    "src/domains/generation/types/generationMetadata.ts",
+    "src/domains/generation/types/generationParams.ts",
+    "src/domains/generation/types/generationRow.ts",
+    "src/domains/generation/types/generationRowDto.ts",
+    "src/domains/generation/types/shot.ts",
+    "src/domains/generation/types/shotViewRow.ts",
+    "src/domains/generation/types/transport.ts",
+    "src/features/ai/hooks/useAIInteractionService.ts",
+    "src/features/billing/hooks/useCredits.ts",
+    "src/features/gallery/hooks/useGalleryPageState.ts",
+    "src/features/gallery/lib/adjacentPagePreloadOrchestrator.ts",
+    "src/features/layout/hooks/useBottomOffset.ts",
+    "src/features/settings/hooks/useApiKeys.ts",
+    "src/integrations/supabase/auth/AuthStateManager.ts",
+    "src/integrations/supabase/auth/ensureAuthenticatedSession.ts",
+    "src/integrations/supabase/bootstrap/createSupabaseClient.ts",
+    "src/integrations/supabase/bootstrap/fetchWithTimeout.ts",
+    "src/integrations/supabase/config/env.ts",
+    "src/integrations/supabase/debug/initializeSupabaseDebugGlobals.ts",
+    "src/integrations/supabase/dev/autoLogin.ts",
+    "src/integrations/supabase/instrumentation/realtime/index.ts",
+    "src/integrations/supabase/instrumentation/window/index.ts",
+    "src/integrations/supabase/reconnect/ReconnectScheduler.ts",
+    "src/integrations/supabase/runtime/supabaseRuntime.ts",
+    "src/integrations/supabase/utils/snapshot.ts",
+    "src/integrations/supabase/utils/timeline.ts",
+    "src/pages/ArtPage.tsx",
+    "src/pages/Blog/BlogListPage.tsx",
+    "src/pages/Blog/BlogPostPage.tsx",
+    "src/pages/Blog/blogPosts.ts",
+    "src/pages/Home/HomePage.tsx",
+    "src/pages/Home/components/hero/GoldSpotlight.tsx",
+    "src/pages/Home/components/hero/HeroCtaContent.tsx",
+    "src/pages/Home/components/hero/HeroSection.tsx",
+    "src/pages/Home/components/hero/HomeBackground.tsx",
+    "src/pages/Home/components/install/scenarios.ts",
+    "src/pages/Home/components/install/visuals.tsx",
+    "src/pages/Home/components/motion/MotionComparison.tsx",
+    "src/pages/Home/components/motion/TravelSelector.tsx",
+    "src/pages/Home/components/motion/VideoWithPoster.tsx",
+    "src/pages/Home/components/motion/useTravelAutoAdvance.ts"
+  ],
+  "provenance": {
+    "kind": "blind_review_batch_import",
+    "blind": true,
+    "runner": "codex",
+    "run_stamp": "20260224_155138",
+    "created_at": "2026-02-24T15:57:33+00:00",
+    "batch_count": 9,
+    "batch_indexes": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "packet_path": "/Users/peteromalley/Documents/reigh/.desloppify/review_packet_blind.json",
+    "packet_sha256": "943558e2fd6c1bf23d6a5a0bfb09cbb1c0df0732b4c274bbf3bb32d49d238138"
+  }
+}

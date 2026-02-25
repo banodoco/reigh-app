@@ -15,22 +15,22 @@ import { ImageGrid } from './components/ImageGrid';
 import { SelectionActionBar } from './components/SelectionActionBar';
 import { DeleteConfirmationDialog } from './components/DeleteConfirmationDialog';
 import { MultiImagePreview, SingleImagePreview } from '../ImageDragPreview';
-import BatchDropZone from '../BatchDropZone';
+import BatchDropZone from './components/BatchDropZone';
 import MediaLightbox from '../MediaLightbox';
-import { useIsMobile } from '@/shared/hooks/useMobile';
+import { useIsMobile } from '@/shared/hooks/mobile';
 import { useState, useEffect, useCallback } from 'react';
 import { useTaskDetails } from './hooks/useTaskDetails';
 import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
 import { useVideoScrubbing } from '@/shared/hooks/useVideoScrubbing';
 import type { SegmentSlot } from '@/shared/hooks/segments';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { getDisplayUrl } from '@/shared/lib/mediaUrl';
-import { getPreviewDimensions } from '@/shared/lib/aspectRatios';
+import { getPreviewDimensions } from '@/shared/lib/media/aspectRatios';
 import { usePrefetchTaskData } from '@/shared/hooks/useTaskPrefetch';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import { usePendingImageOpen } from '@/shared/hooks/usePendingImageOpen';
 import { useAdjacentSegmentsData } from './hooks/useAdjacentSegmentsData';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 import type { useSelection } from './hooks/useSelection';
 import type { useDragAndDrop } from './hooks/useDragAndDrop';
 import type { useLightbox } from './hooks/useLightbox';
@@ -124,7 +124,10 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
     ? lightbox.currentImages[lightbox.lightboxIndex]
     : null;
   const currentLightboxImageId = getGenerationId(currentLightboxImage) || null;
-  const { taskDetailsData } = useTaskDetails({ generationId: currentLightboxImageId });
+  const { taskDetailsData } = useTaskDetails({
+    generationId: currentLightboxImageId,
+    projectId: props.projectId ?? null,
+  });
 
   // Prefetch task data for adjacent items when lightbox is open
   const prefetchTaskData = usePrefetchTaskData();
@@ -444,7 +447,7 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
                 media={lightbox.currentImages[lightboxIndex]}
                 shotId={props.shotId}
                 toolTypeOverride={props.toolTypeOverride}
-                autoEnterInpaint={lightbox.shouldAutoEnterInpaint}
+                initialEditActive={lightbox.shouldAutoEnterInpaint}
                 initialVariantId={capturedVariantIdRef.current ?? undefined}
                 onClose={() => {
                   capturedVariantIdRef.current = null;

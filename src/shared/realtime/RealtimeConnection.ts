@@ -7,11 +7,12 @@
  * State machine: disconnected → connecting → connected ↔ reconnecting → failed
  */
 
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { dataFreshnessManager } from './DataFreshnessManager';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { listenAppEvent } from '@/shared/lib/typedEvents';
+import { requestRealtimeReconnect } from '@/shared/realtime/requestRealtimeReconnect';
 import {
   ConnectionState,
   ConnectionStatusCallback,
@@ -155,10 +156,10 @@ export class RealtimeConnection {
 
     // Check authentication
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      const { data: { session }, error: sessionError } = await supabase().auth.getSession();
       if (sessionError || !session?.user) {
         const errorMsg = sessionError?.message || 'No valid session';
-        handleError(new Error(errorMsg), {
+        normalizeAndPresentError(new Error(errorMsg), {
           context: 'RealtimeConnection.authCheck',
           showToast: false,
           logData: {
@@ -176,11 +177,11 @@ export class RealtimeConnection {
 
       // Set auth token for realtime
       if (session.access_token) {
-        supabase.realtime.setAuth(session.access_token);
+        supabase().realtime.setAuth(session.access_token);
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Auth check failed';
-      handleError(error, {
+      normalizeAndPresentError(error, {
         context: 'RealtimeConnection.authSessionFetch',
         showToast: false,
       });
@@ -194,7 +195,7 @@ export class RealtimeConnection {
 
     // Create and subscribe to channel
     const topic = `task-updates:${projectId}`;
-    this.channel = supabase.channel(topic);
+    this.channel = supabase().channel(topic);
 
     // Set up event handlers for ALL tables
     this.setupEventHandlers(projectId);
@@ -308,7 +309,7 @@ export class RealtimeConnection {
       try {
         callback(event);
       } catch (error) {
-        handleError(error, { context: 'RealtimeConnection.eventCallback', showToast: false });
+        normalizeAndPresentError(error, { context: 'RealtimeConnection.eventCallback', showToast: false });
       }
     });
   }
@@ -322,7 +323,7 @@ export class RealtimeConnection {
     const isExhausted = attempt > this.config.maxReconnectAttempts;
 
     if (isExhausted) {
-      handleError(new Error('Max reconnect attempts reached'), {
+      normalizeAndPresentError(new Error('Max reconnect attempts reached'), {
         context: 'RealtimeConnection.handleSubscribeFailure',
         showToast: false,
         logData: { reason, attempt, maxReconnectAttempts: this.config.maxReconnectAttempts },
@@ -353,6 +354,11 @@ export class RealtimeConnection {
         nextRetryAt,
       });
       dataFreshnessManager.onRealtimeStatusChange('error', `Reconnecting: ${reason}`);
+      void requestRealtimeReconnect({
+        source: 'RealtimeConnection',
+        reason: `subscribe-failure:${reason}`,
+        priority: 'high',
+      });
 
       this.scheduleReconnect(projectId, delay);
     }
@@ -413,7 +419,7 @@ export class RealtimeConnection {
       try {
         callback(snapshot);
       } catch (error) {
-        handleError(error, { context: 'RealtimeConnection.statusCallback', showToast: false });
+        normalizeAndPresentError(error, { context: 'RealtimeConnection.statusCallback', showToast: false });
       }
     });
   }

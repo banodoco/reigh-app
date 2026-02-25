@@ -16,9 +16,9 @@ describe('calculateEffectiveFrameCount', () => {
     expect(frames).toBe(150); // 5 * 30 = 150
   });
 
-  it('defaults to 24fps when using input video FPS without a value', () => {
+  it('defaults to shared assumed input-video fps when value is missing', () => {
     const frames = calculateEffectiveFrameCount(5.0, true);
-    expect(frames).toBe(120); // 5 * 24 = 120
+    expect(frames).toBe(150); // 5 * 30 = 150
   });
 
   it('floors the result', () => {

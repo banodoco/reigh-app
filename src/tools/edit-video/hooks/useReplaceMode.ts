@@ -3,57 +3,32 @@ import {
   useEffect,
   useCallback,
   useMemo,
+  useRef,
 } from 'react';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import { useProject } from '@/shared/contexts/ProjectContext';
-import { useEditVideoSettings } from './useEditVideoSettings';
+import { useEditVideoSettings } from '@/shared/settings/hooks/useEditVideoSettings';
 import { useLoraManager } from '@/shared/hooks/useLoraManager';
 import { usePublicLoras } from '@/shared/hooks/useResources';
-import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
+import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { generateUUID, generateRunId, createTask } from '@/shared/lib/taskCreation';
 import { useTaskPlaceholder } from '@/shared/hooks/useTaskPlaceholder';
 import type { PortionSelection } from '@/shared/components/VideoPortionTimeline';
 import { DEFAULT_VACE_PHASE_CONFIG, buildPhaseConfigWithLoras, VACE_GENERATION_DEFAULTS } from '@/shared/lib/vaceDefaults';
-import { toast } from '@/shared/components/ui/sonner';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
-/** Frame-accurate selection sent to the backend */
-interface FrameRangeSelection {
-  start_frame: number;
-  end_frame: number;
-  start_time: number;
-  end_time: number;
-  frame_count: number;
-  gap_frame_count: number;
-  prompt: string;
-}
-
-/** Convert time selections to frame ranges with per-segment settings */
-function selectionsToFrameRanges(
-  selections: PortionSelection[],
-  fps: number,
-  totalDuration: number,
-  globalGapFrameCount: number,
-  globalPrompt: string
-): FrameRangeSelection[] {
-  const totalFrames = Math.round(totalDuration * fps);
-
-  return selections.map(selection => {
-    const startFrame = Math.max(0, Math.round(selection.start * fps));
-    const endFrame = Math.min(totalFrames, Math.round(selection.end * fps));
-    return {
-      start_frame: startFrame,
-      end_frame: endFrame,
-      start_time: selection.start,
-      end_time: selection.end,
-      frame_count: endFrame - startFrame,
-      gap_frame_count: selection.gapFrameCount ?? globalGapFrameCount,
-      prompt: selection.prompt || globalPrompt,
-    };
-  });
-}
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
+import {
+  calculateGapFramesFromRange,
+  calculateMaxContextFrames,
+  capContextFrameCountForRanges,
+  getDefaultSelectionRange,
+  getNewSelectionRange,
+  selectionsToFrameRanges,
+  validatePortionSelections,
+} from './replaceModeMath';
 
 interface UseReplaceModeProps {
   media: GenerationRow;
@@ -149,64 +124,30 @@ export function useReplaceMode({
     if (videoDuration <= 0) return;
     setSelections(prev => {
       if (prev.length > 0 && prev[0].end === 0) {
-        const start = videoDuration * 0.1;
-        const end = videoDuration * 0.2;
-        const calculatedGapFrames = videoFps
-          ? (() => {
-              const frameCount = Math.round((end - start) * videoFps);
-              const n = Math.round((frameCount - 1) / 4);
-              return Math.max(1, n * 4 + 1);
-            })()
-          : (prev[0].gapFrameCount ?? gapFrameCount);
+        const { start, end } = getDefaultSelectionRange(videoDuration);
+        const calculatedGapFrames = calculateGapFramesFromRange({
+          start,
+          end,
+          fps: videoFps,
+          fallbackGapFrameCount: prev[0].gapFrameCount ?? gapFrameCount,
+          contextFrameCount,
+        });
         return [{ ...prev[0], start, end, gapFrameCount: calculatedGapFrames }, ...prev.slice(1)];
       }
       return prev;
     });
-  }, [videoDuration, videoFps, gapFrameCount]);  
+  }, [videoDuration, videoFps, gapFrameCount, contextFrameCount]);
 
   // Add a new selection
   const handleAddSelection = useCallback(() => {
-    const selectionWidth = 0.1;
-    const gap = 0.1;
-
-    const sortedSelections = [...selections].sort((a, b) => a.end - b.end);
-    const lastSelection = sortedSelections[sortedSelections.length - 1];
-
-    let newStart: number;
-    let newEnd: number;
-
-    if (lastSelection) {
-      const afterStart = lastSelection.end + (videoDuration * gap);
-      const afterEnd = afterStart + (videoDuration * selectionWidth);
-
-      if (afterEnd <= videoDuration) {
-        newStart = afterStart;
-        newEnd = afterEnd;
-      } else {
-        const firstSelection = sortedSelections[0];
-        const beforeEnd = firstSelection.start - (videoDuration * gap);
-        const beforeStart = beforeEnd - (videoDuration * selectionWidth);
-
-        if (beforeStart >= 0) {
-          newStart = beforeStart;
-          newEnd = beforeEnd;
-        } else {
-          newStart = videoDuration * 0.4;
-          newEnd = videoDuration * 0.5;
-        }
-      }
-    } else {
-      newStart = videoDuration * 0.1;
-      newEnd = videoDuration * 0.2;
-    }
-
-    const calculatedGapFrames = videoFps
-      ? (() => {
-          const frameCount = Math.round((newEnd - newStart) * videoFps);
-          const n = Math.round((frameCount - 1) / 4);
-          return Math.max(1, n * 4 + 1);
-        })()
-      : gapFrameCount;
+    const { start: newStart, end: newEnd } = getNewSelectionRange(selections, videoDuration);
+    const calculatedGapFrames = calculateGapFramesFromRange({
+      start: newStart,
+      end: newEnd,
+      fps: videoFps,
+      fallbackGapFrameCount: gapFrameCount,
+      contextFrameCount,
+    });
 
     const newSelection: PortionSelection = {
       id: generateUUID(),
@@ -217,7 +158,7 @@ export function useReplaceMode({
     };
     setSelections(prev => [...prev, newSelection]);
     setActiveSelectionId(newSelection.id);
-  }, [videoDuration, selections, gapFrameCount, videoFps]);
+  }, [videoDuration, selections, gapFrameCount, videoFps, contextFrameCount]);
 
   // Remove a selection
   const handleRemoveSelection = useCallback((id: string) => {
@@ -229,18 +170,6 @@ export function useReplaceMode({
       setActiveSelectionId(null);
     }
   }, [activeSelectionId]);
-
-  // Helper to calculate gap frames from time range (enforces max limit)
-  const calculateGapFramesFromRange = useCallback((start: number, end: number, fps: number | null): number => {
-    if (!fps || end <= start) return gapFrameCount;
-
-    const frameCount = Math.round((end - start) * fps);
-    const n = Math.round((frameCount - 1) / 4);
-    const quantized = Math.max(1, n * 4 + 1);
-
-    const maxGapFrames = Math.max(1, 81 - (contextFrameCount * 2));
-    return Math.min(quantized, maxGapFrames);
-  }, [gapFrameCount, contextFrameCount]);
 
   // Update a selection with minimum 2 frame gap enforcement
   const handleUpdateSelection = useCallback((id: string, start: number, end: number) => {
@@ -262,7 +191,13 @@ export function useReplaceMode({
         }
         return prev.map(s => {
           if (s.id === id) {
-            const calculatedGapFrames = calculateGapFramesFromRange(adjustedStart, adjustedEnd, videoFps);
+            const calculatedGapFrames = calculateGapFramesFromRange({
+              start: adjustedStart,
+              end: adjustedEnd,
+              fps: videoFps,
+              fallbackGapFrameCount: gapFrameCount,
+              contextFrameCount,
+            });
             return { ...s, start: adjustedStart, end: adjustedEnd, gapFrameCount: calculatedGapFrames };
           }
           return s;
@@ -273,12 +208,18 @@ export function useReplaceMode({
 
     setSelections(prev => prev.map(s => {
       if (s.id === id) {
-        const calculatedGapFrames = calculateGapFramesFromRange(start, end, videoFps);
+        const calculatedGapFrames = calculateGapFramesFromRange({
+          start,
+          end,
+          fps: videoFps,
+          fallbackGapFrameCount: gapFrameCount,
+          contextFrameCount,
+        });
         return { ...s, start, end, gapFrameCount: calculatedGapFrames };
       }
       return s;
     }));
-  }, [videoFps, calculateGapFramesFromRange]);
+  }, [videoFps, gapFrameCount, contextFrameCount]);
 
   // Handler to update per-segment settings
   const handleUpdateSelectionSettings = useCallback((id: string, updates: Partial<Pick<PortionSelection, 'gapFrameCount' | 'prompt' | 'name'>>) => {
@@ -287,51 +228,11 @@ export function useReplaceMode({
 
   // Check if all portions are valid for regeneration
   const portionValidation = useMemo(() => {
-    const errors: string[] = [];
-
-    if (selections.length === 0) {
-      errors.push('No portions selected');
-      return { isValid: false, errors };
-    }
-
-    if (videoFps === null) {
-      errors.push('Video FPS not detected yet');
-      return { isValid: false, errors };
-    }
-
-    for (let i = 0; i < selections.length; i++) {
-      const s = selections[i];
-      const selNum = selections.length > 1 ? ` #${i + 1}` : '';
-
-      if (s.start >= s.end) {
-        errors.push(`Portion${selNum}: Start must be before end`);
-      }
-
-      const duration = s.end - s.start;
-      if (duration < 0.1) {
-        errors.push(`Portion${selNum}: Too short (min 0.1s)`);
-      }
-
-      if (s.start < 0) {
-        errors.push(`Portion${selNum}: Starts before video`);
-      }
-      if (s.end > videoDuration) {
-        errors.push(`Portion${selNum}: Extends past video end`);
-      }
-    }
-
-    if (selections.length > 1) {
-      const sorted = [...selections].sort((a, b) => a.start - b.start);
-      for (let i = 0; i < sorted.length - 1; i++) {
-        const current = sorted[i];
-        const next = sorted[i + 1];
-        if (current.end > next.start) {
-          errors.push(`Portions overlap`);
-        }
-      }
-    }
-
-    return { isValid: errors.length === 0, errors };
+    return validatePortionSelections({
+      selections,
+      videoFps,
+      videoDuration,
+    });
   }, [selections, videoFps, videoDuration]);
 
   const isValidPortion = portionValidation.isValid;
@@ -344,34 +245,11 @@ export function useReplaceMode({
 
   // Calculate max context frames based on shortest keeper clip
   const maxContextFrames = useMemo(() => {
-    if (!videoFps || !videoDuration || frameRanges.length === 0) return 30;
-
-    const totalFrames = Math.round(videoDuration * videoFps);
-    const sortedPortions = [...frameRanges].sort((a, b) => a.start_frame - b.start_frame);
-    let minKeeperFrames = totalFrames;
-
-    if (sortedPortions.length > 0) {
-      const firstKeeperLength = sortedPortions[0].start_frame;
-      if (firstKeeperLength > 0) {
-        minKeeperFrames = Math.min(minKeeperFrames, firstKeeperLength);
-      }
-    }
-
-    for (let i = 0; i < sortedPortions.length - 1; i++) {
-      const keeperLength = sortedPortions[i + 1].start_frame - sortedPortions[i].end_frame;
-      if (keeperLength > 0) {
-        minKeeperFrames = Math.min(minKeeperFrames, keeperLength);
-      }
-    }
-
-    if (sortedPortions.length > 0) {
-      const lastKeeperLength = totalFrames - sortedPortions[sortedPortions.length - 1].end_frame;
-      if (lastKeeperLength > 0) {
-        minKeeperFrames = Math.min(minKeeperFrames, lastKeeperLength);
-      }
-    }
-
-    return Math.max(4, minKeeperFrames - 1);
+    return calculateMaxContextFrames({
+      videoFps,
+      videoDuration,
+      frameRanges,
+    });
   }, [videoFps, videoDuration, frameRanges]);
 
   // Loading state for generation
@@ -416,32 +294,11 @@ export function useReplaceMode({
             : buildPhaseConfigWithLoras(lorasForTask, baseConfig);
 
           const totalFrames = Math.round(videoDuration * videoFps);
-          const sortedPortions = [...portionFrameRanges].sort((a, b) => a.start_frame - b.start_frame);
-          let minKeeperFrames = totalFrames;
-
-          if (sortedPortions.length > 0) {
-            const firstKeeperLength = sortedPortions[0].start_frame;
-            if (firstKeeperLength > 0) {
-              minKeeperFrames = Math.min(minKeeperFrames, firstKeeperLength);
-            }
-          }
-
-          for (let i = 0; i < sortedPortions.length - 1; i++) {
-            const keeperLength = sortedPortions[i + 1].start_frame - sortedPortions[i].end_frame;
-            if (keeperLength > 0) {
-              minKeeperFrames = Math.min(minKeeperFrames, keeperLength);
-            }
-          }
-
-          if (sortedPortions.length > 0) {
-            const lastKeeperLength = totalFrames - sortedPortions[sortedPortions.length - 1].end_frame;
-            if (lastKeeperLength > 0) {
-              minKeeperFrames = Math.min(minKeeperFrames, lastKeeperLength);
-            }
-          }
-
-          const safeMaxContextFrames = Math.max(1, minKeeperFrames - 1);
-          const cappedContextFrameCount = Math.min(contextFrameCount, safeMaxContextFrames);
+          const cappedContextFrameCount = capContextFrameCountForRanges({
+            contextFrameCount,
+            totalFrames,
+            frameRanges: portionFrameRanges,
+          });
 
           const orchestratorDetails: Record<string, unknown> = {
             run_id: generateRunId(),
@@ -477,6 +334,7 @@ export function useReplaceMode({
             selected_phase_preset_id: selectedPhasePresetId,
 
             parent_generation_id: getGenerationId(media),
+            based_on: getGenerationId(media),
           };
 
           if (lorasForTask.length > 0) {
@@ -490,6 +348,7 @@ export function useReplaceMode({
               orchestrator_details: orchestratorDetails,
               tool_type: TOOL_IDS.EDIT_VIDEO,
               parent_generation_id: getGenerationId(media),
+              based_on: getGenerationId(media),
             },
           });
         },

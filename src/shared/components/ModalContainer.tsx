@@ -9,7 +9,7 @@ import {
 } from '@/shared/components/ui/dialog';
 import { useModal, type ModalSize } from '@/shared/hooks/useModal';
 import { Button } from '@/shared/components/ui/button';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 
 interface ModalContainerProps {
   open: boolean;

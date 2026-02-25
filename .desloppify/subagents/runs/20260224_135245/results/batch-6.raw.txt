@@ -1,0 +1,72 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "high_level_elegance": 78.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "README.md defines a formal sunset/enforcement contract for the `@/types/shots` shim, but `src/types/shots.ts` encodes that contract only in comments (`Owner`, `Remove by`, `Removal gate`) with no executable guard in the module itself.",
+        "`src/integrations/supabase/client.ts` keeps both the new explicit API (`initializeSupabase`, `getSupabaseClient`) and a legacy compatibility export (`supabase`) without a deprecation marker or removal horizon, while README frames this as migration-era compatibility.",
+        "`src/shared/lib/utils.ts` acts as a partial shared utility barrel, but `src/shared/components/ui/button.tsx` imports `cn` from `@/shared/components/ui/cn` directly, indicating competing import surfaces for foundational helpers."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shots_shim_policy_not_executable",
+      "summary": "The shots shim migration policy is documentation-only instead of encoded as a hard contract.",
+      "related_files": [
+        "README.md",
+        "src/types/shots.ts"
+      ],
+      "evidence": [
+        "README.md specifies enforcement (`npm run check:shots-shim-usage` via `npm run quality:check`) and a migration gate for `@/types/shots`.",
+        "src/types/shots.ts exposes a full re-export with only comment-based metadata (`Owner`, `Remove by`, `Removal gate`) and no in-module mechanism to fail or warn when the deadline passes."
+      ],
+      "suggestion": "Promote the shim policy to a machine-checked contract: add a deprecation tag plus a compile/lint gate tied to `@/types/shots` imports, and keep the remove-by date in one canonical location consumed by both docs and checks.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "supabase_compat_surface_has_no_exit_contract",
+      "summary": "Supabase migration keeps dual client entrypoints without a bounded compatibility lifecycle.",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "README.md describes a migration from legacy `supabase` imports to `getSupabaseClient()`.",
+        "src/integrations/supabase/client.ts still exports `supabase` via a lazy proxy, but unlike `src/types/shots.ts` there is no deprecation annotation, owner, or remove-by policy for this compatibility path."
+      ],
+      "suggestion": "Define and encode a sunset contract for `supabase` export (owner, target removal date, usage gate, and deprecation annotation), or move the proxy to an explicitly named legacy module to keep the primary runtime contract singular.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_utility_entrypoints_are_incoherent",
+      "summary": "Core helper imports use competing paths, weakening a single shared contract surface.",
+      "related_files": [
+        "src/shared/lib/utils.ts",
+        "src/shared/components/ui/button.tsx"
+      ],
+      "evidence": [
+        "`src/shared/lib/utils.ts` re-exports `cn` as part of a shared utility barrel.",
+        "`src/shared/components/ui/button.tsx` imports `cn` directly from `@/shared/components/ui/cn` instead of the shared utility surface, creating parallel import conventions for the same primitive."
+      ],
+      "suggestion": "Pick one canonical import surface for cross-cutting helpers (preferably `src/shared/lib/utils.ts` or a dedicated `src/shared/lib/index.ts`) and enforce it with lint/import rules to prevent contract drift.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

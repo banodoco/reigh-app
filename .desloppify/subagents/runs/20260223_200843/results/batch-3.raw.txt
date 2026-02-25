@@ -1,0 +1,105 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "api_surface_coherence": 68.0,
+    "mid_level_elegance": 66.0
+  },
+  "dimension_notes": {
+    "api_surface_coherence": {
+      "evidence": [
+        "Context hooks expose incompatible provider contracts: `useShotAdditionSelection` silently returns a fallback outside provider (`src/shared/contexts/ShotAdditionSelectionContext.tsx:48-50`), while `useToolSettingsService` throws (`src/shared/contexts/ToolSettingsServiceContext.tsx:30-34`).",
+        "Public request-builder API in `generateVideoService` is overloaded with both v2 grouped params and legacy flat fields (`BuildTravelRequestBodyParams` at `src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts:475-501`), then silently normalizes precedence (`:503-541`).",
+        "Invalidation API mixes naming/behavior contracts: `invalidateGenerationsSync` is named sync but dispatches async work and returns immediately (`src/shared/hooks/invalidation/useGenerationInvalidation.ts:96-102`), while neighboring APIs return `Promise` or timeout handles (`:68-94`, `:104-114`, `:122-158`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Lifecycle coordination is inconsistent across cache/write seams: `timelineWriteQueue` enforces serialized, observable write phases (`src/shared/lib/timelineWriteQueue.ts:108-189`), but invalidation paths fire mixed awaited/non-awaited operations (`src/shared/hooks/invalidation/useGenerationInvalidation.ts:133-157`) that make completion timing non-obvious.",
+        "Edge-function shared utilities propagate failures inconsistently at integration boundaries: billing trigger swallows all failures (`supabase/functions/_shared/billing.ts:101-130`), rate limiter fails open on infra errors (`supabase/functions/_shared/rateLimit.ts:79-121`), and storage throws for main upload but suppresses thumbnail failures as `null` (`supabase/functions/complete_task/storage.ts:68-71`, `:112-122`).",
+        "Join-clips initialization path combines localStorage polling, metadata IO, and state-shape translation in one service (`src/tools/join-clips/lib/clipInitService.ts:127-169`, `:222-299`), creating a broad handoff seam with many implicit assumptions."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "context_hook_contract_mismatch",
+      "summary": "Sibling context hooks use incompatible missing-provider behavior",
+      "related_files": [
+        "src/shared/contexts/ShotAdditionSelectionContext.tsx",
+        "src/shared/contexts/ToolSettingsServiceContext.tsx"
+      ],
+      "evidence": [
+        "`useShotAdditionSelection()` returns `FALLBACK_VALUE` when provider is missing (`ShotAdditionSelectionContext.tsx:48-50`).",
+        "`useToolSettingsService()` throws hard error when provider is missing (`ToolSettingsServiceContext.tsx:30-34`).",
+        "Both are shared context hooks consumed similarly, so callers cannot rely on one consistent contract for provider absence."
+      ],
+      "suggestion": "Standardize context-hook contract: either make both fail-fast, or provide explicit paired APIs (`useXRequired` throws, `useXOptional` returns nullable/fallback) and migrate call sites to the intended variant.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "overloaded_backward_compat_builder",
+      "summary": "Travel request builder accepts two API shapes with silent precedence",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/shared/lib/generationTaskBridge.ts"
+      ],
+      "evidence": [
+        "`BuildTravelRequestBodyParams` exposes both grouped v2 inputs and many legacy flat fields in one type (`generateVideoService.ts:475-501`).",
+        "`normalizeBuildTravelRequestBodyParams` silently derives defaults and precedence between overlapping sources (`generateVideoService.ts:503-541`).",
+        "The codebase already carries compatibility aliases in other surfaces (e.g., `useGetTaskIdForGeneration` alias in `generationTaskBridge.ts:88-93`), indicating API drift accumulation instead of bounded migration."
+      ],
+      "suggestion": "Split into explicit APIs: keep one canonical v2 builder type only, move legacy support behind a separate adapter function marked deprecated, and enforce one-way conversion at call boundaries with runtime assertion on conflicting fields.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "invalidation_lifecycle_is_nondeterministic",
+      "summary": "Cache invalidation seam mixes awaited and fire-and-forget stages",
+      "related_files": [
+        "src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+        "src/shared/lib/timelineWriteQueue.ts"
+      ],
+      "evidence": [
+        "`invalidateVariantChange` awaits only `refetchQueries` for one key (`useGenerationInvalidation.ts:137-139`) but emits multiple other invalidations without awaiting (`:133-136`, `:142-157`).",
+        "`invalidateGenerationsSync` returns `void` while kicking async invalidation (`:96-102`), making completion timing opaque to callers.",
+        "In contrast, write-side seam provides explicit serialized lifecycle with queue metadata/events in `timelineWriteQueue.ts:108-189`, so read-side invalidation semantics are comparatively unpredictable."
+      ],
+      "suggestion": "Define one lifecycle contract for invalidation operations (e.g., `Promise<InvalidationSummary>`), await all scheduled invalidations in that contract, and expose explicit fire-and-forget wrappers only as separate APIs with clear naming.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "edge_failure_contracts_diverge",
+      "summary": "Adjacent edge utilities handle infrastructure failures with conflicting policies",
+      "related_files": [
+        "supabase/functions/_shared/billing.ts",
+        "supabase/functions/_shared/rateLimit.ts",
+        "supabase/functions/complete_task/storage.ts"
+      ],
+      "evidence": [
+        "`triggerCostCalculation` is fire-and-forget and suppresses all failures via logging (`billing.ts:101-130`).",
+        "`checkRateLimit` explicitly fails open on RPC/infra errors and returns `allowed: true` (`rateLimit.ts:79-121`).",
+        "`handleStorageOperations` throws on primary upload failure (`storage.ts:68-71`) but thumbnail failures are suppressed to `null` (`storage.ts:112-122`)."
+      ],
+      "suggestion": "Introduce a shared edge-operation result contract (e.g., `{ok, policy, recoverable, errorCode}`) and apply it across billing/rate-limit/storage helpers so orchestrators can make explicit, consistent retry/block/degrade decisions.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

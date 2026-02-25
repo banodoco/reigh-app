@@ -1,0 +1,105 @@
+{
+  "created_at": "2026-02-25T21:35:49+00:00",
+  "run_stamp": "20260225_213539",
+  "runner": "codex",
+  "parallel": true,
+  "selected_batches": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "successful_batches": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "failed_batches": [
+    6
+  ],
+  "allow_partial": false,
+  "max_parallel_batches": 3,
+  "batch_timeout_seconds": 1200,
+  "batch_max_retries": 1,
+  "batch_retry_backoff_seconds": 2.0,
+  "batch_heartbeat_seconds": 15.0,
+  "batch_stall_warning_seconds": 0,
+  "batch_stall_kill_seconds": 120,
+  "immutable_packet": "/Users/peteromalley/Documents/reigh/.desloppify/review_packets/holistic_packet_20260225_213539.json",
+  "blind_packet": "/Users/peteromalley/Documents/reigh/.desloppify/review_packet_blind.json",
+  "run_dir": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_213539",
+  "logs_dir": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_213539/logs",
+  "run_log": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_213539/run.log",
+  "batches": {
+    "1": {
+      "position": 1,
+      "status": "succeeded",
+      "prompt_path": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_213539/prompts/batch-1.md",
+      "result_path": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_213539/results/batch-1.raw.txt",
+      "log_path": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_213539/logs/batch-1.log",
+      "started_at": "2026-02-25T21:35:49+00:00",
+      "elapsed_seconds": 74,
+      "exit_code": 0,
+      "completed_at": "2026-02-25T21:37:03+00:00"
+    },
+    "2": {
+      "position": 2,
+      "status": "succeeded",
+      "prompt_path": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_213539/prompts/batch-2.md",
+      "result_path": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_213539/results/batch-2.raw.txt",
+      "log_path": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_213539/logs/batch-2.log",
+      "started_at": "2026-02-25T21:35:49+00:00",
+      "elapsed_seconds": 129,
+      "exit_code": 0,
+      "completed_at": "2026-02-25T21:37:59+00:00"
+    },
+    "3": {
+      "position": 3,
+      "status": "succeeded",
+      "prompt_path": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_213539/prompts/batch-3.md",
+      "result_path": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_213539/results/batch-3.raw.txt",
+      "log_path": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_213539/logs/batch-3.log",
+      "started_at": "2026-02-25T21:35:49+00:00",
+      "elapsed_seconds": 144,
+      "exit_code": 0,
+      "completed_at": "2026-02-25T21:38:14+00:00"
+    },
+    "4": {
+      "position": 4,
+      "status": "succeeded",
+      "prompt_path": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_213539/prompts/batch-4.md",
+      "result_path": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_213539/results/batch-4.raw.txt",
+      "log_path": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_213539/logs/batch-4.log",
+      "started_at": "2026-02-25T21:37:03+00:00",
+      "elapsed_seconds": 97,
+      "exit_code": 0,
+      "completed_at": "2026-02-25T21:38:41+00:00"
+    },
+    "5": {
+      "position": 5,
+      "status": "succeeded",
+      "prompt_path": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_213539/prompts/batch-5.md",
+      "result_path": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_213539/results/batch-5.raw.txt",
+      "log_path": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_213539/logs/batch-5.log",
+      "started_at": "2026-02-25T21:37:59+00:00",
+      "elapsed_seconds": 81,
+      "exit_code": 0,
+      "completed_at": "2026-02-25T21:39:20+00:00"
+    },
+    "6": {
+      "position": 6,
+      "status": "parse_failed",
+      "prompt_path": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_213539/prompts/batch-6.md",
+      "result_path": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_213539/results/batch-6.raw.txt",
+      "log_path": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_213539/logs/batch-6.log",
+      "started_at": "2026-02-25T21:38:14+00:00",
+      "elapsed_seconds": 185,
+      "exit_code": 0,
+      "completed_at": "2026-02-25T21:41:19+00:00"
+    }
+  }
+}

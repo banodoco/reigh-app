@@ -1,6 +1,6 @@
 
 import { Button } from '@/shared/components/ui/button';
-import { Label } from '@/shared/components/ui/label';
+import { Label } from '@/shared/components/ui/primitives/label';
 
 interface ModeSelectorProps {
   mode: 'animate' | 'replace';

@@ -9,8 +9,8 @@ import { Button } from '@/shared/components/ui/button';
 import { useExtraLargeModal } from '@/shared/hooks/useModal';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useQueryClient } from '@tanstack/react-query';
-import { toast } from '@/shared/components/ui/sonner';
-import { Shot } from '@/types/shots';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { Shot } from '@/domains/generation/types';
 import { ExternalLink } from 'lucide-react';
 import { getDisplayUrl } from '@/shared/lib/mediaUrl';
 import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
@@ -24,19 +24,20 @@ import { MotionControl } from './MotionControl';
 import { SectionHeader } from '@/shared/components/ImageGenerationForm/components';
 import {
   generateVideo,
-  buildBasicModePhaseConfig,
 } from './ShotEditor/services/generateVideoService';
+import { buildBasicModeGenerationRequest as buildBasicModePhaseConfig } from './ShotEditor/services/generateVideo/modelPhase';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 import { usePublicLoras } from '@/shared/hooks/useResources';
 import { LoraSelectorModal } from '@/shared/components/LoraSelectorModal';
 import { useShotImages } from '@/shared/hooks/useShotImages';
 import { isPositioned, isVideoGeneration } from '@/shared/lib/typeGuards';
-import { findClosestAspectRatio } from '@/shared/lib/aspectRatios';
+import { findClosestAspectRatio } from '@/shared/lib/media/aspectRatios';
 import { DEFAULT_PHASE_CONFIG } from '@/shared/types/phaseConfig';
 import { useInvalidateGenerations } from '@/shared/hooks/invalidation/useGenerationInvalidation';
 import { BUILTIN_DEFAULT_I2V_ID, BUILTIN_DEFAULT_VACE_ID, FEATURED_PRESET_IDS } from './MotionControl';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { LoraModel } from '@/shared/components/LoraSelectorModal';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 
 interface VideoGenerationModalProps {
   isOpen: boolean;
@@ -69,7 +70,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
   const { settings: shotUISettings, update: updateShotUISettings } = useToolSettings<{
     acceleratedMode?: boolean;
     randomSeed?: boolean;
-  }>('travel-ui-state', {
+  }>(SETTINGS_IDS.TRAVEL_UI_STATE, {
     shotId: isOpen ? shot.id : undefined,
     enabled: isOpen && !!shot.id
   });
@@ -270,7 +271,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
         clearAllEnhancedPrompts: async () => {},
       });
       
-      if (result.success) {
+      if (result.ok) {
         setJustQueued(true);
         if (justQueuedTimeoutRef.current) clearTimeout(justQueuedTimeoutRef.current);
         justQueuedTimeoutRef.current = window.setTimeout(() => {
@@ -285,10 +286,10 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
           projectId: selectedProjectId ?? undefined
         });
       } else {
-        toast.error(result.error || 'Failed to generate video');
+        toast.error(result.message || 'Failed to generate video');
       }
     } catch (error) {
-      handleError(error, { context: 'VideoGenerationModal', toastTitle: 'Failed to generate video' });
+      normalizeAndPresentError(error, { context: 'VideoGenerationModal', toastTitle: 'Failed to generate video' });
     } finally {
       setIsGenerating(false);
     }

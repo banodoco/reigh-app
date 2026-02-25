@@ -1,0 +1,60 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "high_level_elegance": 72.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "Type ownership is declared as split across mapper/query and UI mutation layers, but both concerns are co-located in `src/domains/generation/types/generationViewRow.ts` (`GenerationDerivedFields` and `GenerationOptimisticOverlayFields`) and then propagated into `src/domains/generation/types/shotViewRow.ts` via `GenerationRow[]`.",
+        "Overlay open-state orchestration is spread across many leaf UI components instead of a single boundary: `src/shared/components/ModalContainer.tsx`, `src/shared/components/MediaTypeFilter.tsx`, `src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx`, `src/pages/Home/components/InstallInstructionsModal.tsx`, and `src/pages/Home/components/CreativePartnerPane.tsx` each own pieces of `open/onOpenChange` behavior.",
+        "High-import shared facades are present in the reviewed set (`src/shared/lib/errorHandling/handleError.ts`, `src/integrations/supabase/client.ts`, `src/shared/components/ui/cn.ts`), increasing blast radius for changes; some are healthy facades, but their concentration raises coupling sensitivity."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "mixed_generation_type_ownership",
+      "summary": "Generation domain type files mix persistence, derived view, and optimistic UI overlays, blurring ownership boundaries.",
+      "related_files": [
+        "src/domains/generation/types/generationViewRow.ts",
+        "src/domains/generation/types/shotViewRow.ts"
+      ],
+      "evidence": [
+        "`generationViewRow.ts` defines both mapper-owned derived fields and UI interaction overlays, then composes them into exported contracts (`GenerationRow`, `GenerationUiRow`).",
+        "`shotViewRow.ts` imports `GenerationRow` for `images`, so downstream shot contracts inherit the mixed boundary rather than a clear persisted vs view model split."
+      ],
+      "suggestion": "Split contracts by layer: keep persisted/domain row types in one module, move UI-only overlays to a dedicated UI/view-model module, and make `shotViewRow` depend on the specific contract it needs (persisted or UI view) to avoid cross-layer leakage.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "overlay_policy_scattered",
+      "summary": "Overlay visibility policy is distributed across many components, creating a diffuse ownership model for modal/tooltip behavior.",
+      "related_files": [
+        "src/shared/components/ModalContainer.tsx",
+        "src/shared/components/MediaTypeFilter.tsx",
+        "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx",
+        "src/pages/Home/components/InstallInstructionsModal.tsx",
+        "src/pages/Home/components/CreativePartnerPane.tsx",
+        "src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx"
+      ],
+      "evidence": [
+        "Multiple components independently accept and transform `open/onOpenChange` state (`ModalContainer`, `InstallInstructionsModal`, `DescriptionModal`, `MediaTypeFilter`, `InfoTooltip`).",
+        "`CreativePartnerPane` and `InfoTooltip` each apply tooltip policy through `useTooltipOverlayBindings`, while `MediaTypeFilter` uses `useOverlayVisibilityState`, indicating parallel patterns rather than one clear subsystem boundary.",
+        "`ModalContainer` adds its own closure policy (`preventOutsideClose`) on top of upstream state ownership, increasing behavioral indirection at call sites."
+      ],
+      "suggestion": "Introduce a single overlay boundary pattern per overlay kind (modal/select/tooltip), with leaf components either fully controlled or fully self-managed; centralize policy hooks and keep feature components focused on content.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

@@ -1,0 +1,139 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "test_strategy": 69.0,
+    "api_surface_coherence": 76.0
+  },
+  "dimension_notes": {
+    "test_strategy": {
+      "evidence": [
+        "The public `generateVideo()` orchestration path in `src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts` (DB read, payload assembly, task creation, error mapping) is not exercised in `generateVideoService.test.ts`, which focuses on underscored helper exports.",
+        "`src/shared/lib/toolSettingsService.ts` now returns `Promise<OperationResult<SettingsFetchResult>>`, but `src/shared/lib/__tests__/toolSettingsService.test.ts` still asserts the pre-OperationResult contract (`result.settings` and thrown errors), leaving current caller behavior weakly validated.",
+        "`scheduleAdjacentGenerationPagePreload` (debounce timer + cancel function) in `src/features/gallery/lib/adjacentPagePreloadCoordinator.ts` is not covered by `adjacentPagePreloadCoordinator.test.ts`, which only tests cleanup and direct prefetch."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "api_surface_coherence": {
+      "evidence": [
+        "Failure contracts vary across neighboring shared APIs: status-union return objects in `src/shared/lib/generationTaskRepository.ts`, `OperationResult` envelopes in `src/shared/lib/toolSettingsService.ts` and `supabase/functions/_shared/edgeRequest.ts`, and throw-based APIs in `src/shared/lib/errorHandling/presentationReporter.ts` (`presentAndRethrow`).",
+        "`parseJsonBodyStrict` accepts `ParseJsonBodyOptions` including `mode`, but internally hardcodes strict mode and ignores caller-supplied `mode`, creating a misleading surface (`supabase/functions/_shared/edgeRequest.ts`).",
+        "The mismatch is already reflected in consumer tests (`src/shared/lib/__tests__/toolSettingsService.test.ts`) that still consume old throw/value semantics, suggesting API boundaries are hard to predict."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "test_strategy",
+      "identifier": "tool_settings_tests_stale_contract",
+      "summary": "Tool settings tests still target old throw/value API instead of current OperationResult contract",
+      "related_files": [
+        "src/shared/lib/toolSettingsService.ts",
+        "src/shared/lib/__tests__/toolSettingsService.test.ts"
+      ],
+      "evidence": [
+        "`fetchToolSettingsSupabase` returns `Promise<OperationResult<SettingsFetchResult>>` (`src/shared/lib/toolSettingsService.ts:324-329`) and returns failures via `toOperationFailure(...)` in catch paths (`:373-420`).",
+        "Tests assert direct `result.settings` (`toolSettingsService.test.ts:131-138`) and `rejects.toThrow(...)` for auth/abort (`:157-163`, `:175-180`), which does not validate the current `ok/value/errorCode` envelope contract."
+      ],
+      "suggestion": "Rewrite `toolSettingsService.test.ts` to assert `result.ok`, `result.value`, and failure `errorCode/policy/recoverable` branches, and add regression cases for cancellation/auth/network mapping using the OperationResult shape.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "error_contract_fragmentation"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "generate_video_public_api_not_tested",
+      "summary": "Large `generateVideo()` orchestration path is untested while tests cover only helper internals",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/__tests__/generateVideoService.test.ts"
+      ],
+      "evidence": [
+        "The public API `generateVideo(params)` includes validation, mutation settling, DB fetch, payload construction, and task submission (`generateVideoService.ts:562+`).",
+        "Test file imports helper/test-only exports (`_stripModeFromPhaseConfig`, `_buildTravelRequestBodyV2`, etc.) and contains no `generateVideo(` test invocation.",
+        "The test mock for `@/integrations/supabase/client` provides `supabase` rather than `getSupabaseClient`, so the real runtime dependency path used by `generateVideoService.ts` (`getSupabaseClient as supabase`) is not validated."
+      ],
+      "suggestion": "Add focused integration-style unit tests for `generateVideo()` with a `getSupabaseClient` mock that exercises success, fetch failure, insufficient images, and task-creation failure branches, while keeping helper tests as secondary coverage.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "critical_path_helper_only_tests"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "debounced_preload_scheduler_untested",
+      "summary": "Debounce/cancel behavior for adjacent-page preload scheduler is not validated",
+      "related_files": [
+        "src/features/gallery/lib/adjacentPagePreloadCoordinator.ts",
+        "src/features/gallery/lib/adjacentPagePreloadCoordinator.test.ts"
+      ],
+      "evidence": [
+        "`scheduleAdjacentGenerationPagePreload` wraps prefetch in a debounced `setTimeout` and returns a cancellation function (`adjacentPagePreloadCoordinator.ts:90-125`).",
+        "Current tests cover `cleanupDistantGenerationPages` and `prefetchAdjacentGenerationPages` (`adjacentPagePreloadCoordinator.test.ts`), but do not assert debounce timing or cancellation semantics of the scheduler."
+      ],
+      "suggestion": "Add fake-timer tests that verify (1) prefetch runs after debounce delay, (2) returned cleanup cancels pending execution, and (3) multiple rapid schedules coalesce to expected call count.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "critical_path_helper_only_tests"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "mixed_failure_contracts_across_shared_apis",
+      "summary": "Related APIs use incompatible failure channels (status objects, OperationResult, and throw)",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/lib/toolSettingsService.ts",
+        "src/shared/lib/errorHandling/presentationReporter.ts",
+        "supabase/functions/_shared/edgeRequest.ts"
+      ],
+      "evidence": [
+        "`generationTaskRepository` encodes failures in `status` fields (e.g., `query_failed`, `scope_mismatch`) while still returning fulfilled promises (`generationTaskRepository.ts:57-168`, `:186-249`).",
+        "`fetchToolSettingsSupabase` uses `OperationResult` envelopes (`toolSettingsService.ts:324-420`).",
+        "`presentAndRethrow` throws (`presentationReporter.ts:26-27`) and `edgeRequest` also uses `OperationResult` plus response helpers (`edgeRequest.ts:138-219`)."
+      ],
+      "suggestion": "Define one boundary rule per layer (for example: internal helpers throw typed errors, boundary adapters return OperationResult) and add thin adapters where needed so sibling APIs in the same subsystem expose a predictable failure model.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "error_contract_fragmentation"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "parse_json_strict_accepts_ignored_mode_option",
+      "summary": "`parseJsonBodyStrict` exposes an option field it intentionally ignores",
+      "related_files": [
+        "supabase/functions/_shared/edgeRequest.ts",
+        "supabase/functions/_shared/edgeRequest.test.ts"
+      ],
+      "evidence": [
+        "`ParseJsonBodyOptions` includes `mode` (`edgeRequest.ts:132-136`).",
+        "`parseJsonBodyStrict(..., options)` hardcodes `mode: 'strict'` and only forwards message fields (`edgeRequest.ts:193-202`), so `options.mode` is silently ignored.",
+        "Tests pass `{ mode: 'strict' }` into `parseJsonBodyStrict` (`edgeRequest.test.ts:43`, `:57`), reinforcing a misleading API signature."
+      ],
+      "suggestion": "Change `parseJsonBodyStrict` options type to omit `mode` (e.g., `Omit<ParseJsonBodyOptions, 'mode'>`) or remove the options parameter entirely if only fixed strict behavior is intended.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "error_contract_fragmentation"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Contract evolution happened without synchronized test-contract updates.",
+      "Error/failure handling patterns are not standardized across adjacent shared modules."
+    ],
+    "likely_symptoms": [
+      "tool_settings_tests_stale_contract",
+      "generate_video_public_api_not_tested",
+      "mixed_failure_contracts_across_shared_apis"
+    ],
+    "possible_false_positives": []
+  }
+}

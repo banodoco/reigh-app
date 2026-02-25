@@ -1,0 +1,210 @@
+  .wes-symmetry {
+    @apply flex flex-col items-center text-center;
+  }
+
+  .wes-card {
+    @apply backdrop-blur-sm border-2 border-primary/10 rounded-xl shadow-lg relative;
+    background: hsl(var(--card) / 0.9);
+    box-shadow: 
+      0 10px 25px -5px hsl(var(--primary) / 0.1),
+      0 4px 6px -2px hsl(var(--primary) / 0.05),
+      inset 0 1px 0 hsl(var(--accent) / 0.2),
+      inset 0 0 0 1px hsl(var(--accent) / 0.1);
+  }
+  
+  .dark .wes-card {
+    background: hsl(var(--card) / 0.95);
+    box-shadow: 
+      0 10px 25px -5px hsl(var(--primary) / 0.2),
+      0 4px 6px -2px hsl(var(--primary) / 0.1),
+      inset 0 1px 0 hsl(45 30% 70% / 0.08),
+      inset 0 0 0 1px hsl(210 15% 40% / 0.15);
+  }
+  
+  /* ========================================= */
+  /* DARK MODE CARD DEPTH REFINEMENTS          */
+  /* Cards need inner highlight + hue shift    */
+  /* ========================================= */
+  
+  /* Default cards in dark mode - add inner highlight and cooler hue */
+  .dark .bg-card,
+  .dark .bg-card\/50,
+  .dark .bg-card\/70,
+  .dark .bg-card\/80,
+  .dark .bg-card\/90,
+  .dark .bg-card\/95 {
+    /* Slight blue shift from background (210° vs 150°) */
+    box-shadow: 
+      inset 0 1px 0 hsl(45 25% 60% / 0.06),
+      inset 0 0 0 1px hsl(210 12% 35% / 0.12);
+  }
+  
+  /* Elevated cards (popovers, modals, dropdowns) */
+  .dark [data-popup],
+  .dark [data-dialog-content] {
+    box-shadow: 
+      0 8px 30px -8px hsl(0 0% 0% / 0.5),
+      inset 0 1px 0 hsl(45 30% 65% / 0.08),
+      inset 0 0 0 1px hsl(210 15% 40% / 0.15);
+  }
+
+  .wes-card::before {
+    content: '';
+    @apply absolute inset-0 rounded-xl pointer-events-none;
+    background: 
+      linear-gradient(135deg, transparent 25%, hsl(var(--wes-lavender) / 0.03) 25%, hsl(var(--wes-lavender) / 0.03) 50%, transparent 50%),
+      linear-gradient(45deg, transparent 25%, hsl(var(--wes-vintage-gold) / 0.02) 25%, hsl(var(--wes-vintage-gold) / 0.02) 50%);
+    background-size: 30px 30px, 40px 40px;
+  }
+
+  .wes-vintage-card {
+    @apply backdrop-blur-sm border-2 border-primary/10 rounded-xl shadow-lg relative;
+    background: 
+      linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--accent) / 0.15) 100%),
+      radial-gradient(circle at top right, hsl(var(--accent) / 0.1), transparent 50%),
+      radial-gradient(circle at bottom left, hsl(var(--secondary) / 0.1), transparent 50%);
+    position: relative;
+  }
+
+  .wes-vintage-card::after {
+    content: '';
+    @apply absolute inset-0;
+    border-radius: inherit;
+    background-image: 
+      repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 2px,
+        hsl(var(--primary) / 0.03) 2px,
+        hsl(var(--primary) / 0.03) 4px
+      );
+    pointer-events: none;
+  }
+  
+  .dark .wes-vintage-card {
+    background: 
+      linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--accent) / 0.1) 100%),
+      radial-gradient(circle at top right, hsl(var(--accent) / 0.08), transparent 50%),
+      radial-gradient(circle at bottom left, hsl(var(--secondary) / 0.08), transparent 50%);
+  }
+  
+  .dark .wes-vintage-card::after {
+    background-image: 
+      repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 2px,
+        hsl(var(--primary) / 0.05) 2px,
+        hsl(var(--primary) / 0.05) 4px
+      );
+  }
+
+  .wes-button {
+    @apply relative overflow-hidden transition-all duration-300 ease-out;
+    @apply bg-gradient-to-r from-primary to-primary/90;
+    @apply hover:from-primary/90 hover:to-primary;
+    @apply shadow-lg hover:shadow-xl;
+    @apply border-2 border-primary/20;
+    box-shadow: 
+      0 4px 14px 0 hsl(var(--primary) / 0.15),
+      inset 0 1px 0 hsl(var(--primary-foreground) / 0.2),
+      inset 0 0 0 1px hsl(var(--wes-vintage-gold) / 0.3);
+  }
+
+  .wes-button::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent;
+    @apply translate-x-[-100%] transition-transform duration-700;
+  }
+
+  .wes-button:hover::before {
+    @apply translate-x-[100%];
+  }
+
+  /* Subtle variant for project settings */
+  .wes-button-subtle {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .wes-button-subtle::before {
+    content: '';
+    @apply absolute inset-0;
+    background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.08), transparent);
+    @apply translate-x-[-100%];
+    transition: transform 900ms ease-out;
+    pointer-events: none;
+  }
+
+  .wes-button-subtle:hover::before {
+    @apply translate-x-[100%];
+  }
+
+  /* Dark mode adaptive icon button gradients */
+  .gradient-icon-coral {
+    background: linear-gradient(to bottom right, hsl(var(--wes-coral)), hsl(var(--wes-salmon)));
+  }
+  .dark .gradient-icon-coral {
+    background: linear-gradient(to bottom right, hsl(var(--wes-coral) / 0.7), hsl(var(--wes-salmon) / 0.7));
+  }
+  /* Light mode: subtle saturation increase on hover */
+  .gradient-icon-coral:hover {
+    background: linear-gradient(to bottom right, hsl(var(--wes-coral) / 0.9), hsl(var(--wes-salmon) / 0.95));
+  }
+  /* Dark mode: no background change on hover (dark:bg-none is used, hover is handled by shadow/border) */
+
+  .gradient-icon-yellow {
+    background: linear-gradient(to bottom right, hsl(var(--wes-yellow)), hsl(var(--wes-salmon)));
+  }
+  .dark .gradient-icon-yellow {
+    background: linear-gradient(to bottom right, hsl(var(--wes-vintage-gold) / 0.8), hsl(var(--wes-salmon) / 0.7));
+  }
+  /* Light mode: subtle saturation increase on hover */
+  .gradient-icon-yellow:hover {
+    background: linear-gradient(to bottom right, hsl(var(--wes-yellow) / 0.9), hsl(var(--wes-salmon) / 0.95));
+  }
+  /* Dark mode: no background change on hover (dark:bg-none is used, hover is handled by shadow/border) */
+
+  .gradient-icon-blue {
+    background: linear-gradient(to bottom right, hsl(var(--wes-dusty-blue)), hsl(var(--wes-lavender)));
+  }
+  .dark .gradient-icon-blue {
+    background: linear-gradient(to bottom right, hsl(var(--wes-dusty-blue) / 0.7), hsl(var(--wes-lavender) / 0.7));
+  }
+  /* Light mode: subtle saturation increase on hover */
+  .gradient-icon-blue:hover {
+    background: linear-gradient(to bottom right, hsl(var(--wes-dusty-blue) / 0.9), hsl(var(--wes-lavender) / 0.95));
+  }
+  /* Dark mode: no background change on hover (dark:bg-none is used, hover is handled by shadow/border) */
+  
+  .gradient-icon-mint {
+    background: linear-gradient(to bottom right, hsl(var(--wes-mint)), hsl(var(--wes-sage)));
+  }
+  .dark .gradient-icon-mint {
+    background: linear-gradient(to bottom right, hsl(var(--wes-mint) / 0.7), hsl(var(--wes-sage) / 0.7));
+  }
+  
+  .gradient-icon-gold {
+    background: linear-gradient(to bottom right, hsl(var(--wes-vintage-gold)), hsl(var(--wes-mustard)));
+  }
+  .dark .gradient-icon-gold {
+    background: linear-gradient(to bottom right, hsl(var(--wes-vintage-gold) / 0.8), hsl(var(--wes-mustard) / 0.7));
+  }
+  
+  /* Dark mode: Reduce intensity of all wes- gradients for icon containers */
+  .dark .shadow-wes-deep.bg-gradient-to-br,
+  .dark .shadow-wes-deep.bg-gradient-to-r,
+  .dark .shadow-wes-deep.bg-gradient-to-l,
+  .dark .shadow-sm.bg-gradient-to-br,
+  .dark .shadow-sm.bg-gradient-to-r,
+  .dark .shadow-sm.bg-gradient-to-l {
+    filter: brightness(0.75) saturate(0.85);
+  }
+  .dark .shadow-wes-deep.bg-gradient-to-br:hover,
+  .dark .shadow-wes-deep.bg-gradient-to-r:hover,
+  .dark .shadow-wes-deep.bg-gradient-to-l:hover,
+  .dark .shadow-sm.bg-gradient-to-br:hover,
+  .dark .shadow-sm.bg-gradient-to-r:hover,
+  .dark .shadow-sm.bg-gradient-to-l:hover {
+    filter: brightness(0.85) saturate(0.9);
+  }

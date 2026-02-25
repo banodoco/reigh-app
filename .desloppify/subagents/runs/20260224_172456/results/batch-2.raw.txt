@@ -1,0 +1,143 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 82.0,
+    "mid_level_elegance": 84.0,
+    "low_level_elegance": 87.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts is a pure pass-through repack of three prop groups with no validation/translation, then those same shapes are repacked again in src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx and src/shared/components/MediaLightbox/ImageLightbox.tsx.",
+        "src/tools/edit-images/hooks/useInlineEditState.ts builds a very large ImageEditValue param bag by stitching many sub-hooks, and src/tools/edit-images/hooks/useImageEditValue.ts then reconstructs the same fields into another object layer.",
+        "useImageEditValue memoizes with dependency [params], but useInlineEditState creates a new params object each render, so memoization rarely provides leverage while preserving high indirection cost."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 78.0,
+        "indirection_cost": 80.0,
+        "interface_honesty": 79.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "travel payload shaping is split across src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts and src/shared/lib/tasks/individualTravelSegment.ts with duplicated legacy-structure-parameter handling and independent normalization paths, increasing seam drift risk.",
+        "Server completion routing in supabase/functions/complete_task/generation.ts and supabase/functions/complete_task/orchestrator.ts relies on broad params probing in many alternative paths (orchestrator_details, top-level, fallbacks), making boundary contracts implicit instead of explicit.",
+        "Client and server handoffs around orchestrator metadata are resilient but ad hoc, requiring multiple fallback checks rather than a single canonical envelope."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts contains dense imperative deletion flow (multi-query read, sibling matching, delete, cache mutation, broad invalidation) in one callback, reducing local clarity and testability.",
+        "src/tools/edit-images/hooks/useInlineEditState.ts has very large internal assembly functions and repeated field forwarding that makes local intent hard to scan and maintain.",
+        "Despite complexity, helper extraction is present and naming is mostly descriptive, preventing a lower score."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Large hook internals still combine state wiring, data access, and side-effect orchestration in single flows; targeted command/query extraction would improve directness and reduce branch-heavy handlers."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "lightbox_button_props_passthrough_layers",
+      "summary": "Button-group abstractions add multiple forwarding layers without adding behavior or safety.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx"
+      ],
+      "evidence": [
+        "useButtonGroupProps returns a memoized object that mirrors input fields 1:1.",
+        "Video and image render-model assembly then re-wrap topRight/bottomLeft/bottomRight again before passing to LightboxLayout.",
+        "No translation, narrowing, validation, or policy is enforced at these layers."
+      ],
+      "suggestion": "Collapse to a single canonical `LightboxButtonGroupProps` producer near shared state and pass it through directly; keep only wrappers that enforce constraints (e.g., readOnly gating, required handlers).",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "image_edit_state_param_bag_over_abstraction",
+      "summary": "Inline edit state uses a large parameter-bag abstraction with limited payoff and ineffective memo boundaries.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/hooks/useImageEditValue.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx"
+      ],
+      "evidence": [
+        "useInlineEditState composes many sub-hooks into a large object via `buildImageEditValueParams` and passes it to `useImageEditValue`.",
+        "useImageEditValue re-splits and re-merges the same fields across `buildModeState`, `buildCanvasAndAnnotationState`, `buildRepositionAndPanelState`, and `buildFormAndGenerationState`.",
+        "Memo dependency is `[params]`, but callsite constructs a fresh object every render, so memoization does not effectively stabilize the result."
+      ],
+      "suggestion": "Replace monolithic param bag with a small number of stable slices (mode/canvas/forms/status), memoize those slices at the source, and let `ImageEditProvider` consume slice objects directly.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "travel_payload_normalization_split_brain",
+      "summary": "Travel-task payload normalization is duplicated across paths, creating seam drift risk.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/imageGeneration.ts"
+      ],
+      "evidence": [
+        "Both payload builders handle legacy structure-guidance fields and cleanup logic independently.",
+        "Individual segment logic keeps a local legacy param list while batch payload builder maintains a separate deletion list.",
+        "Each entry point applies defaults/fallbacks differently, increasing divergence across batch vs single-segment generation."
+      ],
+      "suggestion": "Centralize a shared `normalizeTravelParams` module that owns legacy-field translation, structure guidance normalization, and canonical defaults, then consume it from both batch and individual segment builders.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "complete_task_contract_is_implicit",
+      "summary": "Complete-task routing relies on implicit param probing instead of explicit typed contracts across orchestrator/generation flows.",
+      "related_files": [
+        "supabase/functions/complete_task/generation.ts",
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/calculate-task-cost/index.ts"
+      ],
+      "evidence": [
+        "generation.ts accepts `taskData: unknown` and branches on many optional nested params (`params`, `orchestrator_details`, fallbacks).",
+        "orchestrator.ts computes expected counts and IDs from multiple alternative param locations, implying schema ambiguity at seam boundaries.",
+        "calculate-task-cost defines a typed shape, but task param interpretation still depends on loose dictionary access."
+      ],
+      "suggestion": "Introduce shared task param discriminated unions for orchestration/segment/final-step tasks and validate once at function boundary before routing.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "editor_callbacks_multi_responsibility_handler",
+      "summary": "Shot image editor callback hook contains a dense, multi-responsibility delete path with intertwined DB and cache concerns.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/shared/hooks/useTasks.ts"
+      ],
+      "evidence": [
+        "handleDeleteSegment performs read-before-delete, sibling discovery, deletion, cache mutation, and broad invalidation in one callback.",
+        "The callback also repeats pair-id extraction logic from nested params for both parent and sibling items.",
+        "Hook-level data orchestration style matches broader pattern where UI hooks directly manage repository and cache internals."
+      ],
+      "suggestion": "Extract segment deletion into a dedicated service/repository function returning a normalized deletion plan (`idsToDelete`, affectedParents), then keep the hook focused on invoking and reconciling cache updates.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

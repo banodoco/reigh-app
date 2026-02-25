@@ -2,8 +2,8 @@ import React from 'react';
 import { Film, Play, Upload, X } from 'lucide-react';
 
 import { Button } from '@/shared/components/ui/button';
-import { Label } from '@/shared/components/ui/label';
-import { cn } from '@/shared/lib/utils';
+import { Label } from '@/shared/components/ui/primitives/label';
+import { cn } from '@/shared/components/ui/contracts/cn';
 
 import type { MotionVideoState } from '../characterAnimate.types';
 import { MediaContainerSkeleton, UploadingMediaState } from './MediaStates';

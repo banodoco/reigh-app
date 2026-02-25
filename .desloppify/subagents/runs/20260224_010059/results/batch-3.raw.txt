@@ -1,0 +1,98 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "mid_level_elegance": 78.4
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "Result/error handoff contracts diverge across boundaries: `OperationResult` uses `{ ok, error: Error }` while edge utilities use `{ ok, policy, errorCode, message, recoverable }`, forcing adapters and mixed caller behavior.",
+        "Request parsing boundary in edge runtime exposes three different contracts (`parseJsonBody`, `parseJsonBodyStrict`, `parseJsonBodyLoose`) for one concern, with partially duplicated response construction.",
+        "Orchestrator linkage data is translated in multiple modules via legacy path probing (`orchestration_contract`, `orchestrator_details`, `originalParams...`) instead of a single boundary normalizer.",
+        "Invalidation orchestration has both deduped and non-deduped scheduling entry points, creating inconsistent lifecycle semantics depending on which API a caller chooses."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "result_contract_fragmentation",
+      "summary": "Cross-layer operation result shapes are inconsistent and force boundary glue code.",
+      "related_files": [
+        "src/shared/lib/operationResult.ts",
+        "supabase/functions/_shared/edgeOperation.ts",
+        "src/shared/lib/generationTaskBridge.ts",
+        "supabase/functions/complete_task/storage.ts"
+      ],
+      "evidence": [
+        "`OperationResult` models failure as `error: Error` only, while edge failures carry `policy`, `errorCode`, `message`, `recoverable`, and optional `cause`.",
+        "`generationTaskBridge` exposes both throwing and `OperationResult` paths for similar operations, while edge modules consistently return `EdgeOperationResult`.",
+        "`storage.ts` returns `EdgeOperationResult` for main flows but still has ad-hoc helper return shapes (e.g., plain `{ publicUrl?: string }`)."
+      ],
+      "suggestion": "Define one shared cross-boundary result envelope (or a strict adapter layer) and require all public integration helpers to return that shape; keep throw-based variants as thin wrappers over the same canonical result.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "edge_json_parsing_api_split",
+      "summary": "Edge request body parsing exposes multiple incompatible APIs for the same seam.",
+      "related_files": [
+        "supabase/functions/_shared/edgeRequest.ts",
+        "supabase/functions/_shared/edgeOperation.ts"
+      ],
+      "evidence": [
+        "`parseJsonBody` returns `EdgeOperationResult<Record<string, unknown>>`, `parseJsonBodyLoose` returns raw object and silently defaults to `{}`, and `parseJsonBodyStrict` returns `{ body?, errorResponse? }`.",
+        "`parseJsonBodyStrict` rebuilds HTTP response from the operation result message instead of reusing a single typed conversion path.",
+        "`ParseJsonBodyOptions.status` is threaded into strict wrapper response creation but is not part of core parse result semantics."
+      ],
+      "suggestion": "Collapse to one parser contract (prefer `EdgeOperationResult`) and add a single utility that maps parse failures to `Response`; keep strict/loose behavior as mode flags rather than separate return shapes.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "orchestrator_reference_translation_sprawl",
+      "summary": "Orchestrator/task linkage translation is scattered across modules with legacy path probing.",
+      "related_files": [
+        "src/shared/lib/tasks/orchestrationContract.ts",
+        "supabase/functions/_shared/billing.ts",
+        "src/shared/lib/generationTransformers.ts"
+      ],
+      "evidence": [
+        "`orchestrationContract.ts` defines a versioned canonical payload (`orchestration_contract.*`).",
+        "`billing.ts` still must probe multiple legacy paths (`orchestrator_task_id_ref`, `orchestrator_details.orchestrator_task_id`, `originalParams...`, direct `orchestrator_task_id`).",
+        "`generationTransformers.ts` also reads nested legacy/orchestrator payload variants (`originalParams`, `orchestrator_details`, `full_orchestrator_payload`) for related metadata handoff."
+      ],
+      "suggestion": "Introduce a single normalization module for orchestration metadata at boundary ingress, migrate writers to canonical contract fields only, and keep legacy fallback reads isolated to that module until backfill is complete.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "invalidation_lifecycle_api_divergence",
+      "summary": "Generation invalidation scheduling has inconsistent dedupe/cancellation semantics across entry points.",
+      "related_files": [
+        "src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+        "src/shared/hooks/shots/cacheUtils.ts",
+        "src/features/gallery/lib/adjacentPagePreloadCoordinator.ts"
+      ],
+      "evidence": [
+        "`useInvalidateGenerations` keeps per-shot timeout refs and cancels prior delayed invalidations, but `scheduleGenerationsInvalidation` creates independent timers with no built-in dedupe registry.",
+        "The codebase also mixes direct query invalidation/cancellation helpers in `cacheUtils.ts`, leaving multiple ways to orchestrate near-identical cache lifecycle behavior.",
+        "Adjacent preload cleanup removes and invalidates nearby query data independently, increasing sensitivity to inconsistent invalidation timing across callers."
+      ],
+      "suggestion": "Consolidate invalidation scheduling behind one exported coordinator API that owns dedupe, delay, and cancel semantics; have cache utilities and feature callers depend on that single orchestration surface.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

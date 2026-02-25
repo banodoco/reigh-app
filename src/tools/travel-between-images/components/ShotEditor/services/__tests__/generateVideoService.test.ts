@@ -19,23 +19,28 @@ vi.mock('sonner', () => ({
 }));
 
 import {
-  buildBasicModePhaseConfig,
-  buildImagePayload,
-  buildTimelinePairConfig,
-  buildBatchPairConfig,
-  resolveModelPhaseSelection,
-  validatePhaseConfigConsistency,
-  _stripModeFromPhaseConfig,
-  _extractPairOverrides,
-  _filterImageShotGenerations,
-  _resolveGenerationResolution,
-  _buildStructureGuidance,
-  _buildTravelRequestBody,
+  __internal,
   type ShotGenRow,
   type ImagePayload,
   type PairConfigPayload,
 } from '../generateVideoService';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
+
+const {
+  buildBasicModePhaseConfig,
+  buildImagePayload,
+  buildTimelinePairConfig,
+  buildBatchPairConfig,
+  buildByPairConfig,
+  resolveModelPhaseSelection,
+  validatePhaseConfigConsistency,
+  stripModeFromPhaseConfig: _stripModeFromPhaseConfig,
+  extractPairOverrides: _extractPairOverrides,
+  filterImageShotGenerations: _filterImageShotGenerations,
+  resolveGenerationResolution: _resolveGenerationResolution,
+  buildStructureGuidance: _buildStructureGuidance,
+  buildTravelRequestBodyV2: _buildTravelRequestBodyV2,
+} = __internal;
 
 // ============================================================================
 // TEST HELPERS
@@ -210,13 +215,21 @@ describe('generateVideoService', () => {
           },
         }),
       ];
-      // isVideoShotGenerations checks .generations (plural) property,
-      // but this row uses .generation (singular). The function casts to ShotGenerationsLike.
-      // Videos are detected by the type guard on the plural form.
-      const result = _filterImageShotGenerations(rows);
-      // The type guard checks sg.generations (plural), but filterImageShotGenerations
-      // passes the row as ShotGenerationsLike, so it looks for .generations property
-      expect(result).toHaveLength(1); // singular .generation doesn't match .generations
+      expect(_filterImageShotGenerations(rows)).toEqual([]);
+    });
+
+    it('filters out video-extension rows even when type is not explicitly set', () => {
+      const rows: ShotGenRow[] = [
+        makeShotGenRow({
+          id: '1',
+          generation: {
+            id: 'gen-1',
+            location: 'https://example.com/video.mp4',
+            type: 'image',
+          },
+        }),
+      ];
+      expect(_filterImageShotGenerations(rows)).toEqual([]);
     });
 
     it('keeps valid image rows', () => {
@@ -489,13 +502,64 @@ describe('generateVideoService', () => {
       expect(result.pairPhaseConfigsArray).toEqual([null, null]);
       expect(result.pairLorasArray).toEqual([null, null]);
       expect(result.pairMotionSettingsArray).toEqual([null, null]);
-      expect(result.enhancedPromptsArray).toEqual([null, null]);
+      expect(result.enhancedPromptsArray).toEqual(['', '']);
     });
 
     it('fills base prompts with empty strings', () => {
       const urls = ['url1', 'url2'];
       const result = buildBatchPairConfig(urls, 61, defaultNeg);
       expect(result.basePrompts).toEqual(['']);
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // buildByPairConfig
+  // --------------------------------------------------------------------------
+  describe('buildByPairConfig', () => {
+    const defaultNeg = 'low quality';
+
+    it('returns defaults when no pairs exist', () => {
+      const result = buildByPairConfig([], 61, defaultNeg);
+      expect(result.basePrompts).toEqual(['']);
+      expect(result.segmentFrames).toEqual([61]);
+      expect(result.negativePrompts).toEqual([defaultNeg]);
+      expect(result.pairPhaseConfigsArray).toEqual([]);
+    });
+
+    it('applies pair overrides while keeping fixed frame defaults', () => {
+      const rows: ShotGenRow[] = [
+        makeShotGenRow({
+          id: 'sg-1',
+          timeline_frame: 0,
+          metadata: {
+            segmentOverrides: {
+              prompt: 'pair prompt',
+              negativePrompt: 'pair neg',
+              numFrames: 77,
+            },
+          },
+          generation: {
+            id: 'gen-1',
+            location: 'https://example.com/img1.png',
+            type: 'image',
+          },
+        }),
+        makeShotGenRow({
+          id: 'sg-2',
+          timeline_frame: 120,
+          generation: {
+            id: 'gen-2',
+            location: 'https://example.com/img2.png',
+            type: 'image',
+          },
+        }),
+      ];
+
+      const result = buildByPairConfig(rows, 61, defaultNeg);
+      expect(result.basePrompts).toEqual(['pair prompt']);
+      expect(result.negativePrompts).toEqual(['pair neg']);
+      expect(result.segmentFrames).toEqual([77]);
+      expect(result.frameOverlap).toEqual([10]);
     });
   });
 
@@ -1300,7 +1364,7 @@ describe('generateVideoService', () => {
           motion_strength: 1.0,
         },
       ]);
-      expect(result!.step_window).toEqual([0, 1.0]);
+      expect(result!.step_window).toEqual([0, 0.1]);
     });
 
     it('handles multiple structure videos', () => {
@@ -1348,26 +1412,33 @@ describe('generateVideoService', () => {
         pairLorasArray: [null],
         pairMotionSettingsArray: [null],
       } as PairConfigPayload,
-      batchVideoPrompt: 'a beautiful scene',
       actualModelName: 'wan_2_2_i2v_lightning_baseline_2_2_2',
-      seed: 789,
-      debug: false,
-      enhancePrompt: false,
-      generationMode: 'timeline' as const,
-      randomSeed: true,
-      turboMode: false,
-      amountOfMotion: 50,
-      useAdvancedMode: false,
-      motionMode: 'basic',
-      effectivePhaseConfig: makePhaseConfig(),
-      selectedPhasePresetId: null,
-      variantNameParam: '',
-      textBeforePrompts: undefined,
-      textAfterPrompts: undefined,
+      generationTypeMode: 'i2v' as const,
+      motionParams: {
+        amountOfMotion: 50,
+        motionMode: 'basic' as const,
+        useAdvancedMode: false,
+        effectivePhaseConfig: makePhaseConfig(),
+        selectedPhasePresetId: null,
+      },
+      generationParams: {
+        generationMode: 'timeline' as const,
+        batchVideoPrompt: 'a beautiful scene',
+        enhancePrompt: false,
+        variantNameParam: '',
+        textBeforePrompts: undefined,
+        textAfterPrompts: undefined,
+      },
+      seedParams: {
+        seed: 789,
+        randomSeed: true,
+        turboMode: false,
+        debug: false,
+      },
     };
 
     it('includes required fields', () => {
-      const result = _buildTravelRequestBody(baseParams);
+      const result = _buildTravelRequestBodyV2(baseParams);
       expect(result.project_id).toBe('proj-1');
       expect(result.shot_id).toBe('shot-1');
       expect(result.image_urls).toEqual(['https://example.com/img1.png', 'https://example.com/img2.png']);
@@ -1380,33 +1451,32 @@ describe('generateVideoService', () => {
     });
 
     it('normalizes amountOfMotion to 0-1 scale', () => {
-      const result = _buildTravelRequestBody(baseParams);
+      const result = _buildTravelRequestBodyV2(baseParams);
       expect(result.amount_of_motion).toBe(0.5); // 50 / 100
     });
 
     it('includes image_generation_ids when they match image count', () => {
-      const result = _buildTravelRequestBody(baseParams);
+      const result = _buildTravelRequestBodyV2(baseParams);
       expect(result.image_generation_ids).toEqual(['gen-1', 'gen-2']);
     });
 
-    it('omits image_generation_ids when count does not match', () => {
-      const result = _buildTravelRequestBody({
+    it('throws when image_generation_ids count does not match', () => {
+      expect(() => _buildTravelRequestBodyV2({
         ...baseParams,
         imagePayload: {
           ...baseParams.imagePayload,
           imageGenerationIds: ['gen-1'], // Only 1, but 2 URLs
         },
-      });
-      expect(result.image_generation_ids).toBeUndefined();
+      })).toThrowError('image_generation_ids');
     });
 
     it('omits image_variant_ids when empty', () => {
-      const result = _buildTravelRequestBody(baseParams);
+      const result = _buildTravelRequestBodyV2(baseParams);
       expect(result.image_variant_ids).toBeUndefined();
     });
 
     it('includes image_variant_ids when matching count', () => {
-      const result = _buildTravelRequestBody({
+      const result = _buildTravelRequestBodyV2({
         ...baseParams,
         imagePayload: {
           ...baseParams.imagePayload,
@@ -1416,8 +1486,18 @@ describe('generateVideoService', () => {
       expect(result.image_variant_ids).toEqual(['v-1', 'v-2']);
     });
 
+    it('throws when image_variant_ids count does not match', () => {
+      expect(() => _buildTravelRequestBodyV2({
+        ...baseParams,
+        imagePayload: {
+          ...baseParams.imagePayload,
+          imageVariantIds: ['v-1'],
+        },
+      })).toThrowError('image_variant_ids');
+    });
+
     it('includes parent_generation_id when provided', () => {
-      const result = _buildTravelRequestBody({
+      const result = _buildTravelRequestBodyV2({
         ...baseParams,
         parentGenerationId: 'parent-gen-1',
       });
@@ -1425,12 +1505,12 @@ describe('generateVideoService', () => {
     });
 
     it('omits parent_generation_id when not provided', () => {
-      const result = _buildTravelRequestBody(baseParams);
+      const result = _buildTravelRequestBodyV2(baseParams);
       expect(result.parent_generation_id).toBeUndefined();
     });
 
     it('includes enhanced_prompts when they have content', () => {
-      const result = _buildTravelRequestBody({
+      const result = _buildTravelRequestBodyV2({
         ...baseParams,
         pairConfig: {
           ...baseParams.pairConfig,
@@ -1441,7 +1521,7 @@ describe('generateVideoService', () => {
     });
 
     it('omits enhanced_prompts when all empty', () => {
-      const result = _buildTravelRequestBody({
+      const result = _buildTravelRequestBodyV2({
         ...baseParams,
         pairConfig: {
           ...baseParams.pairConfig,
@@ -1453,7 +1533,7 @@ describe('generateVideoService', () => {
 
     it('includes pair_phase_configs when some are non-null', () => {
       const pc = makePhaseConfig();
-      const result = _buildTravelRequestBody({
+      const result = _buildTravelRequestBodyV2({
         ...baseParams,
         pairConfig: {
           ...baseParams.pairConfig,
@@ -1464,12 +1544,12 @@ describe('generateVideoService', () => {
     });
 
     it('omits pair_phase_configs when all null', () => {
-      const result = _buildTravelRequestBody(baseParams);
+      const result = _buildTravelRequestBodyV2(baseParams);
       expect(result.pair_phase_configs).toBeUndefined();
     });
 
     it('includes pair_loras when some are non-null', () => {
-      const result = _buildTravelRequestBody({
+      const result = _buildTravelRequestBodyV2({
         ...baseParams,
         pairConfig: {
           ...baseParams.pairConfig,
@@ -1480,7 +1560,7 @@ describe('generateVideoService', () => {
     });
 
     it('includes pair_motion_settings when some are non-null', () => {
-      const result = _buildTravelRequestBody({
+      const result = _buildTravelRequestBodyV2({
         ...baseParams,
         pairConfig: {
           ...baseParams.pairConfig,
@@ -1491,65 +1571,95 @@ describe('generateVideoService', () => {
     });
 
     it('strips mode from phase config', () => {
-      const result = _buildTravelRequestBody({
+      const result = _buildTravelRequestBodyV2({
         ...baseParams,
-        effectivePhaseConfig: makePhaseConfig({ mode: 'i2v' }),
+        motionParams: {
+          ...baseParams.motionParams,
+          useAdvancedMode: true,
+          motionMode: 'advanced',
+          effectivePhaseConfig: makePhaseConfig({ mode: 'i2v' }),
+        },
       });
       expect((result.phase_config as any).mode).toBeUndefined();
     });
 
     it('includes text_before_prompts when provided', () => {
-      const result = _buildTravelRequestBody({
+      const result = _buildTravelRequestBodyV2({
         ...baseParams,
-        textBeforePrompts: 'cinematic, ',
+        generationParams: {
+          ...baseParams.generationParams,
+          textBeforePrompts: 'cinematic, ',
+        },
       });
       expect(result.text_before_prompts).toBe('cinematic, ');
     });
 
     it('omits text_before_prompts when undefined', () => {
-      const result = _buildTravelRequestBody(baseParams);
+      const result = _buildTravelRequestBodyV2(baseParams);
       expect(result.text_before_prompts).toBeUndefined();
     });
 
     it('includes text_after_prompts when provided', () => {
-      const result = _buildTravelRequestBody({
+      const result = _buildTravelRequestBodyV2({
         ...baseParams,
-        textAfterPrompts: ', 4k quality',
+        generationParams: {
+          ...baseParams.generationParams,
+          textAfterPrompts: ', 4k quality',
+        },
       });
       expect(result.text_after_prompts).toBe(', 4k quality');
     });
 
     it('includes generation_name when variantNameParam is non-empty', () => {
-      const result = _buildTravelRequestBody({
+      const result = _buildTravelRequestBodyV2({
         ...baseParams,
-        variantNameParam: 'my variant v2',
+        generationParams: {
+          ...baseParams.generationParams,
+          variantNameParam: 'my variant v2',
+        },
       });
       expect(result.generation_name).toBe('my variant v2');
     });
 
     it('omits generation_name when variantNameParam is empty', () => {
-      const result = _buildTravelRequestBody({
+      const result = _buildTravelRequestBodyV2({
         ...baseParams,
-        variantNameParam: '',
+        generationParams: {
+          ...baseParams.generationParams,
+          variantNameParam: '',
+        },
       });
       expect(result.generation_name).toBeUndefined();
     });
 
     it('trims whitespace from variantNameParam', () => {
-      const result = _buildTravelRequestBody({
+      const result = _buildTravelRequestBodyV2({
         ...baseParams,
-        variantNameParam: '  my variant  ',
+        generationParams: {
+          ...baseParams.generationParams,
+          variantNameParam: '  my variant  ',
+        },
       });
       expect(result.generation_name).toBe('my variant');
     });
 
     it('includes pair_shot_generation_ids when present', () => {
-      const result = _buildTravelRequestBody(baseParams);
+      const result = _buildTravelRequestBodyV2(baseParams);
       expect(result.pair_shot_generation_ids).toEqual(['sg-1']);
     });
 
+    it('throws when pair_shot_generation_ids count does not match image pairs', () => {
+      expect(() => _buildTravelRequestBodyV2({
+        ...baseParams,
+        imagePayload: {
+          ...baseParams.imagePayload,
+          pairShotGenerationIds: ['sg-1', 'sg-2'], // 2 IDs for 1 pair
+        },
+      })).toThrowError('pair_shot_generation_ids');
+    });
+
     it('omits pair_shot_generation_ids when empty', () => {
-      const result = _buildTravelRequestBody({
+      const result = _buildTravelRequestBodyV2({
         ...baseParams,
         imagePayload: {
           ...baseParams.imagePayload,
@@ -1560,12 +1670,12 @@ describe('generateVideoService', () => {
     });
 
     it('sets static fields correctly', () => {
-      const result = _buildTravelRequestBody(baseParams);
+      const result = _buildTravelRequestBodyV2(baseParams);
       expect(result.model_type).toBe('i2v');
       expect(result.regenerate_anchors).toBe(false);
       expect(result.independent_segments).toBe(true);
       expect(result.chain_segments).toBe(false);
-      expect(result.use_svi).toBe(false);
+      expect(result.use_svi).toBeUndefined();
     });
   });
 });

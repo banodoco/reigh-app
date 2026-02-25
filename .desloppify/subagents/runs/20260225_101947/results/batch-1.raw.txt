@@ -1,0 +1,69 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 82.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/handleError.ts` mixes normalization/logging with optional toast emission (`notifyError`), and feature hooks call it directly (`useMediaGalleryItemState`, `useMediaGalleryHandlers`), coupling domain/feature error paths to UI notification behavior.",
+        "`src/shared/contexts/ProjectContext.tsx` writes `setProjectSelectionSnapshot(...)` from a React effect to support non-React consumers, creating hidden shared-state coordination across module boundaries.",
+        "`src/integrations/supabase/client.ts` exposes `initializeSupabase()` + `getSupabaseClient()` with a required call order enforced only at runtime (catch/normalize/rethrow), indicating boot-order dependency across modules."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "error_policy_ui_coupling_via_shared_facade",
+      "summary": "Shared error facade couples feature/domain code to UI toast side effects",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+      ],
+      "evidence": [
+        "`handleError` calls `notifyError` based on `showToast`/`appError.showToast`, so importing this shared API can trigger UI behavior.",
+        "Feature hooks call `handleError`/`reportAndRethrow` directly for operational paths, meaning non-UI logic inherits global notification policy through a cross-module utility."
+      ],
+      "suggestion": "Split error responsibilities: keep a pure `reportError` API in a non-UI module and move toast decisions to UI boundary adapters (for example, `useUiErrorReporter` in presentation layers). Update feature hooks to call pure reporting and have container/UI layers opt into toast behavior explicitly.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "implicit_cross_layer_side_effects"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "runtime_bootstrap_order_contracts",
+      "summary": "State/client access relies on implicit runtime initialization order across modules",
+      "related_files": [
+        "src/shared/contexts/ProjectContext.tsx",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "`ProjectProvider` pushes selection into `projectSelectionStore` via `useEffect`, creating a separate mutable runtime channel for non-React consumers that depends on provider lifecycle timing.",
+        "`getSupabaseClient()` assumes prior `initializeSupabase()` call and fails at runtime if bootstrap order is violated."
+      ],
+      "suggestion": "Replace implicit init-order contracts with explicit dependency injection/composition roots: pass project selection and supabase client through typed providers or factory-created services, and remove ambient singleton access paths that can be called before initialization.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "implicit_cross_layer_side_effects"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Shared utilities acting as policy hubs (not just primitives) introduce cross-layer side effects.",
+      "Ambient singleton/state access patterns create hidden runtime-order coupling between modules."
+    ],
+    "likely_symptoms": [
+      "error_policy_ui_coupling_via_shared_facade",
+      "runtime_bootstrap_order_contracts"
+    ],
+    "possible_false_positives": []
+  }
+}

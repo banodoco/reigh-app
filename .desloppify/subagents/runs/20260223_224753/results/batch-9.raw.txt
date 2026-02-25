@@ -1,0 +1,293 @@
+{
+  "batch": "Full Codebase Sweep",
+  "batch_index": 9,
+  "assessments": {
+    "cross_module_architecture": 100.0,
+    "convention_outlier": 100.0,
+    "error_consistency": 72.0,
+    "abstraction_fitness": 76.0,
+    "api_surface_coherence": 100.0,
+    "authorization_consistency": 74.0,
+    "ai_generated_debt": 84.0,
+    "incomplete_migration": 70.0,
+    "package_organization": 73.0,
+    "high_level_elegance": 100.0,
+    "mid_level_elegance": 100.0,
+    "low_level_elegance": 100.0,
+    "design_coherence": 78.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "The app bootstrap path is centralized (`src/app/main.tsx` -> `src/app/bootstrap.tsx` -> `src/app/App.tsx`) with clear startup ownership.",
+        "`src/domains/generation/types/index.ts` acts as a stable barrel for type contracts consumed broadly without introducing runtime side effects."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "unreported_risk": "Supabase integration still has cross-file instrumentation hooks that could become a coupling hotspot if additional runtime patches are added."
+    },
+    "convention_outlier": {
+      "evidence": [
+        "Type names/components generally follow PascalCase and hook/function names use camelCase across app/home/supabase files.",
+        "Route/page structure is consistently React-router driven with predictable `Page` suffixes."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "unreported_risk": "Several files still carry mixed legacy naming comments (for example around Supabase internals), which can reintroduce style islands during future edits."
+    },
+    "error_consistency": {
+      "evidence": [
+        "`src/pages/Home/hooks/useHomeAuth.ts` mixes `handleError(...)` paths with multiple intentionally ignored catches (`catch {}`), producing inconsistent failure visibility for referral/session flows.",
+        "`src/features/gallery/hooks/useAdjacentPagePreloader.ts` swallows prefetch failures (`catch {}`) while adjacent code paths in other hooks report errors.",
+        "`src/app/App.tsx` ignores `getNetworkStatusManager()` failures without logging context."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "abstraction_fitness": {
+      "evidence": [
+        "`src/pages/Home/hooks/useHomeAuth.ts` combines URL-token parsing, session mutation, PWA detection, auth subscription, referral RPC, and navigation in one abstraction.",
+        "`src/pages/Home/HomePage.tsx` coordinates many independent runtime concerns through one page-level orchestrator, with broad hook coupling and state plumbing.",
+        "`src/pages/Home/hooks/usePaneState.ts` encodes a three-pane state machine through duplicated booleans and timeout toggles rather than a single transition model."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 69.0,
+        "indirection_cost": 78.0,
+        "interface_honesty": 80.0
+      }
+    },
+    "api_surface_coherence": {
+      "evidence": [
+        "Public hooks in this batch generally expose typed object returns and avoid overloaded call signatures.",
+        "Supabase client access is mostly normalized through `getSupabaseClient()`."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "unreported_risk": "Auth-related APIs still differ in semantics (`getUser`, `getSession`, storage checks), which may drift API expectations over time."
+    },
+    "authorization_consistency": {
+      "evidence": [
+        "`src/app/routes.tsx` uses a local-storage token presence check (`hasStoredSession`) for redirect decisions instead of authoritative session validation.",
+        "`src/features/account/hooks/useApiTokens.ts` mixes `supabase.auth.getUser()` and `supabase.auth.getSession()` as interchangeable authorization gates.",
+        "`src/features/settings/hooks/useApiKeys.ts` uses only `getUser()` for auth checks, creating sibling-hook divergence in auth contract.",
+        "`src/pages/Home/hooks/useHomeAuth.ts` performs additional session mutation (`setSession`) and redirects outside shared auth guard behavior."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "ai_generated_debt": {
+      "evidence": [
+        "`src/integrations/supabase/reconnect/ReconnectScheduler.ts` contains repeated explanatory comments that restate obvious control flow and stale 'removed for simplicity' notes.",
+        "`src/integrations/supabase/instrumentation/realtime/index.ts` and `window/index.ts` contain legacy/delegation commentary blocks that no longer match current implementation intent."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium"
+    },
+    "incomplete_migration": {
+      "evidence": [
+        "`src/integrations/supabase/legacy/clientProxy.ts` still exports a compatibility proxy and warns at runtime, indicating active old/new client access paths.",
+        "`src/integrations/supabase/instrumentation/realtime/index.ts` and `window/index.ts` route through `*Legacy` functions with comments indicating removed manager code, leaving partial migration residue.",
+        "`src/integrations/supabase/config/env.ts` includes explicit migration contract comments with future remove-by date, confirming unfinished cleanup."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "package_organization": {
+      "evidence": [
+        "From `holistic_context.structure.directory_profiles`, `src/pages/Home/components/` has `file_count: 26` (>10 threshold) and mixed concerns (hero, panes, install, motion, media) with low cohesion (`avg_fan_in: 1.1`).",
+        "`src/pages/Home/components/` imports from multiple concern areas (`installInstructions`, `motionComparison`, shared libs/hooks), but is primarily imported only by `src/pages/Home/` (`imported_by_dirs` concentrated at 5), indicating feature-internal structure flattening.",
+        "`src/pages/Home/hooks/` has `file_count: 18` and mostly local import/usage patterns, but no sub-packaging by concern (auth/media/theme/runtime).",
+        "`holistic_context.structure.root_files` is null in this packet, so root-file fan-in straggler checks are unavailable; scoring is grounded on available directory profiles and import affinity signals."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Top-level decomposition between `app`, `pages`, `features`, `domains`, and `integrations` is understandable and mostly role-aligned.",
+        "Generation domain types are isolated in a dedicated domain package and reused consistently."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "unreported_risk": "Home page and Supabase integration subsystems are trending toward broad ownership zones, which can erode top-level clarity if left unbounded."
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Most inter-module handoffs use explicit typed hook inputs/outputs (for example `usePaymentVerification`, `LayoutMainContent` prop contracts).",
+        "Router-level composition keeps page boundaries visible and predictable for navigation concerns."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "unreported_risk": "Auth and Home runtime seams still contain custom choreography that can become brittle when adding new auth entry points."
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Several utility-level hooks have direct control flow and bounded side effects (`useAppDndOverlay`, `useSplitViewScroll`, `fetchWithTimeout`).",
+        "Type-focused modules (`generationParams.ts`) keep data transforms explicit and deterministic."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "unreported_risk": "Repeated timer/callback patterns in UI hooks can accumulate local complexity quickly if copied into additional files."
+    },
+    "design_coherence": {
+      "evidence": [
+        "`src/pages/Home/hooks/usePaneState.ts` models a small finite-state UI with many parallel booleans and duplicated timer logic, increasing invalid-state risk.",
+        "`src/pages/Home/HomePage.tsx` and `src/pages/Home/components/HeroSection.tsx` rely on wide prop/state coordination and multi-responsibility composition, making changes ripple-prone."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "supabase_legacy_path_still_active",
+      "summary": "Legacy Supabase compatibility layers remain in active runtime paths",
+      "related_files": [
+        "src/integrations/supabase/legacy/clientProxy.ts",
+        "src/integrations/supabase/instrumentation/realtime/index.ts",
+        "src/integrations/supabase/instrumentation/window/index.ts",
+        "src/integrations/supabase/config/env.ts"
+      ],
+      "evidence": [
+        "`legacy/clientProxy.ts` still exports `supabase` proxy and runtime deprecation warning.",
+        "Both instrumentation entry points call `*Legacy` functions and carry migration commentary about removed managers.",
+        "`env.ts` includes explicit remove-by migration contract for legacy symbol cleanup."
+      ],
+      "suggestion": "Complete migration in stages: 1) remove remaining imports of `legacy/clientProxy` and add compile-time ban via ESLint/no-restricted-imports; 2) inline final instrumentation implementations and delete `install*Legacy` wrappers; 3) remove migration contract comments and dead toggles once no legacy references remain; 4) run `pnpm typecheck && pnpm test src/integrations/supabase` to validate behavior.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "authorization_consistency",
+      "identifier": "divergent_auth_gate_mechanics",
+      "summary": "Sibling modules use incompatible auth checks and trust boundaries",
+      "related_files": [
+        "src/app/routes.tsx",
+        "src/pages/Home/hooks/useHomeAuth.ts",
+        "src/features/account/hooks/useApiTokens.ts",
+        "src/features/settings/hooks/useApiKeys.ts"
+      ],
+      "evidence": [
+        "`routes.tsx` redirect loader trusts cached token presence (`hasStoredSession`) rather than session validity.",
+        "`useApiTokens.ts` uses both `getUser()` and `getSession()` checks for same feature area.",
+        "`useApiKeys.ts` uses only `getUser()` and has different auth failure behavior from token hooks.",
+        "`useHomeAuth.ts` performs direct session mutation and redirect policy outside shared guard path."
+      ],
+      "suggestion": "Define one frontend auth gate contract (recommended: `getSession()` + shared helper) and apply it in all auth-sensitive hooks/routes. Create a small `ensureAuthenticated()` utility under `src/integrations/supabase/auth/`, migrate route loader + API key/token hooks to it, then add targeted tests for unauthenticated/expired-session paths.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "silent_failure_branches_in_core_flows",
+      "summary": "Core flows mix handled errors with silent catch blocks",
+      "related_files": [
+        "src/pages/Home/hooks/useHomeAuth.ts",
+        "src/features/gallery/hooks/useAdjacentPagePreloader.ts",
+        "src/app/App.tsx"
+      ],
+      "evidence": [
+        "`useHomeAuth.ts` has several `catch {}` blocks that suppress referral/localStorage/session side-effect failures.",
+        "`useAdjacentPagePreloader.ts` ignores prefetch errors without reporting context.",
+        "`App.tsx` suppresses `getNetworkStatusManager()` initialization errors entirely."
+      ],
+      "suggestion": "Adopt a single non-intrusive reporting rule for non-critical failures: log via `handleError(..., { showToast: false })` with stable contexts. Replace empty catches in these files with that rule and add one helper (`reportNonCritical`) to avoid repetitive boilerplate.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "home_auth_hook_overloaded_abstraction",
+      "summary": "Home auth abstraction bundles unrelated responsibilities",
+      "related_files": [
+        "src/pages/Home/hooks/useHomeAuth.ts",
+        "src/pages/Home/HomePage.tsx",
+        "src/pages/Home/hooks/usePaneState.ts"
+      ],
+      "evidence": [
+        "`useHomeAuth.ts` handles token parsing, session writes, redirect policy, referral RPC, and auth subscriptions in one hook.",
+        "`HomePage.tsx` depends on this plus many additional hooks, increasing orchestration indirection at page level.",
+        "`usePaneState.ts` duplicates pane transition logic across three parallel state sets."
+      ],
+      "suggestion": "Split by responsibility: 1) `useOAuthHashSessionRestore`, 2) `useStandaloneAuthRedirect`, 3) `useAuthReferralFinalize`; keep `useHomeAuth` as thin composition only. For panes, replace parallel booleans with a discriminated union state machine (`activePane: 'none'|'creative'|'philosophy'|'examples'`, `phase: 'idle'|'opening'|'closing'`).",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "home_feature_flat_directory_overload",
+      "summary": "Home feature directories are overloaded and mix multiple concerns",
+      "related_files": [
+        "src/pages/Home/components/HeroSection.tsx",
+        "src/pages/Home/components/InstallInstructionsModal.tsx",
+        "src/pages/Home/components/motionComparison/useMotionComparisonController.ts",
+        "src/pages/Home/hooks/useHomeAuth.ts",
+        "src/pages/Home/hooks/useHomePageRuntimeEffects.ts"
+      ],
+      "evidence": [
+        "`holistic_context.structure.directory_profiles['src/pages/Home/components/']` reports `file_count: 26` with mixed concern imports and low cohesion.",
+        "`src/pages/Home/hooks/` has 18 files covering unrelated concerns (auth, media preload, theme, pane UI) without subfolders."
+      ],
+      "suggestion": "Staged reorg plan: Stage 1 create target folders `src/pages/Home/sections`, `src/pages/Home/panes`, `src/pages/Home/media`, `src/pages/Home/install`, `src/pages/Home/auth`, `src/pages/Home/runtime`; Stage 2 move files in order (auth/runtime hooks first, then install/motion components, then pane/hero sections); Stage 3 update imports using `rg -l \"src/pages/Home/(components|hooks)/\" src | xargs sed -i '' -E 's#src/pages/Home/components/#src/pages/Home/sections/#g'` (repeat per folder mapping); Stage 4 validate with `pnpm typecheck && pnpm test src/pages/Home` and smoke-run routes.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "pane_state_boolean_matrix",
+      "summary": "Pane behavior is implemented as a fragile boolean matrix",
+      "related_files": [
+        "src/pages/Home/hooks/usePaneState.ts",
+        "src/pages/Home/HomePage.tsx",
+        "src/pages/Home/components/HeroSection.tsx"
+      ],
+      "evidence": [
+        "`usePaneState.ts` maintains many booleans for open/close/opening/closing/button animating for three panes, with duplicated timeout-driven transitions.",
+        "`HomePage.tsx` and `HeroSection.tsx` consume this state shape broadly, increasing branching and prop coupling."
+      ],
+      "suggestion": "Introduce a compact reducer-based state model (`activePane`, `animatingPane`, `transitionPhase`) and action events (`OPEN_PANE`, `CLOSE_PANE`, `ANIMATION_DONE`). Keep timer handling in one transition scheduler hook to remove repeated `setTimeout` blocks.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "comment_ceremony_and_stale_explanations",
+      "summary": "Verbose/stale comment ceremony obscures current intent in Supabase runtime code",
+      "related_files": [
+        "src/integrations/supabase/reconnect/ReconnectScheduler.ts",
+        "src/integrations/supabase/instrumentation/realtime/index.ts",
+        "src/integrations/supabase/instrumentation/window/index.ts"
+      ],
+      "evidence": [
+        "Multiple comments restate obvious code operations (for example repeated 'Clear pending intents', 'Set new debounce timer') instead of documenting non-obvious rationale.",
+        "Comments like 'removed for simplicity' and legacy delegation notes are retained after implementation shifts, reducing signal-to-noise."
+      ],
+      "suggestion": "Prune explanatory repetition and keep only why-level comments (external constraints, race-condition rationale, invariants). Remove stale migration narration from these files after migration cleanup, and enforce a short comment policy in this subsystem (`why` only, no flow narration).",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ]
+}

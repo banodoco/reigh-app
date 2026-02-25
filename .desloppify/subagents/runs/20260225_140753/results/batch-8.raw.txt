@@ -1,0 +1,157 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 8,
+  "assessments": {
+    "authorization_consistency": 96.5,
+    "convention_outlier": 91.0,
+    "error_consistency": 88.0,
+    "logic_clarity": 89.0,
+    "type_safety": 90.0
+  },
+  "dimension_notes": {
+    "authorization_consistency": {
+      "evidence": [
+        "supabase/functions/calculate-task-cost/index.ts enforces authenticateRequest and explicit service-role gating before cost logic.",
+        "supabase/functions/complete_task/generation.ts and supabase/functions/complete_task/orchestrator.ts both assert auth context with assertCompletionAuthContext at function entry."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Client-side hooks in reviewed scope (for example useTasks/useGenerationMutations patterns) still rely primarily on downstream data-layer enforcement; explicit auth-intent checks are not uniformly visible at call boundaries."
+    },
+    "convention_outlier": {
+      "evidence": [
+        "UI primitive/theme siblings drift on quote/style conventions: src/shared/components/ui/theme/button.tsx and src/shared/components/ui/runtime/sonner.tsx use double-quote style while src/shared/components/ui/primitives/cn.ts and src/shared/components/ui/primitives/tooltip.tsx use single-quote style.",
+        "The inconsistency appears inside the same UI subsystem, creating a style island rather than a boundary-based convention."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Formatting convention drift in tightly related files increases review noise and weakens predictability for future edits."
+    },
+    "error_consistency": {
+      "evidence": [
+        "src/shared/lib/errorHandling/handleError.ts marks handleError/handleAndRethrow as deprecated, but active callers still use them (e.g., src/pages/Home/hooks/useDiscordSignIn.ts, src/shared/hooks/useTasks.ts, src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts).",
+        "Nearby sibling logic uses a different error pipeline directly (src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts imports reportError/reportAndRethrow from coreReporter), creating parallel reporting contracts."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Two active error-reporting surfaces with different call patterns remain in production paths, increasing behavioral divergence risk (toast behavior, normalization, and rethrow semantics)."
+    },
+    "logic_clarity": {
+      "evidence": [
+        "src/features/gallery/hooks/useAdjacentPagePreloader.ts sets totalPages to Infinity when totalItems is unknown.",
+        "src/features/gallery/lib/adjacentPagePreloadCoordinator.ts computes hasNextPage as currentPage < totalPages, which is always true with Infinity; this keeps forward prefetch logic active even when actual data may have ended."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Pagination termination for unknown totals is implicit and potentially unbounded, making control flow harder to reason about under empty/failing next-page responses."
+    },
+    "type_safety": {
+      "evidence": [
+        "src/shared/hooks/useTasks.ts uses non-null assertion effectiveProjectId! inside queryFn despite nullable type at function boundary.",
+        "src/shared/hooks/timeline/timelineFrameCalculators.ts relies on non-null assertions (timeline_frame!) and index assumptions (draggedShotGens[0]) that are not encoded as non-empty/narrowed types."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Type contracts are partially bypassed with non-null assertions instead of expressing invariants in function signatures and guards, leaving runtime failure modes under-specified."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "error_consistency",
+      "identifier": "mixed_error_reporter_surfaces",
+      "summary": "Deprecated and new error reporters are both active, fragmenting failure behavior.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/pages/Home/hooks/useDiscordSignIn.ts",
+        "src/shared/hooks/useTasks.ts"
+      ],
+      "evidence": [
+        "handleError.ts deprecates handleError/handleAndRethrow with removal target 2026-06-30.",
+        "useDiscordSignIn.ts and useTasks.ts still call deprecated helpers, while useMediaGalleryHandlers.ts uses coreReporter directly."
+      ],
+      "suggestion": "Consolidate on one reporting API (prefer coreReporter + presentation wrapper), migrate remaining deprecated call sites, and remove deprecated exports once callers are eliminated.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "error-pipeline-fragmentation"
+    },
+    {
+      "dimension": "logic_clarity",
+      "identifier": "unbounded_next_page_prefetch_when_total_unknown",
+      "summary": "Unknown-total pagination uses Infinity, so next-page prefetch never naturally terminates.",
+      "related_files": [
+        "src/features/gallery/hooks/useAdjacentPagePreloader.ts",
+        "src/features/gallery/lib/adjacentPagePreloadCoordinator.ts"
+      ],
+      "evidence": [
+        "useAdjacentPagePreloader assigns totalPages = Infinity when totalItems is undefined.",
+        "prefetchAdjacentGenerationPages checks currentPage < totalPages for next prefetch; with Infinity this remains true indefinitely."
+      ],
+      "suggestion": "Introduce an explicit hasMore/nextPageKnown state from fetched page payloads and gate prefetch on that signal instead of Infinity.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "implicit-pagination-contract"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "non_null_assertions_hide_runtime_invariants",
+      "summary": "Non-null assertions and unchecked indexing bypass declared nullable contracts.",
+      "related_files": [
+        "src/shared/hooks/useTasks.ts",
+        "src/shared/hooks/timeline/timelineFrameCalculators.ts"
+      ],
+      "evidence": [
+        "useTasks.ts uses effectiveProjectId! in queryFn despite effectiveProjectId being nullable at the API boundary.",
+        "timelineFrameCalculators.ts uses timeline_frame! and draggedShotGens[0].id without a type-level non-empty guarantee."
+      ],
+      "suggestion": "Replace assertions with explicit narrowing helpers and non-empty tuple/types where required; fail fast with typed guard errors when invariants are missing.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "invariant-not-encoded-in-types"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "ui_quote_style_island",
+      "summary": "UI sibling files diverge on basic string/import style conventions.",
+      "related_files": [
+        "src/shared/components/ui/theme/button.tsx",
+        "src/shared/components/ui/runtime/sonner.tsx",
+        "src/shared/components/ui/primitives/cn.ts",
+        "src/shared/components/ui/primitives/tooltip.tsx"
+      ],
+      "evidence": [
+        "button.tsx and sonner.tsx use double-quote import/style patterns while nearby primitives use single quotes.",
+        "Drift occurs within the same `src/shared/components/ui` area, not across separate technology boundaries."
+      ],
+      "suggestion": "Apply one formatter/lint style profile consistently across the UI subtree and auto-format these outlier files to remove local convention drift.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "style-governance-gap"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Partial migrations left old and new operational contracts active simultaneously (error handling).",
+      "Important runtime invariants (pagination termination, non-empty arrays/project scope) are enforced implicitly rather than encoded in types/contracts.",
+      "Formatting governance is not uniformly enforced across all UI entry files."
+    ],
+    "likely_symptoms": [
+      "mixed_error_reporter_surfaces",
+      "unbounded_next_page_prefetch_when_total_unknown",
+      "non_null_assertions_hide_runtime_invariants",
+      "ui_quote_style_island"
+    ],
+    "possible_false_positives": [
+      "The Infinity pagination path may be intentionally tolerated if upstream fetchers hard-stop reliably; no explicit stop signal is visible in reviewed files."
+    ]
+  }
+}

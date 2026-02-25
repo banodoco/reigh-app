@@ -1,0 +1,74 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 7,
+  "assessments": {
+    "type_safety": 89.0
+  },
+  "dimension_notes": {
+    "type_safety": {
+      "evidence": [
+        "`supabase/functions/complete_task/generation.ts` types `taskData` as `unknown` but immediately accesses `taskData.params`, `taskData.category`, and `taskData.task_type` without runtime narrowing.",
+        "`supabase/functions/calculate-task-cost/index.ts` destructures `await req.json()` directly (`const { task_id } = ...`) and then force-casts DB output via `task as unknown as TaskWithProject | null`.",
+        "`src/integrations/supabase/client.ts` double-casts (`as unknown as`) a dynamic `Proxy` into `SupabaseClient<Database>`, which presents a stronger static contract than runtime guarantees.",
+        "`src/shared/lib/typedEvents.ts` force-casts generic `Event` to `CustomEvent<...>`; downstream consumers such as `src/app/hooks/useSettingsModal.ts` destructure detail payload fields and assume shape."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Several high-traffic boundary modules use `unknown` plus unchecked casts instead of parser/type-guard boundaries, so static contracts overstate runtime safety."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "type_safety",
+      "identifier": "unchecked_unknown_task_payloads",
+      "summary": "Edge handlers declare `unknown` request/task payloads but access nested fields without narrowing, making contracts dishonest and crash-prone on malformed input.",
+      "related_files": [
+        "supabase/functions/complete_task/generation.ts",
+        "supabase/functions/calculate-task-cost/index.ts"
+      ],
+      "evidence": [
+        "`createGenerationFromTask(..., taskData: unknown, ...)` reads `taskData.params`, `taskData.category`, and `taskData.task_type` directly.",
+        "`const { task_id } = await req.json();` assumes object JSON shape without guard; `task as unknown as TaskWithProject | null` bypasses structural checks before deep property use."
+      ],
+      "suggestion": "Introduce explicit runtime parsers/type guards for incoming JSON and task rows (e.g., `parseTaskData`, `parseCalculateCostBody`) and change function signatures to validated domain types so property access is statically and runtime safe.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "supabase_proxy_type_illusion",
+      "summary": "A dynamically trapped `Proxy` is force-cast to `SupabaseClient<Database>`, hiding runtime uncertainty behind a fully trusted client type.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts"
+      ],
+      "evidence": [
+        "`createSupabaseCompatibilityProxy()` repeatedly casts through `as unknown as SupabaseClientRecord` and returns `new Proxy(...) as unknown as SupabaseClientInstance`.",
+        "Consumers import `supabase` and call typed methods directly, but proxy traps allow arbitrary property access/set, so compile-time guarantees exceed runtime guarantees."
+      ],
+      "suggestion": "Replace the proxy export with explicit `getSupabaseClient()` usage (or a narrowly typed facade), and remove `as unknown as` casts so callers only see contracts that runtime actually enforces.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "custom_event_cast_without_guard",
+      "summary": "Event listener helpers cast generic `Event` to `CustomEvent<T>` without checking event shape, enabling unsafe detail assumptions in handlers.",
+      "related_files": [
+        "src/shared/lib/typedEvents.ts",
+        "src/app/hooks/useSettingsModal.ts"
+      ],
+      "evidence": [
+        "`useAppEventListener` and `listenAppEvent` do `handler((event as CustomEvent<AppCustomEvents[K]>).detail)` unconditionally.",
+        "`useSettingsModal` destructures `({ tab })` from event detail for `openSettings`; if a non-CustomEvent with same type is dispatched, detail is undefined and handler assumptions break."
+      ],
+      "suggestion": "Add a runtime guard in listener helpers (`if (!(event instanceof CustomEvent)) return`) and optionally validate required detail shape per event before invoking handlers.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ]
+}

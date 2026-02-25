@@ -1,0 +1,87 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "low_level_elegance": 78.0
+  },
+  "dimension_notes": {
+    "low_level_elegance": {
+      "evidence": [
+        "Many assigned files are single-line compatibility re-exports with deprecation headers (for example `src/shared/components/BatchDropZone.tsx`, `src/shared/components/ConfirmDialog.tsx`, `src/shared/components/MediaLightbox/utils/download.ts`, `src/shared/hooks/useBatchImageLoading.ts`, `src/shared/hooks/useClickRipple.ts`, `src/shared/lib/deepEqual.ts`), creating extra indirection without behavior.",
+        "`src/integrations/supabase/client.ts` mixes explicit bootstrap guidance with hidden import-time behavior via `export const supabase = getSupabaseClient();`, which can trigger fallback initialization/error paths during module evaluation.",
+        "`src/shared/hooks/useDeleteGenerationWithConfirm.tsx` combines mutation orchestration and UI rendering by constructing and returning a `confirmDialog` React node from inside the hook, increasing coupling and reducing intention-revealing control flow."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "migration_shim_sprawl",
+      "summary": "Compatibility shim files add repetitive pass-through layers that obscure direct call paths.",
+      "related_files": [
+        "src/features/prompt-editor/components/BulkEditControls.tsx",
+        "src/shared/components/BatchDropZone.tsx",
+        "src/shared/components/ConfirmDialog.tsx",
+        "src/shared/components/MediaLightbox/utils/download.ts",
+        "src/shared/hooks/useBatchImageLoading.ts",
+        "src/shared/hooks/useClickRipple.ts",
+        "src/shared/hooks/useEditVideoSettings.ts",
+        "src/shared/hooks/useGalleryPageState.ts",
+        "src/shared/hooks/useMobile.tsx",
+        "src/shared/lib/NetworkStatusManager.ts",
+        "src/shared/lib/aspectRatios.ts",
+        "src/shared/lib/autoplayMonitor.ts",
+        "src/shared/lib/clientThumbnailGenerator.ts",
+        "src/shared/lib/deepEqual.ts",
+        "src/shared/components/ui/cn.ts"
+      ],
+      "evidence": [
+        "Each file above contains only deprecated comments plus a re-export, with no local logic.",
+        "All shims carry synchronized removal targets (`2026-06-30`), indicating a broad temporary layer that still affects day-to-day navigation and import clarity."
+      ],
+      "suggestion": "Run an import-path migration pass now (codemod + lint rule to ban legacy paths), then remove shim files in one bounded cleanup before the removal date instead of keeping dual paths active.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "supabase_import_side_effect",
+      "summary": "Supabase client module performs initialization work at import time through a deprecated alias.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "`src/integrations/supabase/client.ts` line 67 executes `getSupabaseClient()` during module load (`export const supabase = getSupabaseClient();`).",
+        "The same file documents explicit bootstrap (`initializeSupabase`) and fallback recovery (lines 24-50), so import-time aliasing can trigger fallback/error handling before intended app initialization.",
+        "Fallback path invokes `handleError(...)` (`src/shared/lib/errorHandling/handleError.ts`) in a non-user-driven execution path, adding side effects to what should be a simple import."
+      ],
+      "suggestion": "Replace the deprecated eager alias with a lazy accessor (or remove the alias entirely and migrate remaining call sites), so initialization only happens at explicit runtime boundaries.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "hook_returns_bound_dialog_ui",
+      "summary": "Deletion hook mixes state/mutation logic with hard-wired dialog rendering, reducing local clarity and reuse.",
+      "related_files": [
+        "src/shared/hooks/useDeleteGenerationWithConfirm.tsx",
+        "src/shared/components/ConfirmDialog.tsx"
+      ],
+      "evidence": [
+        "`useDeleteGenerationWithConfirm` constructs JSX (`confirmDialog`) internally (lines 48-58) and returns it alongside actions (lines 60-65).",
+        "The hook imports a concrete dialog component directly (line 3), hard-coding wording and presentation details inside mutation logic.",
+        "A separate deprecated dialog shim file (`src/shared/components/ConfirmDialog.tsx`) shows migration churn around the same UI boundary, compounding coupling/indirection at this call path."
+      ],
+      "suggestion": "Split into a pure controller hook (`pendingDeleteId`, handlers, mutation state) plus a small component that renders `ConfirmDialog` from controller props; keep copy/visual concerns in the component layer.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

@@ -1,0 +1,326 @@
+{
+  "assessments": {
+    "ai_generated_debt": 63.9,
+    "high_level_elegance": 54.1,
+    "logic_clarity": 74.3
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/integrations/supabase/client.ts` exposes a simple accessor (`getSupabaseClient`) that also performs one-time instrumentation install and runtime initialization, so subsystem boot behavior is hidden behind a generic getter.",
+        "`src/domains/generation/types/generationRow.ts` mixes DB-shaped fields (`generation_id`, `timeline_frame`, `based_on`) with UI/runtime fields (`imageUrl`, `isOptimistic`, `hasUnviewedVariants`) in a single high-import shared type.",
+        "`src/domains/generation/types/shot.ts` depends on `GenerationRow` and adds more mixed concerns (persisted shape plus computed UI stats), widening cross-feature coupling through shared domain types.",
+        "`src/pages/Home/components/CreativePartnerPane.tsx` and `src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx` both wire tooltip interaction policy details directly in feature components, repeating interaction-orchestration responsibilities instead of isolating them behind a narrower component boundary."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "ai_generated_debt": {
+      "evidence": [
+        "Multiple files contain large comment blocks that restate immediate code behavior without adding non-obvious rationale (e.g., src/tools/travel-between-images/components/Timeline/hooks/useTimelinePositions.ts, src/tools/travel-between-images/hooks/useClickOutside.ts, src/types/gifenc.d.ts).",
+        "Wrapper functions in supabase/functions/_shared/billing.ts are pure pass-throughs to imported helpers (`extractOrchestratorRef`, `buildSubTaskFilter`) while carrying heavy local docs, adding indirection without behavior.",
+        "No-op/placeholder defensive branches appear in production paths (supabase/functions/_shared/billing.ts:118-122 and supabase/functions/ai-prompt/index.ts:91-98), indicating generated-style scaffolding kept after implementation."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "logic_clarity": {
+      "evidence": [
+        "src/shared/hooks/useDarkMode.ts defines `toggle` as `setDarkMode(!darkMode)`, which captures stale state and can collapse rapid successive toggles into one effective update.",
+        "src/shared/hooks/useCopyToClipboard.ts gates copy with `if (!text) return;`, so an empty string is treated as absent input even though it is a valid clipboard payload; src/shared/hooks/__tests__/useCopyToClipboard.test.ts codifies this behavior.",
+        "src/shared/lib/autoplayMonitor.ts builds a `changes` array in `logVideoStateChanges` but never emits/returns/uses it, leaving meaningful branch work with no effect."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "unreported_risk": ""
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "hidden_bootstrap_in_accessor",
+      "summary": "Singleton accessor hides subsystem bootstrap side effects and boot order assumptions",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "`getSupabaseClient()` appears to be a plain getter but triggers instrumentation install and runtime init via `buildSupabaseClient()`.",
+        "`handleError()` is another global entrypoint that looks utility-like but performs logging and optional user notification side effects; both patterns blur ownership behind generic names."
+      ],
+      "suggestion": "Split bootstrap from access: add explicit app-start initialization functions (for Supabase runtime/instrumentation and error notifier wiring), keep getters/handlers focused on single responsibilities, and rename side-effectful entrypoints to reflect behavior (for example `initializeSupabaseClientRuntime` + `getSupabaseClient`).",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_type_boundary_collapse",
+      "summary": "Core generation types combine persistence schema and view-model concerns",
+      "related_files": [
+        "src/domains/generation/types/generationRow.ts",
+        "src/domains/generation/types/shot.ts"
+      ],
+      "evidence": [
+        "`GenerationRow` includes DB identifiers/foreign keys and UI-oriented flags/counts in one interface used broadly.",
+        "`Shot` references `GenerationRow[]` while also carrying computed presentation stats (`imageCount`, `hasUnpositionedImages`), reinforcing a single cross-layer shape."
+      ],
+      "suggestion": "Introduce explicit boundary types: persisted row types (DB-facing), domain entities, and UI view models; then provide mappers at feature boundaries so downstream modules depend on smaller, role-specific contracts.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "ui_interaction_policy_leaks",
+      "summary": "Tooltip interaction orchestration is duplicated across feature components",
+      "related_files": [
+        "src/pages/Home/components/CreativePartnerPane.tsx",
+        "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx",
+        "src/shared/components/ui/tooltip.tsx"
+      ],
+      "evidence": [
+        "Both feature components directly manage `open/onOpenChange`, mobile behavior, and hover/click handlers via `useTooltipInteractionPolicy`.",
+        "The shared tooltip primitives stay low-level, so higher-level interaction policy is repeated in multiple product surfaces."
+      ],
+      "suggestion": "Create a higher-level shared component or hook wrapper (for example `ResponsiveManagedTooltip`) that encapsulates policy wiring and exposes a narrow API, then migrate feature components to that boundary.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "pass_through_wrapper_indirection",
+      "summary": "Billing helpers add pass-through wrappers with no behavioral value.",
+      "related_files": [
+        "supabase/functions/_shared/billing.ts",
+        "supabase/functions/_shared/storagePaths.ts"
+      ],
+      "evidence": [
+        "`extractOrchestratorRef` and `buildSubTaskFilter` in billing.ts only forward arguments to imported helpers and return directly.",
+        "This file-level wrapper pattern increases API surface and documentation burden while not adding auth/logging/validation behavior."
+      ],
+      "suggestion": "Inline direct imports at call sites (or re-export from an index barrel) and remove the zero-logic wrappers; keep only helpers that enforce local policy.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "commentary_overgrowth",
+      "summary": "Several modules contain generated-style explanatory comment volume that exceeds code complexity.",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelinePositions.ts",
+        "src/tools/travel-between-images/hooks/useClickOutside.ts",
+        "src/types/gifenc.d.ts",
+        "src/shared/types/presetMetadata.ts"
+      ],
+      "evidence": [
+        "useTimelinePositions.ts has extensive banner/comment sections and repeated inline rationale around straightforward operations, reducing signal-to-noise while reading logic.",
+        "useClickOutside.ts includes long JSDoc examples and parameter docs for a small, conventional hook implementation.",
+        "gifenc.d.ts and presetMetadata.ts include verbose top-level/type comments that mostly restate symbol names and obvious field meanings."
+      ],
+      "suggestion": "Trim comments to only non-obvious constraints/decisions, and remove repetitive doc text that mirrors signatures; keep concise API notes where behavior is surprising.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "placeholder_noop_branches",
+      "summary": "Production code contains no-op branches that look like retained generation scaffolding.",
+      "related_files": [
+        "supabase/functions/_shared/billing.ts",
+        "supabase/functions/ai-prompt/index.ts"
+      ],
+      "evidence": [
+        "billing.ts handles `costData.skipped` and numeric `costData.cost` with intentionally empty branches, adding branch complexity without behavior.",
+        "ai-prompt/index.ts validates prompt count but keeps a 'too few' branch as comment-only fallback, effectively preserving placeholder control flow."
+      ],
+      "suggestion": "Replace empty branches with explicit normalized handling (e.g., parse response into a typed result object once) or remove branches entirely when behavior is intentionally identical.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_lib_boundary_blur",
+      "summary": "`shared/lib` is acting as a catch-all across unrelated ownership boundaries.",
+      "related_files": [
+        "src/shared/lib/ProjectScopedCache.ts",
+        "src/shared/lib/aspectRatios.ts",
+        "src/shared/lib/autoplayMonitor.ts"
+      ],
+      "evidence": [
+        "`ProjectScopedCache.ts` is a generic data-structure utility with no browser dependency.",
+        "`aspectRatios.ts` mixes domain constants (`ASPECT_RATIO_TO_RESOLUTION`) with UI preview sizing helpers.",
+        "`autoplayMonitor.ts` is DOM/dev instrumentation code (video element scanning + interval monitor) but is placed beside generic shared utilities."
+      ],
+      "suggestion": "Split `src/shared/lib` by responsibility: keep generic primitives in `shared/lib/core` (or similar), move media/domain ratio logic to a media/domain package, and move DOM/dev monitoring to a browser diagnostics/debug package.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "config_policy_co_location",
+      "summary": "Infrastructure config files also own product/runtime policy, weakening package boundaries.",
+      "related_files": [
+        "tailwind.config.ts",
+        "vite.config.ts"
+      ],
+      "evidence": [
+        "`tailwind.config.ts` imports theme primitives from `./src/styles/tailwind/*`, coupling root tooling config to app source-tree internals.",
+        "`vite.config.ts` includes deployment host allowlist values and manual vendor chunk policy in the same root file, combining environment policy with bundler mechanics."
+      ],
+      "suggestion": "Extract app/deployment policy into dedicated config modules (for example under `src/config` or `config/`) and keep root tool configs thin adapters that import those modules.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "runtime_contract_duplication_supabase_accessor",
+      "summary": "README runtime contract duplicates canonical Supabase accessor rule, reducing contract clarity.",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "README Runtime Contracts includes two bullets stating `getSupabaseClient()` is the canonical lazy accessor.",
+        "`src/integrations/supabase/client.ts` defines a single canonical accessor (`getSupabaseClient`) and does not require duplicated policy statements."
+      ],
+      "suggestion": "Collapse the duplicated bullets into one canonical statement and keep only additional non-overlapping governance details (for example eager warm-up behavior) in a separate bullet.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "generation_row_boundary_blur",
+      "summary": "Canonical GenerationRow contract mixes persistence and UI concerns in one shared surface.",
+      "related_files": [
+        "README.md",
+        "src/domains/generation/types/generationRow.ts"
+      ],
+      "evidence": [
+        "README marks `GenerationRow` as a canonical ownership contract.",
+        "`GenerationRow` includes DB-column-style fields (`timeline_frame`, `based_on`, `parent_generation_id`, `pair_shot_generation_id`) alongside presentation/domain fields (`imageUrl`, `thumbUrl`, `hasUnviewedVariants`, `derivedCount`) in a single exported interface used across galleries/lightboxes/timeline."
+      ],
+      "suggestion": "Split into at least two explicit contracts (e.g., `PersistedGenerationRow` and `GenerationViewModel`) with a mapper at the domain boundary; keep `GenerationRow` as an alias only temporarily during migration with deprecation notes.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "logic_clarity",
+      "identifier": "dark_mode_toggle_stale_closure",
+      "summary": "Dark mode toggle uses captured state, making rapid toggles non-deterministic",
+      "related_files": [
+        "src/shared/hooks/useDarkMode.ts",
+        "src/shared/hooks/__tests__/useDarkMode.test.ts"
+      ],
+      "evidence": [
+        "`toggle` is implemented as `setDarkMode(!darkMode)` instead of a functional updater.",
+        "With batched updates, multiple `toggle()` calls in one tick can read the same captured `darkMode` and apply the same next value."
+      ],
+      "suggestion": "Change toggle to `setDarkMode((prev) => !prev)` and add a test that calls `toggle()` twice in one `act` block to verify it returns to the original state.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "logic_clarity",
+      "identifier": "clipboard_truthy_guard_blocks_empty_string",
+      "summary": "Clipboard copy guard conflates empty string with undefined input",
+      "related_files": [
+        "src/shared/hooks/useCopyToClipboard.ts",
+        "src/shared/hooks/__tests__/useCopyToClipboard.test.ts"
+      ],
+      "evidence": [
+        "`handleCopy` returns early on `if (!text)`, so `''` is never copied.",
+        "The hook type accepts `string | undefined`, but control flow uses truthiness rather than explicit undefined/null checks."
+      ],
+      "suggestion": "Use an explicit nullish check (`if (text == null) return`) so empty string remains copyable; update tests to expect `writeText('')` for empty-string input.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ],
+  "review_quality": {
+    "batch_count": 5,
+    "dimension_coverage": 0.333,
+    "evidence_density": 1.167,
+    "high_score_without_risk": 0,
+    "finding_pressure": 28.536,
+    "dimensions_with_findings": 3
+  },
+  "reviewed_files": [
+    "src/shared/lib/errorHandling/handleError.ts",
+    "src/domains/generation/types/generationRow.ts",
+    "src/integrations/supabase/client.ts",
+    "src/shared/components/ui/cn.ts",
+    "src/shared/components/ui/button.tsx",
+    "src/shared/components/ui/sonner.tsx",
+    "src/domains/generation/types/shot.ts",
+    "src/shared/components/ui/tooltip.tsx",
+    "src/shared/hooks/mobile/index.ts",
+    "src/shared/components/ui/label.tsx",
+    "src/features/gallery/hooks/useAdjacentPagePreloader.ts",
+    "src/features/layout/hooks/useBottomOffset.test.ts",
+    "src/pages/Home/components/CreativePartnerPane.tsx",
+    "src/pages/Home/components/InstallInstructionsModal.tsx",
+    "src/shared/components/ConfirmDialog.tsx",
+    "src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx",
+    "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx",
+    "src/shared/lib/supabaseSession.ts",
+    "src/shared/types/presetMetadata.ts",
+    "src/tools/join-clips/utils/validation.ts",
+    "src/tools/training-data-helper/components/VideoSegmentEditor/constants.ts",
+    "src/tools/travel-between-images/components/Timeline/constants.ts",
+    "src/tools/travel-between-images/components/Timeline/hooks/useDragStable.ts",
+    "src/tools/travel-between-images/components/Timeline/hooks/useTimelinePositions.ts",
+    "src/tools/travel-between-images/hooks/useClickOutside.ts",
+    "src/types/browser-extensions.d.ts",
+    "src/types/gifenc.d.ts",
+    "src/vite-env.d.ts",
+    "supabase/functions/_shared/billing.ts",
+    "supabase/functions/_shared/storagePaths.ts",
+    "supabase/functions/_shared/systemLogger.ts",
+    "supabase/functions/ai-prompt/index.ts",
+    "tailwind.config.ts",
+    "vite.config.ts",
+    "src/shared/hooks/useClickRipple.ts",
+    "src/shared/hooks/useCopyToClipboard.ts",
+    "src/shared/hooks/useDarkMode.ts",
+    "src/shared/hooks/__tests__/useClickRipple.test.ts",
+    "src/shared/hooks/__tests__/useCopyToClipboard.test.ts",
+    "src/shared/hooks/__tests__/useDarkMode.test.ts",
+    "src/shared/lib/ProjectScopedCache.ts",
+    "src/shared/lib/aspectRatios.ts",
+    "src/shared/lib/autoplayMonitor.ts",
+    "README.md"
+  ],
+  "provenance": {
+    "kind": "blind_review_batch_import",
+    "blind": true,
+    "runner": "codex",
+    "run_stamp": "20260224_062023",
+    "created_at": "2026-02-24T06:21:45+00:00",
+    "batch_count": 5,
+    "batch_indexes": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "packet_path": "/Users/peteromalley/Documents/reigh/.desloppify/review_packet_blind.json",
+    "packet_sha256": "acac4ff9a0ccce3caa885ec299022b5aff3a82e6390a767244397a6d80e89f67"
+  }
+}

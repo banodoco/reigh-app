@@ -1,0 +1,99 @@
+{
+  "batch": "Design Coherence — Mechanical Concern Signals",
+  "batch_index": 7,
+  "assessments": {
+    "design_coherence": 61.0
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "Lightbox editing flow is split across very large modules with broad pass-through state contracts: `src/shared/components/MediaLightbox/ImageLightbox.tsx` (~778 lines) and `src/shared/components/MediaLightbox/hooks/useImageEditOrchestrator.ts` (~541 lines).",
+        "`useImageEditOrchestrator` composes multiple mode systems (inpaint, magic edit, reposition, img2img), then re-exports a very wide context object and dependency list (notably lines 392-524), indicating orchestration + state-shaping + UI contract responsibilities in one hook.",
+        "`src/tools/travel-between-images/components/Timeline.tsx` (~587 lines) combines data-fetching, filtering, drag/drop adapters, event listeners, lightbox integration, and rendering in one component; related orchestration hook `useTimelineOrchestrator.ts` (~663 lines) also carries many concerns (zoom, drag, selection, drop, pending frames, endpoint drag, structure-video placement).",
+        "Conceptually similar selection UX is duplicated in two separate `ShotSelector` implementations with different interaction contracts and composition (`src/shared/components/ShotSelector.tsx` and `src/shared/components/ImageGenerationForm/components/ShotSelector.tsx`).",
+        "Server-side complete-task child-generation logic still clusters extraction, branching orchestration, persistence prep, and heavy debug-state logging in one file (`supabase/functions/complete_task/generation-child.ts`), while param-shape normalization is partly separated but still spread (`supabase/functions/complete_task/params.ts`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "lightbox_orchestrator_contract_bloat",
+      "summary": "Image lightbox edit flow relies on oversized orchestration contracts that mix mode composition, state shaping, and UI-facing API assembly.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useImageEditOrchestrator.ts",
+        "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts"
+      ],
+      "evidence": [
+        "`useImageEditOrchestrator` accepts a very broad prop object (lines 32-92) spanning media identity, variant lifecycle, persistence, and LoRA config, then builds a large context payload (lines 392-524).",
+        "`ImageLightbox.tsx` constructs multiple intermediate memo objects (`lightboxCore`, `lightboxMedia`, `lightboxVariants`, `lightboxNavigation`) and then re-bundles them into `useLightboxWorkflowProps` with many pass-through handlers (lines 544-736).",
+        "Placeholder values (`isFlippedHorizontally=false`, `isSaving=false`) are injected into the central edit context (lines 388-391), signaling an interface larger than currently owned behavior."
+      ],
+      "suggestion": "Define explicit per-mode adapters (inpaint/magic/reposition/img2img) with narrow typed contracts, then compose them behind a smaller `ImageEditFacade` consumed by `ImageLightbox`. Move UI-workflow prop assembly out of `ImageLightbox` into a dedicated mapper so container responsibilities are reduced to composition.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "timeline_component_responsibility_stack",
+      "summary": "Timeline layers interaction orchestration, query integration, and rendering in one component/hook pair, creating a high-change blast radius.",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline.tsx",
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts",
+        "src/tools/travel-between-images/components/Timeline/utils/timeline-utils.ts"
+      ],
+      "evidence": [
+        "`Timeline.tsx` defines a very large prop surface (lines 37-102) and performs filtering, sorting, drop adapters, task lookup, image preloading effects, event subscriptions, reset logic, and lightbox wiring before render (roughly lines 167-581).",
+        "`useTimelineOrchestrator.ts` bundles multiple concerns in one hook: zoom management, drag lifecycle, drop interceptors, duplicate collision logic, tap-to-move, structure video placement, endpoint drag, and computed pair data (lines 183-662).",
+        "The orchestrator includes sync-by-timer mechanics (`setTimeout(...forceUpdate...)` lines 340-343 and delayed scroll adjustment lines 373-385), indicating lifecycle complexity concentrated in one abstraction."
+      ],
+      "suggestion": "Split timeline into explicit layers: `TimelineDataController` (queries/derivations), `TimelineInteractionController` (drag/zoom/drop), and `TimelineView`. Keep each hook single-purpose and return focused contracts; move drop/duplicate frame-calculation policies into dedicated pure services with tests.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "shot_selector_design_duplication",
+      "summary": "Two separate ShotSelector implementations encode overlapping domain behavior with divergent interaction models and styling contracts.",
+      "related_files": [
+        "src/shared/components/ShotSelector.tsx",
+        "src/shared/components/ImageGenerationForm/components/ShotSelector.tsx",
+        "src/shared/components/ImageGenerationForm/components/PromptInputRow.tsx"
+      ],
+      "evidence": [
+        "`src/shared/components/ShotSelector.tsx` uses popover+command search, optional quick-create success flow, controlled/uncontrolled open behavior, and navigation callbacks.",
+        "`src/shared/components/ImageGenerationForm/components/ShotSelector.tsx` reimplements selection with `Select`, local sorting, inline jump link, and separate clear/create affordances.",
+        "Both components represent the same core domain selection concern (`shot` selection + optional create/jump actions) but expose different APIs and UX semantics, increasing integration inconsistency."
+      ],
+      "suggestion": "Create a single shared `ShotSelector` domain component with composable render variants (`compact`, `form`, `lightbox`) and a common behavior contract for create/clear/jump flows. Keep styling as wrappers while centralizing option sorting/filtering and event semantics.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "complete_task_child_generation_mixed_concerns",
+      "summary": "Child-generation completion logic still mixes orchestration, mutation, extraction, and debugging responsibilities in one handler module.",
+      "related_files": [
+        "supabase/functions/complete_task/generation-child.ts",
+        "supabase/functions/complete_task/params.ts",
+        "supabase/functions/complete_task/index.ts"
+      ],
+      "evidence": [
+        "`handleChildGeneration` mutates incoming task params (`taskData.params._isSingleSegmentCase` and reassignment via `extractSegmentSpecificParams`) while also coordinating variant creation and fallback generation insertion (lines 60-131).",
+        "`generation-child.ts` contains persistence logic plus large debug logging helper `logSegmentMasterState` (lines 390-481) in the same module as core write-path behavior.",
+        "`params.ts` centralizes some extraction, but path-resolution knowledge still appears in child-generation flow (e.g., direct fallback chains for `pair_shot_generation_id` in lines 83-90), showing normalization policy split across files."
+      ],
+      "suggestion": "Introduce an immutable `TaskParamNormalizer` stage that produces a typed `NormalizedSegmentTask` consumed by a smaller `ChildGenerationService`. Move debug-state formatting/logging to a separate diagnostics module and keep write-path modules focused on deterministic orchestration + persistence.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

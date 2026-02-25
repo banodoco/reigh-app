@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { getTaskDisplayName } from '@/shared/lib/taskConfig';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { TaskLogFilters } from '../types';
 
 interface UseTaskLogDownloadReturn {
@@ -17,14 +17,13 @@ export function useTaskLogDownload(filters: TaskLogFilters): UseTaskLogDownloadR
   const handleDownload = useCallback(async () => {
     setIsDownloading(true);
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase().auth.getUser();
       if (authError || !user) {
         throw new Error('Authentication required');
       }
 
       // Get user's projects
-      const { data: projects } = await supabase
-        .from('projects')
+      const { data: projects } = await supabase().from('projects')
         .select('id, name')
         .eq('user_id', user.id);
 
@@ -36,8 +35,7 @@ export function useTaskLogDownload(filters: TaskLogFilters): UseTaskLogDownloadR
       const projectLookup = Object.fromEntries(projects.map(p => [p.id, p.name]));
 
       // Build query with current filters (no pagination)
-      let query = supabase
-        .from('tasks')
+      let query = supabase().from('tasks')
         .select('*')
         .in('project_id', projectIds);
 
@@ -63,8 +61,7 @@ export function useTaskLogDownload(filters: TaskLogFilters): UseTaskLogDownloadR
       let costsData: Array<{ task_id: string | null; amount: number; created_at: string }> = [];
 
       if (taskIds.length > 0) {
-        const { data: costs } = await supabase
-          .from('credits_ledger')
+        const { data: costs } = await supabase().from('credits_ledger')
           .select('task_id, amount, created_at')
           .in('task_id', taskIds)
           .eq('type', 'spend');
@@ -128,7 +125,7 @@ export function useTaskLogDownload(filters: TaskLogFilters): UseTaskLogDownloadR
       document.body.removeChild(link);
 
     } catch (error) {
-      handleError(error, { context: 'useTaskLogDownload', showToast: false });
+      normalizeAndPresentError(error, { context: 'useTaskLogDownload', showToast: false });
     } finally {
       setIsDownloading(false);
     }

@@ -4,8 +4,8 @@ import { GlobalHeader } from '@/shared/components/GlobalHeader';
 import { GlobalProcessingWarning } from '@/shared/components/ProcessingWarnings';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import { useHeaderState } from '@/shared/contexts/ToolPageHeaderContext';
-import { useContentResponsive } from '@/shared/hooks/useContentResponsive';
-import { cn } from '@/shared/lib/utils';
+import { useViewportResponsive } from '@/shared/hooks/responsive/useViewportResponsive';
+import { cn } from '@/shared/components/ui/contracts/cn';
 
 interface LayoutMainContentProps {
   isMobileSplitView: boolean;
@@ -24,7 +24,7 @@ export function LayoutMainContent(props: LayoutMainContentProps) {
     generationsPaneHeight,
   } = usePanes();
   const { header } = useHeaderState();
-  const { isSm, isMd, isLg, isXl, is2Xl, contentWidth, contentHeight } = useContentResponsive();
+  const { isSm, isMd, isLg, isXl, is2Xl, contentWidth, contentHeight } = useViewportResponsive();
 
   const containerPadding = isLg ? 'px-6' : isSm ? 'px-4' : 'px-2';
   const containerSpacing = 'py-1';

@@ -15,7 +15,7 @@ vi.mock('@/shared/hooks/useToolSettings', () => ({
   updateToolSettingsSupabase: vi.fn().mockResolvedValue({}),
 }));
 
-vi.mock('@/shared/lib/toolConstants', () => ({
+vi.mock('@/shared/lib/toolIds', () => ({
   TOOL_IDS: { TRAVEL_BETWEEN_IMAGES: 'travel-between-images' },
 }));
 

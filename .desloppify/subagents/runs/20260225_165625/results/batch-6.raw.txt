@@ -1,0 +1,91 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 6,
+  "assessments": {
+    "error_consistency": 89.0
+  },
+  "dimension_notes": {
+    "error_consistency": {
+      "evidence": [
+        "`src/shared/hooks/useGenerationMutations.ts` mixes `normalizeAndPresentAndRethrow(...)` with `throw normalizeAndPresentError(...)`, then applies additional `onError` normalization in mutation handlers.",
+        "`src/shared/lib/tasks/individualTravelSegment.ts` normalizes before throwing in inner DB lookup branches, then catches and rethrows through `rethrowTaskCreationError(...)`, creating multi-stage error transformation in one flow.",
+        "`src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts` rethrows from UI callbacks, while sibling UI hooks (`useMediaGalleryItemState`, `useShotImagesEditorCallbacks`) normalize and return recoverable results instead of throwing.",
+        "`src/shared/components/MediaGallery/services/downloadService.ts` throws ad-hoc raw `Error` values at I/O boundaries, unlike neighboring gallery modules that attach normalized context/log metadata."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Error handling policy is not consistently enforced at layer boundaries (UI callbacks, task creation orchestration, and download I/O), causing different propagation semantics for similar failures."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "error_consistency",
+      "identifier": "double_normalize_rethrow",
+      "summary": "Some flows normalize/present an error and then rethrow into another normalizer, causing duplicate transformation and inconsistent telemetry context.",
+      "related_files": [
+        "src/shared/hooks/useGenerationMutations.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/errorHandling/runtimeError.ts"
+      ],
+      "evidence": [
+        "`src/shared/hooks/useGenerationMutations.ts` throws `normalizeAndPresentError(variantError, ...)` (line ~250), but mutation-level `onError` handlers also call `normalizeAndPresentError(...)`, so one failure can be normalized multiple times.",
+        "`src/shared/lib/tasks/individualTravelSegment.ts` throws `normalizeAndPresentError(...)` during child lookup failures (lines ~810, ~834), then outer `catch` calls `rethrowTaskCreationError(...)` (line ~880), layering another error-normalization path on top."
+      ],
+      "suggestion": "Apply one normalization boundary per flow: either throw raw domain errors and normalize once at the outer boundary, or use `normalizeAndPresentAndRethrow(...)` as the only throwing path and remove secondary normalization in callers.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "error_pipeline_double_handling"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "ui_callback_rethrow_drift",
+      "summary": "UI event handlers use conflicting failure semantics: some rethrow after normalization while sibling handlers convert failures to recoverable UI-safe results.",
+      "related_files": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts"
+      ],
+      "evidence": [
+        "`useMediaGalleryHandlers` catches and calls `normalizeAndPresentAndRethrow(...)` in user-triggered navigation callbacks (`handleNavigateToShot`, `handleVisitShotFromNotifier`).",
+        "`useMediaGalleryItemState` and `useShotImagesEditorCallbacks` catch similar UI action failures and return/continue with `operationFailure(...)` or local fallback behavior after `normalizeAndPresentError(...)`, without rethrowing."
+      ],
+      "suggestion": "Define a UI-layer policy (non-throwing command handlers returning result objects) and reserve throwing for non-UI orchestration layers; convert `useMediaGalleryHandlers` to match the non-throwing contract.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "ui_error_boundary_inconsistency"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "download_boundary_error_contract_drift",
+      "summary": "Download service emits raw ad-hoc errors at network boundaries instead of the normalized error contract used by adjacent gallery logic.",
+      "related_files": [
+        "src/shared/components/MediaGallery/services/downloadService.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+      ],
+      "evidence": [
+        "`downloadService.ts` rejects/throws raw `Error` strings from XHR/fetch branches (`Network request failed`, `Download request was aborted`, `Failed to fetch image: ...`) with no shared `context`/`logData` envelope.",
+        "Adjacent gallery hooks route failures through `normalizeAndPresentError(...)` with explicit context and toast policy, so download-path failures follow a separate, less-instrumented error contract."
+      ],
+      "suggestion": "Introduce a shared download error wrapper (or `OperationResult` return type) that preserves status/url/context and normalize at one boundary before UI presentation.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "boundary_error_contract_drift"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "No single enforced rule for where normalization/presentation is allowed versus where raw errors should propagate.",
+      "Mixed adoption of exception-based and result-object-based failure contracts in UI-adjacent modules."
+    ],
+    "likely_symptoms": [
+      "double_normalize_rethrow",
+      "ui_callback_rethrow_drift"
+    ],
+    "possible_false_positives": []
+  }
+}

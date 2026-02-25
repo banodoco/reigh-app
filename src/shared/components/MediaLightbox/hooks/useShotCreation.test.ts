@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 
 const { mockUseQuickShotCreate, mockGetGenerationId } = vi.hoisted(() => ({
   mockUseQuickShotCreate: vi.fn(),

@@ -1,10 +1,10 @@
 import { useState, useCallback, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { GenerationRow } from '@/types/shots';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { GenerationRow } from '@/domains/generation/types';
 import { Task } from '@/types/tasks';
 import { deriveTaskInputImages } from '../utils/task-utils';
 import { usePrefetchTaskData } from '@/shared/hooks/useTaskPrefetch';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { expandShotData } from '@/shared/lib/shotData';
 
 interface LightboxData {
@@ -74,8 +74,7 @@ export function useTasksLightbox({
   ) => {
     try {
       // Fetch the generation from the database with its shot associations
-      const { data, error } = await supabase
-        .from('generations')
+      const { data, error } = await supabase().from('generations')
         .select('*')
         .eq('id', generationId)
         .single();
@@ -142,7 +141,7 @@ export function useTasksLightbox({
         });
       }
     } catch (error) {
-      handleError(error, { context: 'useTasksLightbox', toastTitle: 'Failed to load generation' });
+      normalizeAndPresentError(error, { context: 'useTasksLightbox', toastTitle: 'Failed to load generation' });
     }
   }, [selectedProjectId]);
 

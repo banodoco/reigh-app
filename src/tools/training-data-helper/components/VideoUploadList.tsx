@@ -8,7 +8,7 @@ import { useTrainingData } from '../hooks/useTrainingData';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/shared/components/ui/alert-dialog';
 import { cropFilename } from '@/shared/lib/stringFormatting';
 import { useUpdatingTimestamp } from '@/shared/hooks/useUpdatingTimestamp';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 // Helper to abbreviate distance strings (e.g., "5 minutes ago" -> "5 mins ago")
 const abbreviateDistance = (str: string) => {
@@ -65,7 +65,7 @@ export function VideoUploadList({ videos, selectedVideo, onVideoSelect, segments
         onVideoSelect('');
       }
     } catch (error) {
-      handleError(error, { context: 'VideoUploadList', showToast: false });
+      normalizeAndPresentError(error, { context: 'VideoUploadList', showToast: false });
     } finally {
       setDeletingVideo(null);
     }

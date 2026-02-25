@@ -6,9 +6,9 @@
  */
 
 import { useState, useCallback } from 'react';
-import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { usePromoteVariantToGeneration } from '@/shared/hooks/usePromoteVariantToGeneration';
 import { useAddImageToShot } from '@/shared/hooks/shots';
 
@@ -52,7 +52,7 @@ export function useVariantPromotion({
       setPromoteSuccess(true);
       setTimeout(() => setPromoteSuccess(false), 2000);
     } catch (error) {
-      handleError(error, { context: 'useVariantPromotion', showToast: false });
+      normalizeAndPresentError(error, { context: 'useVariantPromotion', showToast: false });
     }
   }, [promoteVariantMutation, selectedProjectId]);
 
@@ -79,8 +79,7 @@ export function useVariantPromotion({
       let targetTimelineFrame: number | undefined;
       if (currentTimelineFrame !== undefined) {
         // Query all items in the target shot to find next item and calculate average spacing
-        const { data: allShotItems } = await supabase
-          .from('shot_generations')
+        const { data: allShotItems } = await supabase().from('shot_generations')
           .select('timeline_frame')
           .eq('shot_id', shotId)
           .not('timeline_frame', 'is', null)
@@ -128,7 +127,7 @@ export function useVariantPromotion({
       });
       return true;
     } catch (error) {
-      handleError(error, { context: 'useVariantPromotion', showToast: false });
+      normalizeAndPresentError(error, { context: 'useVariantPromotion', showToast: false });
       return false;
     }
   }, [promoteVariantMutation, addImageToShotMutation, selectedProjectId]);

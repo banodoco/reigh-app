@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { toast } from '@/shared/components/ui/sonner';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import type { PromptEntry } from '../../types';
 import type { PromptRoutingResult } from './types';
 import { toShortPrompt } from '../promptUtils';

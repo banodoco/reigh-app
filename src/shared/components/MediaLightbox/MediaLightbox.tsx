@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import type { GenerationRow, Shot } from '@/types/shots';
+import type { GenerationRow, Shot } from '@/domains/generation/types';
 import { isVideoAny } from '@/shared/lib/typeGuards';
 import type { AdjacentSegmentsData, SegmentSlotModeData } from './types';
 import type { ShotOption, TaskDetailsData } from './types';
@@ -8,8 +8,9 @@ import { ImageLightbox } from './ImageLightbox';
 import { VideoLightbox } from './VideoLightbox';
 import type { VideoLightboxVideoProps } from './VideoLightbox';
 
-interface MediaLightboxProps {
+export interface MediaLightboxProps {
   media?: GenerationRow;
+  parentGenerationIdOverride?: string;
   onClose: () => void;
   onNext?: () => void;
   onPrevious?: () => void;
@@ -19,7 +20,7 @@ interface MediaLightboxProps {
   showImageEditTools?: boolean;
   showDownload?: boolean;
   showMagicEdit?: boolean;
-  autoEnterInpaint?: boolean;
+  initialEditActive?: boolean;
   hasNext?: boolean;
   hasPrevious?: boolean;
   allShots?: ShotOption[];
@@ -115,9 +116,9 @@ function useBundledLightboxProps(props: MediaLightboxProps) {
     showImageEditTools: props.showImageEditTools,
     showDownload: props.showDownload,
     showMagicEdit: props.showMagicEdit,
-    autoEnterInpaint: props.autoEnterInpaint,
+    initialEditActive: props.initialEditActive,
     showTaskDetails: props.showTaskDetails,
-  }), [props.showImageEditTools, props.showDownload, props.showMagicEdit, props.autoEnterInpaint, props.showTaskDetails]);
+  }), [props.showImageEditTools, props.showDownload, props.showMagicEdit, props.initialEditActive, props.showTaskDetails]);
 
   const actions: LightboxActionHandlers = useMemo(() => ({
     onDelete: props.onDelete,
@@ -172,6 +173,7 @@ const MediaLightbox: React.FC<MediaLightboxProps> = (props) => {
         features={bundled.features}
         actions={bundled.actions}
         videoProps={bundled.videoProps}
+        parentGenerationIdOverride={props.parentGenerationIdOverride}
       />
     );
   }
@@ -200,6 +202,7 @@ const MediaLightbox: React.FC<MediaLightboxProps> = (props) => {
         features={bundled.features}
         actions={bundled.actions}
         videoProps={bundled.videoProps}
+        parentGenerationIdOverride={props.parentGenerationIdOverride}
       />
     );
   }

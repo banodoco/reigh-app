@@ -5,8 +5,8 @@
  * from generation params/metadata (resolution, aspect ratio).
  */
 
-import { ASPECT_RATIO_TO_RESOLUTION, findClosestAspectRatio, parseRatio } from '@/shared/lib/aspectRatios';
-import type { GenerationParams } from '@/types/shots';
+import { ASPECT_RATIO_TO_RESOLUTION, findClosestAspectRatio, parseRatio } from '@/shared/lib/media/aspectRatios';
+import type { GenerationParams } from '@/domains/generation/types';
 
 /**
  * Parse a "WxH" resolution string into { width, height }.

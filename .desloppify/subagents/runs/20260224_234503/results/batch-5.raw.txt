@@ -1,0 +1,140 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 5,
+  "assessments": {
+    "cross_module_architecture": 78.0,
+    "high_level_elegance": 82.0,
+    "test_strategy": 84.0,
+    "package_organization": 79.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts sets phase budget max 129 through 2026-03-31, while holistic_context.import_graph_summary/top_imported reports 133 importers for this legacy facade.",
+        "src/shared/lib/errorHandling/handleError.ts defines deprecation-import budgets for runtime aliases, but the same file still exports deprecated aliases that keep a broad compatibility surface active.",
+        "Both legacy surfaces are top import hubs in holistic_context (handleError.ts: 246, legacySupabaseFacade.ts: 133), increasing blast radius for governance changes."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "README.md documents strict deprecation/removal governance contracts, but runtime compatibility files (handleError.ts, legacySupabaseFacade.ts) still centralize broad legacy API access.",
+        "The architecture still depends on transitional aliases as first-class import hubs, which blurs ownership between stable runtime API and temporary migration surface."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    },
+    "test_strategy": {
+      "evidence": [
+        "README.md describes migration gates, but governance quality checks are documented as ad-hoc npm commands and not consistently described as part of a single mandatory CI gate.",
+        "handleError.ts and legacySupabaseFacade.ts encode budget policy in code, yet policy violation prevention depends on external checks rather than module-level enforcement."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    },
+    "package_organization": {
+      "evidence": [
+        "src/types/generationAndShots.ts defines a canonical generation/shot barrel under src/types, while holistic_context.structure also shows a separate src/domains/generation/types/ package (8 files), splitting the same concern across two top-level locations.",
+        "holistic_context.structure.directory_profiles shows src/types/ has mixed concerns (env, project, database, generation) with high avg_fan_in 22.1, indicating a catch-all package rather than domain-focused placement.",
+        "This placement creates import-affinity ambiguity between domain-local type ownership and global type-barrel usage."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "legacy_supabase_budget_contract_drift",
+      "summary": "Legacy Supabase shim budget is already below observed importer volume",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts"
+      ],
+      "evidence": [
+        "legacySupabaseFacade.ts sets current-phase max import budget to 129 (through 2026-03-31).",
+        "holistic_context import summary reports this module has 133 importers, exceeding policy budget while still acting as a cross-module hub."
+      ],
+      "suggestion": "Treat this as an active contract breach: freeze new legacy imports, cut highest-churn callers to getSupabaseClient() first, and make the budget check block CI on real import graph count (not only allowlist maintenance).",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "governance_contract_not_runtime_enforced"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "legacy_aliases_remain_primary_surfaces",
+      "summary": "Deprecated alias APIs remain central public entry points instead of narrow shims",
+      "related_files": [
+        "README.md",
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts"
+      ],
+      "evidence": [
+        "README.md defines removal-target governance, but both files still expose transitional compatibility APIs directly.",
+        "These modules are top import hubs, so migration surfaces still look like stable architecture rather than temporary compatibility seams."
+      ],
+      "suggestion": "Demote compatibility APIs behind explicitly internal paths, keep only stable runtime exports on canonical entrypoints, and require call sites to import canonical APIs by default with temporary codemod-backed exceptions.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "governance_contract_not_runtime_enforced"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "governance_checks_not_clearly_unified_in_ci_contract",
+      "summary": "Governance policy enforcement appears fragmented across manual quality commands",
+      "related_files": [
+        "README.md",
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts"
+      ],
+      "evidence": [
+        "README.md lists multiple governance checks as separate npm commands; only the shots shim section explicitly states wiring into quality:check.",
+        "Critical deprecation budgets in handleError.ts and legacySupabaseFacade.ts rely on external gate execution rather than local runtime/test invariant checks."
+      ],
+      "suggestion": "Create one mandatory CI gate (e.g., `npm run quality:check`) that always executes all governance checks, document that single gate in each README section, and add a failing test/contract smoke assertion that verifies the governance command is part of CI.",
+      "confidence": "medium",
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "governance_contract_not_runtime_enforced"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "generation_type_ownership_split_across_packages",
+      "summary": "Generation/shot type contracts are split between global and domain package roots",
+      "related_files": [
+        "src/types/generationAndShots.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "generationAndShots.ts is marked canonical for a domain-specific type surface but lives in broad src/types.",
+        "holistic structure shows a dedicated src/domains/generation/types directory coexisting with src/types, indicating ownership split and navigation ambiguity."
+      ],
+      "suggestion": "Staged reorg plan: 1) target folder `src/domains/generation/types/` as single owner for generation/shot contracts, 2) move canonical barrel there first and keep `src/types/generationAndShots.ts` as temporary re-export shim, 3) migrate imports repo-wide from `@/types/generationAndShots` to `@/domains/generation/types`, 4) remove shim after import count reaches zero. Validate with `rg -n \"@/types/generationAndShots|@/types/generation(Metadata|Params|Row)|@/types/shot\" src`, then run `npm run typecheck && npm test`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "domain_contracts_split_across_packages"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Governance metadata exists, but enforcement is not fully coupled to unavoidable runtime/CI paths.",
+      "Compatibility surfaces are still architecturally central, so migration policy behaves as advisory instead of structural."
+    ],
+    "likely_symptoms": [
+      "legacy_supabase_budget_contract_drift",
+      "legacy_aliases_remain_primary_surfaces",
+      "governance_checks_not_clearly_unified_in_ci_contract"
+    ],
+    "possible_false_positives": [
+      "Importer totals may include test-only call sites depending on graph accounting mode."
+    ]
+  }
+}

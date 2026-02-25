@@ -1,0 +1,136 @@
+{
+  "batch": "Design coherence — Mechanical Concern Signals",
+  "batch_index": 7,
+  "assessments": {
+    "design_coherence": 71.5
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "Controller/orchestrator hooks in this batch carry multiple unrelated concerns: UI state, async workflow orchestration, persistence/network side effects, and cross-module coordination in single modules (for example `useMediaGalleryActions`, `useTimelineOrchestrator`, `useSegmentSlotMode`, `useTasksPaneController`).",
+        "Task lifecycle modules combine policy and transport logic in one place: `supabase/functions/complete_task/orchestrator.ts` handles segment-completion gating, status transitions, billing decisioning, and billing metadata persistence fallback paths.",
+        "Wide parameter/threading surfaces increase coupling: `useFormSubmission` and `useSubmissionOrchestrator` pass large prop bags with overlapping fields, and `promptManagement/types.ts` / `referenceManagement/types.ts` expose very broad input/output interfaces that force cross-feature awareness."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "gallery_hooks_responsibility_blur",
+      "summary": "Media gallery hooks combine UI behavior, backend orchestration, and transport details",
+      "related_files": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryActions.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryPagination.ts",
+        "src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx"
+      ],
+      "evidence": [
+        "`useMediaGalleryActions` contains optimistic deletion/backfill sequencing with debounced refetch, page-bounds correction, direct XHR download transport, blob/file extension handling, DOM download triggering, and tick timeout management in one hook.",
+        "`useMediaGalleryPagination` manages page derivation, server/client branching, loading state machine, timeout fallbacks, server correction notifications, and scroll behavior; this mixes pagination domain logic with view/interaction concerns.",
+        "These hooks must coordinate via shared side-effect conventions (loading clear, backfill timing), which increases hidden coupling and makes behavior hard to change safely."
+      ],
+      "suggestion": "Split gallery behavior into explicit layers: a pure pagination state hook, a gallery task-actions service (delete/backfill/download), and a thin UI adapter hook. Keep DOM-specific concerns (scroll/download element) in view-level utilities so data workflow and UI timing can be tested independently.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "orchestrator_hook_overreach"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "timeline_segment_orchestrator_god_hooks",
+      "summary": "Timeline/segment editor hooks expose oversized orchestration surfaces",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts"
+      ],
+      "evidence": [
+        "`useTimelineOrchestrator` aggregates device detection, drag/drop, zoom, selection, pending states, endpoint dragging, structure-video browser actions, and returns a very broad nested API object.",
+        "`useSegmentSlotMode` combines routing deep-link behavior, pair mapping, frame updates, structure-video overlap resolution, and lightbox state management in one module.",
+        "The orchestration layer is absorbing both domain transforms and UI lifecycle logic, causing very large hook interfaces and high change blast radius."
+      ],
+      "suggestion": "Introduce feature-bound sub-hooks with strict ownership (timeline interaction state, segment-slot routing state, structure-video overlap policy, frame update policy) and compose them in a minimal coordinator that only wires outcomes together.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "orchestrator_hook_overreach"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "submission_pipeline_param_bag_coupling",
+      "summary": "Image submission pipeline relies on wide pass-through parameter bags",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/hooks/useFormSubmission.ts",
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmissionOrchestrator.ts",
+        "src/shared/components/ImageGenerationForm/hooks/promptManagement/types.ts",
+        "src/shared/components/ImageGenerationForm/hooks/referenceManagement/types.ts"
+      ],
+      "evidence": [
+        "`useFormSubmission` destructures and forwards a large set of fields to multiple helpers (`useTaskParamsBuilder`, `useSubmissionOrchestrator`), creating wide coupling between form state and orchestration internals.",
+        "`UseSubmissionOrchestratorInput` mirrors many `UseFormSubmissionProps` members directly and performs multiple command variants with repeated queue/validation patterns.",
+        "Prompt/reference management types define broad input/output contracts, reinforcing cross-cutting knowledge requirements across modules instead of small capability-focused contracts."
+      ],
+      "suggestion": "Define a narrow `SubmissionContext` domain object and command-specific input contracts (`managed`, `automated`, `queueLikeExisting`) with shared validators/executors. Reduce hook signatures to capability interfaces rather than full-form state mirrors.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "wide_interface_threading"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "task_orchestrator_policy_transport_mix",
+      "summary": "Task/orchestrator modules mix domain policy with persistence and billing side effects",
+      "related_files": [
+        "supabase/functions/complete_task/orchestrator.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/imageGeneration.ts"
+      ],
+      "evidence": [
+        "`complete_task/orchestrator.ts` contains segment gate evaluation, failure policy, status transitions, billing outcome classification, and billing metadata persistence fallback in one module.",
+        "`individualTravelSegment.ts` combines validation, legacy/orchestrator snapshot normalization, seed/model/lora resolution, and payload composition in one large flow.",
+        "`imageGeneration.ts` similarly combines validation, mode-specific filtering, resolution policy, lora/reference payload assembly, and request composition."
+      ],
+      "suggestion": "Separate these modules into policy-only functions (pure, testable) and side-effect executors (DB/network). Extract shared task-contract parsing/validation helpers so image/travel/orchestrator paths reuse the same composition primitives instead of per-file monoliths.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "task_contract_sprawl"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "controller_hooks_mix_state_query_persistence",
+      "summary": "State controller hooks conflate UI state with persistence/query orchestration",
+      "related_files": [
+        "src/shared/components/TasksPane/hooks/useTasksPaneController.ts",
+        "src/shared/contexts/PanesContext.tsx",
+        "src/shared/hooks/useProjectCRUD.ts"
+      ],
+      "evidence": [
+        "`useTasksPaneController` owns local UI filter/page state, sessionStorage policy, query composition, optimistic cache mutation, and mutation error rollback in one hook.",
+        "`PanesContext` manages lock policy, mobile/tablet rules, persistence side effects, pane-open synchronization, and layout/selection state under one provider domain.",
+        "`useProjectCRUD` handles CRUD plus onboarding bootstrap behavior (user record creation, template copy, cleanup on failure), blending operational workflows with repository-style access."
+      ],
+      "suggestion": "Split controller layers into: local UI state hooks, persistence adapters, and data/mutation services. Keep contexts/providers focused on state distribution, and move setup workflows into dedicated domain services invoked explicitly by caller flows.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "orchestrator_hook_overreach"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Coordinator/orchestrator modules are used as default integration points, so they accumulate state, policy, and side effects over time.",
+      "Broad interface contracts are passed across layers instead of introducing smaller capability-specific boundaries.",
+      "Domain policy and transport/persistence concerns are frequently co-located, reducing separability and increasing blast radius."
+    ],
+    "likely_symptoms": [
+      "gallery_hooks_responsibility_blur",
+      "timeline_segment_orchestrator_god_hooks",
+      "submission_pipeline_param_bag_coupling",
+      "controller_hooks_mix_state_query_persistence"
+    ],
+    "possible_false_positives": []
+  }
+}

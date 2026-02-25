@@ -29,21 +29,22 @@
 
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import type { GeneratedImageWithMetadata } from '@/shared/components/MediaGallery/types';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { useSmartPollingConfig } from './useSmartPolling';
 import { unifiedGenerationQueryKeys } from '@/shared/lib/queryKeys/unified';
 import { transformGeneration, transformVariant, type RawGeneration, type RawVariant } from '@/shared/lib/generationTransformers';
 import type { PostgrestFilterBuilder } from '@supabase/postgrest-js';
 import { SHOT_FILTER } from '@/shared/constants/filterConstants';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
+import { getProjectSelectionFallbackId } from '@/shared/contexts/projectSelectionStore';
 
 /** Cache garbage collection time for paginated generation queries */
 const GENERATIONS_GC_TIME_MS = 10 * 60 * 1000; // 10 minutes
 
-type AnyPostgrestFilterBuilder = PostgrestFilterBuilder<any, any, any, any, any>;
+type AnyPostgrestFilterBuilder = PostgrestFilterBuilder<unknown, unknown, unknown, unknown, unknown>;
 
 /** Common filter options for generation queries */
-interface GenerationFilters {
+interface GenerationBaseFilters {
   toolType?: string;
   mediaType?: 'all' | 'image' | 'video';
   shotId?: string;
@@ -60,7 +61,7 @@ interface GenerationFilters {
 // TODO: type properly - PostgrestFilterBuilder generics are complex Supabase internals
 function applyGenerationFilters<T extends AnyPostgrestFilterBuilder>(
   query: T,
-  filters: GenerationFilters | undefined
+  filters: GenerationBaseFilters | undefined
 ): T {
   if (!filters) return query;
 
@@ -139,8 +140,7 @@ async function fetchEditVariants(
   const parentsOnly = filters?.parentsOnly ?? true;
 
   // Build count query
-  let countQuery = supabase
-    .from('generation_variants')
+  let countQuery = supabase().from('generation_variants')
     .select('*', { count: 'exact', head: true })
     .eq('project_id', projectId);
   
@@ -175,8 +175,7 @@ async function fetchEditVariants(
 
   // Data query with pagination
   const ascending = sort === 'oldest';
-  let dataQuery = supabase
-    .from('generation_variants')
+  let dataQuery = supabase().from('generation_variants')
     .select(`
       id,
       generation_id,
@@ -228,16 +227,7 @@ async function fetchEditVariants(
   };
 }
 
-/**
- * Fetch generations using direct Supabase call with pagination support
- */
-type FetchGenerationsFilters = {
-  toolType?: string;
-  mediaType?: 'all' | 'image' | 'video';
-  shotId?: string;
-  excludePositioned?: boolean;
-  starredOnly?: boolean;
-  searchTerm?: string;
+export type GenerationFilters = GenerationBaseFilters & {
   includeChildren?: boolean;
   parentGenerationId?: string;
   sort?: 'newest' | 'oldest';
@@ -250,7 +240,7 @@ async function fetchGenerationsForProject(
   projectId: string,
   limit: number = 100,
   offset: number = 0,
-  filters?: FetchGenerationsFilters
+  filters?: GenerationFilters
 ): Promise<{
   items: GeneratedImageWithMetadata[];
   total: number;
@@ -267,8 +257,7 @@ async function fetchGenerationsForProject(
   }
 
   // Build count query
-  let countQuery = supabase
-    .from('generations')
+  let countQuery = supabase().from('generations')
     .select('*', { count: 'exact', head: true })
     .eq('project_id', projectId);
   
@@ -295,8 +284,7 @@ async function fetchGenerationsForProject(
   const totalCount = count || 0;
 
   // Select only the fields needed for the gallery view
-  let dataQuery = supabase
-    .from('generations')
+  let dataQuery = supabase().from('generations')
     .select(`
       id,
       location,
@@ -371,7 +359,7 @@ export function fetchGenerations(
   projectId: string | null,
   limit: number = 100,
   offset: number = 0,
-  filters?: FetchGenerationsFilters
+  filters?: GenerationFilters
 ): Promise<{
   items: GeneratedImageWithMetadata[];
   total: number;
@@ -395,26 +383,13 @@ export function useProjectGenerations(
   page: number = 1,
   limit: number = 100,
   enabled: boolean = true,
-  filters?: {
-    toolType?: string;
-    mediaType?: 'all' | 'image' | 'video';
-    shotId?: string;
-    excludePositioned?: boolean;
-    starredOnly?: boolean;
-    searchTerm?: string;
-    includeChildren?: boolean;
-    parentGenerationId?: string;
-    sort?: 'newest' | 'oldest';
-    editsOnly?: boolean; // Filter for images with based_on set (derived/edited images)
-    parentsOnly?: boolean; // For variants: exclude child variants (those with parent_variant_id)
-    variantsOnly?: boolean; // Fetch edit variants from generation_variants table
-  },
+  filters?: GenerationFilters,
   options?: {
     disablePolling?: boolean; // Disable smart polling (useful for long-running tasks)
   }
 ) {
   const offset = (page - 1) * limit;
-  const effectiveProjectId = projectId ?? (typeof window !== 'undefined' ? window.__PROJECT_CONTEXT__?.selectedProjectId : null);
+  const effectiveProjectId = projectId ?? getProjectSelectionFallbackId();
   const filtersKey = filters ? JSON.stringify(filters) : null;
   const queryKey = unifiedGenerationQueryKeys.byProject(
     effectiveProjectId ?? '__no-project__',

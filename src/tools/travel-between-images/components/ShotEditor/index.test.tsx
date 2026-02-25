@@ -14,7 +14,7 @@ vi.mock('@/shared/hooks/useShotCreation', () => ({
   useShotCreation: () => ({ createShot: vi.fn() }),
 }));
 
-vi.mock('@/shared/hooks/useMobile', () => ({
+vi.mock('@/shared/hooks/mobile', () => ({
   useIsMobile: () => false,
   useDeviceInfo: () => ({ isPhone: false, mobileColumns: 3 }),
 }));

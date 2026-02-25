@@ -1,0 +1,93 @@
+/* ========================================= */
+/* NEW SHOT ZONE - "Moment of Creation"      */
+/* Soft glow on hover, subtle accent tint    */
+/* ========================================= */
+
+.new-group-drop-zone {
+  transition: all 0.25s ease-out;
+}
+
+.new-group-drop-zone:hover {
+  border-color: hsl(var(--wes-vintage-gold) / 0.5);
+  background: linear-gradient(
+    135deg,
+    hsl(var(--wes-vintage-gold) / 0.08) 0%,
+    hsl(150 20% 20% / 0.1) 100%
+  );
+  box-shadow: 
+    0 0 20px hsl(var(--wes-vintage-gold) / 0.15),
+    inset 0 1px 0 hsl(var(--wes-vintage-gold) / 0.1);
+  transform: scale(1.02);
+}
+
+.new-group-drop-zone:hover p {
+  color: hsl(var(--wes-vintage-gold));
+}
+
+/* Plus icon container - subtle idle pulse */
+.new-group-drop-zone .plus-icon-container {
+  animation: subtle-plus-pulse 3s ease-in-out infinite;
+}
+
+@keyframes subtle-plus-pulse {
+  0%, 100% { 
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.85;
+    transform: scale(1.05);
+  }
+}
+
+/* On hover, stop idle pulse and apply glow */
+.new-group-drop-zone:hover .plus-icon-container {
+  animation: none;
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+/* Plus icon glow effect for create buttons in dark mode */
+.dark .new-group-drop-zone:hover svg {
+  filter: drop-shadow(0 0 6px hsl(var(--wes-vintage-gold) / 0.7));
+}
+
+/* ========================================= */
+/* TEXT HIERARCHY REFINEMENTS               */
+/* Sharper distinction between levels        */
+/* ========================================= */
+
+/* Shot titles - more prominent */
+.dark .shot-title,
+.dark .shot-name,
+.dark h3.font-light {
+  letter-spacing: 0.02em;
+  font-weight: 500;
+}
+
+/* Section headers - bolder, wider spacing */
+.dark .section-header,
+.dark .text-xl,
+.dark h2 {
+  letter-spacing: 0.03em;
+  font-weight: 600;
+}
+
+/* Metadata/labels - smaller, more muted */
+.dark .metadata,
+.dark .label,
+.dark .text-xs.text-muted-foreground,
+.dark .text-sm.text-muted-foreground,
+.dark .text-sm.text-zinc-400 {
+  letter-spacing: 0.01em;
+  font-weight: 400;
+}
+
+/* Shot group cards - icons dim until card hover */
+.dark .shot-group button {
+  transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+}
+
+.dark .shot-group:hover button {
+  opacity: 1;
+}

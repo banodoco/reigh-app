@@ -1,0 +1,74 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "high_level_elegance": 76.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/integrations/supabase/client.ts` exposes a simple accessor (`getSupabaseClient`) that also performs one-time instrumentation install and runtime initialization, so subsystem boot behavior is hidden behind a generic getter.",
+        "`src/domains/generation/types/generationRow.ts` mixes DB-shaped fields (`generation_id`, `timeline_frame`, `based_on`) with UI/runtime fields (`imageUrl`, `isOptimistic`, `hasUnviewedVariants`) in a single high-import shared type.",
+        "`src/domains/generation/types/shot.ts` depends on `GenerationRow` and adds more mixed concerns (persisted shape plus computed UI stats), widening cross-feature coupling through shared domain types.",
+        "`src/pages/Home/components/CreativePartnerPane.tsx` and `src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx` both wire tooltip interaction policy details directly in feature components, repeating interaction-orchestration responsibilities instead of isolating them behind a narrower component boundary."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "hidden_bootstrap_in_accessor",
+      "summary": "Singleton accessor hides subsystem bootstrap side effects and boot order assumptions",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "`getSupabaseClient()` appears to be a plain getter but triggers instrumentation install and runtime init via `buildSupabaseClient()`.",
+        "`handleError()` is another global entrypoint that looks utility-like but performs logging and optional user notification side effects; both patterns blur ownership behind generic names."
+      ],
+      "suggestion": "Split bootstrap from access: add explicit app-start initialization functions (for Supabase runtime/instrumentation and error notifier wiring), keep getters/handlers focused on single responsibilities, and rename side-effectful entrypoints to reflect behavior (for example `initializeSupabaseClientRuntime` + `getSupabaseClient`).",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_type_boundary_collapse",
+      "summary": "Core generation types combine persistence schema and view-model concerns",
+      "related_files": [
+        "src/domains/generation/types/generationRow.ts",
+        "src/domains/generation/types/shot.ts"
+      ],
+      "evidence": [
+        "`GenerationRow` includes DB identifiers/foreign keys and UI-oriented flags/counts in one interface used broadly.",
+        "`Shot` references `GenerationRow[]` while also carrying computed presentation stats (`imageCount`, `hasUnpositionedImages`), reinforcing a single cross-layer shape."
+      ],
+      "suggestion": "Introduce explicit boundary types: persisted row types (DB-facing), domain entities, and UI view models; then provide mappers at feature boundaries so downstream modules depend on smaller, role-specific contracts.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "ui_interaction_policy_leaks",
+      "summary": "Tooltip interaction orchestration is duplicated across feature components",
+      "related_files": [
+        "src/pages/Home/components/CreativePartnerPane.tsx",
+        "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx",
+        "src/shared/components/ui/tooltip.tsx"
+      ],
+      "evidence": [
+        "Both feature components directly manage `open/onOpenChange`, mobile behavior, and hover/click handlers via `useTooltipInteractionPolicy`.",
+        "The shared tooltip primitives stay low-level, so higher-level interaction policy is repeated in multiple product surfaces."
+      ],
+      "suggestion": "Create a higher-level shared component or hook wrapper (for example `ResponsiveManagedTooltip`) that encapsulates policy wiring and exposes a narrow API, then migrate feature components to that boundary.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

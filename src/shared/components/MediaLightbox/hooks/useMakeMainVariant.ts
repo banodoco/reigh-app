@@ -9,11 +9,11 @@
 
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import { supabase } from '@/integrations/supabase/client';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { invalidateVariantChange } from '@/shared/hooks/invalidation/useGenerationInvalidation';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 
 interface UseMakeMainVariantProps {
   /** Current media being viewed */
@@ -79,8 +79,7 @@ export function useMakeMainVariant({
 
       const parentGenId = sourceGenerationData.id;
       // 1. Create a new variant on the parent generation with current media's location
-      const { error: insertError } = await supabase
-        .from('generation_variants')
+      const { error: insertError } = await supabase().from('generation_variants')
         .insert({
           generation_id: parentGenId,
           location: media.location,
@@ -104,8 +103,7 @@ export function useMakeMainVariant({
       }
 
       // 2. Update the parent generation's location and thumbnail
-      await supabase
-        .from('generations')
+      await supabase().from('generations')
         .update({
           location: media.location,
           thumbnail_url: media.thumbUrl || media.thumbnail_url
@@ -123,7 +121,7 @@ export function useMakeMainVariant({
       // Close the lightbox (UI will now reflect updated data without refresh)
       onClose();
     } catch (error) {
-      handleError(error, { context: 'useMakeMainVariant', showToast: false });
+      normalizeAndPresentError(error, { context: 'useMakeMainVariant', showToast: false });
     } finally {
       setIsMakingMainVariant(false);
     }

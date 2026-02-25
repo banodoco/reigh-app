@@ -18,16 +18,13 @@
  * - moveItemsToMidpoint: insert item(s) between neighbors (batch drag)
  */
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import type { ShotGeneration } from '@/shared/hooks/useTimelineCore';
-import { queryKeys } from '@/shared/lib/queryKeys';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import {
-  isTimelineWriteTimeoutError,
+  createTimelineWriteQueueLogger,
   runSerializedTimelineWrite,
-  runTimelineWriteWithTimeout,
 } from '@/shared/lib/timelineWriteQueue';
 import {
   findGeneration,
@@ -35,7 +32,13 @@ import {
   deduplicateUpdates,
   buildAndNormalizeFinalPositions,
 } from './timelineFrameCalculators';
-import { persistTimelineFrameBatch } from '@/shared/lib/timelineFrameBatchPersist';
+import {
+  buildCanonicalTimelineUpdates,
+  persistSingleTimelineFrame,
+  persistTimelineFrameBatchUpdates,
+  refetchTimelineFrameCaches,
+  syncTimelineGenerationFrames,
+} from './timelineMutationService';
 
 const TIMELINE_FRAME_LOG_PREFIX = '[TimelineFramePersist]';
 const log = (...args: Parameters<typeof console.log>) => console.log(...args);
@@ -53,22 +56,6 @@ interface UseTimelineFrameUpdatesOptions {
   projectId?: string | null;
   shotGenerations: ShotGeneration[];
   syncShotData: (generationId: string, targetShotId: string, frame: number) => Promise<void>;
-}
-
-// ============================================================================
-// Cache refetch helper
-// ============================================================================
-
-function refetchRelatedCaches(
-  queryClient: ReturnType<typeof useQueryClient>,
-  shotId: string,
-  projectId?: string | null
-) {
-  queryClient.refetchQueries({ queryKey: queryKeys.generations.byShot(shotId) });
-  queryClient.refetchQueries({ queryKey: queryKeys.generations.meta(shotId) });
-  if (projectId) {
-    queryClient.refetchQueries({ queryKey: queryKeys.shots.list(projectId!) });
-  }
 }
 
 // ============================================================================
@@ -90,57 +77,10 @@ export function useTimelineFrameUpdates({
   const shotGenerationsRef = useRef(shotGenerations);
   shotGenerationsRef.current = shotGenerations;
 
-  const logQueuePhase = useCallback((
-    phase: 'queued' | 'start' | 'end',
-    meta: {
-      shotId: string;
-      operation: string;
-      waitMs: number;
-      durationMs: number;
-      queueDepth: number;
-      requestId: number;
-      blockedByOperation?: string | null;
-      blockedByDurationMs?: number | null;
-    },
-  ) => {
-    if (phase === 'queued') {
-      log(`${TIMELINE_FRAME_LOG_PREFIX} write queue queued`, {
-        shotId: shortId(meta.shotId),
-        requestId: meta.requestId,
-        operation: meta.operation,
-        waitMs: meta.waitMs,
-        durationMs: meta.durationMs,
-        queueDepth: meta.queueDepth,
-        blockedByOperation: meta.blockedByOperation ?? null,
-        blockedByDurationMs: meta.blockedByDurationMs ?? null,
-      });
-      return;
-    }
-
-    if (phase === 'start') {
-      log(`${TIMELINE_FRAME_LOG_PREFIX} write queue start`, {
-        shotId: shortId(meta.shotId),
-        requestId: meta.requestId,
-        operation: meta.operation,
-        waitMs: meta.waitMs,
-        queueDepth: meta.queueDepth,
-        blockedByOperation: meta.blockedByOperation ?? null,
-        blockedByDurationMs: meta.blockedByDurationMs ?? null,
-      });
-      return;
-    }
-
-    log(`${TIMELINE_FRAME_LOG_PREFIX} write queue end`, {
-      shotId: shortId(meta.shotId),
-      requestId: meta.requestId,
-      operation: meta.operation,
-      waitMs: meta.waitMs,
-      durationMs: meta.durationMs,
-      queueDepth: meta.queueDepth,
-      blockedByOperation: meta.blockedByOperation ?? null,
-      blockedByDurationMs: meta.blockedByDurationMs ?? null,
-    });
-  }, []);
+  const logQueuePhase = useMemo(
+    () => createTimelineWriteQueueLogger({ logPrefix: TIMELINE_FRAME_LOG_PREFIX, log }),
+    [],
+  );
 
   /**
    * Update timeline frame for a single generation
@@ -159,47 +99,32 @@ export function useTimelineFrameUpdates({
         const shotGen = live.find((sg) => sg.id === shotGenerationId)
           ?? live.find((sg) => sg.generation_id === shotGenerationId);
         if (!shotGen?.id) {
-          handleError(new Error(`Shot generation not found for ${shotGenerationId}`), {
+          normalizeAndPresentError(new Error(`Shot generation not found for ${shotGenerationId}`), {
             context: 'TimelineFrameUpdates:updateTimelineFrame',
             showToast: false,
           });
           throw new Error(`Shot generation not found for ${shotGenerationId}`);
         }
 
-        await runTimelineWriteWithTimeout(
-          'timeline-frame-single-update-write',
-          async (signal) => {
-            const query = supabase
-              .from('shot_generations')
-              .update({ timeline_frame: frame })
-              .eq('id', shotGen.id)
-              .eq('shot_id', shotId);
-            const request = 'abortSignal' in query
-              ? query.abortSignal(signal)
-              : query;
-            const { error } = await request;
-            if (error) {
-              throw error;
-            }
-          },
-          {
-            onTimeout: ({ pendingMs, timeoutMs }) => {
-              log(`${TIMELINE_FRAME_LOG_PREFIX} updateTimelineFrame timed out`, {
-                shotId: shortId(shotId),
-                shotGenerationId: shortId(shotGen.id),
-                targetFrame: frame,
-                timeoutMs,
-                pendingMs,
-              });
-            },
-          },
-        );
+        await persistSingleTimelineFrame({
+          shotId,
+          shotGenerationId: shotGen.id,
+          frame,
+          logPrefix: TIMELINE_FRAME_LOG_PREFIX,
+          log,
+        });
 
         if (shotGen.generation_id) {
-          await syncShotData(shotGen.generation_id, shotId, frame);
+          await syncTimelineGenerationFrames({
+            shotId,
+            targets: [{ generationId: shotGen.generation_id, frame }],
+            syncShotData,
+            logPrefix: TIMELINE_FRAME_LOG_PREFIX,
+            log,
+          });
         }
 
-        refetchRelatedCaches(queryClient, shotId, projectId);
+        refetchTimelineFrameCaches(queryClient, shotId, projectId);
       },
       logQueuePhase,
     );
@@ -226,80 +151,45 @@ export function useTimelineFrameUpdates({
             return;
           }
 
-          const canonicalUpdates = updates
-            .map(({ shotGenerationId, newFrame }) => {
-              const shotGen = shotGenerationsRef.current.find((sg) => sg.id === shotGenerationId);
-              if (!shotGen?.id) {
-                return null;
-              }
-              return {
-                shotGenerationId: shotGen.id,
-                generationId: shotGen.generation_id,
-                newFrame,
-              };
-            })
-            .filter((update): update is { shotGenerationId: string; generationId: string; newFrame: number } => update !== null);
+          const canonicalUpdates = buildCanonicalTimelineUpdates({
+            updates,
+            shotGenerations: shotGenerationsRef.current,
+          });
 
           if (canonicalUpdates.length === 0) {
             return;
           }
 
-          await persistTimelineFrameBatch({
+          await persistTimelineFrameBatchUpdates({
             shotId,
             updates: canonicalUpdates.map(({ shotGenerationId, newFrame }) => ({
               shotGenerationId,
               timelineFrame: newFrame,
-              metadata: {
-                user_positioned: true,
-                drag_source: 'batch-exchange',
-              },
             })),
             operationLabel: 'timeline-frame-batch-exchange',
             timeoutOperationName: 'timeline-frame-batch-rpc',
+            dragSource: 'batch-exchange',
             logPrefix: TIMELINE_FRAME_LOG_PREFIX,
             log,
           });
 
-          const syncTargets = canonicalUpdates.filter((update) => !!update.generationId);
-          if (syncTargets.length > 0) {
-            try {
-              await runTimelineWriteWithTimeout(
-                'timeline-frame-sync-shot-data',
-                async () => {
-                  await Promise.all(
-                    syncTargets.map(({ generationId, newFrame }) => syncShotData(generationId, shotId, newFrame))
-                  );
-                },
-                {
-                  timeoutMs: 10_000,
-                  onTimeout: ({ pendingMs, timeoutMs }) => {
-                    log(`${TIMELINE_FRAME_LOG_PREFIX} shot_data sync timed out`, {
-                      shotId: shortId(shotId),
-                      syncCount: syncTargets.length,
-                      timeoutMs,
-                      pendingMs,
-                    });
-                  },
-                },
-              );
-            } catch (error) {
-              if (isTimelineWriteTimeoutError(error)) {
-                log(`${TIMELINE_FRAME_LOG_PREFIX} shot_data sync timeout ignored`, {
-                  shotId: shortId(shotId),
-                  syncCount: syncTargets.length,
-                });
-              } else {
-                throw error;
-              }
-            }
-          }
+          await syncTimelineGenerationFrames({
+            shotId,
+            targets: canonicalUpdates.map(({ generationId, newFrame }) => ({
+              generationId,
+              frame: newFrame,
+            })),
+            syncShotData,
+            logPrefix: TIMELINE_FRAME_LOG_PREFIX,
+            log,
+            ignoreTimeout: true,
+          });
 
-          refetchRelatedCaches(queryClient, shotId, projectId);
-          queryClient.refetchQueries({ queryKey: queryKeys.segments.liveTimeline(shotId) });
+          refetchTimelineFrameCaches(queryClient, shotId, projectId, true);
           log(`${TIMELINE_FRAME_LOG_PREFIX} batchExchange cache refetch triggered`, {
             shotId: shortId(shotId),
             changedCount: canonicalUpdates.length,
-            byShot: queryKeys.generations.byShot(shotId),
+            byShot: shotId,
           });
         } catch (error) {
           log(`${TIMELINE_FRAME_LOG_PREFIX} batchExchangePositions failed`, {
@@ -404,11 +294,15 @@ export function useTimelineFrameUpdates({
         });
 
         try {
-          await persistTimelineFrameBatch({
+          await persistTimelineFrameBatchUpdates({
             shotId,
-            updates: changedUpdates,
+            updates: changedUpdates.map((update) => ({
+              shotGenerationId: update.shotGenerationId,
+              timelineFrame: update.timelineFrame,
+            })),
             operationLabel: 'timeline-frame-midpoint-move',
             timeoutOperationName: 'timeline-frame-midpoint-rpc',
+            dragSource: 'batch-midpoint',
             logPrefix: TIMELINE_FRAME_LOG_PREFIX,
             log,
           });
@@ -422,13 +316,11 @@ export function useTimelineFrameUpdates({
           throw error;
         }
 
-        refetchRelatedCaches(queryClient, shotId, projectId);
-        // CRITICAL: Also refetch segment-live-timeline so segment videos update positions
-        queryClient.refetchQueries({ queryKey: queryKeys.segments.liveTimeline(shotId) });
+        refetchTimelineFrameCaches(queryClient, shotId, projectId, true);
         log(`${TIMELINE_FRAME_LOG_PREFIX} midpoint cache refetch triggered`, {
           shotId: shortId(shotId),
           changedCount: changedUpdates.length,
-          byShot: queryKeys.generations.byShot(shotId),
+          byShot: shotId,
         });
       },
       logQueuePhase,

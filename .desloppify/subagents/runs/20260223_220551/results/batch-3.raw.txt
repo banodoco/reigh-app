@@ -1,0 +1,93 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "mid_level_elegance": 72.0
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "`InvalidationOptions.reason` and `VariantInvalidationOptions.reason` are required API fields but never used in invalidation execution paths (`performInvalidation`, scheduled invalidation, and `invalidateVariantChange`).",
+        "`RateLimitConfig.identifierType` is documented and populated in `RATE_LIMITS`, but `checkRateLimit` ignores it and always trusts a prebuilt `identifier`, making strategy config inert at the seam.",
+        "Shot-addition handoff contracts diverge: typed event `selectShotForAddition` requires `{ shotId, shotName }` while context API accepts only `shotId`, forcing adapters and duplicated conventions.",
+        "Two major form APIs flatten segmented prop bags via spread/intersection (`resolveShotImagesEditorProps`, `resolveJoinClipsSettingsFormProps`), creating order-dependent collision semantics instead of explicit boundary contracts.",
+        "Edge helper strategy is inconsistent: `billing.triggerCostCalculation` and thumbnail paths in `storage.ts` return `EdgeOperationResult`, while primary upload failures in `handleStorageOperations` throw, so callers must handle dual failure channels."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "ignored_semantic_options_in_boundary_apis",
+      "summary": "Required seam options are declared but ignored, making cross-module APIs misleading.",
+      "related_files": [
+        "src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+        "supabase/functions/_shared/rateLimit.ts"
+      ],
+      "evidence": [
+        "`InvalidationOptions` and `VariantInvalidationOptions` require `reason`, but no invalidation code path reads or records it.",
+        "`RateLimitConfig.identifierType` is present in type/docs and in `RATE_LIMITS`, but `checkRateLimit` never branches on it and only uses `${functionName}:${identifier}`."
+      ],
+      "suggestion": "Either remove these fields from public options or make them operational: emit/record invalidation reasons and derive rate-limit keys internally from `identifierType` (ip/user/combined) so config and runtime behavior match.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "shot_addition_contract_drift",
+      "summary": "Shot-addition event and context seams encode different payload contracts.",
+      "related_files": [
+        "src/shared/lib/typedEvents.ts",
+        "src/shared/contexts/ShotAdditionSelectionContext.tsx"
+      ],
+      "evidence": [
+        "Event bus contract: `selectShotForAddition: { shotId: string; shotName: string }`.",
+        "Context contract: `selectShotForAddition(shotId: string)` and state stores only `selectedShotId`."
+      ],
+      "suggestion": "Define a single shared shot-addition payload type and use it for both event and context APIs (or intentionally split names, e.g. `selectShotIdForAddition` vs `selectShotForAddition`) to avoid adapter glue and drift.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "edge_result_model_not_applied_consistently",
+      "summary": "Edge utilities mix typed result envelopes with thrown exceptions in adjacent flows.",
+      "related_files": [
+        "supabase/functions/_shared/edgeOperation.ts",
+        "supabase/functions/_shared/billing.ts",
+        "supabase/functions/complete_task/storage.ts"
+      ],
+      "evidence": [
+        "`edgeOperation.ts` defines a standardized `EdgeOperationResult` abstraction.",
+        "`billing.triggerCostCalculation` consistently returns `EdgeOperationResult<void>` for failures.",
+        "`handleStorageOperations` throws on upload failure (`throw new Error(...)`) but returns `thumbnailOutcome: EdgeOperationResult` for thumbnail failures."
+      ],
+      "suggestion": "Unify edge-operation failure transport per boundary: either return `EdgeOperationResult` for all storage steps (including upload) or centralize throw-based handling and remove partial result wrapping; avoid requiring callers to handle both styles in one flow.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "prop_bag_flattening_creates_order_dependent_seams",
+      "summary": "Prop resolver helpers flatten segmented APIs into collision-prone flat contracts.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/types.ts",
+        "src/shared/components/JoinClipsSettingsForm/types.ts"
+      ],
+      "evidence": [
+        "`resolveShotImagesEditorProps` merges four prop groups with spread order; later groups silently override same-named keys.",
+        "`resolveJoinClipsSettingsFormProps` uses the same flattening pattern, turning domain-grouped boundaries into a single broad bag."
+      ],
+      "suggestion": "Keep grouped prop objects at component seams (or enforce explicit namespaced fields) and avoid blanket spread flattening; if flattening is necessary, add compile-time collision guards and explicit precedence rules.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

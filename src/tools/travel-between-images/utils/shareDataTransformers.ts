@@ -7,7 +7,7 @@
  * IMPORTANT: If hook return shapes change, update these transformers.
  */
 
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 import type { VideoMetadata } from '@/shared/lib/videoUploader';

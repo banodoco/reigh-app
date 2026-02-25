@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { ReferenceImage } from '../../types';
 import type { LegacyMigrationsInput } from './types';
 
@@ -65,7 +65,7 @@ export function useSceneModeMigration(input: SceneModeMigrationInput): void {
           references: referencePointers.map(migrateSceneReference),
         });
       } catch (error) {
-        handleError(error, {
+        normalizeAndPresentError(error, {
           context: 'ImageGenerationForm.runSceneMigration',
           showToast: false,
         });

@@ -1,0 +1,122 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 88.0,
+    "mid_level_elegance": 84.0,
+    "low_level_elegance": 80.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "`src/shared/hooks/useTasks.ts` mixes concrete query-hook behavior with backward-compatibility re-exports (`useCancelTask`, `useTaskStatusCounts`) in the same module surface.",
+        "Call sites in this batch use different entrypoints for related task/generation actions (e.g. `src/tools/join-clips/pages/JoinClipsPage.tsx` imports mutations directly), indicating a non-canonical abstraction boundary.",
+        "Several files expose large state/result contracts (e.g. `useInlineEditState`) that are better than prior versions but still expensive to substitute and reason about at boundary edges."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Compatibility and implementation concerns still share module entrypoints, so abstraction surfaces are not yet fully canonical or minimal.",
+      "sub_axes": {
+        "abstraction_leverage": 86.0,
+        "indirection_cost": 84.0,
+        "interface_honesty": 90.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "`src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx` assembles and re-bundles multiple large seam objects (variants/navigation/workflow/actions/layout flags) before passing to another seam (`useLightboxWorkflowProps`).",
+        "`src/shared/components/MediaLightbox/ImageLightbox.tsx` repeats similar fallback and grouping choreography, so image/video seams are parallel but still manually synchronized.",
+        "`src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx` re-shapes workflow/button props again (`workflowBarProps`), adding another translation layer instead of consuming one stable controller contract."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "`supabase/functions/calculate-task-cost/index.ts` force-casts DB output (`task as unknown as TaskWithProject | null`) before business checks.",
+        "`src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts` casts metadata blobs to `Record<string, unknown>` and then relies on fallback defaults (`??`) for control decisions.",
+        "`src/shared/components/ShotImageManager/ShotImageManagerContainer.tsx` casts segment child payloads to `GenerationRow` (`currentSegmentSlot.child as GenerationRow`) at runtime boundaries."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "mixed_impl_and_compat_surface_in_use_tasks",
+      "summary": "Task hook abstraction still blends concrete behavior with compatibility facade exports, creating a non-canonical boundary.",
+      "related_files": [
+        "src/shared/hooks/useTasks.ts",
+        "src/tools/join-clips/pages/JoinClipsPage.tsx"
+      ],
+      "evidence": [
+        "`useTasks.ts` contains full query logic and also exports backward-compat wrappers (`export { useCancelTask... }`, `export { useTaskStatusCounts... }`) in the same file.",
+        "Related feature code in this batch imports adjacent behavior from different modules (`JoinClipsPage` pulls from `useGenerationMutations` directly), reinforcing entrypoint drift rather than one stable abstraction."
+      ],
+      "suggestion": "Split compatibility exports into a dedicated migration barrel (or compat module) and keep `useTasks.ts` focused on task-query responsibilities; then codemod callers toward one canonical entrypoint per concern.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "compatibility_surface_drift"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "lightbox_controller_rebundling_entropy",
+      "summary": "Media lightbox seams still incur repeated prop/state rebundling across hooks and layout layers.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "`useVideoLightboxRenderModel` builds large composed objects (`lightboxVariants`, `layoutFlags`, workflow/action maps) and then passes another composed contract to `useLightboxWorkflowProps`.",
+        "`ImageLightbox` performs parallel seam composition and fallback wiring (navigation/shot/features/actions), requiring mirrored maintenance across media types.",
+        "`LightboxLayout` reconstructs workflow bar props yet again (`workflowBarProps`), indicating translation at multiple boundaries instead of a single seam contract."
+      ],
+      "suggestion": "Introduce one canonical lightbox controller contract (query + commands + capability flags) shared by image/video paths and consumed directly by layout/components to eliminate repeated seam translation.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "lightbox_seam_fragmentation"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "unchecked_casts_and_fallback_ladders_in_runtime_paths",
+      "summary": "Runtime-critical task/generation flows still depend on unchecked casts plus fallback ladders that can mask malformed inputs.",
+      "related_files": [
+        "supabase/functions/calculate-task-cost/index.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts",
+        "src/shared/components/ShotImageManager/ShotImageManagerContainer.tsx"
+      ],
+      "evidence": [
+        "`calculate-task-cost` force-casts fetched task rows (`task as unknown as TaskWithProject`) before validating required shape.",
+        "`useSegmentSlotMode` repeatedly casts metadata blobs (`as Record<string, unknown>`) and then defaults values (`??`) used in generation/navigation behavior.",
+        "`ShotImageManagerContainer` force-casts segment child payload to `GenerationRow` for lightbox media (`currentSegmentSlot.child as GenerationRow`)."
+      ],
+      "suggestion": "Replace force-casts with narrow runtime parsers/guards at boundaries (typed row decoders for Supabase responses, metadata schema validators, and discriminated slot-child narrowing) and fail closed when shape checks fail.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "unchecked_boundary_casts"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Compatibility migration layers remain interleaved with primary module surfaces.",
+      "Lightbox subsystem still lacks a single authoritative controller seam, causing repeated rebundling.",
+      "Boundary parsing is inconsistent; many paths still rely on `as` casts and permissive defaults."
+    ],
+    "likely_symptoms": [
+      "mixed_impl_and_compat_surface_in_use_tasks",
+      "lightbox_controller_rebundling_entropy",
+      "unchecked_casts_and_fallback_ladders_in_runtime_paths"
+    ],
+    "possible_false_positives": [
+      "Some fallback defaults in lightbox/segment flows may be intentionally defensive for partial legacy payloads, but current implementation still obscures malformed-shape detection."
+    ]
+  }
+}

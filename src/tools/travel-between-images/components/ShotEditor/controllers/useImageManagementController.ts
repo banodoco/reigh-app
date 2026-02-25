@@ -1,8 +1,7 @@
 import { useCallback } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
-import type React from 'react';
 import type { MutableRefObject } from 'react';
-import type { GenerationRow, Shot } from '@/types/shots';
+import type { GenerationRow, Shot } from '@/domains/generation/types';
 import { useImageManagement } from '../hooks';
 import type { useGenerationActions } from '../hooks';
 
@@ -50,9 +49,8 @@ export function useImageManagementController({
     pendingFramePositions,
   });
 
-  // Image upload handler (accepts File[] from ImageUploadActions)
-  const handleImageUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
+  // Image upload handler consumes normalized files, not DOM events.
+  const handleImageUpload = useCallback(async (files: File[]) => {
     if (files.length > 0) {
       await generationActions.handleBatchImageDrop(files);
     }

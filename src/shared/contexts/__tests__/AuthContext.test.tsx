@@ -8,9 +8,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 
 // Use vi.hoisted for variables referenced inside vi.mock factories
-const { mockGetSession, mockOnAuthStateChange } = vi.hoisted(() => ({
+const { mockGetSession, mockOnAuthStateChange, getAuthStateManagerMock } = vi.hoisted(() => ({
   mockGetSession: vi.fn(),
   mockOnAuthStateChange: vi.fn(),
+  getAuthStateManagerMock: vi.fn(),
 }));
 
 vi.mock('@/integrations/supabase/client', () => ({
@@ -20,6 +21,10 @@ vi.mock('@/integrations/supabase/client', () => ({
       onAuthStateChange: mockOnAuthStateChange,
     },
   },
+}));
+
+vi.mock('@/integrations/supabase/auth/AuthStateManager', () => ({
+  getAuthStateManager: () => getAuthStateManagerMock(),
 }));
 
 import { AuthProvider, useAuth } from '../AuthContext';
@@ -39,8 +44,7 @@ function AuthConsumer() {
 describe('AuthContext', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset global auth manager
-    delete (window as Record<string, unknown>).__AUTH_MANAGER__;
+    getAuthStateManagerMock.mockReturnValue(null);
 
     // Default mock: no session
     mockGetSession.mockResolvedValue({
@@ -157,9 +161,9 @@ describe('AuthContext', () => {
 
     it('uses auth manager when available', async () => {
       const mockSubscribe = vi.fn().mockReturnValue(() => {});
-      (window as Record<string, unknown>).__AUTH_MANAGER__ = {
+      getAuthStateManagerMock.mockReturnValue({
         subscribe: mockSubscribe,
-      };
+      });
 
       mockGetSession.mockResolvedValue({
         data: { session: null },

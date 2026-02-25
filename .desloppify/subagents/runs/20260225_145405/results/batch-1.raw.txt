@@ -1,0 +1,71 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 88.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "Toast API boundary is split across two public paths: `src/shared/components/ui/runtime/sonner.tsx` exports `toast` from `@/shared/components/ui/toast`, while many modules import from both `@/shared/components/ui/runtime/sonner` and `@/shared/components/ui/toast` directly.",
+        "Supabase client access is a high-fan-in global gateway (`src/integrations/supabase/client.ts` is top-imported in review context), and it encodes lifecycle ordering in the API (`getSupabaseClient()` requires prior bootstrap; runtime throws if uninitialized).",
+        "`src/integrations/supabase/client.ts` is a thin facade over runtime singleton internals, so application-wide data access depends on a mutable process-global state cell rather than explicit dependency injection at boundaries."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Public infrastructure entrypoints are not singular or lifecycle-safe by construction: toast has fragmented import surfaces, and Supabase access remains globally stateful with implicit bootstrap sequencing."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "toast_api_surface_fragmented",
+      "summary": "Toast infrastructure is exposed through competing module entrypoints",
+      "related_files": [
+        "src/shared/components/ui/runtime/sonner.tsx",
+        "src/shared/components/ui/toast.tsx"
+      ],
+      "evidence": [
+        "`src/shared/components/ui/runtime/sonner.tsx` re-exports `toast` from `@/shared/components/ui/toast` while also defining `Toaster`, creating a compatibility facade rather than a single canonical boundary.",
+        "Codebase usage is split between `@/shared/components/ui/runtime/sonner` and `@/shared/components/ui/toast`, so call-sites couple to transport details instead of one stable UI notification contract.",
+        "This split also propagates into tests/mocks, where both paths are mocked in different modules, increasing change blast radius for toast infrastructure."
+      ],
+      "suggestion": "Define one canonical toast runtime entrypoint (for example `@/shared/components/ui/runtime/toast`) exporting both `toast` and `Toaster`; keep one legacy path as deprecated shim temporarily, migrate imports with codemod, then remove duplicate public path.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "public_entrypoint_fragmentation"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "supabase_runtime_global_bootstrap_coupling",
+      "summary": "Supabase access relies on global singleton state and implicit bootstrap order",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/integrations/supabase/runtime/supabaseRuntime.ts"
+      ],
+      "evidence": [
+        "`src/integrations/supabase/client.ts` exposes `initializeSupabase()` and `getSupabaseClient()` where accessor correctness depends on prior bootstrap call order.",
+        "`src/integrations/supabase/runtime/supabaseRuntime.ts` stores `runtimeClient` as module-global mutable state and throws when accessed before initialization, making lifecycle sequencing a cross-module hidden dependency.",
+        "This gateway is high fan-in in the packet import summary, so lifecycle mistakes or contract changes have broad subsystem blast radius."
+      ],
+      "suggestion": "Introduce an explicit Supabase service boundary that is constructed once at app composition root and passed/injected into feature services/hooks; keep `getSupabaseClient()` only as a deprecated compatibility shim that delegates to the injected container during migration.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "global_runtime_singletons"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Infrastructure concerns are exposed via multiple historical compatibility facades instead of single canonical module boundaries.",
+      "Cross-feature services still rely on process-global runtime singletons rather than explicit dependency composition."
+    ],
+    "likely_symptoms": [
+      "toast_api_surface_fragmented",
+      "supabase_runtime_global_bootstrap_coupling"
+    ],
+    "possible_false_positives": []
+  }
+}

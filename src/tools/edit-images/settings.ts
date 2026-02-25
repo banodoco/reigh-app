@@ -1,4 +1,4 @@
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
 
 export const editImagesSettings = {
   id: TOOL_IDS.EDIT_IMAGES,

@@ -1,6 +1,6 @@
-import { useAutoSaveSettings } from '@/shared/hooks/useAutoSaveSettings';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
-import { joinClipsSettings, JoinClipsSettings } from '../settings';
+import { useAutoSaveSettings } from '@/shared/hooks/settings/useAutoSaveSettings';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
+import { joinClipsSettings, type JoinClipsSettings } from '@/shared/lib/joinClipsDefaults';
 
 /**
  * Hook for managing Join Clips tool settings at the project level

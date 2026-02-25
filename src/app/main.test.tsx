@@ -16,7 +16,7 @@ vi.mock('@/app/App', () => ({
   default: () => null,
 }));
 
-vi.mock('@/shared/components/AppErrorBoundary', () => ({
+vi.mock('@/app/components/error/AppErrorBoundary', () => ({
   AppErrorBoundary: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
@@ -58,12 +58,12 @@ describe('bootstrap runtime gates', () => {
     expect(shouldLoadDevDebugTools({ MODE: 'development', DEV: true, VITEST: true })).toBe(false);
   });
 
-  it('loads autoplay monitor only in non-test development NODE_ENV', async () => {
+  it('loads autoplay monitor only in non-test dev runtime', async () => {
     const { shouldLoadAutoplayMonitor } = await import('@/app/bootstrap');
 
-    expect(shouldLoadAutoplayMonitor({ MODE: 'development', NODE_ENV: 'development', VITEST: false })).toBe(true);
-    expect(shouldLoadAutoplayMonitor({ MODE: 'production', NODE_ENV: 'production', VITEST: false })).toBe(false);
-    expect(shouldLoadAutoplayMonitor({ MODE: 'test', NODE_ENV: 'development', VITEST: false })).toBe(false);
-    expect(shouldLoadAutoplayMonitor({ MODE: 'development', NODE_ENV: 'development', VITEST: true })).toBe(false);
+    expect(shouldLoadAutoplayMonitor({ MODE: 'development', DEV: true, VITEST: false })).toBe(true);
+    expect(shouldLoadAutoplayMonitor({ MODE: 'production', DEV: false, VITEST: false })).toBe(false);
+    expect(shouldLoadAutoplayMonitor({ MODE: 'test', DEV: true, VITEST: false })).toBe(false);
+    expect(shouldLoadAutoplayMonitor({ MODE: 'development', DEV: true, VITEST: true })).toBe(false);
   });
 });

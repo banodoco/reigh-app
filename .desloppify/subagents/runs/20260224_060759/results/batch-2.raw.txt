@@ -1,0 +1,146 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 68.0,
+    "mid_level_elegance": 64.0,
+    "low_level_elegance": 70.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "Lightbox flow is split across `ImageLightbox.tsx`, `VideoLightbox.tsx`, and `useVideoLightboxRenderModel.tsx` but still passes very large grouped prop surfaces (`navigation`, `shotWorkflow`, `features`, `actions`, plus nested callback bags), so wrappers add indirection without reducing interface size.",
+        "`taskParamsUtils.ts` mixes multiple abstraction layers: low-level typed coercion helpers, scope resolution (`createTaskParamScopes`), and high-level view models (`buildTaskParamsViewModel`, `buildVideoTravelTaskParamsViewModel`, `buildImageTaskParamsViewModel`) with many fallback chains across the same keys.",
+        "Task creation modules (`joinClips.ts`, `individualTravelSegment.ts`, `travelBetweenImages/payloadBuilder.ts`) each re-encode large optional param bags and partial inheritance logic rather than sharing a smaller boundary contract."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 66.0,
+        "indirection_cost": 61.0,
+        "interface_honesty": 69.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Cross-layer handoff rules for generation/orchestrator behavior are split between producer-side payload fields (`skip_generation`, orchestration contract fields in task creators) and consumer-side routing in `complete_task/generation.ts`, creating implicit coupling on shared string keys.",
+        "`useShotImagesEditorCallbacks.ts` directly coordinates DB reads/deletes plus broad cache mutation/invalidation for multiple query namespaces, indicating seam leakage between domain actions and cache orchestration.",
+        "`useTasks.ts` combines query construction, pagination strategy, custom sorting behavior, and freshness-state side effects, so boundary responsibilities between data fetch and freshness policy are blurred."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "`individualTravelSegment.ts` has very long local control flow with many helper branches (`buildSegmentState`, `buildOrchestratorDetails`, `buildTaskParamsPayload`) and repeated conditional field assembly, increasing local reasoning cost.",
+        "`joinClips.ts` builds `orchestratorDetails` through a large mutable object plus many `setPayloadFieldIf*` calls and per-join override branching, making behavior hard to audit.",
+        "`useSegmentSlotMode.ts` contains many responsibilities (deep-link parsing, structure-video overlap resolution, mode data synthesis, frame update routing) in one hook file, reducing internal clarity."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "lightbox_prop_surface_indirection",
+      "summary": "Lightbox abstractions add wrapper layers but keep a very large, duplicated prop/callback surface.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/VideoLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "`ImageLightboxProps` and `VideoLightboxProps` both carry large grouped bags (`navigation`, `shotWorkflow`, `features`, `actions`) and then rehydrate them into additional layout/workflow props.",
+        "`useVideoLightboxRenderModel` reconstructs another aggregated state object (`lightboxStateValue`, `layoutProps`, `workflow*Props`) rather than reducing interface breadth.",
+        "`LightboxLayout` consumes many nested props and context values simultaneously, showing interface size remains high despite added intermediates."
+      ],
+      "suggestion": "Define a single typed lightbox controller contract (core state + command methods) consumed by layouts/components, and move media-specific differences behind a small strategy object to remove repeated prop-bag mapping.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "task_param_scope_overload",
+      "summary": "Task param extraction abstraction is overloaded with multiple layers and repeated fallback semantics.",
+      "related_files": [
+        "src/shared/lib/taskParamsUtils.ts",
+        "src/shared/components/ImageGenerationDetails.tsx",
+        "src/shared/components/TaskDetails/VideoTravelDetails.tsx"
+      ],
+      "evidence": [
+        "`taskParamsUtils.ts` keeps both direct derive functions (`derivePrompt`, `deriveNegativePrompt`) and scope-based resolvers (`pickScoped*`) plus multiple view model builders in one module.",
+        "Many fields are resolved through long fallback chains across top-level/orchestrator/segment locations, indicating schema ambiguity is absorbed repeatedly in code.",
+        "UI detail components rely on these broad derived models, so ambiguity at extraction layer propagates into rendering contracts."
+      ],
+      "suggestion": "Split into explicit schema adapters per task family (image, travel, join) that normalize once into a canonical DTO, then keep UI view models as thin presentational transforms.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "implicit_generation_orchestrator_contract",
+      "summary": "Generation completion routing depends on implicit payload conventions shared across distant modules.",
+      "related_files": [
+        "supabase/functions/complete_task/generation.ts",
+        "supabase/functions/complete_task/orchestrator.ts",
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts"
+      ],
+      "evidence": [
+        "`createGenerationFromTask` branches on flags like `skip_generation`, `based_on`, `parent_generation_id`, `child_generation_id` that are produced by task creators as plain params.",
+        "Task creators write overlapping lineage/orchestration data to multiple payload locations (`orchestration_contract`, `orchestrator_details`, top-level fields), requiring consumer-side knowledge of producer behavior.",
+        "`checkOrchestratorCompletion` and generation routing each interpret orchestration context differently, increasing seam fragility when payload shapes evolve."
+      ],
+      "suggestion": "Introduce a versioned shared task-lineage contract module (single canonical location for routing fields) used by both task creation and complete_task consumers, with parser/validator guards at boundaries.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "domain_action_cache_choreography_tight_coupling",
+      "summary": "Shot segment callbacks mix domain mutations with broad cache choreography, creating brittle handoff seams.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/shared/hooks/useTasks.ts",
+        "src/shared/realtime/DataFreshnessManager.ts"
+      ],
+      "evidence": [
+        "`useShotImagesEditorCallbacks` performs DB reads, sibling discovery, deletion, direct query data rewrites, and multiple invalidations in one callback path.",
+        "`useTasks` similarly mixes query execution with freshness side effects (`onFetchFailure/onFetchSuccess`) and pagination/sorting behavior.",
+        "Freshness and cache concerns are spread across hooks rather than isolated behind a dedicated data-access seam."
+      ],
+      "suggestion": "Move mutation + cache/freshness orchestration into dedicated repository/service hooks (single command per domain action) so UI callbacks call one boundary operation instead of coordinating multiple query systems.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "payload_builder_branch_density",
+      "summary": "Task payload builders have high branch density and mutable assembly patterns that reduce local readability.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/imageGeneration.ts"
+      ],
+      "evidence": [
+        "`joinClips.ts` uses a large mutable `orchestratorDetails` object with many conditional field setters and per-join override mutation paths.",
+        "`individualTravelSegment.ts` combines state derivation, inheritance stripping, mode normalization, and payload assembly with many intertwined helper branches.",
+        "`payloadBuilder.ts` and `imageGeneration.ts` repeat similar optional-field expansion and mode-dependent payload composition patterns."
+      ],
+      "suggestion": "Refactor payload creation into small pure sections (required core, mode-specific, optional overlays) returning immutable fragments, then compose with explicit precedence order and per-section tests.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

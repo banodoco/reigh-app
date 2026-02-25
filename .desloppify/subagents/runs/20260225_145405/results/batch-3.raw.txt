@@ -1,0 +1,102 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "test_strategy": 90.0,
+    "api_surface_coherence": 82.0
+  },
+  "dimension_notes": {
+    "test_strategy": {
+      "evidence": [
+        "Core path resolution logic in generation task scope handling has multiple status branches but relies on Supabase `.single()` semantics that can collapse not-found into an error path, making branch-level contract behavior easy to miss without explicit regression tests.",
+        "Lineage traversal depends on repository status values to decide whether to throw typed `LineageScopeError`; incorrect status mapping in the repository can silently shift lineage behavior unless cross-module tests assert exact status propagation."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Regression coverage appears to miss no-row `.single()` behavior and exact status-mapping invariants across repository and lineage consumers."
+    },
+    "api_surface_coherence": {
+      "evidence": [
+        "`resolveGenerationProjectScope` returns `query_failed` immediately on any Supabase error from `.single()`, before checking for missing row, even though API contract exposes `missing_generation` as a distinct status.",
+        "`resolveVariantProjectScope` uses the same `.single()` + immediate error return pattern and can classify missing variants as `query_failed` instead of `missing_variant`, while downstream `useLineageChain` expects specific status semantics for user-facing lineage errors.",
+        "The generation/lineage API surface advertises fine-grained status enums (`missing_generation`, `missing_variant`, `scope_mismatch`, etc.) but implementation collapses key not-found cases, making call-site behavior less predictable."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "scope_status_contract_mismatch_on_single",
+      "summary": "Scope resolvers can misclassify not-found rows as query failures, breaking their public status contract.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/hooks/useLineageChain.ts"
+      ],
+      "evidence": [
+        "`resolveGenerationProjectScope` and `resolveVariantProjectScope` call `.single()` then immediately return `query_failed` on `error`, with missing-row checks only afterward.",
+        "Supabase `.single()` commonly returns an error for no rows, so `missing_generation`/`missing_variant` branches can be skipped in real not-found scenarios.",
+        "`useLineageChain` builds user-visible lineage scope errors from these statuses; wrong status classification changes error semantics."
+      ],
+      "suggestion": "Treat no-row `.single()` results as missing-resource statuses (e.g., inspect error code/details or switch to `.maybeSingle()`), and preserve `query_failed` only for genuine transport/query failures. Update both generation and variant scope resolvers consistently.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "status_contract_drift_in_scope_resolution"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "status_enum_precision_not_enforced",
+      "summary": "Fine-grained status enums are exposed but not reliably enforced across repository-to-consumer boundaries.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/lib/generationTaskCache.ts",
+        "src/shared/hooks/useLineageChain.ts"
+      ],
+      "evidence": [
+        "Repository APIs expose granular status unions intended for downstream branching.",
+        "Cache and lineage consumers rely on those statuses (`query_failed`, `scope_mismatch`, `missing_*`) for behavior and error messaging.",
+        "Because resolver implementation can collapse missing cases into `query_failed`, exposed API shape suggests precision that runtime behavior does not consistently provide."
+      ],
+      "suggestion": "Define and enforce a single status-mapping boundary helper for Supabase row lookups, then reuse it in both repository resolvers and dependent flows so status unions remain behaviorally truthful.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "status_contract_drift_in_scope_resolution"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "missing_regression_for_single_not_found_mapping",
+      "summary": "Critical status-mapping edge cases need explicit regression tests for no-row `.single()` outcomes.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/hooks/useLineageChain.ts"
+      ],
+      "evidence": [
+        "Both scope resolver functions depend on `.single()` error behavior to select status branches, which is a high-risk integration edge.",
+        "The current logic allows not-found scenarios to bypass `missing_generation`/`missing_variant`, indicating this edge is not strongly protected by contract-level tests.",
+        "Lineage behavior and user-facing error text are directly coupled to these statuses, increasing risk of silent regressions."
+      ],
+      "suggestion": "Add focused tests that simulate no-row Supabase responses and assert exact statuses (`missing_generation`, `missing_variant`) plus downstream lineage error mapping. Include cases for true query failures to keep `query_failed` distinct.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "status_contract_drift_in_scope_resolution"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Status enum design is more precise than its Supabase `.single()` integration behavior.",
+      "Cross-module consumers depend on status precision, but shared mapping logic is not centralized."
+    ],
+    "likely_symptoms": [
+      "scope_status_contract_mismatch_on_single",
+      "status_enum_precision_not_enforced",
+      "missing_regression_for_single_not_found_mapping"
+    ],
+    "possible_false_positives": []
+  }
+}

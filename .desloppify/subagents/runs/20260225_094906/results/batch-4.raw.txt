@@ -1,0 +1,128 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "incomplete_migration": 71.0,
+    "low_level_elegance": 83.0
+  },
+  "dimension_notes": {
+    "incomplete_migration": {
+      "evidence": [
+        "Deprecated alias modules are still active at scale: `src/shared/lib/toolConstants.ts` is imported in 65 files and `src/shared/lib/errorHandling/reportRuntimeError.ts` is referenced in 36 files, so migration to canonical entrypoints is still incomplete.",
+        "`src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts` keeps deprecated `structure_video_*` and `use_uni3c` fields as part of active task param contracts, while `src/shared/lib/tasks/joinClipsCompatAdapter.ts` still accepts multiple legacy input shapes.",
+        "Only some compat paths enforce removal date behavior (`joinClipsCompatAdapter` uses `isPastRemovalTarget`), while others remain passive type-level shims (`legacyStructureVideo`), creating uneven migration pressure."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 0.0,
+        "indirection_cost": 0.0,
+        "interface_honesty": 0.0
+      }
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "`src/shared/hooks/useDeleteGenerationWithConfirm.tsx` exits early when `selectedProjectId` is missing but leaves `pendingDeleteId` unchanged, so dialog state can remain stale/open and require extra UI interaction to recover.",
+        "Deprecation signaling behavior is inconsistent: `src/shared/lib/toolConstants.ts` and `src/shared/components/theme/buttonVariants.ts` call warning logic at import time, while other shims (for example `src/shared/hooks/useCredits.ts`, `src/shared/lib/errorHandling/reportRuntimeError.ts`) warn at function invocation.",
+        "Import-time warning side effects reduce local predictability and make behavior dependent on module loading rather than actual deprecated API usage."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_aliases_still_primary_paths",
+      "summary": "Deprecated alias surfaces are still heavily used as live entrypoints",
+      "related_files": [
+        "src/shared/lib/toolConstants.ts",
+        "src/shared/lib/errorHandling/reportRuntimeError.ts",
+        "src/shared/lib/editVideoDefaults.ts"
+      ],
+      "evidence": [
+        "`toolConstants.ts` is explicitly marked deprecated but remains imported broadly (65 import sites), including direct use from `editVideoDefaults.ts`.",
+        "`reportRuntimeError.ts` is deprecated but still referenced broadly (36 files), so migration to `handleError` has not completed.",
+        "This keeps compatibility wrappers as operational APIs rather than temporary boundaries."
+      ],
+      "suggestion": "Execute a staged codemod migration: replace `TOOL_IDS/TOOL_ROUTES` imports with `toolIds/toolRoutes` and replace `reportRuntimeError` call sites with `handleError`; then keep shim files as thin re-exports for one release and finally remove them with CI enforcement on forbidden import paths.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "compatibility_shim_sprawl"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "import_time_deprecation_side_effects",
+      "summary": "Deprecation warnings run at module import time in some shims",
+      "related_files": [
+        "src/shared/lib/toolConstants.ts",
+        "src/shared/components/theme/buttonVariants.ts",
+        "src/shared/hooks/useCredits.ts"
+      ],
+      "evidence": [
+        "`toolConstants.ts` executes `warnIfPastRemovalTarget()` at top level.",
+        "`buttonVariants.ts` also executes `warnIfPastRemovalTarget()` at top level.",
+        "Other shims in this batch (`useCredits.ts`) warn only when deprecated functions are invoked, creating inconsistent behavior and noisy side effects tied to import order."
+      ],
+      "suggestion": "Move warning calls behind exported function/property access (or a dedicated explicit `assertDeprecatedImportUsed()` hook) so deprecation telemetry reflects real usage instead of import side effects.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "compatibility_shim_sprawl"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_task_payload_dual_schema_persists",
+      "summary": "Travel/join-clips task creation still maintains broad dual legacy+canonical schema",
+      "related_files": [
+        "src/shared/lib/tasks/joinClipsCompatAdapter.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts",
+        "src/shared/lib/taskIdHelpers.ts"
+      ],
+      "evidence": [
+        "`joinClipsCompatAdapter.ts` accepts multiple legacy field families (`starting_video_path`, `video_edit_mode`, `source_*`) and converts them to canonical shape.",
+        "`legacyStructureVideo.ts` continues to publish deprecated structure-video fields in shared task param interfaces.",
+        "`taskIdHelpers.ts` still encodes historical field fallback (`source_task_id`, `orchestrator_task_id`, `task_id`), indicating canonical task-id contracts are not yet singular."
+      ],
+      "suggestion": "Define one canonical v2 task payload contract and isolate all legacy parsing into a boundary translator module with hard sunset gates; then remove legacy fields from shared interfaces so new call sites cannot compile against deprecated keys.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "dual_schema_task_payloads"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "delete_confirm_stale_pending_state",
+      "summary": "Confirm handler can leave stale pending delete ID when project is missing",
+      "related_files": [
+        "src/shared/hooks/useDeleteGenerationWithConfirm.tsx",
+        "src/shared/components/dialogs/DeleteGenerationConfirmDialog.tsx"
+      ],
+      "evidence": [
+        "In `handleConfirm`, when `pendingDeleteId` exists but `selectedProjectId` is falsy, function returns early without clearing `pendingDeleteId`.",
+        "Dialog `open` state is derived from `pendingDeleteId !== null`, so this early return can leave confirmation UI state stale/open until manually dismissed."
+      ],
+      "suggestion": "Clear `pendingDeleteId` before returning on missing `selectedProjectId` (and optionally surface an error toast) to keep dialog state transitions deterministic.",
+      "confidence": "high",
+      "impact_scope": "local",
+      "fix_scope": "single_edit"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Compatibility layers were added broadly but retirement enforcement is inconsistent across modules.",
+      "Legacy and canonical task payload schemas coexist in shared types, so adapters became long-lived rather than transitional."
+    ],
+    "likely_symptoms": [
+      "legacy_aliases_still_primary_paths",
+      "import_time_deprecation_side_effects",
+      "legacy_task_payload_dual_schema_persists"
+    ],
+    "possible_false_positives": [
+      "legacySupabaseFacade appears confined to tests/allowlist in current code, so it may be intentionally retained test scaffolding rather than production migration debt."
+    ]
+  }
+}

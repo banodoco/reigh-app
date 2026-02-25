@@ -1,0 +1,66 @@
+{
+  "assessments": {
+    "ai_generated_debt": 100.0,
+    "error_consistency": 100.0,
+    "logic_clarity": 100.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "src/vite-env.d.ts contains a single standard Vite ambient declaration: `/// <reference types=\"vite/client\" />`.",
+        "No comments, TODO markers, debug logs, wrapper functions, or defensive boilerplate are present in the reviewed file.",
+        "No migration residue (deprecated tags, dual-path compatibility shims, or staged replacement comments) appears in this file."
+      ],
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "unreported_risk": "Single-file scope is very small; AI-debt patterns may still exist elsewhere and are not inferable from this file alone."
+    },
+    "error_consistency": {
+      "evidence": [
+        "src/vite-env.d.ts contains only a single TypeScript triple-slash reference directive and no executable logic or error-handling paths.",
+        "No throw/catch/return-null/result-style behavior exists in this file, so no intra-file error-strategy inconsistency is present."
+      ],
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "unreported_risk": "This file is too small to reveal cross-module error contract drift; inconsistency risk may still exist elsewhere."
+    },
+    "logic_clarity": {
+      "evidence": [
+        "src/vite-env.d.ts is a one-line ambient declaration (`/// <reference types=\"vite/client\" />`) with no branches, conditions, or control flow.",
+        "There are no dead paths, redundant checks, or boolean simplification opportunities in the reviewed scope."
+      ],
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "unreported_risk": "Because this is declaration-only boilerplate, logic clarity in runtime modules is not represented by this batch file."
+    }
+  },
+  "findings": [],
+  "review_quality": {
+    "batch_count": 2,
+    "dimension_coverage": 0.5,
+    "evidence_density": 3.5,
+    "high_score_without_risk": 0,
+    "finding_pressure": 0,
+    "dimensions_with_findings": 0
+  },
+  "reviewed_files": [
+    "src/vite-env.d.ts"
+  ],
+  "provenance": {
+    "kind": "blind_review_batch_import",
+    "blind": true,
+    "runner": "codex",
+    "run_stamp": "20260224_074257",
+    "created_at": "2026-02-24T07:43:25+00:00",
+    "batch_count": 2,
+    "batch_indexes": [
+      1,
+      2
+    ],
+    "packet_path": "/Users/peteromalley/Documents/reigh/.desloppify/review_packet_blind.json",
+    "packet_sha256": "0efb35b1a856116af7a5b380bc75f3a8b9e7fca1808e8b1a2df7aaf0ed84aa61"
+  }
+}

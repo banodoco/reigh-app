@@ -22,8 +22,13 @@ export interface ReferenceImage {
   inThisScene?: boolean;
   inThisSceneStrength?: number;
   styleBoostTerms?: string;
+}
 
-  // Legacy fields for migration - will be removed after bulk migration
+/**
+ * Legacy migration-only fields that should not be part of the canonical
+ * reference contract for new code paths.
+ */
+export interface LegacyReferenceImageFields {
   name?: string;
   styleReferenceImage?: string | null;
   styleReferenceImageOriginal?: string | null;
@@ -31,3 +36,6 @@ export interface ReferenceImage {
   createdAt?: string;
   updatedAt?: string;
 }
+
+/** Migration adapter type for legacy read-paths only. */
+export type ReferenceImageWithLegacy = ReferenceImage & LegacyReferenceImageFields;

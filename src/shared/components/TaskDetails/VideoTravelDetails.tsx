@@ -5,43 +5,28 @@ import { Copy, Check } from 'lucide-react';
 import { TaskDetailsProps, getVariantConfig } from '@/shared/types/taskDetailsTypes';
 import { parseTaskParams, deriveInputImages, derivePrompt } from '@/shared/lib/taskParamsUtils';
 import { getDisplayNameFromUrl } from '@/shared/lib/loraUtils';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient } from '@/integrations/supabase/client';
 import { presetQueryKeys } from '@/shared/lib/queryKeys/presets';
 import type { PhaseSettings, PhaseLoraConfig } from '@/shared/types/phaseConfig';
+import { pickFirstStructureGuidance } from '@/shared/lib/tasks/structureGuidance';
+import { buildTaskPayloadSnapshot } from '@/shared/lib/tasks/taskPayloadSnapshot';
+import { writeClipboardTextSafe } from '@/shared/lib/clipboard';
+import {
+  readTravelContractData,
+  readTravelStructureVideoFromGuidance,
+} from '@/shared/lib/tasks/travelContractData';
+import {
+  asRecord,
+  asString,
+  asNumber,
+  asStringArray,
+} from '@/shared/lib/tasks/taskParamParsers';
 
 // Built-in preset ID → name mapping (matches segmentSettingsUtils.ts)
 const BUILTIN_PRESET_NAMES: Record<string, string> = {
   '__builtin_default_i2v__': 'Basic',
   '__builtin_default_vace__': 'Basic',
 };
-
-type UnknownRecord = Record<string, unknown>;
-
-function asRecordOrUndefined(value: unknown): UnknownRecord | undefined {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? value
-    : undefined;
-}
-
-function asString(value: unknown): string | undefined {
-  return typeof value === 'string' ? value : undefined;
-}
-
-function asNumber(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value)
-    ? value
-    : undefined;
-}
-
-function asStringArray(value: unknown): string[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  return value.filter((item): item is string => typeof item === 'string');
-}
-
-function asNumberArray(value: unknown): number[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  return value.filter((item): item is number => typeof item === 'number' && Number.isFinite(item));
-}
 
 function pickString(...values: unknown[]): string | undefined {
   for (const value of values) {
@@ -75,43 +60,55 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
   const [copiedLoraUrl, setCopiedLoraUrl] = useState<string | null>(null);
 
   const handleCopyPrompt = async (text: string, setStateFn: (val: boolean) => void) => {
-    await navigator.clipboard.writeText(text);
+    const copied = await writeClipboardTextSafe(text);
+    if (!copied) return;
     setStateFn(true);
     setTimeout(() => setStateFn(false), 2000);
   };
 
+  const handleCopyLoraUrl = async (url: string) => {
+    const copied = await writeClipboardTextSafe(url);
+    if (!copied) return;
+    setCopiedLoraUrl(url);
+    setTimeout(() => setCopiedLoraUrl(null), 2000);
+  };
+
   const parsedParams = useMemo(() => parseTaskParams(task?.params), [task?.params]);
-  const derivedImages = useMemo(() => deriveInputImages(parsedParams), [parsedParams]);
+  const payloadSnapshot = useMemo(
+    () => buildTaskPayloadSnapshot(parsedParams),
+    [parsedParams],
+  );
+  const travelContractData = useMemo(
+    () => readTravelContractData(payloadSnapshot),
+    [payloadSnapshot],
+  );
+  const rawParams = payloadSnapshot.rawParams;
+  const derivedImages = useMemo(() => deriveInputImages(rawParams), [rawParams]);
 
   // For segment tasks, prefer derived images from task params (they're more accurate)
   // For other tasks, use inputImages if provided, otherwise derived
-  const isSegmentTaskCheck = parsedParams?.segment_index !== undefined;
-  const effectiveInputImages = (isSegmentTaskCheck && derivedImages.length > 0)
+  const isSegmentTaskCheck = rawParams.segment_index !== undefined;
+  const contractInputImages = travelContractData.inputImages || [];
+  const effectiveInputImages = contractInputImages.length > 0
+    ? contractInputImages
+    : (isSegmentTaskCheck && derivedImages.length > 0)
     ? derivedImages
     : (inputImages.length > 0 ? inputImages : derivedImages);
 
-  const orchestratorDetails = asRecordOrUndefined(parsedParams?.orchestrator_details);
-  const orchestratorPayload = asRecordOrUndefined(parsedParams?.full_orchestrator_payload);
-  const individualSegmentParams = asRecordOrUndefined(parsedParams?.individual_segment_params);
+  const individualSegmentParams = payloadSnapshot.individualSegmentParams;
 
   // Phase config
   const phaseConfig = useMemo(() => (
-    asRecordOrUndefined(individualSegmentParams?.phase_config) ||
-    asRecordOrUndefined(orchestratorPayload?.phase_config) ||
-    asRecordOrUndefined(orchestratorDetails?.phase_config) ||
-    asRecordOrUndefined(parsedParams?.phase_config)
-  ), [individualSegmentParams, orchestratorPayload, orchestratorDetails, parsedParams]);
+    asRecord(individualSegmentParams?.phase_config) ||
+    travelContractData.phaseConfig
+  ), [individualSegmentParams, travelContractData.phaseConfig]);
 
   // Check if in advanced mode - if not, we show additional_loras instead of phase config
   const isAdvancedMode = useMemo(() => {
     const advancedMode = individualSegmentParams?.advanced_mode ??
-      orchestratorDetails?.advanced_mode ??
-      orchestratorPayload?.advanced_mode ??
-      parsedParams?.advanced_mode;
+      travelContractData.advancedMode;
     const motionMode = individualSegmentParams?.motion_mode ??
-      orchestratorDetails?.motion_mode ??
-      orchestratorPayload?.motion_mode ??
-      parsedParams?.motion_mode;
+      travelContractData.motionMode;
 
     const hasPhaseConfig = !!phaseConfig?.phases?.length;
 
@@ -122,7 +119,7 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
       return false;
     }
     return advancedMode === true || motionMode === 'advanced' || motionMode === 'presets' || hasPhaseConfig;
-  }, [individualSegmentParams, orchestratorDetails, orchestratorPayload, parsedParams, phaseConfig]);
+  }, [individualSegmentParams, travelContractData.advancedMode, travelContractData.motionMode, phaseConfig]);
 
   const phaseStepsDisplay = useMemo(() => {
     if (!phaseConfig?.steps_per_phase || !Array.isArray(phaseConfig.steps_per_phase)) return null;
@@ -132,70 +129,70 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
   }, [phaseConfig?.steps_per_phase]);
 
   const additionalLoras = (
-    asRecordOrUndefined(individualSegmentParams?.additional_loras) ||
-    asRecordOrUndefined(orchestratorPayload?.additional_loras) ||
-    asRecordOrUndefined(orchestratorDetails?.additional_loras) ||
-    asRecordOrUndefined(parsedParams?.additional_loras)
+    asRecord(individualSegmentParams?.additional_loras) ||
+    travelContractData.additionalLoras
   );
 
   // Segment info
-  const isSegmentTask = parsedParams?.segment_index !== undefined;
+  const isSegmentTask = rawParams.segment_index !== undefined;
 
   // Layout for two-column on large screens when phases present AND in advanced mode
   // In basic mode, we don't show phase config details even if they exist internally
   const showPhaseContentInRightColumn = isAdvancedMode && phaseConfig?.phases && variant === 'panel';
 
   // Get prompt using shared utility
-  const prompt = useMemo(() => derivePrompt(parsedParams), [parsedParams]);
+  const prompt = useMemo(() => (
+    travelContractData.prompt || derivePrompt(rawParams)
+  ), [rawParams, travelContractData.prompt]);
 
-  const orchestratorNegativePrompts = asStringArray(orchestratorDetails?.negative_prompts_expanded);
-  const payloadNegativePrompts = asStringArray(orchestratorPayload?.negative_prompts_expanded);
-  const negativePrompt = asString(individualSegmentParams?.negative_prompt) ||
+  const orchestratorNegativePrompts = asStringArray(payloadSnapshot.orchestratorDetails.negative_prompts_expanded);
+  const negativePrompt = (individualSegmentParams?.negative_prompt as string | undefined)
+    || travelContractData.negativePrompt
+    ||
     (isSegmentTask
-      ? asString(parsedParams?.negative_prompt)
-      : (orchestratorNegativePrompts?.[0] || payloadNegativePrompts?.[0] || asString(parsedParams?.negative_prompt)));
+      ? asString(rawParams.negative_prompt)
+      : (orchestratorNegativePrompts?.[0] || asString(rawParams.negative_prompt)));
 
   const enhancePrompt = pickString(
-    orchestratorDetails?.enhance_prompt,
-    orchestratorPayload?.enhance_prompt,
-    parsedParams?.enhance_prompt
+    asString(payloadSnapshot.orchestratorDetails.enhance_prompt),
+    travelContractData.enhancedPrompt,
+    asString(rawParams.enhanced_prompt),
   );
 
   // Structure guidance (new format with videos array, target, strength, step_window)
-  const structureGuidance = (
-    asRecordOrUndefined(orchestratorDetails?.structure_guidance) ||
-    asRecordOrUndefined(orchestratorPayload?.structure_guidance) ||
-    asRecordOrUndefined(parsedParams?.structure_guidance)
+  const structureGuidance = pickFirstStructureGuidance(
+    individualSegmentParams?.structure_guidance,
+    travelContractData.structureGuidance,
+    asRecord(rawParams.structure_guidance),
   );
 
   // Video/style reference - prefer new structure_guidance.videos format, fall back to legacy fields
-  const structureVideos = structureGuidance?.videos;
-  const structureVideo = Array.isArray(structureVideos) ? asRecordOrUndefined(structureVideos[0]) : undefined;
+  const structureVideo = readTravelStructureVideoFromGuidance(structureGuidance);
   const videoPath = pickString(
     structureVideo?.path,
-    orchestratorDetails?.structure_video_path,
-    orchestratorPayload?.structure_video_path,
-    parsedParams?.structure_video_path
+    asString(payloadSnapshot.orchestratorDetails.structure_video_path),
+    asString(rawParams.structure_video_path),
   );
   const videoTreatment = pickString(
     structureVideo?.treatment,
-    orchestratorDetails?.structure_video_treatment,
-    orchestratorPayload?.structure_video_treatment,
-    parsedParams?.structure_video_treatment
+    asString(payloadSnapshot.orchestratorDetails.structure_video_treatment),
+    asString(rawParams.structure_video_treatment),
   );
-  const motionStrength = asNumber(orchestratorDetails?.structure_video_motion_strength)
-    ?? asNumber(orchestratorPayload?.structure_video_motion_strength)
-    ?? asNumber(parsedParams?.structure_video_motion_strength);
+  const motionStrength = asNumber(structureGuidance?.strength)
+    ?? asNumber(payloadSnapshot.orchestratorDetails.structure_video_motion_strength)
+    ?? asNumber(rawParams.structure_video_motion_strength);
 
-  const styleImage = pickString(parsedParams?.style_reference_image, orchestratorDetails?.style_reference_image);
-  const styleStrength = asNumber(parsedParams?.style_reference_strength) ?? asNumber(orchestratorDetails?.style_reference_strength);
+  const styleImage = pickString(
+    asString(rawParams.style_reference_image),
+    asString(payloadSnapshot.orchestratorDetails.style_reference_image),
+  );
+  const styleStrength = asNumber(rawParams.style_reference_strength)
+    ?? asNumber(payloadSnapshot.orchestratorDetails.style_reference_strength);
 
   // Preset
   const presetId = pickString(
     individualSegmentParams?.selected_phase_preset_id,
-    orchestratorDetails?.selected_phase_preset_id,
-    orchestratorPayload?.selected_phase_preset_id,
-    parsedParams?.selected_phase_preset_id
+    travelContractData.selectedPhasePresetId,
   );
 
   const isDbPreset = presetId && !presetId.startsWith('__builtin_');
@@ -204,12 +201,13 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
     queryKey: presetQueryKeys.name(presetId ?? ''),
     queryFn: async () => {
       if (!presetId) return null;
+      const supabase = getSupabaseClient();
       const { data } = await supabase
         .from('resources')
         .select('metadata')
         .eq('id', presetId)
         .single();
-      return asString(asRecordOrUndefined(data?.metadata)?.name) || null;
+      return asString(asRecord(data?.metadata)?.name) || null;
     },
     enabled: !!isDbPreset && !!presetId,
     staleTime: Infinity,
@@ -220,14 +218,28 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
     : null;
 
   // Technical settings
-  const modelName = pickString(orchestratorDetails?.model_name, orchestratorPayload?.model_name, parsedParams?.model_name);
-  const resolution = pickString(orchestratorDetails?.parsed_resolution_wh, parsedParams?.parsed_resolution_wh);
-  const orchestratorSegmentFrames = asNumberArray(orchestratorDetails?.segment_frames_expanded);
-  const payloadSegmentFrames = asNumberArray(orchestratorPayload?.segment_frames_expanded);
-  const parsedSegmentFrames = asNumberArray(parsedParams?.segment_frames_expanded);
+  const modelName = pickString(
+    travelContractData.modelName,
+  );
+  const resolution = pickString(
+    travelContractData.resolution,
+    asString(payloadSnapshot.orchestratorDetails.parsed_resolution_wh),
+    asString(rawParams.parsed_resolution_wh),
+  );
+  const orchestratorSegmentFrames = travelContractData.segmentFramesExpanded;
+  const rawSegmentFrames = rawParams.segment_frames_expanded;
+  const parsedSegmentFrames = Array.isArray(rawSegmentFrames)
+    ? rawSegmentFrames
+      .map((value) => (typeof value === 'number' ? value : Number(value)))
+      .filter((value) => Number.isFinite(value))
+    : undefined;
   const frames = isSegmentTask
-    ? (asNumber(individualSegmentParams?.num_frames) || asNumber(parsedParams?.num_frames) || asNumber(parsedParams?.segment_frames_target))
-    : (orchestratorSegmentFrames?.[0] || payloadSegmentFrames?.[0] || parsedSegmentFrames?.[0]);
+    ? (
+      asNumber(individualSegmentParams?.num_frames)
+      || asNumber(rawParams.num_frames)
+      || asNumber(rawParams.segment_frames_target)
+    )
+    : (orchestratorSegmentFrames?.[0] || parsedSegmentFrames?.[0]);
 
   const formatModelName = (name: string) => {
     return name
@@ -254,7 +266,7 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
               <div key={idx} className={`group/lora flex items-center gap-2 p-1.5 bg-background/50 rounded border ${config.textSize} min-w-0`}>
                 <span className={`${config.fontWeight} truncate min-w-0 flex-1`}>{getDisplayNameFromUrl(lora.url, availableLoras, lora.name)}</span>
                 <button
-                  onClick={() => { navigator.clipboard.writeText(lora.url); setCopiedLoraUrl(lora.url); setTimeout(() => setCopiedLoraUrl(null), 2000); }}
+                  onClick={() => { void handleCopyLoraUrl(lora.url); }}
                   className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover/lora:opacity-100 shrink-0"
                   title="Copy LoRA URL"
                 >
@@ -450,7 +462,7 @@ export const VideoTravelDetails: React.FC<TaskDetailsProps> = ({
               <div key={url} className={`group/lora flex items-center gap-2 p-1.5 bg-background/50 rounded border ${config.textSize} min-w-0`}>
                 <span className={`${config.fontWeight} truncate min-w-0 flex-1`}>{getDisplayNameFromUrl(url, availableLoras)}</span>
                 <button
-                  onClick={() => { navigator.clipboard.writeText(url); setCopiedLoraUrl(url); setTimeout(() => setCopiedLoraUrl(null), 2000); }}
+                  onClick={() => { void handleCopyLoraUrl(url); }}
                   className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover/lora:opacity-100 shrink-0"
                   title="Copy LoRA URL"
                 >

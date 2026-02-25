@@ -1,0 +1,70 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 5,
+  "assessments": {
+    "ai_generated_debt": 74.0,
+    "low_level_elegance": 81.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "src/shared/components/ImageGenerationForm/hooks/legacyMigrations/legacyProjectImageSettings.ts defines a dated sunset contract (`Remove by: 2026-05-31`) but still keeps a broad `LegacyProjectImageSettings extends Record<string, unknown>` plus many deprecated fields, which keeps the legacy path open-ended.",
+        "src/shared/lib/taskIdHelpers.ts still resolves three historical key names (`source_task_id`, `orchestrator_task_id`, `task_id`) in one helper, showing dual/multi-path migration behavior is still active.",
+        "src/shared/lib/taskConfig.ts uses compatibility fallback registries in two key flows (`getTaskConfig`, `getTaskTypesByVisibility`), indicating migration residue is embedded in normal-path logic."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "src/shared/hooks/useDeleteGenerationWithConfirm.tsx returns a hook-local component factory (`DeleteConfirmDialog`) and uses a cast (`deleteGenerationMutation.variables as string`), which adds indirection and weakens local clarity/type trust.",
+        "src/shared/components/ShotImageManager/utils/image-utils.ts includes a one-line pass-through (`getAspectRatioStyle` only calls `resolveAspectRatioStyle`) and heavy explanatory comments for straightforward logic, adding ceremony without leverage.",
+        "src/shared/lib/storagePaths.ts has repetitive per-function comment blocks/examples around simple string templates, increasing file noise relative to implementation complexity."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "legacy_dual_path_not_bounded",
+      "summary": "Legacy migration paths are still first-class code paths without an enforced exit mechanism.",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/hooks/legacyMigrations/legacyProjectImageSettings.ts",
+        "src/shared/lib/taskIdHelpers.ts",
+        "src/shared/lib/taskConfig.ts"
+      ],
+      "evidence": [
+        "`LegacyProjectImageSettings` includes many deprecated fields and also extends `Record<string, unknown>`, so unknown legacy-shaped payloads remain structurally accepted.",
+        "`getSourceTaskId` still checks three historical field names in priority order, preserving long-lived schema drift.",
+        "`taskConfig` reads from compatibility fallbacks when cache misses occur, so migration fallback behavior remains on hot paths."
+      ],
+      "suggestion": "Time-box and enforce migration removal: remove `Record<string, unknown>` from the legacy settings type, add telemetry/counters for each legacy branch (`task_id`, fallback config hits), and gate deployments on zero-hit thresholds before deleting legacy branches and fallback registries.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "ceremony_and_casts_in_small_utilities",
+      "summary": "Several small utilities use extra ceremony/indirection that obscures simple behavior.",
+      "related_files": [
+        "src/shared/hooks/useDeleteGenerationWithConfirm.tsx",
+        "src/shared/components/ShotImageManager/utils/image-utils.ts",
+        "src/shared/lib/storagePaths.ts"
+      ],
+      "evidence": [
+        "`useDeleteGenerationWithConfirm` constructs and returns a callback-defined component plus an explicit cast of mutation variables to string, which increases moving parts for a simple confirm flow.",
+        "`getAspectRatioStyle` is a pure pass-through wrapper to `resolveAspectRatioStyle` with no added behavior.",
+        "`storagePaths.ts` has dense explanatory blocks for straightforward template-literal path builders, making the implementation-to-comment ratio high."
+      ],
+      "suggestion": "Flatten these modules: in deletion flow return dialog state/handlers (or a dedicated component) with properly typed mutation variables to remove casts, inline/remove pure pass-through wrappers, and trim repetitive comments to short intent-level notes only where logic is non-obvious.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

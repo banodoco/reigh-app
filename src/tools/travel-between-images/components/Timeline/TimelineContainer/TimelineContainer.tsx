@@ -153,66 +153,8 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     return false;
   }, [parentSegmentSlots]);
 
-  // --- Orchestrator hook (all state, effects, and handlers) ---
-  const {
-    timelineRef,
-    containerRef,
-    fullMin,
-    fullMax,
-    fullRange,
-    containerWidth,
-    dragState,
-    dragOffset,
-    currentDragFrame,
-    swapTargetId,
-    pushMode,
-    handleMouseDown,
-    zoomLevel,
-    handleZoomInToCenter,
-    handleZoomOutFromCenter,
-    handleZoomReset,
-    handleZoomToStart,
-    handleTimelineDoubleClick,
-    selectedIds,
-    showSelectionBar,
-    isSelected,
-    toggleSelection,
-    clearSelection,
-    pendingDropFrame,
-    pendingDuplicateFrame,
-    pendingExternalAddFrame,
-    activePendingFrame,
-    isInternalDropProcessing,
-    isFileOver,
-    dropTargetFrame,
-    dragType,
-    handleDragEnter,
-    handleDragOver,
-    handleDragLeave,
-    handleDrop,
-    currentPositions,
-    pairInfo,
-    pairDataByIndex,
-    localShotGenPositions,
-    showPairLabels,
-    handleDuplicateInterceptor,
-    handleTimelineTapToMove,
-    handleVideoBrowserSelect,
-    handleEndpointMouseDown,
-    endpointDragFrame,
-    isEndpointDragging: isEndpointDraggingState,
-    resetGap,
-    setResetGap,
-    maxGap,
-    showVideoBrowser,
-    setShowVideoBrowser,
-    isUploadingStructureVideo,
-    setIsUploadingStructureVideo,
-    isMobile,
-    isTablet,
-    enableTapToMove,
-    prefetchTaskData,
-  } = useTimelineOrchestrator({
+  // --- Orchestrator hook (grouped domain view-model) ---
+  const orchestrator = useTimelineOrchestrator({
     shotId,
     projectId,
     images,
@@ -235,6 +177,57 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     onPrimaryStructureVideoInputChange,
     hasExistingTrailingVideo: hasCallbackTrailingVideo || anyImageHasVideo,
   });
+  const { timelineRef, containerRef } = orchestrator.refs;
+  const {
+    fullMin,
+    fullMax,
+    fullRange,
+    containerWidth,
+    zoomLevel,
+    handleZoomInToCenter,
+    handleZoomOutFromCenter,
+    handleZoomReset,
+    handleZoomToStart,
+    handleTimelineDoubleClick,
+  } = orchestrator.viewport;
+  const {
+    state: dragState,
+    dragOffset,
+    currentDragFrame,
+    swapTargetId,
+    pushMode,
+    handleMouseDown,
+  } = orchestrator.drag;
+  const { selectedIds, showSelectionBar, isSelected, toggleSelection, clearSelection } = orchestrator.selection;
+  const {
+    pendingDropFrame,
+    pendingDuplicateFrame,
+    pendingExternalAddFrame,
+    activePendingFrame,
+    isInternalDropProcessing,
+  } = orchestrator.pending;
+  const {
+    isFileOver,
+    dropTargetFrame,
+    dragType,
+    handleDragEnter,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+  } = orchestrator.drop;
+  const { currentPositions, pairInfo, pairDataByIndex, localShotGenPositions, showPairLabels } = orchestrator.computed;
+  const { handleDuplicateInterceptor, handleTimelineTapToMove, handleVideoBrowserSelect, handleEndpointMouseDown } = orchestrator.actions;
+  const { endpointDragFrame, isEndpointDragging: isEndpointDraggingState } = orchestrator.endpoint;
+  const {
+    resetGap,
+    setResetGap,
+    maxGap,
+    showVideoBrowser,
+    setShowVideoBrowser,
+    isUploadingStructureVideo,
+    setIsUploadingStructureVideo,
+  } = orchestrator.uiState;
+  const { isMobile, isTablet, enableTapToMove, prefetchTaskData } = orchestrator.device;
 
   // --- Post-orchestrator trailing endpoint (needs currentPositions) ---
   const {
@@ -724,32 +717,41 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
                   key={imageKey}
                   image={image}
                   framePosition={framePosition}
-                  isDragging={isDragging}
-                  isSwapTarget={swapTargetId === imageKey}
-                  dragOffset={isDragging ? dragOffset : null}
-                  onMouseDown={readOnly ? undefined : (e) => handleMouseDown(e, imageKey, containerRef)}
-                  onDoubleClick={isMobile && !isTablet ? undefined : () => handleDesktopDoubleClick(idx)}
-                  onMobileTap={isMobile ? () => handleMobileTap(idx) : undefined}
-                  zoomLevel={zoomLevel}
-                  timelineWidth={containerWidth}
-                  fullMinFrames={fullMin}
-                  fullRange={fullRange}
-                  currentDragFrame={isDragging ? currentDragFrame : null}
-                  originalFramePos={framePositions.get(imageKey) ?? 0}
-                  onDelete={onImageDelete}
-                  onDuplicate={handleDuplicateInterceptor}
-                  onInpaintClick={handleInpaintClick ? () => handleInpaintClick(idx) : undefined}
-                  duplicatingImageId={duplicatingImageId ?? undefined}
-                  duplicateSuccessImageId={duplicateSuccessImageId ?? undefined}
-                  projectAspectRatio={projectAspectRatio}
-                  readOnly={readOnly}
-                  onPrefetch={!isMobile ? () => {
-                    const generationId = getGenerationId(image);
-                    if (generationId) prefetchTaskData(generationId);
-                  } : undefined}
-                  isSelected={isSelected(imageKey)}
-                  onSelectionClick={readOnly ? undefined : () => toggleSelection(imageKey)}
-                  selectedCount={selectedIds.length}
+                  layout={{
+                    timelineWidth: containerWidth,
+                    fullMinFrames: fullMin,
+                    fullRange,
+                  }}
+                  interaction={{
+                    isDragging,
+                    isSwapTarget: swapTargetId === imageKey,
+                    dragOffset: isDragging ? dragOffset : null,
+                    onMouseDown: readOnly ? undefined : (e) => handleMouseDown(e, imageKey, containerRef),
+                    onDoubleClick: isMobile && !isTablet ? undefined : () => handleDesktopDoubleClick(idx),
+                    onMobileTap: isMobile ? () => handleMobileTap(idx) : undefined,
+                    currentDragFrame: isDragging ? currentDragFrame : null,
+                    originalFramePos: framePositions.get(imageKey) ?? 0,
+                    onPrefetch: !isMobile ? () => {
+                      const generationId = getGenerationId(image);
+                      if (generationId) prefetchTaskData(generationId);
+                    } : undefined,
+                  }}
+                  actions={{
+                    onDelete: onImageDelete,
+                    onDuplicate: handleDuplicateInterceptor,
+                    onInpaintClick: handleInpaintClick ? () => handleInpaintClick(idx) : undefined,
+                    duplicatingImageId: duplicatingImageId ?? undefined,
+                    duplicateSuccessImageId: duplicateSuccessImageId ?? undefined,
+                  }}
+                  selection={{
+                    isSelected: isSelected(imageKey),
+                    onSelectionClick: readOnly ? undefined : () => toggleSelection(imageKey),
+                    selectedCount: selectedIds.length,
+                  }}
+                  presentation={{
+                    projectAspectRatio,
+                    readOnly,
+                  }}
                 />
               );
             })}

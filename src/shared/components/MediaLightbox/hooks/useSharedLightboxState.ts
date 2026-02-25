@@ -16,7 +16,7 @@
  * - Make main variant: useMakeMainVariant
  * - Effective media: useEffectiveMedia
  * - Layout mode: useLayoutMode
- * - Button group props: useButtonGroupProps
+ * - Button group props
  *
  * NOT included (media-type specific):
  * - Image: useInpainting, useUpscale, useMagicEditMode, useRepositionMode, useImg2ImgMode
@@ -25,9 +25,9 @@
 
 import { useRef, useEffect, useMemo, useCallback } from 'react';
 import type { UseMutationResult } from '@tanstack/react-query';
-import type { GenerationRow, Shot } from '@/types/shots';
+import type { GenerationRow, Shot } from '@/domains/generation/types';
 import type { GenerationVariant } from '@/shared/hooks/useVariants';
-import type { DerivedItem } from '@/shared/hooks/useDerivedItems';
+import type { DerivedItem } from '@/domains/generation/hooks/useDerivedItems';
 import type { SourceVariantData } from './useSourceGeneration';
 import type { ShotOption, QuickCreateSuccess } from '../types';
 import { useVariants } from '@/shared/hooks/useVariants';
@@ -45,7 +45,6 @@ import { useSourceGeneration } from './useSourceGeneration';
 import { useMakeMainVariant } from './useMakeMainVariant';
 import { useEffectiveMedia } from './useEffectiveMedia';
 import { useLayoutMode } from './useLayoutMode';
-import { useButtonGroupProps } from './useButtonGroupProps';
 
 // ============================================================================
 // Props Sub-Interfaces (grouped by concern)
@@ -111,7 +110,6 @@ interface SharedLightboxButtonGroupProps {
   isDeleting?: string | null;
   isUpscaling: boolean;
   handleUpscale: () => void;
-  handleEnterMagicEditMode: () => void;
 }
 
 /** Effective media inputs (for computing display URLs/dimensions) */
@@ -121,20 +119,14 @@ interface SharedLightboxMediaProps {
   projectAspectRatio?: string;
 }
 
-// ============================================================================
-// Composed Props Interface
-// ============================================================================
-
-interface UseSharedLightboxStateProps
-  extends SharedLightboxCoreProps,
-    SharedLightboxNavigationProps,
-    SharedLightboxShotProps,
-    SharedLightboxLayoutProps,
-    SharedLightboxButtonGroupProps,
-    SharedLightboxMediaProps {
-  /** Star state (separate simple field) */
+export interface UseSharedLightboxStateInput {
+  core: SharedLightboxCoreProps;
+  navigation: SharedLightboxNavigationProps;
+  shots: SharedLightboxShotProps;
+  layout: SharedLightboxLayoutProps;
+  actions: SharedLightboxButtonGroupProps;
+  media: SharedLightboxMediaProps;
   starred?: boolean;
-  /** External generation navigation */
   onOpenExternalGeneration?: (generationId: string, derivedContext?: string[]) => Promise<void>;
 }
 
@@ -250,7 +242,7 @@ export interface UseSharedLightboxStateReturn {
   };
 
   // Button group props (pre-built)
-  buttonGroupProps: ReturnType<typeof useButtonGroupProps>;
+  buttonGroupProps: LightboxButtonGroupProps;
 }
 
 // ============================================================================
@@ -267,18 +259,46 @@ interface SharedVariantsStateResult {
   refetchVariants: () => void;
 }
 
+export interface LightboxButtonGroupProps {
+  topRight: {
+    showDownload: boolean;
+    handleDownload?: () => Promise<void>;
+    isDownloading: boolean;
+    onDelete?: (id: string) => void;
+    handleDelete?: () => void;
+    isDeleting?: string | null;
+    onClose: () => void;
+  };
+  bottomLeft: {
+    isUpscaling: boolean;
+    handleUpscale: () => Promise<void>;
+    localStarred: boolean;
+    handleToggleStar: () => void;
+    toggleStarPending: boolean;
+  };
+  bottomRight: {
+    isAddingToReferences: boolean;
+    addToReferencesSuccess: boolean;
+    handleAddToReferences: () => Promise<void>;
+    handleAddToJoin?: () => void;
+    isAddingToJoin?: boolean;
+    addToJoinSuccess?: boolean;
+    onGoToJoin?: () => void;
+  };
+}
+
 /**
  * Variants sub-facade: variant loading, selection, promotion.
  * Usable standalone when callers only need variant state.
  */
-export function useSharedVariantsState(props: UseSharedLightboxStateProps): SharedVariantsStateResult {
+export function useSharedVariantsState(input: UseSharedLightboxStateInput): SharedVariantsStateResult {
   const {
     media,
     isFormOnlyMode,
     variantFetchGenerationId,
     initialVariantId,
     selectedProjectId,
-  } = props;
+  } = input.core;
   const {
     variants,
     primaryVariant,
@@ -349,17 +369,16 @@ export function useSharedVariantsState(props: UseSharedLightboxStateProps): Shar
  * Navigation sub-facade: keyboard nav, swipe nav, safe close.
  * Usable standalone when callers only need navigation controls.
  */
-export function useSharedNavigationState(props: UseSharedLightboxStateProps): UseSharedLightboxStateReturn['navigation'] {
+export function useLightboxNavigationModel(input: UseSharedLightboxStateInput): UseSharedLightboxStateReturn['navigation'] {
+  const { onClose, readOnly } = input.core;
   const {
-    onClose,
     hasNext = false,
     hasPrevious = false,
     handleSlotNavNext,
     handleSlotNavPrev,
     swipeDisabled,
-    readOnly,
     showNavigation,
-  } = props;
+  } = input.navigation;
   const { safeClose, activateClickShield } = useLightboxNavigation({
     onNext: handleSlotNavNext,
     onPrevious: handleSlotNavPrev,
@@ -385,18 +404,17 @@ export function useSharedNavigationState(props: UseSharedLightboxStateProps): Us
     swipeNavigation,
   };
 }
+export const useSharedNavigationState = useLightboxNavigationModel;
 
 /**
  * Shot management sub-facade: positioning, creation, association state.
  * Usable standalone when callers only need shot management.
  */
-export function useSharedShotState(props: UseSharedLightboxStateProps): UseSharedLightboxStateReturn['shots'] {
+export function useLightboxShotActions(input: UseSharedLightboxStateInput): UseSharedLightboxStateReturn['shots'] {
+  const { media, selectedProjectId, onClose } = input.core;
   const {
-    media,
-    selectedProjectId,
     allShots,
     onNavigateToShot,
-    onClose,
     onShotChange,
     selectedShotId,
     positionedInSelectedShot,
@@ -409,7 +427,7 @@ export function useSharedShotState(props: UseSharedLightboxStateProps): UseShare
     onShowSecondaryTick,
     onOptimisticPositioned,
     onOptimisticUnpositioned,
-  } = props;
+  } = input.shots;
   const {
     isCreatingShot,
     quickCreateSuccess,
@@ -460,6 +478,7 @@ export function useSharedShotState(props: UseSharedLightboxStateProps): UseShare
     handleQuickCreateSuccess,
   };
 }
+export const useSharedShotState = useLightboxShotActions;
 
 function useSharedMakeMainVariantState(params: {
   media: GenerationRow;
@@ -509,7 +528,7 @@ function useSharedMakeMainVariantState(params: {
 }
 
 function useSharedButtonGroupState(params: {
-  props: UseSharedLightboxStateProps;
+  input: UseSharedLightboxStateInput;
   localStarred: boolean;
   handleToggleStar: () => void;
   toggleStarPending: boolean;
@@ -522,7 +541,7 @@ function useSharedButtonGroupState(params: {
   handleGoToJoin: () => void;
 }) {
   const {
-    props,
+    input,
     localStarred,
     handleToggleStar,
     toggleStarPending,
@@ -534,38 +553,20 @@ function useSharedButtonGroupState(params: {
     addToJoinSuccess,
     handleGoToJoin,
   } = params;
+  const { media, onClose } = input.core;
   const {
-    media,
-    isVideo,
-    readOnly,
-    isSpecialEditMode,
-    selectedProjectId,
-    isCloudMode,
-    handleEnterMagicEditMode,
     showDownload,
     isDownloading,
     onDelete,
     isDeleting,
-    onClose,
     isUpscaling,
     handleUpscale,
-  } = props;
+  } = input.actions;
   const handleDelete = useCallback(() => {
     if (onDelete) onDelete(media.id);
   }, [onDelete, media.id]);
 
-  return useButtonGroupProps({
-    shared: {
-      isVideo,
-      readOnly: !!readOnly,
-      isSpecialEditMode,
-      selectedProjectId: selectedProjectId ?? undefined,
-      isCloudMode,
-    },
-    mediaId: media.id,
-    topLeft: {
-      handleEnterMagicEditMode,
-    },
+  return useMemo<LightboxButtonGroupProps>(() => ({
     topRight: {
       showDownload: !!showDownload,
       isDownloading,
@@ -575,7 +576,6 @@ function useSharedButtonGroupState(params: {
       onClose,
     },
     bottomLeft: {
-      handleEnterMagicEditMode,
       isUpscaling,
       handleUpscale: async () => {
         await Promise.resolve(handleUpscale());
@@ -585,9 +585,6 @@ function useSharedButtonGroupState(params: {
       toggleStarPending,
     },
     bottomRight: {
-      localStarred,
-      handleToggleStar,
-      toggleStarPending,
       isAddingToReferences,
       addToReferencesSuccess,
       handleAddToReferences,
@@ -596,70 +593,96 @@ function useSharedButtonGroupState(params: {
       addToJoinSuccess,
       onGoToJoin: handleGoToJoin,
     },
-  });
+  }), [
+    showDownload,
+    isDownloading,
+    onDelete,
+    handleDelete,
+    isDeleting,
+    onClose,
+    isUpscaling,
+    handleUpscale,
+    localStarred,
+    handleToggleStar,
+    toggleStarPending,
+    isAddingToReferences,
+    addToReferencesSuccess,
+    handleAddToReferences,
+    handleAddToJoin,
+    isAddingToJoin,
+    addToJoinSuccess,
+    handleGoToJoin,
+  ]);
 }
 
-export function useSharedLightboxState(props: UseSharedLightboxStateProps): UseSharedLightboxStateReturn {
-  const variantsState = useSharedVariantsState(props);
-  const navigation = useSharedNavigationState(props);
-  const star = useStarToggle({ media: props.media, starred: props.starred, shotId: props.shotId });
-  const referencesState = useReferences({
-    media: props.media,
-    selectedProjectId: props.selectedProjectId,
-    isVideo: props.isVideo,
-    selectedShotId: props.selectedShotId,
+export function useSharedLightboxState(input: UseSharedLightboxStateInput): UseSharedLightboxStateReturn {
+  const variantsState = useSharedVariantsState(input);
+  const interactionState = useSharedLightboxInteractionState(input, variantsState);
+  const presentationState = useLightboxPanelModel(input, variantsState, interactionState);
+
+  return {
+    variants: presentationState.variants,
+    intendedActiveVariantIdRef: presentationState.intendedActiveVariantIdRef,
+    navigation: presentationState.navigation,
+    star: interactionState.star,
+    references: interactionState.references,
+    lineage: interactionState.lineage,
+    shots: interactionState.shots,
+    sourceGeneration: interactionState.sourceGeneration,
+    makeMainVariant: interactionState.makeMainVariant,
+    effectiveMedia: presentationState.effectiveMedia,
+    layout: presentationState.layout,
+    buttonGroupProps: presentationState.buttonGroupProps,
+  };
+}
+
+export interface SharedLightboxInteractionState {
+  star: UseSharedLightboxStateReturn['star'];
+  references: UseSharedLightboxStateReturn['references'];
+  lineage: UseSharedLightboxStateReturn['lineage'];
+  shots: UseSharedLightboxStateReturn['shots'];
+  sourceGeneration: UseSharedLightboxStateReturn['sourceGeneration'];
+  makeMainVariant: UseSharedLightboxStateReturn['makeMainVariant'];
+}
+
+export function useSharedLightboxInteractionState(
+  input: UseSharedLightboxStateInput,
+  variantsState: SharedVariantsStateResult,
+): SharedLightboxInteractionState {
+  const star = useStarToggle({
+    media: input.core.media,
+    starred: input.starred,
+    shotId: input.shots.shotId,
   });
-  const joinState = useJoinClips({ media: props.media, isVideo: props.isVideo });
-  const lineageState = useGenerationLineage({ media: props.media, enabled: !props.isFormOnlyMode });
-  const shots = useSharedShotState(props);
+  const referencesState = useReferences({
+    media: input.core.media,
+    selectedProjectId: input.core.selectedProjectId,
+    isVideo: input.core.isVideo,
+    selectedShotId: input.shots.selectedShotId,
+  });
+  const joinState = useJoinClips({ media: input.core.media, isVideo: input.core.isVideo });
+  const lineageState = useGenerationLineage({
+    media: input.core.media,
+    enabled: !input.core.isFormOnlyMode,
+  });
+  const shots = useLightboxShotActions(input);
   const { sourceGenerationData, sourcePrimaryVariant } = useSourceGeneration({
-    media: props.media,
-    onOpenExternalGeneration: props.onOpenExternalGeneration,
+    media: input.core.media,
+    onOpenExternalGeneration: input.onOpenExternalGeneration,
   });
   const makeMainVariant = useSharedMakeMainVariantState({
-    media: props.media,
+    media: input.core.media,
     sourceGenerationData,
     isViewingNonPrimaryVariant: variantsState.isViewingNonPrimaryVariant,
     activeVariant: variantsState.activeVariant,
     setPrimaryVariant: variantsState.setPrimaryVariant,
     refetchVariants: variantsState.refetchVariants,
-    shotId: props.shotId,
-    selectedShotId: props.selectedShotId,
-    onClose: props.onClose,
-  });
-  const { effectiveVideoUrl, effectiveMediaUrl, effectiveImageDimensions } = useEffectiveMedia({
-    isVideo: props.isVideo,
-    activeVariant: variantsState.activeVariant,
-    effectiveImageUrl: props.effectiveImageUrl,
-    imageDimensions: props.imageDimensions,
-    projectAspectRatio: props.projectAspectRatio,
-  });
-  const layout = useLayoutMode({
-    isMobile: props.isMobile,
-    showTaskDetails: props.showTaskDetails ?? false,
-    isSpecialEditMode: props.isSpecialEditMode,
-    isVideo: props.isVideo,
-    isInpaintMode: props.isInpaintMode ?? false,
-    isMagicEditMode: props.isMagicEditMode ?? false,
-  });
-  const buttonGroupProps = useSharedButtonGroupState({
-    props,
-    localStarred: star.localStarred,
-    handleToggleStar: star.handleToggleStar,
-    toggleStarPending: star.toggleStarMutation.isPending,
-    isAddingToReferences: referencesState.isAddingToReferences,
-    addToReferencesSuccess: referencesState.addToReferencesSuccess,
-    handleAddToReferences: referencesState.handleAddToReferences,
-    handleAddToJoin: joinState.handleAddToJoin,
-    isAddingToJoin: joinState.isAddingToJoin,
-    addToJoinSuccess: joinState.addToJoinSuccess,
-    handleGoToJoin: joinState.handleGoToJoin,
+    shotId: input.shots.shotId,
+    selectedShotId: input.shots.selectedShotId,
+    onClose: input.core.onClose,
   });
 
   return {
-    variants: variantsState.section,
-    intendedActiveVariantIdRef: variantsState.intendedActiveVariantIdRef,
-    navigation,
     star: {
       localStarred: star.localStarred,
       setLocalStarred: star.setLocalStarred,
@@ -689,6 +712,57 @@ export function useSharedLightboxState(props: UseSharedLightboxStateProps): UseS
       primaryVariant: sourcePrimaryVariant,
     },
     makeMainVariant,
+  };
+}
+
+export interface SharedLightboxPresentationState {
+  variants: UseSharedLightboxStateReturn['variants'];
+  intendedActiveVariantIdRef: UseSharedLightboxStateReturn['intendedActiveVariantIdRef'];
+  navigation: UseSharedLightboxStateReturn['navigation'];
+  effectiveMedia: UseSharedLightboxStateReturn['effectiveMedia'];
+  layout: UseSharedLightboxStateReturn['layout'];
+  buttonGroupProps: UseSharedLightboxStateReturn['buttonGroupProps'];
+}
+
+export function useLightboxPanelModel(
+  input: UseSharedLightboxStateInput,
+  variantsState: SharedVariantsStateResult,
+  interactionState: SharedLightboxInteractionState,
+): SharedLightboxPresentationState {
+  const navigation = useLightboxNavigationModel(input);
+  const { effectiveVideoUrl, effectiveMediaUrl, effectiveImageDimensions } = useEffectiveMedia({
+    isVideo: input.core.isVideo,
+    activeVariant: variantsState.activeVariant,
+    effectiveImageUrl: input.media.effectiveImageUrl,
+    imageDimensions: input.media.imageDimensions,
+    projectAspectRatio: input.media.projectAspectRatio,
+  });
+  const layout = useLayoutMode({
+    isMobile: input.core.isMobile,
+    showTaskDetails: input.layout.showTaskDetails ?? false,
+    isSpecialEditMode: input.layout.isSpecialEditMode,
+    isVideo: input.core.isVideo,
+    isInpaintMode: input.layout.isInpaintMode ?? false,
+    isMagicEditMode: input.layout.isMagicEditMode ?? false,
+  });
+  const buttonGroupProps = useSharedButtonGroupState({
+    input,
+    localStarred: interactionState.star.localStarred,
+    handleToggleStar: interactionState.star.handleToggleStar,
+    toggleStarPending: interactionState.star.toggleStarMutation.isPending,
+    isAddingToReferences: interactionState.references.isAddingToReferences,
+    addToReferencesSuccess: interactionState.references.addToReferencesSuccess,
+    handleAddToReferences: interactionState.references.handleAddToReferences,
+    handleAddToJoin: interactionState.references.handleAddToJoin,
+    isAddingToJoin: interactionState.references.isAddingToJoin,
+    addToJoinSuccess: interactionState.references.addToJoinSuccess,
+    handleGoToJoin: interactionState.references.handleGoToJoin,
+  });
+
+  return {
+    variants: variantsState.section,
+    intendedActiveVariantIdRef: variantsState.intendedActiveVariantIdRef,
+    navigation,
     effectiveMedia: {
       videoUrl: effectiveVideoUrl,
       mediaUrl: effectiveMediaUrl,
@@ -704,3 +778,4 @@ export function useSharedLightboxState(props: UseSharedLightboxStateProps): UseS
     buttonGroupProps,
   };
 }
+export const useSharedLightboxPresentationState = useLightboxPanelModel;

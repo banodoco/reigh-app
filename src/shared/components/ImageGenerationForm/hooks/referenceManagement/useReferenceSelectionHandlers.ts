@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import { updateSettingsCache } from '@/shared/hooks/useToolSettings';
 import { settingsQueryKeys } from '@/shared/lib/queryKeys/settings';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 import type { ProjectImageSettings } from '../../types';
 import type { ReferenceActionHandlersOutput } from './types';
 
@@ -54,7 +55,7 @@ export function useReferenceSelectionHandlers(
 
     try {
       queryClient.setQueryData(
-        settingsQueryKeys.tool('project-image-settings', selectedProjectId, undefined),
+        settingsQueryKeys.tool(SETTINGS_IDS.PROJECT_IMAGE_SETTINGS, selectedProjectId, undefined),
         (prev: unknown) =>
           updateSettingsCache<ProjectImageSettings>(prev, {
             selectedReferenceIdByShot: optimisticUpdate,

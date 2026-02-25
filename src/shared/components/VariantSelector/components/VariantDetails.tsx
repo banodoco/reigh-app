@@ -9,10 +9,11 @@
 import React from 'react';
 import { GenerationDetails } from '@/shared/components/GenerationDetails';
 import type { LoraModel } from '@/shared/components/LoraSelectorModal';
-import { getSourceTaskId } from '@/shared/lib/taskIdHelpers';
+import { getSourceTaskIdLegacyCompatible } from '@/shared/lib/taskIdHelpers';
 import { useGetTask } from '@/shared/hooks/useTasks';
 import type { GenerationVariant } from '@/shared/hooks/useVariants';
 import { TASK_STATUS } from '@/types/tasks';
+import { useProject } from '@/shared/contexts/ProjectContext';
 
 interface VariantDetailsProps {
   variant: GenerationVariant;
@@ -20,9 +21,10 @@ interface VariantDetailsProps {
 }
 
 export const VariantDetails: React.FC<VariantDetailsProps> = ({ variant, availableLoras }) => {
+  const { selectedProjectId } = useProject();
   const variantParams = variant.params;
-  const sourceTaskId = getSourceTaskId(variantParams);
-  const { data: task, isLoading } = useGetTask(sourceTaskId || '');
+  const sourceTaskId = getSourceTaskIdLegacyCompatible(variantParams);
+  const { data: task, isLoading } = useGetTask(sourceTaskId || '', selectedProjectId ?? null);
   const taskTypeFromParams = typeof variantParams?.task_type === 'string'
     ? variantParams.task_type
     : (typeof variantParams?.created_from === 'string' ? variantParams.created_from : 'video_generation');

@@ -1,0 +1,122 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "api_surface_coherence": 82.0,
+    "mid_level_elegance": 84.0
+  },
+  "dimension_notes": {
+    "api_surface_coherence": {
+      "evidence": [
+        "Edge helpers expose multiple incompatible failure contracts in the same API surface: `initEdgeRuntime` returns `{ runtime?, errorResponse? }` while `ensureRequestMethod`/`parseJsonBody` return `OperationResult`, and `requestMethodFailureResponse`/`operationFailureResponse` convert failures into `Response` envelopes.",
+        "Service-layer APIs handling similar operational failures use different public contracts: `generateVideo` and `consumePendingJoinClips` return `OperationResult`, while `fetchToolSettingsSupabase` throws `ToolSettingsError` and `useLineageChain` path throws through React Query.",
+        "`truncateText` in `stringFormatting.ts` violates max-length semantics by returning `text.slice(0, maxLength) + '...'` (result length exceeds `maxLength`), while sibling formatter `cropFilename` keeps output within max-length budgeting."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Generation-task scope APIs compute rich status (`ok`, `scope_mismatch`, `missing_project_scope`, `query_failed`) in `generationTaskRepository.ts`, but downstream seams collapse or ignore those distinctions.",
+        "`useLineageChain.ts` converts any non-`ok` scope result into a generic thrown error (`Variant scope validation failed (...)`), reducing actionable context at the UI seam.",
+        "`generationTaskCache.ts` caches non-`ok` mapping statuses but only explicitly handles `query_failed`; other invalid states (like `scope_mismatch`) become silent `taskId: null` cache outcomes without explicit seam behavior."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "edge_request_contract_fragmentation",
+      "summary": "Edge request helpers require callers to juggle three different failure protocols.",
+      "related_files": [
+        "supabase/functions/_shared/edgeRequest.ts",
+        "supabase/functions/_shared/rateLimit.ts",
+        "supabase/functions/_shared/edgeOperation.ts"
+      ],
+      "evidence": [
+        "`initEdgeRuntime` returns `{ runtime?, errorResponse? }` (object-union style), `ensureRequestMethod`/`parseJsonBody` return `OperationResult`, and helper functions separately produce `Response` objects.",
+        "`checkRateLimit` also returns `OperationResult`, but even hard failures are encoded as `operationSuccess(fallback)` with `degraded` metadata, adding a fourth interpretation layer (`ok=true` does not mean healthy)."
+      ],
+      "suggestion": "Define one canonical edge-guard contract (for example `EdgeGuardResult<T> = { ok: true; value: T } | { ok: false; response: Response; code: string }`) and migrate `initEdgeRuntime`, request validation, JSON parsing, and rate-limit checks to that single shape before response emission.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "inconsistent_boundary_error_contracts"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "service_error_surface_mismatch",
+      "summary": "Sibling service modules expose inconsistent failure semantics for similar operations.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/tools/join-clips/lib/clipInitService.ts",
+        "src/shared/lib/toolSettingsService.ts",
+        "src/shared/hooks/useLineageChain.ts"
+      ],
+      "evidence": [
+        "`generateVideo` and `consumePendingJoinClips` return `OperationResult` with `.ok` branching.",
+        "`fetchToolSettingsSupabase` throws `ToolSettingsError` on operational failures instead of returning a result object.",
+        "`useLineageChain` path throws inside query functions and exposes errors via React Query result state, creating a third failure style in adjacent service/hook seams."
+      ],
+      "suggestion": "Standardize async service boundaries to one failure contract (either explicit `OperationResult` everywhere or throw-only + typed wrappers), then add thin adapters at hook/UI boundaries so callers never need mixed `try/catch` and `.ok` handling in the same workflow.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "inconsistent_boundary_error_contracts"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "mapping_status_semantics_lost_across_handoffs",
+      "summary": "Rich mapping/scope status is computed upstream but degraded into generic behavior downstream.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/lib/generationTaskCache.ts",
+        "src/shared/hooks/useLineageChain.ts"
+      ],
+      "evidence": [
+        "`generationTaskRepository` defines explicit status taxonomy (`scope_mismatch`, `missing_project_scope`, `query_failed`, etc.).",
+        "`generationTaskCache` stores status but only special-cases `query_failed`; other non-ok states become silent null mappings.",
+        "`useLineageChain` throws generic scope-validation errors for any non-`ok` status, discarding structured cause details at boundary handoff."
+      ],
+      "suggestion": "Promote status taxonomy into a shared discriminated union consumed consistently by cache and hook layers, with explicit handling paths per status (user-actionable mismatch, missing scope, retriable query failure) instead of generic null/error collapse.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "status_contract_drift"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "truncate_text_max_length_contract_violation",
+      "summary": "`truncateText` exceeds its declared max length while sibling formatter preserves max budget.",
+      "related_files": [
+        "src/shared/lib/stringFormatting.ts",
+        "src/shared/components/ui/touchableTooltip.tsx"
+      ],
+      "evidence": [
+        "`truncateText(text, maxLength)` returns ``${text.slice(0, maxLength)}...```, producing output length `maxLength + 3` when truncated.",
+        "In the same module, `cropFilename` performs length-aware ellipsis budgeting to keep output constrained, so two neighboring formatters expose conflicting max-length semantics."
+      ],
+      "suggestion": "Align formatter contracts by making `truncateText` reserve ellipsis space (`slice(0, maxLength - 3) + '...'`) or rename it to explicitly signal overrun behavior; then add unit tests documenting expected output lengths.",
+      "confidence": "high",
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "inconsistent_boundary_error_contracts"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "No single boundary contract standard for operational failures across hook/service/edge layers.",
+      "Structured status signals are produced but not carried through integration seams."
+    ],
+    "likely_symptoms": [
+      "edge_request_contract_fragmentation",
+      "service_error_surface_mismatch",
+      "mapping_status_semantics_lost_across_handoffs"
+    ],
+    "possible_false_positives": []
+  }
+}

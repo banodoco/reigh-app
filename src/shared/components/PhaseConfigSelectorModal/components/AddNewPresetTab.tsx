@@ -2,12 +2,12 @@ import React, { useReducer, useEffect, useCallback } from 'react';
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter as ItemCardFooter, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { useCreateResource, useUpdateResource, Resource, PhaseConfigMetadata } from '@/shared/hooks/useResources';
-import { toast } from "@/shared/components/ui/sonner";
+import { toast } from "@/shared/components/ui/runtime/sonner";
 import { Pencil } from 'lucide-react';
 import { PhaseConfig, DEFAULT_PHASE_CONFIG } from '@/shared/types/phaseConfig';
 import { LoraModel } from '@/shared/components/LoraSelectorModal';
 import { uploadImageToStorage } from '@/shared/lib/imageUploader';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { usePresetSampleFiles } from '../hooks/usePresetSampleFiles';
 
 import { BasicInfoSection } from './sections/BasicInfoSection';
@@ -443,7 +443,7 @@ export const AddNewPresetTab: React.FC<AddNewTabProps> = ({
       resetForm();
       onSwitchToBrowse();
     } catch (error) {
-      handleError(error, { context: 'PhaseConfigSelectorModal' });
+      normalizeAndPresentError(error, { context: 'PhaseConfigSelectorModal' });
     } finally {
       dispatch({ type: 'SET_SUBMISSION_STATE', isSubmitting: false });
     }

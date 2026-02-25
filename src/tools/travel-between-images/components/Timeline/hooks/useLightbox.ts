@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 
 interface LightboxProps {
   images: GenerationRow[];
@@ -11,7 +11,7 @@ export function useLightbox({ images, isMobile = false }: LightboxProps) {
   
   // Lightbox state
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-  const [autoEnterInpaint, setAutoEnterInpaint] = useState(false);
+  const [initialEditActive, setAutoEnterInpaint] = useState(false);
 
   // Navigation functions
   const goNext = useCallback(() => {
@@ -71,7 +71,7 @@ export function useLightbox({ images, isMobile = false }: LightboxProps) {
     lightboxIndex,
     setLightboxIndex, // Expose raw setter for external hooks
     currentLightboxImage,
-    autoEnterInpaint,
+    initialEditActive,
     
     // Navigation
     goNext,

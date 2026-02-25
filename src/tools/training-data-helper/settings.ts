@@ -1,4 +1,4 @@
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
 
 interface TrainingDataHelperSettings {
   // Basic settings for the tool

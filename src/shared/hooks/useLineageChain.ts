@@ -9,9 +9,13 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { getSupabaseClient } from '@/integrations/supabase/client';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
+import {
+  resolveVariantProjectScope,
+  type VariantProjectScopeStatus,
+} from '@/shared/lib/generationTaskRepository';
 
 interface LineageItem {
   id: string;
@@ -26,7 +30,7 @@ interface LineageChainResult {
   chain: LineageItem[];
   isLoading: boolean;
   hasLineage: boolean;
-  error: Error | null;
+  error: LineageScopeError | null;
 }
 
 interface VariantRecord {
@@ -39,63 +43,128 @@ interface VariantRecord {
   variant_type: string | null;
 }
 
+type LineageScopeFailureStatus = Exclude<VariantProjectScopeStatus, 'ok'>;
+
+export class LineageScopeError extends Error {
+  readonly status: LineageScopeFailureStatus;
+  readonly variantId: string;
+  readonly projectId: string;
+  readonly queryError?: string;
+
+  constructor(params: {
+    status: LineageScopeFailureStatus;
+    variantId: string;
+    projectId: string;
+    queryError?: string;
+    message: string;
+  }) {
+    super(params.message);
+    this.name = 'LineageScopeError';
+    this.status = params.status;
+    this.variantId = params.variantId;
+    this.projectId = params.projectId;
+    this.queryError = params.queryError;
+  }
+}
+
+export function isLineageScopeError(error: unknown): error is LineageScopeError {
+  return error instanceof LineageScopeError;
+}
+
 function readSourceVariantId(params: Record<string, unknown> | null): string | null {
   return typeof params?.source_variant_id === 'string' ? params.source_variant_id : null;
 }
 
-/**
- * Recursively fetch the lineage chain for a variant.
- * Follows the `params.source_variant_id` field to find ancestors.
- */
-async function fetchLineageChain(variantId: string): Promise<LineageItem[]> {
-  // Load the current variant once to discover generation_id.
-  const { data: currentVariant, error: currentVariantError } = await supabase
-    .from('generation_variants')
+function buildScopeValidationErrorMessage(scopeStatus: string, queryError?: string): string {
+  switch (scopeStatus) {
+    case 'scope_mismatch':
+      return 'Variant exists but does not belong to the active project scope';
+    case 'missing_project_scope':
+      return 'Variant does not have project scope metadata';
+    case 'missing_variant':
+      return 'Variant not found';
+    case 'missing_generation':
+      return 'Variant generation was not found';
+    case 'query_failed':
+      return `Variant scope lookup failed${queryError ? `: ${queryError}` : ''}`;
+    default:
+      return `Variant scope validation failed (${scopeStatus})`;
+  }
+}
+
+function toLineageScopeError(
+  error: unknown,
+  fallback: {
+    variantId: string;
+    projectId: string;
+    status: LineageScopeFailureStatus;
+    queryError?: string;
+  },
+): LineageScopeError {
+  if (isLineageScopeError(error)) {
+    return error;
+  }
+
+  const message = error instanceof Error
+    ? error.message
+    : buildScopeValidationErrorMessage(fallback.status, fallback.queryError);
+
+  return new LineageScopeError({
+    ...fallback,
+    message,
+  });
+}
+
+async function fetchVariantById(variantId: string, projectId: string): Promise<VariantRecord> {
+  const scope = await resolveVariantProjectScope(variantId, projectId);
+  if (scope.status !== 'ok' || !scope.generationId) {
+    throw new LineageScopeError({
+      status: scope.status as LineageScopeFailureStatus,
+      variantId,
+      projectId,
+      queryError: scope.queryError,
+      message: buildScopeValidationErrorMessage(scope.status, scope.queryError),
+    });
+  }
+
+  const { data, error } = await getSupabaseClient().from('generation_variants')
     .select('id, generation_id, params, location, thumbnail_url, created_at, variant_type')
     .eq('id', variantId)
+    .eq('generation_id', scope.generationId)
     .single();
 
-  if (currentVariantError || !currentVariant) {
-    handleError(currentVariantError || new Error('Variant not found'), {
-      context: 'useLineageChain',
-      showToast: false,
+  if (error) {
+    throw toLineageScopeError(error, {
+      status: 'query_failed',
+      variantId,
+      projectId,
+      queryError: error.message,
     });
-    return [];
   }
 
-  // Fetch all variants in the same generation in one query, then resolve lineage in-memory.
-  const { data: generationVariants, error: generationVariantsError } = await supabase
-    .from('generation_variants')
-    .select('id, generation_id, params, location, thumbnail_url, created_at, variant_type')
-    .eq('generation_id', currentVariant.generation_id);
-
-  if (generationVariantsError || !generationVariants) {
-    handleError(generationVariantsError || new Error('Failed to fetch lineage variants'), {
-      context: 'useLineageChain',
-      showToast: false,
+  if (!data) {
+    throw new LineageScopeError({
+      status: 'missing_variant',
+      variantId,
+      projectId,
+      message: buildScopeValidationErrorMessage('missing_variant'),
     });
-    return [];
   }
+  return data as VariantRecord;
+}
 
-  const variants = generationVariants as VariantRecord[];
-  const byId = new Map(variants.map((variant) => [variant.id, variant]));
-  // Keep the selected variant available even if it was omitted from batch response.
-  if (!byId.has(currentVariant.id)) {
-    byId.set(currentVariant.id, currentVariant as VariantRecord);
-  }
-
-  const parentById = new Map(
-    Array.from(byId.values()).map((variant) => [variant.id, readSourceVariantId(variant.params)])
-  );
-
+/**
+ * Recursively fetch the lineage chain for a variant.
+ * Follows `params.source_variant_id` across generation boundaries.
+ */
+async function fetchLineageChain(variantId: string, projectId: string): Promise<LineageItem[]> {
   const chain: LineageItem[] = [];
   const visited = new Set<string>();
   let currentId: string | null = variantId;
 
   while (currentId && !visited.has(currentId)) {
     visited.add(currentId);
-    const variant = byId.get(currentId);
-    if (!variant) break;
+    const variant = await fetchVariantById(currentId, projectId);
 
     chain.unshift({
       id: variant.id,
@@ -105,7 +174,7 @@ async function fetchLineageChain(variantId: string): Promise<LineageItem[]> {
       type: 'variant',
       variantType: variant.variant_type,
     });
-    currentId = parentById.get(currentId) ?? null;
+    currentId = readSourceVariantId(variant.params);
   }
 
   return chain;
@@ -115,13 +184,35 @@ async function fetchLineageChain(variantId: string): Promise<LineageItem[]> {
  * Hook to fetch the full lineage chain for a variant.
  *
  * @param variantId - The variant ID to fetch lineage for
+ * @param projectId - Project scope required for lineage traversal
  * @returns Object with chain (oldest to newest), loading state, and whether there's lineage
  */
-export function useLineageChain(variantId: string | null): LineageChainResult {
-  const { data: chain = [], isLoading, error } = useQuery({
-    queryKey: generationQueryKeys.lineageChain(variantId!),
-    queryFn: () => fetchLineageChain(variantId!),
-    enabled: !!variantId,
+export function useLineageChain(variantId: string | null, projectId: string | null): LineageChainResult {
+  const { data: chain = [], isLoading, error } = useQuery<LineageItem[], LineageScopeError>({
+    queryKey: [...generationQueryKeys.lineageChain(variantId!), projectId ?? '__no-project__'],
+    queryFn: async () => {
+      try {
+        return await fetchLineageChain(variantId!, projectId!);
+      } catch (caughtError) {
+        const normalizedError = toLineageScopeError(caughtError, {
+          status: 'query_failed',
+          variantId: variantId!,
+          projectId: projectId!,
+        });
+        normalizeAndPresentError(normalizedError, {
+          context: 'useLineageChain',
+          showToast: false,
+          logData: {
+            variantId: normalizedError.variantId,
+            projectId: normalizedError.projectId,
+            status: normalizedError.status,
+            queryError: normalizedError.queryError,
+          },
+        });
+        throw normalizedError;
+      }
+    },
+    enabled: !!variantId && !!projectId,
     staleTime: 5 * 60 * 1000, // 5 minutes - lineage doesn't change
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
@@ -131,7 +222,7 @@ export function useLineageChain(variantId: string | null): LineageChainResult {
     isLoading,
     // Has lineage if chain has more than 1 item (the current variant + at least one ancestor)
     hasLineage: chain.length > 1,
-    error: error as Error | null,
+    error: error ?? null,
   };
 }
 
@@ -142,8 +233,8 @@ export function useLineageChain(variantId: string | null): LineageChainResult {
  *
  * Reuses fetchLineageChain to avoid duplicating the traversal logic.
  */
-export async function getLineageDepth(variantId: string): Promise<number> {
-  const chain = await fetchLineageChain(variantId);
+export async function getLineageDepth(variantId: string, projectId: string): Promise<number> {
+  const chain = await fetchLineageChain(variantId, projectId);
   // chain includes the variant itself; ancestors = chain length - 1
   return Math.max(0, chain.length - 1);
 }

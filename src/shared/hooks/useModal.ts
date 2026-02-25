@@ -1,4 +1,4 @@
-import { useIsMobile } from "@/shared/hooks/useMobile";
+import { useIsMobile } from "@/shared/hooks/mobile";
 import { safeAreaCalc } from "@/shared/lib/safeArea";
 
 export type ModalSize = 'small' | 'medium' | 'large' | 'extra-large';

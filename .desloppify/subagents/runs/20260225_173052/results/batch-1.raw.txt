@@ -1,0 +1,127 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 82.0,
+    "high_level_elegance": 84.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "High fan-in hub entrypoints are concentrated in thin facades (`src/shared/lib/errorHandling/runtimeError.ts`, `src/domains/generation/types/public.ts`, `src/integrations/supabase/client.ts`) per packet importer counts (246, 207, 158), increasing blast radius for contract changes.",
+        "`src/shared/lib/toolIds.ts` merges two distinct namespaces (`TOOL_IDS` and `SETTINGS_IDS`) by spreading tool IDs into settings IDs, coupling tool identity and persistence keys into one shared dependency node.",
+        "`src/shared/components/ui/runtime/sonner.tsx` centralizes toast runtime through `getToastManager()` singleton access and re-exports `toast`, creating a global cross-module coordination point for notifications."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts` mixes shot navigation, lightbox control, modal orchestration, and error presentation in one hook with a wide argument surface, indicating weak ownership boundaries.",
+        "`src/pages/Home/components/panes/CreativePartnerPane.tsx` combines marketing content rendering, tooltip lifecycle policy integration, navigation actions, and embedded iframe behavior in one pane component.",
+        "`src/shared/components/MediaLightbox/components/LightboxShell.tsx` is a high-responsibility shell coordinating dialog lifecycle, viewport locking, pane layout coupling, pointer/touch dismissal policy, and accessibility plumbing."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "coupled_id_namespaces_hub",
+      "summary": "Tool identity and settings identity are co-located in one shared hub, coupling unrelated modules through a single contract.",
+      "related_files": [
+        "src/shared/lib/toolIds.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+      ],
+      "evidence": [
+        "`SETTINGS_IDS` is defined as `{ ...TOOL_IDS, ... }`, so tool IDs are treated as settings IDs in the same module.",
+        "The module also exports both validators (`isToolId`, `isKnownSettingsId`), encouraging broad import usage for distinct concerns.",
+        "This creates cross-module dependency pressure on a single file for both routing/tool semantics and settings persistence semantics."
+      ],
+      "suggestion": "Split into separate bounded modules (`toolIds.ts` and `settingsIds.ts`) with an explicit mapping layer only where overlap is intended; migrate call sites to import only the boundary they need.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shared_hub_overload"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "global_toast_runtime_singleton",
+      "summary": "Notification handling relies on a global runtime singleton, creating hidden cross-module coupling.",
+      "related_files": [
+        "src/shared/components/ui/runtime/sonner.tsx",
+        "src/shared/lib/errorHandling/runtimeError.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts"
+      ],
+      "evidence": [
+        "`Toaster` binds to `getToastManager()` and the module re-exports a global `toast` API.",
+        "Error pathways in gallery handlers already depend on centralized runtime error normalization, making user-feedback behavior implicitly coupled to shared global notification runtime.",
+        "This pattern increases risk of side effects and ordering assumptions across modules that call into shared error/notification paths."
+      ],
+      "suggestion": "Introduce an injected notification interface at feature boundaries (or React context-backed facade), so feature hooks depend on a contract instead of global singleton runtime objects.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "shared_hub_overload"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "gallery_orchestration_mixed_ownership",
+      "summary": "Media gallery orchestration mixes multiple responsibilities in hooks/components that should be split by ownership boundary.",
+      "related_files": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx"
+      ],
+      "evidence": [
+        "`useMediaGalleryHandlers` coordinates navigation, lightbox closing, shot switching, task-details modal state, and error reporting in one unit.",
+        "`useMediaGalleryItemState` owns local UI state plus async shot creation workflow plus error presentation.",
+        "`ShotActions` receives deeply nested state/action objects (`selector`, `status`, `quickCreate`, `actions`), indicating responsibility aggregation rather than clear sub-feature boundaries."
+      ],
+      "suggestion": "Refactor into smaller feature-specific controllers (navigation controller, shot-association controller, details-modal controller) and keep UI state hooks focused on local state only.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "missing_feature_boundary"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "ui_shells_accumulate_cross_cutting_policy",
+      "summary": "Top-level UI shells accumulate policy and infrastructure concerns, blurring component ownership.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/LightboxShell.tsx",
+        "src/pages/Home/components/panes/CreativePartnerPane.tsx",
+        "src/pages/Home/components/install/InstallInstructionsModal.tsx"
+      ],
+      "evidence": [
+        "`LightboxShell` handles dialog state interception (`eventDetails.cancel()`), pointer/touch policy, viewport layout, and accessibility all in one shell.",
+        "`CreativePartnerPane` combines static narrative content, tooltip interaction policy, navigation routing, and external embed concerns in a single component.",
+        "`InstallInstructionsModal` mixes scenario resolution, modal composition, and fallback navigation behavior directly in presentation code."
+      ],
+      "suggestion": "Move interaction and policy logic into dedicated view-model hooks/services, and keep shell components focused on rendering and composition of explicit child modules.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "missing_feature_boundary"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Shared convenience facades became high-fan-in dependency hubs without strict boundary separation.",
+      "Feature shells and hooks absorb orchestration concerns instead of delegating to narrower controllers."
+    ],
+    "likely_symptoms": [
+      "coupled_id_namespaces_hub",
+      "global_toast_runtime_singleton",
+      "gallery_orchestration_mixed_ownership",
+      "ui_shells_accumulate_cross_cutting_policy"
+    ],
+    "possible_false_positives": [
+      "Some facade hubs may be intentional API surfaces; risk assessment assumes current fan-in continues to grow."
+    ]
+  }
+}

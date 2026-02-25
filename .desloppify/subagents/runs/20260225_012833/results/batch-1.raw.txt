@@ -1,0 +1,99 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 82.0,
+    "high_level_elegance": 84.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "Both src/shared/lib/errorHandling/handleError.ts and src/integrations/supabase/legacy/legacySupabaseFacade.ts execute deprecation-policy lookups at module load and export policy metadata, spreading governance concerns into runtime facades.",
+        "src/pages/Home/components/panes/CreativePartnerPane.tsx hardcodes '/tools' and a Discord URL even though src/shared/lib/toolConstants.ts is positioned as the shared source of tool routing constants.",
+        "src/features/gallery/hooks/useAdjacentPagePreloader.ts derives its filter type via Parameters<typeof fetchGenerations>[3], creating a hidden dependency on another module’s positional signature instead of a stable shared boundary type."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts exposes a 16-field mutable return bag (state values plus setters), which forces downstream components to know many internals.",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx consumes multiple grouped prop bags (selector/status/quickCreate/actions) and still contains navigation/addition orchestration logic, indicating ownership split between UI and workflow concerns."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "distributed_deprecation_policy_coupling",
+      "summary": "Deprecation-governance logic is embedded in multiple runtime facades at import time.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts"
+      ],
+      "evidence": [
+        "handleError.ts initializes runtimeErrorAliasPolicy at module scope and exports owner/remove-by/import-budget metadata.",
+        "legacySupabaseFacade.ts initializes legacySupabasePolicy at module scope and exports the same style of governance metadata plus module-local warning state.",
+        "This repeats a governance pattern in unrelated runtime modules, increasing coupling and making import behavior depend on policy plumbing."
+      ],
+      "suggestion": "Move deprecation-policy metadata and budgeting into a centralized governance registry module, and keep facades as thin runtime adapters that import a precomputed contract object. This removes repeated module-scope policy initialization and narrows each facade’s responsibility.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "governance_leakage_into_runtime_modules"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "shared_route_contract_bypassed",
+      "summary": "Home pane bypasses shared route constants with hardcoded navigation strings.",
+      "related_files": [
+        "src/pages/Home/components/panes/CreativePartnerPane.tsx",
+        "src/shared/lib/toolConstants.ts"
+      ],
+      "evidence": [
+        "CreativePartnerPane calls navigate('/tools') directly instead of using shared route constants.",
+        "toolConstants.ts documents itself as the single source of truth for tool identifiers/routes, but this pane bypasses that boundary.",
+        "When route contracts change, this path can drift independently from the shared constants module."
+      ],
+      "suggestion": "Introduce/extend shared route constants for generic tool entry points (e.g., TOOLS_HOME) and replace hardcoded navigation strings in pane components with those constants to enforce one boundary for routing contracts.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "contract_bypass_via_literals"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "media_gallery_item_ownership_blur",
+      "summary": "Media-gallery item behavior is split across wide state bags and UI components with workflow logic.",
+      "related_files": [
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx"
+      ],
+      "evidence": [
+        "useMediaGalleryItemState returns a broad mutable surface (multiple local states and setters), creating a large coupling surface for consumers.",
+        "ShotActions receives four prop groups yet still decides workflow behavior (navigate vs add, quick-create flow), so business orchestration lives inside a presentational component.",
+        "The split suggests missing higher-level controller abstraction for shot-action workflow ownership."
+      ],
+      "suggestion": "Create a dedicated shot-action controller hook that owns workflow transitions and exposes a smaller intent-level API to ShotActions (e.g., primaryAction, secondaryAction, selectedShotModel). Keep ShotActions presentational and reduce direct setter/state bag exposure from useMediaGalleryItemState.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "media_gallery_bag_interface_pattern"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Cross-cutting governance and contract concerns are leaking into feature/runtime modules instead of being centralized at boundaries.",
+      "Media-gallery feature composition relies on broad mutable prop/state bags rather than intent-level controller seams."
+    ],
+    "likely_symptoms": [
+      "distributed_deprecation_policy_coupling",
+      "media_gallery_item_ownership_blur"
+    ],
+    "possible_false_positives": []
+  }
+}

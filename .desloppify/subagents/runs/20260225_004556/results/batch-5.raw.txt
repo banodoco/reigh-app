@@ -1,0 +1,85 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 5,
+  "assessments": {
+    "package_organization": 78.0,
+    "high_level_elegance": 81.0
+  },
+  "dimension_notes": {
+    "package_organization": {
+      "evidence": [
+        "The reviewed set includes 4 root-level compatibility alias files in high-traffic flat directories (`src/shared/hooks/useAsyncOperation.ts`, `src/shared/hooks/useBackgroundThumbnailGenerator.ts`, `src/shared/components/AppErrorBoundary.tsx`, `src/shared/components/AspectRatioSelector.tsx`) that only re-export canonical modules elsewhere.",
+        "`holistic_context.structure.directory_profiles[\"src/shared/hooks/\"]` shows a flat directory with 88 production files; these alias stragglers add non-domain entries to an already overloaded package.",
+        "`holistic_context.structure.directory_profiles[\"src/shared/components/\"]` shows 76 files with mixed responsibilities, while canonical ownership already moved to `src/app/components/error/` and `src/shared/components/generation-controls/`."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Top-level ownership is blurred because `shared` exports are now migration shims to other top-level domains (`shared -> app`, `shared -> generation-controls`, `shared/hooks -> shared/hooks/async|media`).",
+        "Migration-contract tests are still parked inside broad root test folders (`src/shared/hooks/__tests__/useAsyncOperation.contract.test.ts`, `src/shared/components/AppErrorBoundary.test.tsx`) rather than a dedicated migration-contract package, so decomposition does not reveal current architecture intent.",
+        "Coupling data shows heavy test-to-root coupling (`src/shared/hooks/__tests__/ → src/shared/hooks/` = 84), reinforcing the legacy-root entrypoints instead of canonical module boundaries."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "package_organization",
+      "identifier": "legacy_alias_stragglers_in_root_packages",
+      "summary": "Deprecated compatibility entrypoints remain as root-package stragglers and obscure canonical folder ownership.",
+      "related_files": [
+        "src/shared/hooks/useAsyncOperation.ts",
+        "src/shared/hooks/useBackgroundThumbnailGenerator.ts",
+        "src/shared/components/AppErrorBoundary.tsx",
+        "src/shared/components/AspectRatioSelector.tsx"
+      ],
+      "evidence": [
+        "All four files are pure re-export shims with deprecation metadata and `@removalTarget 2026-06-30`, but still occupy primary root package locations.",
+        "Canonical modules already exist in focused target packages (`shared/hooks/async`, `shared/hooks/media`, `app/components/error`, `shared/components/generation-controls`).",
+        "Directory profiles show these roots are already large (`src/shared/hooks/` 88 files, `src/shared/components/` 76 files), so keeping one-line migration files there increases navigational noise and false package ownership signals."
+      ],
+      "suggestion": "Staged reorg plan: 1) Create dedicated migration alias folders (`src/shared/hooks/legacy/aliases/`, `src/shared/components/legacy/aliases/`) and move these four shims there first. 2) Update imports with `rg \"@/shared/(hooks/useAsyncOperation|hooks/useBackgroundThumbnailGenerator|components/AppErrorBoundary|components/AspectRatioSelector)\" -n src` then replace to canonical paths (or temporary new alias paths) in descending fan-in order. 3) Keep temporary re-exports only in legacy folders with one index barrel per legacy folder. 4) Validate with `pnpm -s tsc --noEmit` and targeted tests `pnpm vitest src/shared/hooks/__tests__/useAsyncOperation.contract.test.ts src/shared/components/AppErrorBoundary.test.tsx`. 5) Remove legacy alias folders at deprecation date after `rg` confirms zero imports.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "migration_alias_boundary_drift"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_layer_exports_cross_domain_ownership",
+      "summary": "The shared layer still acts as a compatibility gateway across domains, weakening top-level architectural clarity.",
+      "related_files": [
+        "src/shared/components/AppErrorBoundary.tsx",
+        "src/shared/components/AspectRatioSelector.tsx",
+        "src/shared/hooks/__tests__/useAsyncOperation.contract.test.ts",
+        "src/shared/components/AppErrorBoundary.test.tsx"
+      ],
+      "evidence": [
+        "`AppErrorBoundary` now belongs to `app/components/error` but remains exposed through `shared/components`, creating a misleading top-level contract.",
+        "`AspectRatioSelector` ownership migrated to `shared/components/generation-controls` while legacy root export remains the visible entrypoint.",
+        "Contract tests currently verify legacy and canonical exports are identical, which preserves behavior but also institutionalizes legacy entrypoints in the primary package structure."
+      ],
+      "suggestion": "Staged reorg plan: 1) Introduce explicit ownership entry barrels in canonical domains (`src/app/components/error/index.ts`, `src/shared/components/generation-controls/index.ts`, `src/shared/hooks/async/index.ts`, `src/shared/hooks/media/index.ts`). 2) Move migration-contract tests to dedicated folders (`src/shared/components/legacy/__tests__/`, `src/shared/hooks/legacy/__tests__/`) so architectural tests no longer live beside active domain tests. 3) Update import callsites to canonical owners using `rg \"@/shared/components/AppErrorBoundary|@/shared/components/AspectRatioSelector|@/shared/hooks/useAsyncOperation|@/shared/hooks/useBackgroundThumbnailGenerator\" -n src` followed by codemod/manual replacement. 4) Validate boundaries with `pnpm -s tsc --noEmit`, `pnpm vitest src/shared/hooks/__tests__/useContentResponsive.test.ts src/shared/hooks/__tests__/useCopyToClipboard.test.ts`, and a final `rg` check showing only legacy-folder references remain.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "migration_alias_boundary_drift"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Migration aliases were left in primary package roots instead of being quarantined into explicit legacy namespaces.",
+      "Compatibility contracts are treated as first-class root-package concerns, which delays convergence to canonical ownership boundaries."
+    ],
+    "likely_symptoms": [
+      "legacy_alias_stragglers_in_root_packages",
+      "shared_layer_exports_cross_domain_ownership"
+    ],
+    "possible_false_positives": []
+  }
+}

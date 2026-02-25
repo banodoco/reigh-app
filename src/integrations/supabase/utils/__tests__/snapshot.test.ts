@@ -1,16 +1,23 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { captureRealtimeSnapshot } from '../snapshot';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const testWindow = window as unknown as Record<string, unknown>;
+const { mockGetSupabaseClient } = vi.hoisted(() => ({
+  mockGetSupabaseClient: vi.fn(),
+}));
+
+vi.mock('@/integrations/supabase/client', () => ({
+  getSupabaseClient: () => mockGetSupabaseClient(),
+}));
+
+import { captureRealtimeSnapshot } from '../snapshot';
 
 describe('captureRealtimeSnapshot', () => {
   beforeEach(() => {
-    // Reset window.supabase before each test
-    delete testWindow.supabase;
-    delete testWindow.__SUPABASE_WEBSOCKET_INSTANCES__;
+    vi.clearAllMocks();
+    delete (window as unknown as Record<string, unknown>).__SUPABASE_WEBSOCKET_INSTANCES__;
   });
 
   it('returns error when no realtime client exists', () => {
+    mockGetSupabaseClient.mockReturnValue({});
     const result = captureRealtimeSnapshot();
     expect('error' in result).toBe(true);
     if ('error' in result) {
@@ -18,8 +25,8 @@ describe('captureRealtimeSnapshot', () => {
     }
   });
 
-  it('returns error when supabase exists but no realtime', () => {
-    testWindow.supabase = {};
+  it('returns error when client exists but no realtime', () => {
+    mockGetSupabaseClient.mockReturnValue({});
     const result = captureRealtimeSnapshot();
     expect('error' in result).toBe(true);
     if ('error' in result) {
@@ -28,14 +35,14 @@ describe('captureRealtimeSnapshot', () => {
   });
 
   it('returns snapshot with channel information', () => {
-    testWindow.supabase = {
+    mockGetSupabaseClient.mockReturnValue({
       realtime: {
         channels: {
           'test-topic': { state: 'joined', joinRef: '1', ref: '2' },
         },
         isConnected: () => true,
       },
-    };
+    });
 
     const result = captureRealtimeSnapshot();
     expect('error' in result).toBe(false);
@@ -51,13 +58,13 @@ describe('captureRealtimeSnapshot', () => {
 
   it('handles socket info when available', () => {
     const mockSocket = { readyState: 1, url: 'wss://test.supabase.co/realtime', protocol: 'wss' };
-    testWindow.supabase = {
+    mockGetSupabaseClient.mockReturnValue({
       realtime: {
         socket: mockSocket,
         channels: {},
         isConnected: () => true,
       },
-    };
+    });
 
     const result = captureRealtimeSnapshot();
     if (!('error' in result)) {
@@ -71,13 +78,13 @@ describe('captureRealtimeSnapshot', () => {
 
   it('handles conn transport info', () => {
     const mockTransport = { readyState: 1, url: 'wss://test.supabase.co/realtime' };
-    testWindow.supabase = {
+    mockGetSupabaseClient.mockReturnValue({
       realtime: {
         conn: { transport: mockTransport, connectionState: 'open' },
         channels: {},
         isConnected: () => false,
       },
-    };
+    });
 
     const result = captureRealtimeSnapshot();
     if (!('error' in result)) {
@@ -87,12 +94,12 @@ describe('captureRealtimeSnapshot', () => {
   });
 
   it('returns null socket when no socket present', () => {
-    testWindow.supabase = {
+    mockGetSupabaseClient.mockReturnValue({
       realtime: {
         channels: {},
         isConnected: () => false,
       },
-    };
+    });
 
     const result = captureRealtimeSnapshot();
     if (!('error' in result)) {

@@ -1,0 +1,187 @@
+/* ========================================= */
+/* THEME-ADAPTIVE GRADIENTS */
+/* ========================================= */
+
+/* Primary gradient for collapsed form buttons */
+.gradient-primary-collapsed {
+    background: linear-gradient(to right,
+      hsl(var(--primary) / 0.9),
+      hsl(var(--wes-pink) / 0.9),
+      hsl(var(--wes-vintage-gold) / 0.9)
+    );
+    border: 1px solid hsl(var(--primary) / 0.9);
+  }
+
+  .gradient-primary-collapsed:hover {
+    background: linear-gradient(to right,
+      hsl(var(--primary) / 1),
+      hsl(var(--wes-pink) / 1),
+      hsl(var(--wes-vintage-gold) / 1)
+    );
+  }
+
+  /* Dark mode: more visible */
+  .dark .gradient-primary-collapsed {
+    background: linear-gradient(to right,
+      hsl(var(--primary) / 0.85),
+      hsl(var(--wes-coral) / 0.8),
+      hsl(var(--wes-vintage-gold) / 0.85)
+    );
+    border: 1px solid hsl(var(--primary) / 0.8);
+  }
+
+  .dark .gradient-primary-collapsed:hover {
+    background: linear-gradient(to right,
+      hsl(var(--primary) / 0.95),
+      hsl(var(--wes-coral) / 0.9),
+      hsl(var(--wes-vintage-gold) / 0.95)
+    );
+  }
+  
+  /* Subtle gradient for expanded form buttons */
+  .gradient-primary-expanded {
+    background: linear-gradient(to right, 
+      hsl(var(--secondary) / 0.2), 
+      hsl(var(--wes-pink) / 0.2), 
+      hsl(var(--wes-vintage-gold) / 0.2)
+    );
+    border: 1px solid hsl(var(--primary) / 0.4);
+  }
+  
+  .gradient-primary-expanded:hover {
+    background: linear-gradient(to right, 
+      hsl(var(--secondary) / 0.3), 
+      hsl(var(--wes-pink) / 0.3), 
+      hsl(var(--wes-vintage-gold) / 0.3)
+    );
+  }
+  
+  /* Theme-adaptive sparkle color */
+  .sparkle-accent {
+    color: hsl(var(--wes-vintage-gold));
+  }
+
+  /* ========================================= */
+  /* DYNAMIC THEME-ADAPTIVE UTILITY CLASSES */
+  /* ========================================= */
+  
+  /* Background colors */
+  .bg-theme-primary { background-color: hsl(var(--primary)); }
+  .bg-theme-secondary { background-color: hsl(var(--secondary)); }
+  .bg-theme-accent { background-color: hsl(var(--wes-vintage-gold)); }
+  .bg-theme-surface { background-color: hsl(var(--background)); }
+  .bg-theme-tertiary { background-color: hsl(var(--wes-pink)); }
+  .bg-theme-neutral { background-color: hsl(var(--foreground)); }
+  
+  /* Background colors with opacity */
+  .bg-theme-primary\/10 { background-color: hsl(var(--primary) / 0.1); }
+  .bg-theme-primary\/20 { background-color: hsl(var(--primary) / 0.2); }
+  .bg-theme-secondary\/10 { background-color: hsl(var(--secondary) / 0.1); }
+  .bg-theme-secondary\/20 { background-color: hsl(var(--secondary) / 0.2); }
+  .bg-theme-accent\/10 { background-color: hsl(var(--wes-vintage-gold) / 0.1); }
+  .bg-theme-accent\/20 { background-color: hsl(var(--wes-vintage-gold) / 0.2); }
+  .bg-theme-tertiary\/10 { background-color: hsl(var(--wes-pink) / 0.1); }
+  .bg-theme-tertiary\/20 { background-color: hsl(var(--wes-pink) / 0.2); }
+  
+  /* Text colors */
+  .text-theme-primary { color: hsl(var(--primary)); }
+  .text-theme-secondary { color: hsl(var(--secondary)); }
+  .text-theme-accent { color: hsl(var(--wes-vintage-gold)); }
+  .text-theme-surface { color: hsl(var(--background)); }
+  .text-theme-tertiary { color: hsl(var(--wes-pink)); }
+  .text-theme-neutral { color: hsl(var(--foreground)); }
+  
+  /* Border colors */
+  .border-theme-primary { border-color: hsl(var(--primary)); }
+  .border-theme-secondary { border-color: hsl(var(--secondary)); }
+  .border-theme-accent { border-color: hsl(var(--wes-vintage-gold)); }
+  .border-theme-tertiary { border-color: hsl(var(--wes-pink)); }
+  
+  /* Gradient utilities */
+  .from-theme-primary { --tw-gradient-from: hsl(var(--primary)) var(--tw-gradient-from-position); }
+  .from-theme-secondary { --tw-gradient-from: hsl(var(--secondary)) var(--tw-gradient-from-position); }
+  .from-theme-accent { --tw-gradient-from: hsl(var(--wes-vintage-gold)) var(--tw-gradient-from-position); }
+  .from-theme-surface { --tw-gradient-from: hsl(var(--background)) var(--tw-gradient-from-position); }
+  .from-theme-tertiary { --tw-gradient-from: hsl(var(--wes-pink)) var(--tw-gradient-from-position); }
+  
+  .to-theme-primary { --tw-gradient-to: hsl(var(--primary)) var(--tw-gradient-to-position); }
+  .to-theme-secondary { --tw-gradient-to: hsl(var(--secondary)) var(--tw-gradient-to-position); }
+  .to-theme-accent { --tw-gradient-to: hsl(var(--wes-vintage-gold)) var(--tw-gradient-to-position); }
+  .to-theme-surface { --tw-gradient-to: hsl(var(--background)) var(--tw-gradient-to-position); }
+  .to-theme-tertiary { --tw-gradient-to: hsl(var(--wes-pink)) var(--tw-gradient-to-position); }
+
+  /* ========================================= */
+  /* THEME-ADAPTIVE TYPOGRAPHY UTILITIES */
+  /* ========================================= */
+  
+  /* Font family utilities */
+  .font-theme { font-family: var(--theme-font-family, 'Inter', sans-serif); }
+  .font-heading { font-family: var(--theme-heading-font, 'TTGertika', sans-serif); }
+  
+  /* Font weight utilities - adapt to current theme */
+  .font-theme-light { font-weight: var(--theme-light-weight, 300); }
+  .font-theme-body { font-weight: var(--theme-body-weight, 400); }
+  .font-theme-medium { font-weight: var(--theme-medium-weight, 500); }
+  .font-theme-heading { font-weight: var(--theme-heading-weight, 600); }
+  .font-theme-bold { font-weight: var(--theme-bold-weight, 700); }
+  
+  /* Override existing font-light classes to be theme-adaptive */
+  .font-light {
+    font-weight: var(--theme-light-weight, 300);
+  }
+  
+  .font-medium {
+    font-weight: var(--theme-medium-weight, 400);
+  }
+  
+  .font-semibold {
+    font-weight: var(--theme-heading-weight, 350);
+  }
+
+  /* Decorative frame elements */
+  .wes-frame {
+    @apply relative;
+  }
+  
+  .wes-frame::before {
+    content: '';
+    @apply absolute inset-0 pointer-events-none;
+    border: 3px solid hsl(var(--primary) / 0.15);
+    border-radius: inherit;
+    box-shadow: 
+      inset 0 0 0 2px hsl(var(--background)),
+      inset 0 0 0 6px hsl(var(--accent) / 0.1),
+      0 0 0 1px hsl(var(--primary) / 0.1);
+  }
+
+  .wes-ornate-frame {
+    @apply relative;
+  }
+
+  .wes-ornate-frame::before {
+    content: '';
+    @apply absolute inset-0 pointer-events-none;
+    border: 4px solid hsl(var(--primary) / 0.2);
+    border-radius: inherit;
+    border-image: linear-gradient(45deg, 
+      hsl(var(--wes-vintage-gold)), 
+      hsl(var(--wes-dusty-lavender)), 
+      hsl(var(--wes-dusty-blue)), 
+      hsl(var(--wes-vintage-gold))
+    ) 1;
+    box-shadow: 
+      inset 0 0 0 2px hsl(var(--background)),
+      inset 0 0 0 8px hsl(var(--accent) / 0.08),
+      inset 0 0 0 12px hsl(var(--wes-vintage-gold) / 0.05),
+      0 2px 20px hsl(var(--primary) / 0.15);
+  }
+
+  .wes-ornate-frame::after {
+    content: '';
+    @apply absolute inset-2 pointer-events-none;
+    background: 
+      radial-gradient(circle at 10px 10px, hsl(var(--wes-vintage-gold) / 0.1) 1px, transparent 1px),
+      radial-gradient(circle at 25px 25px, hsl(var(--wes-dusty-lavender) / 0.1) 1px, transparent 1px);
+    background-size: 20px 20px, 50px 50px;
+    border-radius: inherit;
+  }

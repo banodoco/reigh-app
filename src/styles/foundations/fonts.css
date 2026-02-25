@@ -1,0 +1,89 @@
+/* TT Gertika Font Face Declarations */
+@font-face {
+  font-family: 'TTGertika';
+  src: url('/fonts/tt_gertika/TT_Gertika_Trial_Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TTGertika';
+  src: url('/fonts/tt_gertika/TT_Gertika_Trial_Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TTGertika';
+  src: url('/fonts/tt_gertika/TT_Gertika_Trial_Black.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Cocogoose Font Face Declarations - Using cleaner variants */
+
+/* Primary font - Clean Semilight Italic for main text */
+@font-face {
+  font-family: 'Cocogoose';
+  src: url('/fonts/Cocogoose-Pro-Semilight-Italic-trial.ttf') format('truetype');
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* Regular weight - Clean Regular instead of Letterpress */
+@font-face {
+  font-family: 'Cocogoose';
+  src: url('/fonts/Cocogoose-Pro-Regular-trial.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Light weight - Clean version */
+@font-face {
+  font-family: 'Cocogoose';
+  src: url('/fonts/Cocogoose-Pro-Light-trial.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Ultralight weight */
+@font-face {
+  font-family: 'Cocogoose';
+  src: url('/fonts/Cocogoose-Pro-Ultralight-trial.ttf') format('truetype');
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Bold weight */
+@font-face {
+  font-family: 'Cocogoose';
+  src: url('/fonts/Cocogoose-Pro-Bold-trial.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Semilight regular (non-italic) */
+@font-face {
+  font-family: 'Cocogoose';
+  src: url('/fonts/Cocogoose-Pro-Semilight-trial.ttf') format('truetype');
+  font-weight: 350;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Keep letterpress as a special decorative variant */
+@font-face {
+  font-family: 'CocogooseLetterpress';
+  src: url('/fonts/Cocogoose-Pro-Letterpress-Regular-trial.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}

@@ -1,0 +1,118 @@
+{
+  "batch": "Design Coherence — Mechanical Concern Signals",
+  "batch_index": 7,
+  "assessments": {
+    "design_coherence": 58.0
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "Orchestration hooks combine many unrelated concerns in single units: `useTimelineOrchestrator` handles drag, drop, zoom, endpoint editing, selection, pending-frame state, structure-video placement, and prefetch wiring in one 680-line hook.",
+        "`useTimelineCore` exposes a very broad API surface (position ops, item lifecycle ops, pair prompts, segment overrides, enhanced prompt lifecycle, normalization/refetch) while also owning Supabase persistence and invalidation policy.",
+        "Controller/composition layers are largely pass-through with wide parameter blobs (`useGenerationController`, `useEditingController`, `useFormSubmission` -> `useSubmissionHandlers`), increasing indirection without sharply reducing local complexity."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "timeline_orchestrator_mixed_responsibilities",
+      "summary": "Timeline orchestration hook mixes multiple independent interaction domains into one structural hotspot.",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts",
+        "src/tools/travel-between-images/components/Timeline/utils/timeline-utils.ts",
+        "src/tools/travel-between-images/components/Timeline/hooks/useTapToMove.ts"
+      ],
+      "evidence": [
+        "`useTimelineOrchestrator` owns drag/drop, zoom-center math, endpoint drag, selection lock/unlock, pending-frame staging, structure video placement, and viewport scroll stabilization in one hook.",
+        "The return model is a large nested facade (`geometry`, `interaction`, `data`) exposing many subdomains, indicating it has become a subsystem boundary rather than a focused hook.",
+        "Frame math and placement rules are split between orchestrator inline logic and utility helpers, so core rules are partially centralized and partially embedded."
+      ],
+      "suggestion": "Split into domain coordinators with explicit contracts: `useTimelineGeometry`, `useTimelineInteractionController`, and `useTimelineMediaPlacement`; keep a thin composition hook that only wires those modules.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "timeline_core_god_interface",
+      "summary": "Timeline core hook combines persistence, business rules, and multiple feature APIs behind one large contract.",
+      "related_files": [
+        "src/shared/hooks/useTimelineCore.ts",
+        "src/shared/hooks/timeline/useTimelineFrameUpdates.ts",
+        "src/shared/hooks/segments/useSegmentOutputsForShot.ts"
+      ],
+      "evidence": [
+        "`useTimelineCore` defines a broad `TimelineCoreResult` containing position operations, item CRUD-like operations, pair prompt updates, segment override reads/writes, enhanced prompt operations, normalize/refetch control, and data derivation.",
+        "The same module also embeds Supabase mutation flows and invalidation behavior, so state derivation, persistence, and policy are tightly coupled.",
+        "Downstream features (timeline updates/segments) depend on this wide contract, increasing coupling and making partial reuse difficult."
+      ],
+      "suggestion": "Refactor to smaller capability hooks (positioning, pair-prompts, segment-overrides, enhanced-prompts) backed by a shared repository layer; retain one compatibility facade only if migration is needed.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "controller_param_blob_pass_through",
+      "summary": "Controller hooks use oversized parameter bags and mostly forward values, creating indirection-heavy design.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/controllers/useGenerationController.ts",
+        "src/tools/travel-between-images/components/ShotEditor/controllers/useEditingController.ts",
+        "src/shared/components/ImageGenerationForm/hooks/useFormSubmission.ts",
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmissionHandlers.ts"
+      ],
+      "evidence": [
+        "`useGenerationController` accepts a very large prop interface spanning prompt, motion, model, join, persistence, UI loading, and handler wiring, then mostly forwards these to `useGenerateBatch` and small adapters.",
+        "`useEditingController` aggregates many settings/handlers and returns a flattened mega-object, becoming an integration bus rather than a focused controller.",
+        "`useFormSubmission` and `useSubmissionHandlers` form layered wrappers where most fields are passed through unchanged to deeper hooks."
+      ],
+      "suggestion": "Define cohesive domain input objects (e.g., `promptConfig`, `motionConfig`, `joinConfig`, `uiPolicy`) and move translation to one boundary mapper so controller layers own decisions instead of forwarding.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "desktop_mobile_feature_drift_duplication",
+      "summary": "Desktop and mobile shot image managers implement overlapping workflows separately, increasing design drift risk.",
+      "related_files": [
+        "src/shared/components/ShotImageManager/ShotImageManagerDesktop.tsx",
+        "src/shared/components/ShotImageManager/ShotImageManagerMobile.tsx",
+        "src/shared/components/ShotImageManager/hooks/useLightbox.ts"
+      ],
+      "evidence": [
+        "Both components manage selection, batch operations, optimistic behavior, and shot-related actions, but each reimplements local state machines and timing behavior differently.",
+        "Desktop component embeds task prefetch, pending-open resolution, and scrubbing preview orchestration; mobile component embeds separate optimistic reconciliation and move-mode logic.",
+        "Common behavior lives partly in hooks and partly duplicated in component-level effects/callbacks, making parity maintenance expensive."
+      ],
+      "suggestion": "Extract a shared `useShotImageManagerController` for common selection/batch/optimistic flows, then keep desktop/mobile components focused on rendering and platform-specific interaction details.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "edge_function_entrypoint_pattern_drift",
+      "summary": "Edge functions use inconsistent entrypoint structure, splitting cross-cutting concerns between shared and ad-hoc patterns.",
+      "related_files": [
+        "supabase/functions/claim-next-task/index.ts",
+        "supabase/functions/generate-upload-url/index.ts",
+        "supabase/functions/update-shot-pair-prompts/index.ts",
+        "supabase/functions/calculate-task-cost/index.ts"
+      ],
+      "evidence": [
+        "`claim-next-task` uses shared runtime/request helpers (`initEdgeRuntime`, `ensureRequestMethod`, `parseJsonBodyLoose`) while others hand-roll method/env/body/auth flow.",
+        "Different functions mix `req.json()` vs `req.text()+JSON.parse`, custom response builders vs direct `Response`, and different logging/bootstrap sequences.",
+        "This indicates no single enforced shape for edge entrypoints, so structural behavior for auth/method/body/error boundaries can drift over time."
+      ],
+      "suggestion": "Adopt one shared edge handler template (bootstrap, auth gate, method guard, body parsing, response helpers) and migrate remaining functions incrementally to reduce structural variance.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

@@ -30,8 +30,8 @@ vi.mock('@/shared/lib/videoPosterExtractor', () => ({
   extractVideoFinalFrame: vi.fn(),
 }));
 
-vi.mock('@/shared/lib/errorHandler', () => ({
-  handleError: vi.fn(),
+vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
+  normalizeAndPresentError: vi.fn(),
 }));
 
 vi.mock('@dnd-kit/sortable', () => ({

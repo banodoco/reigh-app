@@ -1,0 +1,19 @@
+{
+  "test:contracts": [
+    "src/shared/components/ui/contracts/button.tsx",
+    "src/shared/components/ui/contracts/cn.ts",
+    "src/shared/lib/errorHandling/runtimeError.ts",
+    "src/domains/generation/types/public.ts"
+  ],
+  "test:arch": [
+    "src/shared/lib/errorHandling/runtimeError.ts",
+    "src/integrations/supabase/client.ts",
+    "docs/governance/contracts/compatibility-shims.md"
+  ],
+  "quality:check": [
+    "src/integrations/supabase/client.ts",
+    "src/shared/lib/errorHandling/runtimeError.ts",
+    "src/shared/components/ui/contracts/button.tsx",
+    "src/shared/components/ui/contracts/cn.ts"
+  ]
+}

@@ -1,0 +1,113 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 68.0,
+    "mid_level_elegance": 71.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "Task payload interfaces are very wide and multi-purpose: `JoinClipsTaskParams` in `src/shared/lib/tasks/joinClips.ts` and `TravelBetweenImagesTaskParamsInput` handling in `src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts` combine orchestration, UI-restoration, legacy compatibility, and runtime execution fields in one bag.",
+        "`src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx` repeatedly re-wraps existing state into intermediate objects (`lightboxCore`, `lightboxMedia`, `lightboxVariants`, etc.) before passing to `LightboxLayout`, adding indirection without reducing responsibility.",
+        "`src/shared/lib/taskParamsUtils.ts` centralizes extraction, but parallel ad-hoc parameter interpretation still exists in task builders and completion handlers, reducing leverage of shared abstractions."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 64.0,
+        "indirection_cost": 66.0,
+        "interface_honesty": 70.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Boundary translation logic for orchestration identifiers is duplicated across client and server seams: `buildRunIdFilter`/`buildOrchestratorTaskFilter` in `supabase/functions/complete_task/orchestrator.ts` and multi-location task param reads in `src/shared/lib/taskParamsUtils.ts` both compensate for multiple contract shapes.",
+        "`src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts` mixes UI callbacks with direct Supabase deletes, cross-query cache mutation, and repeated invalidation patterns, creating a leaky integration seam between presentation and data orchestration.",
+        "`supabase/functions/complete_task/generation.ts` uses multi-branch params-driven routing with silent fallthrough between variant/child/standalone paths, making cross-module lifecycle outcomes harder to predict."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "orchestration_contract_fragmentation",
+      "summary": "Orchestrator identity is resolved through multiple fallback shapes across layers.",
+      "related_files": [
+        "supabase/functions/complete_task/orchestrator.ts",
+        "src/shared/lib/taskParamsUtils.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts"
+      ],
+      "evidence": [
+        "`orchestrator.ts` builds `.or(...)` filters for four run-id locations and four orchestrator-id locations, showing no single canonical contract.",
+        "`taskParamsUtils.ts` and payload builders read from top-level params, `orchestrator_details`, and `full_orchestrator_payload` with fallback chains.",
+        "This creates translation burden at each handoff and increases risk of partial updates when adding/removing fields."
+      ],
+      "suggestion": "Define one canonical orchestration envelope (for example, always under `orchestration_contract`) and add a single adapter at ingress/legacy boundaries; remove downstream fallback reads once backfilled.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "task_param_god_objects",
+      "summary": "Task APIs use oversized parameter bags that mix unrelated concerns.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts"
+      ],
+      "evidence": [
+        "`JoinClipsTaskParams` includes clip sequencing, runtime controls, lineage, UI restoration, video-edit specifics, and audio fields in one interface.",
+        "`IndividualTravelSegmentParams` similarly mixes parent linkage, segment routing mode, prompt/LoRA overrides, structure guidance, and SVI runtime fields.",
+        "Large optional bags force defensive parsing and branch-heavy builders instead of explicit mode-specific contracts."
+      ],
+      "suggestion": "Split parameter types by mode and stage (input form model vs normalized orchestration payload vs worker runtime params) and use discriminated unions so each path receives only required fields.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "lightbox_rendermodel_indirection",
+      "summary": "Video lightbox render model adds pass-through abstraction layers with little behavior gain.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/VideoLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "`useVideoLightboxScreenModel` composes several model objects and forwards them largely unchanged.",
+        "`useVideoLightboxRenderModel` constructs multiple memoized wrapper objects (`lightboxCore`, `lightboxMedia`, `lightboxVariants`, etc.) that mainly rename/relay existing state.",
+        "`LightboxLayout` still consumes a very broad prop/context surface, so the extra model layer does not significantly shrink interface complexity."
+      ],
+      "suggestion": "Collapse pass-through model objects into fewer domain-focused contracts (navigation, media state, edit state), and move only true translation logic into dedicated mappers.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "ui_data_orchestration_coupling",
+      "summary": "Shot editor callback hook owns UI behavior and backend/cache orchestration simultaneously.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/shared/hooks/useGenerationMutations.ts",
+        "src/shared/hooks/useTasks.ts"
+      ],
+      "evidence": [
+        "`useShotImagesEditorCallbacks` performs Supabase reads/deletes, infers pair linkage from nested params, mutates query caches directly, and invalidates multiple query families.",
+        "Data-layer patterns here differ from centralized mutation hooks (`useGenerationMutations`) and query orchestration in `useTasks`, creating inconsistent seam ownership.",
+        "The callback hook becomes a high-churn integration point for UI, persistence, and cache coherence concerns."
+      ],
+      "suggestion": "Extract segment deletion and cache reconciliation into a dedicated domain mutation/service hook, then keep `useShotImagesEditorCallbacks` focused on UI event wiring.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

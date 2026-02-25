@@ -2,7 +2,7 @@ import * as React from "react"
 import { Checkbox as CheckboxPrimitive } from "@base-ui-components/react/checkbox"
 import { Check } from "lucide-react"
 import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from "@/shared/lib/utils"
+import { cn } from "@/shared/components/ui/contracts/cn"
 
 const checkboxVariants = cva(
   "peer flex items-center justify-center shrink-0 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",

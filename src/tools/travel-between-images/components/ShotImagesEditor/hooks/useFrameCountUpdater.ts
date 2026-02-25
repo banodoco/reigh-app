@@ -5,8 +5,8 @@
 
 import { useCallback, type RefObject } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import type { GenerationRow } from '@/types/shots';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import type { GenerationRow } from '@/domains/generation/types';
 import {
   runSerializedTimelineWrite,
   runTimelineWriteWithTimeout,
@@ -149,8 +149,7 @@ export function useFrameCountUpdater({
           const current = await runTimelineWriteWithTimeout(
             'segment-trailing-fetch-metadata',
             async () => {
-              const { data, error } = await supabase
-                .from('shot_generations')
+              const { data, error } = await supabase().from('shot_generations')
                 .select('metadata')
                 .eq('id', pairShotGenerationId)
                 .single();
@@ -174,8 +173,7 @@ export function useFrameCountUpdater({
           await runTimelineWriteWithTimeout(
             'segment-trailing-update-metadata',
             async (signal) => {
-              const { error } = await supabase
-                .from('shot_generations')
+              const { error } = await supabase().from('shot_generations')
                 .update({
                   metadata: {
                     ...currentMetadata,

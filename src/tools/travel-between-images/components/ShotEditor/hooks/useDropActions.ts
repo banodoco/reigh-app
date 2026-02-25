@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react';
-import { toast } from "@/shared/components/ui/sonner";
-import { handleError } from "@/shared/lib/errorHandling/handleError";
-import { GenerationRow, Shot } from "@/types/shots";
+import { toast } from "@/shared/components/ui/runtime/sonner";
+import { normalizeAndPresentError } from "@/shared/lib/errorHandling/runtimeError";
+import { GenerationRow, Shot } from "@/domains/generation/types";
 import { useProject } from "@/shared/contexts/ProjectContext";
 import {
   useAddImageToShot,
@@ -9,7 +9,7 @@ import {
 } from "@/shared/hooks/shots";
 import { useQueryClient } from '@tanstack/react-query';
 import { useToolSettings } from '@/shared/hooks/useToolSettings';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import {
   cropImagesToShotAspectRatio,
   fetchNextAvailableFrameForShot,
@@ -18,6 +18,7 @@ import {
 import { DEFAULT_FRAME_SPACING } from '@/shared/lib/timelinePositionCalculator';
 import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
 import { useDemoteOrphanedVariants } from '../../../hooks/useDemoteOrphanedVariants';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 
 interface UseDropActionsProps {
   actions: {
@@ -39,7 +40,7 @@ export const useDropActions = ({
   const addImageToShotMutation = useAddImageToShot();
   const handleExternalImageDropMutation = useHandleExternalImageDrop();
   const { demoteOrphanedVariants } = useDemoteOrphanedVariants();
-  const { settings: uploadSettings } = useToolSettings<{ cropToProjectSize?: boolean }>('upload', { projectId });
+  const { settings: uploadSettings } = useToolSettings<{ cropToProjectSize?: boolean }>(SETTINGS_IDS.UPLOAD, { projectId });
 
   // Stability refs - prevent callback recreation when data/mutation state changes
   const selectedShotRef = useRef(selectedShot);
@@ -125,8 +126,7 @@ export const useDropActions = ({
       // 5. If positions weren't set by the upload mutation, set them now
       if (result.generationIds.length > 0) {
         const needsPositionUpdate = await (async () => {
-          const { data } = await supabase
-            .from('shot_generations')
+          const { data } = await supabase().from('shot_generations')
             .select('id, timeline_frame')
             .eq('shot_id', currentShot.id)
             .in('generation_id', result.generationIds)
@@ -149,7 +149,7 @@ export const useDropActions = ({
       await demoteOrphanedVariantsRef.current(currentShot.id, 'image-add');
 
     } catch (error) {
-      handleError(error, { context: 'TimelineDrop', toastTitle: 'Failed to add images' });
+      normalizeAndPresentError(error, { context: 'TimelineDrop', toastTitle: 'Failed to add images' });
       throw error;
     } finally {
       actionsRef.current.setUploadingImage(false);
@@ -191,7 +191,7 @@ export const useDropActions = ({
       // Demote orphaned video variants now that the new image is in place
       await demoteOrphanedVariantsRef.current(currentShot.id, 'image-add');
     } catch (error) {
-      handleError(error, { context: 'GenerationDrop', toastTitle: 'Failed to add generation' });
+      normalizeAndPresentError(error, { context: 'GenerationDrop', toastTitle: 'Failed to add generation' });
       throw error;
     }
   }, []);
@@ -300,8 +300,7 @@ export const useDropActions = ({
       }
 
       // 5. If positions weren't set by the upload, set them now (fallback)
-      const { data: checkData } = await supabase
-        .from('shot_generations')
+      const { data: checkData } = await supabase().from('shot_generations')
         .select('id, timeline_frame')
         .eq('shot_id', currentShot.id)
         .in('generation_id', result.generationIds)
@@ -320,7 +319,7 @@ export const useDropActions = ({
       await demoteOrphanedVariantsRef.current(currentShot.id, 'image-add');
 
     } catch (error) {
-      handleError(error, { context: 'BatchDrop', toastTitle: 'Failed to add images' });
+      normalizeAndPresentError(error, { context: 'BatchDrop', toastTitle: 'Failed to add images' });
 
       // Remove optimistic items on error
       const currentCache = queryClientRef.current.getQueryData<GenerationRow[]>(generationQueryKeys.byShot(currentShot.id)) || [];
@@ -373,7 +372,7 @@ export const useDropActions = ({
       // Demote orphaned video variants now that the new image is in place
       await demoteOrphanedVariantsRef.current(currentShot.id, 'image-add');
     } catch (error) {
-      handleError(error, { context: 'BatchDrop', toastTitle: 'Failed to add generation' });
+      normalizeAndPresentError(error, { context: 'BatchDrop', toastTitle: 'Failed to add generation' });
       throw error;
     }
   }, []);

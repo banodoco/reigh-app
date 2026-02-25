@@ -10,17 +10,17 @@ import { Button } from '@/shared/components/ui/button';
 import { useExtraLargeModal } from '@/shared/hooks/useModal';
 import { ImageGenerationForm } from '@/shared/components/ImageGenerationForm';
 import { createBatchImageGenerationTasks, BatchImageGenerationTaskParams } from '@/shared/lib/tasks/imageGeneration';
-import { useApiKeys } from '@/shared/hooks/useApiKeys';
+import { useApiKeys } from '@/features/settings/hooks/useApiKeys';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import { toast } from '@/shared/components/ui/sonner';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { useTaskPlaceholder } from '@/shared/hooks/useTaskPlaceholder';
 import { Skeleton } from '@/shared/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { TOOL_ROUTES } from '@/shared/lib/toolConstants';
+import { TOOL_ROUTES } from '@/shared/lib/toolRoutes';
 
 interface ImageGenerationModalProps {
   isOpen: boolean;

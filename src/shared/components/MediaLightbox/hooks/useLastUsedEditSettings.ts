@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useToolSettings } from '@/shared/hooks/useToolSettings';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 
 // Import canonical types from single source of truth
 import {
@@ -77,7 +78,7 @@ export function useLastUsedEditSettings({
     settings: dbSettings,
     isLoading: isDbLoading,
     update: updateDbSettings,
-  } = useToolSettings<LastUsedEditSettings>('lightbox-edit', {
+  } = useToolSettings<LastUsedEditSettings>(SETTINGS_IDS.LIGHTBOX_EDIT, {
     projectId: projectId || undefined,
     enabled: enabled && !!projectId,
   });

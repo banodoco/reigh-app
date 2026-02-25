@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { toJson } from '@/shared/lib/supabaseTypeHelpers';
 import { useInvalidateGenerations } from '@/shared/hooks/invalidation/useGenerationInvalidation';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 interface ShotGenerationMetadata {
   magicEditPrompts?: Array<{
@@ -51,14 +51,13 @@ export function useShotGenerationMetadata({
     const loadMetadata = async () => {
       try {
         
-        const { data, error } = await supabase
-          .from('shot_generations')
+        const { data, error } = await supabase().from('shot_generations')
           .select('metadata')
           .eq('id', shotGenerationId)
           .maybeSingle();
 
         if (error) {
-          handleError(error, { context: 'useShotGenerationMetadata.load', showToast: false, logData: { shotGenerationId: shotGenerationId.substring(0, 8) } });
+          normalizeAndPresentError(error, { context: 'useShotGenerationMetadata.load', showToast: false, logData: { shotGenerationId: shotGenerationId.substring(0, 8) } });
           if (!cancelled) {
             setMetadata({});
             setIsLoading(false);
@@ -73,7 +72,7 @@ export function useShotGenerationMetadata({
           setIsLoading(false);
         }
       } catch (err) {
-        handleError(err, { context: 'useShotGenerationMetadata.loadMetadata', showToast: false });
+        normalizeAndPresentError(err, { context: 'useShotGenerationMetadata.loadMetadata', showToast: false });
         if (!cancelled) {
           setMetadata({});
           setIsLoading(false);
@@ -97,13 +96,12 @@ export function useShotGenerationMetadata({
     try {
       const newMetadata = { ...metadata, ...updates };
       
-      const { error } = await supabase
-        .from('shot_generations')
+      const { error } = await supabase().from('shot_generations')
         .update({ metadata: toJson(newMetadata) })
         .eq('id', shotGenerationId);
 
       if (error) {
-        handleError(error, { context: 'useShotGenerationMetadata.update', showToast: false, logData: { shotGenerationId: shotGenerationId.substring(0, 8) } });
+        normalizeAndPresentError(error, { context: 'useShotGenerationMetadata.update', showToast: false, logData: { shotGenerationId: shotGenerationId.substring(0, 8) } });
         throw error;
       }
 
@@ -119,7 +117,7 @@ export function useShotGenerationMetadata({
       }
 
     } catch (error) {
-      handleError(error, { context: 'useShotGenerationMetadata.updateMetadata', showToast: false });
+      normalizeAndPresentError(error, { context: 'useShotGenerationMetadata.updateMetadata', showToast: false });
       throw error;
     } finally {
       setIsUpdating(false);

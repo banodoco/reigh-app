@@ -5,10 +5,10 @@
  * This is used to generate missing thumbnails for videos that don't have them.
  */
 
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { getDisplayUrl } from '@/shared/lib/mediaUrl';
 import { storagePaths, MEDIA_BUCKET } from '@/shared/lib/storagePaths';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 interface ThumbnailGenerationResult {
   success: boolean;
@@ -102,7 +102,7 @@ async function uploadThumbnailToStorage(
   _projectId: string
 ): Promise<string> {
   // Get userId for storage path
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await supabase().auth.getSession();
   if (!session?.user?.id) {
     throw new Error('User not authenticated');
   }
@@ -111,7 +111,7 @@ async function uploadThumbnailToStorage(
   const fileName = `${generationId}-thumb.jpg`;
   const filePath = storagePaths.thumbnail(userId, fileName);
 
-  const { error } = await supabase.storage
+  const { error } = await supabase().storage
     .from(MEDIA_BUCKET)
     .upload(filePath, blob, {
       contentType: 'image/jpeg',
@@ -124,7 +124,7 @@ async function uploadThumbnailToStorage(
   }
 
   // Get public URL
-  const { data: urlData } = supabase.storage
+  const { data: urlData } = supabase().storage
     .from(MEDIA_BUCKET)
     .getPublicUrl(filePath);
 
@@ -139,8 +139,7 @@ async function updateGenerationThumbnail(
   thumbnailUrl: string
 ): Promise<void> {
 
-  const { error } = await supabase
-    .from('generations')
+  const { error } = await supabase().from('generations')
     .update({ thumbnail_url: thumbnailUrl })
     .eq('id', generationId);
 
@@ -174,7 +173,7 @@ export async function generateAndUploadThumbnail(
       thumbnailUrl,
     };
   } catch (error) {
-    handleError(error, { context: 'VideoThumbnailGenerator', showToast: false });
+    normalizeAndPresentError(error, { context: 'VideoThumbnailGenerator', showToast: false });
 
     return {
       success: false,
@@ -205,7 +204,7 @@ export async function extractAndUploadThumbnailOnly(
       thumbnailUrl,
     };
   } catch (error) {
-    handleError(error, { context: 'VideoThumbnailGenerator', showToast: false });
+    normalizeAndPresentError(error, { context: 'VideoThumbnailGenerator', showToast: false });
 
     return {
       success: false,

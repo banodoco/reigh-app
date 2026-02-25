@@ -1,0 +1,60 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 5,
+  "assessments": {
+    "high_level_elegance": 82.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/hooks/useDerivedItems.ts` directly couples to Supabase tables (`generations`, `generation_variants`), generation query keys, and generation-specific transformers while living under a generic `shared/hooks` package.",
+        "`src/shared/hooks/useDeleteGenerationWithConfirm.tsx` is a generation-domain workflow hook (mutation + delete-confirm dialog state) but is also placed in `shared/hooks`, blurring domain ownership.",
+        "`src/shared/components/ConstellationCanvas.tsx` contains app-specific branded behavior (`createClaudeStar`) and substantial scene logic while being packaged as a generic shared component."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "domain_hooks_in_shared_bucket",
+      "summary": "Generation-specific orchestration hooks are placed in `shared/hooks`, obscuring ownership boundaries.",
+      "related_files": [
+        "src/shared/hooks/useDerivedItems.ts",
+        "src/shared/hooks/useDeleteGenerationWithConfirm.tsx",
+        "src/shared/hooks/__tests__/useDerivedItems.test.ts",
+        "src/shared/hooks/__tests__/useDeleteGenerationWithConfirm.test.ts"
+      ],
+      "evidence": [
+        "`useDerivedItems` performs generation-domain data access and transformation (Supabase queries, variant model logic, generation query keys).",
+        "`useDeleteGenerationWithConfirm` coordinates generation deletion mutation and delete-confirm dialog state.",
+        "Both are in `shared/hooks`, which implies cross-domain reuse rather than generation-domain ownership."
+      ],
+      "suggestion": "Move these hooks into a generation/domain-scoped package (for example `src/domains/generation/hooks/`) and keep `shared/hooks` for domain-agnostic primitives only; move tests with them to preserve locality.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "feature_specific_canvas_marked_shared",
+      "summary": "A branded, behavior-heavy visual effect is packaged as a generic shared component.",
+      "related_files": [
+        "src/shared/components/ConstellationCanvas.tsx",
+        "src/shared/components/ConstellationCanvas.test.tsx",
+        "src/shared/components/CreateProjectModal.test.tsx"
+      ],
+      "evidence": [
+        "`ConstellationCanvas.tsx` includes specialized scene logic and `createClaudeStar`, indicating product/feature branding rather than generic UI reuse.",
+        "Its colocated test is only an export smoke test, giving no evidence of broad shared contract expectations.",
+        "Placement beside other shared UI tests suggests the directory acts as a catch-all rather than domain-aligned boundary."
+      ],
+      "suggestion": "Relocate the canvas to a feature/page-scoped area (for example landing/home visuals) and expose it through a narrow feature entrypoint if reused; keep `shared/components` for truly generic components.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useAddImageToShot, useAddImageToShotWithoutPosition } from '@/shared/hooks/shots';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import { toast as sonnerToast } from '@/shared/components/ui/sonner';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { toast as sonnerToast } from '@/shared/components/ui/runtime/sonner';
 
 interface UseShotActionsOptions {
   lightboxSelectedShotId: string | undefined;
@@ -95,7 +95,7 @@ export function useShotActions({
         next.delete(key);
         return next;
       });
-      handleError(error, { context: 'useShotActions', toastTitle: 'Failed to add to shot' });
+      normalizeAndPresentError(error, { context: 'useShotActions', toastTitle: 'Failed to add to shot' });
       return false;
     }
   }, [lightboxSelectedShotId, currentShotId, lastAffectedShotId, selectedProjectId, addImageToShotMutation, handleOptimisticPositioned]);
@@ -141,7 +141,7 @@ export function useShotActions({
         next.delete(key);
         return next;
       });
-      handleError(error, { context: 'useShotActions', toastTitle: 'Failed to add to shot' });
+      normalizeAndPresentError(error, { context: 'useShotActions', toastTitle: 'Failed to add to shot' });
       return false;
     }
   }, [lightboxSelectedShotId, currentShotId, lastAffectedShotId, selectedProjectId, addImageToShotWithoutPositionMutation, handleOptimisticUnpositioned]);

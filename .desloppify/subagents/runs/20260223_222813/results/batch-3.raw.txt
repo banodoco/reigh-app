@@ -1,0 +1,142 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 3,
+  "assessments": {
+    "abstraction_fitness": 68.0,
+    "mid_level_elegance": 72.0,
+    "low_level_elegance": 76.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "Inline edit state is passed through multiple adapter layers with large pass-through bags: `useInlineEditState` builds `UseImageEditValueModels` by copying dozens of fields, then `useImageEditValue` re-copies them again into `ImageEditState`.",
+        "`useImageEditValue` keeps both boundary and legacy shapes (`UseImageEditValueModels` + `UseImageEditValueLegacyParams`) and converts between them, adding maintenance indirection without demonstrated polymorphic usage.",
+        "`useButtonGroupProps` splits simple prop assembly into four builder functions that mainly duplicate shared fields (`isVideo`, `readOnly`, `isSpecialEditMode`, `selectedProjectId`, `isCloudMode`) across every group."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 63.0,
+        "indirection_cost": 66.0,
+        "interface_honesty": 71.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Task modules (`imageGeneration`, `magicEdit`, `zImageTurboI2I`, `joinClips`) each implement similar validate/build/create/batch orchestration flows separately, increasing seam drift risk between task families.",
+        "`DataFreshnessManager` combines polling policy with UI toasts and error messaging, while `useTasks` calls manager methods directly during query lifecycle, coupling data-fetch seams to presentation side effects.",
+        "Lightbox rendering path mutates/extends button group props in multiple layers (`useSharedLightboxState` -> render models -> layout), increasing integration friction for simple control changes."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Large field-by-field object reconstruction appears repeatedly across edit-lightbox internals (`useInlineEditState`, `useImageEditValue`) with near-identity mappings, making local logic noisy and drift-prone.",
+        "Tiny timestamp hooks (`useCompletedTimestamp`, `useProcessingTimestamp`, `useUpdatingTimestamp`) are mostly formatting wrappers over `useLiveRelativeTimestamp`, increasing helper count for minimal behavioral delta.",
+        "`useButtonGroupProps` memoizes on `[params]`, but caller creates a fresh object each render in `useSharedLightboxState`, so the memoization is effectively defeated while retaining complexity."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "inline_edit_state_adapter_stack",
+      "summary": "Inline edit state crosses multiple adapter layers that mostly re-map identical fields, creating high indirection with low leverage.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/hooks/useImageEditValue.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx"
+      ],
+      "evidence": [
+        "`useInlineEditState` builds a large `UseImageEditValueModels` object by copying values from sub-hooks, then returns another large `InlineEditStateResult` object with overlapping data.",
+        "`useImageEditValue` re-copies those model fields into `ImageEditState` via `buildModeState`, `buildCanvasAndAnnotationState`, `buildRepositionAndPanelState`, and `buildFormAndGenerationState`.",
+        "A legacy compatibility shape (`UseImageEditValueLegacyParams`) is still maintained and converted in `toModelsFromLegacy`, adding another translation seam."
+      ],
+      "suggestion": "Collapse the edit-state contract to fewer domain slices (mode/canvas/generation) passed directly from source hooks, and remove the legacy adapter path once migrated so one canonical state interface remains.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "button_group_prop_builders_overabstracted",
+      "summary": "Button-group prop assembly is over-factored into repetitive builders and memoized in a way that does not provide stable reuse.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts",
+        "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "Each builder (`buildTopLeftProps`, `buildTopRightProps`, `buildBottomLeftProps`, `buildBottomRightProps`) repeats the same shared context fields and mostly forwards values.",
+        "`useButtonGroupProps` memo dependency is `[params]`, but caller constructs an inline object in `useSharedLightboxState`, making `params` identity unstable and recomputation likely each render.",
+        "Downstream layout only needs final props objects, so the helper layer adds ceremony without reducing coupling."
+      ],
+      "suggestion": "Replace the helper chain with a single typed object assembly at callsite (or memoize with explicit primitive deps) so shared fields are declared once and recomputation semantics are explicit.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "task_creation_seam_duplication",
+      "summary": "Task-family modules duplicate the same creation pipeline, causing boundary behavior to diverge over time.",
+      "related_files": [
+        "src/shared/lib/tasks/imageGeneration.ts",
+        "src/shared/lib/tasks/magicEdit.ts",
+        "src/shared/lib/tasks/zImageTurboI2I.ts",
+        "src/shared/lib/tasks/joinClips.ts"
+      ],
+      "evidence": [
+        "Each module reimplements a similar sequence: validate params -> build task payload -> call `createTask` -> map batch with `Promise.allSettled` + `processBatchResults`.",
+        "Shared concerns (lineage fields, shot association, task defaults, orchestration contract inclusion) are not enforced by one boundary and are handled ad hoc per module.",
+        "This repeated seam appears alongside module-specific validation helpers, increasing maintenance cost when cross-cutting task behavior changes."
+      ],
+      "suggestion": "Introduce a shared task-factory abstraction for common pipeline stages (validation adapter, payload builder, single+batch execution, shared metadata injection) and keep only task-specific fields in per-module strategies.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "freshness_policy_ui_coupling",
+      "summary": "Freshness orchestration mixes transport policy and UI notification, tightening data/query seams to presentation behavior.",
+      "related_files": [
+        "src/shared/realtime/DataFreshnessManager.ts",
+        "src/shared/hooks/useTasks.ts"
+      ],
+      "evidence": [
+        "`DataFreshnessManager` contains polling interval policy, fetch failure tracking, error classification, and direct toast calls.",
+        "`useTasks` invokes `dataFreshnessManager.onFetchFailure/onFetchSuccess` directly from query flow, so data-fetch boundaries inherit UI side effects from freshness logic.",
+        "This design makes policy reuse/testing harder and expands side-effect surface for hooks that should remain query-focused."
+      ],
+      "suggestion": "Split the manager into a pure freshness-policy core and an optional notification subscriber; keep `useTasks` wired to policy signals only, with UI toasts handled in a separate presentation layer listener.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "copy_mapping_drift_risk_in_edit_state",
+      "summary": "Manual, repeated field-by-field mappings in edit-state assembly create local complexity and high drift risk.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/hooks/useImageEditValue.ts"
+      ],
+      "evidence": [
+        "Both files maintain long explicit object maps for overlapping properties (mode/canvas/reposition/form/status), with minimal transformation logic.",
+        "Several mappings are pure pass-through assignments repeated in multiple places, so adding/removing a field requires synchronized edits across adapters.",
+        "The code volume for mapping exceeds the actual behavioral logic, reducing signal-to-noise in local function internals."
+      ],
+      "suggestion": "Consolidate mappings into a single canonical mapper (or direct composition of sub-state objects) and enforce compile-time completeness checks from one location to reduce local duplication.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

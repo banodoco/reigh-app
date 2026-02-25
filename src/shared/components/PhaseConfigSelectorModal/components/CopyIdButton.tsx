@@ -1,7 +1,7 @@
 import React from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/components/ui/tooltip";
 import { Copy, Check } from 'lucide-react';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 interface CopyIdButtonProps {
   id: string;
@@ -17,7 +17,7 @@ export const CopyIdButton: React.FC<CopyIdButtonProps> = ({ id }) => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      handleError(err, { context: 'CopyIdButton', showToast: false });
+      normalizeAndPresentError(err, { context: 'CopyIdButton', showToast: false });
     }
   };
 

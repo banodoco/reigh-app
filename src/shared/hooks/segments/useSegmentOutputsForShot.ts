@@ -8,12 +8,12 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { GenerationRow } from '@/types/shots';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { GenerationRow } from '@/domains/generation/types';
 import { useSmartPollingConfig } from '@/shared/hooks/useSmartPolling';
 import { segmentQueryKeys } from '@/shared/lib/queryKeys/segments';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 // Slot type - either a real child or a placeholder for a processing segment
 export type SegmentSlot =
@@ -234,15 +234,14 @@ export function useSegmentOutputsForShot(
 
       // Single query using the shot_final_videos view
       // This replaces 3 queries + client-side filtering with 1 indexed query
-      const { data, error } = await supabase
-        .from('shot_final_videos')
+      const { data, error } = await supabase().from('shot_final_videos')
         .select('*')
         .eq('shot_id', shotId)
         .eq('project_id', projectId)
         .order('created_at', { ascending: false });
 
       if (error) {
-        handleError(error, {
+        normalizeAndPresentError(error, {
           context: 'useSegmentOutputsForShot.fetchParents',
           showToast: false,
           logData: { shotId, projectId },
@@ -334,15 +333,14 @@ export function useSegmentOutputsForShot(
 
       // [TrailingDebug] Also check if there are ANY videos with matching pair_shot_generation_id
       // This helps diagnose if videos exist but under a different parent
-      const { data, error } = await supabase
-        .from('generations')
+      const { data, error } = await supabase().from('generations')
         .select('*')
         .eq('parent_generation_id', selectedParentId)
         .order('child_order', { ascending: true })
         .order('created_at', { ascending: false });
 
       if (error) {
-        handleError(error, {
+        normalizeAndPresentError(error, {
           context: 'useSegmentOutputsForShot.fetchChildren',
           showToast: false,
           logData: { selectedParentId },
@@ -401,15 +399,14 @@ export function useSegmentOutputsForShot(
     queryFn: async () => {
       if (!shotId) return [];
 
-      const { data, error } = await supabase
-        .from('shot_generations')
+      const { data, error } = await supabase().from('shot_generations')
         .select('id, generation_id, timeline_frame')
         .eq('shot_id', shotId)
         .gte('timeline_frame', 0) // Only positioned images
         .order('timeline_frame', { ascending: true });
 
       if (error) {
-        handleError(error, {
+        normalizeAndPresentError(error, {
           context: 'useSegmentOutputsForShot.fetchLiveTimeline',
           showToast: false,
           logData: { shotId },

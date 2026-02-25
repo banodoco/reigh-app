@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { getGenerationId, getMediaUrl, getThumbnailUrl, variantToGenerationRow } from '../mediaTypeHelpers';
+import {
+  getGenerationId,
+  getMediaUrl,
+  getThumbnailUrl,
+  isPreloadableMediaUrl,
+  variantToGenerationRow,
+} from '../mediaTypeHelpers';
 
 describe('getGenerationId', () => {
   it('returns null for null/undefined input', () => {
@@ -79,6 +85,22 @@ describe('getThumbnailUrl', () => {
   });
 });
 
+describe('isPreloadableMediaUrl', () => {
+  it('rejects missing URLs', () => {
+    expect(isPreloadableMediaUrl(undefined)).toBe(false);
+    expect(isPreloadableMediaUrl(null)).toBe(false);
+    expect(isPreloadableMediaUrl('')).toBe(false);
+  });
+
+  it('rejects known non-preloadable join-clips marker URLs', () => {
+    expect(isPreloadableMediaUrl('https://example.com/output_joined_frame.jpg')).toBe(false);
+  });
+
+  it('accepts standard media URLs', () => {
+    expect(isPreloadableMediaUrl('https://example.com/image.jpg')).toBe(true);
+  });
+});
+
 describe('variantToGenerationRow', () => {
   it('transforms a full variant to generation row shape', () => {
     const variant = {
@@ -99,7 +121,8 @@ describe('variantToGenerationRow', () => {
     const result = variantToGenerationRow(variant, 'image', 'proj-1');
 
     expect(result).toEqual({
-      id: 'gen-1', // Uses getGenerationId — prefers generation_id
+      id: 'variant-1',
+      generation_id: 'gen-1',
       location: 'https://example.com/img.png',
       thumbnail_url: 'https://example.com/thumb.png',
       type: 'image',

@@ -1,19 +1,19 @@
-import { useCallback, useMemo } from 'react';
-import type { GenerationRow } from '@/types/shots';
+import { useMemo } from 'react';
 import { VideoEditPanel } from '../components/VideoEditPanel';
 import { InfoPanel } from '../components/InfoPanel';
-import { useLightboxStateValue } from './useLightboxStateValue';
-import { useLightboxWorkflowProps } from './useLightboxWorkflowProps';
-import { handleLightboxDownload } from '../utils';
 import type {
-  VideoLightboxProps,
+  VideoLightboxPropsWithMedia,
+} from '../videoLightboxContracts';
+import type {
   VideoLightboxSharedStateModel,
   VideoLightboxEditModel,
-} from '../VideoLightbox';
+} from './useVideoLightboxController';
 import type { VideoLightboxEnvironment, VideoLightboxModeModel } from './useVideoLightboxEnvironment';
+import { useVideoLightboxActions } from './useVideoLightboxActions';
+import { buildVideoLightboxLayoutState } from './useVideoLightboxLayoutState';
 
-function useVideoLightboxControlsPanel(
-  props: VideoLightboxProps,
+function buildVideoLightboxControlsPanel(
+  props: VideoLightboxPropsWithMedia,
   env: VideoLightboxEnvironment,
   sharedState: VideoLightboxSharedStateModel,
   editModel: VideoLightboxEditModel,
@@ -28,122 +28,83 @@ function useVideoLightboxControlsPanel(
   } = props;
   const selectedShotId = props.shotWorkflow?.selectedShotId;
   const primaryVariant = sharedState.variants.primaryVariant;
-  const setActiveVariantId = sharedState.variants.setActiveVariantId;
-  const handleSwitchToPrimary = useCallback(() => {
-    if (!primaryVariant) {
-      return;
+  const handleSwitchToPrimary = primaryVariant
+    ? () => {
+      sharedState.variants.setActiveVariantId(primaryVariant.id);
     }
-    setActiveVariantId(primaryVariant.id);
-  }, [primaryVariant, setActiveVariantId]);
+    : undefined;
 
-  return useMemo(() => {
-    if (!showPanel) {
-      return undefined;
-    }
+  if (!showPanel) {
+    return undefined;
+  }
 
-    if (editModel.videoMode.isInVideoEditMode && env.videoEditSubMode) {
-      return (
-        <VideoEditPanel
-          variant={panelVariant}
-          isCloudMode={env.isCloudMode}
-          trimState={editModel.videoMode.trimState}
-          onStartTrimChange={editModel.videoMode.setStartTrim}
-          onEndTrimChange={editModel.videoMode.setEndTrim}
-          onResetTrim={editModel.videoMode.resetTrim}
-          trimmedDuration={editModel.videoMode.trimmedDuration}
-          hasTrimChanges={editModel.videoMode.hasTrimChanges}
-          onSaveTrim={editModel.videoMode.saveTrimmedVideo}
-          isSavingTrim={editModel.videoMode.isSavingTrim}
-          trimSaveProgress={editModel.videoMode.trimSaveProgress}
-          trimSaveError={editModel.videoMode.trimSaveError}
-          trimSaveSuccess={editModel.videoMode.trimSaveSuccess}
-          videoUrl={sharedState.effectiveMedia.videoUrl ?? ''}
-          trimCurrentTime={editModel.videoMode.trimCurrentTime}
-          trimVideoRef={editModel.videoMode.trimVideoRef}
-          videoEditing={editModel.videoMode.videoEditing}
-          projectId={env.selectedProjectId ?? undefined}
-          regenerateFormProps={editModel.regenerateFormProps}
-          enhanceSettings={editModel.videoMode.videoEnhance.settings}
-          onUpdateEnhanceSetting={editModel.videoMode.videoEnhance.updateSetting}
-          onEnhanceGenerate={editModel.videoMode.videoEnhance.handleGenerate}
-          isEnhancing={editModel.videoMode.videoEnhance.isGenerating}
-          enhanceSuccess={editModel.videoMode.videoEnhance.generateSuccess}
-          canEnhance={editModel.videoMode.videoEnhance.canSubmit}
-          taskId={panelTaskId}
-        />
-      );
-    }
-
+  if (editModel.videoMode.isInVideoEditMode && env.videoEditSubMode) {
     return (
-      <InfoPanel
+      <VideoEditPanel
         variant={panelVariant}
-        showImageEditTools={false}
-        taskDetailsData={editModel.adjustedTaskDetailsData}
-        derivedItems={sharedState.lineage.derivedItems}
-        derivedGenerations={sharedState.lineage.derivedGenerations}
-        paginatedDerived={sharedState.lineage.paginatedDerived}
-        derivedPage={sharedState.lineage.derivedPage}
-        derivedTotalPages={sharedState.lineage.derivedTotalPages}
-        onSetDerivedPage={sharedState.lineage.setDerivedPage}
-        onNavigateToGeneration={onOpenExternalGeneration}
-        currentMediaId={media?.id || ''}
-        currentShotId={selectedShotId || shotId}
-        replaceImages={env.replaceImages}
-        onReplaceImagesChange={env.setReplaceImages}
-        onSwitchToPrimary={primaryVariant ? handleSwitchToPrimary : undefined}
+        isCloudMode={env.isCloudMode}
+        trimState={editModel.videoMode.trimState}
+        onStartTrimChange={editModel.videoMode.setStartTrim}
+        onEndTrimChange={editModel.videoMode.setEndTrim}
+        onResetTrim={editModel.videoMode.resetTrim}
+        trimmedDuration={editModel.videoMode.trimmedDuration}
+        hasTrimChanges={editModel.videoMode.hasTrimChanges}
+        onSaveTrim={editModel.videoMode.saveTrimmedVideo}
+        isSavingTrim={editModel.videoMode.isSavingTrim}
+        trimSaveProgress={editModel.videoMode.trimSaveProgress}
+        trimSaveError={editModel.videoMode.trimSaveError}
+        trimSaveSuccess={editModel.videoMode.trimSaveSuccess}
+        videoUrl={sharedState.effectiveMedia.videoUrl ?? ''}
+        trimCurrentTime={editModel.videoMode.trimCurrentTime}
+        trimVideoRef={editModel.videoMode.trimVideoRef}
+        videoEditing={editModel.videoMode.videoEditing}
+        projectId={env.selectedProjectId ?? undefined}
+        regenerateFormProps={editModel.regenerateFormProps}
+        enhanceSettings={editModel.videoMode.videoEnhance.settings}
+        onUpdateEnhanceSetting={editModel.videoMode.videoEnhance.updateSetting}
+        onEnhanceGenerate={editModel.videoMode.videoEnhance.handleGenerate}
+        isEnhancing={editModel.videoMode.videoEnhance.isGenerating}
+        enhanceSuccess={editModel.videoMode.videoEnhance.generateSuccess}
+        canEnhance={editModel.videoMode.videoEnhance.canSubmit}
         taskId={panelTaskId}
       />
     );
-  }, [
-    showPanel,
-    editModel.videoMode.isInVideoEditMode,
-    env.videoEditSubMode,
-    panelVariant,
-    env.isCloudMode,
-    editModel.videoMode.trimState,
-    editModel.videoMode.setStartTrim,
-    editModel.videoMode.setEndTrim,
-    editModel.videoMode.resetTrim,
-    editModel.videoMode.trimmedDuration,
-    editModel.videoMode.hasTrimChanges,
-    editModel.videoMode.saveTrimmedVideo,
-    editModel.videoMode.isSavingTrim,
-    editModel.videoMode.trimSaveProgress,
-    editModel.videoMode.trimSaveError,
-    editModel.videoMode.trimSaveSuccess,
-    sharedState.effectiveMedia.videoUrl,
-    editModel.videoMode.trimCurrentTime,
-    editModel.videoMode.trimVideoRef,
-    editModel.videoMode.videoEditing,
-    env.selectedProjectId,
-    editModel.regenerateFormProps,
-    editModel.videoMode.videoEnhance.settings,
-    editModel.videoMode.videoEnhance.updateSetting,
-    editModel.videoMode.videoEnhance.handleGenerate,
-    editModel.videoMode.videoEnhance.isGenerating,
-    editModel.videoMode.videoEnhance.generateSuccess,
-    editModel.videoMode.videoEnhance.canSubmit,
-    panelTaskId,
-    editModel.adjustedTaskDetailsData,
-    sharedState.lineage.derivedItems,
-    sharedState.lineage.derivedGenerations,
-    sharedState.lineage.paginatedDerived,
-    sharedState.lineage.derivedPage,
-    sharedState.lineage.derivedTotalPages,
-    sharedState.lineage.setDerivedPage,
-    onOpenExternalGeneration,
-    media?.id,
-    selectedShotId,
-    shotId,
-    env.replaceImages,
-    env.setReplaceImages,
-    primaryVariant,
-    handleSwitchToPrimary,
-  ]);
+  }
+
+  return (
+    <InfoPanel
+      variant={panelVariant}
+      showImageEditTools={false}
+      taskDetailsData={editModel.adjustedTaskDetailsData}
+      derivedItems={sharedState.lineage.derivedItems}
+      derivedGenerations={sharedState.lineage.derivedGenerations}
+      paginatedDerived={sharedState.lineage.paginatedDerived}
+      derivedPage={sharedState.lineage.derivedPage}
+      derivedTotalPages={sharedState.lineage.derivedTotalPages}
+      onSetDerivedPage={sharedState.lineage.setDerivedPage}
+      onNavigateToGeneration={onOpenExternalGeneration}
+      currentMediaId={media.id}
+      currentShotId={selectedShotId || shotId}
+      replaceImages={env.replaceImages}
+      onReplaceImagesChange={env.setReplaceImages}
+      onSwitchToPrimary={handleSwitchToPrimary}
+      taskId={panelTaskId}
+    />
+  );
+}
+
+function getVideoLightboxAccessibility(
+  _modeModel: VideoLightboxModeModel,
+  media: VideoLightboxPropsWithMedia['media'],
+): { accessibilityTitle: string; accessibilityDescription: string } {
+  return {
+    accessibilityTitle: `Video Lightbox - ${media.id.substring(0, 8)}`,
+    accessibilityDescription: 'View and interact with video in full screen. Use arrow keys to navigate, Escape to close.',
+  };
 }
 
 export function useVideoLightboxRenderModel(
-  props: VideoLightboxProps,
+  props: VideoLightboxPropsWithMedia,
   modeModel: VideoLightboxModeModel,
   env: VideoLightboxEnvironment,
   sharedState: VideoLightboxSharedStateModel,
@@ -156,7 +117,6 @@ export function useVideoLightboxRenderModel(
     showTickForImageId,
     showTickForSecondaryImageId,
     adjacentSegments,
-    segmentSlotMode,
   } = props;
 
   const navigation = props.navigation;
@@ -167,50 +127,7 @@ export function useVideoLightboxRenderModel(
   const showNavigation = navigation?.showNavigation ?? true;
   const showTaskDetails = features?.showTaskDetails ?? false;
 
-  const mediaForState = useMemo<GenerationRow>(() => {
-    if (media) {
-      return media;
-    }
-
-    // Segment form-only mode can render without a video generation.
-    // Provide a minimal, explicit placeholder rather than asserting an empty object.
-    return { id: '__segment-form-only__' };
-  }, [media]);
-
-  const lightboxCore = useMemo(() => ({
-    onClose,
-    readOnly,
-    isMobile: env.isMobile,
-    isTabletOrLarger: sharedState.layout.isTabletOrLarger,
-    selectedProjectId: env.selectedProjectId,
-    actualGenerationId: env.actualGenerationId,
-  }), [
-    onClose,
-    readOnly,
-    env.isMobile,
-    sharedState.layout.isTabletOrLarger,
-    env.selectedProjectId,
-    env.actualGenerationId,
-  ]);
-
-  const lightboxMedia = useMemo(() => ({
-    media: mediaForState,
-    isVideo: true,
-    effectiveMediaUrl: sharedState.effectiveMedia.mediaUrl ?? '',
-    effectiveVideoUrl: sharedState.effectiveMedia.videoUrl ?? '',
-    effectiveImageDimensions: sharedState.effectiveMedia.imageDimensions,
-    imageDimensions: env.imageDimensions,
-    setImageDimensions: env.setImageDimensions,
-  }), [
-    mediaForState,
-    sharedState.effectiveMedia.mediaUrl,
-    sharedState.effectiveMedia.videoUrl,
-    sharedState.effectiveMedia.imageDimensions,
-    env.imageDimensions,
-    env.setImageDimensions,
-  ]);
-
-  const lightboxVariants = useMemo(() => ({
+  const lightboxVariants = {
     variants: sharedState.variants.list,
     activeVariant: sharedState.variants.activeVariant,
     primaryVariant: sharedState.variants.primaryVariant,
@@ -231,120 +148,79 @@ export function useVideoLightboxRenderModel(
     unviewedVariantCount: editModel.variantBadges.unviewedVariantCount,
     onMarkAllViewed: editModel.variantBadges.handleMarkAllViewed,
     variantsSectionRef: env.variantsSectionRef,
-  }), [
-    sharedState.variants.list,
-    sharedState.variants.activeVariant,
-    sharedState.variants.primaryVariant,
-    sharedState.variants.isLoading,
-    sharedState.variants.setActiveVariantId,
-    sharedState.variants.setPrimaryVariant,
-    sharedState.variants.deleteVariant,
-    env.setVariantParamsToLoad,
-    editModel.variantSegmentImages,
-    editModel.loadVariantImages,
-    sharedState.variants.promoteSuccess,
-    sharedState.variants.isPromoting,
-    sharedState.variants.handlePromoteToGeneration,
-    sharedState.makeMainVariant.isMaking,
-    sharedState.makeMainVariant.canMake,
-    sharedState.makeMainVariant.handle,
-    editModel.variantBadges.pendingTaskCount,
-    editModel.variantBadges.unviewedVariantCount,
-    editModel.variantBadges.handleMarkAllViewed,
-    env.variantsSectionRef,
-  ]);
+  };
 
-  const lightboxNavigation = useMemo(() => ({
-    showNavigation,
-    hasNext: modeModel.hasNext,
-    hasPrevious: modeModel.hasPrevious,
-    handleSlotNavNext: modeModel.handleSlotNavNext,
-    handleSlotNavPrev: modeModel.handleSlotNavPrev,
-    swipeNavigation: sharedState.navigation.swipeNavigation,
-  }), [
-    showNavigation,
-    modeModel.hasNext,
-    modeModel.hasPrevious,
-    modeModel.handleSlotNavNext,
-    modeModel.handleSlotNavPrev,
-    sharedState.navigation.swipeNavigation,
-  ]);
-
-  const lightboxStateValue = useLightboxStateValue({
-    core: lightboxCore,
-    media: lightboxMedia,
-    variants: lightboxVariants,
-    navigation: lightboxNavigation,
-  });
-
-  const handleDownload = async (): Promise<void> => {
-    if (!media) {
-      return;
-    }
-
-    await handleLightboxDownload({
-      intendedVariantId: sharedState.intendedActiveVariantIdRef.current,
-      variants: sharedState.variants.list,
-      fallbackUrl: sharedState.effectiveMedia.videoUrl ?? '',
+  const lightboxStateValue = {
+    core: {
+      onClose,
+      readOnly,
+      isMobile: env.isMobile,
+      isTabletOrLarger: sharedState.layout.isTabletOrLarger,
+      selectedProjectId: env.selectedProjectId,
+      actualGenerationId: env.actualGenerationId,
+    },
+    media: {
       media,
       isVideo: true,
-      setIsDownloading: env.setIsDownloading,
-    });
+      effectiveMediaUrl: sharedState.effectiveMedia.mediaUrl ?? '',
+      effectiveVideoUrl: sharedState.effectiveMedia.videoUrl ?? '',
+      effectiveImageDimensions: sharedState.effectiveMedia.imageDimensions,
+      imageDimensions: env.imageDimensions,
+      setImageDimensions: env.setImageDimensions,
+    },
+    variants: lightboxVariants,
+    navigation: {
+      showNavigation,
+      hasNext: modeModel.hasNext,
+      hasPrevious: modeModel.hasPrevious,
+      handleSlotNavNext: modeModel.handleSlotNavNext,
+      handleSlotNavPrev: modeModel.handleSlotNavPrev,
+      swipeNavigation: sharedState.navigation.swipeNavigation,
+    },
   };
 
-  const handleDelete = () => {
-    if (actions?.onDelete && media) {
-      actions.onDelete(media.id);
-    }
-  };
-
-  const handleApplySettings = () => {
-    if (actions?.onApplySettings && media) {
-      actions.onApplySettings(media.metadata);
-    }
-  };
-
-  const onNavigateToShot = shotWorkflow?.onNavigateToShot;
-  const handleNavigateToShotFromSelector = useCallback((shot: { id: string; name: string }) => {
-    if (!onNavigateToShot) {
-      return;
-    }
-    const minimalShot = { id: shot.id, name: shot.name, images: [], position: 0 };
-    onClose();
-    onNavigateToShot(minimalShot);
-  }, [onClose, onNavigateToShot]);
+  const {
+    handleDownload,
+    handleDelete,
+    handleApplySettings,
+    handleNavigateToShotFromSelector,
+  } = useVideoLightboxActions({
+    props,
+    env,
+    sharedState,
+  });
 
   const isAnyVideoEditMode = editModel.videoMode.isVideoTrimModeActive || editModel.videoMode.isVideoEditModeActive;
-  const shouldShowSidePanelWithTrim = sharedState.layout.shouldShowSidePanel
-    || ((!sharedState.layout.isPortraitMode && sharedState.layout.isTabletOrLarger) && isAnyVideoEditMode);
+  const layoutFlags = buildVideoLightboxLayoutState({
+    isMobile: env.isMobile,
+    isFormOnlyMode: modeModel.isFormOnlyMode,
+    isTabletOrLarger: sharedState.layout.isTabletOrLarger,
+    isPortraitMode: sharedState.layout.isPortraitMode,
+    shouldShowSidePanel: sharedState.layout.shouldShowSidePanel,
+    isAnyVideoEditMode,
+    hasSegmentVideo: modeModel.hasSegmentVideo,
+    showTaskDetails,
+    isSegmentSlotMode: modeModel.isSegmentSlotMode,
+    effectiveTasksPaneOpen: env.effectiveTasksPaneOpen,
+    isTasksPaneLocked: env.isTasksPaneLocked,
+  });
 
-  const showPanel = shouldShowSidePanelWithTrim
-    || ((showTaskDetails || isAnyVideoEditMode || (modeModel.isSegmentSlotMode && modeModel.hasSegmentVideo)) && env.isMobile);
-
-  const needsFullscreenLayout = env.isMobile
-    || modeModel.isFormOnlyMode
-    || sharedState.layout.shouldShowSidePanel
-    || shouldShowSidePanelWithTrim;
-
-  const needsTasksPaneOffset = needsFullscreenLayout
-    && (env.effectiveTasksPaneOpen || env.isTasksPaneLocked)
-    && !sharedState.layout.isPortraitMode
-    && sharedState.layout.isTabletOrLarger;
-
-  const accessibilityTitle = modeModel.isFormOnlyMode
-    ? `Segment ${(segmentSlotMode?.currentIndex ?? 0) + 1} Settings`
-    : `Video Lightbox - ${media?.id?.substring(0, 8)}`;
-
-  const accessibilityDescription = modeModel.isFormOnlyMode
-    ? 'Configure and generate this video segment. Use Tab or arrow keys to navigate between segments.'
-    : 'View and interact with video in full screen. Use arrow keys to navigate, Escape to close.';
-
-  const panelVariant = (shouldShowSidePanelWithTrim && !env.isMobile) ? 'desktop' as const : 'mobile' as const;
+  const {
+    shouldShowSidePanelWithTrim,
+    showPanel,
+    needsFullscreenLayout,
+    needsTasksPaneOffset,
+    panelVariant,
+  } = layoutFlags;
+  const { accessibilityTitle, accessibilityDescription } = getVideoLightboxAccessibility(
+    modeModel,
+    media,
+  );
   const panelTaskId = editModel.adjustedTaskDetailsData?.taskId
-    || media?.source_task_id
+    || media.source_task_id
     || null;
 
-  const controlsPanelContent = useVideoLightboxControlsPanel(
+  const controlsPanelContent = buildVideoLightboxControlsPanel(
     props,
     env,
     sharedState,
@@ -353,51 +229,88 @@ export function useVideoLightboxRenderModel(
     panelVariant,
     panelTaskId,
   );
+  const allShots = useMemo(() => shotWorkflow?.allShots ?? [], [shotWorkflow?.allShots]);
+  const selectedShotId = shotWorkflow?.selectedShotId;
+  const workflowBar = {
+    onAddToShot: shotWorkflow?.onAddToShot,
+    onDelete: actions?.onDelete,
+    onApplySettings: actions?.onApplySettings,
+    isSpecialEditMode: false,
+    isVideo: true,
+    mediaId: env.actualGenerationId ?? media.id,
+    imageUrl: sharedState.effectiveMedia.mediaUrl ?? '',
+    thumbUrl: media.thumbUrl,
+    allShots,
+    selectedShotId,
+    onShotChange: shotWorkflow?.onShotChange,
+    onCreateShot: shotWorkflow?.onCreateShot,
+    isAlreadyPositionedInSelectedShot: sharedState.shots.isAlreadyPositionedInSelectedShot,
+    isAlreadyAssociatedWithoutPosition: sharedState.shots.isAlreadyAssociatedWithoutPosition,
+    showTickForImageId,
+    showTickForSecondaryImageId,
+    onAddToShotWithoutPosition: shotWorkflow?.onAddToShotWithoutPosition,
+    onShowTick: shotWorkflow?.onShowTick,
+    onOptimisticPositioned: shotWorkflow?.onOptimisticPositioned,
+    onShowSecondaryTick: shotWorkflow?.onShowSecondaryTick,
+    onOptimisticUnpositioned: shotWorkflow?.onOptimisticUnpositioned,
+    contentRef: env.contentRef,
+    handleApplySettings,
+    onNavigateToShot: handleNavigateToShotFromSelector,
+    onClose,
+    onAddVariantAsNewGeneration: sharedState.variants.handleAddVariantAsNewGenerationToShot,
+    activeVariantId: sharedState.variants.activeVariant?.id || sharedState.variants.primaryVariant?.id,
+    currentTimelineFrame: media.timeline_frame ?? undefined,
+  };
 
-  const { layoutProps } = useLightboxWorkflowProps({
-    panel: {
-      showPanel,
-      shouldShowSidePanel: shouldShowSidePanelWithTrim,
-      effectiveTasksPaneOpen: env.effectiveTasksPaneOpen,
-      effectiveTasksPaneWidth: env.effectiveTasksPaneWidth,
-    },
-    shotWorkflow: {
-      allShots: shotWorkflow?.allShots || [],
-      selectedShotId: shotWorkflow?.selectedShotId,
-      onShotChange: shotWorkflow?.onShotChange,
-      onCreateShot: shotWorkflow?.onCreateShot,
-      onAddToShot: shotWorkflow?.onAddToShot,
-      onAddToShotWithoutPosition: shotWorkflow?.onAddToShotWithoutPosition,
-      isAlreadyPositionedInSelectedShot: sharedState.shots.isAlreadyPositionedInSelectedShot,
-      isAlreadyAssociatedWithoutPosition: sharedState.shots.isAlreadyAssociatedWithoutPosition,
-      showTickForImageId,
-      showTickForSecondaryImageId,
-      onShowTick: shotWorkflow?.onShowTick,
-      onShowSecondaryTick: shotWorkflow?.onShowSecondaryTick,
-      onOptimisticPositioned: shotWorkflow?.onOptimisticPositioned,
-      onOptimisticUnpositioned: shotWorkflow?.onOptimisticUnpositioned,
-    },
-    actions: {
-      onDelete: actions?.onDelete,
-      onApplySettings: actions?.onApplySettings,
-      handleApplySettings,
-      handleDelete,
-      isDeleting: actions?.isDeleting,
-      handleNavigateToShotFromSelector,
-      handleAddVariantAsNewGenerationToShot: sharedState.variants.handleAddVariantAsNewGenerationToShot,
-    },
-    buttonGroupProps: {
-      ...sharedState.buttonGroupProps,
+  const workflowControls = {
+    mediaId: env.actualGenerationId ?? media.id,
+    imageUrl: sharedState.effectiveMedia.mediaUrl ?? '',
+    thumbUrl: media.thumbUrl,
+    isVideo: true,
+    isInpaintMode: false,
+    allShots,
+    selectedShotId,
+    onShotChange: shotWorkflow?.onShotChange,
+    onCreateShot: shotWorkflow?.onCreateShot,
+    contentRef: env.contentRef,
+    isAlreadyPositionedInSelectedShot: sharedState.shots.isAlreadyPositionedInSelectedShot,
+    isAlreadyAssociatedWithoutPosition: sharedState.shots.isAlreadyAssociatedWithoutPosition,
+    showTickForImageId,
+    showTickForSecondaryImageId,
+    onAddToShot: shotWorkflow?.onAddToShot,
+    onAddToShotWithoutPosition: shotWorkflow?.onAddToShotWithoutPosition,
+    onShowTick: shotWorkflow?.onShowTick,
+    onOptimisticPositioned: shotWorkflow?.onOptimisticPositioned,
+    onShowSecondaryTick: shotWorkflow?.onShowSecondaryTick,
+    onOptimisticUnpositioned: shotWorkflow?.onOptimisticUnpositioned,
+    onApplySettings: actions?.onApplySettings,
+    handleApplySettings,
+    onDelete: actions?.onDelete,
+    handleDelete,
+    isDeleting: actions?.isDeleting,
+    onNavigateToShot: handleNavigateToShotFromSelector,
+    onClose,
+  };
+
+  const layoutProps = {
+    showPanel,
+    shouldShowSidePanel: shouldShowSidePanelWithTrim,
+    effectiveTasksPaneOpen: env.effectiveTasksPaneOpen,
+    effectiveTasksPaneWidth: env.effectiveTasksPaneWidth,
+    workflowBar,
+    workflowControls: showPanel ? undefined : workflowControls,
+    buttonGroups: {
+      bottomLeft: sharedState.buttonGroupProps.bottomLeft,
+      bottomRight: sharedState.buttonGroupProps.bottomRight,
       topRight: {
         ...sharedState.buttonGroupProps.topRight,
         handleDownload,
         handleDelete,
       },
     },
-    contentRef: env.contentRef,
     adjacentSegments,
-    segmentSlotMode: modeModel.hasSegmentVideo ? segmentSlotMode : undefined,
-  });
+    segmentSlotMode: modeModel.hasSegmentVideo ? props.segmentSlotMode : undefined,
+  };
 
   return {
     lightboxStateValue,

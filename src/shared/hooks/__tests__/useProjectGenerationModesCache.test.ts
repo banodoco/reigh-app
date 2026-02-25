@@ -64,7 +64,7 @@ vi.mock('@/shared/lib/settingsResolution', () => ({
   extractToolSettings: vi.fn(() => ({})),
 }));
 
-vi.mock('@/shared/lib/toolConstants', () => ({
+vi.mock('@/shared/lib/toolIds', () => ({
   TOOL_IDS: { TRAVEL_BETWEEN_IMAGES: 'travel-between-images' },
 }));
 

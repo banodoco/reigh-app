@@ -1,10 +1,11 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { getDisplayUrl, stripQueryParameters } from '@/shared/lib/mediaUrl';
 import { Button } from '@/shared/components/ui/button';
-import { useIsMobile } from '@/shared/hooks/useMobile';
+import { useIsMobile } from '@/shared/hooks/mobile';
 import { useVideoScrubbing } from '@/shared/hooks/useVideoScrubbing';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { safePlay } from '@/shared/lib/media/safePlay';
 
 interface HoverScrubVideoProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onTouchEnd' | 'onLoadStart' | 'onLoadedData'> {
   /**
@@ -189,7 +190,11 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
   const handleMouseEnter = useCallback(() => {
     // Handle autoplayOnHover mode separately
     if (autoplayOnHover && !isMobile && !disableScrubbing) {
-      videoRef.current?.play();
+      if (videoRef.current) {
+        void safePlay(videoRef.current, 'HoverScrubVideo.autoplayOnHover', {
+          src: getDisplayUrl(src),
+        });
+      }
       return;
     }
 
@@ -209,7 +214,7 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
 
     // Delegate to the hook's handler
     handleScrubMouseEnter();
-  }, [scrubbingEnabled, autoplayOnHover, isMobile, disableScrubbing, handleScrubMouseEnter, videoRef]);
+  }, [scrubbingEnabled, autoplayOnHover, isMobile, disableScrubbing, handleScrubMouseEnter, src, videoRef]);
 
   const handleMouseLeave = useCallback(() => {
     // Handle autoplayOnHover mode separately
@@ -406,7 +411,7 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
           }
         }}
         onError={(e) => {
-          handleError(new Error('[HoverScrubVideo] Video error occurred'), {
+          normalizeAndPresentError(new Error('[HoverScrubVideo] Video error occurred'), {
             context: 'HoverScrubVideo',
             showToast: false,
             logData: {

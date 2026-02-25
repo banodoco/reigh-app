@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { log } from '@/shared/lib/logger';
 
 const SEGMENT_DELETE_LOG_PREFIX = '[SegmentDeletePersist]';
@@ -28,8 +28,7 @@ export function useSegmentDeletion() {
         generationId: shortId(generationId),
       });
 
-      const { data: beforeData } = await supabase
-        .from('generations')
+      const { data: beforeData } = await supabase().from('generations')
         .select('id, type, parent_generation_id, location, params, primary_variant_id, pair_shot_generation_id')
         .eq('id', generationId)
         .single();
@@ -47,8 +46,7 @@ export function useSegmentDeletion() {
 
       let idsToDelete = [generationId];
       if (pairShotGenId && parentId) {
-        const { data: siblings } = await supabase
-          .from('generations')
+        const { data: siblings } = await supabase().from('generations')
           .select('id, pair_shot_generation_id, params')
           .eq('parent_generation_id', parentId);
         idsToDelete = (siblings || [])
@@ -70,8 +68,7 @@ export function useSegmentDeletion() {
         deleteCount: idsToDelete.length,
         deleteIds: idsToDelete.map((id) => shortId(id)),
       });
-      const { error: deleteError } = await supabase
-        .from('generations')
+      const { error: deleteError } = await supabase().from('generations')
         .delete()
         .in('id', idsToDelete);
       if (deleteError) throw new Error(`Failed to delete: ${deleteError.message}`);
@@ -113,7 +110,7 @@ export function useSegmentDeletion() {
         generationId: shortId(generationId),
         error,
       });
-      handleError(error, { context: 'SegmentDelete', toastTitle: 'Failed to delete segment' });
+      normalizeAndPresentError(error, { context: 'SegmentDelete', toastTitle: 'Failed to delete segment' });
     } finally {
       setDeletingSegmentId(null);
     }

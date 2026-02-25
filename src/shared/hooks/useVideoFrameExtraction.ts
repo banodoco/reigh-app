@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { VideoMetadata } from '@/shared/lib/videoUploader';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { extractFramesFromVideo } from './videoFrameExtraction/extractor';
 
 interface UseVideoFrameExtractionOptions {
@@ -81,7 +81,7 @@ export function useVideoFrameExtraction(
           isCancelled,
         });
       } catch (error) {
-        handleError(error, { context: 'useVideoFrameExtraction', showToast: false });
+        normalizeAndPresentError(error, { context: 'useVideoFrameExtraction', showToast: false });
       } finally {
         if (!isCancelled()) {
           setIsExtracting(false);

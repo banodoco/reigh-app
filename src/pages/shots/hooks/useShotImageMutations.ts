@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { shotQueryKeys } from '@/shared/lib/queryKeys/shots';
 import {
   useAddImageToShot,
@@ -10,7 +10,7 @@ import {
   useRemoveImageFromShot,
   useUpdateShotImageOrder
 } from '@/shared/hooks/shots';
-import type { GenerationRow, Shot } from '@/types/shots';
+import type { GenerationRow, Shot } from '@/domains/generation/types';
 
 interface UseShotImageMutationsInput {
   selectedProjectId: string | null;
@@ -114,7 +114,7 @@ export function useShotImageMutations(input: UseShotImageMutationsInput): UseSho
       await refreshSelectedShotImages();
       return true;
     } catch (error) {
-      handleError(error, { context: 'ShotsPage', toastTitle: 'Failed to add to shot' });
+      normalizeAndPresentError(error, { context: 'ShotsPage', toastTitle: 'Failed to add to shot' });
       return false;
     }
   }, [addImageToShotMutation, currentShotId, refreshSelectedShotImages, selectedProjectId]);
@@ -141,7 +141,7 @@ export function useShotImageMutations(input: UseShotImageMutationsInput): UseSho
       await refreshSelectedShotImages();
       return true;
     } catch (error) {
-      handleError(error, { context: 'ShotsPage', toastTitle: 'Failed to add to shot' });
+      normalizeAndPresentError(error, { context: 'ShotsPage', toastTitle: 'Failed to add to shot' });
       return false;
     }
   }, [addImageToShotWithoutPositionMutation, currentShotId, refreshSelectedShotImages, selectedProjectId]);

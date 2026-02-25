@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 import { getImageRange } from '../utils/image-utils';
 import { SELECTION_BAR_DELAY } from '../constants';
 import { dispatchAppEvent } from '@/shared/lib/typedEvents';

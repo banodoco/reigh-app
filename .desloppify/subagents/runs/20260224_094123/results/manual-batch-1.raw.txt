@@ -1,0 +1,59 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "high_level_elegance": 82.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "Domain row contracts mix persistence, derived view, and optimistic UI concerns in one exported type chain (`GenerationRow = PersistedGenerationRow & GenerationViewModel`, where `GenerationViewModel` includes optimistic runtime flags) in `src/domains/generation/types/generationViewRow.ts`.",
+        "`Shot` in `src/domains/generation/types/shotViewRow.ts` depends on `GenerationRow[]`, which propagates mixed domain+UI ownership into broader shot-level contracts.",
+        "Overlay open-state ownership is split across multiple shared components (`ModalContainer`, `MediaTypeFilter`, `InfoTooltip`, and modal wrappers), with both required and optional overlay-state contracts plus local normalization hooks, creating a fuzzy public boundary for who owns overlay lifecycle.",
+        "No clear import-time side effects were found in this batch; files are largely pure exports/components/hooks."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "mixed_domain_ui_row_contract",
+      "summary": "Generation/shot core row types blend persistence and UI overlay ownership.",
+      "related_files": [
+        "src/domains/generation/types/generationViewRow.ts",
+        "src/domains/generation/types/shotViewRow.ts"
+      ],
+      "evidence": [
+        "`GenerationDerivedViewFields` and `GenerationOptimisticOverlayFields` are merged into `GenerationViewModel`, then merged with persisted DB row as `GenerationRow`.",
+        "`ShotViewModel.images` is typed as `GenerationRow[]`, so shot contracts now inherit optimistic/UI overlay fields indirectly."
+      ],
+      "suggestion": "Split contracts into explicit layers: keep `PersistedGenerationRow` and `PersistedShotRow` as canonical domain types, add separate mapper-level `GenerationDerivedView` and UI-level `GenerationUiState` wrappers, and avoid exporting a single catch-all `GenerationRow` into downstream type surfaces.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "overlay_lifecycle_boundary_blur",
+      "summary": "Overlay visibility ownership is duplicated across shared UI wrappers and consumers.",
+      "related_files": [
+        "src/shared/components/ModalContainer.tsx",
+        "src/shared/components/MediaTypeFilter.tsx",
+        "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx",
+        "src/pages/Home/components/InstallInstructionsModal.tsx",
+        "src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx"
+      ],
+      "evidence": [
+        "`ModalContainer` requires full `OverlayVisibilityState`, while `MediaTypeFilter` and `InfoTooltip` accept optional visibility and then normalize via `useOverlayVisibilityState`.",
+        "Feature-level modal components (`InstallInstructionsModal`, `DescriptionModal`) mostly forward `open/onOpenChange` through to `ModalContainer`, indicating repeated adapter-style ownership decisions at each call site."
+      ],
+      "suggestion": "Define one consistent overlay ownership pattern for shared components (either always controlled or always controllable via a single shared hook contract) and apply it across modal/tooltip/select wrappers to reduce boundary ambiguity and prop-surface drift.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

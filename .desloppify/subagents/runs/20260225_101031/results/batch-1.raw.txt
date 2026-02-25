@@ -1,0 +1,127 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 82.0,
+    "high_level_elegance": 84.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/handleError.ts` is a high-fan-in hub (listed in packet as 244 importers) and mixes pure normalization (`reportError`) with UI side effects (`handleError` -> `notifyError`), so one entrypoint spans core + presentation concerns.",
+        "`src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts` and `src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts` both depend on this shared error hub, reinforcing broad coupling to a central shared module.",
+        "`src/shared/contexts/ProjectContext.tsx` writes to `setProjectSelectionSnapshot(...)` in an effect, while `src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts` consumes and mutates optional global context state (`useShotAdditionSelectionOptional` + `clearSelectedShotForAddition()`), creating ambient cross-module coordination paths."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/components/ui/button.tsx` composes both `baseButton` primitives and app-specific `buttonThemeVariants`, while neighboring `src/shared/components/ui/cn.ts`, `tooltip.tsx`, and `label.tsx` are primitive wrappers; this blurs what `shared/components/ui` is supposed to own.",
+        "`src/domains/generation/types/public.ts` is a high-fan-in barrel (listed in packet as 206 importers), and its centrality plus multiple shared hubs (`button.tsx`, `cn.ts`, `handleError.ts`) indicates top-level ownership is concentrated in broad entry modules rather than narrower capability seams.",
+        "`src/shared/components/ui/sonner.tsx` defines app toaster runtime concerns under the same generic UI folder as primitive wrappers, further mixing infrastructure and primitive responsibilities."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "error_hub_cross_layer_coupling",
+      "summary": "Central error facade combines core error normalization with UI toast side effects.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` exports both pure reporting (`reportError`, `reportAndRethrow`) and UI behavior (`handleError` -> `notifyError`) from one widely imported module.",
+        "`useMediaGalleryHandlers.ts` and `useMediaGalleryItemState.ts` import from this hub directly, so feature hooks couple to the shared central module rather than a narrower boundary.",
+        "`supabase/client.ts` avoids `handleError` and uses `normalizeAndLogError` directly, showing both patterns coexist and boundary expectations are inconsistent."
+      ],
+      "suggestion": "Split the error API by layer: keep a pure core module for normalize/log/rethrow and move toast-enabled helpers to an explicit UI/runtime adapter module. Update callers so non-UI layers cannot import toast behavior by default.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "ambient_shared_hubs"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "ambient_state_channels_between_modules",
+      "summary": "Cross-module state coordination relies on ambient context/store channels instead of explicit boundaries.",
+      "related_files": [
+        "src/shared/contexts/ProjectContext.tsx",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts"
+      ],
+      "evidence": [
+        "`ProjectContext.tsx` mirrors selected project into external snapshot state via `setProjectSelectionSnapshot(...)` in `useEffect`, introducing a side channel outside provider consumers.",
+        "`useMediaGalleryHandlers.ts` reads optional global context (`useShotAdditionSelectionOptional`) and clears it inside an effect after calling `handleShotChange`, adding hidden inter-module behavior not visible in function args."
+      ],
+      "suggestion": "Replace ambient side channels with explicit boundary APIs: expose selection changes through dedicated hooks/events and keep one authoritative source per state domain (either context or store), then inject needed data into feature hooks through props or typed service interfaces.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "ambient_shared_hubs"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_ui_layer_role_blur",
+      "summary": "`shared/components/ui` mixes primitives, app theming, and runtime behavior under one ownership bucket.",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/ui/label.tsx",
+        "src/shared/components/ui/tooltip.tsx",
+        "src/shared/components/ui/sonner.tsx",
+        "src/shared/components/ui/cn.ts"
+      ],
+      "evidence": [
+        "`button.tsx` merges `BASE_BUTTON_*` and `APP_BUTTON_*` variants, while `label.tsx`, `tooltip.tsx`, and `cn.ts` are lightweight primitive wrappers.",
+        "`sonner.tsx` adds app toast runtime/provider behavior in the same folder as low-level primitives, so folder ownership is not domain-coherent."
+      ],
+      "suggestion": "Separate `shared/components/ui` into clear sub-boundaries (for example `ui/primitives`, `ui/theme`, `ui/runtime`) and move app-specific variant composition/toaster orchestration out of primitive-facing entry modules.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shared_layer_ownership_blur"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "high_fanin_barrel_concentration",
+      "summary": "High-fan-in barrels/hubs concentrate ownership and make subsystem boundaries harder to reason about.",
+      "related_files": [
+        "src/domains/generation/types/public.ts",
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/ui/cn.ts",
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "Packet marks these modules among top imported (`public.ts` 206, `button.tsx` 157, `cn.ts` 138, `handleError.ts` 244, `supabase/client.ts` 153), indicating many top-level dependencies flow through a small set of shared surfaces.",
+        "In reviewed files, these hubs expose broad utility surfaces reused across unrelated areas, which increases blast radius for design changes."
+      ],
+      "suggestion": "Introduce narrower capability-specific entrypoints (for example per-feature type exports and per-layer service adapters) and keep broad barrels only as thin compatibility facades during migration.",
+      "confidence": "medium",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "shared_layer_ownership_blur"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Over-centralization into shared high-fan-in hubs instead of capability-scoped boundaries.",
+      "Ambient state coordination (context/store side channels) used as cross-module glue.",
+      "UI package ownership not sharply separated between primitives, theme composition, and runtime orchestration."
+    ],
+    "likely_symptoms": [
+      "error_hub_cross_layer_coupling",
+      "ambient_state_channels_between_modules",
+      "shared_ui_layer_role_blur",
+      "high_fanin_barrel_concentration"
+    ],
+    "possible_false_positives": []
+  }
+}

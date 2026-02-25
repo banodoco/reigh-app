@@ -3,14 +3,22 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 
-const mockCreateJoinClipsTask = vi.fn();
-const mockAddIncomingTask = vi.fn().mockReturnValue('incoming-1');
-const mockRemoveIncomingTask = vi.fn();
-const mockHandleError = vi.fn();
-const mockToast = vi.fn();
+const {
+  mockCreateJoinClipsTask,
+  mockAddIncomingTask,
+  mockRemoveIncomingTask,
+  mockHandleError,
+  mockToast,
+} = vi.hoisted(() => ({
+  mockCreateJoinClipsTask: vi.fn(),
+  mockAddIncomingTask: vi.fn().mockReturnValue('incoming-1'),
+  mockRemoveIncomingTask: vi.fn(),
+  mockHandleError: vi.fn(),
+  mockToast: vi.fn(),
+}));
 
 vi.mock('@/shared/lib/tasks/joinClips', () => ({
-  createJoinClipsTask: (...args: unknown[]) => mockCreateJoinClipsTask(...args),
+  createCanonicalJoinClipsTask: (...args: unknown[]) => mockCreateJoinClipsTask(...args),
 }));
 
 vi.mock('@/shared/components/ui/toast', () => ({
@@ -35,7 +43,7 @@ vi.mock('@/shared/lib/queryKeys', () => ({
   },
 }));
 
-vi.mock('@/shared/lib/errorHandler', () => ({
+vi.mock('@/shared/lib/compat/errorHandler', () => ({
   handleError: (...args: unknown[]) => mockHandleError(...args),
 }));
 
@@ -50,14 +58,14 @@ vi.mock('@/shared/contexts/IncomingTasksContext', () => ({
   }),
 }));
 
-vi.mock('@/shared/lib/aspectRatios', () => ({
+vi.mock('@/shared/lib/media/aspectRatios', () => ({
   ASPECT_RATIO_TO_RESOLUTION: {
     '16:9': '1280x720',
     '1:1': '1024x1024',
   },
 }));
 
-vi.mock('@/shared/lib/toolConstants', () => ({
+vi.mock('@/shared/lib/toolIds', () => ({
   TOOL_IDS: {
     JOIN_CLIPS: 'join_clips',
   },
@@ -69,7 +77,7 @@ vi.mock('@/shared/lib/vaceDefaults', () => ({
   VACE_GENERATION_DEFAULTS: { model: 'wan_2_2_default' },
 }));
 
-vi.mock('../../settings', () => ({
+vi.mock('@/shared/lib/joinClipsDefaults', () => ({
   joinClipsSettings: {
     defaults: {
       contextFrameCount: 15,
@@ -325,14 +333,18 @@ describe('useJoinClipsGenerate', () => {
       expect(mockCreateJoinClipsTask).toHaveBeenCalledWith(
         expect.objectContaining({
           project_id: 'proj-1',
-          clips: expect.arrayContaining([
-            { url: expect.any(String) },
-            { url: expect.any(String) },
-          ]),
+          mode: 'multi_clip',
+          clip_source: expect.objectContaining({
+            kind: 'clips',
+            clips: expect.arrayContaining([
+              { url: expect.any(String) },
+              { url: expect.any(String) },
+            ]),
+          }),
           context_frame_count: 15,
           gap_frame_count: 23,
           replace_mode: true,
-          tool_type: 'join_clips',
+          tool_type: 'join-clips',
         }),
       );
     });

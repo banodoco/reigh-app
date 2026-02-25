@@ -13,7 +13,7 @@ import React from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { SegmentedControl, SegmentedControlItem } from '@/shared/components/ui/segmented-control';
 import { Search, ArrowDown, X } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 
 // =============================================================================
 // PROP TYPES (grouped for clarity)

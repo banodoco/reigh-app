@@ -163,6 +163,25 @@ describe('derivePrompt', () => {
       },
     })).toBe('orchestrator base');
   });
+
+  it('does not show per-pair overrides when global prompt is cleared', () => {
+    expect(derivePrompt({
+      orchestrator_details: {
+        base_prompt: '',
+        base_prompts_expanded: ['river flowing', 'camera pans up'],
+        enhanced_prompts_expanded: ['', ''],
+      },
+    })).toBeNull();
+  });
+
+  it('prefers global base_prompt over per-pair overrides', () => {
+    expect(derivePrompt({
+      orchestrator_details: {
+        base_prompt: 'global prompt',
+        base_prompts_expanded: ['pair override 1', 'pair override 2'],
+      },
+    })).toBe('global prompt');
+  });
 });
 
 describe('extractLoras', () => {

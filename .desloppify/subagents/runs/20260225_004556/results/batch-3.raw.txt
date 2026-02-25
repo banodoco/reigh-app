@@ -1,0 +1,114 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "api_surface_coherence": 79.0,
+    "mid_level_elegance": 76.0
+  },
+  "dimension_notes": {
+    "api_surface_coherence": {
+      "evidence": [
+        "`fetchToolSettingsSupabase` accepts `AbortSignal` but dedupes by `{toolId,projectId,shotId}` only, so later callers with different cancellation state are forced onto an existing promise (`src/shared/lib/toolSettingsService.ts:305-309`).",
+        "`composeTaskPayload` returns both top-level spread orchestrator fields and nested `orchestrator_details`, creating two competing representations of the same data (`src/shared/lib/tasks/taskPayloadContract.ts:52-55`), while readers then search across multiple payload locations (`src/shared/lib/tasks/travelPayloadReader.ts:21-28`, `:30-46`).",
+        "`generateVideoService` documents `generateVideo()` as public API but exports many internal/test-only helpers plus backward-compat request shapes from the same module (`src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts:580-603`, `:432-452`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Orchestrator completion marks task `Complete` before billing metadata persistence (`src/supabase/functions/complete_task/orchestrator.ts:620-667`). If persistence fails and throws, retries can short-circuit because `checkOrchestratorCompletion` exits early when orchestrator is already `Complete` (`:372-374`), leaving reconciliation state permanently missing.",
+        "Compatibility and canonical flows are interleaved in the same service layers (`src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts:432-577`, `src/shared/lib/tasks/joinClipsCompatAdapter.ts:173-245`), increasing boundary glue complexity and making failure propagation/seam behavior harder to reason about."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "orchestrator_complete_billing_retry_gap",
+      "summary": "Billing outcome persistence can be permanently skipped after orchestrator is already marked Complete.",
+      "related_files": [
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/_shared/billing.ts"
+      ],
+      "evidence": [
+        "`markOrchestratorComplete` updates orchestrator status to `Complete` first (`orchestrator.ts:620-637`) and only then triggers/persists billing outcome (`:655-666`).",
+        "If `persistBillingOutcome` throws (`orchestrator.ts:174-187`), outer flow throws recoverable error (`:473-485`), but subsequent invocations return early once status is `Complete` (`:372-374`), so billing reconciliation metadata may never be written."
+      ],
+      "suggestion": "Make completion + billing outcome idempotent as one lifecycle contract: either persist billing metadata before flipping to `Complete`, or allow post-complete retries to continue billing persistence when `billing_outcome`/`billing_reconciliation` is absent.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "singleflight_abort_contract_mismatch",
+      "summary": "Single-flight dedupe in tool settings breaks per-caller abort semantics promised by the API.",
+      "related_files": [
+        "src/shared/lib/toolSettingsService.ts",
+        "src/shared/lib/operationResult.ts"
+      ],
+      "evidence": [
+        "`fetchToolSettingsSupabase` takes `signal?: AbortSignal` (`toolSettingsService.ts:291-295`) but cached in-flight promise is keyed only by scope identifiers (`:305-309`).",
+        "A caller can pass an already-aborted or later-aborted signal yet still receive a non-cancelled shared promise from another caller, so cancellation behavior is inconsistent for the same function signature."
+      ],
+      "suggestion": "Define one contract and enforce it: either remove per-call abort support when deduping globally, or include caller-scoped cancellation mediation (e.g., return a wrapper promise that races shared fetch with local abort and maps to `cancelled`).",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "duplicated_payload_shape_contract",
+      "summary": "Task payload composition duplicates orchestrator data across top-level and nested fields, creating ambiguous read behavior.",
+      "related_files": [
+        "src/shared/lib/tasks/taskPayloadContract.ts",
+        "src/shared/lib/tasks/travelPayloadReader.ts",
+        "src/shared/lib/tasks/taskFamilyContracts.ts"
+      ],
+      "evidence": [
+        "`composeTaskPayload` returns `{ ...orchestratorDetails, ...buildTaskPayloadContract(...) }` (`taskPayloadContract.ts:52-55`), so identical semantic fields can exist in two locations.",
+        "`travelPayloadReader` then resolves values by precedence across multiple sources (`travelPayloadReader.ts:21-28`, `:51-63`), meaning source-of-truth depends on fallback order rather than a single canonical schema."
+      ],
+      "suggestion": "Choose a canonical payload boundary (prefer nested contract blocks) and stop spreading orchestrator details into top-level transport objects; provide explicit migration adapters for legacy readers until removed.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "legacy_compatibility_layer_sprawl"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "compat_and_core_flows_cohabiting_services",
+      "summary": "Core orchestration services mix canonical and legacy compatibility paths in the same modules, increasing seam entropy.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/shared/lib/tasks/joinClipsCompatAdapter.ts"
+      ],
+      "evidence": [
+        "`generateVideoService` includes both v2 request model and backward-compat input fields in one builder path (`generateVideoService.ts:420-452`, `:454-577`).",
+        "`joinClipsCompatAdapter` maps many legacy fields into canonical format while still exposing the old broad params surface (`joinClipsCompatAdapter.ts:19-83`, `:173-245`)."
+      ],
+      "suggestion": "Split compatibility adapters from canonical orchestration services into separate modules and keep runtime service APIs canonical-only; confine legacy mapping to thin ingress boundaries with explicit deprecation telemetry.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "legacy_compatibility_layer_sprawl"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Legacy compatibility logic is retained inline with canonical flows instead of being isolated at ingress boundaries.",
+      "APIs expose mixed contracts (operation result, legacy response adapters, broad optional param shapes), weakening boundary clarity.",
+      "Completion lifecycle sequencing is not modeled as an idempotent state machine across status + billing side effects."
+    ],
+    "likely_symptoms": [
+      "duplicated_payload_shape_contract",
+      "compat_and_core_flows_cohabiting_services"
+    ],
+    "possible_false_positives": []
+  }
+}

@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useMemo } from 'react';
 import type { ShotEditorActions } from '../state/useShotEditorState';
-import { Shot, GenerationRow } from '@/types/shots';
+import { Shot, GenerationRow } from '@/domains/generation/types';
 import { dispatchAppEvent } from '@/shared/lib/typedEvents';
 
 interface UseModeReadinessProps {

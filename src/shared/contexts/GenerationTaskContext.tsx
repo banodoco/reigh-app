@@ -1,8 +1,11 @@
 import React, { createContext, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 import type { Task } from '@/types/tasks';
-import { preloadGenerationTaskMappings, enhanceGenerationsWithTaskData } from '@/shared/lib/generationTaskBridge';
+import {
+  preloadGenerationTaskMappings,
+  enhanceGenerationsWithTaskData,
+} from '@/shared/lib/generationTaskCache';
 
 // ================================================================
 // GENERATION-TASK INTEGRATION CONTEXT

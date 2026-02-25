@@ -1,0 +1,78 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 5,
+  "assessments": {
+    "high_level_elegance": 82.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/hooks/useApiTokens.ts` is a product/integration-specific hook (Supabase auth + edge functions `generate-pat`/`revoke-pat`) but is placed in the same top-level `shared/hooks` namespace as generic primitives like `src/shared/hooks/useAsyncOperation.ts`.",
+        "`src/shared/hooks/useAutoSaveSettings.ts` is a large 662-line orchestration hook combining persistence-mode strategy, lifecycle state machine behavior, debug logging, and debounce/save coordination, but remains in the same flat package boundary as smaller generic hooks.",
+        "Testing boundaries are inconsistent across the same slice: hooks use centralized `src/shared/hooks/__tests__/*` (including `useAsyncOperation.test.ts`, `useAutoSaveSettings.test.ts`, `useAutoTopup.test.ts`), while components use colocated tests (`src/shared/components/ActiveLoRAsDisplay.test.tsx`, `src/shared/components/AppErrorBoundary.test.tsx`), making ownership/discovery patterns non-uniform.",
+        "`src/shared/components/ActiveLoRAsDisplay.tsx` declares domain model type `ActiveLora` inside the UI component file, coupling domain shape definition to presentation-layer placement."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared-hooks-boundary-mixing",
+      "summary": "The `shared/hooks` package mixes generic infra hooks with domain-specific integration hooks in one flat boundary, obscuring ownership and change paths.",
+      "related_files": [
+        "src/shared/hooks/useApiTokens.ts",
+        "src/shared/hooks/useAsyncOperation.ts",
+        "src/shared/hooks/useAutoSaveSettings.ts",
+        "src/shared/hooks/__tests__/useAutoTopup.test.ts"
+      ],
+      "evidence": [
+        "`useApiTokens` contains Supabase auth and PAT edge-function integration details, while `useAsyncOperation` is a reusable primitive and both are placed at the same package level.",
+        "`useAutoSaveSettings` is a large persistence orchestration hook with multiple modes but is packaged beside low-level helpers rather than a dedicated settings/persistence submodule."
+      ],
+      "suggestion": "Introduce domain-oriented subpackages under hooks (for example `hooks/api/`, `hooks/settings/`, `hooks/async/`, `hooks/billing/`) and move files/tests to those boundaries so feature-level hooks are separated from generic primitives.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "test-placement-policy-drift",
+      "summary": "Test placement conventions are inconsistent (centralized hook test folders vs colocated component tests), making package boundaries and ownership rules unpredictable.",
+      "related_files": [
+        "src/shared/hooks/__tests__/useAsyncOperation.test.ts",
+        "src/shared/hooks/__tests__/useAutoSaveSettings.test.ts",
+        "src/shared/hooks/__tests__/useAutoTopup.test.ts",
+        "src/shared/components/ActiveLoRAsDisplay.test.tsx",
+        "src/shared/components/AppErrorBoundary.test.tsx"
+      ],
+      "evidence": [
+        "Hook tests are grouped in a shared `__tests__` directory under hooks, while component tests are colocated with implementation files.",
+        "Within the same review batch, there is no single discoverable rule for where tests should live for a unit."
+      ],
+      "suggestion": "Adopt and enforce one repository-wide test placement rule per layer (fully colocated or clearly centralized by package), then migrate these files to align with that policy.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "domain-type-in-ui-file",
+      "summary": "A domain entity shape is defined inside a presentation component file, weakening architectural layering between shared types and UI modules.",
+      "related_files": [
+        "src/shared/components/ActiveLoRAsDisplay.tsx",
+        "src/shared/components/ActiveLoRAsDisplay.test.tsx"
+      ],
+      "evidence": [
+        "`ActiveLoRAsDisplay.tsx` defines `export interface ActiveLora` directly in the component file instead of importing a shared/domain type module.",
+        "The test constructs objects against this UI-local shape, reinforcing coupling to component-local type ownership."
+      ],
+      "suggestion": "Move `ActiveLora` into a dedicated shared type/domain module and import it from the component and tests so domain contracts are not owned by presentation files.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

@@ -6,7 +6,7 @@ import {
   TaskValidationError
 } from "@/shared/lib/taskCreation";
 import type { TaskCreationResult } from "@/shared/lib/taskCreation";
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 /**
  * Interface for character animate (Wan2.2-Animate) task parameters
@@ -133,7 +133,7 @@ export async function createCharacterAnimateTask(params: CharacterAnimateTaskPar
     return result;
 
   } catch (error) {
-    handleError(error, { context: 'CharacterAnimate', showToast: false });
+    normalizeAndPresentError(error, { context: 'CharacterAnimate', showToast: false });
     throw error;
   }
 }

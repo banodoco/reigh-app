@@ -1,17 +1,18 @@
 import React, { useCallback, useState, useMemo } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
-import { Label } from '@/shared/components/ui/label';
+import { Label } from '@/shared/components/ui/primitives/label';
 import { Button } from '@/shared/components/ui/button';
 import { Switch } from '@/shared/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { Info, Library, Settings } from 'lucide-react';
 import { PhaseConfig, DEFAULT_PHASE_CONFIG, DEFAULT_VACE_PHASE_CONFIG } from '../settings';
 import { LoraModel } from '@/shared/components/LoraSelectorModal';
-import { ActiveLoRAsDisplay, type ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';
-import { PhaseConfigVertical } from './PhaseConfigVertical';
+import { ActiveLoRAsDisplay } from '@/features/lora/components/ActiveLoRAsDisplay';
+import type { ActiveLora } from '@/shared/types/lora';
+import { PhaseConfigVertical } from '@/shared/components/PhaseConfigVertical';
 import { PhaseConfigSelectorModal } from '@/shared/components/PhaseConfigSelectorModal';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { presetQueryKeys } from '@/shared/lib/queryKeys/presets';
 import HoverScrubVideo from '@/shared/components/HoverScrubVideo';
 import type { PresetMetadata, PresetSampleGeneration } from '@/shared/types/presetMetadata';
@@ -174,8 +175,7 @@ export const MotionControl: React.FC<MotionControlProps> = ({
     queryFn: async () => {
       if (!featuredPresetIds || featuredPresetIds.length === 0) return [];
       
-      const { data, error } = await supabase
-        .from('resources')
+      const { data, error } = await supabase().from('resources')
         .select('*')
         .in('id', featuredPresetIds);
       

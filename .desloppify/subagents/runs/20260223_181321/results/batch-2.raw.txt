@@ -1,0 +1,140 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 68.0,
+    "mid_level_elegance": 72.0,
+    "low_level_elegance": 78.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "src/tools/edit-images/hooks/useImageEditValue.ts defines a 100+ field `UseImageEditValueParams` bag and mostly re-exports those fields unchanged into `ImageEditState` via `build*` pass-through builders.",
+        "src/tools/edit-images/hooks/useInlineEditState.ts constructs and forwards large argument bags into `useInpainting`, `useMagicEditMode`, `useRepositionMode`, `useImg2ImgMode`, and then re-wraps the same values into nested return objects.",
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts repeats the same shared fields (`isVideo`, `readOnly`, `isSpecialEditMode`, `selectedProjectId`, `isCloudMode`) across four builder functions instead of using a narrower shared contract."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 62.0,
+        "indirection_cost": 71.0,
+        "interface_honesty": 66.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "src/shared/hooks/useTasks.ts and src/shared/lib/generationTaskBridge.ts each define their own `TaskDbRow` and DB->Task mapper (`mapDbTaskToTask` vs `mapDbTaskRowToTask`), so boundary translation is duplicated across seams.",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx and src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx both construct near-identical `useLightboxWorkflowProps` payloads (`panel`, `shotWorkflow`, `actions`, `buttonGroupProps`), indicating repeated orchestration glue.",
+        "src/shared/realtime/DataFreshnessManager.ts contains both polling policy and toast UI behavior (`toast.error`) while consumers like src/shared/hooks/useTasks.ts call it from data-fetch paths, coupling transport policy to presentation effects."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts wraps simple object assembly in `useMemo` but depends on `[params]`, so memoization is usually invalidated each render while retaining complexity.",
+        "src/tools/edit-images/hooks/useImageEditValue.ts does the same `useMemo(..., [params])` pattern around deterministic object construction, adding ceremony without real stabilization.",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx has broad dependency-heavy memo blocks and repeated object spreading for handoff objects, increasing local cognitive load for routine edits."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "image_edit_state_param_bag_passthrough",
+      "summary": "Image edit state assembly uses oversized pass-through interfaces with low abstraction leverage.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useImageEditValue.ts",
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx"
+      ],
+      "evidence": [
+        "`UseImageEditValueParams` enumerates dozens of fields, and `buildModeState`/`buildCanvasAndAnnotationState`/`buildFormAndGenerationState` mostly copy them verbatim.",
+        "`useInlineEditState` builds `buildImageEditValueParams(...)` from multiple sub-hooks, then returns another nested object tree that re-exposes the same values.",
+        "Callers like `InlineEditView` consume deeply nested state groups, indicating the abstraction is moving data shapes around more than hiding behavior."
+      ],
+      "suggestion": "Collapse `useImageEditValue` and `useInlineEditState` around a smaller domain model: keep behavior-centric hooks (inpaint/reposition/img2img) separate and pass those sub-objects directly through context, only adapting keys where type translation is truly needed.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "button_group_prop_builder_indirection",
+      "summary": "Button group prop builders duplicate shared context and add indirection without transformation.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx"
+      ],
+      "evidence": [
+        "`buildTopLeftProps`, `buildTopRightProps`, `buildBottomLeftProps`, and `buildBottomRightProps` all re-copy the same shared fields.",
+        "Both image and video lightbox render flows then re-spread and override `buttonGroupProps.topRight` (`handleDownload`, `handleDelete`) before passing to `useLightboxWorkflowProps`.",
+        "Most fields are forwarded unchanged, so the abstraction layer adds call depth rather than reducing boundary complexity."
+      ],
+      "suggestion": "Replace per-corner builder fan-out with a single `sharedControls` object plus narrow per-corner deltas, and let `useLightboxWorkflowProps` accept explicit overrides to avoid spread-and-rewrite chains in both image/video render models.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "task_row_mapping_duplicated_across_seams",
+      "summary": "DB-to-domain task mapping is duplicated across modules, creating seam drift risk.",
+      "related_files": [
+        "src/shared/hooks/useTasks.ts",
+        "src/shared/lib/generationTaskBridge.ts"
+      ],
+      "evidence": [
+        "`useTasks.ts` exports `mapDbTaskToTask` with a local `TaskDbRow` type.",
+        "`generationTaskBridge.ts` defines another `TaskDbRow` and `mapDbTaskRowToTask` with the same conversion logic.",
+        "Both modules perform direct task-row translation, so schema updates must be synchronized manually across multiple seams."
+      ],
+      "suggestion": "Promote a single shared mapper/type in one task-domain module (for example under `src/shared/lib/tasks/`) and import it from both hooks and bridge utilities to keep translation policy centralized.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "freshness_policy_coupled_to_ui_side_effects",
+      "summary": "Data freshness policy class is coupled to toast UI, blurring integration boundaries.",
+      "related_files": [
+        "src/shared/realtime/DataFreshnessManager.ts",
+        "src/shared/hooks/useTasks.ts"
+      ],
+      "evidence": [
+        "`DataFreshnessManager` imports `toast` and emits user-facing errors inside `onFetchFailure`.",
+        "`useTasks` invokes `dataFreshnessManager.onFetchFailure(...)` in query functions, so data-layer failures automatically trigger presentation-layer behavior.",
+        "This makes polling/circuit-breaker logic harder to reuse or test independently from UI notification policy."
+      ],
+      "suggestion": "Refactor `DataFreshnessManager` to emit typed failure events/status only, and move toast decisions to a UI subscriber (hook/provider) that listens to manager state changes.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "memoization_on_whole_param_object",
+      "summary": "Multiple hooks use `useMemo` with whole-object deps, adding complexity with little benefit.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts",
+        "src/tools/edit-images/hooks/useImageEditValue.ts"
+      ],
+      "evidence": [
+        "`useButtonGroupProps` memoizes output with dependency `[params]`, which usually changes identity every render.",
+        "`useImageEditValue` uses `useMemo(..., [params])` around pure object construction from a large param bag.",
+        "Both patterns keep memoization scaffolding while typically recomputing anyway, obscuring simple data assembly paths."
+      ],
+      "suggestion": "Either remove `useMemo` for these pure cheap builders, or switch to stable primitive/function dependencies (or upstream memoized inputs) so memoization semantics match actual render behavior.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ]
+}

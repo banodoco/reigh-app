@@ -9,7 +9,7 @@ vi.mock('../../taskCreation', () => ({
   buildHiresFixParams: (...args: unknown[]) => mockBuildHiresFixParams(...args),
 }));
 
-vi.mock('@/shared/lib/errorHandler', () => ({
+vi.mock('@/shared/lib/compat/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 

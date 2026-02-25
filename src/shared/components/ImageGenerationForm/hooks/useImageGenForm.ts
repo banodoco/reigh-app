@@ -9,11 +9,12 @@ import { useState, useEffect, useRef, useCallback, useMemo, type Dispatch, type 
 import { useLoraManager } from '@/shared/hooks/useLoraManager';
 import { usePersistentToolState } from '@/shared/hooks/usePersistentToolState';
 import { usePublicLoras } from '@/shared/hooks/useResources';
-import { useAIInteractionService } from '@/shared/hooks/useAIInteractionService';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { useAIInteractionService } from '@/features/ai/hooks/useAIInteractionService';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
 
 import type { LoraModel } from '@/shared/components/LoraSelectorModal';
-import type { ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';
+import type { ActiveLora } from '@/shared/types/lora';
 import { useGenerationSource } from './useGenerationSource';
 import { usePromptManagement } from './usePromptManagement';
 import { useReferenceManagement } from './useReferenceManagement';
@@ -155,7 +156,7 @@ export function useImageGenForm({
     projectId: selectedProjectId ?? undefined,
     persistenceScope: 'project',
     enableProjectPersistence: true,
-    persistenceKey: 'project-loras',
+    persistenceKey: SETTINGS_IDS.PROJECT_LORAS,
     enableTriggerWords: true,
     onPromptUpdate: setAfterEachPromptText,
     currentPrompt: afterEachPromptText,

@@ -15,14 +15,14 @@
  */
 
 import { useCallback, useMemo, useRef, MutableRefObject } from 'react';
-import { Shot } from '@/types/shots';
+import { Shot } from '@/domains/generation/types';
 import { VideoTravelSettings, PhaseConfig, DEFAULT_PHASE_CONFIG, DEFAULT_VACE_PHASE_CONFIG } from '../settings';
 import { BUILTIN_DEFAULT_I2V_ID, BUILTIN_DEFAULT_VACE_ID } from '../components/MotionControl';
 import { SteerableMotionSettings, DEFAULT_STEERABLE_MOTION_SETTINGS } from '../components/ShotEditor/state/types';
-import { buildBasicModePhaseConfig } from '../components/ShotEditor/services/generateVideoService';
+import { buildBasicModeGenerationRequest as buildBasicModePhaseConfig } from '../components/ShotEditor/services/generateVideo/modelPhase';
 import { UseShotSettingsReturn } from './useShotSettings';
 import type { PresetMetadata } from '@/shared/types/presetMetadata';
-import type { ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';
+import type { ActiveLora } from '@/shared/types/lora';
 
 interface UseVideoTravelSettingsHandlersParams {
   /** Ref to the shot settings - used to access current settings without triggering re-renders */

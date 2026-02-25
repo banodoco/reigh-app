@@ -1,0 +1,849 @@
+{
+  "assessments": {
+    "abstraction_fitness": {
+      "score": 50.5,
+      "components": [
+        "Abstraction Leverage",
+        "Indirection Cost",
+        "Interface Honesty"
+      ],
+      "component_scores": {
+        "Abstraction Leverage": 58.4,
+        "Indirection Cost": 53.7,
+        "Interface Honesty": 65.3
+      }
+    },
+    "ai_generated_debt": 64.1,
+    "api_surface_coherence": 43.4,
+    "authorization_consistency": 59.9,
+    "convention_outlier": 72.3,
+    "cross_module_architecture": 45.3,
+    "design_coherence": 37.1,
+    "error_consistency": 57.6,
+    "high_level_elegance": 45.3,
+    "incomplete_migration": 36.9,
+    "low_level_elegance": 64.2,
+    "mid_level_elegance": 48.9,
+    "package_organization": 41.1
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/handleError.ts` imports UI toast (`@/shared/components/ui/toast`) and triggers toast side effects inside a widely shared error helper.",
+        "`src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts` and `src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts` both depend on that shared helper, so non-UI domain hooks inherit UI coupling through the error boundary.",
+        "`src/types/shots.ts` is a deprecated re-export shim, but active code (`src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts`) still imports through the legacy path, preserving migration-era indirection in a cross-module type boundary."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/components/ui/button.tsx` centralizes many feature/theme-specific variants (retro/theme/success) in a global primitive, mixing system-level UI ownership with page/tool-specific visual policy.",
+        "`src/pages/Home/components/InstallInstructionsModal.tsx` is a 441-line component containing many embedded mockup subcomponents plus scenario routing logic (`getMainVisual`), concentrating multiple responsibilities in one module.",
+        "Touch interaction behavior is split across unrelated layers (`src/shared/components/ui/tooltip.tsx`, `src/shared/components/MediaGallery/hooks/useMobileInteractions.ts`, and `src/pages/Home/components/CreativePartnerPane.tsx`), making ownership of mobile interaction rules hard to reason about."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium",
+      "unreported_risk": ""
+    },
+    "abstraction_fitness": {
+      "evidence": [
+        "`src/tools/travel-between-images/components/ShotEditor/services/applySettingsService.ts` is a compatibility facade that mostly re-exports lower-level services without behavior.",
+        "`src/tools/image-generation/components/ImageGenerationForm/index.tsx` is a compatibility re-export shell for shared implementation.",
+        "The migration/compat surface is split across wrappers and legacy adapters (`src/types/shots.ts`, `src/shared/components/segmentSettingsMigration.ts`), increasing indirection cost."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": "",
+      "sub_axes": {
+        "abstraction_leverage": 54.0,
+        "indirection_cost": 43.0,
+        "interface_honesty": 58.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "`src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts` performs large legacy-to-unified translation branches for structure guidance and then deletes legacy keys, showing boundary normalization is spread into feature code.",
+        "`src/shared/lib/tasks/individualTravelSegment.ts` repeats similar compatibility reconstruction/parsing (legacy structure fields, fallback parsing helpers), creating another seam for the same contract translation problem.",
+        "`supabase/functions/complete_task/orchestrator.ts` queries sibling/final tasks using multi-path `.or(...)` conditions for `orchestrator_run_id`/`run_id` and `orchestrator_task_id`/`orchestrator_task_id_ref`/nested details, indicating backend seams still depend on mixed contract shapes."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Aspect-ratio style logic is duplicated across `src/shared/components/ShotImageManager/utils/image-utils.ts` (`getAspectRatioStyle`) and `src/shared/lib/imageAspectRatio.ts` (`getImageAspectRatioStyle`) with overlapping fallback behavior.",
+        "`src/shared/hooks/useUpdatingTimestamp.ts` mixes generic hook behavior with task-specific wrapper behavior in one file, reducing local cohesion.",
+        "`src/shared/lib/preloading/preloader.ts` uses repeated best-effort branches/early returns and silent catch paths that keep flow safe but slightly fragmented."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "unreported_risk": ""
+    },
+    "api_surface_coherence": {
+      "evidence": [
+        "`buildTravelRequestBody` accepts both nested groups (`motionParams`, `generationParams`, `seedParams`) and duplicated flat legacy fields in the same signature, then merges with fallback precedence, creating two competing API shapes in one function (`src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts:463`).",
+        "`useGenerationInvalidation` mixes async contracts for similar operations: callback API returns `void` while optionally scheduling delayed work (`useInvalidateGenerations`), `invalidateGenerationsSync` can also defer work via `setTimeout` but still returns `void`, while sibling `invalidateVariantChange` is `async` and awaitable (`src/shared/hooks/invalidation/useGenerationInvalidation.ts:58`, `src/shared/hooks/invalidation/useGenerationInvalidation.ts:84`, `src/shared/hooks/invalidation/useGenerationInvalidation.ts:105`).",
+        "Parallel utility seams expose explicit awaitable lifecycle in one place (`runSerializedTimelineWrite` returns a promise and tracks queue phases), but invalidation utilities for adjacent data flows hide delayed completion, making call-site expectations inconsistent (`src/shared/lib/timelineWriteQueue.ts:108`, `src/shared/hooks/invalidation/useGenerationInvalidation.ts:84`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "ai_generated_debt": {
+      "evidence": [
+        "`src/shared/hooks/useDeleteGenerationWithConfirm.tsx` uses a long explanatory block (`@example`, multi-context usage notes) around a small hook with straightforward behavior.",
+        "`src/shared/components/ShotImageManager/utils/image-utils.ts` includes extensive narrative comments that restate field meanings and control flow already visible in code.",
+        "`src/shared/lib/storagePaths.ts` and `src/shared/lib/taskConfig.ts` contain heavy banner/comment scaffolding around simple path builders and config lookups, increasing maintenance noise."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "unreported_risk": ""
+    },
+    "incomplete_migration": {
+      "evidence": [
+        "`src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts` is an explicit compatibility shim with many deprecated fields and a sunset date (`2026-05-31`), indicating old/new payload coexistence is still active.",
+        "`src/types/shots.ts` is fully deprecated but still exists as a re-export shim, prolonging legacy import paths.",
+        "`src/shared/components/ImageGenerationForm/types.ts` retains multiple deprecated legacy fields in `ProjectImageSettings` for migration compatibility, showing migration is intentionally incomplete in active types."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "package_organization": {
+      "evidence": [
+        "holistic_context.structure.root_files marks `vitest.edge.config.ts` (fan_in 1), `vitest.edge.smoke.config.ts` (fan_in 1), `tailwind.config.ts` (fan_in 0), `vite.config.ts` (fan_in 0), and `vitest.config.ts` (fan_in 0) as low-fan-in peripheral root stragglers with the same build/test concern.",
+        "`src/shared/hooks/` has 98 production files in one flat directory (directory_profiles), well above the >10 mixed-concern split threshold; assigned hooks (`useAIInteractionService.ts`, `useAdjacentPagePreloader.ts`, `useApiKeys.ts`) represent different domains (AI orchestration, pagination preloading, credential persistence) but share the same top-level folder.",
+        "Test placement is inconsistent inside shared packages: hooks use `src/shared/hooks/__tests__/...` while components use colocated tests like `src/shared/components/ActiveLoRAsDisplay.test.tsx` and `src/shared/components/AppErrorBoundary.test.tsx`, increasing navigation variance."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "design_coherence": {
+      "evidence": [
+        "`useTimelineOrchestrator` combines drag/zoom/selection/drop/endpoint/video-browser orchestration in one 664-line hook with large input/output contracts (`src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts:21`, `src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts:54`, `src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts:141`).",
+        "`useSharedLightboxState` acts as a mega-facade over many concerns (variants, navigation, shot management, lineage, references, layout, button groups) through one composed props type and one consolidated return object (`src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts:128`, `src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts:602`).",
+        "`useImageEditOrchestrator` coordinates four edit modes plus persistence synchronization and context assembly in a single hook, with a broad prop interface and a large memoized context payload (`src/shared/components/MediaLightbox/hooks/useImageEditOrchestrator.ts:32`, `src/shared/components/MediaLightbox/hooks/useImageEditOrchestrator.ts:128`, `src/shared/components/MediaLightbox/hooks/useImageEditOrchestrator.ts:392`).",
+        "Task flow mixes view orchestration and data/cache mutation (`src/shared/components/TasksPane/TasksPane.tsx:39`, `src/shared/components/TasksPane/TasksPane.tsx:239`) while `useTasks` also owns query construction, status-specific sorting, pagination shaping, and data freshness side effects (`src/shared/hooks/useTasks.ts:93`, `src/shared/hooks/useTasks.ts:117`, `src/shared/hooks/useTasks.ts:209`).",
+        "Form submission logic passes a wide, repeated prop bag across multiple hooks (`src/shared/components/ImageGenerationForm/hooks/formSubmission/types.ts:33`, `src/shared/components/ImageGenerationForm/hooks/useFormSubmission.ts:20`, `src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmissionHandlers.ts:7`, `src/shared/components/ImageGenerationForm/hooks/formSubmission/usePromptQueueHandlers.ts:8`).",
+        "Complete-task path handling mixes migration compatibility, path probing, and generation construction with mutable cross-stage params (`supabase/functions/complete_task/params.ts:42`, `supabase/functions/complete_task/params.ts:172`, `supabase/functions/complete_task/generation-child.ts:41`, `supabase/functions/complete_task/generation-child.ts:77`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "convention_outlier": {
+      "evidence": [
+        "`src/shared/components/ui/button.tsx:1-71`, `src/shared/components/ui/label.tsx:1-22`, and `src/shared/components/ui/tooltip.tsx:1-50` use a no-semicolon/double-quote style island, while nearby app/shared files such as `src/app/hooks/useSettingsModal.ts:1-63` use semicolons and single quotes.",
+        "`src/app/routes.tsx:22` uses double quotes for one import while the rest of the file is single-quote style, indicating localized convention drift inside the same module."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "error_consistency": {
+      "evidence": [
+        "`src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts:57-64` logs missing-shot failures with `console.error` and returns, while the same file uses `handleError(...)` in other failure paths (`:50`, `:70`, `:86`), creating mixed error channels for sibling paths.",
+        "`supabase/functions/complete_task/orchestrator.ts:213-216` converts segment query errors into `null`, and `checkOrchestratorCompletion` treats `!allSegments` as a normal early return (`:115-117`), making query failure behavior indistinguishable from valid 'no progress' states.",
+        "`supabase/functions/complete_task/orchestrator.ts:238-240` maps DB errors to `'not_found'` in `checkFinalStitchStatus`, collapsing operational failures into a domain-state sentinel."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "authorization_consistency": {
+      "evidence": [
+        "`authenticateRequest` only accepts JWT user auth when `allowJwtUserAuth: true` is passed.",
+        "`supabase/functions/generate-upload-url/index.ts` and `supabase/functions/task-counts/index.ts` document `Authorization: Bearer <JWT or PAT>` but call `authenticateRequest(req, supabaseAdmin, ...)` without JWT opt-in.",
+        "Other sibling endpoints do opt-in (`supabase/functions/tasks-list/index.ts`, `supabase/functions/create-task/index.ts`), creating inconsistent access behavior."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "shared_error_boundary_leaks_ui",
+      "summary": "Core error helper directly depends on UI toast, creating cross-layer coupling.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+      ],
+      "evidence": [
+        "`handleError` imports `toast` and conditionally renders destructive toasts inside the core handler.",
+        "Feature hooks call `handleError` for operational failures, so their error path implicitly includes presentation behavior from shared UI."
+      ],
+      "suggestion": "Split error handling into a UI-agnostic core (`normalize/log/return`) and an optional UI adapter (`handleErrorWithToast`), then migrate non-UI hooks to the core API and call toast behavior only at explicit UI boundaries.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "deprecated_type_shim_still_active",
+      "summary": "Deprecated `types/shots` shim is still on active import paths.",
+      "related_files": [
+        "src/types/shots.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts"
+      ],
+      "evidence": [
+        "`src/types/shots.ts` is marked deprecated and only re-exports `@/types/generationAndShots`.",
+        "`useMediaGalleryHandlers` still imports `Shot` from `@/types/shots`, keeping the legacy boundary alive."
+      ],
+      "suggestion": "Replace remaining imports of `@/types/shots` with `@/types/generationAndShots`, then remove the shim once callers are migrated.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "global_button_owns_feature_variants",
+      "summary": "Shared Button primitive mixes design-system and feature-specific style policy.",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+        "src/shared/components/MediaTypeFilter.tsx"
+      ],
+      "evidence": [
+        "`button.tsx` includes broad variant sets (`retro*`, `theme*`, `success`) with page/tool-specific styling comments.",
+        "Feature components consume the same global primitive, so feature visual policy changes can force edits in the central shared module."
+      ],
+      "suggestion": "Keep `Button` to baseline variants only, and move feature- or page-specific presets into thin local wrappers (e.g., `HomeButton`, `MediaActionButton`) near their owning domains.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "touch_behavior_ownership_fragmented",
+      "summary": "Mobile/touch interaction policy is implemented in multiple unrelated modules.",
+      "related_files": [
+        "src/shared/components/ui/tooltip.tsx",
+        "src/shared/components/MediaGallery/hooks/useMobileInteractions.ts",
+        "src/pages/Home/components/CreativePartnerPane.tsx"
+      ],
+      "evidence": [
+        "`tooltip.tsx` defines touch-specific open/close behavior with pointer listeners.",
+        "`useMobileInteractions.ts` separately defines tap/double-tap and outside-close behavior for gallery interactions.",
+        "`CreativePartnerPane.tsx` adds custom mobile tooltip toggling/disable rules again at feature level."
+      ],
+      "suggestion": "Define a shared touch-interaction contract (state machine or small hook set) and have tooltip/gallery/home components compose that contract instead of each implementing bespoke tap/open/close semantics.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "image_edit_state_param_bag_fanout",
+      "summary": "Image edit state uses a massive pass-through param bag abstraction with low leverage.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/hooks/useImageEditValue.ts"
+      ],
+      "evidence": [
+        "`buildImageEditValueParams` in `useInlineEditState` forwards a very large set of fields from multiple sub-hooks into one object.",
+        "`UseImageEditValueParams` in `useImageEditValue` mirrors those fields and mostly reconstructs an object via `buildModeState`/`buildCanvasAndAnnotationState`/`buildRepositionAndPanelState`/`buildFormAndGenerationState` with minimal semantic transformation."
+      ],
+      "suggestion": "Split `ImageEditState` assembly into cohesive slices (mode, canvas, generation) owned by their source hooks, then compose those slices directly in one coordinator hook with a narrower input contract. Remove one-to-one forwarding fields where callers can consume source slices directly.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "legacy_contract_translation_sprawl",
+      "summary": "Legacy/new orchestrator parameter translation is duplicated across frontend payload and backend completion seams.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "supabase/functions/complete_task/orchestrator.ts",
+        "src/shared/lib/tasks/joinClips.ts"
+      ],
+      "evidence": [
+        "`payloadBuilder.ts` translates multiple legacy structure formats into unified `structure_guidance` and then strips legacy fields afterward.",
+        "`individualTravelSegment.ts` re-implements compatibility parsing/fallback behavior for overlapping field shapes from original/orchestrator payloads.",
+        "`orchestrator.ts` sibling/final-step lookup uses OR chains across multiple param paths for run/task IDs, implying runtime dependency on mixed historical field names."
+      ],
+      "suggestion": "Introduce one canonical orchestration contract version and a single normalization layer at task-ingress (task creation). Persist only canonical keys in `tasks.params`, migrate old rows opportunistically, and simplify completion queries to one key path per concept.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "lightbox_button_props_copy_layers",
+      "summary": "Button-group prop construction uses repetitive copy layers and unstable memo boundaries.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts",
+        "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts"
+      ],
+      "evidence": [
+        "`useButtonGroupProps.ts` repeats the same shared fields in four builder functions, with only small per-group differences.",
+        "`useSharedLightboxState.ts` passes inline nested objects into `useButtonGroupProps`; combined with `useMemo(..., [params])`, this causes recompute on each render and reduces value of the abstraction.",
+        "`useSharedLightboxState.ts` wraps `handleUpscale` in `async () => await Promise.resolve(handleUpscale())`, which is an extra pass-through layer."
+      ],
+      "suggestion": "Collapse builders into a single shared base object plus small per-group overrides, memoize on primitive dependencies instead of the entire `params` object, and remove the `Promise.resolve` wrapper unless `handleUpscale` can be sync in practice.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "overloaded_generate_request_contract",
+      "summary": "Request builder exposes two overlapping input schemas with implicit precedence.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/shared/components/JoinClipsSettingsForm/types.ts"
+      ],
+      "evidence": [
+        "`buildTravelRequestBody` defines nested param groups and a second flat legacy parameter set in one public function contract, then resolves by fallback merging (`src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts:463`).",
+        "The module also exports compatibility aliases and test-oriented alternate names, increasing surface ambiguity (`src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts:596`).",
+        "A similar flattening pattern exists in form prop resolvers that spread multiple groups into one object (`resolveJoinClipsSettingsFormProps`), reinforcing ambiguous precedence at API boundaries (`src/shared/components/JoinClipsSettingsForm/types.ts:106`)."
+      ],
+      "suggestion": "Split into a strict v2 request input type used by production code and a small adapter for legacy/test callers. Keep one canonical shape in `buildTravelRequestBody` and move legacy flattening to a separately named compatibility function.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "invalidation_completion_contract_mismatch",
+      "summary": "Invalidation APIs mix fire-and-forget and awaitable behavior for similar operations.",
+      "related_files": [
+        "src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+        "src/shared/lib/timelineWriteQueue.ts"
+      ],
+      "evidence": [
+        "`useInvalidateGenerations` and `invalidateGenerationsSync` can defer work via timers but return `void`, so callers cannot await completion (`src/shared/hooks/invalidation/useGenerationInvalidation.ts:62`, `src/shared/hooks/invalidation/useGenerationInvalidation.ts:84`).",
+        "`invalidateVariantChange` in the same module is `async` and partially awaits refetches (`src/shared/hooks/invalidation/useGenerationInvalidation.ts:105`).",
+        "Adjacent write-sequencing utilities use explicit promise-based completion (`runSerializedTimelineWrite`), creating inconsistent expectations for call sites coordinating writes and invalidations (`src/shared/lib/timelineWriteQueue.ts:108`)."
+      ],
+      "suggestion": "Standardize invalidation APIs to return `Promise<void>` whenever delayed or multi-step work can occur. Provide explicit `fireAndForget` wrappers only where intentional, and document completion semantics in function names.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "duplicated_shot_generation_boundary_mappers",
+      "summary": "Shot-generation translation logic is duplicated across service seams.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/shared/lib/generationTransformers.ts"
+      ],
+      "evidence": [
+        "`generateVideoService` defines local `ShotGenRow`, custom selection query, filtering, and payload assembly (`src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts:151`, `src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts:246`).",
+        "`generationTransformers` separately defines `RawShotGeneration` and conversion rules for timeline consumption (`src/shared/lib/generationTransformers.ts:163`, `src/shared/lib/generationTransformers.ts:379`).",
+        "Both modules encode overlapping DB-to-domain translation concerns independently, increasing seam friction when schema fields change."
+      ],
+      "suggestion": "Introduce a shared shot-generation mapper package (query projection + normalizers + typed DTO) and have both generation submission and timeline/gallery transforms consume that single boundary layer.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "schema_fallback_paths_scattered",
+      "summary": "Nested legacy schema fallback logic is scattered instead of centralized.",
+      "related_files": [
+        "supabase/functions/_shared/billing.ts",
+        "src/shared/lib/generationTransformers.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts"
+      ],
+      "evidence": [
+        "`extractOrchestratorRef` hardcodes multiple nested param paths for current/legacy formats (`supabase/functions/_shared/billing.ts:31`).",
+        "`extractPrompt` and `extractPairOverrides` use separate nested fallback chains for related metadata evolution paths (`src/shared/lib/generationTransformers.ts:193`, `src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts:40`).",
+        "These translators are implemented independently across modules, so migration updates require synchronized manual edits across boundaries."
+      ],
+      "suggestion": "Create shared schema-access helpers for legacy/current task metadata paths and reuse them across frontend transformers and edge-function billing utilities to keep migration logic in one seam.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_payload_shims_still_primary",
+      "summary": "Legacy travel/image payload fields remain first-class in shared types, extending migration tail risk.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts",
+        "src/shared/components/ImageGenerationForm/types.ts",
+        "src/types/shots.ts"
+      ],
+      "evidence": [
+        "`legacyStructureVideo.ts` defines multiple deprecated fields (`structure_video_*`, `use_uni3c`, `motion_strength`) with an explicit sunset contract.",
+        "`ImageGenerationForm/types.ts` keeps deprecated project-level fields (`selectedReferenceId`, `styleReference*`, etc.) for backward migration compatibility.",
+        "`types/shots.ts` remains as a deprecated re-export shim instead of fully removing the old type entrypoint."
+      ],
+      "suggestion": "Set an enforcement path: add lint/codemod checks to block new legacy-field usage, migrate all internal callers to modern structures (`structure_guidance`, `generationAndShots`), and remove shim exports once importer count reaches zero.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "aspect_ratio_logic_split",
+      "summary": "Aspect-ratio fallback logic is duplicated across two utilities with partially overlapping responsibilities.",
+      "related_files": [
+        "src/shared/components/ShotImageManager/utils/image-utils.ts",
+        "src/shared/lib/imageAspectRatio.ts"
+      ],
+      "evidence": [
+        "Both files independently compute `{ aspectRatio: string }` with similar fallback to project ratio and default square.",
+        "One path parses only project ratio, while the other also parses metadata/orchestrator resolution, creating drift risk for future behavior changes."
+      ],
+      "suggestion": "Extract one canonical aspect-ratio resolver in `src/shared/lib/imageAspectRatio.ts` and make ShotImageManager call it with any source-specific inputs.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "commentary_overhead_exceeds_logic",
+      "summary": "Several small helpers are wrapped in heavy explanatory comments that restate behavior and obscure the operational core.",
+      "related_files": [
+        "src/shared/hooks/useDeleteGenerationWithConfirm.tsx",
+        "src/shared/components/ShotImageManager/utils/image-utils.ts",
+        "src/shared/lib/storagePaths.ts"
+      ],
+      "evidence": [
+        "`useDeleteGenerationWithConfirm.tsx` includes lengthy explanatory prose and example usage for a small, self-descriptive hook.",
+        "`image-utils.ts` includes comment blocks narrating obvious loop and field operations.",
+        "`storagePaths.ts` has long scaffolding comments for straightforward string template helpers."
+      ],
+      "suggestion": "Trim comments to non-obvious intent/constraints only; keep concise docblocks where API contracts are subtle and remove code-restating narration.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "root_config_stragglers_not_packaged",
+      "summary": "Peripheral test/build config files are scattered at root instead of a single config package.",
+      "related_files": [
+        "vitest.edge.config.ts",
+        "vitest.edge.smoke.config.ts",
+        "vitest.config.ts",
+        "vite.config.ts",
+        "tailwind.config.ts"
+      ],
+      "evidence": [
+        "All five assigned root config files are flagged as peripheral in structure data, and four have fan_in 0-1.",
+        "`vitest.config.ts` depends on `./vitest.edge.config` only to derive include/exclude boundaries, indicating shared concern but split ownership.",
+        "Root-level accumulation makes build/test topology discovery depend on filename guessing rather than directory boundary."
+      ],
+      "suggestion": "Staged reorg plan: (1) create `config/testing/`, `config/build/`, and `config/styles/`; (2) move `vitest.edge.config.ts` and `vitest.edge.smoke.config.ts` to `config/testing/`, then move `vitest.config.ts` to `config/testing/web.vitest.config.ts`; (3) move `vite.config.ts` to `config/build/vite.config.ts` and `tailwind.config.ts` to `config/styles/tailwind.config.ts`; (4) add tiny root shim files only when tool discovery requires root presence; (5) update imports/scripts (`rg \"vitest\\.edge\\.config|vitest\\.config|vite\\.config|tailwind\\.config\" -n .` then update package scripts); (6) validate with `pnpm vitest -c config/testing/web.vitest.config.ts`, `pnpm vitest -c config/testing/vitest.edge.config.ts`, and `pnpm vite build --config config/build/vite.config.ts`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "shared_hooks_flat_directory_overload",
+      "summary": "A 98-file flat hooks directory mixes unrelated domains and weakens ownership boundaries.",
+      "related_files": [
+        "src/shared/hooks/useAIInteractionService.ts",
+        "src/shared/hooks/useAdjacentPagePreloader.ts",
+        "src/shared/hooks/useApiKeys.ts",
+        "src/shared/hooks/__tests__/useAIInteractionService.test.ts",
+        "src/shared/hooks/__tests__/useAdjacentPagePreloader.test.ts",
+        "src/shared/hooks/__tests__/useApiKeys.test.ts"
+      ],
+      "evidence": [
+        "directory_profiles reports `src/shared/hooks/` with file_count 98, exceeding flat-directory split threshold.",
+        "Assigned hooks in the same folder implement distinct responsibilities (AI prompt orchestration, gallery page preloading, API-key persistence) with no common domain boundary in path.",
+        "Coupling matrix shows heavy outward edges from shared hooks to multiple infra areas (e.g., `src/shared/hooks/ \u2192 src/shared/lib/` 63 and `\u2192 src/integrations/supabase/` 50), reinforcing that the folder is a broad catch-all."
+      ],
+      "suggestion": "Staged reorg plan: (1) create target folders `src/shared/hooks/ai/`, `src/shared/hooks/gallery/`, and `src/shared/hooks/account/`; (2) move files in this order: `useAIInteractionService.ts` + test, then `useAdjacentPagePreloader.ts` + test, then `useApiKeys.ts` + test; (3) convert old paths to temporary re-export shims for one cycle to reduce churn; (4) run import updates via `rg \"@/shared/hooks/(useAIInteractionService|useAdjacentPagePreloader|useApiKeys)\" -n src` and replace with new paths; (5) validate with `pnpm vitest src/shared/hooks/__tests__/useAIInteractionService.test.ts src/shared/hooks/__tests__/useAdjacentPagePreloader.test.ts src/shared/hooks/__tests__/useApiKeys.test.ts` and full typecheck.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "testing_topology_split_across_root_and_package_styles",
+      "summary": "Test ownership model is split between centralized hook tests and colocated component tests.",
+      "related_files": [
+        "src/shared/hooks/__tests__/useAIInteractionService.test.ts",
+        "src/shared/hooks/__tests__/useAdjacentPagePreloader.test.ts",
+        "src/shared/hooks/__tests__/useApiKeys.test.ts",
+        "src/shared/components/ActiveLoRAsDisplay.test.tsx",
+        "src/shared/components/AppErrorBoundary.test.tsx"
+      ],
+      "evidence": [
+        "Hooks tests are centralized under `src/shared/hooks/__tests__/`, while component tests are colocated with production files in `src/shared/components/`.",
+        "This mixed policy creates two discovery rules for sibling shared packages and weakens predictability of where ownership and verification live.",
+        "The inconsistency appears in assigned files directly rather than being isolated to one legacy area."
+      ],
+      "suggestion": "Staged reorg plan: (1) choose one policy per package layer (recommended: colocate tests beside units for both hooks and components); (2) move `src/shared/hooks/__tests__/useAIInteractionService.test.ts` to `src/shared/hooks/ai/useAIInteractionService.test.ts`, `useAdjacentPagePreloader.test.ts` to `src/shared/hooks/gallery/useAdjacentPagePreloader.test.ts`, and `useApiKeys.test.ts` to `src/shared/hooks/account/useApiKeys.test.ts` after hook folder split; (3) keep `src/shared/components/*.test.tsx` colocated; (4) update glob patterns in vitest configs to avoid brittle folder assumptions; (5) validate with `pnpm vitest --run` and `rg \"__tests__/use(AIInteractionService|AdjacentPagePreloader|ApiKeys)\" -n src` to confirm no stale paths.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "hub_modules_embed_import_time_and_ui_side_effects",
+      "summary": "Two high-fan-in hubs mix boundary roles and side effects, raising codebase blast radius.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "`handleError` in shared lib normalizes/logs errors and also calls UI toast directly.",
+        "`supabase` client module performs instrumentation/runtime setup during import (`export const supabase = getOrCreateSupabaseClient()`).",
+        "Both files are hub modules in holistic context (225 and 146 importers)."
+      ],
+      "suggestion": "Split each hub into explicit boundary contracts: (1) move pure error normalization/logging into `src/shared/lib/errorHandling/core.ts` and create a UI adapter (`src/shared/components/errorHandling/toastError.ts`) used only by presentation layers; (2) expose `getSupabaseClient()` as lazy retrieval and move runtime/instrumentation bootstrap into app startup (`src/app/bootstrap.tsx`) so imports are side-effect-free; then run `npm run typecheck` and `npm run test` to validate no import-cycle or init-order regressions.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "deprecated_type_contract_remains_primary_path",
+      "summary": "Deprecated type alias policy is declared but not operationally enforced.",
+      "related_files": [
+        "src/types/shots.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`src/types/shots.ts` includes explicit deprecation/sunset metadata with removal date `2026-05-31`.",
+        "Holistic context marks this file as a 199-importer hub, so the deprecated path is still one of the dominant contracts.",
+        "`README.md` emphasizes architecture/document trust, but this contract drift weakens that trust."
+      ],
+      "suggestion": "Adopt an enforced deprecation lifecycle: add a CI gate that fails new imports of `@/types/shots`, publish migration ownership in docs, and execute a phased codemod from `@/types/shots` to `@/types/generationAndShots` before the dated removal window.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "generic_utils_barrel_masks_mixed_concerns",
+      "summary": "A high-fan-in generic utils barrel in an overloaded directory obscures package ownership.",
+      "related_files": [
+        "src/shared/lib/utils.ts",
+        "src/shared/components/ui/button.tsx"
+      ],
+      "evidence": [
+        "`src/shared/lib/` has 70 files, indicating flat mixed-concern organization.",
+        "`src/shared/lib/utils.ts` is a 134-importer hub but only re-exports from two different concern areas (`uiClassNames` and `stringFormatting`).",
+        "`button.tsx` imports from `@/shared/lib/utils`, reinforcing broad generic utility coupling instead of concern-specific modules."
+      ],
+      "suggestion": "Staged reorg plan: Stage 1 target folders: create `src/shared/lib/ui/cn.ts` and `src/shared/lib/text/stringFormatting.ts` (or align with existing `stringFormatting.ts` path) and keep temporary compatibility exports. Stage 2 move order: (a) move/alias `cn` first, (b) update UI primitives like `src/shared/components/ui/button.tsx`, (c) migrate string helper consumers, (d) delete `src/shared/lib/utils.ts` last. Stage 3 import updates and validation commands: `rg -l \"@/shared/lib/utils\" src | xargs -I{} sed -i '' -e \"s#@/shared/lib/utils#@/shared/lib/ui/cn#g\" -e \"s#@/shared/lib/utils#@/shared/lib/text/stringFormatting#g\" {}` (or repo-preferred codemod), then run `npm run typecheck` and `npm run test`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "timeline_orchestrator_multi_responsibility",
+      "summary": "Timeline orchestrator hook owns too many unrelated responsibilities in one unit.",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts",
+        "src/tools/travel-between-images/components/Timeline/hooks/useUnifiedDrop.ts",
+        "src/tools/travel-between-images/components/Timeline/hooks/useEndpointDrag.ts"
+      ],
+      "evidence": [
+        "`useTimelineOrchestrator` defines broad props/return contracts and then directly coordinates drag, zoom, global events, pending frame bookkeeping, drop interception, duplicate placement logic, and structure-video selection (`.../useTimelineOrchestrator.ts:21`, `:54`, `:141`, `:414`, `:504`).",
+        "The hook imports multiple specialized hooks but still contains substantial domain logic and state transitions itself, so decomposition did not isolate responsibilities (`.../useTimelineOrchestrator.ts:6-13`, `:346`, `:473`)."
+      ],
+      "suggestion": "Split into explicit coordinators: `useTimelineInteractionState` (drag/zoom/selection), `useTimelinePlacementOps` (duplicate/drop/frame placement rules), and `useStructureVideoSelection`. Keep `useTimelineOrchestrator` as a thin composition layer that wires outputs together without business logic.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "lightbox_shared_state_megafacade",
+      "summary": "Shared lightbox state collapses many domains behind one oversized facade interface.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts",
+        "src/shared/components/MediaLightbox/MediaLightbox.tsx",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx"
+      ],
+      "evidence": [
+        "`UseSharedLightboxStateProps` extends many grouped interfaces and feeds a single hook that assembles variants, navigation, star, references/join, lineage, shots, source generation, layout, and button props (`.../useSharedLightboxState.ts:128`, `:602`).",
+        "`MediaLightbox` and `ImageLightbox` must pass/reshape large grouped bundles to satisfy this facade, indicating integration friction from interface breadth (`.../MediaLightbox.tsx:11`, `:79`, `:148`; `.../ImageLightbox.tsx` shared-state call path)."
+      ],
+      "suggestion": "Replace one mega hook with independent state modules consumed directly by image/video lightboxes (e.g., `useLightboxVariants`, `useLightboxShotActions`, `useLightboxLayout`, `useLightboxButtonActions`), then compose only required modules per mode.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "image_edit_orchestrator_context_bloat",
+      "summary": "Image edit orchestrator mixes mode orchestration and context construction into a god hook.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useImageEditOrchestrator.ts",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/contexts/ImageEditContext.ts"
+      ],
+      "evidence": [
+        "A single hook accepts a large config surface and drives inpainting, magic-edit, reposition, and img2img flows in one execution path (`.../useImageEditOrchestrator.ts:32`, `:128`, `:176`, `:262`, `:307`, `:350`).",
+        "It also builds a very large memoized `ImageEditState` object and includes placeholder values (`isFlippedHorizontally`, `isSaving`) inside the same unit, blending orchestration and state-shaping concerns (`.../useImageEditOrchestrator.ts:392`)."
+      ],
+      "suggestion": "Move each mode into independently exported adapters that emit a normalized `ModeController` contract, then build `ImageEditContext` in a dedicated mapper function. Keep orchestrator limited to selecting active mode + composing shared controls.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "form_submission_prop_bag_chain",
+      "summary": "Image generation submission uses a wide prop bag forwarded through multiple layers.",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/types.ts",
+        "src/shared/components/ImageGenerationForm/hooks/useFormSubmission.ts",
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmissionHandlers.ts",
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/usePromptQueueHandlers.ts"
+      ],
+      "evidence": [
+        "`UseFormSubmissionProps` includes many operational fields and callbacks in one interface (`.../types.ts:33` onward), then `useFormSubmission` destructures and re-passes most of them (`.../useFormSubmission.ts:20`, `:93`).",
+        "`useSubmissionHandlers` and `usePromptQueueHandlers` repeat nearly the same input bag shape, showing structural duplication and weak ownership boundaries (`.../useSubmissionHandlers.ts:7`, `:24`; `.../usePromptQueueHandlers.ts:8`, `:31`)."
+      ],
+      "suggestion": "Define explicit domain payloads (`PromptGenerationContext`, `TaskCreationContext`, `QueueExecutionContext`) and pass only the subset each handler needs. Add one adapter at the boundary from UI state to these smaller contexts.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "tasks_pane_ui_data_orchestration_mix",
+      "summary": "Tasks pane component mixes pane UI, filtering UX, and data mutation orchestration.",
+      "related_files": [
+        "src/shared/components/TasksPane/TasksPane.tsx",
+        "src/shared/hooks/useTasks.ts",
+        "src/shared/components/TasksPane/TaskList.tsx"
+      ],
+      "evidence": [
+        "`TasksPane` manages pane animation behavior, filter/pagination state, query orchestration, optimistic cancellation mutation, and lightbox integration in one component (`.../TasksPane.tsx:39`, `:125`, `:158`, `:239`, `:322`).",
+        "`useTasks` independently includes query builders, custom processing sort policy, and freshness reporting side effects, creating split-but-overlapping orchestration responsibilities (`.../useTasks.ts:93`, `:117`, `:209`)."
+      ],
+      "suggestion": "Extract a `useTasksPaneController` for task-domain orchestration (filters, pagination, cancellation, lightbox intents) and keep `TasksPane` mostly presentational. Keep data policy (sorting/count rules) in `useTasks` only, then expose a cleaner view model.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "complete_task_param_shape_sprawl",
+      "summary": "Complete-task flow spreads param-shape compatibility logic across modules and stages.",
+      "related_files": [
+        "supabase/functions/complete_task/params.ts",
+        "supabase/functions/complete_task/generation-child.ts",
+        "supabase/functions/complete_task/index.ts"
+      ],
+      "evidence": [
+        "`params.ts` repeatedly probes many alternate nested paths for equivalent fields and performs deep clone mutation (`.../params.ts:42`, `:106`, `:125`, `:172`), indicating unresolved canonical param schema.",
+        "`generation-child.ts` mutates `taskData.params` mid-flow and re-extracts nested fields (including orchestrator arrays), coupling migration normalization with generation creation logic (`.../generation-child.ts:41`, `:77`, `:93`, `:498`)."
+      ],
+      "suggestion": "Introduce a single normalization step in `index.ts` that converts incoming task params to one canonical typed shape. Pass that normalized structure through downstream handlers as immutable data and remove per-handler path probing.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "mixed_error_channels_in_gallery_handlers",
+      "summary": "Sibling failure paths mix `console.error`+return and centralized `handleError` handling.",
+      "related_files": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "`useMediaGalleryHandlers` uses `handleError` in catch blocks (`:50`, `:70`) but uses raw `console.error` and silent return for missing shot/fullShot (`:57-64`).",
+        "The shared contract in `handleError.ts` normalizes/logs/toasts errors, but these branches bypass it entirely."
+      ],
+      "suggestion": "Route missing-shot branches through `handleError(new Error(...), { context: 'MediaGallery', showToast: false })` (or a shared non-throwing reporter) so all gallery handler failures follow one logging/diagnostic contract.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "orchestrator_query_errors_collapsed_to_normal_states",
+      "summary": "Orchestrator DB query failures are downgraded to normal control-flow states.",
+      "related_files": [
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/calculate-task-cost/index.ts"
+      ],
+      "evidence": [
+        "`findSiblingSegments` logs query errors then returns `null` (`orchestrator.ts:213-216`), and caller exits early on `!allSegments` (`:115-117`) without marking failure/retry.",
+        "`checkFinalStitchStatus` returns `'not_found'` on query error (`:238-240`), merging operational failure with legitimate absence.",
+        "In contrast, `calculate-task-cost` returns explicit error responses on DB/auth failures (`calculate-task-cost/index.ts:229-233`, `:320-324`, `:461-469`)."
+      ],
+      "suggestion": "Use a discriminated return (`{ kind: 'ok'|'not_found'|'error', ... }`) or throw on DB errors in orchestrator helpers; propagate to a caller path that records failure/retry intent instead of early-returning as if no data existed.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "formatting_style_islands_in_shared_modules",
+      "summary": "Formatting conventions drift across sibling shared/app modules.",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/ui/tooltip.tsx",
+        "src/shared/components/ui/label.tsx",
+        "src/shared/hooks/useMobile.tsx",
+        "src/app/hooks/useSettingsModal.ts",
+        "src/app/routes.tsx"
+      ],
+      "evidence": [
+        "`button.tsx`, `tooltip.tsx`, `label.tsx`, and `useMobile.tsx` largely follow double-quote/no-semicolon style.",
+        "`useSettingsModal.ts` is single-quote/semicolon style, and `routes.tsx` contains a mixed-style outlier import at `:22` within an otherwise single-quote file."
+      ],
+      "suggestion": "Enforce one formatter/lint contract repo-wide (or explicitly per-directory) and normalize this batch\u2019s outliers so style does not vary by file provenance.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "authorization_consistency",
+      "identifier": "auth_jwt_option_drift",
+      "summary": "JWT support is documented for multiple edge endpoints but disabled in actual auth calls.",
+      "related_files": [
+        "supabase/functions/generate-upload-url/index.ts",
+        "supabase/functions/task-counts/index.ts",
+        "supabase/functions/tasks-list/index.ts",
+        "supabase/functions/_shared/auth.ts"
+      ],
+      "evidence": [
+        "`authenticateRequest` requires `allowJwtUserAuth: true` to accept JWT user tokens.",
+        "`generate-upload-url` and `task-counts` headers/docs state `Bearer <JWT or PAT>` but call `authenticateRequest(req, supabaseAdmin, ...)` without options.",
+        "`tasks-list` and `create-task` pass `{ allowJwtUserAuth: true }`, showing sibling divergence."
+      ],
+      "suggestion": "Normalize auth policy per endpoint class and enforce it in one helper: add explicit auth mode constants (service-only, pat-or-jwt-user, pat-only), wire each endpoint through that helper, and add integration tests for JWT and PAT paths on all user-facing endpoints.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "edge_response_contract_drift",
+      "summary": "Sibling edge APIs expose inconsistent error/response envelopes and CORS handling.",
+      "related_files": [
+        "supabase/functions/get-task-status/index.ts",
+        "supabase/functions/create-task/index.ts",
+        "supabase/functions/tasks-list/index.ts",
+        "supabase/functions/_shared/http.ts"
+      ],
+      "evidence": [
+        "`get-task-status` returns plain text errors (`new Response(\"...\")`) while `tasks-list` uses JSON envelopes via `jsonResponse`.",
+        "`create-task` uses custom `createCorsResponse` string bodies instead of shared response utility.",
+        "This creates client-side branching by endpoint for equivalent failure categories."
+      ],
+      "suggestion": "Adopt a single shared edge response contract (`{ error, code, details? }` for failures and JSON success envelopes) and a shared CORS+JSON helper module; migrate high-traffic endpoints first (`create-task`, `get-task-status`, `generate-upload-url`) and validate with endpoint contract tests.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "compatibility_layer_sprawl",
+      "summary": "Legacy/new model coexistence persists across types, metadata migration logic, and tool facades.",
+      "related_files": [
+        "src/types/shots.ts",
+        "src/shared/components/segmentSettingsMigration.ts",
+        "src/shared/components/segmentSettingsMigrationLegacy.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/applySettingsService.ts"
+      ],
+      "evidence": [
+        "`src/types/shots.ts` is explicitly deprecated with remove-by date but remains heavily imported per packet context.",
+        "`segmentSettingsMigration.ts` supports multiple generations of metadata fields (`segmentOverrides`, `pair_*`, `user_overrides`) in active path.",
+        "Compatibility facades still preserve old imports instead of forcing canonical module usage."
+      ],
+      "suggestion": "Run a migration completion plan: 1) freeze new legacy usages with lint/import rules, 2) codemod all `@/types/shots` imports to `@/types/generationAndShots`, 3) move legacy readers into an isolated `legacy/` boundary, 4) remove facade exports once callers hit zero, and 5) enforce with CI checks on deprecated symbol usage.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "thin_facade_indirection",
+      "summary": "Multiple compatibility facades add import indirection with little local behavior.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/applySettingsService.ts",
+        "src/tools/image-generation/components/ImageGenerationForm/index.tsx",
+        "src/tools/edit-video/hooks/useEditVideoSettings.ts"
+      ],
+      "evidence": [
+        "`applySettingsService.ts` is largely a re-export shell over `services/applySettings/*` modules.",
+        "`tools/image-generation/.../ImageGenerationForm/index.tsx` exists mainly as backward-compat re-export to shared implementation.",
+        "This pattern repeats in tool-local wrappers and increases mental overhead for locating authoritative logic."
+      ],
+      "suggestion": "Define canonical entrypoints per domain (for example `shared/*` or `tools/*`), deprecate wrapper modules with automated import rewrites, then remove wrappers in a timed batch after import counts reach zero.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "shared_dir_overload_and_reorg_gap",
+      "summary": "Large mixed-concern shared directories and distributed compatibility shims hurt navigability and ownership clarity.",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/index.tsx",
+        "src/shared/components/MediaLightbox/MediaLightbox.tsx",
+        "src/shared/hooks/useTasks.ts",
+        "src/types/shots.ts"
+      ],
+      "evidence": [
+        "From `holistic_context.structure`: `src/shared/components/` has 80 files and 10 import-source directories; `src/shared/hooks/` has 98 production files and 10-direction coupling.",
+        "From coupling matrix: heavy cross-edges (`shared/components -> shared/components/ui` 111, `shared/components -> shared/hooks` 58, `shared/hooks -> shared/lib` 63) indicate broad entanglement.",
+        "Compatibility concerns are scattered across `src/types`, `src/tools`, and `src/shared/components` instead of a bounded migration package."
+      ],
+      "suggestion": "Staged reorg plan: Stage 1 target folders: create `src/domains/image-generation/`, `src/domains/video-travel/`, and `src/legacy/compat/` for temporary adapters; Stage 2 move order: move leaf/shared feature modules first (ImageGenerationForm internals, ShotEditor applySettings services), then move compatibility re-exports/types (`src/types/shots.ts`, tool wrappers) into `src/legacy/compat/`; Stage 3 import update: run codemods and alias updates, then `rg -n \"@/types/shots|applySettingsService|tools/.*/components/ImageGenerationForm\" src`; Stage 4 validation commands: `pnpm -s tsc --noEmit`, `pnpm -s vitest run`, and a smoke run of edge-function tests to verify API paths.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    }
+  ],
+  "review_quality": {
+    "batch_count": 9,
+    "dimension_coverage": 0.274,
+    "evidence_density": 2.563,
+    "high_score_without_risk": 0,
+    "finding_pressure": 87.988,
+    "dimensions_with_findings": 13
+  },
+  "provenance": {
+    "kind": "blind_review_batch_import",
+    "blind": true,
+    "runner": "codex",
+    "run_stamp": "20260223_185903",
+    "created_at": "2026-02-23T19:02:13+00:00",
+    "batch_count": 9,
+    "batch_indexes": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "packet_path": "/Users/peteromalley/Documents/reigh/.desloppify/review_packet_blind.json",
+    "packet_sha256": "f6139d0a925ebbc43688e058a1c22c4ace6139c49db00aa64d32e96ec3ba5c56"
+  }
+}

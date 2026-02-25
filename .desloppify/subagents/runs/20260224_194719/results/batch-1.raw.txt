@@ -1,0 +1,80 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "high_level_elegance": 84.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/handleError.ts` combines normalization, logging, toast notification, rethrow behavior, and global presenter wiring (`setErrorPresenter` -> `configureErrorNotifier`) in one cross-cutting facade that is imported by feature hooks like `src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts` and `src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts`.",
+        "`src/integrations/supabase/legacy/index.ts` remains a top-level compatibility entrypoint with a deprecation banner but still exports active client access, keeping old and new ownership boundaries alive simultaneously.",
+        "Multiple high-fan-in `shared` entry files are pure pass-through facades (`src/types/generationAndShots.ts`, `src/shared/components/ui/cn.ts`, `src/shared/components/ui/tooltip.tsx`, `src/shared/hooks/mobile/index.ts`), which centralizes import traffic into generic hubs rather than domain-owned modules.",
+        "Media gallery/lightbox UI responsibilities are spread across large prop/state orchestration surfaces (`src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts`, `src/shared/components/MediaGalleryItem/components/ShotActions.tsx`, `src/shared/components/MediaLightbox/components/LightboxShell.tsx`), requiring many cross-boundary callbacks to perform local actions."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "cross_cutting_error_hub",
+      "summary": "A single shared error facade owns multiple architectural concerns and introduces hidden global coupling.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` exposes both per-call error handling and global notifier configuration (`setErrorPresenter`), mixing application wiring with runtime error normalization.",
+        "Feature hooks call `handleError`/`handleAndRethrow` directly, so UI feature code depends on this shared global behavior contract instead of a feature-local boundary.",
+        "Global notifier replacement via `configureErrorNotifier` makes behavior depend on ambient mutable state rather than explicit dependency flow."
+      ],
+      "suggestion": "Split error responsibilities into separate modules: a pure normalization/logging core, a UI notification adapter, and app bootstrap wiring for presenter registration; keep feature hooks depending only on the pure interface and inject notification behavior at composition boundaries.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "legacy_surface_still_primary",
+      "summary": "Deprecated compatibility entrypoints remain first-class import hubs, obscuring ownership and migration intent.",
+      "related_files": [
+        "src/integrations/supabase/legacy/index.ts",
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/types/generationAndShots.ts"
+      ],
+      "evidence": [
+        "`src/integrations/supabase/legacy/index.ts` is marked deprecated with a removal target yet still exports active client access (`supabase`, `getLegacySupabaseClient`).",
+        "`src/shared/lib/errorHandling/handleError.ts` also preserves deprecated aliases (`reportRuntimeError`, `RuntimeErrorOptions`), extending dual-surface contracts.",
+        "`src/types/generationAndShots.ts` centralizes broad re-exports into a canonical barrel, reinforcing a pattern where migration to narrower domain entrypoints is avoided."
+      ],
+      "suggestion": "Introduce strict import boundaries: block new imports from deprecated/compat surfaces, migrate callers to target modules, and reduce compatibility files to temporary shims with enforced sunset checks.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "ui_orchestration_boundary_blur",
+      "summary": "Gallery/lightbox behavior is distributed across wide prop-bag interfaces, making ownership boundaries hard to reason about.",
+      "related_files": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+        "src/shared/components/MediaLightbox/components/LightboxShell.tsx",
+        "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx"
+      ],
+      "evidence": [
+        "`useMediaGalleryHandlers` accepts a broad argument object combining navigation, lightbox control, shot filtering, modal toggles, and event wiring in one hook.",
+        "`ShotActions` receives nested state/callback bundles (`selector`, `status`, `quickCreate`, `actions`) and performs both UI rendering and domain action branching (navigate vs add).",
+        "`LightboxShell` exposes many interdependent layout and interaction props, indicating orchestration concerns crossing component boundaries instead of a single bounded controller."
+      ],
+      "suggestion": "Re-slice gallery/lightbox into clearer capability modules (e.g., shot-association controller, lightbox-shell controller, metadata display unit) with smaller explicit interfaces and feature-level coordinators owning cross-component choreography.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

@@ -1,19 +1,19 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { getAuthStateManager } from '@/integrations/supabase/auth/AuthStateManager';
 import type { Session } from '@supabase/supabase-js';
 import type { ReferralStats, GlobalHeaderAuthState } from './types';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 /** Fetch username for a given user ID */
 async function fetchUsername(userId: string): Promise<string | null> {
-  const { data, error } = await supabase
-    .from('users')
+  const { data, error } = await supabase().from('users')
     .select('username')
     .eq('id', userId)
     .maybeSingle();
 
   if (error) {
-    handleError(error, { context: 'GlobalHeader.fetchUsername', showToast: false });
+    normalizeAndPresentError(error, { context: 'GlobalHeader.fetchUsername', showToast: false });
     return null;
   }
 
@@ -32,9 +32,9 @@ export function useGlobalHeaderAuth(): GlobalHeaderAuthState {
   // Track session + username
   useEffect(() => {
     const getSessionAndUserData = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
+      const { data: { session }, error } = await supabase().auth.getSession();
       if (error) {
-        handleError(error, { context: 'GlobalHeader.getSession', showToast: false });
+        normalizeAndPresentError(error, { context: 'GlobalHeader.getSession', showToast: false });
       }
       setSession(session);
 
@@ -47,7 +47,7 @@ export function useGlobalHeaderAuth(): GlobalHeaderAuthState {
     getSessionAndUserData();
 
     // Use centralized auth manager instead of direct listener
-    const authManager = window.__AUTH_MANAGER__;
+    const authManager = getAuthStateManager();
     let unsubscribe: (() => void) | null = null;
 
     const handleAuthChange = async (_event: string, newSession: Session | null) => {
@@ -66,7 +66,7 @@ export function useGlobalHeaderAuth(): GlobalHeaderAuthState {
       unsubscribe = authManager.subscribe('GlobalHeader', handleAuthChange);
     } else {
       // Fallback to direct listener if auth manager not available
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange);
+      const { data: { subscription } } = supabase().auth.onAuthStateChange(handleAuthChange);
       unsubscribe = () => subscription?.unsubscribe();
     }
 
@@ -84,14 +84,13 @@ export function useGlobalHeaderAuth(): GlobalHeaderAuthState {
       }
 
       try {
-        const { data, error } = await supabase
-          .from('referral_stats')
+        const { data, error } = await supabase().from('referral_stats')
           .select('total_visits, successful_referrals')
           .eq('username', username)
           .maybeSingle();
 
         if (error) {
-          handleError(error, { context: 'GlobalHeader.referralStats', showToast: false });
+          normalizeAndPresentError(error, { context: 'GlobalHeader.referralStats', showToast: false });
           setReferralStats(null);
           return;
         }
@@ -106,7 +105,7 @@ export function useGlobalHeaderAuth(): GlobalHeaderAuthState {
           successful_referrals: data.successful_referrals ?? 0,
         });
       } catch (error) {
-        handleError(error, { context: 'GlobalHeader.referralStats', showToast: false });
+        normalizeAndPresentError(error, { context: 'GlobalHeader.referralStats', showToast: false });
         setReferralStats(null);
       }
     };

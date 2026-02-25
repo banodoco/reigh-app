@@ -13,7 +13,7 @@ export const SYSTEM_USER_ID = 'system' as const;
 /**
  * Authentication result for edge functions
  */
-interface AuthResult {
+export interface AuthResult {
   isServiceRole: boolean;
   userId: string | null; // Set if user token (PAT or JWT)
   success: boolean;
@@ -25,7 +25,7 @@ interface AuthResult {
 /**
  * Options for authenticateRequest
  */
-interface AuthOptions {
+export interface AuthOptions {
   /** If true, also accept Supabase JWTs and extract user ID from payload.sub */
   allowJwtUserAuth?: boolean;
 }

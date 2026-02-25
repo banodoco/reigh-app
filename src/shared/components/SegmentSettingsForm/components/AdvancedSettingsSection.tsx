@@ -16,7 +16,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/co
 import { ChevronLeft } from 'lucide-react';
 import { MotionPresetSelector } from '@/shared/components/MotionPresetSelector';
 import { detectGenerationMode, BUILTIN_I2V_PRESET, BUILTIN_VACE_PRESET, SEGMENT_I2V_FEATURED_PRESET_IDS, SEGMENT_VACE_FEATURED_PRESET_IDS, stripModeFromPhaseConfig } from '../../segmentSettingsUtils';
-import { ActiveLoRAsDisplay } from '@/shared/components/ActiveLoRAsDisplay';
+import { ActiveLoRAsDisplay } from '@/features/lora/components/ActiveLoRAsDisplay';
 import { LoraSelectorModal } from '@/shared/components/LoraSelectorModal';
 import { DefaultableTextarea } from '@/shared/components/DefaultableTextarea';
 import { usePublicLoras } from '@/shared/hooks/useResources';

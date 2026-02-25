@@ -1,0 +1,51 @@
+/* ── Side-curtain video reveal ─────────────────────────────────── */
+
+/* Register custom property so CSS can interpolate it */
+@property --reveal {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+.video-reveal {
+  --reveal: 0;
+
+  /*
+   * Horizontal center-out reveal: an opaque band centered at 50%
+   * expands outward, pushing darkness off the left and right edges.
+   * 5vmax soft feather on each side keeps the transition cinematic.
+   */
+  -webkit-mask-image: linear-gradient(to right,
+    transparent calc(50% - var(--reveal) * 0.55vmax - 5vmax),
+    black       calc(50% - var(--reveal) * 0.55vmax),
+    black       calc(50% + var(--reveal) * 0.55vmax),
+    transparent calc(50% + var(--reveal) * 0.55vmax + 5vmax));
+  mask-image: linear-gradient(to right,
+    transparent calc(50% - var(--reveal) * 0.55vmax - 5vmax),
+    black       calc(50% - var(--reveal) * 0.55vmax),
+    black       calc(50% + var(--reveal) * 0.55vmax),
+    transparent calc(50% + var(--reveal) * 0.55vmax + 5vmax));
+}
+
+.video-reveal.revealing {
+  animation: side-reveal 3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes side-reveal {
+  from { --reveal: 0; }
+  to   { --reveal: 100; }
+}
+
+/* Fallback: browsers without @property support get a simple opacity fade */
+@supports not (syntax: "<number>") {
+  .video-reveal {
+    -webkit-mask-image: none;
+    mask-image: none;
+    opacity: 0;
+    transition: opacity 0.8s ease-out;
+  }
+  .video-reveal.revealing {
+    animation: none;
+    opacity: 1;
+  }
+}

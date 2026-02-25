@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { LoraModel } from '@/shared/types/lora';
 import { PhaseConfig } from '@/shared/types/phaseConfig';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import type { Database, Json } from '@/integrations/supabase/types';
 import { toJson } from '@/shared/lib/supabaseTypeHelpers';
 import type { VideoMetadata } from '@/shared/lib/videoUploader';
@@ -118,15 +118,14 @@ export const useListPublicResources = (type: ResourceType) => {
             let hasMore = true;
 
             while (hasMore) {
-                const { data, error } = await supabase
-                    .from('resources')
+                const { data, error } = await supabase().from('resources')
                     .select('*')
                     .eq('type', type)
                     .eq('is_public', true)
                     .range(page * pageSize, (page + 1) * pageSize - 1);
                 
                 if (error) {
-                    handleError(error, { context: 'useListPublicResources', showToast: false, logData: { type } });
+                    normalizeAndPresentError(error, { context: 'useListPublicResources', showToast: false, logData: { type } });
                     throw error;
                 }
                 
@@ -162,7 +161,7 @@ export const useListResources = (type: ResourceType) => {
         // Note: Using ['resources', type] pattern for user resources (no projectId needed)
         queryKey: resourceQueryKeys.listByType(type),
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { user } } = await supabase().auth.getUser();
             if (!user) throw new Error('Not authenticated');
             
             // Manual pagination to bypass 1000 limit
@@ -172,8 +171,7 @@ export const useListResources = (type: ResourceType) => {
             let hasMore = true;
 
             while (hasMore) {
-                const { data, error } = await supabase
-                    .from('resources')
+                const { data, error } = await supabase().from('resources')
                     .select('*')
                     .eq('user_id', user.id)
                     .eq('type', type)
@@ -213,14 +211,13 @@ export const useCreateResource = () => {
     const queryClient = useQueryClient();
     return useMutation<Resource, Error, CreateResourceArgs>({
         mutationFn: async ({ type, metadata }) => {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { user } } = await supabase().auth.getUser();
             if (!user) throw new Error('Not authenticated');
             
             // Extract is_public from metadata for the column
             const isPublic = 'is_public' in metadata ? Boolean((metadata as Record<string, unknown>).is_public) : false;
             
-            const { data, error } = await supabase
-                .from('resources')
+            const { data, error } = await supabase().from('resources')
                     .insert({
                         type,
                         metadata: toJson(metadata),
@@ -238,7 +235,7 @@ export const useCreateResource = () => {
             queryClient.invalidateQueries({ queryKey: resourceQueryKeys.public(data.type) });
         },
         onError: (error) => {
-            handleError(error, { context: 'useCreateResource', toastTitle: 'Failed to create resource' });
+            normalizeAndPresentError(error, { context: 'useCreateResource', toastTitle: 'Failed to create resource' });
         },
     });
 };
@@ -255,35 +252,33 @@ export const useUpdateResource = () => {
     return useMutation<Resource, Error, UpdateResourceArgs>({
         mutationFn: async ({ id, metadata }) => {
 
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { user } } = await supabase().auth.getUser();
             if (!user) {
                 const err = new Error('Not authenticated');
-                handleError(err, { context: 'useUpdateResource', showToast: false });
+                normalizeAndPresentError(err, { context: 'useUpdateResource', showToast: false });
                 throw err;
             }
 
             // First, let's check if the resource exists at all (without user_id filter)
-            const { data: resourceCheck } = await supabase
-                .from('resources')
+            const { data: resourceCheck } = await supabase().from('resources')
                 .select('id, user_id, type')
                 .eq('id', id)
                 .maybeSingle();
             
             // Now verify the resource exists and belongs to the user
-            const { data: existingResource, error: checkError } = await supabase
-                .from('resources')
+            const { data: existingResource, error: checkError } = await supabase().from('resources')
                 .select('id, user_id, type')
                 .eq('id', id)
                 .eq('user_id', user.id)
                 .maybeSingle();
             
             if (checkError) {
-                handleError(checkError, { context: 'useUpdateResource', showToast: false });
+                normalizeAndPresentError(checkError, { context: 'useUpdateResource', showToast: false });
                 throw new Error(`Failed to verify resource: ${checkError.message}`);
             }
             
             if (!existingResource) {
-                handleError(new Error('Resource not found or access denied'), { context: 'useUpdateResource', showToast: false, logData: {
+                normalizeAndPresentError(new Error('Resource not found or access denied'), { context: 'useUpdateResource', showToast: false, logData: {
                     id,
                     userId: user.id,
                     resourceExists: !!resourceCheck,
@@ -301,8 +296,7 @@ export const useUpdateResource = () => {
             const isPublic = 'is_public' in metadata ? Boolean((metadata as Record<string, unknown>).is_public) : false;
             
             // Now perform the update
-            const { data, error } = await supabase
-                .from('resources')
+            const { data, error } = await supabase().from('resources')
                 .update({ metadata: toJson(metadata), is_public: isPublic })
                 .eq('id', id)
                 .eq('user_id', user.id)
@@ -310,7 +304,7 @@ export const useUpdateResource = () => {
                 .maybeSingle();
             
             if (error) {
-                handleError(error, { context: 'useUpdateResource', showToast: false, logData: {
+                normalizeAndPresentError(error, { context: 'useUpdateResource', showToast: false, logData: {
                     code: error.code,
                     details: error.details,
                     hint: error.hint
@@ -319,16 +313,15 @@ export const useUpdateResource = () => {
             }
             
             if (!data) {
-                handleError(new Error('Update succeeded but no data returned'), { context: 'useUpdateResource', showToast: false });
+                normalizeAndPresentError(new Error('Update succeeded but no data returned'), { context: 'useUpdateResource', showToast: false });
                 // If update succeeded but no data returned, fetch it separately
-                const { data: fetchedData, error: fetchError } = await supabase
-                    .from('resources')
+                const { data: fetchedData, error: fetchError } = await supabase().from('resources')
                     .select('*')
                     .eq('id', id)
                     .maybeSingle();
                 
                 if (fetchError || !fetchedData) {
-                    handleError(fetchError || new Error('No data returned'), { context: 'useUpdateResource', showToast: false });
+                    normalizeAndPresentError(fetchError || new Error('No data returned'), { context: 'useUpdateResource', showToast: false });
                     throw new Error('Update may have succeeded but failed to fetch updated resource');
                 }
                 
@@ -354,7 +347,7 @@ export const useUpdateResource = () => {
             });
         },
         onError: (error) => {
-            handleError(error, { context: 'useUpdateResource', toastTitle: 'Failed to update resource' });
+            normalizeAndPresentError(error, { context: 'useUpdateResource', toastTitle: 'Failed to update resource' });
         },
     });
 };
@@ -364,11 +357,10 @@ export const useDeleteResource = () => {
     const queryClient = useQueryClient();
     return useMutation<void, Error, { id: string, type: ResourceType }>({
         mutationFn: async ({ id }) => {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { user } } = await supabase().auth.getUser();
             if (!user) throw new Error('Not authenticated');
 
-            const { error } = await supabase
-                .from('resources')
+            const { error } = await supabase().from('resources')
                 .delete()
                 .eq('id', id)
                 .eq('user_id', user.id);
@@ -383,7 +375,7 @@ export const useDeleteResource = () => {
             queryClient.invalidateQueries({ queryKey: resourceQueryKeys.public(variables.type) });
         },
         onError: (error) => {
-            handleError(error, { context: 'useDeleteResource', toastTitle: 'Failed to delete resource' });
+            normalizeAndPresentError(error, { context: 'useDeleteResource', toastTitle: 'Failed to delete resource' });
         },
     });
 };

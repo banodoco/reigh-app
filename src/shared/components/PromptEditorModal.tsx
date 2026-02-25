@@ -5,15 +5,15 @@ import { PromptEntry, PromptInputRow } from './ImageGenerationForm';
 import { Wand2Icon, Edit, PackagePlus, Trash2, ChevronDown, ChevronLeft, Sparkles, Shuffle } from 'lucide-react';
 import { PromptGenerationControls, GenerationControlValues as PGC_GenerationControlValues } from './PromptGenerationControls';
 import { BulkEditControls, BulkEditParams as BEC_BulkEditParams, BulkEditControlValues as BEC_BulkEditControlValues } from './BulkEditControls';
-import { useAIInteractionService } from '@/shared/hooks/useAIInteractionService';
+import { useAIInteractionService } from '@/features/ai/hooks/useAIInteractionService';
 import { GeneratePromptsParams, AIModelType } from '@/types/ai';
-import { toast } from "@/shared/components/ui/sonner";
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { toast } from "@/shared/components/ui/runtime/sonner";
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { usePersistentToolState } from '@/shared/hooks/usePersistentToolState';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/components/ui/collapsible';
-import { useIsMobile } from "@/shared/hooks/useMobile";
+import { useIsMobile } from "@/shared/hooks/mobile";
 import { useExtraLargeModal } from "@/shared/hooks/useModal";
 import { useScrollFade } from "@/shared/hooks/useScrollFade";
 import { useTouchDragDetection } from "@/shared/hooks/useTouchDragDetection";
@@ -157,7 +157,7 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
           onSave(internalPromptsRef.current);
           lastSavedSignatureRef.current = currentSignatureRef.current;
         } catch (err) {
-          handleError(err, { context: 'PromptEditorModal', showToast: false });
+          normalizeAndPresentError(err, { context: 'PromptEditorModal', showToast: false });
         }
       }
     }, 3000);
@@ -273,7 +273,7 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
               });
             }
           } catch (error) {
-            handleError(error, { context: 'PromptEditorModal', showToast: false });
+            normalizeAndPresentError(error, { context: 'PromptEditorModal', showToast: false });
           }
         }
       }
@@ -327,7 +327,7 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
           });
         }
       } catch (error) {
-        handleError(error, { context: 'PromptEditorModal', toastTitle: `Error editing prompt ${promptIdToUpdate.substring(0,8)}...` });
+        normalizeAndPresentError(error, { context: 'PromptEditorModal', toastTitle: `Error editing prompt ${promptIdToUpdate.substring(0,8)}...` });
         // Continue to the next prompt
       }
     }

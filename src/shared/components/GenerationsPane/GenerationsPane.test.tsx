@@ -38,7 +38,7 @@ vi.mock('react-router-dom', () => ({
   useLocation: () => mocks.location,
 }));
 
-vi.mock('@/shared/lib/toolConstants', () => ({
+vi.mock('@/shared/lib/toolRoutes', () => ({
   TOOL_ROUTES: {
     IMAGE_GENERATION: '/image-generation',
   },
@@ -65,11 +65,11 @@ vi.mock('@/shared/contexts/PanesContext', () => ({
   usePanes: () => mocks.panesState,
 }));
 
-vi.mock('@/shared/hooks/useGalleryPageState', () => ({
+vi.mock('@/features/gallery/hooks/useGalleryPageState', () => ({
   useGalleryPageState: () => mocks.galleryState,
 }));
 
-vi.mock('@/shared/hooks/useMobile', () => ({
+vi.mock('@/shared/hooks/mobile', () => ({
   useIsMobile: () => false,
 }));
 
@@ -190,7 +190,7 @@ describe('GenerationsPane', () => {
       handleAddToShot: vi.fn(),
       handleAddToShotWithoutPosition: vi.fn(),
       expectedItemCount: 8,
-      DeleteConfirmDialog: () => <div data-testid="delete-confirm-dialog" />,
+      confirmDialogProps: { open: false, onOpenChange: vi.fn(), onConfirm: vi.fn() },
     };
   });
 

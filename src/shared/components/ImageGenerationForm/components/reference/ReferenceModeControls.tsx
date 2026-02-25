@@ -1,6 +1,6 @@
 import React from "react";
 import { Input } from "@/shared/components/ui/input";
-import { Label } from "@/shared/components/ui/label";
+import { Label } from "@/shared/components/ui/primitives/label";
 import { SliderWithValue } from "@/shared/components/ui/slider-with-value";
 import { RadioGroup, RadioGroupItem } from "@/shared/components/ui/radio-group";
 import { ReferenceMode } from "../../types";

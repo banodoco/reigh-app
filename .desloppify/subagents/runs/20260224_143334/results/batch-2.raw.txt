@@ -1,0 +1,125 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 62.0,
+    "mid_level_elegance": 66.0,
+    "low_level_elegance": 64.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts constructs a memoized object that mostly mirrors input fields 1:1 with no validation/translation.",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx and src/shared/components/MediaLightbox/ImageLightbox.tsx re-spread the same button-group structures again before passing them to layout components.",
+        "src/tools/edit-images/hooks/useInlineEditState.ts and src/tools/edit-images/hooks/useImageEditValue.ts introduce multi-stage param-bag builders that mostly repack existing hook outputs into another facade type."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 57.0,
+        "indirection_cost": 43.0,
+        "interface_honesty": 66.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Orchestrator identity handoff is non-canonical: src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts writes run_id/orchestrator_task_id at top level, while src/shared/lib/tasks/joinClips.ts puts run_id/orchestrator_task_id under orchestrator_details and also duplicates parent_generation_id at top level.",
+        "src/supabase/functions/complete_task/orchestrator.ts compensates with OR queries across three JSON paths for run and orchestrator IDs, indicating boundary drift rather than explicit seam contracts.",
+        "src/shared/components/ui/tooltip.tsx re-exports TouchableTooltip from touchableTooltip.tsx while src/shared/components/ui/touchableTooltip.tsx imports Tooltip primitives from tooltip.tsx, creating a module cycle at a UI seam."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts builds large fresh composite objects (buildImageEditValueParams + large return object) each render, with many direct field forwarders.",
+        "src/tools/edit-images/hooks/useImageEditValue.ts wraps buildImageEditState in useMemo([params]), but params is a newly created object from the caller path, so memoization is effectively invalidated each render.",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts repeatedly calls segmentSlots.find(...) inside loops (e.g. adjacent thumbnail scans), adding avoidable repeated linear scans in interaction-heavy logic."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "lightbox_prop_passthrough_chain",
+      "summary": "Lightbox button-group abstractions add wrapper layers but little behavioral value, increasing indirection cost.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "useButtonGroupProps copies each field from input groups into a new object with no transformation logic.",
+        "Video/image render-model assembly re-wraps and re-spreads the same group fields before passing to layout.",
+        "The seam contract is broad and repetitive, forcing many files to keep synchronized prop-shape ceremony."
+      ],
+      "suggestion": "Remove useButtonGroupProps as a dedicated abstraction and define a single layout-facing prop contract; pass raw handler/state groups directly from shared state to layout, with only true boundary translation retained.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "orchestrator_id_contract_drift",
+      "summary": "Task/orchestrator identifiers are written in multiple JSON shapes, forcing fragile multi-path lookup logic at completion boundaries.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/complete_task/generation.ts"
+      ],
+      "evidence": [
+        "payloadBuilder stores run_id and orchestrator_task_id top-level, while joinClips nests key orchestration identity under orchestrator_details.",
+        "orchestrator.ts must query params->>orchestrator_run_id, params->>run_id, and params->orchestrator_details->>run_id (and same pattern for orchestrator_task_id).",
+        "generation routing also reads parent_generation_id from multiple locations (top-level and orchestrator_details), confirming seam inconsistency."
+      ],
+      "suggestion": "Adopt one canonical orchestration identity schema (single location for run/orchestrator/parent IDs) with shared read/write helpers used by both client task builders and edge completion handlers; migrate legacy reads behind a temporary compatibility adapter.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "inline_edit_memoization_mismatch",
+      "summary": "Inline edit state assembly creates large transient param bags while downstream memoization is keyed to unstable object identity.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/hooks/useImageEditValue.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx"
+      ],
+      "evidence": [
+        "useInlineEditState builds ImageEditValue params by spreading multiple builder outputs into a new object each render.",
+        "useImageEditValue memoizes with dependency [params], so the memoized state recomputes whenever caller allocates a new params object.",
+        "The combined effect preserves complexity and object churn without meaningful memoization payoff."
+      ],
+      "suggestion": "Either remove useMemo in useImageEditValue and simplify to direct state construction, or stabilize dependencies by memoizing sub-slices in useInlineEditState and passing a referentially stable params object with fine-grained dependency keys.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "tooltip_module_cycle",
+      "summary": "Tooltip primitive and touch wrapper form a circular import that weakens module seam clarity and increases initialization risk.",
+      "related_files": [
+        "src/shared/components/ui/tooltip.tsx",
+        "src/shared/components/ui/touchableTooltip.tsx"
+      ],
+      "evidence": [
+        "tooltip.tsx re-exports TouchableTooltip from touchableTooltip.tsx.",
+        "touchableTooltip.tsx imports Tooltip/TooltipContent/TooltipProvider/TooltipTrigger from tooltip.tsx.",
+        "This creates a cycle between primitive and extension layers instead of a one-direction dependency."
+      ],
+      "suggestion": "Split base tooltip primitives into a cycle-free module (e.g., tooltipPrimitives.tsx), let both files import from that base, and keep re-exports in a separate index module that does not get imported by implementation files.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

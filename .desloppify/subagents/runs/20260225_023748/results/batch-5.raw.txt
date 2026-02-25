@@ -1,0 +1,80 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 5,
+  "assessments": {
+    "package_organization": 88.4
+  },
+  "dimension_notes": {
+    "package_organization": {
+      "evidence": [
+        "Assigned files include three compatibility shims in broad shared roots: `src/shared/hooks/useCredits.ts` re-exports from `src/features/billing/hooks/useCredits`, `src/shared/components/AuthGate.tsx` re-exports from `src/shared/auth/components/AuthGate`, and `src/shared/components/AspectRatioVisualizer.tsx` re-exports from `src/shared/components/generation-controls/AspectRatioVisualizer`.",
+        "Holistic structure shows flat-directory overload in both relevant roots: `src/shared/components/` has 70 files (55 production, 15 test) and `src/shared/hooks/` has 81 production files, both well above the >10 mixed-concern threshold.",
+        "Test placement is inconsistent across adjacent shared packages: hook tests are centralized (`src/shared/hooks/__tests__/` has 81 test files) while component tests are split between root files like `src/shared/components/BulkEditControls.test.tsx` and a separate `src/shared/components/__tests__/` directory (34 imports into `src/shared/components/`).",
+        "Coupling confirms heavy shared-root gravity that makes placement ambiguity costly: `src/shared/components/ → src/shared/hooks/` (44 edges) and `src/shared/hooks/ → src/shared/lib/` (48 edges), so unclear entrypoints in these roots increase navigation and ownership friction."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Shared root folders are overloaded and still contain migration-era proxy files plus mixed test-location conventions, which weakens directory boundaries and discoverability.",
+      "sub_axes": {
+        "abstraction_leverage": 86.8,
+        "indirection_cost": 84.9,
+        "interface_honesty": 89.2
+      }
+    }
+  },
+  "findings": [
+    {
+      "dimension": "package_organization",
+      "identifier": "shared_root_proxy_sprawl",
+      "summary": "Migration proxy files remain in overloaded shared roots, obscuring real ownership boundaries.",
+      "related_files": [
+        "src/shared/hooks/useCredits.ts",
+        "src/shared/components/AuthGate.tsx",
+        "src/shared/components/AspectRatioVisualizer.tsx"
+      ],
+      "evidence": [
+        "`useCredits.ts` is a deprecated compatibility shim re-exporting from `@/features/billing/hooks/useCredits`.",
+        "`AuthGate.tsx` and `AspectRatioVisualizer.tsx` are thin re-export facades pointing to deeper auth and generation-controls packages.",
+        "These shims sit in already overloaded roots (`src/shared/hooks/` 81 files, `src/shared/components/` 70 files), increasing ambiguity about canonical import paths."
+      ],
+      "suggestion": "Staged reorg plan: (1) create explicit compatibility zones `src/shared/compat/hooks/` and `src/shared/compat/components/`; (2) move shim files there in order `useCredits.ts`, `AuthGate.tsx`, `AspectRatioVisualizer.tsx`; (3) update imports to canonical owners (`@/features/billing/hooks/useCredits`, `@/shared/auth/components/AuthGate`, `@/shared/components/generation-controls/AspectRatioVisualizer`) and keep temporary compat re-exports only in the new compat folder; (4) validate with `desloppify move <src> <dst> --dry-run`, then `desloppify move <src> <dst>`, `rg \"@/shared/(hooks/useCredits|components/AuthGate|components/AspectRatioVisualizer)\" src`, `pnpm -s tsc --noEmit`, and `pnpm vitest src/shared/hooks/__tests__/useDarkMode.test.ts src/shared/hooks/__tests__/useDebounce.test.ts src/shared/components/BulkEditControls.test.tsx`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "compatibility_shim_sprawl"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "shared_test_layout_inconsistency",
+      "summary": "Shared tests use mixed placement conventions across adjacent packages, reducing navigability.",
+      "related_files": [
+        "src/shared/components/BulkEditControls.test.tsx",
+        "src/shared/hooks/__tests__/useDarkMode.test.ts",
+        "src/shared/hooks/__tests__/useDebounce.test.ts",
+        "src/shared/hooks/__tests__/useDebouncedSettingsSave.test.ts"
+      ],
+      "evidence": [
+        "Hook tests in this batch live under `src/shared/hooks/__tests__/`, matching a centralized test directory pattern.",
+        "`BulkEditControls.test.tsx` is in `src/shared/components/` root while the repo also has `src/shared/components/__tests__/` for many component tests.",
+        "Directory profile shows `src/shared/components/` mixes 55 production and 15 test files, indicating test artifacts are not consistently separated in that package."
+      ],
+      "suggestion": "Staged reorg plan: (1) pick one convention for `src/shared/components` (recommended: centralize to `src/shared/components/__tests__/`); (2) move root-level component tests first for low-risk files such as `BulkEditControls.test.tsx`; (3) enforce path conventions for new tests; (4) update relative imports after each move and verify with `desloppify move src/shared/components/BulkEditControls.test.tsx src/shared/components/__tests__/BulkEditControls.test.tsx --dry-run`, then apply move, run `rg \"BulkEditControls.test\" src/shared/components`, `pnpm vitest src/shared/components/__tests__/BulkEditControls.test.tsx`, and `pnpm -s tsc --noEmit`.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shared_test_convention_drift"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Compatibility shims were retained in broad shared roots instead of being isolated in a clearly named migration/compat layer.",
+      "Test-location conventions diverged between sibling shared packages and were not standardized at directory-boundary level."
+    ],
+    "likely_symptoms": [
+      "shared_root_proxy_sprawl",
+      "shared_test_layout_inconsistency"
+    ],
+    "possible_false_positives": []
+  }
+}

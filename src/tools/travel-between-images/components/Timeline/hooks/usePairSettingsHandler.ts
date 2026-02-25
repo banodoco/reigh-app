@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 import type { PairData } from '../TimelineContainer/types';
 import type { getPairInfo } from '../utils/timeline-utils';
 

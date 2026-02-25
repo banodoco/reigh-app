@@ -1,0 +1,92 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "low_level_elegance": 68.0
+  },
+  "dimension_notes": {
+    "low_level_elegance": {
+      "evidence": [
+        "Legacy migration fields are still embedded in active-facing types via broad intersections (`ProjectImageSettings & Partial<LegacyProjectImageSettings>`), which keeps dual-schema handling alive instead of bounded to a decode boundary.",
+        "Travel-between-images types retain legacy-only fields directly on UI runtime objects (`StructureVideoConfigWithMetadata` includes `motion_strength`, `structure_type`, `uni3c_*`), increasing local branching and payload-shape ambiguity.",
+        "Storage completion flow contains multiple migration leftovers (`_isServiceRole`, `_sourceBytes`, `_userId`, `_taskId`, deprecated alias export) and recomputes `objectPath` in thumbnail flow rather than threading it through.",
+        "Task-type categorization claims centralized strictness but still uses substring heuristic (`taskType.includes('travel')`), introducing imprecise low-level control flow."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "legacy-shape-leakage-in-runtime-types",
+      "summary": "Legacy migration fields are kept in main runtime type surfaces, so migration debt remains in normal code paths.",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/hooks/legacyMigrations/legacyProjectImageSettings.ts",
+        "src/shared/lib/tasks/travelBetweenImages/types.ts"
+      ],
+      "evidence": [
+        "`ProjectImageSettingsInput` is defined as `ProjectImageSettings & Partial<LegacyProjectImageSettings>` (lines 38-40), which permanently broadens accepted payload shape.",
+        "`StructureVideoConfigWithMetadata` includes legacy-only fields marked as migration decoding metadata (`motion_strength`, `structure_type`, `uni3c_start_percent`, `uni3c_end_percent`) in lines 124-131."
+      ],
+      "suggestion": "Move legacy fields into explicit one-way decoder input types and emit a strictly modern normalized type immediately; keep runtime/state interfaces free of deprecated keys.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "unfinished-migration-params-in-storage-flow",
+      "summary": "Storage completion code contains dead migration parameters and compatibility aliases that obscure the active execution path.",
+      "related_files": [
+        "supabase/functions/complete_task/storage.ts",
+        "src/shared/lib/storagePaths.ts"
+      ],
+      "evidence": [
+        "`handleStorageOperations` accepts `_isServiceRole` but never uses it (line 44).",
+        "`generateThumbnail` accepts `_sourceBytes`, `_userId`, `_taskId` but never uses them (lines 165-167).",
+        "Deprecated alias `getStoragePublicUrl` remains exported (lines 216-219), extending old call paths.",
+        "Thumbnail transform path is recomputed in `handleThumbnail` (line 146) instead of receiving already-computed `objectPath` from caller."
+      ],
+      "suggestion": "Remove unused parameters and deprecated alias after call-site migration, pass `objectPath` through the call chain directly, and keep the storage path contract in one canonical shape.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "single-source-task-type-rule-is-not-strict",
+      "summary": "Task type classification falls back to substring matching, making control flow less precise than the declared registry model.",
+      "related_files": [
+        "src/shared/lib/taskTypeUtils.ts",
+        "src/shared/lib/taskConfig.ts"
+      ],
+      "evidence": [
+        "Utility documentation positions set-based centralization, but `isTravelTaskType` still returns true on `taskType.includes('travel')` (line 47).",
+        "A structured fallback registry already exists in task config (`getTaskTypeConfigFallback` usage, lines 57-61), so heuristic classification is avoidable."
+      ],
+      "suggestion": "Replace substring fallback with explicit registry entries (or a typed enum map) and fail closed for unknown task types until added to the registry.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "ui-hook-mixes-command-and-view-factory",
+      "summary": "Deletion hook combines mutation orchestration with inline component factory creation, adding avoidable indirection and state coupling.",
+      "related_files": [
+        "src/shared/hooks/useDeleteGenerationWithConfirm.tsx",
+        "src/shared/hooks/useUpdatingTimestamp.ts"
+      ],
+      "evidence": [
+        "`useDeleteGenerationWithConfirm` returns both command API and a memoized JSX-producing `DeleteConfirmDialog` callback (lines 48-63), coupling render concerns with imperative mutation logic.",
+        "The same hook also performs a manual cast of mutation variables (`as string`, line 64), signaling shape uncertainty at the same boundary."
+      ],
+      "suggestion": "Return pure state/actions from the hook and render a separate `DeleteGenerationConfirmDialog` component from that state; type mutation variables explicitly to remove casts.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

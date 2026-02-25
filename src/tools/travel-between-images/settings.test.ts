@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { DEFAULT_STEERABLE_MOTION_SETTINGS } from '@/shared/types/steerableMotion';
 import { videoTravelSettings } from './settings';
 

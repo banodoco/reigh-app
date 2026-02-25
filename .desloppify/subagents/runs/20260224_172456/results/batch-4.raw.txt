@@ -1,0 +1,120 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "ai_generated_debt": 68.0,
+    "incomplete_migration": 52.0,
+    "low_level_elegance": 78.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "Several files are pure compatibility pass-throughs with long migration/deprecation headers and no behavior (`src/features/prompt-editor/components/BulkEditControls.tsx`, `src/shared/components/BatchDropZone.tsx`, `src/shared/components/ConfirmDialog.tsx`, `src/shared/components/MediaLightbox/utils/download.ts`, `src/shared/hooks/useBatchImageLoading.ts`, `src/shared/hooks/useClickRipple.ts`, `src/shared/hooks/useEditVideoSettings.ts`, `src/shared/hooks/useGalleryPageState.ts`, `src/shared/hooks/useMobile.tsx`, `src/shared/lib/NetworkStatusManager.ts`, `src/shared/lib/aspectRatios.ts`, `src/shared/lib/autoplayMonitor.ts`, `src/shared/lib/clientThumbnailGenerator.ts`, `src/shared/lib/deepEqual.ts`, `src/shared/components/ui/cn.ts`).",
+        "Comment density is high and often restates implementation details rather than intent (`src/shared/components/ShotImageManager/utils/image-utils.ts`, `src/shared/hooks/useDeleteGenerationWithConfirm.tsx`, `src/shared/hooks/useTextCase.ts`).",
+        "The codebase slice shows ceremony-heavy compatibility surfaces likely accumulated from generated/templated migration patterns rather than consolidated cleanup."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "incomplete_migration": {
+      "evidence": [
+        "Multiple active deprecated shims remain in production paths across components, hooks, and libs, indicating prolonged dual-path imports rather than completed ownership moves.",
+        "Sunset markers exist but are not enforced by code-level guards/tests (`@removalTarget 2026-06-30` in `src/shared/components/ui/cn.ts`, `src/shared/lib/errorHandling/handleError.ts`, `src/integrations/supabase/client.ts`).",
+        "Legacy API contracts are still exported for travel-between-images payloads with explicit deprecated fields (`src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts`).",
+        "Supabase legacy proxy export (`supabase`) remains available with dynamic proxy behavior in `src/integrations/supabase/client.ts`, preserving old callsites instead of forcing migration."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "`getSupabaseClient()` uses nested try/catch fallback paths plus environment-gated warning and secondary initialization attempt, creating non-linear control flow (`src/integrations/supabase/client.ts`).",
+        "The compatibility proxy intercepts generic property operations (`get/set/has/ownKeys/getOwnPropertyDescriptor`) and defers client resolution on each trap, which obscures side effects and increases indirection (`src/integrations/supabase/client.ts`).",
+        "Hook-level UI coupling in `useDeleteGenerationWithConfirm` returns a generated component closure and force-casts mutation variables (`as string`), reducing local explicitness and type honesty for delete state plumbing (`src/shared/hooks/useDeleteGenerationWithConfirm.tsx`)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "migration_shim_surface_sprawl",
+      "summary": "Deprecated compatibility shims are still widely retained, showing migration not actually converged.",
+      "related_files": [
+        "src/features/prompt-editor/components/BulkEditControls.tsx",
+        "src/shared/components/BatchDropZone.tsx",
+        "src/shared/components/ConfirmDialog.tsx",
+        "src/shared/hooks/useGalleryPageState.ts",
+        "src/shared/lib/NetworkStatusManager.ts"
+      ],
+      "evidence": [
+        "These files export from new locations with only deprecation headers and no runtime behavior, preserving old import paths indefinitely.",
+        "The same migration pattern appears across multiple layers (feature components, shared components, hooks, libs), indicating systemic coexistence of old/new APIs."
+      ],
+      "suggestion": "Create a time-boxed shim burn-down: add lint/import-ban rules for old paths, codemod callsites to canonical modules, and remove shim files in one coordinated pass per domain.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_supabase_proxy_kept_alive",
+      "summary": "The deprecated `supabase` proxy keeps legacy usage alive and masks incomplete runtime-migration adoption.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "`src/integrations/supabase/client.ts` still exports `supabase` via `createSupabaseCompatibilityProxy()` despite deprecation/removal target metadata.",
+        "Proxy traps dynamically resolve `getSupabaseClient()` on property access, allowing old consumers to continue unchanged instead of failing fast during migration.",
+        "Fallback error handling path (`handleError`) further cushions incorrect initialization order, reducing pressure to complete bootstrap migration."
+      ],
+      "suggestion": "Gate legacy proxy behind a strict dev-only flag immediately, add telemetry for remaining imports, then remove `supabase` export and require `initializeSupabase()` + `getSupabaseClient()` usage before removal date.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "ceremonial_comment_and_wrapper_bloat",
+      "summary": "This slice contains high-ceremony wrappers and restating comments that add maintenance noise without behavior.",
+      "related_files": [
+        "src/shared/components/ShotImageManager/utils/image-utils.ts",
+        "src/shared/hooks/useDeleteGenerationWithConfirm.tsx",
+        "src/shared/hooks/useTextCase.ts",
+        "src/shared/components/MediaLightbox/utils/download.ts"
+      ],
+      "evidence": [
+        "`image-utils.ts` has extensive explanatory comments for straightforward delegation and loops, while functions mostly forward to existing utilities.",
+        "`useDeleteGenerationWithConfirm.tsx` includes long narrative usage documentation for a small hook whose behavior is self-evident from function names and JSX props.",
+        "Multiple one-line re-export shims are paired with verbose migration headers, amplifying boilerplate footprint."
+      ],
+      "suggestion": "Prune comments to intent/constraints only, collapse trivial wrapper files during migration cleanup, and enforce a guideline that wrappers must add validation/translation/side effects or be removed.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "supabase_access_flow_indirection",
+      "summary": "Supabase client access path is overly indirect, with nested recovery branches and proxy traps obscuring straightforward runtime behavior.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/hooks/useDeleteGenerationWithConfirm.tsx"
+      ],
+      "evidence": [
+        "`getSupabaseClient()` has primary try path, recovery logging branch, dev warning branch, and fallback-init try/catch rethrow branch.",
+        "`createSupabaseCompatibilityProxy()` introduces dynamic reflective traps that make ordinary property reads/writes perform hidden runtime resolution.",
+        "In `useDeleteGenerationWithConfirm.tsx`, component-returning hook closure plus casted `mutation.variables as string` further reflects local indirection over direct state modeling."
+      ],
+      "suggestion": "Replace proxy-based legacy access with explicit function-only API, simplify `getSupabaseClient()` to one recovery policy, and tighten hook return typing by storing typed `deletingId` state directly instead of casted mutation internals.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

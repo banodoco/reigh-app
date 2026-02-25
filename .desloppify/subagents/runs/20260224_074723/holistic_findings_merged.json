@@ -1,0 +1,148 @@
+{
+  "assessments": {
+    "high_level_elegance": 50.7
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/domains/generation/types/generationRow.ts` and `src/domains/generation/types/shot.ts` each merge persistence DTO fields with UI/view-model fields in a single exported type (`GenerationRow`, `Shot`), then expose conversion helpers that flatten both concerns.",
+        "`src/integrations/supabase/client.ts` keeps module-level singleton state (`clientInstance`, `instrumentationInstalled`) and performs runtime bootstrap/instrumentation implicitly via accessor calls, creating hidden global lifecycle coupling.",
+        "`src/shared/components/ui/sonner.tsx` pulls a shared toast manager via `getToastManager()` inside a UI primitive wrapper, indicating cross-cutting global state ownership living in generic UI surface."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "mixed_persistence_and_view_types",
+      "summary": "Core generation/shot types conflate DB contracts and UI state in shared domain surfaces.",
+      "related_files": [
+        "src/domains/generation/types/generationRow.ts",
+        "src/domains/generation/types/shot.ts"
+      ],
+      "evidence": [
+        "`GenerationRow` extends both `PersistedGenerationRow` and `GenerationViewModel` in one exported type used broadly.",
+        "`Shot` extends both `PersistedShotRow` and `ShotViewModel`, and `toShot`/`toGenerationRow` flatten both layers into one object shape."
+      ],
+      "suggestion": "Split persistence and UI models into separate modules (for example `.../persistence/*` and `.../view/*`), keep conversion at feature boundaries, and stop exporting merged row types as the default cross-module contract.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "global_runtime_state_in_shared_entrypoints",
+      "summary": "Shared entrypoints own hidden global runtime state, making ownership and lifecycle boundaries implicit.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/components/ui/sonner.tsx",
+        "src/shared/components/MediaLightbox/hooks/useLightboxViewportLock.ts"
+      ],
+      "evidence": [
+        "`client.ts` stores singleton flags/instance at module scope and performs instrumentation/bootstrap through `getSupabaseClient()` side effects.",
+        "`sonner.tsx` fetches a global toast manager from `getToastManager()` inside a generic `ui` wrapper, coupling UI rendering to app-wide singleton state.",
+        "`useLightboxViewportLock.ts` mutates global document/window state (`html.classList`, global focusout listener, `window.scrollTo`) from a hook without a centralized viewport lock service."
+      ],
+      "suggestion": "Introduce explicit runtime providers/services (e.g., `SupabaseRuntimeProvider`, `ToastRuntimeProvider`, `ViewportLockService`) and move singleton/global mutations behind app bootstrap boundaries so shared UI/hooks consume injected contracts instead of owning global lifecycle.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_components_mixed_ownership",
+      "summary": "`shared/components` mixes auth gating, runtime recovery, and generic UI concerns.",
+      "related_files": [
+        "src/shared/components/AuthGate.tsx",
+        "src/shared/components/ChunkLoadErrorBoundary.tsx",
+        "src/shared/components/ConfirmDialog.tsx"
+      ],
+      "evidence": [
+        "`AuthGate` directly imports `useAuth` from auth context, making it an auth-policy boundary component.",
+        "`ChunkLoadErrorBoundary` handles lazy chunk deployment mismatch and page reload behavior (runtime/platform concern).",
+        "`ConfirmDialog` is a reusable dialog abstraction over `AlertDialog` UI primitives, a different ownership layer."
+      ],
+      "suggestion": "Split `shared/components` by ownership boundary: move `AuthGate` under an auth-oriented package (for example `src/shared/auth/` or a domain auth package), move `ChunkLoadErrorBoundary` under app/runtime infrastructure (for example `src/app/errors/`), and keep `ConfirmDialog` under UI/shared component space.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_hooks_flat_concern_bucket",
+      "summary": "`shared/hooks` is a flattened bucket containing unrelated interaction and preference concerns.",
+      "related_files": [
+        "src/shared/hooks/useClickRipple.ts",
+        "src/shared/hooks/useCopyToClipboard.ts",
+        "src/shared/hooks/useDarkMode.ts",
+        "src/shared/hooks/__tests__/useClickRipple.test.ts",
+        "src/shared/hooks/__tests__/useCopyToClipboard.test.ts",
+        "src/shared/hooks/__tests__/useDarkMode.test.ts"
+      ],
+      "evidence": [
+        "`useClickRipple` is pointer-event animation behavior tied to visual interaction state.",
+        "`useCopyToClipboard` is clipboard side-effect handling with UI feedback timing.",
+        "`useDarkMode` is theme preference persistence on top of persistent state storage.",
+        "All three live at the same package depth and test bucket, so directory structure does not communicate ownership/change boundaries."
+      ],
+      "suggestion": "Introduce concern-based hook subpackages (for example `shared/hooks/interaction/`, `shared/hooks/clipboard/`, `shared/hooks/theme/`) and mirror tests per subpackage so package boundaries describe who owns and changes each concern.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ],
+  "review_quality": {
+    "batch_count": 2,
+    "dimension_coverage": 1.0,
+    "evidence_density": 1.5,
+    "high_score_without_risk": 0,
+    "finding_pressure": 10.17,
+    "dimensions_with_findings": 1
+  },
+  "reviewed_files": [
+    "src/shared/lib/errorHandling/handleError.ts",
+    "src/domains/generation/types/generationRow.ts",
+    "src/integrations/supabase/client.ts",
+    "src/shared/components/ui/cn.ts",
+    "src/shared/components/ui/button.tsx",
+    "src/shared/components/ui/sonner.tsx",
+    "src/domains/generation/types/shot.ts",
+    "src/shared/components/ui/tooltip.tsx",
+    "src/shared/hooks/mobile/index.ts",
+    "src/shared/components/ui/label.tsx",
+    "src/features/gallery/hooks/useAdjacentPagePreloader.ts",
+    "src/features/layout/hooks/useBottomOffset.test.ts",
+    "src/pages/Home/components/CreativePartnerPane.tsx",
+    "src/pages/Home/components/InstallInstructionsModal.tsx",
+    "src/shared/components/ConfirmDialog.tsx",
+    "src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx",
+    "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx",
+    "src/shared/components/MediaLightbox/hooks/useLightboxViewportLock.ts",
+    "src/shared/hooks/useClickRipple.ts",
+    "src/shared/hooks/useCopyToClipboard.ts",
+    "src/shared/hooks/useDarkMode.ts",
+    "src/shared/hooks/__tests__/useClickRipple.test.ts",
+    "src/shared/hooks/__tests__/useCopyToClipboard.test.ts",
+    "src/shared/hooks/__tests__/useDarkMode.test.ts",
+    "src/shared/components/AuthGate.tsx",
+    "src/shared/components/ChunkLoadErrorBoundary.tsx"
+  ],
+  "provenance": {
+    "kind": "blind_review_batch_import",
+    "blind": true,
+    "runner": "codex",
+    "run_stamp": "20260224_074723",
+    "created_at": "2026-02-24T07:48:14+00:00",
+    "batch_count": 2,
+    "batch_indexes": [
+      1,
+      2
+    ],
+    "packet_path": "/Users/peteromalley/Documents/reigh/.desloppify/review_packet_blind.json",
+    "packet_sha256": "453b80289b8b5d3a9c1c741092d4608057c3ffa690f34268e8f9939176ef909a"
+  }
+}

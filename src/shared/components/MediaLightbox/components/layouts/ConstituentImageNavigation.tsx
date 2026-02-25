@@ -12,7 +12,7 @@
 
 import React from 'react';
 import { Image } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import {
   HoverCard,
   HoverCardContent,

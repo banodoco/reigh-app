@@ -1,0 +1,92 @@
+{
+  "batch": "Design Coherence — Mechanical Concern Signals",
+  "batch_index": 6,
+  "assessments": {
+    "design_coherence": 68.0
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "`TimelineProps` carries a very wide cross-domain surface (drag/drop, lightbox navigation, shot management, pending-image routing, segment controls) in one component contract (`src/tools/travel-between-images/components/Timeline.tsx:37`).",
+        "`useTimelineOrchestrator` exposes a very large return API and state bundle spanning drag logic, zoom, selection, endpoint editing, structure-video editing, and device behavior in one hook (`src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts:54`).",
+        "`useSharedLightboxState` aggregates many unrelated domains (variants, star, references/join, lineage, shot positioning/creation, effective media, layout, button-group assembly) behind one mega-hook input/output object (`src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts:128`, `src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts:145`).",
+        "`LightboxLayout` receives and forwards a large workflow prop bag into `WorkflowControlsBar`, indicating orchestration and rendering concerns are still entangled (`src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx:241`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "timeline_god_contract",
+      "summary": "Timeline API mixes too many responsibilities into one boundary",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline.tsx",
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts"
+      ],
+      "evidence": [
+        "`TimelineProps` includes dozens of concerns beyond rendering a timeline: shot CRUD wiring, segment-slot navigation, pending-image open flow, upload lifecycle, and lightbox transition hooks (`Timeline.tsx:37-101`).",
+        "The hook contract mirrors this breadth with a very large return surface (drag, zoom, selection, pending frame state, drop handlers, endpoint handling, structure-video controls) instead of a focused domain API (`useTimelineOrchestrator.ts:54-139`)."
+      ],
+      "suggestion": "Split the timeline boundary into focused adapters: `TimelineViewport` (render/interaction), `TimelineMediaActions` (drop/duplicate/reorder), and `TimelineLightboxBridge` (pending-image + segment navigation). Replace the wide prop list with 2-3 typed objects (`interaction`, `mediaActions`, `lightbox`) and collapse orchestrator return into smaller hook models consumed by those adapters.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "shared_lightbox_state_overaggregation",
+      "summary": "Shared lightbox hook became a god-orchestrator with low-cohesion state",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "`UseSharedLightboxStateProps` composes many concern groups into one input surface (`useSharedLightboxState.ts:128-139`).",
+        "Its return model bundles unrelated domains (variant lifecycle, star toggle, references/join, lineage pagination, shot creation/positioning, media derivation, layout and button props) into a single object (`useSharedLightboxState.ts:145-240`).",
+        "Layout consumers then depend on broad workflow prop bags and pass-through many fields to child controls (`LightboxLayout.tsx:241-270`)."
+      ],
+      "suggestion": "Refactor shared lightbox state into domain slices with explicit ownership: `useVariantState`, `useShotActions`, `useReferenceActions`, and `useLayoutState`. Provide a thin composition layer that exposes only the subset required by each renderer (`LightboxLayout`, control bars) to reduce coupling and prop plumbing.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "image_video_lightbox_pattern_drift",
+      "summary": "Image and video lightbox flows use divergent orchestration patterns",
+      "related_files": [
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/VideoLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useImageEditOrchestrator.ts"
+      ],
+      "evidence": [
+        "Video flow is decomposed into explicit mode/env/shared/edit/render models (`VideoLightbox.tsx:95-101`), while image flow still embeds environment and shared-state composition plus many local concerns directly in `ImageLightbox.tsx` (`ImageLightbox.tsx:90-170`).",
+        "`useImageEditOrchestrator` itself remains a wide composition point with many persisted/edit-mode concerns and handler assembly (`useImageEditOrchestrator.ts:31-119`)."
+      ],
+      "suggestion": "Standardize both branches on the same controller shape (mode, environment, state, edit, render-model). Move image-specific environment/shared assembly into dedicated hooks parallel to video’s controller files, then keep `ImageLightbox` as a thin wiring component.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "parallel_shot_selector_implementations",
+      "summary": "Two unrelated ShotSelector components duplicate selection responsibilities",
+      "related_files": [
+        "src/shared/components/ShotSelector.tsx",
+        "src/shared/components/ImageGenerationForm/components/ShotSelector.tsx"
+      ],
+      "evidence": [
+        "Both files export a component named `ShotSelector` with overlapping core duties (shot selection, create/clear/jump behavior), but with separate UI/state implementations and distinct prop contracts (`src/shared/components/ShotSelector.tsx:12-52`, `src/shared/components/ImageGenerationForm/components/ShotSelector.tsx:14-22`).",
+        "This creates two design centers for the same workflow, increasing drift risk when shot-selection behavior evolves."
+      ],
+      "suggestion": "Converge on one canonical selector primitive (headless state + adapter renderers if needed). Keep one shared contract for core shot-selection actions and wrap context-specific presentation in thin composition components instead of separate full implementations.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

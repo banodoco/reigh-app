@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { toast } from '@/shared/components/ui/toast';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { toOperationResultError } from '@/shared/lib/operationResult';
 import {
   DragEndEvent,
   KeyboardSensor,
@@ -12,7 +13,7 @@ import {
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import type { VideoClip, TransitionPrompt } from '../types';
 import type { useJoinClipsSettings } from './useJoinClipsSettings';
-import type { useCreateGeneration } from '@/shared/hooks/useGenerationMutations';
+import type { useCreateGeneration } from '@/domains/generation/hooks/useGenerationMutations';
 import {
   getCachedClipsCount,
   setCachedClipsCount,
@@ -89,7 +90,15 @@ export function useClipManager({
   useEffect(() => {
     if (!settingsLoaded) return;
 
-    consumePendingJoinClips().then(actions => {
+    consumePendingJoinClips().then(result => {
+      if (!result.ok) {
+        normalizeAndPresentError(toOperationResultError(result), {
+          context: 'JoinClipsPage.pendingClipsConsume',
+          showToast: false,
+        });
+        return;
+      }
+      const actions = result.value;
       if (actions.length > 0) {
         setClips(prev => applyPendingClipActions(prev, actions));
       }
@@ -173,10 +182,28 @@ export function useClipManager({
 
     clipsNeedingDuration.forEach(async clip => {
       const result = await loadClipDuration(clip);
+      if (!result.ok) {
+        normalizeAndPresentError(toOperationResultError(result), {
+          context: 'JoinClipsPage.durationMetadata',
+          showToast: false,
+          logData: { clipId: clip.id },
+        });
+      }
       setClips(prev =>
         prev.map(c =>
-          c.id === result.id
-            ? { ...c, durationSeconds: result.durationSeconds, metadataLoading: false }
+          c.id === clip.id
+            ? {
+                ...c,
+                ...(result.ok
+                  ? {
+                    durationSeconds: result.value.durationSeconds,
+                    durationLoadFailed: false,
+                  }
+                  : {
+                    durationLoadFailed: true,
+                  }),
+                metadataLoading: false,
+              }
             : c,
         ),
       );
@@ -259,18 +286,18 @@ export function useClipManager({
             thumbnailUrl: result.posterUrl,
           });
         } catch (genError) {
-          handleError(genError, { context: 'JoinClipsPage', showToast: false });
+          normalizeAndPresentError(genError, { context: 'JoinClipsPage', showToast: false });
         }
       }
 
       return result;
     } catch (error) {
-      handleError(error, { context: 'JoinClipsPage', toastTitle: 'Upload failed' });
+      normalizeAndPresentError(error, { context: 'JoinClipsPage', toastTitle: 'Upload failed' });
       return null;
     } finally {
       setUploadingClipId(null);
     }
-  }, [toast, selectedProjectId, createGenerationMutation]);
+  }, [selectedProjectId, createGenerationMutation]);
 
   // ---------------------------------------------------------------------------
   // Clip CRUD callbacks

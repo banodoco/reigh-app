@@ -1,0 +1,112 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "cross_module_architecture": 88.4,
+    "high_level_elegance": 86.9,
+    "package_organization": 82.7
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/integrations/supabase/client.ts` enforces a bootstrap-before-access contract (`initializeSupabase()` before `getSupabaseClient()`), and throws at runtime when violated.",
+        "`README.md` documents this as a startup ordering rule, confirming the boundary depends on global runtime sequencing rather than a local dependency-injected contract.",
+        "`src/shared/lib/errorHandling/handleError.ts` mixes pure normalization/reporting exports with toast-triggering behavior (`notifyError` path), which couples domain error paths to presentation-time behavior."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Core contracts still rely on runtime ordering and side-effect wiring instead of enforceable module boundaries."
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Top-level governance claims in `README.md` (bootstrap ownership, deprecation gates, compatibility policy) are broad, while runtime ownership is split across small facades (`client.ts`, `handleError.ts`) that still embed operational assumptions.",
+        "`handleError.ts` provides both report-only and UI-notifying paths from the same public surface, which blurs ownership between core error semantics and UI delivery policy.",
+        "`client.ts` is presented as a clean entrypoint, but its true contract depends on external app bootstrap sequencing, reducing decomposition clarity for consumers."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Ownership boundaries are understandable but still blurred by mixed responsibilities in public facades."
+    },
+    "package_organization": {
+      "evidence": [
+        "Objective structure signal: `src/shared/components/ui/` has 60 files and mixed concerns (primitives, theme variants, hooks, runtime registration, tests), exceeding the >10 mixed-concern threshold.",
+        "`src/shared/components/ui/button.tsx` and `src/shared/components/ui/cn.ts` are high fan-in contract files in the same overloaded folder, increasing blast radius for UI-contract changes.",
+        "Objective structure signal: `src/integrations/supabase/` co-locates production entrypoint (`client.ts`) with generated schema (`types.ts`) and tests (`types.test.ts`), creating mixed zone ownership in one package."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "runtime_bootstrap_contract_is_order_coupled",
+      "summary": "Supabase client boundary depends on global init order instead of enforceable module contract",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "`client.ts` exposes `initializeSupabase()` and `getSupabaseClient()` with runtime throw on access-before-init.",
+        "`README.md` documents this as an app-startup rule, so correctness depends on cross-module sequencing discipline."
+      ],
+      "suggestion": "Replace order-coupled global access with an explicit provider/factory contract: (1) introduce a `SupabaseProvider` or `createSupabaseClient()` dependency passed from bootstrap, (2) keep a transitional facade that delegates to injected instance, (3) migrate callers to injected access, then (4) remove direct global getter and validate with `npm run typecheck && npm run test` plus a dedicated init-contract test.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "runtime_contracts_over_explicit_boundaries"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "error_facade_blends_core_and_ui_policy",
+      "summary": "Error facade mixes normalization API with toast side-effect policy in one public module",
+      "related_files": [
+        "README.md",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` exports pure reporting (`reportError`) and UI-notifying behavior (`handleError` with `notifyError`) side by side.",
+        "`README.md` states notifier ownership is bootstrap-governed, but this module still exposes behavior that crosses core error and presentation concerns."
+      ],
+      "suggestion": "Split contract surfaces: keep `reportError/reportAndRethrow` in a core error module and move toast-presenting behavior to a UI adapter module (for example `errorHandling/presentation`), then update imports so non-UI code cannot reach toast behavior directly; validate with `npm run check:contracts && npm run test`.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "runtime_contracts_over_explicit_boundaries"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "ui_package_flattening_and_mixed_concerns",
+      "summary": "Shared UI package is overloaded and mixes primitive, theme, hook, and runtime-contract concerns",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/ui/cn.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "Holistic structure shows `src/shared/components/ui/` has 60 files with mixed responsibilities and high inbound coupling.",
+        "`button.tsx` (theme-aware component contract) and `cn.ts` (cross-cutting utility contract) live in the same flat directory, increasing navigation and ownership ambiguity."
+      ],
+      "suggestion": "Execute a staged reorg plan: Stage 1 create target folders `src/shared/components/ui/primitives`, `src/shared/components/ui/theme`, `src/shared/components/ui/runtime`, and `src/shared/lib/styling`; Stage 2 move in order `button.tsx`+`baseButton.tsx`+`buttonThemeVariants.ts` -> `ui/theme`, runtime registration helpers -> `ui/runtime`, and `cn.ts` -> `shared/lib/styling/cn.ts` with temporary re-export at old path; Stage 3 run import updates (`rg -l \"@/shared/components/ui/cn\" src | xargs sed -i '' 's#@/shared/components/ui/cn#@/shared/lib/styling/cn#g'`) and keep compatibility barrel exports; Stage 4 validate via `npm run typecheck && npm run test && npm run quality:check`, then remove temporary re-exports.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "package_flattening_without_contract_tiers"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Critical runtime contracts are encoded as documentation and sequencing conventions instead of strongly enforced module boundaries.",
+      "High fan-in shared packages have grown by accretion without folder tiers for primitive/theme/runtime concerns."
+    ],
+    "likely_symptoms": [
+      "runtime_bootstrap_contract_is_order_coupled",
+      "error_facade_blends_core_and_ui_policy",
+      "ui_package_flattening_and_mixed_concerns"
+    ],
+    "possible_false_positives": []
+  }
+}

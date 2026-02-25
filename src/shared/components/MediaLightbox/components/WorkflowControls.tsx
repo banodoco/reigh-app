@@ -7,10 +7,10 @@ import {
   Settings,
 } from 'lucide-react';
 import { ShotSelectorWithAdd } from '@/shared/components/ShotSelectorWithAdd';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import type { ShotOption } from '@/types/shots';
+import type { ShotOption } from '@/domains/generation/types';
+import { useShotAssociationControls } from './hooks/useShotAssociationControls';
 
-interface WorkflowControlsProps {
+export interface WorkflowControlsProps {
   // Media info
   mediaId: string;
   imageUrl?: string;
@@ -95,20 +95,20 @@ export const WorkflowControls: React.FC<WorkflowControlsProps> = ({
   onDelete,
   onClose,
 }) => {
-  // Handle add without position
-  const handleAddWithoutPosition = async () => {
-    if (!onAddToShotWithoutPosition || !selectedShotId) return;
-    
-    try {
-      const success = await onAddToShotWithoutPosition(selectedShotId, mediaId, imageUrl, thumbUrl);
-      if (success) {
-        onShowSecondaryTick?.(mediaId);
-        onOptimisticUnpositioned?.(mediaId, selectedShotId);
-      }
-    } catch (error) {
-      handleError(error, { context: 'WorkflowControls', showToast: false });
-    }
-  };
+  const { isAddedWithoutPosition, handleAddWithoutPosition } = useShotAssociationControls({
+    mediaId,
+    imageUrl,
+    thumbUrl,
+    allShots,
+    selectedShotId,
+    isAlreadyAssociatedWithoutPosition,
+    showTickForSecondaryImageId,
+    onAddToShotWithoutPosition,
+    onShowSecondaryTick,
+    onOptimisticUnpositioned,
+    onNavigateToShot,
+    errorContext: 'WorkflowControls',
+  });
 
   // Don't render if no workflow actions available, in inpaint mode, or video
   if ((!onAddToShot && !onDelete && !onApplySettings) || isVideo || isInpaintMode) {
@@ -151,14 +151,14 @@ export const WorkflowControls: React.FC<WorkflowControlsProps> = ({
                     onClick={handleAddWithoutPosition}
                     disabled={!selectedShotId || isAddingWithoutPosition}
                     className={`h-8 px-3 text-white ${
-                      isAlreadyAssociatedWithoutPosition || showTickForSecondaryImageId === mediaId
+                      isAddedWithoutPosition
                         ? 'bg-green-600/80 hover:bg-green-600'
                         : 'bg-purple-600/80 hover:bg-purple-600'
                     }`}
                   >
                     {isAddingWithoutPosition ? (
                       <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
-                    ) : isAlreadyAssociatedWithoutPosition || showTickForSecondaryImageId === mediaId ? (
+                    ) : isAddedWithoutPosition ? (
                       <CheckCircle className="h-4 w-4" />
                     ) : (
                       <PlusCircle className="h-4 w-4" />
@@ -166,7 +166,7 @@ export const WorkflowControls: React.FC<WorkflowControlsProps> = ({
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent className="z-[100001]">
-                  {isAlreadyAssociatedWithoutPosition || showTickForSecondaryImageId === mediaId
+                  {isAddedWithoutPosition
                     ? 'Added without position. Jump to shot.'
                     : 'Add to shot without position'}
                 </TooltipContent>

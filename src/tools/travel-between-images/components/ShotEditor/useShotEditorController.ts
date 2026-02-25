@@ -1,8 +1,8 @@
 import { useEffect, useRef, useCallback, useMemo } from "react";
 import { useUpdateShotImageOrder, useAddImageToShotWithoutPosition } from "@/shared/hooks/shots";
 import { useShotCreation } from "@/shared/hooks/useShotCreation";
-import { useIsMobile } from "@/shared/hooks/useMobile";
-import { Shot } from '@/types/shots';
+import { useIsMobile } from "@/shared/hooks/mobile";
+import { Shot } from '@/domains/generation/types';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import { useToolSettings } from '@/shared/hooks/useToolSettings';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
@@ -41,6 +41,7 @@ import { useOutputController } from './controllers/useOutputController';
 import { useEditingController } from './controllers/useEditingController';
 import { useGenerationController } from './controllers/useGenerationController';
 import { useImageManagementController } from './controllers/useImageManagementController';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 
 interface ShotEditorControllerResult {
   hasSelectedShot: boolean;
@@ -180,7 +181,7 @@ export function useShotEditorController({
   } = useToolSettings<{
     acceleratedMode?: boolean;
     randomSeed?: boolean;
-  }>('travel-ui-state', { 
+  }>(SETTINGS_IDS.TRAVEL_UI_STATE, { 
     projectId: selectedProjectId, 
     shotId: selectedShot?.id,
     enabled: !!selectedShot?.id 
@@ -192,7 +193,7 @@ export function useShotEditorController({
 
 
   // Use shots.settings to store GenerationsPane settings (shared with useGenerationsPageLogic)
-  const { update: updateShotGenerationsPaneSettings } = useToolSettings<GenerationsPaneSettings>('generations-pane', {
+  const { update: updateShotGenerationsPaneSettings } = useToolSettings<GenerationsPaneSettings>(SETTINGS_IDS.GENERATIONS_PANE, {
     shotId: selectedShotId,
     enabled: !!selectedShotId
   });
@@ -260,8 +261,31 @@ export function useShotEditorController({
     timelineImages,
   });
 
+  const { mediaEditing, joinWorkflow } = useEditingController({
+    core: {
+      selectedShotId,
+      projectId,
+      selectedProjectId,
+      selectedShot: selectedShot ?? null,
+      effectiveAspectRatio,
+      swapButtonRef,
+    },
+    nameEditing: {
+      onUpdateShotName,
+      state: { isEditingName: state.isEditingName, editingName: state.editingName },
+      actions,
+    },
+    generationType: {
+      generationTypeMode: phaseConfigSettings.generationTypeMode,
+      setGenerationTypeMode: phaseConfigSettings.setGenerationTypeMode,
+    },
+    joinInputs: {
+      joinSegmentSlots,
+      joinSelectedParent,
+    },
+  });
+
   const {
-    // Structure video + handlers
     structureVideoPath,
     structureVideoMetadata,
     structureVideoTreatment,
@@ -280,17 +304,17 @@ export function useShotEditorController({
     handleStructureVideoMotionStrengthChange,
     handleStructureTypeChangeFromMotionControl,
     handleStructureVideoInputChange,
-    // Audio
     audioUrl,
     audioMetadata,
     handleAudioChange,
     isAudioSettingsLoading,
-    // Name editing
     handleNameClick,
     handleNameSave,
     handleNameCancel,
     handleNameKeyDown,
-    // Join configuration + actions
+  } = mediaEditing;
+
+  const {
     joinSettings,
     joinPrompt,
     joinNegativePrompt,
@@ -323,21 +347,7 @@ export function useShotEditorController({
     joinValidationData,
     handleJoinSegments,
     handleRestoreJoinDefaults,
-  } = useEditingController({
-    selectedShotId,
-    projectId,
-    selectedProjectId,
-    selectedShot: selectedShot ?? null,
-    effectiveAspectRatio,
-    swapButtonRef,
-    onUpdateShotName,
-    state: { isEditingName: state.isEditingName, editingName: state.editingName },
-    actions,
-    generationTypeMode: phaseConfigSettings.generationTypeMode,
-    setGenerationTypeMode: phaseConfigSettings.setGenerationTypeMode,
-    joinSegmentSlots,
-    joinSelectedParent,
-  });
+  } = joinWorkflow;
 
   // Use generation actions hook
   const generationActions = useGenerationActions({
@@ -437,63 +447,73 @@ export function useShotEditorController({
     steerableMotionJustQueued,
     isGenerationDisabled,
   } = useGenerationController({
-    projectId,
-    selectedProjectId,
-    selectedShotId,
-    selectedShot: selectedShot ?? null,
-    queryClient,
-    onShotImagesUpdate,
-    effectiveAspectRatio,
-    generationMode: generationModeSettings.generationMode,
-    prompt: promptSettings.prompt,
-    onPromptChange: promptSettings.setPrompt,
-    enhancePrompt: promptSettings.enhancePrompt,
-    textBeforePrompts: promptSettings.textBeforePrompts,
-    textAfterPrompts: promptSettings.textAfterPrompts,
-    negativePrompt: promptSettings.negativePrompt,
-    amountOfMotion: motionSettings.amountOfMotion,
-    motionMode: motionSettings.motionMode || 'basic',
-    advancedMode,
-    phaseConfig: phaseConfigSettings.phaseConfig,
-    selectedPhasePresetId: phaseConfigSettings.selectedPhasePresetId,
-    steerableMotionSettings: steerableMotionSettingsFromContext.steerableMotionSettings,
-    randomSeed,
-    turboMode: motionSettings.turboMode,
-    generationTypeMode: phaseConfigSettings.generationTypeMode,
-    smoothContinuations: motionSettings.smoothContinuations,
-    batchVideoFrames: frameSettings.batchVideoFrames,
-    selectedLoras: loraManager.selectedLoras,
-    structureVideos,
-    selectedOutputId,
-    stitchAfterGenerate,
-    joinContextFrames,
-    joinGapFrames,
-    joinReplaceMode,
-    joinKeepBridgingImages,
-    joinPrompt,
-    joinNegativePrompt,
-    joinEnhancePrompt,
-    joinModel,
-    joinNumInferenceSteps,
-    joinGuidanceScale,
-    joinSeed,
-    joinRandomSeed,
-    joinMotionMode,
-    joinPhaseConfig,
-    joinSelectedPhasePresetId,
-    joinSelectedLoras,
-    joinPriority,
-    joinUseInputVideoResolution,
-    joinUseInputVideoFps,
-    joinNoisedInputVideo,
-    joinLoopFirstClip,
-    accelerated,
-    isShotUISettingsLoading,
-    settingsLoadingFromContext,
-    updateShotUISettings,
-    setSteerableMotionSettings: steerableMotionSettingsFromContext.setSteerableMotionSettings,
-    setSteps: frameSettings.setSteps,
-    setShowStepsNotification: actions.setShowStepsNotification,
+    core: {
+      projectId,
+      selectedProjectId,
+      selectedShotId,
+      selectedShot: selectedShot ?? null,
+      queryClient,
+      onShotImagesUpdate,
+      effectiveAspectRatio,
+      generationMode: generationModeSettings.generationMode,
+    },
+    prompt: {
+      prompt: promptSettings.prompt,
+      onPromptChange: promptSettings.setPrompt,
+      enhancePrompt: promptSettings.enhancePrompt,
+      textBeforePrompts: promptSettings.textBeforePrompts,
+      textAfterPrompts: promptSettings.textAfterPrompts,
+      negativePrompt: promptSettings.negativePrompt,
+    },
+    motion: {
+      amountOfMotion: motionSettings.amountOfMotion,
+      motionMode: motionSettings.motionMode || 'basic',
+      advancedMode,
+      phaseConfig: phaseConfigSettings.phaseConfig,
+      selectedPhasePresetId: phaseConfigSettings.selectedPhasePresetId,
+      steerableMotionSettings: steerableMotionSettingsFromContext.steerableMotionSettings,
+      randomSeed,
+      turboMode: motionSettings.turboMode,
+      generationTypeMode: phaseConfigSettings.generationTypeMode,
+      smoothContinuations: motionSettings.smoothContinuations,
+      batchVideoFrames: frameSettings.batchVideoFrames,
+      selectedLoras: loraManager.selectedLoras,
+      structureVideos,
+      selectedOutputId,
+    },
+    join: {
+      stitchAfterGenerate,
+      joinContextFrames,
+      joinGapFrames,
+      joinReplaceMode,
+      joinKeepBridgingImages,
+      joinPrompt,
+      joinNegativePrompt,
+      joinEnhancePrompt,
+      joinModel,
+      joinNumInferenceSteps,
+      joinGuidanceScale,
+      joinSeed,
+      joinRandomSeed,
+      joinMotionMode,
+      joinPhaseConfig,
+      joinSelectedPhasePresetId,
+      joinSelectedLoras,
+      joinPriority,
+      joinUseInputVideoResolution,
+      joinUseInputVideoFps,
+      joinNoisedInputVideo,
+      joinLoopFirstClip,
+    },
+    runtime: {
+      accelerated,
+      isShotUISettingsLoading,
+      settingsLoadingFromContext,
+      updateShotUISettings,
+      setSteerableMotionSettings: steerableMotionSettingsFromContext.setSteerableMotionSettings,
+      setSteps: frameSettings.setSteps,
+      setShowStepsNotification: actions.setShowStepsNotification,
+    },
   });
 
   // Mutations for applying settings/images from a task

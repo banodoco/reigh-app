@@ -8,8 +8,8 @@
 
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { queryKeys } from '@/shared/lib/queryKeys';
 
 export function useDemoteOrphanedVariants() {
@@ -23,8 +23,7 @@ export function useDemoteOrphanedVariants() {
     try {
 
       // Query video variants that exist for this shot before demotion
-      await supabase
-        .from('generations')
+      await supabase().from('generations')
         .select(`
           id,
           pair_shot_generation_id,
@@ -37,17 +36,15 @@ export function useDemoteOrphanedVariants() {
         .not('pair_shot_generation_id', 'is', null);
 
       // Check what's currently at each shot_generation slot
-      await supabase
-        .from('shot_generations')
+      await supabase().from('shot_generations')
         .select('id, generation_id, timeline_frame')
         .eq('shot_id', shotId)
         .order('timeline_frame', { ascending: true });
 
-      const { data, error } = await supabase
-        .rpc('demote_orphaned_video_variants', { p_shot_id: shotId });
+      const { data, error } = await supabase().rpc('demote_orphaned_video_variants', { p_shot_id: shotId });
 
       if (error) {
-        handleError(error, { context: 'useDemoteOrphanedVariants', showToast: false, logData: { shotId: shotId.substring(0, 8) } });
+        normalizeAndPresentError(error, { context: 'useDemoteOrphanedVariants', showToast: false, logData: { shotId: shotId.substring(0, 8) } });
         return 0;
       }
 
@@ -56,8 +53,7 @@ export function useDemoteOrphanedVariants() {
       if (demotedCount > 0) {
 
         // Query which variants were demoted (they'll now have is_primary = false but no other primary)
-        await supabase
-          .from('generations')
+        await supabase().from('generations')
           .select(`
             id,
             location,
@@ -82,7 +78,7 @@ export function useDemoteOrphanedVariants() {
 
       return demotedCount;
     } catch (error) {
-      handleError(error, { context: 'useDemoteOrphanedVariants', showToast: false });
+      normalizeAndPresentError(error, { context: 'useDemoteOrphanedVariants', showToast: false });
       return 0;
     }
   }, [queryClient]);

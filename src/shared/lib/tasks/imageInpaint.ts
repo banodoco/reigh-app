@@ -46,6 +46,7 @@ function createSingleInpaintTask(params: Omit<CreateImageInpaintTaskParams, 'num
     num_generations: 1, // Each task creates one generation
     generation_id,
     based_on: generation_id, // Explicitly track source generation for lineage
+    parent_generation_id: generation_id, // Compatibility for workers that key off parent_generation_id
     ...(shot_id ? { shot_id } : {}),
     ...(tool_type ? { tool_type } : {}),
     ...(loras && loras.length > 0 ? { loras } : {}),

@@ -8,8 +8,8 @@ import { usePrefetchTaskData } from '@/shared/hooks/useTaskPrefetch';
 import { useAdjacentSegmentsData } from './hooks/useAdjacentSegmentsData';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import { usePendingImageOpen } from '@/shared/hooks/usePendingImageOpen';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import type { GenerationRow } from '@/types/shots';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import type { GenerationRow } from '@/domains/generation/types';
 import type { useSelection } from './hooks/useSelection';
 import type { useLightbox } from './hooks/useLightbox';
 import type { useBatchOperations } from './hooks/useBatchOperations';
@@ -110,7 +110,10 @@ export const ShotImageManagerMobileWrapper: React.FC<ShotImageManagerMobileWrapp
     ? lightbox.currentImages[lightbox.lightboxIndex]
     : null;
   const currentLightboxImageId = getGenerationId(currentLightboxImage) || null;
-  const { taskDetailsData } = useTaskDetails({ generationId: currentLightboxImageId });
+  const { taskDetailsData } = useTaskDetails({
+    generationId: currentLightboxImageId,
+    projectId: props.projectId ?? null,
+  });
 
   // Prefetch task data for adjacent items when lightbox is open
   const prefetchTaskData = usePrefetchTaskData();
@@ -225,7 +228,7 @@ export const ShotImageManagerMobileWrapper: React.FC<ShotImageManagerMobileWrapp
             media={lightbox.currentImages[lightbox.lightboxIndex]}
             shotId={props.shotId}
             toolTypeOverride={props.toolTypeOverride}
-            autoEnterInpaint={lightbox.shouldAutoEnterInpaint}
+            initialEditActive={lightbox.shouldAutoEnterInpaint}
             initialVariantId={capturedVariantIdRef.current ?? undefined}
             onClose={() => {
               capturedVariantIdRef.current = null;
@@ -258,7 +261,7 @@ export const ShotImageManagerMobileWrapper: React.FC<ShotImageManagerMobileWrapp
               if (index !== -1) {
                 lightbox.setLightboxIndex(index);
               } else {
-                handleError(new Error('Generation not found in current images'), {
+                normalizeAndPresentError(new Error('Generation not found in current images'), {
                   context: 'ShotImageManagerMobileWrapper',
                   showToast: false,
                   logData: {

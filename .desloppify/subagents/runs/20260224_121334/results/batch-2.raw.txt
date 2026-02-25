@@ -1,0 +1,154 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 57.0,
+    "mid_level_elegance": 55.0,
+    "low_level_elegance": 52.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "Task row mapping is duplicated with near-identical logic in `src/shared/hooks/useTasks.ts` (`mapDbTaskToTask`) and `src/shared/lib/generationTaskBridge.ts` (`mapDbTaskRowToTask`).",
+        "Timestamp hooks (`useCompletedTimestamp`, `useProcessingTimestamp`, `useUpdatingTimestamp`) are thin wrappers over `useLiveRelativeTimestamp` with mostly formatter/name differences, increasing surface area for small behavior deltas.",
+        "Task creation modules (`imageGeneration`, `magicEdit`, `zImageTurboI2I`, `joinClips`) each re-implement similar validate/build/create scaffolding instead of sharing stronger typed builder primitives."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 54.0,
+        "indirection_cost": 49.0,
+        "interface_honesty": 68.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Image and video lightbox render-model assembly repeats a large seam contract (`useLightboxWorkflowProps` input bag, `buttonGroupProps` merging, panel/action wiring) in both `src/shared/components/MediaLightbox/ImageLightbox.tsx` and `src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx`.",
+        "`src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts` builds four grouped prop objects by mostly forwarding inputs unchanged, adding integration glue without strong transformation.",
+        "`src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts` adds multiple adapter wrappers (`handleAddToShotAdapter`, `handleAddToShotWithoutPositionAdapter`, `handleCreateShotAdapter`) that normalize to booleans/empty IDs and blur error/lifecycle propagation."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "`src/features/gallery/hooks/__tests__/useGalleryPageState.test.ts` and `src/shared/hooks/__tests__/useGalleryPageState.test.ts` are byte-identical duplicates (same 226-line suite).",
+        "`src/shared/hooks/__tests__/useAutoSaveSettings.test.ts` and `src/shared/settings/hooks/__tests__/useAutoSaveSettings.test.ts` contain largely duplicated test bodies with path-level divergence only, increasing maintenance drift risk.",
+        "Task modules (`magicEdit`, `zImageTurboI2I`, `imageGeneration`) repeat similar low-level validation and payload assembly patterns (URL checks, seed bounds, batch fan-out loops), which increases branch-level duplication."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "duplicated_task_row_mapper",
+      "summary": "Two separate task-row-to-domain mappers duplicate the same schema translation logic.",
+      "related_files": [
+        "src/shared/hooks/useTasks.ts",
+        "src/shared/lib/generationTaskBridge.ts"
+      ],
+      "evidence": [
+        "`useTasks.ts` exports `mapDbTaskToTask` mapping `task_type/created_at/...` to camelCase Task fields.",
+        "`generationTaskBridge.ts` defines `mapDbTaskRowToTask` with the same field-by-field mapping and null/undefined normalization."
+      ],
+      "suggestion": "Extract a single shared mapper (and shared `TaskDbRow` type) in a task-domain utility, then import it from both hooks/bridge paths.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "timestamp_hook_micro_wrappers",
+      "summary": "Timestamp hook family adds multiple thin wrappers with minimal behavioral separation.",
+      "related_files": [
+        "src/shared/hooks/useCompletedTimestamp.ts",
+        "src/shared/hooks/useProcessingTimestamp.ts",
+        "src/shared/hooks/useUpdatingTimestamp.ts"
+      ],
+      "evidence": [
+        "`useCompletedTimestamp` and `useProcessingTimestamp` both call `useLiveRelativeTimestamp` with mostly a formatter and renamed input field.",
+        "`useTaskTimestamp` wraps `useUpdatingTimestamp` with a small abbreviation override, adding another API alias layer."
+      ],
+      "suggestion": "Consolidate to one configurable `useRelativeTimestamp` API with named presets/constants to reduce wrapper proliferation.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "lightbox_render_seam_duplication",
+      "summary": "Image and video lightbox flows duplicate large orchestration seams and prop-bag composition.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "Both image and video paths construct nearly identical `useLightboxWorkflowProps` argument trees (`panel`, `shotWorkflow`, `actions`, `buttonGroupProps`) and then render `LightboxLayout` with the produced layout props.",
+        "The shared layout consumes broad grouped props (`props.buttonGroupProps.*`, `props.segmentSlotMode`) while feature-specific wiring remains duplicated at call sites."
+      ],
+      "suggestion": "Introduce a shared lightbox render-model factory for common seam assembly, leaving only media-specific deltas in image/video modules.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "callback_adapter_glue_entropy",
+      "summary": "Adapter-heavy callback normalization hides upstream contract differences instead of simplifying seams.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts"
+      ],
+      "evidence": [
+        "`useShotImagesEditorCallbacks` adds wrappers that convert exceptions to `false` and absent creators to `{ shotId: '', shotName: '' }`, creating implicit fallback semantics.",
+        "`useButtonGroupProps` builds grouped objects mostly by forwarding existing values, adding an extra mapping layer without meaningful transformation."
+      ],
+      "suggestion": "Standardize collaborator interfaces (return types and error semantics) and remove adapters where contracts can be made direct.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "duplicated_gallery_page_state_tests",
+      "summary": "Gallery page-state test suite is duplicated in two locations, creating parallel maintenance paths.",
+      "related_files": [
+        "src/features/gallery/hooks/__tests__/useGalleryPageState.test.ts",
+        "src/shared/hooks/__tests__/useGalleryPageState.test.ts"
+      ],
+      "evidence": [
+        "Files are identical (same imports, mocks, and test cases; 226 lines each).",
+        "Future behavior changes require synchronized edits in two files, raising drift risk."
+      ],
+      "suggestion": "Keep one canonical suite and remove/redirect the duplicate via shared test helper if both paths must remain addressable.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "task_builder_validation_duplication",
+      "summary": "Task builders repeat similar low-level validation/build patterns across modules.",
+      "related_files": [
+        "src/shared/lib/tasks/magicEdit.ts",
+        "src/shared/lib/tasks/zImageTurboI2I.ts",
+        "src/shared/lib/tasks/imageGeneration.ts",
+        "src/shared/lib/tasks/joinClips.ts"
+      ],
+      "evidence": [
+        "Each module repeats guard logic for required fields, URL/seed/range checks, and batch fan-out patterns with local variations.",
+        "Payload assembly uses repeated manual conditional assignment blocks, increasing inconsistency risk when shared task semantics evolve."
+      ],
+      "suggestion": "Extract reusable validator primitives and shared payload composition helpers in `taskCreation` (e.g., URL/seed/loras validators, batch task fan-out utility).",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 import React from 'react';
-import { cn } from '@/shared/lib/utils';
-import { parseRatio } from '@/shared/lib/aspectRatios';
+import { cn } from '@/shared/components/ui/contracts/cn';
+import { parseRatio } from '@/shared/lib/media/aspectRatios';
 
 interface SkeletonGalleryProps {
   /** Number of skeleton items to show */

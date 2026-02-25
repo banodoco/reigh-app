@@ -1,0 +1,98 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "ai_generated_debt": 86.0,
+    "incomplete_migration": 74.0,
+    "low_level_elegance": 82.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "Multiple small utility modules carry long narrative headers and restating comments that mirror code behavior rather than explaining non-obvious constraints (e.g., src/shared/lib/storagePaths.ts, src/shared/lib/taskTypeUtils.ts, src/shared/lib/taskCreation/arrayUtils.ts).",
+        "Several comments describe obvious one-line behavior ('Get all visible task types', 'Generate a unique thumbnail filename'), increasing scan noise relative to executable logic in these shared files."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "unreported_risk": "If this comment-heavy pattern continues in shared utilities, maintenance cost rises through slower code reading and higher review noise even without functional regressions."
+    },
+    "incomplete_migration": {
+      "evidence": [
+        "Travel task input type intentionally mixes canonical and legacy payload shapes: TravelBetweenImagesTaskParamsInput = TravelBetweenImagesTaskParams & Partial<LegacyTravelBetweenImagesTaskParamsInput> (src/shared/lib/tasks/travelBetweenImages/types.ts).",
+        "Legacy guidance fields are still carried in active UI-facing config type (motion_strength, structure_type, uni3c_* comments marked migration-only) in src/shared/lib/tasks/travelBetweenImages/types.ts.",
+        "Image generation settings still accept deprecated fields via LegacyProjectImageSettings and ProjectImageSettingsInput union, while canonical fields coexist in the same boundary type (src/shared/components/ImageGenerationForm/types.ts).",
+        "Task config and ID helpers include compatibility fallbacks for old naming/registry paths (src/shared/lib/taskConfig.ts, src/shared/lib/taskIdHelpers.ts)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Aspect-ratio derivation logic is split into two similar utility implementations with partially overlapping fallback chains: getAspectRatioStyle in src/shared/components/ShotImageManager/utils/image-utils.ts and getImageAspectRatioStyle in src/shared/lib/imageAspectRatio.ts.",
+        "Both functions independently parse project ratio and default to square, which invites subtle drift in low-level behavior over time."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "comment_ceremony_over_signal",
+      "summary": "Shared utility files contain excessive restating comments that add noise without new intent.",
+      "related_files": [
+        "src/shared/lib/storagePaths.ts",
+        "src/shared/lib/taskTypeUtils.ts",
+        "src/shared/lib/taskCreation/arrayUtils.ts"
+      ],
+      "evidence": [
+        "Large header/doc blocks describe straightforward code paths and repeat symbol names/behavior directly visible from implementation.",
+        "Comment density is high relative to logic size in these helpers, reducing signal-to-noise during maintenance."
+      ],
+      "suggestion": "Trim comments to constraint-focused notes only (why a behavior exists, migration/removal conditions, external contract caveats) and remove line-by-line narration of obvious code.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_and_canonical_payloads_coexist",
+      "summary": "Core task-setting boundaries still accept legacy and canonical fields simultaneously.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/types.ts",
+        "src/shared/components/ImageGenerationForm/types.ts",
+        "src/shared/lib/taskConfig.ts",
+        "src/shared/lib/taskIdHelpers.ts"
+      ],
+      "evidence": [
+        "TravelBetweenImagesTaskParamsInput and ProjectImageSettingsInput both merge modern contracts with legacy/deprecated fields.",
+        "Legacy-only metadata fields remain embedded in active config interfaces, not isolated to a dedicated decode/migration layer.",
+        "Compatibility fallbacks remain active in task config and ID resolution, signaling migration not yet closed."
+      ],
+      "suggestion": "Move legacy decoding into explicit adapter functions at ingestion boundaries, keep runtime/domain types canonical-only, and enforce a removal gate by rejecting legacy fields after cutover.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "duplicated_aspect_ratio_fallback_logic",
+      "summary": "Two near-duplicate aspect-ratio helpers create avoidable low-level divergence risk.",
+      "related_files": [
+        "src/shared/components/ShotImageManager/utils/image-utils.ts",
+        "src/shared/lib/imageAspectRatio.ts"
+      ],
+      "evidence": [
+        "Both modules compute aspectRatio strings with similar project-ratio fallback and square default behavior.",
+        "One implementation additionally reads metadata/orchestrator resolution while the other only parses project ratio, indicating fragmented logic ownership."
+      ],
+      "suggestion": "Consolidate into one shared aspect-ratio resolver with optional metadata inputs, and have both call sites consume the same helper to prevent drift.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

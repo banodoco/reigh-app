@@ -1,0 +1,97 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 4,
+  "assessments": {
+    "mid_level_elegance": 68.0
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "No test hits were found for `buildOrchestrationContract` and `runBatchTaskPipeline` (`rg --glob \"**/*.test.ts*\"` returned no matches), leaving cross-module task handoff shaping and settled-result behavior unverified.",
+        "No test hits were found for `resolveShotImagesEditorProps` and `prefetchAdjacentGenerationPages`/`cleanupDistantGenerationPages`, despite both being seam-heavy coordination code with runtime collision/cleanup behavior.",
+        "Boundary helpers use divergent failure contracts across similar integration paths: `generationTaskBridge` has Result-returning internals plus throwing wrappers, `useLineageChain` swallows failures into empty data, and `clipManager/metadata` converts errors to duration `0`.",
+        "Metadata boundary normalization is defined in `toGenerationMetadata(...)` but `transformForTimeline` bypasses it via direct cast `(shotGen.metadata as GenerationMetadata | undefined)`, making seam behavior depend on unchecked shape assumptions."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "untested_task_orchestration_seams",
+      "summary": "Task orchestration contract/pipeline seam logic is untested",
+      "related_files": [
+        "src/shared/lib/tasks/orchestrationContract.ts",
+        "src/shared/lib/tasks/batchTaskPipeline.ts"
+      ],
+      "evidence": [
+        "`buildOrchestrationContract` performs field translation and optional inclusion decisions that define cross-layer payload shape.",
+        "`runBatchTaskPipeline` coordinates validation, fan-out, all-settled aggregation, and optional lifecycle callback invocation.",
+        "Search over test files found no direct tests for either API (`rg --glob \"**/*.test.ts*\"` for both symbols returned no matches)."
+      ],
+      "suggestion": "Add focused unit tests that lock contract serialization rules and pipeline behavior for mixed success/failure batches, callback invocation ordering, and empty/invalid input edge cases.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "untested_ui_coordination_boundaries",
+      "summary": "Critical UI coordination boundaries rely on untested runtime behavior",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/types.ts",
+        "src/features/gallery/lib/adjacentPagePreloadCoordinator.ts"
+      ],
+      "evidence": [
+        "`resolveShotImagesEditorProps` throws at runtime on key collisions while dynamically merging multiple prop groups.",
+        "`prefetchAdjacentGenerationPages` sequences prefetch + cache cleanup and invokes side-effect preloading/eviction services.",
+        "No direct tests were found for `resolveShotImagesEditorProps`, `prefetchAdjacentGenerationPages`, or `cleanupDistantGenerationPages` in `*.test.ts*` files."
+      ],
+      "suggestion": "Add seam-level tests for prop-collision failure mode and for adjacent-page prefetch/cleanup order, including error callback behavior and distant-page eviction correctness.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "inconsistent_failure_contracts_across_helpers",
+      "summary": "Similar integration helpers expose incompatible failure semantics",
+      "related_files": [
+        "src/shared/lib/generationTaskBridge.ts",
+        "src/shared/hooks/useLineageChain.ts",
+        "src/tools/join-clips/lib/clipManager/metadata.ts",
+        "src/shared/lib/operationResult.ts"
+      ],
+      "evidence": [
+        "`generationTaskBridge` defines Result-returning internals but public helpers throw on failure (`getPrimaryTaskIdForGeneration`, `getPrimaryTaskIdsForGenerations`).",
+        "`useLineageChain` logs and returns `{ chain: [], isPartial: false }` on failure, collapsing error into empty-data semantics at the hook boundary.",
+        "`loadClipDuration` logs and returns a synthetic success value (`durationSeconds: 0`) when metadata extraction fails.",
+        "All three consume the same `OperationResult` pattern but convert failures differently at module boundaries."
+      ],
+      "suggestion": "Standardize boundary semantics (either explicit Result through the seam, or throw-and-handle at one orchestration layer) and document a single policy for fallback vs surfaced failure.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "metadata_normalization_bypassed_at_transform_boundary",
+      "summary": "Timeline transform bypasses metadata guard and uses unchecked cast",
+      "related_files": [
+        "src/domains/generation/types/generationMetadata.ts",
+        "src/shared/lib/generationTransformers.ts"
+      ],
+      "evidence": [
+        "`generationMetadata.ts` provides `toGenerationMetadata(...)` as the boundary normalizer for unknown metadata payloads.",
+        "`transformForTimeline` assigns `metadata` using direct cast `(shotGen.metadata as GenerationMetadata | undefined)` instead of normalization.",
+        "This makes the transformer accept arbitrary metadata shape without an explicit seam validation step."
+      ],
+      "suggestion": "Use `toGenerationMetadata` (or a stricter shared parser) in `transformForTimeline` and define behavior for invalid metadata (null out, sanitize, or raise controlled error).",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

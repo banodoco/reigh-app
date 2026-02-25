@@ -1,4 +1,4 @@
-import type { Shot } from "@/types/shots";
+import type { Shot } from "@/domains/generation/types";
 import type { AddToShotHandler } from '@/shared/types/imageHandlers';
 
 /**
@@ -128,6 +128,23 @@ export interface GeneratedImageWithMetadata {
   is_child?: boolean;
   parent_generation_id?: string;
   child_order?: number;
+}
+
+/**
+ * Canonical shot option shape used by gallery selectors and shot-jump actions.
+ * Keep this surface stable so gallery/item workflows do not drift.
+ */
+export interface SimplifiedShotOption {
+  id: string;
+  name: string;
+  settings?: unknown;
+  created_at?: string | null;
+}
+
+/** Minimal shot navigation contract shared by gallery handlers. */
+export interface NavigableShot {
+  id: string;
+  name?: string;
 }
 
 export interface GalleryFilterState {

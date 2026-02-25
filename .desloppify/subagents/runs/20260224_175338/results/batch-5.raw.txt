@@ -1,0 +1,58 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 5,
+  "assessments": {
+    "high_level_elegance": 88.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/hooks/useApiTokens.ts` is placed in `shared/hooks` but contains account-specific persistence/integration behavior (`user_api_tokens` table queries, `generate-pat`/`revoke-pat` RPC calls, auth/session checks), unlike cross-cutting hooks in the same folder such as `useAsyncOperation` and `useAutoSaveSettings`.",
+        "Test placement is inconsistent inside comparable areas: hook tests are centralized under `src/shared/hooks/__tests__/...`, while component tests (`src/shared/components/ActiveLoRAsDisplay.test.tsx`, `src/shared/components/AppErrorBoundary.test.tsx`) are colocated at directory root. This weakens predictability of package boundaries for navigation."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Shared package boundaries are blurred by domain-specific hook placement and inconsistent test-directory conventions, reducing ownership clarity and discoverability."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "domain_hook_in_shared_package",
+      "summary": "Domain-specific API token workflow is stored in generic shared hook package",
+      "related_files": [
+        "src/shared/hooks/useApiTokens.ts",
+        "src/shared/hooks/useAsyncOperation.ts",
+        "src/shared/hooks/useAutoSaveSettings.ts"
+      ],
+      "evidence": [
+        "`useApiTokens` performs user auth/session checks and directly manages token persistence/RPCs (`user_api_tokens`, `generate-pat`, `revoke-pat`).",
+        "Neighbor hooks in the same package are infrastructure-style abstractions (`useAsyncOperation`, `useAutoSaveSettings`) with reusable cross-feature behavior, creating mixed ownership semantics within one directory."
+      ],
+      "suggestion": "Move `useApiTokens` into a feature/domain-owned location (for example an account/settings or billing/token module), keep `shared/hooks` for cross-domain primitives, and expose only a thin public import path if needed for compatibility.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "test_location_convention_drift",
+      "summary": "Test files use inconsistent placement patterns across sibling packages",
+      "related_files": [
+        "src/shared/hooks/__tests__/useAsyncOperation.test.ts",
+        "src/shared/hooks/__tests__/useAutoSaveSettings.test.ts",
+        "src/shared/components/ActiveLoRAsDisplay.test.tsx",
+        "src/shared/components/AppErrorBoundary.test.tsx"
+      ],
+      "evidence": [
+        "Hooks follow a dedicated `__tests__` directory convention under `shared/hooks`.",
+        "Components place tests beside source files at `shared/components` root, yielding two competing package-level test organization patterns in nearby shared modules."
+      ],
+      "suggestion": "Adopt one repository-wide convention for test location per package type (either colocated or `__tests__`) and migrate outliers so path patterns remain predictable for future ownership and maintenance work.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

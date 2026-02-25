@@ -26,6 +26,43 @@ npm run dev                   # Vite on http://localhost:2222
 
 GPU task processing requires **[Reigh-Worker](https://github.com/banodoco/Reigh-Worker)** running separately. Worker and API orchestration is managed by **[Reigh-Worker-Orchestrator](https://github.com/banodoco/Reigh-Worker-Orchestrator)**.
 
+## Governance Contracts
+
+- Supabase runtime contract: [`docs/governance/contracts/supabase-runtime.md`](docs/governance/contracts/supabase-runtime.md)
+- Error handling contract: [`docs/governance/contracts/error-handling.md`](docs/governance/contracts/error-handling.md)
+- Compatibility shims and migration gates: [`docs/governance/contracts/compatibility-shims.md`](docs/governance/contracts/compatibility-shims.md)
+
+### Contract Status Matrix
+
+| Contract Surface | Canonical Path | Compatibility Status | Removal Target |
+|---|---|---|---|
+| Supabase runtime accessor | `src/integrations/supabase/client.ts` | Stable canonical | N/A |
+| Runtime error normalization | `src/shared/lib/errorHandling/runtimeError.ts` (`normalizeAndPresentError`) | Deprecated aliases live in `src/shared/lib/errorHandling/handleError.ts` | 2026-06-30 |
+| UI button entrypoint | `src/shared/components/ui/button.tsx` | Stable canonical for app imports | N/A |
+| UI button primitive (base-only) | `src/shared/components/ui/contracts/button.tsx` | Canonical primitive contract behind `ui/button` | N/A |
+| UI themed button wrapper | `src/shared/components/ui/theme/button.tsx` | App layer wrapper over base primitive | N/A |
+| UI class merge primitive | `src/shared/components/ui/contracts/cn.ts` | Stable canonical | N/A |
+
+Compatibility shims that remain for legacy imports:
+
+- `src/shared/components/ui/primitives/cn.ts` -> re-export shim to `ui/contracts/cn.ts`
+
+### Governance Test Gates
+
+Run these in CI and before merging facade/contract changes:
+
+- `npm run test:contracts`
+- `npm run test:arch`
+- `npm run quality:check`
+
+### Gate-to-Surface Map
+
+| Gate | Required Surface Coverage | Expected Assertion |
+|---|---|---|
+| `npm run test:contracts` | `src/shared/components/ui/button.tsx`, `src/shared/components/ui/contracts/button.tsx`, `src/shared/components/ui/contracts/cn.ts`, `src/shared/lib/errorHandling/runtimeError.ts`, `src/domains/generation/types/public.ts` | Public contract API shape and behavior stays stable |
+| `npm run test:arch` | `src/shared/lib/errorHandling/runtimeError.ts`, `src/integrations/supabase/client.ts`, contract shim policy docs/scripts | Contract and shim usage rules are enforced |
+| `npm run quality:check` | `src/integrations/supabase/client.ts`, `src/shared/lib/errorHandling/runtimeError.ts`, `src/shared/components/ui/contracts/*` | Integrated lint/typecheck/governance checks pass for touched contract surfaces |
+
 ## Code Health
 
 <img src="scorecard.png">

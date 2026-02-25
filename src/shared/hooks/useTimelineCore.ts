@@ -16,11 +16,11 @@
 
 import { useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 import { toJson } from '@/shared/lib/supabaseTypeHelpers';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { useShotImages } from '@/shared/hooks/useShotImages';
 import { useInvalidateGenerations } from '@/shared/hooks/invalidation/useGenerationInvalidation';
 import { isVideoGeneration } from '@/shared/lib/typeGuards';
@@ -28,6 +28,7 @@ import { readSegmentOverrides, writeSegmentOverrides } from '@/shared/lib/settin
 import { calculateNextAvailableFrame, extractExistingFrames, DEFAULT_FRAME_SPACING } from '@/shared/lib/timelinePositionCalculator';
 import type { SegmentOverrides } from '@/shared/types/segmentSettings';
 import {
+  createTimelineWriteQueueLogger,
   runSerializedTimelineWrite,
   runTimelineWriteWithTimeout,
 } from '@/shared/lib/timelineWriteQueue';
@@ -190,45 +191,10 @@ function useTimelinePositionOperations(
   positionedItems: GenerationRow[],
   invalidateGenerations: InvalidateGenerationsFn
 ): TimelinePositionOperations {
-  const logQueuePhase = useCallback((
-    phase: 'queued' | 'start' | 'end',
-    meta: {
-      shotId: string;
-      operation: string;
-      waitMs: number;
-      durationMs: number;
-      queueDepth: number;
-    },
-  ) => {
-    if (phase === 'queued') {
-      log(`${TIMELINE_CORE_LOG_PREFIX} write queue queued`, {
-        shotId: shortId(meta.shotId),
-        operation: meta.operation,
-        waitMs: meta.waitMs,
-        durationMs: meta.durationMs,
-        queueDepth: meta.queueDepth,
-      });
-      return;
-    }
-
-    if (phase === 'start') {
-      log(`${TIMELINE_CORE_LOG_PREFIX} write queue start`, {
-        shotId: shortId(meta.shotId),
-        operation: meta.operation,
-        waitMs: meta.waitMs,
-        queueDepth: meta.queueDepth,
-      });
-      return;
-    }
-
-    log(`${TIMELINE_CORE_LOG_PREFIX} write queue end`, {
-      shotId: shortId(meta.shotId),
-      operation: meta.operation,
-      waitMs: meta.waitMs,
-      durationMs: meta.durationMs,
-      queueDepth: meta.queueDepth,
-    });
-  }, []);
+  const logQueuePhase = useMemo(
+    () => createTimelineWriteQueueLogger({ logPrefix: TIMELINE_CORE_LOG_PREFIX, log }),
+    [],
+  );
 
   const updatePosition = useCallback<TimelineCoreResult['updatePosition']>(
     async (shotGenerationId, newFrame) => {
@@ -242,8 +208,7 @@ function useTimelinePositionOperations(
             await runTimelineWriteWithTimeout(
               'timeline-core-update-position-write',
               async (signal) => {
-                const { error } = await supabase
-                  .from('shot_generations')
+                const { error } = await supabase().from('shot_generations')
                   .update({
                     timeline_frame: newFrame,
                     metadata: { user_positioned: true },
@@ -269,7 +234,7 @@ function useTimelinePositionOperations(
             );
             invalidateGenerations(shotId, { reason: 'position-update', scope: 'images' });
           } catch (err) {
-            throw handleError(err, { context: 'useTimelineCore.updatePosition', toastTitle: 'Failed to update position' });
+            throw normalizeAndPresentError(err, { context: 'useTimelineCore.updatePosition', toastTitle: 'Failed to update position' });
           }
         },
         logQueuePhase,
@@ -302,7 +267,7 @@ function useTimelinePositionOperations(
 
             invalidateGenerations(shotId, { reason: 'positions-commit', scope: 'all' });
           } catch (err) {
-            throw handleError(err, { context: 'useTimelineCore.commitPositions', toastTitle: 'Failed to update positions' });
+            throw normalizeAndPresentError(err, { context: 'useTimelineCore.commitPositions', toastTitle: 'Failed to update positions' });
           }
         },
         logQueuePhase,
@@ -316,7 +281,7 @@ function useTimelinePositionOperations(
       if (!shotId || newOrder.length === 0) return;
 
       try {
-        const { error } = await supabase.rpc('reorder_normalized', {
+        const { error } = await supabase().rpc('reorder_normalized', {
           p_shot_id: shotId,
           p_new_order: newOrder,
         });
@@ -324,7 +289,7 @@ function useTimelinePositionOperations(
         if (error) throw error;
         invalidateGenerations(shotId, { reason: 'reorder', scope: 'all' });
       } catch (err) {
-        throw handleError(err, { context: 'useTimelineCore.reorder', toastTitle: 'Failed to reorder items' });
+        throw normalizeAndPresentError(err, { context: 'useTimelineCore.reorder', toastTitle: 'Failed to reorder items' });
       }
     },
     [shotId, invalidateGenerations]
@@ -337,7 +302,7 @@ function useTimelinePositionOperations(
       const currentOrder = positionedItems
         .map((generation) => generation.shotImageEntryId)
         .filter(Boolean) as string[];
-      const { error } = await supabase.rpc('reorder_normalized', {
+      const { error } = await supabase().rpc('reorder_normalized', {
         p_shot_id: shotId,
         p_new_order: currentOrder,
       });
@@ -345,7 +310,7 @@ function useTimelinePositionOperations(
       if (error) throw error;
       invalidateGenerations(shotId, { reason: 'normalize', scope: 'all' });
     } catch (err) {
-      throw handleError(err, {
+      throw normalizeAndPresentError(err, {
         context: 'useTimelineCore.normalize',
         toastTitle: 'Failed to normalize timeline',
       });
@@ -365,7 +330,7 @@ function useTimelineItemOperations(
       if (!shotId) return;
 
       try {
-        const { error } = await supabase.rpc('delete_and_normalize', {
+        const { error } = await supabase().rpc('delete_and_normalize', {
           p_shot_id: shotId,
           p_shot_generation_id: shotGenerationId,
         });
@@ -373,7 +338,7 @@ function useTimelineItemOperations(
         if (error) throw error;
         invalidateGenerations(shotId, { reason: 'delete-item', scope: 'all', includeShots: true });
       } catch (err) {
-        throw handleError(err, { context: 'useTimelineCore.deleteItem', toastTitle: 'Failed to delete item' });
+        throw normalizeAndPresentError(err, { context: 'useTimelineCore.deleteItem', toastTitle: 'Failed to delete item' });
       }
     },
     [shotId, invalidateGenerations]
@@ -384,7 +349,7 @@ function useTimelineItemOperations(
       if (!shotId) return;
 
       try {
-        const { error } = await supabase.rpc('unposition_and_normalize', {
+        const { error } = await supabase().rpc('unposition_and_normalize', {
           p_shot_id: shotId,
           p_shot_generation_id: shotGenerationId,
         });
@@ -392,7 +357,7 @@ function useTimelineItemOperations(
         if (error) throw error;
         invalidateGenerations(shotId, { reason: 'unposition-item', scope: 'all' });
       } catch (err) {
-        throw handleError(err, { context: 'useTimelineCore.unpositionItem', toastTitle: 'Failed to remove from timeline' });
+        throw normalizeAndPresentError(err, { context: 'useTimelineCore.unpositionItem', toastTitle: 'Failed to remove from timeline' });
       }
     },
     [shotId, invalidateGenerations]
@@ -407,8 +372,7 @@ function useTimelineItemOperations(
         : calculateNextAvailableFrame(extractExistingFrames(positionedItems));
 
       try {
-        const { data, error } = await supabase
-          .from('shot_generations')
+        const { data, error } = await supabase().from('shot_generations')
           .insert({
             shot_id: shotId,
             generation_id: generationId,
@@ -426,7 +390,7 @@ function useTimelineItemOperations(
         invalidateGenerations(shotId, { reason: 'add-item', scope: 'all' });
         return data?.id || null;
       } catch (err) {
-        throw handleError(err, { context: 'useTimelineCore.addItem', toastTitle: 'Failed to add item to timeline' });
+        throw normalizeAndPresentError(err, { context: 'useTimelineCore.addItem', toastTitle: 'Failed to add item to timeline' });
       }
     },
     [shotId, positionedItems, invalidateGenerations]
@@ -476,8 +440,7 @@ function useTimelinePairOperations(
           prompt,
           negativePrompt,
         });
-        const { error } = await supabase
-          .from('shot_generations')
+        const { error } = await supabase().from('shot_generations')
           .update({ metadata: toJson(updatedMetadata) })
           .eq('id', shotGenerationId);
 
@@ -485,7 +448,7 @@ function useTimelinePairOperations(
         invalidateGenerations(shotId, { reason: 'update-pair-prompts', scope: 'metadata' });
         queryClient.invalidateQueries({ queryKey: queryKeys.segments.pairMetadata(shotGenerationId) });
       } catch (err) {
-        throw handleError(err, {
+        throw normalizeAndPresentError(err, {
           context: 'useTimelineCore.updatePairPrompts',
           toastTitle: 'Failed to update pair prompts',
           showToast: false,
@@ -529,15 +492,14 @@ function useTimelinePairOperations(
           ...currentOverrides,
           ...overrides,
         });
-        const { error } = await supabase
-          .from('shot_generations')
+        const { error } = await supabase().from('shot_generations')
           .update({ metadata: toJson(updatedMetadata) })
           .eq('id', firstItem.shotImageEntryId);
 
         if (error) throw error;
         invalidateGenerations(shotId, { reason: 'update-segment-overrides', scope: 'metadata' });
       } catch (err) {
-        throw handleError(err, {
+        throw normalizeAndPresentError(err, {
           context: 'useTimelineCore.updateSegmentOverrides',
           toastTitle: 'Failed to update segment overrides',
           showToast: false,
@@ -596,8 +558,7 @@ function useTimelineEnhancedPromptOperations(
           )
         );
 
-        const { error } = await supabase
-          .from('shot_generations')
+        const { error } = await supabase().from('shot_generations')
           .update({ metadata: updatedMetadata })
           .eq('id', shotGenerationId);
 
@@ -608,7 +569,7 @@ function useTimelineEnhancedPromptOperations(
 
         invalidateGenerations(shotId, { reason: 'clear-enhanced-prompt', scope: 'metadata' });
       } catch (err) {
-        throw handleError(err, {
+        throw normalizeAndPresentError(err, {
           context: 'useTimelineCore.clearEnhancedPrompt',
           showToast: false,
         });
@@ -632,8 +593,7 @@ function useTimelineEnhancedPromptOperations(
         if (!item.shotImageEntryId) continue;
 
         const currentMetadata = (item.metadata as Record<string, unknown>) || {};
-        await supabase
-          .from('shot_generations')
+        await supabase().from('shot_generations')
           .update({
             metadata: {
               ...currentMetadata,
@@ -645,7 +605,7 @@ function useTimelineEnhancedPromptOperations(
 
       invalidateGenerations(shotId, { reason: 'clear-all-enhanced-prompts', scope: 'metadata' });
     } catch (err) {
-      throw handleError(err, {
+      throw normalizeAndPresentError(err, {
         context: 'useTimelineCore.clearAllEnhancedPrompts',
         showToast: false,
       });

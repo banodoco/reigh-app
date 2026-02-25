@@ -1,4 +1,4 @@
-import { GenerationRow, PairLoraConfig, PairMotionSettings } from '@/types/shots';
+import { GenerationRow, PairLoraConfig, PairMotionSettings } from '@/domains/generation/types';
 import type { SegmentSlot } from '@/shared/hooks/segments';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
 import type { PairData } from '@/shared/types/pairData';
@@ -10,6 +10,7 @@ import type {
   FileDropHandler,
   GenerationDropHandler,
   AddToShotHandler,
+  AddToShotWithoutPositionHandler,
 } from '@/shared/types/imageHandlers';
 
 /** Per-pair parameter overrides for showing override icons */
@@ -63,7 +64,7 @@ interface ShotManagementProps {
   onShotChange?: (shotId: string) => void;
   // CRITICAL: targetShotId is the shot selected in the DROPDOWN, not the shot being viewed
   onAddToShot?: AddToShotHandler;
-  onAddToShotWithoutPosition?: AddToShotHandler;
+  onAddToShotWithoutPosition?: AddToShotWithoutPositionHandler;
   onCreateShot?: (shotName: string, files: File[]) => Promise<{shotId?: string; shotName?: string} | void>;
   onNewShotFromSelection?: (selectedIds: string[]) => Promise<string | void>;
 }

@@ -1,0 +1,95 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "mid_level_elegance": 72.0
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "ID contract drift across generation/task seams: `transformForTimeline` sets `id` to `shot_generations.id` while preserving `generation_id` (`src/shared/lib/generationTransformers.ts`), but `enhanceGenerationsWithTaskData` looks up task mappings by `generation.id` (`src/shared/lib/generationTaskCache.ts`), and mapping preload APIs are keyed by generation IDs (`src/shared/lib/generationTaskRepository.ts`).",
+        "Error/lifecycle handoff is inconsistent at integration boundaries: `storage.ts` reports localStorage failures, `clipInitService.ts` suppresses some localStorage failures silently, `taskCreatorPipeline.ts` logs and rethrows, and repository APIs return `OperationResult` instead of throwing.",
+        "The same domain exposes pass-through facade APIs without boundary translation (`src/shared/lib/generationTaskQueries.ts` wrapping `generationTaskRepository.ts`), increasing seam count without clarifying contracts.",
+        "Several seam-critical modules in this batch have no direct test references (`requireSession`/`requireUserFromSession`, `runTaskCreationPipeline`, query-key serialization/parsing helpers), leaving boundary behavior under-specified."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "task_mapping_id_contract_drift",
+      "summary": "Generation/task mapping seam uses incompatible IDs across transformer and cache layers.",
+      "related_files": [
+        "src/shared/lib/generationTransformers.ts",
+        "src/shared/lib/generationTaskCache.ts",
+        "src/shared/lib/generationTaskRepository.ts"
+      ],
+      "evidence": [
+        "`transformForTimeline` documents and returns `id` as `shot_generations.id` and keeps actual generation identity in `generation_id`.",
+        "`enhanceGenerationsWithTaskData` reads mapping with `taskQueryKeys.generationMapping(generation.id)`.",
+        "Repository/cache preload path (`getPrimaryTaskIdsForGenerationsResult` / `preloadGenerationTaskMappings`) is keyed by generation IDs, not shot_generation entry IDs."
+      ],
+      "suggestion": "Define one canonical mapping input contract (generation ID), then enforce it at seam boundaries: either normalize in `enhanceGenerationsWithTaskData` (`generation.generation_id ?? generation.id`) or split types so timeline rows cannot be passed into generation-mapping APIs without explicit conversion.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "storage_error_contract_split",
+      "summary": "LocalStorage boundary uses conflicting failure semantics across sibling utilities.",
+      "related_files": [
+        "src/pages/Home/hooks/auth/storage.ts",
+        "src/tools/join-clips/lib/clipInitService.ts"
+      ],
+      "evidence": [
+        "`storage.ts` catches localStorage errors and reports via `reportRuntimeError` consistently.",
+        "`clipInitService.ts` has catch blocks for localStorage operations that silently return defaults or no-op without telemetry."
+      ],
+      "suggestion": "Adopt a shared storage boundary contract for browser persistence (either report-and-fallback everywhere or silent everywhere with explicit reason), and centralize storage access in one helper used by both auth and join-clips flows.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "generation_task_facade_indirection",
+      "summary": "Task query facade adds an extra seam with near-zero translation, increasing integration friction.",
+      "related_files": [
+        "src/shared/lib/generationTaskQueries.ts",
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/lib/generationTaskCache.ts"
+      ],
+      "evidence": [
+        "`generationTaskQueries.ts` mostly renames and forwards to repository functions (`normalizeGenerationMappingInput`, `getPrimaryTaskIdForGeneration`, `getPrimaryTaskIdsForGenerations`).",
+        "Cache code depends directly on repository result contracts (`OperationResult`) rather than gaining a simplified boundary from the facade."
+      ],
+      "suggestion": "Either remove the pass-through layer and import repository functions directly, or make the facade own meaningful boundary translation (e.g., strict typed inputs, normalized errors, and guaranteed project scope semantics) so callers interact with one coherent API.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "untested_boundary_contracts",
+      "summary": "Multiple integration boundary helpers in this batch are unverified by direct tests despite being contract-critical.",
+      "related_files": [
+        "src/integrations/supabase/auth/ensureAuthenticatedSession.ts",
+        "src/shared/lib/tasks/taskCreatorPipeline.ts",
+        "src/shared/realtime/dataFreshness/queryKeyContract.ts"
+      ],
+      "evidence": [
+        "No test references found for `requireSession`/`requireUserFromSession`.",
+        "No test references found for `runTaskCreationPipeline`.",
+        "No test references found for `serializeFreshnessQueryKey`/`parseFreshnessQueryKey`/`isSegmentChildrenQueryKey`."
+      ],
+      "suggestion": "Add focused unit tests for these seams: auth session error branches, pipeline validate/build/createTask failure propagation, and query-key serialize/parse contract behavior on malformed payloads and expected round-trips.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

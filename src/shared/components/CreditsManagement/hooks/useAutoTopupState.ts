@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { useAutoTopup } from '@/shared/hooks/useAutoTopup';
+import { useAutoTopup } from '@/shared/hooks/billing/useAutoTopup';
 import type { AutoTopupState } from '../types';
 
 interface UseAutoTopupStateProps {

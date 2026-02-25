@@ -4,36 +4,24 @@ import { useProject } from '@/shared/contexts/ProjectContext';
 import { Button } from '@/shared/components/ui/button';
 import {
   Upload,
-  ChevronDown,
-  ChevronUp,
   Film
 } from 'lucide-react';
 import { Skeleton } from '@/shared/components/ui/skeleton';
-import { GenerationRow } from '@/types/shots';
-import { toast } from '@/shared/components/ui/sonner';
-import { useAsyncOperation } from '@/shared/hooks/useAsyncOperation';
-import { supabase } from '@/integrations/supabase/client';
+import { GenerationRow } from '@/domains/generation/types';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { useAsyncOperation } from '@/shared/hooks/async/useAsyncOperation';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { storagePaths, getFileExtension, MEDIA_BUCKET } from '@/shared/lib/storagePaths';
 import { InlineEditVideoView } from '../components/InlineEditVideoView';
-import { useProjectGenerations, type GenerationsPaginatedResponse } from '@/shared/hooks/useProjectGenerations';
-import { useDeleteVariant } from '@/shared/hooks/useGenerationMutations';
-import type { GeneratedImageWithMetadata } from '@/shared/components/MediaGallery';
-import MediaGallery from '@/shared/components/MediaGallery';
-import { useListShots } from '@/shared/hooks/shots';
-import { cn } from '@/shared/lib/utils';
-import { useIsMobile } from '@/shared/hooks/useMobile';
+import { cn } from '@/shared/components/ui/contracts/cn';
+import { useIsMobile } from '@/shared/hooks/mobile';
 import { extractVideoPosterFrame } from '@/shared/lib/videoPosterExtractor';
-import MediaLightbox from '@/shared/components/MediaLightbox';
 import { VARIANT_TYPE } from '@/shared/constants/variantTypes';
 import type { PortionSelection } from '@/shared/components/VideoPortionTimeline';
-import { parseRatio } from '@/shared/lib/aspectRatios';
-import { variantToGenerationRow } from '@/shared/lib/mediaTypeHelpers';
+import { parseRatio } from '@/shared/lib/media/aspectRatios';
 import { MediaSelectionPanel } from '@/shared/components/MediaSelectionPanel';
-import { useEditToolMediaPersistence } from '@/shared/hooks/useEditToolMediaPersistence';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
-
-const TOOL_TYPE = TOOL_IDS.EDIT_VIDEO;
+import { useEditToolMediaPersistence } from '@/shared/hooks/media/useEditToolMediaPersistence';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 // Preload video poster helper - warm up the browser cache
 const preloadedVideoRef = { current: null as string | null };
@@ -45,7 +33,7 @@ const preloadVideoPoster = (gen: GenerationRow) => {
   preloadedVideoRef.current = urlToPreload;
 };
 
-const VIDEO_EXTRA_CLEAR_DATA = { lastEditedMediaSegments: undefined };
+const VIDEO_EXTRA_CLEAR_DATA = { lastEditedMediaSegments: null };
 
 export default function EditVideoPage() {
   const { selectedProjectId, projects } = useProject();
@@ -55,20 +43,11 @@ export default function EditVideoPage() {
   const projectAspectRatio = selectedProject?.aspectRatio || '16:9';
   const aspectRatioValue = parseRatio(projectAspectRatio);
   const [savedSegments, setSavedSegments] = useState<PortionSelection[] | undefined>(undefined);
-  const [resultsPage, setResultsPage] = useState(1);
 
   // Upload operation with automatic loading state
   const uploadOperation = useAsyncOperation<GenerationRow>();
-  const [showResults, setShowResults] = useState(true);
   const { isDraggingOver, handleDragEnter, handleDragLeave, resetDrag: resetDragState } = useFileDragTracking();
   const isMobile = useIsMobile();
-  const { data: shots } = useListShots(selectedProjectId);
-
-  // Delete mutation for gallery items (uses variants table for edit tools)
-  const deleteVariantMutation = useDeleteVariant();
-  const handleDeleteVariant = useCallback((id: string) => {
-    deleteVariantMutation.mutate(id);
-  }, [deleteVariantMutation]);
 
   // Restore saved segments when settings are loaded from DB
   const handleSettingsLoaded = useCallback((settings: Record<string, unknown>) => {
@@ -108,59 +87,13 @@ export default function EditVideoPage() {
     if (!selectedProjectId || isUISettingsLoading) return;
     updateUISettings('project', { lastEditedMediaSegments: segments });
   }, [selectedProjectId, isUISettingsLoading, updateUISettings]);
-  
-  // Lightbox state
-  const [isLightboxOpen, setLightboxOpen] = useState(false);
-  const [lightboxInitialMedia, setLightboxInitialMedia] = useState<GenerationRow | null>(null);
-  const [lightboxVariantId, setLightboxVariantId] = useState<string | null>(null);
-
-  // Transform variant data to GenerationRow format for lightbox (using parent generation id)
-  const transformVariantToGeneration = useCallback(
-    (media: GeneratedImageWithMetadata): GenerationRow =>
-      variantToGenerationRow(media, 'video', selectedProjectId || ''),
-    [selectedProjectId]
-  );
-  
-  // Fetch results generated by this tool (video variants)
-  const {
-    data: resultsData,
-  } = useProjectGenerations(
-    selectedProjectId || null,
-    resultsPage,
-    12,
-    true,
-    {
-      variantsOnly: true, // Fetch from generation_variants table
-      toolType: TOOL_TYPE, // Only show variants created by edit-video tool
-      mediaType: 'video', // Only show video variants
-      parentsOnly: true, // Exclude child variants
-    }
-  );
-  
-  // All results for lightbox navigation (memoized to prevent callback re-creation)
-  const allResults = useMemo(() => (resultsData as GenerationsPaginatedResponse | undefined)?.items || [], [resultsData]);
-  
-  // Navigate to previous/next in lightbox
-  const handleNavigateLightbox = useCallback((direction: 'prev' | 'next') => {
-    if (!lightboxInitialMedia || allResults.length === 0) return;
-    // Find by variant ID since lightboxInitialMedia.id is the parent generation id
-    const currentIndex = allResults.findIndex((m) => m.id === lightboxVariantId);
-    if (currentIndex === -1) return;
-    
-    const newIndex = direction === 'prev' 
-      ? (currentIndex - 1 + allResults.length) % allResults.length
-      : (currentIndex + 1) % allResults.length;
-    const newMedia = allResults[newIndex];
-    setLightboxVariantId(newMedia.id);
-    setLightboxInitialMedia(transformVariantToGeneration(newMedia));
-  }, [lightboxInitialMedia, allResults, lightboxVariantId, transformVariantToGeneration]);
 
   // Shared upload logic for both file input and drag-drop
   const uploadVideo = useCallback(async (file: File): Promise<GenerationRow> => {
     if (!selectedProjectId) {
       throw new Error('No project selected');
     }
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await supabase().auth.getSession();
     if (!session?.user?.id) {
       throw new Error('User not authenticated');
     }
@@ -172,7 +105,7 @@ export default function EditVideoPage() {
     try {
       const posterBlob = await extractVideoPosterFrame(file);
       const posterFileName = storagePaths.thumbnail(userId, `${timestamp}-poster.jpg`);
-      const { error: posterError } = await supabase.storage
+      const { error: posterError } = await supabase().storage
         .from(MEDIA_BUCKET)
         .upload(posterFileName, posterBlob, {
           cacheControl: '3600',
@@ -181,7 +114,7 @@ export default function EditVideoPage() {
         });
 
       if (!posterError) {
-        const { data: { publicUrl } } = supabase.storage
+        const { data: { publicUrl } } = supabase().storage
           .from(MEDIA_BUCKET)
           .getPublicUrl(posterFileName);
         posterUrl = publicUrl;
@@ -191,12 +124,12 @@ export default function EditVideoPage() {
     const fileExt = getFileExtension(file.name, file.type, 'mp4');
     const fileName = storagePaths.upload(userId, `${timestamp}.${fileExt}`);
 
-    const { error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase().storage
       .from(MEDIA_BUCKET)
       .upload(fileName, file, { cacheControl: '3600', upsert: false });
     if (uploadError) throw uploadError;
 
-    const { data: { publicUrl: videoUrl } } = supabase.storage
+    const { data: { publicUrl: videoUrl } } = supabase().storage
       .from(MEDIA_BUCKET)
       .getPublicUrl(fileName);
 
@@ -207,8 +140,7 @@ export default function EditVideoPage() {
       model: 'upload'
     };
 
-    const { data: generation, error: dbError } = await supabase
-      .from('generations')
+    const { data: generation, error: dbError } = await supabase().from('generations')
       .insert({
         project_id: selectedProjectId,
         location: videoUrl,
@@ -221,7 +153,7 @@ export default function EditVideoPage() {
 
     if (dbError) throw dbError;
 
-    await supabase.from('generation_variants').insert({
+    await supabase().from('generation_variants').insert({
       generation_id: generation.id,
       location: videoUrl,
       thumbnail_url: posterUrl || videoUrl,
@@ -299,7 +231,7 @@ export default function EditVideoPage() {
           <div className="max-w-7xl mx-auto relative">
             <div className={cn(
               "rounded-2xl overflow-hidden bg-black",
-              isEditingOnMobile ? "flex flex-col min-h-[60vh]" : "h-[70vh]"
+              isEditingOnMobile ? "flex flex-col min-h-[72vh]" : "h-[calc(100dvh-190px)]"
             )}>
               {isMobile ? (
                 // Mobile: Match InlineEditVideoView mobile stacked layout
@@ -439,58 +371,16 @@ export default function EditVideoPage() {
                  />
               </div>
             </div>
-            
-            {/* Results Gallery - Initial View */}
-            {allResults.length > 0 && (
-              <div className="mt-6 pb-6">
-                <button 
-                  onClick={() => setShowResults(!showResults)}
-                  className="flex items-center gap-2 text-lg font-medium mb-4 hover:text-primary transition-colors"
-                >
-                  Edited Videos
-                  {showResults ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  <span className="text-sm text-muted-foreground font-normal">
-                    ({(resultsData as GenerationsPaginatedResponse | undefined)?.total || 0})
-                  </span>
-                </button>
-                
-                {showResults && (
-                  <MediaGallery
-                    images={allResults}
-                    allShots={shots || []}
-                    onImageClick={(media) => {
-                      setLightboxOpen(true);
-                      setLightboxVariantId(media.id);
-                      setLightboxInitialMedia(transformVariantToGeneration(media));
-                    }}
-                    itemsPerPage={12}
-                    offset={(resultsPage - 1) * 12}
-                    totalCount={(resultsData as GenerationsPaginatedResponse | undefined)?.total || 0}
-                    onServerPageChange={setResultsPage}
-                    serverPage={resultsPage}
-                    onDelete={handleDeleteVariant}
-                    isDeleting={deleteVariantMutation.isPending ? deleteVariantMutation.variables as string : null}
-                    config={{
-                      showShare: false,
-                      showEdit: false,
-                      enableSingleClick: true,
-                      hideMediaTypeFilter: true,
-                      hideBottomPagination: true,
-                    }}
-                  />
-                )}
-              </div>
-            )}
           </div>
         </div>
       )}
       
       {selectedMedia && (
-        <div className="w-full px-4 overflow-y-auto" style={{ minHeight: 'calc(100dvh - 96px)' }}>
+        <div className="w-full px-4 pb-6 overflow-y-auto" style={{ minHeight: 'calc(100dvh - 96px)' }}>
           <div className="max-w-7xl mx-auto relative">
             <div className={cn(
               "rounded-2xl overflow-hidden",
-              isEditingOnMobile ? "flex flex-col min-h-[60vh]" : "h-[70vh]"
+              isEditingOnMobile ? "flex flex-col min-h-[72vh]" : "h-[calc(100dvh-190px)]"
             )}>
               <InlineEditVideoView
                 key={selectedMedia.id} // Force remount when media changes
@@ -500,8 +390,7 @@ export default function EditVideoPage() {
                 }}
                 onNavigateToGeneration={async (generationId) => {
                   try {
-                    const { data, error } = await supabase
-                      .from('generations')
+                    const { data, error } = await supabase().from('generations')
                       .select('*')
                       .eq('id', generationId)
                       .single();
@@ -511,73 +400,15 @@ export default function EditVideoPage() {
                       setSavedSegments(undefined); // Clear saved segments when navigating to new generation
                     }
                   } catch (e) {
-                    handleError(e, { context: 'EditVideoPage', showToast: false });
+                    normalizeAndPresentError(e, { context: 'EditVideoPage', showToast: false });
                   }
                 }}
                 initialSegments={savedSegments}
                 onSegmentsChange={handleSegmentsChange}
               />
             </div>
-            
-            {/* Results Gallery */}
-            {allResults.length > 0 && (
-              <div className="mt-6 pb-6">
-                <button 
-                  onClick={() => setShowResults(!showResults)}
-                  className="flex items-center gap-2 text-lg font-medium mb-4 hover:text-primary transition-colors"
-                >
-                  Edited Videos
-                  {showResults ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  <span className="text-sm text-muted-foreground font-normal">
-                    ({(resultsData as GenerationsPaginatedResponse | undefined)?.total || 0})
-                  </span>
-                </button>
-                
-                {showResults && (
-                  <MediaGallery
-                    images={allResults}
-                    allShots={shots || []}
-                    onImageClick={(media) => {
-                      setLightboxOpen(true);
-                      setLightboxVariantId(media.id);
-                      setLightboxInitialMedia(transformVariantToGeneration(media));
-                    }}
-                    itemsPerPage={12}
-                    offset={(resultsPage - 1) * 12}
-                    totalCount={(resultsData as GenerationsPaginatedResponse | undefined)?.total || 0}
-                    onServerPageChange={setResultsPage}
-                    serverPage={resultsPage}
-                    onDelete={handleDeleteVariant}
-                    isDeleting={deleteVariantMutation.isPending ? deleteVariantMutation.variables as string : null}
-                    config={{
-                      showShare: false,
-                      showEdit: false,
-                      enableSingleClick: true,
-                      hideMediaTypeFilter: true,
-                      hideBottomPagination: true,
-                    }}
-                  />
-                )}
-              </div>
-            )}
           </div>
         </div>
-      )}
-      
-      {/* Media Lightbox */}
-      {isLightboxOpen && lightboxInitialMedia && (
-        <MediaLightbox
-          media={lightboxInitialMedia}
-          onClose={() => {
-            setLightboxOpen(false);
-            setLightboxVariantId(null);
-          }}
-          onNext={allResults.length > 1 ? () => handleNavigateLightbox('next') : undefined}
-          onPrevious={allResults.length > 1 ? () => handleNavigateLightbox('prev') : undefined}
-          showNavigation={allResults.length > 1}
-          showTaskDetails={true}
-          initialVariantId={lightboxVariantId || undefined}
-        />
       )}
     </div>
   );

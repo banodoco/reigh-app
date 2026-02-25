@@ -1,13 +1,13 @@
 import React, { useState, useEffect, memo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useSlidingPane } from '@/shared/hooks/useSlidingPane';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import PaneControlTab from '../PaneControlTab';
-import { useBottomOffset } from '@/shared/hooks/useBottomOffset';
+import { useBottomOffset } from '@/features/layout/hooks/useBottomOffset';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
-import { useDarkMode } from '@/shared/hooks/useDarkMode';
-import { useClickRipple } from '@/shared/hooks/useClickRipple';
+import { useDarkMode } from '@/shared/hooks/core/useDarkMode';
+import { useClickRipple } from '@/shared/hooks/interaction/useClickRipple';
 import {
   Paintbrush,
   Video,
@@ -18,7 +18,8 @@ import {
   LayoutGrid
 } from 'lucide-react';
 import { AppEnv, type AppEnvValue } from '@/types/env';
-import { TOOL_IDS, TOOL_ROUTES } from '@/shared/lib/toolConstants';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
+import { TOOL_ROUTES } from '@/shared/lib/toolRoutes';
 
 const SHARED_TOOL_ENVS: AppEnvValue[] = [AppEnv.LOCAL, AppEnv.WEB];
 

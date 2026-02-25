@@ -10,10 +10,10 @@
 
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { toast } from '@/shared/components/ui/sonner';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { shotQueryKeys } from '@/shared/lib/queryKeys/shots';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import type { GenerationRow, Shot } from '@/types/shots';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import type { GenerationRow, Shot } from '@/domains/generation/types';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import type { AddImageToShotVariables } from '@/shared/hooks/shots/addImageToShotHelpers';
 import { dispatchAppEvent } from '@/shared/lib/typedEvents';
@@ -119,7 +119,7 @@ export function useShotActions({
       });
       return true;
     } catch (error) {
-      handleError(error, { context: 'AddWithoutPosDebug', showToast: false });
+      normalizeAndPresentError(error, { context: 'AddWithoutPosDebug', showToast: false });
       throw error;
     }
   }, [addToShotWithoutPositionMutationRef, projectIdRef]);
@@ -175,7 +175,7 @@ export function useShotActions({
       await queryClient.refetchQueries({ queryKey: shotQueryKeys.all });
       return result.shotId;
     } catch (error) {
-      handleError(error, { context: 'ShotEditor', toastTitle: 'Failed to create shot' });
+      normalizeAndPresentError(error, { context: 'ShotEditor', toastTitle: 'Failed to create shot' });
     }
   }, [selectedShot?.name, queryClient, addToShotMutationRef, allShotImagesRef, createShotRef, projectIdRef]);
 

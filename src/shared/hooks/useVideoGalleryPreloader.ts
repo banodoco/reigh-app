@@ -1,12 +1,13 @@
 import { useRef, useEffect, useMemo, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { useShots } from '@/shared/contexts/ShotsContext';
 import { useProject } from "@/shared/contexts/ProjectContext";
 import { useToolSettings } from '@/shared/hooks/useToolSettings';
 import { useProjectVideoCountsCache } from '@/shared/hooks/useProjectVideoCountsCache';
-import { Shot } from '@/types/shots';
+import { Shot } from '@/domains/generation/types';
 import { preloadingService, hasLoadedImage, PRIORITY } from '@/shared/lib/preloading';
 import { dispatchAppEvent } from '@/shared/lib/typedEvents';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 
 /**
  * Smart thumbnail preloader for video gallery performance optimization
@@ -50,7 +51,7 @@ export const useVideoGalleryPreloader = (options?: {
   // Get shots pane sort order settings to match ShotsPane behavior
   const { settings: shotsPaneSettings } = useToolSettings<{
     sortOrder?: 'oldest' | 'newest';
-  }>('shots-pane-ui-state', {
+  }>(SETTINGS_IDS.SHOTS_PANE_UI_STATE, {
     projectId: selectedProjectId ?? undefined,
     enabled: !!selectedProjectId
   });
@@ -84,8 +85,7 @@ export const useVideoGalleryPreloader = (options?: {
 
     try {
       // Fetch thumbnail URLs for the specific page using the same query as VideoGallery
-      const { data, error } = await supabase
-        .from('shot_generations')
+      const { data, error } = await supabase().from('shot_generations')
         .select(`
           generation:generations!shot_generations_generation_id_generations_id_fk(
             id,

@@ -1,0 +1,88 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "cross_module_architecture": 68.0,
+    "high_level_elegance": 64.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/integrations/supabase/client.ts` keeps backward compatibility by exporting both `getSupabaseClient()` and a Proxy-based `supabase` export, while also reading/writing `window.__supabase_client__` and `window.supabase`, creating multiple boundary entry paths for the same integration.",
+        "`src/shared/lib/errorHandling/handleError.ts` introduces process-wide mutable state via `configureErrorNotifier` and module-level `errorNotifier`, coupling error behavior to hidden initialization order across unrelated modules.",
+        "`src/shared/lib/utils.ts` is a generic shared barrel (`cn`, `cropFilename`, `truncateText`) and is heavily imported (blind packet top_imported shows 134 importers), increasing hub-module blast radius for low-level utility changes."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "`README.md` points readers to architecture docs but does not define runtime contract policy for global singletons/compat shims (e.g., Supabase proxy/global debug exposure, global error notifier registration), leaving governance-critical behavior undocumented.",
+        "`src/types/generationAndShots.ts` declares itself a 'Canonical barrel' for a domain and becomes a high-traffic surface (blind packet: 206 importers), but no ownership/stability policy is documented in `README.md`, so contract intent is unclear.",
+        "Both `src/integrations/supabase/client.ts` and `src/shared/lib/errorHandling/handleError.ts` mix long-term API surface with compatibility behavior in implementation files instead of documented governance boundaries, weakening top-level structure trust."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "supabase-multi-entry-contract",
+      "summary": "Supabase integration exposes multiple architectural entry paths (getter, proxy export, window globals), weakening boundary integrity and compatibility governance.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`src/integrations/supabase/client.ts` exports both `getSupabaseClient()` and `supabase` Proxy for backward compatibility.",
+        "The same file also reuses and writes `window.__supabase_client__` and `window.supabase` in debug/global flows, creating additional implicit access paths.",
+        "`README.md` does not define a compatibility/deprecation policy for these parallel contracts."
+      ],
+      "suggestion": "Define one primary Supabase access contract (prefer explicit getter/factory), mark proxy/global paths as deprecated with removal criteria, and document the policy in README architecture governance docs.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "hidden-global-error-notifier",
+      "summary": "Global mutable error notifier introduces cross-module initialization coupling through hidden shared state.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "README.md",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` stores notifier in module-scoped `let errorNotifier` and mutates it via `configureErrorNotifier`.",
+        "Error behavior (`shouldShowToast && errorNotifier`) depends on external registration order rather than explicit dependency injection at call sites.",
+        "A similar module-singleton pattern appears in `supabase/client.ts` (`clientInstance`, `instrumentationInstalled`), but README-level architecture contracts do not define singleton governance rules."
+      ],
+      "suggestion": "Move notifier wiring to explicit app bootstrap composition (pass notifier dependency into handler factory) and document a single pattern for singleton/global registration contracts.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "governance-doc-runtime-gap",
+      "summary": "Top-level documentation advertises architecture references but omits runtime contract governance for high-impact shared hubs.",
+      "related_files": [
+        "README.md",
+        "src/types/generationAndShots.ts",
+        "src/shared/lib/utils.ts"
+      ],
+      "evidence": [
+        "`README.md` links structure and quality docs but provides no contract rules for shared barrel modules or compatibility surfaces.",
+        "`generationAndShots.ts` is labeled canonical and has very high import reach (blind packet: 206 importers), but no documented ownership/versioning constraints are tied to that role.",
+        "`utils.ts` is a generic shared barrel with high import reach (blind packet: 134 importers), yet no documented boundary on what belongs in this hub."
+      ],
+      "suggestion": "Add a governance section in README defining allowed shared hubs, barrel scope rules, compatibility/deprecation policy, and quality-gate checks for high-import surfaces.",
+      "confidence": "medium",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

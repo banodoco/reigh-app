@@ -8,7 +8,7 @@ import { MultiVideoUploader } from '../components/MultiVideoUploader';
 import { useTrainingData } from '../hooks/useTrainingData';
 import { Video, Scissors } from 'lucide-react';
 import { cropFilename } from '@/shared/lib/stringFormatting';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 export default function TrainingDataHelperPage() {
   const { 
@@ -57,7 +57,7 @@ export default function TrainingDataHelperPage() {
     try {
       await uploadVideosWithSplitModes(videoFiles);
     } catch (error) {
-      handleError(error, { context: 'TrainingDataHelperPage', toastTitle: 'Failed to upload videos' });
+      normalizeAndPresentError(error, { context: 'TrainingDataHelperPage', toastTitle: 'Failed to upload videos' });
     }
   };
 

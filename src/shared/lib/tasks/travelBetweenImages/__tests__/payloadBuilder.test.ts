@@ -42,6 +42,15 @@ vi.mock('../../../taskCreation', () => ({
       return fallback;
     }
   },
+  resolveSeed32Bit: ({
+    seed,
+    randomize,
+    fallbackSeed,
+  }: {
+    seed?: number;
+    randomize?: boolean;
+    fallbackSeed?: number;
+  }) => (randomize ? 424242 : (seed ?? fallbackSeed ?? 424242)),
 }));
 
 class TVE extends Error {
@@ -89,6 +98,38 @@ describe('validateTravelBetweenImagesParams', () => {
       validateTravelBetweenImagesParams({ ...validParams, frame_overlap: [] })
     ).toThrow('frame_overlap is required');
   });
+
+  it('allows single-value expansion fields to provide one value for multiple pairs', () => {
+    expect(() =>
+      validateTravelBetweenImagesParams({
+        ...validParams,
+        image_urls: ['a.jpg', 'b.jpg', 'c.jpg'],
+        base_prompts: ['single'],
+        segment_frames: [49],
+        frame_overlap: [8],
+      })
+    ).not.toThrow();
+  });
+
+  it('throws when pair-scoped override arrays do not match pair count', () => {
+    expect(() =>
+      validateTravelBetweenImagesParams({
+        ...validParams,
+        image_urls: ['a.jpg', 'b.jpg', 'c.jpg'],
+        pair_loras: [null],
+      })
+    ).toThrow('pair_loras must contain 2 item(s)');
+  });
+
+  it('throws when image-scoped arrays do not match image_urls count', () => {
+    expect(() =>
+      validateTravelBetweenImagesParams({
+        ...validParams,
+        image_urls: ['a.jpg', 'b.jpg', 'c.jpg'],
+        image_generation_ids: ['gen-1', 'gen-2'],
+      })
+    ).toThrow('image_generation_ids must contain 3 item(s)');
+  });
 });
 
 describe('buildTravelBetweenImagesPayload', () => {
@@ -116,7 +157,7 @@ describe('buildTravelBetweenImagesPayload', () => {
     expect(payload.generation_source).toBe('batch');
     expect(payload.model_name).toBe('base_tester_model');
     expect(payload.seed_base).toBe(789);
-    expect(payload.use_svi).toBe(false);
+    expect(payload.use_svi).toBeUndefined();
     expect(payload.independent_segments).toBe(true);
   });
 
@@ -236,7 +277,7 @@ describe('buildTravelBetweenImagesPayload', () => {
 
     const payload = buildTravelBetweenImagesPayload(params, '1280x720', 'tid', 'rid');
     expect(typeof payload.seed_base).toBe('number');
-    expect(payload.seed_base).toBeLessThan(1000000);
+    expect(payload.seed_base).toBeLessThan(0x7fffffff);
   });
 
   it('uses provided seed when random_seed is false', () => {
@@ -361,7 +402,7 @@ describe('buildTravelBetweenImagesPayload', () => {
     expect(payload.structure_guidance).toEqual(guidance);
   });
 
-  it('converts legacy structure_videos to unified format (vace)', () => {
+  it('rejects legacy structure_videos fields (vace)', () => {
     const params = {
       ...baseParams,
       structure_videos: [{
@@ -374,16 +415,12 @@ describe('buildTravelBetweenImagesPayload', () => {
       }],
     };
 
-    const payload = buildTravelBetweenImagesPayload(params, '1280x720', 'tid', 'rid');
-    expect(payload.structure_guidance).toBeDefined();
-    const sg = payload.structure_guidance as Record<string, unknown>;
-    expect(sg.target).toBe('vace');
-    expect(sg.preprocessing).toBe('flow');
-    expect(sg.strength).toBe(1.5);
-    expect((sg.videos as unknown[])).toHaveLength(1);
+    expect(() =>
+      buildTravelBetweenImagesPayload(params, '1280x720', 'tid', 'rid')
+    ).toThrow('Legacy structure-video fields are not accepted in canonical mode');
   });
 
-  it('converts legacy structure_videos to unified format (uni3c)', () => {
+  it('rejects legacy structure_videos fields (uni3c)', () => {
     const params = {
       ...baseParams,
       structure_videos: [{
@@ -398,40 +435,49 @@ describe('buildTravelBetweenImagesPayload', () => {
       }],
     };
 
-    const payload = buildTravelBetweenImagesPayload(params, '1280x720', 'tid', 'rid');
-    const sg = payload.structure_guidance as Record<string, unknown>;
-    expect(sg.target).toBe('uni3c');
-    expect(sg.step_window).toEqual([0.1, 0.9]);
-    expect(sg.frame_policy).toBe('fit');
-    expect(sg.zero_empty_frames).toBe(true);
+    expect(() =>
+      buildTravelBetweenImagesPayload(params, '1280x720', 'tid', 'rid')
+    ).toThrow('Legacy structure-video fields are not accepted in canonical mode');
   });
 
-  it('converts legacy single structure_video_path to unified format', () => {
+  it('rejects implicit legacy top-level structure fields in strict mode', () => {
     const params = {
       ...baseParams,
       structure_video_path: 'https://example.com/video.mp4',
-      structure_video_type: 'canny' as const,
-      structure_video_motion_strength: 1.3,
-    };
+    } as unknown as typeof baseParams;
 
-    const payload = buildTravelBetweenImagesPayload(params, '1280x720', 'tid', 'rid');
-    const sg = payload.structure_guidance as Record<string, unknown>;
-    expect(sg.target).toBe('vace');
-    expect(sg.preprocessing).toBe('canny');
-    expect(sg.strength).toBe(1.3);
+    expect(() =>
+      buildTravelBetweenImagesPayload(params, '1280x720', 'tid', 'rid')
+    ).toThrow('Legacy structure-video fields are not accepted in canonical mode');
   });
 
-  it('removes legacy structure params from payload', () => {
+  it('rejects legacy single structure_video_path', () => {
+    const params = {
+      ...baseParams,
+      structure_video_path: 'https://example.com/video.mp4',
+      structure_video_type: 'canny',
+      structure_video_motion_strength: 1.3,
+    } as unknown as typeof baseParams;
+
+    expect(() =>
+      buildTravelBetweenImagesPayload(params, '1280x720', 'tid', 'rid')
+    ).toThrow('Legacy structure-video fields are not accepted in canonical mode');
+  });
+
+  it('does not serialize unknown legacy compatibility fields in canonical payload', () => {
     const params = {
       ...baseParams,
       structure_guidance: { target: 'uni3c' as const, strength: 1.0 },
       structure_type: 'flow',
       structure_videos: [{ path: 'old.mp4' }],
-      use_uni3c: true,
     } as Record<string, unknown>;
 
     const payload = buildTravelBetweenImagesPayload(
-      params as typeof baseParams, '1280x720', 'tid', 'rid'
+      params as typeof baseParams,
+      '1280x720',
+      'tid',
+      'rid',
+      undefined,
     );
     expect(payload.structure_type).toBeUndefined();
     expect(payload.structure_videos).toBeUndefined();

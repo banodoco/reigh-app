@@ -6,30 +6,34 @@ const mockResolveProjectResolution = vi.fn();
 const mockProcessBatchResults = vi.fn();
 const mockBuildHiresFixParams = vi.fn();
 
-vi.mock('../../taskCreation', () => ({
-  createTask: (...args: unknown[]) => mockCreateTask(...args),
-  resolveProjectResolution: (...args: unknown[]) => mockResolveProjectResolution(...args),
-  validateRequiredFields: (params: Record<string, unknown>, fields: string[]) => {
-    for (const field of fields) {
-      if (params[field] === undefined || params[field] === null) {
-        throw new TVE(`${field} is required`, field);
+vi.mock('../../taskCreation', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../taskCreation')>();
+  return {
+    ...actual,
+    createTask: (...args: unknown[]) => mockCreateTask(...args),
+    resolveProjectResolution: (...args: unknown[]) => mockResolveProjectResolution(...args),
+    validateRequiredFields: (params: Record<string, unknown>, fields: string[]) => {
+      for (const field of fields) {
+        if (params[field] === undefined || params[field] === null) {
+          throw new TVE(`${field} is required`, field);
+        }
+        if (typeof params[field] === 'string' && (params[field] as string).trim() === '') {
+          throw new TVE(`${field} cannot be empty`, field);
+        }
       }
-      if (typeof params[field] === 'string' && (params[field] as string).trim() === '') {
-        throw new TVE(`${field} cannot be empty`, field);
+    },
+    TaskValidationError: class extends Error {
+      field?: string;
+      constructor(message: string, field?: string) {
+        super(message);
+        this.name = 'TaskValidationError';
+        this.field = field;
       }
-    }
-  },
-  TaskValidationError: class extends Error {
-    field?: string;
-    constructor(message: string, field?: string) {
-      super(message);
-      this.name = 'TaskValidationError';
-      this.field = field;
-    }
-  },
-  processBatchResults: (...args: unknown[]) => mockProcessBatchResults(...args),
-  buildHiresFixParams: (...args: unknown[]) => mockBuildHiresFixParams(...args),
-}));
+    },
+    processBatchResults: (...args: unknown[]) => mockProcessBatchResults(...args),
+    buildHiresFixParams: (...args: unknown[]) => mockBuildHiresFixParams(...args),
+  };
+});
 
 class TVE extends Error {
   field?: string;
@@ -40,7 +44,7 @@ class TVE extends Error {
   }
 }
 
-vi.mock('@/shared/lib/errorHandler', () => ({
+vi.mock('@/shared/lib/compat/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 

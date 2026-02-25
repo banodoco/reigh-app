@@ -1,0 +1,58 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "high_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "README.md defines a strict startup contract: error notifier should be registered once in bootstrap.",
+        "src/shared/lib/errorHandling/handleError.ts enforces singleton registration by throwing if configureErrorNotifier is called again with a different function reference, creating a hard runtime failure path tied to bootstrap lifecycle details.",
+        "src/domains/generation/types/generationRow.ts mixes canonical fields and legacy aliases in one shared interface (e.g., id/shotImageEntryId/shot_generation_id and thumbUrl/thumbnail_url, createdAt/created_at), so compatibility policy is embedded as ad-hoc type sprawl instead of a bounded translation contract.",
+        "README.md includes runtime contracts for Supabase/error handling, but no explicit governance contract for legacy-vs-canonical generation model normalization despite generationRow being a cross-cutting shared type."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "bootstrap_singleton_contract_is_brittle",
+      "summary": "Error notifier governance relies on a fragile runtime singleton rule that can crash on legitimate re-initialization paths.",
+      "related_files": [
+        "README.md",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "README.md states notifier registration is done once at app startup.",
+        "handleError.ts throws when configureErrorNotifier receives a different notifier after initial registration.",
+        "This couples architecture correctness to function identity stability rather than an explicit lifecycle-safe contract."
+      ],
+      "suggestion": "Replace throw-on-second-registration with an idempotent lifecycle strategy (explicit reset API, replace-with-warning in DEV, or scoped provider ownership) and document allowed re-init behavior in README runtime contracts.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "generation_row_compatibility_policy_unbounded",
+      "summary": "GenerationRow combines legacy and canonical schema variants in one global type, weakening architectural contracts and ownership boundaries.",
+      "related_files": [
+        "src/domains/generation/types/generationRow.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "generationRow.ts includes parallel alias fields across naming eras and semantics (camelCase + snake_case + legacy aliases) in one interface.",
+        "Comments in generationRow.ts indicate legacy compatibility concerns are handled inline on the shared domain type.",
+        "README.md runtime contracts do not define a formal normalization boundary for this compatibility surface."
+      ],
+      "suggestion": "Define a canonical GenerationRow contract and move legacy mapping to a dedicated boundary adapter layer; document this compatibility policy in README contracts so downstream modules depend only on canonical fields.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

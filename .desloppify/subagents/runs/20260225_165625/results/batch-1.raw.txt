@@ -1,0 +1,96 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 78.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/shared/components/MediaGallery/services/downloadService.ts` and multiple `MediaGalleryItem/*` modules import `GeneratedImageWithMetadata` from `MediaGallery/types`, making item/service layers depend on a parent view-module type owner.",
+        "`src/integrations/supabase/client.ts` exposes both eager and lazy runtime access (`initializeSupabase` and `getSupabaseClient`), which allows cross-module usage without explicit bootstrap ordering and hides global lifecycle coupling behind a getter.",
+        "Tooltip provider ownership is fragmented: `LightboxShell` provides `TooltipProvider` globally for the lightbox subtree, while `CreativePartnerPane` and `ShotActions` instantiate additional local providers with different timing behavior (`delayDuration`), creating cross-module UI behavior coupling via provider nesting."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "gallery_type_ownership_leak",
+      "summary": "Media gallery item and service modules depend on a type owned by a higher-level view module, inverting dependency direction.",
+      "related_files": [
+        "src/shared/components/MediaGallery/services/downloadService.ts",
+        "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+      ],
+      "evidence": [
+        "`downloadService.ts` imports `GeneratedImageWithMetadata` from `@/shared/components/MediaGallery/types`.",
+        "`InfoTooltip.tsx`, `ShotActions.tsx`, and `useMediaGalleryItemState.ts` import the same type from `../../MediaGallery/types`.",
+        "This creates a shared dependency from lower-level item/service code back to a parent feature module instead of a neutral domain/shared contract."
+      ],
+      "suggestion": "Move `GeneratedImageWithMetadata` into a neutral shared contract module (for example `src/shared/contracts/media.ts` or a domain type package), then have both `MediaGallery` and `MediaGalleryItem` import from that contract.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "missing_shared_gallery_contract"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "implicit_global_runtime_entrypoints",
+      "summary": "High-level runtime facades hide global lifecycle/state behavior, making initialization order implicit across modules.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/runtimeError.ts"
+      ],
+      "evidence": [
+        "`getSupabaseClient()` is documented as \"safe before bootstrap (lazy initializes when needed)\", so any importer can trigger runtime initialization without explicit app-lifecycle coordination.",
+        "`runtimeError.ts` centralizes reporting/throwing entrypoints and is a major import hub, which similarly funnels side-effectful behavior behind globally reachable helpers.",
+        "Both files act as broad cross-module entrypoints where call sites cannot distinguish pure access from stateful runtime actions."
+      ],
+      "suggestion": "Split pure access from side-effectful initialization/reporting by contract: require explicit bootstrap wiring at app composition roots, then inject initialized collaborators (Supabase client, error reporter) into feature modules instead of exposing globally callable lazy entrypoints.",
+      "confidence": "medium",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "global_runtime_singleton_facades"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "tooltip_provider_fragmentation",
+      "summary": "Tooltip provider ownership is distributed across feature components, causing cross-module behavioral coupling and inconsistent interaction policy.",
+      "related_files": [
+        "src/shared/components/ui/tooltip.tsx",
+        "src/shared/components/MediaLightbox/components/LightboxShell.tsx",
+        "src/pages/Home/components/panes/CreativePartnerPane.tsx",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx"
+      ],
+      "evidence": [
+        "`LightboxShell` wraps its whole dialog with `TooltipProvider delayDuration={500}`.",
+        "`ShotActions` creates another local `TooltipProvider delayDuration={0}` for action buttons.",
+        "`CreativePartnerPane` also creates a local `TooltipProvider` around its ecosystem tooltip.",
+        "The shared tooltip surface exports primitives only, but provider placement/policy is left to leaf modules, producing nested providers and behavior differences that are hard to reason about system-wide."
+      ],
+      "suggestion": "Define a single tooltip policy boundary (for example app-shell or feature-shell providers) and keep leaf components provider-free; expose only feature-level override points when behavior must differ.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "ui_runtime_policy_not_centralized"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Shared contracts are not consistently owned at neutral boundaries, so feature-local modules become accidental dependency hubs.",
+      "Runtime services rely on globally reachable facades, which obscures lifecycle and increases hidden coupling.",
+      "UI behavior policies (tooltip provider timing/placement) are not centralized, leading to distributed policy decisions."
+    ],
+    "likely_symptoms": [
+      "gallery_type_ownership_leak",
+      "implicit_global_runtime_entrypoints",
+      "tooltip_provider_fragmentation"
+    ],
+    "possible_false_positives": []
+  }
+}

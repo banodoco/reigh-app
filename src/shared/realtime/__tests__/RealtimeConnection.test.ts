@@ -7,32 +7,41 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Use vi.hoisted for variables referenced in vi.mock factories
-const { mockSubscribe, mockUnsubscribe, mockOn } = vi.hoisted(() => ({
-  mockSubscribe: vi.fn(),
-  mockUnsubscribe: vi.fn(),
-  mockOn: vi.fn(),
-}));
+const { mockSubscribe, mockUnsubscribe, mockOn, mockGetSession, mockSetAuth, mockChannel } = vi.hoisted(() => {
+  const mockSubscribeFn = vi.fn();
+  const mockUnsubscribeFn = vi.fn();
+  const mockOnFn = vi.fn();
+  const mockGetSessionFn = vi.fn();
+  const mockSetAuthFn = vi.fn();
+  const mockChannelFn = vi.fn().mockReturnValue({
+    on: mockOnFn,
+    subscribe: mockSubscribeFn,
+    unsubscribe: mockUnsubscribeFn,
+  });
+
+  return {
+    mockSubscribe: mockSubscribeFn,
+    mockUnsubscribe: mockUnsubscribeFn,
+    mockOn: mockOnFn,
+    mockGetSession: mockGetSessionFn,
+    mockSetAuth: mockSetAuthFn,
+    mockChannel: mockChannelFn,
+  };
+});
 
 // Make mockOn return itself for chaining
 mockOn.mockReturnThis();
 
 vi.mock('@/integrations/supabase/client', () => ({
-  supabase: {
+  getSupabaseClient: vi.fn(() => ({
     auth: {
-      getSession: vi.fn().mockResolvedValue({
-        data: { session: { user: { id: 'user-1' }, [['access', 'token'].join('_')]: 'token-123' } },
-        error: null,
-      }),
+      getSession: mockGetSession,
     },
-    channel: vi.fn().mockReturnValue({
-      on: mockOn,
-      subscribe: mockSubscribe,
-      unsubscribe: mockUnsubscribe,
-    }),
+    channel: mockChannel,
     realtime: {
-      setAuth: vi.fn(),
+      setAuth: mockSetAuth,
     },
-  },
+  })),
 }));
 
 vi.mock('../DataFreshnessManager', () => ({
@@ -42,13 +51,18 @@ vi.mock('../DataFreshnessManager', () => ({
   },
 }));
 
-vi.mock('@/shared/lib/errorHandler', () => ({
+vi.mock('../requestRealtimeReconnect', () => ({
+  requestRealtimeReconnect: vi.fn(),
+}));
+
+vi.mock('@/shared/lib/compat/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 
 import { RealtimeConnection } from '../RealtimeConnection';
 import { dataFreshnessManager } from '../DataFreshnessManager';
-import { supabase } from '@/integrations/supabase/client';
+import { requestRealtimeReconnect } from '../requestRealtimeReconnect';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 
 describe('RealtimeConnection', () => {
   let connection: RealtimeConnection;
@@ -58,6 +72,10 @@ describe('RealtimeConnection', () => {
     vi.useFakeTimers();
     // Reset mockOn to return itself for chaining after clearAllMocks
     mockOn.mockReturnThis();
+    mockGetSession.mockResolvedValue({
+      data: { session: { user: { id: 'user-1' }, [['access', 'token'].join('_')]: 'token-123' } },
+      error: null,
+    });
     connection = new RealtimeConnection({
       subscribeTimeout: 5000,
       maxReconnectAttempts: 3,
@@ -90,7 +108,7 @@ describe('RealtimeConnection', () => {
       const result = await connection.connect('proj-1');
 
       expect(result).toBe(true);
-      expect(supabase.channel).toHaveBeenCalledWith('task-updates:proj-1');
+      expect(supabase().channel).toHaveBeenCalledWith('task-updates:proj-1');
       expect(dataFreshnessManager.onRealtimeStatusChange).toHaveBeenCalledWith('connected', 'Connected');
 
       const state = connection.getState();
@@ -99,7 +117,7 @@ describe('RealtimeConnection', () => {
     });
 
     it('handles auth failure', async () => {
-      (supabase.auth.getSession as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      mockGetSession.mockResolvedValueOnce({
         data: { session: null },
         error: null,
       });
@@ -122,6 +140,11 @@ describe('RealtimeConnection', () => {
       const state = connection.getState();
       // Should be reconnecting (not failed, because it tries to reconnect)
       expect(state.status).toBe('reconnecting');
+      expect(requestRealtimeReconnect).toHaveBeenCalledWith({
+        source: 'RealtimeConnection',
+        reason: 'subscribe-failure:CHANNEL_ERROR',
+        priority: 'high',
+      });
     });
 
     it('no-ops when already connected to the same project', async () => {
@@ -136,7 +159,7 @@ describe('RealtimeConnection', () => {
       const result = await connection.connect('proj-1');
       expect(result).toBe(true);
       // Should not create a new channel
-      expect(supabase.channel).not.toHaveBeenCalled();
+      expect(supabase().channel).not.toHaveBeenCalled();
     });
   });
 

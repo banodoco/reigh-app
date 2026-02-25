@@ -8,82 +8,88 @@
 import { useCallback, useRef, useState } from 'react';
 import { QueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { generateVideo } from '../services/generateVideoService';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
-import type { SteerableMotionSettings } from '@/shared/types/steerableMotion';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
-import type { Shot, GenerationRow } from '@/types/shots';
+import type { Shot, GenerationRow } from '@/domains/generation/types';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 
-interface SelectedLora {
+export interface SelectedLora {
   id: string;
   path: string;
   strength: number;
   name?: string;
 }
 
-interface UseGenerateBatchOptions {
-  projectId?: string;
-  selectedProjectId?: string;
+export interface StitchAfterGenerateConfig {
+  contextFrameCount: number;
+  gapFrames: number;
+  replaceMode: boolean;
+  keepBridgingImages: boolean;
+  prompt: string;
+  negativePrompt: string;
+  enhancePrompt: boolean;
+  model: string;
+  numInferenceSteps: number;
+  guidanceScale: number;
+  seed: number;
+  randomSeed: boolean;
+  motionMode: 'basic' | 'advanced';
+  phaseConfig?: PhaseConfig;
+  selectedPhasePresetId?: string | null;
+  selectedLoras: Array<{ path: string; strength: number }>;
+  priority: number;
+  useInputVideoResolution: boolean;
+  useInputVideoFps: boolean;
+  noisedInputVideo: number;
+  loopFirstClip: boolean;
+}
+
+interface UseGenerateBatchCoreOptions {
+  projectId?: string | null;
+  selectedProjectId?: string | null;
   selectedShotId?: string;
   selectedShot: Shot | null;
   queryClient: QueryClient;
   onShotImagesUpdate?: (images: GenerationRow[]) => void;
   effectiveAspectRatio?: string;
-  // Generation mode
-  generationMode: 'timeline' | 'batch' | 'by-pair';
-  // Prompt config
-  prompt: string;
-  enhancePrompt: boolean;
-  textBeforePrompts: string;
-  textAfterPrompts: string;
-  negativePrompt: string;
-  // Motion config
-  amountOfMotion: number;
-  motionMode: 'basic' | 'advanced' | 'presets';
-  advancedMode: boolean;
-  phaseConfig?: PhaseConfig;
-  selectedPhasePresetId?: string | null;
-  // Model config
-  steerableMotionSettings?: SteerableMotionSettings;
-  randomSeed: boolean;
-  turboMode: boolean;
-  generationTypeMode?: 'i2v' | 'vace';
-  smoothContinuations?: boolean;
-  // Frame settings
+  generationMode: 'timeline' | 'batch' | 'by-pair' | 'join';
+}
+
+export interface BatchGenerationRequest {
+  prompt: {
+    basePrompt: string;
+    enhancePrompt: boolean;
+    textBeforePrompts: string;
+    textAfterPrompts: string;
+    negativePrompt: string;
+  };
+  motion: {
+    amountOfMotion: number;
+    motionMode: 'basic' | 'advanced' | 'presets';
+    advancedMode: boolean;
+    phaseConfig?: PhaseConfig;
+    selectedPhasePresetId?: string | null;
+  };
+  model: {
+    steerableMotionSettings?: { seed?: number; debug?: boolean };
+    randomSeed: boolean;
+    turboMode: boolean;
+    generationTypeMode?: 'i2v' | 'vace';
+    smoothContinuations?: boolean;
+  };
   batchVideoFrames: number;
-  // LoRAs
   selectedLoras: SelectedLora[];
-  // Structure video
   structureVideos: StructureVideoConfigWithMetadata[];
-  // Clear prompts callback
-  clearAllEnhancedPrompts: () => Promise<void>;
-  // Output selection
   selectedOutputId?: string | null;
-  // Stitch config (for join after generate)
-  stitchAfterGenerate?: boolean;
-  joinContextFrames: number;
-  joinGapFrames: number;
-  joinReplaceMode: boolean;
-  joinKeepBridgingImages: boolean;
-  joinPrompt: string;
-  joinNegativePrompt: string;
-  joinEnhancePrompt: boolean;
-  joinModel: string;
-  joinNumInferenceSteps: number;
-  joinGuidanceScale: number;
-  joinSeed: number;
-  joinRandomSeed: boolean;
-  joinMotionMode: 'basic' | 'advanced';
-  joinPhaseConfig?: PhaseConfig;
-  joinSelectedPhasePresetId?: string | null;
-  joinSelectedLoras: Array<{ path: string; strength: number }>;
-  joinPriority: number;
-  joinUseInputVideoResolution: boolean;
-  joinUseInputVideoFps: boolean;
-  joinNoisedInputVideo: number;
-  joinLoopFirstClip: boolean;
+  stitchAfterGenerate?: StitchAfterGenerateConfig;
+}
+
+interface UseGenerateBatchOptions {
+  core: UseGenerateBatchCoreOptions;
+  request: BatchGenerationRequest;
+  clearAllEnhancedPrompts: () => Promise<void>;
 }
 
 interface UseGenerateBatchReturn {
@@ -94,66 +100,30 @@ interface UseGenerateBatchReturn {
 }
 
 export function useGenerateBatch({
-  projectId,
-  selectedProjectId: _selectedProjectId,
-  selectedShotId,
-  selectedShot,
-  queryClient,
-  onShotImagesUpdate: _onShotImagesUpdate,
-  effectiveAspectRatio,
-  generationMode,
-  // Prompt config
-  prompt,
-  enhancePrompt,
-  textBeforePrompts,
-  textAfterPrompts,
-  negativePrompt,
-  // Motion config
-  amountOfMotion,
-  motionMode,
-  advancedMode,
-  phaseConfig,
-  selectedPhasePresetId,
-  // Model config
-  steerableMotionSettings,
-  randomSeed,
-  turboMode,
-  generationTypeMode,
-  smoothContinuations: _smoothContinuations,
-  // Frame settings
-  batchVideoFrames,
-  // LoRAs
-  selectedLoras,
-  // Structure video
-  structureVideos,
-  // Clear prompts callback
+  core,
+  request,
   clearAllEnhancedPrompts,
-  // Output selection
-  selectedOutputId,
-  // Stitch config
-  stitchAfterGenerate,
-  joinContextFrames,
-  joinGapFrames,
-  joinReplaceMode,
-  joinKeepBridgingImages,
-  joinPrompt,
-  joinNegativePrompt,
-  joinEnhancePrompt,
-  joinModel,
-  joinNumInferenceSteps,
-  joinGuidanceScale,
-  joinSeed,
-  joinRandomSeed,
-  joinMotionMode,
-  joinPhaseConfig,
-  joinSelectedPhasePresetId,
-  joinSelectedLoras,
-  joinPriority,
-  joinUseInputVideoResolution,
-  joinUseInputVideoFps,
-  joinNoisedInputVideo,
-  joinLoopFirstClip,
 }: UseGenerateBatchOptions): UseGenerateBatchReturn {
+  const {
+    projectId,
+    selectedProjectId: _selectedProjectId,
+    selectedShotId,
+    selectedShot,
+    queryClient,
+    onShotImagesUpdate: _onShotImagesUpdate,
+    effectiveAspectRatio,
+    generationMode,
+  } = core;
+  const {
+    prompt,
+    motion,
+    model,
+    batchVideoFrames,
+    selectedLoras,
+    structureVideos,
+    selectedOutputId,
+    stitchAfterGenerate,
+  } = request;
   const { addIncomingTask, removeIncomingTask } = useIncomingTasks();
 
   // Local state
@@ -198,6 +168,8 @@ export function useGenerateBatch({
           }
         }
 
+        const normalizedGenerationMode = generationMode === 'join' ? 'by-pair' : generationMode;
+
         // Call the service with all required parameters
         const result = await generateVideo({
           projectId,
@@ -205,28 +177,27 @@ export function useGenerateBatch({
           selectedShot,
           queryClient,
           effectiveAspectRatio: effectiveAspectRatio ?? null,
-          generationMode,
+          generationMode: normalizedGenerationMode,
           promptConfig: {
-            base_prompt: prompt,
-            enhance_prompt: enhancePrompt,
-            text_before_prompts: textBeforePrompts,
-            text_after_prompts: textAfterPrompts,
-            default_negative_prompt: negativePrompt,
+            base_prompt: prompt.basePrompt,
+            enhance_prompt: prompt.enhancePrompt,
+            text_before_prompts: prompt.textBeforePrompts,
+            text_after_prompts: prompt.textAfterPrompts,
+            default_negative_prompt: prompt.negativePrompt,
           },
           motionConfig: {
-            amount_of_motion: amountOfMotion,
-            motion_mode: motionMode || 'basic',
-            advanced_mode: advancedMode,
-            phase_config: phaseConfig,
-            selected_phase_preset_id: selectedPhasePresetId ?? undefined,
+            amount_of_motion: motion.amountOfMotion,
+            motion_mode: motion.motionMode || 'basic',
+            advanced_mode: motion.advancedMode,
+            phase_config: motion.phaseConfig,
+            selected_phase_preset_id: motion.selectedPhasePresetId ?? undefined,
           },
           modelConfig: {
-            seed: steerableMotionSettings?.seed ?? 789,
-            random_seed: randomSeed,
-            turbo_mode: turboMode,
-            debug: steerableMotionSettings?.debug || false,
-            generation_type_mode: generationTypeMode ?? 'i2v',
-            use_svi: false, // SVI feature removed from UX
+            seed: model.steerableMotionSettings?.seed ?? 789,
+            random_seed: model.randomSeed,
+            turbo_mode: model.turboMode,
+            debug: model.steerableMotionSettings?.debug || false,
+            generation_type_mode: model.generationTypeMode ?? 'i2v',
           },
           structureVideos,
           batchVideoFrames,
@@ -240,35 +211,35 @@ export function useGenerateBatch({
           clearAllEnhancedPrompts,
           parentGenerationId: effectiveParentId,
           stitchConfig: stitchAfterGenerate ? {
-            context_frame_count: joinContextFrames,
-            gap_frame_count: joinGapFrames,
-            replace_mode: joinReplaceMode,
-            keep_bridging_images: joinKeepBridgingImages,
-            prompt: joinPrompt,
-            negative_prompt: joinNegativePrompt,
-            enhance_prompt: joinEnhancePrompt,
-            model: joinModel,
-            num_inference_steps: joinNumInferenceSteps,
-            guidance_scale: joinGuidanceScale,
-            seed: joinSeed,
-            random_seed: joinRandomSeed,
-            motion_mode: joinMotionMode,
-            phase_config: joinPhaseConfig,
-            selected_phase_preset_id: joinSelectedPhasePresetId,
-            loras: joinSelectedLoras.map(l => ({ path: l.path, strength: l.strength })),
-            priority: joinPriority,
-            use_input_video_resolution: joinUseInputVideoResolution,
-            use_input_video_fps: joinUseInputVideoFps,
-            vid2vid_init_strength: joinNoisedInputVideo,
-            loop_first_clip: joinLoopFirstClip,
+            context_frame_count: stitchAfterGenerate.contextFrameCount,
+            gap_frame_count: stitchAfterGenerate.gapFrames,
+            replace_mode: stitchAfterGenerate.replaceMode,
+            keep_bridging_images: stitchAfterGenerate.keepBridgingImages,
+            prompt: stitchAfterGenerate.prompt,
+            negative_prompt: stitchAfterGenerate.negativePrompt,
+            enhance_prompt: stitchAfterGenerate.enhancePrompt,
+            model: stitchAfterGenerate.model,
+            num_inference_steps: stitchAfterGenerate.numInferenceSteps,
+            guidance_scale: stitchAfterGenerate.guidanceScale,
+            seed: stitchAfterGenerate.seed,
+            random_seed: stitchAfterGenerate.randomSeed,
+            motion_mode: stitchAfterGenerate.motionMode,
+            phase_config: stitchAfterGenerate.phaseConfig,
+            selected_phase_preset_id: stitchAfterGenerate.selectedPhasePresetId,
+            loras: stitchAfterGenerate.selectedLoras.map(l => ({ path: l.path, strength: l.strength })),
+            priority: stitchAfterGenerate.priority,
+            use_input_video_resolution: stitchAfterGenerate.useInputVideoResolution,
+            use_input_video_fps: stitchAfterGenerate.useInputVideoFps,
+            vid2vid_init_strength: stitchAfterGenerate.noisedInputVideo,
+            loop_first_clip: stitchAfterGenerate.loopFirstClip,
           } : undefined,
         });
 
         // If a new parent was created, store it and invalidate the query
-        if (result.success && result.parentGenerationId && !selectedOutputId && selectedShotId) {
+        if (result.ok && result.value.parentGenerationId && !selectedOutputId && selectedShotId) {
           pendingMainParentRef.current = {
             shotId: selectedShotId,
-            parentId: result.parentGenerationId,
+            parentId: result.value.parentGenerationId,
             timestamp: Date.now(),
           };
 
@@ -279,7 +250,7 @@ export function useGenerateBatch({
         }
 
       } catch (error) {
-        handleError(error, { context: 'handleGenerateBatch', toastTitle: 'Failed to create video task. Please try again.' });
+        normalizeAndPresentError(error, { context: 'handleGenerateBatch', toastTitle: 'Failed to create video task. Please try again.' });
       } finally {
         // Wait for task queries to refetch, then remove placeholder
         await queryClient.refetchQueries({ queryKey: queryKeys.tasks.paginatedAll });
@@ -288,55 +259,23 @@ export function useGenerateBatch({
       }
     })();
   }, [
-    projectId,
-    selectedShotId,
-    selectedShot,
-    queryClient,
+    addIncomingTask,
+    batchVideoFrames,
+    clearAllEnhancedPrompts,
     effectiveAspectRatio,
     generationMode,
+    model,
+    motion,
+    projectId,
     prompt,
-    textBeforePrompts,
-    textAfterPrompts,
-    enhancePrompt,
-    negativePrompt,
-    steerableMotionSettings,
-    amountOfMotion,
-    motionMode,
-    advancedMode,
-    phaseConfig,
-    selectedPhasePresetId,
-    randomSeed,
-    turboMode,
-    generationTypeMode,
-    batchVideoFrames,
-    selectedLoras,
-    structureVideos,
-    clearAllEnhancedPrompts,
-    selectedOutputId,
-    stitchAfterGenerate,
-    joinContextFrames,
-    joinGapFrames,
-    joinReplaceMode,
-    joinKeepBridgingImages,
-    joinPrompt,
-    joinNegativePrompt,
-    joinEnhancePrompt,
-    joinModel,
-    joinNumInferenceSteps,
-    joinGuidanceScale,
-    joinSeed,
-    joinRandomSeed,
-    joinMotionMode,
-    joinPhaseConfig,
-    joinSelectedPhasePresetId,
-    joinSelectedLoras,
-    joinPriority,
-    joinUseInputVideoResolution,
-    joinUseInputVideoFps,
-    joinNoisedInputVideo,
-    joinLoopFirstClip,
-    addIncomingTask,
+    queryClient,
     removeIncomingTask,
+    selectedLoras,
+    selectedOutputId,
+    selectedShot,
+    selectedShotId,
+    stitchAfterGenerate,
+    structureVideos,
   ]);
 
   return {

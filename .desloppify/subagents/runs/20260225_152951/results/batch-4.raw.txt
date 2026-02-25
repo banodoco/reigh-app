@@ -1,0 +1,142 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "ai_generated_debt": 82.0,
+    "incomplete_migration": 74.0,
+    "low_level_elegance": 84.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "Several files use high-volume instructional commentary and section banners around simple declarations/helpers (e.g., `src/shared/lib/vaceDefaults.ts`, `src/shared/lib/videoUtils.ts`, `src/shared/types/imageHandlers.ts`, `src/shared/lib/typedEvents.ts`).",
+        "Comments frequently restate what code already says (for example default/fallback behavior and type aliases) rather than documenting non-obvious constraints.",
+        "This verbosity pattern appears consistently across unrelated modules, suggesting generated-style template expansion rather than targeted documentation."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "incomplete_migration": {
+      "evidence": [
+        "Deprecated compatibility shims remain active in runtime-facing modules: `src/shared/lib/errorHandling/handleError.ts`, `src/shared/lib/toolConstants.ts`, `src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts`, and `src/shared/lib/tasks/legacy/testing/joinClipsCompatAdapter.ts`.",
+        "Legacy fields are still part of exported task-input surfaces (`src/shared/lib/tasks/travelBetweenImages/types.ts` includes legacy read types and imports legacy field definitions).",
+        "Task ID extraction still resolves transitional key variants (`src/shared/lib/taskIdHelpers.ts` includes `orchestrator_task_id` and nested compatibility paths), indicating migration closure has not been enforced at boundary layers."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Predicate logic is duplicated as manual branch ladders instead of normalized data-driven checks (e.g., `isVideoAny` in `src/shared/lib/typeGuards.ts`, URL/ID extraction priority chains in `src/shared/lib/galleryUtils.ts` and `src/shared/lib/mediaTypeHelpers.ts`).",
+        "Legacy adapter internals contain repeated near-duplicate detectors and unpacking paths (`hasLegacyVideoEditFields`, `hasLegacyVideoEditPayloadFields`, field stripping in `src/shared/lib/tasks/legacy/testing/joinClipsCompatAdapter.ts`).",
+        "Control flow is generally correct, but repetitive local patterns increase change risk and make small behavior changes expensive."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "migration_governance_drift",
+      "summary": "Deprecation handling is inconsistent across legacy shims, so migration deadlines are not enforced uniformly.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/lib/toolConstants.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts",
+        "src/shared/lib/tasks/legacy/testing/joinClipsCompatAdapter.ts"
+      ],
+      "evidence": [
+        "`toolConstants.ts` enforces via import-time `signalPastRemovalTargetUsage(...)` side effect.",
+        "`legacyStructureVideo.ts` exposes collector/enforcer helpers, but enforcement only happens if callers invoke them.",
+        "`joinClipsCompatAdapter.ts` actively throws past removal target for legacy usage.",
+        "`handleError.ts` is deprecated with removal metadata but has no governance-policy enforcement or usage telemetry."
+      ],
+      "suggestion": "Standardize all migration shims behind one deprecation enforcement pattern: explicit boundary wrapper + mandatory telemetry + consistent past-target behavior (warn/throw policy from governance config), and remove import-time side effects.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "deprecation-governance-fragmentation"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_shape_leaks_into_canonical_types",
+      "summary": "Canonical travel/task contracts still export legacy read-shapes, keeping old schema alive in normal type surfaces.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/types.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts",
+        "src/shared/lib/taskIdHelpers.ts"
+      ],
+      "evidence": [
+        "`types.ts` imports `LegacyStructureVideoFields` and exports `TravelBetweenImagesLegacyTaskInput` in the same module as canonical task params.",
+        "`legacyStructureVideo.ts` defines deprecated top-level fields and structure video fields still considered parseable migration input.",
+        "`taskIdHelpers.ts` keeps support for transitional `orchestrator_task_id` paths in normal helper flow."
+      ],
+      "suggestion": "Split legacy read contracts into an internal adapter module not exported from canonical type barrels; accept only canonical schema at main boundaries and run one explicit normalization pass for old payloads.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "deprecation-governance-fragmentation"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "commentary_overgrowth_vs_logic_density",
+      "summary": "Multiple utility/type files contain generated-style explanatory bulk that outgrows the underlying logic and obscures actual invariants.",
+      "related_files": [
+        "src/shared/lib/vaceDefaults.ts",
+        "src/shared/lib/videoUtils.ts",
+        "src/shared/types/imageHandlers.ts",
+        "src/shared/lib/typedEvents.ts",
+        "src/shared/lib/typeGuards.ts"
+      ],
+      "evidence": [
+        "Large banner blocks and procedural guidance dominate files that mostly declare constants/types or short helpers.",
+        "Several comments restate implementation literally (e.g., defaults flow, frame quantization basics, handler parameter naming) without adding boundary rules or failure semantics.",
+        "Pattern repeats across unrelated domains, indicating template-generated documentation style rather than intent-focused docs."
+      ],
+      "suggestion": "Trim comments to intent-only documentation: keep migration contracts, non-obvious invariants, and external coupling notes; remove explanatory narration for self-evident code and repetitive section banners.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "predicate_and_field_mapping_duplication",
+      "summary": "Branch-heavy duplicate predicates and field mapping logic create fragile internals and raise maintenance cost.",
+      "related_files": [
+        "src/shared/lib/typeGuards.ts",
+        "src/shared/lib/galleryUtils.ts",
+        "src/shared/lib/mediaTypeHelpers.ts",
+        "src/shared/lib/tasks/legacy/testing/joinClipsCompatAdapter.ts"
+      ],
+      "evidence": [
+        "`isVideoAny` manually checks many equivalent paths/fields with repeated conditionals.",
+        "`extractSegmentImages` and `getGenerationId` each implement bespoke fallback-priority chains for loosely shaped objects.",
+        "`joinClipsCompatAdapter.ts` duplicates legacy detection logic and manually strips many legacy fields during canonical conversion."
+      ],
+      "suggestion": "Introduce small shared selectors/predicate tables (field path arrays + iterator helpers) so fallback priority and legacy-field detection are declared once and reused, reducing branch drift.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "manual-fallback-ladders"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Migration work is active but governed by mixed enforcement styles, so legacy paths persist inconsistently.",
+      "Utility modules rely on manual fallback ladders instead of reusable selectors, causing repetitive internals.",
+      "Documentation style appears template-heavy, creating AI-debt noise around straightforward code."
+    ],
+    "likely_symptoms": [
+      "migration_governance_drift",
+      "legacy_shape_leaks_into_canonical_types",
+      "predicate_and_field_mapping_duplication"
+    ],
+    "possible_false_positives": [
+      "Some verbose comments may be intentionally retained for onboarding, but current density still exceeds local code complexity."
+    ]
+  }
+}

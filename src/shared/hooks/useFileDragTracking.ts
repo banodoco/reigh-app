@@ -1,5 +1,8 @@
 import { useCallback, useRef, useState } from 'react';
-import { toast } from '@/shared/components/ui/sonner';
+import {
+  createSingleFileDropHandler as createSingleFileDropHandlerShared,
+  preventDefaultDragOver as preventDefaultDragOverShared,
+} from '@/shared/lib/dnd/dragDropUpload';
 
 const DEFAULT_ACCEPTED_TYPES = ['Files'];
 
@@ -46,10 +49,7 @@ export function useFileDragTracking(acceptedTypes: string[] = DEFAULT_ACCEPTED_T
 }
 
 /** No-op dragOver handler that just prevents default browser behavior. */
-export const preventDefaultDragOver = (e: React.DragEvent) => {
-  e.preventDefault();
-  e.stopPropagation();
-};
+export const preventDefaultDragOver = preventDefaultDragOverShared;
 
 /**
  * Create a drop handler for single-file upload with mime type validation.
@@ -67,31 +67,5 @@ export function createSingleFileDropHandler<T>(opts: {
   toastTitle: string;
   uploadOperation: { execute: (fn: () => Promise<T>, opts: { context: string; toastTitle: string }) => Promise<T | undefined> };
 }) {
-  return async (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    opts.resetDrag();
-
-    const files = e.dataTransfer.files;
-    if (!files || files.length === 0) return;
-
-    const file = files[0];
-    if (!file.type.startsWith(opts.mimePrefix)) {
-      toast.error(opts.mimeErrorMessage);
-      return;
-    }
-
-    if (!opts.getProjectId()) {
-      toast.error("Please select a project first");
-      return;
-    }
-
-    const result = await opts.uploadOperation.execute(
-      () => opts.upload(file),
-      { context: opts.context, toastTitle: opts.toastTitle }
-    );
-    if (result) {
-      opts.onResult(result);
-    }
-  };
+  return createSingleFileDropHandlerShared(opts);
 }

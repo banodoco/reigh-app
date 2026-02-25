@@ -19,14 +19,16 @@
  */
 
 import type { GeneratedImageWithMetadata } from '@/shared/components/MediaGallery/types';
-import type { GenerationRow } from '@/types/shots';
-import type { GenerationMetadata } from '@/types/generationMetadata';
-import { supabase } from '@/integrations/supabase/client';
+import type { GenerationRow } from '@/domains/generation/types';
+import type { GenerationMetadata } from '@/domains/generation/types';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { stripQueryParameters } from '@/shared/lib/mediaUrl';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { TOOL_IDS, isToolId } from '@/shared/lib/toolIds';
 import { ServerError } from '@/shared/lib/errorHandling/errors';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { expandShotData } from '@/shared/lib/shotData';
+import { parseGenerationTaskId } from '@/shared/lib/generationTaskIdParser';
+import { filterUuidStrings } from '@/shared/lib/uuid';
 
 /**
  * Result type for calculateDerivedCounts
@@ -38,6 +40,10 @@ export interface DerivedCountsResult {
   hasUnviewedVariants: Record<string, boolean>;
   /** Count of unviewed variants per generation */
   unviewedVariantCounts: Record<string, number>;
+  /** True when counts were intentionally returned empty due to a read-path failure. */
+  degraded?: boolean;
+  /** Machine-readable reason for degraded fallback behavior. */
+  errorCode?: 'query_failed';
 }
 
 function createEmptyDerivedCountsResult(): DerivedCountsResult {
@@ -62,7 +68,8 @@ function createEmptyDerivedCountsResult(): DerivedCountsResult {
 async function calculateDerivedCounts(
   generationIds: string[]
 ): Promise<DerivedCountsResult> {
-  if (generationIds.length === 0) {
+  const persistedGenerationIds = filterUuidStrings(generationIds);
+  if (persistedGenerationIds.length === 0) {
     return createEmptyDerivedCountsResult();
   }
 
@@ -71,10 +78,9 @@ async function calculateDerivedCounts(
   // Only count from generation_variants table (actual variants)
   // Note: We intentionally don't count based_on generations here - those are
   // separate images in the gallery, not variants of this image
-  const { data: variantCountsData, error: variantCountsError } = await supabase
-    .from('generation_variants')
+  const { data: variantCountsData, error: variantCountsError } = await supabase().from('generation_variants')
     .select('generation_id, viewed_at')
-    .in('generation_id', generationIds);
+    .in('generation_id', persistedGenerationIds);
 
   if (variantCountsError) {
     throw new ServerError('Failed to load variant badge counts', {
@@ -107,8 +113,12 @@ export async function calculateDerivedCountsSafe(
   try {
     return await calculateDerivedCounts(generationIds);
   } catch (error) {
-    handleError(error, { context: 'generationTransformers.calculateDerivedCountsSafe', showToast: false });
-    return createEmptyDerivedCountsResult();
+    normalizeAndPresentError(error, { context: 'generationTransformers.calculateDerivedCountsSafe', showToast: false });
+    return {
+      ...createEmptyDerivedCountsResult(),
+      degraded: true,
+      errorCode: 'query_failed',
+    };
   }
 }
 
@@ -212,9 +222,10 @@ function extractPrompt(params: Record<string, unknown> | null | undefined): stri
 function extractThumbnailUrl(item: RawGeneration, mainUrl: string): string {
   // Start with database thumbnail_url field
   let thumbnailUrl = item.thumbnail_url;
+  const toolType = item.params?.tool_type;
   
   // If no thumbnail in database, check params for travel-between-images videos
-  if (!thumbnailUrl && item.params?.tool_type === TOOL_IDS.TRAVEL_BETWEEN_IMAGES) {
+  if (!thumbnailUrl && isToolId(toolType) && toolType === TOOL_IDS.TRAVEL_BETWEEN_IMAGES) {
     const originalParams = item.params?.originalParams as Record<string, unknown> | undefined;
     const orchestratorDetails = originalParams?.orchestrator_details as Record<string, unknown> | undefined;
     const fullPayload = item.params?.full_orchestrator_payload as Record<string, unknown> | undefined;
@@ -229,17 +240,6 @@ function extractThumbnailUrl(item: RawGeneration, mainUrl: string): string {
   
   // Final fallback to main URL
   return thumbnailUrl || mainUrl;
-}
-
-/**
- * Extract task ID from tasks field (handles both array and single value)
- */
-function extractTaskId(tasks: string[] | string | null | undefined): string | null {
-  if (typeof tasks === 'string') return tasks;
-  if (Array.isArray(tasks) && tasks.length > 0) {
-    return tasks[0];
-  }
-  return null;
 }
 
 /**
@@ -265,7 +265,8 @@ export function transformGeneration(
 ): GeneratedImageWithMetadata {
   const mainUrl = item.location;
   const thumbnailUrl = extractThumbnailUrl(item, mainUrl);
-  const taskId = extractTaskId(item.tasks);
+  const taskIdParse = parseGenerationTaskId(item.tasks);
+  const taskId = taskIdParse.taskId;
   const prompt = extractPrompt(item.params);
   
   // Extract content_type from params for proper download file extensions
@@ -297,6 +298,7 @@ export function transformGeneration(
     metadata: {
       ...(item.params || {}),
       taskId, // Include task ID in metadata for MediaGalleryItem
+      taskIdStatus: taskIdParse.status, // Surface parse health to avoid silent shape drift
       based_on: item.based_on, // Include based_on for lineage tracking
       ...(options.metadata || {}), // Merge any additional metadata
     },

@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
-import { toast } from "@/shared/components/ui/sonner";
-import { handleError } from "@/shared/lib/errorHandling/handleError";
+import { toast } from "@/shared/components/ui/runtime/sonner";
+import { normalizeAndPresentError } from "@/shared/lib/errorHandling/runtimeError";
 import { pixelToFrame } from "../utils/timeline-utils";
 import { TIMELINE_PADDING_OFFSET } from "../constants";
 import { 
@@ -8,7 +8,7 @@ import {
   getGenerationDropData, 
   type DragType, 
   type GenerationDropData
-} from "@/shared/lib/dragDrop";
+} from "@/shared/lib/dnd/dragDrop";
 
 // Re-export for backward compatibility
 export type { DragType, GenerationDropData };
@@ -144,7 +144,7 @@ export const useUnifiedDrop = ({
       try {
         await onFileDrop(validFiles, targetFrame ?? undefined);
       } catch (error) {
-        handleError(error, { context: 'UnifiedDrop', toastTitle: 'Failed to add images' });
+        normalizeAndPresentError(error, { context: 'UnifiedDrop', toastTitle: 'Failed to add images' });
       }
     }
     
@@ -154,7 +154,7 @@ export const useUnifiedDrop = ({
       const data = getGenerationDropData(e);
       
       if (!data) {
-        handleError(new Error('No valid data found'), { context: 'UnifiedDrop', showToast: false });
+        normalizeAndPresentError(new Error('No valid data found'), { context: 'UnifiedDrop', showToast: false });
         return;
       }
       
@@ -162,7 +162,7 @@ export const useUnifiedDrop = ({
         
         await onGenerationDrop(data.generationId, data.imageUrl, data.thumbUrl, targetFrame ?? undefined);
       } catch (error) {
-        handleError(error, { context: 'UnifiedDrop', toastTitle: 'Failed to add generation' });
+        normalizeAndPresentError(error, { context: 'UnifiedDrop', toastTitle: 'Failed to add generation' });
       }
     }
   }, [getDragType, onFileDrop, onGenerationDrop, dropTargetFrame, fullMin, fullRange]);

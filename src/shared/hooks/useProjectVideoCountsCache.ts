@@ -1,9 +1,10 @@
 import React, { useCallback, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { useSmartPollingConfig } from '@/shared/hooks/useSmartPolling';
 import { projectStatsQueryKeys } from '@/shared/lib/queryKeys/projectStats';
-import { ProjectScopedCache } from '@/shared/lib/ProjectScopedCache';
+import { ProjectScopedCache } from '@/shared/lib/cache/ProjectScopedCache';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 
 /** Counts stored per shot */
 interface ShotCounts {
@@ -21,7 +22,7 @@ const globalProjectVideoCountsCache = new ProjectScopedCache<ShotCounts>();
  */
 function shotSettingsHaveStructureVideo(settings: Record<string, unknown> | null): boolean {
   if (!settings) return false;
-  const svSettings = settings['travel-structure-video'] as Record<string, unknown> | undefined;
+  const svSettings = settings[SETTINGS_IDS.TRAVEL_STRUCTURE_VIDEO] as Record<string, unknown> | undefined;
   if (!svSettings) return false;
 
   // New array format
@@ -41,12 +42,10 @@ function shotSettingsHaveStructureVideo(settings: Record<string, unknown> | null
 async function fetchProjectShotDataFromDB(projectId: string): Promise<Map<string, ShotCounts>> {
   // Parallel fetch: shot statistics (from view) + structure video presence (from shots table)
   const [statsResult, shotsResult] = await Promise.all([
-    supabase
-      .from('shot_statistics')
+    supabase().from('shot_statistics')
       .select('shot_id, video_count, final_video_count')
       .eq('project_id', projectId),
-    supabase
-      .from('shots')
+    supabase().from('shots')
       .select('id, settings')
       .eq('project_id', projectId),
   ]);

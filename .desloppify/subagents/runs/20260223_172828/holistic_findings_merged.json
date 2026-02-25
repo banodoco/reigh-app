@@ -1,0 +1,262 @@
+{
+  "assessments": {
+    "abstraction_fitness": {
+      "score": 50.0,
+      "components": [
+        "Abstraction Leverage",
+        "Indirection Cost",
+        "Interface Honesty"
+      ],
+      "component_scores": {
+        "Abstraction Leverage": 68.0,
+        "Indirection Cost": 72.0,
+        "Interface Honesty": 82.0
+      }
+    },
+    "contract_coherence": 77.3,
+    "error_consistency": 73.5,
+    "logic_clarity": 80.6,
+    "naming_quality": 82.7,
+    "type_safety": 70.5
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "`src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts` has four builder functions that mostly copy the same shared fields (`isVideo`, `readOnly`, `isSpecialEditMode`, `selectedProjectId`, `isCloudMode`) into new objects with minimal translation.",
+        "`src/tools/edit-images/hooks/useInlineEditState.ts` builds a very large param bag for `useImageEditValue`, and `src/tools/edit-images/hooks/useImageEditValue.ts` re-splits and re-merges that bag into partial builders, adding indirection without reducing surface area.",
+        "`src/shared/hooks/useTasks.ts` and `src/shared/lib/generationTaskBridge.ts` each define near-identical `TaskDbRow` shapes and snake_case-to-camelCase mappers (`mapDbTaskToTask` vs `mapDbTaskRowToTask`), indicating duplicate abstraction layers for the same contract.",
+        "`src/shared/components/TaskDetails/VideoTravelDetails.tsx` repeatedly resolves the same values from multiple nested payload sources (`individual_segment_params`, `orchestrator_details`, `full_orchestrator_payload`, `parsedParams`), coupling UI rendering to historical payload layering from task/orchestrator builders."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": "",
+      "sub_axes": {
+        "abstraction_leverage": 68.0,
+        "indirection_cost": 72.0,
+        "interface_honesty": 82.0
+      }
+    },
+    "contract_coherence": {
+      "evidence": [
+        "`useImageEditValue` hardcodes `isFlippedHorizontally: false` and `isSaving: false` in the returned `ImageEditState`, so the returned contract can diverge from real UI state (`src/tools/edit-images/hooks/useImageEditValue.ts:183-184`).",
+        "Downstream lightbox/edit components consume the shared image edit state object as authoritative (`src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx`, `src/tools/edit-images/components/InlineEditView.tsx`), increasing risk of stale or misleading flags."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "unreported_risk": ""
+    },
+    "type_safety": {
+      "evidence": [
+        "`createGenerationFromTask` accepts `taskData: unknown` but immediately dereferences `taskData.params`, `taskData.category`, and `taskData.task_type` without narrowing (`supabase/functions/complete_task/generation.ts:42,47,50,122`).",
+        "`calculate-task-cost` force-casts DB results via `task as unknown as TaskWithProject | null`, bypassing structural checks before nested access (`supabase/functions/calculate-task-cost/index.ts:227`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "logic_clarity": {
+      "evidence": [
+        "`useButtonGroupProps` memoizes with `[params]`, so memoization is invalidated whenever the wrapper object identity changes (`src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts:142`).",
+        "`useImageEditValue` repeats the same pattern with `useMemo(..., [params])`, making the memo mostly ceremonial and obscuring real dependency intent (`src/tools/edit-images/hooks/useImageEditValue.ts:237-239`)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "naming_quality": {
+      "evidence": [
+        "`src/shared/lib/utils.ts` is named as a broad utility hub but only re-exports `cn`, `cropFilename`, and `truncateText` (`src/shared/lib/utils.ts:1-2`).",
+        "High-traffic UI modules import from this generic name (`src/tools/edit-images/components/InlineEditView.tsx`, `src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx`), which hides actual domain intent (class name composition vs string formatting)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "unreported_risk": "Given import breadth, this generic entrypoint can keep attracting unrelated helpers, increasing semantic drift and making dependency intent harder to trace."
+    },
+    "error_consistency": {
+      "evidence": [
+        "In `complete_task`, DB failures in orchestrator paths are often logged then converted to `null`/early return (`supabase/functions/complete_task/orchestrator.ts:214-215,239`), which suppresses upstream failure signaling.",
+        "Sibling generation path logs and rethrows (`supabase/functions/complete_task/generation.ts:138-143`), creating mixed failure contracts in the same completion subsystem."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "lightbox_button_props_passthrough_chain",
+      "summary": "Button-group prop builders add repeated pass-through indirection with little behavior.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx"
+      ],
+      "evidence": [
+        "`useButtonGroupProps` builds `topLeft/topRight/bottomLeft/bottomRight` via four separate builders that each re-copy the same shared fields.",
+        "`LightboxLayout` consumes these shaped props directly via spread (`<BottomLeftControls {...props.buttonGroupProps.bottomLeft} />`, etc.), so the extra layer mostly re-packages existing data.",
+        "Render-model hooks already perform additional prop assembly, creating stacked wrappers for the same control inputs."
+      ],
+      "suggestion": "Collapse to a single typed base object plus small per-group deltas (or pass shared context directly to controls) and remove the four near-duplicate builder functions.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "inline_edit_state_bag_of_bags",
+      "summary": "Inline edit state composition uses oversized param bags and split/merge wrappers.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/hooks/useImageEditValue.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx"
+      ],
+      "evidence": [
+        "`buildImageEditValueParams` in `useInlineEditState` forwards a very large object of fields/callbacks with minimal transformation.",
+        "`useImageEditValue` then re-partitions the same bag into multiple `build*State` helpers and merges them back into one `ImageEditState`.",
+        "`InlineEditView` consumes only slices of that assembled object, so the extra assembly layers increase wiring complexity more than reuse."
+      ],
+      "suggestion": "Replace the monolithic `UseImageEditValueParams` with smaller domain slices (mode/canvas/reposition/form) and expose those slices directly to consumers; keep one canonical source per slice instead of split-then-merge builders.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "duplicated_task_row_mapping_contract",
+      "summary": "Task DB-to-domain mapping is duplicated across hooks and bridge utilities.",
+      "related_files": [
+        "src/shared/hooks/useTasks.ts",
+        "src/shared/lib/generationTaskBridge.ts"
+      ],
+      "evidence": [
+        "Both files define a `TaskDbRow` interface with the same snake_case columns and similar optionality.",
+        "Both files implement near-identical mappers (`mapDbTaskToTask` and `mapDbTaskRowToTask`) performing the same field renaming and defaulting logic.",
+        "This creates parallel abstractions for one contract, increasing drift risk when task schema evolves."
+      ],
+      "suggestion": "Extract a single shared mapper module (`taskRowMapper`) used by both `useTasks` and `generationTaskBridge`, and delete one duplicate interface/mapping implementation.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "task_payload_layering_leaks_into_ui",
+      "summary": "UI details logic is tightly coupled to multiple historical payload layers.",
+      "related_files": [
+        "src/shared/components/TaskDetails/VideoTravelDetails.tsx",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "supabase/functions/complete_task/generation.ts"
+      ],
+      "evidence": [
+        "`VideoTravelDetails` resolves many fields by scanning several containers in order (`individual_segment_params`, `orchestrator_details`, `full_orchestrator_payload`, `parsedParams`).",
+        "`payloadBuilder` and completion/generation routing preserve multiple payload shapes and compatibility paths, so the UI must understand orchestration internals instead of a normalized view model.",
+        "The repeated fallback chains in details rendering are a sign of wide-bag API leakage across boundaries."
+      ],
+      "suggestion": "Introduce a normalized task-details adapter (single schema) at the boundary where task params are parsed, and make `VideoTravelDetails` consume only that normalized shape.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "unsafe_unknown_and_forced_casts_in_task_pipeline",
+      "summary": "Task pipeline uses `unknown` and double-casts that bypass runtime shape guarantees.",
+      "related_files": [
+        "supabase/functions/complete_task/generation.ts",
+        "supabase/functions/calculate-task-cost/index.ts"
+      ],
+      "evidence": [
+        "`taskData` is typed `unknown` but dereferenced directly (`taskData.params`, `taskData.category`, `taskData.task_type`) in `createGenerationFromTask`.",
+        "`const typedTask = task as unknown as TaskWithProject | null` suppresses structural validation before nested property reads."
+      ],
+      "suggestion": "Define explicit runtime-validated task DTOs (e.g., Zod/manual guards) and narrow before access. Replace `unknown` + forced casts with parsed types (`ParsedTaskData`, `TaskWithProject`) returned from validation helpers.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "mixed_swallow_vs_throw_in_complete_task_flow",
+      "summary": "Completion flow mixes silent returns and thrown errors for similar DB failures.",
+      "related_files": [
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/complete_task/generation.ts"
+      ],
+      "evidence": [
+        "Orchestrator branch logs query errors and returns `null`/early (`Error querying segments`, `Error checking final stitch status`).",
+        "Generation branch logs then rethrows in catch, causing caller-visible failure for equivalent persistence issues."
+      ],
+      "suggestion": "Standardize one contract for this subsystem: either propagate typed errors upward and handle at boundary, or consistently return structured result objects (`{ok:false, reason,...}`) and avoid mixed semantics.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "logic_clarity",
+      "identifier": "ceremonial_memoization_with_object_identity_dependency",
+      "summary": "Memoized builders depend on whole params object, defeating memo intent.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts",
+        "src/tools/edit-images/hooks/useImageEditValue.ts"
+      ],
+      "evidence": [
+        "Both hooks use `useMemo(..., [params])`, so any recreated wrapper object forces recomputation.",
+        "This adds indirection without stable dependency semantics, obscuring when recomputation is actually expected."
+      ],
+      "suggestion": "Either remove `useMemo` entirely or depend on explicit primitive/function fields (or pre-memoize `params` upstream) so recomputation behavior is intentional and reviewable.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "contract_coherence",
+      "identifier": "image_edit_state_exposes_static_flags_as_live_state",
+      "summary": "Returned `ImageEditState` advertises live flags that are hardcoded constants.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useImageEditValue.ts",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "`buildRepositionAndPanelState` sets `isFlippedHorizontally: false` and `isSaving: false` unconditionally.",
+        "Layout consumers treat the shared image edit object as the unified state source, so static placeholders can drift from behavior as features evolve."
+      ],
+      "suggestion": "Populate these fields from real source hooks (flip/save state) or remove/deprecate them from `ImageEditState` until they are truthfully implemented.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "naming_quality",
+      "identifier": "generic_utils_barrel_name_hides_actual_intent",
+      "summary": "`shared/lib/utils.ts` is overly generic for its narrow exports and usage.",
+      "related_files": [
+        "src/shared/lib/utils.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "The file name implies broad catch-all utilities but currently re-exports only class-name/string helpers.",
+        "Core UI modules import `cn` through this generic path, masking the true dependency domain and encouraging future utility accretion."
+      ],
+      "suggestion": "Rename/split to intent-specific entrypoints (for example `uiClassNames.ts` direct import path and `stringFormatting.ts` barrel) and migrate callers to explicit modules.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ],
+  "review_quality": {
+    "batch_count": 2,
+    "dimension_coverage": 0.5,
+    "evidence_density": 1.5,
+    "high_score_without_risk": 0,
+    "finding_pressure": 20.83,
+    "dimensions_with_findings": 6
+  }
+}

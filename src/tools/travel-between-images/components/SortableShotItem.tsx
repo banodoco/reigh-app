@@ -1,11 +1,11 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Shot } from '@/types/shots';
+import { Shot } from '@/domains/generation/types';
 import VideoShotDisplay from './VideoShotDisplay';
-import { cn } from '@/shared/lib/utils';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import { isValidDropTarget, getGenerationDropData, isFileDrag, type GenerationDropData } from '@/shared/lib/dragDrop';
+import { cn } from '@/shared/components/ui/contracts/cn';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { isValidDropTarget, getGenerationDropData, isFileDrag, type GenerationDropData } from '@/shared/lib/dnd/dragDrop';
 import { isVideoGeneration } from '@/shared/lib/typeGuards';
 import { Loader2, Check } from 'lucide-react';
 import { useAppEventListener } from '@/shared/lib/typedEvents';
@@ -17,6 +17,7 @@ export interface DropOptions {
 interface SortableShotItemProps {
   shot: Shot;
   onSelectShot: () => void;
+  onDuplicateShot?: () => void;
   currentProjectId: string | null;
   isDragDisabled?: boolean;
   disabledReason?: string;
@@ -44,6 +45,7 @@ interface SortableShotItemProps {
 const SortableShotItem: React.FC<SortableShotItemProps> = ({
   shot,
   onSelectShot,
+  onDuplicateShot,
   currentProjectId,
   isDragDisabled = false,
   shouldLoadImages = true,
@@ -279,7 +281,7 @@ const SortableShotItem: React.FC<SortableShotItemProps> = ({
             successTimeoutRef.current = null;
           }, 1500);
         } catch (error) {
-          handleError(error, { context: 'ShotDrop', showToast: false });
+          normalizeAndPresentError(error, { context: 'ShotDrop', showToast: false });
           setWithoutPositionDropState('idle');
           setIsDropTarget(false);
         }
@@ -310,7 +312,7 @@ const SortableShotItem: React.FC<SortableShotItemProps> = ({
             withPositionSuccessTimeoutRef.current = null;
           }, 1500);
         } catch (error) {
-          handleError(error, { context: 'ShotDrop', showToast: false });
+          normalizeAndPresentError(error, { context: 'ShotDrop', showToast: false });
           setWithPositionDropState('idle');
           // Clear skeleton on error
           expectedNewCountRef.current = 0;
@@ -351,7 +353,7 @@ const SortableShotItem: React.FC<SortableShotItemProps> = ({
             successTimeoutRef.current = null;
           }, 1500);
         } catch (error) {
-          handleError(error, { context: 'ShotDrop', showToast: false });
+          normalizeAndPresentError(error, { context: 'ShotDrop', showToast: false });
           setWithoutPositionDropState('idle');
           setIsDropTarget(false);
         }
@@ -382,7 +384,7 @@ const SortableShotItem: React.FC<SortableShotItemProps> = ({
             withPositionSuccessTimeoutRef.current = null;
           }, 1500);
         } catch (error) {
-          handleError(error, { context: 'ShotDrop', showToast: false });
+          normalizeAndPresentError(error, { context: 'ShotDrop', showToast: false });
           setWithPositionDropState('idle');
           // Clear skeleton on error
           expectedNewCountRef.current = 0;
@@ -433,11 +435,13 @@ const SortableShotItem: React.FC<SortableShotItemProps> = ({
     }
   }, []);
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
+  const style = isDragDisabled
+    ? undefined
+    : {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+      };
 
   return (
     <div
@@ -455,6 +459,7 @@ const SortableShotItem: React.FC<SortableShotItemProps> = ({
       <VideoShotDisplay
         shot={shot}
         onSelectShot={onSelectShot}
+        onDuplicateShot={onDuplicateShot}
         currentProjectId={currentProjectId}
         // TEMPORARILY DISABLED: Drag handle hidden while reordering is disabled (Task 20)
         // To restore: uncomment dragHandleProps below

@@ -11,6 +11,10 @@ import { storagePaths, MEDIA_BUCKET } from '../_shared/storagePaths.ts';
 
 interface StorageBucket {
   getPublicUrl(path: string, options?: { transform?: { width: number; height: number; resize: string; quality: number } }): { data: { publicUrl: string } };
+  list(
+    path?: string,
+    options?: { limit?: number; offset?: number; search?: string },
+  ): Promise<{ data: Array<{ name: string }> | null; error: { message: string } | null }>;
   upload(path: string, data: unknown, options: { contentType: string; upsert: boolean }): Promise<{ error: { message: string } | null }>;
   remove(paths: string[]): Promise<{ error: { message: string } | null }>;
 }
@@ -174,15 +178,36 @@ function generateThumbnail(
 }
 
 /**
- * Build a public URL for a storage path.
- * Note: This does NOT verify the file exists -- it only constructs the URL via getPublicUrl.
+ * Build a public URL for a storage path, verifying object existence first.
  */
-export function getStoragePublicUrl(
+export async function getStoragePublicUrl(
   supabase: SupabaseStorageClient,
   storagePath: string
-): { exists: boolean; publicUrl?: string } {
+): Promise<{ exists: boolean; publicUrl?: string }> {
   try {
-    const { data: urlData } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(storagePath);
+    const normalizedPath = storagePath.replace(/^\/+/, '').replace(/\/+$/, '');
+    const fileNameStartIndex = normalizedPath.lastIndexOf('/') + 1;
+    const folderPath = fileNameStartIndex > 0 ? normalizedPath.slice(0, fileNameStartIndex - 1) : '';
+    const fileName = normalizedPath.slice(fileNameStartIndex);
+
+    if (!fileName) {
+      return { exists: false };
+    }
+
+    const { data: objects, error: listError } = await supabase.storage.from(MEDIA_BUCKET).list(folderPath, {
+      limit: 1,
+      search: fileName,
+    });
+    if (listError) {
+      return { exists: false };
+    }
+
+    const exists = !!objects?.some((object) => object.name === fileName);
+    if (!exists) {
+      return { exists: false };
+    }
+
+    const { data: urlData } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(normalizedPath);
     if (!urlData?.publicUrl) {
       return { exists: false };
     }

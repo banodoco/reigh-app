@@ -1,0 +1,145 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 82.0,
+    "high_level_elegance": 80.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/runtimeError.ts` is declared as the canonical public contract, but sibling modules still import `normalizeOnly`/`throwingOnly` directly (`src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts`, `src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts`), creating a bypassed boundary.",
+        "`src/integrations/supabase/client.ts` exposes both explicit bootstrap (`initializeSupabase`) and implicit lazy bootstrap (`getSupabaseClient`), while runtime state is global singleton in `src/integrations/supabase/runtime/supabaseRuntime.ts`; this makes initialization ownership diffuse across importers.",
+        "UI interaction context is fragmented by repeated provider ownership (`TooltipProvider` in `src/shared/components/MediaLightbox/components/LightboxShell.tsx`, `src/pages/Home/components/panes/CreativePartnerPane.tsx`, and `src/shared/components/MediaGalleryItem/components/ShotActions.tsx`) with different behavior knobs."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Media gallery behavior is split across several hooks/components that pass many setter/callback dependencies (`useMediaGalleryHandlers`, `useMediaGalleryItemState`, `ShotActions`), indicating orchestration spread rather than a cohesive boundary.",
+        "`src/shared/components/MediaGallery/services/downloadService.ts` is named as a service but is tightly coupled to browser DOM/runtime side effects (`XMLHttpRequest`, `document.createElement`, `URL.createObjectURL`, `fetch`), blurring responsibility between domain-like service and UI runtime.",
+        "Several high-fan-in wrapper files (`runtimeError.ts`, `public.ts`, `button.tsx`, `tooltip.tsx`) are thin forwarding facades; this helps imports but leaves ownership unclear when consumers bypass them or when behavior variants diverge."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "error-surface-boundary-bypass",
+      "summary": "The declared runtime error facade is not enforced, so modules bypass it and couple directly to internal error layers.",
+      "related_files": [
+        "src/shared/lib/errorHandling/runtimeError.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts",
+        "src/shared/contexts/ProjectContext.tsx"
+      ],
+      "evidence": [
+        "`runtimeError.ts` advertises a canonical public contract and re-exports error helpers.",
+        "`useMediaGalleryHandlers.ts` imports from `normalizeOnly` and `throwingOnly` directly, bypassing the facade.",
+        "`useMediaGalleryItemState.ts` imports from `normalizeOnly` directly while `ProjectContext.tsx` imports from `runtimeError`, showing mixed dependency direction."
+      ],
+      "suggestion": "Define one supported import surface for runtime error handling (preferably `runtimeError.ts`), migrate direct imports to it, and enforce with lint/path restrictions to prevent future bypasses.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "public-contracts-not-enforced"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "supabase-bootstrap-ownership-ambiguity",
+      "summary": "Supabase client initialization policy is split between explicit and implicit bootstrap paths, weakening runtime boundary ownership.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/integrations/supabase/runtime/supabaseRuntime.ts"
+      ],
+      "evidence": [
+        "`client.ts` exposes `initializeSupabase()` and `getSupabaseClient()` where `get` can auto-initialize.",
+        "`supabaseRuntime.ts` stores module-level singleton state and also exposes strict `getSupabaseRuntimeClient()` that throws when not initialized, creating two contradictory access models."
+      ],
+      "suggestion": "Choose one initialization contract (strict explicit bootstrap or always-lazy accessor), remove the alternate path, and make the runtime API consistent with that policy.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "runtime-contract-ambiguity"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "tooltip-provider-fragmentation",
+      "summary": "Tooltip infrastructure ownership is fragmented across feature components, leading to hidden cross-feature coupling and inconsistent behavior defaults.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/LightboxShell.tsx",
+        "src/pages/Home/components/panes/CreativePartnerPane.tsx",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+        "src/shared/components/ui/tooltip.tsx"
+      ],
+      "evidence": [
+        "`LightboxShell.tsx` wraps the shell with `TooltipProvider delayDuration={500}`.",
+        "`CreativePartnerPane.tsx` introduces another `TooltipProvider` locally.",
+        "`ShotActions.tsx` creates per-control `TooltipProvider delayDuration={0}` instances, producing divergent behavior policies in sibling UI areas."
+      ],
+      "suggestion": "Centralize tooltip provider ownership at a stable app/shell boundary and make per-feature behavior explicit via component props or local overrides only when required.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "provider-ownership-fragmentation"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "media-gallery-orchestration-sprawl",
+      "summary": "Media gallery coordination is spread across hooks/components with large callback/state bags instead of a cohesive orchestration boundary.",
+      "related_files": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+        "src/shared/components/MediaGallery/hooks/useMobileInteractions.ts"
+      ],
+      "evidence": [
+        "`useMediaGalleryHandlers` accepts many cross-cutting dependencies (navigation, lightbox, shot filter, modal controls, active media state), functioning as an orchestration hub.",
+        "`ShotActions` receives nested grouped prop objects (`selector`, `status`, `quickCreate`, `actions`) with many state mutators and callbacks.",
+        "`useMobileInteractions` manages timer-driven gesture behavior and global document/window listeners, further distributing interaction policy outside a single owner."
+      ],
+      "suggestion": "Introduce a gallery interaction controller/view-model that owns navigation, selection, modal, and gesture policy; keep leaf components/hooks focused on rendering or one concern each.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "missing-feature-level-controller"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "ui-service-browser-side-effects",
+      "summary": "Download service mixes utility naming with hard browser side effects, obscuring ownership and reusability boundaries.",
+      "related_files": [
+        "src/shared/components/MediaGallery/services/downloadService.ts",
+        "src/shared/components/MediaGallery/hooks/useMobileInteractions.ts",
+        "src/shared/components/MediaLightbox/components/LightboxShell.tsx"
+      ],
+      "evidence": [
+        "`downloadService.ts` performs direct DOM operations (`document.createElement`, click simulation, object URL lifecycle), plus network requests and dynamic import.",
+        "Other interaction/runtime hooks in the same feature (`useMobileInteractions`, `LightboxShell`) also own direct window/document side effects, indicating runtime policy is scattered instead of layered."
+      ],
+      "suggestion": "Split pure download planning/data logic from browser runtime adapters, and locate side-effect adapters under an explicit runtime/infrastructure boundary reused by gallery and lightbox flows.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "runtime-side-effects-scattered"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Public contracts are documented but not mechanically enforced, so consumers bypass intended boundaries.",
+      "Feature-level orchestration lacks a single owner, causing policy/state/side-effects to spread across hooks and UI leaves.",
+      "Runtime side-effect infrastructure is distributed across component-adjacent files rather than centralized by layer."
+    ],
+    "likely_symptoms": [
+      "tooltip-provider-fragmentation",
+      "media-gallery-orchestration-sprawl",
+      "ui-service-browser-side-effects"
+    ],
+    "possible_false_positives": []
+  }
+}

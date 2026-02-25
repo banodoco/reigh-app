@@ -1,4 +1,8 @@
 export function cropFilename(filename: string, maxLength: number = 24): string {
+  if (maxLength <= 0) {
+    return '';
+  }
+
   if (filename.length <= maxLength) {
     return filename;
   }
@@ -23,9 +27,17 @@ export function cropFilename(filename: string, maxLength: number = 24): string {
 }
 
 export function truncateText(text: string, maxLength: number): string {
+  if (maxLength <= 0) {
+    return '';
+  }
+
   if (text.length <= maxLength) {
     return text;
   }
 
-  return `${text.slice(0, maxLength)}...`;
+  if (maxLength <= 3) {
+    return '.'.repeat(maxLength);
+  }
+
+  return `${text.slice(0, maxLength - 3)}...`;
 }

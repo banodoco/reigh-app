@@ -1,25 +1,26 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { dispatchAppEvent, useAppEventListener } from '@/shared/lib/typedEvents';
+import React, { useState, useMemo } from 'react';
 import { Shot, GenerationRow } from '../../../types/shots';
 import { useUpdateShotName, useDeleteShot, useDuplicateShot } from '@/shared/hooks/shots';
 import { Input } from '@/shared/components/ui/input';
 import { Button } from '@/shared/components/ui/button';
 import { Pencil, Trash2, Check, X, Copy, GripVertical, Loader2, Video, ChevronDown, ChevronUp, Images } from 'lucide-react';
-import { toast } from '@/shared/components/ui/sonner';
-import { cn } from '@/shared/lib/utils';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { getDisplayUrl } from '@/shared/lib/mediaUrl';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/shared/components/ui/alert-dialog';
 import { Checkbox } from '@/shared/components/ui/checkbox';
-import { useClickRipple } from '@/shared/hooks/useClickRipple';
+import { useClickRipple } from '@/shared/hooks/interaction/useClickRipple';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { isVideoGeneration, isPositioned } from '@/shared/lib/typeGuards';
 import { VideoGenerationModal } from './VideoGenerationModal';
 import { usePanes } from '@/shared/contexts/PanesContext';
-import { useIsMobile } from '@/shared/hooks/useMobile';
+import { useIsMobile } from '@/shared/hooks/mobile';
 import HoverScrubVideo from '@/shared/components/HoverScrubVideo';
 import MediaLightbox from '@/shared/components/MediaLightbox';
 import type { ShotFinalVideo } from '../hooks/useShotFinalVideos';
+import { useShotAdditionSelectionOptional } from '@/shared/contexts/ShotAdditionSelectionContext';
+import { useVideoShotDisplayState } from './hooks/useVideoShotDisplayState';
 
 // ---------------------------------------------------------------------------
 // ActionButtonsRow - toolbar buttons (video, drag, rename, duplicate, delete)
@@ -412,6 +413,7 @@ const ThumbnailMosaic: React.FC<ThumbnailMosaicProps> = ({
 
 interface ShotMetadataProps {
   shotName: string;
+  displayName: string;
   isEditingName: boolean;
   editableName: string;
   onEditableNameChange: (value: string) => void;
@@ -421,6 +423,7 @@ interface ShotMetadataProps {
 
 const ShotMetadata: React.FC<ShotMetadataProps> = ({
   shotName,
+  displayName,
   isEditingName,
   editableName,
   onEditableNameChange,
@@ -430,7 +433,7 @@ const ShotMetadata: React.FC<ShotMetadataProps> = ({
   if (!isEditingName) {
     return (
       <h3 className="text-xl font-light group-hover:text-primary/80 transition-colors duration-300 flex-grow mr-2 truncate preserve-case">
-        {shotName}
+        {displayName}
       </h3>
     );
   }
@@ -511,6 +514,7 @@ const ShotPreview: React.FC<ShotPreviewProps> = (props) => (
 interface VideoShotDisplayProps {
   shot: Shot;
   onSelectShot: () => void;
+  onDuplicateShot?: () => void;
   currentProjectId: string | null; // Needed for mutations
   dragHandleProps?: {
     disabled?: boolean;
@@ -530,12 +534,9 @@ interface VideoShotDisplayProps {
 
 const SKIP_DELETE_CONFIRMATION_KEY = 'reigh-skip-delete-shot-confirmation';
 
-const VideoShotDisplay: React.FC<VideoShotDisplayProps> = ({ shot, onSelectShot, currentProjectId, dragHandleProps, dragDisabledReason, projectAspectRatio, isHighlighted = false, pendingUploads = 0, imagesOverlay, dropLoadingState = 'idle', dataTour, finalVideo }) => {
+const VideoShotDisplay: React.FC<VideoShotDisplayProps> = ({ shot, onSelectShot, onDuplicateShot, currentProjectId, dragHandleProps, dragDisabledReason, projectAspectRatio, isHighlighted = false, pendingUploads = 0, imagesOverlay, dropLoadingState = 'idle', dataTour, finalVideo }) => {
   // Check if this is a temp shot (optimistic duplicate waiting for real ID)
   const isTempShot = shot.id.startsWith('temp-');
-
-  // State for "don't ask again" checkbox
-  const [skipConfirmationChecked, setSkipConfirmationChecked] = useState(false);
 
   // Click ripple effect with button detection
   const { triggerRipple, rippleStyles, isRippleActive } = useClickRipple();
@@ -548,18 +549,39 @@ const VideoShotDisplay: React.FC<VideoShotDisplayProps> = ({ shot, onSelectShot,
     }
   };
 
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [editableName, setEditableName] = useState(shot.name);
-  // Reset editable name when shot.name prop changes (prev-value ref avoids useEffect+setState)
-  const prevShotNameRef = useRef(shot.name);
-  if (prevShotNameRef.current !== shot.name) {
-    prevShotNameRef.current = shot.name;
-    setEditableName(shot.name);
-  }
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
-  const [showVideo, setShowVideo] = useState(false); // Toggle to show final video preview
-  const [isFinalVideoLightboxOpen, setIsFinalVideoLightboxOpen] = useState(false);
+  const updateShotNameMutation = useUpdateShotName();
+  const deleteShotMutation = useDeleteShot();
+  const duplicateShotMutation = useDuplicateShot();
+
+  // Check if GenerationsPane is locked to show "Select this shot" button (mobile only)
+  const { isGenerationsPaneLocked } = usePanes();
+  const isMobile = useIsMobile();
+  const shotAdditionSelection = useShotAdditionSelectionOptional();
+  const {
+    isEditingName,
+    editableName,
+    isDeleteDialogOpen,
+    isVideoModalOpen,
+    showVideo,
+    isFinalVideoLightboxOpen,
+    skipConfirmationChecked,
+    isSelectedForAddition,
+    startNameEdit,
+    cancelNameEdit,
+    setEditableName,
+    finishNameEdit,
+    setDeleteDialogOpen,
+    setSkipConfirmationChecked,
+    setVideoModalOpen,
+    setShowVideo,
+    setFinalVideoLightboxOpen,
+    setSelectedForAddition,
+  } = useVideoShotDisplayState({
+    shotId: shot.id,
+    shotName: shot.name,
+    selectedShotId: shotAdditionSelection?.selectedShotId,
+    isGenerationsPaneLocked,
+  });
 
   // Build a minimal GenerationRow for the lightbox
   const finalVideoRow = useMemo((): GenerationRow | null => {
@@ -572,53 +594,20 @@ const VideoShotDisplay: React.FC<VideoShotDisplayProps> = ({ shot, onSelectShot,
     };
   }, [finalVideo]);
 
-  const handleFinalVideoLightboxOpen = useCallback(() => {
-    setIsFinalVideoLightboxOpen(true);
-  }, []);
-
-  const handleFinalVideoLightboxClose = useCallback(() => {
-    setIsFinalVideoLightboxOpen(false);
-  }, []);
-
-  const updateShotNameMutation = useUpdateShotName();
-  const deleteShotMutation = useDeleteShot();
-  const duplicateShotMutation = useDuplicateShot();
-
-  // Check if GenerationsPane is locked to show "Select this shot" button (mobile only)
-  const { isGenerationsPaneLocked } = usePanes();
-  const isMobile = useIsMobile();
-  const [isSelectedForAddition, setIsSelectedForAddition] = useState(false);
-
   // Handle selecting this shot as the target for adding images in GenerationsPane
   const handleSelectShotForAddition = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Dispatch custom event that MediaGallery listens for to update its shot selector
-    dispatchAppEvent('selectShotForAddition', { shotId: shot.id, shotName: shot.name });
-    // Show success state
-    setIsSelectedForAddition(true);
+    shotAdditionSelection?.selectShotForAddition(shot.id);
+    setSelectedForAddition(true);
   };
-
-  // Listen for other shots being selected to clear our success state
-  useAppEventListener('selectShotForAddition', useCallback(({ shotId: selectedShotId }) => {
-    if (selectedShotId !== shot.id) {
-      setIsSelectedForAddition(false);
-    }
-  }, [shot.id]));
-
-  // Clear selection state when GenerationsPane is unlocked
-  useEffect(() => {
-    if (!isGenerationsPaneLocked) {
-      setIsSelectedForAddition(false);
-    }
-  }, [isGenerationsPaneLocked]);
 
   const handleNameEditToggle = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (isEditingName) {
-      // If was editing and toggling off without saving via button, consider it a cancel
-      setEditableName(shot.name); // Reset to original name
+      cancelNameEdit(shot.name);
+      return;
     }
-    setIsEditingName(!isEditingName);
+    startNameEdit();
   };
 
   const handleSaveName = async () => {
@@ -628,12 +617,11 @@ const VideoShotDisplay: React.FC<VideoShotDisplayProps> = ({ shot, onSelectShot,
     }
     if (editableName.trim() === '') {
       toast.error('Shot name cannot be empty.');
-      setEditableName(shot.name); // Reset to original if submitted empty
-      setIsEditingName(false);
+      cancelNameEdit(shot.name);
       return;
     }
     if (editableName.trim() === shot.name) {
-      setIsEditingName(false); // No change, just exit edit mode
+      finishNameEdit();
       return;
     }
 
@@ -647,12 +635,12 @@ const VideoShotDisplay: React.FC<VideoShotDisplayProps> = ({ shot, onSelectShot,
           },
           onError: (error) => {
             toast.error(`Failed to update shot: ${error.message}`);
-            setEditableName(shot.name); // Revert on error
+            cancelNameEdit(shot.name);
           },
         }
       );
     } finally {
-      setIsEditingName(false);
+      finishNameEdit();
     }
   };
 
@@ -670,7 +658,7 @@ const VideoShotDisplay: React.FC<VideoShotDisplayProps> = ({ shot, onSelectShot,
       await performDelete();
     } else {
       // Open the delete confirmation dialog
-      setIsDeleteDialogOpen(true);
+      setDeleteDialogOpen(true);
     }
   };
 
@@ -690,7 +678,7 @@ const VideoShotDisplay: React.FC<VideoShotDisplayProps> = ({ shot, onSelectShot,
         }
       );
     } catch (error) {
-      handleError(error, { context: 'VideoShotDisplay', showToast: false });
+      normalizeAndPresentError(error, { context: 'VideoShotDisplay', showToast: false });
     }
   };
 
@@ -700,11 +688,8 @@ const VideoShotDisplay: React.FC<VideoShotDisplayProps> = ({ shot, onSelectShot,
       localStorage.setItem(SKIP_DELETE_CONFIRMATION_KEY, 'true');
     }
 
-    setIsDeleteDialogOpen(false);
+    setDeleteDialogOpen(false);
     await performDelete();
-
-    // Reset checkbox state for next time
-    setSkipConfirmationChecked(false);
   };
 
   const handleDuplicateShot = async (e?: React.MouseEvent) => {
@@ -714,12 +699,13 @@ const VideoShotDisplay: React.FC<VideoShotDisplayProps> = ({ shot, onSelectShot,
     }
 
     try {
+      onDuplicateShot?.();
       await duplicateShotMutation.mutateAsync({
         shotId: shot.id,
         projectId: currentProjectId,
       });
     } catch (error) {
-      handleError(error, { context: 'VideoShotDisplay', toastTitle: 'Failed to duplicate shot' });
+      normalizeAndPresentError(error, { context: 'VideoShotDisplay', toastTitle: 'Failed to duplicate shot' });
     }
   };
 
@@ -752,13 +738,13 @@ const VideoShotDisplay: React.FC<VideoShotDisplayProps> = ({ shot, onSelectShot,
         <div className="flex justify-between items-start mb-3">
           <ShotMetadata
             shotName={shot.name}
+            displayName={editableName || shot.name}
             isEditingName={isEditingName}
             editableName={editableName}
             onEditableNameChange={setEditableName}
             onSaveName={handleSaveName}
             onCancelEdit={() => {
-              setEditableName(shot.name);
-              setIsEditingName(false);
+              cancelNameEdit(shot.name);
             }}
           />
           <ShotControls
@@ -768,7 +754,7 @@ const VideoShotDisplay: React.FC<VideoShotDisplayProps> = ({ shot, onSelectShot,
             dragHandleProps={dragHandleProps}
             dragDisabledReason={dragDisabledReason}
             duplicateIsPending={duplicateShotMutation.isPending}
-            onVideoClick={() => setIsVideoModalOpen(true)}
+            onVideoClick={() => setVideoModalOpen(true)}
             onEditName={handleNameEditToggle}
             onDuplicate={handleDuplicateShot}
             onDelete={handleDeleteShot}
@@ -785,7 +771,7 @@ const VideoShotDisplay: React.FC<VideoShotDisplayProps> = ({ shot, onSelectShot,
           onShowVideoChange={setShowVideo}
           projectAspectRatio={projectAspectRatio}
           dropLoadingState={dropLoadingState}
-          onFinalVideoLightboxOpen={handleFinalVideoLightboxOpen}
+          onFinalVideoLightboxOpen={() => setFinalVideoLightboxOpen(true)}
           showMobileSelect={isGenerationsPaneLocked && isMobile}
           isSelectedForAddition={isSelectedForAddition}
           onSelectShotForAddition={handleSelectShotForAddition}
@@ -794,8 +780,7 @@ const VideoShotDisplay: React.FC<VideoShotDisplayProps> = ({ shot, onSelectShot,
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={(open) => {
-        setIsDeleteDialogOpen(open);
-        if (!open) setSkipConfirmationChecked(false); // Reset checkbox when dialog closes
+        setDeleteDialogOpen(open);
       }}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -834,7 +819,7 @@ const VideoShotDisplay: React.FC<VideoShotDisplayProps> = ({ shot, onSelectShot,
       {isVideoModalOpen && (
         <VideoGenerationModal
           isOpen={isVideoModalOpen}
-          onClose={() => setIsVideoModalOpen(false)}
+          onClose={() => setVideoModalOpen(false)}
           shot={shot}
         />
       )}
@@ -843,7 +828,7 @@ const VideoShotDisplay: React.FC<VideoShotDisplayProps> = ({ shot, onSelectShot,
       {isFinalVideoLightboxOpen && finalVideoRow && (
         <MediaLightbox
           media={finalVideoRow}
-          onClose={handleFinalVideoLightboxClose}
+          onClose={() => setFinalVideoLightboxOpen(false)}
           showNavigation={false}
           showImageEditTools={false}
           showDownload={true}

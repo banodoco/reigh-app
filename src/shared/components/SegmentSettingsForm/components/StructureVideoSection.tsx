@@ -12,7 +12,7 @@
 
 import React from 'react';
 import { Button } from '@/shared/components/ui/button';
-import { Label } from '@/shared/components/ui/label';
+import { Label } from '@/shared/components/ui/primitives/label';
 import { Slider } from '@/shared/components/ui/slider';
 import { Loader2, Video, X, Images } from 'lucide-react';
 import { SegmentedControl, SegmentedControlItem } from '@/shared/components/ui/segmented-control';

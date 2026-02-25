@@ -75,7 +75,7 @@ describe('preloadImages', () => {
     expect(mockQueue.add).toHaveBeenCalledWith('https://example.com/thumb.jpg', expect.any(Number));
   });
 
-  it('falls back to full URL when no thumb URL and thumbnailsOnly', async () => {
+  it('skips preload when thumbnail-only mode has no thumbnail URL', async () => {
     vi.mocked(hasLoadedImage).mockReturnValue(false);
 
     const thumbnailConfig = { ...mockConfig, preloadThumbnailsOnly: true };
@@ -85,7 +85,20 @@ describe('preloadImages', () => {
 
     await preloadImages(images, mockQueue as unknown, thumbnailConfig);
 
-    expect(mockQueue.add).toHaveBeenCalledWith('https://example.com/full.jpg', expect.any(Number));
+    expect(mockQueue.add).not.toHaveBeenCalled();
+  });
+
+  it('uses thumbnail_url fallback when thumbUrl is absent', async () => {
+    vi.mocked(hasLoadedImage).mockReturnValue(false);
+
+    const thumbnailConfig = { ...mockConfig, preloadThumbnailsOnly: true };
+    const images: PreloadableImage[] = [
+      { id: 'img-1', url: 'https://example.com/full.jpg', thumbnail_url: 'https://example.com/thumb-from-db.jpg' },
+    ];
+
+    await preloadImages(images, mockQueue as unknown, thumbnailConfig);
+
+    expect(mockQueue.add).toHaveBeenCalledWith('https://example.com/thumb-from-db.jpg', expect.any(Number));
   });
 
   it('limits images to maxImagesPerPage', async () => {
@@ -126,6 +139,19 @@ describe('preloadImages', () => {
     await preloadImages(images, mockQueue as unknown, mockConfig);
 
     expect(mockQueue.add).not.toHaveBeenCalled();
+  });
+
+  it('preloads images without id without tracker id writes', async () => {
+    const images: PreloadableImage[] = [
+      { url: 'https://example.com/no-id.jpg' },
+    ];
+
+    await preloadImages(images, mockQueue as unknown, mockConfig);
+
+    expect(mockQueue.add).toHaveBeenCalledWith('https://example.com/no-id.jpg', expect.any(Number));
+    expect(hasLoadedImage).not.toHaveBeenCalled();
+    expect(setImageLoadStatus).not.toHaveBeenCalled();
+    expect(markImageLoaded).toHaveBeenCalled();
   });
 
   it('skips _joined_frame.jpg URLs', async () => {

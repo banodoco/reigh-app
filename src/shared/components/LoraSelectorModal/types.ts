@@ -1,6 +1,7 @@
 import { UseQueryResult, UseMutationResult } from '@tanstack/react-query';
 import { Resource, ResourceType, CreateResourceArgs, UpdateResourceArgs } from '@/shared/hooks/useResources';
 import type { LoraModel as SharedLoraModel } from '@/shared/types/lora';
+import type { OpenStateContract } from '@/shared/components/dialogs/contracts';
 
 // Model filter categories - broad matching
 export type ModelFilterCategory = 'all' | 'qwen' | 'wan' | 'z-image';
@@ -80,9 +81,7 @@ export interface LoraCardProps {
   isDeleting: boolean;
 }
 
-export interface DescriptionModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+export interface DescriptionModalProps extends OpenStateContract {
   title: string;
   description: string;
 }

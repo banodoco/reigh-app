@@ -1,0 +1,94 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 2,
+  "assessments": {
+    "test_strategy": 78.0
+  },
+  "dimension_notes": {
+    "test_strategy": {
+      "evidence": [
+        "Critical edge helper exports in supabase/functions/_shared/edgeRequest.ts (initEdgeRuntime, ensureRequestMethod, edgeErrorResponse) are untested; supabase/functions/_shared/edgeRequest.test.ts only covers parseJsonBody* paths.",
+        "supabase/functions/_shared/billing.ts has multi-branch behavior (4 orchestrator-ref paths + triggerCostCalculation fetch/error handling) but supabase/functions/_shared/billing.test.ts (27 lines) only asserts 2 extraction shapes and partial filter content.",
+        "supabase/functions/_shared/rateLimit.ts has separate branches for RPC error return, thrown exception, allowed result, blocked result, and response headers; supabase/functions/_shared/rateLimit.test.ts covers only thrown-exception fail-open and minimal 429 response assertion.",
+        "src/tools/join-clips/lib/clipManager/metadata.ts exports loadClipDuration with error-to-fallback behavior, but existing tests cover getClipsNeedingDuration while loadClipDuration is only mocked by higher-level tests."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "test_strategy",
+      "identifier": "edge-request-untested-runtime-method-contracts",
+      "summary": "Edge request runtime/method guard APIs are exported and reused but lack direct tests for failure contracts and headers.",
+      "related_files": [
+        "supabase/functions/_shared/edgeRequest.ts",
+        "supabase/functions/_shared/edgeRequest.test.ts",
+        "supabase/functions/_shared/rateLimit.ts"
+      ],
+      "evidence": [
+        "edgeRequest.ts defines initEdgeRuntime (env missing branch), ensureRequestMethod (405 + Allow header + logger.flush), and edgeErrorResponse envelope shaping.",
+        "edgeRequest.test.ts only exercises parseJsonBody, parseJsonBodyStrict, and parseJsonBodyStrictResponse; no coverage for initEdgeRuntime/ensureRequestMethod/edgeErrorResponse."
+      ],
+      "suggestion": "Add focused unit tests for (1) missing SUPABASE env vars returning 500 configuration response, (2) method mismatch returning 405 with Allow header and logger flush behavior, and (3) edgeErrorResponse payload/header contract including retryAfter pass-through.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "billing-shared-helper-coverage-gap",
+      "summary": "Shared billing helper tests miss critical branches used by multiple edge functions, especially HTTP trigger behavior.",
+      "related_files": [
+        "supabase/functions/_shared/billing.ts",
+        "supabase/functions/_shared/billing.test.ts",
+        "supabase/functions/complete_task/billing.ts"
+      ],
+      "evidence": [
+        "billing.ts includes four extraction paths in extractOrchestratorRef and a networked triggerCostCalculation path with success/non-OK/exception handling.",
+        "billing.test.ts validates only two extraction shapes, one UUID self-check case, and partial filter contains checks; no tests for triggerCostCalculation or full extraction precedence/path matrix."
+      ],
+      "suggestion": "Add table-driven tests covering all documented orchestrator path variants (including invalid/non-object inputs and precedence), plus fetch-mocked tests for triggerCostCalculation success, non-OK text logging, and thrown network errors.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "rate-limit-branch-and-contract-undercoverage",
+      "summary": "Rate limiting tests do not verify normal RPC success/blocked paths or full response contract headers consumed by callers.",
+      "related_files": [
+        "supabase/functions/_shared/rateLimit.ts",
+        "supabase/functions/_shared/rateLimit.test.ts",
+        "supabase/functions/_shared/edgeRequest.ts"
+      ],
+      "evidence": [
+        "rateLimit.ts has distinct branches for RPC returned error (fail-open), RPC throw (fail-open), allowed result, blocked result with retryAfter, and header generation (X-RateLimit-* + Retry-After).",
+        "rateLimit.test.ts currently asserts preset existence, thrown-error fail-open, and a minimal 429 payload check, but does not assert allowed/blocked RPC result computations or response header contract."
+      ],
+      "suggestion": "Expand tests to cover RPC success paths with deterministic reset/count values, blocked branch retryAfter math, and strict assertions for X-RateLimit-Limit/Remaining/Reset and Retry-After headers plus errorCode payload fields.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "clip-metadata-error-fallback-untested",
+      "summary": "Clip metadata loading fallback behavior is untested where it matters most: extraction failure and error-handling side effects.",
+      "related_files": [
+        "src/tools/join-clips/lib/clipManager/metadata.ts",
+        "src/tools/join-clips/lib/__tests__/clipManagerService.test.ts",
+        "src/tools/join-clips/hooks/__tests__/useClipManager.test.ts"
+      ],
+      "evidence": [
+        "metadata.ts loadClipDuration catches extractor failures, calls handleError with structured context, then returns durationSeconds: 0 fallback.",
+        "clipManagerService.test.ts includes getClipsNeedingDuration coverage but no loadClipDuration test; useClipManager.test.ts mocks loadClipDuration rather than asserting its behavior."
+      ],
+      "suggestion": "Add unit tests for loadClipDuration success and failure paths with mocked extractVideoMetadataFromUrl and handleError, asserting returned fallback object shape and error context payload.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

@@ -8,6 +8,7 @@ import {
   applyFluidTimelineMulti,
   calculateNewVideoPlacement,
   findTrailingVideoInfo,
+  getTrailingEffectiveEnd,
   TRAILING_ENDPOINT_KEY,
   PENDING_POSITION_KEY,
 } from '../timeline-utils';
@@ -225,6 +226,51 @@ describe('calculateNewVideoPlacement', () => {
     const result = calculateNewVideoPlacement(60, existing, 200);
     expect(result.start_frame).toBe(100);
     expect(result.end_frame).toBe(160);
+  });
+});
+
+describe('getTrailingEffectiveEnd', () => {
+  it('returns null for empty timeline', () => {
+    const result = getTrailingEffectiveEnd({
+      framePositions: new Map(),
+      imagesCount: 0,
+      hasExistingTrailingVideo: false,
+    });
+    expect(result).toBeNull();
+  });
+
+  it('returns null for multi-image timelines without trailing video', () => {
+    const result = getTrailingEffectiveEnd({
+      framePositions: new Map([
+        ['a', 0],
+        ['b', 40],
+      ]),
+      imagesCount: 2,
+      hasExistingTrailingVideo: false,
+    });
+    expect(result).toBeNull();
+  });
+
+  it('computes offset for single-image timelines', () => {
+    const result = getTrailingEffectiveEnd({
+      framePositions: new Map([['a', 10]]),
+      imagesCount: 1,
+      hasExistingTrailingVideo: false,
+    });
+    expect(result).toBe(59);
+  });
+
+  it('computes offset for multi-image timelines with trailing video', () => {
+    const result = getTrailingEffectiveEnd({
+      framePositions: new Map([
+        ['a', 0],
+        ['b', 80],
+        [TRAILING_ENDPOINT_KEY, 120],
+      ]),
+      imagesCount: 2,
+      hasExistingTrailingVideo: true,
+    });
+    expect(result).toBe(97);
   });
 });
 

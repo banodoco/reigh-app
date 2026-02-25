@@ -1,0 +1,115 @@
+{
+  "batch": "Design Coherence — Mechanical Concern Signals",
+  "batch_index": 7,
+  "assessments": {
+    "design_coherence": 72.0
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "`useGenerationController` still accepts a very wide mixed-responsibility parameter bag (prompting, motion, join settings, UI persistence) and mostly forwards it into downstream hooks (`useGenerateBatch`, `useSteerableMotionHandlers`) with limited local behavior.",
+        "`useEditingController` still composes structure-video, audio, name-editing, and join orchestration and then returns a single large surface consumed via massive destructuring in `useShotEditorController`, keeping coordination coupling high.",
+        "`MediaLightbox` rebundles flat props into grouped objects, then `useLightboxWorkflowProps` reassembles those groups into another workflow bag, and `LightboxLayout` rebundles again before rendering `WorkflowControlsBar`.",
+        "Image generation submission flow still propagates overlapping data clumps through `useFormSubmission` -> `useSubmissionHandlers` -> `usePromptQueueHandlers` (and sibling handlers), duplicating dependency surfaces and ownership boundaries.",
+        "Task-detail UI still embeds payload compatibility/fallback normalization directly in render-layer components (`CharacterAnimateDetails`, `TaskDetailsModal`) despite existing shared normalization utilities in `taskParamsUtils`."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "shot_editor_controller_bag_still_oversized",
+      "summary": "Shot editor controllers still combine many concerns behind oversized input/output bags.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/controllers/useGenerationController.ts",
+        "src/tools/travel-between-images/components/ShotEditor/controllers/useEditingController.ts",
+        "src/tools/travel-between-images/components/ShotEditor/useShotEditorController.ts"
+      ],
+      "evidence": [
+        "`UseGenerationControllerParams` defines dozens of fields spanning prompt, motion, join, persistence, and UI-notification concerns, then forwards most fields to `useGenerateBatch`/`useSteerableMotionHandlers`.",
+        "`useEditingController` orchestrates structure-video, audio, naming, and join setup/submit in one hook and returns a very wide object (many unrelated values/handlers).",
+        "`useShotEditorController` still performs large destructuring and call-site argument assembly for both controllers, indicating high call-site coupling to controller internals."
+      ],
+      "suggestion": "Split controller contracts by capability (for example: `useShotMediaController`, `useJoinController`, `usePromptGenerationController`) and pass a typed context object per capability. Keep each controller return surface focused and consumed by only the relevant UI sections.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "controller_bag_orchestration"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "lightbox_prop_rebundling_chain_persists",
+      "summary": "Lightbox flow still re-bundles equivalent props across layers without reducing conceptual load.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/MediaLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useLightboxWorkflowProps.ts",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "`MediaLightbox` builds grouped `navigation/shotWorkflow/features/actions/videoProps` from flat props and passes them through to specialized lightboxes.",
+        "`useLightboxWorkflowProps` takes grouped bags and reconstructs `workflowBar`/`workflowControls` by copying nearly the same fields again.",
+        "`LightboxLayout` creates another `workflowBarProps` object by spreading and renaming fields from `props.workflowBar`, introducing another translation layer."
+      ],
+      "suggestion": "Define one canonical lightbox controller contract (query + commands) at the media boundary and consume it directly in layout/render components. Remove intermediate rebundling hooks unless they perform real transformation or policy enforcement.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "controller_bag_orchestration"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "form_submission_data_clumps_across_hooks",
+      "summary": "Image form submission still passes overlapping state clumps through multiple hook layers.",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/hooks/useFormSubmission.ts",
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmissionHandlers.ts",
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/usePromptQueueHandlers.ts"
+      ],
+      "evidence": [
+        "`useFormSubmission` destructures many fields, writes a `formStateRef`, then separately passes overlapping fields to `useTaskParamsBuilder` and `useSubmissionHandlers`.",
+        "`useSubmissionHandlers` repeats and forwards many of the same fields into both `useSubmitHandler` and `usePromptQueueHandlers`.",
+        "`UsePromptQueueHandlersInput` repeats a broad subset of submission state/commands, indicating the same context is being propagated rather than owned once."
+      ],
+      "suggestion": "Create a single `SubmissionContext` object (stable refs + immutable config + command ports) in `useFormSubmission`, and pass only narrow capability slices to sub-hooks (`queue`, `submit`, `paramsBuilder`). This reduces argument duplication and clarifies ownership.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "data_clump_passthrough"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "task_details_ui_still_embeds_payload_fallback_logic",
+      "summary": "Task-details render components still contain compatibility normalization logic.",
+      "related_files": [
+        "src/shared/components/TaskDetails/CharacterAnimateDetails.tsx",
+        "src/shared/components/TaskDetailsModal.tsx",
+        "src/shared/lib/taskParamsUtils.ts"
+      ],
+      "evidence": [
+        "`CharacterAnimateDetails` manually checks `parsedParams`, `orchestrator_details`, and `full_orchestrator_payload` per displayed field (`mode`, image/video URLs, prompt, resolution).",
+        "`TaskDetailsModal` manually derives `inputImages` from multiple payload locations with local cleanup rules instead of using a centralized adapter.",
+        "A shared normalization utility module already exists (`taskParamsUtils`), but UI components still duplicate fallback adaptation behavior."
+      ],
+      "suggestion": "Introduce task-detail view-model adapters per task family (for example `deriveCharacterAnimateDetails`, `deriveTaskInputImages`) in `taskParamsUtils` and keep detail components render-only. Move fallback precedence and compatibility cleanup entirely into adapter functions.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "compatibility_fallback_in_ui"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Controller-oriented APIs are still treated as transport bags instead of explicit capability boundaries.",
+      "Compatibility normalization is not consistently centralized, so render-layer code keeps reintroducing fallback trees."
+    ],
+    "likely_symptoms": [
+      "shot_editor_controller_bag_still_oversized",
+      "lightbox_prop_rebundling_chain_persists",
+      "form_submission_data_clumps_across_hooks"
+    ],
+    "possible_false_positives": []
+  }
+}

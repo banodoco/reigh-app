@@ -1,19 +1,18 @@
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 import type { VideoMetadata } from '@/shared/lib/videoUploader';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { ExtractedSettings, TaskData } from './types';
 
 export const fetchTask = async (taskId: string): Promise<TaskData | null> => {
   try {
-    const { data, error } = await supabase
-      .from('tasks')
+    const { data, error } = await supabase().from('tasks')
       .select('*')
       .eq('id', taskId)
       .single();
 
     if (error || !data) {
-      handleError(error ?? new Error('No task data returned'), {
+      normalizeAndPresentError(error ?? new Error('No task data returned'), {
         context: 'ApplySettings.fetchTask',
         showToast: false,
         logData: { taskId },
@@ -26,7 +25,7 @@ export const fetchTask = async (taskId: string): Promise<TaskData | null> => {
 
     return { params, orchestrator };
   } catch (queryError) {
-    handleError(queryError, {
+    normalizeAndPresentError(queryError, {
       context: 'ApplySettings.fetchTask',
       showToast: false,
       logData: { taskId },

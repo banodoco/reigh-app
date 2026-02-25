@@ -1,15 +1,15 @@
 import { useState, useCallback } from 'react';
-import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { useQueryClient } from '@tanstack/react-query';
 import { uploadImageToStorage } from '@/shared/lib/imageUploader';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { invalidateVariantChange } from '@/shared/hooks/invalidation/useGenerationInvalidation';
 import type { ImageTransform } from './types';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import { VARIANT_TYPE } from '@/shared/constants/variantTypes';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { toJson } from '@/shared/lib/supabaseTypeHelpers';
 
 /** Extended media fields that may be present at runtime from gallery/query layer */
@@ -174,8 +174,7 @@ export function useRepositionVariantSave({
           ...(activeVariantId ? { source_variant_id: activeVariantId } : {}),
         });
 
-        const { data: insertedGeneration, error: genError } = await supabase
-          .from('generations')
+        const { data: insertedGeneration, error: genError } = await supabase().from('generations')
           .insert({
             project_id: selectedProjectId,
             location: transformedUrl,
@@ -193,7 +192,7 @@ export function useRepositionVariantSave({
         }
 
         // Create the original variant
-        await supabase.from('generation_variants').insert({
+        await supabase().from('generation_variants').insert({
           generation_id: insertedGeneration.id,
           location: transformedUrl,
           thumbnail_url: thumbnailUrl,
@@ -212,8 +211,7 @@ export function useRepositionVariantSave({
         markSkipNextCache();
       } else {
         // Create a new variant and make it primary (displayed by default)
-        const { data: insertedVariant, error: insertError } = await supabase
-          .from('generation_variants')
+        const { data: insertedVariant, error: insertError } = await supabase().from('generation_variants')
           .insert({
             generation_id: actualGenerationId ?? media.id,
             location: transformedUrl,
@@ -278,7 +276,7 @@ export function useRepositionVariantSave({
         refetchVariants();
       }
     } catch (error) {
-      handleError(error, { context: 'useRepositionVariantSave', toastTitle: 'Failed to save as variant' });
+      normalizeAndPresentError(error, { context: 'useRepositionVariantSave', toastTitle: 'Failed to save as variant' });
     } finally {
       setIsSavingAsVariant(false);
     }

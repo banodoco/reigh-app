@@ -1,0 +1,88 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 1,
+  "assessments": {
+    "abstraction_fitness": 68.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "Task payload and extraction logic is spread across parallel schemas (`orchestrator_details`, `full_orchestrator_payload`, `individual_segment_params`, top-level params), with repeated fallback chains in `src/shared/lib/taskParamsUtils.ts` and mirrored contract assembly in `src/shared/lib/tasks/joinClips.ts`, `src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts`, and `src/shared/lib/tasks/individualTravelSegment.ts`.",
+        "Lightbox flow uses layered model-building wrappers (`VideoLightbox` -> `useVideoLightboxScreenModel` -> `useVideoLightboxRenderModel` -> `useLightboxStateValue` -> `LightboxLayout` safe-context readers) that mostly package and forward state objects rather than enforcing narrower contracts (`src/shared/components/MediaLightbox/VideoLightbox.tsx`, `src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx`, `src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx`, `src/shared/components/MediaLightbox/ImageLightbox.tsx`).",
+        "Several hooks/components expose very wide 'manager bags' and prop surfaces (nested ReturnType bundles and many callbacks/fields), increasing indirection and reducing interface honesty (`src/shared/components/ShotImageManager/ShotImageManagerContainer.tsx`, `src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts`, `src/shared/components/MediaGallery/index.tsx`, `src/tools/join-clips/pages/JoinClipsPage.tsx`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 62.0,
+        "indirection_cost": 58.0,
+        "interface_honesty": 64.0
+      }
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "task_contract_schema_fanout",
+      "summary": "Task abstractions rely on multi-shape param bags instead of one canonical contract",
+      "related_files": [
+        "src/shared/lib/taskParamsUtils.ts",
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "supabase/functions/complete_task/generation.ts",
+        "supabase/functions/complete_task/orchestrator.ts"
+      ],
+      "evidence": [
+        "`derive*` helpers repeatedly probe multiple nested locations for the same concepts (`task_view_contract`, `individual_segment_params`, `orchestrator_details`, `full_orchestrator_payload`, top-level fields), indicating no single authoritative abstraction.",
+        "`joinClips` and `travelBetweenImages` builders both construct family-specific contracts plus broad orchestrator payloads while downstream completion logic still falls back to legacy/top-level fields.",
+        "`individualTravelSegment` accepts a very wide `originalParams` bag and rebuilds runtime payload state, which duplicates contract semantics already assembled in orchestrator builders."
+      ],
+      "suggestion": "Introduce a versioned canonical task contract per family (stored in one field and read first-class), add explicit boundary adapters for legacy payloads, and remove fallback probing from shared readers once migrated.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "lightbox_render_model_indirection",
+      "summary": "Lightbox architecture has stacked wrappers that mostly forward state across layers",
+      "related_files": [
+        "src/shared/components/MediaLightbox/VideoLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx"
+      ],
+      "evidence": [
+        "`VideoLightbox` builds mode/env/shared/edit/render models and then spreads `renderModel.layoutProps` into `LightboxLayout`, while `LightboxLayout` rehydrates data again from safe context hooks.",
+        "`useVideoLightboxRenderModel` creates multiple memoized grouping objects (`lightboxCore`, `lightboxMedia`, `lightboxVariants`, `lightboxNavigation`) primarily to feed another state wrapper (`useLightboxStateValue`).",
+        "`ImageLightbox` mirrors the same multi-stage environment/shared/edit/render split, suggesting duplicated orchestration abstractions with high ceremony."
+      ],
+      "suggestion": "Collapse to a thinner composition boundary: one controller hook per lightbox type that returns render-ready slices consumed directly by layout components, and keep context usage only where cross-tree sharing is required.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "manager_bag_interface_bloat",
+      "summary": "Large manager/prop bags hide ownership and make interfaces harder to reason about",
+      "related_files": [
+        "src/shared/components/ShotImageManager/ShotImageManagerContainer.tsx",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts",
+        "src/shared/components/MediaGallery/index.tsx",
+        "src/tools/join-clips/pages/JoinClipsPage.tsx"
+      ],
+      "evidence": [
+        "`useShotImageManagerContainerState` returns a nested `managers` object with many `ReturnType`-based bundles, then dependent views consume cross-cutting state from this broad bag.",
+        "`UseSegmentSlotModeProps` and return types include many fields/callbacks spanning routing, frame updates, structure videos, and UI state, indicating mixed responsibilities in one abstraction boundary.",
+        "`MediaGallery` and `JoinClipsPage` orchestrate many hooks while forwarding large prop sets to child components (`SortableClip`, gallery handlers/actions), which increases coupling and pass-through overhead."
+      ],
+      "suggestion": "Split these APIs by responsibility (navigation, selection, generation actions, structure video editing), pass smaller typed slices to children, and replace broad `ReturnType` bag contracts with explicit minimal interfaces per consumer.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

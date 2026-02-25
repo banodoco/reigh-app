@@ -1,7 +1,8 @@
 // Import API types from shared (used in interfaces below, re-exported at bottom)
 import { ReferenceMode } from '@/shared/lib/tasks/imageGeneration';
-import type { ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';
+import type { ActiveLora } from '@/shared/types/lora';
 import type { ReferenceImage } from '@/shared/types/referenceImage';
+import type { HydratedReferenceImage as SharedHydratedReferenceImage } from '@/shared/types/referenceHydration';
 
 export type GenerationMode = 'wan-local' | 'qwen-image';
 
@@ -51,29 +52,11 @@ export interface ImageGenShotSettings extends Record<string, unknown> {
   afterEachPromptText?: string;
 }
 
-// Re-export ReferenceImage from shared for backwards compatibility
+// Re-export canonical ReferenceImage from shared for backwards compatibility
 export type { ReferenceImage } from '@/shared/types/referenceImage';
 
-// Hydrated reference with full data from resources table
-export interface HydratedReferenceImage {
-  id: string;
-  resourceId: string;
-  name: string;
-  styleReferenceImage: string;
-  styleReferenceImageOriginal: string;
-  thumbnailUrl: string | null;
-  styleReferenceStrength: number;
-  subjectStrength: number;
-  subjectDescription: string;
-  inThisScene: boolean;
-  inThisSceneStrength: number;
-  referenceMode: ReferenceMode;
-  styleBoostTerms: string;
-  createdAt: string;
-  updatedAt: string;
-  isPublic: boolean;
-  isOwner: boolean;
-}
+// Shared hydration contract
+export type HydratedReferenceImage = SharedHydratedReferenceImage;
 
 // LoRA category for storage - Qwen models and by-reference share one bucket, Z-Image has its own
 export type LoraCategory = 'qwen' | 'z-image';
@@ -94,28 +77,8 @@ export interface ProjectImageSettings extends Record<string, unknown> {
   selectedTextModel?: TextToImageModel;
   /** Per-category LoRA selections: 'qwen' (shared by all Qwen models + by-reference) and 'z-image' */
   selectedLorasByCategory?: Record<LoraCategory, ActiveLora[]>;
-  /**
-   * Legacy fields retained intentionally for backward-compatible settings migration.
-   * Migration hooks read these from older persisted payloads and write modern fields.
-   */
-  /** @deprecated migrated to selectedLorasByCategory — used by useLoraCategoryMigration */
-  selectedLorasByTextModel?: Record<TextToImageModel, ActiveLora[]>;
   selectedReferenceIdByShot?: Record<string, string | null>;
   references?: ReferenceImage[];
-  /** @deprecated use selectedReferenceIdByShot */
-  selectedReferenceId?: string | null;
-  /** @deprecated */
-  styleReferenceImage?: string | null;
-  /** @deprecated */
-  styleReferenceImageOriginal?: string | null;
-  /** @deprecated */
-  styleReferenceStrength?: number;
-  /** @deprecated */
-  subjectStrength?: number;
-  /** @deprecated */
-  subjectDescription?: string;
-  /** @deprecated */
-  inThisScene?: boolean;
 }
 
 export interface PromptInputRowProps {
@@ -153,7 +116,7 @@ export interface PromptInputRowProps {
 }
 
 // Re-export ActiveLora from shared component
-export type { ActiveLora } from "@/shared/components/ActiveLoRAsDisplay";
+export type { ActiveLora } from "@/shared/types/lora";
 
 // ============================================================================
 // Re-export API types from shared (single source of truth)

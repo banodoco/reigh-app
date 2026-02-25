@@ -1,5 +1,5 @@
 import { useEffect, RefObject } from 'react';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 import { useVideoLoader } from './useVideoLoader';
 
 /**

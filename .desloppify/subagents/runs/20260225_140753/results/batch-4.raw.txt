@@ -1,0 +1,121 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "ai_generated_debt": 84.0,
+    "incomplete_migration": 71.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "Multiple assigned files use large explanatory blocks that restate straightforward code behavior (for example `src/shared/lib/timelinePositionCalculator.ts`, `src/shared/lib/typeGuards.ts`, and `src/shared/lib/taskTypeUtils.ts`) rather than documenting non-obvious constraints.",
+        "`src/shared/lib/galleryUtils.ts` and `src/shared/lib/tasks/travelBetweenImages/types.ts` include long narrative comments around simple data-shape declarations, producing high comment-to-logic noise characteristic of generated-style ceremony."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    },
+    "incomplete_migration": {
+      "evidence": [
+        "`src/shared/hooks/useDeleteGenerationWithConfirm.tsx` and `src/shared/hooks/useDerivedItems.ts` are deprecated compatibility re-exports, while repository search shows no active imports from these legacy shared-hook paths.",
+        "`src/shared/lib/errorHandling/handleError.ts` marks `handleError`/`handleAndRethrow` as deprecated with removal target `2026-06-30`, but active call sites across the codebase still invoke `handleError(...)` broadly.",
+        "`src/shared/lib/toolConstants.ts` is a deprecated shim, and imports still exist (`src/shared/lib/__tests__/editVideoDefaults.test.ts`, `src/shared/lib/__tests__/joinClipsDefaults.test.ts`, `src/tools/edit-video/settings/__tests__/editVideoDefaults.test.ts`, `src/tools/travel-between-images/settings.test.ts`).",
+        "Travel-between-images still exposes legacy migration boundary types (`LegacyStructureVideoConfig`, `TravelBetweenImagesLegacyTaskInput`) in `src/shared/lib/tasks/travelBetweenImages/types.ts` and depends on `legacyStructureVideo.ts` compatibility contracts."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "stale_deprecated_shim_exports",
+      "summary": "Deprecated shared hook shims remain even though no call sites use them.",
+      "related_files": [
+        "src/shared/hooks/useDeleteGenerationWithConfirm.tsx",
+        "src/shared/hooks/useDerivedItems.ts"
+      ],
+      "evidence": [
+        "Both files are pure deprecated compatibility re-exports to domain hooks.",
+        "Search for imports from `@/shared/hooks/useDeleteGenerationWithConfirm` and `@/shared/hooks/useDerivedItems` returned no matches in `src`, indicating migration appears complete for these paths."
+      ],
+      "suggestion": "Remove both shim files and update any barrel exports/tests that still reference them; if external consumers exist, enforce migration via a short-lived codemod and then delete the aliases.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "long_tail_compatibility_aliases"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_error_api_still_primary",
+      "summary": "Deprecated `handleError` API is still heavily used, blocking error-layer migration.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/lib/toolConstants.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` deprecates `handleError`/`handleAndRethrow` in favor of `normalizeAndPresentError` and `normalizeAndPresentAndRethrow` with removal target `2026-06-30`.",
+        "Repository search shows many production call sites still invoking `handleError(...)`, so the deprecated facade remains the effective API instead of a transitional edge."
+      ],
+      "suggestion": "Run a migration pass replacing `handleError` calls with the new canonical helpers, keep a temporary telemetry counter for remaining legacy invocations, and remove deprecated exports once usage reaches zero.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "long_tail_compatibility_aliases"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "comment_ceremony_over_signal",
+      "summary": "Several utility modules contain generated-style comment ceremony that obscures logic signal.",
+      "related_files": [
+        "src/shared/lib/timelinePositionCalculator.ts",
+        "src/shared/lib/typeGuards.ts",
+        "src/shared/lib/galleryUtils.ts",
+        "src/shared/lib/tasks/travelBetweenImages/types.ts"
+      ],
+      "evidence": [
+        "Large multi-section comment blocks restate immediate code behavior (e.g., comments describing straightforward filters, frame midpoint math, and interface fields) rather than documenting hidden invariants.",
+        "Repeated header-style comment templates across multiple modules suggest formulaic generation pattern, increasing file length and scanning cost without adding operational guidance."
+      ],
+      "suggestion": "Trim comments to only non-obvious constraints, migration rationale, or invariants; remove section-banner and restatement comments in these modules and keep brief intent notes only where behavior is surprising.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "template_driven_code_authoring"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_travel_shapes_still_public",
+      "summary": "Travel-between-images legacy shape types remain in public contracts, extending dual-path maintenance.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/types.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts",
+        "src/shared/lib/tasks/legacy/joinClipsCompatAdapter.ts"
+      ],
+      "evidence": [
+        "`types.ts` still exports `LegacyStructureVideoConfig` and `TravelBetweenImagesLegacyTaskInput` for migration boundaries.",
+        "`legacyStructureVideo.ts` and `joinClipsCompatAdapter.ts` retain full compatibility parsing/enforcement paths and deprecation governance, indicating old+new shapes coexist in active task pipelines."
+      ],
+      "suggestion": "Define a cutoff plan to isolate legacy parsing at a single ingress boundary, stop exporting legacy types from public task type surfaces, and switch downstream callers to canonical `structure_guidance`/`structure_videos` and canonical join-clips mode-specific inputs.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "long_tail_compatibility_aliases"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Compatibility layers were added with deprecation metadata but without enforced burn-down ownership at call-site level.",
+      "Template-driven documentation style inflated comment volume beyond useful architectural intent."
+    ],
+    "likely_symptoms": [
+      "stale_deprecated_shim_exports",
+      "legacy_error_api_still_primary",
+      "legacy_travel_shapes_still_public"
+    ],
+    "possible_false_positives": [
+      "Some legacy types may be intentionally retained for external payload compatibility windows not visible in this batch."
+    ]
+  }
+}

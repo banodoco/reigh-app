@@ -1,0 +1,72 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 5,
+  "assessments": {
+    "package_organization": 78.0,
+    "high_level_elegance": 82.0
+  },
+  "dimension_notes": {
+    "package_organization": {
+      "evidence": [
+        "`src/shared/hooks/` has 95 production files (threshold signal: >10 mixed concerns), and the assigned files in that folder span unrelated responsibilities: `useApiTokens.ts` (account/API-token lifecycle), `useAsyncOperation.ts` (generic async state helper), and `useAutoSaveSettings.ts` (settings persistence/state machine).",
+        "The structure coupling shows heavy cross-directory edges from this single folder (`src/shared/hooks/ -> src/integrations/supabase/` = 47, `-> src/shared/lib/` = 57, `-> src/shared/lib/errorHandling/` = 41), indicating the directory acts as a broad catch-all rather than a focused package boundary.",
+        "`src/shared/components/` also exceeds flat-folder limits with 80 files and mixed concerns; assigned files include domain UI (`ActiveLoRAsDisplay.tsx`) and global infra tests (`AppErrorBoundary.test.tsx`) in the same top-level component directory, while a dedicated `src/shared/components/__tests__/` area exists."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Assigned files show ownership blur in the 'shared' layer: `useApiTokens.ts` contains account/security-token behavior (auth session checks, PAT generation/revocation), while `useAsyncOperation.ts` is cross-cutting infra; both are peers in the same package.",
+        "`useAutoSaveSettings.ts` encodes substantial product policy (shot/project scoping, entity transitions, persistence mode switching, debounced flush behavior), but remains in broad `src/shared/hooks/`, making top-level role boundaries harder to explain.",
+        "`ActiveLoRAsDisplay.tsx` is domain-specific (LoRA trigger words, model/media heuristics) but lives in the generic `src/shared/components/` root, further weakening domain-aligned decomposition."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "package_organization",
+      "identifier": "shared_hooks_flattening_boundary_debt",
+      "summary": "95-file shared hooks folder mixes infra, settings, and account-domain logic",
+      "related_files": [
+        "src/shared/hooks/useApiTokens.ts",
+        "src/shared/hooks/useAsyncOperation.ts",
+        "src/shared/hooks/useAutoSaveSettings.ts",
+        "src/shared/hooks/__tests__/useAutoTopup.test.ts"
+      ],
+      "evidence": [
+        "`src/shared/hooks/` has 95 production files (from `holistic_context.structure.directory_profiles`), far above the >10 mixed-concern threshold.",
+        "`useApiTokens.ts` manages PAT-specific auth/query/mutation flows; `useAsyncOperation.ts` is generic infra; `useAutoSaveSettings.ts` is a complex persistence/state-machine hook.",
+        "A feature path for API-token hooks already exists in repo structure (`src/features/account/hooks/useApiTokens.ts`), indicating current root shared placement has weak affinity."
+      ],
+      "suggestion": "Staged reorg plan: (1) create target folders `src/shared/hooks/async/`, `src/shared/hooks/settings/`, and keep domain token logic under `src/features/account/hooks/`; (2) move in order: `useAsyncOperation.ts` (+test) to `shared/hooks/async`, then `useAutoSaveSettings.ts` (+test) to `shared/hooks/settings`, then converge `useApiTokens` to `features/account/hooks` and remove/shared-reexport old path temporarily; (3) update imports via codemod (`rg -l \"@/shared/hooks/useAsyncOperation|@/shared/hooks/useAutoSaveSettings|@/shared/hooks/useApiTokens\" src | xargs sed ...`) or `desloppify move <src> <dst> --dry-run` then apply; (4) validate with `pnpm vitest src/shared/hooks/__tests__/useAsyncOperation.test.ts src/shared/hooks/__tests__/useAutoSaveSettings.test.ts src/shared/hooks/__tests__/useAutoTopup.test.ts` and `pnpm tsc --noEmit`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_layer_ownership_blur",
+      "summary": "Top-level 'shared' packages hold feature-specific behavior, blurring architectural ownership",
+      "related_files": [
+        "src/shared/hooks/useApiTokens.ts",
+        "src/shared/hooks/useAutoSaveSettings.ts",
+        "src/shared/components/ActiveLoRAsDisplay.tsx",
+        "src/shared/components/AppErrorBoundary.test.tsx"
+      ],
+      "evidence": [
+        "`useApiTokens.ts` contains account-domain token lifecycle operations and auth boundary checks, but sits in a global shared bucket.",
+        "`useAutoSaveSettings.ts` combines framework-level concerns with product-level persistence policy in a generic shared location.",
+        "`ActiveLoRAsDisplay.tsx` is LoRA-domain UI logic in a broad `shared/components` root that also contains generic and infrastructure components/tests."
+      ],
+      "suggestion": "Staged reorg plan: (1) define ownership packages: `src/features/account/hooks/` for API-token behavior, `src/shared/hooks/async/` + `src/shared/hooks/settings/` for reusable infra, and `src/features/lora/components/` (or tool-specific component package) for LoRA UI; (2) move domain components/hooks first (`ActiveLoRAsDisplay.tsx`, `useApiTokens.ts`), then infra hooks (`useAsyncOperation.ts`, `useAutoSaveSettings.ts`) into focused shared subpackages; (3) keep temporary barrel re-exports to avoid big-bang breakage, then remove after callsites migrate; (4) run import and boundary validation with `pnpm tsc --noEmit`, targeted vitest for moved tests, and a dependency check (`rg \"@/shared/(hooks|components)/\" src/features src/tools`).",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

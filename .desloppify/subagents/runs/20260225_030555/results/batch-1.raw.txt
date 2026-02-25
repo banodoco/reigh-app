@@ -1,0 +1,89 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 82.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/handleError.ts` is a high-traffic shared facade that couples normalization/logging with UI toast dispatch (`notifyError`), and feature hooks call it directly (`src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts`, `src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts`).",
+        "`src/shared/components/ui/button.tsx` (a base UI primitive) imports app-theme-specific variants from `src/shared/components/theme/buttonVariants`, while sibling primitive `src/shared/components/ui/label.tsx` stays local-only; this creates inconsistent dependency direction inside the same UI boundary.",
+        "`src/shared/lib/toolConstants.ts` co-locates domain IDs and route paths in one shared module; page UI code (`src/pages/Home/components/panes/CreativePartnerPane.tsx`) imports route constants from that shared module, increasing cross-layer change blast radius."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "error_facade_cross_layer_side_effects",
+      "summary": "Shared error facade mixes core error normalization with UI notification side effects",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+      ],
+      "evidence": [
+        "`handleError` always normalizes/logs and can also call `notifyError`, so a single shared import crosses runtime/logging and UI concerns.",
+        "Feature hooks invoke `handleError`/`handleAndRethrow` directly, so non-UI logic paths inherit toast behavior via one global facade instead of explicit boundary wiring."
+      ],
+      "suggestion": "Split responsibilities into a pure `normalizeAndLogError` contract and a UI-only notifier layer (or injected reporter). Keep feature/domain hooks dependent on the pure contract and let UI entry points opt into toast behavior explicitly.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "shared_hub_mixes_layers"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "ui_primitive_depends_on_theme_extension",
+      "summary": "Base `ui/button` primitive depends on app theme module, reversing boundary direction",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/ui/label.tsx",
+        "src/shared/components/MediaTypeFilter.tsx"
+      ],
+      "evidence": [
+        "`button.tsx` imports `APP_BUTTON_SIZES` and `APP_BUTTON_VARIANTS` from `shared/components/theme/buttonVariants`, so a foundational primitive depends on higher-level theme composition.",
+        "Other shared primitives (`label.tsx`) do not depend on theme extension modules, showing inconsistent architecture inside `shared/components/ui`."
+      ],
+      "suggestion": "Move theme variant extension to a composition layer (e.g., app-specific wrapper around `Button`) and keep `shared/components/ui/button.tsx` limited to base variants only. Align sibling primitive boundaries to the same rule.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shared_hub_mixes_layers"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "shared_constants_merge_routing_and_domain_ids",
+      "summary": "Shared constants module combines route topology with tool identity contract",
+      "related_files": [
+        "src/shared/lib/toolConstants.ts",
+        "src/pages/Home/components/panes/CreativePartnerPane.tsx"
+      ],
+      "evidence": [
+        "`toolConstants.ts` exports both `TOOL_IDS` (domain/settings identity) and `TOOL_ROUTES` (navigation topology) from one shared contract.",
+        "`CreativePartnerPane` imports `TOOL_ROUTES` from that shared module, coupling page navigation concerns to a constants module intended for broad cross-layer consumption."
+      ],
+      "suggestion": "Split the module into separate contracts (e.g., `toolIds.ts` and `toolRoutes.ts`) and place route constants in a routing-owned boundary. Update consumers so non-routing code does not depend on path topology.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shared_hub_mixes_layers"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "High-traffic shared modules are carrying mixed responsibilities (core contracts + UI/routing concerns).",
+      "Boundary rules for what belongs in foundational `shared` layers are not consistently enforced."
+    ],
+    "likely_symptoms": [
+      "error_facade_cross_layer_side_effects",
+      "ui_primitive_depends_on_theme_extension",
+      "shared_constants_merge_routing_and_domain_ids"
+    ],
+    "possible_false_positives": []
+  }
+}

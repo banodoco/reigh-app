@@ -1,0 +1,29 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "ai_generated_debt": 100.0,
+    "low_level_elegance": 100.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "src/vite-env.d.ts contains a single standard Vite triple-slash type reference and no comments, wrappers, TODOs, migration markers, or generated-style defensive boilerplate."
+      ],
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "unreported_risk": "Single-line declaration files can hide debt only if future ambient declarations are added without review; none observed in current file."
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "src/vite-env.d.ts is minimal and intention-revealing: exactly one directive (`/// <reference types=\"vite/client\" />`) with no unnecessary branching, naming, or structural overhead."
+      ],
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "unreported_risk": "Elegance could regress if this file accumulates unrelated ambient typings; current implementation is clean and proportionate."
+    }
+  },
+  "findings": []
+}

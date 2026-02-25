@@ -1,0 +1,72 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "high_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "README.md defines detailed runtime contracts for error notifier readiness and bootstrap wiring (`configureErrorNotifier`, `getErrorNotifierState`), but `src/shared/lib/errorHandling/handleError.ts` only exposes `handleError` and `HandleErrorOptions`, so key contract surface is documented out-of-module rather than discoverable at the ownership point.",
+        "README.md marks `src/types/generationRow.ts` as a temporary compatibility re-export with a migration policy, but `src/types/generationRow.ts` is a bare re-export with no deprecation marker or guard, so the compatibility contract is policy-only and not encoded in code.",
+        "README.md prescribes Supabase ownership and legacy/debug boundaries, while `src/integrations/supabase/client.ts` centralizes singleton lifecycle via module-level mutable state but does not expose policy-oriented guardrails or migration cues, increasing reliance on tribal/document knowledge."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "contract-docs-not-co-located-error-api",
+      "summary": "Error-handling runtime contract is documented in README but not co-located with the canonical error API module.",
+      "related_files": [
+        "README.md",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "README Runtime Contracts specifies notifier readiness semantics and bootstrap registration behavior.",
+        "`handleError.ts` exports only `handleError` and option typing; the documented contract elements are not visible from this ownership entry point."
+      ],
+      "suggestion": "Move authoritative contract details into module-level docs/types near `handleError` (or export a small contract surface from the same boundary), and keep README as a high-level pointer instead of the primary contract source.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "compatibility-bridge-policy-not-enforced",
+      "summary": "The GenerationRow compatibility bridge is governed by README policy only, without in-code migration pressure.",
+      "related_files": [
+        "README.md",
+        "src/types/generationRow.ts"
+      ],
+      "evidence": [
+        "README states `src/types/generationRow.ts` is temporary and domain modules should import from domain types.",
+        "`src/types/generationRow.ts` is a plain re-export and contains no deprecation tag, lint boundary hint, or ownership warning."
+      ],
+      "suggestion": "Add explicit deprecation metadata/comments and enforce import boundaries (lint rule or codemod policy) so the compatibility layer has an executable migration contract.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "supabase-policy-relies-on-readme",
+      "summary": "Supabase client governance is primarily README-driven rather than encoded as an explicit contract at the integration boundary.",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "README defines canonical accessor usage, legacy proxy isolation, and debug-global behavior as architecture policy.",
+        "`client.ts` implements lazy singleton/init behavior, but does not carry policy-facing signals (forbidden paths, migration boundary markers, or contract comments) that would make misuse harder."
+      ],
+      "suggestion": "Introduce boundary-level contract artifacts (API docs in-module, explicit migration notes, and import-policy enforcement) so governance is enforced by code structure rather than only repository documentation.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

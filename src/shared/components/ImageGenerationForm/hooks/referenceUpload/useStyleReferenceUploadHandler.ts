@@ -2,26 +2,26 @@ import { useCallback, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import { nanoid } from 'nanoid';
-import { toast } from '@/shared/components/ui/sonner';
-import { supabase } from '@/integrations/supabase/client';
-import { fileToDataURL, dataURLtoFile } from '@/shared/lib/fileConversion';
-import { uploadImageToStorage } from '@/shared/lib/imageUploader';
-import { generateClientThumbnail } from '@/shared/lib/clientThumbnailGenerator';
-import { generateThumbnailFilename, MEDIA_BUCKET, storagePaths } from '@/shared/lib/storagePaths';
-import { resolveProjectResolution } from '@/shared/lib/taskCreation';
-import { processStyleReferenceForAspectRatioString } from '@/shared/lib/styleReferenceProcessor';
-import { extractSettingsFromCache, updateSettingsCache } from '@/shared/hooks/useToolSettings';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { updateSettingsCache } from '@/shared/hooks/useToolSettings';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { toOperationResultError } from '@/shared/lib/operationResult';
 import { settingsQueryKeys } from '@/shared/lib/queryKeys/settings';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
+import { runOptimisticCacheUpdate } from './optimisticCacheUpdate';
+import {
+  buildStyleReferenceMetadata,
+  persistReferenceSelection,
+  resolveReferenceThumbnailUrl,
+  uploadAndProcessReference,
+} from './referenceDomainService';
 import type {
   HydratedReferenceImage,
   ProjectImageSettings,
   ReferenceImage,
 } from '../../types';
-import type {
-  Resource,
-  StyleReferenceMetadata,
-} from '@/shared/hooks/useResources';
+import type { Resource } from '@/shared/hooks/useResources';
 
 interface CreateStyleReferenceMutation {
   mutateAsync: (input: { type: 'style-reference'; metadata: StyleReferenceMetadata }) => Promise<Resource>;
@@ -49,100 +49,6 @@ interface UseStyleReferenceUploadHandlerReturn {
   handleStyleReferenceUpload: (files: File[]) => Promise<void>;
 }
 
-interface UploadedReferenceUrls {
-  originalUploadedUrl: string;
-  processedUploadedUrl: string;
-}
-
-async function resolveThumbnailUrl(file: File, originalUploadedUrl: string): Promise<string> {
-  try {
-    const thumbnailResult = await generateClientThumbnail(file, 300, 0.8);
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user?.id) {
-      throw new Error('User not authenticated');
-    }
-
-    const thumbnailFilename = generateThumbnailFilename();
-    const thumbnailPath = storagePaths.thumbnail(session.user.id, thumbnailFilename);
-    const { error: thumbnailUploadError } = await supabase.storage
-      .from(MEDIA_BUCKET)
-      .upload(thumbnailPath, thumbnailResult.thumbnailBlob, {
-        contentType: 'image/jpeg',
-        upsert: true,
-      });
-
-    if (thumbnailUploadError) {
-      handleError(thumbnailUploadError, { context: 'useReferenceUpload.thumbnailUpload', showToast: false });
-      return originalUploadedUrl;
-    }
-
-    const { data: thumbnailUrlData } = supabase.storage
-      .from(MEDIA_BUCKET)
-      .getPublicUrl(thumbnailPath);
-    return thumbnailUrlData.publicUrl;
-  } catch (thumbnailError) {
-    handleError(thumbnailError, { context: 'useReferenceUpload.thumbnailGeneration', showToast: false });
-    return originalUploadedUrl;
-  }
-}
-
-async function resolveUploadedReferenceUrls(
-  file: File,
-  selectedProjectId: string | undefined
-): Promise<UploadedReferenceUrls> {
-  const dataURL = await fileToDataURL(file);
-  const originalUploadedUrl = await uploadImageToStorage(file);
-
-  let processedDataURL = dataURL;
-  if (selectedProjectId) {
-    const { aspectRatio } = await resolveProjectResolution(selectedProjectId);
-    const processed = await processStyleReferenceForAspectRatioString(dataURL, aspectRatio);
-    if (!processed) {
-      throw new Error('Failed to process image for aspect ratio');
-    }
-    processedDataURL = processed;
-  }
-
-  const processedFile = dataURLtoFile(processedDataURL, `style-reference-processed-${Date.now()}.png`);
-  if (!processedFile) {
-    throw new Error('Failed to convert processed image to file');
-  }
-
-  const processedUploadedUrl = await uploadImageToStorage(processedFile);
-  return { originalUploadedUrl, processedUploadedUrl };
-}
-
-function buildReferenceMetadata(input: {
-  hydratedReferences: HydratedReferenceImage[];
-  processedUploadedUrl: string;
-  originalUploadedUrl: string;
-  thumbnailUrl: string;
-  resourcesPublic: boolean;
-  userEmail: string | null;
-}): StyleReferenceMetadata {
-  const now = new Date().toISOString();
-  return {
-    name: `Reference ${(input.hydratedReferences.length + 1)}`,
-    styleReferenceImage: input.processedUploadedUrl,
-    styleReferenceImageOriginal: input.originalUploadedUrl,
-    thumbnailUrl: input.thumbnailUrl,
-    styleReferenceStrength: 1.1,
-    subjectStrength: 0.0,
-    subjectDescription: '',
-    inThisScene: false,
-    inThisSceneStrength: 1.0,
-    referenceMode: 'style',
-    styleBoostTerms: '',
-    is_public: input.resourcesPublic,
-    created_by: {
-      is_you: true,
-      username: input.userEmail || 'user',
-    },
-    createdAt: now,
-    updatedAt: now,
-  };
-}
-
 function applyOptimisticUploadUpdate(input: {
   queryClient: QueryClient;
   selectedProjectId: string | undefined;
@@ -157,7 +63,7 @@ function applyOptimisticUploadUpdate(input: {
   });
 
   queryClient.setQueryData(
-    settingsQueryKeys.tool('project-image-settings', selectedProjectId, undefined),
+    settingsQueryKeys.tool(SETTINGS_IDS.PROJECT_IMAGE_SETTINGS, selectedProjectId, undefined),
     (prev: unknown) =>
       updateSettingsCache<ProjectImageSettings>(prev, (prevSettings) => ({
         references: [...(prevSettings?.references || []), newPointer],
@@ -205,14 +111,32 @@ export function useStyleReferenceUploadHandler(
     try {
       setIsUploadingStyleReference(true);
 
-      const { originalUploadedUrl, processedUploadedUrl } = await resolveUploadedReferenceUrls(file, selectedProjectId);
-      const thumbnailUrl = await resolveThumbnailUrl(file, originalUploadedUrl);
-      const { data: { user } } = await supabase.auth.getUser();
+      const uploadResult = await uploadAndProcessReference({
+        file,
+        selectedProjectId,
+      });
+      if (!uploadResult.ok) {
+        throw toOperationResultError(uploadResult);
+      }
+
+      const { originalUploadedUrl, processedUploadedUrl } = uploadResult.value;
+      const thumbnailResult = await resolveReferenceThumbnailUrl({
+        file,
+        fallbackUrl: originalUploadedUrl,
+      });
+      const thumbnailUrl = thumbnailResult.ok ? thumbnailResult.value : originalUploadedUrl;
+      if (!thumbnailResult.ok) {
+        normalizeAndPresentError(toOperationResultError(thumbnailResult), {
+          context: 'useReferenceUpload.handleStyleReferenceUpload.thumbnailFallback',
+          showToast: false,
+        });
+      }
+      const { data: { user } } = await supabase().auth.getUser();
       if (!user) {
         throw new Error('Not authenticated');
       }
 
-      const metadata = buildReferenceMetadata({
+      const metadata = buildStyleReferenceMetadata({
         hydratedReferences,
         processedUploadedUrl,
         originalUploadedUrl,
@@ -232,7 +156,7 @@ export function useStyleReferenceUploadHandler(
         createdAt: new Date().toISOString(),
       };
 
-      try {
+      runOptimisticCacheUpdate(() => {
         applyOptimisticUploadUpdate({
           queryClient,
           selectedProjectId,
@@ -240,23 +164,21 @@ export function useStyleReferenceUploadHandler(
           newPointer,
           resource,
         });
-      } catch {
-        // Intentionally ignored - cache update is best effort.
-      }
+      }, 'useReferenceUpload.handleStyleReferenceUpload.optimisticUpdate');
 
-      const currentData = extractSettingsFromCache<ProjectImageSettings>(
-        queryClient.getQueryData(settingsQueryKeys.tool('project-image-settings', selectedProjectId, undefined))
-      ) || {};
-
-      await updateProjectImageSettings('project', {
-        references: currentData.references || [],
-        selectedReferenceIdByShot: currentData.selectedReferenceIdByShot || {},
+      const persistResult = await persistReferenceSelection({
+        queryClient,
+        selectedProjectId,
+        updateProjectImageSettings,
       });
+      if (!persistResult.ok) {
+        throw toOperationResultError(persistResult);
+      }
 
       markAsInteracted();
       setStyleReferenceOverride(originalUploadedUrl);
     } catch (error) {
-      handleError(error, {
+      normalizeAndPresentError(error, {
         context: 'useReferenceUpload.handleStyleReferenceUpload',
         toastTitle: 'Failed to upload reference image',
       });

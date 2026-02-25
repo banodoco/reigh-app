@@ -3,9 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui
 import { TrainingDataVideo, TrainingDataSegment } from '../../hooks/useTrainingData';
 import { useTrainingData } from '../../hooks/useTrainingData';
 import { Scissors } from 'lucide-react';
-import { toast } from '@/shared/components/ui/sonner';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { TooltipProvider } from '@/shared/components/ui/tooltip';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { formatTime } from '@/shared/lib/timeFormatting';
 import { SegmentListItem } from './components/SegmentListItem';
 import { SegmentFormDialog } from './components/SegmentFormDialog';
@@ -141,7 +141,7 @@ export function VideoSegmentEditor({ video, segments, onCreateSegment, onDeleteS
       clearSegmentState();
       setTimeout(() => jumpToTime(targetJumpTime), POST_CREATE_SEEK_DELAY_MS);
     } catch (error) {
-      handleError(error, { context: 'VideoSegmentEditor', toastTitle: 'Failed to create segment' });
+      normalizeAndPresentError(error, { context: 'VideoSegmentEditor', toastTitle: 'Failed to create segment' });
     } finally {
       setIsCreating(false);
     }
@@ -247,7 +247,7 @@ export function VideoSegmentEditor({ video, segments, onCreateSegment, onDeleteS
               onPause={() => playback.setIsPlaying(false)}
               onVideoError={(e) => {
                 const videoElement = e.target as HTMLVideoElement;
-                handleError(new Error('Video load error'), {
+                normalizeAndPresentError(new Error('Video load error'), {
                   context: 'VideoSegmentEditor',
                   toastTitle: `Video file not available: ${video.originalFilename}`,
                   showToast: true,

@@ -1,0 +1,102 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "ai_generated_debt": 84.0,
+    "low_level_elegance": 88.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "Legacy structure-video compatibility fields are duplicated in two places: `StructureVideoLegacyUiFields` in `src/shared/lib/tasks/travelBetweenImages/uiTypes.ts` and `LegacyStructureVideoFields` in `src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts`.",
+        "Deprecation handling is inconsistent: `src/shared/hooks/useExternalApiKeys.ts` is a bare deprecated re-export with no owner/remove-by enforcement metadata, while other migration shims in this batch (`legacyStructureVideo.ts`, `joinClipsCompatAdapter.ts`) use explicit governance policy objects."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Frame-rate defaults for frame estimation are hardcoded and divergent: `calculateEffectiveFrameCount` in `src/tools/join-clips/utils/validation.ts` uses fallback 24/16 fps logic, while `src/tools/training-data-helper/components/VideoSegmentEditor/constants.ts` defines `ASSUMED_FPS = 30`.",
+        "These values represent the same domain concept (UI-side frame estimation) but are implemented as disconnected literals."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Frame-estimation logic is split across modules with inconsistent default FPS assumptions, which increases subtle behavior drift risk."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "duplicated_legacy_structure_contracts",
+      "summary": "Legacy structure-video fields are duplicated across UI and migration type modules",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/uiTypes.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts",
+        "src/shared/lib/tasks/travelBetweenImages/types.ts"
+      ],
+      "evidence": [
+        "`uiTypes.ts` defines `StructureVideoLegacyUiFields` (`motion_strength`, `structure_type`, `uni3c_*`).",
+        "`legacyStructureVideo.ts` defines the same legacy field set again in `LegacyStructureVideoFields`.",
+        "Canonical `types.ts` intentionally excludes these fields, so two parallel legacy contracts remain and can drift during migration cleanup."
+      ],
+      "suggestion": "Create a single exported legacy-field type (or delete one copy if no longer needed), import it in both modules, and keep legacy-field ownership in one migration boundary file to prevent schema drift.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "migration_contract_fragmentation"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "ungoverned_deprecated_shim",
+      "summary": "Deprecated API-key shim lacks the sunset governance used by other migration adapters",
+      "related_files": [
+        "src/shared/hooks/useExternalApiKeys.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts",
+        "src/shared/lib/tasks/__tests__/helpers/joinClipsCompatAdapter.ts"
+      ],
+      "evidence": [
+        "`useExternalApiKeys.ts` is a deprecated compatibility re-export with no owner/remove-by metadata and no enforcement hook.",
+        "`legacyStructureVideo.ts` and `joinClipsCompatAdapter.ts` both encode deprecation policy metadata and removal enforcement checks.",
+        "This inconsistency encourages indefinite retention of dead compatibility paths."
+      ],
+      "suggestion": "Apply the same deprecation-governance pattern to `useExternalApiKeys.ts` (owner, remove-by, enforcement/logging), or remove the shim after updating remaining imports to the canonical hook.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "migration_contract_fragmentation"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "fps_default_drift",
+      "summary": "Frame-estimation defaults are inconsistent across adjacent tooling modules",
+      "related_files": [
+        "src/tools/join-clips/utils/validation.ts",
+        "src/tools/training-data-helper/components/VideoSegmentEditor/constants.ts"
+      ],
+      "evidence": [
+        "`validation.ts` falls back to `24` fps (input mode) and `16` fps (backend default path).",
+        "`VideoSegmentEditor/constants.ts` defines `ASSUMED_FPS = 30` for frame estimates.",
+        "All are literals in local modules, so behavior changes depend on which code path computes frame count."
+      ],
+      "suggestion": "Centralize FPS defaults in a shared config module with named constants per mode (input-estimate, backend-default, editor-preview) and have both modules import those constants.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "distributed_magic_numbers"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Migration compatibility logic is spread across multiple files without a single ownership boundary.",
+      "Domain defaults (FPS assumptions) are encoded as local literals instead of shared constants."
+    ],
+    "likely_symptoms": [
+      "duplicated_legacy_structure_contracts",
+      "ungoverned_deprecated_shim",
+      "fps_default_drift"
+    ],
+    "possible_false_positives": []
+  }
+}

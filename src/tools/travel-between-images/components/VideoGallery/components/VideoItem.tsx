@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 import { Layers, Film } from 'lucide-react';
 import HoverScrubVideo from '@/shared/components/HoverScrubVideo';
 import { TimeStamp } from '@/shared/components/TimeStamp';

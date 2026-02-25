@@ -1,31 +1,9 @@
-/**
- * Unified Timeline Position Calculator
- * 
- * This utility ensures that new items added to a timeline always get unique
- * timeline_frame positions, preventing collisions that can cause display issues.
- * 
- * Used by:
- * - BatchDropZone (batch mode file/generation drops)
- * - Timeline (timeline mode file/generation drops)
- * - useAddImageToShot (add to shot button)
- * - handleTimelineImageDrop / handleTimelineGenerationDrop
- * - handleBatchImageDrop / handleBatchGenerationDrop
- */
-
 /** Default/max spacing when no existing items to calculate average from */
 export const DEFAULT_FRAME_SPACING = 50;
 
 /** Minimum spacing to use even if average is lower (prevents overly tight timelines) */
 const MIN_FRAME_SPACING = 10;
 
-/**
- * Calculate the average spacing between existing frames in a timeline.
- * Returns the default spacing if there aren't enough items to calculate an average.
- * 
- * @param existingFrames - Array of existing frame positions
- * @param defaultSpacing - Fallback spacing if average can't be calculated
- * @returns The average spacing, clamped between MIN_FRAME_SPACING and DEFAULT_FRAME_SPACING
- */
 export const calculateAverageSpacing = (
   existingFrames: number[],
   defaultSpacing: number = DEFAULT_FRAME_SPACING
@@ -39,23 +17,13 @@ export const calculateAverageSpacing = (
   const minFrame = sortedFrames[0];
   const maxFrame = sortedFrames[sortedFrames.length - 1];
   
-  // Calculate average: total span divided by number of gaps
   const totalSpan = maxFrame - minFrame;
   const numGaps = sortedFrames.length - 1;
   const averageSpacing = Math.round(totalSpan / numGaps);
-  
-  // Clamp between min (10) and max (81) to prevent outliers from causing huge gaps
+
   return Math.min(DEFAULT_FRAME_SPACING, Math.max(MIN_FRAME_SPACING, averageSpacing));
 };
 
-/**
- * Calculate a unique timeline frame that doesn't collide with existing frames.
- * 
- * @param targetFrame - The desired frame position
- * @param existingFrames - Array of existing frame positions in the shot
- * @param minGap - Minimum gap between frames (default: 1)
- * @returns A unique frame position that doesn't collide with existing frames
- */
 export const ensureUniqueFrame = (
   targetFrame: number,
   existingFrames: number[],
@@ -69,19 +37,15 @@ export const ensureUniqueFrame = (
     return frame;
   }
   
-  // Find nearest available position using expanding search
-  // Try +1, -1, +2, -2, etc. until we find an available slot
   let offset = 1;
   const maxOffset = 1000; // Safety limit
-  
+
   while (offset < maxOffset) {
-    // Try higher first (more natural for timeline)
     const higher = frame + offset;
     if (!existingFrames.includes(higher)) {
       return higher;
     }
-    
-    // Then try lower (but not below 0)
+
     const lower = frame - offset;
     if (lower >= 0 && !existingFrames.includes(lower)) {
       return lower;
@@ -90,28 +54,46 @@ export const ensureUniqueFrame = (
     offset += minGap;
   }
   
-  // Fallback: append at end (should never reach here)
   const maxFrame = existingFrames.length > 0 ? Math.max(...existingFrames) : 0;
   const fallback = maxFrame + DEFAULT_FRAME_SPACING;
   return fallback;
 };
 
-/**
- * Calculate frame position for inserting at a given index, with collision detection.
- * This is an enhanced version of getFramePositionForIndex that ensures uniqueness.
- * Uses average spacing of existing items when appending at end.
- * 
- * @param index - The grid index where the item is being inserted
- * @param existingFrames - Array of existing frame positions (sorted by timeline_frame)
- * @param explicitSpacing - Optional explicit spacing (overrides average calculation for end insertion)
- * @returns A unique frame position
- */
+interface DuplicateFrameOptions {
+  currentFrame: number;
+  nextFrame?: number | null;
+  existingFrames: number[];
+  singleItemTrailingFrame?: number | null;
+  isSingleItem: boolean;
+  defaultDuplicateGap?: number;
+  defaultSingleItemTrailingGap?: number;
+}
+
+export const calculateDuplicateFrame = (options: DuplicateFrameOptions): number => {
+  const {
+    currentFrame,
+    nextFrame,
+    existingFrames,
+    singleItemTrailingFrame,
+    isSingleItem,
+    defaultDuplicateGap = 30,
+    defaultSingleItemTrailingGap = 49,
+  } = options;
+
+  const baseTarget = isSingleItem
+    ? (singleItemTrailingFrame ?? (currentFrame + defaultSingleItemTrailingGap))
+    : (typeof nextFrame === 'number'
+      ? Math.floor((currentFrame + nextFrame) / 2)
+      : currentFrame + defaultDuplicateGap);
+
+  return ensureUniqueFrame(baseTarget, existingFrames);
+};
+
 export const calculateFrameForIndex = (
   index: number,
   existingFrames: number[],
   explicitSpacing?: number
 ): number => {
-  // Sort frames to ensure correct neighbor calculation
   const sortedFrames = [...existingFrames].sort((a, b) => a - b);
   
   let targetFrame: number;
@@ -139,14 +121,6 @@ export const calculateFrameForIndex = (
   return ensureUniqueFrame(targetFrame, sortedFrames);
 };
 
-/**
- * Calculate the next available frame for appending to a timeline.
- * Uses the average spacing of existing items to maintain consistent spacing.
- * 
- * @param existingFrames - Array of existing frame positions
- * @param explicitSpacing - Optional explicit spacing (overrides average calculation)
- * @returns A unique frame position at the end of the timeline
- */
 export const calculateNextAvailableFrame = (
   existingFrames: number[],
   explicitSpacing?: number
@@ -155,23 +129,14 @@ export const calculateNextAvailableFrame = (
     return 0;
   }
   
-  // Use explicit spacing if provided, otherwise calculate average
   const spacing = explicitSpacing ?? calculateAverageSpacing(existingFrames);
   
   const maxFrame = Math.max(...existingFrames);
   const targetFrame = maxFrame + spacing;
   
-  // Should always be unique since we're adding after max, but check anyway
   return ensureUniqueFrame(targetFrame, existingFrames);
 };
 
-/**
- * Extract timeline_frame values from an array of shot generations or images.
- * Filters out null/undefined values and videos.
- * 
- * @param items - Array of items with timeline_frame property
- * @returns Array of valid frame numbers
- */
 export const extractExistingFrames = (
   items: Array<{ timeline_frame?: number | null; type?: string | null }>
 ): number[] => {

@@ -2,9 +2,9 @@ import React from 'react';
 import { MessageSquare, X, Clapperboard, Palette, Settings2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { Button } from '@/shared/components/ui/button';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
-import type { PairLoraConfig, PairMotionSettings } from '@/types/shots';
+import type { PairLoraConfig, PairMotionSettings } from '@/domains/generation/types';
 
 interface PairPromptIndicatorProps {
   pairIndex: number;

@@ -1,0 +1,122 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 3,
+  "assessments": {
+    "abstraction_fitness": 57.0,
+    "mid_level_elegance": 60.0,
+    "low_level_elegance": 63.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "Task modules repeat the same abstraction stack (validate single, validate batch, build params, create single task, create batch via Promise.allSettled) in multiple files: src/shared/lib/tasks/magicEdit.ts, src/shared/lib/tasks/zImageTurboI2I.ts, src/shared/lib/tasks/imageGeneration.ts.",
+        "useImageEditValue keeps dual interfaces (boundary model + legacy flat params) and conversion glue (toModelsFromLegacy/isBoundaryModels) despite the assigned caller using the boundary-model path (src/tools/edit-images/hooks/useInlineEditState.ts calling src/tools/edit-images/hooks/useImageEditValue.ts).",
+        "Video lightbox render orchestration constructs and forwards large nested parameter bags (panel/shotWorkflow/actions/buttonGroupProps) through seam helpers, increasing indirection cost (src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx, src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 56.0,
+        "indirection_cost": 49.0,
+        "interface_honesty": 58.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Video lightbox handoff chain crosses multiple layers with broad bags rather than narrow seam contracts: VideoLightbox -> useVideoLightboxRenderModel -> useLightboxWorkflowProps -> LightboxLayout.",
+        "useVideoLightboxRenderModel merges UI decisions, workflow wiring, action bridging, and layout prop composition in one integration surface, making boundary behavior hard to localize.",
+        "Task creation seams for generation/edit/travel features use similar orchestration but with per-file ad hoc mapping logic, increasing cross-module glue entropy."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "individualTravelSegment payload construction uses large mutable UnknownRecord objects with post-construction deletes and conditional mutation (e.g., deleting legacy/SVI keys after object creation).",
+        "travelBetweenImages payloadBuilder builds a single large Record<string, unknown> with many conditional spreads and mixed normalization/assembly responsibilities in one function.",
+        "These payload builders are intention-heavy and mechanically dense, making local edits high-risk despite comments."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "duplicated_task_builder_pipeline",
+      "summary": "Multiple task modules reimplement the same single-vs-batch builder pipeline with only task-specific field differences.",
+      "related_files": [
+        "src/shared/lib/tasks/magicEdit.ts",
+        "src/shared/lib/tasks/zImageTurboI2I.ts",
+        "src/shared/lib/tasks/imageGeneration.ts"
+      ],
+      "evidence": [
+        "Each module defines paired parameter interfaces and paired validators, then batch functions that map params into per-task objects and call Promise.allSettled + processBatchResults.",
+        "magicEdit and zImageTurboI2I both generate per-item seeds, pass through mostly unchanged params, and delegate to a private single-task creator with near-identical control flow.",
+        "The abstraction is copy-shaped rather than reused, so adding cross-cutting behavior (telemetry/retry/validation policy changes) requires parallel edits."
+      ],
+      "suggestion": "Extract a shared task-creator template for the common pipeline (single-task create wrapper, batch fan-out strategy, result processing) and keep only task-specific param mapping in each module.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "stale_legacy_image_edit_adapter",
+      "summary": "useImageEditValue maintains a legacy flat-params adapter path that adds conversion indirection on a now model-based call site.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useImageEditValue.ts",
+        "src/tools/edit-images/hooks/useInlineEditState.ts"
+      ],
+      "evidence": [
+        "useImageEditValue accepts a union of UseImageEditValueModels | UseImageEditValueLegacyParams and branches via isBoundaryModels/toModelsFromLegacy.",
+        "The assigned caller in useInlineEditState builds and passes grouped models (buildImageEditValueModels -> useImageEditValue), indicating the modern contract is already in use.",
+        "Keeping both shapes inflates type/API surface and increases interface dishonesty for new consumers."
+      ],
+      "suggestion": "Deprecate and remove the flat legacy signature (or move it to an explicit compatibility wrapper), leaving useImageEditValue with a single model-based contract.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "lightbox_seam_prop_bag_overload",
+      "summary": "Video lightbox integration relies on large prop-bag handoffs that obscure ownership across render, workflow, and layout layers.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/VideoLightbox.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "useVideoLightboxRenderModel builds nested objects for panel, shotWorkflow, actions, and buttonGroupProps and forwards them into useLightboxWorkflowProps in one step.",
+        "VideoLightbox uses renderModel.layoutProps as a broad pass-through into LightboxLayout rather than narrow role-specific seams.",
+        "LightboxLayout then combines context reads and large prop surfaces (workflow/button groups/media controls), making upstream/downstream behavior tightly coupled."
+      ],
+      "suggestion": "Split the seam into smaller typed contracts (navigation contract, workflow actions contract, panel contract) with local selectors/adapters at each boundary so each layer owns fewer concerns.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "mutable_unknown_payload_assembly",
+      "summary": "Travel payload assembly mixes normalization, defaults, and mutation-heavy object surgery in large untyped records.",
+      "related_files": [
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts"
+      ],
+      "evidence": [
+        "individualTravelSegment builds large UnknownRecord payloads, then mutates/deletes fields (e.g., SVI and legacy structure fields) after initial assembly.",
+        "payloadBuilder constructs one large Record<string, unknown> with many conditional spreads and compatibility branches, concentrating multiple concerns in one function.",
+        "Both files rely on broad unknown maps instead of explicit payload interfaces, reducing local guarantees and making changes error-prone."
+      ],
+      "suggestion": "Introduce explicit payload types and staged pure builders (normalize input -> compute defaults -> compose payload) that avoid post-hoc deletes and minimize mutable record manipulation.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

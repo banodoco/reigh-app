@@ -1,0 +1,93 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 2,
+  "assessments": {
+    "api_surface_coherence": 79.0
+  },
+  "dimension_notes": {
+    "api_surface_coherence": {
+      "evidence": [
+        "Edge shared helpers expose multiple incompatible public contracts for similar failure paths: `ensureRequestMethod` returns `Promise<Response | null>` while `parseJsonBody` returns `Promise<OperationResult<Record<string, unknown>>>` in `supabase/functions/_shared/edgeRequest.ts`, and `checkRateLimit` returns a fail-open `RateLimitResult` with `degraded` markers in `supabase/functions/_shared/rateLimit.ts`.",
+        "`supabase/functions/complete_task/orchestrator.ts` and `supabase/functions/_shared/billing.ts` use wide positional APIs with many same-typed parameters (`checkOrchestratorCompletion(...)`, `markOrchestratorComplete(...)`, `triggerCostCalculation(...)`), increasing call-site ambiguity.",
+        "Join-clips services mix throw-based, sentinel-value, and silent-empty contracts: `toCanonicalJoinClipsTaskInput` throws validation errors (`src/shared/lib/tasks/joinClipsCompatAdapter.ts`), `consumePendingJoinClips` catches and returns `[]` (`src/tools/join-clips/lib/clipInitService.ts`), and `loadClipDuration` catches and returns `durationSeconds: 0` (`src/tools/join-clips/lib/clipManager/metadata.ts`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "edge_error_contract_fragmentation",
+      "summary": "Shared edge helpers use incompatible failure contracts for similar request-validation concerns",
+      "related_files": [
+        "supabase/functions/_shared/edgeRequest.ts",
+        "supabase/functions/_shared/rateLimit.ts",
+        "supabase/functions/_shared/billing.ts"
+      ],
+      "evidence": [
+        "`parseJsonBody` returns `OperationResult` (success/failure object) while `ensureRequestMethod` returns `Response | null` in the same module (`edgeRequest.ts`).",
+        "`checkRateLimit` never returns a failure object; it fail-opens to `{ allowed: true, degraded: true }` on RPC/runtime errors (`rateLimit.ts`), which differs from both response-returning and result-returning patterns.",
+        "`triggerCostCalculation` returns a separate `{ ok: boolean, ... }` envelope (`billing.ts`), creating a third error-contract style for edge utilities."
+      ],
+      "suggestion": "Adopt one shared edge contract for helpers (for example, a discriminated `OperationResult<T>`), then provide thin adapters only at HTTP boundaries (`Response` construction). Standardize method checks, JSON parsing, rate limiting, and downstream fetch helpers on that contract.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "edge_contract_fragmentation"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "positional_parameter_overload_in_orchestrator_path",
+      "summary": "Critical orchestration APIs rely on wide positional argument lists with ambiguous string parameters",
+      "related_files": [
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/_shared/billing.ts"
+      ],
+      "evidence": [
+        "`checkOrchestratorCompletion(supabase, taskIdString, completedTask, publicUrl, supabaseUrl, serviceKey)` takes 6 positional params, including three string args with different meanings.",
+        "`markOrchestratorComplete(...)` takes 8 positional params and forwards a subset to `triggerCostCalculation(supabaseUrl, serviceKey, orchestratorTaskId, ...)`, compounding ordering risk.",
+        "These signatures exceed the batch’s API-shape consistency guideline and are inconsistent with object-parameter patterns already used elsewhere in the same file (e.g., lookup helpers using named option objects)."
+      ],
+      "suggestion": "Convert orchestration and billing entrypoints to named options objects (e.g., `{ supabase, taskId, completedTask, urls: { publicUrl, supabaseUrl }, credentials: { serviceKey } }`) and keep backward-compat wrappers temporarily if needed.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "positional_api_drift"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "join_clips_error_surface_inconsistent",
+      "summary": "Join-clips helpers mix throw, silent-empty, and sentinel-success failure semantics",
+      "related_files": [
+        "src/shared/lib/tasks/joinClipsCompatAdapter.ts",
+        "src/tools/join-clips/lib/clipInitService.ts",
+        "src/tools/join-clips/lib/clipManager/metadata.ts"
+      ],
+      "evidence": [
+        "`toCanonicalJoinClipsTaskInput` and compat validation paths throw `TaskValidationError` for invalid inputs (`joinClipsCompatAdapter.ts`).",
+        "`consumePendingJoinClips` catches broad errors and returns `[]`, which is indistinguishable from a legitimate 'no pending clips' case (`clipInitService.ts`).",
+        "`loadClipDuration` catches metadata failures and returns `{ durationSeconds: 0 }`, conflating extraction failure with a real zero-duration value (`metadata.ts`)."
+      ],
+      "suggestion": "Standardize join-clips service APIs on a discriminated result (`{ ok: true, data } | { ok: false, errorCode, recoverable }`) and avoid ambiguous sentinel values (`[]`, `0`) for error cases unless explicitly wrapped with status metadata.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "join_clips_contract_drift"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "No single cross-module contract standard for recoverable vs non-recoverable failures at API boundaries.",
+      "Legacy evolution favored additive wrappers and positional signatures over converging on named, typed option objects.",
+      "Fail-open ergonomics in UI/tool helpers introduced ambiguous sentinel values without explicit status channels."
+    ],
+    "likely_symptoms": [
+      "edge_error_contract_fragmentation",
+      "positional_parameter_overload_in_orchestrator_path",
+      "join_clips_error_surface_inconsistent"
+    ],
+    "possible_false_positives": []
+  }
+}

@@ -17,7 +17,7 @@ vi.mock('@/shared/hooks/useShotCreation', () => ({
   })),
 }));
 
-vi.mock('@/shared/lib/errorHandler', () => ({
+vi.mock('@/shared/lib/compat/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 

@@ -1,0 +1,113 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 72.4
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/handleError.ts` and `src/integrations/supabase/legacy/legacySupabaseFacade.ts` both compute date-based import-budget constants at module load (`RUNTIME_ERROR_ALIAS_IMPORT_BUDGET`, `LEGACY_SUPABASE_IMPORT_BUDGET`), creating time-dependent import behavior.",
+        "`src/integrations/supabase/legacy/legacySupabaseFacade.ts` uses runtime reflection/probing of `supabaseClientModule` (`getSupabaseClient` vs `supabase`) and fallback behavior, which blurs migration boundaries.",
+        "`src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts` coordinates cross-feature behavior through global app events (`useAppEventListener('selectShotForAddition', ...)`) and large stateful callback surface, while related gallery item/action files carry parallel UI-state orchestration.",
+        "`src/shared/components/ui/button.tsx` (shared primitive) depends on app-theme variant maps (`theme/buttonVariants`), and `src/shared/components/MediaTypeFilter.tsx` embeds app-specific variant/color decisions (`retro`, `zinc`) inside shared layer components."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "import_time_temporal_budgets",
+      "summary": "Core compatibility modules execute time-based policy at import time, introducing non-deterministic module behavior.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` exports `RUNTIME_ERROR_ALIAS_IMPORT_BUDGET = getRuntimeErrorAliasImportBudget()` where the default path calls `new Date()`.",
+        "`legacySupabaseFacade.ts` exports `LEGACY_SUPABASE_IMPORT_BUDGET = getLegacySupabaseImportBudget()` with the same date-at-import pattern."
+      ],
+      "suggestion": "Move budget evaluation behind explicit runtime functions or diagnostics-only entrypoints; export static policy tables and let callers pass `now` when needed. Avoid computed time-dependent constants during module initialization.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "temporal_policy_in_runtime_modules"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "legacy_facade_contract_drift",
+      "summary": "Legacy Supabase facade dynamically probes multiple runtime APIs, masking boundary drift and prolonging compatibility coupling.",
+      "related_files": [
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "`getLegacySupabaseClient()` checks for `getSupabaseClient`, then falls back to `supabase` via `Record<string, unknown>` casts and try/catch probing.",
+        "The file is explicitly marked deprecated with removal target, but still exposes a broad transitional behavior surface rather than a narrow, enforceable adapter.",
+        "`handleError.ts` also retains deprecated alias exports (`reportRuntimeError`, `RuntimeErrorOptions`), indicating a repeated pattern of long-lived compatibility surfaces in foundational modules."
+      ],
+      "suggestion": "Replace runtime probing with one explicit adapter contract (single accessor), gate by build-time/type-time API, and shift deprecation telemetry into a dedicated migration monitor module. Enforce sunset by failing CI on remaining legacy imports.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "long_lived_compatibility_aliases"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "gallery_event_bus_orchestration",
+      "summary": "Gallery interaction flow is coordinated through global events plus distributed UI-state contracts, increasing cross-module coupling.",
+      "related_files": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+      ],
+      "evidence": [
+        "`useMediaGalleryHandlers` consumes many cross-cutting callbacks/state setters and subscribes to `useAppEventListener('selectShotForAddition', ...)`.",
+        "`ShotActions` defines multiple nested state/callback interfaces and coordinates navigation/add/mode behavior, indicating orchestration split across modules rather than a single bounded controller.",
+        "`useMediaGalleryItemState` carries additional local modal/tooltip/shot state and error routing, further distributing interaction policy."
+      ],
+      "suggestion": "Introduce a dedicated gallery interaction controller (context/store or reducer) with typed commands/events scoped to gallery domain; migrate components/hooks to consume this controller rather than global app events and wide callback props.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "gallery_interaction_orchestration"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "shared_ui_theme_layer_inversion",
+      "summary": "Shared UI primitives are coupled to app-theme decisions, weakening layer boundaries and reuse contracts.",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/MediaTypeFilter.tsx",
+        "src/shared/components/ui/label.tsx"
+      ],
+      "evidence": [
+        "`button.tsx` imports `APP_BUTTON_SIZES` and `APP_BUTTON_VARIANTS` from `shared/components/theme/buttonVariants` and merges them into primitive variants.",
+        "`MediaTypeFilter.tsx` hardcodes app-specific variant/colorScheme choices (`retro`, `retro-dark`, `zinc`) inside shared component layer.",
+        "Shared primitives (`label.tsx`/`button.tsx`) sit in the same layer as themed behavior, making dependency direction unclear between foundation UI and app branding."
+      ],
+      "suggestion": "Keep `shared/components/ui/*` as theme-agnostic primitives and move brand/theme composition into wrapper components (e.g., `ThemedButton`, `ThemedMediaTypeFilter`) in a higher layer.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shared_layer_boundary_blur"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Compatibility policies are embedded directly in runtime modules instead of isolated governance tooling.",
+      "Interaction state is orchestrated across multiple hooks/components without a single domain coordinator.",
+      "Shared layer boundaries are blurred by mixing primitives with app-specific theme behavior."
+    ],
+    "likely_symptoms": [
+      "import_time_temporal_budgets",
+      "legacy_facade_contract_drift",
+      "gallery_event_bus_orchestration",
+      "shared_ui_theme_layer_inversion"
+    ],
+    "possible_false_positives": []
+  }
+}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Label } from "@/shared/components/ui/label";
+import { Label } from "@/shared/components/ui/primitives/label";
 import { Button } from "@/shared/components/ui/button";
 
 import FileInput from "@/shared/components/FileInput";

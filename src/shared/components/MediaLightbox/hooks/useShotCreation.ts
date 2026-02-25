@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { GenerationRow, Shot } from '@/types/shots';
+import { GenerationRow, Shot } from '@/domains/generation/types';
 import { QuickCreateSuccess, ShotOption } from '../types';
 import { useQuickShotCreate } from '@/shared/hooks/useQuickShotCreate';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';

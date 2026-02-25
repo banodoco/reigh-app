@@ -16,7 +16,7 @@ import {
   type SteerableMotionSettings,
   DEFAULT_STEERABLE_MOTION_SETTINGS,
 } from '@/shared/types/steerableMotion';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
 
 // =============================================================================
 // TOOL-SPECIFIC TYPES

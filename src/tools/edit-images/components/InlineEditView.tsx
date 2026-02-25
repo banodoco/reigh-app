@@ -1,4 +1,4 @@
-import { GenerationRow } from '@/types/generationAndShots';
+import { GenerationRow } from '@/domains/generation/types';
 
 import {
   MediaDisplayWithCanvas,
@@ -7,15 +7,18 @@ import {
   BottomRightControls,
   EditModePanel,
   FloatingToolControls,
-} from '@/shared/components/MediaLightbox/components';
-import { ImageEditProvider } from '@/shared/components/MediaLightbox/contexts/ImageEditContext';
+  AnnotationFloatingControls,
+  ImageEditProvider,
+} from '@/features/image-edit';
 import { Button } from '@/shared/components/ui/button';
-import { Square, Trash2, Diamond } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { TooltipProvider } from '@/shared/components/ui/tooltip';
-import type { BrushStroke } from '@/shared/components/MediaLightbox/hooks/inpainting/types';
+import { VariantSelector } from '@/shared/components/VariantSelector';
 
-import { useInlineEditState } from '../hooks/useInlineEditState';
+import {
+  useInlineEditState,
+  type InlineEditStateResult,
+} from '../hooks/useInlineEditState';
 
 // ============================================================================
 // Types
@@ -28,105 +31,96 @@ interface InlineEditViewProps {
 }
 
 // ============================================================================
-// AnnotationButtons — desktop-only shape manipulation buttons
-// ============================================================================
-
-interface AnnotationButtonsProps {
-  selectedShapeId: string | null;
-  isAnnotateMode: boolean;
-  brushStrokes: BrushStroke[];
-  getDeleteButtonPosition: () => { x: number; y: number } | null;
-  handleToggleFreeForm: () => void;
-  handleDeleteSelected: () => void;
-}
-
-function AnnotationButtons({
-  selectedShapeId,
-  isAnnotateMode,
-  brushStrokes,
-  getDeleteButtonPosition,
-  handleToggleFreeForm,
-  handleDeleteSelected,
-}: AnnotationButtonsProps) {
-  if (!selectedShapeId || !isAnnotateMode) return null;
-
-  const buttonPos = getDeleteButtonPosition();
-  if (!buttonPos) return null;
-
-  const selectedShape = brushStrokes.find(s => s.id === selectedShapeId);
-  const isFreeForm = selectedShape?.isFreeForm || false;
-
-  return (
-    <div className="absolute z-[100] flex gap-2" style={{
-      left: `${buttonPos.x}px`,
-      top: `${buttonPos.y}px`,
-      transform: 'translate(-50%, -50%)'
-    }}>
-      <button
-        onClick={handleToggleFreeForm}
-        className={cn(
-          "rounded-full p-2 shadow-lg transition-colors",
-          isFreeForm
-            ? "bg-primary hover:bg-primary/90 text-primary-foreground"
-            : "bg-muted-foreground hover:bg-muted-foreground/80 text-white"
-        )}
-        title={isFreeForm
-          ? "Switch to rectangle mode (edges move linearly)"
-          : "Switch to free-form mode (rhombus/non-orthogonal angles)"}
-      >
-        {isFreeForm ? <Diamond className="h-4 w-4" /> : <Square className="h-4 w-4" />}
-      </button>
-
-      <button
-        onClick={handleDeleteSelected}
-        className="bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-full p-2 shadow-lg transition-colors"
-        title="Delete annotation (or press DELETE key)"
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
-    </div>
-  );
-}
-
-// ============================================================================
 // InlineEditCanvas — media display with all overlay controls
 // ============================================================================
 
 interface InlineEditCanvasProps {
   variant: 'mobile' | 'desktop';
-  state: ReturnType<typeof useInlineEditState>;
+  model: InlineEditCanvasModel;
   media: GenerationRow;
-  onClose: () => void;
 }
 
-function InlineEditCanvas({ variant, state, media, onClose: _onClose }: InlineEditCanvasProps) {
+interface InlineEditCanvasModel {
+  imageEditValue: InlineEditStateResult['imageEditValue'];
+  media: {
+    effectiveImageUrl: string;
+    isVideo: boolean;
+    imageDimensions: InlineEditStateResult['canvasEnvironment']['imageDimensions'];
+    setImageDimensions: InlineEditStateResult['canvasEnvironment']['setImageDimensions'];
+  };
+  annotation: {
+    selectedShapeId: InlineEditStateResult['inpaintingState']['selectedShapeId'];
+    isAnnotateMode: InlineEditStateResult['inpaintingState']['isAnnotateMode'];
+    brushStrokes: InlineEditStateResult['inpaintingState']['brushStrokes'];
+    getDeleteButtonPosition: InlineEditStateResult['inpaintingState']['getDeleteButtonPosition'];
+    handleToggleFreeForm: InlineEditStateResult['inpaintingState']['handleToggleFreeForm'];
+    handleDeleteSelected: InlineEditStateResult['inpaintingState']['handleDeleteSelected'];
+  };
+  generation: {
+    handleDownload: InlineEditStateResult['generationState']['handleDownload'];
+    localStarred: InlineEditStateResult['generationState']['localStarred'];
+    handleToggleStar: InlineEditStateResult['generationState']['handleToggleStar'];
+    toggleStarPending: boolean;
+  };
+  isSpecialEditMode: boolean;
+}
+
+function buildInlineEditCanvasModel(state: InlineEditStateResult): InlineEditCanvasModel {
+  return {
+    imageEditValue: state.imageEditValue,
+    media: {
+      effectiveImageUrl: state.canvasEnvironment.effectiveImageUrl,
+      isVideo: state.canvasEnvironment.isVideo,
+      imageDimensions: state.canvasEnvironment.imageDimensions,
+      setImageDimensions: state.canvasEnvironment.setImageDimensions,
+    },
+    annotation: {
+      selectedShapeId: state.inpaintingState.selectedShapeId,
+      isAnnotateMode: state.inpaintingState.isAnnotateMode,
+      brushStrokes: state.inpaintingState.brushStrokes,
+      getDeleteButtonPosition: state.inpaintingState.getDeleteButtonPosition,
+      handleToggleFreeForm: state.inpaintingState.handleToggleFreeForm,
+      handleDeleteSelected: state.inpaintingState.handleDeleteSelected,
+    },
+    generation: {
+      handleDownload: state.generationState.handleDownload,
+      localStarred: state.generationState.localStarred,
+      handleToggleStar: state.generationState.handleToggleStar,
+      toggleStarPending: state.generationState.toggleStarMutation.isPending,
+    },
+    isSpecialEditMode: state.inpaintingState.isSpecialEditMode,
+  };
+}
+
+function InlineEditCanvas({ variant, model, media }: InlineEditCanvasProps) {
   const isMobileVariant = variant === 'mobile';
 
   return (
-    <ImageEditProvider value={state.imageEditValue}>
+    <ImageEditProvider value={model.imageEditValue}>
       <MediaDisplayWithCanvas
-        effectiveImageUrl={state.canvasEnvironment.effectiveImageUrl}
+        effectiveImageUrl={model.media.effectiveImageUrl}
         thumbUrl={media.thumbnail_url || media.thumbUrl}
-        isVideo={state.canvasEnvironment.isVideo}
-        onImageLoad={state.canvasEnvironment.setImageDimensions}
+        isVideo={model.media.isVideo}
+        onImageLoad={model.media.setImageDimensions}
         variant={isMobileVariant ? "mobile-stacked" : "desktop-side-panel"}
         containerClassName={isMobileVariant ? "w-full h-full" : "max-w-full max-h-full"}
         debugContext={isMobileVariant ? "Mobile Inline" : "InlineEdit"}
-        imageDimensions={state.canvasEnvironment.imageDimensions}
+        imageDimensions={model.media.imageDimensions}
       />
 
       {!isMobileVariant && (
-        <AnnotationButtons
-          selectedShapeId={state.inpaintingState.selectedShapeId}
-          isAnnotateMode={state.inpaintingState.isAnnotateMode}
-          brushStrokes={state.inpaintingState.brushStrokes}
-          getDeleteButtonPosition={state.inpaintingState.getDeleteButtonPosition}
-          handleToggleFreeForm={state.inpaintingState.handleToggleFreeForm}
-          handleDeleteSelected={state.inpaintingState.handleDeleteSelected}
+        <AnnotationFloatingControls
+          selectedShapeId={model.annotation.selectedShapeId}
+          isAnnotateMode={model.annotation.isAnnotateMode}
+          brushStrokes={model.annotation.brushStrokes}
+          getDeleteButtonPosition={model.annotation.getDeleteButtonPosition}
+          onToggleFreeForm={model.annotation.handleToggleFreeForm}
+          onDeleteSelected={model.annotation.handleDeleteSelected}
+          positionStrategy="absolute"
         />
       )}
 
-      {state.inpaintingState.isSpecialEditMode && (
+      {model.isSpecialEditMode && (
         <FloatingToolControls
           variant={isMobileVariant ? "mobile" : "tablet"}
         />
@@ -134,23 +128,17 @@ function InlineEditCanvas({ variant, state, media, onClose: _onClose }: InlineEd
 
       <TopRightControls
         showDownload={true}
-        handleDownload={state.generationState.handleDownload}
+        handleDownload={model.generation.handleDownload}
       />
 
       <BottomLeftControls
-        localStarred={state.generationState.localStarred}
-        handleToggleStar={state.generationState.handleToggleStar}
-        toggleStarPending={state.generationState.toggleStarMutation.isPending}
+        localStarred={model.generation.localStarred}
+        handleToggleStar={model.generation.handleToggleStar}
+        toggleStarPending={model.generation.toggleStarPending}
       />
 
       <BottomRightControls
-        localStarred={state.generationState.localStarred}
-        handleToggleStar={state.generationState.handleToggleStar}
-        toggleStarPending={state.generationState.toggleStarMutation.isPending}
         showAddToReferences={false}
-        isAddingToReferences={false}
-        addToReferencesSuccess={false}
-        handleAddToReferences={async () => {}}
       />
     </ImageEditProvider>
   );
@@ -162,53 +150,131 @@ function InlineEditCanvas({ variant, state, media, onClose: _onClose }: InlineEd
 
 interface InlineEditSidebarProps {
   variant: 'mobile' | 'desktop';
-  state: ReturnType<typeof useInlineEditState>;
-  media: GenerationRow;
+  model: InlineEditSidebarModel;
   onClose: () => void;
   onNavigateToGeneration?: (generationId: string) => Promise<void>;
 }
 
-function InlineEditSidebar({ variant, state, media, onClose, onNavigateToGeneration }: InlineEditSidebarProps) {
-  if (state.inpaintingState.isSpecialEditMode) {
-    return (
-      <EditModePanel
-        variant={variant === 'mobile' ? 'mobile' : 'desktop'}
-        hideInfoEditToggle={true}
-        simplifiedHeader={true}
-        sourceGenerationData={state.sourceGenerationData}
-        onOpenExternalGeneration={onNavigateToGeneration ?
-          async (id) => onNavigateToGeneration(id) : undefined
-        }
-        currentMediaId={media.id}
-        handleUnifiedGenerate={state.generationState.handleUnifiedGenerate}
-        handleGenerateAnnotatedEdit={state.generationState.handleGenerateAnnotatedEdit}
-        handleGenerateReposition={state.generationState.handleGenerateReposition}
-        handleSaveAsVariant={state.generationState.handleSaveAsVariant}
-        handleGenerateImg2Img={state.generationState.handleGenerateImg2Img}
-        img2imgLoraManager={state.generationState.img2imgLoraManager}
-        availableLoras={state.availableLoras}
-        coreState={{ onClose }}
-        imageEditState={state.imageEditValue}
-      />
-    );
-  }
+interface InlineEditSidebarModel {
+  isSpecialEditMode: boolean;
+  sourceGenerationData: InlineEditStateResult['sourceGenerationData'];
+  currentMediaId: string;
+  generation: {
+    handleUnifiedGenerate: InlineEditStateResult['generationState']['handleUnifiedGenerate'];
+    handleGenerateAnnotatedEdit: InlineEditStateResult['generationState']['handleGenerateAnnotatedEdit'];
+    handleGenerateReposition: InlineEditStateResult['generationState']['handleGenerateReposition'];
+    handleSaveAsVariant: InlineEditStateResult['generationState']['handleSaveAsVariant'];
+    handleGenerateImg2Img: InlineEditStateResult['generationState']['handleGenerateImg2Img'];
+    img2imgLoraManager: InlineEditStateResult['generationState']['img2imgLoraManager'];
+  };
+  availableLoras: InlineEditStateResult['availableLoras'];
+  imageEditValue: InlineEditStateResult['imageEditValue'];
+  variants: {
+    list: InlineEditStateResult['variants']['variants'];
+    activeVariantId: string | null;
+    isLoading: boolean;
+    setActiveVariantId: InlineEditStateResult['variants']['setActiveVariantId'];
+    setPrimaryVariant: InlineEditStateResult['variants']['setPrimaryVariant'];
+    deleteVariant: InlineEditStateResult['variants']['deleteVariant'];
+  };
+  actions: {
+    enterInpaintMode: () => void;
+    enterMagicEditMode: () => void;
+  };
+}
 
-  return (
+function buildInlineEditSidebarModel(state: InlineEditStateResult): InlineEditSidebarModel {
+  return {
+    isSpecialEditMode: state.inpaintingState.isSpecialEditMode,
+    sourceGenerationData: state.sourceGenerationData,
+    currentMediaId: state.media.id,
+    generation: {
+      handleUnifiedGenerate: state.generationState.handleUnifiedGenerate,
+      handleGenerateAnnotatedEdit: state.generationState.handleGenerateAnnotatedEdit,
+      handleGenerateReposition: state.generationState.handleGenerateReposition,
+      handleSaveAsVariant: state.generationState.handleSaveAsVariant,
+      handleGenerateImg2Img: state.generationState.handleGenerateImg2Img,
+      img2imgLoraManager: state.generationState.img2imgLoraManager,
+    },
+    availableLoras: state.availableLoras,
+    imageEditValue: state.imageEditValue,
+    variants: {
+      list: state.variants.variants,
+      activeVariantId: state.variants.activeVariant?.id || null,
+      isLoading: state.variants.isLoading,
+      setActiveVariantId: state.variants.setActiveVariantId,
+      setPrimaryVariant: state.variants.setPrimaryVariant,
+      deleteVariant: state.variants.deleteVariant,
+    },
+    actions: {
+      enterInpaintMode: () => {
+        state.inpaintingState.setIsInpaintMode(true);
+        state.inpaintingState.setEditMode('inpaint');
+      },
+      enterMagicEditMode: state.inpaintingState.handleEnterMagicEditMode,
+    },
+  };
+}
+
+function InlineEditSidebar({ variant, model, onClose, onNavigateToGeneration }: InlineEditSidebarProps) {
+  const sidebarContent = model.isSpecialEditMode ? (
+    <EditModePanel
+      variant={variant === 'mobile' ? 'mobile' : 'desktop'}
+      hideInfoEditToggle={true}
+      simplifiedHeader={true}
+      sourceGenerationData={model.sourceGenerationData}
+      onOpenExternalGeneration={onNavigateToGeneration ?
+        async (id) => onNavigateToGeneration(id) : undefined
+      }
+      currentMediaId={model.currentMediaId}
+      handleUnifiedGenerate={model.generation.handleUnifiedGenerate}
+      handleGenerateAnnotatedEdit={model.generation.handleGenerateAnnotatedEdit}
+      handleGenerateReposition={model.generation.handleGenerateReposition}
+      handleSaveAsVariant={model.generation.handleSaveAsVariant}
+      handleGenerateImg2Img={model.generation.handleGenerateImg2Img}
+      img2imgLoraManager={model.generation.img2imgLoraManager}
+      availableLoras={model.availableLoras}
+      coreState={{ onClose }}
+      imageEditState={model.imageEditValue}
+    />
+  ) : (
     <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center gap-y-4">
       <h3 className="text-xl font-medium">Image Editor</h3>
       <p className="text-muted-foreground">Select an option to start editing</p>
 
       <div className="grid grid-cols-1 gap-4 w-full max-w-xs">
         <Button onClick={() => {
-          state.inpaintingState.setIsInpaintMode(true);
-          state.inpaintingState.setEditMode('inpaint');
+          model.actions.enterInpaintMode();
         }} className="w-full">
           Inpaint / Erase
         </Button>
 
-        <Button onClick={state.inpaintingState.handleEnterMagicEditMode} variant="secondary" className="w-full">
+        <Button onClick={model.actions.enterMagicEditMode} variant="secondary" className="w-full">
           Magic Edit
         </Button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="w-full h-full flex flex-col min-h-0">
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {sidebarContent}
+      </div>
+      <div
+        className={cn(
+          'border-t border-border bg-background/95 backdrop-blur-sm px-3 pt-3 pb-6',
+          variant === 'mobile' ? 'pb-8' : 'pb-6'
+        )}
+      >
+        <VariantSelector
+          variants={model.variants.list}
+          activeVariantId={model.variants.activeVariantId}
+          onVariantSelect={(variantId) => model.variants.setActiveVariantId(variantId)}
+          onMakePrimary={model.variants.setPrimaryVariant}
+          isLoading={model.variants.isLoading}
+          onDeleteVariant={model.variants.deleteVariant}
+        />
       </div>
     </div>
   );
@@ -220,8 +286,11 @@ function InlineEditSidebar({ variant, state, media, onClose, onNavigateToGenerat
 
 export function InlineEditView({ media, onClose, onNavigateToGeneration }: InlineEditViewProps) {
   const state = useInlineEditState(media, onNavigateToGeneration);
+  const canvasModel = buildInlineEditCanvasModel(state);
+  const sidebarModel = buildInlineEditSidebarModel(state);
+  const isMobile = state.canvasEnvironment.isMobile;
 
-  if (state.canvasEnvironment.isMobile) {
+  if (isMobile) {
     return (
       <TooltipProvider delayDuration={500}>
         <div className="w-full flex flex-col bg-transparent">
@@ -229,7 +298,7 @@ export function InlineEditView({ media, onClose, onNavigateToGeneration }: Inlin
               className="flex items-center justify-center relative bg-black w-full shrink-0 rounded-t-2xl overflow-hidden"
               style={{ height: '45dvh', touchAction: 'pan-y' }}
             >
-              <InlineEditCanvas variant="mobile" state={state} media={media} onClose={onClose} />
+              <InlineEditCanvas variant="mobile" model={canvasModel} media={media} />
             </div>
 
             <div
@@ -240,8 +309,7 @@ export function InlineEditView({ media, onClose, onNavigateToGeneration }: Inlin
             >
               <InlineEditSidebar
                 variant="mobile"
-                state={state}
-                media={media}
+                model={sidebarModel}
                 onClose={onClose}
                 onNavigateToGeneration={onNavigateToGeneration}
               />
@@ -258,7 +326,7 @@ export function InlineEditView({ media, onClose, onNavigateToGeneration }: Inlin
             className="flex-1 flex items-center justify-center relative bg-black rounded-l-xl overflow-hidden"
             style={{ width: '60%', height: '100%' }}
           >
-            <InlineEditCanvas variant="desktop" state={state} media={media} onClose={onClose} />
+            <InlineEditCanvas variant="desktop" model={canvasModel} media={media} />
           </div>
 
           <div
@@ -269,8 +337,7 @@ export function InlineEditView({ media, onClose, onNavigateToGeneration }: Inlin
           >
             <InlineEditSidebar
               variant="desktop"
-              state={state}
-              media={media}
+              model={sidebarModel}
               onClose={onClose}
               onNavigateToGeneration={onNavigateToGeneration}
             />

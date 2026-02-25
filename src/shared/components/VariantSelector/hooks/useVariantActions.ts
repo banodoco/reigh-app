@@ -8,12 +8,13 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
-import { useAsyncOperationMap } from '@/shared/hooks/useAsyncOperation';
+import { useAsyncOperationMap } from '@/shared/hooks/async/useAsyncOperation';
 import { usePrefetchTaskData, usePrefetchTaskById } from '@/shared/hooks/useTaskPrefetch';
 import { getLineageDepth } from '@/shared/hooks/useLineageChain';
-import { getSourceTaskId } from '@/shared/lib/taskIdHelpers';
+import { getSourceTaskIdLegacyCompatible } from '@/shared/lib/taskIdHelpers';
 import { useToggleVariantStar } from '@/shared/hooks/useToggleVariantStar';
 import type { GenerationVariant } from '@/shared/hooks/useVariants';
+import { useProject } from '@/shared/contexts/ProjectContext';
 
 interface UseVariantActionsProps {
   variants: GenerationVariant[];
@@ -48,6 +49,7 @@ export function useVariantActions(props: UseVariantActionsProps) {
 
   const deleteOperation = useAsyncOperationMap();
   const { toggleStar } = useToggleVariantStar();
+  const { selectedProjectId } = useProject();
 
   // Lineage depth checking on hover
   const checkedLineageIdsRef = useRef<Set<string>>(new Set());
@@ -56,21 +58,22 @@ export function useVariantActions(props: UseVariantActionsProps) {
 
   const checkLineageDepthOnHover = useCallback(async (variantId: string) => {
     if (checkedLineageIdsRef.current.has(variantId)) return;
+    if (!selectedProjectId) return;
     checkedLineageIdsRef.current.add(variantId);
     try {
-      const depth = await getLineageDepth(variantId);
+      const depth = await getLineageDepth(variantId, selectedProjectId);
       setVariantLineageDepth(prev => ({ ...prev, [variantId]: depth }));
     } catch {
       setVariantLineageDepth(prev => ({ ...prev, [variantId]: 0 }));
     }
-  }, []);
+  }, [selectedProjectId]);
 
   const handleVariantMouseEnter = useCallback((variant: GenerationVariant) => {
     if (isMobile) return;
     checkLineageDepthOnHover(variant.id);
 
     const variantParams = variant.params;
-    const validSourceTaskId = getSourceTaskId(variantParams);
+    const validSourceTaskId = getSourceTaskIdLegacyCompatible(variantParams);
 
     if (validSourceTaskId) {
       prefetchTaskById(validSourceTaskId);

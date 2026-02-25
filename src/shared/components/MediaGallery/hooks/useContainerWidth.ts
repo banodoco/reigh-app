@@ -29,10 +29,15 @@ export function useContainerWidth(): [RefObject<HTMLDivElement | null>, number] 
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const newWidth = entry.contentRect.width;
-        // Only accept widths that are reasonable (at least 50% of estimate)
-        // This filters out intermediate layout states
-        if (newWidth > initialEstimate * 0.5) {
+        if (newWidth <= 0) continue;
+
+        if (!hasReceivedStableWidth.current) {
+          // First measurement: apply immediately to prevent layout flash
+          // (e.g. gallery in a narrow panel starts with full-viewport estimate)
           hasReceivedStableWidth.current = true;
+          setWidth(newWidth);
+        } else {
+          // Subsequent measurements: debounce for smooth animated resizes
           if (debounceTimer) clearTimeout(debounceTimer);
           debounceTimer = setTimeout(() => setWidth(newWidth), 150);
         }

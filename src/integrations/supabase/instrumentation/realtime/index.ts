@@ -1,7 +1,7 @@
 import { __CORRUPTION_TRACE_ENABLED__, __REALTIME_DOWN_FIX_ENABLED__ } from '@/integrations/supabase/config/env';
 import { captureRealtimeSnapshot } from '@/integrations/supabase/utils/snapshot';
 import { __CORRUPTION_TIMELINE__, addCorruptionEvent } from '@/integrations/supabase/utils/timeline';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Realtime client with instrumentation properties
@@ -14,7 +14,7 @@ interface RealtimeClientWithInstrumentation {
 }
 
 function reportRealtimeCorruption(message: string, logData: Record<string, unknown>) {
-  handleError(new Error(message), {
+  normalizeAndPresentError(new Error(message), {
     context: 'RealtimeInstrumentation',
     showToast: false,
     logData,
@@ -22,12 +22,10 @@ function reportRealtimeCorruption(message: string, logData: Record<string, unkno
 }
 
 export function installRealtimeInstrumentation(supabase: SupabaseClient) {
-  // InstrumentationManager removed - calling legacy function directly
-  return installRealtimeInstrumentationLegacy(supabase);
-}
+  if (!__CORRUPTION_TRACE_ENABLED__ && !__REALTIME_DOWN_FIX_ENABLED__) {
+    return;
+  }
 
-// Legacy function for backward compatibility - direct implementation
-function installRealtimeInstrumentationLegacy(supabase: SupabaseClient) {
   if (typeof window === 'undefined' || !supabase?.realtime) return;
   const realtime = supabase.realtime as unknown as RealtimeClientWithInstrumentation;
 
@@ -102,40 +100,10 @@ function installRealtimeInstrumentationLegacy(supabase: SupabaseClient) {
       realtime.__REFERENCE_TRACKING_INSTALLED__ = true;
     }
   } catch (error) {
-    handleError(error, { context: 'RealtimeInstrumentation', showToast: false });
+    normalizeAndPresentError(error, { context: 'RealtimeInstrumentation', showToast: false });
   }
 
-  // Heuristic for realtime=down to dispatch provider-led heal
-  if (__REALTIME_DOWN_FIX_ENABLED__ && typeof window !== 'undefined') {
-    const consoleWithFlag = console as Console & { __WARN_INTERCEPTED__?: boolean };
-    if (!consoleWithFlag.__WARN_INTERCEPTED__) {
-      consoleWithFlag.__WARN_INTERCEPTED__ = true;
-      const originalConsoleWarn = console.warn;
-      console.warn = function(...args: unknown[]) {
-        const message = args.join(' ');
-        if (message.includes('realtime=down') || message.includes('Polling boosted due to realtime=down')) {
-
-          // Use async IIFE to handle dynamic import
-          (async () => {
-            try {
-              const module = await import('@/integrations/supabase/reconnect/ReconnectScheduler');
-              const { getReconnectScheduler } = module;
-
-              const scheduler = getReconnectScheduler();
-
-              scheduler.requestReconnect({
-                source: 'ConsoleWarnInterceptor',
-                reason: 'realtime=down detected in console output',
-                priority: 'medium'
-              });
-
-            } catch (error) {
-              handleError(error, { context: 'RealtimeInstrumentation', showToast: false });
-            }
-          })();
-        }
-        return originalConsoleWarn.apply(this, args as Parameters<typeof console.warn>);
-      };
-    }
-  }
+  // Reconnect requests are now emitted from explicit realtime failure paths
+  // (RealtimeConnection / auth lifecycle) rather than global console interception.
+  // This avoids masking warning callsite stacks in devtools.
 }

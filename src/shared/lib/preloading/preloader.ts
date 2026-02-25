@@ -9,6 +9,11 @@ import type { PreloadableImage, PreloadConfig } from './types';
 import { PreloadQueue } from './queue';
 import { setImageLoadStatus, hasLoadedImage, markImageLoaded } from './tracker';
 import { getDisplayUrl } from '@/shared/lib/mediaUrl';
+import { isPreloadableMediaUrl } from '@/shared/lib/mediaTypeHelpers';
+
+function hasImageId(image: PreloadableImage): image is PreloadableImage & { id: string } {
+  return typeof image.id === 'string' && image.id.length > 0;
+}
 
 /**
  * Preload a batch of images using the provided queue.
@@ -29,7 +34,7 @@ export async function preloadImages(
   const limitedImages = images.slice(0, config.maxImagesPerPage);
 
   // Filter out already-loaded images
-  const toPreload = limitedImages.filter((img) => !hasLoadedImage(img as { id: string }));
+  const toPreload = limitedImages.filter((img) => !hasImageId(img) || !hasLoadedImage(img));
 
   if (toPreload.length === 0) {
     return;
@@ -43,8 +48,8 @@ export async function preloadImages(
       return;
     }
 
-    // Skip invalid URLs (e.g., join-clips outputs with non-existent thumbnails)
-    if (url.includes('_joined_frame.jpg')) {
+    // Skip known non-preloadable media URLs (e.g., join-clips placeholder outputs).
+    if (!isPreloadableMediaUrl(url)) {
       return;
     }
 
@@ -53,8 +58,8 @@ export async function preloadImages(
       const element = await queue.add(url, priority - idx);
 
       // Track by ID if available
-      if (img.id) {
-        setImageLoadStatus(img as { id: string }, true);
+      if (hasImageId(img)) {
+        setImageLoadStatus(img, true);
       }
 
       // Track by URL with element ref (for browser cache persistence)
@@ -72,7 +77,9 @@ export async function preloadImages(
  * Get the URL to preload for an image (thumbnail or full based on config)
  */
 function getImageUrl(img: PreloadableImage, thumbnailOnly: boolean): string | null {
-  const rawUrl = thumbnailOnly ? img.thumbUrl || img.url : img.url;
+  const rawUrl = thumbnailOnly
+    ? (img.thumbUrl || img.thumbnail_url || null)
+    : (img.url || null);
 
   if (!rawUrl) {
     return null;

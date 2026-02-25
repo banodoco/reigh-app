@@ -1,22 +1,20 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import Stripe from "https://esm.sh/stripe@12.18.0?target=deno";
-import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rateLimit.ts";
-import { authenticateRequest } from "../_shared/auth.ts";
-import { SystemLogger } from "../_shared/systemLogger.ts";
-
-// Helper for standard JSON responses with CORS headers
-function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-    },
-  });
-}
+import {
+  checkRateLimit,
+  isRateLimitExceededFailure,
+  rateLimitFailureResponse,
+  RATE_LIMITS,
+} from "../_shared/rateLimit.ts";
+import { bootstrapEdgeHandler } from "../_shared/edgeHandler.ts";
+import { jsonResponse } from "../_shared/http.ts";
+import {
+  createStripeClient,
+  dollarsToCents,
+  getAutoTopupConfigFailure,
+  requireFrontendUrl,
+  validateAutoTopupConfig,
+  validateCreditPurchaseAmount,
+} from "../_shared/autoTopupDomain.ts";
 
 /**
  * Edge function: stripe-checkout
@@ -39,56 +37,45 @@ function jsonResponse(body: unknown, status = 200) {
  * - 500 Internal Server Error
  */
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return jsonResponse({ ok: true });
+  const bootstrap = await bootstrapEdgeHandler(req, {
+    functionName: "stripe-checkout",
+    logPrefix: "[STRIPE-CHECKOUT]",
+    parseBody: "strict",
+    auth: {
+      options: { allowJwtUserAuth: true },
+    },
+  });
+  if (!bootstrap.ok) {
+    return bootstrap.response;
   }
 
-  if (req.method !== "POST") {
-    return jsonResponse({ error: "Method not allowed" }, 405);
+  const {
+    supabaseAdmin,
+    logger,
+    body,
+    auth,
+  } = bootstrap.value;
+  const amount = body.amount;
+  const autoTopupEnabled = body.autoTopupEnabled === true;
+  const autoTopupAmount = body.autoTopupAmount;
+  const autoTopupThreshold = body.autoTopupThreshold;
+
+  const amountValidationError = validateCreditPurchaseAmount(amount);
+  if (amountValidationError) {
+    return jsonResponse({ error: amountValidationError }, 400);
   }
 
-  // ─── 1. Parse body ──────────────────────────────────────────────
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return jsonResponse({ error: "Invalid JSON body" }, 400);
-  }
-  
-  const { amount, autoTopupEnabled, autoTopupAmount, autoTopupThreshold } = body;
-  if (!amount || typeof amount !== 'number' || amount < 5 || amount > 100) {
-    return jsonResponse({ error: "Amount must be a number between $5 and $100" }, 400);
+  const autoTopupValidationError = validateAutoTopupConfig({
+    autoTopupEnabled,
+    autoTopupAmount,
+    autoTopupThreshold,
+  });
+  if (autoTopupValidationError) {
+    return jsonResponse({ error: autoTopupValidationError }, 400);
   }
 
-  // Validate auto-top-up parameters if provided
-  if (autoTopupEnabled) {
-    if (!autoTopupAmount || typeof autoTopupAmount !== 'number' || autoTopupAmount < 5 || autoTopupAmount > 100) {
-      return jsonResponse({ error: "autoTopupAmount must be a number between $5 and $100" }, 400);
-    }
-    if (!autoTopupThreshold || typeof autoTopupThreshold !== 'number' || autoTopupThreshold < 1) {
-      return jsonResponse({ error: "autoTopupThreshold must be a positive number" }, 400);
-    }
-    if (autoTopupThreshold >= autoTopupAmount) {
-      return jsonResponse({ error: "autoTopupThreshold must be less than autoTopupAmount" }, 400);
-    }
-  }
-
-  // ─── 2. Authenticate request ────────────────────────────────────
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-  if (!supabaseUrl || !serviceKey) {
-    console.error("Missing required environment variables");
-    return jsonResponse({ error: "Server configuration error" }, 500);
-  }
-
-  const supabaseAdmin = createClient(supabaseUrl, serviceKey);
-  const logger = new SystemLogger(supabaseAdmin, 'stripe-checkout');
-
-  const auth = await authenticateRequest(req, supabaseAdmin, "[STRIPE-CHECKOUT]", { allowJwtUserAuth: true });
-  if (!auth.success || !auth.userId) {
-    return jsonResponse({ error: auth.error || "Authentication failed" }, auth.statusCode || 401);
+  if (!auth?.userId) {
+    return jsonResponse({ error: "Authentication failed" }, 401);
   }
 
   // ─── 3. Rate limit check ──────────────────────────────────────────
@@ -99,30 +86,32 @@ serve(async (req) => {
     RATE_LIMITS.expensive,
     '[STRIPE-CHECKOUT]'
   );
-  if (!rateLimitResult.allowed) {
-    return rateLimitResponse(rateLimitResult, RATE_LIMITS.expensive);
+  if (!rateLimitResult.ok) {
+    if (isRateLimitExceededFailure(rateLimitResult)) {
+      return rateLimitFailureResponse(rateLimitResult, RATE_LIMITS.expensive);
+    }
+
+    logger.error('Rate limit check failed', {
+      user_id: auth.userId,
+      error_code: rateLimitResult.errorCode,
+      message: rateLimitResult.message,
+    });
+    await logger.flush();
+    return jsonResponse({ error: 'Rate limit service unavailable' }, 503);
+  }
+
+  if (rateLimitResult.policy === 'fail_open') {
+    logger.warn('Rate limit check degraded; allowing request', {
+      user_id: auth.userId,
+      reason: rateLimitResult.value.degraded?.reason,
+      message: rateLimitResult.value.degraded?.message,
+    });
   }
 
   try {
     // ─── 5. Initialize Stripe and create checkout session ─────────────────────────
-    const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
-    const frontendUrl = Deno.env.get("FRONTEND_URL");
-    
-    if (!stripeSecretKey) {
-      logger.error("Missing Stripe configuration");
-      await logger.flush();
-      return jsonResponse({ error: "Stripe not configured" }, 500);
-    }
-
-    if (!frontendUrl) {
-      logger.error("FRONTEND_URL not set in environment");
-      await logger.flush();
-      return jsonResponse({ error: "Frontend URL not configured" }, 500);
-    }
-
-    const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: "2024-06-20",
-    });
+    const frontendUrl = requireFrontendUrl();
+    const stripe = createStripeClient();
 
     // Look up user email for Stripe checkout pre-fill
     const { data: userData } = await supabaseAdmin.from('users').select('email').eq('id', auth.userId).single();
@@ -141,7 +130,7 @@ serve(async (req) => {
                 ? `${amount} credits + auto-top-up enabled`
                 : `${amount} credits for AI generation tasks`
             },
-            unit_amount: amount * 100, // Convert dollars to cents
+            unit_amount: dollarsToCents(amount), // Convert dollars to cents
           },
           quantity: 1,
         },
@@ -158,12 +147,14 @@ serve(async (req) => {
 
     // If auto-top-up enabled, configure payment method saving
     if (autoTopupEnabled) {
+      const normalizedAutoTopupAmount = autoTopupAmount as number;
+      const normalizedAutoTopupThreshold = autoTopupThreshold as number;
       sessionConfig.customer_creation = "if_required";
       sessionConfig.payment_intent_data = {
         setup_future_usage: "off_session"
       };
-      sessionConfig.metadata.autoTopupAmount = autoTopupAmount.toString();
-      sessionConfig.metadata.autoTopupThreshold = autoTopupThreshold.toString();
+      sessionConfig.metadata.autoTopupAmount = normalizedAutoTopupAmount.toString();
+      sessionConfig.metadata.autoTopupThreshold = normalizedAutoTopupThreshold.toString();
     }
 
     const session = await stripe.checkout.sessions.create(sessionConfig);
@@ -179,8 +170,19 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    logger.error('Error creating Stripe checkout session', { error: error.message });
+    const configFailure = getAutoTopupConfigFailure(error);
+    if (configFailure) {
+      logger.error(configFailure.logMessage);
+      await logger.flush();
+      return jsonResponse({ error: configFailure.userMessage }, 500);
+    }
+
+    logger.error('Error creating Stripe checkout session', {
+      error: error instanceof Error ? error.message : String(error),
+    });
     await logger.flush();
-    return jsonResponse({ error: `Internal server error: ${error.message}` }, 500);
+    return jsonResponse({
+      error: `Internal server error: ${error instanceof Error ? error.message : String(error)}`,
+    }, 500);
   }
 }); 

@@ -3,7 +3,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { Input } from '@/shared/components/ui/input';
 import { NumberInput } from '@/shared/components/ui/number-input';
-import { Label } from '@/shared/components/ui/label';
+import { Label } from '@/shared/components/ui/primitives/label';
 import { RadioGroup, RadioGroupItem } from '@/shared/components/ui/radio-group';
 import { Slider } from '@/shared/components/ui/slider';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip';

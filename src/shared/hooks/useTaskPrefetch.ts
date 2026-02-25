@@ -9,9 +9,22 @@
 
 import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { mapDbTaskToTask } from './useTasks';
 import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
+import { getProjectSelectionFallbackId } from '@/shared/contexts/projectSelectionStore';
+import { isUuid } from '@/shared/lib/uuid';
+
+function resolveProjectScope(projectId?: string | null): string | null {
+  if (projectId && projectId.trim().length > 0) {
+    return projectId;
+  }
+  const selectedProjectId = getProjectSelectionFallbackId();
+  if (selectedProjectId && selectedProjectId.trim().length > 0) {
+    return selectedProjectId;
+  }
+  return null;
+}
 
 /**
  * Hook for getting task data from cache for a generation.
@@ -21,13 +34,16 @@ import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
  * @returns Query result with { taskId: string | null }
  */
 export function useTaskFromUnifiedCache(generationId: string) {
+  const hasPersistedGenerationId = isUuid(generationId);
   const result = useQuery<{ taskId: string | null }>({
     queryKey: taskQueryKeys.generationTaskId(generationId),
     queryFn: async (): Promise<{ taskId: string | null }> => {
+      if (!hasPersistedGenerationId) {
+        return { taskId: null };
+      }
       // Fetch task ID from generations table
       // Note: React Query won't call this if data is cached (staleTime: Infinity)
-      const { data, error } = await supabase
-        .from('generations')
+      const { data, error } = await supabase().from('generations')
         .select('tasks')
         .eq('id', generationId)
         .maybeSingle();
@@ -51,7 +67,7 @@ export function useTaskFromUnifiedCache(generationId: string) {
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    enabled: !!generationId,
+    enabled: hasPersistedGenerationId,
   });
 
   return result;
@@ -65,8 +81,9 @@ export function useTaskFromUnifiedCache(generationId: string) {
 export function usePrefetchTaskData() {
   const queryClient = useQueryClient();
 
-  const prefetch = useCallback(async (generationId: string) => {
-    if (!generationId) return;
+  const prefetch = useCallback(async (generationId: string, projectId?: string | null) => {
+    const effectiveProjectId = resolveProjectScope(projectId);
+    if (!generationId || !effectiveProjectId || !isUuid(generationId)) return;
 
     // Check if task ID mapping is already cached (including { taskId: null } for no-task generations)
     let taskId: string | null = null;
@@ -81,8 +98,7 @@ export function usePrefetchTaskData() {
         const result = await queryClient.fetchQuery({
           queryKey: taskQueryKeys.generationTaskId(generationId),
           queryFn: async () => {
-            const { data, error } = await supabase
-              .from('generations')
+            const { data, error } = await supabase().from('generations')
               .select('tasks')
               .eq('id', generationId)
               .maybeSingle();
@@ -104,16 +120,16 @@ export function usePrefetchTaskData() {
 
     // Prefetch the full task data if we have a task ID and it's not cached
     if (taskId) {
-      const cachedTask = queryClient.getQueryData(taskQueryKeys.single(taskId));
+      const cachedTask = queryClient.getQueryData(taskQueryKeys.single(taskId, effectiveProjectId));
       if (!cachedTask) {
         try {
           await queryClient.fetchQuery({
-            queryKey: taskQueryKeys.single(taskId),
+            queryKey: taskQueryKeys.single(taskId, effectiveProjectId),
             queryFn: async () => {
-              const { data, error } = await supabase
-                .from('tasks')
+              const { data, error } = await supabase().from('tasks')
                 .select('*')
                 .eq('id', taskId)
+                .eq('project_id', effectiveProjectId)
                 .single();
 
               if (error) throw error;
@@ -139,23 +155,24 @@ export function usePrefetchTaskData() {
 export function usePrefetchTaskById() {
   const queryClient = useQueryClient();
 
-  const prefetch = useCallback(async (taskId: string) => {
-    if (!taskId) return;
+  const prefetch = useCallback(async (taskId: string, projectId?: string | null) => {
+    const effectiveProjectId = resolveProjectScope(projectId);
+    if (!taskId || !effectiveProjectId || !isUuid(taskId)) return;
 
     // Check if already cached
-    const cached = queryClient.getQueryData(taskQueryKeys.single(taskId));
+    const cached = queryClient.getQueryData(taskQueryKeys.single(taskId, effectiveProjectId));
     if (cached) {
       return;
     }
 
     try {
       await queryClient.fetchQuery({
-        queryKey: taskQueryKeys.single(taskId),
+        queryKey: taskQueryKeys.single(taskId, effectiveProjectId),
         queryFn: async () => {
-          const { data, error } = await supabase
-            .from('tasks')
+          const { data, error } = await supabase().from('tasks')
             .select('*')
             .eq('id', taskId)
+            .eq('project_id', effectiveProjectId)
             .single();
 
           if (error) throw error;

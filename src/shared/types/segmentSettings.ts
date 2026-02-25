@@ -1,26 +1,8 @@
-/**
- * Unified Segment Settings Types
- *
- * This file defines the canonical types for video generation settings.
- * These types are used at ALL layers:
- * - Shot level: default settings for all segments
- * - Segment/Pair level: overrides for specific segments
- * - Form level: current editing state
- * - Task level: final values sent to backend
- *
- * NAMING CONVENTION: camelCase everywhere (no snake_case, no prefixes)
- * SCALE CONVENTION: motionAmount is 0-100 everywhere, converted to 0-1 only at task submission
- */
+/** Canonical travel-between-images settings contracts (camelCase, UI motion scale is 0-100). */
 
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
 
-// =============================================================================
-// LORA CONFIG
-// =============================================================================
-
-/**
- * LoRA configuration - unified format for all layers.
- */
+/** LoRA settings shared by shot defaults and segment overrides. */
 export interface LoraConfig {
   id: string;
   name: string;
@@ -36,101 +18,47 @@ export interface LoraConfig {
   triggerWord?: string;
 }
 
-// =============================================================================
-// SEGMENT SETTINGS (Core - used at both shot and segment level)
-// =============================================================================
-
 /**
  * Core segment settings that can exist at shot level (defaults) or segment level (overrides).
- *
- * At shot level: provides defaults for all segments
- * At segment level: sparse object with only overridden fields
- *
- * NOTE: Field names match existing codebase conventions for backwards compatibility:
- * - amountOfMotion (not motionAmount) - 0-100 scale
- * - numFrames (not frameCount)
- * - selectedPhasePresetId (not phasePresetId)
  */
 export interface SegmentSettings {
-  // === PROMPTS ===
-  /** Main generation prompt */
   prompt: string;
-  /** Negative prompt - things to avoid */
   negativePrompt: string;
-  /** Text prepended to prompt (merged before sending to backend) */
   textBeforePrompts?: string;
-  /** Text appended to prompt (merged before sending to backend) */
   textAfterPrompts?: string;
 
-  // === MOTION ===
-  /** Motion control mode */
   motionMode: 'basic' | 'advanced';
-  /** Amount of motion (0-100 scale, UI-friendly). Convert to 0-1 only at task submission. */
+  /** UI scale (0-100). Convert to 0-1 only in task payload assembly. */
   amountOfMotion: number;
 
-  // === ADVANCED CONFIG ===
-  /** Phase configuration for advanced mode */
   phaseConfig?: PhaseConfig;
-  /** ID of selected phase preset (null = custom/manual) */
   selectedPhasePresetId: string | null;
 
-  // === LORAS ===
-  /** Active LoRAs for generation */
   loras: LoraConfig[];
 
-  // === VIDEO ===
-  /** Frame count for this segment */
   numFrames: number;
 
-  // === SEED ===
-  /** Whether to use random seed */
   randomSeed: boolean;
-  /** Specific seed value (only used if randomSeed is false) */
   seed?: number;
 
-  // === VARIANT BEHAVIOR ===
-  /** Whether to make this the primary variant when regenerating */
   makePrimaryVariant: boolean;
 
-  // === STRUCTURE VIDEO OVERRIDES (only applicable when segment has structure video) ===
-  /** Structure video motion strength override (0-2, default ~1.2) */
   structureMotionStrength?: number;
-  /** Structure video treatment mode override */
   structureTreatment?: 'adjust' | 'clip';
-  /** Uni3C guidance end percent override (0-1, only for uni3c type) */
   structureUni3cEndPercent?: number;
 }
-
-// =============================================================================
-// SHOT VIDEO SETTINGS (Extends SegmentSettings with batch-specific fields)
-// =============================================================================
 
 /**
  * Shot-level video settings - extends SegmentSettings with batch-specific fields.
  * This is what's stored in shots.settings['travel-between-images'].
- *
- * NOTE: Field names match existing codebase conventions:
- * - batchVideoFrames (not batchFrameCount)
- * - enhancePrompt (not enhancePrompts)
- * - generationTypeMode (not generationMode)
  */
 export interface ShotVideoSettings extends SegmentSettings {
-  // === BATCH-SPECIFIC (not per-segment) ===
-  /** Default frame count for batch generation */
   batchVideoFrames: number;
-  /** Text prepended to all prompts */
   textBeforePrompts: string;
-  /** Text appended to all prompts */
   textAfterPrompts: string;
-  /** Whether to AI-enhance prompts */
   enhancePrompt: boolean;
-  /** Generation mode: I2V or VACE */
   generationTypeMode: 'i2v' | 'vace';
 }
-
-// =============================================================================
-// SEGMENT OVERRIDES (Sparse - only overridden fields)
-// =============================================================================
 
 /**
  * Segment-level overrides - a sparse version of SegmentSettings.
@@ -139,13 +67,6 @@ export interface ShotVideoSettings extends SegmentSettings {
  */
 export type SegmentOverrides = Partial<Omit<SegmentSettings, 'makePrimaryVariant'>>;
 
-// =============================================================================
-// DEFAULTS
-// =============================================================================
-
-/**
- * Default values for SegmentSettings.
- */
 export const DEFAULT_SEGMENT_SETTINGS: SegmentSettings = {
   prompt: '',
   negativePrompt: '',
@@ -160,9 +81,6 @@ export const DEFAULT_SEGMENT_SETTINGS: SegmentSettings = {
   makePrimaryVariant: false,
 };
 
-/**
- * Default values for ShotVideoSettings (extends segment defaults).
- */
 export const DEFAULT_SHOT_VIDEO_SETTINGS: ShotVideoSettings = {
   ...DEFAULT_SEGMENT_SETTINGS,
   batchVideoFrames: 61,
@@ -171,5 +89,3 @@ export const DEFAULT_SHOT_VIDEO_SETTINGS: ShotVideoSettings = {
   enhancePrompt: false,
   generationTypeMode: 'i2v',
 };
-
-// =============================================================================

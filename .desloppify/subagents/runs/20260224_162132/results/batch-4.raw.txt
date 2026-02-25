@@ -1,0 +1,76 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 4,
+  "assessments": {
+    "package_organization": 68.0
+  },
+  "dimension_notes": {
+    "package_organization": {
+      "evidence": [
+        "holistic_context.structure.directory_profiles shows `src/shared/hooks/` has 95 production files (well above the >10 mixed-concern overload signal), and assigned files `useApiTokens.ts`, `useAsyncOperation.ts`, and `useAutoSaveSettings.ts` represent different concerns (account API token domain, async utility, settings persistence orchestration) inside the same flat folder.",
+        "holistic_context.structure.directory_profiles shows `src/shared/components/` has 80 files with mixed responsibilities; assigned `ActiveLoRAsDisplay.tsx` and `AppErrorBoundary.test.tsx` are at root level despite existing specialized component subfolders (`generation-controls`, app-specific error boundary locations), indicating weak directory boundaries.",
+        "The assigned files have parallel copies in alternate package paths (`src/shared/hooks/async/useAsyncOperation.ts`, `src/shared/settings/hooks/useAutoSaveSettings.ts`, `src/shared/components/generation-controls/ActiveLoRAsDisplay.tsx`, and app error-boundary path), which creates ambiguous ownership and split navigation paths."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "package_organization",
+      "identifier": "shared_hooks_flattening_mixed_concerns",
+      "summary": "Critical hooks with different ownership are colocated in an overloaded flat `shared/hooks` package.",
+      "related_files": [
+        "src/shared/hooks/useApiTokens.ts",
+        "src/shared/hooks/useAsyncOperation.ts",
+        "src/shared/hooks/useAutoSaveSettings.ts"
+      ],
+      "evidence": [
+        "`src/shared/hooks/` has 95 files in `directory_profiles`, exceeding the >10 mixed-concern threshold by a large margin.",
+        "`useApiTokens.ts` is account/billing specific and tied to Supabase PAT flows, while `useAsyncOperation.ts` is generic async infrastructure and `useAutoSaveSettings.ts` is settings persistence orchestration."
+      ],
+      "suggestion": "Staged reorg plan: (1) create target folders `src/features/account/hooks/`, `src/shared/hooks/async/`, and `src/shared/settings/hooks/`; (2) move `useApiTokens.ts` to `src/features/account/hooks/useApiTokens.ts`, then `useAsyncOperation.ts` to `src/shared/hooks/async/useAsyncOperation.ts`, then `useAutoSaveSettings.ts` to `src/shared/settings/hooks/useAutoSaveSettings.ts`; (3) update imports with `rg -n \"@/shared/hooks/(useApiTokens|useAsyncOperation|useAutoSaveSettings)\" src` and replace to new paths; (4) validate with `pnpm -s tsc --noEmit` and focused tests `pnpm vitest src/shared/hooks/__tests__/useAsyncOperation.test.ts src/shared/hooks/__tests__/useAutoSaveSettings.test.ts`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "parallel_hook_locations_split_ownership",
+      "summary": "Assigned hook/test files coexist with duplicate module trees, creating unclear canonical locations.",
+      "related_files": [
+        "src/shared/hooks/useAsyncOperation.ts",
+        "src/shared/hooks/__tests__/useAsyncOperation.test.ts",
+        "src/shared/hooks/useAutoSaveSettings.ts",
+        "src/shared/hooks/__tests__/useAutoSaveSettings.test.ts"
+      ],
+      "evidence": [
+        "There are parallel paths for the same hooks (`src/shared/hooks/async/useAsyncOperation.ts` and `src/shared/settings/hooks/useAutoSaveSettings.ts`) while assigned legacy-path tests still live under `src/shared/hooks/__tests__/`.",
+        "This creates two navigation/ownership paths for the same behavior and increases import drift risk."
+      ],
+      "suggestion": "Staged reorg plan: (1) pick canonical packages (`src/shared/hooks/async/` for async operation, `src/shared/settings/hooks/` for auto-save settings); (2) move the assigned tests to mirror canonical folders (`src/shared/hooks/async/__tests__/...`, `src/shared/settings/hooks/__tests__/...`); (3) leave temporary compatibility re-exports at old paths for one release cycle; (4) run `rg -n \"useAsyncOperation|useAutoSaveSettings\" src` to migrate imports, then validate with `pnpm -s tsc --noEmit` and `pnpm vitest src/shared/hooks/async/__tests__/useAsyncOperation.test.ts src/shared/settings/hooks/__tests__/useAutoSaveSettings.test.ts`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "root_component_placement_ambiguous_domains",
+      "summary": "Root-level component files are placed outside stronger domain folders despite clear domain affinity.",
+      "related_files": [
+        "src/shared/components/ActiveLoRAsDisplay.tsx",
+        "src/shared/components/ActiveLoRAsDisplay.test.tsx",
+        "src/shared/components/AppErrorBoundary.test.tsx"
+      ],
+      "evidence": [
+        "`src/shared/components/` has 80 files and mixes many unrelated domains; this exceeds the flat-directory cohesion signal.",
+        "`ActiveLoRAsDisplay` is LoRA/generation-specific and already has a parallel `generation-controls` location in the repo, while `AppErrorBoundary` tests exist under shared root despite app-level error-boundary structure elsewhere."
+      ],
+      "suggestion": "Staged reorg plan: (1) set target folders: `src/shared/components/generation-controls/` for `ActiveLoRAsDisplay*` and `src/app/components/error/__tests__/` for app error-boundary test files; (2) move component/test files in order: `ActiveLoRAsDisplay.tsx`, `ActiveLoRAsDisplay.test.tsx`, then `AppErrorBoundary.test.tsx`; (3) update imports via `rg -n \"shared/components/(ActiveLoRAsDisplay|AppErrorBoundary)\" src`; (4) validate with `pnpm -s tsc --noEmit` and targeted tests `pnpm vitest src/shared/components/generation-controls/ActiveLoRAsDisplay.test.tsx src/app/components/error/__tests__/AppErrorBoundary.test.tsx`.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

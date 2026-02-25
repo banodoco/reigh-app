@@ -15,8 +15,10 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
 import { TASK_TYPES, VARIANT_TYPE_DEFAULT } from './constants.ts';
 import { extractBasedOn, extractShotAndPosition, buildGenerationParams } from './params.ts';
-import { insertGeneration, createVariant, findSourceGenerationByImageUrl, extractFromArray } from './generation-core.ts';
+import { insertGeneration, createVariant, findSourceGenerationByImageUrl } from './generation-core.ts';
 import { createVariantOnParent, getChildVariantViewedAt } from './generation-parent.ts';
+import { normalizeSegmentTaskParams } from './taskParamNormalizer.ts';
+import { buildSegmentMasterStateSnapshot } from './generation-child-diagnostics.ts';
 
 interface HandlerContext {
   supabase: SupabaseClient;
@@ -29,6 +31,16 @@ interface HandlerContext {
   parentGenerationId?: string;
   childOrder?: number | null;
   isSingleItem?: boolean;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function asString(value: unknown): string | null {
+  return typeof value === 'string' && value.length > 0 ? value : null;
 }
 
 // ===== HANDLER: CHILD GENERATION =====
@@ -57,36 +69,28 @@ export async function handleChildGeneration(ctx: HandlerContext): Promise<unknow
     task_type: taskData.task_type,
   });
 
+  const normalized = normalizeSegmentTaskParams({
+    taskData,
+    childOrder: finalChildOrder,
+    isSingleItem: Boolean(isSingleItem),
+  });
+  const normalizedCtx: HandlerContext = {
+    ...ctx,
+    taskData: normalized.taskData,
+  };
+
   // Handle single-item case: create variant on parent AND child generation
   // (Travel sends is_single_item for n=1; Join doesn't use single-item handling)
   if (isSingleItem) {
-    taskData.params._isSingleSegmentCase = true;
-
     logger?.info("Single-item detected", {
       task_id: taskId,
       parent_generation_id: parentGenerationId,
     });
 
-    await createSingleItemVariant(ctx, parentGenerationId);
+    await createSingleItemVariant(normalizedCtx, parentGenerationId);
   }
 
-  // Extract segment-specific params from orchestrator details
-  const orchDetails = taskData.params?.orchestrator_details ||
-                      taskData.params?.full_orchestrator_payload || {};
-  if (Object.keys(orchDetails).length > 0 && finalChildOrder !== null && !isNaN(finalChildOrder)) {
-    taskData.params = extractSegmentSpecificParams(taskData.params, orchDetails, finalChildOrder);
-    if (isSingleItem) {
-      taskData.params._isSingleSegmentCase = true;
-    }
-  }
-
-  // Extract pair_shot_generation_id from multiple nested locations
-  // (individual_travel_segment stores it in individual_segment_params)
-  const segmentIndex = taskData.params?.segment_index ?? finalChildOrder ?? 0;
-  const orchPairIds = taskData.params?.orchestrator_details?.pair_shot_generation_ids;
-  const pairShotGenId = taskData.params?.pair_shot_generation_id ||
-                        taskData.params?.individual_segment_params?.pair_shot_generation_id ||
-                        (Array.isArray(orchPairIds) && orchPairIds[segmentIndex]);
+  const pairShotGenId = normalized.pairShotGenerationId;
 
   // Check for existing generation at same position (always check for segment tasks)
   if (finalChildOrder !== null && !isNaN(finalChildOrder)) {
@@ -96,7 +100,7 @@ export async function handleChildGeneration(ctx: HandlerContext): Promise<unknow
 
     if (existingGenId) {
       const variantViewedAt = await getChildVariantViewedAt(supabase, {
-        taskParams: taskData.params,
+        taskParams: normalized.params,
         parentGenerationId,
       });
 
@@ -106,13 +110,13 @@ export async function handleChildGeneration(ctx: HandlerContext): Promise<unknow
         child_order: finalChildOrder,
       });
 
-      const variantTypeForExisting = taskData.variant_type || VARIANT_TYPE_DEFAULT;
+      const variantTypeForExisting = normalized.taskData.variant_type || VARIANT_TYPE_DEFAULT;
 
       const variantResult = await createVariantOnParent(
-        supabase, existingGenId, publicUrl, thumbnailUrl, taskData, taskId,
+        supabase, existingGenId, publicUrl, thumbnailUrl, normalized.taskData, taskId,
         variantTypeForExisting,
         {
-          tool_type: taskData.tool_type,
+          tool_type: normalized.taskData.tool_type,
           created_from: 'segment_variant_at_position',
           segment_index: finalChildOrder,
           pair_shot_generation_id: pairShotGenId
@@ -128,7 +132,13 @@ export async function handleChildGeneration(ctx: HandlerContext): Promise<unknow
   }
 
   // Create the child generation
-  return createChildGenerationRecord(ctx, parentGenerationId, finalChildOrder, isSingleItem || false, pairShotGenId);
+  return createChildGenerationRecord(
+    normalizedCtx,
+    parentGenerationId,
+    finalChildOrder,
+    isSingleItem || false,
+    pairShotGenId,
+  );
 }
 
 // ===== SINGLE-ITEM VARIANT CREATION =====
@@ -141,6 +151,7 @@ export async function createSingleItemVariant(
   parentGenerationId: string
 ): Promise<unknown | null> {
   const { supabase, taskId, taskData, publicUrl, thumbnailUrl, childOrder } = ctx;
+  const params = asRecord(taskData.params);
 
   // Check if this is first variant on parent
   const { count: existingVariantCount } = await supabase
@@ -149,9 +160,7 @@ export async function createSingleItemVariant(
     .eq('generation_id', parentGenerationId);
   const isFirstVariant = (existingVariantCount || 0) === 0;
 
-  const toolType = taskData.params?.full_orchestrator_payload?.tool_type ||
-                   taskData.params?.tool_type ||
-                   taskData.tool_type;
+  const toolType = asString(params.tool_type) ?? asString(taskData.tool_type);
 
   const variantType = taskData.variant_type || VARIANT_TYPE_DEFAULT;
 
@@ -236,12 +245,13 @@ export async function createChildGenerationRecord(
   pairShotGenerationId?: string | null | false
 ): Promise<unknown> {
   const { supabase, taskId, taskData, publicUrl, thumbnailUrl, logger } = ctx;
+  const params = asRecord(taskData.params);
 
-  const { shotId } = extractShotAndPosition(taskData.params);
+  const { shotId } = extractShotAndPosition(params);
   const generationType = taskData.content_type || 'video';
   const toolType = taskData.tool_type;
   let generationParams = buildGenerationParams(
-    taskData.params, toolType, generationType, shotId, thumbnailUrl || undefined, taskId
+    params, toolType, generationType, shotId, thumbnailUrl || undefined, taskId
   );
 
   // Ensure pair_shot_generation_id is at top level of params (for slot matching)
@@ -251,12 +261,10 @@ export async function createChildGenerationRecord(
 
   const newGenerationId = crypto.randomUUID();
 
-  const generationName = taskData.params?.generation_name ||
-    taskData.params?.orchestrator_details?.generation_name ||
-    taskData.params?.full_orchestrator_payload?.generation_name;
+  const generationName = asString(params.generation_name);
 
   // Find based_on
-  let basedOnGenerationId: string | null = extractBasedOn(taskData.params);
+  let basedOnGenerationId: string | null = extractBasedOn(params);
   if (basedOnGenerationId) {
     const { data: basedOnGen, error: basedOnError } = await supabase
       .from('generations')
@@ -269,7 +277,7 @@ export async function createChildGenerationRecord(
     }
   }
   if (!basedOnGenerationId) {
-    const sourceImageUrl = taskData.params?.image;
+    const sourceImageUrl = asString(params.image);
     if (sourceImageUrl) {
       basedOnGenerationId = await findSourceGenerationByImageUrl(supabase, sourceImageUrl);
     }
@@ -326,25 +334,25 @@ export async function createChildGenerationRecord(
 
   const newGeneration = await insertGeneration(supabase, generationRecord);
 
-  // Log segment state for debugging (travel segments only)
+  // Build diagnostic snapshot for segment tasks without mixing it into write-path orchestration.
   const isTravelSegmentTask = taskData.task_type === TASK_TYPES.TRAVEL_SEGMENT ||
                                taskData.task_type === TASK_TYPES.INDIVIDUAL_TRAVEL_SEGMENT;
-  const orchDetails = taskData.params?.orchestrator_details ||
-                      taskData.params?.full_orchestrator_payload || {};
+  const orchestratorDetails = asRecord(params.orchestrator_details);
 
   if (isTravelSegmentTask && childOrder !== null) {
     try {
-      logSegmentMasterState({
+      const segmentSnapshot = buildSegmentMasterStateSnapshot({
         taskId,
         generationId: newGeneration.id,
         segmentIndex: childOrder,
         parentGenerationId,
-        orchDetails,
-        segmentParams: taskData.params,
+        orchestratorDetails,
+        segmentParams: params,
         shotId,
       });
+      logger?.debug?.('Segment master state', segmentSnapshot);
     } catch (logError) {
-      console.warn('Failed to log segment master state', {
+      logger?.warn?.('Failed to build segment master state', {
         taskId,
         generationId: newGeneration.id,
         segmentIndex: childOrder,
@@ -378,152 +386,4 @@ export async function createChildGenerationRecord(
   await supabase.from('tasks').update({ generation_created: true }).eq('id', taskId);
 
   return newGeneration;
-}
-
-// ===== SEGMENT-SPECIFIC HELPERS =====
-// (Merged from generation-segments.ts)
-
-/**
- * Logs a comprehensive summary of a segment after creation.
- * For debugging FE vs BE discrepancies in travel segment generation.
- */
-function logSegmentMasterState(params: {
-  taskId: string;
-  generationId: string;
-  segmentIndex: number;
-  parentGenerationId: string | null;
-  orchDetails: unknown;
-  segmentParams: unknown;
-  shotId?: string;
-}) {
-  const TAG = '[SEGMENT_MASTER_STATE]';
-  const divider = '═'.repeat(80);
-  const sectionDivider = '─'.repeat(60);
-
-  const { segmentIndex, orchDetails, segmentParams } = params;
-
-  console.log(`\n${divider}`);
-  console.log(divider);
-
-  // SECTION 1: SEGMENT-SPECIFIC DATA
-  console.log(`\n${TAG} SEGMENT DATA (Index ${segmentIndex})`);
-  console.log(sectionDivider);
-
-  const _basePrompt = segmentParams?.prompt || extractFromArray(orchDetails?.base_prompts_expanded, segmentIndex) || orchDetails?.base_prompt || '';
-  const _negativePrompt = segmentParams?.negative_prompt || extractFromArray(orchDetails?.negative_prompts_expanded, segmentIndex) || '';
-  const _enhancedPrompt = extractFromArray(orchDetails?.enhanced_prompts_expanded, segmentIndex) || '';
-
-  // SECTION 2: INPUT IMAGES
-  console.log(`\n${TAG} INPUT IMAGES`);
-  console.log(sectionDivider);
-
-  const inputImages = orchDetails?.input_image_paths_resolved || [];
-  const _inputGenIds = orchDetails?.input_image_generation_ids || [];
-  const pairShotGenIds = orchDetails?.pair_shot_generation_ids || [];
-
-  const startIdx = segmentIndex;
-  const endIdx = segmentIndex + 1;
-
-  const _startImageUrl = inputImages[startIdx] || '(unknown)';
-  const _endImageUrl = inputImages[endIdx] || '(unknown)';
-  const _pairShotGenId = pairShotGenIds[segmentIndex] || '(none)';
-
-  // SECTION 3: STRUCTURE VIDEOS
-  console.log(`\n${TAG} STRUCTURE VIDEOS`);
-  console.log(sectionDivider);
-
-  const structureVideos = orchDetails?.structure_videos || [];
-  const legacyStructurePath = orchDetails?.structure_video_path;
-  const segmentFramesExpanded = orchDetails?.segment_frames_expanded || [];
-
-  let segStartFrame = 0;
-  for (let i = 0; i < segmentIndex && i < segmentFramesExpanded.length; i++) {
-    segStartFrame += segmentFramesExpanded[i];
-  }
-  const segEndFrame = segStartFrame + (segmentFramesExpanded[segmentIndex] || 0);
-
-  if (structureVideos.length > 0) {
-    let _foundAffecting = false;
-    structureVideos.forEach((sv: unknown, _idx: number) => {
-      const svStart = sv.start_frame || 0;
-      const svEnd = sv.end_frame || 0;
-      if (svStart < segEndFrame && svEnd > segStartFrame) {
-        _foundAffecting = true;
-        const _pathShort = sv.path?.length > 40 ? '...' + sv.path.slice(-37) : (sv.path || '(unknown)');
-      }
-    });
-  } else if (legacyStructurePath) {
-    const _pathShort = legacyStructurePath.length > 40 ? '...' + legacyStructurePath.slice(-37) : legacyStructurePath;
-  }
-
-  // SECTION 4: MODEL & SETTINGS
-  console.log(`\n${TAG} MODEL & SETTINGS`);
-  console.log(sectionDivider);
-
-  const additionalLoras = orchDetails?.additional_loras;
-  const phaseConfig = orchDetails?.phase_config;
-  if (additionalLoras && Object.keys(additionalLoras).length > 0) {
-    Object.entries(additionalLoras).forEach(([path, _strength]) => {
-      const _pathShort = path.split('/').pop() || path;
-    });
-  } else if (phaseConfig?.phases) {
-    const uniqueLoras = new Set<string>();
-    phaseConfig.phases.forEach((phase: unknown) => {
-      phase.loras?.forEach((lora: unknown) => uniqueLoras.add(lora.url?.split('/').pop() || 'unknown'));
-    });
-  }
-
-  // SECTION 5: ORCHESTRATOR CONTEXT
-  console.log(`\n${TAG} ORCHESTRATOR CONTEXT`);
-  console.log(sectionDivider);
-
-  console.log(`\n${divider}\n`);
-}
-
-/**
- * Extract segment-specific params from expanded arrays in orchestrator_details.
- * For travel segments, each segment can have different prompts, frame counts, etc.
- */
-function extractSegmentSpecificParams(
-  params: unknown,
-  orchDetails: unknown,
-  segmentIndex: number
-): unknown {
-  const specificParams = { ...params };
-
-  const specificPrompt = extractFromArray(orchDetails.base_prompts_expanded, segmentIndex);
-  if (specificPrompt !== undefined) {
-    specificParams.prompt = specificPrompt;
-  }
-
-  const specificNegativePrompt = extractFromArray(orchDetails.negative_prompts_expanded, segmentIndex);
-  if (specificNegativePrompt !== undefined) {
-    specificParams.negative_prompt = specificNegativePrompt;
-  }
-
-  const specificFrames = extractFromArray(orchDetails.segment_frames_expanded, segmentIndex);
-  if (specificFrames !== undefined) {
-    specificParams.num_frames = specificFrames;
-  }
-
-  const specificOverlap = extractFromArray(orchDetails.frame_overlap_expanded, segmentIndex);
-  if (specificOverlap !== undefined) {
-    specificParams.frame_overlap = specificOverlap;
-  }
-
-  const pairShotGenId = extractFromArray(orchDetails.pair_shot_generation_ids, segmentIndex);
-  if (pairShotGenId !== undefined) {
-    specificParams.pair_shot_generation_id = pairShotGenId;
-  }
-
-  const startImageGenId = extractFromArray(orchDetails.input_image_generation_ids, segmentIndex);
-  if (startImageGenId !== undefined) {
-    specificParams.start_image_generation_id = startImageGenId;
-  }
-  const endImageGenId = extractFromArray(orchDetails.input_image_generation_ids, segmentIndex + 1);
-  if (endImageGenId !== undefined) {
-    specificParams.end_image_generation_id = endImageGenId;
-  }
-
-  return specificParams;
 }

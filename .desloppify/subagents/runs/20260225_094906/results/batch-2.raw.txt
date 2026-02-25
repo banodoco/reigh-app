@@ -1,0 +1,158 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 79.0,
+    "dependency_health": 82.0,
+    "mid_level_elegance": 75.0,
+    "low_level_elegance": 73.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "Join-clips compat keeps a mixed canonical+legacy parameter bag (`JoinClipsTaskCompatParams`) and then strips/normalizes it into canonical shape, creating an extra abstraction layer with little leverage.",
+        "Canonical join-clips export is itself a pass-through wrapper (`createCanonicalJoinClipsTask` just returns `createJoinClipsTaskInternal`), adding interface surface without additional behavior."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 74.0,
+        "indirection_cost": 78.0,
+        "interface_honesty": 81.0
+      }
+    },
+    "dependency_health": {
+      "evidence": [
+        "`useInlineEditState` imports a large set of hooks/types/utils directly from `shared/components/MediaLightbox/*`, indicating feature-level dependency on another feature's internals rather than a stable shared boundary.",
+        "`InlineEditView` composes MediaLightbox components and provider contracts directly, so tool-specific edit flow is tightly coupled to MediaLightbox implementation details."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "`useVideoLightboxRenderModel` handles both state shaping and JSX panel composition, causing a seam where render concerns and state orchestration are intertwined.",
+        "`useSegmentSlotMode` exposes a broad contract spanning routing, structure-video mutation, frame updates, and UI/open-state; downstream consumers use only a subset, indicating handoff bloat."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "`calculate-task-cost/index.ts` combines request parsing/auth, business pricing logic, idempotency checks, and persistence in a single long control-flow path.",
+        "`complete_task/orchestrator.ts` similarly combines completion gating, billing decision policy, persistence fallback behavior, and orchestration state transitions in one module."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "join_clips_dual_contract_surface",
+      "summary": "Join-clips compatibility adapter maintains a duplicate mixed-shape API that adds indirection",
+      "related_files": [
+        "src/shared/lib/tasks/joinClipsCompatAdapter.ts",
+        "src/shared/lib/tasks/joinClips.ts"
+      ],
+      "evidence": [
+        "`JoinClipsTaskCompatParams` includes both canonical fields (`mode`, `clip_source`, `video_edit`) and legacy fields (`starting_video_path`, `video_edit_mode`, `source_video_*`) in one interface.",
+        "`createJoinClipsTaskCompat` normalizes this mixed bag and forwards to canonical creation; canonical export itself is a pass-through wrapper (`createCanonicalJoinClipsTask` returns internal function result directly)."
+      ],
+      "suggestion": "Narrow compat input to legacy-only fields plus shared core fields, keep canonical-only API in `joinClips.ts`, and remove pass-through async wrappers that do not add validation/translation.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "task_input_contract_sprawl"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "lightbox_render_hook_ui_coupling",
+      "summary": "Video lightbox render hook mixes UI rendering and orchestration, obscuring handoff seams",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/VideoLightbox.tsx"
+      ],
+      "evidence": [
+        "`useVideoLightboxRenderModel` imports UI components (`VideoEditPanel`, `InfoPanel`) and returns JSX from inside a hook while also constructing state models.",
+        "The hook’s panel memo depends on a very large dependency list and `VideoLightbox` consumes a large render-model object (`layoutProps`, `controlsPanelContent`), making boundary behavior difficult to reason about."
+      ],
+      "suggestion": "Split into a pure state/view-model hook and separate presentational panel components; pass a minimal typed view model to `VideoLightbox` rather than returning JSX from hook internals.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "lightbox_viewmodel_overreach"
+    },
+    {
+      "dimension": "dependency_health",
+      "identifier": "edit_images_depends_on_lightbox_internals",
+      "summary": "Edit-images tool is tightly coupled to MediaLightbox internals across hooks, types, and UI",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx"
+      ],
+      "evidence": [
+        "`useInlineEditState` imports many MediaLightbox internals (`hooks`, `ImageEditContext` types, `utils`) instead of a narrow shared editing API.",
+        "`InlineEditView` directly reuses MediaLightbox components/providers and expects state shaped for those components, increasing change blast radius across features."
+      ],
+      "suggestion": "Extract shared editing primitives into a dedicated feature-neutral module (state contracts, editing hooks, shared UI primitives) and keep MediaLightbox-specific assembly behind its own facade.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "feature_boundary_leakage"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "segment_slot_mode_wide_boundary_object",
+      "summary": "Segment slot mode uses an oversized seam that bundles unrelated concerns together",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts",
+        "src/shared/components/MediaLightbox/VideoLightbox.tsx"
+      ],
+      "evidence": [
+        "`UseSegmentSlotModeProps` combines routing/deeplink behavior, structure-video CRUD callbacks, frame updates, and UI navigation in one boundary contract.",
+        "`VideoLightbox` only needs a subset of segment-slot behavior (`segmentSlotMode`, nav/index/readOnly flow), but receives a larger object shape from upstream orchestration."
+      ],
+      "suggestion": "Split segment-slot contracts into focused interfaces (navigation state, structure-video operations, mutation actions) and pass only per-consumer slices rather than one omnibus object.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "feature_boundary_leakage"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "edge_handlers_mix_transport_billing_and_domain_rules",
+      "summary": "Edge handlers carry too many local responsibilities in single control-flow paths",
+      "related_files": [
+        "supabase/functions/calculate-task-cost/index.ts",
+        "supabase/functions/complete_task/orchestrator.ts"
+      ],
+      "evidence": [
+        "`calculate-task-cost/index.ts` includes request validation/auth, task shape parsing, pricing math, idempotency checks, and ledger writes in one module flow.",
+        "`complete_task/orchestrator.ts` includes segment completion gating, billing outcome policy decisions, reconciliation persistence, and fallback error marking in one orchestration file."
+      ],
+      "suggestion": "Refactor both flows into staged pipelines with small pure helpers and explicit boundaries (`auth/request`, `lookup/normalize`, `policy`, `persistence`, `response`) to reduce local branching density.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "edge_orchestrator_god_modules"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Compatibility and migration layers were added without aggressively shrinking old interfaces, leaving mixed-shape param bags in place.",
+      "Feature boundaries are porous: tool-specific flows depend directly on MediaLightbox internals instead of a shared stable contract.",
+      "Server-side edge logic accumulates policy and persistence concerns in single files instead of staged modules."
+    ],
+    "likely_symptoms": [
+      "join_clips_dual_contract_surface",
+      "segment_slot_mode_wide_boundary_object",
+      "edge_handlers_mix_transport_billing_and_domain_rules"
+    ],
+    "possible_false_positives": []
+  }
+}

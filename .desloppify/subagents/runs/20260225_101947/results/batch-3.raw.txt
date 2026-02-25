@@ -1,0 +1,92 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "api_surface_coherence": 78.6
+  },
+  "dimension_notes": {
+    "api_surface_coherence": {
+      "evidence": [
+        "Edge guard helpers encode denial states inconsistently: `ensureRequestMethod` returns `ok:false` failure objects, while `checkRateLimit` returns `ok:true` with `value.allowed=false`, forcing different caller branching for similar gatekeeping outcomes.",
+        "Async cancellation/timing contracts are inconsistent: `waitForVariantDelay` clears prior timeout handles but leaves earlier awaiting promises unresolved, which can hang prior callers indefinitely under rapid repeated invalidations.",
+        "Scope-resolution APIs return typed status unions (`resolveVariantProjectScope`), but lineage consumers immediately convert these statuses into thrown generic errors, discarding structured status contracts at the boundary."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "variant_delay_promise_leak",
+      "summary": "Debounced variant invalidation can leave earlier callers awaiting forever",
+      "related_files": [
+        "src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+        "src/shared/lib/timelineWriteQueue.ts"
+      ],
+      "evidence": [
+        "`waitForVariantDelay` stores one timeout per `generationId`; when a second call arrives it `clearTimeout(existingTimeout)` and deletes the map entry, but the first call's `new Promise` resolve path is never triggered.",
+        "Because `invalidateVariantChange` awaits `waitForVariantDelay`, earlier callers can hang indefinitely after being superseded by newer calls.",
+        "`runTimelineWriteWithTimeout` in `timelineWriteQueue.ts` shows the opposite contract style: timeout/cancellation paths always settle (throw or return), so callers do not hang."
+      ],
+      "suggestion": "Change variant-delay dedupe to store and settle waiter state, not just timeout IDs. Keep a per-key record with timeout + resolver, and on supersession either resolve prior waiters immediately (coalesced) or reject them with a typed cancellation error so every call to `invalidateVariantChange` settles.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "async_contract_drift"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "edge_gate_result_shape_drift",
+      "summary": "Edge request gates use conflicting denial/result shapes for similar control flow",
+      "related_files": [
+        "supabase/functions/_shared/edgeRequest.ts",
+        "supabase/functions/_shared/rateLimit.ts",
+        "supabase/functions/_shared/billing.ts"
+      ],
+      "evidence": [
+        "`ensureRequestMethod` returns `operationFailure(...errorCode:'method_not_allowed')` (`ok:false`) for denied requests.",
+        "`checkRateLimit` returns `operationSuccess({ allowed:false, ... })` (`ok:true`) when a request is denied by policy, but also returns `ok:true` in degraded fail-open error scenarios.",
+        "Other edge helpers such as billing `triggerCostCalculation` model non-success states as `ok:false` failures, so callers cannot apply one consistent gate-handling pattern across shared utilities."
+      ],
+      "suggestion": "Standardize gatekeeper contracts: either (A) all deny states return `OperationFailure` with explicit codes (`rate_limit_exceeded`, `method_not_allowed`), or (B) all gatekeepers return a dedicated `GateDecision` type separate from `OperationResult`. Document and enforce one pattern across `_shared` edge helpers.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "result_contract_fragmentation"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "lineage_scope_status_erasure",
+      "summary": "Typed scope-status API is erased into generic thrown errors in lineage APIs",
+      "related_files": [
+        "src/shared/hooks/useLineageChain.ts",
+        "src/shared/lib/generationTaskRepository.ts"
+      ],
+      "evidence": [
+        "`resolveVariantProjectScope` returns a rich union status (`missing_variant`, `scope_mismatch`, `missing_project_scope`, etc.) with optional `queryError`.",
+        "`fetchVariantById` in `useLineageChain.ts` converts non-`ok` statuses into thrown generic `Error` messages via `handleError`, dropping structured status information from the public lineage surface.",
+        "Consumers of `useLineageChain` get only `error: Error | null` and cannot branch reliably on scope/ownership failure categories that the repository layer already defines."
+      ],
+      "suggestion": "Preserve typed failure categories across the lineage boundary: return a discriminated result (`{ok:false, status,...}`) from lineage fetch paths or wrap errors in a typed `LineageScopeError` carrying repository status codes so UI callers can handle `scope_mismatch`/`missing_variant` deterministically.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "result_contract_fragmentation"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Shared utility layers use `OperationResult` but do not enforce a single semantic rule for policy-denied vs exceptional vs degraded outcomes.",
+      "Async dedupe/debounce utilities track timers without tracking waiter lifecycle, causing unresolved promise paths.",
+      "Structured lower-layer status unions are not propagated through upper-layer APIs, leading to contract information loss."
+    ],
+    "likely_symptoms": [
+      "edge_gate_result_shape_drift",
+      "lineage_scope_status_erasure",
+      "variant_delay_promise_leak"
+    ],
+    "possible_false_positives": []
+  }
+}

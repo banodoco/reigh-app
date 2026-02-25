@@ -7,9 +7,9 @@
 
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import { TOOL_ROUTES } from '@/shared/lib/toolConstants';
-import { GenerationRow } from '@/types/shots';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { TOOL_ROUTES } from '@/shared/lib/toolRoutes';
+import { GenerationRow } from '@/domains/generation/types';
 
 interface UseJoinClipsProps {
   media: GenerationRow;
@@ -73,7 +73,7 @@ export function useJoinClips({
       setAddToJoinSuccess(true);
       setTimeout(() => setAddToJoinSuccess(false), 2000);
     } catch (error) {
-      handleError(error, { context: 'useJoinClips', showToast: false });
+      normalizeAndPresentError(error, { context: 'useJoinClips', showToast: false });
     } finally {
       setIsAddingToJoin(false);
     }

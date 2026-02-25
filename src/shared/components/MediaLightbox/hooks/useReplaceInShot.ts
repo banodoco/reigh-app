@@ -6,8 +6,8 @@
  */
 
 import { useCallback } from 'react';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import { supabase } from '@/integrations/supabase/client';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 
 interface UseReplaceInShotProps {
   /** Callback to close the lightbox after successful replacement */
@@ -42,8 +42,7 @@ export function useReplaceInShot({
 
     try {
       // 1. Remove timeline_frame from parent's shot_generation record
-      const { error: removeError } = await supabase
-        .from('shot_generations')
+      const { error: removeError } = await supabase().from('shot_generations')
         .update({ timeline_frame: null })
         .eq('generation_id', parentGenerationId)
         .eq('shot_id', shotIdParam);
@@ -52,8 +51,7 @@ export function useReplaceInShot({
 
       // 2. Update or create shot_generation for current image with the timeline_frame
       // First check if current image already has a shot_generation for this shot
-      const { data: existingAssoc } = await supabase
-        .from('shot_generations')
+      const { data: existingAssoc } = await supabase().from('shot_generations')
         .select('id')
         .eq('generation_id', currentMediaId)
         .eq('shot_id', shotIdParam)
@@ -61,8 +59,7 @@ export function useReplaceInShot({
 
       if (existingAssoc) {
         // Update existing
-        const { error: updateError } = await supabase
-          .from('shot_generations')
+        const { error: updateError } = await supabase().from('shot_generations')
           .update({
             timeline_frame: parentTimelineFrame,
             metadata: { user_positioned: true, drag_source: 'replace_parent' }
@@ -72,8 +69,7 @@ export function useReplaceInShot({
         if (updateError) throw updateError;
       } else {
         // Create new
-        const { error: createError } = await supabase
-          .from('shot_generations')
+        const { error: createError } = await supabase().from('shot_generations')
           .insert({
             shot_id: shotIdParam,
             generation_id: currentMediaId,
@@ -87,7 +83,7 @@ export function useReplaceInShot({
       // Close lightbox to force refresh when reopened
       onClose();
     } catch (error) {
-      handleError(error, { context: 'useReplaceInShot', showToast: false });
+      normalizeAndPresentError(error, { context: 'useReplaceInShot', showToast: false });
       throw error;
     }
   }, [onClose]);

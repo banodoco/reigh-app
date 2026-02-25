@@ -14,12 +14,43 @@ import {
 } from './components';
 import Timeline from '../Timeline';
 import { TimelineMediaProvider, type TimelineMediaContextValue } from '../Timeline/TimelineMediaContext';
+import {
+  type OperationResult,
+  toOperationResultError,
+} from '@/shared/lib/operationResult';
 import type {
   ShotImagesEditorDataModel,
   ShotImagesEditorModeModel,
 } from './hooks';
 import type { ShotImagesEditorCallbacks } from './hooks/useShotImagesEditorCallbacks';
 import type { ShotImagesEditorResolvedProps } from './types';
+
+function adaptShotSelectionOperation(
+  operation: (
+    targetShotId: string,
+    generationId: string,
+  ) => Promise<OperationResult<{ added: boolean }>>,
+) {
+  return async (targetShotId: string, generationId: string): Promise<boolean> => {
+    const result = await operation(targetShotId, generationId);
+    if (!result.ok) {
+      throw toOperationResultError(result);
+    }
+    return result.value.added;
+  };
+}
+
+function adaptShotCreationOperation(
+  operation: (shotName: string) => Promise<OperationResult<{ shotId: string; shotName: string }>>,
+) {
+  return async (shotName: string): Promise<{ shotId: string; shotName: string }> => {
+    const result = await operation(shotName);
+    if (!result.ok) {
+      throw toOperationResultError(result);
+    }
+    return result.value;
+  };
+}
 
 export function EditorHeader(props: {
   settingsError?: string;
@@ -202,54 +233,76 @@ function TimelineModeContent(props: {
     onOpenUnpositionedPane,
   } = componentProps;
 
+  const onAddToShotLegacy = onAddToShot
+    ? adaptShotSelectionOperation(callbacks.runAddToShotOperation)
+    : undefined;
+  const onAddToShotWithoutPositionLegacy = onAddToShotWithoutPosition
+    ? adaptShotSelectionOperation(callbacks.runAddToShotWithoutPositionOperation)
+    : undefined;
+  const onCreateShotLegacy = onCreateShot
+    ? adaptShotCreationOperation(callbacks.runCreateShotOperation)
+    : undefined;
+
   return (
     <>
       <TimelineMediaProvider value={timelineMediaValue}>
         <Timeline
           key={`timeline-${selectedShotId}`}
-          shotId={selectedShotId}
-          projectId={projectId}
-          frameSpacing={batchVideoFrames}
-          onImageReorder={onImageReorder}
-          onFramePositionsChange={onFramePositionsChange}
-          onFileDrop={onFileDrop}
-          onGenerationDrop={onGenerationDrop}
-          onImageDelete={onImageDelete}
-          onImageDuplicate={onImageDuplicate}
-          duplicatingImageId={duplicatingImageId}
-          duplicateSuccessImageId={duplicateSuccessImageId}
-          projectAspectRatio={projectAspectRatio}
-          readOnly={readOnly}
-          shotGenerations={preloadedImages ? undefined : data.memoizedShotGenerations}
-          allGenerations={preloadedImages}
-          images={data.imagesWithBadges}
-          onDragStateChange={callbacks.handleDragStateChange}
-          onPairClick={mode.segmentSlot.handlePairClick}
-          defaultPrompt={defaultPrompt}
-          defaultNegativePrompt={defaultNegativePrompt}
-          onClearEnhancedPrompt={callbacks.handleClearEnhancedPromptByIndex}
-          onImageUpload={onImageUpload}
-          isUploadingImage={isUploadingImage}
-          uploadProgress={uploadProgress}
-          allShots={allShots}
-          selectedShotId={selectedShotId}
-          onShotChange={onShotChange}
-          onAddToShot={onAddToShot ? callbacks.handleAddToShotAdapter : undefined}
-          onAddToShotWithoutPosition={onAddToShotWithoutPosition ? callbacks.handleAddToShotWithoutPositionAdapter : undefined}
-          onCreateShot={onCreateShot ? callbacks.handleCreateShotAdapter : undefined}
-          maxFrameLimit={maxFrameLimit}
-          selectedOutputId={selectedOutputId}
-          onSegmentFrameCountChange={mode.segmentSlot.updatePairFrameCount}
-          segmentSlots={data.segmentSlots}
-          isSegmentsLoading={data.isSegmentsLoading}
-          hasPendingTask={data.hasPendingTask}
-          onOpenSegmentSlot={(pairIndex) => mode.segmentSlot.handlePairClick(pairIndex)}
-          pendingImageToOpen={mode.segmentSlot.pendingImageToOpen}
-          pendingImageVariantId={mode.segmentSlot.pendingImageVariantId}
-          onClearPendingImageToOpen={mode.handleClearPendingImageToOpen}
-          navigateWithTransition={mode.navigateWithTransition}
-          onNewShotFromSelection={onNewShotFromSelection}
-          onRegisterTrailingUpdater={registerTrailingUpdater}
+          core={{
+            shotId: selectedShotId,
+            projectId,
+            frameSpacing: batchVideoFrames,
+            readOnly,
+            shotGenerations: preloadedImages ? undefined : data.memoizedShotGenerations,
+            allGenerations: preloadedImages,
+            images: data.imagesWithBadges,
+          }}
+          interactions={{
+            onImageReorder,
+            onFramePositionsChange,
+            onFileDrop,
+            onGenerationDrop,
+            onImageDelete,
+            onImageDuplicate,
+            duplicatingImageId,
+            duplicateSuccessImageId,
+            onDragStateChange: callbacks.handleDragStateChange,
+            onPairClick: mode.segmentSlot.handlePairClick,
+            onClearEnhancedPrompt: callbacks.handleClearEnhancedPromptByIndex,
+            onNewShotFromSelection,
+            onSegmentFrameCountChange: mode.segmentSlot.updatePairFrameCount,
+            onRegisterTrailingUpdater: registerTrailingUpdater,
+          }}
+          display={{
+            defaultPrompt,
+            defaultNegativePrompt,
+            projectAspectRatio,
+            maxFrameLimit,
+            selectedOutputId,
+          }}
+          uploads={{
+            onImageUpload,
+            isUploadingImage,
+            uploadProgress,
+          }}
+          shotWorkflow={{
+            allShots,
+            selectedShotId,
+            onShotChange,
+            onAddToShot: onAddToShotLegacy,
+            onAddToShotWithoutPosition: onAddToShotWithoutPositionLegacy,
+            onCreateShot: onCreateShotLegacy,
+          }}
+          segmentNavigation={{
+            segmentSlots: data.segmentSlots,
+            isSegmentsLoading: data.isSegmentsLoading,
+            hasPendingTask: data.hasPendingTask,
+            onOpenSegmentSlot: (pairIndex) => mode.segmentSlot.handlePairClick(pairIndex),
+            pendingImageToOpen: mode.segmentSlot.pendingImageToOpen,
+            pendingImageVariantId: mode.segmentSlot.pendingImageVariantId,
+            onClearPendingImageToOpen: mode.handleClearPendingImageToOpen,
+            navigateWithTransition: mode.navigateWithTransition,
+          }}
         />
       </TimelineMediaProvider>
 
@@ -315,6 +368,16 @@ function BatchModeEditorContent(props: {
     onOpenUnpositionedPane,
   } = componentProps;
 
+  const onAddToShotLegacy = onAddToShot
+    ? adaptShotSelectionOperation(callbacks.runAddToShotOperation)
+    : undefined;
+  const onAddToShotWithoutPositionLegacy = onAddToShotWithoutPosition
+    ? adaptShotSelectionOperation(callbacks.runAddToShotWithoutPositionOperation)
+    : undefined;
+  const onCreateShotLegacy = onCreateShot
+    ? adaptShotCreationOperation(callbacks.runCreateShotOperation)
+    : undefined;
+
   return (
     <BatchModeContent
       batchConfig={{
@@ -361,11 +424,11 @@ function BatchModeEditorContent(props: {
         isUploadingImage,
         allShots,
         onShotChange,
-        onAddToShot: onAddToShot ? callbacks.handleAddToShotAdapter : undefined,
-        onAddToShotWithoutPosition: onAddToShotWithoutPosition ? callbacks.handleAddToShotWithoutPositionAdapter : undefined,
-        onCreateShot: onCreateShot ? callbacks.handleCreateShotAdapter : undefined,
+        onAddToShot: onAddToShotLegacy,
+        onAddToShotWithoutPosition: onAddToShotWithoutPositionLegacy,
+        onCreateShot: onCreateShotLegacy,
         onNewShotFromSelection,
-        onSegmentDelete: callbacks.handleDeleteSegment,
+        onSegmentDelete: callbacks.runDeleteSegmentOperation,
         onClearPendingImageToOpen: mode.handleClearPendingImageToOpen,
         navigateWithTransition: mode.navigateWithTransition,
         onPrimaryStructureVideoInputChange,

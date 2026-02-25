@@ -27,7 +27,7 @@ vi.mock('@/integrations/supabase/client', () => ({
   },
 }));
 
-vi.mock('@/shared/lib/errorHandler', () => ({
+vi.mock('@/shared/lib/compat/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 
@@ -35,7 +35,7 @@ vi.mock('@/shared/lib/imageUploader', () => ({
   uploadImageToStorage: vi.fn().mockResolvedValue('uploaded.jpg'),
 }));
 
-vi.mock('@/shared/lib/clientThumbnailGenerator', () => ({
+vi.mock('@/shared/media/clientThumbnailGenerator', () => ({
   generateClientThumbnail: vi.fn().mockResolvedValue({
     thumbnailBlob: new Blob(),
     width: 300,
@@ -51,7 +51,7 @@ vi.mock('@/shared/lib/imageCropper', () => ({
   cropImageToProjectAspectRatio: vi.fn().mockResolvedValue(null),
 }));
 
-vi.mock('@/shared/lib/aspectRatios', () => ({
+vi.mock('@/shared/lib/media/aspectRatios', () => ({
   parseRatio: vi.fn(() => 16 / 9),
 }));
 

@@ -1,0 +1,131 @@
+{
+  "batch": "Design Coherence — Mechanical Concern Signals",
+  "batch_index": 6,
+  "assessments": {
+    "design_coherence": 61.0
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "Large coordinator files in the batch combine many responsibilities: `ImageLightbox.tsx` (~766 LOC), `useImageEditOrchestrator.ts` (~549 LOC), `useTimelineOrchestrator.ts` (~680 LOC), `TasksPane.tsx` (~580 LOC), `GenerationsPane.tsx` (~610 LOC), `individualTravelSegment.ts` (~923 LOC).",
+        "`useImageEditOrchestrator.ts` both composes multiple mode hooks and manually assembles a very large context object with dozens of fields/dependencies (lines 394-526), while still using placeholder state (`isFlippedHorizontally = false`, `isSaving = false`, lines 390-393).",
+        "`useTimelineOrchestrator.ts` mixes geometry math, drag behavior, zoom scroll synchronization with timers, pending-frame state, drop interception, duplicate collision strategy, selection, and structure-video browser actions in one hook (e.g., lines 350-455).",
+        "`claim-next-task/index.ts` duplicates near-identical control flow for service-role and PAT paths (no-task handling, debug analysis, success response shaping), increasing branch divergence risk (lines 88-260).",
+        "`joinClips.ts` and `individualTravelSegment.ts` combine validation, mode normalization, payload construction, and API/database lookup logic in the same modules, with repeated field-by-field object assembly (e.g., `joinClips.ts` lines 417-454; `individualTravelSegment.ts` lines 845-912)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "lightbox_orchestrator_context_bloat",
+      "summary": "Image lightbox editing orchestration remains structurally overloaded despite extraction, with a broad context assembly and placeholder state flags.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useImageEditOrchestrator.ts",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx"
+      ],
+      "evidence": [
+        "`useImageEditOrchestrator.ts` composes inpainting/magic-edit/reposition/img2img, then builds a massive `imageEditValue` object and dependency list (lines 394-526).",
+        "The same hook introduces non-wired placeholder values (`isFlippedHorizontally`, `isSaving`) used as context outputs (lines 390-393, 452-455).",
+        "`ImageLightbox.tsx` still coordinates environment, shared state, editing orchestration, and control panel render-model wiring through multiple internal sub-hooks (lines 95-420), indicating ownership is still centralized."
+      ],
+      "suggestion": "Split edit context into mode-specific providers (inpaint/reposition/img2img) and expose a minimal cross-mode facade from `useImageEditOrchestrator`; remove placeholder outputs until backed by real state.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "timeline_orchestrator_mixed_ui_domain_logic",
+      "summary": "Timeline orchestration hook mixes unrelated concerns (interaction physics, rendering sync timers, domain placement rules, and resource upload actions).",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts",
+        "src/tools/travel-between-images/components/Timeline/utils/timeline-utils.ts"
+      ],
+      "evidence": [
+        "`useTimelineOrchestrator.ts` includes forced re-render timing (`setTimeout` around zoom changes, lines 350-355), drag-end timers (368-379), zoom scroll correction timers (381-399), and duplicate collision logic (425-460) in one unit.",
+        "The hook also handles structure-video browser placement (`handleVideoBrowserSelect`) while simultaneously owning drag/drop/selection/zoom pipeline state.",
+        "Commented duplication signal: duplicate collision logic is explicitly described as mirroring server behavior (lines 446-447), suggesting cross-layer rule drift risk."
+      ],
+      "suggestion": "Separate `useTimelineOrchestrator` into focused hooks: viewport sync, drag/drop rules, duplicate placement policy, and structure-video insertion policy; centralize placement/collision rules into a shared pure policy module.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "pane_components_as_god_controllers",
+      "summary": "Pane components combine data orchestration, persistence, optimistic mutation, navigation, and heavy rendering concerns in single files.",
+      "related_files": [
+        "src/shared/components/TasksPane/TasksPane.tsx",
+        "src/shared/components/GenerationsPane/GenerationsPane.tsx"
+      ],
+      "evidence": [
+        "`TasksPane.tsx` owns query cache mutation, cancellation flow, session storage persistence, pagination/filter state, pane interaction logic, and lightbox portal rendering in one component (e.g., lines 45-301 plus render tree).",
+        "`GenerationsPane.tsx` similarly combines route-dependent pane behavior, modal orchestration, gallery loading/filter state, shot creation side effects, and large render tree (lines 49-260 and 260+).",
+        "Both files exceed ~580 LOC and act as controller + view + integration seam simultaneously."
+      ],
+      "suggestion": "Introduce container/presenter boundaries: move orchestration and side-effects into dedicated hooks/controllers, keep pane components primarily declarative render shells with narrow prop contracts.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "task_payload_modules_blend_validation_lookup_mapping",
+      "summary": "Task creation modules mix validation, data lookup, mode branching, and payload mapping, creating broad change surfaces.",
+      "related_files": [
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/imageGeneration.ts"
+      ],
+      "evidence": [
+        "`individualTravelSegment.ts` contains validation helpers, mode/payload builders, and live Supabase lookup fallback in task creation (`createIndividualTravelSegmentTask`, lines 845-912).",
+        "`joinClips.ts` performs mode normalization, validation, orchestration contract assembly, and manual per-field override mapping for per-join settings (lines 417-454).",
+        "`imageGeneration.ts` bundles reference-mode profiles, validation, resolution policy, and task request construction in one module."
+      ],
+      "suggestion": "Refactor task modules into layered pieces: pure schema validation, pure payload builders, and external lookup/resolution adapters; use shared mapper utilities for repetitive field-copy patterns.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "claim_next_task_branch_duplication",
+      "summary": "Service-role and PAT claim paths duplicate the same flow shape, increasing maintenance and behavior skew risk.",
+      "related_files": [
+        "supabase/functions/claim-next-task/index.ts",
+        "supabase/functions/get-orchestrator-children/index.ts"
+      ],
+      "evidence": [
+        "`claim-next-task/index.ts` has two large branches with repeated steps: claim RPC, claim error handling, no-result debug analysis, task success logging, and identical response shaping (lines 88-260).",
+        "Only RPC names and debug payload fields differ materially; control-flow duplication dominates the handler."
+      ],
+      "suggestion": "Extract a shared `runClaimPath` helper (strategy inputs: claim RPC, debug RPC, log context) to unify common flow and keep branch-specific behavior declarative.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "realtime_connection_owns_cross_cutting_side_effects",
+      "summary": "Realtime connection class claims lifecycle-only responsibility but directly performs cross-cutting freshness and reconnect-trigger side effects.",
+      "related_files": [
+        "src/shared/realtime/RealtimeConnection.ts",
+        "src/shared/realtime/DataFreshnessManager.ts"
+      ],
+      "evidence": [
+        "Header comment states `RealtimeConnection` should not make business decisions (lines 4-5), but it directly mutates `dataFreshnessManager` state on connect/disconnect/failure paths (e.g., lines 99, 177, 227, 340, 366).",
+        "It also triggers reconnect requests and consumes app event bus auth-heal events (lines 48-50, 341-347, 367-373), coupling transport lifecycle with remediation policy.",
+        "`DataFreshnessManager` independently manages user-facing toast/error policy and polling circuit breaker, creating overlapping coordination concerns."
+      ],
+      "suggestion": "Move connection-to-freshness/reconnect side effects behind an injected policy adapter or mediator; keep `RealtimeConnection` focused on transport state/events and make policy orchestration explicit in a higher-level service.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

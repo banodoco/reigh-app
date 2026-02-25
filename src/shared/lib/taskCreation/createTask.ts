@@ -1,6 +1,6 @@
 import { getSupabasePublishableKey, getSupabaseUrl } from '@/integrations/supabase/config/env';
 import { isAbortError } from '@/shared/lib/errorHandling/errorUtils';
-import { handleAndRethrow } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentAndRethrow } from '@/shared/lib/errorHandling/runtimeError';
 import { AuthError, NetworkError, ServerError } from '@/shared/lib/errorHandling/errors';
 import { readAccessTokenFromStorage } from '@/shared/lib/supabaseSession';
 import { generateUUID } from './ids';
@@ -85,7 +85,7 @@ export async function createTask(taskParams: BaseTaskParams): Promise<TaskCreati
       });
     }
 
-    handleAndRethrow(err, {
+    normalizeAndPresentAndRethrow(err, {
       context: 'TaskCreation',
       showToast: false,
       logData: context,

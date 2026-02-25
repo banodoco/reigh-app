@@ -1,0 +1,97 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 81.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/handleError.ts` is a high-fan-in shared facade that combines normalization/logging with optional toast emission, and is directly consumed by feature hooks such as `src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts` and `src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts`, coupling UI workflows to one global error path.",
+        "`src/integrations/supabase/legacy/legacySupabaseFacade.ts` keeps a deprecated compatibility boundary active while also performing runtime warning output via module-level mutable state (`hasWarnedPastRemovalTarget`), so many call sites continue depending on a legacy entrypoint.",
+        "State/control ownership is spread across UI modules through many open/setter callbacks (`src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts`, `src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx`, `src/shared/components/MediaGalleryItem/components/ShotActions.tsx`, `src/shared/components/MediaTypeFilter.tsx`, `src/pages/Home/components/install/InstallInstructionsModal.tsx`, `src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx`), increasing cross-component choreography coupling instead of converging on a boundary-level interaction model."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "legacy_supabase_boundary_not_retired",
+      "summary": "Legacy Supabase facade remains a central compatibility boundary with runtime behavior, prolonging dependency direction drift.",
+      "related_files": [
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "`legacySupabaseFacade.ts` still exports active client access plus policy constants and deprecation metadata, keeping callers bound to a legacy integration namespace.",
+        "The facade includes mutable runtime guard state (`hasWarnedPastRemovalTarget`) and warning emission in `getLegacySupabaseClient`, so the compatibility layer is not a passive alias.",
+        "The reviewed packet context shows this module still has very high importer count, indicating broad architectural blast radius for a boundary that is marked deprecated."
+      ],
+      "suggestion": "Convert the legacy facade to a pure transitional re-export without runtime behavior, then migrate remaining consumers to the runtime client module behind a tracked import-budget gate and remove legacy exports on the stated removal target.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "unfinished_compatibility_layers"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "global_error_facade_cross_layer_coupling",
+      "summary": "A single global error facade is used across unrelated layers, mixing UI side effects with infrastructure/error normalization concerns.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts",
+        "src/features/gallery/hooks/useAdjacentPagePreloader.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` unifies normalization, logging, callback dispatch, and optional toast behavior in one shared API.",
+        "`useMediaGalleryHandlers.ts` and `useMediaGalleryItemState.ts` both call `handleAndRethrow`/`handleError` from UI state hooks, making local component workflows depend on a global cross-cutting service contract.",
+        "`useAdjacentPagePreloader.ts` delegates into gallery preloading flow that routes failures through the same shared runtime error path, reusing UI-capable behavior in non-UI coordination logic."
+      ],
+      "suggestion": "Split error handling into layer-specific boundaries (e.g., core normalization/logging service plus explicit UI notification adapter) and update feature hooks to depend on the narrowest interface needed per layer.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "cross_cutting_service_overreach"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "distributed_open_state_orchestration",
+      "summary": "Open/close interaction state is distributed across many components via prop-drilled setters, creating brittle cross-module choreography.",
+      "related_files": [
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts",
+        "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+        "src/shared/components/MediaTypeFilter.tsx",
+        "src/pages/Home/components/install/InstallInstructionsModal.tsx",
+        "src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx"
+      ],
+      "evidence": [
+        "`useMediaGalleryItemState.ts` exports multiple UI-open setters (`setIsInfoOpen`, `setIsShotSelectorOpen`, `setIsCreateShotModalOpen`) that are consumed by sibling components rather than encapsulated behind an interaction boundary.",
+        "`InfoTooltip.tsx`, `ShotActions.tsx`, and `MediaTypeFilter.tsx` each expose or consume controlled `open`/`onOpenChange` interfaces, adding repeated coordination seams across component boundaries.",
+        "Modal/dialog components (`InstallInstructionsModal.tsx`, `DescriptionModal.tsx`) continue the same pattern, indicating a subsystem-level convention of wiring transient UI control state through parent orchestration."
+      ],
+      "suggestion": "Introduce feature-level interaction controllers (context or dedicated hooks per surface) that own transient open-state transitions and expose intent actions, reducing direct setter plumbing across component boundaries.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "state_orchestration_without_boundary"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Deprecated compatibility layers are retained as active runtime surfaces instead of becoming narrow passive aliases.",
+      "Cross-cutting utilities (error and UI-control patterns) are centralized for convenience without strict layer contracts.",
+      "Interaction state management favors prop-level wiring over subsystem-owned controllers."
+    ],
+    "likely_symptoms": [
+      "legacy_supabase_boundary_not_retired",
+      "global_error_facade_cross_layer_coupling",
+      "distributed_open_state_orchestration"
+    ],
+    "possible_false_positives": []
+  }
+}

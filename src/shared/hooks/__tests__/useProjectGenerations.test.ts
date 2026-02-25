@@ -72,7 +72,7 @@ vi.mock('@/shared/constants/filterConstants', () => ({
   SHOT_FILTER: { NO_SHOT: 'no-shot' },
 }));
 
-vi.mock('@/shared/lib/toolConstants', () => ({
+vi.mock('@/shared/lib/toolIds', () => ({
   TOOL_IDS: { IMAGE_GENERATION: 'image-generation' },
 }));
 

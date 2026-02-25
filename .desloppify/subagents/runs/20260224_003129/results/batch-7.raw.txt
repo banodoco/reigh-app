@@ -1,0 +1,96 @@
+{
+  "batch": "Design Coherence — Mechanical Concern Signals",
+  "batch_index": 7,
+  "assessments": {
+    "design_coherence": 66.0
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "Two central UI hooks (`useImageEditOrchestrator`, `useTimelineOrchestrator`) each combine state ownership, effect timing, adapter logic, and large context/view-model assembly in single files (549 and 676 LOC), with very broad input/output contracts.",
+        "`useGenerationController` and `useEditingController` require and forward very wide parameter surfaces, then fan those values into multiple downstream hooks and return large merged objects, indicating controller-as-aggregation rather than focused responsibilities.",
+        "Image generation submission flow (`useFormSubmission` -> `useSubmissionHandlers` -> `usePromptQueueHandlers`) repeatedly threads overlapping prop sets through wrapper layers with limited local transformation, increasing indirection without clear ownership boundaries.",
+        "Edge functions (`stripe-checkout`, `process-auto-topup`) and completion handler (`generation-child.ts`) mix transport/auth/validation/rate-limiting/business rules/persistence in single entry modules, mirroring the same orchestration concentration pattern across backend code."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "orchestrator_hook_overconcentration",
+      "summary": "Large orchestrator hooks combine too many responsibilities in one unit.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useImageEditOrchestrator.ts",
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts"
+      ],
+      "evidence": [
+        "`useImageEditOrchestrator` accepts a very wide prop object (lines 32-92), wires multiple mode hooks, and builds a giant `imageEditValue` object plus long dependency list (lines 394-520), coupling composition, mapping, and UI state shaping.",
+        "`useTimelineOrchestrator` defines broad interaction/data models (lines 55-158) and owns zoom math, drag lifecycle effects, drop interception, duplicate frame collision logic, structure-video insertion, and model assembly in one hook (lines 314-620)."
+      ],
+      "suggestion": "Split each hook into a small coordinator plus domain modules with explicit contracts (for example: `useTimelineViewport`, `useTimelineDropPipeline`, `useTimelineStructureVideoActions`; `useImageEditContextModel`, `useImageEditModeAdapters`). Keep the top-level hook to composition only.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "controller_param_bag_sprawl",
+      "summary": "Shot editor controllers rely on oversized parameter bags and pass-through orchestration.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/controllers/useGenerationController.ts",
+        "src/tools/travel-between-images/components/ShotEditor/controllers/useEditingController.ts",
+        "src/tools/travel-between-images/components/ShotEditor/ShotSettingsContext.tsx"
+      ],
+      "evidence": [
+        "`UseGenerationControllerParams` has a very large flat contract (lines 7-65), then mostly forwards those values into `useSteerableMotionHandlers` and `useGenerateBatch` (lines 137-220).",
+        "`useEditingController` similarly aggregates structure video, audio, name editing, and join setup/handling into one returned mega-object (lines 39-224).",
+        "`ShotSettingsContextValue` exposes a broad cross-domain surface (generation mode, join state, structure video, shot management, image handlers), reinforcing a central all-in-one boundary."
+      ],
+      "suggestion": "Introduce typed sub-contexts or feature slices (`editing`, `generation`, `join`) and pass a small `ShotEditorRuntime` object per slice instead of flat prop bags. Controllers should own one domain each and expose minimal interfaces.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "submission_wrapper_indirection_chain",
+      "summary": "Form submission flow uses multi-layer wrapper pass-through with low leverage.",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/hooks/useFormSubmission.ts",
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/useSubmissionHandlers.ts",
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/usePromptQueueHandlers.ts"
+      ],
+      "evidence": [
+        "`useFormSubmission` destructures many fields and forwards most of them unchanged to `useTaskParamsBuilder` and `useSubmissionHandlers` (lines 20-108).",
+        "`useSubmissionHandlers` defines another broad props interface and forwards overlapping fields into two more hooks (lines 7-78), primarily acting as a routing layer.",
+        "`usePromptQueueHandlers` repeats the same prompt-generation dependencies in yet another input shape (lines 8-44), creating a deep handoff path for a single feature."
+      ],
+      "suggestion": "Collapse this chain into one domain hook with internal private helpers, or define a single `FormSubmissionRuntime` object shared by sub-hooks. Avoid repeating near-identical prop surfaces at each layer.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "edge_handler_mixed_layers",
+      "summary": "Server handlers mix HTTP concerns and domain/payment orchestration in single files.",
+      "related_files": [
+        "supabase/functions/stripe-checkout/index.ts",
+        "supabase/functions/process-auto-topup/index.ts",
+        "supabase/functions/complete_task/generation-child.ts"
+      ],
+      "evidence": [
+        "`stripe-checkout` handles CORS/method checks, body validation, env bootstrapping, auth/rate limiting, Stripe session construction, DB lookup, and response mapping in one `serve` body (lines 41-185).",
+        "`process-auto-topup` similarly combines request parsing, service auth, eligibility checks, concurrency claim logic, Stripe payment execution, ledger writes, retry/disable logic, and error mapping in one function (lines 36-277).",
+        "`generation-child.ts` centralizes child-generation orchestration, migration fallbacks, variant creation paths, and DB lookup strategy in one module with mutable task-param flow (lines 41-260+)."
+      ],
+      "suggestion": "Refactor to a pipeline: transport adapter (HTTP), auth/guard layer, application service, and persistence/payment gateways. Keep entry files thin and move business workflows into testable service modules.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

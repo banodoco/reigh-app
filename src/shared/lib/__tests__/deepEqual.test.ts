@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeSettings, deepEqual, deepMerge } from '../deepEqual';
+import { sanitizeSettings, deepEqual, deepMerge } from '@/shared/lib/utils/deepEqual';
 
 describe('sanitizeSettings', () => {
   it('returns primitives unchanged', () => {

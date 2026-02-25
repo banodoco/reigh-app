@@ -1,0 +1,132 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "ai_generated_debt": 82.0,
+    "incomplete_migration": 74.0,
+    "low_level_elegance": 88.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "src/shared/components/ShotImageManager/utils/image-utils.ts contains multiple thin wrappers (`getFramePositionForIndex`, `getAspectRatioStyle`) with long explanatory comments that mostly restate called utilities.",
+        "src/shared/lib/storagePaths.ts and src/shared/lib/tasks/travelBetweenImages/types.ts have high comment-to-logic density, including many repetitive section banners and explanatory blocks for straightforward type/constant declarations.",
+        "src/shared/lib/taskCreation/ids.ts documents simple built-in/fallback behavior in detail, mirroring obvious code flow."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    },
+    "incomplete_migration": {
+      "evidence": [
+        "src/shared/lib/tasks/travelBetweenImages/types.ts keeps legacy fields in the main input contract by extending `LegacyTravelBetweenImagesTaskParams` and allowing `LegacyStructureVideoConfig[]` on `TravelBetweenImagesTaskInput`.",
+        "src/shared/lib/tasks/joinClipsCompatAdapter.ts accepts a broad mixed old+new parameter bag and still infers legacy mode from legacy path fields, so migration boundaries remain in active creation paths.",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts and src/shared/lib/errorHandling/handleError.ts show deprecated aliases still exported from live modules, keeping old import surfaces active."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "src/shared/lib/taskTypeUtils.ts mixes explicit allowlists with `taskType.includes('travel')`, creating non-obvious classification behavior and making control flow less intention-revealing.",
+        "src/shared/lib/taskConfig.ts positions itself as centralized task-type source while task classification logic is also split into separate hardcoded sets in taskTypeUtils, increasing local reasoning cost."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Task-type classification logic is not fully explicit; fallback substring matching and split registries reduce predictability."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_shapes_embedded_in_primary_inputs",
+      "summary": "Canonical task input types still embed legacy fields, extending dual-path migration debt.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/types.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts",
+        "src/shared/lib/tasks/joinClipsCompatAdapter.ts"
+      ],
+      "evidence": [
+        "`TravelBetweenImagesTaskInput` extends `LegacyTravelBetweenImagesTaskParams` and allows `LegacyStructureVideoConfig[]`, so deprecated fields remain first-class in the main read/write input surface.",
+        "Join-clips adapter accepts both new (`clip_source`, `video_edit`) and old (`starting_video_path`, `video_edit_mode`, `source_video_*`) fields in one interface, then normalizes later."
+      ],
+      "suggestion": "Narrow legacy acceptance to dedicated boundary adapters only: keep canonical input contracts legacy-free, add explicit legacy parser modules that normalize to canonical DTOs before entering shared task creation paths, and remove legacy fields from primary exported input types.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "migration_boundary_not_isolated"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "deprecation_governance_is_inconsistent",
+      "summary": "Deprecated aliases are governed inconsistently across modules, risking indefinite legacy retention.",
+      "related_files": [
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts"
+      ],
+      "evidence": [
+        "legacySupabaseFacade and legacyStructureVideo are tied to deprecationPolicy metadata/import budgets.",
+        "handleError still exports deprecated alias symbols (`reportRuntimeError`, `RuntimeErrorOptions`) but does not bind them to deprecationPolicy budget/removal gating in the same way."
+      ],
+      "suggestion": "Apply one deprecation lifecycle pattern to all legacy aliases: attach policy metadata and budget checks, emit policy-driven warnings, and enforce removal through a single governance helper so all deprecated exports follow the same sunset mechanism.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "migration_boundary_not_isolated"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "comment_and_wrapper_ceremony_over_signal",
+      "summary": "Several helper modules use verbose ceremony and thin wrappers that add little behavioral value.",
+      "related_files": [
+        "src/shared/components/ShotImageManager/utils/image-utils.ts",
+        "src/shared/lib/storagePaths.ts",
+        "src/shared/lib/taskCreation/ids.ts"
+      ],
+      "evidence": [
+        "image-utils includes wrappers that mostly forward to imported helpers with extensive explanatory comments.",
+        "storagePaths and taskCreation/ids document straightforward operations in long blocks, increasing scan cost without clarifying non-obvious domain constraints."
+      ],
+      "suggestion": "Trim restating comments and collapse no-op wrappers unless they enforce policy/validation; keep comments only where they capture domain invariants or non-obvious constraints.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "ceremonial_wrapper_pattern"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "implicit_substring_tasktype_classification",
+      "summary": "Task type classification uses implicit substring fallback, weakening precise control flow.",
+      "related_files": [
+        "src/shared/lib/taskTypeUtils.ts",
+        "src/shared/lib/taskConfig.ts"
+      ],
+      "evidence": [
+        "`isTravelTaskType` returns true for `taskType.includes('travel')` in addition to explicit set membership.",
+        "This undermines the module’s stated single-source-of-truth approach and can classify unforeseen strings as travel types."
+      ],
+      "suggestion": "Remove substring fallback and rely on explicit registries sourced from one canonical task-type map; if extensibility is needed, add explicit prefix/namespace rules in that map rather than inline string heuristics.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "implicit_heuristics_over_contracts"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Migration compatibility logic is not isolated at strict boundaries and leaks into canonical type surfaces.",
+      "Multiple utility modules prioritize explanatory ceremony over behavior, creating AI-style verbosity and wrapper accumulation.",
+      "Task-type semantics are split across modules with heuristic fallbacks instead of one explicit contract."
+    ],
+    "likely_symptoms": [
+      "legacy_shapes_embedded_in_primary_inputs",
+      "deprecation_governance_is_inconsistent",
+      "comment_and_wrapper_ceremony_over_signal",
+      "implicit_substring_tasktype_classification"
+    ],
+    "possible_false_positives": []
+  }
+}

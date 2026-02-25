@@ -1,131 +1,63 @@
 import { PhaseConfig } from '@/shared/types/phaseConfig';
 import type { PathLoraConfig } from '@/shared/types/lora';
-import type {
-  LegacyStructureVideoFields,
-  LegacyTravelBetweenImagesTaskParams,
-} from './legacyStructureVideo';
-
-// ============================================================================
-// Video Generation API Param Interfaces (Single Source of Truth)
-// ============================================================================
-// These interfaces define the snake_case params sent to the backend.
-// UI code should re-export these types and use them when building task params.
-
-// ============================================================================
-// NEW UNIFIED STRUCTURE GUIDANCE FORMAT
-// ============================================================================
 
 /**
- * Unified structure guidance configuration.
- * This is the new format that combines VACE and Uni3C configuration into a single object.
- *
- * Example VACE with flow:
- * ```
- * {
- *   target: "vace",
- *   preprocessing: "flow",
- *   strength: 1.2,
- * }
- * ```
- *
- * Example Uni3C:
- * ```
- * {
- *   target: "uni3c",
- *   strength: 0.8,
- *   step_window: [0.1, 0.9],
- * }
- * ```
+ * Unified structure guidance contract for vace/uni3c.
  */
 export interface StructureGuidanceConfig {
-  /** Target system for guidance: "vace" for VACE model, "uni3c" for I2V with guidance */
+  /** Target system for guidance. */
   target: 'vace' | 'uni3c';
 
   /**
-   * Preprocessing method (VACE only):
-   * - "flow": optical flow extraction
-   * - "canny": edge detection
-   * - "depth": depth estimation
-   * - "none": use raw frames (equivalent to old "raw" structure_type)
+   * Preprocessing method (VACE only).
+   * `none` maps legacy `raw` behavior.
    */
   preprocessing?: 'flow' | 'canny' | 'depth' | 'none';
 
-  /** Unified strength parameter (works for both VACE and Uni3C). Default: 1.0 */
+  /** Unified strength parameter. */
   strength?: number;
 
-  /** VACE-specific: canny edge detection intensity. Default: 1.0 */
+  /** VACE-specific: canny edge detection intensity. */
   canny_intensity?: number;
 
-  /** VACE-specific: depth contrast. Default: 1.0 */
+  /** VACE-specific: depth contrast. */
   depth_contrast?: number;
 
-  /**
-   * Uni3C-specific: step window as [start_percent, end_percent].
-   * Controls when during inference uni3c guidance is applied.
-   * Default: [0.0, 1.0]
-   */
+  /** Uni3C-specific step window as [start_percent, end_percent]. */
   step_window?: [number, number];
 
-  /** Uni3C-specific: frame policy. Default: "fit" */
+  /** Uni3C-specific frame policy. */
   frame_policy?: 'fit' | 'clip';
 
-  /** Uni3C-specific: zero out empty frames. Default: true */
+  /** Uni3C-specific: zero out empty frames. */
   zero_empty_frames?: boolean;
 }
 
 /**
- * Single structure video configuration within the structure_videos array.
- * Defines which OUTPUT timeline frames this video guides and which SOURCE frames to use.
- *
- * NOTE: In the new unified format, structure_type and strength params moved to
- * the separate `structure_guidance` config object. This now only contains
- * the video source and frame mapping info.
- *
- * Frame ranges are half-open: start_frame inclusive, end_frame exclusive.
- * Example: start_frame=0, end_frame=81 covers frames 0-80 (81 frames total).
+ * Single structure video mapping entry.
+ * Frame ranges are half-open: `start_frame` inclusive, `end_frame` exclusive.
  */
-export interface StructureVideoConfig extends LegacyStructureVideoFields {
-  /** Path to structure video (S3/Storage URL) - REQUIRED */
+export interface StructureVideoConfig {
+  /** Path to structure video (S3/Storage URL). */
   path: string;
 
-  /** Where in OUTPUT timeline this video starts guiding (inclusive, 0-based) */
+  /** Where in output timeline this video starts guiding (inclusive). */
   start_frame: number;
 
-  /** Where in OUTPUT timeline this video ends (exclusive) */
+  /** Where in output timeline this video ends (exclusive). */
   end_frame: number;
 
   /**
-   * How to handle frame count mismatches between SOURCE range and OUTPUT range:
-   * - "adjust": resample (stretch/compress) SOURCE frames to exactly fill output range
-   * - "clip": 1:1 mapping; if source shorter, remaining output frames are unguided;
-   *           if source longer, extra source frames are ignored.
-   * Default: "adjust"
+   * Source/output frame mismatch policy.
+   * `adjust` resamples to fit; `clip` applies 1:1 mapping.
    */
   treatment?: 'adjust' | 'clip';
 
-  /**
-   * Optional: Start frame within SOURCE video (inclusive, 0-based).
-   * Default: 0
-   */
+  /** Optional source start frame (inclusive). */
   source_start_frame?: number;
 
-  /**
-   * Optional: End frame within SOURCE video (exclusive).
-   * Default: null (meaning end of video)
-   */
+  /** Optional source end frame (exclusive). */
   source_end_frame?: number | null;
-}
-
-/**
- * Extended structure video config with UI-only fields (not sent to backend).
- * Used for local state management in useStructureVideo hook.
- */
-export interface StructureVideoConfigWithMetadata extends StructureVideoConfig {
-  /** Video metadata (UI only - not sent to backend) */
-  metadata?: import('@/shared/lib/videoUploader').VideoMetadata | null;
-
-  /** Resource ID tracking (UI only - not sent to backend) */
-  resource_id?: string | null;
 }
 
 /**
@@ -237,37 +169,49 @@ export interface ModelConfig {
   debug: boolean;
   /** Generation type mode: i2v (image-to-video) or vace (video-guided) */
   generation_type_mode: 'i2v' | 'vace';
-  /** Enable smooth video interpolation (SVI) for smoother transitions */
-  use_svi?: boolean;
 }
 
 /**
- * Interface for travel between images (steerable motion) task parameters.
- * Extends from shared API param interfaces for consistent typing.
- * This matches the original steerable-motion edge function request body.
+ * Strict API request payload for travel-between-images task creation.
+ * This contract intentionally excludes UI-only fields and migration-only aliases.
  */
-export interface TravelBetweenImagesTaskParams extends
-  Partial<VideoMotionApiParams>,
-  Partial<VideoModelApiParams>,
-  Partial<VideoPromptApiParams>,
-  LegacyTravelBetweenImagesTaskParams {
-  // Required fields (override Partial<> for fields that must be present)
+export interface TravelBetweenImagesRequestPayload {
+  // Required fields
   project_id: string;
   image_urls: string[];
-  base_prompts: string[]; // Required - per-segment prompts
+  base_prompts: string[];
   segment_frames: number[];
   frame_overlap: number[];
 
-  // Optional task-specific fields (not in shared interfaces)
+  // Prompt controls
+  base_prompt?: string;
+  negative_prompts?: string[];
+  enhanced_prompts?: string[];
+  enhance_prompt?: boolean;
+  text_before_prompts?: string;
+  text_after_prompts?: string;
+
+  // Motion controls
+  amount_of_motion?: number;
+  motion_mode?: 'basic' | 'presets' | 'advanced';
+  advanced_mode?: boolean;
+  phase_config?: PhaseConfig;
+  selected_phase_preset_id?: string | null;
+
+  // Model/runtime controls
+  model_name?: string;
+  model_type?: 'i2v' | 'vace';
+  seed?: number;
+  steps?: number;
+  random_seed?: boolean;
+  turbo_mode?: boolean;
+  debug?: boolean;
+
+  // Task metadata
   shot_id?: string;
-  /** Parent generation ID - if not provided, one will be created */
   parent_generation_id?: string;
-  /** Generation IDs corresponding to image_urls (for clickable images in SegmentCard) */
   image_generation_ids?: string[];
-  /**
-   * NEW: Stable IDs for tethering segment videos to timeline pairs.
-   * For N images, this should be N-1 IDs: the `shot_generations.id` of each pair's START image.
-   */
+  image_variant_ids?: string[];
   pair_shot_generation_ids?: string[];
   resolution?: string;
   params_json_str?: string;
@@ -276,18 +220,12 @@ export interface TravelBetweenImagesTaskParams extends
   show_input_images?: boolean;
   generation_mode?: 'batch' | 'timeline' | 'by-pair';
   dimension_source?: 'project' | 'firstImage' | 'custom';
-  /** Whether to regenerate anchor images (Advanced Mode only) */
   regenerate_anchors?: boolean;
-  /** Saturation adjustment (1.0 = no change) */
   after_first_post_generation_saturation?: number;
-  /** Brightness adjustment (0 = no change) */
   after_first_post_generation_brightness?: number;
-  /** Optional variant name for the generation */
   generation_name?: string;
-  /** Whether segments are generated independently */
   independent_segments?: boolean;
-  /** Enable smooth video interpolation (SVI) for smoother transitions */
-  use_svi?: boolean;
+  chain_segments?: boolean;
 
   // ============================================================================
   // PER-PAIR PARAMETER OVERRIDES
@@ -302,6 +240,9 @@ export interface TravelBetweenImagesTaskParams extends
   /** Per-pair LoRA overrides (null = use shot default) */
   pair_loras?: (PathLoraConfig[] | null)[];
 
+  /** Global LoRA overrides (expanded by the payload builder when needed). */
+  loras?: PathLoraConfig[];
+
   /** Per-pair motion settings overrides (null = use shot default) */
   pair_motion_settings?: (Record<string, unknown> | null)[];
 
@@ -309,17 +250,8 @@ export interface TravelBetweenImagesTaskParams extends
   // NEW UNIFIED STRUCTURE GUIDANCE FORMAT
   // ============================================================================
 
-  /**
-   * NEW: Unified structure guidance configuration.
-   * Contains target (vace/uni3c), preprocessing, strength, and related params.
-   * This is the preferred format - takes precedence over legacy scattered params.
-   */
+  // Structure guidance
   structure_guidance?: StructureGuidanceConfig;
-
-  /**
-   * NEW: Array of structure video configurations for multi-video support.
-   * Each video can target a specific output frame range with its own settings.
-   */
   structure_videos?: StructureVideoConfig[];
 
   // ============================================================================
@@ -335,11 +267,25 @@ export interface TravelBetweenImagesTaskParams extends
 }
 
 /**
+ * @deprecated Use TravelBetweenImagesRequestPayload.
+ * Retained as a compatibility alias for legacy imports.
+ */
+export type TravelBetweenImagesTaskParams = TravelBetweenImagesRequestPayload;
+
+/**
+ * Canonical create-task input for travel-between-images.
+ * Legacy structure aliases should be translated in adapters before reaching this type.
+ */
+export type TravelBetweenImagesTaskInput = TravelBetweenImagesRequestPayload;
+
+
+/**
  * Configuration for automatic stitching after travel generation.
  * Contains ALL settings needed by the worker to create join tasks independently.
  * This is a self-contained config - does not inherit from travel generation params.
  *
- * Fields match JoinClipsTaskParams to ensure worker has everything needed.
+ * Fields match the explicit join-clips task inputs to ensure the worker has
+ * everything needed without depending on mixed legacy+modern parameter bags.
  */
 export interface StitchConfig {
   // === Frame settings ===

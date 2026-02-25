@@ -1,0 +1,99 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "cross_module_architecture": 73.0,
+    "high_level_elegance": 76.0,
+    "package_organization": 68.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/handleError.ts` combines normalization/logging with a browser event bus and global notifier singleton (`registeredNotifier`, `removeNotifierListener`), yet it is a 227-importer hub per `holistic_context.architecture.god_modules`.",
+        "README runtime contract requires startup ordering (`configureErrorNotifier(...)` in bootstrap), which makes error behavior depend on app initialization rather than a pure module contract.",
+        "`src/domains/generation/types/index.ts` is a 207-importer facade that re-exports from `@/types/*`, creating a cross-boundary alias layer instead of a domain-owned type boundary."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "README declares governance contracts for Supabase and error wiring, but similarly critical high-fan-in contracts (`src/domains/generation/types/index.ts` with 207 importers, `src/shared/lib/ui/cn.ts` with 131 importers) are implicit compatibility shims without equivalent documented ownership/lifecycle policy.",
+        "`src/integrations/supabase/client.ts` expresses clear ownership via `getSupabaseClient()`, while other major entry points rely on thin pass-through aliases (`src/domains/generation/types/index.ts`, `src/shared/lib/ui/cn.ts`), producing inconsistent contract style at the top level.",
+        "This mixed contract style weakens predictability of which facades are permanent APIs versus temporary migration shims."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    },
+    "package_organization": {
+      "evidence": [
+        "Objective structure signal: `src/shared/components/ui/` has 52 files and imports from `src/shared/lib/ui/` 33 times (`coupling_matrix`: `src/shared/components/ui/ → src/shared/lib/ui/ = 33`), but `src/shared/lib/ui/cn.ts` is only a one-line re-export to `src/shared/lib/uiClassNames`, indicating low-value placement indirection on a hot path.",
+        "Objective structure signal: `src/domains/generation/types/index.ts` has 207 importers yet only re-exports `@/types/*`; its import-affinity is effectively 100% to root `src/types/`, exceeding the >60% mismatch heuristic for placement.",
+        "Objective structure signal: parent `src/shared/lib/` is large (71 files) and mixed, while it imports from domain and root type areas (`src/domains/generation/types/`: 4, `src/types/`: 3), reinforcing blurred package ownership for type/utility boundaries."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "global_error_hub_mixes_ui_and_core",
+      "summary": "Global error hub couples shared core error handling to browser UI event plumbing.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "README.md",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` defines browser-only event dispatch (`window.dispatchEvent`) and global notifier registration in the same module that normalizes and logs errors.",
+        "README states notifier wiring must occur at app bootstrap, so call-site behavior depends on external initialization order.",
+        "Module is a high blast-radius hub (227 importers in holistic context), so coupling this contract to UI runtime affects broad call paths."
+      ],
+      "suggestion": "Split into staged boundaries: Stage 1 create `src/shared/lib/errorHandling/core/handleErrorCore.ts` with pure `normalize/log/return` behavior and no `window`; Stage 2 move event-based notification adapter into `src/app/error-notification/` (or `src/shared/components/error-notification/`) and wire it from bootstrap; Stage 3 keep `handleError.ts` as temporary facade delegating to core + optional adapter for one release, then remove facade after import migration. Validate with `npm run typecheck`, targeted tests for error handling/bootstrap, and `rg \"configureErrorNotifier|handleError\\(\" src` to confirm all call paths remain explicit.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "undocumented_high_fanin_facade_policy",
+      "summary": "High-fan-in facade modules exist without explicit governance policy in top-level contracts.",
+      "related_files": [
+        "README.md",
+        "src/domains/generation/types/index.ts",
+        "src/shared/lib/ui/cn.ts"
+      ],
+      "evidence": [
+        "README documents runtime contracts for Supabase and error notification, but not lifecycle/compatibility rules for other API hubs.",
+        "`src/domains/generation/types/index.ts` (207 importers) and `src/shared/lib/ui/cn.ts` (131 importers) are thin facades, so they function as de facto public contracts despite lacking documented deprecation/ownership rules."
+      ],
+      "suggestion": "Add a short \"Compatibility Surface\" section to README and align it with code: classify each facade as `stable`, `migration-only`, or `internal`; then tag migration-only files with removal criteria and owner. Rollout order: 1) document policy in README, 2) annotate `src/domains/generation/types/index.ts` and `src/shared/lib/ui/cn.ts`, 3) add a CI check (`rg`) that blocks new imports to migration-only paths unless explicitly allowed. Validate via `npm run typecheck` and CI policy script run.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "type_and_ui_aliases_misplaced_as_packages",
+      "summary": "High-traffic aliases are packaged in locations that obscure true ownership boundaries.",
+      "related_files": [
+        "src/domains/generation/types/index.ts",
+        "src/shared/lib/ui/cn.ts",
+        "src/shared/components/ui/button.tsx"
+      ],
+      "evidence": [
+        "`src/domains/generation/types/index.ts` is a domain path that re-exports only root `@/types/*`, so package location and implementation ownership diverge.",
+        "`src/shared/lib/ui/cn.ts` is a one-line alias while `src/shared/components/ui/` depends on `src/shared/lib/ui/` 33 times (coupling matrix), creating directory crossing for a utility that is effectively UI-foundational.",
+        "`button.tsx` consumes `@/shared/lib/ui/cn`, demonstrating the alias path is part of core UI call chains rather than a domain-isolated package."
+      ],
+      "suggestion": "Staged reorg plan: 1) establish target folders `src/domains/generation/contracts/` (domain-owned type contracts) and `src/shared/components/ui/foundation/` (UI-local class-name utility); 2) move canonical implementations first (`git mv src/types/generationParams.ts src/domains/generation/contracts/generationParams.ts`, same for `generationMetadata.ts`, `generationRow.ts`, `shot.ts`; move `src/shared/lib/uiClassNames.ts` to `src/shared/components/ui/foundation/uiClassNames.ts`); 3) keep temporary bridge files at old paths (`src/domains/generation/types/index.ts`, `src/shared/lib/ui/cn.ts`) marked deprecated; 4) bulk-update imports (`rg -l \"@/types/(generationParams|generationMetadata|generationRow|shot)\" src | xargs sed -i '' 's#@/types/#@/domains/generation/contracts/#g'` and `rg -l \"@/shared/lib/ui/cn\" src | xargs sed -i '' 's#@/shared/lib/ui/cn#@/shared/components/ui/foundation/uiClassNames#g'`); 5) remove bridges after stabilization. Validate with `npm run typecheck`, `npm test`, and `rg \"@/types/(generationParams|generationMetadata|generationRow|shot)|@/shared/lib/ui/cn\" src` returning no production hits.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

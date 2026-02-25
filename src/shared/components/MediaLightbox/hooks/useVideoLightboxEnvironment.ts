@@ -1,13 +1,13 @@
 import { useState, useRef, useLayoutEffect, useCallback } from 'react';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { usePanes } from '@/shared/contexts/PanesContext';
-import { useTaskStatusCounts } from '@/shared/hooks/useTasks';
+import { useTaskStatusCounts } from '@/shared/hooks/useTaskStatusCounts';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
-import { useIsMobile } from '@/shared/hooks/useMobile';
+import { useIsMobile } from '@/shared/hooks/mobile';
 import { useEditSettingsPersistence } from './useEditSettingsPersistence';
 import { extractDimensionsFromMedia } from '../utils';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 import type { SegmentSlotModeData } from '../types';
 import type { VideoEditSubMode } from './editSettingsTypes';
 

@@ -1,0 +1,57 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "high_level_elegance": 78.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "README.md defines runtime contracts for `configureErrorNotifier(...)` registration at app startup, but `handleError`/`emitErrorNotification` in `src/shared/lib/errorHandling/handleError.ts` silently no-op UI notifications when no notifier is configured, so contract violations are not surfaced.",
+        "README.md prescribes canonical Supabase access via `getSupabaseClient()`, but `src/integrations/supabase/client.ts` does not enforce or expose any boundary mechanism preventing alternate client construction/import paths elsewhere.",
+        "`src/domains/generation/types/index.ts`, `src/shared/components/ui/button.tsx`, and `src/shared/lib/uiClassNames.ts` are high-import shared surfaces, yet governance in this batch is centralized only in README prose rather than executable compatibility guards."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "runtime-contract-not-enforced-error-notifier",
+      "summary": "Error notification bootstrap is documented as required but runtime behavior hides missing registration.",
+      "related_files": [
+        "README.md",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "README states notifier wiring occurs once in app bootstrap and shared modules should not assume toasts unless bootstrap has run.",
+        "`handleError` computes `shouldShowToast` and calls `emitErrorNotification`, but `emitErrorNotification` returns immediately when `window` is unavailable and has no guard/log when notifier was never configured.",
+        "`configureErrorNotifier` only throws when a different notifier is registered later; it does not enforce initial registration before first `handleError` call."
+      ],
+      "suggestion": "Add an explicit contract check path (e.g., dev-mode warning/error metric on first toast-eligible `handleError` when notifier is unconfigured) and codify bootstrap verification in a startup quality gate test.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "supabase-governance-prose-only",
+      "summary": "Supabase client ownership policy is documented but not strongly encoded as an architectural boundary.",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "README defines `getSupabaseClient()` as canonical usage and says legacy proxy access should remain isolated.",
+        "`client.ts` provides a clean singleton API but no enforcement mechanism (lint boundary, restricted exports, or compatibility marker) to prevent direct construction/import of alternate clients outside this module.",
+        "The quality gate in this batch relies on docs for policy intent rather than an executable contract."
+      ],
+      "suggestion": "Introduce enforceable boundary controls (e.g., eslint import restrictions to block direct Supabase bootstrap imports outside integration layer, plus a contract test asserting singleton access path) and reference those checks in README.",
+      "confidence": "medium",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

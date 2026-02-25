@@ -1,0 +1,111 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 72.0,
+    "mid_level_elegance": 69.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "`useProcessingTimestamp`, `useCompletedTimestamp`, and `useUpdatingTimestamp` are thin wrappers around `useLiveRelativeTimestamp` with near-identical option plumbing and only small formatter differences.",
+        "`useVideoLightboxRenderModel` builds large memoized adapter objects (`lightboxCore`, `lightboxMedia`, `lightboxVariants`, `lightboxNavigation`) primarily to reshape data for `useLightboxStateValue`/`LightboxLayout`, increasing indirection without reducing API width.",
+        "`generationTaskBridge.ts` combines React hook exports (`useGetPrimaryTaskIdForGeneration`) with cache preloading and direct Supabase query utilities (`preloadGenerationTaskMappings`, `enhanceGenerationsWithTaskData`) in one abstraction layer."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 68.0,
+        "indirection_cost": 74.0,
+        "interface_honesty": 74.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "`taskParamsUtils.ts` must read the same logical fields from multiple schema shapes (`orchestrator_details`, `full_orchestrator_payload`, `individual_segment_params`, top-level), indicating boundary translation is fragmented rather than centralized.",
+        "`VideoTravelDetails.tsx` and `ImageGenerationDetails.tsx` each re-implement fallback chains over nested task params despite using `buildTaskParamsViewModel`, so UI seams still carry backend-shape conditionals.",
+        "`buildTravelBetweenImagesPayload` emits a very broad payload object with many conditional branches and legacy stripping, while downstream readers still need multi-location fallback logic, showing incomplete contract consolidation across producer/consumer seams."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "duplicate_relative_timestamp_hooks",
+      "summary": "Three timestamp hooks duplicate wrapper logic with minimal behavioral differentiation.",
+      "related_files": [
+        "src/shared/hooks/useProcessingTimestamp.ts",
+        "src/features/tasks/hooks/useCompletedTimestamp.ts",
+        "src/shared/hooks/useUpdatingTimestamp.ts"
+      ],
+      "evidence": [
+        "Each hook forwards to `useLiveRelativeTimestamp` with `{ dateInput, disabled, formatter }` and mostly differs only by label text/formatting behavior.",
+        "`useTaskTimestamp` is a second-level wrapper over `useUpdatingTimestamp`, adding another thin indirection layer."
+      ],
+      "suggestion": "Replace these with a single `useRelativeTimestamp({ dateInput, mode, disabled })` (or formatter map) and keep only tiny mode-specific helpers where domain wording differs.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "lightbox_render_model_overadapter",
+      "summary": "Video lightbox adds heavy adapter layers that mostly reshape existing state objects.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx",
+        "src/shared/components/MediaLightbox/VideoLightbox.tsx"
+      ],
+      "evidence": [
+        "`useVideoLightboxRenderModel` creates multiple large memoized objects to repackage values already present in `env`, `sharedState`, and `editModel`.",
+        "`LightboxLayout` consumes a broad prop surface plus multiple context reads, so the adapter layer does not significantly reduce boundary complexity."
+      ],
+      "suggestion": "Define a narrower screen contract (small typed view model) and move one-time translation into a single boundary mapper; let layout/components consume domain-focused slices directly instead of repeated repackaging.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "task_params_contract_fragmentation",
+      "summary": "Task param consumers rely on multi-source fallback chains because producer contract is not canonical.",
+      "related_files": [
+        "src/shared/lib/taskParamsUtils.ts",
+        "src/shared/components/TaskDetails/VideoTravelDetails.tsx",
+        "src/shared/components/ImageGenerationDetails.tsx",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts"
+      ],
+      "evidence": [
+        "`derivePrompt`, `deriveInputImages`, and related extractors check multiple parallel locations for the same fields.",
+        "`VideoTravelDetails` still manually traverses nested payload locations for phase config, advanced mode, and structure guidance.",
+        "`ImageGenerationDetails` mixes `taskViewModel` with direct deep access into `originalParams` and `orchestrator_details`."
+      ],
+      "suggestion": "Introduce a versioned canonical task-details DTO at task creation/completion boundaries and normalize once (ingest step), then make UI components consume only normalized fields.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "mixed_hook_and_data_bridge_responsibility",
+      "summary": "Generation-task bridge mixes React hook API, cache orchestration, and DB data access in one seam.",
+      "related_files": [
+        "src/shared/lib/generationTaskBridge.ts",
+        "src/shared/hooks/useTasks.ts",
+        "src/shared/hooks/useGenerationMutations.ts"
+      ],
+      "evidence": [
+        "`generationTaskBridge.ts` exports a React mutation hook and also non-hook async cache preload logic with direct Supabase reads.",
+        "This creates a hybrid boundary where hook consumers and data-layer utilities depend on the same module lifecycle and imports."
+      ],
+      "suggestion": "Split into `generationTaskQueries` (pure data access), `generationTaskCache` (query-client utilities), and hook wrappers in `hooks/` so module dependencies reflect runtime boundaries cleanly.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

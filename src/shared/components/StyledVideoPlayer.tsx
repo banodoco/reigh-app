@@ -1,11 +1,11 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { Play, Pause, Volume2, VolumeX, Maximize } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { formatTime } from '@/shared/lib/timeFormatting';
 import { getDisplayUrl } from '@/shared/lib/mediaUrl';
-import { useIsMobile } from '@/shared/hooks/useMobile';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { useIsMobile } from '@/shared/hooks/mobile';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 interface StyledVideoPlayerProps {
   src: string;
@@ -149,7 +149,7 @@ export const StyledVideoPlayer: React.FC<StyledVideoPlayerProps> = ({
 
     const handleVideoError = (_e: Event) => {
       const mediaError = video.error;
-      handleError(new Error(mediaError?.message || 'Video playback error'), {
+      normalizeAndPresentError(new Error(mediaError?.message || 'Video playback error'), {
         context: 'StyledVideoPlayer',
         showToast: false,
         logData: {

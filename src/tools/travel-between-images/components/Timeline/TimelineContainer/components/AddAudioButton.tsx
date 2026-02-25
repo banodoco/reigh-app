@@ -1,7 +1,7 @@
 import React from 'react';
-import { toast } from '@/shared/components/ui/sonner';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { uploadVideoToStorage } from '@/shared/lib/videoUploader';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 interface AddAudioButtonProps {
   projectId?: string;
@@ -40,7 +40,7 @@ export const AddAudioButton: React.FC<AddAudioButtonProps> = ({
             onAudioChange(uploadedUrl, { duration: audio.duration, name: file.name });
             e.target.value = '';
           } catch (error) {
-            handleError(error, { context: 'AddAudioButton.upload' });
+            normalizeAndPresentError(error, { context: 'AddAudioButton.upload' });
             toast.error('Failed to upload audio');
           }
         }}

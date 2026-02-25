@@ -1,0 +1,143 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 61.0,
+    "mid_level_elegance": 64.0,
+    "low_level_elegance": 68.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts builds four prop objects that mostly copy fields verbatim from `shared` + input objects, adding almost no translation logic.",
+        "src/tools/edit-images/hooks/useImageEditValue.ts defines a very large `UseImageEditValueParams` bag and then splits/re-merges it through `buildModeState`/`buildCanvasAndAnnotationState`/`buildRepositionAndPanelState`/`buildFormAndGenerationState`, creating layering overhead without reducing coupling.",
+        "Task creation modules (src/shared/lib/tasks/joinClips.ts, src/shared/lib/tasks/imageGeneration.ts, src/shared/lib/tasks/magicEdit.ts, src/shared/lib/tasks/individualTravelSegment.ts) repeat the same validate -> build params -> create task orchestration pattern with tool-specific naming."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 58.0,
+        "indirection_cost": 64.0,
+        "interface_honesty": 61.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "src/shared/lib/generationTaskBridge.ts and src/shared/hooks/useTasks.ts each define their own `TaskDbRow` + snake_case->camelCase mapper; integration seams for task data are duplicated instead of funneled through a single boundary translator.",
+        "Travel segment parsing/normalization helpers (`toRecordOrEmpty`, `asNumber`) are duplicated across src/shared/lib/tasks/individualTravelSegment.ts and src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts, signaling drift-prone seam logic.",
+        "src/shared/imageEditCore/utils.ts re-exports `downloadMedia` from src/shared/components/MediaLightbox/utils, so a lower-level shared/core path depends on a component-layer utility through an alias seam."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "src/shared/realtime/DataFreshnessManager.ts has both class API and a full forwarding facade object (`dataFreshnessManager`) with one wrapper per method, adding repetitive low-value boilerplate.",
+        "src/tools/edit-images/hooks/useImageEditValue.ts and src/tools/edit-images/hooks/useInlineEditState.ts rely on very large object construction with extensive field-by-field forwarding, making local edits noisy and error-prone.",
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts repeats the same shared-field projection in each builder function (`isVideo`, `readOnly`, `isSpecialEditMode`, `selectedProjectId`, `isCloudMode`)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "pass_through_button_group_props",
+      "summary": "Button-group prop builders add indirection but almost no transformation, increasing abstraction cost.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx"
+      ],
+      "evidence": [
+        "All four builders in useButtonGroupProps.ts copy the same `shared` fields plus direct pass-through input callbacks/flags.",
+        "The memoization key is `[params]`, so the wrapper object itself still re-computes whenever parent passes a new params object.",
+        "Consumers in LightboxLayout and render-model code use these objects as plain prop bags; no boundary validation or schema adaptation is applied."
+      ],
+      "suggestion": "Collapse this into a single typed `sharedProps` spread at call sites (or one small helper) and keep only builders that perform real translation/normalization.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "duplicated_task_row_mapping_seam",
+      "summary": "Task DB-to-domain mapping is duplicated across bridge and hook layers, creating seam drift risk.",
+      "related_files": [
+        "src/shared/lib/generationTaskBridge.ts",
+        "src/shared/hooks/useTasks.ts",
+        "src/shared/hooks/useGenerationMutations.ts"
+      ],
+      "evidence": [
+        "generationTaskBridge.ts defines `TaskDbRow` and `mapDbTaskRowToTask` locally.",
+        "useTasks.ts defines another `TaskDbRow` and `mapDbTaskToTask` with the same field mapping pattern.",
+        "Multiple task-related hooks/mutations consume task-shaped data, so schema changes must be synchronized manually across seam copies."
+      ],
+      "suggestion": "Extract one canonical task mapper + DB row type in a shared task adapter module and import it from both bridge and hooks.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "duplicated_travel_param_normalizers",
+      "summary": "Travel task modules duplicate JSON normalization helpers and segment payload shaping logic.",
+      "related_files": [
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/components/TaskDetails/VideoTravelDetails.tsx"
+      ],
+      "evidence": [
+        "individualTravelSegment.ts and payloadBuilder.ts both define local `toRecordOrEmpty` and numeric/string coercion helpers.",
+        "VideoTravelDetails.tsx independently re-implements similar unknown-to-typed extraction utilities (`asRecordOrUndefined`, `asString`, `asNumber`, arrays).",
+        "These seams all parse the same travel/orchestrator payload families, but each boundary has its own ad-hoc coercion rules."
+      ],
+      "suggestion": "Create shared travel-param parsing utilities (or schema-based validators) used by task builders and details rendering to keep one normalization contract.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "layer_inversion_in_image_edit_utils",
+      "summary": "A shared/core utility file re-exports a component-layer helper, inverting dependency direction.",
+      "related_files": [
+        "src/shared/imageEditCore/utils.ts",
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx"
+      ],
+      "evidence": [
+        "src/shared/imageEditCore/utils.ts exports `downloadMedia` from `@/shared/components/MediaLightbox/utils`.",
+        "useInlineEditState.ts imports `downloadMedia` from `imageEditCore/utils`, so edit-core depends indirectly on MediaLightbox component code.",
+        "This blurs ownership between reusable edit core and UI-specific lightbox implementation."
+      ],
+      "suggestion": "Move `downloadMedia` into a neutral shared lib utility (non-component path) and have both imageEditCore and MediaLightbox import from that base module.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "oversized_image_edit_param_bag",
+      "summary": "Inline image edit state assembly uses a very large param bag with repeated field forwarding, reducing local clarity.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useImageEditValue.ts",
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx"
+      ],
+      "evidence": [
+        "UseImageEditValueParams in useImageEditValue.ts contains a high number of fields spanning mode, canvas, forms, transforms, status, and callbacks.",
+        "The hook then decomposes and recomposes these fields via four build functions that mostly forward values unchanged.",
+        "useInlineEditState.ts must construct and thread this large bag, increasing editing friction and coupling across hook boundaries."
+      ],
+      "suggestion": "Split image edit context into smaller domain slices (mode/canvas/generation), pass structured sub-objects, and reduce flat forwarding APIs.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

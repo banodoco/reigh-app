@@ -1,0 +1,69 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 6,
+  "assessments": {
+    "authorization_consistency": 82.0
+  },
+  "dimension_notes": {
+    "authorization_consistency": {
+      "evidence": [
+        "Scoped mutations in src/shared/hooks/useGenerationMutations.ts enforce project ownership before writes (ensureProjectScope + verifyGenerationScope + .eq('project_id', projectId) on update/delete).",
+        "Sibling write path in src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts deletes generations with .in('id', idsToDelete) and no project/user predicate after lookups that are also unscoped by project.",
+        "In the same mutation module, createGeneration inserts rows directly from caller-supplied projectId without the project-scope prevalidation used by update/delete/toggle paths."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "authorization_consistency",
+      "identifier": "unscoped_segment_delete_path",
+      "summary": "Segment deletion path performs generation reads and deletes by raw IDs without enforcing project scope, unlike sibling mutation code.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/shared/hooks/useGenerationMutations.ts"
+      ],
+      "evidence": [
+        "useShotImagesEditorCallbacks reads target generation with .eq('id', generationId) and sibling set with .eq('parent_generation_id', beforeData.parent_generation_id), then deletes via .from('generations').delete().in('id', idsToDelete) (lines 65-69, 97-101, 125).",
+        "useGenerationMutations consistently requires project scope and applies .eq('project_id', projectId) plus pre-verification before writes (lines 105-113, 126-127, 230-237, 320-321)."
+      ],
+      "suggestion": "Route segment deletion through a shared scoped mutation helper: require projectId input, validate ownership (existing resolve/verify helpers), and add project-bound predicates to lookup and delete queries so all generation mutations follow one authorization pattern.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "mixed_explicit_scope_vs_rls_only"
+    },
+    {
+      "dimension": "authorization_consistency",
+      "identifier": "create_generation_scope_bypass",
+      "summary": "Generation creation skips the project-scope guard pattern used by other generation mutations, relying only on caller-provided projectId.",
+      "related_files": [
+        "src/shared/hooks/useGenerationMutations.ts",
+        "src/shared/contexts/ProjectContext.tsx"
+      ],
+      "evidence": [
+        "createGeneration inserts into generations and generation_variants directly with project_id: params.projectId and no ensureProjectScope/verifyGenerationScope call (useGenerationMutations lines 151-213).",
+        "In the same file, update/delete/toggle paths explicitly enforce scope before writes, indicating create is an outlier in authorization handling.",
+        "Project scope is propagated via UI state/global context pathways (ProjectContext writes window.__PROJECT_CONTEXT__), increasing dependence on client-side correctness if create path does not apply the same guard discipline."
+      ],
+      "suggestion": "Apply the same pre-write authorization contract in createGeneration as other mutation paths: normalize/validate project scope centrally and verify project accessibility before insert, or move all generation writes behind a shared scoped service/API surface.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "mixed_explicit_scope_vs_rls_only"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Authorization checks are implemented as per-hook conventions instead of a single mandatory write gateway, so sibling mutation paths drift.",
+      "Client-side mutation code mixes explicit ownership enforcement and implicit RLS reliance."
+    ],
+    "likely_symptoms": [
+      "unscoped_segment_delete_path",
+      "create_generation_scope_bypass"
+    ],
+    "possible_false_positives": []
+  }
+}

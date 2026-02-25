@@ -17,7 +17,7 @@
 
 import React, { createContext, useContext } from 'react';
 import { QueryClient } from '@tanstack/react-query';
-import { Shot, GenerationRow } from '@/types/shots';
+import { Shot, GenerationRow } from '@/domains/generation/types';
 import type { Project } from '@/types/project';
 import { LoraModel } from '@/shared/components/LoraSelectorModal';
 import type { VideoMetadata } from '@/shared/lib/videoUploader';

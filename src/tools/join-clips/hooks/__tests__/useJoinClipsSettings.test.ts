@@ -5,17 +5,17 @@ import React from 'react';
 
 const mockUseAutoSaveSettings = vi.fn();
 
-vi.mock('@/shared/hooks/useAutoSaveSettings', () => ({
+vi.mock('@/shared/hooks/settings/useAutoSaveSettings', () => ({
   useAutoSaveSettings: (...args: unknown[]) => mockUseAutoSaveSettings(...args),
 }));
 
-vi.mock('@/shared/lib/toolConstants', () => ({
+vi.mock('@/shared/lib/toolIds', () => ({
   TOOL_IDS: {
     JOIN_CLIPS: 'join_clips',
   },
 }));
 
-vi.mock('../settings', () => ({
+vi.mock('@/shared/lib/joinClipsDefaults', () => ({
   joinClipsSettings: {
     defaults: {
       contextFrameCount: 15,

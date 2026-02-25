@@ -1,13 +1,14 @@
 import React from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { LockIcon, UnlockIcon, ChevronLeft, ChevronRight, ChevronUp, Square, LayoutGrid, Images, ListTodo } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
-import { useIsMobile, useIsTablet } from '@/shared/hooks/useMobile';
+import { cn } from '@/shared/components/ui/contracts/cn';
+import { useIsMobile, useIsTablet } from '@/shared/hooks/mobile';
 import { PANE_CONFIG, PaneSide, PanePosition } from '@/shared/config/panes';
 import { usePositionStrategy } from '@/shared/hooks/panePositioning/usePositionStrategy';
 import { safeAreaCalc } from '@/shared/lib/safeArea';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { useAppEventListener } from '@/shared/lib/typedEvents';
+import { UI_Z_LAYERS } from '@/shared/lib/uiLayers';
 
 // Icon type for pane controls
 type PaneIconType = 'chevron' | 'tools' | 'gallery' | 'tasks';
@@ -294,17 +295,18 @@ const PaneControlTab: React.FC<PaneControlTabProps> = ({
   if (buttons.length === 0) return null;
 
   // Container styling
-  // TasksPane (right side) should appear above MediaLightbox (z-[100000]) on iPad/desktop
-  // but BEHIND the lightbox on mobile phones for cleaner full-screen lightbox experience
+  // TasksPane (right side) should appear above MediaLightbox on iPad/desktop
+  // but behind the lightbox on mobile phones for cleaner full-screen lightbox experience
   const isTasksPane = side === 'right';
   const isMobilePhone = isMobile && !isTablet;
-  const aboveLightboxZIndex = 'z-[100001]';
-  const belowLightboxZIndex = 'z-[99]'; // Below lightbox (z-[100000])
+  const tasksPaneZIndex = isMobilePhone
+    ? UI_Z_LAYERS.TASKS_PANE_TAB_BEHIND_LIGHTBOX
+    : UI_Z_LAYERS.TASKS_PANE_TAB_ABOVE_LIGHTBOX;
   const normalLockedZIndex = PANE_CONFIG.zIndex.CONTROL_LOCKED;
   const normalUnlockedZIndex = PANE_CONFIG.zIndex.CONTROL_UNLOCKED;
 
-  const zIndex = isTasksPane
-    ? (isMobilePhone ? belowLightboxZIndex : aboveLightboxZIndex)  // Behind lightbox on mobile phones
+  const zIndexClass = isTasksPane
+    ? ''
     : (isLocked || (isOpen && !isLocked) ? normalLockedZIndex : normalUnlockedZIndex);
 
   const bgOpacity = isLocked || (isOpen && !isLocked) ? 'bg-zinc-800/90' : 'bg-zinc-800/80';
@@ -336,9 +338,12 @@ const PaneControlTab: React.FC<PaneControlTabProps> = ({
     <div
       data-pane-control
       data-tour={dataTour}
-      style={mobileStyle}
+      style={{
+        ...mobileStyle,
+        ...(isTasksPane ? { zIndex: tasksPaneZIndex } : {}),
+      }}
       className={cn(
-        `fixed ${zIndex} flex items-center p-1 backdrop-blur-sm border border-zinc-700 rounded-md gap-1 duration-${PANE_CONFIG.timing.ANIMATION_DURATION} ${PANE_CONFIG.transition.EASING}`,
+        `fixed ${zIndexClass} flex items-center p-1 backdrop-blur-sm border border-zinc-700 rounded-md gap-1 duration-${PANE_CONFIG.timing.ANIMATION_DURATION} ${PANE_CONFIG.transition.EASING}`,
         bgOpacity,
         transition,
         positionClasses,
@@ -353,11 +358,6 @@ const PaneControlTab: React.FC<PaneControlTabProps> = ({
       {buttons.map(renderButton)}
     </div>
   );
-
-  // Wrap in TooltipProvider for desktop
-  if (useDesktopBehavior) {
-    return <TooltipProvider delayDuration={300}>{content}</TooltipProvider>;
-  }
 
   return content;
 };

@@ -1,4 +1,4 @@
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { ApplyContext, ApplyResult, ExtractedSettings } from './types';
 
 export const applyModelSettings = (
@@ -35,7 +35,7 @@ export const applyPromptSettings = async (
         try {
           await context.updatePairPromptsByIndex(i, pairPrompt, pairNegativePrompt);
         } catch (e) {
-          handleError(e, {
+          normalizeAndPresentError(e, {
             context: 'ApplySettings.applyPromptSettings',
             showToast: false,
             logData: { pairIndex: i },

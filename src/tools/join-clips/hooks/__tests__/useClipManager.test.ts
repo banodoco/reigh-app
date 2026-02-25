@@ -11,7 +11,7 @@ vi.mock('@/shared/components/ui/toast', () => ({
   }),
 }));
 
-vi.mock('@/shared/lib/errorHandler', () => ({
+vi.mock('@/shared/lib/compat/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 
@@ -38,7 +38,12 @@ vi.mock('@dnd-kit/sortable', () => ({
 const mockGetCachedClipsCount = vi.fn().mockReturnValue(0);
 const mockSetCachedClipsCount = vi.fn();
 const mockPreloadPosterImages = vi.fn().mockResolvedValue([]);
-const mockConsumePendingJoinClips = vi.fn().mockResolvedValue([]);
+const mockConsumePendingJoinClips = vi.fn().mockResolvedValue({
+  ok: true,
+  value: [],
+  policy: 'best_effort',
+  recoverable: false,
+});
 const mockApplyPendingClipActions = vi.fn((prev: unknown[]) => prev);
 const mockBuildInitialClipsFromSettings = vi.fn().mockReturnValue({
   clips: [],
@@ -167,12 +172,17 @@ describe('useClipManager', () => {
   });
 
   it('consumes pending join clips when settings are loaded', async () => {
-    mockConsumePendingJoinClips.mockResolvedValue([
-      {
-        type: 'fill' as const,
-        clip: { id: 'pending-1', url: 'https://example.com/pending.mp4', loaded: false, playing: false },
-      },
-    ]);
+    mockConsumePendingJoinClips.mockResolvedValue({
+      ok: true,
+      value: [
+        {
+          type: 'fill' as const,
+          clip: { id: 'pending-1', url: 'https://example.com/pending.mp4', loaded: false, playing: false },
+        },
+      ],
+      policy: 'best_effort',
+      recoverable: false,
+    });
 
     renderHook(() => useClipManager(createDefaultParams()));
 

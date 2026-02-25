@@ -1,10 +1,10 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { toast } from '@/shared/components/ui/sonner';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { createBatchImageGenerationTasks, BatchImageGenerationTaskParams } from '@/shared/lib/tasks/imageGeneration';
-import { useApiKeys } from '@/shared/hooks/useApiKeys';
+import { useApiKeys } from '@/features/settings/hooks/useApiKeys';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 interface UseImageGenSubmitParams {
   projectId: string | null;
@@ -47,7 +47,7 @@ export function useImageGenSubmit({
       if (import.meta.env.DEV) {
         console.error('[handleNewGenerate] FAILED:', error);
       }
-      handleError(error, { context: 'ImageGenerationToolPage.handleNewGenerate', toastTitle: error instanceof Error ? error.message : 'Failed to create tasks.' });
+      normalizeAndPresentError(error, { context: 'ImageGenerationToolPage.handleNewGenerate', toastTitle: error instanceof Error ? error.message : 'Failed to create tasks.' });
       return [];
     }
   }, [projectId, effectiveProjectId, queryClient]);

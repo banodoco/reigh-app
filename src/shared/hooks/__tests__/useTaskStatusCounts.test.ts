@@ -3,7 +3,7 @@ import { waitFor } from '@testing-library/react';
 import { renderHookWithProviders } from '@/test/test-utils';
 
 vi.mock('@/integrations/supabase/client', () => ({
-  supabase: {
+  getSupabaseClient: () => ({
     from: vi.fn(() => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
@@ -20,7 +20,7 @@ vi.mock('@/integrations/supabase/client', () => ({
         })),
       })),
     })),
-  },
+  }),
 }));
 
 vi.mock('@/shared/lib/taskConfig', () => ({
@@ -44,8 +44,8 @@ vi.mock('@/shared/realtime/DataFreshnessManager', () => ({
   },
 }));
 
-vi.mock('@/shared/lib/errorHandler', () => ({
-  handleError: vi.fn(),
+vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
+  normalizeAndPresentError: vi.fn(),
 }));
 
 import { useTaskStatusCounts, useAllTaskTypes } from '../useTaskStatusCounts';

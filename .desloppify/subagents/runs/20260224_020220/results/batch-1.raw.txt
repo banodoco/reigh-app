@@ -1,0 +1,78 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "high_level_elegance": 76.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/features/gallery/hooks/useAdjacentPagePreloader.ts` combines debounce timing, query prefetch orchestration, preloading queue lifecycle, and error reporting in one hook, creating a broad ownership boundary.",
+        "`src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts` pulls in logging/toast infrastructure directly instead of using the shared `handleError` facade, while `src/shared/lib/errorHandling/handleError.ts` exists as the intended central entrypoint.",
+        "Open-state orchestration is spread across many components via callback props (`onOpenChange`, `onInfoOpenChange`, `onShotSelectorOpenChange`, `setEcosystemTipOpen`), with repeated coordination logic in `CreativePartnerPane`, `InfoTooltip`, `ShotActions`, and modal/dialog components."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "gallery_preload_orchestrator_is_overmixed",
+      "summary": "Adjacent page preloader owns too many cross-layer responsibilities",
+      "related_files": [
+        "src/features/gallery/hooks/useAdjacentPagePreloader.ts",
+        "src/features/gallery/lib/adjacentPagePreloadCoordinator.ts",
+        "src/shared/lib/preloading"
+      ],
+      "evidence": [
+        "`useAdjacentPagePreloader` controls debounce, calculates pagination bounds, clears a global queue, invokes cross-page prefetch coordination, and wires error logging callback behavior in one hook.",
+        "The hook depends directly on shared singleton-style preloading service lifecycle (`clearQueue`, config access), coupling page-navigation timing to global preloading internals."
+      ],
+      "suggestion": "Split into a thin React hook plus a feature service. Keep the hook focused on subscribing to React state changes, and move queue lifecycle + prefetch policy into a dedicated gallery preloading orchestrator module with a narrower API.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "error_boundary_bypass_in_feature_hook",
+      "summary": "Feature hook bypasses shared error boundary contract and couples to internals",
+      "related_files": [
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts",
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/lib/errorHandling/notifyError"
+      ],
+      "evidence": [
+        "`useMediaGalleryItemState` imports `normalizeAndLogError` and `notifyError` directly, then re-implements toast gating logic (`if (appError.showToast) notifyError(...)`).",
+        "A shared facade (`handleError`) already encapsulates normalize/log/toast/onError behavior, so this hook is coupled to low-level error-handling internals and duplicates policy."
+      ],
+      "suggestion": "Replace direct `normalizeAndLogError` + `notifyError` usage with `handleError` in this hook and similar feature hooks, so error policy remains centralized and ownership is predictable.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "open_state_ownership_is_fragmented",
+      "summary": "Dialog/tooltip open-state control is fragmented across feature and shared layers",
+      "related_files": [
+        "src/pages/Home/components/CreativePartnerPane.tsx",
+        "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+        "src/shared/components/ConfirmDialog.tsx",
+        "src/pages/Home/components/InstallInstructionsModal.tsx",
+        "src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx"
+      ],
+      "evidence": [
+        "Multiple components expose raw open-state callbacks with similar but separate semantics (`onOpenChange`, `onInfoOpenChange`, `onShotSelectorOpenChange`, and explicit `setEcosystemTipOpen/setEcosystemTipDisabled`).",
+        "`CreativePartnerPane` contains a custom controller hook that coordinates mobile/desktop tooltip policy while still requiring parent-owned setter props, indicating split ownership of one UI concern."
+      ],
+      "suggestion": "Define a small shared open-state controller pattern for overlays (e.g., `useOverlayState` + typed event contract) and apply it across dialogs/tooltips to keep ownership local and behavior consistent without ad-hoc setter prop chains.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

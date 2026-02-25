@@ -3,14 +3,14 @@ import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Badge } from '@/shared/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/shared/components/ui/radio-group';
-import { Label } from '@/shared/components/ui/label';
+import { Label } from '@/shared/components/ui/primitives/label';
 import { Progress } from '@/shared/components/ui/progress';
 import { Video, Upload, Trash2, Clock, FileText, Scissors, Play, Zap } from 'lucide-react';
 import FileInput from '@/shared/components/FileInput';
-import { toast } from '@/shared/components/ui/sonner';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { cropFilename } from '@/shared/lib/stringFormatting';
 import { generateUUID } from '@/shared/lib/taskCreation';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 type SplitMode = 'take-all' | 'manual' | 'auto-scene';
 
@@ -244,7 +244,7 @@ export function MultiVideoUploader({ onUpload, isUploading, selectedBatchId }: M
             videoFile.detectedScenes = scenes;
             processedVideos.push(videoFile);
           } catch (error) {
-            handleError(error, { context: 'MultiVideoUploader', toastTitle: `Scene detection failed for ${videoFile.file.name}, using manual mode` });
+            normalizeAndPresentError(error, { context: 'MultiVideoUploader', toastTitle: `Scene detection failed for ${videoFile.file.name}, using manual mode` });
             processedVideos.push({ ...videoFile, splitMode: 'manual' });
           } finally {
             setProcessingScenes(null);
@@ -265,7 +265,7 @@ export function MultiVideoUploader({ onUpload, isUploading, selectedBatchId }: M
       setTimeout(() => setUploadProgress(0), 1000);
       
     } catch (error) {
-      handleError(error, { context: 'MultiVideoUploader', toastTitle: 'Failed to upload videos' });
+      normalizeAndPresentError(error, { context: 'MultiVideoUploader', toastTitle: 'Failed to upload videos' });
       setUploadProgress(0);
     }
   };

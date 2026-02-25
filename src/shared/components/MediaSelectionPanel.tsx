@@ -7,7 +7,7 @@
 
 import React, { useState } from 'react';
 import { LayoutGrid } from 'lucide-react';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 import { ReighLoading } from '@/shared/components/ReighLoading';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useProjectGenerations, type GenerationsPaginatedResponse } from '@/shared/hooks/useProjectGenerations';

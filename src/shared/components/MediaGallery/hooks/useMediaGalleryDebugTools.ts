@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
 
 interface UseMediaGalleryDebugToolsOptions {
   currentToolType?: string;

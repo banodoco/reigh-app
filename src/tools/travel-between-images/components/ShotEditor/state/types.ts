@@ -1,10 +1,3 @@
-// =============================================================================
-// RE-EXPORTS FROM SHARED
-// These types were moved to shared/ because they're used across components.
-// Re-exported here for backwards compatibility with existing imports.
-// =============================================================================
-import type { GenerationRow } from '@/types/shots';
-
 export {
   type SteerableMotionSettings,
   DEFAULT_STEERABLE_MOTION_SETTINGS,
@@ -42,7 +35,7 @@ export interface ShotEditorProps {
   selectedShotId: string;
   projectId: string;
   /** Optimistic shot data for newly created shots that aren't in the cache yet */
-  optimisticShotData?: Partial<import('@/types/shots').Shot>;
+  optimisticShotData?: Partial<import('@/domains/generation/types').Shot>;
 
   // ============================================================================
   // CALLBACKS
@@ -161,7 +154,6 @@ export type ShotEditorAction =
   | { type: 'SET_DUPLICATING_IMAGE_ID'; payload: string | null }
   | { type: 'SET_DUPLICATE_SUCCESS_IMAGE_ID'; payload: string | null }
   | { type: 'SET_PENDING_FRAME_POSITIONS'; payload: Map<string, number> }
-  | { type: 'SET_LOCAL_ORDERED_SHOT_IMAGES'; payload: GenerationRow[] }
   | { type: 'SET_CREATING_TASK_ID'; payload: string | null }
   | { type: 'SET_SETTINGS_MODAL_OPEN'; payload: boolean }
   | { type: 'SET_MODE_READY'; payload: boolean }

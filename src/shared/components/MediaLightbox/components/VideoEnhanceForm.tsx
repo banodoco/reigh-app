@@ -11,7 +11,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { Button } from '@/shared/components/ui/button';
-import { Label } from '@/shared/components/ui/label';
+import { Label } from '@/shared/components/ui/primitives/label';
 import { Switch } from '@/shared/components/ui/switch';
 import { Slider } from '@/shared/components/ui/slider';
 import {
@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from '@/shared/components/ui/select';
 import { Loader2, Check, Sparkles, Film, ArrowUp } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import type { VideoEnhanceSettings } from '../hooks/useGenerationEditSettings';
 
 // Default FPS for AI-generated videos (matches useVideoEditing assumption)

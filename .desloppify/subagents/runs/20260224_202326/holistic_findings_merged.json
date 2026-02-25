@@ -1,0 +1,297 @@
+{
+  "assessments": {
+    "abstraction_fitness": {
+      "score": 63.7,
+      "components": [
+        "Abstraction Leverage",
+        "Indirection Cost",
+        "Interface Honesty"
+      ],
+      "component_scores": {
+        "Abstraction Leverage": 76.8,
+        "Indirection Cost": 79.5,
+        "Interface Honesty": 72.9
+      }
+    },
+    "error_consistency": 67.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "Task builder contracts remain mixed-mode parameter bags: `JoinClipsTaskParams` carries legacy/new clip inputs, edit-mode fields, orchestration metadata, and UI restoration fields in one interface (`src/shared/lib/tasks/joinClips.ts:66-117`).",
+        "`IndividualTravelSegmentParams` combines source payload replay (`originalParams`), runtime overrides, identity/linkage, and deprecated SVI fields in a single input contract (`src/shared/lib/tasks/individualTravelSegment.ts:31-97`).",
+        "`buildTravelBetweenImagesPayload` still conditionally mutates a broad `Record<string, unknown>` output with many mode flags and optional arrays, rather than constructing from mode-specific typed payloads (`src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts:65-217`).",
+        "Consumers must probe multiple fallback shapes for the same semantic fields (`orchestrator_details`, `full_orchestrator_payload`, `individual_segment_params`, top-level), showing interface drift and weak contract honesty (`src/shared/components/TaskDetails/VideoTravelDetails.tsx:77-187`, `src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts:56-80`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "issues_preventing_higher_score": "",
+      "sub_axes": {
+        "abstraction_leverage": 76.8,
+        "indirection_cost": 79.5,
+        "interface_honesty": 72.9
+      }
+    },
+    "error_consistency": {
+      "evidence": [
+        "In `supabase/functions/calculate-task-cost/index.ts`, the orchestrator sub-task lookup captures `error` as `_subTasksError` and never checks it (`lines 291-301`), then silently falls back to single-task duration logic (`lines 322-327`).",
+        "In `supabase/functions/complete_task/orchestrator.ts`, most DB failures throw and fail the flow (`lines 157-163`, `431-437`), but billing failure only logs with `console.error` and still returns success (`lines 439-445`).",
+        "In `src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts`, adapter methods use mixed failure contracts: some paths throw via `handleAndRethrow` (`lines 170-175`, `184-189`, `199-204`), while capability-missing paths return sentinels (`false`/`undefined` at `lines 164-166`, `179-180`, `193-195`), and another capability-missing path throws (`lines 229-231`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Cost/billing and callback layers still use inconsistent failure signaling (silent fallback, log-only failure, mixed sentinel-vs-throw contracts), which can hide real errors and make caller behavior unpredictable."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "task_param_bag_mixed_modes_persist",
+      "summary": "Task builders still use oversized mixed-mode param bags, forcing runtime branching instead of explicit mode contracts.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts"
+      ],
+      "evidence": [
+        "`JoinClipsTaskParams` includes legacy and new input shapes plus video-edit-only and orchestration fields in one type (`joinClips.ts:66-117`).",
+        "`IndividualTravelSegmentParams` accepts both replayed raw payload (`originalParams`) and override values for nearly every field (`individualTravelSegment.ts:43-97`).",
+        "`buildTravelBetweenImagesPayload` composes one mutable object with many conditional mode switches (`advanced_mode`, pair overrides, structure fields), rather than narrowing with discriminated unions (`payloadBuilder.ts:113-217`)."
+      ],
+      "suggestion": "Split each task family into discriminated input contracts (for example `mode: 'legacy_join' | 'multi_clip' | 'video_edit'`, `source: 'orchestrator_replay' | 'manual_override'`) and route to mode-specific payload builders. Keep one adapter layer for backward compatibility, but isolate it at module boundaries and emit a single canonical payload schema.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "task_param_bag_overreach"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "task_payload_schema_drift_fallback_chains",
+      "summary": "Multiple consumers depend on fallback chains across duplicate payload paths, indicating a drifting, non-canonical task param interface.",
+      "related_files": [
+        "src/shared/components/TaskDetails/VideoTravelDetails.tsx",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "supabase/functions/complete_task/orchestrator.ts"
+      ],
+      "evidence": [
+        "`VideoTravelDetails` resolves the same logical fields from several locations (`individual_segment_params`, `orchestrator_payload`, `orchestrator_details`, top-level), including advanced-mode and prompt fields (`VideoTravelDetails.tsx:77-187`).",
+        "`useShotImagesEditorCallbacks` checks `pair_shot_generation_id` in FK column and two nested JSON paths (`params` + `individual_segment_params`) during deletion logic (`useShotImagesEditorCallbacks.ts:56-80`).",
+        "Orchestrator completion logic still reads expected segment counts from both nested and top-level keys (`orchestrator_details.num_new_segments_to_generate` and `num_new_segments_to_generate`) (`orchestrator.ts:45-61`)."
+      ],
+      "suggestion": "Define and enforce a single versioned task-params schema per task family, then add a one-time normalization adapter when reading legacy rows. After normalization, downstream modules should read only canonical fields to remove fallback probing.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "task_param_bag_overreach"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "thin_pass_through_exports_add_hops",
+      "summary": "Thin pass-through exports remain that add import hops without policy or transformation.",
+      "related_files": [
+        "src/shared/lib/utils.ts",
+        "src/shared/hooks/useUpdatingTimestamp.ts"
+      ],
+      "evidence": [
+        "`src/shared/lib/utils.ts` is a pure re-export of `cropFilename` and `truncateText` (`utils.ts:1`).",
+        "`useUpdatingTimestamp` is a direct alias to `useRelativeTimestamp` without additional behavior (`useUpdatingTimestamp.ts:42-44`)."
+      ],
+      "suggestion": "Either remove these pass-throughs and migrate call sites to canonical modules, or convert them into intentional compatibility boundaries with explicit deprecation tags and removal timeline to keep indirection accountable.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "pass_through_module_indirection"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "ignored_subtask_query_error_fallback",
+      "summary": "Sub-task query errors are ignored and downgraded into normal-flow billing calculations.",
+      "related_files": [
+        "supabase/functions/calculate-task-cost/index.ts",
+        "supabase/functions/complete_task/orchestrator.ts"
+      ],
+      "evidence": [
+        "`calculate-task-cost` assigns `error` to `_subTasksError` and never branches on it (`supabase/functions/calculate-task-cost/index.ts:291-301`).",
+        "When `subTasks` is empty (including error cases), code falls back to task-level duration (`supabase/functions/calculate-task-cost/index.ts:322-327`) instead of returning a recoverable billing error.",
+        "Upstream orchestrator completion relies on billing call outcomes (`supabase/functions/complete_task/orchestrator.ts:439-445`), so hidden query errors can propagate as incorrect cost records."
+      ],
+      "suggestion": "Handle `_subTasksError` explicitly: log structured context, return `errorResponse('subtask_query_failed', ...)` (recoverable), and avoid falling back to regular duration when orchestrator detection query fails.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "boundary_error_downgrade"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "billing_failure_logged_not_propagated",
+      "summary": "Orchestrator completion treats billing failure as log-only while other failures are fatal.",
+      "related_files": [
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/calculate-task-cost/index.ts"
+      ],
+      "evidence": [
+        "Orchestrator DB update errors throw (`supabase/functions/complete_task/orchestrator.ts:431-437`), but billing errors only log (`supabase/functions/complete_task/orchestrator.ts:439-445`).",
+        "`calculate-task-cost` emits structured failure responses for operational issues (`supabase/functions/calculate-task-cost/index.ts`, multiple `errorResponse(...)` returns), but caller does not map `!ok` to task failure/retry state."
+      ],
+      "suggestion": "Unify post-completion billing failure semantics: either (a) throw/retry so orchestrator remains non-final until billing succeeds, or (b) persist an explicit `billing_pending`/`billing_failed` state and schedule retry instead of console-only logging.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "inconsistent_boundary_contracts"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "shot_editor_callback_failure_contract_mix",
+      "summary": "Shot image editor callbacks mix throw-based and sentinel-based failure contracts for similar adapter operations.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/shared/hooks/useGenerationMutations.ts"
+      ],
+      "evidence": [
+        "Callback adapters in `useShotImagesEditorCallbacks` return `false`/`undefined` when handlers are absent (`lines 164-166`, `179-180`, `193-195`) but throw on runtime errors via `handleAndRethrow` (`lines 170-175`, `184-189`, `199-204`).",
+        "In the same hook, delete fallback in non-preloaded mode throws immediately (`lines 229-231`), creating a third behavior for capability-missing cases.",
+        "Related mutation hooks generally use throw/`handleAndRethrow` for DB operation failures (`src/shared/hooks/useGenerationMutations.ts`), so consumers can\u2019t rely on a single callback error contract across adjacent flows."
+      ],
+      "suggestion": "Define one explicit callback contract (prefer `Promise<Result>` or consistent throw semantics) for add/create/delete adapters, and normalize missing-capability cases to the same contract rather than mixing sentinels and thrown errors.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "mixed_error_signaling"
+    }
+  ],
+  "review_quality": {
+    "batch_count": 2,
+    "dimension_coverage": 0.5,
+    "evidence_density": 1.167,
+    "high_score_missing_issue_note": 0,
+    "finding_pressure": 13.166,
+    "dimensions_with_findings": 2
+  },
+  "review_scope": {
+    "reviewed_files_count": 51,
+    "successful_batch_count": 2,
+    "full_sweep_included": false,
+    "total_files": 2287
+  },
+  "reviewed_files": [
+    "src/shared/components/JoinClipsSettingsForm/utils.ts",
+    "src/shared/lib/utils.ts",
+    "src/shared/hooks/useGenerationMutations.ts",
+    "src/tools/edit-images/hooks/useInlineEditState.ts",
+    "src/app/routes.tsx",
+    "src/pages/Home/hooks/auth/useAuthReferralFinalize.ts",
+    "src/pages/Home/hooks/useDiscordSignIn.ts",
+    "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+    "src/shared/hooks/__tests__/useDarkMode.test.ts",
+    "src/shared/hooks/__tests__/useTextCase.test.ts",
+    "src/shared/hooks/useTasks.ts",
+    "src/shared/hooks/useUpdatingTimestamp.ts",
+    "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+    "supabase/functions/calculate-task-cost/index.ts",
+    "src/shared/components/ShotImageManager/ShotImageManagerContainer.tsx",
+    "supabase/functions/_tests/vitestEdgeSmokeConfig.test.ts",
+    "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx",
+    "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+    "src/shared/hooks/__tests__/useVideoScrubbing.test.ts",
+    "src/shared/hooks/__tests__/usePlatformInstall.test.ts",
+    "src/shared/hooks/settings/__tests__/useAutoSaveSettings.test.ts",
+    "src/shared/components/LoraSelectorModal/components/MyLorasTab/hooks/useLoraSubmission.ts",
+    "src/shared/components/MediaGallery/index.tsx",
+    "src/shared/hooks/__tests__/useTaskCancellation.test.ts",
+    "src/shared/hooks/gallery/__tests__/useGalleryFilterState.test.ts",
+    "src/shared/hooks/__tests__/useSegmentSettingsForm.test.ts",
+    "src/shared/hooks/invalidation/__tests__/useGenerationInvalidation.test.ts",
+    "src/shared/hooks/__tests__/useServerForm.test.ts",
+    "src/shared/realtime/DataFreshnessManager.ts",
+    "src/shared/hooks/__tests__/useGalleryPageState.test.ts",
+    "src/shared/lib/tasks/__tests__/joinClips.test.ts",
+    "src/tools/edit-images/hooks/__tests__/useInlineEditState.test.ts",
+    "src/tools/join-clips/pages/JoinClipsPage.tsx",
+    "src/shared/lib/tasks/imageGeneration.ts",
+    "supabase/functions/complete_task/generation.ts",
+    "supabase/functions/complete_task/orchestrator.ts",
+    "src/shared/components/MediaLightbox/components/StrokeOverlay.tsx",
+    "src/shared/hooks/timeline/timelineFrameCalculators.ts",
+    "src/shared/components/ProductTour/index.tsx",
+    "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts",
+    "src/tools/edit-images/components/InlineEditView.tsx",
+    "src/shared/lib/tasks/individualTravelSegment.ts",
+    "src/shared/components/ImageGenerationDetails.tsx",
+    "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+    "src/shared/lib/tasks/joinClips.ts",
+    "src/shared/components/TaskDetails/VideoTravelDetails.tsx",
+    "src/shared/lib/tasks/magicEdit.ts",
+    "src/shared/lib/tasks/__tests__/individualTravelSegment.test.ts",
+    "src/shared/lib/tasks/__tests__/imageGeneration.test.ts",
+    "src/shared/components/MediaLightbox/VideoLightbox.tsx",
+    "src/integrations/supabase/legacy/index.ts"
+  ],
+  "provenance": {
+    "kind": "blind_review_batch_import",
+    "blind": true,
+    "runner": "codex",
+    "run_stamp": "20260224_202326",
+    "created_at": "2026-02-24T20:25:15+00:00",
+    "batch_count": 2,
+    "batch_indexes": [
+      1,
+      2
+    ],
+    "packet_path": "/Users/peteromalley/Documents/reigh/.desloppify/review_packet_blind.json",
+    "packet_sha256": "638d61e789e4a6cb2730fcafdab9e4dd0e4615ffac55458ec1147fd31c738e50"
+  },
+  "assessment_coverage": {
+    "scored_dimensions": [
+      "naming_quality",
+      "logic_clarity",
+      "type_safety",
+      "contract_coherence",
+      "error_consistency",
+      "abstraction_fitness",
+      "ai_generated_debt",
+      "high_level_elegance",
+      "mid_level_elegance",
+      "low_level_elegance",
+      "cross_module_architecture",
+      "initialization_coupling",
+      "convention_outlier",
+      "dependency_health",
+      "test_strategy",
+      "api_surface_coherence",
+      "authorization_consistency",
+      "incomplete_migration",
+      "package_organization",
+      "design_coherence"
+    ],
+    "selected_dimensions": [
+      "abstraction_fitness",
+      "error_consistency"
+    ],
+    "imported_dimensions": [
+      "abstraction_fitness",
+      "error_consistency"
+    ],
+    "missing_dimensions": [
+      "naming_quality",
+      "logic_clarity",
+      "type_safety",
+      "contract_coherence",
+      "ai_generated_debt",
+      "high_level_elegance",
+      "mid_level_elegance",
+      "low_level_elegance",
+      "cross_module_architecture",
+      "initialization_coupling",
+      "convention_outlier",
+      "dependency_health",
+      "test_strategy",
+      "api_surface_coherence",
+      "authorization_consistency",
+      "incomplete_migration",
+      "package_organization",
+      "design_coherence"
+    ]
+  }
+}

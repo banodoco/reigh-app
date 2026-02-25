@@ -21,6 +21,7 @@ import { useShots } from '@/shared/contexts/ShotsContext';
 import { useToolSettings } from '@/shared/hooks/useToolSettings';
 import { GenerationsPaneSettings } from '@/shared/types/steerableMotion';
 import { SHOT_FILTER, isSpecialFilter } from '@/shared/constants/filterConstants';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 
 /**
  * Filter state for a single shot.
@@ -105,7 +106,7 @@ export function useGalleryFilterState({
     settings: shotSettings,
     update: updateShotSettings,
     isLoading: isLoadingShotSettings,
-  } = useToolSettings<GenerationsPaneSettings>('generations-pane', {
+  } = useToolSettings<GenerationsPaneSettings>(SETTINGS_IDS.GENERATIONS_PANE, {
     shotId: currentShotId || undefined,
     enabled: shouldLoadData && !!currentShotId,
   });

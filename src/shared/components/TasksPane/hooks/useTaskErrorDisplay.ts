@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { Task } from '@/types/tasks';
 import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 
@@ -34,8 +34,7 @@ export function useTaskErrorDisplay(task: Task): TaskErrorDisplay {
     queryKey: taskQueryKeys.cascadedError(cascadedTaskId!),
     queryFn: async () => {
       if (!cascadedTaskId) return null;
-      const { data, error } = await supabase
-        .from('tasks')
+      const { data, error } = await supabase().from('tasks')
         .select('error_message, task_type')
         .eq('id', cascadedTaskId)
         .single();

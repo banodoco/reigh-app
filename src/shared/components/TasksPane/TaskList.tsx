@@ -8,8 +8,8 @@ import { ScrollArea } from "@/shared/components/ui/scroll-area"
 import { filterVisibleTasks } from '@/shared/lib/taskConfig';
 import { Skeleton } from '@/shared/components/ui/skeleton';
 import { FilterGroup } from './constants';
-import { GenerationRow } from '@/types/shots';
-import { cn } from '@/shared/lib/utils';
+import { GenerationRow } from '@/domains/generation/types';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
 
 // Realistic task item skeleton that mimics the TaskItem layout

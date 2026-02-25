@@ -1,8 +1,8 @@
 import { processStyleReferenceForAspectRatioString } from './styleReferenceProcessor';
 import { uploadImageToStorage } from './imageUploader';
 import { dataURLtoFile } from './fileConversion';
-import { generateClientThumbnail, uploadImageWithThumbnail } from './clientThumbnailGenerator';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { generateClientThumbnail, uploadImageWithThumbnail } from '@/shared/media/clientThumbnailGenerator';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 /**
  * Legacy reference image shape used by the recrop pipeline.
@@ -119,7 +119,7 @@ export async function recropAllReferences(
       onProgress?.(i + 1, references.length);
       
     } catch (error) {
-      handleError(error, { context: 'RecropReferences', showToast: false });
+      normalizeAndPresentError(error, { context: 'RecropReferences', showToast: false });
       // Keep the old reference unchanged on error
       reprocessed.push(ref);
       // Still report progress

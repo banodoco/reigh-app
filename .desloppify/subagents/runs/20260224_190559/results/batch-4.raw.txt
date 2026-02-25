@@ -1,0 +1,106 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "incomplete_migration": 71.0,
+    "low_level_elegance": 82.0
+  },
+  "dimension_notes": {
+    "incomplete_migration": {
+      "evidence": [
+        "Many assigned files are compatibility shims that only re-export new locations while keeping deprecated import paths alive (e.g., src/shared/hooks/useMobile.tsx, src/shared/hooks/useApiTokens.ts, src/shared/components/ConfirmDialog.tsx, src/shared/lib/deepEqual.ts), each with future removal markers.",
+        "Legacy API surfaces are still actively modeled, not just passively tolerated: src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts keeps deprecated structure_video_* and uni3c_* fields alongside newer shape guidance.",
+        "Legacy runtime aliasing is still first-class: src/integrations/supabase/legacy/legacySupabaseFacade.ts exports deprecated supabase facade and keeps compatibility machinery in production path."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts uses a broad Proxy get/set trap that forwards arbitrary property access dynamically, making behavior less explicit and harder to reason about than direct API wrappers.",
+        "src/shared/hooks/useDeleteGenerationWithConfirm.tsx closes confirmation state immediately after mutate() and derives deletingId via type assertion on mutation.variables, coupling UI state to implicit mutation internals.",
+        "Several files add maintenance-only indirection with no local behavior (single-line shim exports), increasing call-path noise and making local control flow harder to follow during debugging."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "migration_shim_surface_sprawl",
+      "summary": "Deprecated compatibility shims are widespread and still treated as normal entry points, extending dual-path imports across the codebase.",
+      "related_files": [
+        "src/features/prompt-editor/components/BulkEditControls.tsx",
+        "src/shared/components/BatchDropZone.tsx",
+        "src/shared/components/ConfirmDialog.tsx",
+        "src/shared/hooks/useMobile.tsx",
+        "src/shared/hooks/useApiTokens.ts",
+        "src/shared/lib/deepEqual.ts"
+      ],
+      "evidence": [
+        "These files are mostly pure re-exports with @deprecated + @removalTarget markers, which means old paths remain valid and continue to be discoverable/importable.",
+        "No in-file enforcement is present (no hard fail, lint guard, or runtime warning), so migration can stall while code keeps compiling against legacy paths."
+      ],
+      "suggestion": "Introduce a migration gate: add no-restricted-imports rules and/or codemod-driven path rewrites for all deprecated shim paths, then delete shim files in one tracked removal wave before the stated target date.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "deprecated_contracts_still_primary_types",
+      "summary": "Legacy task and runtime contracts still expose deprecated fields/aliases as first-class exports instead of isolating them behind translation boundaries.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "legacyStructureVideo.ts defines many deprecated fields (structure_video_* and uni3c_*), preserving old payload shape directly in active type contracts.",
+        "legacySupabaseFacade.ts still exports deprecated supabase facade, keeping old import behavior alive.",
+        "handleError.ts still exports deprecated reportRuntimeError and RuntimeErrorOptions aliases."
+      ],
+      "suggestion": "Move deprecated shapes behind explicit adapter functions at module boundaries, stop exporting deprecated names from canonical modules, and require callers to opt into legacy adapters from a clearly quarantined namespace.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "proxy_based_client_facade_obscures_behavior",
+      "summary": "The legacy Supabase facade relies on dynamic Proxy forwarding, which hides concrete behavior and increases debugging complexity.",
+      "related_files": [
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "legacySupabaseFacade.ts uses Proxy get/set traps to forward all properties to a runtime client, including dynamic method binding on each access.",
+        "The same file includes no-op constant sinks (`void LEGACY_SUPABASE_ALIAS_*`) as dead low-level noise, indicating migration bookkeeping leaking into runtime module internals."
+      ],
+      "suggestion": "Replace Proxy with explicit, typed compatibility wrappers for only required methods and remove dead no-op sentinel statements; keep migration metadata in comments or build-time tracking, not runtime code.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "delete_confirm_hook_state_flow_is_fragile",
+      "summary": "Delete-confirm flow mixes transient dialog state with mutation internals, creating brittle control flow around pending/error states.",
+      "related_files": [
+        "src/shared/hooks/useDeleteGenerationWithConfirm.tsx",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "useDeleteGenerationWithConfirm.tsx clears pendingDeleteId immediately after mutate(), so UI state does not reflect whether deletion actually succeeded.",
+        "The hook computes deletingId by asserting `deleteGenerationMutation.variables as string`, which bypasses type safety and couples rendering to opaque mutation internals."
+      ],
+      "suggestion": "Keep pendingDeleteId until mutation settles (success/error callbacks), and expose a typed mutation variable contract (or local explicit state) instead of casting mutation.variables.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ]
+}

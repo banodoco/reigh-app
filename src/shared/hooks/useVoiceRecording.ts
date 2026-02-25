@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { getErrorMessage, isError } from '@/shared/lib/errorHandling/errorUtils';
 
 type VoiceRecordingState = "idle" | "recording" | "processing";
@@ -137,19 +137,19 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
             formData.append("existingValue", existingValue);
           }
 
-          const { data, error } = await supabase.functions.invoke("ai-voice-prompt", {
+          const { data, error } = await supabase().functions.invoke("ai-voice-prompt", {
             body: formData,
           });
 
           if (error) {
-            handleError(error, { context: 'useVoiceRecording', showToast: false });
+            normalizeAndPresentError(error, { context: 'useVoiceRecording', showToast: false });
             onError?.(error.message || "Failed to process voice");
             setState("idle");
             return;
           }
 
           if (data?.error) {
-            handleError(new Error(data.error), { context: 'useVoiceRecording', showToast: false });
+            normalizeAndPresentError(new Error(data.error), { context: 'useVoiceRecording', showToast: false });
             onError?.(data.error);
             setState("idle");
             return;
@@ -161,7 +161,7 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
           });
           setState("idle");
         } catch (err: unknown) {
-          handleError(err, { context: 'useVoiceRecording', showToast: false });
+          normalizeAndPresentError(err, { context: 'useVoiceRecording', showToast: false });
           onError?.(getErrorMessage(err) || "Failed to process recording");
           setState("idle");
         }
@@ -169,7 +169,7 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
 
       mediaRecorder.onerror = (event: Event) => {
         const mediaError = (event as Event & { error?: Error }).error;
-        handleError(mediaError, { context: 'useVoiceRecording', showToast: false });
+        normalizeAndPresentError(mediaError, { context: 'useVoiceRecording', showToast: false });
         onError?.(mediaError?.message || "Recording error");
         setState("idle");
       };
@@ -193,7 +193,7 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
         }
       }, MAX_RECORDING_SECONDS * MS_PER_SECOND);
     } catch (err: unknown) {
-      handleError(err, { context: 'useVoiceRecording', showToast: false });
+      normalizeAndPresentError(err, { context: 'useVoiceRecording', showToast: false });
       const errName = isError(err) ? err.name : '';
       if (errName === "NotAllowedError") {
         onError?.("Microphone access denied. Please allow microphone access.");

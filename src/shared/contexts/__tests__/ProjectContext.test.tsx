@@ -6,50 +6,42 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { setProjectSelectionSnapshot } from '../projectSelectionStore';
 
-// Mock dependencies
-vi.mock('../AuthContext', () => ({
-  useAuth: vi.fn().mockReturnValue({ userId: 'user-123' }),
-}));
+const mockSetSelectedProjectId = vi.fn();
+const mockFetchProjects = vi.fn();
+const mockAddNewProject = vi.fn();
+const mockUpdateProject = vi.fn();
+const mockDeleteProject = vi.fn();
 
-vi.mock('../UserSettingsContext', () => ({
-  useUserSettings: vi.fn().mockReturnValue({
-    userSettings: {},
-    isLoadingSettings: false,
-    updateUserSettings: vi.fn(),
+vi.mock('../useProjectSessionCoordinator', () => ({
+  useProjectSessionCoordinator: vi.fn(() => {
+    setProjectSelectionSnapshot({ selectedProjectId: 'proj-1' });
+    return {
+      userId: 'user-123',
+      selection: {
+        selectedProjectId: 'proj-1',
+        setSelectedProjectId: mockSetSelectedProjectId,
+      },
+      crud: {
+        projects: [{ id: 'proj-1', name: 'Test Project' }],
+        isLoadingProjects: false,
+        fetchProjects: mockFetchProjects,
+        addNewProject: mockAddNewProject,
+        isCreatingProject: false,
+        updateProject: mockUpdateProject,
+        isUpdatingProject: false,
+        deleteProject: mockDeleteProject,
+        isDeletingProject: false,
+      },
+    };
   }),
-}));
-
-vi.mock('@/shared/hooks/useProjectSelection', () => ({
-  useProjectSelection: vi.fn().mockReturnValue({
-    selectedProjectId: 'proj-1',
-    setSelectedProjectId: vi.fn(),
-    handleProjectsLoaded: vi.fn(),
-    handleProjectCreated: vi.fn(),
-    handleProjectDeleted: vi.fn(),
-    applyCrossDeviceSync: vi.fn(),
-  }),
-}));
-
-vi.mock('@/shared/hooks/useProjectCRUD', () => ({
-  useProjectCRUD: vi.fn().mockReturnValue({
-    projects: [{ id: 'proj-1', name: 'Test Project' }],
-    isLoadingProjects: false,
-    fetchProjects: vi.fn(),
-    addNewProject: vi.fn(),
-    isCreatingProject: false,
-    updateProject: vi.fn(),
-    isUpdatingProject: false,
-    deleteProject: vi.fn(),
-    isDeletingProject: false,
-  }),
-}));
-
-vi.mock('@/shared/hooks/useProjectDefaults', () => ({
-  useProjectDefaults: vi.fn(),
 }));
 
 import { ProjectProvider, useProject } from '../ProjectContext';
+import {
+  getProjectSelectionSnapshot,
+} from '../projectSelectionStore';
 
 // Test consumer component
 function ProjectConsumer() {
@@ -67,6 +59,7 @@ function ProjectConsumer() {
 describe('ProjectContext', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    setProjectSelectionSnapshot({ selectedProjectId: null });
   });
 
   describe('useProject hook', () => {
@@ -110,16 +103,15 @@ describe('ProjectContext', () => {
       expect(screen.getByTestId('isLoading')).toHaveTextContent('false');
     });
 
-    it('exposes project context on window for hooks that need it', () => {
+    it('publishes project selection into runtime store for non-React consumers', () => {
       render(
         <ProjectProvider>
           <ProjectConsumer />
         </ProjectProvider>
       );
 
-      expect((window as Record<string, unknown>).__PROJECT_CONTEXT__).toEqual({
+      expect(getProjectSelectionSnapshot()).toEqual({
         selectedProjectId: 'proj-1',
-        projects: [{ id: 'proj-1', name: 'Test Project' }],
       });
     });
   });

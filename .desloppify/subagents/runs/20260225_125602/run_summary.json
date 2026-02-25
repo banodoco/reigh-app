@@ -1,0 +1,52 @@
+{
+  "created_at": "2026-02-25T12:56:12+00:00",
+  "run_stamp": "20260225_125602",
+  "runner": "codex",
+  "parallel": false,
+  "selected_batches": [
+    7,
+    8
+  ],
+  "successful_batches": [
+    7,
+    8
+  ],
+  "failed_batches": [],
+  "allow_partial": false,
+  "max_parallel_batches": 1,
+  "batch_timeout_seconds": 900,
+  "batch_max_retries": 1,
+  "batch_retry_backoff_seconds": 2.0,
+  "batch_heartbeat_seconds": null,
+  "batch_stall_warning_seconds": null,
+  "batch_stall_kill_seconds": 90,
+  "immutable_packet": "/Users/peteromalley/Documents/reigh/.desloppify/review_packets/holistic_packet_20260225_125602.json",
+  "blind_packet": "/Users/peteromalley/Documents/reigh/.desloppify/review_packet_blind.json",
+  "run_dir": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_125602",
+  "logs_dir": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_125602/logs",
+  "run_log": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_125602/run.log",
+  "batches": {
+    "7": {
+      "position": 1,
+      "status": "succeeded",
+      "prompt_path": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_125602/prompts/batch-7.md",
+      "result_path": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_125602/results/batch-7.raw.txt",
+      "log_path": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_125602/logs/batch-7.log",
+      "started_at": "2026-02-25T12:56:12+00:00",
+      "elapsed_seconds": 108,
+      "exit_code": 0,
+      "completed_at": "2026-02-25T12:58:00+00:00"
+    },
+    "8": {
+      "position": 2,
+      "status": "succeeded",
+      "prompt_path": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_125602/prompts/batch-8.md",
+      "result_path": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_125602/results/batch-8.raw.txt",
+      "log_path": "/Users/peteromalley/Documents/reigh/.desloppify/subagents/runs/20260225_125602/logs/batch-8.log",
+      "started_at": "2026-02-25T12:58:00+00:00",
+      "elapsed_seconds": 128,
+      "exit_code": 0,
+      "completed_at": "2026-02-25T13:00:08+00:00"
+    }
+  }
+}

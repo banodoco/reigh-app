@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 
 /**
@@ -27,8 +27,7 @@ export const debugPolling = {
    */
   async testConnection(projectId: string) {
     return this.runDebugCheck('Connection test', async () => {
-      const result = await supabase
-        .from('tasks')
+      const result = await supabase().from('tasks')
         .select('id')
         .eq('project_id', projectId)
         .limit(1);
@@ -41,8 +40,7 @@ export const debugPolling = {
    */
   async testTaskStatusQuery(projectId: string) {
     return this.runDebugCheck('Processing query', async () => {
-      const processingQuery = supabase
-        .from('tasks')
+      const processingQuery = supabase().from('tasks')
         .select('id', { count: 'exact', head: true })
         .eq('project_id', projectId)
         .in('status', ['Queued', 'In Progress'])

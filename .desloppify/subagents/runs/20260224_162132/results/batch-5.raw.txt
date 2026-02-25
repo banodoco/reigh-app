@@ -1,0 +1,70 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 5,
+  "assessments": {
+    "cross_module_architecture": 82.0,
+    "package_organization": 84.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "README.md documents a strict migration gate for `@/types/shots` (`npm run check:shots-shim-usage`) but provides no equivalent enforcement command for retiring the Supabase compatibility proxy or error-handling alias.",
+        "`src/integrations/supabase/client.ts` keeps a deprecated `supabase` Proxy export with removal metadata (`@removalTarget 2026-06-30`) and lazy fallback path, so old and new runtime access contracts coexist.",
+        "`src/shared/lib/errorHandling/handleError.ts` keeps deprecated alias exports (`reportRuntimeError`, `RuntimeErrorOptions`) with removal metadata, extending dual-contract surface on a high fan-in module."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "package_organization": {
+      "evidence": [
+        "`holistic_context.structure.directory_profiles['src/shared/lib/']` shows `file_count: 79` (well above the >10 mixed-concern overload threshold), indicating a broad catch-all package shape.",
+        "`src/shared/lib/utils.ts` is an ambiguous 2-export barrel (`cn`, string formatting) despite very high fan-in in holistic context (top imported module list includes `src/shared/lib/utils.ts` with 101 importers), reinforcing catch-all placement.",
+        "`src/shared/components/ui/button.tsx` imports `cn` via `@/shared/lib/utils` instead of a UI-scoped utility boundary, creating cross-directory affinity from UI primitives into overloaded shared/lib."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "contract-shims-without-gates",
+      "summary": "High-fan-in compatibility shims have removal dates but no enforceable retirement gate, so old/new contracts can persist indefinitely.",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "README only defines an explicit gate for `@/types/shots` shim removal (`npm run check:shots-shim-usage`).",
+        "`client.ts` still exports deprecated `supabase` compatibility proxy and lazy fallback path with a dated removal target but no codified check in docs.",
+        "`handleError.ts` still exports deprecated alias symbols with removal target metadata and no listed quality gate."
+      ],
+      "suggestion": "Add contract-governance checks to `quality:check` for all dated shims: (1) enforce zero imports of `supabase` named export from `@/integrations/supabase/client`, (2) enforce zero imports/usages of `reportRuntimeError` and `RuntimeErrorOptions`, (3) fail CI when a dated shim has passed its removal date. Implement with a small script using `rg` patterns and wire it into `npm run quality:check`; validate via `rg \"import\\s*\\{\\s*supabase\\s*\\}\" src`, `rg \"reportRuntimeError|RuntimeErrorOptions\" src`, and `npm run quality:check`.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "shared-lib-utils-catchall-drift",
+      "summary": "A generic `shared/lib/utils` barrel in an overloaded directory blurs ownership and pulls UI primitives through a catch-all package.",
+      "related_files": [
+        "src/shared/lib/utils.ts",
+        "src/shared/components/ui/button.tsx",
+        "README.md"
+      ],
+      "evidence": [
+        "`src/shared/lib/` has 79 files in structure profile (mixed concerns threshold exceeded).",
+        "`utils.ts` exports unrelated concerns (`cn` UI class helper and string formatting helpers) under a generic name, encouraging broad dependency spread.",
+        "`button.tsx` (UI primitive) imports `cn` from `@/shared/lib/utils`, reinforcing cross-boundary dependency on a catch-all module."
+      ],
+      "suggestion": "Run a staged reorg: Stage 1 target folders: keep `cn` in UI scope (`src/shared/components/ui/cn.ts` or `src/shared/lib/uiClassNames.ts` as single source), move string helpers to `src/shared/lib/string/index.ts`; Stage 2 move order: migrate UI imports from `@/shared/lib/utils` to UI-scoped `cn` path first, then migrate non-UI string helper imports to `@/shared/lib/string`, then deprecate and remove `src/shared/lib/utils.ts`; Stage 3 import-update/validation commands: `rg \"@/shared/lib/utils\" -n src`, apply codemod/replacements, then run `npm run typecheck`, `npm run test -- src/shared/components/ui/button.test.tsx`, and `npm run quality:check`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

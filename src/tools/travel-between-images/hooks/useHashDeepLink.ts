@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import { Shot } from '@/types/shots';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { Shot } from '@/domains/generation/types';
 
 interface UseHashDeepLinkOptions {
   /** Current shot ID from context */
@@ -148,14 +148,13 @@ export function useHashDeepLink({
     let cancelled = false;
     (async () => {
       try {
-        const { data, error } = await supabase
-          .from('shots')
+        const { data, error } = await supabase().from('shots')
           .select('project_id')
           .eq('id', hashShotId)
           .single();
 
         if (error) {
-          handleError(error, { context: 'useHashDeepLink', showToast: false });
+          normalizeAndPresentError(error, { context: 'useHashDeepLink', showToast: false });
           if (!cancelled) {
             navigate('/tools/travel-between-images', { replace: true });
           }
@@ -166,7 +165,7 @@ export function useHashDeepLink({
           setSelectedProjectId(data.project_id);
         }
       } catch (err) {
-        handleError(err, { context: 'useHashDeepLink', showToast: false });
+        normalizeAndPresentError(err, { context: 'useHashDeepLink', showToast: false });
         if (!cancelled) {
           navigate('/tools/travel-between-images', { replace: true });
         }

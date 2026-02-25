@@ -1,0 +1,140 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 3,
+  "assessments": {
+    "incomplete_migration": 66.0,
+    "low_level_elegance": 79.0
+  },
+  "dimension_notes": {
+    "incomplete_migration": {
+      "evidence": [
+        "Multiple deprecated compatibility surfaces remain active in assigned files: `getLegacySupabaseClient` (legacySupabaseFacade), `reportRuntimeError` alias (handleError), `createJoinClipsTaskCompat` + legacy fields (joinClipsCompatAdapter), and legacy travel structure field types (legacyStructureVideo).",
+        "`joinClipsCompatAdapter` enforces removal target for legacy clip-path mode (`assertLegacyClipSourceAllowed`) but still accepts legacy `video_edit_mode` + `source_*` payloads with no analogous sunset gate.",
+        "`useCredits.ts` is a dedicated deprecated shim re-export, indicating old and new import surfaces still coexist."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "`joinClipsCompatAdapter.ts` contains a very wide mixed-shape parameter interface and multiple legacy/canonical branch paths, including near-duplicate legacy video-edit detectors and large legacy-field stripping destructure, increasing local cognitive load.",
+        "`galleryUtils.extractSegmentImages` and `taskIdHelpers.getSourceTaskId` both implement ad-hoc multi-shape fallback chains inline, repeating schema-normalization logic instead of sharing one normalization layer.",
+        "`mediaTypeHelpers` contains additional shape-compat fallback chains (`generation_id` vs `metadata.generation_id` vs `id`, multiple URL key aliases), reinforcing local defensive sprawl patterns."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_enforcement_policy_drift",
+      "summary": "Legacy migration enforcement is inconsistent across compatibility surfaces",
+      "related_files": [
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "src/shared/lib/tasks/joinClipsCompatAdapter.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "`joinClipsCompatAdapter` hard-fails legacy clip-path usage after removal target (`assertLegacyClipSourceAllowed`), but `legacySupabaseFacade` only logs once via `console.error` and continues serving the legacy accessor.",
+        "`handleError.ts` keeps deprecated alias exports (`reportRuntimeError`, `RuntimeErrorOptions`) with metadata but no runtime/CI gate to force retirement."
+      ],
+      "suggestion": "Standardize one migration policy: either enforce hard-fail after target or enforce build-time import budgets for all deprecated entry points. Apply the same mechanism to legacy Supabase facade and deprecated error aliases, not only join-clips legacy path mode.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "unified_deprecation_governance_missing"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "join_clips_video_edit_legacy_path_unsunset",
+      "summary": "Join-clips still accepts legacy video-edit payload fields without sunset cutoff",
+      "related_files": [
+        "src/shared/lib/tasks/joinClipsCompatAdapter.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts"
+      ],
+      "evidence": [
+        "`joinClipsCompatAdapter.resolveVideoEditConfig` still maps `video_edit_mode` + `source_video_*` + `portions_to_regenerate` into canonical `video_edit`.",
+        "Removal-target enforcement is implemented for legacy clip-path fields but not for legacy video-edit payload fields, creating asymmetric migration completion.",
+        "`legacyStructureVideo.ts` shows similar continued legacy-field support in adjacent task payload domain, indicating ongoing dual-schema operation."
+      ],
+      "suggestion": "Add a removal-target gate for legacy video-edit fields parallel to `assertLegacyClipSourceAllowed`, then phase to canonical `video_edit` only. Keep one temporary telemetry period, then remove legacy video-edit fields and update callers/tests.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "unified_deprecation_governance_missing"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "deprecated_shim_surface_still_exposed",
+      "summary": "Deprecated shim entry points remain exported as first-class surfaces",
+      "related_files": [
+        "src/shared/hooks/useCredits.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "`useCredits.ts` is a deprecated compatibility re-export module, preserving old import path.",
+        "`handleError.ts` exports deprecated alias symbol and alias type (`reportRuntimeError`, `RuntimeErrorOptions`) alongside canonical API."
+      ],
+      "suggestion": "Demote deprecated shims from normal exports: add strict lint/import-ban rules on legacy symbols, publish direct codemod replacements, and remove shim modules once import budget reaches zero.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "unified_deprecation_governance_missing"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "compat_adapter_parameter_bag_sprawl",
+      "summary": "Join-clips compat adapter has oversized mixed-shape parameter bag and branchy normalization",
+      "related_files": [
+        "src/shared/lib/tasks/joinClipsCompatAdapter.ts",
+        "src/shared/lib/taskCreation/types.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts"
+      ],
+      "evidence": [
+        "`JoinClipsTaskCompatParams` combines canonical, legacy, and mode-specific fields in one broad interface, then performs extensive branch checks and migration logic in one module.",
+        "The adapter contains duplicated/near-duplicated legacy detectors (`hasLegacyVideoEditFields` vs `hasLegacyVideoEditPayloadFields`) and a large legacy-field stripping destructure block, which increases maintenance cost.",
+        "Similar broad legacy-field interfaces appear in `legacyStructureVideo.ts`, showing repeated mixed-shape handling style."
+      ],
+      "suggestion": "Split compat handling into explicit translators per legacy shape (clip paths, legacy video-edit payload, canonical) and narrow each input type. Keep one orchestrator function that selects translator, instead of one wide interface and many internal branches.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "schema_compat_logic_scattered"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "ad_hoc_multi_shape_fallback_chains",
+      "summary": "Repeated inline fallback chains for schema variants reduce local clarity",
+      "related_files": [
+        "src/shared/lib/galleryUtils.ts",
+        "src/shared/lib/taskIdHelpers.ts",
+        "src/shared/lib/mediaTypeHelpers.ts"
+      ],
+      "evidence": [
+        "`extractSegmentImages` manually resolves multiple schema locations (`individual_segment_params`, top-level, `orchestrator_details`, array offsets) with inline precedence logic.",
+        "`getSourceTaskId` hardcodes legacy key-priority fallback chain (`source_task_id` -> `orchestrator_task_id` -> `task_id`).",
+        "`getGenerationId` and media URL helpers do similar key-alias fallback chains, repeating low-level compatibility logic in separate utilities."
+      ],
+      "suggestion": "Introduce shared schema-normalization helpers (e.g., canonical media/task param readers) and move key-priority tables to centralized constants so each utility reads normalized fields instead of repeating inline fallback chains.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "schema_compat_logic_scattered"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Deprecation governance is not uniformly enforced across compatibility modules.",
+      "Legacy/new schema coexistence is handled by local fallback code instead of a centralized normalization layer."
+    ],
+    "likely_symptoms": [
+      "legacy_enforcement_policy_drift",
+      "join_clips_video_edit_legacy_path_unsunset",
+      "ad_hoc_multi_shape_fallback_chains"
+    ],
+    "possible_false_positives": []
+  }
+}

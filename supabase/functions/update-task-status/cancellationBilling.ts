@@ -90,7 +90,19 @@ export async function handleOrchestratorCancellationBilling(
     }
 
     logger.info('Triggering billing for cancelled orchestrator', { orchestrator_task_id: cancelledTaskId });
-    await triggerCostCalculation(supabaseUrl, serviceKey, cancelledTaskId, 'CancelledOrchBilling');
+    const billingResult = await triggerCostCalculation({
+      supabaseUrl,
+      serviceKey,
+      taskId: cancelledTaskId,
+      logTag: 'CancelledOrchBilling',
+    });
+    if (!billingResult.ok) {
+      logger.warn('Cancelled orchestrator billing trigger failed', {
+        orchestrator_task_id: cancelledTaskId,
+        error_code: billingResult.errorCode,
+        message: billingResult.message,
+      });
+    }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     logger.error('Error in orchestrator cancellation billing', { error: message });

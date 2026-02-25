@@ -21,11 +21,11 @@
 
 import React, { useState, useCallback } from 'react';
 import { Button } from '@/shared/components/ui/button';
-import { Label } from '@/shared/components/ui/label';
+import { Label } from '@/shared/components/ui/primitives/label';
 import { Slider } from '@/shared/components/ui/slider';
 import { Loader2, RotateCcw, Save } from 'lucide-react';
 import { quantizeFrameCount, framesToSeconds } from '@/shared/lib/videoUtils';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { usePromptFieldState } from '@/shared/hooks/usePromptFieldState';
 
 // Extracted components
@@ -121,7 +121,7 @@ export const SegmentSettingsForm: React.FC<SegmentSettingsFormProps> = ({
       setSubmitSuccess(true);
       setTimeout(() => setSubmitSuccess(false), 1500);
     } catch (error) {
-      handleError(error, { context: 'SegmentSettingsForm', showToast: false });
+      normalizeAndPresentError(error, { context: 'SegmentSettingsForm', showToast: false });
     }
   }, [onSubmit]);
 

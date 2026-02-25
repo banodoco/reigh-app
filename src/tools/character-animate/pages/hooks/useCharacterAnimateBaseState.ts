@@ -1,13 +1,13 @@
 import { useCallback, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { toast } from '@/shared/components/ui/toast';
-import { useAsyncOperation } from '@/shared/hooks/useAsyncOperation';
-import { useDeleteGenerationWithConfirm } from '@/shared/hooks/useDeleteGenerationWithConfirm';
+import { useAsyncOperation } from '@/shared/hooks/async/useAsyncOperation';
+import { useDeleteGenerationWithConfirm } from '@/domains/generation/hooks/useDeleteGenerationWithConfirm';
 import { useProjectGenerations, type GenerationsPaginatedResponse } from '@/shared/hooks/useProjectGenerations';
-import { useIsMobile } from '@/shared/hooks/useMobile';
+import { useIsMobile } from '@/shared/hooks/mobile';
 
 import { useCharacterAnimateGenerate } from '@/tools/character-animate/hooks/useCharacterAnimateGenerate';
 import { useCharacterAnimateSettings } from '@/tools/character-animate/hooks/useCharacterAnimateSettings';
@@ -73,7 +73,7 @@ export function useCharacterAnimateBaseState() {
 
   const {
     requestDelete: requestDeleteGeneration,
-    DeleteConfirmDialog,
+    confirmDialogProps,
     deletingId,
   } = useDeleteGenerationWithConfirm();
 
@@ -120,7 +120,7 @@ export function useCharacterAnimateBaseState() {
     videosData,
     videosLoading,
     videosFetching,
-    DeleteConfirmDialog,
+    confirmDialogProps,
     deletingId,
     handleDeleteGeneration,
   };

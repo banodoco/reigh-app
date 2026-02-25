@@ -1,11 +1,11 @@
 import React from 'react';
-import { Label } from "@/shared/components/ui/label";
+import { Label } from "@/shared/components/ui/primitives/label";
 import { Button } from "@/shared/components/ui/button";
 import { Progress } from '@/shared/components/ui/progress';
 import { X, Upload } from 'lucide-react';
 
 import { HuggingFaceTokenSetup } from '@/shared/components/HuggingFaceTokenSetup';
-import type { LoraFiles } from '@/shared/hooks/useHuggingFaceUpload';
+import type { LoraFiles } from '@/features/lora/hooks/useHuggingFaceUpload';
 import { FileDropZone } from './FileDropZone';
 
 interface UploadProgressIndicatorProps {

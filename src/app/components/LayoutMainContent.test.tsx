@@ -4,7 +4,7 @@ import { LayoutMainContent } from './LayoutMainContent';
 
 const usePanesMock = vi.fn();
 const useHeaderStateMock = vi.fn();
-const useContentResponsiveMock = vi.fn();
+const useViewportResponsiveMock = vi.fn();
 const globalHeaderMock = vi.fn();
 const globalProcessingWarningMock = vi.fn();
 
@@ -34,8 +34,8 @@ vi.mock('@/shared/contexts/ToolPageHeaderContext', () => ({
   useHeaderState: () => useHeaderStateMock(),
 }));
 
-vi.mock('@/shared/hooks/useContentResponsive', () => ({
-  useContentResponsive: () => useContentResponsiveMock(),
+vi.mock('@/shared/hooks/responsive/useViewportResponsive', () => ({
+  useViewportResponsive: () => useViewportResponsiveMock(),
 }));
 
 describe('LayoutMainContent', () => {
@@ -53,7 +53,7 @@ describe('LayoutMainContent', () => {
     useHeaderStateMock.mockReturnValue({
       header: <div data-testid="tool-header">Header</div>,
     });
-    useContentResponsiveMock.mockReturnValue({
+    useViewportResponsiveMock.mockReturnValue({
       isSm: false,
       isMd: false,
       isLg: true,

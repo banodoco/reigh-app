@@ -9,10 +9,10 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
 import type { GenerationVariant } from '@/shared/hooks/useVariants';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 interface ToggleStarParams {
   variantId: string;
@@ -25,13 +25,12 @@ export function useToggleVariantStar() {
 
   const mutation = useMutation({
     mutationFn: async ({ variantId, starred }: ToggleStarParams) => {
-      const { error } = await supabase
-        .from('generation_variants')
+      const { error } = await supabase().from('generation_variants')
         .update({ starred })
         .eq('id', variantId);
 
       if (error) {
-        handleError(error, { context: 'useToggleVariantStar', showToast: false });
+        normalizeAndPresentError(error, { context: 'useToggleVariantStar', showToast: false });
         throw error;
       }
 
@@ -61,7 +60,7 @@ export function useToggleVariantStar() {
       if (context?.previousVariants) {
         queryClient.setQueryData(context.queryKey, context.previousVariants);
       }
-      handleError(new Error('Failed to toggle star'), { context: 'useToggleVariantStar', showToast: false });
+      normalizeAndPresentError(new Error('Failed to toggle star'), { context: 'useToggleVariantStar', showToast: false });
     },
     onSettled: (_data, _error, { generationId }) => {
       // Refetch to ensure consistency

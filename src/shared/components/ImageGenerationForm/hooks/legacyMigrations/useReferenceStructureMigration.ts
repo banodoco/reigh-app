@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { nanoid } from 'nanoid';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { ProjectImageSettings, ReferenceImage } from '../../types';
 import type { LegacyMigrationsInput } from './types';
 
@@ -81,7 +81,7 @@ export function useReferenceStructureMigration(input: ReferenceStructureMigratio
       try {
         await updateProjectImageSettings('project', updates);
       } catch (error) {
-        handleError(error, {
+        normalizeAndPresentError(error, {
           context: 'ImageGenerationForm.migrateLegacyReference',
           showToast: false,
         });

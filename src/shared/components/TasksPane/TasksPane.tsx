@@ -1,51 +1,38 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { useQueryClient } from '@tanstack/react-query';
-import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 import { useRenderLogger } from '@/shared/lib/debug/debugRendering';
 import TaskList from './TaskList';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { Button } from '@/shared/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { Loader2 } from 'lucide-react';
-import { useSlidingPane } from '@/shared/hooks/useSlidingPane';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import PaneControlTab from '../PaneControlTab';
 import { useProject } from '@/shared/contexts/ProjectContext';
-import { useCancelAllPendingTasks, useTaskStatusCounts, usePaginatedTasks, useAllTaskTypes, type PaginatedTasksResponse } from '@/shared/hooks/useTasks';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
-import { toast } from '@/shared/components/ui/toast';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
 import { TasksPaneProcessingWarning } from '../ProcessingWarnings';
-import { useBottomOffset } from '@/shared/hooks/useBottomOffset';
-import { getTaskDisplayName } from '@/shared/lib/taskConfig';
+import { useBottomOffset } from '@/features/layout/hooks/useBottomOffset';
 import MediaLightbox from '@/shared/components/MediaLightbox';
 import { useListShots } from '@/shared/hooks/shots';
 import { useLastAffectedShot } from '@/shared/hooks/useLastAffectedShot';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
+import { usePaneInteractionLifecycle } from '@/shared/components/panes/usePaneInteractionLifecycle';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from '@/shared/components/ui/select';
 
 // Import from new modules
-import { ITEMS_PER_PAGE, STATUS_GROUPS, FilterGroup } from './constants';
+import { STATUS_GROUPS, type FilterGroup } from './constants';
 import { StatusIndicator } from './components/StatusIndicator';
 import { PaginationControls } from './components/PaginationControls';
 import { useTasksLightbox } from './hooks/useTasksLightbox';
 import { useShotActions } from './hooks/useShotActions';
+import { useTasksPaneController } from './hooks/useTasksPaneController';
+import { useTasksPaneSlidingPane } from './hooks/useTasksPaneSlidingPane';
 
 interface TasksPaneProps {
   onOpenSettings: () => void;
 }
 
 const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
-  const queryClient = useQueryClient();
-  
-  // Expose queryClient globally for diagnostics (dev only)
-  useEffect(() => {
-    if (import.meta.env.DEV && typeof window !== 'undefined' && queryClient) {
-      window.__REACT_QUERY_CLIENT__ = queryClient;
-    }
-  }, [queryClient]);
-
   const {
     isTasksPaneLocked,
     setIsTasksPaneLocked,
@@ -56,50 +43,9 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
     setIsTasksPaneOpen: setIsTasksPaneOpenProgrammatic,
   } = usePanes();
 
-  // Status filter state - default to Processing
-  const [selectedFilter, setSelectedFilter] = useState<FilterGroup>('Processing');
-  
-  // Task type filter state - null means "All types"
-  const [selectedTaskType, setSelectedTaskType] = useState<string | null>(null);
-  
-  // Project scope filter - 'current' shows current project, 'all' shows all projects, or a specific project ID
-  const [projectScope, setProjectScope] = useState<string>(() => {
-    try {
-      const stored = sessionStorage.getItem('tasks-pane-project-scope');
-      if (stored) return stored;
-    } catch { /* Session storage not available */ }
-    return 'current';
-  });
-  
-  // Save project scope to session storage when it changes
-  useEffect(() => {
-    try {
-      sessionStorage.setItem('tasks-pane-project-scope', projectScope);
-    } catch { /* Session storage not available */ }
-  }, [projectScope]);
-  
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  
-  // Mobile two-step tap interaction state
-  const [mobileActiveTaskId, setMobileActiveTaskId] = useState<string | null>(null);
-
   // Project context & task helpers
   const { selectedProjectId, projects } = useProject();
-  const shouldLoadTasks = !!selectedProjectId;
-  
-  // Get all project IDs for "all projects" mode
-  const allProjectIds = useMemo(() => projects.map(p => p.id), [projects]);
-  
-  // Create a lookup map for project names
-  const projectNameMap = useMemo(() => {
-    const map: Record<string, string> = {};
-    projects.forEach(p => {
-      map[p.id] = p.name;
-    });
-    return map;
-  }, [projects]);
-  
+
   // Shots data for lightbox
   const { data: shots } = useListShots(selectedProjectId);
   const { currentShotId } = useCurrentShot();
@@ -107,7 +53,39 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
 
   // Get incoming/placeholder tasks for count calculation + cancellation
   const { incomingTasks, cancelAllIncoming } = useIncomingTasks();
-  
+
+  const {
+    selectedFilter,
+    selectedTaskType,
+    projectScope,
+    currentPage,
+    mobileActiveTaskId,
+    setProjectScope,
+    setMobileActiveTaskId,
+    handleFilterChange,
+    handleTaskTypeChange,
+    handlePageChange,
+    handleStatusIndicatorClick,
+    handleCancelAllPending,
+    isCancelAllPending,
+    paginatedData,
+    isPaginatedLoading,
+    displayStatusCounts,
+    isStatusCountsDegraded,
+    failedStatusQueries,
+    taskTypeOptions,
+    totalTasks,
+    totalPages,
+    cancellableTaskCount,
+    isAllProjectsMode,
+    projectNameMap,
+  } = useTasksPaneController({
+    selectedProjectId,
+    projects,
+    incomingTasks,
+    cancelAllIncoming,
+  });
+
   // Simplified shot options for MediaLightbox
   const simplifiedShotOptions = useMemo(() => shots?.map(s => ({ id: s.id, name: s.name })) || [], [shots]);
 
@@ -144,180 +122,19 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
     lastAffectedShotId,
     selectedProjectId,
   });
-  
-  // Determine the effective project ID(s) based on scope
-  const effectiveProjectId = projectScope === 'current' 
-    ? selectedProjectId 
-    : projectScope !== 'all' 
-      ? projectScope
-      : null;
-  
-  const isAllProjectsMode = projectScope === 'all';
-  
-  // Get paginated tasks
-  const { data: paginatedData, isLoading: isPaginatedLoading } = usePaginatedTasks({
-    projectId: shouldLoadTasks ? effectiveProjectId : null,
-    status: STATUS_GROUPS[selectedFilter],
-    limit: ITEMS_PER_PAGE,
-    offset: (currentPage - 1) * ITEMS_PER_PAGE,
-    taskType: selectedTaskType,
-    allProjects: isAllProjectsMode,
-    allProjectIds: isAllProjectsMode ? allProjectIds : undefined,
-  });
-
-  // Get status counts for indicators
-  const { data: statusCounts, isLoading: isStatusCountsLoading } = useTaskStatusCounts(shouldLoadTasks ? selectedProjectId : null);
-  
-  // Fetch all unique task types for this project
-  const { data: allTaskTypes } = useAllTaskTypes(shouldLoadTasks ? selectedProjectId : null);
-  
-  // Convert to dropdown options format
-  const taskTypeOptions = useMemo(() => {
-    if (!allTaskTypes || allTaskTypes.length === 0) return [];
-    
-    return allTaskTypes
-      .map(taskType => ({
-        value: taskType,
-        label: getTaskDisplayName(taskType),
-      }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-  }, [allTaskTypes]);
-  
-  // Store previous status counts to avoid flickering during loading
-  const [displayStatusCounts, setDisplayStatusCounts] = useState<typeof statusCounts>(statusCounts);
-  
-  useEffect(() => {
-    if ((!isStatusCountsLoading && statusCounts) || (!displayStatusCounts && statusCounts)) {
-      setDisplayStatusCounts(statusCounts);
-    }
-  }, [statusCounts, isStatusCountsLoading, displayStatusCounts]);
-
-  // Calculate the effective count including incoming/placeholder tasks
-  const dbCount = selectedFilter === 'Processing'
-    ? (paginatedData?.total || 0)
-    : (displayStatusCounts?.processing || 0);
-
-  // Only count placeholders whose tasks haven't been created yet (no taskIds resolved).
-  // Once resolved, the real tasks are in the DB count — no double-counting.
-  const cancellableTaskCount = useMemo(() => {
-    if (incomingTasks.length === 0) return dbCount;
-
-    const unresolvedCount = incomingTasks
-      .filter(t => !t.taskIds?.length)
-      .reduce((sum, t) => sum + (t.expectedCount ?? 1), 0);
-
-    return dbCount + unresolvedCount;
-  }, [dbCount, incomingTasks]);
-
-  const cancelAllPendingMutation = useCancelAllPendingTasks();
 
   useRenderLogger('TasksPane', { cancellableCount: cancellableTaskCount });
 
-  // Filter/pagination handlers
-  const handleFilterChange = (filter: FilterGroup) => {
-    setSelectedFilter(filter);
-    setCurrentPage(1);
-    setMobileActiveTaskId(null);
-  };
-  
-  const handleTaskTypeChange = (taskType: string | null) => {
-    setSelectedTaskType(taskType);
-    setCurrentPage(1);
-    setMobileActiveTaskId(null);
-  };
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    setMobileActiveTaskId(null);
-  };
-
-  const handleStatusIndicatorClick = (type: FilterGroup, count: number) => {
-    setSelectedFilter(type);
-    setCurrentPage(1);
-  };
-
-  const handleCancelAllPending = () => {
-    if (!selectedProjectId) {
-      toast({ title: 'Error', description: 'No project selected.', variant: 'destructive' });
-      return;
-    }
-
-    // Cancel in-flight placeholder tasks first.
-    // Any create() calls still in flight will detect this via wasCancelled()
-    // and cancel their newly created DB tasks when they return.
-    cancelAllIncoming();
-
-    const queryKey = [...taskQueryKeys.paginated(selectedProjectId!), STATUS_GROUPS[selectedFilter], ITEMS_PER_PAGE, (currentPage - 1) * ITEMS_PER_PAGE];
-    const previousData = queryClient.getQueryData(queryKey);
-
-    // Optimistic update: mark queued tasks as cancelled and adjust total
-    queryClient.setQueryData<PaginatedTasksResponse | undefined>(queryKey, (oldData) => {
-      if (!oldData?.tasks) return oldData;
-
-      const cancelledCount = oldData.tasks.filter(t => t.status === 'Queued').length;
-      return {
-        ...oldData,
-        total: Math.max(0, oldData.total - cancelledCount),
-        tasks: oldData.tasks.map((task) => {
-          if (task.status === 'Queued') {
-            return { ...task, status: 'Cancelled' as const };
-          }
-          return task;
-        }),
-      };
-    });
-
-    cancelAllPendingMutation.mutate(selectedProjectId, {
-      onSuccess: (data) => {
-        toast({
-          title: 'Tasks Cancellation Initiated',
-          description: `Cancelled ${data?.cancelledCount ?? 0} pending tasks.`,
-          variant: 'default',
-        });
-
-        queryClient.invalidateQueries({ queryKey: taskQueryKeys.paginated(selectedProjectId) });
-        queryClient.refetchQueries({ queryKey: taskQueryKeys.paginated(selectedProjectId) });
-      },
-      onError: (error) => {
-        queryClient.setQueryData(queryKey, previousData);
-        handleError(error, { context: 'TasksPane', toastTitle: 'Cancellation Failed' });
-      },
-    });
-  };
-
-  const { isLocked, isOpen, toggleLock, openPane, paneProps, transformClass, handlePaneEnter, handlePaneLeave, showBackdrop, closePane } = useSlidingPane({
-    side: 'right',
-    isLocked: isTasksPaneLocked,
-    onToggleLock: () => {
-      const willBeLocked = !isTasksPaneLocked;
-      setIsTasksPaneLocked(willBeLocked);
-      setIsTasksPaneOpenProgrammatic(willBeLocked);
-    },
-    programmaticOpen: isTasksPaneOpenProgrammatic,
-    // Sync context state when pane closes via internal mechanisms (hover timeout, etc.)
-    onOpenChange: (open) => {
-      if (!open && isTasksPaneOpenProgrammatic) {
-        setIsTasksPaneOpenProgrammatic(false);
-      }
-    },
+  const { isLocked, isOpen, toggleLock, openPane, paneProps, transformClass, handlePaneEnter, handlePaneLeave, showBackdrop, closePane } = useTasksPaneSlidingPane({
+    isTasksPaneLocked,
+    setIsTasksPaneLocked,
+    isTasksPaneOpenProgrammatic,
+    setIsTasksPaneOpenProgrammatic,
   });
-  
-  // Delay pointer events until animation completes to prevent tap bleed-through on mobile
-  const [isPointerEventsEnabled, setIsPointerEventsEnabled] = useState(false);
 
-  useEffect(() => {
-    if (isOpen) {
-      const timeoutId = setTimeout(() => {
-        setIsPointerEventsEnabled(true);
-      }, 300);
-      return () => clearTimeout(timeoutId);
-    } else {
-      setIsPointerEventsEnabled(false);
-    }
-  }, [isOpen]);
-
-  const totalTasks = paginatedData?.total || 0;
-  const totalPages = Math.ceil(totalTasks / ITEMS_PER_PAGE);
+  const { isPointerEventsEnabled } = usePaneInteractionLifecycle({
+    isOpen: Boolean(isOpen),
+  });
 
   return (
     <>
@@ -399,10 +216,10 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
                       variant="destructive"
                       size="sm"
                       onClick={handleCancelAllPending}
-                      disabled={cancelAllPendingMutation.isPending || cancellableTaskCount === 0}
+                      disabled={isCancelAllPending || cancellableTaskCount === 0}
                       className="flex items-center gap-2"
                     >
-                      {cancelAllPendingMutation.isPending ? (
+                      {isCancelAllPending ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin" />
                           Cancel All
@@ -465,13 +282,20 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
                           count={count}
                           type={filter}
                           isSelected={selectedFilter === filter}
-                          onClick={() => handleStatusIndicatorClick(filter, count)}
+                          onClick={() => handleStatusIndicatorClick(filter)}
                         />
                       </Button>
                     );
                   })}
                 </div>
               </div>
+
+              {isStatusCountsDegraded && (
+                <p className="mt-2 text-[11px] text-amber-300">
+                  Task counters are partially degraded
+                  {failedStatusQueries ? ` (${failedStatusQueries})` : ''}.
+                </p>
+              )}
               
               {/* Task Type + Project Scope Filters */}
               <div className="mt-2 flex items-center gap-2">
@@ -497,7 +321,7 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
                   value={projectScope}
                   onValueChange={(value) => {
                     setProjectScope(value ?? 'current');
-                    setCurrentPage(1);
+                    handlePageChange(1);
                   }}
                 >
                   <SelectTrigger variant="retro-dark" size="sm" colorScheme="zinc" className="h-7 !text-xs flex-1 min-w-0">

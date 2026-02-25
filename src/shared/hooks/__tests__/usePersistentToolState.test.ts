@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 
 // Mock useAutoSaveSettings (adapter boundary used by usePersistentToolState)
-vi.mock('../useAutoSaveSettings', () => ({
+vi.mock('../settings/useAutoSaveSettings', () => ({
   useAutoSaveSettings: vi.fn(() => ({
     settings: { generationMode: 'batch', steps: 6 },
     status: 'ready',
@@ -27,7 +27,7 @@ vi.mock('@/tooling/toolDefaultsRegistry', () => ({
   },
 }));
 
-vi.mock('@/shared/lib/deepEqual', () => ({
+vi.mock('@/shared/lib/utils/deepEqual', () => ({
   deepEqual: vi.fn((a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)),
   sanitizeSettings: vi.fn((s: unknown) => s),
 }));

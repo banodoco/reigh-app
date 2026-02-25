@@ -1,0 +1,90 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "api_surface_coherence": 84.0
+  },
+  "dimension_notes": {
+    "api_surface_coherence": {
+      "evidence": [
+        "`resolveGenerationProjectScope` and `resolveVariantProjectScope` use `.single()` and classify all Supabase errors as `query_failed`, making declared `missing_generation`/`missing_variant` statuses effectively unreachable (`src/shared/lib/generationTaskRepository.ts:62-83`, `:113-136`).",
+        "`generateVideoService` mutates request payload with `requestBody.loras` even though `TravelBetweenImagesTaskInput` does not declare a top-level `loras` field (`src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts:657-662`, `src/shared/lib/tasks/travelBetweenImages/types.ts:198-285`).",
+        "`rateLimitFailureResponse` accepts both `OperationResult<RateLimitResult>` and raw `RateLimitResult`, but when given `{allowed:true}` it fabricates a denied response via `fallbackDeniedResult`, making input/output semantics non-honest for callers (`supabase/functions/_shared/rateLimit.ts:281-290`, `:240-247`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "scope_status_contract_unreachable",
+      "summary": "Generation/variant scope APIs advertise missing-entity statuses that their query path cannot reliably produce.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/hooks/useLineageChain.ts",
+        "src/shared/lib/generationTaskCache.ts"
+      ],
+      "evidence": [
+        "`resolveGenerationProjectScope` queries with `.single()` then immediately returns `query_failed` on any error (`src/shared/lib/generationTaskRepository.ts:62-75`), so `missing_generation` at `:77-83` is effectively bypassed for no-row cases.",
+        "`resolveVariantProjectScope` has the same pattern (`:113-127`), undermining `missing_variant` at `:129-136`.",
+        "Downstream code branches on these statuses for user-facing behavior (`src/shared/hooks/useLineageChain.ts:78-92`), so status drift changes API meaning outside the repository layer."
+      ],
+      "suggestion": "Make repository scope lookups use `maybeSingle()` (or explicit no-row error-code handling) so `missing_generation`/`missing_variant` are emitted deterministically, and align downstream consumers/tests to the corrected status contract.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "status_contract_drift"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "travel_request_schema_drift",
+      "summary": "Travel video request builder sends an undocumented top-level `loras` field not represented in the declared task-input type.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/shared/lib/tasks/travelBetweenImages/types.ts"
+      ],
+      "evidence": [
+        "`buildTravelRequestBodyV2` returns `TravelBetweenImagesTaskInput` (`generateVideoService.ts:449`), then `generateVideo` writes `requestBody.loras = ...` (`:657-662`).",
+        "`TravelBetweenImagesTaskParams/TravelBetweenImagesTaskInput` define `pair_loras` but no top-level `loras` field (`types.ts:253`, `:293-301`)."
+      ],
+      "suggestion": "Unify the request schema: either add a typed top-level `loras` contract to `TravelBetweenImagesTaskInput` and validators, or remove that write and map all LoRA data through existing `pair_loras`/phase-config fields.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "request_schema_fragmentation"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "rate_limit_failure_api_allows_success_input",
+      "summary": "Rate-limit failure response helper accepts success-shaped inputs and silently converts them into denial responses.",
+      "related_files": [
+        "supabase/functions/_shared/rateLimit.ts",
+        "supabase/functions/_shared/edgeRequest.ts"
+      ],
+      "evidence": [
+        "`rateLimitFailureResponse` accepts `OperationResult<RateLimitResult> | RateLimitResult` (`rateLimit.ts:281-283`).",
+        "If a caller passes a raw `{ allowed: true }`, function returns a 429 built from `fallbackDeniedResult` instead of rejecting misuse (`:284-286`, `:240-247`).",
+        "This differs from explicit failure-only helpers in edge request utilities where input contracts map directly to output semantics (`edgeRequest.ts:77-91`, `:218-231`)."
+      ],
+      "suggestion": "Narrow `rateLimitFailureResponse` to failure-only input types (e.g., denied `RateLimitResult` or `OperationFailure`) and throw/assert on success payloads to make misuse impossible at compile time and obvious at runtime.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "status_contract_drift"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Status/result contracts are declared broadly, but query/runtime implementations collapse multiple states into generic failure paths.",
+      "Request DTO ownership is split between builder code and shared type definitions, allowing undocumented fields to leak into API payloads."
+    ],
+    "likely_symptoms": [
+      "scope_status_contract_unreachable",
+      "travel_request_schema_drift",
+      "rate_limit_failure_api_allows_success_input"
+    ],
+    "possible_false_positives": []
+  }
+}

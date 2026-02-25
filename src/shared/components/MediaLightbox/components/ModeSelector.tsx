@@ -6,7 +6,7 @@
  */
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 
 interface ModeSelectorItem {

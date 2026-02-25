@@ -1,0 +1,113 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 2,
+  "assessments": {
+    "high_level_elegance": 78.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/lib/editVideoDefaults.ts` defines a full `editVideoSettings` object while `src/shared/settings/config/editVideoDefaults.ts` defines the same contract again, creating two authoritative-looking homes for one setting.",
+        "`src/shared/hooks/useHydratedReferences.ts` imports `ReferenceImage` and `HydratedReferenceImage` from `src/shared/components/ImageGenerationForm/types.ts`, so a shared hook depends on a component package for core data contracts.",
+        "`src/shared/hooks/useExternalApiKeys.ts` and `src/shared/lib/errorHandler.ts` are compatibility facades still present in top-level shared folders; both primarily serve migration aliases and legacy naming rather than clear domain ownership."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "duplicate_edit_video_defaults_ownership",
+      "summary": "Edit-video defaults live in two shared locations, blurring canonical ownership",
+      "related_files": [
+        "src/shared/lib/editVideoDefaults.ts",
+        "src/shared/settings/config/editVideoDefaults.ts",
+        "src/shared/lib/__tests__/editVideoDefaults.test.ts"
+      ],
+      "evidence": [
+        "`src/shared/lib/editVideoDefaults.ts` contains a full `editVideoSettings` definition and type.",
+        "`src/shared/settings/config/editVideoDefaults.ts` also contains a full `editVideoSettings` definition and type with overlapping fields.",
+        "Both paths are imported in the repo (`@/shared/lib/editVideoDefaults` and `@/shared/settings/config/editVideoDefaults`), so module location no longer signals true ownership."
+      ],
+      "suggestion": "Choose one canonical module (prefer `shared/settings/config` for settings contracts), convert the other to a temporary re-export shim only, and migrate imports to the canonical path before removing the shim.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "compatibility_alias_scatter"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_hook_depends_on_component_types",
+      "summary": "Shared hook depends on component-layer types, inverting package layering",
+      "related_files": [
+        "src/shared/hooks/useHydratedReferences.ts",
+        "src/shared/components/ImageGenerationForm/types.ts",
+        "src/shared/hooks/__tests__/useHydratedReferences.test.ts"
+      ],
+      "evidence": [
+        "`useHydratedReferences.ts` imports `ReferenceImage` and `HydratedReferenceImage` from `shared/components/ImageGenerationForm/types`.",
+        "The hook is in `shared/hooks` but its contract is owned by a UI component package, so moving or evolving ImageGenerationForm types can break a non-UI shared hook.",
+        "This creates a top-level boundary violation: lower-level shared logic depends on higher-level feature/component structure."
+      ],
+      "suggestion": "Extract reference contract types into a neutral shared domain path (for example `src/shared/types/referenceHydration.ts`) and have both the hook and component layer import from that shared contract module.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "contract_location_drift"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "external_api_keys_compat_shim_in_primary_hooks",
+      "summary": "Deprecated compat hook remains in primary hooks namespace with governance side effects",
+      "related_files": [
+        "src/shared/hooks/useExternalApiKeys.ts",
+        "src/shared/hooks/__tests__/useExternalApiKeys.test.ts",
+        "src/shared/services/externalApiKeys/hooks/useHuggingFaceToken.ts"
+      ],
+      "evidence": [
+        "`useExternalApiKeys.ts` is marked deprecated and only re-exports `useHuggingFaceToken` from the service module.",
+        "The file executes `signalPastRemovalTargetUsage(...)` at module load, but repository usage is effectively limited to the shim test and metadata references, not active runtime callers.",
+        "Keeping this alias in `shared/hooks` makes migration artifacts look like first-class hooks, weakening directory intent."
+      ],
+      "suggestion": "Move compatibility aliases to a dedicated `shared/compat` (or remove if no runtime imports remain), then keep `shared/hooks` reserved for actively owned hooks.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "compatibility_alias_scatter"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "legacy_error_handler_barrel_blurs_error_entrypoint",
+      "summary": "Legacy errorHandler barrel keeps parallel error API surface alive in shared/lib root",
+      "related_files": [
+        "src/shared/lib/errorHandler.ts",
+        "src/shared/lib/errorHandling/runtimeError.ts",
+        "src/shared/contexts/__tests__/UserSettingsContext.test.tsx"
+      ],
+      "evidence": [
+        "`errorHandler.ts` re-exports modern functions (`normalizeAndPresentError`) plus legacy aliases (`handleError`, `handleAndRethrow`) and error classes from nested modules.",
+        "Non-test imports in the codebase use `runtimeError` directly, while `errorHandler` appears primarily in test mocks, indicating a legacy compatibility layer rather than a real boundary.",
+        "Leaving this root-level barrel encourages dual entrypoints for the same concern and obscures where error behavior should be owned."
+      ],
+      "suggestion": "Deprecate `shared/lib/errorHandler` as a compatibility-only module (or move to compat namespace), migrate tests to mock `shared/lib/errorHandling/runtimeError`, then remove alias exports after migration.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "compatibility_alias_scatter"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Migration shims are kept in first-class package locations instead of isolated compatibility boundaries.",
+      "Data contracts are defined near consuming UI surfaces rather than neutral shared/domain contract packages."
+    ],
+    "likely_symptoms": [
+      "duplicate_edit_video_defaults_ownership",
+      "external_api_keys_compat_shim_in_primary_hooks",
+      "legacy_error_handler_barrel_blurs_error_entrypoint"
+    ],
+    "possible_false_positives": []
+  }
+}

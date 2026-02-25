@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { LoraModel } from '@/shared/components/LoraSelectorModal';
-import type { ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';
+import type { ActiveLora } from '@/shared/types/lora';
 import type { ImageGenerationFormUIState, FormUIActions } from '../state/useFormUIState';
 import {
   useContextValue,

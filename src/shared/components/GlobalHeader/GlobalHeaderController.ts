@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useIsTablet } from '@/shared/hooks/useMobile';
+import { useIsTablet } from '@/shared/hooks/mobile';
 import { useTextCase } from '@/shared/hooks/useTextCase';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import { useProjectContextDebug } from '@/shared/hooks/useProjectContextDebug';

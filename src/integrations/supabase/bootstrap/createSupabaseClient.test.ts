@@ -11,8 +11,8 @@ vi.mock('@supabase/supabase-js', () => ({
   createClient: createClientMock,
 }));
 
-vi.mock('@/shared/lib/errorHandling/handleError', () => ({
-  handleError: handleErrorMock,
+vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
+  normalizeAndPresentError: handleErrorMock,
 }));
 
 vi.mock('@/integrations/supabase/config/env', () => ({

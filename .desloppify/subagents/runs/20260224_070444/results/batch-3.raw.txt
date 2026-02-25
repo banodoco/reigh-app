@@ -1,0 +1,108 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "api_surface_coherence": 62.0,
+    "mid_level_elegance": 66.0
+  },
+  "dimension_notes": {
+    "api_surface_coherence": {
+      "evidence": [
+        "Generation-task APIs use mismatched input contracts for the same concept: `ScopedGenerationInput` accepts `{ id, projectId? }` in `src/shared/lib/generationTaskRepository.ts`, while `GenerationMappingInput` accepts `{ generationId, projectId? }` in `src/shared/lib/generationTaskQueries.ts`, requiring adapter shims (`normalizeGenerationMappingInput`).",
+        "Invalidation API behavior is non-uniform despite similar names/signatures: `useInvalidateGenerations` returns `Promise<void>` but can schedule-and-return without waiting when `delayMs` is set, while `scheduleGenerationsInvalidation` returns a timeout handle and `invalidateGenerationsSync` is still async (`src/shared/hooks/invalidation/useGenerationInvalidation.ts`).",
+        "Edge request parsing exposes three different result shapes for one boundary concern: `parseJsonBody` returns `EdgeOperationResult`, `parseJsonBodyStrict` returns `{ body?, errorResponse? }`, and `parseJsonBodyLoose` silently downgrades to `{}` (`supabase/functions/_shared/edgeRequest.ts`, `supabase/functions/_shared/edgeOperation.ts`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Boundary translation is spread across small wrappers instead of one obvious seam: generation mapping shape conversion occurs in `generationTaskQueries.ts`, while scope normalization and DB scoping live in `generationTaskRepository.ts`, and caching callers consume yet another shape in `generationTaskCache.ts`.",
+        "Join-clips metadata/load paths duplicate dual API styles (`Result` + throwing wrappers) across modules, forcing orchestrators to know per-function failure semantics (`src/tools/join-clips/lib/clipManager/metadata.ts`, `src/tools/join-clips/lib/clipInitService.ts`, `src/shared/hooks/useLineageChain.ts`).",
+        "Edge helper integration seams mix policy-aware result types with plain `Response` construction in different helpers, increasing ad-hoc glue at callsites (`supabase/functions/_shared/edgeOperation.ts`, `supabase/functions/_shared/edgeRequest.ts`, `supabase/functions/complete_task/storage.ts`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "generation_mapping_shape_drift",
+      "summary": "Same generation-mapping API uses conflicting field names (`id` vs `generationId`) across adjacent layers.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/lib/generationTaskQueries.ts",
+        "src/shared/lib/generationTaskCache.ts"
+      ],
+      "evidence": [
+        "`normalizeScopedGenerationInput` in repository normalizes `string | { id: string; projectId?: string }`.",
+        "`normalizeGenerationMappingInput` in queries re-wraps to `string | { generationId: string; projectId?: string }` and converts back to repository shape.",
+        "Callers in cache/preload flows consume mapping outputs without a single canonical input type."
+      ],
+      "suggestion": "Adopt one canonical generation reference type (prefer `{ generationId, projectId? }`), move normalization to one boundary module, and remove cross-layer shape adapters.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "invalidation_async_contract_mismatch",
+      "summary": "Invalidation functions expose inconsistent completion semantics despite similar naming.",
+      "related_files": [
+        "src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+        "src/shared/realtime/dataFreshness/queryKeyContract.ts",
+        "src/features/gallery/lib/adjacentPagePreloadCoordinator.ts"
+      ],
+      "evidence": [
+        "`useInvalidateGenerations` returns `Promise<void>` but returns immediately when `delayMs` is provided after scheduling timeout.",
+        "`scheduleGenerationsInvalidation` returns a timer handle, while `invalidateGenerationsSync` is async despite 'Sync' naming.",
+        "Surrounding freshness/preload code depends on timing-sensitive query invalidation behavior, so mixed contracts make orchestration harder to reason about."
+      ],
+      "suggestion": "Split APIs into explicit `invalidateNow` and `scheduleInvalidation` entry points, rename `invalidateGenerationsSync`, and make completion behavior explicit in return types.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "edge_json_parsing_result_shape_split",
+      "summary": "Edge JSON parsing helpers return three incompatible result shapes for the same parsing concern.",
+      "related_files": [
+        "supabase/functions/_shared/edgeRequest.ts",
+        "supabase/functions/_shared/edgeOperation.ts",
+        "supabase/functions/complete_task/storage.ts"
+      ],
+      "evidence": [
+        "`parseJsonBody` returns `EdgeOperationResult<Record<string, unknown>>`.",
+        "`parseJsonBodyStrict` converts that into `{ body?, errorResponse? }`.",
+        "`parseJsonBodyLoose` suppresses failures and always returns `{}` on parse errors, removing policy/error metadata."
+      ],
+      "suggestion": "Standardize on one parse contract (`EdgeOperationResult<T>`), then add thin callsite adapters only where HTTP responses are constructed.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "mixed_error_handoff_styles_across_service_seams",
+      "summary": "Adjacent services alternate between `Result` and throw-based handoffs, increasing seam friction.",
+      "related_files": [
+        "src/tools/join-clips/lib/clipManager/metadata.ts",
+        "src/shared/hooks/useLineageChain.ts",
+        "src/shared/lib/tasks/taskCreatorPipeline.ts"
+      ],
+      "evidence": [
+        "Join clips metadata exports both `loadClipDurationResult` and throwing `loadClipDuration` for identical behavior.",
+        "Lineage chain follows the same dual style (`fetchLineageChainResult` + throwing `fetchLineageChain`).",
+        "Task pipeline catches and rethrows after reporting (`runTaskCreationPipeline`), so orchestration layers must handle mixed patterns."
+      ],
+      "suggestion": "Choose one seam convention per subsystem (prefer `Result` at service boundaries, throw only at top-level adapters) and remove dual-form duplicates.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

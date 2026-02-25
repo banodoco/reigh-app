@@ -1,0 +1,87 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 7,
+  "assessments": {
+    "error_consistency": 87.4
+  },
+  "dimension_notes": {
+    "error_consistency": {
+      "evidence": [
+        "supabase/functions/calculate-task-cost/index.ts wraps `await req.json()` in a broad catch; malformed JSON falls into the generic 500 `internal_server_error` path instead of a request-shape/client error response.",
+        "Task-pane data hooks use different failure contracts for adjacent data: `src/shared/hooks/useTasks.ts` rethrows query failures (`normalizeAndPresentAndRethrow`) while `src/shared/hooks/useTaskStatusCounts.ts` degrades to partial-success objects with `operationFailure` and no thrown query error.",
+        "Some high-traffic runtime modules still bypass the normalized error pipeline and emit raw console/error objects (`src/shared/contexts/ProjectContext.tsx`, `supabase/functions/complete_task/orchestrator.ts`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Error handling is mostly structured, but request-boundary classification, adjacent-hook contracts, and logging/normalization pathways are still inconsistent across key runtime and edge flows."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "error_consistency",
+      "identifier": "calc_task_cost_malformed_json_500",
+      "summary": "Malformed request bodies are misclassified as internal server errors in calculate-task-cost.",
+      "related_files": [
+        "supabase/functions/calculate-task-cost/index.ts",
+        "supabase/functions/complete_task/generation.ts"
+      ],
+      "evidence": [
+        "In `supabase/functions/calculate-task-cost/index.ts`, `const { task_id } = await req.json();` is inside a top-level try block; JSON parse failures flow to the catch that returns `errorResponse('internal_server_error', ..., 500)`.",
+        "The same handler otherwise returns explicit categorized client errors (`missing_task_id`, `method_not_allowed`, auth failures), so malformed JSON currently gets a less accurate and inconsistent classification."
+      ],
+      "suggestion": "Handle JSON parsing in a dedicated guard (`try { body = await req.json(); } catch { return errorResponse('invalid_json', 'Request body must be valid JSON', 400); }`) before main business logic, keeping 500s reserved for true server faults.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "task_pane_mixed_failure_contracts",
+      "summary": "Adjacent task-pane hooks use incompatible error contracts (throwing vs degraded result objects), creating inconsistent failure behavior.",
+      "related_files": [
+        "src/shared/hooks/useTasks.ts",
+        "src/shared/hooks/useTaskStatusCounts.ts"
+      ],
+      "evidence": [
+        "`useTasks` query functions call `normalizeAndPresentAndRethrow(...)`, causing React Query error states on fetch failures.",
+        "`useTaskStatusCounts` intentionally catches/normalizes per-query failures and returns a successful query payload with `degraded: true` and embedded `operationFailure`, avoiding thrown query errors."
+      ],
+      "suggestion": "Define one shared contract for task-pane data hooks (either throw-on-failure with explicit partial-query aggregation wrapper, or always return typed degraded results) and apply it consistently so UI consumers do not need per-hook error semantics.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "inconsistent_error_contracts"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "raw_console_error_paths_bypass_normalizer",
+      "summary": "Some runtime-critical paths still use raw console logging and generic Error objects instead of normalized reporting primitives.",
+      "related_files": [
+        "src/shared/contexts/ProjectContext.tsx",
+        "supabase/functions/complete_task/orchestrator.ts",
+        "src/shared/lib/errorHandling/runtimeError.ts"
+      ],
+      "evidence": [
+        "`useProject` logs `console.error(...)` and throws `new Error(...)` directly when provider wiring is invalid, bypassing shared error normalization/reporting interfaces.",
+        "`complete_task/orchestrator.ts` uses direct `console.error`/`console.warn` for notable error-adjacent states (billing metadata persistence fallback and terminal-transition warnings), while neighboring code uses `CompletionError`/`toCompletionError` structured paths."
+      ],
+      "suggestion": "Create and enforce a per-layer boundary helper (`reportRuntimeError` for client runtime, structured logger/error wrapper for edge functions) so exceptional and warning states follow one reporting shape with consistent metadata fields.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "inconsistent_error_contracts"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "No single enforced error-contract policy across adjacent modules in the same product surface (task pane and completion flows).",
+      "Legacy/raw logging paths coexist with newer normalization wrappers without a strict lint or boundary rule."
+    ],
+    "likely_symptoms": [
+      "task_pane_mixed_failure_contracts",
+      "raw_console_error_paths_bypass_normalizer"
+    ],
+    "possible_false_positives": []
+  }
+}

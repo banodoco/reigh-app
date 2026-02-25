@@ -1,0 +1,75 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "mid_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "`src/shared/lib/generationTaskBridge.ts` and `src/shared/lib/generationTransformers.ts` both independently translate `generations.tasks` into a single primary task ID (`tasks[0]`), creating duplicate boundary-mapping logic.",
+        "`src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts` waits on `queryClient.isMutating()` with a timeout loop, while `src/shared/lib/timelineWriteQueue.ts` exposes a separate serialized-write lifecycle; the generation request path does not use that queue state before reading `shot_generations`.",
+        "`src/tools/travel-between-images/components/ShotImagesEditor/types.ts` and `src/shared/components/JoinClipsSettingsForm/types.ts` flatten multiple prop groups via object spread into one resolved API, which makes boundary ownership implicit and precedence collision-prone."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "duplicate_task_mapping_seam",
+      "summary": "Primary-task mapping is duplicated across two generation boundaries",
+      "related_files": [
+        "src/shared/lib/generationTaskBridge.ts",
+        "src/shared/lib/generationTransformers.ts"
+      ],
+      "evidence": [
+        "`getPrimaryTaskIdForGeneration` in `generationTaskBridge` reads `generations.tasks` and selects first ID.",
+        "`extractTaskId` in `generationTransformers` repeats the same array/string normalization and first-item selection logic.",
+        "These are separate boundary translators for the same DB shape, so any future tasks-field change must be updated in two places."
+      ],
+      "suggestion": "Extract a single shared `getPrimaryTaskId(tasks)` helper (or typed mapper for generation rows) and consume it from both modules so DB-to-domain translation happens in one canonical seam.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "timeline_write_sync_gap",
+      "summary": "Video generation can read stale timeline state while writes are still queued",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/shared/lib/timelineWriteQueue.ts"
+      ],
+      "evidence": [
+        "`generateVideoService` calls `waitForPendingMutations(queryClient)` with a timeout and then immediately fetches `shot_generations` for payload assembly.",
+        "`timelineWriteQueue` maintains its own serialized per-shot queue (`runSerializedTimelineWrite`, `isTimelineWriteActive`) that is not consulted by `generateVideoService` before fetch.",
+        "This split lifecycle allows a request body to be built from pre-write DB state if queued timeline writes are not represented by current React Query mutation state."
+      ],
+      "suggestion": "Unify the seam by exposing an awaitable `awaitTimelineWrites(shotId)` (or equivalent) from `timelineWriteQueue` and call it in `generateVideoService` before `fetchFreshShotGenerations`; avoid timeout-only polling as the primary synchronization contract.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "flattened_props_boundary_blur",
+      "summary": "Resolved-props flattening obscures module boundaries and collision precedence",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/types.ts",
+        "src/shared/components/JoinClipsSettingsForm/types.ts"
+      ],
+      "evidence": [
+        "Both modules define grouped prop contracts (`displayOptions/imageState/editActions/shotWorkflow` and `clipSettings/motionConfig/uiState`) but then flatten them via spread into a single `ResolvedProps` object.",
+        "Spread-based flattening creates implicit overwrite precedence and removes clear ownership at call boundaries, making future key additions risky and non-local.",
+        "The pattern appears in multiple feature seams, increasing integration entropy rather than preserving explicit module handoff shapes."
+      ],
+      "suggestion": "Keep grouped props through the component boundary (or namespace flattened keys explicitly) and remove spread-based resolver helpers so ownership and conflict prevention are enforced by the type surface.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

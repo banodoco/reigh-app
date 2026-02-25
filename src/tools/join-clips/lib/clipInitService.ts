@@ -10,10 +10,15 @@
  * - Padding clips with empty slots
  */
 
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { generateUUID } from '@/shared/lib/taskCreation';
+import {
+  operationFailure,
+  operationSuccess,
+  type OperationResult,
+} from '@/shared/lib/operationResult';
 import type { VideoClip, TransitionPrompt } from '../types';
-import type { JoinClipsSettings } from '../settings';
+import type { JoinClipsSettings } from '@/shared/lib/joinClipsDefaults';
 
 // ---------------------------------------------------------------------------
 // Empty clip factory (canonical location — re-exported by clipManagerService)
@@ -31,12 +36,30 @@ function getLocalStorageKey(projectId: string): string {
   return `join-clips-count-${projectId}`;
 }
 
+const MAX_CACHED_CLIPS_COUNT = 500;
+
 export function getCachedClipsCount(projectId: string | null): number {
   if (!projectId) return 0;
   try {
     const cached = localStorage.getItem(getLocalStorageKey(projectId));
-    return cached ? parseInt(cached, 10) : 0;
-  } catch {
+    if (!cached) return 0;
+
+    const parsed = Number.parseInt(cached, 10);
+    if (!Number.isFinite(parsed) || parsed < 0 || parsed > MAX_CACHED_CLIPS_COUNT) {
+      normalizeAndPresentError(new Error('Invalid join-clips cached count'), {
+        context: 'JoinClipsCache.read.invalid',
+        showToast: false,
+        logData: { projectId, cached },
+      });
+      return 0;
+    }
+    return parsed;
+  } catch (error) {
+    normalizeAndPresentError(error, {
+      context: 'JoinClipsCache.read.error',
+      showToast: false,
+      logData: { projectId },
+    });
     return 0;
   }
 }
@@ -44,13 +67,18 @@ export function getCachedClipsCount(projectId: string | null): number {
 export function setCachedClipsCount(projectId: string | null, count: number): void {
   if (!projectId) return;
   try {
-    if (count > 0) {
-      localStorage.setItem(getLocalStorageKey(projectId), count.toString());
+    const normalizedCount = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+    if (normalizedCount > 0) {
+      localStorage.setItem(getLocalStorageKey(projectId), normalizedCount.toString());
     } else {
       localStorage.removeItem(getLocalStorageKey(projectId));
     }
-  } catch {
-    // Ignore localStorage errors
+  } catch (error) {
+    normalizeAndPresentError(error, {
+      context: 'JoinClipsCache.write.error',
+      showToast: false,
+      logData: { projectId, count },
+    });
   }
 }
 
@@ -112,6 +140,55 @@ interface PendingJoinClipEntry {
 const PENDING_CLIPS_KEY = 'pendingJoinClips';
 const PENDING_CLIPS_TTL_MS = 5 * 60 * 1000;
 
+interface PendingJoinClipParseResult {
+  entries: PendingJoinClipEntry[];
+  invalidCount: number;
+}
+
+function parsePendingJoinClips(raw: string): PendingJoinClipParseResult | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+
+  if (!Array.isArray(parsed)) {
+    return null;
+  }
+
+  const entries: PendingJoinClipEntry[] = [];
+  let invalidCount = 0;
+  for (const value of parsed) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      invalidCount += 1;
+      continue;
+    }
+
+    const candidate = value as Record<string, unknown>;
+    if (
+      typeof candidate.videoUrl !== 'string'
+      || typeof candidate.generationId !== 'string'
+      || typeof candidate.timestamp !== 'number'
+      || !Number.isFinite(candidate.timestamp)
+    ) {
+      invalidCount += 1;
+      continue;
+    }
+
+    entries.push({
+      videoUrl: candidate.videoUrl,
+      generationId: candidate.generationId,
+      timestamp: candidate.timestamp,
+      ...(typeof candidate.thumbnailUrl === 'string' && candidate.thumbnailUrl.length > 0
+        ? { thumbnailUrl: candidate.thumbnailUrl }
+        : {}),
+    });
+  }
+
+  return { entries, invalidCount };
+}
+
 /**
  * Reads and consumes pending join clips from localStorage.
  * Returns an array of new/updated clip data to merge into state.
@@ -124,20 +201,52 @@ export interface PendingClipAction {
   clip: VideoClip;
 }
 
-export async function consumePendingJoinClips(): Promise<PendingClipAction[]> {
+export async function consumePendingJoinClips(
+  readVideoDuration: (videoUrl: string) => Promise<number> = getVideoDurationFromUrl,
+): Promise<OperationResult<PendingClipAction[]>> {
   try {
     const pendingData = localStorage.getItem(PENDING_CLIPS_KEY);
-    if (!pendingData) return [];
+    if (!pendingData) return operationSuccess([]);
 
-    const pendingClips: PendingJoinClipEntry[] = JSON.parse(pendingData);
+    const parsedPendingClips = parsePendingJoinClips(pendingData);
+    if (!parsedPendingClips) {
+      normalizeAndPresentError(new Error('Invalid pending join clips payload'), {
+        context: 'JoinClipsPage.pendingClipsInvalid',
+        showToast: false,
+        logData: { key: PENDING_CLIPS_KEY },
+      });
+      localStorage.removeItem(PENDING_CLIPS_KEY);
+      return operationFailure(new Error('Invalid pending join clips payload'), {
+        policy: 'degrade',
+        errorCode: 'pending_join_clips_invalid_payload',
+        message: 'Invalid pending join clips payload',
+        recoverable: true,
+        cause: { key: PENDING_CLIPS_KEY },
+      });
+    }
+
+    if (parsedPendingClips.invalidCount > 0) {
+      normalizeAndPresentError(new Error('Dropped invalid pending join clip entries'), {
+        context: 'JoinClipsPage.pendingClipsPartialRecovery',
+        showToast: false,
+        logData: {
+          key: PENDING_CLIPS_KEY,
+          totalEntries: parsedPendingClips.entries.length + parsedPendingClips.invalidCount,
+          invalidEntries: parsedPendingClips.invalidCount,
+        },
+      });
+    }
+
     const now = Date.now();
-    const recentClips = pendingClips.filter(
+    const recentClips = parsedPendingClips.entries.filter(
       clip => now - clip.timestamp < PENDING_CLIPS_TTL_MS,
     );
 
     if (recentClips.length === 0) {
       localStorage.removeItem(PENDING_CLIPS_KEY);
-      return [];
+      return operationSuccess([], {
+        ...(parsedPendingClips.invalidCount > 0 ? { policy: 'degrade' } : {}),
+      });
     }
 
     const actions: PendingClipAction[] = [];
@@ -145,7 +254,7 @@ export async function consumePendingJoinClips(): Promise<PendingClipAction[]> {
     for (const { videoUrl, thumbnailUrl, generationId } of recentClips) {
       if (!videoUrl) continue;
 
-      const durationSeconds = await getVideoDurationFromUrl(videoUrl);
+      const durationSeconds = await readVideoDuration(videoUrl);
 
       const clip: VideoClip = {
         id: generateUUID(),
@@ -161,10 +270,18 @@ export async function consumePendingJoinClips(): Promise<PendingClipAction[]> {
     }
 
     localStorage.removeItem(PENDING_CLIPS_KEY);
-    return actions;
+    return operationSuccess(actions, {
+      ...(parsedPendingClips.invalidCount > 0 ? { policy: 'degrade' } : {}),
+    });
   } catch (error) {
-    handleError(error, { context: 'JoinClipsPage', showToast: false });
-    return [];
+    normalizeAndPresentError(error, { context: 'JoinClipsPage', showToast: false });
+    return operationFailure(error, {
+      policy: 'degrade',
+      errorCode: 'pending_join_clips_read_failed',
+      message: 'Failed to consume pending join clips',
+      recoverable: true,
+      cause: error,
+    });
   }
 }
 

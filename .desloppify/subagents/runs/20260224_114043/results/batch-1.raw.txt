@@ -1,0 +1,74 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "high_level_elegance": 81.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/handleError.ts` keeps two public entry points (`reportRuntimeError` and legacy `handleError`) for the same responsibility, while packet context shows this file is a high-fan-in facade.",
+        "`src/integrations/supabase/client.ts` is also a compatibility alias surface (`getSupabaseRuntimeClient as getSupabaseClient`), reinforcing cross-codebase dependence on compatibility facades rather than a single canonical API.",
+        "`src/domains/generation/types/generationViewRow.ts` combines persisted row typing with derived display fields and UI optimistic overlays, and `src/domains/generation/types/shotViewRow.ts` composes on that mixed contract, blurring domain vs view ownership.",
+        "`src/domains/generation/hooks/useDeleteGenerationWithConfirm.tsx` imports `DeleteGenerationConfirmDialogState` from a UI dialog component type, so a domain hook depends on presentation-layer contract shape; `__tests__/useDeleteGenerationWithConfirm.test.ts` mirrors this coupling through dialog-centric assertions."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "compat_facade_alias_sprawl",
+      "summary": "Compatibility alias facades create dual public APIs and prolong broad coupling.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` exports both `reportRuntimeError` and legacy `handleError` for identical behavior.",
+        "`client.ts` re-exports runtime client under another stable alias (`getSupabaseClient`) rather than enforcing one canonical import path.",
+        "Both files are treated as high-import central facades in the review packet, so duplicated names amplify migration inertia."
+      ],
+      "suggestion": "Set a canonical API per facade and run a staged codemod migration: update callers to canonical names, add deprecation warnings/telemetry, then remove legacy aliases on a scheduled cutoff.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "generation_contract_layer_blur",
+      "summary": "Domain type modules mix persistence, derived view fields, and UI runtime overlays.",
+      "related_files": [
+        "src/domains/generation/types/generationViewRow.ts",
+        "src/domains/generation/types/shotViewRow.ts"
+      ],
+      "evidence": [
+        "`generationViewRow.ts` defines `GenerationRow` (persisted + derived display fields) and `GenerationUiRow` (adds optimistic UI overlay) in one domain types file.",
+        "`shotViewRow.ts` uses `GenerationRow[]` inside `ShotViewModel`, propagating display-layer assumptions into neighboring domain contracts."
+      ],
+      "suggestion": "Split type ownership into separate modules (`persisted`, `derived/view`, `ui-overlay`) and have feature/UI code import overlay types explicitly while domain-facing contracts depend only on persisted or derived domain-safe shapes.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "domain_hook_presentation_coupling",
+      "summary": "Generation domain hook is coupled to dialog component contract.",
+      "related_files": [
+        "src/domains/generation/hooks/useDeleteGenerationWithConfirm.tsx",
+        "src/domains/generation/hooks/__tests__/useDeleteGenerationWithConfirm.test.ts"
+      ],
+      "evidence": [
+        "`useDeleteGenerationWithConfirm.tsx` imports `DeleteGenerationConfirmDialogState` from a UI component module and returns that shape directly.",
+        "The test validates dialog-state fields (`dialogState.open`, `onOpenChange`, `onConfirm`) instead of a domain-level action contract, reinforcing UI-first coupling."
+      ],
+      "suggestion": "Define a domain-local confirm workflow contract (e.g., `ConfirmDeleteState`) in the hook/domain layer, adapt it to dialog props at the UI boundary component, and update tests to assert domain behavior rather than dialog prop shape.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

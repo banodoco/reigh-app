@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 
 interface UsePendingImageOpenProps {
   pendingImageToOpen: string | null | undefined;

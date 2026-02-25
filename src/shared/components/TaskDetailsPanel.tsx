@@ -1,13 +1,13 @@
 import React, { useState, ReactNode } from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { Checkbox } from '@/shared/components/ui/checkbox';
-import { useIsMobile } from '@/shared/hooks/useMobile';
+import { useIsMobile } from '@/shared/hooks/mobile';
 import { ScrollArea } from '@/shared/components/ui/scroll-area';
 import { Task } from '@/types/tasks';
 import { Check, Copy, CornerDownLeft, ImageIcon } from 'lucide-react';
 import { GenerationDetails } from '@/shared/components/GenerationDetails';
 import { usePublicLoras } from '@/shared/hooks/useResources';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 interface TaskDetailsPanelProps {
   task: Task | null;
@@ -64,7 +64,7 @@ const TaskDetailsPanel: React.FC<TaskDetailsPanelProps> = ({
       setParamsCopied(true);
       setTimeout(() => setParamsCopied(false), 2000);
     } catch (err) {
-      handleError(err, { context: 'TaskDetailsPanel', showToast: false });
+      normalizeAndPresentError(err, { context: 'TaskDetailsPanel', showToast: false });
     }
   };
 

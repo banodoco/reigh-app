@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { toJson } from '@/shared/lib/supabaseTypeHelpers';
 import {
   isTimelineWriteTimeoutError,
@@ -144,8 +144,7 @@ export async function persistTimelineFrameBatch({
     await runTimelineWriteWithTimeout(
       timeoutOperationName,
       async (signal) => {
-        const { data, error } = await supabase
-          .rpc('batch_update_timeline_frames', { p_updates: toJson(rpcPayload) })
+        const { data, error } = await supabase().rpc('batch_update_timeline_frames', { p_updates: toJson(rpcPayload) })
           .abortSignal(signal);
         if (error) throw error;
         if (Array.isArray(data)) {
@@ -209,8 +208,7 @@ export async function persistTimelineFrameBatch({
         const diagnosticRows = await runTimelineWriteWithTimeout(
           `${timeoutOperationName}-timeout-diagnostics`,
           async (signal) => {
-            const { data, error } = await supabase
-              .from('shot_generations')
+            const { data, error } = await supabase().from('shot_generations')
               .select('id, shot_id, generation_id, timeline_frame, updated_at, metadata')
               .in('id', Array.from(requestedIds))
               .abortSignal(signal);

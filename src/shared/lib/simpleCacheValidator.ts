@@ -1,4 +1,4 @@
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import {
   debugChannelEnabled,
   debugLog,
@@ -117,7 +117,7 @@ if (typeof window !== 'undefined' && isDev) {
           true,
         );
       } catch (error) {
-        handleError(error, { context: 'SimpleCacheValidator.validate', showToast: false });
+        normalizeAndPresentError(error, { context: 'SimpleCacheValidator.validate', showToast: false });
       }
     },
     startWatch: () => {

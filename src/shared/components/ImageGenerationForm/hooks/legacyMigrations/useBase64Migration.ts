@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { dataURLtoFile } from '@/shared/lib/fileConversion';
 import { uploadImageToStorage } from '@/shared/lib/imageUploader';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { LegacyMigrationsInput } from './types';
 
 type Base64MigrationInput = Pick<
@@ -44,7 +44,7 @@ export function useBase64Migration(input: Base64MigrationInput): void {
           styleReferenceImageOriginal: uploadedUrl,
         });
       } catch (error) {
-        handleError(error, {
+        normalizeAndPresentError(error, {
           context: 'ImageGenerationForm.migrateBase64ToUrl',
           toastTitle: 'Failed to migrate style reference image',
         });

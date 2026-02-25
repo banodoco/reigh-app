@@ -1,0 +1,77 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 84.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/handleError.ts` exposes deprecated facade symbols while nearby modules in this batch call different reporter layers directly (`presentationReporter` in `useMediaGalleryItemState.ts` vs `coreReporter` in `useMediaGalleryHandlers.ts`).",
+        "Multiple MediaGalleryItem-layer modules (`InfoTooltip.tsx`, `ShotActions.tsx`, `useMediaGalleryItemState.ts`) import `GeneratedImageWithMetadata` from `../../MediaGallery/types`, so lower-level item modules depend on a sibling aggregate module instead of a neutral domain/shared type boundary.",
+        "`src/shared/components/ui/runtime/sonner.tsx` depends on singleton exports (`toastManager`, `toast`) from the toast runtime surface, reinforcing implicit global UI runtime coupling rather than explicit local ownership."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 78.0,
+        "indirection_cost": 82.0,
+        "interface_honesty": 80.0
+      }
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "error_api_boundary_fragmentation",
+      "summary": "Error handling is split across parallel facades, creating boundary drift and hub coupling.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` still exports deprecated compatibility functions that proxy to `presentationReporter`.",
+        "`useMediaGalleryHandlers.ts` imports `reportError/reportAndRethrow` from `coreReporter`, while `useMediaGalleryItemState.ts` imports `presentError` from `presentationReporter` directly.",
+        "Callers in the same feature area are coupled to different internal error layers, so changing one layer requires broad coordination."
+      ],
+      "suggestion": "Define one public runtime error API (single entrypoint module) and migrate feature callers to it; keep internal reporters private, then remove deprecated facade exports on the planned removal path.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "missing_canonical_runtime_facades"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "gallery_type_boundary_leak",
+      "summary": "MediaGalleryItem modules depend on sibling MediaGallery aggregate types, creating reverse coupling.",
+      "related_files": [
+        "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+      ],
+      "evidence": [
+        "All three files import `GeneratedImageWithMetadata` from `../../MediaGallery/types`.",
+        "Item-level modules therefore depend on a sibling aggregate module (`MediaGallery`) for core data contracts.",
+        "This creates a fragile boundary: refactors in MediaGallery type organization can cascade into MediaGalleryItem internals."
+      ],
+      "suggestion": "Move `GeneratedImageWithMetadata` (and related core gallery item contracts) into a neutral shared/domain type module, then invert imports so both MediaGallery and MediaGalleryItem consume that shared contract.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "missing_canonical_runtime_facades"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Public-vs-internal module boundaries are not enforced consistently, so features import whichever nearby facade is convenient.",
+      "Shared data contracts are placed in feature aggregate folders, encouraging sibling-to-sibling dependency backedges."
+    ],
+    "likely_symptoms": [
+      "error_api_boundary_fragmentation",
+      "gallery_type_boundary_leak"
+    ],
+    "possible_false_positives": []
+  }
+}

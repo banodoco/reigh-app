@@ -12,7 +12,7 @@
 
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 interface StructureVideoPreviewProps {
   videoUrl: string;
@@ -191,7 +191,7 @@ export const StructureVideoPreview: React.FC<StructureVideoPreviewProps> = ({
 
     captureAllFrames().catch(err => {
       if (!cancelled) {
-        handleError(err, { context: 'StructureVideoPreview', showToast: false });
+        normalizeAndPresentError(err, { context: 'StructureVideoPreview', showToast: false });
         setIsExtracting(false);
       }
     });

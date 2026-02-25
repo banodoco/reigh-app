@@ -1,0 +1,136 @@
+{
+  "batch": "Design coherence — Mechanical Concern Signals",
+  "batch_index": 6,
+  "assessments": {
+    "design_coherence": 74.6
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "Supabase edge handlers repeatedly inline the same request bootstrap/auth/method/body flow (e.g., get-task-output lines 30-82, get-completed-segments lines 25-73, get-orchestrator-children lines 30-82) instead of sharing one endpoint composition surface.",
+        "Runtime composition is inconsistent across sibling edge functions: setup-auto-topup uses shared initEdgeRuntime/jsonResponse utilities (lines 4-10, 43-61), while stripe-checkout defines a local jsonResponse helper and manual env/client bootstrapping (lines 13-24, 83-89).",
+        "Timeline interaction hooks expose wide 'context-bag' interfaces and blend multiple behaviors in one unit (useTimelineActionHandlers input lines 14-57 plus drop/duplicate/tap/video-browser logic lines 124-220; useShotImagesEditorCallbacks combines DB mutations + cache invalidation + UI callback wiring lines 56-195, 197-260).",
+        "Timeline write orchestration patterns are duplicated across hooks: both useTimelineCore and useTimelineFrameUpdates define near-identical logging helpers (`shortId`, queue phase logger) and queue-wrapped write flows."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "edge_handler_bootstrap_duplication",
+      "summary": "Edge endpoint setup/auth flow is duplicated across many handlers with no single composition point.",
+      "related_files": [
+        "supabase/functions/get-task-output/index.ts",
+        "supabase/functions/get-completed-segments/index.ts",
+        "supabase/functions/get-orchestrator-children/index.ts",
+        "supabase/functions/claim-next-task/index.ts",
+        "supabase/functions/update-shot-pair-prompts/index.ts"
+      ],
+      "evidence": [
+        "Each file repeats the same structural sequence: env lookup -> createClient -> logger -> method guard -> parse body -> authenticateRequest -> ownership checks (e.g., get-task-output lines 30-82; get-completed-segments lines 25-73; get-orchestrator-children lines 30-82).",
+        "The repeated structure already varies in details (`req.text()+JSON.parse` vs `req.json()`), showing drift inside supposed common behavior."
+      ],
+      "suggestion": "Introduce a shared edge endpoint wrapper in `_shared` (e.g., `withEdgeHandler`) that standardizes runtime init, method validation, body parsing mode, auth policy, and error-to-response mapping; migrate these handlers to pass only endpoint-specific business logic.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "edge_runtime_pattern_fragmentation"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "edge_runtime_abstraction_split",
+      "summary": "Sibling edge functions use conflicting runtime abstractions, causing pattern fragmentation.",
+      "related_files": [
+        "supabase/functions/stripe-checkout/index.ts",
+        "supabase/functions/process-auto-topup/index.ts",
+        "supabase/functions/setup-auto-topup/index.ts",
+        "supabase/functions/complete-auto-topup-setup/index.ts",
+        "supabase/functions/generate-pat/index.ts"
+      ],
+      "evidence": [
+        "stripe-checkout defines its own `jsonResponse` and manual bootstrapping (lines 13-24, 83-89), while setup-auto-topup/complete-auto-topup-setup/generate-pat use shared `jsonResponse` + `initEdgeRuntime` + strict parser utilities (setup-auto-topup lines 4-10, 43-61).",
+        "process-auto-topup also defines local CORS/json helpers (lines 7-18), creating multiple competing patterns for the same concern set."
+      ],
+      "suggestion": "Unify all edge functions on one runtime stack (`initEdgeRuntime` + shared response helpers + shared parse/auth helpers), then remove local helper implementations to enforce one extension path for new endpoints.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "edge_runtime_pattern_fragmentation"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "timeline_callback_hub_overloaded",
+      "summary": "Timeline callback hooks are overloaded with mixed responsibilities and oversized context bags.",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineActionHandlers.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineViewportController.ts"
+      ],
+      "evidence": [
+        "useTimelineActionHandlers takes a 30+ field input object (lines 14-57) and then handles unrelated concerns in one hook: drop interception, duplicate frame logic, tap-to-move, endpoint dragging, and structure-video insertion (lines 124-220).",
+        "useShotImagesEditorCallbacks combines UI callback wiring with direct Supabase reads/deletes and broad cache invalidation orchestration inside the same callback layer (lines 56-195, 197-260).",
+        "useTimelineViewportController also follows a wide input contract pattern (lines 12-26), reinforcing 'pass-everything-in' orchestration rather than narrow feature-level collaborators."
+      ],
+      "suggestion": "Split timeline hooks by concern (drop pipeline, frame math, structure-video placement, persistence/cache effects) and replace wide input bags with small typed collaborator objects per concern; keep top-level hooks as thin composition layers only.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "timeline_orchestration_scatter"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "timeline_write_flow_duplicated",
+      "summary": "Timeline write-queue orchestration is duplicated across two hooks instead of centralized.",
+      "related_files": [
+        "src/shared/hooks/useTimelineCore.ts",
+        "src/shared/hooks/timeline/useTimelineFrameUpdates.ts"
+      ],
+      "evidence": [
+        "Both files define near-identical queue logging scaffolding (`shortId` + `logQueuePhase`) and console-prefix machinery (useTimelineCore lines 36-41 and 193-231; useTimelineFrameUpdates lines 40-45 and 93-143).",
+        "Both wrap DB writes through serialized queue + timeout patterns with similar operational concerns, but implemented separately, increasing drift risk when changing queue behavior or observability."
+      ],
+      "suggestion": "Extract a shared timeline write-orchestration utility (logging, timeout hooks, queue phase callbacks, cache refetch policy) and have both hooks call that utility instead of maintaining parallel orchestration logic.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "timeline_orchestration_scatter"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "lightbox_and_pane_components_multirole",
+      "summary": "Large UI modules still mix environment assembly, workflow orchestration, and rendering concerns.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/GenerationsPane/GenerationsPane.tsx",
+        "src/shared/components/TaskDetailsModal.tsx"
+      ],
+      "evidence": [
+        "ImageLightbox is 887 LOC and combines runtime/environment derivation, feature orchestration, and view composition in one file despite partial internal split (props and environment wiring begin lines 67-187, then additional orchestration and render layers continue across file).",
+        "GenerationsPane (621 LOC) combines pane layout/state machine, routing behavior, event-bus listeners, filter model, and gallery rendering in one component (lines 45-238 shown before markup body).",
+        "TaskDetailsModal mixes modal state control, async task-id/task fetch orchestration, clipboard side effects, and details rendering in one component (lines 45-141 plus render tree)."
+      ],
+      "suggestion": "Adopt a stricter presenter/container split: move async orchestration and state machines into dedicated hooks/services, keep components focused on rendering and local interaction state; enforce file-level role boundaries in this subsystem.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "ui_orchestration_conflation"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Incremental feature additions without a mandatory composition boundary for edge handlers created parallel runtime patterns.",
+      "Timeline feature growth accumulated in orchestration hooks instead of extracting stable domain services.",
+      "UI-heavy modules adopted partial decomposition but still retain multirole top-level files."
+    ],
+    "likely_symptoms": [
+      "edge_handler_bootstrap_duplication",
+      "edge_runtime_abstraction_split",
+      "timeline_callback_hub_overloaded",
+      "timeline_write_flow_duplicated"
+    ],
+    "possible_false_positives": []
+  }
+}

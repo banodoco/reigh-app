@@ -27,9 +27,9 @@ import {
 } from '@/shared/hooks/shots';
 import { useShots } from '@/shared/contexts/ShotsContext';
 import { inheritSettingsForNewShot } from '@/shared/lib/shotSettingsInheritance';
-import { GenerationRow, Shot } from '@/types/shots';
-import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { GenerationRow, Shot } from '@/domains/generation/types';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { shotQueryKeys } from '@/shared/lib/queryKeys/shots';
 import { dispatchAppEvent } from '@/shared/lib/typedEvents';
 
@@ -508,7 +508,7 @@ function useCreateShotAction(input: UseCreateShotActionInput): UseShotCreationRe
         clearShotSkeletonEvent();
       }
 
-      handleError(error, {
+      normalizeAndPresentError(error, {
         context: 'useShotCreation',
         toastTitle: 'Failed to create shot',
       });

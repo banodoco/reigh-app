@@ -1,0 +1,111 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "cross_module_architecture": 78.0,
+    "high_level_elegance": 84.0,
+    "test_strategy": 88.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/handleError.ts` exposes `setErrorPresenter()` that mutates global notifier wiring via `configureErrorNotifier(...)` (lines 16-29), creating import-order/runtime coupling for a module imported by 249 files (blind packet top_imported).",
+        "`src/integrations/supabase/legacy/legacySupabaseFacade.ts` still exports a module-level `supabase` compatibility facade (line 89) plus `getLegacySupabaseClient()` (line 50), preserving a parallel client entrypoint in a module imported by 134 files (blind packet top_imported).",
+        "README keeps the legacy budget at `--max 129` until 2026-06-30, so boundary drift is still explicitly tolerated in active runtime policy."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "README declares canonical runtime ownership around `initializeSupabase()/getSupabaseClient()`, but still documents a broad legacy import zone (`@/integrations/supabase/legacy`) and budgeted usage, so top-level ownership remains split between canonical and compatibility surfaces.",
+        "`handleError.ts` combines core normalization API with UI presentation wiring (`setErrorPresenter`) and deprecated aliases, which mixes foundational error contract and presentation lifecycle concerns in one highly imported module."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    },
+    "test_strategy": {
+      "evidence": [
+        "README documents governance checks for legacy Supabase usage and compatibility shims, but does not show an equivalent quality gate for `handleError.ts` deprecations (`reportRuntimeError`, `RuntimeErrorOptions`) despite explicit removal target metadata.",
+        "`handleError.ts` includes runtime-coupling behavior (`setErrorPresenter` -> global notifier) and deprecation contracts, yet no executable contract references are declared alongside this module’s policy surface."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Governance checks are present but unevenly applied: high-risk deprecation and runtime-coupling contracts in `handleError.ts` are not visibly enforced as first-class migration/test oracles in the same way as Supabase and shim policies."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "global_error_presenter_runtime_coupling",
+      "summary": "Global error presenter wiring still creates hidden cross-module runtime coupling.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`setErrorPresenter()` globally mutates error notification behavior through `configureErrorNotifier` (handleError.ts lines 16-29).",
+        "The same module is a top import hub (249 importers in blind packet), so mutation effects can propagate across unrelated modules.",
+        "README documents runtime bootstrap policy, but no explicit boundary contract for when/where global error presenter wiring is allowed."
+      ],
+      "suggestion": "Move presenter wiring into an app-shell/runtime bootstrap module and keep `handleError.ts` as a pure normalization/logging contract; expose an explicit runtime adapter interface so non-UI modules cannot mutate global presentation state.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "long_lived_compatibility_singletons"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "legacy_supabase_parallel_entrypoint",
+      "summary": "Legacy Supabase facade remains a parallel client surface across modules.",
+      "related_files": [
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "A module-level `supabase` facade is still exported (legacySupabaseFacade.ts line 89) with broad member pass-through (`from`, `rpc`, `channel`, `auth`, `storage`, `realtime`, `functions`).",
+        "README keeps a pre-deadline import budget (`--max 129`) and allows legacy imports until 2026-06-30, so compatibility path remains large and active rather than narrowly quarantined.",
+        "Blind packet shows the legacy facade is still heavily imported (134 importers)."
+      ],
+      "suggestion": "Shrink the legacy facade to the minimum migration API (prefer a single `getLegacySupabaseClient` accessor), progressively lower budget checkpoints before 2026-06-30, and block new `supabase` named-import usage via CI policy.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "long_lived_compatibility_singletons"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "handle_error_governance_not_test_oracled",
+      "summary": "Error-handling deprecation/runtime contracts are not visibly quality-gated like other shims.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`handleError.ts` includes deprecation contracts with removal target (`reportRuntimeError`, `RuntimeErrorOptions`, lines 62-73) plus global runtime wiring behavior (`setErrorPresenter`).",
+        "README’s explicit governance checks are described for Supabase/shim contracts, but no analogous check is documented for error-handling deprecation contracts."
+      ],
+      "suggestion": "Add a contract check/test gate that asserts `handleError.ts` deprecated exports, owner/removal metadata, and permitted runtime wiring surface; wire it into `quality:check` alongside existing governance checks.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "uneven_governance_test_enforcement"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Compatibility surfaces are kept as globally reachable runtime APIs instead of being isolated behind migration-only boundaries.",
+      "Governance enforcement is stronger for selected migration contracts (Supabase/shims) than for equally central runtime contracts (error handling)."
+    ],
+    "likely_symptoms": [
+      "global_error_presenter_runtime_coupling",
+      "legacy_supabase_parallel_entrypoint"
+    ],
+    "possible_false_positives": [
+      "README omission of a specific check could be intentional if an equivalent gate exists under a different command name not visible in assigned files."
+    ]
+  }
+}

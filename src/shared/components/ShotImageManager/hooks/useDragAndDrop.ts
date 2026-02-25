@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { toast } from '@/shared/components/ui/sonner';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import {
   useSensor,
   useSensors,
@@ -10,7 +10,7 @@ import {
   DragStartEvent,
 } from '@dnd-kit/core';
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 import { calculateMultiDragOrder } from '../utils/reorder-utils';
 
 interface UseDragAndDropProps {

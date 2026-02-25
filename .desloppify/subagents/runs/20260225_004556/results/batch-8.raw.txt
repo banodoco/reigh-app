@@ -1,0 +1,116 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 8,
+  "assessments": {
+    "convention_outlier": 84.0,
+    "error_consistency": 79.0,
+    "authorization_consistency": 82.0
+  },
+  "dimension_notes": {
+    "convention_outlier": {
+      "evidence": [
+        "`useTaskStatusCounts` still uses legacy accessor style (`getLegacySupabaseClient as supabase`, then `supabase()` per query) while sibling task hooks use `getSupabaseClient()` directly (`src/shared/hooks/useTaskStatusCounts.ts:2,51,59,71` vs `src/shared/hooks/useTasks.ts:3,63` and `src/shared/hooks/useGenerationMutations.ts:19,35,74`).",
+        "Legacy facade keeps compatibility fallback to `supabaseClientModule.supabase` (`src/integrations/supabase/legacy/legacySupabaseFacade.ts:75-84`), so old/new call conventions are both still active in the same subsystem."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "error_consistency": {
+      "evidence": [
+        "Sibling task-data hooks expose different failure contracts: `useTasks` throws on fetch failure via `handleAndRethrow` (`src/shared/hooks/useTasks.ts:42-49`), but `useTaskStatusCounts` swallows query errors, logs them, and returns a degraded success payload (`src/shared/hooks/useTaskStatusCounts.ts:49-134`).",
+        "Mutation flow in `createGeneration` can throw after creating the generation row (variant insert failure), leaving partial persisted state (`src/shared/hooks/useGenerationMutations.ts:91-131`), which differs from the degraded-return pattern used in other task-facing hooks."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "authorization_consistency": {
+      "evidence": [
+        "`calculate-task-cost` enforces explicit service-role authorization before privileged operations (`supabase/functions/calculate-task-cost/index.ts:288-299`).",
+        "Comparable privileged completion paths perform direct task updates without local auth/authorization assertions in their exported entry functions (`supabase/functions/complete_task/orchestrator.ts:315-323,569-577,634-636`; `supabase/functions/complete_task/generation.ts:180-187,331-334`), relying entirely on upstream caller discipline."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "convention_outlier",
+      "identifier": "mixed_supabase_client_access_convention",
+      "summary": "Task hooks mix legacy and modern Supabase client conventions in the same flow family.",
+      "related_files": [
+        "src/shared/hooks/useTaskStatusCounts.ts",
+        "src/shared/hooks/useTasks.ts",
+        "src/shared/hooks/useGenerationMutations.ts",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts"
+      ],
+      "evidence": [
+        "`useTaskStatusCounts` imports `getLegacySupabaseClient as supabase` and calls `supabase()` repeatedly (`src/shared/hooks/useTaskStatusCounts.ts:2,51,59,71`).",
+        "`useTasks` and `useGenerationMutations` use `getSupabaseClient()` directly (`src/shared/hooks/useTasks.ts:3,63`; `src/shared/hooks/useGenerationMutations.ts:19,35,74`).",
+        "Legacy facade still supports fallback to `supabaseClientModule.supabase` (`src/integrations/supabase/legacy/legacySupabaseFacade.ts:75-84`), preserving two patterns instead of one."
+      ],
+      "suggestion": "Standardize all task/generation hooks on `getSupabaseClient()` and remove legacy accessor usage from `useTaskStatusCounts`; then tighten `legacySupabaseFacade` to throw unless explicitly opted-in by a migration shim to prevent convention drift.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "supabase_migration_drift"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "task_hooks_failure_contract_drift",
+      "summary": "Task-related hooks use conflicting failure contracts (throw vs degraded success vs partial write).",
+      "related_files": [
+        "src/shared/hooks/useTasks.ts",
+        "src/shared/hooks/useTaskStatusCounts.ts",
+        "src/shared/hooks/useGenerationMutations.ts"
+      ],
+      "evidence": [
+        "`useTasks` propagates failures by throwing in query functions (`src/shared/hooks/useTasks.ts:42-49`).",
+        "`useTaskStatusCounts` catches per-query failures, logs, and returns `degraded: true` instead of failing the query (`src/shared/hooks/useTaskStatusCounts.ts:80-134`).",
+        "`createGeneration` can create a generation row and then throw on variant creation (`src/shared/hooks/useGenerationMutations.ts:91-131`), producing an error after a side effect has already committed."
+      ],
+      "suggestion": "Define a single task-domain error policy (for example: always reject queries, use explicit `OperationResult` only for opt-in degraded endpoints) and apply it across task hooks; for `createGeneration`, add transactional/compensating behavior (rollback inserted generation or atomically create both records server-side).",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "task_error_policy_fragmentation"
+    },
+    {
+      "dimension": "authorization_consistency",
+      "identifier": "privileged_completion_paths_lack_local_auth_assertion",
+      "summary": "Privileged completion modules rely on implicit caller trust instead of explicit auth assertions.",
+      "related_files": [
+        "supabase/functions/calculate-task-cost/index.ts",
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/complete_task/generation.ts"
+      ],
+      "evidence": [
+        "`calculate-task-cost` validates both authentication success and service-role authorization before acting (`supabase/functions/calculate-task-cost/index.ts:288-299`).",
+        "`checkOrchestratorCompletion` and downstream helpers perform task state updates with no equivalent assertion in this module (`supabase/functions/complete_task/orchestrator.ts:315-323,569-577,634-636`).",
+        "`createGenerationFromTask` writes task flags without local authorization guard (`supabase/functions/complete_task/generation.ts:180-187,331-334`)."
+      ],
+      "suggestion": "Add a shared authorization invariant helper for complete-task exported entrypoints (assert privileged execution context before any update) and call it at the start of orchestration/generation completion flows to match enforcement rigor used by service-role endpoints.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "implicit_trust_boundary_in_edge_modules"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Ongoing Supabase migration keeps legacy and modern access conventions active in the same runtime paths.",
+      "Task subsystem lacks a single documented error contract, so hooks optimized for different UX goals diverged in incompatible ways.",
+      "Authorization is enforced strongly at some Edge entrypoints but not codified as a reusable invariant for all privileged module entry functions."
+    ],
+    "likely_symptoms": [
+      "mixed_supabase_client_access_convention",
+      "task_hooks_failure_contract_drift",
+      "privileged_completion_paths_lack_local_auth_assertion"
+    ],
+    "possible_false_positives": [
+      "complete_task modules may be intentionally internal-only and always called from already-authenticated entrypoints, reducing practical exploitability"
+    ]
+  }
+}

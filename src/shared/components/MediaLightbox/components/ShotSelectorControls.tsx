@@ -3,8 +3,10 @@ import { Button } from '@/shared/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { CheckCircle, PlusCircle, ImagePlus, Loader2, ArrowRight } from 'lucide-react';
 import { ShotSelectorWithAdd } from '@/shared/components/ShotSelectorWithAdd';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import type { ShotOption } from '@/types/shots';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import type { ShotOption } from '@/domains/generation/types';
+import { INTERACTION_TIMING } from '@/shared/lib/interactions/timing';
+import { useShotAssociationControls } from './hooks/useShotAssociationControls';
 
 interface ShotSelectorControlsProps {
   // Media info
@@ -92,41 +94,25 @@ export const ShotSelectorControls: React.FC<ShotSelectorControlsProps> = ({
 }) => {
   const [isAddingVariantAsNew, setIsAddingVariantAsNew] = useState(false);
   const [addedVariantAsNewSuccess, setAddedVariantAsNewSuccess] = useState(false);
-  // Handle add without position
-  // CRITICAL: Pass selectedShotId (the dropdown value) as targetShotId
-  const handleAddWithoutPosition = async () => {
-    
-    if (!selectedShotId) {
-      return;
-    }
-
-    // Check if we should jump instead of add
-    const isAlreadyAdded = isAlreadyAssociatedWithoutPosition || showTickForSecondaryImageId === mediaId;
-    
-    if (isAlreadyAdded) {
-      if (onNavigateToShot) {
-        const targetShot = allShots.find(s => s.id === selectedShotId);
-        if (targetShot) {
-          onNavigateToShot(targetShot);
-        }
-      }
-      return;
-    }
-
-    if (!onAddToShotWithoutPosition) {
-      return;
-    }
-    
-    try {
-      const success = await onAddToShotWithoutPosition(selectedShotId, mediaId, imageUrl, thumbUrl);
-      if (success) {
-        onShowSecondaryTick?.(mediaId);
-        onOptimisticUnpositioned?.(mediaId, selectedShotId);
-      }
-    } catch (error) {
-      handleError(error, { context: 'ShotSelectorControls', showToast: false });
-    }
-  };
+  const {
+    selectedShot,
+    isAddedWithoutPosition,
+    handleAddWithoutPosition,
+    handleJumpToSelectedShot,
+  } = useShotAssociationControls({
+    mediaId,
+    imageUrl,
+    thumbUrl,
+    allShots,
+    selectedShotId,
+    isAlreadyAssociatedWithoutPosition,
+    showTickForSecondaryImageId,
+    onAddToShotWithoutPosition,
+    onShowSecondaryTick,
+    onOptimisticUnpositioned,
+    onNavigateToShot,
+    errorContext: 'ShotSelectorControls',
+  });
 
   // Handle adding variant as a new generation to shot
   const handleAddVariantAsNewGeneration = async () => {
@@ -148,22 +134,12 @@ export const ShotSelectorControls: React.FC<ShotSelectorControlsProps> = ({
       if (success) {
         setAddedVariantAsNewSuccess(true);
         // Reset success state after delay
-        setTimeout(() => setAddedVariantAsNewSuccess(false), 2000);
+        setTimeout(() => setAddedVariantAsNewSuccess(false), INTERACTION_TIMING.shotAssociationSuccessMs);
       }
     } catch (error) {
-      handleError(error, { context: 'ShotSelectorControls', showToast: false });
+      normalizeAndPresentError(error, { context: 'ShotSelectorControls', showToast: false });
     } finally {
       setIsAddingVariantAsNew(false);
-    }
-  };
-
-  // Get selected shot for jump link
-  const selectedShot = selectedShotId ? allShots.find(s => s.id === selectedShotId) : null;
-
-  const handleJumpToShot = () => {
-    if (selectedShot && onNavigateToShot) {
-      // onNavigateToShot handler already closes the lightbox
-      onNavigateToShot(selectedShot);
     }
   };
 
@@ -193,7 +169,7 @@ export const ShotSelectorControls: React.FC<ShotSelectorControlsProps> = ({
         />
 
       {onAddToShotWithoutPosition && !isAlreadyPositionedInSelectedShot && (() => {
-        const isShowingTick = isAlreadyAssociatedWithoutPosition || showTickForSecondaryImageId === mediaId;
+        const isShowingTick = isAddedWithoutPosition;
         const isDisabled = !selectedShotId || isAddingWithoutPosition;
         
         return (
@@ -267,7 +243,7 @@ export const ShotSelectorControls: React.FC<ShotSelectorControlsProps> = ({
       {/* Jump to shot link - below the buttons */}
       {selectedShot && onNavigateToShot && (
         <button
-          onClick={handleJumpToShot}
+          onClick={handleJumpToSelectedShot}
           className="flex items-center gap-1.5 px-2.5 py-1 mt-1 text-xs text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full transition-colors whitespace-nowrap"
         >
           <span>{selectedShot.name.length > 12 ? `${selectedShot.name.substring(0, 12)}…` : selectedShot.name}</span>

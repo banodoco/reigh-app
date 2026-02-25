@@ -1,8 +1,8 @@
 import React, { useCallback, useMemo } from 'react';
 import { Image, Upload } from 'lucide-react';
 import { ImageUploadActions } from '@/shared/components/ImageUploadActions';
-import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { useFileDragTracking } from '@/shared/hooks/useFileDragTracking';
 
 const GENERATION_MIME = 'application/x-generation';
@@ -60,7 +60,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           }
         }
       } catch (error) {
-        handleError(error, { context: 'EmptyState', toastTitle: 'Failed to add image' });
+        normalizeAndPresentError(error, { context: 'EmptyState', toastTitle: 'Failed to add image' });
       }
       return;
     }
@@ -83,7 +83,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     try {
       await onImageUpload(validFiles);
     } catch (error) {
-      handleError(error, { context: 'EmptyState', toastTitle: 'Failed to add images' });
+      normalizeAndPresentError(error, { context: 'EmptyState', toastTitle: 'Failed to add images' });
     }
   }, [onImageUpload, onGenerationDrop, resetDrag]);
 

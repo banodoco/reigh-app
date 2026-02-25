@@ -8,14 +8,14 @@ import {
   DialogTitle,
 } from '@/shared/components/ui/dialog';
 import { Button } from '@/shared/components/ui/button';
-import { Label } from '@/shared/components/ui/label';
+import { Label } from '@/shared/components/ui/primitives/label';
 import { RadioGroup, RadioGroupItem } from '@/shared/components/ui/radio-group';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { Loader2, Plus } from 'lucide-react';
 import { Input } from '@/shared/components/ui/input';
 import { useMediumModal } from '@/shared/hooks/useModal';
 import { useScrollFade } from '@/shared/hooks/useScrollFade';
-import { useAsyncOperation } from '@/shared/hooks/useAsyncOperation';
+import { useAsyncOperation } from '@/shared/hooks/async/useAsyncOperation';
 
 interface Project {
   id: string;
@@ -59,8 +59,7 @@ export const ProjectSelectorModal: React.FC<ProjectSelectorModalProps> = ({
 
   const loadProjects = useCallback(async () => {
     const result = await loadOperation.execute(async () => {
-      const { data, error } = await supabase
-        .from('projects')
+      const { data, error } = await supabase().from('projects')
         .select('id, name, created_at')
         .order('created_at', { ascending: false });
 
@@ -86,11 +85,10 @@ export const ProjectSelectorModal: React.FC<ProjectSelectorModalProps> = ({
     if (!newProjectName.trim()) return;
 
     const result = await createOperation.execute(async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase().auth.getUser();
       if (!user) throw new Error('Must be signed in to create a project');
 
-      const { data, error } = await supabase
-        .from('projects')
+      const { data, error } = await supabase().from('projects')
         .insert({ name: newProjectName.trim(), user_id: user.id })
         .select('id, name, created_at')
         .single();

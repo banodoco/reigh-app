@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { hasVideoExtension, isVideoGeneration, isVideoShotGenerations, isVideoAny, isPositioned } from '../typeGuards';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 
 describe('hasVideoExtension', () => {
   it('returns false for null/undefined', () => {

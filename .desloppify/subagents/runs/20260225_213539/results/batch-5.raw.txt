@@ -1,0 +1,114 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 5,
+  "assessments": {
+    "package_organization": 88.4,
+    "high_level_elegance": 91.2
+  },
+  "dimension_notes": {
+    "package_organization": {
+      "evidence": [
+        "`src/shared/hooks/` is a flat, overloaded directory (`file_count: 71`) with mixed concerns; the assigned files `useFileDragTracking.ts` and `useHydratedReferences.ts` sit at this root instead of concern folders.",
+        "Import-affinity mismatch: `useHydratedReferences` is consumed by a single production caller (`src/shared/components/ImageGenerationForm/hooks/useProjectImageSettings.ts`) plus its test, indicating a domain-local hook left in a global package.",
+        "`src/shared/lib/editVideoDefaults.ts` is now a compatibility re-export only, while active imports are already on canonical `@/shared/settings/config/editVideoDefaults` paths; keeping the alias in primary `shared/lib` preserves duplicate ownership signals."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Core shared folders still carry straggler, domain-specific files and at least one stale compat alias in a primary package path, which weakens navigability and ownership clarity.",
+      "sub_axes": {
+        "abstraction_leverage": 86.9,
+        "indirection_cost": 84.8,
+        "interface_honesty": 92.6
+      }
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "`useHydratedReferences.ts` mixes three responsibilities in one shared hook boundary: resource fetch orchestration, legacy pointer migration defaults, and ownership/visibility projection.",
+        "The hook carries compatibility behavior (`hasLegacyReferences` + inline legacy object synthesis) inside a generic shared package rather than a dedicated migration/reference domain boundary.",
+        "Previously flagged layering issue (component-type dependency) appears fixed, but ownership decomposition remains broad in this hook."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Decomposition is improved from prior state, but one remaining mixed-responsibility shared hook still blurs domain ownership and migration-policy placement."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "package_organization",
+      "identifier": "stale_edit_video_defaults_alias_in_primary_lib",
+      "summary": "A compatibility alias remains in `shared/lib` after canonical ownership moved to settings config.",
+      "related_files": [
+        "src/shared/lib/editVideoDefaults.ts",
+        "src/shared/settings/config/editVideoDefaults.ts",
+        "src/shared/lib/__tests__/editVideoDefaults.test.ts"
+      ],
+      "evidence": [
+        "`src/shared/lib/editVideoDefaults.ts` is only a re-export wrapper with a compatibility comment.",
+        "Current imports found in production code are on `@/shared/settings/config/editVideoDefaults` (for example `src/tools/index.ts`, `src/tooling/toolDefaultsRegistry.ts`, `src/shared/settings/hooks/useEditVideoSettings.ts`), while the lib alias is only exercised by its local test.",
+        "This leaves duplicate location signaling in a primary package (`shared/lib`) with no active boundary value."
+      ],
+      "suggestion": "Staged reorg plan: 1) Create `src/shared/compat/lib/editVideoDefaults.ts` as the temporary alias target and keep `src/shared/settings/config/editVideoDefaults.ts` canonical. 2) Update any remaining legacy importers (if any appear) to canonical path, then remove `src/shared/lib/editVideoDefaults.ts`. 3) Move/adjust compat test to the compat path (or delete if no longer needed). 4) Run `rg -n \"shared/lib/editVideoDefaults|settings/config/editVideoDefaults\" src` to verify import cleanup, then run targeted validation (`pnpm vitest src/shared/lib/__tests__/editVideoDefaults.test.ts src/tools/edit-video/settings/__tests__/editVideoDefaults.test.ts`).",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shared_root_flattening_and_compat_residue"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "root_hooks_contains_domain_stragglers",
+      "summary": "Domain-specific hooks remain in top-level `shared/hooks` instead of concern folders.",
+      "related_files": [
+        "src/shared/hooks/useFileDragTracking.ts",
+        "src/shared/hooks/useHydratedReferences.ts",
+        "src/shared/hooks/__tests__/useFileDragTracking.test.ts",
+        "src/shared/hooks/__tests__/useHydratedReferences.test.ts"
+      ],
+      "evidence": [
+        "`src/shared/hooks/` has 71 files and mixed concerns, exceeding the flat-directory threshold for cohesive ownership.",
+        "`useFileDragTracking` serves file-drop upload flows (used by edit-image/edit-video pages and shot empty-state) but sits at root rather than a DnD/upload-focused subpackage.",
+        "`useHydratedReferences` is effectively tied to image-reference hydration flow (single production importer path) yet is also placed at root."
+      ],
+      "suggestion": "Staged reorg plan: 1) Create concern folders such as `src/shared/hooks/dnd/` and `src/shared/hooks/references/` (or move `useHydratedReferences` closer to `ImageGenerationForm/hooks/referenceUpload/` if that is the true owner). 2) Move files and matching tests (`useFileDragTracking*`, `useHydratedReferences*`) preserving names. 3) Update import paths in direct consumers and tests. 4) Validate with `rg -n \"useFileDragTracking|useHydratedReferences\" src` and run targeted tests (`pnpm vitest src/shared/hooks/__tests__/useFileDragTracking.test.ts src/shared/hooks/__tests__/useHydratedReferences.test.ts src/shared/components/ImageGenerationForm/hooks/referenceUpload/referenceDomainService.test.ts`).",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shared_root_flattening_and_compat_residue"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "hydrated_references_hook_blends_fetch_migration_and_projection",
+      "summary": "`useHydratedReferences` combines domain policies that should be split into explicit ownership layers.",
+      "related_files": [
+        "src/shared/hooks/useHydratedReferences.ts",
+        "src/shared/hooks/__tests__/useHydratedReferences.test.ts",
+        "src/shared/components/ImageGenerationForm/hooks/useProjectImageSettings.ts"
+      ],
+      "evidence": [
+        "The hook performs fetch orchestration (`useSpecificResources`), legacy-entity synthesis (inline defaults for no-`resourceId` pointers), and ownership policy projection (`isOwner`, `isPublic`, metadata fallbacks).",
+        "Legacy migration behavior is encoded directly in the shared hook (`hasLegacyReferences` and inline migration defaults), coupling runtime hydration with migration policy.",
+        "This broad contract makes the hook a policy hub instead of a narrow hydration boundary."
+      ],
+      "suggestion": "Staged reorg plan: 1) Extract pure mappers into a reference-domain module (for example `src/shared/lib/references/hydrationMapper.ts` and `legacyReferenceAdapter.ts`). 2) Keep `useHydratedReferences` as a thin orchestrator that fetches resources and delegates mapping. 3) Optionally expose migration detection from the adapter module, not the hook body. 4) Update tests to target mapper modules plus one orchestrator integration test. 5) Validate with `pnpm vitest src/shared/hooks/__tests__/useHydratedReferences.test.ts` and any reference-upload suite impacted by mapper extraction.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shared_root_flattening_and_compat_residue"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Shared top-level packages (`shared/hooks`, `shared/lib`) are still acting as convenience drop-zones, so concern-specific modules and compatibility shims persist longer than intended.",
+      "Migration/compat behavior is not consistently isolated into dedicated compat or migration boundaries."
+    ],
+    "likely_symptoms": [
+      "root_hooks_contains_domain_stragglers",
+      "hydrated_references_hook_blends_fetch_migration_and_projection",
+      "stale_edit_video_defaults_alias_in_primary_lib"
+    ],
+    "possible_false_positives": [
+      "If there is an external import contract not visible in this batch requiring `src/shared/lib/editVideoDefaults.ts`, the alias-removal timing should be deferred but still moved to a compat namespace."
+    ]
+  }
+}

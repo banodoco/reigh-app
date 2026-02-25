@@ -20,9 +20,9 @@ import { useScrollFade } from '@/shared/hooks/useScrollFade';
 import { Search, ChevronLeft, ChevronRight, Image as ImageIcon, Video, Loader2, X, Globe, Lock } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { processImageUrl } from '@/shared/lib/urlToFile';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { useListResources, useListPublicResources, useUpdateResource, Resource, ResourceMetadata, StyleReferenceMetadata, StructureVideoMetadata } from '@/shared/hooks/useResources';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import HoverScrubVideo from '@/shared/components/HoverScrubVideo';
 
 // Video item component with scrubbing support using HoverScrubVideo
@@ -278,7 +278,7 @@ function useResourceBrowsing({
   // Get current user session
   useEffect(() => {
     const getUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase().auth.getSession();
       setUserId(session?.user?.id || null);
     };
     if (isOpen) {
@@ -363,7 +363,7 @@ function useResourceBrowsing({
         metadata: updatedMetadata as ResourceMetadata,
       });
     } catch (error) {
-      handleError(error, { context: 'DatasetBrowserModal', toastTitle: 'Failed to update visibility' });
+      normalizeAndPresentError(error, { context: 'DatasetBrowserModal', toastTitle: 'Failed to update visibility' });
     }
   }, [allResources, updateResource, resourceType]);
 
@@ -383,7 +383,7 @@ function useResourceBrowsing({
         onOpenChange(false);
       }
     } catch (error) {
-      handleError(error, { context: 'DatasetBrowserModal', toastTitle: 'Failed to process selected resource' });
+      normalizeAndPresentError(error, { context: 'DatasetBrowserModal', toastTitle: 'Failed to process selected resource' });
     } finally {
       setProcessingResource(null);
     }

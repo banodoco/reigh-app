@@ -2,97 +2,94 @@ import React from 'react';
 import { Button } from "@/shared/components/ui/button";
 import { Slider } from "@/shared/components/ui/slider";
 import { Textarea } from "@/shared/components/ui/textarea";
-import { Label } from "@/shared/components/ui/label";
+import { Label } from "@/shared/components/ui/primitives/label";
 import { Switch } from "@/shared/components/ui/switch";
 import { Info, Eraser, Check } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import { CollapsibleSection } from "@/shared/components/ui/collapsible-section";
-import { useIsMobile } from '@/shared/hooks/useMobile';
+import { useIsMobile } from '@/shared/hooks/mobile';
 import { Project } from '@/types/project';
-import { ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';
+import type { ActiveLora } from '@/shared/types/lora';
 import { LoraModel } from '@/shared/components/LoraSelectorModal';
 import { PhaseConfig, DEFAULT_PHASE_CONFIG } from '../settings';
 import { framesToSeconds, quantizeFrameCount } from './Timeline/utils/time-utils';
 
-interface BatchSettingsFormProps {
+interface BatchPromptControls {
   batchVideoPrompt: string;
   onBatchVideoPromptChange: (value: string) => void;
+  negativePrompt: string;
+  onNegativePromptChange: (value: string) => void;
+  enhancePrompt: boolean;
+  onEnhancePromptChange: (value: boolean) => void;
+  textBeforePrompts?: string;
+  onTextBeforePromptsChange?: (value: string) => void;
+  textAfterPrompts?: string;
+  onTextAfterPromptsChange?: (value: string) => void;
+}
+
+interface BatchTimingControls {
   batchVideoFrames: number;
   onBatchVideoFramesChange: (value: number) => void;
   batchVideoSteps: number;
   onBatchVideoStepsChange: (value: number) => void;
+  amountOfMotion: number;
+  onAmountOfMotionChange: (value: number) => void;
+}
+
+interface BatchDimensionControls {
   dimensionSource: 'project' | 'firstImage' | 'custom';
   onDimensionSourceChange: (source: 'project' | 'firstImage' | 'custom') => void;
   customWidth?: number;
   onCustomWidthChange: (v: number | undefined) => void;
   customHeight?: number;
   onCustomHeightChange: (v: number | undefined) => void;
-  negativePrompt: string;
-  onNegativePromptChange: (value: string) => void;
+}
+
+interface BatchContextControls {
   projects: Project[];
   selectedProjectId: string | null;
-  isTimelineMode?: boolean; // Add timeline mode flag
-
+  isTimelineMode?: boolean;
   selectedLoras?: ActiveLora[];
   availableLoras?: LoraModel[];
-  
-  // New accelerated props
+  imageCount?: number;
+}
+
+interface BatchModeControls {
   accelerated: boolean;
   onAcceleratedChange: (value: boolean) => void;
   showStepsNotification?: boolean;
-  
-  // Random seed props  
   randomSeed: boolean;
   onRandomSeedChange: (value: boolean) => void;
-  
-  // Turbo mode props
   turboMode: boolean;
   onTurboModeChange: (value: boolean) => void;
-
-  // Smooth continuations - affects max frame count
   smoothContinuations?: boolean;
-  
-  // Image count for conditional UI
-  imageCount?: number;
-  
-  // Amount of motion props (0-100 range for UI)
-  amountOfMotion: number;
-  onAmountOfMotionChange: (value: number) => void;
-  // selectedMode removed - now hardcoded to use specific model
-  
-  // Enhance prompt toggle (AI enhancement of prompts)
-  enhancePrompt: boolean;
-  onEnhancePromptChange: (value: boolean) => void;
-  
-  // Advanced mode (derived from motionMode in parent)
   advancedMode: boolean;
-  
-  // Blur save - triggers immediate save when user clicks away from field
-  onBlurSave?: () => void;
+}
+
+interface BatchPhaseControls {
   phaseConfig?: PhaseConfig;
   onPhaseConfigChange: (config: PhaseConfig) => void;
-  
-  // Phase preset props
   selectedPhasePresetId?: string | null;
   onPhasePresetSelect?: (presetId: string, config: PhaseConfig) => void;
   onPhasePresetRemove?: () => void;
-  
-  // Clear enhanced prompts handler
-  onClearEnhancedPrompts?: () => Promise<void>;
-  
-  // Video control mode for conditional display
-  videoControlMode?: 'individual' | 'batch';
-  
-  // Text before/after prompts
-  textBeforePrompts?: string;
-  onTextBeforePromptsChange?: (value: string) => void;
-  textAfterPrompts?: string;
-  onTextAfterPromptsChange?: (value: string) => void;
+}
 
-  // Read-only mode - hides interactive buttons like mic and clear
+interface BatchBehaviorControls {
+  onBlurSave?: () => void;
+  onClearEnhancedPrompts?: () => Promise<void>;
+  videoControlMode?: 'individual' | 'batch';
   readOnly?: boolean;
 }
+
+type BatchSettingsFormProps =
+  & BatchPromptControls
+  & BatchTimingControls
+  & BatchDimensionControls
+  & BatchContextControls
+  & BatchModeControls
+  & BatchPhaseControls
+  & BatchBehaviorControls;
 
 const BatchSettingsForm: React.FC<BatchSettingsFormProps> = ({
   batchVideoPrompt,

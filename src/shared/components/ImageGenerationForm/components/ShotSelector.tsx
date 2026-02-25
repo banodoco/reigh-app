@@ -1,15 +1,18 @@
-import React, { useMemo } from "react";
-import { Button } from "@/shared/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
-import { PlusCircle, X } from "lucide-react";
-import type { Shot } from "@/types/shots";
-import { 
-  Tooltip, 
-  TooltipContent, 
-  TooltipProvider, 
-  TooltipTrigger 
-} from "@/shared/components/ui/tooltip";
-import { SectionHeader } from "./SectionHeader";
+import React, { useMemo } from 'react';
+import { Button } from '@/shared/components/ui/button';
+import { X } from 'lucide-react';
+import type { Shot } from '@/domains/generation/types';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/shared/components/ui/tooltip';
+import { SectionHeader } from './SectionHeader';
+import {
+  ShotSelector as SharedShotSelector,
+  type ShotOption,
+} from '@/shared/components/ShotSelector';
 
 interface ShotSelectorProps {
   shots: Shot[] | undefined;
@@ -21,6 +24,8 @@ interface ShotSelectorProps {
   onJumpToShot?: (shot: Shot) => void;
 }
 
+const NONE_SHOT_ID = '__none__';
+
 export const ShotSelector: React.FC<ShotSelectorProps> = ({
   shots,
   associatedShotId,
@@ -30,14 +35,17 @@ export const ShotSelector: React.FC<ShotSelectorProps> = ({
   onOpenCreateShot,
   onJumpToShot,
 }) => {
-  // Sort shots by newest first (by created_at descending)
-  const sortedShots = useMemo(() => {
-    if (!shots) return [];
-    return [...shots].sort((a, b) => {
+  const options = useMemo<ShotOption[]>(() => {
+    const sortedShots = [...(shots ?? [])].sort((a, b) => {
       const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
       const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
-      return dateB - dateA; // Newest first
+      return dateB - dateA;
     });
+
+    return [
+      { id: NONE_SHOT_ID, name: 'None' },
+      ...sortedShots.map((shot) => ({ id: shot.id, name: shot.name })),
+    ];
   }, [shots]);
 
   return (
@@ -45,7 +53,7 @@ export const ShotSelector: React.FC<ShotSelectorProps> = ({
       <div className="flex items-center gap-2">
         <SectionHeader title="Shot" theme="green" htmlFor="associatedShot" />
       </div>
-      {/* Select dropdown and create button with aligned jump link */}
+
       <div className="flex items-center gap-2">
         {associatedShotId && (
           <TooltipProvider>
@@ -69,54 +77,34 @@ export const ShotSelector: React.FC<ShotSelectorProps> = ({
             </Tooltip>
           </TooltipProvider>
         )}
-        <div className="relative flex-1">
-          <Select
-            value={associatedShotId || "none"}
-            onValueChange={(value) => {
-              if (value != null) {
-                onChangeShot(value);
-              }
-            }}
-            disabled={isGenerating}
-          >
-            <SelectTrigger variant="retro" id="associatedShot" className="inline-flex w-full min-w-[200px]">
-              <SelectValue placeholder="None" />
-            </SelectTrigger>
-            <SelectContent variant="retro">
-              <SelectItem variant="retro" value="none">None</SelectItem>
-              {sortedShots.map((shot) => (
-                <SelectItem variant="retro" key={shot.id} value={shot.id} className="preserve-case">
-                  {shot.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {/* Visit shot link - positioned at top right of Select dropdown */}
-          {associatedShotId && shots && onJumpToShot && (() => {
-            const selectedShot = shots.find(shot => shot.id === associatedShotId);
-            return selectedShot ? (
-              <button
-                type="button"
-                onClick={() => onJumpToShot(selectedShot)}
-                className="absolute top-0 right-[35px] text-xs font-light text-gray-500 hover:text-gray-700 hover:underline transition-colors duration-200 px-2 py-1 rounded-md hover:bg-gray-50 -translate-y-1/2"
-                style={{ top: '50%' }}
-              >
-                Visit →
-              </button>
-            ) : null;
-          })()}
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onOpenCreateShot}
-          disabled={isGenerating}
-          className="gap-1"
-        >
-          <PlusCircle className="h-4 w-4" />
-          <span className="hidden sm:inline">New Shot</span>
-        </Button>
+
+        <SharedShotSelector
+          value={associatedShotId ?? NONE_SHOT_ID}
+          onValueChange={(value) => {
+            if (value === NONE_SHOT_ID) {
+              onClearShot();
+              return;
+            }
+            onChangeShot(value);
+          }}
+          shots={options}
+          placeholder="None"
+          variant="retro"
+          className="flex-1"
+          triggerClassName="inline-flex w-full min-w-[200px] justify-between"
+          showAddShot
+          onCreateShot={onOpenCreateShot}
+          isCreatingShot={isGenerating}
+          onNavigateToShot={(option) => {
+            if (!onJumpToShot || option.id === NONE_SHOT_ID) {
+              return;
+            }
+            const selectedShot = shots?.find((shot) => shot.id === option.id);
+            if (selectedShot) {
+              onJumpToShot(selectedShot);
+            }
+          }}
+        />
       </div>
     </div>
   );

@@ -10,8 +10,7 @@ vi.mock('../useTimestampUpdater', () => ({
   })),
 }));
 
-import { useProcessingTimestamp } from '../useProcessingTimestamp';
-import { useCompletedTimestamp } from '../useCompletedTimestamp';
+import { useRelativeTimestamp } from '../useUpdatingTimestamp';
 
 describe('useProcessingTimestamp', () => {
   beforeEach(() => {
@@ -23,13 +22,13 @@ describe('useProcessingTimestamp', () => {
   });
 
   it('returns null when no date provided', () => {
-    const { result } = renderHook(() => useProcessingTimestamp({}));
+    const { result } = renderHook(() => useRelativeTimestamp({ preset: 'processing' }));
     expect(result.current).toBeNull();
   });
 
   it('returns null for null date', () => {
     const { result } = renderHook(() =>
-      useProcessingTimestamp({ generationStartedAt: null })
+      useRelativeTimestamp({ date: null, preset: 'processing' })
     );
     expect(result.current).toBeNull();
   });
@@ -41,7 +40,7 @@ describe('useProcessingTimestamp', () => {
     const startedAt = new Date('2025-01-15T11:59:30Z'); // 30 seconds ago
 
     const { result } = renderHook(() =>
-      useProcessingTimestamp({ generationStartedAt: startedAt })
+      useRelativeTimestamp({ date: startedAt, preset: 'processing' })
     );
 
     expect(result.current).toBe('Processing for <1 min');
@@ -54,7 +53,7 @@ describe('useProcessingTimestamp', () => {
     const startedAt = new Date('2025-01-15T11:55:00Z'); // 5 minutes ago
 
     const { result } = renderHook(() =>
-      useProcessingTimestamp({ generationStartedAt: startedAt })
+      useRelativeTimestamp({ date: startedAt, preset: 'processing' })
     );
 
     expect(result.current).toBe('Processing for 5 mins');
@@ -67,7 +66,7 @@ describe('useProcessingTimestamp', () => {
     const startedAt = new Date('2025-01-15T11:59:00Z'); // 1 minute ago
 
     const { result } = renderHook(() =>
-      useProcessingTimestamp({ generationStartedAt: startedAt })
+      useRelativeTimestamp({ date: startedAt, preset: 'processing' })
     );
 
     expect(result.current).toBe('Processing for 1 min');
@@ -80,7 +79,7 @@ describe('useProcessingTimestamp', () => {
     const startedAt = new Date('2025-01-15T12:00:00Z'); // 2 hours ago
 
     const { result } = renderHook(() =>
-      useProcessingTimestamp({ generationStartedAt: startedAt })
+      useRelativeTimestamp({ date: startedAt, preset: 'processing' })
     );
 
     expect(result.current).toBe('Processing for 2 hrs');
@@ -93,7 +92,7 @@ describe('useProcessingTimestamp', () => {
     const startedAt = new Date('2025-01-15T12:00:00Z'); // 1 hr 30 min ago
 
     const { result } = renderHook(() =>
-      useProcessingTimestamp({ generationStartedAt: startedAt })
+      useRelativeTimestamp({ date: startedAt, preset: 'processing' })
     );
 
     expect(result.current).toBe('Processing for 1 hr, 30 mins');
@@ -104,7 +103,7 @@ describe('useProcessingTimestamp', () => {
     vi.setSystemTime(now);
 
     const { result } = renderHook(() =>
-      useProcessingTimestamp({ generationStartedAt: '2025-01-15T12:00:00Z' })
+      useRelativeTimestamp({ date: '2025-01-15T12:00:00Z', preset: 'processing' })
     );
 
     expect(result.current).toBe('Processing for 5 mins');
@@ -112,7 +111,7 @@ describe('useProcessingTimestamp', () => {
 
   it('returns null for invalid date string', () => {
     const { result } = renderHook(() =>
-      useProcessingTimestamp({ generationStartedAt: 'not-a-date' })
+      useRelativeTimestamp({ date: 'not-a-date', preset: 'processing' })
     );
 
     expect(result.current).toBeNull();
@@ -129,7 +128,7 @@ describe('useCompletedTimestamp', () => {
   });
 
   it('returns null when no date provided', () => {
-    const { result } = renderHook(() => useCompletedTimestamp({}));
+    const { result } = renderHook(() => useRelativeTimestamp({ preset: 'completed' }));
     expect(result.current).toBeNull();
   });
 
@@ -140,7 +139,7 @@ describe('useCompletedTimestamp', () => {
     const completedAt = new Date('2025-01-15T11:59:45Z'); // 15 seconds ago
 
     const { result } = renderHook(() =>
-      useCompletedTimestamp({ generationProcessedAt: completedAt })
+      useRelativeTimestamp({ date: completedAt, preset: 'completed' })
     );
 
     expect(result.current).toBe('Completed <1 min ago');
@@ -153,7 +152,7 @@ describe('useCompletedTimestamp', () => {
     const completedAt = new Date('2025-01-15T11:50:00Z'); // 10 minutes ago
 
     const { result } = renderHook(() =>
-      useCompletedTimestamp({ generationProcessedAt: completedAt })
+      useRelativeTimestamp({ date: completedAt, preset: 'completed' })
     );
 
     expect(result.current).toBe('Completed 10 mins ago');
@@ -166,7 +165,7 @@ describe('useCompletedTimestamp', () => {
     const completedAt = new Date('2025-01-15T12:00:00Z'); // 3 hours ago
 
     const { result } = renderHook(() =>
-      useCompletedTimestamp({ generationProcessedAt: completedAt })
+      useRelativeTimestamp({ date: completedAt, preset: 'completed' })
     );
 
     expect(result.current).toBe('Completed 3 hrs ago');
@@ -179,7 +178,7 @@ describe('useCompletedTimestamp', () => {
     const completedAt = new Date('2025-01-15T12:00:00Z'); // 2 days ago
 
     const { result } = renderHook(() =>
-      useCompletedTimestamp({ generationProcessedAt: completedAt })
+      useRelativeTimestamp({ date: completedAt, preset: 'completed' })
     );
 
     expect(result.current).toBe('Completed 2 days ago');

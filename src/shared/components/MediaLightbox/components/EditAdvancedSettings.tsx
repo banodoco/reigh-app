@@ -2,7 +2,7 @@ import React, { useCallback } from 'react';
 import { CollapsibleSection } from '@/shared/components/ui/collapsible-section';
 import { SliderWithValue } from '@/shared/components/ui/slider-with-value';
 import { Switch } from '@/shared/components/ui/switch';
-import { Label } from '@/shared/components/ui/label';
+import { Label } from '@/shared/components/ui/primitives/label';
 import { RotateCcw } from 'lucide-react';
 import type { EditAdvancedSettings as EditAdvancedSettingsType } from '../hooks/editSettingsTypes';
 import { DEFAULT_ADVANCED_SETTINGS } from '../hooks/editSettingsTypes';

@@ -1,0 +1,121 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "test_strategy": 81.0,
+    "mid_level_elegance": 78.0
+  },
+  "dimension_notes": {
+    "test_strategy": {
+      "evidence": [
+        "`src/shared/lib/tasks/taskPayloadContract.ts` and `src/shared/lib/tasks/taskFamilyContracts.ts` define core payload/contract composition paths but have no direct tests (`rg` over test files returns no hits), so contract regressions would only be caught indirectly.",
+        "`src/shared/lib/operationResult.ts` is used by auth/session and shot-editor flows but has no direct tests for metadata preservation (`cause`, `policy`, `errorCode`) or `toOperationResultError` stack/cause behavior.",
+        "`src/shared/lib/__tests__/timelineWriteQueue.test.ts` only validates timeout behavior for abort-aware tasks; it does not cover non-cooperative tasks that ignore `AbortSignal`, which is the highest-risk timeout path."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "`supabase/functions/_shared/billing.ts` uses canonical-then-legacy fallback in `lookupCompletedSubTasksForOrchestrator` and returns canonical rows immediately when non-empty, which can drop legacy-only sibling rows during mixed migrations.",
+        "`src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts` calls `isVideoShotGenerations` against `ShotGenRow` objects that carry `generation` (singular), not `generations`; tests currently codify that video rows are not filtered out.",
+        "`supabase/functions/_shared/orchestratorReference.ts` and `_shared/billing.ts` extract reference IDs using unchecked casts from unknown JSON (`as string`), making boundary contracts lenient and surprising for downstream query builders."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "billing_lookup_drops_mixed_reference_rows",
+      "summary": "Canonical-first fallback can undercount sub-tasks in mixed canonical/legacy data",
+      "related_files": [
+        "supabase/functions/_shared/billing.ts",
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/_shared/billing.test.ts"
+      ],
+      "evidence": [
+        "`lookupCompletedSubTasksForOrchestrator` returns immediately when canonical query has any rows, and only queries legacy paths when canonical is empty.",
+        "During mixed migration states, some children can exist only on legacy paths, so returning canonical-only rows can omit billable completed sub-tasks.",
+        "Current tests cover canonical-only and canonical-empty->legacy fallback, but not mixed-result union behavior."
+      ],
+      "suggestion": "Query both canonical and legacy filters, union by `id`, and return deduplicated rows. Add a test case where canonical and legacy each return disjoint completed rows and assert both are included.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "legacy_contract_dual_path_handling"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "shot_generation_video_filter_contract_mismatch",
+      "summary": "Video filtering seam in generateVideoService is wired to the wrong row shape",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/__tests__/generateVideoService.test.ts"
+      ],
+      "evidence": [
+        "`filterImageShotGenerations` checks `!isVideoShotGenerations(shotGen as ShotGenerationsLike)` even though `ShotGenRow` uses `generation` (singular).",
+        "The test suite explicitly documents and asserts this mismatch (`filters out video type rows` test expects length `1`), meaning known incorrect behavior is codified.",
+        "This allows video rows through an image-only pipeline used to build pair/image payloads."
+      ],
+      "suggestion": "Replace the type-guard call with direct row-level content checks (`generation.type` / content-type semantics) for `ShotGenRow`, and update tests to assert video rows are excluded.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "core_payload_contract_helpers_lack_direct_oracle_tests",
+      "summary": "Critical payload/contract composer modules remain untested directly",
+      "related_files": [
+        "src/shared/lib/tasks/taskPayloadContract.ts",
+        "src/shared/lib/tasks/taskFamilyContracts.ts",
+        "src/shared/lib/operationResult.ts"
+      ],
+      "evidence": [
+        "No direct tests exist for `buildTaskPayloadContract`/`composeTaskPayload`/`composeTaskFamilyPayload` and family contract builders (no matching hits in test files).",
+        "No direct tests exist for `operationSuccess`/`operationFailure`/`toOperationResultError` despite broad runtime usage in auth/session/editor flows.",
+        "These modules define reusable API envelopes, so drift here can fan out across many call sites before being caught."
+      ],
+      "suggestion": "Add focused unit tests asserting contract precedence/merging, contract version fields, and operation-result error metadata propagation (including stack/cause behavior) as executable API oracles.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shared_contract_oracle_gap"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "timeout_semantics_not_validated_for_non_cooperative_tasks",
+      "summary": "Timeout tests miss non-abort-aware tasks, leaving the main failure mode unguarded",
+      "related_files": [
+        "src/shared/lib/timelineWriteQueue.ts",
+        "src/shared/lib/__tests__/timelineWriteQueue.test.ts"
+      ],
+      "evidence": [
+        "`runTimelineWriteWithTimeout` relies on aborting a signal, but if a task ignores the signal the promise may never settle.",
+        "Current tests only cover abort-aware tasks that reject on `abort`, so they do not prove bounded completion for non-cooperative writes.",
+        "Function docs claim timeout prevents queue blockage, but this guarantee is not verified against the highest-risk behavior."
+      ],
+      "suggestion": "Add a test with a task that never observes `AbortSignal` and assert the wrapper still rejects by timeout (or refactor to enforce timeout via `Promise.race` and cover both cooperative and non-cooperative paths).",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Legacy-to-canonical migration paths still use fallback semantics that are safe for exclusive modes but unsafe for mixed live data.",
+      "Boundary parsing/validation is inconsistent across shared helpers, leading to surprising seam behavior and type-contract drift.",
+      "Several high-leverage shared contract modules are treated as implementation details instead of directly tested API surfaces."
+    ],
+    "likely_symptoms": [
+      "billing_lookup_drops_mixed_reference_rows",
+      "shot_generation_video_filter_contract_mismatch",
+      "core_payload_contract_helpers_lack_direct_oracle_tests"
+    ],
+    "possible_false_positives": []
+  }
+}

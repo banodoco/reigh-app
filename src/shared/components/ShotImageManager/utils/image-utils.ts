@@ -1,38 +1,19 @@
-import { GenerationRow } from '@/types/shots';
-import { 
-  calculateFrameForIndex, 
-  extractExistingFrames 
+import type { GenerationRow } from '@/domains/generation/types/generationViewRow';
+import {
+  calculateFrameForIndex,
+  extractExistingFrames,
 } from '@/shared/lib/timelinePositionCalculator';
-import { parseRatio } from '@/shared/lib/aspectRatios';
+import { getProjectAspectRatioStyle } from '@/shared/lib/imageAspectRatio';
 
-/**
- * Calculate frame position for inserting at a given index
- * The frame position should be the midpoint between surrounding images,
- * with collision detection to ensure uniqueness.
- * 
- * NOTE: This calculates timeline_frame (the frame number for video export),
- * NOT the grid index position. The grid index comes from BatchDropZone.
- * 
- * IMPORTANT: currentImages are GenerationRow objects where:
- * - .id = shot_generations.id (unique per shot entry)
- * - .generation_id = generations.id (the actual generation)
- * - .timeline_frame = frame number for video positioning
- */
 export const getFramePositionForIndex = (
   index: number,
   currentImages: GenerationRow[],
   batchVideoFrames: number
 ): number | undefined => {
-  // Extract existing frames from current images (filters out videos and null frames)
   const existingFrames = extractExistingFrames(currentImages);
-  
-  // Use unified calculator with collision detection
   return calculateFrameForIndex(index, existingFrames, batchVideoFrames);
 };
 
-/**
- * Get range of image IDs between two indices (inclusive)
- */
 export const getImageRange = (
   startIndex: number,
   endIndex: number,
@@ -44,7 +25,6 @@ export const getImageRange = (
   
   for (let i = minIndex; i <= maxIndex; i++) {
     if (currentImages[i]) {
-      // img.id is shot_generations.id - unique per entry
       rangeIds.push(currentImages[i].id);
     }
   }
@@ -52,15 +32,4 @@ export const getImageRange = (
   return rangeIds;
 };
 
-/**
- * Calculate aspect ratio style for images
- */
-export const getAspectRatioStyle = (projectAspectRatio?: string) => {
-  if (projectAspectRatio) {
-    const aspectRatio = parseRatio(projectAspectRatio);
-    if (Number.isFinite(aspectRatio)) return { aspectRatio: `${aspectRatio}` };
-  }
-  
-  // Default to square aspect ratio
-  return { aspectRatio: '1' };
-};
+export const getAspectRatioStyle = getProjectAspectRatioStyle;

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Button } from '@/shared/components/ui/button';
-import { Label } from '@/shared/components/ui/label';
-import { useHuggingFaceToken } from '@/shared/hooks/useExternalApiKeys';
+import { Label } from '@/shared/components/ui/primitives/label';
+import { useHuggingFaceToken } from '@/shared/services/externalApiKeys/hooks/useHuggingFaceToken';
 import { Loader2, CheckCircle2, XCircle, ExternalLink, Trash2, Eye, EyeOff, RefreshCw } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 
 interface HuggingFaceTokenSetupProps {
   /** Called when token is successfully saved and verified */

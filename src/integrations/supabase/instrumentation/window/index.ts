@@ -1,7 +1,7 @@
 import { __WS_INSTRUMENTATION_ENABLED__, __CORRUPTION_TRACE_ENABLED__ } from '@/integrations/supabase/config/env';
 import { captureRealtimeSnapshot } from '@/integrations/supabase/utils/snapshot';
 import { __CORRUPTION_TIMELINE__, addCorruptionEvent } from '@/integrations/supabase/utils/timeline';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 /** Shape of a Phoenix channel message received over WebSocket */
 interface PhoenixMessage {
@@ -26,13 +26,6 @@ interface InstrumentedWindow extends Window {
 }
 
 export function installWindowOnlyInstrumentation() {
-  // InstrumentationManager removed - calling legacy function directly
-  installWindowOnlyInstrumentationLegacy();
-  return;
-}
-
-// Legacy function for backward compatibility - now delegates to InstrumentationManager
-function installWindowOnlyInstrumentationLegacy() {
   if (typeof window === 'undefined') return;
   const instrumentedWindow = window as InstrumentedWindow;
 
@@ -56,7 +49,7 @@ function installWindowOnlyInstrumentationLegacy() {
 
       const SUPABASE_JS_KNOWN_ERROR_LINE = 2372;
       if (source && source.includes('supabase-js.js') && lineno === SUPABASE_JS_KNOWN_ERROR_LINE) {
-        handleError(new Error('[RealtimeCorruptionTrace] Supabase error captured'), {
+        normalizeAndPresentError(new Error('[RealtimeCorruptionTrace] Supabase error captured'), {
           context: 'WindowInstrumentation',
           showToast: false,
           logData: {

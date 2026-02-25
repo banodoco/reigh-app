@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
-import { GenerationRow, Shot, ShotOption } from '@/types/shots';
+import { GenerationRow, Shot, ShotOption } from '@/domains/generation/types';
 import { getGenerationId, getMediaUrl, getThumbnailUrl } from '@/shared/lib/mediaTypeHelpers';
 
 /**

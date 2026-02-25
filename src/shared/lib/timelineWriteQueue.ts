@@ -2,7 +2,7 @@ import { isAbortError } from '@/shared/lib/errorHandling/errorUtils';
 
 type TimelineWritePhase = 'queued' | 'start' | 'end';
 
-interface TimelineWriteEventMeta {
+export interface TimelineWriteEventMeta {
   shotId: string;
   operation: string;
   waitMs: number;
@@ -13,7 +13,41 @@ interface TimelineWriteEventMeta {
   blockedByDurationMs?: number | null;
 }
 
-type TimelineWriteEventHandler = (phase: TimelineWritePhase, meta: TimelineWriteEventMeta) => void;
+export type TimelineWriteEventHandler = (phase: TimelineWritePhase, meta: TimelineWriteEventMeta) => void;
+
+interface TimelineWriteLoggerOptions {
+  logPrefix: string;
+  log?: (...args: Parameters<typeof console.log>) => void;
+}
+
+function shortTimelineId(value: string | null | undefined): string | null {
+  return value ? value.slice(0, 8) : null;
+}
+
+/**
+ * Shared queue-phase logger for timeline write serialization.
+ * Keeps queue observability structure consistent across timeline hooks.
+ */
+export function createTimelineWriteQueueLogger(options: TimelineWriteLoggerOptions): TimelineWriteEventHandler {
+  const log = options.log ?? console.log;
+  return (phase, meta) => {
+    const payload: Record<string, unknown> = {
+      shotId: shortTimelineId(meta.shotId),
+      requestId: meta.requestId,
+      operation: meta.operation,
+      waitMs: meta.waitMs,
+      queueDepth: meta.queueDepth,
+      blockedByOperation: meta.blockedByOperation ?? null,
+      blockedByDurationMs: meta.blockedByDurationMs ?? null,
+    };
+
+    if (phase !== 'start') {
+      payload.durationMs = meta.durationMs;
+    }
+
+    log(`${options.logPrefix} write queue ${phase}`, payload);
+  };
+}
 
 const DEFAULT_TIMELINE_WRITE_TIMEOUT_MS = 15_000;
 const TIMELINE_WRITE_TIMEOUT_CODE = 'TIMELINE_WRITE_TIMEOUT';

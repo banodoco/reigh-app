@@ -1,9 +1,10 @@
 import {
-  createTask,
   validateRequiredFields,
   TaskValidationError,
 } from "../taskCreation";
 import type { TaskCreationResult } from "../taskCreation";
+import { composeTaskRequest } from './taskRequestComposer';
+import { runTaskCreationPipeline } from './taskCreatorPipeline';
 
 // ============================================================================
 // Video Enhancement API Param Interfaces (Single Source of Truth)
@@ -164,6 +165,12 @@ function buildVideoEnhancePayload(
       ...(params.interpolation?.loop !== undefined && {
         loop: params.interpolation.loop,
       }),
+      ...(params.interpolation?.fps !== undefined && {
+        fps: params.interpolation.fps,
+      }),
+      ...(params.interpolation?.video_write_mode !== undefined && {
+        video_write_mode: params.interpolation.video_write_mode,
+      }),
     };
   }
 
@@ -180,6 +187,15 @@ function buildVideoEnhancePayload(
       ...(params.upscale?.acceleration !== undefined && {
         acceleration: params.upscale.acceleration,
       }),
+      ...(params.upscale?.output_format !== undefined && {
+        output_format: params.upscale.output_format,
+      }),
+      ...(params.upscale?.output_write_mode !== undefined && {
+        output_write_mode: params.upscale.output_write_mode,
+      }),
+      ...(params.upscale?.preserve_audio !== undefined && {
+        preserve_audio: params.upscale.preserve_audio,
+      }),
     };
   }
 
@@ -190,6 +206,7 @@ function buildVideoEnhancePayload(
   // based_on tells complete_task to create a variant on the source generation
   if (params.based_on) {
     payload.based_on = params.based_on;
+    payload.parent_generation_id = params.based_on;
     // is_primary=true makes the enhanced version the main display variant
     payload.is_primary = true;
   }
@@ -217,23 +234,24 @@ interface VideoEnhanceTaskResult {
 export async function createVideoEnhanceTask(
   params: VideoEnhanceTaskParams
 ): Promise<VideoEnhanceTaskResult> {
-  // 1. Validate parameters
-  validateVideoEnhanceParams(params);
+  return runTaskCreationPipeline({
+    params,
+    context: 'VideoEnhance',
+    validate: validateVideoEnhanceParams,
+    buildTaskRequest: (requestParams) => {
+      const payload = buildVideoEnhancePayload(requestParams);
 
-  // 2. Build task payload
-  const payload = buildVideoEnhancePayload(params);
-
-  // 3. Create task using unified create-task function
-  const result = await createTask({
-    project_id: params.project_id,
-    task_type: 'video_enhance',
-    params: {
-      tool_type: 'video-enhance',
-      ...payload,
+      return composeTaskRequest({
+        source: requestParams,
+        taskType: 'video_enhance',
+        params: {
+          tool_type: 'video-enhance',
+          ...payload,
+        },
+      });
     },
+    onCreated: (task) => ({ task }),
   });
-
-  return { task: result };
 }
 
 // TaskValidationError is used internally - import from taskCreation.ts if needed externally

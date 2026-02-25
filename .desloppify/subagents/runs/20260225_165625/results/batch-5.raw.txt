@@ -1,0 +1,96 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 5,
+  "assessments": {
+    "cross_module_architecture": 88.4
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "README.md defines canonical contract surfaces and CI governance gates, but assigned contract files mostly enforce this only through comments/doc prose rather than executable boundary controls.",
+        "src/shared/lib/errorHandling/runtimeError.ts and src/integrations/supabase/client.ts are thin facades over deeper runtime modules, but provide no mechanism that prevents direct imports of the underlying implementation modules.",
+        "Contract tagging is inconsistent across assigned surfaces: @publicContract appears in runtimeError.ts and client.ts, @uiContract appears in contracts/cn.ts, and button.tsx/public.ts rely on plain comments, which weakens uniform governance automation."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Governance is documented but not uniformly machine-enforced across contract entrypoints, leaving architectural boundary drift possible as modules evolve."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "contract_boundaries_are_doc_only",
+      "summary": "Canonical facade boundaries are declared in docs but not technically enforced in code.",
+      "related_files": [
+        "README.md",
+        "src/shared/lib/errorHandling/runtimeError.ts",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "README.md marks these files as canonical contract surfaces and ties them to governance gates.",
+        "runtimeError.ts and client.ts only forward to deeper modules and do not include any boundary guard (e.g., path-level import restrictions or package-level encapsulation).",
+        "This allows consumers to bypass canonical facades by importing implementation modules directly, undermining the documented architecture contract."
+      ],
+      "suggestion": "Add enforceable import-boundary rules (for example eslint no-restricted-imports or boundary plugin rules) that require app code to import via canonical facades for error handling and Supabase runtime access, and wire those checks into the listed governance gates.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "governance_not_machine_enforced"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "contract_metadata_inconsistent",
+      "summary": "Contract entrypoints use inconsistent contract markers, reducing governance rule reliability.",
+      "related_files": [
+        "src/shared/lib/errorHandling/runtimeError.ts",
+        "src/integrations/supabase/client.ts",
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/ui/contracts/cn.ts",
+        "src/domains/generation/types/public.ts"
+      ],
+      "evidence": [
+        "runtimeError.ts and client.ts use `@publicContract`.",
+        "contracts/cn.ts uses `@uiContract` instead of the same marker family.",
+        "button.tsx and generation/types/public.ts expose canonical surfaces but rely on plain comments without a shared structured contract tag."
+      ],
+      "suggestion": "Standardize a single machine-parseable contract annotation schema across all canonical entrypoints (or replace comment tags with a central manifest) and update governance checks to validate that every declared surface is tagged consistently.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "governance_not_machine_enforced"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "compat_policy_not_co_located_with_surface",
+      "summary": "Compatibility lifecycle policy is tracked in README table but not co-located with exported contract APIs.",
+      "related_files": [
+        "README.md",
+        "src/shared/lib/errorHandling/runtimeError.ts"
+      ],
+      "evidence": [
+        "README.md includes a removal target date (2026-06-30) for deprecated error-handling aliases.",
+        "runtimeError.ts exports canonical APIs but does not carry lifecycle/version metadata tied to compatibility policy in the surface itself."
+      ],
+      "suggestion": "Co-locate compatibility metadata with the contract surface (e.g., explicit deprecated export wrappers with removal version/date metadata and test assertions) so lifecycle policy can be validated directly from code instead of drifting in documentation tables.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "governance_not_machine_enforced"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Architecture governance is primarily prose-driven rather than enforced through import rules and machine-checked contract metadata.",
+      "Canonical facades exist, but enforcement of facade-only consumption is missing."
+    ],
+    "likely_symptoms": [
+      "contract_boundaries_are_doc_only",
+      "contract_metadata_inconsistent",
+      "compat_policy_not_co_located_with_surface"
+    ],
+    "possible_false_positives": [
+      "If strong import-boundary enforcement already exists outside these assigned files, finding severity may be lower."
+    ]
+  }
+}

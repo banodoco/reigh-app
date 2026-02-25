@@ -1,0 +1,115 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 1,
+  "assessments": {
+    "dependency_health": 84.0
+  },
+  "dimension_notes": {
+    "dependency_health": {
+      "evidence": [
+        "There is reverse coupling in the MediaLightbox module: `src/shared/components/MediaLightbox/VideoLightbox.tsx` imports `useVideoLightboxRenderModel`, while `src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx` imports types from `../VideoLightbox`.",
+        "The edit-images tool is tightly bound to MediaLightbox internals: `src/tools/edit-images/hooks/useInlineEditState.ts` imports many hooks from `@/shared/components/MediaLightbox/hooks`, and `src/tools/edit-images/hooks/useImageEditValue.ts` imports context/types from MediaLightbox internals.",
+        "Supabase access is split across two client entrypoints in the same frontend layer: `src/shared/hooks/useGenerationMutations.ts` and `src/shared/hooks/useTasks.ts` use `supabase`, while `src/pages/Home/hooks/useDiscordSignIn.ts` and `src/pages/Home/hooks/auth/useAuthReferralFinalize.ts` use `getSupabaseClient`.",
+        "Route-level dependency loading is heavy at startup: `src/app/routes.tsx` eagerly imports multiple major tool pages (`image-generation`, `travel-between-images`, `character-animate`, `join-clips`, `edit-video`) while only a subset is lazy-loaded.",
+        "Supabase edge functions repeat URL-pinned dependency imports directly in files (`supabase/functions/complete_task/orchestrator.ts`, `supabase/functions/complete_task/generation.ts`, `supabase/functions/calculate-task-cost/index.ts`) instead of a shared import map abstraction."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "dependency_health",
+      "identifier": "media_lightbox_bidirectional_type_coupling",
+      "summary": "MediaLightbox render hook depends back on the component file, creating a brittle bidirectional module dependency.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/VideoLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx"
+      ],
+      "evidence": [
+        "`VideoLightbox.tsx` imports `useVideoLightboxRenderModel` from hooks.",
+        "`useVideoLightboxRenderModel.tsx` imports `VideoLightboxProps` and related model types from `../VideoLightbox`."
+      ],
+      "suggestion": "Move shared prop/model types into a dedicated neutral module (for example `MediaLightbox/types/videoLightboxModels.ts`) and have both files import from that module to remove the reverse dependency edge.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "dependency_health",
+      "identifier": "edit_images_depends_on_lightbox_internals",
+      "summary": "The edit-images feature is coupled to MediaLightbox internals instead of a stable tool-facing interface.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/hooks/useImageEditValue.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx"
+      ],
+      "evidence": [
+        "`useInlineEditState.ts` imports many internals from `@/shared/components/MediaLightbox/hooks` and `@/shared/components/MediaLightbox/utils`.",
+        "`useImageEditValue.ts` imports internal context and type primitives from MediaLightbox folders.",
+        "`InlineEditView.tsx` imports MediaLightbox components and context provider directly (`MediaDisplayWithCanvas`, button groups, `ImageEditProvider`)."
+      ],
+      "suggestion": "Introduce an explicit edit-images adapter layer (for example `shared/lib/imageEditRuntime`) that exports only required contracts; migrate edit-images to that API and keep MediaLightbox internals private.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "dependency_health",
+      "identifier": "supabase_client_surface_split",
+      "summary": "Frontend data/auth hooks use mixed Supabase client entrypoints, increasing dependency surface and initialization variance.",
+      "related_files": [
+        "src/shared/hooks/useGenerationMutations.ts",
+        "src/shared/hooks/useTasks.ts",
+        "src/pages/Home/hooks/useDiscordSignIn.ts",
+        "src/pages/Home/hooks/auth/useAuthReferralFinalize.ts"
+      ],
+      "evidence": [
+        "`useGenerationMutations.ts` and `useTasks.ts` import `supabase` directly from `@/integrations/supabase/client`.",
+        "`useDiscordSignIn.ts` and `useAuthReferralFinalize.ts` import and call `getSupabaseClient()` from the same module."
+      ],
+      "suggestion": "Standardize on one client acquisition pattern per runtime (prefer a single exported accessor or hook) and provide a thin compatibility wrapper only at boundary modules.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "dependency_health",
+      "identifier": "routes_eager_tool_dependency_bloat",
+      "summary": "App routing eagerly imports several heavy tool pages, pulling large dependency trees into initial load.",
+      "related_files": [
+        "src/app/routes.tsx",
+        "src/tools/join-clips/pages/JoinClipsPage.tsx",
+        "src/shared/components/MediaGallery/index.tsx"
+      ],
+      "evidence": [
+        "`routes.tsx` eagerly imports `ImageGenerationToolPage`, `VideoTravelToolPage`, `CharacterAnimatePage`, `JoinClipsPage`, and `EditVideoPage`.",
+        "`JoinClipsPage.tsx` itself has broad imports across gallery/lightbox/hooks, compounding route-level eager load weight.",
+        "`MediaGallery/index.tsx` is a high-dependency component used in tool pages and contributes to transitive bundle expansion when tool routes are eager."
+      ],
+      "suggestion": "Restore lazy loading for primary tool routes with a guarded hydration-ready boundary (e.g., defer mount until query/runtime bootstrap signal) so Safari workaround does not require full eager imports.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "dependency_health",
+      "identifier": "edge_function_remote_dep_pinning_duplication",
+      "summary": "Edge functions duplicate URL-pinned runtime dependencies inline, making upgrades and consistency checks manual.",
+      "related_files": [
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/complete_task/generation.ts",
+        "supabase/functions/calculate-task-cost/index.ts"
+      ],
+      "evidence": [
+        "`orchestrator.ts` and `generation.ts` each import `SupabaseClient` from `https://esm.sh/@supabase/supabase-js@2.39.7`.",
+        "`calculate-task-cost/index.ts` imports from both `https://deno.land/std@0.224.0/http/server.ts` and `https://esm.sh/@supabase/supabase-js@2.39.7` inline."
+      ],
+      "suggestion": "Adopt a centralized Deno import map/module for shared runtime dependencies and reference aliases from all edge functions to enforce single-point version control.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

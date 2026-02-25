@@ -1,0 +1,127 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 87.0,
+    "high_level_elegance": 82.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/handleError.ts` computes `RUNTIME_ERROR_ALIAS_IMPORT_BUDGET` at module load via `new Date()`, making module state time-dependent at import time.",
+        "`src/integrations/supabase/legacy/legacySupabaseFacade.ts` similarly computes `LEGACY_SUPABASE_IMPORT_BUDGET` at import time and keeps module-global mutable state (`hasWarnedPastRemovalTarget`).",
+        "`src/integrations/supabase/legacy/legacySupabaseFacade.ts` dynamically probes module exports (`getSupabaseClient` vs `supabase`) to bridge old/new runtime surfaces, which keeps boundary ambiguity alive."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Legacy compatibility modules still carry time-based import-time state and dynamic fallback wiring, which increases coupling and makes boundaries less deterministic."
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/components/ui/button.tsx` (UI primitive layer) imports app-theme extension constants from `shared/components/theme/buttonVariants`, mixing foundation and app-specific concerns.",
+        "`src/shared/components/MediaTypeFilter.tsx` hardcodes concrete design-system variant names (`retro`, `zinc`, `retro-dark`) in feature-facing filter logic, exposing internal styling taxonomy beyond UI primitives.",
+        "Legacy compatibility surfaces remain first-class exports (`reportRuntimeError` in `handleError.ts`, `getLegacySupabaseClient` in `legacySupabaseFacade.ts`), so top-level ownership of 'current API' vs 'migration shim' is still blurred."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "import_time_budget_state_in_alias_facades",
+      "summary": "Legacy alias facades embed time-dependent state at import time",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` exports `RUNTIME_ERROR_ALIAS_IMPORT_BUDGET = getRuntimeErrorAliasImportBudget()` where default argument uses `new Date()`.",
+        "`legacySupabaseFacade.ts` exports `LEGACY_SUPABASE_IMPORT_BUDGET = getLegacySupabaseImportBudget()` with the same date-at-import pattern.",
+        "`legacySupabaseFacade.ts` keeps module-global mutable warning state (`hasWarnedPastRemovalTarget`), adding hidden process-lifetime behavior to a cross-module dependency."
+      ],
+      "suggestion": "Remove import-time budget constants and expose only pure functions that receive `now` explicitly (or inject a clock in policy checks). Move deprecation-budget tracking out of runtime facades into a dedicated diagnostics module so core imports are deterministic.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "legacy_migration_policy_embedded_in_runtime_modules"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "legacy_runtime_dual_access_path",
+      "summary": "Supabase compatibility facade preserves dual runtime access paths",
+      "related_files": [
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "`getLegacySupabaseClient()` attempts `getSupabaseClient` first, then falls back to `supabase` export via dynamic property lookup and casting.",
+        "This keeps callers insulated from choosing one canonical runtime boundary, and the same pattern appears in error handling where deprecated alias export (`reportRuntimeError`) remains active.",
+        "Both files encode migration shims as primary import targets rather than isolating them to a narrow compatibility boundary."
+      ],
+      "suggestion": "Introduce a strict compatibility boundary package (for example `legacy/compat/*`) and route all deprecated aliases through that single location. Keep canonical runtime modules alias-free, then codemod callsites to canonical imports and fail CI on new imports from legacy paths.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "legacy_migration_policy_embedded_in_runtime_modules"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "ui_foundation_and_theme_layers_blurred",
+      "summary": "Shared UI primitives mix foundational API with product theme specifics",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/MediaTypeFilter.tsx",
+        "src/pages/Home/components/panes/CreativePartnerPane.tsx"
+      ],
+      "evidence": [
+        "`button.tsx` imports `APP_BUTTON_SIZES` and `APP_BUTTON_VARIANTS` from `shared/components/theme/buttonVariants`, so primitive contract depends on product-layer styling extensions.",
+        "`MediaTypeFilter.tsx` directly depends on internal style variant vocabulary (`retro`, `zinc`, `retro-dark`) instead of consuming a semantic intent API.",
+        "`CreativePartnerPane.tsx` uses raw `<button>` elements for CTA while other parts rely on shared primitives, reflecting unclear ownership of button interaction/styling boundaries at the top level."
+      ],
+      "suggestion": "Split UI into `ui/primitives` (no app theme imports) and `ui/patterns` (app-themed wrappers). Expose semantic variants (e.g., `surface='dark'`, `tone='muted'`) from wrappers, and migrate feature components to those wrappers so feature code does not depend on theme token names.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "design_system_layering_drift"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "gallery_item_api_split_across_state_bags",
+      "summary": "Media gallery item flow is fragmented into multiple bag-style contracts",
+      "related_files": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+      ],
+      "evidence": [
+        "`useMediaGalleryHandlers` accepts a wide argument bag containing navigation, modal controls, filter controls, and lightbox setters from different concerns.",
+        "`ShotActions` consumes four grouped prop objects (`selector`, `status`, `quickCreate`, `actions`) that are still tightly coupled and require synchronized field evolution.",
+        "`useMediaGalleryItemState` mixes independent concerns (star toggling, info tooltip state, drag state, shot modal flow) into one hook API, widening change surface for unrelated edits."
+      ],
+      "suggestion": "Define a single domain-level controller boundary for media-item actions (shot assignment, details/opening, navigation) and keep visual components dumb. Split state hooks by concern (`useShotAssignmentState`, `useItemOverlayState`) and pass one stable controller object to `ShotActions`.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "feature_orchestration_not_centered"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Migration policy and runtime behavior are co-located in heavily imported modules.",
+      "Design-system layering is not strictly separated between primitive and app-themed levels.",
+      "Gallery orchestration lacks a single ownership boundary, so APIs drift into synchronized prop/state bags."
+    ],
+    "likely_symptoms": [
+      "import_time_budget_state_in_alias_facades",
+      "legacy_runtime_dual_access_path",
+      "ui_foundation_and_theme_layers_blurred",
+      "gallery_item_api_split_across_state_bags"
+    ],
+    "possible_false_positives": [
+      "Raw `<button>` usage in `CreativePartnerPane.tsx` may be intentional for minimal styling, but still indicates inconsistent top-level ownership conventions."
+    ]
+  }
+}

@@ -1,0 +1,248 @@
+{
+  "batch": "Full Codebase Sweep",
+  "batch_index": 9,
+  "assessments": {
+    "cross_module_architecture": 63.0,
+    "convention_outlier": 68.0,
+    "error_consistency": 58.0,
+    "abstraction_fitness": 54.0,
+    "api_surface_coherence": 57.0,
+    "authorization_consistency": 87.0,
+    "ai_generated_debt": 66.0,
+    "incomplete_migration": 52.0,
+    "package_organization": 55.0,
+    "high_level_elegance": 56.0,
+    "mid_level_elegance": 53.0,
+    "low_level_elegance": 62.0,
+    "design_coherence": 51.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "Packet architecture marks src/shared/lib/errorHandling/handleError.ts as a 226-importer god module, creating high blast-radius for global error behavior changes.",
+        "Packet coupling_matrix shows strong centralized edges (for example src/shared/hooks/ → src/shared/lib/ = 62 and src/shared/components/ → src/shared/components/ui/ = 111), indicating heavy dependency concentration around shared hubs.",
+        "src/app/providers/AppProviders.tsx composes a deep provider chain (ToolSettingsServiceProvider through ToolPageHeaderProvider), increasing cross-module initialization coupling."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "convention_outlier": {
+      "evidence": [
+        "Most edge functions use _shared/jsonResponse (for example supabase/functions/tasks-list/index.ts, supabase/functions/revoke-pat/index.ts), while supabase/functions/delete-project/index.ts manually constructs Response objects and repeats headers/body patterns.",
+        "Error typing style diverges: many files use catch (error: unknown) with narrowing, but delete-project uses catch (err) and directly accesses err.message."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "error_consistency": {
+      "evidence": [
+        "supabase/functions/complete_task/generation-core.ts alternates between swallowing failures with return null (findExistingGeneration/findSourceGenerationByImageUrl/linkGenerationToShot) and throwing hard failures (insertGeneration/createVariant).",
+        "supabase/functions/complete_task/generation-parent.ts uses broad best-effort catches and multiple return null paths for parent resolution and variant creation, which changes caller obligations by branch.",
+        "supabase/functions/delete-project/index.ts catch branch assumes Error shape without unknown narrowing, unlike neighboring handlers."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "abstraction_fitness": {
+      "evidence": [
+        "src/tools/travel-between-images/components/ShotEditor/controllers/useGenerationController.ts defines a very large parameter interface and forwards most fields into useGenerateBatch with little local transformation.",
+        "src/tools/travel-between-images/components/ShotEditor/controllers/useEditingController.ts mostly aggregates and re-exports values from lower hooks (useStructureVideo/useJoinSegmentsSetup/useJoinSegmentsHandler), adding another pass-through layer.",
+        "src/shared/components/MediaLightbox/MediaLightbox.tsx uses a broad flat prop interface then rebundles into grouped objects before forwarding to ImageLightbox/VideoLightbox, increasing indirection cost."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 49.0,
+        "indirection_cost": 41.0,
+        "interface_honesty": 56.0
+      }
+    },
+    "api_surface_coherence": {
+      "evidence": [
+        "Public hook/controller APIs in ShotEditor rely on very large option objects with many similarly named fields (join*/prompt*/motion*), increasing call-site mismatch risk.",
+        "Edge API response contracts vary between helper-based and manual Response construction across sibling function entrypoints, yielding inconsistent failure payload shapes."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    },
+    "authorization_consistency": {
+      "evidence": [
+        "Edge handlers consistently route auth through authenticateRequest (for example tasks-list, revoke-pat, delete-project, generate-upload-url, complete_task, update-shot-pair-prompts).",
+        "Ownership checks are applied in handlers that expose project/task/shot-scoped reads and writes (for example tasks-list project owner check; update-shot-pair-prompts verifyShotOwnership)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "unreported_risk": "Several handlers accept both service-role and user/PAT tokens; without a single declarative policy map per endpoint, future endpoints can drift into over-broad token acceptance."
+    },
+    "ai_generated_debt": {
+      "evidence": [
+        "Multiple modules show explanatory comments that restate obvious flow and branch mechanics rather than business constraints (for example long block comments in src/app/bootstrap.tsx and ShotEditor controller files).",
+        "Controller files contain extensive boilerplate destructuring/forwarding patterns that resemble generated scaffolding and increase maintenance noise."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    },
+    "incomplete_migration": {
+      "evidence": [
+        "src/shared/components/segmentSettingsMigration.ts explicitly supports multiple generations of payload format (segmentOverrides, pair_*, user_overrides, additional_loras) in one path.",
+        "src/shared/components/segmentSettingsMigrationLegacy.ts preserves deprecated pair_* and user_overrides metadata shapes.",
+        "supabase/functions/complete_task/generation-parent.ts and generation-child.ts include legacy fallback behavior for missing parent_generation_id and legacy structure path fields, indicating migration still active in hot runtime code."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "package_organization": {
+      "evidence": [
+        "holistic_context.structure.directory_profiles reports large mixed directories: src/shared/hooks/ has 95 production files; src/shared/components/ has 78 files spanning UI, domain widgets, and migration utilities.",
+        "Objective coupling is concentrated around shared catch-all directories (for example src/shared/hooks/ → src/shared/lib/ = 62; src/shared/components/ → src/shared/hooks/ = 56), showing boundary overlap instead of feature-local ownership.",
+        "src/shared/components/ currently includes both UI components and migration logic files (segmentSettingsMigration.ts, segmentSettingsMigrationLegacy.ts, segmentSettingsUtils.ts), a concern-mix signal."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Top-level domain split exists (app/pages/shared/tools/integrations/supabase), but shared buckets absorb too many unrelated responsibilities, obscuring ownership boundaries.",
+        "Travel-between-images and MediaLightbox subsystems each span many files with cross-cutting state/orchestration concerns spread across hooks/controllers/components."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "ShotEditor flow uses layered handoffs (useShotEditorController → controllers → hooks → services) with wide prop threading and repeated translation of similarly named fields.",
+        "MediaLightbox flow similarly relies on grouped prop bundles and multiple orchestration hooks, making seams hard to reason about and easy to desynchronize."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Many utility modules remain direct and readable (for example _shared/http.ts, app/main.tsx).",
+        "Several hotspot files have local complexity from large destructuring blocks and pass-through return objects rather than focused transformations (useGenerationController/useEditingController/useShotEditorController)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    },
+    "design_coherence": {
+      "evidence": [
+        "MediaLightbox and ShotEditor controllers combine orchestration, compatibility wiring, and transport shaping in single surfaces, creating multi-responsibility bodies.",
+        "Very large prop/parameter surfaces (MediaLightboxProps and UseGenerationControllerParams) indicate boundaries are not aligned to cohesive domain objects."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "error_consistency",
+      "identifier": "complete_task_mixed_failure_contracts",
+      "summary": "Complete-task generation helpers mix null-return, silent logging, and thrown exceptions for comparable DB failure classes.",
+      "related_files": [
+        "supabase/functions/complete_task/generation-core.ts",
+        "supabase/functions/complete_task/generation-parent.ts",
+        "supabase/functions/complete_task/generation-handlers.ts"
+      ],
+      "evidence": [
+        "generation-core.ts returns null for lookup/linking failures (lines 33-42, 155-160) but throws on insert/create failures (lines 88-90, 132-134).",
+        "generation-parent.ts returns null across many catch/fallback branches (for example lines 73-76, 84-87, 95-98, 157-160), forcing ambiguous caller handling.",
+        "generation-handlers.ts also logs and returns null in variant paths, compounding mixed contracts."
+      ],
+      "suggestion": "Define an explicit result contract for complete_task helpers (for example Result<T, ErrorCode>), convert current null branches to typed error results, and keep throwing only at top-level request boundary where HTTP status mapping is centralized.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "edge_response_contract_drift",
+      "summary": "Sibling edge handlers expose inconsistent response construction and error-shape conventions.",
+      "related_files": [
+        "supabase/functions/tasks-list/index.ts",
+        "supabase/functions/revoke-pat/index.ts",
+        "supabase/functions/delete-project/index.ts",
+        "supabase/functions/_shared/http.ts"
+      ],
+      "evidence": [
+        "tasks-list and revoke-pat consistently use jsonResponse helper.",
+        "delete-project manually builds Response payloads and headers in many branches, duplicating format logic and using a different catch style."
+      ],
+      "suggestion": "Standardize all function entrypoints on _shared/http.ts helpers, add shared typed error payload shape, and codemod manual Response branches to helper calls to keep API surface behavior uniform.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "shoteditor_controller_passthrough_stack",
+      "summary": "ShotEditor controller layers add heavy indirection with oversized parameter bags and mostly pass-through logic.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/useShotEditorController.ts",
+        "src/tools/travel-between-images/components/ShotEditor/controllers/useGenerationController.ts",
+        "src/tools/travel-between-images/components/ShotEditor/controllers/useEditingController.ts"
+      ],
+      "evidence": [
+        "useGenerationController.ts defines >50 config fields in UseGenerationControllerParams and forwards most to useGenerateBatch with minimal transformation.",
+        "useEditingController.ts aggregates many hook returns and re-exports them almost verbatim.",
+        "useShotEditorController.ts coordinates many controller outputs and prop bridges, making caller/callee boundaries difficult to reason about."
+      ],
+      "suggestion": "Refactor to a small set of cohesive domain configs (promptConfig, motionConfig, joinConfig, persistenceConfig), push transformation to one boundary adapter, and collapse pure forwarding controllers into the consuming hook where no policy is added.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_segment_schema_still_hot_path",
+      "summary": "Legacy segment metadata formats are still handled in production hot paths across frontend and edge processing.",
+      "related_files": [
+        "src/shared/components/segmentSettingsMigration.ts",
+        "src/shared/components/segmentSettingsMigrationLegacy.ts",
+        "supabase/functions/complete_task/generation-parent.ts",
+        "supabase/functions/complete_task/generation-child.ts"
+      ],
+      "evidence": [
+        "segmentSettingsMigration.ts supports multiple historical schemas (pair_*, user_overrides, additional_loras, new segmentOverrides).",
+        "segmentSettingsMigrationLegacy.ts keeps explicit legacy-only metadata fields as active type surface.",
+        "complete_task generation flows still carry legacy parent/structure-video fallback logic."
+      ],
+      "suggestion": "Set a removal gate by telemetry (count legacy-field reads/writes), run a migration sweep to canonical segmentOverrides-only payloads, then delete legacy fallback branches and legacy type exports in one coordinated release.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "shared_bucket_overload_and_boundary_blur",
+      "summary": "Large shared buckets combine mixed concerns and reinforce high cross-directory coupling.",
+      "related_files": [
+        "src/shared/components/segmentSettingsMigration.ts",
+        "src/shared/components/segmentSettingsUtils.ts",
+        "src/shared/hooks/useToolSettings.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "holistic_context.structure.directory_profiles: src/shared/hooks/ has 95 files; src/shared/components/ has 78 files with mixed roles.",
+        "holistic_context.structure.coupling_matrix highlights heavy shared coupling (src/shared/hooks/ → src/shared/lib/ 62; src/shared/components/ → src/shared/hooks/ 56).",
+        "Migration utilities currently live beside presentational components in src/shared/components/."
+      ],
+      "suggestion": "Staged reorg plan: Stage 1 create target folders `src/domains/segment-settings/{migration,model,ui}`, `src/domains/travel-shot-editor/{controllers,services,state}`, and `src/platform/error-handling`; Stage 2 move files in order (first pure utilities like segmentSettingsMigration*.ts, then controller modules, then shared error handling adapters); Stage 3 run import updates with `rg -l \"@/shared/components/segmentSettings\" src | xargs sed -i '' -e 's#@/shared/components/segmentSettings#@/domains/segment-settings#g'` (and equivalent targeted replacements), then validate with `pnpm typecheck && pnpm test -w`.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

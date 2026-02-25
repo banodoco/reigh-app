@@ -11,10 +11,10 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
 import { hasVideoExtension } from '@/shared/lib/typeGuards';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
 
 interface PromoteVariantParams {
@@ -53,8 +53,7 @@ export const usePromoteVariantToGeneration = () => {
       projectId,
     }: PromoteVariantParams): Promise<PromotedGeneration> => {
       // 1. Fetch the variant — its generation_id is the single source of truth for lineage
-      const { data: variant, error: variantError } = await supabase
-        .from('generation_variants')
+      const { data: variant, error: variantError } = await supabase().from('generation_variants')
         .select('*')
         .eq('id', variantId)
         .single();
@@ -103,8 +102,7 @@ export const usePromoteVariantToGeneration = () => {
         },
       };
 
-      const { data: newGeneration, error: insertError } = await supabase
-        .from('generations')
+      const { data: newGeneration, error: insertError } = await supabase().from('generations')
         .insert(newGenerationData)
         .select()
         .single();
@@ -141,7 +139,7 @@ export const usePromoteVariantToGeneration = () => {
     },
 
     onError: (error) => {
-      handleError(error, { context: 'usePromoteVariantToGeneration', toastTitle: 'Failed to create new image from variant' });
+      normalizeAndPresentError(error, { context: 'usePromoteVariantToGeneration', toastTitle: 'Failed to create new image from variant' });
     },
   });
 };

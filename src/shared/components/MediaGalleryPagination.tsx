@@ -7,7 +7,7 @@ import {
   SelectValue,
 } from "@/shared/components/ui/select";
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useIsMobile, useIsTablet } from '@/shared/hooks/useMobile';
+import { useIsMobile, useIsTablet } from '@/shared/hooks/mobile';
 
 interface MediaGalleryPaginationProps {
   totalPages: number;

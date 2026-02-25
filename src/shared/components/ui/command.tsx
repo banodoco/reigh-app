@@ -4,7 +4,7 @@ import { Command as CommandPrimitive } from "cmdk"
 import { Search } from "lucide-react"
 import { cva, type VariantProps } from "class-variance-authority"
 
-import { cn } from "@/shared/lib/utils"
+import { cn } from "@/shared/components/ui/contracts/cn"
 import { Dialog, DialogContent } from "@/shared/components/ui/dialog"
 
 const commandVariants = cva(

@@ -1,0 +1,147 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 69.0,
+    "mid_level_elegance": 71.0,
+    "low_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "Low-leverage wrapper layers recur: `getSupabaseClient()` only forwards to `getSupabaseRuntimeClient()` (`src/integrations/supabase/client.ts`), and `const getSupabase = () => getSupabaseClient()` adds another alias (`src/shared/lib/tasks/individualTravelSegment.ts:17`).",
+        "Task contracts rely on very wide optional parameter bags (`JoinClipsTaskParams`, `IndividualTravelSegmentParams`) with many legacy/current fields in one interface, then downstream code compensates with heavy fallback extraction (`src/shared/lib/tasks/joinClips.ts`, `src/shared/lib/tasks/individualTravelSegment.ts`, `src/shared/lib/taskParamsUtils.ts`).",
+        "Pair/order payload core path is split into wrappers with no meaningful behavioral delta (`buildPairModeTravelPayloadCore` vs `buildOrderModeTravelPayloadCore`), adding abstraction ceremony (`src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts:354-373`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 64.0,
+        "indirection_cost": 70.0,
+        "interface_honesty": 66.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Generation completion/routing seam has dual policy paths (contract route + legacy heuristic route) in one function, which duplicates decision logic and increases drift risk (`supabase/functions/complete_task/generation.ts:157-216`, `227-260`).",
+        "Sibling segment lookup in orchestrator completion also supports parallel policies (`run_id` and `orchestrator_task_id`) with conditional fallback branches, making boundary behavior harder to predict across old/new payloads (`supabase/functions/complete_task/orchestrator.ts:226-280`).",
+        "Task-params handoff requires multi-scope lookup (`topLevel`, `orchestrator_details`, `full_orchestrator_payload`, `individual_segment_params`) instead of a single canonical boundary format (`src/shared/lib/taskParamsUtils.ts:287-420`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Lightbox internals are heavily fragmented into model-build helpers that mostly repackage existing state (`buildMediaContentModel`, `buildOverlayModel`, `buildNavigationModel`) and large `useMemo` object assembly, increasing local cognitive load (`src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx:110-139`, `src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx:125-223`).",
+        "VideoLightbox adds another composition layer (`useVideoLightboxScreenModel`) that forwards state groups directly to child layout/components, with limited transformation (`src/shared/components/MediaLightbox/VideoLightbox.tsx:95-109`, `111-151`).",
+        "Large UI orchestrators still combine many concerns in single files/hook pipelines (e.g., `MediaGallery` and `ImageLightbox` environment/state orchestration), which makes local edits expensive and error-prone (`src/shared/components/MediaGallery/index.tsx`, `src/shared/components/MediaLightbox/ImageLightbox.tsx`)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "supabase_wrapper_chain_no_leverage",
+      "summary": "Supabase access is routed through stacked pass-through wrappers that add naming layers without policy/value.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/hooks/useTasks.ts",
+        "src/shared/hooks/useGenerationMutations.ts"
+      ],
+      "evidence": [
+        "`getSupabaseClient()` only returns `getSupabaseRuntimeClient()` with no validation, lifecycle guard, or adaptation (`src/integrations/supabase/client.ts:10-12`).",
+        "`individualTravelSegment.ts` introduces `const getSupabase = () => getSupabaseClient();` and uses that alias rather than adding behavior (`src/shared/lib/tasks/individualTravelSegment.ts:17`).",
+        "Callers in hooks repeatedly fetch clients directly (`useTasks`, `useGenerationMutations`) so the extra aliasing does not centralize query policy."
+      ],
+      "suggestion": "Collapse to a single exported accessor and remove local aliases; if a facade is required, make it carry real cross-cutting behavior (e.g., scoped client, telemetry, retry policy) so indirection is justified.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "wide_task_param_bags_reduce_interface_honesty",
+      "summary": "Task creation contracts are oversized optional bags that mix legacy and new schemas, forcing defensive fallback extraction downstream.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/taskParamsUtils.ts",
+        "src/shared/components/TaskDetails/VideoTravelDetails.tsx"
+      ],
+      "evidence": [
+        "`JoinClipsTaskParams` mixes multi-clip, legacy two-video, edit-mode, orchestration, and UI-restoration fields in one interface (`src/shared/lib/tasks/joinClips.ts:70-122`).",
+        "`IndividualTravelSegmentParams` likewise combines routing, lineage, UI override, runtime, and legacy structure fields (`src/shared/lib/tasks/individualTravelSegment.ts:37-104`, plus legacy constants at `222-245`).",
+        "Display extraction then scans multiple nested scopes to recover meaning (`topLevel`, `orchestrator_details`, `full_orchestrator_payload`, `individual_segment_params`) in `taskParamsUtils` (`src/shared/lib/taskParamsUtils.ts:287-420`)."
+      ],
+      "suggestion": "Introduce versioned discriminated task contracts per mode/family and normalize once at task creation; keep task-details readers on a single canonical envelope rather than multi-scope fallback chains.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "dual_routing_policies_in_complete_task",
+      "summary": "Complete-task generation/orchestrator flows maintain parallel old/new lookup policies, making seam behavior branchy and hard to reason about.",
+      "related_files": [
+        "supabase/functions/complete_task/generation.ts",
+        "supabase/functions/complete_task/orchestrator.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/joinClips.ts"
+      ],
+      "evidence": [
+        "`createGenerationFromTask` first checks explicit routing contract, then falls back to legacy heuristic sequencing in the same function (`generation.ts:185-216`, `227-260`).",
+        "`findSiblingSegments` conditionally tries `run_id` lookup then `orchestrator_task_id` fallback based on mode/null state (`orchestrator.ts:236-272`), preserving dual semantics at runtime.",
+        "Task builders emit orchestration metadata (`generationRouting`, `siblingLookup`) from multiple families, but completion side still needs legacy fallback handling instead of one strict contract path."
+      ],
+      "suggestion": "Cut over to a single contract-driven lookup/routing protocol with explicit version gates; isolate legacy compatibility in one adapter boundary and remove mixed-path logic from hot completion handlers.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "lightbox_render_model_overfragmented",
+      "summary": "Lightbox rendering logic is split into many pass-through model builders and memoized prop bundles, increasing local complexity without equivalent simplification.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx",
+        "src/shared/components/MediaLightbox/VideoLightbox.tsx",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx"
+      ],
+      "evidence": [
+        "`useVideoLightboxRenderModel` builds multiple large memoized objects (`lightboxCore`, `lightboxMedia`, `lightboxVariants`, `lightboxNavigation`) mainly by forwarding fields (`useVideoLightboxRenderModel.tsx:125-223`).",
+        "`LightboxLayout` repeats splitting by creating pick-style builders (`buildMediaContentModel`, `buildOverlayModel`, `buildNavigationModel`) that mostly reshape the same model (`LightboxLayout.tsx:110-139`).",
+        "`VideoLightbox` adds another composition function (`useVideoLightboxScreenModel`) that layers mode/env/shared/edit/render with minimal transformation (`VideoLightbox.tsx:95-109`)."
+      ],
+      "suggestion": "Flatten one layer of model splitting: keep a single typed render model per lightbox mode and pass narrower direct props to layout sections; remove pick-only builder helpers where no behavior is added.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "media_gallery_local_orchestration_overload",
+      "summary": "MediaGallery’s main component carries too many local orchestration responsibilities, making control flow dense and edit-risk high.",
+      "related_files": [
+        "src/shared/components/MediaGallery/index.tsx",
+        "src/tools/join-clips/pages/JoinClipsPage.tsx",
+        "src/shared/components/ShotImageManager/ShotImageManagerContainer.tsx"
+      ],
+      "evidence": [
+        "`MediaGallery` receives and remaps a broad prop surface, merges config, computes layout, wires many hooks, and coordinates actions/pagination/filter resets in one component (`MediaGallery/index.tsx:62-280`).",
+        "Upstream callers like `JoinClipsPage` pass large integration props/config blocks into gallery usage (`JoinClipsPage.tsx:306-324`), reinforcing heavy boundary payloads.",
+        "This pattern increases coupling between gallery internals and page-level orchestration decisions."
+      ],
+      "suggestion": "Split MediaGallery into a thin container plus focused sub-containers (filters/pagination/actions/lightbox), and define a smaller stable page-facing API object to reduce orchestration spread.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

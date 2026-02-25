@@ -91,4 +91,17 @@ describe('extractSegmentImages', () => {
     const result = extractSegmentImages({});
     expect(result.hasImages).toBe(false);
   });
+
+  it('ignores malformed array payloads instead of force-casting', () => {
+    const result = extractSegmentImages({
+      orchestrator_details: {
+        input_image_paths_resolved: ['https://a.png', 123, null],
+        input_image_generation_ids: ['gen-a', { bad: true }, null],
+      },
+    } as unknown as Record<string, unknown>);
+    expect(result.startUrl).toBe('https://a.png');
+    expect(result.endUrl).toBeUndefined();
+    expect(result.startGenId).toBe('gen-a');
+    expect(result.endGenId).toBeUndefined();
+  });
 });

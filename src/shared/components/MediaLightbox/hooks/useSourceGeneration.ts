@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import { GenerationRow } from '@/types/shots';
-import { supabase } from '@/integrations/supabase/client';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { GenerationRow } from '@/domains/generation/types';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { expandShotData } from '@/shared/lib/shotData';
 
 interface UseSourceGenerationParams {
@@ -55,8 +55,7 @@ export const useSourceGeneration = ({
       try {
         // Fetch source generation with shot associations and primary variant
         // Use left join (no !inner) so we get the generation even if it's not in any shot
-        const { data, error } = await supabase
-          .from('generations')
+        const { data, error } = await supabase().from('generations')
           .select(`
             *,
             generation_variants!generation_variants_generation_id_fkey(
@@ -96,7 +95,7 @@ export const useSourceGeneration = ({
           setSourcePrimaryVariant(null);
         }
       } catch (error) {
-        handleError(error, { context: 'useSourceGeneration', showToast: false });
+        normalizeAndPresentError(error, { context: 'useSourceGeneration', showToast: false });
         // Don't show toast - this is a non-critical feature
         setSourceGenerationData(null);
         setSourcePrimaryVariant(null);

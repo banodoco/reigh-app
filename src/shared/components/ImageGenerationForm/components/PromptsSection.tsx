@@ -1,6 +1,6 @@
 import React, { useCallback } from "react";
 import { Button } from "@/shared/components/ui/button";
-import { Label } from "@/shared/components/ui/label";
+import { Label } from "@/shared/components/ui/primitives/label";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { Trash2, Wand2, Info } from "lucide-react";
 import {
@@ -18,7 +18,7 @@ import { SegmentedControl, SegmentedControlItem } from "@/shared/components/ui/s
 import { CollapsibleSection } from "@/shared/components/ui/collapsible-section";
 import { PromptMode } from "../types";
 import { SectionHeader } from "./SectionHeader";
-import { useIsMobile } from "@/shared/hooks/useMobile";
+import { useIsMobile } from "@/shared/hooks/mobile";
 import {
   useFormUIContext,
   useFormCoreContext,

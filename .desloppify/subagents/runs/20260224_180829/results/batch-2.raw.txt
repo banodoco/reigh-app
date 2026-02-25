@@ -1,0 +1,76 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 2,
+  "assessments": {
+    "mid_level_elegance": 84.0
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "`src/shared/lib/generationTaskRepository.ts` and `src/shared/lib/generationTransformers.ts` implement parallel task-id extraction contracts with different invalid-shape behavior (`invalid_tasks_shape` status vs silent `null`), creating seam drift between repository/cache and UI transformers.",
+        "`src/shared/types/imageHandlers.ts` defines `AddToShotHandler` with optional media URL args, while `src/shared/components/ShotImageManager/types.ts` reuses it for `onAddToShotWithoutPosition` and documents a two-argument flow, indicating inconsistent boundary expectations for the same callback path.",
+        "`src/shared/components/ui/toast.tsx` exposes `toast.warning/info` and arbitrary string `type` writes, but `typeToVariant` only maps `error/destructive/success`, so parts of the public API collapse to default styling at render time."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "task_mapping_contract_drift",
+      "summary": "Task-mapping seam uses conflicting contracts across repository, cache, and transformer layers.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/lib/generationTaskCache.ts",
+        "src/shared/lib/generationTransformers.ts"
+      ],
+      "evidence": [
+        "`parsePrimaryTaskId` in `generationTaskRepository.ts` returns explicit `invalid_tasks_shape` status when `tasks` is malformed.",
+        "`extractTaskId` in `generationTransformers.ts` quietly returns `null` for unsupported shapes, and transformed UI records keep flowing without surfacing invalid task schema.",
+        "`preloadGenerationTaskMappings` in `generationTaskCache.ts` stores mapping status separately, so downstream consumers can observe divergent states (missing task in transformed item vs invalid-shape status in mapping cache)."
+      ],
+      "suggestion": "Create one shared task-id parsing module that returns a typed result (`taskId`, `status`, optional parse error), and make repository/cache/transformers all consume it so malformed task payloads propagate consistently through one boundary contract.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "add_to_shot_signature_split",
+      "summary": "Add-to-shot callback contracts are ambiguous between full and no-position flows.",
+      "related_files": [
+        "src/shared/types/imageHandlers.ts",
+        "src/shared/components/ShotImageManager/types.ts"
+      ],
+      "evidence": [
+        "`AddToShotHandler` in `imageHandlers.ts` accepts `(targetShotId, generationId, imageUrl?, thumbUrl?)`.",
+        "`ShotManagementProps` in `ShotImageManager/types.ts` uses `AddToShotHandler` for both `onAddToShot` and `onAddToShotWithoutPosition`, but comments describe `onAddToShotWithoutPosition` as a distinct no-position flow, implying a narrower shape.",
+        "This mixes two operation modes behind one signature, encouraging adapters that silently drop optional payload fields at module boundaries."
+      ],
+      "suggestion": "Split the API into two explicit handler types (`AddToShotHandler` and `AddToShotWithoutPositionHandler`) and update `ShotImageManager` props to use the precise type per flow.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "toast_public_api_mismatch",
+      "summary": "Toast emission API accepts semantic types that the renderer contract does not honor.",
+      "related_files": [
+        "src/shared/components/ui/toast.tsx",
+        "src/shared/components/ui/badge.tsx"
+      ],
+      "evidence": [
+        "`toastFn.warning` and `toastFn.info` in `toast.tsx` write `type: 'warning' | 'info'` into the toast manager.",
+        "`typeToVariant` only maps `'error'|'destructive'|'success'` and defaults everything else to `'default'`, so warning/info semantics are dropped at the rendering seam.",
+        "The component exports a richer public API than the visual contract actually supports, making behavior unpredictable for callers."
+      ],
+      "suggestion": "Either remove unsupported methods from the public toast API or add explicit warning/info variants (styles plus mapping) so emitter and renderer contracts stay aligned.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ]
+}

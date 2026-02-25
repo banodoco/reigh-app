@@ -1,5 +1,5 @@
 import React from 'react';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 import { FinalVideoSection } from '../FinalVideoSection';
 import { ShotSettingsProvider, ShotSettingsContextValue } from './ShotSettingsContext';
 import { HeaderSection, TimelineSection, ModalsSection, GenerationSection } from './sections';

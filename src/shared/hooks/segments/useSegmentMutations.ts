@@ -11,11 +11,11 @@
 
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { toJson } from '@/shared/lib/supabaseTypeHelpers';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
 import type { SegmentSettings } from '@/shared/components/segmentSettingsUtils';
 import { buildMetadataUpdate } from '@/shared/components/segmentSettingsMigration';
 import type { ShotVideoSettings } from '@/shared/lib/settingsMigration';
@@ -56,8 +56,7 @@ export function useSegmentMutations({
 
       try {
         // Fetch current metadata
-        const { data: current, error: fetchError } = await supabase
-          .from('shot_generations')
+        const { data: current, error: fetchError } = await supabase().from('shot_generations')
           .select('metadata')
           .eq('id', pairShotGenerationId)
           .single();
@@ -91,8 +90,7 @@ export function useSegmentMutations({
         );
 
         // Save
-        const { error: updateError } = await supabase
-          .from('shot_generations')
+        const { error: updateError } = await supabase().from('shot_generations')
           .update({ metadata: toJson(newMetadata) })
           .eq('id', pairShotGenerationId);
 
@@ -207,8 +205,7 @@ export function useSegmentMutations({
     }
 
     try {
-      const { data: current, error: fetchError } = await supabase
-        .from('shot_generations')
+      const { data: current, error: fetchError } = await supabase().from('shot_generations')
         .select('metadata')
         .eq('id', pairShotGenerationId)
         .single();
@@ -225,8 +222,7 @@ export function useSegmentMutations({
         enhanced_prompt: '',
       };
 
-      const { error: updateError } = await supabase
-        .from('shot_generations')
+      const { error: updateError } = await supabase().from('shot_generations')
         .update({ metadata: updatedMetadata })
         .eq('id', pairShotGenerationId);
 
@@ -254,8 +250,7 @@ export function useSegmentMutations({
       }
 
       try {
-        const { data: current, error: fetchError } = await supabase
-          .from('shot_generations')
+        const { data: current, error: fetchError } = await supabase().from('shot_generations')
           .select('metadata')
           .eq('id', pairShotGenerationId)
           .single();
@@ -270,8 +265,7 @@ export function useSegmentMutations({
           enhance_prompt_enabled: enabled,
         };
 
-        const { error: updateError } = await supabase
-          .from('shot_generations')
+        const { error: updateError } = await supabase().from('shot_generations')
           .update({ metadata: updatedMetadata })
           .eq('id', pairShotGenerationId);
 

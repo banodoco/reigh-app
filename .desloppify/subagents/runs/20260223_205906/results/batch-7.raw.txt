@@ -1,0 +1,126 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 7,
+  "assessments": {
+    "abstraction_leverage": 72.0,
+    "indirection_cost": 69.0,
+    "interface_honesty": 67.0,
+    "error_consistency": 65.0
+  },
+  "dimension_notes": {
+    "abstraction_leverage": {
+      "evidence": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts builds multiple intermediary \"environment/persistence/model\" layers that primarily reshape state from other hooks rather than reducing call-site complexity.",
+        "src/tools/edit-images/hooks/useImageEditValue.ts reassembles those layers into ImageEditState through several build* functions, with most fields passed through unchanged.",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryController.ts adds a controller layer that mostly repackages contexts into useMediaGalleryHandlers/useMobileInteractions without materially narrowing the API."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "indirection_cost": {
+      "evidence": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryController.ts introduces three nested context bags (shotContext/taskDetailsContext/mobileContext) and forwards many callbacks into another hook with minimal transformation.",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts then re-destructures and re-wraps those callbacks, increasing navigation depth before reaching real behavior.",
+        "src/shared/components/MediaGallery/index.tsx constructs large dependency objects to feed this chain, making feature edits require cross-file tracing through wrapper layers."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "interface_honesty": {
+      "evidence": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts defines rich CallbackResult but adapter APIs (handleAddToShotAdapter/handleAddToShotWithoutPositionAdapter/handleCreateShotAdapter) collapse failures to boolean or empty placeholders, hiding error detail from callers.",
+        "src/tools/travel-between-images/components/ShotImagesEditor/types.ts exposes broad callback contracts for shot workflow operations, but adapter return-shape degradation makes the effective contract less informative than the interface suggests.",
+        "src/tools/edit-images/hooks/useImageEditValue.ts hardcodes ImageEditState fields (isFlippedHorizontally: false, isSaving: false) in buildRepositionAndPanelState, so exposed state keys do not reflect real runtime status."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "error_consistency": {
+      "evidence": [
+        "src/pages/Home/hooks/useDiscordSignIn.ts handles OAuth errors with handleError but does not rethrow/return failure, so callers cannot distinguish success from failure while other hooks throw on failure.",
+        "src/shared/hooks/useGenerationMutations.ts mutation helpers throw errors explicitly, creating a different failure contract than useDiscordSignIn for async operations.",
+        "src/features/gallery/hooks/useAdjacentPagePreloader.ts swallows prefetch exceptions in empty catch blocks, unlike other modules that log or propagate via handleError."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_leverage",
+      "identifier": "inline_edit_state_reassembly_layers",
+      "summary": "Inline edit state is split and reassembled through low-leverage abstraction layers.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/hooks/useImageEditValue.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx"
+      ],
+      "evidence": [
+        "useInlineEditState composes many intermediate models (environment, persistence, inpainting/magic/reposition/img2img) and then builds a consolidated model object for useImageEditValue.",
+        "useImageEditValue immediately deconstructs and rebuilds those models via buildModeState/buildCanvasAndAnnotationState/buildRepositionAndPanelState/buildFormAndGenerationState, mostly forwarding fields unchanged."
+      ],
+      "suggestion": "Collapse the two-step model pipeline: expose a single domain-focused state contract from useInlineEditState (or shared imageEditCore context) and remove pass-through builders that only remap property names.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "indirection_cost",
+      "identifier": "media_gallery_wrapper_chain",
+      "summary": "Media gallery logic is routed through wrapper layers that add call-depth without reducing complexity.",
+      "related_files": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryController.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGallery/index.tsx"
+      ],
+      "evidence": [
+        "useMediaGalleryController accepts three nested context objects and mostly forwards them into useMediaGalleryHandlers and useMobileInteractions.",
+        "useMediaGalleryHandlers rewraps basic actions (navigate/close/filter/modal setters) into another callback layer, so behavioral changes require edits across multiple pass-through abstractions."
+      ],
+      "suggestion": "Flatten the chain by merging controller+handlers or by moving direct action hooks into MediaGallery; keep one seam for cross-cutting concerns (error handling/telemetry) and remove pure pass-through wrappers.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "interface_honesty",
+      "identifier": "callback_contract_degrades_error_signal",
+      "summary": "Shot editor callback adapters hide failure details behind sentinel values.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/types.ts"
+      ],
+      "evidence": [
+        "CallbackResult carries structured failure context, but adapter methods return only boolean or fallback objects (e.g., handleCreateShotAdapter returns { shotId: '', shotName: '' } on error).",
+        "This makes callers believe they have meaningful return data while actual error metadata is discarded."
+      ],
+      "suggestion": "Standardize on one public contract: either return CallbackResult end-to-end or throw typed errors; remove adapters that coerce failures into empty/sentinel success-shaped values.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "mixed_async_failure_contracts",
+      "summary": "Async operations mix throw, swallow, and toast-only error handling.",
+      "related_files": [
+        "src/pages/Home/hooks/useDiscordSignIn.ts",
+        "src/shared/hooks/useGenerationMutations.ts",
+        "src/features/gallery/hooks/useAdjacentPagePreloader.ts"
+      ],
+      "evidence": [
+        "useDiscordSignIn catches and reports errors via handleError but never propagates failure, so upstream UI cannot branch on failed sign-in initiation.",
+        "useGenerationMutations helper functions throw on Supabase errors, establishing a different async contract.",
+        "useAdjacentPagePreloader has empty catch blocks for prefetch failures, creating silent failure paths."
+      ],
+      "suggestion": "Define a consistent async error contract for hooks (throw or typed Result) and apply it across user actions and prefetchers; where failures are intentionally non-blocking, at least emit structured debug logs or handleError with showToast:false.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

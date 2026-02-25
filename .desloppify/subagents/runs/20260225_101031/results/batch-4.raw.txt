@@ -1,0 +1,99 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "incomplete_migration": 72.0,
+    "low_level_elegance": 88.0
+  },
+  "dimension_notes": {
+    "incomplete_migration": {
+      "evidence": [
+        "Multiple deprecated compatibility surfaces remain active: `legacySupabaseFacade.ts`, `compat/useCredits.ts`, `reportRuntimeError.ts`, `toolConstants.ts`, and `components/theme/buttonVariants.ts` all preserve old import paths with sunset comments and runtime warning hooks.",
+        "`joinClipsCompatAdapter.ts` still accepts mixed canonical + legacy payload shapes (`starting_video_path`, `ending_video_path`, `video_edit_mode`, `source_video_*`, `portions_to_regenerate`) and translates them at runtime.",
+        "`legacyStructureVideo.ts` still publishes deprecated task fields (`structure_video_path`, `structure_video_motion_strength`, `use_uni3c`, `uni3c_*`) as part of exported interfaces, keeping old schema alive in type contracts."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "`preloader.ts` claims thumbnail-only behavior but `getImageUrl` falls back to full `img.url` when `thumbUrl` is missing (`thumbnailOnly ? img.thumbUrl || img.url : img.url`), so configuration intent is not enforced precisely.",
+        "Legacy warning adapters are implemented with repeated Proxy boilerplate in both `toolConstants.ts` and `buttonVariants.ts`, adding ceremony and maintenance cost for similar behavior."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Thumbnail-only preloading currently has a behavior mismatch, and small repeated warning-wrapper ceremony reduces local precision/clarity."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_alias_surface_sprawl",
+      "summary": "Deprecated alias modules are still maintained across core surfaces",
+      "related_files": [
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "src/shared/hooks/compat/useCredits.ts",
+        "src/shared/lib/errorHandling/reportRuntimeError.ts",
+        "src/shared/lib/toolConstants.ts",
+        "src/shared/components/theme/buttonVariants.ts"
+      ],
+      "evidence": [
+        "Each file exports deprecated compatibility APIs with removal targets and runtime warning hooks instead of being removed.",
+        "The aliases cover critical boundaries (Supabase client, credits hooks, error reporting, tool constants, UI variants), indicating migration is still broad rather than tail-end."
+      ],
+      "suggestion": "Run one migration sweep that rewrites remaining old import paths to canonical modules, then delete these alias modules together behind a single tracked cutoff release to prevent indefinite shim retention.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "legacy_alias_sprawl"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "mixed_task_schema_compat_layer",
+      "summary": "Task builders still encode legacy and canonical payload contracts simultaneously",
+      "related_files": [
+        "src/shared/lib/tasks/joinClipsCompatAdapter.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts"
+      ],
+      "evidence": [
+        "`joinClipsCompatAdapter.ts` keeps a large mixed-shape input contract and performs runtime translation/validation across old and new fields.",
+        "`legacyStructureVideo.ts` exports deprecated legacy fields as part of active TypeScript interfaces, which keeps callers type-safe on old schema rather than forcing migration."
+      ],
+      "suggestion": "Narrow public task input types to canonical-only shapes and move legacy parsing to a short-lived ingestion boundary; once all callers are migrated, remove deprecated fields from exported interfaces to make old payloads compile-time failures.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "legacy_alias_sprawl"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "thumbnail_only_preload_fallback_violation",
+      "summary": "Thumbnail-only preload mode still preloads full media URLs",
+      "related_files": [
+        "src/shared/lib/preloading/preloader.ts",
+        "src/shared/lib/mediaTypeHelpers.ts"
+      ],
+      "evidence": [
+        "In `preloader.ts`, `getImageUrl` uses `thumbnailOnly ? img.thumbUrl || img.url : img.url`, so when thumbnails are missing it silently falls back to full media.",
+        "This contradicts the `preloadThumbnailsOnly` contract and makes behavior depend on data completeness rather than explicit policy."
+      ],
+      "suggestion": "Make thumbnail-only mode strict: return `null` when `thumbUrl` is absent and let callers decide whether to schedule a separate full-media preload path.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Migration governance is present but enforcement is mostly warning-based, so compatibility layers persist as normal runtime paths.",
+      "Canonical contracts are not yet the only accepted contracts at task-creation boundaries."
+    ],
+    "likely_symptoms": [
+      "legacy_alias_surface_sprawl",
+      "mixed_task_schema_compat_layer"
+    ],
+    "possible_false_positives": []
+  }
+}

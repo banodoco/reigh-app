@@ -1,0 +1,78 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 1,
+  "assessments": {
+    "ai_generated_debt": 74.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "Multiple barrel/index files contain explanatory docblocks and notes but only re-export 1-3 symbols, adding ceremony with little signal (src/tools/travel-between-images/components/ShotEditor/ui/index.ts:1, src/tools/travel-between-images/components/ShotImagesEditor/hooks/index.ts:1, src/tools/travel-between-images/components/ShotEditor/sections/generation/index.ts:1, src/tools/travel-between-images/components/Timeline/TimelineContainer/index.tsx:1).",
+        "Migration-era compatibility scaffolding is still present as active surface area: backward-compat re-exports and moved-from commentary (src/tools/travel-between-images/components/ShotEditor/state/types.ts:2-11, src/shared/types/steerableMotion.ts:5-7).",
+        "State type file contains stale migration residue: comment says localOrderedShotImages removed, but action union still includes SET_LOCAL_ORDERED_SHOT_IMAGES payload (src/tools/travel-between-images/components/ShotEditor/state/types.ts:135, :163).",
+        "Formulaic explicit assertions in defaults add generated-style noise without runtime value (undefined as string | undefined, [] as Array<...>, false as boolean) (src/shared/lib/editVideoDefaults.ts:21-29)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "barrel_comment_ceremony",
+      "summary": "Barrel modules are padded with generated-style commentary that restates obvious exports",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/ui/index.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/components/index.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/index.ts",
+        "src/tools/travel-between-images/components/Timeline/TimelineContainer/index.tsx",
+        "src/tools/travel-between-images/components/ShotEditor/sections/index.ts"
+      ],
+      "evidence": [
+        "Several index/barrel files add top-level explanatory blocks and 'Note:' comments while only exporting symbols.",
+        "Example: TimelineContainer index includes architecture prose and internal-component note around a single default export and one type export (src/tools/travel-between-images/components/Timeline/TimelineContainer/index.tsx:1-15)."
+      ],
+      "suggestion": "Trim barrel files to minimal exports; keep only comments that encode non-obvious constraints. Remove restating headers/notes from index files and move architecture documentation to the concrete implementation file or dedicated docs.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "migration_compat_layer_residue",
+      "summary": "ShotEditor state types still carry migration compatibility scaffolding and stale markers",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/state/types.ts",
+        "src/shared/types/steerableMotion.ts",
+        "src/tools/travel-between-images/components/ShotEditor/state/index.ts"
+      ],
+      "evidence": [
+        "state/types.ts keeps a 'RE-EXPORTS FROM SHARED' backward-compat block (src/tools/travel-between-images/components/ShotEditor/state/types.ts:2-11).",
+        "shared/types/steerableMotion.ts still encodes move-history commentary ('Moved from ...') as in-file migration narrative (src/shared/types/steerableMotion.ts:5-7).",
+        "The same state/types file has contradictory residue: comment says localOrderedShotImages removed, yet action union still defines SET_LOCAL_ORDERED_SHOT_IMAGES (src/tools/travel-between-images/components/ShotEditor/state/types.ts:135, :163)."
+      ],
+      "suggestion": "Finish the migration by updating remaining imports to shared types, then delete compatibility re-exports and move-history comments. Remove or reintroduce the localOrderedShotImages action consistently so comments and type surface match.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "assertion_heavy_defaults_boilerplate",
+      "summary": "Defaults object uses unnecessary explicit assertions that read as generated boilerplate",
+      "related_files": [
+        "src/shared/lib/editVideoDefaults.ts",
+        "src/shared/lib/taskCreation/types.ts"
+      ],
+      "evidence": [
+        "editVideoDefaults.ts repeatedly asserts obvious literals (`undefined as string | undefined`, `[] as Array<...>`, `false as boolean`) instead of typing the container once (src/shared/lib/editVideoDefaults.ts:21-29).",
+        "The surrounding file already exports a derived type (`EditVideoSettings = typeof editVideoSettings.defaults`), so repeated local assertions increase noise more than type safety."
+      ],
+      "suggestion": "Type the `defaults` object once (for example with a dedicated interface/type and `satisfies`) and remove per-field assertions. Keep literals plain unless a specific inference bug requires a targeted cast.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ]
+}

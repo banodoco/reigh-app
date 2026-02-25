@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 import { hasLoadedImage, getImageElement } from '@/shared/lib/preloading';
 import { useAppEventListener } from '@/shared/lib/typedEvents';
 

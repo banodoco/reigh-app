@@ -4,10 +4,10 @@ import { Button } from '@/shared/components/ui/button';
 import { Copy, Check } from 'lucide-react';
 import { useLargeModal } from '@/shared/hooks/useModal';
 import { useScrollFade } from '@/shared/hooks/useScrollFade';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import type { Session } from '@supabase/supabase-js';
 import { ProfitSplitBar } from '@/shared/components/ProfitSplitBar';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 interface ReferralModalProps {
   isOpen: boolean;
@@ -36,13 +36,12 @@ export const ReferralModal: React.FC<ReferralModalProps> = ({ isOpen, onOpenChan
   // Get session and username
   useEffect(() => {
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase().auth.getSession();
       setSession(session);
       
       if (session?.user?.id) {
         // Get username from users table
-        const { data: userData, error } = await supabase
-          .from('users')
+        const { data: userData, error } = await supabase().from('users')
           .select('username')
           .eq('id', session.user.id)
           .single();
@@ -65,8 +64,7 @@ export const ReferralModal: React.FC<ReferralModalProps> = ({ isOpen, onOpenChan
 
       setIsLoadingStats(true);
       try {
-        const { data, error } = await supabase
-          .from('referral_stats')
+        const { data, error } = await supabase().from('referral_stats')
           .select('total_visits, successful_referrals')
           .eq('id', session.user.id)
           .single();
@@ -78,7 +76,7 @@ export const ReferralModal: React.FC<ReferralModalProps> = ({ isOpen, onOpenChan
           });
         }
       } catch (err) {
-        handleError(err, { context: 'ReferralModal', showToast: false });
+        normalizeAndPresentError(err, { context: 'ReferralModal', showToast: false });
       } finally {
         setIsLoadingStats(false);
       }
@@ -99,7 +97,7 @@ export const ReferralModal: React.FC<ReferralModalProps> = ({ isOpen, onOpenChan
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      handleError(err, { context: 'ReferralModal', showToast: false });
+      normalizeAndPresentError(err, { context: 'ReferralModal', showToast: false });
     }
   };
 

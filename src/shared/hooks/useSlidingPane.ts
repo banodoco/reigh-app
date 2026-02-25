@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { useIsMobile, useIsTablet } from '@/shared/hooks/useMobile';
+import { useIsMobile, useIsTablet } from '@/shared/hooks/mobile';
 import { useLocation } from 'react-router-dom';
 import { PANE_CONFIG } from '@/shared/config/panes';
 import { dispatchAppEvent, useAppEventListener } from '@/shared/lib/typedEvents';

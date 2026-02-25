@@ -1,0 +1,126 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 72.0,
+    "high_level_elegance": 69.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "src/shared/lib/errorHandling/handleError.ts defines process-wide mutable state (`let errorNotifier`) and mutation API (`configureErrorNotifier`), creating implicit cross-module coordination instead of explicit dependency flow.",
+        "src/integrations/supabase/client.ts uses module singletons (`clientInstance`, `instrumentationInstalled`) plus `window.__supabase_client__`/`window.supabase` globals and a Proxy export, so many consumers depend on hidden runtime initialization behavior.",
+        "src/types/generationAndShots.ts and src/shared/lib/utils.ts are high-fan-in barrel facades, which centralize dependency flow and increase blast radius when underlying modules evolve."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "src/pages/Home/components/CreativePartnerPane.tsx combines marketing copy, navigation actions, mobile-specific tooltip behavior, and iframe embedding in one component, mixing multiple ownership concerns.",
+        "Install flow is split across src/pages/Home/components/InstallInstructionsModal.tsx, src/pages/Home/components/installInstructions/scenarios.ts, and src/pages/Home/components/installInstructions/visuals.tsx, where policy mapping and UI asset registry are coupled to Home-page presentation.",
+        "Media gallery behavior is distributed across src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts, src/shared/components/MediaGallery/hooks/useMobileInteractions.ts, and src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts with wide callback/state bags, indicating unclear responsibility boundaries."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "global_error_notifier_singleton",
+      "summary": "Global mutable error notifier creates implicit app-wide coupling between shared error logic and UI notification wiring.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/ui/sonner.tsx"
+      ],
+      "evidence": [
+        "src/shared/lib/errorHandling/handleError.ts:25-33 stores notifier in module-global `errorNotifier` and mutates it via `configureErrorNotifier`.",
+        "src/shared/lib/errorHandling/handleError.ts:46-53 conditionally dispatches UI notification through that singleton, so behavior depends on external registration order.",
+        "src/shared/components/ui/sonner.tsx exports global toast surface (`toast`, `toastManager`) that is a likely notifier target, reinforcing global-channel coupling."
+      ],
+      "suggestion": "Replace singleton registration with explicit dependency injection at app composition boundaries (e.g., pass notifier into an error service/context used by consumers) and keep `handleError` pure to reduce hidden cross-module state.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "supabase_proxy_hides_runtime_boundary",
+      "summary": "Supabase client access is abstracted behind proxy/global reuse patterns that obscure lifecycle and dependency boundaries.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "src/integrations/supabase/client.ts:63-87 exports `supabase` as a Proxy, so call sites look like plain object access while invoking lazy initialization side effects.",
+        "src/integrations/supabase/client.ts:12-27 and 53-61 combine singleton caching, instrumentation install, and optional debug globals on `window`, creating behavior that varies by environment and call order.",
+        "Pattern mirrors other shared global mutation points (e.g., `errorNotifier` singleton in src/shared/lib/errorHandling/handleError.ts), indicating repeated hidden runtime coupling."
+      ],
+      "suggestion": "Deprecate proxy export in favor of explicit `getSupabaseClient()` usage and move debug/global registration to a dedicated bootstrap module executed once at app startup.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "barrel_hubs_inflate_blast_radius",
+      "summary": "High-fan-in barrel modules centralize unrelated dependencies and increase cross-module blast radius.",
+      "related_files": [
+        "src/types/generationAndShots.ts",
+        "src/shared/lib/utils.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/ConfirmDialog.tsx"
+      ],
+      "evidence": [
+        "src/types/generationAndShots.ts re-exports multiple domain type modules as a canonical hub used broadly (`Shot` imported in media gallery handlers).",
+        "src/shared/lib/utils.ts re-exports helpers; consumers such as src/shared/components/ConfirmDialog.tsx import `cn` through this facade instead of direct source.",
+        "These hubs were flagged in the packet as high-import files, indicating many modules route through shared chokepoints."
+      ],
+      "suggestion": "Prefer narrower imports from domain-local modules (`@/types/shot`, `@/shared/lib/ui/cn`) and reserve barrels for intentionally cohesive APIs; split broad barrels by concern where needed.",
+      "confidence": "medium",
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "home_component_mixes_content_policy_interactions",
+      "summary": "Home pane component mixes presentation, business messaging, navigation policy, and input-mode interaction state machine.",
+      "related_files": [
+        "src/pages/Home/components/CreativePartnerPane.tsx",
+        "src/shared/hooks/useMobile.tsx"
+      ],
+      "evidence": [
+        "src/pages/Home/components/CreativePartnerPane.tsx contains long static content, CTA routing, tooltip open/disable state transitions, and embedded iframe behavior in one component.",
+        "Mobile/desktop branching (`useIsMobile`) drives interaction policy directly in the same UI component rather than a dedicated controller layer.",
+        "This concentration reduces ownership clarity and makes future content or interaction changes touch the same module."
+      ],
+      "suggestion": "Split into focused units: static content sections, tooltip interaction controller hook, and CTA/footer action component; keep pane as composition shell.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "gallery_behavior_split_across_wide_prop_bags",
+      "summary": "Media gallery responsibilities are fragmented across hooks with large callback/state contracts, blurring ownership boundaries.",
+      "related_files": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGallery/hooks/useMobileInteractions.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx"
+      ],
+      "evidence": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts takes a large argument bag spanning navigation, filtering, lightbox control, and modal state updates.",
+        "src/shared/components/MediaGallery/hooks/useMobileInteractions.ts depends on multiple externally managed refs/setters for tap orchestration, indicating coordination leakage.",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx decomposes props into nested state/callback groups but still orchestrates cross-cutting shot selection, quick-create, and navigation behaviors."
+      ],
+      "suggestion": "Introduce a single feature-level controller (e.g., `useMediaGalleryController`) that owns interaction state transitions and exposes a smaller, intention-revealing API to item/presentational components.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

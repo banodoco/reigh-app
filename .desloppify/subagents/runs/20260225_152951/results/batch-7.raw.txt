@@ -1,0 +1,115 @@
+{
+  "batch": "Design coherence — Mechanical Concern Signals",
+  "batch_index": 7,
+  "assessments": {
+    "design_coherence": 72.0
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "Task payload construction is split across multiple ad hoc builders with repeated precedence/default rules (e.g., `buildOrchestratorDetails`, `buildTaskParamsPayload`, and `buildIndividualSegmentParamsPayload` in `src/shared/lib/tasks/individualTravelSegment.ts`).",
+        "Orchestrator-style hooks have grown into multi-responsibility hubs that combine UI state, domain policy, persistence side effects, and transport calls (notably `useTimelineOrchestrator`, `useShotImagesEditorCallbacks`, and `useVideoEditing`).",
+        "Lightbox behavior is implemented in parallel control paths (gallery lightbox component logic, shot-image-manager lightbox hook, and desktop lightbox prefetch/navigation behavior), increasing drift risk for navigation and prefetch semantics.",
+        "Desktop/mobile shot manager behavior diverges structurally: desktop composes multiple focused hooks while mobile inlines optimistic reorder, selection, reconciliation timers, and workflow state in one component."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "task_payload_assembly_duplication",
+      "summary": "Task payload policy is duplicated across modules, creating high drift risk in defaults and precedence handling.",
+      "related_files": [
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/imageGeneration.ts",
+        "src/shared/components/MediaLightbox/hooks/useVideoEditing.ts"
+      ],
+      "evidence": [
+        "`src/shared/lib/tasks/individualTravelSegment.ts` repeats overlapping field-resolution policy in multiple builders (`buildOrchestratorDetails` at ~438+, `buildTaskParamsPayload` at ~512+, `buildIndividualSegmentParamsPayload` at ~612+), including repeated `motion_mode`/post-generation fields.",
+        "`src/shared/lib/tasks/imageGeneration.ts` has parallel single vs batch assembly paths (`createImageGenerationTask` ~361+ and `createBatchImageGenerationTasks` ~469+) that partially duplicate reference/hires/task param composition decisions.",
+        "`src/shared/components/MediaLightbox/hooks/useVideoEditing.ts` recomputes keeper-frame context constraints in two separate blocks (`maxContextFrames` ~295+ and again inside `handleGenerate` ~369+), showing policy duplication at call sites instead of a shared rule."
+      ],
+      "suggestion": "Create a shared task-payload policy layer per task family (resolution/defaulting/precedence/field inclusion) and have UI hooks only supply intent-level inputs; move repeated frame-window calculations into a single pure helper used by both validation and submit.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "missing_shared_policy_builders"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "orchestrator_hooks_mixed_responsibilities",
+      "summary": "Several orchestration hooks combine too many concerns (UI, domain policy, persistence, transport), weakening composability and test focus.",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/shared/components/MediaLightbox/hooks/useVideoEditing.ts"
+      ],
+      "evidence": [
+        "`useTimelineOrchestrator` takes a very large integration surface (`UseTimelineOrchestratorProps` ~20-54) and returns a broad nested command/state object (~56-145, ~329-385), acting as a central coordinator for many subsystems.",
+        "`useShotImagesEditorCallbacks` mixes remote deletes, query cache mutation/invalidation, operation-result protocol, and UI callback orchestration in one hook (`useDeleteSegmentHandler` ~56-194 plus add/create operations ~230+).",
+        "`useVideoEditing` handles selection geometry, validation, LoRA/resource wiring, task payload composition, task creation, and cache invalidation in one module (~72-546)."
+      ],
+      "suggestion": "Split each orchestrator into (1) pure domain logic/hooks, (2) side-effect adapters (Supabase/query invalidation), and (3) UI wiring; keep orchestration hooks as thin composition layers with narrower IO contracts.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "orchestrator_as_dumping_ground"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "lightbox_control_plane_fragmentation",
+      "summary": "Lightbox navigation/prefetch/state ownership is fragmented across multiple modules with overlapping logic.",
+      "related_files": [
+        "src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx",
+        "src/shared/components/ShotImageManager/hooks/useLightbox.ts",
+        "src/shared/components/ShotImageManager/ShotImageManagerDesktop.tsx"
+      ],
+      "evidence": [
+        "`MediaGalleryLightbox` has an oversized API partitioned into many prop interfaces (~16-93), then performs its own navigation and prefetch orchestration (~151-217).",
+        "`useLightbox` in shot-image-manager independently implements next/previous behavior and derived-context branching (~42-77), creating a second control path for navigation semantics.",
+        "`ShotImageManagerDesktop` adds another adjacent-item prefetch path (~135-160) and pending-open behavior (~162+), overlapping concerns already present in other lightbox layers."
+      ],
+      "suggestion": "Introduce a single lightbox controller model (navigation, prefetch, context traversal, optimistic media enrichment) shared by gallery and shot managers; keep UI components presentational.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "duplicated_lightbox_orchestration"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "desktop_mobile_shot_manager_pattern_drift",
+      "summary": "Desktop and mobile shot managers use different architectural patterns for the same workflow, increasing behavioral drift.",
+      "related_files": [
+        "src/shared/components/ShotImageManager/ShotImageManagerDesktop.tsx",
+        "src/shared/components/ShotImageManager/ShotImageManagerMobile.tsx",
+        "src/shared/components/ShotImageManager/hooks/useLightbox.ts"
+      ],
+      "evidence": [
+        "Desktop component consumes specialized hook bundles (`selection`, `dragAndDrop`, `lightbox`, `batchOps`, `optimistic`, `externalGens`) via props (~41-47), indicating decomposed architecture.",
+        "Mobile component inlines substantial state machines for selection bar timing, optimistic reconciliation, new-shot workflow, and move operations (~58-175, ~192-292), rather than reusing shared orchestration.",
+        "Both paths still rely on shared lightbox/selection concepts, but operational semantics are implemented separately, which raises regression risk when one side changes behavior."
+      ],
+      "suggestion": "Extract shared reducer-level primitives for selection, optimistic reorder reconciliation, and shot-creation flow, then compose platform-specific UI wrappers around that common core.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "platform_specific_reimplementation"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Feature growth accumulated in orchestration hooks/components without enforcing strict responsibility boundaries.",
+      "Cross-feature policies (payload construction, lightbox navigation, optimistic reconciliation) lack canonical shared engines.",
+      "Desktop/mobile parity evolved via separate implementations rather than shared state machines."
+    ],
+    "likely_symptoms": [
+      "task_payload_assembly_duplication",
+      "lightbox_control_plane_fragmentation",
+      "desktop_mobile_shot_manager_pattern_drift"
+    ],
+    "possible_false_positives": []
+  }
+}

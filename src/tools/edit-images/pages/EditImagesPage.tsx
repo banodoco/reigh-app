@@ -1,5 +1,4 @@
 import React, {
-  useState,
   useMemo,
   useCallback
 } from 'react';
@@ -8,37 +7,23 @@ import { useProject } from '@/shared/contexts/ProjectContext';
 import { Button } from '@/shared/components/ui/button';
 import {
   Upload,
-  ChevronDown,
-  ChevronUp,
   ImageIcon
 } from 'lucide-react';
 import { Skeleton } from '@/shared/components/ui/skeleton';
-import { GenerationRow } from '@/types/shots';
-import { toast } from '@/shared/components/ui/sonner';
-import { useAsyncOperation } from '@/shared/hooks/useAsyncOperation';
-import { supabase } from '@/integrations/supabase/client';
+import { GenerationRow } from '@/domains/generation/types';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { useAsyncOperation } from '@/shared/hooks/async/useAsyncOperation';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { InlineEditView } from '../components/InlineEditView';
-import { useProjectGenerations, type GenerationsPaginatedResponse } from '@/shared/hooks/useProjectGenerations';
-import { useDeleteVariant } from '@/shared/hooks/useGenerationMutations';
-import type { GeneratedImageWithMetadata } from '@/shared/components/MediaGallery';
-import MediaGallery from '@/shared/components/MediaGallery';
-import { useListShots } from '@/shared/hooks/shots';
-import { cn } from '@/shared/lib/utils';
-import { useIsMobile } from '@/shared/hooks/useMobile';
+import { cn } from '@/shared/components/ui/contracts/cn';
+import { useIsMobile } from '@/shared/hooks/mobile';
 import { uploadImageToStorage } from '@/shared/lib/imageUploader';
-import { generateClientThumbnail, uploadImageWithThumbnail } from '@/shared/lib/clientThumbnailGenerator';
-import MediaLightbox from '@/shared/components/MediaLightbox';
-import { useGetTask } from '@/shared/hooks/useTasks';
+import { generateClientThumbnail, uploadImageWithThumbnail } from '@/shared/media/clientThumbnailGenerator';
 import { VARIANT_TYPE } from '@/shared/constants/variantTypes';
-import { deriveGalleryInputImages } from '@/shared/components/MediaGallery/utils';
-import { parseRatio } from '@/shared/lib/aspectRatios';
-import { variantToGenerationRow } from '@/shared/lib/mediaTypeHelpers';
+import { parseRatio } from '@/shared/lib/media/aspectRatios';
 import { MediaSelectionPanel } from '@/shared/components/MediaSelectionPanel';
-import { useEditToolMediaPersistence } from '@/shared/hooks/useEditToolMediaPersistence';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
-
-const TOOL_TYPE = TOOL_IDS.EDIT_IMAGES;
+import { useEditToolMediaPersistence } from '@/shared/hooks/media/useEditToolMediaPersistence';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 // Preload image helper - warm up the browser cache
 const preloadedImageRef = { current: null as string | null };
@@ -57,21 +42,11 @@ export default function EditImagesPage() {
   const selectedProject = projects.find(p => p.id === selectedProjectId);
   const projectAspectRatio = selectedProject?.aspectRatio || '16:9';
   const aspectRatioValue = parseRatio(projectAspectRatio);
-  const [lightboxMedia, setLightboxMedia] = useState<GenerationRow | null>(null); // For viewing results in lightbox
-  const [resultsPage, setResultsPage] = useState(1);
 
   // Upload operation with automatic loading state
   const uploadOperation = useAsyncOperation<GenerationRow>();
-  const [showResults, setShowResults] = useState(true);
   const { isDraggingOver, handleDragEnter, handleDragLeave, resetDrag: resetDragState } = useFileDragTracking();
   const isMobile = useIsMobile();
-  const { data: shots } = useListShots(selectedProjectId);
-
-  // Delete mutation for gallery items (uses variants table for edit tools)
-  const deleteVariantMutation = useDeleteVariant();
-  const handleDeleteVariant = useCallback((id: string) => {
-    deleteVariantMutation.mutate(id);
-  }, [deleteVariantMutation]);
 
   // Persisted media selection (load/save last-edited media ID to project settings)
   const {
@@ -84,27 +59,12 @@ export default function EditImagesPage() {
     projectId: selectedProjectId ?? undefined,
     preloadMedia: preloadImage,
   });
-  
-  // Fetch edit variants created by this tool
-  const {
-    data: resultsData,
-  } = useProjectGenerations(
-    selectedProjectId || null,
-    resultsPage,
-    12,
-    true,
-    {
-      variantsOnly: true, // Fetch edit variants from generation_variants table
-      toolType: TOOL_TYPE, // Filter to only show variants created by edit-images tool
-    }
-  );
-
   // Shared upload logic for both file input and drag-drop
   const uploadImage = useCallback(async (file: File): Promise<GenerationRow> => {
     if (!selectedProjectId) {
       throw new Error('No project selected');
     }
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await supabase().auth.getSession();
     if (!session?.user?.id) {
       throw new Error('User not authenticated');
     }
@@ -131,8 +91,7 @@ export default function EditImagesPage() {
       model: 'upload'
     };
 
-    const { data: generation, error: dbError } = await supabase
-      .from('generations')
+    const { data: generation, error: dbError } = await supabase().from('generations')
       .insert({
         project_id: selectedProjectId,
         location: publicUrl,
@@ -145,7 +104,7 @@ export default function EditImagesPage() {
 
     if (dbError) throw dbError;
 
-    await supabase.from('generation_variants').insert({
+    await supabase().from('generation_variants').insert({
       generation_id: generation.id,
       location: publicUrl,
       thumbnail_url: thumbnailUrl,
@@ -195,121 +154,11 @@ export default function EditImagesPage() {
     [selectedProjectId, resetDragState, uploadOperation, uploadImage, setSelectedMedia]
   );
 
-  // Get results items for navigation
-  const resultsItems = useMemo(
-    () => (resultsData as GenerationsPaginatedResponse | undefined)?.items ?? [],
-    [resultsData]
-  );
-  const [lightboxIndex, setLightboxIndex] = useState<number>(-1);
-
-  // Store the variant ID separately for lightbox
-  const [lightboxVariantId, setLightboxVariantId] = useState<string | null>(null);
-
-  // Transform variant data to GenerationRow format for lightbox
-  const transformVariantToGeneration = (media: GeneratedImageWithMetadata): GenerationRow =>
-    variantToGenerationRow(media, 'image', selectedProjectId || '');
-
-  const handleResultClick = (media: GeneratedImageWithMetadata) => {
-    const index = resultsItems.findIndex((item) => item.id === media.id);
-    setLightboxIndex(index);
-    setLightboxVariantId(media.id); // Store the variant ID to pre-select it
-    setLightboxMedia(transformVariantToGeneration(media));
-  };
-
-  const handleLightboxNext = () => {
-    if (lightboxIndex < resultsItems.length - 1) {
-      const nextIndex = lightboxIndex + 1;
-      const nextItem = resultsItems[nextIndex];
-      setLightboxIndex(nextIndex);
-      setLightboxVariantId(nextItem.id);
-      setLightboxMedia(transformVariantToGeneration(nextItem));
-    }
-  };
-
-  const handleLightboxPrevious = () => {
-    if (lightboxIndex > 0) {
-      const prevIndex = lightboxIndex - 1;
-      const prevItem = resultsItems[prevIndex];
-      setLightboxIndex(prevIndex);
-      setLightboxVariantId(prevItem.id);
-      setLightboxMedia(transformVariantToGeneration(prevItem));
-    }
-  };
-
-  const handleLightboxClose = () => {
-    setLightboxMedia(null);
-    setLightboxIndex(-1);
-    setLightboxVariantId(null);
-  };
-
-  // Get task ID from current lightbox variant for task details
-  const currentTaskId = useMemo<string | null>(() => {
-    if (lightboxIndex >= 0 && resultsItems[lightboxIndex]) {
-      const item = resultsItems[lightboxIndex];
-      // Task ID is stored in metadata.source_task_id (from variant params)
-      const sourceTaskId = item.metadata?.source_task_id;
-      return typeof sourceTaskId === 'string' ? sourceTaskId : null;
-    }
-    return null;
-  }, [lightboxIndex, resultsItems]);
-
-  // Fetch task data for the current lightbox item
-  const { data: taskData, isLoading: isLoadingTask, error: taskError } = useGetTask(currentTaskId ?? '');
-
-  // Derive input images from task params
-  const inputImages = useMemo(() => {
-    if (!taskData?.params) return [];
-    return deriveGalleryInputImages(taskData.params as Record<string, unknown>);
-  }, [taskData]);
-
-  // Helper to render the results gallery (used in both views)
-  const renderResultsGallery = () => {
-    if (!(resultsData as GenerationsPaginatedResponse | undefined)?.items?.length) return null;
-    
-    return (
-      <div className="mt-6 pb-6">
-        <button 
-          onClick={() => setShowResults(!showResults)}
-          className="flex items-center gap-2 text-lg font-medium mb-4 hover:text-primary transition-colors"
-        >
-          Edited Images
-          {showResults ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          <span className="text-sm text-muted-foreground font-normal">
-            ({(resultsData as GenerationsPaginatedResponse | undefined)?.total || 0})
-          </span>
-        </button>
-        
-        {showResults && (
-          <MediaGallery
-            images={(resultsData as GenerationsPaginatedResponse | undefined)?.items || []}
-            allShots={shots || []}
-            onImageClick={handleResultClick}
-            itemsPerPage={12}
-            offset={(resultsPage - 1) * 12}
-            totalCount={(resultsData as GenerationsPaginatedResponse | undefined)?.total || 0}
-            onServerPageChange={setResultsPage}
-            serverPage={resultsPage}
-            onDelete={handleDeleteVariant}
-            isDeleting={deleteVariantMutation.isPending ? deleteVariantMutation.variables as string : null}
-            defaultFilters={{ toolTypeFilter: false }}
-            config={{
-              showShare: false,
-              showEdit: false,
-              enableSingleClick: true,
-              hideMediaTypeFilter: true,
-              hideBottomPagination: true,
-            }}
-          />
-        )}
-      </div>
-    );
-  };
-
   return (
     <div 
       className={cn(
         "w-full flex flex-col relative",
-        isEditingOnMobile ? "min-h-[calc(100dvh-96px)]" : "min-h-[calc(100dvh-96px)]"
+        "min-h-[calc(100dvh-96px)]"
       )}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
@@ -327,7 +176,7 @@ export default function EditImagesPage() {
           <div className="max-w-7xl mx-auto relative">
             <div className={cn(
               "rounded-2xl overflow-hidden bg-black",
-              isEditingOnMobile ? "flex flex-col min-h-[60vh]" : "h-[70vh]"
+              isEditingOnMobile ? "flex flex-col min-h-[72vh]" : "h-[calc(100dvh-190px)]"
             )}>
               {isMobile ? (
                 // Mobile: Match InlineEditView mobile layout (45dvh height)
@@ -451,27 +300,23 @@ export default function EditImagesPage() {
                />
               </div>
             </div>
-            
-            {/* Results Gallery - visible in main view */}
-            {renderResultsGallery()}
           </div>
         </div>
       )}
       
       {selectedMedia && (
-        <div className="w-full px-4 overflow-y-auto" style={{ minHeight: 'calc(100dvh - 96px)' }}>
+        <div className="w-full px-4 pb-6 overflow-y-auto" style={{ minHeight: 'calc(100dvh - 96px)' }}>
           <div className="max-w-7xl mx-auto relative">
             <div className={cn(
               "rounded-2xl overflow-hidden",
-              isEditingOnMobile ? "flex flex-col min-h-[60vh]" : "h-[70vh]"
+              isEditingOnMobile ? "flex flex-col min-h-[72vh]" : "h-[calc(100dvh-190px)]"
             )}>
               <InlineEditView
                 media={selectedMedia}
                 onClose={handleEditorClose}
                 onNavigateToGeneration={async (generationId) => {
                   try {
-                    const { data, error } = await supabase
-                      .from('generations')
+                    const { data, error } = await supabase().from('generations')
                       .select('*')
                       .eq('id', generationId)
                       .single();
@@ -480,42 +325,13 @@ export default function EditImagesPage() {
                       setSelectedMedia(data as unknown as GenerationRow);
                     }
                   } catch (e) {
-                    handleError(e, { context: 'EditImagesPage', showToast: false });
+                    normalizeAndPresentError(e, { context: 'EditImagesPage', showToast: false });
                   }
                 }}
               />
             </div>
-            
-            {/* Results Gallery - also visible when editing */}
-            {renderResultsGallery()}
           </div>
         </div>
-      )}
-      
-      {/* MediaLightbox for viewing results */}
-      {lightboxMedia && (
-        <MediaLightbox
-          media={lightboxMedia}
-          onClose={handleLightboxClose}
-          toolTypeOverride={TOOL_IDS.EDIT_IMAGES}
-          starred={lightboxMedia.starred ?? false}
-          showMagicEdit={true}
-          showNavigation={true}
-          allShots={shots || []}
-          onNext={lightboxIndex < resultsItems.length - 1 ? handleLightboxNext : undefined}
-          onPrevious={lightboxIndex > 0 ? handleLightboxPrevious : undefined}
-          hasNext={lightboxIndex < resultsItems.length - 1}
-          hasPrevious={lightboxIndex > 0}
-          showTaskDetails={true}
-          taskDetailsData={{
-            task: taskData ?? null,
-            isLoading: isLoadingTask,
-            error: taskError,
-            inputImages,
-            taskId: currentTaskId ?? null,
-          }}
-          initialVariantId={lightboxVariantId || undefined}
-        />
       )}
     </div>
   );

@@ -1,0 +1,74 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "high_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/handleError.ts` centralizes normalization, logging, toast UX, and callback dispatch in one globally imported entrypoint (`reportRuntimeError`), creating a cross-layer responsibility hub.",
+        "`src/domains/generation/types/generationRow.ts` and `src/domains/generation/types/shot.ts` each merge persisted DB-facing row shapes with UI view-model fields into single exported composites (`GenerationRow`, `Shot`), blurring data ownership boundaries.",
+        "`src/integrations/supabase/client.ts` embeds one-time instrumentation installation and singleton client bootstrapping behind accessor calls, making runtime initialization side effects implicit rather than explicitly composed by an app bootstrap boundary.",
+        "UI/state protocol patterns are repeated across independent modules (`src/shared/components/ConfirmDialog.tsx`, `src/pages/Home/components/InstallInstructionsModal.tsx`, `src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx`, `src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx`) with near-identical open/onOpenChange ownership contracts but no shared architectural seam."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "error_hub_cross_layer_responsibility",
+      "summary": "Shared error entrypoint mixes infrastructure concerns with UI notification behavior, creating a god-style cross-layer module.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/ui/sonner.tsx"
+      ],
+      "evidence": [
+        "`reportRuntimeError` in `handleError.ts` performs normalization/logging and also decides user toast behavior (`showToast` + `notifyError`), so callers across the app couple to both telemetry and presentation policy at once.",
+        "Toast delivery is a globally shared UI subsystem (`sonner.tsx` exports global toaster surface), so wiring this directly into shared error normalization makes the shared error module an architectural bridge across unrelated layers."
+      ],
+      "suggestion": "Split the API into a pure error-normalization/logging service and a separate UI notification adapter (invoked at feature boundary or app shell), so infrastructure error contracts remain usable without implicit toast policy.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "domain_types_layer_blur",
+      "summary": "Generation and shot type modules conflate persisted data contracts with UI projection state, weakening clear ownership boundaries.",
+      "related_files": [
+        "src/domains/generation/types/generationRow.ts",
+        "src/domains/generation/types/shot.ts"
+      ],
+      "evidence": [
+        "`generationRow.ts` defines `PersistedGenerationRow` (DB/API shape) and `GenerationViewModel` (UI/interaction shape) then exports merged `GenerationRow` and `toGenerationRow` spread constructor.",
+        "`shot.ts` repeats the same pattern with `PersistedShotRow` + `ShotViewModel` -> merged `Shot` and `toShot`.",
+        "Both merged shapes are widely imported according to packet metadata, so cross-layer optional field accretion becomes a central architecture path instead of explicit boundary mapping."
+      ],
+      "suggestion": "Keep persisted entities and UI view models in separate modules/namespaces, with explicit mapper functions at domain-to-UI seams (e.g., selectors/adapters), and reduce use of merged “everything” row types as shared contracts.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "implicit_runtime_bootstrap_coupling",
+      "summary": "Supabase client bootstrap hides one-time runtime side effects behind getters, making initialization order and ownership implicit.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/features/gallery/hooks/useAdjacentPagePreloader.ts"
+      ],
+      "evidence": [
+        "`initializeSupabaseClientRuntime`/`getSupabaseClient` in `client.ts` lazily mutate module state and trigger instrumentation installation (`installWindowOnlyInstrumentation`) on first access.",
+        "Feature hooks in the codebase are structured as direct service consumers (`useAdjacentPagePreloader.ts` similarly orchestrates lower-level behavior from hook call sites), reinforcing a pattern where runtime setup happens via incidental first-use rather than an explicit startup composition root."
+      ],
+      "suggestion": "Introduce an explicit app bootstrap phase that initializes integrations (instrumentation + clients) once, then inject/use stable initialized dependencies from feature modules to remove first-use ordering ambiguity.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

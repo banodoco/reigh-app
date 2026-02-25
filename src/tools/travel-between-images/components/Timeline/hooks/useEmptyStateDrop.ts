@@ -6,8 +6,8 @@
  */
 
 import { useState, useCallback } from 'react';
-import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 interface UseEmptyStateDropProps {
   onFileDrop?: (files: File[], targetFrame?: number) => Promise<void>;
@@ -92,7 +92,7 @@ export function useEmptyStateDrop({
           }
         }
       } catch (error) {
-        handleError(error, { context: 'Timeline', toastTitle: 'Failed to add image' });
+        normalizeAndPresentError(error, { context: 'Timeline', toastTitle: 'Failed to add image' });
       }
       return;
     }
@@ -117,7 +117,7 @@ export function useEmptyStateDrop({
     try {
       await onImageUpload(validFiles);
     } catch (error) {
-      handleError(error, { context: 'Timeline', toastTitle: 'Failed to add images' });
+      normalizeAndPresentError(error, { context: 'Timeline', toastTitle: 'Failed to add images' });
     }
   }, [onImageUpload, onGenerationDrop]);
 

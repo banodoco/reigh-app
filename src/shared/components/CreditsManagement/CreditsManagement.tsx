@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SegmentedControl, SegmentedControlItem } from '@/shared/components/ui/segmented-control';
-import { useCredits } from '@/shared/hooks/useCredits';
+import { useCredits, useCreditLedger } from '@/features/billing/hooks/useCredits';
 import { useTaskLog } from '@/shared/hooks/useTaskLog';
 import { useAutoTopupState } from './hooks/useAutoTopupState';
 import { useTaskLogFilters } from './hooks/useTaskLogFilters';
@@ -20,7 +20,6 @@ const CreditsManagement: React.FC<CreditsManagementProps> = ({
     isCreatingCheckout,
     createCheckout,
     formatCurrency,
-    useCreditLedger,
   } = useCredits();
 
   const [activeTab, setActiveTab] = useState<string>(initialTab);

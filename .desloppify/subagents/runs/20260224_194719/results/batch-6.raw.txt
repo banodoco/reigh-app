@@ -1,0 +1,134 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "high_level_elegance": 83.0,
+    "test_strategy": 76.0,
+    "package_organization": 79.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "README.md defines Supabase legacy shim policy and removal date (2026-06-30), but src/integrations/supabase/legacy/index.ts still exports both `supabase` and `getLegacySupabaseClient`, preserving a broad compatibility surface instead of a narrowed transitional API.",
+        "Packet holistic context shows src/integrations/supabase/legacy/index.ts has very high importer pressure (137 importers), indicating migration governance is policy-led but still architecturally central at runtime.",
+        "src/shared/lib/errorHandling/handleError.ts is labeled a runtime normalization/logging facade but also embeds UI-facing presentation shaping (`variant: 'destructive'`) and mutable global notifier wiring via `setErrorPresenter`, mixing runtime and UI contract layers."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "test_strategy": {
+      "evidence": [
+        "src/shared/lib/errorHandling/handleError.ts is a critical contract module (249 importers in packet context) with no co-located test file shown in its directory profile (errorHandling lists 9 production files, no tests).",
+        "src/integrations/supabase/legacy/index.ts is a high-impact compatibility seam (137 importers) but has no direct test artifact in the assigned files, and the contract is documented primarily in README.md rather than validated in-file.",
+        "README.md describes governance checks (`check:core-shim-usage`, `check:shots-shim-usage`, `quality:check`), but assigned runtime contract files do not include embedded assertions or test-linked invariants to prove those guarantees at module boundary level."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    },
+    "package_organization": {
+      "evidence": [
+        "Packet structure data shows `src/shared/components/ui/` contains 58 files with mixed concerns (primitives, hooks, registry/setup, and tests), exceeding the >10 mixed-concern overload heuristic and reducing boundary clarity.",
+        "`src/shared/components/ui/cn.ts` is a UI-folder facade that re-exports implementation from `src/shared/lib/uiClassNames`, while `button.tsx` in the same UI package imports from `src/shared/components/theme/buttonVariants`; this indicates a diffuse ownership boundary for UI contracts versus shared utilities/theme contracts.",
+        "Type contract ownership is split: `src/types/generationAndShots.ts` is the documented canonical barrel, while packet structure also contains `src/domains/generation/types/` with 8 files, creating dual namespace centers for the same domain."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "legacy_supabase_contract_not_narrowed",
+      "summary": "Legacy Supabase contract remains a broad runtime surface despite documented deprecation policy.",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/legacy/index.ts"
+      ],
+      "evidence": [
+        "README.md sets a deprecation/removal contract for legacy Supabase imports with target date 2026-06-30.",
+        "src/integrations/supabase/legacy/index.ts still exports both `supabase` and `getLegacySupabaseClient`, keeping legacy access patterns alive.",
+        "Holistic context marks this file as heavily imported (137 importers), so this is not an isolated compatibility shim."
+      ],
+      "suggestion": "Reduce the legacy entrypoint to a single transitional export and stage the migration: (1) create `src/integrations/supabase/contracts/legacyClient.ts` with only `getLegacySupabaseClient`; (2) update `src/integrations/supabase/legacy/index.ts` to re-export only that symbol and emit deprecation warnings in dev; (3) run import rewrites with `rg \"@/integrations/supabase/legacy\" -n src` and migrate callers to `@/integrations/supabase/client`; (4) validate with `npm run check:core-shim-usage`, `npm run quality:check`, and `npm test`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "error_facade_cross_layer_contract",
+      "summary": "The public error facade mixes runtime normalization responsibilities with UI presentation contract details.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "handleError.ts is declared as a runtime normalization/logging facade but also defines an `ErrorPresentationPayload` with fixed UI variant `destructive` and a presenter hook.",
+        "`setErrorPresenter` mutates global notifier wiring, coupling shared runtime error handling to UI delivery semantics.",
+        "README governance sections describe compatibility and contract boundaries, but this file’s API combines two layers in one contract surface."
+      ],
+      "suggestion": "Split runtime and presentation contracts in stages: (1) move presenter types/wiring into `src/shared/components/ui/errorPresenterAdapter.ts`; (2) keep `handleError` focused on normalization/logging/typed error return; (3) add an explicit integration registration point in app bootstrap for UI notifier binding; (4) update imports via `rg \"setErrorPresenter|handleError\" -n src` and verify with `npm run typecheck` and targeted error-handling tests.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "untested_high_fanin_contract_modules",
+      "summary": "Critical high-importer contract modules lack direct quality-gate tests at their own boundaries.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/integrations/supabase/legacy/index.ts",
+        "src/types/generationAndShots.ts"
+      ],
+      "evidence": [
+        "Packet context reports very high fan-in for these files (handleError 249, generationAndShots 204, legacy index 137).",
+        "No direct test files are present for handleError or legacy index in the assigned scope, while these modules define cross-cutting contracts.",
+        "Reliance on README-described command gates does not replace module-level contract tests for deprecation behavior, error handling semantics, and canonical type exports."
+      ],
+      "suggestion": "Add contract-focused tests in stages: (1) create `src/shared/lib/errorHandling/handleError.test.ts` for normalization, toast flag behavior, and callback invocation; (2) create `src/integrations/supabase/legacy/index.test.ts` asserting export shape and deprecation warning behavior; (3) add `src/types/generationAndShots.test-d.ts` (or type-only compile checks) for canonical export stability; (4) run `npm run test`, `npm run typecheck`, and `npm run quality:check`.",
+      "confidence": "medium",
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "ui_package_mixed_concerns_overload",
+      "summary": "The UI package is overloaded with mixed concerns, weakening navigability and ownership boundaries.",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/ui/cn.ts"
+      ],
+      "evidence": [
+        "Holistic structure shows `src/shared/components/ui/` has 58 files and includes primitives, hooks, setup files, and tests in one folder.",
+        "`cn.ts` in UI is a facade over shared lib implementation, while `button.tsx` depends on theme variants in another package, indicating blurred package contracts.",
+        "Coupling data shows very high inbound usage of the UI directory, so unclear organization amplifies codebase-wide navigation cost."
+      ],
+      "suggestion": "Execute a staged reorg plan: (1) create target folders `src/shared/components/ui/primitives/`, `src/shared/components/ui/hooks/`, `src/shared/components/ui/adapters/`, and `src/shared/components/ui/__tests__/`; (2) move files in order: hooks/util adapters first (`cn.ts`, tooltip hooks), then primitive components (`button.tsx` and peers), then tests; (3) run import updates with `rg \"@/shared/components/ui/\" -n src | head` and a codemod or scripted path replace; (4) validate with `npm run typecheck`, `npm run test`, and `npm run lint`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "generation_type_contract_split_across_namespaces",
+      "summary": "Generation/shot type contracts are split between `src/types` and domain types directories, creating dual ownership centers.",
+      "related_files": [
+        "src/types/generationAndShots.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "README declares `@/types/generationAndShots` as canonical type surface.",
+        "Packet structure concurrently shows a dedicated `src/domains/generation/types/` package with 8 files.",
+        "Keeping canonical barrel in generic `src/types` while domain types live elsewhere makes contract ownership and move boundaries ambiguous."
+      ],
+      "suggestion": "Perform a staged contract-location reorg: (1) add `src/domains/generation/contracts/index.ts` as new canonical export surface; (2) move/re-export `generationAndShots` barrel there first while keeping `src/types/generationAndShots.ts` as temporary compatibility shim; (3) migrate imports using `rg \"@/types/generationAndShots\" -n src` to the new domain path; (4) remove the shim after CI clean runs via `npm run typecheck` and `npm run quality:check`.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

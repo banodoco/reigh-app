@@ -1,9 +1,9 @@
 import type { UseMutationResult } from '@tanstack/react-query';
-import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { uploadImageToStorage } from '@/shared/lib/imageUploader';
 import type { Resource, CreateResourceArgs, UpdateResourceArgs } from '@/shared/hooks/useResources';
-import type { LoraFiles } from '@/shared/hooks/useHuggingFaceUpload';
+import type { LoraFiles } from '@/features/lora/hooks/useHuggingFaceUpload';
 import { type LoraFormState, type LoraModel } from '../../../types';
 import { generateUniqueFilename, validateHuggingFaceUrl } from '../../../utils/validation-utils';
 
@@ -141,7 +141,7 @@ function uploadToHuggingFaceIfNeeded(
     uploadToHuggingFace: UseLoraSubmissionArgs['uploadToHuggingFace'];
     urls: SubmissionUrls;
   }
-): Promise<SubmissionUrls | null> {
+): Promise<SubmissionUrls> {
   const uploadDetails = {
     name: input.addForm.name,
     description: input.addForm.description,
@@ -158,8 +158,7 @@ function uploadToHuggingFaceIfNeeded(
       { isPrivate: !input.addForm.is_public }
     ).then((uploadResult) => {
       if (!uploadResult.success) {
-        toast.error(`Failed to upload to HuggingFace: ${uploadResult.error}`);
-        return null;
+        throw new Error(`Failed to upload to HuggingFace: ${uploadResult.error || 'Unknown error'}`);
       }
 
       toast.success(`Uploaded to HuggingFace: ${uploadResult.repoUrl}`);
@@ -178,8 +177,7 @@ function uploadToHuggingFaceIfNeeded(
       { isPrivate: !input.addForm.is_public }
     ).then((uploadResult) => {
       if (!uploadResult.success) {
-        toast.error(`Failed to upload to HuggingFace: ${uploadResult.error}`);
-        return null;
+        throw new Error(`Failed to upload to HuggingFace: ${uploadResult.error || 'Unknown error'}`);
       }
 
       toast.success(`Uploaded to HuggingFace: ${uploadResult.repoUrl}`);
@@ -367,27 +365,22 @@ export function useLoraSubmission(args: UseLoraSubmissionArgs) {
 
     args.setIsSubmitting(true);
 
-    const initialUrls: SubmissionUrls = {
-      finalHuggingfaceUrl: args.addForm.huggingface_url,
-      finalHighNoiseUrl: args.addForm.high_noise_url,
-      finalLowNoiseUrl: args.addForm.low_noise_url,
-    };
-
-    const resolvedUrls = await uploadToHuggingFaceIfNeeded(mode, {
-      addForm: args.addForm,
-      userName: args.userName,
-      loraFiles: args.loraFiles,
-      sampleFiles: args.sampleFiles,
-      uploadToHuggingFace: args.uploadToHuggingFace,
-      urls: initialUrls,
-    });
-
-    if (!resolvedUrls) {
-      args.setIsSubmitting(false);
-      return;
-    }
-
     try {
+      const initialUrls: SubmissionUrls = {
+        finalHuggingfaceUrl: args.addForm.huggingface_url,
+        finalHighNoiseUrl: args.addForm.high_noise_url,
+        finalLowNoiseUrl: args.addForm.low_noise_url,
+      };
+
+      const resolvedUrls = await uploadToHuggingFaceIfNeeded(mode, {
+        addForm: args.addForm,
+        userName: args.userName,
+        loraFiles: args.loraFiles,
+        sampleFiles: args.sampleFiles,
+        uploadToHuggingFace: args.uploadToHuggingFace,
+        urls: initialUrls,
+      });
+
       const uploadedSamples = await uploadSampleFiles(args.sampleFiles);
       const { finalSamples, finalImages } = buildFinalSamplesAndImages({
         isEditMode: args.isEditMode,
@@ -443,7 +436,7 @@ export function useLoraSubmission(args: UseLoraSubmissionArgs) {
       args.resetForm();
       args.onSwitchToBrowse();
     } catch (error) {
-      handleError(error, {
+      normalizeAndPresentError(error, {
         context: 'MyLorasTab',
         toastTitle: `Failed to ${args.isEditMode ? 'update' : 'add'} LoRA`,
       });

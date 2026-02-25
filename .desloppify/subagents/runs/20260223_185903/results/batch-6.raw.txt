@@ -1,0 +1,97 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "cross_module_architecture": 64.0,
+    "high_level_elegance": 69.0,
+    "package_organization": 62.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/handleError.ts` is a 225-importer hub and performs UI side effects (`toast(...)`) inside a shared lib boundary.",
+        "`src/integrations/supabase/client.ts` is a 146-importer hub that initializes instrumentation/runtime at import time via eager `supabase` singleton creation.",
+        "Holistic coupling shows broad dependency pull into these hubs (`src/shared/hooks/ → src/shared/lib/errorHandling/`: 44 edges, `src/shared/hooks/ → src/integrations/supabase/`: 50 edges), increasing blast radius when contracts change."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "`README.md` positions architecture docs/contracts as authoritative, but runtime compatibility debt is centralized in a deprecated alias file.",
+        "`src/types/shots.ts` declares a sunset contract (`Remove by: 2026-05-31`) while holistic context shows 199 importers, indicating the old contract remains a primary dependency path.",
+        "This mismatch makes ownership and deprecation policy less trustworthy at the top-level architecture layer."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "package_organization": {
+      "evidence": [
+        "`src/shared/lib/` has 70 files (well above the >10 mixed-concern split threshold), indicating flat utility overload.",
+        "`src/shared/lib/utils.ts` (134 importers) is a generic barrel name exporting unrelated concerns (`cn` UI class helper plus string-formatting helpers), which obscures ownership and encourages catch-all imports.",
+        "`src/shared/components/ui/button.tsx` consumes `cn` through this generic path, reinforcing UI-to-generic-lib coupling (`src/shared/components/ui/ → src/shared/lib/`: 36 edges)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "hub_modules_embed_import_time_and_ui_side_effects",
+      "summary": "Two high-fan-in hubs mix boundary roles and side effects, raising codebase blast radius.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "`handleError` in shared lib normalizes/logs errors and also calls UI toast directly.",
+        "`supabase` client module performs instrumentation/runtime setup during import (`export const supabase = getOrCreateSupabaseClient()`).",
+        "Both files are hub modules in holistic context (225 and 146 importers)."
+      ],
+      "suggestion": "Split each hub into explicit boundary contracts: (1) move pure error normalization/logging into `src/shared/lib/errorHandling/core.ts` and create a UI adapter (`src/shared/components/errorHandling/toastError.ts`) used only by presentation layers; (2) expose `getSupabaseClient()` as lazy retrieval and move runtime/instrumentation bootstrap into app startup (`src/app/bootstrap.tsx`) so imports are side-effect-free; then run `npm run typecheck` and `npm run test` to validate no import-cycle or init-order regressions.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "deprecated_type_contract_remains_primary_path",
+      "summary": "Deprecated type alias policy is declared but not operationally enforced.",
+      "related_files": [
+        "src/types/shots.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`src/types/shots.ts` includes explicit deprecation/sunset metadata with removal date `2026-05-31`.",
+        "Holistic context marks this file as a 199-importer hub, so the deprecated path is still one of the dominant contracts.",
+        "`README.md` emphasizes architecture/document trust, but this contract drift weakens that trust."
+      ],
+      "suggestion": "Adopt an enforced deprecation lifecycle: add a CI gate that fails new imports of `@/types/shots`, publish migration ownership in docs, and execute a phased codemod from `@/types/shots` to `@/types/generationAndShots` before the dated removal window.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "generic_utils_barrel_masks_mixed_concerns",
+      "summary": "A high-fan-in generic utils barrel in an overloaded directory obscures package ownership.",
+      "related_files": [
+        "src/shared/lib/utils.ts",
+        "src/shared/components/ui/button.tsx"
+      ],
+      "evidence": [
+        "`src/shared/lib/` has 70 files, indicating flat mixed-concern organization.",
+        "`src/shared/lib/utils.ts` is a 134-importer hub but only re-exports from two different concern areas (`uiClassNames` and `stringFormatting`).",
+        "`button.tsx` imports from `@/shared/lib/utils`, reinforcing broad generic utility coupling instead of concern-specific modules."
+      ],
+      "suggestion": "Staged reorg plan: Stage 1 target folders: create `src/shared/lib/ui/cn.ts` and `src/shared/lib/text/stringFormatting.ts` (or align with existing `stringFormatting.ts` path) and keep temporary compatibility exports. Stage 2 move order: (a) move/alias `cn` first, (b) update UI primitives like `src/shared/components/ui/button.tsx`, (c) migrate string helper consumers, (d) delete `src/shared/lib/utils.ts` last. Stage 3 import updates and validation commands: `rg -l \"@/shared/lib/utils\" src | xargs -I{} sed -i '' -e \"s#@/shared/lib/utils#@/shared/lib/ui/cn#g\" -e \"s#@/shared/lib/utils#@/shared/lib/text/stringFormatting#g\" {}` (or repo-preferred codemod), then run `npm run typecheck` and `npm run test`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

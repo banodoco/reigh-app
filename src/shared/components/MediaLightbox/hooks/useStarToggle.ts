@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import type { UseMutationResult } from '@tanstack/react-query';
-import { useToggleGenerationStar } from '@/shared/hooks/useGenerationMutations';
-import { GenerationRow } from '@/types/shots';
+import { useToggleGenerationStar } from '@/domains/generation/hooks/useGenerationMutations';
+import { GenerationRow } from '@/domains/generation/types';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
+import { useProject } from '@/shared/contexts/ProjectContext';
 
 interface UseStarToggleProps {
   media: GenerationRow;
@@ -13,7 +14,7 @@ interface UseStarToggleProps {
 interface UseStarToggleReturn {
   localStarred: boolean;
   setLocalStarred: React.Dispatch<React.SetStateAction<boolean>>;
-  toggleStarMutation: UseMutationResult<void, Error, { id: string; starred: boolean; shotId?: string }>;
+  toggleStarMutation: UseMutationResult<void, Error, { id: string; starred: boolean; projectId: string; shotId?: string }>;
   handleToggleStar: () => void;
 }
 
@@ -22,6 +23,7 @@ interface UseStarToggleReturn {
  * Maintains local state for immediate UI updates while syncing with server
  */
 export const useStarToggle = ({ media, starred, shotId }: UseStarToggleProps): UseStarToggleReturn => {
+  const { selectedProjectId } = useProject();
   const toggleStarMutation = useToggleGenerationStar();
   
   // Track when we last mutated to prevent stale prop syncing
@@ -77,7 +79,16 @@ export const useStarToggle = ({ media, starred, shotId }: UseStarToggleProps): U
     const actualGenerationId = getGenerationId(media);
     
     // Trigger mutation
-    toggleStarMutation.mutate({ id: actualGenerationId ?? media.id, starred: newStarred, shotId });
+    if (!selectedProjectId) {
+      setLocalStarred((prev) => !prev);
+      return;
+    }
+    toggleStarMutation.mutate({
+      id: actualGenerationId ?? media.id,
+      starred: newStarred,
+      projectId: selectedProjectId,
+      shotId,
+    });
   };
 
   return {

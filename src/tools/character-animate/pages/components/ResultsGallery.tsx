@@ -2,7 +2,7 @@
 import { MediaGallery } from '@/shared/components/MediaGallery';
 import { SKELETON_COLUMNS } from '@/shared/components/MediaGallery/utils';
 import { SkeletonGallery } from '@/shared/components/ui/skeleton-gallery';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
 import type { GenerationsPaginatedResponse } from '@/shared/hooks/useProjectGenerations';
 
 interface ResultsGalleryProps {

@@ -3,7 +3,11 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { useSubmissionHandlers } from './formSubmission/useSubmissionHandlers';
+import { useIncomingTaskRunner } from './formSubmission/useIncomingTaskRunner';
+import { usePromptQueueHandlers } from './formSubmission/usePromptQueueHandlers';
+import { useSubmitHandler } from './formSubmission/useSubmitHandler';
+import { useSubmissionOrchestrator } from './formSubmission/useSubmissionOrchestrator';
+import { buildSubmissionRuntimeContext } from './formSubmission/submissionContext';
 import { useTaskParamsBuilder } from './formSubmission/useTaskParamsBuilder';
 import type {
   FormStateSnapshot,
@@ -90,8 +94,9 @@ export function useFormSubmission(props: UseFormSubmissionProps): UseFormSubmiss
     referenceMode,
   });
 
-  return useSubmissionHandlers({
-    effectivePromptMode,
+  const runIncomingTask = useIncomingTaskRunner();
+
+  const submissionContext = buildSubmissionRuntimeContext({
     prompts,
     promptMultiplier,
     imagesPerPrompt,
@@ -99,11 +104,44 @@ export function useFormSubmission(props: UseFormSubmissionProps): UseFormSubmiss
     styleReferenceImageGeneration,
     generationSourceRef,
     selectedTextModelRef,
-    automatedSubmitButton,
-    aiGeneratePrompts,
-    onGenerate,
-    setPrompts,
-    getTaskParams,
-    formStateRef,
+  }, formStateRef);
+
+  const commands = useSubmissionOrchestrator({
+    context: submissionContext,
+    effects: {
+      automatedSubmitButton,
+      aiGeneratePrompts,
+      onGenerate,
+      setPrompts,
+      getTaskParams,
+      runIncomingTask,
+    },
   });
+
+  const handleSubmit = useSubmitHandler({
+    effectivePromptMode,
+    commands: {
+      submitManaged: commands.submitManaged,
+      submitAutomated: commands.submitAutomated,
+    },
+  });
+
+  const {
+    handleGenerateAndQueue,
+    handleUseExistingPrompts,
+    handleNewPromptsLikeExisting,
+  } = usePromptQueueHandlers({
+    commands: {
+      generateAndSubmit: commands.generateAndSubmit,
+      queueExisting: commands.queueExisting,
+      queueLikeExisting: commands.queueLikeExisting,
+    },
+  });
+
+  return {
+    handleSubmit,
+    handleGenerateAndQueue,
+    handleUseExistingPrompts,
+    handleNewPromptsLikeExisting,
+  };
 }

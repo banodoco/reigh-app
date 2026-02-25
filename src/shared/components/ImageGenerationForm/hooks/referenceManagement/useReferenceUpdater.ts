@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type {
   HydratedReferenceImage,
   ProjectImageSettings,
@@ -58,7 +58,7 @@ export function useReferenceUpdater(
         references: updatedReferences,
       });
     } catch (error) {
-      handleError(error, {
+      normalizeAndPresentError(error, {
         context: 'useReferenceManagement.handleUpdateReference',
         toastTitle: 'Failed to update reference settings',
       });

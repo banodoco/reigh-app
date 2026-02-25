@@ -7,7 +7,7 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/shared/components/ui/button';
-import { Label } from '@/shared/components/ui/label';
+import { Label } from '@/shared/components/ui/primitives/label';
 import { Slider } from '@/shared/components/ui/slider';
 import {
   Select,
@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from '@/shared/components/ui/select';
 import { ArrowUp, Loader2, Check } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 
 export interface ImageUpscaleSettings {
   scaleFactor: number;

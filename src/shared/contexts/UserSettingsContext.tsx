@@ -8,11 +8,12 @@ import {
   useCallback,
   useMemo
 } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { UserPreferences } from '@/shared/settings/userPreferences';
 import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
 import { useMobileTimeoutFallback } from '@/shared/hooks/useMobileTimeoutFallback';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 import { useAuth } from './AuthContext';
 
 interface UserSettingsContextType {
@@ -52,19 +53,18 @@ export const UserSettingsProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       // Read the settings JSON for the current user
-      const { data, error } = await supabase
-        .from('users')
+      const { data, error } = await supabase().from('users')
         .select('settings')
         .eq('id', userId)
         .single();
 
       if (error) throw error;
 
-      const settings = (data?.settings as Record<string, unknown> | null)?.['user-preferences'] as UserPreferences ?? {};
+      const settings = (data?.settings as Record<string, unknown> | null)?.[SETTINGS_IDS.USER_PREFERENCES] as UserPreferences ?? {};
       setUserSettings(settings);
       userSettingsRef.current = settings;
     } catch (error) {
-      handleError(error, { context: 'UserSettingsContext', showToast: false });
+      normalizeAndPresentError(error, { context: 'UserSettingsContext', showToast: false });
       // Set empty settings on error instead of leaving undefined
       setUserSettings({});
       userSettingsRef.current = {};
@@ -82,7 +82,7 @@ export const UserSettingsProvider = ({ children }: { children: ReactNode }) => {
       await updateToolSettingsSupabase({
         scope: 'user',
         id: userId,
-        toolId: 'user-preferences',
+        toolId: SETTINGS_IDS.USER_PREFERENCES,
         patch,
       });
 
@@ -93,7 +93,7 @@ export const UserSettingsProvider = ({ children }: { children: ReactNode }) => {
         return merged;
       });
     } catch (error) {
-      handleError(error, { context: 'UserSettingsContext', showToast: false });
+      normalizeAndPresentError(error, { context: 'UserSettingsContext', showToast: false });
     }
   }, [userId]);
 
@@ -159,4 +159,3 @@ export const useUserSettings = () => {
   }
   return context;
 };
-

@@ -1,43 +1,42 @@
 // deno-lint-ignore-file
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { authenticateRequest } from "../_shared/auth.ts";
 import { jsonResponse } from "../_shared/http.ts";
-import { SystemLogger } from "../_shared/systemLogger.ts";
+import { bootstrapEdgeHandler } from "../_shared/edgeHandler.ts";
 
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return jsonResponse({ ok: true });
+  const bootstrap = await bootstrapEdgeHandler(req, {
+    functionName: "revoke-pat",
+    logPrefix: "[REVOKE-PAT]",
+    parseBody: "strict",
+    auth: {
+      options: { allowJwtUserAuth: true },
+    },
+    runtimeOptions: {
+      clientOptions: {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      },
+    },
+  });
+  if (!bootstrap.ok) {
+    return bootstrap.response;
   }
-
-  if (req.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed' }, 405);
-  }
-
-  // Create Supabase client with service role for admin operations
-  const supabaseAdmin = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    }
-  );
-  const logger = new SystemLogger(supabaseAdmin, 'revoke-pat');
+  const { supabaseAdmin, logger, auth, body } = bootstrap.value;
 
   try {
-    const auth = await authenticateRequest(req, supabaseAdmin, "[REVOKE-PAT]", { allowJwtUserAuth: true });
-    if (!auth.success || !auth.userId) {
-      return jsonResponse({ error: auth.error || 'Authentication failed' }, auth.statusCode || 401);
+    if (!auth?.userId) {
+      logger.error('Authentication failed');
+      await logger.flush();
+      return jsonResponse({ error: 'Authentication failed' }, 401);
     }
 
-    // Get request body
-    const { tokenId } = await req.json();
+    const tokenId = typeof body.tokenId === 'string' ? body.tokenId : null;
 
     if (!tokenId) {
+      logger.error('Missing tokenId');
+      await logger.flush();
       return jsonResponse({ error: 'tokenId is required' }, 400);
     }
 
@@ -54,6 +53,8 @@ serve(async (req) => {
       return jsonResponse({ error: 'Failed to revoke token' }, 500);
     }
 
+    logger.info('Revoked PAT token', { user_id: auth.userId, token_id: tokenId });
+    await logger.flush();
     return jsonResponse({ success: true });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';

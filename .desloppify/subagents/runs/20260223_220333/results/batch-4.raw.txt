@@ -1,0 +1,90 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "low_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "low_level_elegance": {
+      "evidence": [
+        "src/shared/components/ShotImageManager/utils/image-utils.ts defines getAspectRatioStyle() as a pure pass-through to resolveAspectRatioStyle() in src/shared/lib/imageAspectRatio.ts, adding an extra wrapper layer with no behavior.",
+        "supabase/functions/complete_task/storage.ts computes objectPath in handleStorageOperations(), then recomputes the same taskOutput path again inside handleThumbnail() instead of consuming the already-determined value.",
+        "src/domains/generation/types/generationMetadata.ts and src/shared/components/ImageGenerationForm/hooks/legacyMigrations/legacyProjectImageSettings.ts both allow open-ended keys ([key: string]: unknown / extends Record<string, unknown>), which keeps migration residue representable indefinitely.",
+        "src/shared/lib/preloading/preloader.ts swallows preload failures with an empty catch and does not record failed IDs/URLs, while supabase/functions/complete_task/storage.ts has multiple best-effort catches that also suppress failure context."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "redundant_aspect_ratio_wrapper",
+      "summary": "Aspect-ratio logic is split by a no-op wrapper, adding indirection without behavior.",
+      "related_files": [
+        "src/shared/components/ShotImageManager/utils/image-utils.ts",
+        "src/shared/lib/imageAspectRatio.ts"
+      ],
+      "evidence": [
+        "getAspectRatioStyle() in image-utils.ts only returns resolveAspectRatioStyle(projectAspectRatio) with no transformation.",
+        "Core implementation already exists in imageAspectRatio.ts, so call sites carry two names for one behavior."
+      ],
+      "suggestion": "Remove getAspectRatioStyle() and call resolveAspectRatioStyle() directly, or move any intended ShotImageManager-specific behavior into the wrapper so the extra layer is justified.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "thumbnail_path_recomputed",
+      "summary": "Thumbnail generation recomputes storage object paths instead of reusing the already-selected upload path.",
+      "related_files": [
+        "supabase/functions/complete_task/storage.ts",
+        "src/shared/lib/storagePaths.ts"
+      ],
+      "evidence": [
+        "handleStorageOperations() sets objectPath using storagePaths.taskOutput(...).",
+        "handleThumbnail() rebuilds objectPath again from userId/taskId/filename before calling generateThumbnail(), duplicating path derivation logic."
+      ],
+      "suggestion": "Pass objectPath from handleStorageOperations() into handleThumbnail() and stop rebuilding it there; keep a single source of path truth per request.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "migration_escape_hatches",
+      "summary": "Open-ended metadata typing preserves legacy fields indefinitely and weakens migration cleanup boundaries.",
+      "related_files": [
+        "src/domains/generation/types/generationMetadata.ts",
+        "src/shared/components/ImageGenerationForm/hooks/legacyMigrations/legacyProjectImageSettings.ts"
+      ],
+      "evidence": [
+        "GenerationMetadata includes [key: string]: unknown, allowing any ad-hoc metadata key beyond documented fields.",
+        "LegacyProjectImageSettings extends Record<string, unknown> while also carrying @deprecated fields and a sunset date, so unknown legacy keys remain structurally valid after migration windows."
+      ],
+      "suggestion": "Replace broad index signatures with explicit extension points (e.g., a nested extra metadata bag) and add strict migration-boundary parsing to reject unknown legacy keys after the removal gate.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "silent_best_effort_failures",
+      "summary": "Best-effort flows suppress failures without recording actionable state, causing opaque behavior and potential repeated work.",
+      "related_files": [
+        "src/shared/lib/preloading/preloader.ts",
+        "supabase/functions/complete_task/storage.ts"
+      ],
+      "evidence": [
+        "preloader.ts catches queue.add() errors and ignores them completely, so callers cannot distinguish failed vs skipped image preloads.",
+        "storage.ts catches errors in generateThumbnail() and cleanupFile() with fallback/console behavior only, dropping structured failure details from function outputs."
+      ],
+      "suggestion": "Track and return lightweight failure metadata in best-effort paths (failed IDs/counts/reasons) so retries and observability are intentional rather than implicit.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

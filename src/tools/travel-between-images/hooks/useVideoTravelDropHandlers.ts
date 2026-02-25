@@ -15,9 +15,9 @@
  */
 
 import { useCallback, useContext } from 'react';
-import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import { Shot } from '@/types/shots';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { Shot } from '@/domains/generation/types';
 import { LastAffectedShotContext } from '@/shared/contexts/LastAffectedShotContext';
 import { useShotCreation } from '@/shared/hooks/useShotCreation';
 
@@ -149,7 +149,7 @@ export const useVideoTravelDropHandlers = ({
       // Update last affected shot so GenerationsPane targets this shot by default
       setLastAffectedShotId?.(shotId);
     } catch (error) {
-      handleError(error, { context: 'useVideoTravelDropHandlers', toastTitle: 'Failed to add to shot' });
+      normalizeAndPresentError(error, { context: 'useVideoTravelDropHandlers', toastTitle: 'Failed to add to shot' });
     }
   }, [selectedProjectId, addImageToShotMutation, addImageToShotWithoutPositionMutation, setLastAffectedShotId]);
 
@@ -222,7 +222,7 @@ export const useVideoTravelDropHandlers = ({
       // Update last affected shot so GenerationsPane targets this shot by default
       setLastAffectedShotId?.(shotId);
     } catch (error) {
-      handleError(error, { context: 'useVideoTravelDropHandlers', toastTitle: 'Failed to add images' });
+      normalizeAndPresentError(error, { context: 'useVideoTravelDropHandlers', toastTitle: 'Failed to add images' });
     }
   }, [selectedProjectId, shots, handleExternalImageDropMutation, setLastAffectedShotId]);
 

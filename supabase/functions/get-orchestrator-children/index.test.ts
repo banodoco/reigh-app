@@ -51,6 +51,11 @@ describe('get-orchestrator-children edge entrypoint', () => {
       },
     });
     __setCreateClientImpl(() => ({}));
+    authenticateRequestMock.mockResolvedValue({
+      success: true,
+      isServiceRole: true,
+      userId: null,
+    });
   });
 
   afterEach(() => {

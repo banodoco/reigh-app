@@ -2,8 +2,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { Alert } from '@/shared/components/ui/alert';
 import { Button } from '@/shared/components/ui/button';
-import { useCredits } from '@/shared/hooks/useCredits';
-import { useApiTokens } from '@/shared/hooks/useApiTokens';
+import { useCredits } from '@/features/billing/hooks/useCredits';
+import { useApiTokens } from '@/features/account/hooks/useApiTokens';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { useAppEventListener } from '@/shared/lib/typedEvents';
 

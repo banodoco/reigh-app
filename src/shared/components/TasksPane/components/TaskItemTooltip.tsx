@@ -4,9 +4,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/shared/components/ui/tooltip';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { Task } from '@/types/tasks';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 import { GenerationDetails } from '@/shared/components/GenerationDetails';
 import type { LoraModel } from '@/shared/components/LoraSelectorModal';
 import { getTaskVariantId } from '../utils/getTaskVariantId';

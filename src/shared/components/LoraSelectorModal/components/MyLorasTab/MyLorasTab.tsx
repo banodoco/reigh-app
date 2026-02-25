@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardFooter as ItemCardFooter, CardH
 import { Input } from "@/shared/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { Textarea } from '@/shared/components/ui/textarea';
-import { Label } from "@/shared/components/ui/label";
+import { Label } from "@/shared/components/ui/primitives/label";
 import { Button } from "@/shared/components/ui/button";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { Pencil, Upload, Link } from 'lucide-react';

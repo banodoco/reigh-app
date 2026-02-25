@@ -1,17 +1,22 @@
 import { useCallback } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
-import { nanoid } from 'nanoid';
-import { toast } from '@/shared/components/ui/sonner';
-import { extractSettingsFromCache, updateSettingsCache } from '@/shared/hooks/useToolSettings';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { updateSettingsCache } from '@/shared/hooks/useToolSettings';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { toOperationResultError } from '@/shared/lib/operationResult';
 import { settingsQueryKeys } from '@/shared/lib/queryKeys/settings';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
+import { runOptimisticCacheUpdate } from './optimisticCacheUpdate';
+import {
+  createReferencePointer,
+  persistReferenceSelection,
+} from './referenceDomainService';
 import type { Resource } from '@/shared/hooks/useResources';
 import type {
   ProjectImageSettings,
   ReferenceImage,
   ReferenceMode,
 } from '../../types';
-import { getReferenceModeDefaults } from '../../types';
 
 interface UseResourceSelectHandlerInput {
   selectedProjectId: string | undefined;
@@ -46,7 +51,7 @@ function applyExistingPointerSelection(input: {
   };
 
   input.queryClient.setQueryData(
-    settingsQueryKeys.tool('project-image-settings', input.selectedProjectId, undefined),
+    settingsQueryKeys.tool(SETTINGS_IDS.PROJECT_IMAGE_SETTINGS, input.selectedProjectId, undefined),
     (prev: unknown) =>
       updateSettingsCache<ProjectImageSettings>(prev, {
         selectedReferenceIdByShot: optimisticUpdate,
@@ -63,7 +68,7 @@ function applyNewPointerSelection(input: {
   newPointer: ReferenceImage;
 }): void {
   input.queryClient.setQueryData(
-    settingsQueryKeys.tool('project-image-settings', input.selectedProjectId, undefined),
+    settingsQueryKeys.tool(SETTINGS_IDS.PROJECT_IMAGE_SETTINGS, input.selectedProjectId, undefined),
     (prev: unknown) =>
       updateSettingsCache<ProjectImageSettings>(prev, (prevSettings) => ({
         references: [...(prevSettings?.references || []), input.newPointer],
@@ -73,35 +78,6 @@ function applyNewPointerSelection(input: {
         },
       }))
   );
-}
-
-function buildReferencePointer(input: {
-  resourceId: string;
-  referenceMode: ReferenceMode;
-  isLocalGenerationEnabled: boolean;
-  styleReferenceStrength: number;
-  subjectStrength: number;
-  inThisScene: boolean;
-  inThisSceneStrength: number;
-}): ReferenceImage {
-  const modeDefaults = input.referenceMode === 'custom'
-    ? {
-        styleReferenceStrength: input.styleReferenceStrength,
-        subjectStrength: input.subjectStrength,
-        inThisScene: input.inThisScene,
-        inThisSceneStrength: input.inThisSceneStrength,
-      }
-    : getReferenceModeDefaults(input.referenceMode, input.isLocalGenerationEnabled);
-
-  return {
-    id: nanoid(),
-    resourceId: input.resourceId,
-    subjectDescription: '',
-    styleBoostTerms: '',
-    referenceMode: input.referenceMode,
-    createdAt: new Date().toISOString(),
-    ...modeDefaults,
-  };
 }
 
 export function useResourceSelectHandler(
@@ -149,7 +125,7 @@ export function useResourceSelectHandler(
         return;
       }
 
-      const newPointer = buildReferencePointer({
+      const newPointer = createReferencePointer({
         resourceId: resource.id,
         referenceMode,
         isLocalGenerationEnabled,
@@ -159,32 +135,27 @@ export function useResourceSelectHandler(
         inThisSceneStrength,
       });
 
-      try {
+      runOptimisticCacheUpdate(() => {
         applyNewPointerSelection({
           queryClient,
           selectedProjectId,
           effectiveShotId,
           newPointer,
         });
-      } catch (error) {
-        handleError(error, {
-          context: 'useReferenceUpload.handleResourceSelect.optimisticUpdate',
-          showToast: false,
-        });
-      }
+      }, 'useReferenceUpload.handleResourceSelect.optimisticUpdate');
 
-      const currentData = extractSettingsFromCache<ProjectImageSettings>(
-        queryClient.getQueryData(settingsQueryKeys.tool('project-image-settings', selectedProjectId, undefined))
-      ) || {};
-
-      await updateProjectImageSettings('project', {
-        references: currentData.references || [],
-        selectedReferenceIdByShot: currentData.selectedReferenceIdByShot || {},
+      const persistResult = await persistReferenceSelection({
+        queryClient,
+        selectedProjectId,
+        updateProjectImageSettings,
       });
+      if (!persistResult.ok) {
+        throw toOperationResultError(persistResult);
+      }
 
       markAsInteracted();
     } catch (error) {
-      handleError(error, {
+      normalizeAndPresentError(error, {
         context: 'useReferenceUpload.handleResourceSelect',
         toastTitle: 'Failed to add reference',
       });

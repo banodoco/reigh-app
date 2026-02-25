@@ -1,10 +1,10 @@
 import React, { RefObject } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
 import { Checkbox } from '@/shared/components/ui/checkbox';
-import { Label } from '@/shared/components/ui/label';
-import { Shot } from '@/types/shots';
+import { Label } from '@/shared/components/ui/primitives/label';
+import { Shot } from '@/domains/generation/types';
 import { SHOT_FILTER, isSpecialFilter } from '@/shared/constants/filterConstants';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 
 interface ShotFilterProps {
   shots: Shot[];

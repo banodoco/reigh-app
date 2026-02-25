@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toJson } from '../supabaseTypeHelpers';
+import { isJsonValue, toJson } from '../supabaseTypeHelpers';
 
 describe('toJson', () => {
   it('returns the same object reference', () => {
@@ -21,5 +21,23 @@ describe('toJson', () => {
     const result = toJson(payload);
 
     expect(result).toEqual(payload);
+  });
+
+  it('sanitizes non-json runtime values', () => {
+    const now = new Date('2026-01-01T00:00:00Z');
+    const payload = { when: now, keep: 'yes', skip: undefined };
+    const result = toJson(payload) as Record<string, unknown>;
+
+    expect(result).toEqual({
+      when: now.toISOString(),
+      keep: 'yes',
+    });
+    expect(isJsonValue(result)).toBe(true);
+  });
+
+  it('returns null for circular objects', () => {
+    const payload: Record<string, unknown> = {};
+    payload.self = payload;
+    expect(toJson(payload)).toBeNull();
   });
 });

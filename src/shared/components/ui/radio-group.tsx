@@ -3,7 +3,7 @@ import { RadioGroup as RadioGroupPrimitive } from "@base-ui-components/react/rad
 import { Radio as RadioPrimitive } from "@base-ui-components/react/radio"
 import { Circle } from "lucide-react"
 
-import { cn } from "@/shared/lib/utils"
+import { cn } from "@/shared/components/ui/contracts/cn"
 
 const RadioGroup = React.forwardRef<
   HTMLDivElement,

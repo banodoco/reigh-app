@@ -1,0 +1,94 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "high_level_elegance": 68.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/handleError.ts` mixes normalization/logging with a global browser event bus (`registeredNotifier`, `removeNotifierListener`, `window.addEventListener`), making one shared module own multiple architectural responsibilities.",
+        "`src/shared/components/MediaGallery/hooks/useMediaGalleryController.ts` and `src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts` depend on large nested context/handler bags and many setter callbacks, indicating weak ownership boundaries and broad ripple surfaces.",
+        "Install UX is split across a selector matrix in `src/pages/Home/components/installInstructions/scenarios.ts`, a large visual component registry in `src/pages/Home/components/installInstructions/visuals.tsx`, and orchestration in `src/pages/Home/components/InstallInstructionsModal.tsx`, so one capability requires coordinated edits across multiple files."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "error_hub_multi_responsibility",
+      "summary": "Central error handler has become a cross-layer hub with global runtime coordination responsibilities.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/hooks/useMobile.tsx",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` owns normalization, logging, notification payload shaping, and browser event dispatch/listener lifecycle (`configureErrorNotifier`, `emitErrorNotification`).",
+        "Leaf hooks/features (`useMobile.tsx`, `useMediaGalleryHandlers.ts`) call this same hub directly for unrelated concerns, concentrating ownership in a shared singleton-like module."
+      ],
+      "suggestion": "Split into explicit layers: a pure domain error normalizer/logger module, plus a separate app-shell notification adapter. Keep shared hooks dependent on a narrow error-reporting interface injected at composition boundaries.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "global_singleton_bootstrap_coupling",
+      "summary": "Global singleton state and boot-order assumptions are encoded in shared runtime modules.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "`client.ts` uses module-level mutable singletons (`instrumentationInstalled`, `clientInstance`) and performs runtime setup through `buildSupabaseClient()`.",
+        "`handleError.ts` keeps module-level mutable notifier state and listener teardown handles, requiring careful sequencing of `configureErrorNotifier` calls."
+      ],
+      "suggestion": "Move global runtime initialization into explicit app bootstrap composition (single entrypoint), and expose stateless factories/interfaces from shared modules so importers do not rely on hidden module-level lifetime state.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "install_flow_scattered_ownership",
+      "summary": "Install-instructions capability is fragmented across logic, registry, and modal orchestration, increasing change scatter.",
+      "related_files": [
+        "src/pages/Home/components/InstallInstructionsModal.tsx",
+        "src/pages/Home/components/installInstructions/scenarios.ts",
+        "src/pages/Home/components/installInstructions/visuals.tsx"
+      ],
+      "evidence": [
+        "Scenario selection (`resolveInstallVisualKey`) is a conditional matrix in one file while visual implementations and key registry live in another large file.",
+        "Modal composition must coordinate title, selected key, registry lookup, and fallback action behavior, spreading one feature across three architectural roles without a single owned boundary."
+      ],
+      "suggestion": "Create one install-instructions feature module per scenario (title + instructions + visual component) behind a single resolver contract, so adding/changing a scenario is mostly localized to one unit.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "ui_state_orchestration_prop_drilling",
+      "summary": "UI open/close orchestration is passed through many setter props rather than owned by cohesive state boundaries.",
+      "related_files": [
+        "src/pages/Home/components/CreativePartnerPane.tsx",
+        "src/shared/components/ConfirmDialog.tsx",
+        "src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx",
+        "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx"
+      ],
+      "evidence": [
+        "Multiple components accept raw `(open: boolean) => void` setters and local open flags (`setEcosystemTipOpen`, `onOpenChange`, `setIsInfoOpen`, `setIsShotSelectorOpen`) as part of their public contracts.",
+        "This repeats across unrelated dialogs/tooltips/selectors, showing shared interaction patterns are not encapsulated behind reusable stateful boundary components."
+      ],
+      "suggestion": "Introduce focused controller hooks or compound components per interaction pattern (dialog, tooltip, selector) that own open-state transitions internally and expose narrower semantic callbacks.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

@@ -1,0 +1,118 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "cross_module_architecture": 81.0,
+    "test_strategy": 79.0,
+    "package_organization": 76.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "README.md declares `src/shared/lib/errorHandling/handleError.ts` canonical for runtime normalization while also documenting deprecated aliases (`handleError`, `handleAndRethrow`) with removal target 2026-06-30.",
+        "`src/shared/lib/errorHandling/handleError.ts` still exports both canonical and deprecated APIs from the same module, so compatibility and canonical contracts share one import surface instead of separate boundaries.",
+        "Holistic context flags `src/shared/lib/errorHandling/handleError.ts` as a high-blast-radius hub (240 importers), which increases migration risk when deprecated symbols remain co-located with canonical exports."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "test_strategy": {
+      "evidence": [
+        "README.md defines governance test gates (`test:contracts`, `test:arch`, `quality:check`) for facade/contract changes, implying contract-level protection is required.",
+        "`src/shared/lib/errorHandling/handleError.ts` encodes a dated compatibility policy (`@removalTarget 2026-06-30`) but no dedicated contract test is co-located in `src/shared/lib/errorHandling/__tests__/` to fail when deprecated exports persist or are newly consumed.",
+        "`src/shared/components/ui/theme/button.tsx` is documented as a stable canonical UI contract in README, but the visible direct contract test among assigned UI contract files is only for `cn` (`src/shared/components/ui/__tests__/cn.contract.test.ts`), leaving the high-import button surface without equivalent contract coverage."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    },
+    "package_organization": {
+      "evidence": [
+        "Holistic `directory_profiles` shows `src/shared/components/ui/` has 57 files with mixed concerns (primitives, themed variants, hooks, runtime wiring, tests), exceeding the '>10 mixed concerns' overload signal.",
+        "`src/shared/components/ui/theme/button.tsx` depends on parent-level `Slot` and `baseButton` plus primitive `cn`, indicating the theme package is not an independent boundary but a partial layer inside a crowded parent package.",
+        "Holistic coupling shows heavy edge fan from `src/shared/components/ → src/shared/components/ui/` (50) and `src/shared/components/ui/ → src/shared/components/ui/primitives/` (35), consistent with a high-friction, central UI package with weakly separated sub-ownership."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "error_contract_and_compat_layer_co_located",
+      "summary": "Canonical and deprecated error APIs share one hub module, weakening migration boundaries",
+      "related_files": [
+        "README.md",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "README matrix marks deprecated aliases in `handleError.ts` with a concrete removal target (2026-06-30), but the same file is still the canonical contract entrypoint.",
+        "`handleError.ts` exports both `normalizeAndPresent*` and deprecated `handleError`/`handleAndRethrow`, so callers can keep importing legacy names from the canonical path indefinitely.",
+        "The file is a high-import hub in holistic context, so mixed canonical+legacy exports amplify blast radius and delay compatibility cleanup."
+      ],
+      "suggestion": "Split compatibility from canonical surface: keep `handleError.ts` exporting only canonical `normalizeAndPresentError`/`reportRuntimeError`/`normalizeAndPresentAndRethrow`, move deprecated aliases to a dedicated compat module (for example `errorHandling/compat/legacyHandleError.ts`), then route all temporary alias imports through that module and enforce a no-new-imports check on the compat path.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "compatibility_contracts_not_physically_isolated"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "governance_policy_lacks_contract_assertions_for_high_risk_surfaces",
+      "summary": "Governance policies are documented, but high-risk contract surfaces lack dedicated gate tests",
+      "related_files": [
+        "README.md",
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/ui/theme/button.tsx",
+        "src/shared/components/ui/primitives/cn.ts"
+      ],
+      "evidence": [
+        "README requires governance gates before merging contract changes, but assigned contract files are not equally protected by dedicated contract tests.",
+        "`handleError.ts` includes deprecation metadata and removal date, yet no file-local contract test in the errorHandling test folder verifies alias retirement progress or blocks regressions.",
+        "`cn.ts` has a contract test in the UI package, while `theme/button.tsx` is also labeled stable canonical in README without equivalent explicit contract coverage visible near the contract file."
+      ],
+      "suggestion": "Add governance contract tests for each canonical surface: (1) `src/shared/lib/errorHandling/__tests__/handleError.contract.test.ts` asserting canonical exports and explicit deprecation policy behavior, (2) `src/shared/components/ui/__tests__/button.contract.test.ts` asserting import path, export shape, and variant API compatibility, then include both in the contract test globs used by governance gates.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "contract_docs_outpace_enforcement_tests"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "ui_package_overloaded_with_cross_cutting_concerns",
+      "summary": "UI package is oversized and mixes primitives/theme/runtime concerns, obscuring ownership",
+      "related_files": [
+        "src/shared/components/ui/theme/button.tsx",
+        "src/shared/components/ui/primitives/cn.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "Holistic structure shows `src/shared/components/ui/` at 57 files with mixed component, primitive, runtime, and test responsibilities.",
+        "`theme/button.tsx` still composes from parent-level `Slot` and `baseButton` and primitive `cn`, showing partial layering rather than clear package boundaries.",
+        "Coupling matrix shows high concentration through this package (`shared/components -> ui` and `ui -> ui/primitives`), increasing navigation and change coordination costs."
+      ],
+      "suggestion": "Staged reorg plan: Stage 1 create target folders `src/shared/components/ui/contracts/`, `src/shared/components/ui/primitives/`, `src/shared/components/ui/themes/app/`, `src/shared/components/ui/runtime/`, `src/shared/components/ui/composites/`. Stage 2 move files in order: contract-entry files first (`theme/button.tsx`, `primitives/cn.ts`) to `contracts/`, then migrate implementation files (`baseButton.tsx`, `buttonThemeVariants.ts`, `Slot.tsx`) under `themes/app` and `primitives`, then move runtime presenters (`registerToastErrorPresenter.ts`, sonner runtime) into `runtime`. Stage 3 run import updates and validation with `rg -n \"@/shared/components/ui/(theme/button|primitives/cn|baseButton|Slot)\" src`, then `npm run test:contracts`, `npm run test:arch`, and `npm run quality:check` to verify no contract regressions.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "ui_boundary_not_partitioned_by_responsibility"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Compatibility policy is documented but not physically isolated in module structure.",
+      "Governance gates exist at process level, but contract-specific tests are uneven across canonical surfaces.",
+      "UI package growth outpaced responsibility-based folder partitioning."
+    ],
+    "likely_symptoms": [
+      "error_contract_and_compat_layer_co_located",
+      "governance_policy_lacks_contract_assertions_for_high_risk_surfaces",
+      "ui_package_overloaded_with_cross_cutting_concerns"
+    ],
+    "possible_false_positives": [
+      "If undiscovered external CI checks already enforce button contract coverage, the button-specific test gap impact may be lower."
+    ]
+  }
+}

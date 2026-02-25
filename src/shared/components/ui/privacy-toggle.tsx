@@ -1,7 +1,7 @@
 import * as React from "react"
 import { Globe, Lock } from "lucide-react"
 import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from "@/shared/lib/utils"
+import { cn } from "@/shared/components/ui/contracts/cn"
 
 const privacyToggleVariants = cva(
   "inline-flex items-center",

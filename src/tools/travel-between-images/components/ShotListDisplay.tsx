@@ -16,24 +16,25 @@ import {
   sortableKeyboardCoordinates,
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
-import { Shot } from '@/types/shots';
+import { Shot } from '@/domains/generation/types';
 import SortableShotItem, { type DropOptions } from './SortableShotItem';
 import { Button } from '@/shared/components/ui/button';
 import { useReorderShots } from '@/shared/hooks/shots';
 import { useShots } from '@/shared/contexts/ShotsContext';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useQueryClient } from '@tanstack/react-query';
-import { toast } from '@/shared/components/ui/sonner';
-import { cn } from '@/shared/lib/utils';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { cn } from '@/shared/components/ui/contracts/cn';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { Plus, Upload, Loader2 } from 'lucide-react';
-import { getDragType, getGenerationDropData, isFileDrag, type GenerationDropData, type DragType } from '@/shared/lib/dragDrop';
+import { getDragType, getGenerationDropData, isFileDrag, type GenerationDropData, type DragType } from '@/shared/lib/dnd/dragDrop';
 import { isVideoGeneration } from '@/shared/lib/typeGuards';
 import { shotQueryKeys } from '@/shared/lib/queryKeys/shots';
 import { useShotFinalVideos } from '../hooks/useShotFinalVideos';
 import { useAppEventListener } from '@/shared/lib/typedEvents';
 
 interface ShotListDisplayProps {
+  projectId: string;
   onSelectShot: (shot: Shot) => void;
   onCreateNewShot?: () => void;
   shots?: Shot[]; // Optional - if not provided, will use context
@@ -51,10 +52,12 @@ interface ShotListDisplayProps {
 }
 
 const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
+  projectId,
   onSelectShot,
   onCreateNewShot,
   shots: propShots,
   sortMode = 'ordered',
+  onSortModeChange,
   highlightedShotId,
   onGenerationDropOnShot,
   onGenerationDropForNewShot,
@@ -65,13 +68,14 @@ const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
   // Get hooks first before using them in useMemo
   const { isLoading: shotsLoading, error: shotsError } = useShots();
   const { selectedProjectId: currentProjectId, projects } = useProject();
+  const effectiveProjectId = projectId || currentProjectId;
   const currentProject = React.useMemo(
     () => projects.find((project) => project.id === currentProjectId) || null,
     [projects, currentProjectId]
   );
   const reorderShotsMutation = useReorderShots();
   const queryClient = useQueryClient();
-  const { finalVideoMap } = useShotFinalVideos(currentProjectId);
+  const { finalVideoMap } = useShotFinalVideos(effectiveProjectId);
   const [optimisticShots, setOptimisticShots] = React.useState<Shot[] | null>(null);
   
   // Always use props shots to ensure single source of truth, with optional local optimistic overlay
@@ -178,7 +182,7 @@ const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
-    if (!over || !shots || !currentProjectId) {
+    if (!over || !shots || !effectiveProjectId) {
       return;
     }
 
@@ -203,7 +207,7 @@ const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
       setOptimisticShots(shotsWithNewPositions);
 
       // Optimistically update the unlimited shots cache (used by ShotsContext -> useListShots(projectId))
-      queryClient.setQueryData(shotQueryKeys.list(currentProjectId, 0), shotsWithNewPositions);
+      queryClient.setQueryData(shotQueryKeys.list(effectiveProjectId, 0), shotsWithNewPositions);
 
       // Generate position updates for database
       const shotOrders = reorderedShots.map((shot, index) => ({
@@ -213,12 +217,14 @@ const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
 
       // Update positions in database
       reorderShotsMutation.mutate(
-        { projectId: currentProjectId, shotOrders },
+        { projectId: effectiveProjectId, shotOrders },
         {
           onError: (error) => {
-            // Revert optimistic updates on both caches on error
-            queryClient.setQueryData(shotQueryKeys.list(currentProjectId), shots);
-            queryClient.setQueryData(shotQueryKeys.list(currentProjectId, 5), shots);
+            // Revert optimistic updates across all shot-list cache variants for this project.
+            queryClient.setQueriesData(
+              { queryKey: [...shotQueryKeys.all, effectiveProjectId] },
+              shots
+            );
             toast.error(`Failed to reorder shots: ${error.message}`);
           },
         }
@@ -386,7 +392,7 @@ const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
       try {
         await onGenerationDropForNewShot(generationData);
       } catch (error) {
-        handleError(error, { context: 'ShotDrop', toastTitle: 'Failed to create shot' });
+        normalizeAndPresentError(error, { context: 'ShotDrop', toastTitle: 'Failed to create shot' });
         clearPendingNewShot();
       }
       return;
@@ -409,7 +415,7 @@ const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
       try {
         await onFilesDropForNewShot(validFiles);
       } catch (error) {
-        handleError(error, { context: 'ShotDrop', toastTitle: 'Failed to create shot' });
+        normalizeAndPresentError(error, { context: 'ShotDrop', toastTitle: 'Failed to create shot' });
         clearPendingNewShot();
       }
     }
@@ -610,7 +616,8 @@ const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
                 key={shot.id}
                 shot={shot}
                 onSelectShot={() => onSelectShot(shot)}
-                currentProjectId={currentProjectId}
+                onDuplicateShot={() => onSortModeChange?.('newest')}
+                currentProjectId={effectiveProjectId}
                 isDragDisabled={isDragDisabled}
                 disabledReason={sortMode !== 'ordered' ? 'Only available in ordered mode' : undefined}
                 shouldLoadImages={true} // Always load images since they're from context

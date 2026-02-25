@@ -1,0 +1,119 @@
+{
+  "batch": "Design Coherence — Mechanical Concern Signals",
+  "batch_index": 7,
+  "assessments": {
+    "design_coherence": 61.0
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "Image lightbox concerns are split into many helper hooks but still recomposed as a very large render model object with multiple grouped memo bundles and cross-cutting behavior assembly (src/shared/components/MediaLightbox/ImageLightbox.tsx:521-747), while the edit orchestrator exposes a very wide state/action surface (src/shared/components/MediaLightbox/hooks/useImageEditOrchestrator.ts:470-540).",
+        "Timeline flow remains orchestration-heavy at both hook and component levels: useTimelineOrchestrator has a large prop contract and return contract (src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts:22-140), and Timeline.tsx still coordinates navigation, lightbox task loading, adapter wrappers, preloading, event wiring, and reset-frame logic in one component (src/tools/travel-between-images/components/Timeline.tsx:288-461).",
+        "Parallel UI pane implementations repeat structural mechanics (mobile backdrop interception, lock/open sync, delayed pointer-events enablement) in sibling panes instead of a shared pane-shell abstraction (src/shared/components/TasksPane/TasksPane.tsx:288-340 and src/shared/components/GenerationsPane/GenerationsPane.tsx:259-335), with additional lock/open coupling logic in context (src/shared/contexts/PanesContext.tsx:98-137).",
+        "Supabase edge handlers repeatedly inline the same request pipeline (env check, admin client creation, logger, method/body validation, auth, response patterns) across endpoints (supabase/functions/claim-next-task/index.ts:42-86, supabase/functions/get-task-output/index.ts:31-82, supabase/functions/get-completed-segments/index.ts:26-73), while some siblings additionally duplicate local CORS/jsonResponse wrappers (supabase/functions/setup-auto-topup/index.ts:6-19 and supabase/functions/complete-auto-topup-setup/index.ts:7-20)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "lightbox_state_surface_overload",
+      "summary": "Image lightbox design still centralizes too many responsibilities behind broad state bundles and orchestration outputs.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useImageEditOrchestrator.ts",
+        "src/shared/components/MediaLightbox/components/EditModePanel.tsx"
+      ],
+      "evidence": [
+        "ImageLightbox composes core/media/variants/navigation/action workflows plus panel visibility/layout concerns in one render-model path (ImageLightbox.tsx:544-736).",
+        "useImageEditOrchestrator returns a very wide aggregate object spanning mode toggles, stroke editing, reposition transforms, prompt/lora/model settings, and generation status flags (useImageEditOrchestrator.ts:470-540).",
+        "EditModePanel consumes that broad orchestration surface, reinforcing a high-coupling API between display and edit subsystems."
+      ],
+      "suggestion": "Split orchestration by explicit mode domains (inpaint, magic-edit, reposition, img2img) with narrow typed adapters per panel; keep lightbox render model focused on layout and navigation only.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "timeline_orchestration_sprawl",
+      "summary": "Timeline behavior is distributed across large component and large hook contracts, creating unclear ownership boundaries.",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline.tsx",
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts",
+        "src/shared/hooks/useTimelineCore.ts"
+      ],
+      "evidence": [
+        "useTimelineOrchestrator defines a very large input and output interface combining drag/drop, zoom, selection, endpoint editing, and structure-video flows (useTimelineOrchestrator.ts:22-140).",
+        "Timeline.tsx still handles lightbox task lookup, adjacent segment composition, add-to-shot adapters, image preloading, app-event subscriptions, and frame reset logic together (Timeline.tsx:304-419).",
+        "useTimelineCore independently owns positioning/prompt/metadata mutations and query invalidation orchestration (useTimelineCore.ts:664-719), creating overlapping orchestration layers."
+      ],
+      "suggestion": "Introduce a timeline application-service boundary: one domain hook for mutation/query operations, one interaction hook for UI gestures, and keep Timeline.tsx as a thin composition/view layer.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "shot_selector_design_duplication",
+      "summary": "Two different ShotSelector components implement overlapping selection/create/navigation behavior with diverged APIs and UX contracts.",
+      "related_files": [
+        "src/shared/components/ShotSelector.tsx",
+        "src/shared/components/ImageGenerationForm/components/ShotSelector.tsx",
+        "src/shared/components/ImageGenerationForm/components/PromptInputRow.tsx"
+      ],
+      "evidence": [
+        "There are two separate `ShotSelector` implementations with different prop shapes and interaction models (shared/ShotSelector.tsx vs ImageGenerationForm/components/ShotSelector.tsx).",
+        "Both own shot selection plus auxiliary actions (create/jump/clear), but one uses popover+command search and quick-create semantics while the other uses select+inline actions, increasing behavioral drift risk.",
+        "Callers in image generation paths must depend on form-local selector semantics instead of a shared domain selector contract."
+      ],
+      "suggestion": "Converge on a single domain-level selector primitive with optional feature flags/slots for create/visit/clear actions; keep style variants separate from behavior contracts.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "pane_shell_logic_repeated",
+      "summary": "Pane interaction mechanics are repeated across sibling panes instead of being modeled once.",
+      "related_files": [
+        "src/shared/components/TasksPane/TasksPane.tsx",
+        "src/shared/components/GenerationsPane/GenerationsPane.tsx",
+        "src/shared/contexts/PanesContext.tsx"
+      ],
+      "evidence": [
+        "Both pane components implement near-parallel backdrop event swallowing (`onTouchStart`/`onPointerDown` with preventDefault/stopPropagation + closePane) and pane-control-tab wiring (TasksPane.tsx:324-363, GenerationsPane.tsx:259-315).",
+        "Both implement animation/pointer-event guard behavior in UI-layer code rather than through shared pane lifecycle primitives (TasksPane.tsx:305-317; GenerationsPane.tsx inner wrapper pointer-event gating).",
+        "PanesContext additionally carries lock/open synchronization logic specific to tasks pane behavior, indicating distributed pane state policy (PanesContext.tsx:98-137)."
+      ],
+      "suggestion": "Create a shared `PaneShell` abstraction with standardized backdrop, pointer-gating, and open/lock synchronization hooks, then keep each pane focused on content and pane-specific actions.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "edge_handler_pipeline_duplication",
+      "summary": "Supabase edge handlers repeat the same request lifecycle structure, leading to copy-driven endpoint design.",
+      "related_files": [
+        "supabase/functions/claim-next-task/index.ts",
+        "supabase/functions/get-task-output/index.ts",
+        "supabase/functions/get-completed-segments/index.ts",
+        "supabase/functions/setup-auto-topup/index.ts",
+        "supabase/functions/complete-auto-topup-setup/index.ts"
+      ],
+      "evidence": [
+        "Multiple handlers inline the same sequence: env validation, createClient, logger creation, method gate, body parse, authenticateRequest, and error response mapping (claim-next-task.ts:42-86; get-task-output.ts:31-82; get-completed-segments.ts:26-73).",
+        "Auto-topup endpoints locally redefine near-identical CORS/jsonResponse scaffolding (setup-auto-topup.ts:6-19; complete-auto-topup-setup.ts:7-20).",
+        "This repetition creates structural inconsistency in parsing details (`req.text` + JSON.parse vs `req.json`) and response style (`new Response` vs helper), indicating missing shared endpoint skeleton."
+      ],
+      "suggestion": "Introduce a shared edge-function handler factory (method/body/auth/env/logger policy) and unify per-endpoint logic to pure business handlers.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

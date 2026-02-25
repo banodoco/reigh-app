@@ -1,0 +1,128 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 82.0,
+    "high_level_elegance": 79.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "Global access patterns rely on bootstrap ordering rather than explicit dependency injection: `getSupabaseClient()` is callable anywhere while initialization is only documented in comments (`src/integrations/supabase/client.ts:17-19`) and the packet marks this module as a high-import hub.",
+        "Several high-import modules are ultra-thin pass-through facades (`runtimeError.ts`, `types/public.ts`, `ui/tooltip.ts`, `hooks/mobile/index.ts`) that concentrate dependency traffic without enforcing stronger boundaries, increasing blast radius when internals move.",
+        "Media gallery coordination crosses hooks/components through large callback/state bags (`useMediaGalleryHandlers`, `useMediaGalleryItemState`, `ShotActions`), indicating subsystem behavior is orchestrated across module seams instead of behind one boundary."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "UI ownership is fragmented by inconsistent modal contracts (`open/onOpenChange` vs `isOpen/onClose`) across sibling components (`InstallInstructionsModal`, `DescriptionModal`), which forces adapter glue and weakens predictable composition patterns.",
+        "Media gallery UI responsibilities are decomposed into many files but still require broad prop drilling and state shuttling (`ShotActions` interfaces + `useMediaGalleryHandlers` argument bag), signaling missing domain-level view model seams.",
+        "Shared hooks/services embed direct browser runtime mechanics (`window`, `document`, `XMLHttpRequest`, dynamic zip import) in feature-level units (`useMobileInteractions`, `downloadService`), reducing portability and making ownership between UI/runtime concerns less clear."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "supabase_bootstrap_order_coupling",
+      "summary": "Supabase client access depends on implicit global initialization order, creating fragile cross-module coupling.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/runtimeError.ts"
+      ],
+      "evidence": [
+        "`getSupabaseClient()` has a comment-only precondition that `initializeSupabase()` must already have run (`src/integrations/supabase/client.ts:17-19`), but the API surface does not encode or enforce this.",
+        "This module is a high-import runtime gateway per the packet, so any call-site that runs before bootstrap can fail in a broad blast radius.",
+        "The same global-runtime access pattern appears in other shared gateways (`runtimeError.ts` re-export + side-effect helper), reinforcing a cross-module singleton pattern instead of explicit dependency flow."
+      ],
+      "suggestion": "Replace ambient singleton access with an explicit provider/factory boundary: initialize once at app root, pass client through context or injected service interfaces, and make pre-initialization calls unrepresentable at type level.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "ambient_singleton_gateways"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "hub_facade_boundary_dilution",
+      "summary": "High-import facade files act as traffic hubs without meaningful boundary contracts, diluting module ownership.",
+      "related_files": [
+        "src/shared/lib/errorHandling/runtimeError.ts",
+        "src/domains/generation/types/public.ts",
+        "src/shared/components/ui/tooltip.tsx",
+        "src/shared/hooks/mobile/index.ts"
+      ],
+      "evidence": [
+        "`runtimeError.ts` and `types/public.ts` are mostly re-export surfaces with minimal local semantics, yet are heavily imported according to the packet.",
+        "`tooltip.tsx` and `hooks/mobile/index.ts` similarly aggregate exports, which centralizes import paths but does not enforce layering or prevent dependency creep.",
+        "When these facades become the dominant import entry points, internal reorganizations or API drifts tend to ripple widely because the hub has many dependents but little contract strictness."
+      ],
+      "suggestion": "Keep only stable, intentional facades and split generic pass-through hubs by bounded context (e.g., domain API vs UI runtime API). Add explicit layering rules for what each facade may export.",
+      "confidence": "medium",
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "ambient_singleton_gateways"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "media_gallery_coordination_scatter",
+      "summary": "Media gallery behavior is scattered across many modules that exchange large state/callback bundles, indicating missing subsystem-level abstraction.",
+      "related_files": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+        "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx"
+      ],
+      "evidence": [
+        "`useMediaGalleryHandlers` takes a large argument object with many setters and cross-feature callbacks (`src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts:16-42`).",
+        "`ShotActions` defines multiple prop-group interfaces (`selector`, `status`, `quickCreate`, `actions`) to ferry distributed state and behavior (`src/shared/components/MediaGalleryItem/components/ShotActions.tsx:15-63`).",
+        "`useMediaGalleryItemState` owns many UI flags and modal states that are then orchestrated externally, showing coordination burden spread over hook/component seams (`src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts:10-32`)."
+      ],
+      "suggestion": "Introduce a single `MediaGalleryItemController` (or view-model hook) that exposes intent-level commands and derived view state, reducing cross-file prop drilling and consolidating workflow ownership.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "missing_feature_orchestrator"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "modal_contract_fragmentation",
+      "summary": "Sibling modal components use inconsistent control contracts, reducing compositional predictability.",
+      "related_files": [
+        "src/pages/Home/components/install/InstallInstructionsModal.tsx",
+        "src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx",
+        "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx"
+      ],
+      "evidence": [
+        "`InstallInstructionsModal` uses `open` + `onOpenChange` (`src/pages/Home/components/install/InstallInstructionsModal.tsx:6-8`).",
+        "`DescriptionModal` uses `isOpen` + `onClose` but passes `onClose` directly to `onOpenChange` (`src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx:13`), mixing semantic styles.",
+        "Other UI surfaces continue boolean setter wiring (`setIsInfoOpen`) instead of intent-based handlers (`src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx:19,38`), reinforcing fragmented ownership conventions."
+      ],
+      "suggestion": "Standardize modal/overlay contracts across shared UI (`open`, `onOpenChange(nextOpen:boolean)`) and adapt legacy callers at boundaries only, so feature code composes one predictable interface style.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "missing_feature_orchestrator"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Ambient singleton/facade patterns are used for convenience but leave dependency direction implicit.",
+      "Feature orchestration lacks a single owning abstraction, so state and commands are spread across hooks and presentation components.",
+      "Shared UI contract conventions are not consistently enforced across domains."
+    ],
+    "likely_symptoms": [
+      "media_gallery_coordination_scatter",
+      "modal_contract_fragmentation",
+      "hub_facade_boundary_dilution"
+    ],
+    "possible_false_positives": [
+      "Some thin facade modules may be intentionally stable API surfaces, but evidence still shows boundary-dilution risk due to concentration and low contract strictness."
+    ]
+  }
+}

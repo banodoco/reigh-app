@@ -1,0 +1,119 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 8,
+  "assessments": {
+    "type_safety": 69.0,
+    "structure_navigability": 62.0,
+    "naming_quality": 74.0
+  },
+  "dimension_notes": {
+    "type_safety": {
+      "evidence": [
+        "Dynamic payload surfaces are widely represented as Record<string, unknown> and cast back into concrete shapes (e.g., src/shared/lib/tasks/joinClips.ts:345,368,464 and src/shared/lib/tasks/imageGeneration.ts:327,348,426).",
+        "Parser-heavy modules rely on permissive casting and null/fallback behavior instead of explicit schema contracts (e.g., src/shared/lib/taskParamsUtils.ts:11,24-33,63 and src/shared/lib/generationTransformers.ts:335,456).",
+        "UI and runtime glue code still accepts unknown state and narrows ad hoc (e.g., src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts:114-126 and src/shared/components/ImageGenerationDetails.tsx:12-14,56)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "structure_navigability": {
+      "evidence": [
+        "Very large multi-responsibility files increase cognitive load and search cost: src/shared/lib/taskParamsUtils.ts (850 lines), src/shared/components/MediaLightbox/ImageLightbox.tsx (766 lines), src/tools/join-clips/pages/JoinClipsPage.tsx (605 lines).",
+        "Single modules combine domain orchestration + data shaping + UI-state concerns (e.g., src/shared/lib/tasks/joinClips.ts:340-538 builds contracts, payloads, mode routing; src/shared/realtime/DataFreshnessManager.ts centralizes state, policies, diagnostics, UI toast side effects).",
+        "Cross-layer flow is hard to trace because canonical transformations are split across overlapping utilities (src/shared/lib/taskParamsUtils.ts and src/shared/lib/generationTransformers.ts both act as normalization hubs)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "naming_quality": {
+      "evidence": [
+        "Generic identifiers dominate critical paths (`params`, `data`, `base`, `payload`, `details`), reducing semantic precision in orchestrator and parsing code (e.g., src/shared/lib/tasks/joinClips.ts:341-469; src/shared/lib/taskParamsUtils.ts:63-123).",
+        "Parallel primitives use divergent vocabulary for similar concepts (`OperationFailurePolicy`/`operationFailure` vs `EdgeFailurePolicy`/`edgeFailure`), making API discovery less predictable (src/shared/lib/operationResult.ts:1-61, supabase/functions/_shared/edgeOperation.ts:1-53).",
+        "Event names mix styles and specificity levels in a single map (`openSettings`, `mobilePaneOpen`, `timeline:pending-add`, `realtime:auth-heal`), which increases naming entropy over time (src/shared/lib/typedEvents.ts:8-45)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "type_safety",
+      "identifier": "record_unknown_payload_contract_gap",
+      "summary": "Core task payload contracts rely on permissive Record<string, unknown> objects and cast-based parsing instead of explicit typed schemas.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/imageGeneration.ts",
+        "src/shared/lib/taskParamsUtils.ts",
+        "src/shared/lib/generationTransformers.ts"
+      ],
+      "evidence": [
+        "joinClips payload builders and mode helpers return Record<string, unknown> throughout orchestration assembly (src/shared/lib/tasks/joinClips.ts:345,368,419,464,482,500,510,528).",
+        "imageGeneration also returns unstructured payload records for task params (src/shared/lib/tasks/imageGeneration.ts:327,348,426).",
+        "Downstream consumers re-interpret these records using cast-and-probe logic, e.g. `item.shot_data as Record<string, unknown>` and `(variant.params ?? {}) as Record<string, unknown>` (src/shared/lib/generationTransformers.ts:335,456)."
+      ],
+      "suggestion": "Define task-family-specific runtime schemas (e.g., zod/io-ts) and inferred TS types for orchestrator details/contracts, then replace Record<string, unknown> return types with validated domain types end-to-end.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "structure_navigability",
+      "identifier": "oversized_multi_responsibility_modules",
+      "summary": "Several high-traffic modules are oversized and mix unrelated responsibilities, making navigation and safe change-scoping difficult.",
+      "related_files": [
+        "src/shared/lib/taskParamsUtils.ts",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/tools/join-clips/pages/JoinClipsPage.tsx",
+        "src/shared/lib/tasks/joinClips.ts"
+      ],
+      "evidence": [
+        "taskParamsUtils is 850 lines and handles parsing, contract selection, prompt/image derivation, and lora extraction in one file.",
+        "ImageLightbox is 766 lines with environment bootstrapping, shared state orchestration, and rendering concerns in one component module (src/shared/components/MediaLightbox/ImageLightbox.tsx:100-223 and beyond).",
+        "JoinClipsPage includes multiple local hooks plus page rendering and DnD orchestration in one file (src/tools/join-clips/pages/JoinClipsPage.tsx:47-170, 201+)."
+      ],
+      "suggestion": "Split by responsibility boundaries: isolate pure derivation/parsing helpers, extract page-level orchestration hooks into dedicated files, and leave component files focused on rendering and composition.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "naming_quality",
+      "identifier": "generic_identifier_overuse",
+      "summary": "Frequent generic naming in transformation/orchestration paths reduces intent clarity and makes maintenance slower.",
+      "related_files": [
+        "src/shared/lib/taskParamsUtils.ts",
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/generationTransformers.ts"
+      ],
+      "evidence": [
+        "Repeated broad identifiers (`params`, `base`, `payload`, `details`) are used for semantically different structures in the same function scope (src/shared/lib/tasks/joinClips.ts:345-469).",
+        "taskParams utilities repeatedly alias `parsedParams` to `params`, then branch across unrelated task families, obscuring which schema is expected at each callsite (src/shared/lib/taskParamsUtils.ts:63-123,138-220).",
+        "generationTransformers uses similarly broad names (`item`, `options`, `baseItem`) in dense transformation logic, reducing signal in a central mapping path (src/shared/lib/generationTransformers.ts:320-380)."
+      ],
+      "suggestion": "Adopt schema-specific naming conventions (e.g., `orchestratorDetails`, `segmentTaskParams`, `timelinePayload`, `variantParams`) and enforce via lint rules/review checklist for core transformation modules.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "naming_quality",
+      "identifier": "parallel_result_api_vocab_drift",
+      "summary": "Two near-identical result/failure primitives use different naming vocabularies, creating avoidable API discovery friction.",
+      "related_files": [
+        "src/shared/lib/operationResult.ts",
+        "supabase/functions/_shared/edgeOperation.ts"
+      ],
+      "evidence": [
+        "Both modules define almost equivalent success/failure unions with policy/recoverable/errorCode/message/cause, but with different type and function names (`Operation*` vs `Edge*`).",
+        "The divergence is semantic rather than behavioral, so developers must memorize duplicate conventions for client/runtime and edge runtime code paths."
+      ],
+      "suggestion": "Consolidate on one shared naming contract (or documented mapping) for result primitives across app and edge layers to reduce cognitive overhead and onboarding ambiguity.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

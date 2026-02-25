@@ -1,4 +1,4 @@
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 import type { VideoTravelSettings } from '@/tools/travel-between-images/settings';
 
 export interface SharedData {

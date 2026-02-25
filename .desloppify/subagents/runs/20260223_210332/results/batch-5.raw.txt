@@ -1,0 +1,90 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 5,
+  "assessments": {
+    "package_organization": 58.0,
+    "high_level_elegance": 63.0
+  },
+  "dimension_notes": {
+    "package_organization": {
+      "evidence": [
+        "holistic_context.structure.root_files marks both root files as peripheral with fan_in=0/fan_out=0: tailwind.config.ts (743 LOC) and vite.config.ts (80 LOC), indicating root-level stragglers rather than shared entry-point hubs.",
+        "holistic_context.structure.directory_profiles shows src/shared/components/ has 78 files (>10 threshold) with mixed concerns; assigned files include lora UI (ActiveLoRAsDisplay.tsx), app-level fault handling (AppErrorBoundary.tsx), and form control/visualization (AspectRatioSelector.tsx) in one flat directory.",
+        "Assigned hooks in src/shared/hooks/ are domain-divergent: billing/supabase orchestration (useAutoTopup.ts), media thumbnail generation orchestration (useBackgroundThumbnailGenerator.ts), and batch rendering helper (useBatchImageLoading.ts), so placement does not align with ownership boundaries."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Top-level ownership is less predictable because domain-specific logic is centralized in generic shared folders: useAutoTopup.ts directly depends on Supabase auth/session and credit query keys while living in shared/hooks.",
+        "Component responsibilities are not grouped by capability: ActiveLoRAsDisplay.tsx (LoRA domain), AppErrorBoundary.tsx (cross-app resilience), and AspectRatioSelector.tsx (input primitive) are peers in one folder instead of domain/system subpackages.",
+        "Background processing logic in useBackgroundThumbnailGenerator.ts includes queueing, retry-avoidance status, cache invalidation, and upload orchestration; this is a subsystem hook but is packaged as a generic shared utility."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "package_organization",
+      "identifier": "root_config_stragglers",
+      "summary": "Large root config files remain peripheral stragglers instead of thin entry points over grouped config modules.",
+      "related_files": [
+        "tailwind.config.ts",
+        "vite.config.ts"
+      ],
+      "evidence": [
+        "root_files reports tailwind.config.ts as peripheral with fan_in=0/fan_out=0 and 743 LOC, which is far above a typical root entry file and indicates internal concerns are not packaged.",
+        "vite.config.ts is also peripheral at root (fan_in=0/fan_out=0), combining logger suppression, server/preview policy, aliasing, chunking, and dep optimization in one file."
+      ],
+      "suggestion": "Staged reorg plan: (1) create `config/tailwind/theme.ts` and `config/tailwind/animations.ts` and move Tailwind token/keyframe blocks there; keep `tailwind.config.ts` as a thin root loader; (2) create `config/vite/logger.ts` and `config/vite/chunking.ts` and move warning filter and `manualChunks` logic there; keep `vite.config.ts` as composition entry; (3) update imports in root configs to pull from new modules; (4) validate with `rg \"from './config/(tailwind|vite)\" tailwind.config.ts vite.config.ts`, `pnpm vite build`, and `pnpm vitest -c vitest.config.ts`.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "shared_components_flat_overload",
+      "summary": "A high-cardinality flat `src/shared/components` directory mixes unrelated ownership areas, hurting navigability and change locality.",
+      "related_files": [
+        "src/shared/components/ActiveLoRAsDisplay.tsx",
+        "src/shared/components/AppErrorBoundary.tsx",
+        "src/shared/components/AspectRatioSelector.tsx"
+      ],
+      "evidence": [
+        "directory_profiles shows `src/shared/components/` has 78 files, exceeding the >10 mixed-concern overload signal.",
+        "Assigned files represent different layers/capabilities: model-tuning UI (`ActiveLoRAsDisplay`), global fault boundary (`AppErrorBoundary`), and reusable input widget (`AspectRatioSelector`).",
+        "Current flat placement makes ownership ambiguous; a reader cannot infer whether files are domain widgets, app-shell infrastructure, or primitives from path alone."
+      ],
+      "suggestion": "Staged reorg plan: (1) create target folders `src/shared/components/lora/`, `src/shared/components/error-boundaries/`, and `src/shared/components/form-controls/`; (2) move `AspectRatioSelector.tsx` first (lowest blast radius), then `ActiveLoRAsDisplay.tsx`, then `AppErrorBoundary.tsx`; (3) add/update local barrel exports if used by existing import style; (4) update imports via `desloppify move <src> <dst> --dry-run` then apply, or `rg \"@/shared/components/(ActiveLoRAsDisplay|AppErrorBoundary|AspectRatioSelector)\" -n src` and patch paths; (5) validate with `pnpm tsc --noEmit` and targeted tests `pnpm vitest src/shared/components`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_hooks_domain_blur",
+      "summary": "`src/shared/hooks` contains subsystem-specific orchestration hooks that should be owned by domain packages.",
+      "related_files": [
+        "src/shared/hooks/useAutoTopup.ts",
+        "src/shared/hooks/useBackgroundThumbnailGenerator.ts",
+        "src/shared/hooks/useBatchImageLoading.ts",
+        "src/shared/hooks/__tests__/useAutoTopup.test.ts",
+        "src/shared/hooks/__tests__/useBackgroundThumbnailGenerator.test.ts",
+        "src/shared/hooks/__tests__/useBatchImageLoading.test.ts"
+      ],
+      "evidence": [
+        "`useAutoTopup.ts` directly orchestrates Supabase auth/session plus edge-function invocation for billing, indicating billing-domain ownership rather than generic shared ownership.",
+        "`useBackgroundThumbnailGenerator.ts` handles queueing and generation status lifecycle tied to media/generation flows and query invalidation, not a general-purpose hook primitive.",
+        "`useBatchImageLoading.ts` is explicitly described as batch-view component glue and wraps `useProgressiveImage`; this fits component/domain-local hooks better than global shared hooks."
+      ],
+      "suggestion": "Staged reorg plan: (1) create `src/domains/billing/hooks/`, `src/domains/media/hooks/`, and `src/shared/components/batch/hooks/` (or equivalent feature-local folders); (2) move production hooks in order: `useBatchImageLoading.ts` -> `useBackgroundThumbnailGenerator.ts` -> `useAutoTopup.ts`; (3) move tests to mirror new locations immediately after each hook move; (4) update imports using `desloppify move <src> <dst> --dry-run` (or `rg \"use(AutoTopup|BackgroundThumbnailGenerator|BatchImageLoading)\" -n src` then patch paths); (5) validate with `pnpm tsc --noEmit` and `pnpm vitest src/shared/hooks/__tests__/useAutoTopup.test.ts src/shared/hooks/__tests__/useBackgroundThumbnailGenerator.test.ts src/shared/hooks/__tests__/useBatchImageLoading.test.ts` after path updates.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

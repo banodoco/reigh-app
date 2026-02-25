@@ -1,0 +1,122 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "mid_level_elegance": 66.0,
+    "low_level_elegance": 61.0
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "Boundary translation logic is duplicated across task creation and task-display seams: `toRecordOrEmpty`/`asNumber`-style coercion appears in `src/shared/lib/tasks/individualTravelSegment.ts` (lines 225-283), `src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts` (lines 17-27), and `src/shared/components/TaskDetails/VideoTravelDetails.tsx` (lines 22-54).",
+        "Cross-function orchestrator linking uses divergent query conventions: `supabase/functions/complete_task/orchestrator.ts` hardcodes multiple `.or(...)` JSON-path filters (lines 191-192, 208-209, 239), while `supabase/functions/calculate-task-cost/index.ts` relies on shared billing helpers (`buildSubTaskFilter`, `getSubTaskOrchestratorId`, lines 5 and 255-281).",
+        "Edit/lightbox integration seams are wrapper-heavy and pass large cross-layer state bundles (`src/shared/components/MediaLightbox/ImageLightbox.tsx` and `src/tools/edit-images/hooks/useInlineEditState.ts`), making handoff contracts broad and fragile to upstream shape changes."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "`src/tools/edit-images/hooks/useInlineEditState.ts` is a 525-line orchestration hook that constructs and re-exposes very large nested state bags (lines 252-520), then `src/tools/edit-images/components/InlineEditView.tsx` consumes deep slices of that object, increasing local mutation/callback coupling.",
+        "`src/shared/components/MediaLightbox/ImageLightbox.tsx` is 778 lines and stacks multiple model-building hooks (`useImageLightboxEnvironment`, `useImageLightboxSharedState`, `useImageLightboxEditing`, `useImageLightboxRenderModel`), with extensive callback plumbing and large memo dependency sets (e.g., lines 390-519).",
+        "`src/shared/lib/tasks/individualTravelSegment.ts` rebuilds the same orchestration contract in two places (`buildOrchestratorDetails` lines 541-548 and `buildTaskParamsPayload` lines 597-604), creating local drift risk for a critical internal invariant.",
+        "Interface dishonesty appears via required-but-unsupported callbacks passed as no-ops (`src/shared/components/MediaLightbox/ImageLightbox.tsx` line 277 and `src/tools/edit-images/components/InlineEditView.tsx` line 153), which obscures real behavior at call sites."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "duplicated_boundary_normalizers",
+      "summary": "Task-parameter normalization is reimplemented across creation and display seams, increasing drift between producer and consumer interpretation.",
+      "related_files": [
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/components/TaskDetails/VideoTravelDetails.tsx"
+      ],
+      "evidence": [
+        "`individualTravelSegment.ts` defines `toRecordOrEmpty`, `asNumber`, `asString`, `asBoolean`, `asPhaseConfig` (lines 225-283) and uses multi-source precedence chains for task fields.",
+        "`payloadBuilder.ts` redefines overlapping coercion helpers (`toRecordOrEmpty`, `asNumber`, lines 17-27) for a neighboring task family.",
+        "`VideoTravelDetails.tsx` adds another local coercion stack (`asRecordOrUndefined`, `asString`, `asNumber`, `asStringArray`, `asNumberArray`, lines 22-46) and separate precedence logic for the same task payload concepts."
+      ],
+      "suggestion": "Extract a shared travel-task params codec (parse + precedence + typed selectors) used by both task builders and details renderers; keep one canonical precedence order and one coercion utility surface.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "orchestrator_linking_query_drift",
+      "summary": "Orchestrator/sub-task linking logic uses inconsistent query abstractions across edge functions, creating fragile integration seams.",
+      "related_files": [
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/calculate-task-cost/index.ts"
+      ],
+      "evidence": [
+        "`orchestrator.ts` hardcodes multiple JSON-path `.or(...)` filters for run/task matching (lines 191-192, 208-209, 239).",
+        "`calculate-task-cost/index.ts` already centralizes equivalent matching concerns through shared billing helpers (`getSubTaskOrchestratorId`, `buildSubTaskFilter`, lines 5 and 255-281), so seam logic is split between ad-hoc and shared forms."
+      ],
+      "suggestion": "Move sibling/final-step task matching in `complete_task/orchestrator.ts` onto shared filter/helper utilities (or a new shared matcher module) so orchestration consumers use one query contract.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "inline_edit_state_param_bag_overgrowth",
+      "summary": "Inline edit state assembly has grown into a large pass-through parameter bag, obscuring control flow and increasing local change blast radius.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/hooks/useImageEditValue.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx"
+      ],
+      "evidence": [
+        "`useInlineEditState.ts` (525 lines) builds and returns deeply nested `canvasEnvironment`, `inpaintingState`, `transformState`, `generationState` structures, mostly by forwarding collaborator fields (lines 252-520).",
+        "`useImageEditValue.ts` then remaps the same data again through layered builders (`buildModeState`, `buildCanvasAndAnnotationState`, `buildRepositionAndPanelState`, `buildFormAndGenerationState`, lines 160-268).",
+        "`InlineEditView.tsx` consumes many deep properties from this aggregate object (e.g., lines 118-154 and 171-193), tightly coupling render code to internal hook shape."
+      ],
+      "suggestion": "Split the hook output into smaller stable domain slices with dedicated consumers (canvas, generation actions, sidebar panel), and remove the extra remap layer where direct collaborator outputs already match target state.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "duplicate_orchestration_contract_build",
+      "summary": "The same orchestration contract is constructed twice in one task builder, creating avoidable local divergence risk.",
+      "related_files": [
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/joinClips.ts"
+      ],
+      "evidence": [
+        "`individualTravelSegment.ts` builds `buildOrchestrationContract(...)` in `buildOrchestratorDetails` (lines 541-548) and rebuilds the same contract again in `buildTaskParamsPayload` (lines 597-604).",
+        "`joinClips.ts` demonstrates a cleaner single-contract pattern: compute once (`const orchestrationContract`, lines 283-290) and reuse in both `orchestratorDetails` and return payload (lines 319 and 413)."
+      ],
+      "suggestion": "Compute the contract once per task build in `individualTravelSegment.ts` and thread it through payload builders, matching the single-source pattern already used by `joinClips.ts`.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "no_op_callback_placeholders",
+      "summary": "Generalized component contracts force no-op callback placeholders, reducing interface honesty at call sites.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/tools/edit-images/components/InlineEditView.tsx"
+      ],
+      "evidence": [
+        "`ImageLightbox.tsx` passes `handleEnterMagicEditMode: () => {}` into shared lightbox state setup (line 277).",
+        "`InlineEditView.tsx` passes `handleAddToReferences={async () => {}}` and fixed false flags to `BottomRightControls` (lines 150-154), indicating the callee API requires behavior that this caller cannot actually provide."
+      ],
+      "suggestion": "Refactor control component props to model optional capabilities explicitly (feature flags + optional handlers), so unsupported actions are omitted instead of wired with no-ops.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

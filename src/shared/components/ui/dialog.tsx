@@ -1,7 +1,7 @@
 import * as React from "react"
 import { Dialog as DialogPrimitive } from "@base-ui-components/react/dialog"
 import { X } from "lucide-react"
-import { cn } from "@/shared/lib/utils"
+import { cn } from "@/shared/components/ui/contracts/cn"
 
 const Dialog = DialogPrimitive.Root
 

@@ -1,0 +1,91 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 2,
+  "assessments": {
+    "error_consistency": 68.0
+  },
+  "dimension_notes": {
+    "error_consistency": {
+      "evidence": [
+        "`useShotImagesEditorCallbacks` mixes sentinel returns (`return false`/`return undefined`) with throw-based failures (`handleAndRethrow(...)`) in adapter methods that represent similar user actions.",
+        "`calculate-task-cost` suppresses `subTasks` query errors by binding to `_subTasksError` and proceeding as normal-flow fallback billing, so DB read failures are treated like \"no sub-tasks\".",
+        "`markOrchestratorComplete` logs cost-calculation failure and continues after task completion, while neighboring orchestrator DB failures are thrown/fatal."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "error_consistency",
+      "identifier": "shot_editor_callback_failure_contract_mix",
+      "summary": "Shot editor adapters use inconsistent failure contracts (sentinel + throw) for comparable operations.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/shared/components/ShotImageManager/ShotImageManagerContainer.tsx"
+      ],
+      "evidence": [
+        "`handleAddToShotAdapter` returns `false` for missing deps but throws on runtime failure via `handleAndRethrow`.",
+        "`handleAddToShotWithoutPositionAdapter` and `handleCreateShotAdapter` follow the same mixed contract pattern (`false`/`undefined` vs thrown errors).",
+        "These adapters are passed into shot-manager UI flows as action callbacks, so callers cannot rely on a single predictable failure mode."
+      ],
+      "suggestion": "Standardize adapter contracts: either always return a typed Result/sentinel (never throw) or always throw on failure (including precondition failures), and align all three adapter methods to that single policy.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shot_editor_callback_failure_contract_mix"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "ignored_subtask_query_error_fallback",
+      "summary": "Sub-task lookup errors in billing are ignored and silently converted into normal billing flow.",
+      "related_files": [
+        "supabase/functions/calculate-task-cost/index.ts",
+        "supabase/functions/complete_task/orchestrator.ts"
+      ],
+      "evidence": [
+        "In `calculate-task-cost`, sub-task query binds `error` to `_subTasksError` and never branches on it.",
+        "When that query errors, logic falls through to the \"regular task\" duration path (`else`) instead of returning an explicit billing-read failure.",
+        "This creates inconsistent semantics versus other DB reads in the same function (`existingSpendError`, `taskTypeError`, `ledgerError`) that are explicitly handled."
+      ],
+      "suggestion": "Treat sub-task query failures as first-class errors: check `subTasksError`, log context, and return a recoverable error response instead of billing as if no sub-tasks existed.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "ignored_subtask_query_error_fallback"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "billing_failure_logged_not_propagated",
+      "summary": "Orchestrator completion treats billing failure as log-only even though adjacent completion failures are fatal.",
+      "related_files": [
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/calculate-task-cost/index.ts"
+      ],
+      "evidence": [
+        "`markOrchestratorComplete` throws for task update failures, but after completion it only `console.error`s when `triggerCostCalculation(...).ok` is false.",
+        "This means the task is finalized as `Complete` even when billing fails, creating non-uniform failure handling inside a single completion transaction.",
+        "`calculate-task-cost` itself returns explicit structured errors for multiple failure conditions, indicating billing is expected to be reliability-critical."
+      ],
+      "suggestion": "Make billing failure policy explicit and consistent: either propagate billing failure (and mark orchestrator failed/retryable) or persist an explicit \"billing_pending/billing_failed\" state that downstream reconciliation can enforce.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "billing_failure_logged_not_propagated"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Lack of a single, enforced failure-contract policy for UI callback adapters.",
+      "Billing path favors progress-through-completion over strict error propagation, causing silent degradation behavior.",
+      "Error handling standards differ between DB read boundaries in the same function family."
+    ],
+    "likely_symptoms": [
+      "shot_editor_callback_failure_contract_mix",
+      "ignored_subtask_query_error_fallback",
+      "billing_failure_logged_not_propagated"
+    ],
+    "possible_false_positives": []
+  }
+}

@@ -15,17 +15,9 @@
  */
 
 import React from 'react';
-import type { GenerationRow } from '@/types/shots';
-import type {
-  SegmentSlotModeData,
-  AdjacentSegmentsData,
-  TaskDetailsData,
-  LightboxNavigationProps,
-  LightboxShotWorkflowProps,
-  LightboxFeatureFlags,
-  LightboxActionHandlers,
-} from './types';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import type { VideoLightboxProps, VideoLightboxPropsWithMedia } from './videoLightboxContracts';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import type { OverlayViewportConstraints } from '@/features/layout/contracts/overlayViewportConstraints';
 
 import { LightboxProviders } from './components';
 import { LightboxLayout } from './components/layouts/LightboxLayout';
@@ -44,60 +36,25 @@ import {
 import { LightboxShell } from './components';
 import { VideoEditProvider } from './contexts/VideoEditContext';
 
-/** Video-specific props that don't fit into shared groups */
-export interface VideoLightboxVideoProps {
-  initialVideoTrimMode?: boolean;
-  fetchVariantsForSelf?: boolean;
-  currentSegmentImages?: {
-    startUrl?: string;
-    endUrl?: string;
-    startGenerationId?: string;
-    endGenerationId?: string;
-    startShotGenerationId?: string;
-    endShotGenerationId?: string;
-    activeChildGenerationId?: string;
-    startVariantId?: string;
-    endVariantId?: string;
-  };
-  onSegmentFrameCountChange?: (pairShotGenerationId: string, frameCount: number) => void;
-  currentFrameCount?: number;
-  onTrimModeChange?: (isTrimMode: boolean) => void;
-  onShowTaskDetails?: () => void;
-}
-
-export interface VideoLightboxProps {
-  media?: GenerationRow;
-  onClose: () => void;
-  segmentSlotMode?: SegmentSlotModeData;
-  readOnly?: boolean;
-  shotId?: string;
-  initialVariantId?: string;
-  taskDetailsData?: TaskDetailsData;
-  onOpenExternalGeneration?: (generationId: string, derivedContext?: string[]) => Promise<void>;
-  showTickForImageId?: string | null;
-  showTickForSecondaryImageId?: string | null;
-  tasksPaneOpen?: boolean;
-  tasksPaneWidth?: number;
-  adjacentSegments?: AdjacentSegmentsData;
-  // Grouped props
-  navigation?: LightboxNavigationProps;
-  shotWorkflow?: LightboxShotWorkflowProps;
-  features?: LightboxFeatureFlags;
-  actions?: LightboxActionHandlers;
-  videoProps?: VideoLightboxVideoProps;
-}
-
 export type {
   VideoLightboxSharedStateModel,
   VideoLightboxEditModel,
 } from './hooks/useVideoLightboxController';
 
-const VideoLightboxContent: React.FC<VideoLightboxProps> = (props) => {
+const VideoLightboxMediaContent: React.FC<VideoLightboxPropsWithMedia> = (props) => {
   const modeModel = useVideoLightboxMode(props);
   const env = useVideoLightboxEnvironment(props, modeModel);
   const sharedState = useVideoLightboxSharedState(props, modeModel, env);
   const editModel = useVideoLightboxEditing(props, modeModel, env, sharedState);
   const renderModel = useVideoLightboxRenderModel(props, modeModel, env, sharedState, editModel);
+  const overlayViewport: OverlayViewportConstraints = {
+    tasksPaneOpen: env.effectiveTasksPaneOpen,
+    tasksPaneWidth: env.effectiveTasksPaneWidth,
+    tasksPaneLocked: env.isTasksPaneLocked,
+    isTabletOrLarger: sharedState.layout.isTabletOrLarger,
+    needsFullscreenLayout: renderModel.needsFullscreenLayout,
+    needsTasksPaneOffset: renderModel.needsTasksPaneOffset,
+  };
 
   return (
     <LightboxProviders stateValue={renderModel.lightboxStateValue}>
@@ -107,12 +64,7 @@ const VideoLightboxContent: React.FC<VideoLightboxProps> = (props) => {
           hasCanvasOverlay={false}
           isRepositionMode={false}
           isMobile={env.isMobile}
-          isTabletOrLarger={sharedState.layout.isTabletOrLarger}
-          effectiveTasksPaneOpen={env.effectiveTasksPaneOpen}
-          effectiveTasksPaneWidth={env.effectiveTasksPaneWidth}
-          isTasksPaneLocked={env.isTasksPaneLocked}
-          needsFullscreenLayout={renderModel.needsFullscreenLayout}
-          needsTasksPaneOffset={renderModel.needsTasksPaneOffset}
+          overlayViewport={overlayViewport}
           contentRef={env.contentRef}
           accessibilityTitle={renderModel.accessibilityTitle}
           accessibilityDescription={renderModel.accessibilityDescription}
@@ -136,18 +88,70 @@ const VideoLightboxContent: React.FC<VideoLightboxProps> = (props) => {
   );
 };
 
+const VideoLightboxFormOnlyContent: React.FC<VideoLightboxProps> = (props) => {
+  const modeModel = useVideoLightboxMode(props);
+  const env = useVideoLightboxEnvironment(props, modeModel);
+
+  if (!props.segmentSlotMode) {
+    return null;
+  }
+
+  const overlayViewport: OverlayViewportConstraints = {
+    tasksPaneOpen: env.effectiveTasksPaneOpen,
+    tasksPaneWidth: env.effectiveTasksPaneWidth,
+    tasksPaneLocked: env.isTasksPaneLocked,
+    isTabletOrLarger: false,
+    needsFullscreenLayout: true,
+    needsTasksPaneOffset: false,
+  };
+
+  return (
+    <LightboxShell
+      onClose={props.onClose}
+      hasCanvasOverlay={false}
+      isRepositionMode={false}
+      isMobile={env.isMobile}
+      overlayViewport={overlayViewport}
+      contentRef={env.contentRef}
+      accessibilityTitle={`Segment ${(props.segmentSlotMode.currentIndex ?? 0) + 1} Settings`}
+      accessibilityDescription="Configure and generate this video segment. Use Tab or arrow keys to navigate between segments."
+    >
+      <SegmentSlotFormView
+        segmentSlotMode={props.segmentSlotMode}
+        onClose={props.onClose}
+        onNavPrev={modeModel.handleSlotNavPrev}
+        onNavNext={modeModel.handleSlotNavNext}
+        hasPrevious={modeModel.hasPrevious}
+        hasNext={modeModel.hasNext}
+        readOnly={props.readOnly}
+      />
+    </LightboxShell>
+  );
+};
+
 export const VideoLightbox: React.FC<VideoLightboxProps> = (props) => {
   const isSegmentSlotMode = !!props.segmentSlotMode;
   const hasSegmentVideo = isSegmentSlotMode && !!props.segmentSlotMode?.segmentVideo;
   const isFormOnlyMode = isSegmentSlotMode && !hasSegmentVideo;
 
-  if (!props.media && !isFormOnlyMode) {
-    handleError(new Error('No media prop provided and not in form-only mode'), {
+  if (isFormOnlyMode) {
+    return <VideoLightboxFormOnlyContent {...props} />;
+  }
+
+  if (!props.media) {
+    normalizeAndPresentError(new Error('No media prop provided and not in form-only mode'), {
       context: 'VideoLightbox',
       showToast: false,
     });
     return null;
   }
 
-  return <VideoLightboxContent {...props} />;
+  const media = props.parentGenerationIdOverride
+    ? {
+        ...props.media,
+        parent_generation_id: props.parentGenerationIdOverride,
+      }
+    : props.media;
+
+  return <VideoLightboxMediaContent {...props} media={media} />;
 };

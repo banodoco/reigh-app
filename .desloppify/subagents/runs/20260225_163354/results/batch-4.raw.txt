@@ -1,0 +1,129 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "ai_generated_debt": 84.0,
+    "incomplete_migration": 74.0,
+    "low_level_elegance": 79.5
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "Multiple small modules are dominated by ceremonial comments restating obvious code structure rather than adding constraints/intent (e.g., src/shared/types/segmentSettings.ts, src/shared/types/videoTrim.ts, src/shared/types/steerableMotion.ts, src/shared/settings/progressiveLoading.ts).",
+        "Migration wrapper files use long explanatory banners while containing single-line passthrough exports (src/tools/image-generation/components/ImageGenerationForm/index.tsx and src/tools/image-generation/components/ImageGenerationForm/types.ts), which is a repeated generated-style pattern."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "incomplete_migration": {
+      "evidence": [
+        "Travel-between-images typing still codifies dual-path legacy+canonical contracts: src/shared/lib/tasks/travelBetweenImages/types.ts explicitly documents 'Read path: allows legacy structure-video fields' while src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts defines and enforces deprecated top-level and per-video legacy fields.",
+        "Legacy shape remains in shared state contracts: src/shared/types/referenceImage.ts still carries 'Legacy fields for migration' directly in the main interface, extending migration debt into normal type usage.",
+        "Compatibility import surfaces remain active in tool paths via re-export shims (src/tools/image-generation/components/ImageGenerationForm/index.tsx, src/tools/image-generation/components/ImageGenerationForm/types.ts, src/tools/join-clips/settings.ts), preserving old paths rather than forcing cutover."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "src/shared/lib/tasks/legacy/testing/joinClipsCompatAdapter.ts uses a very wide mixed-era parameter bag with many conditional branches and multiple legacy resolution stages in one file, making control flow hard to audit and evolve safely.",
+        "src/shared/lib/galleryUtils.ts and src/shared/lib/mediaTypeHelpers.ts each embed long fallback chains for heterogeneous legacy/current payload shapes in local helpers, increasing branchy normalization logic at call sites instead of centralizing migration boundaries."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "comment_ceremony_over_signal",
+      "summary": "Doc/comment boilerplate repeatedly restates code and obscures real migration constraints",
+      "related_files": [
+        "src/shared/types/segmentSettings.ts",
+        "src/shared/types/videoTrim.ts",
+        "src/shared/types/steerableMotion.ts",
+        "src/shared/settings/progressiveLoading.ts"
+      ],
+      "evidence": [
+        "Files contain section banners and explanatory blocks that mirror type/property names without adding non-obvious rules (e.g., long convention banners in segmentSettings plus repetitive 'Type/Return type' comments in videoTrim/steerableMotion).",
+        "This pattern is repeated across multiple small modules, indicating generated-style verbosity rather than focused documentation."
+      ],
+      "suggestion": "Trim comments to intent/constraints only (why, invariants, migration cutoff), and remove descriptive restatements of obvious field/function names. Keep one concise module-level contract comment where needed.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "documentation_ceremony_pattern"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "travel_legacy_contract_still_primary_surface",
+      "summary": "Travel-between-images still maintains live legacy and canonical contracts in core types",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/types.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts"
+      ],
+      "evidence": [
+        "types.ts explicitly keeps migration boundary semantics ('Read path: allows legacy structure-video fields').",
+        "legacyStructureVideo.ts still defines deprecated fields and active usage detection/enforcement for legacy keys, meaning dual-shape payload support remains a first-class path."
+      ],
+      "suggestion": "Define a hard cutoff release for legacy structure fields, then remove legacy interfaces and read-path allowances from shared task types; keep any temporary translation in one ingress adapter only, not in canonical task contracts.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "migration_shims_without_cutover"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_fields_leak_into_shared_reference_type",
+      "summary": "ReferenceImage keeps migration-era fields in the canonical shared interface",
+      "related_files": [
+        "src/shared/types/referenceImage.ts",
+        "src/tools/image-generation/components/ImageGenerationForm/types.ts"
+      ],
+      "evidence": [
+        "ReferenceImage includes a legacy block ('will be removed after bulk migration') with old storage fields (name/styleReferenceImage/thumbnailUrl/timestamps).",
+        "The type is re-exported through compatibility surfaces, which prolongs broad consumer dependence on mixed old/new shape."
+      ],
+      "suggestion": "Split `ReferenceImage` into canonical current shape plus a narrowly scoped `LegacyReferenceImageFields` adapter type used only in migration codepaths; stop exporting migration fields through tool-facing compatibility barrels.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "migration_shims_without_cutover"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "join_clips_compat_adapter_monolith",
+      "summary": "Join-clips compat adapter mixes validation, translation, enforcement, and telemetry in one branch-heavy unit",
+      "related_files": [
+        "src/shared/lib/tasks/legacy/testing/joinClipsCompatAdapter.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts"
+      ],
+      "evidence": [
+        "joinClipsCompatAdapter.ts has a large mixed input interface and many staged branch checks (legacy path source, legacy video edit payload, mode coercion, enforcement gates) before producing canonical input.",
+        "Pattern mirrors legacyStructureVideo.ts where migration policy, legacy detection, and contract shapes are co-located, indicating repeated low-level boundary complexity."
+      ],
+      "suggestion": "Refactor compat flow into small pure stages (parse legacy input, validate mode, translate to canonical, enforce policy) with explicit typed stage outputs; keep telemetry/reporting as a final wrapper to reduce branching in core translation logic.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "migration_boundary_overload"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Compatibility layers were added incrementally but not retired, so canonical contracts now embed migration concerns.",
+      "Documentation style drift toward generated boilerplate reduced signal and obscured true invariants."
+    ],
+    "likely_symptoms": [
+      "travel_legacy_contract_still_primary_surface",
+      "legacy_fields_leak_into_shared_reference_type",
+      "join_clips_compat_adapter_monolith"
+    ],
+    "possible_false_positives": [
+      "Some compatibility re-exports may be intentionally retained for external import stability, but current files do not show bounded sunset enforcement for all of them."
+    ]
+  }
+}

@@ -1,11 +1,37 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient } from '@/integrations/supabase/client';
 import { getVisibleTaskTypes } from '@/shared/lib/taskConfig';
 import { useSmartPollingConfig } from '@/shared/hooks/useSmartPolling';
 import { QUERY_PRESETS, STANDARD_RETRY, STANDARD_RETRY_DELAY } from '@/shared/lib/queryDefaults';
 import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 import { dataFreshnessManager } from '@/shared/realtime/DataFreshnessManager';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import {
+  TASK_FAILURE_STATUSES,
+  TASK_PROCESSING_STATUSES,
+} from '@/shared/lib/tasks/taskStatusSemantics';
+import { applyRootTaskFilter } from '@/shared/lib/tasks/orchestratorReference';
+import {
+  operationFailure,
+  operationSuccess,
+  type OperationResult,
+} from '@/shared/lib/operationResult';
+
+type TaskStatusCountsQuery = 'processing' | 'success' | 'failure';
+
+export interface TaskStatusCountsResult {
+  processing: number;
+  recentSuccesses: number;
+  recentFailures: number;
+  degraded: boolean;
+  failedQueries: TaskStatusCountsQuery[];
+  errorCode?: 'task_status_counts_partial_failure';
+  operation: OperationResult<{
+    processing: number;
+    recentSuccesses: number;
+    recentFailures: number;
+  }>;
+}
 
 // Hook to get status counts for indicators
 export const useTaskStatusCounts = (projectId: string | null) => {
@@ -19,7 +45,21 @@ export const useTaskStatusCounts = (projectId: string | null) => {
       // [TasksPaneCountMismatch] Note on counting rules for correlation with list visibility
 
       if (!projectId) {
-        return { processing: 0, recentSuccesses: 0, recentFailures: 0 };
+        return {
+          processing: 0,
+          recentSuccesses: 0,
+          recentFailures: 0,
+          degraded: false,
+          failedQueries: [],
+          operation: operationSuccess(
+            {
+              processing: 0,
+              recentSuccesses: 0,
+              recentFailures: 0,
+            },
+            { policy: 'best_effort' },
+          ),
+        } satisfies TaskStatusCountsResult;
       }
 
       // Match TasksPane list semantics: only count visible task types (and parent tasks)
@@ -29,51 +69,49 @@ export const useTaskStatusCounts = (projectId: string | null) => {
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
       // Execute all queries in parallel with error resilience
+      const supabase = getSupabaseClient();
       const [processingResult, successResult, failureResult] = await Promise.allSettled([
         // Query for processing tasks (any time)
-        supabase
-          .from('tasks')
+        applyRootTaskFilter(supabase.from('tasks')
           .select('id', { count: 'exact', head: true })
           .eq('project_id', projectId)
-          .in('status', ['Queued', 'In Progress'])
-          .is('params->orchestrator_task_id_ref', null) // Only parent tasks; include orchestrators
-          .in('task_type', visibleTaskTypes), // Only visible task types
+          .in('status', [...TASK_PROCESSING_STATUSES])
+          .in('task_type', visibleTaskTypes)), // Only visible task types
 
         // Query for recent successes (last hour)
-        supabase
-          .from('tasks')
+        applyRootTaskFilter(supabase.from('tasks')
           .select('id', { count: 'exact', head: true })
           .eq('project_id', projectId)
           .eq('status', 'Complete')
           // `updated_at` is often null/unreliable in this schema; `generation_processed_at` is the real completion timestamp.
           .gte('generation_processed_at', oneHourAgo)
-          .is('params->orchestrator_task_id_ref', null) // Only parent tasks
-          .in('task_type', visibleTaskTypes), // Only visible task types
+          .in('task_type', visibleTaskTypes)), // Only visible task types
 
         // Query for recent failures (last hour)
         // NOTE: Use `updated_at` for failures since `generation_processed_at` is only set on success
-        // NOTE: Only count 'Failed', not 'Cancelled' - cancelled tasks are user-initiated and not errors
-        supabase
-          .from('tasks')
+        applyRootTaskFilter(supabase.from('tasks')
           .select('id', { count: 'exact', head: true })
           .eq('project_id', projectId)
-          .eq('status', 'Failed')
+          .in('status', [...TASK_FAILURE_STATUSES])
           .gte('updated_at', oneHourAgo)
-          .is('params->orchestrator_task_id_ref', null) // Only parent tasks
-          .in('task_type', visibleTaskTypes) // Only visible task types
+          .in('task_type', visibleTaskTypes)) // Only visible task types
       ]);
+
+      const failedQueries: TaskStatusCountsQuery[] = [];
 
       // Handle processing count result
       let processingCount = 0;
       if (processingResult.status === 'fulfilled') {
         const { count, error } = processingResult.value;
         if (error) {
-          handleError(error, { context: 'useTaskStatusCounts.processing', showToast: false, logData: { projectId } });
+          failedQueries.push('processing');
+          normalizeAndPresentError(error, { context: 'useTaskStatusCounts.processing', showToast: false, logData: { projectId } });
         } else {
           processingCount = count || 0;
         }
       } else {
-        handleError(processingResult.reason instanceof Error ? processingResult.reason : new Error(String(processingResult.reason)), { context: 'useTaskStatusCounts.processing', showToast: false, logData: { projectId } });
+        failedQueries.push('processing');
+        normalizeAndPresentError(processingResult.reason instanceof Error ? processingResult.reason : new Error(String(processingResult.reason)), { context: 'useTaskStatusCounts.processing', showToast: false, logData: { projectId } });
       }
 
       // Handle success count result
@@ -81,12 +119,14 @@ export const useTaskStatusCounts = (projectId: string | null) => {
       if (successResult.status === 'fulfilled') {
         const { count, error } = successResult.value;
         if (error) {
-          handleError(error, { context: 'useTaskStatusCounts.success', showToast: false, logData: { projectId } });
+          failedQueries.push('success');
+          normalizeAndPresentError(error, { context: 'useTaskStatusCounts.success', showToast: false, logData: { projectId } });
         } else {
           successCount = count || 0;
         }
       } else {
-        handleError(successResult.reason instanceof Error ? successResult.reason : new Error(String(successResult.reason)), { context: 'useTaskStatusCounts.success', showToast: false, logData: { projectId } });
+        failedQueries.push('success');
+        normalizeAndPresentError(successResult.reason instanceof Error ? successResult.reason : new Error(String(successResult.reason)), { context: 'useTaskStatusCounts.success', showToast: false, logData: { projectId } });
       }
 
       // Handle failure count result
@@ -94,29 +134,49 @@ export const useTaskStatusCounts = (projectId: string | null) => {
       if (failureResult.status === 'fulfilled') {
         const { count, error } = failureResult.value;
         if (error) {
-          handleError(error, { context: 'useTaskStatusCounts.failure', showToast: false, logData: { projectId } });
+          failedQueries.push('failure');
+          normalizeAndPresentError(error, { context: 'useTaskStatusCounts.failure', showToast: false, logData: { projectId } });
         } else {
           failureCount = count || 0;
         }
       } else {
-        handleError(failureResult.reason instanceof Error ? failureResult.reason : new Error(String(failureResult.reason)), { context: 'useTaskStatusCounts.failure', showToast: false, logData: { projectId } });
+        failedQueries.push('failure');
+        normalizeAndPresentError(failureResult.reason instanceof Error ? failureResult.reason : new Error(String(failureResult.reason)), { context: 'useTaskStatusCounts.failure', showToast: false, logData: { projectId } });
       }
 
-      const result = {
+      const result: TaskStatusCountsResult = {
         processing: processingCount,
         recentSuccesses: successCount,
         recentFailures: failureCount,
+        degraded: failedQueries.length > 0,
+        failedQueries,
+        ...(failedQueries.length > 0 ? { errorCode: 'task_status_counts_partial_failure' as const } : {}),
+        operation:
+          failedQueries.length > 0
+            ? operationFailure(
+                new Error('Task status counts query partially failed'),
+                {
+                  errorCode: 'task_status_counts_partial_failure',
+                  policy: 'degrade',
+                  recoverable: true,
+                  message: `Partial task status count failure (${failedQueries.join(', ')})`,
+                  cause: { failedQueries, projectId },
+                },
+              )
+            : operationSuccess(
+                {
+                  processing: processingCount,
+                  recentSuccesses: successCount,
+                  recentFailures: failureCount,
+                },
+                { policy: 'best_effort' },
+              ),
       };
 
       // [TasksPaneCountMismatch] Result snapshot to compare with list view
 
       // Track circuit breaker - if any query failed, record failure; otherwise record success
-      const anyFailed = processingResult.status === 'rejected' ||
-                        successResult.status === 'rejected' ||
-                        failureResult.status === 'rejected' ||
-                        (processingResult.status === 'fulfilled' && processingResult.value.error) ||
-                        (successResult.status === 'fulfilled' && successResult.value.error) ||
-                        (failureResult.status === 'fulfilled' && failureResult.value.error);
+      const anyFailed = failedQueries.length > 0;
 
       if (anyFailed) {
         const errorReason = processingResult.status === 'rejected' ? processingResult.reason :

@@ -14,7 +14,7 @@ import MediaLightbox from '@/shared/components/MediaLightbox';
 import { InlineSegmentVideo } from './InlineSegmentVideo';
 import { TIMELINE_HORIZONTAL_PADDING } from './constants';
 import { getDisplayUrl } from '@/shared/lib/mediaUrl';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 
 import type { PairData } from '@/shared/types/pairData';
 import type { SegmentSlot } from '@/shared/hooks/segments';

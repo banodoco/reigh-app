@@ -1,7 +1,7 @@
-import { supabase } from "@/integrations/supabase/client";
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { getSupabaseUrl } from "@/integrations/supabase/config/env";
 import { storagePaths, getFileExtension, generateUniqueFilename, MEDIA_BUCKET } from "./storagePaths";
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 // Default timeouts for video (longer than images)
 const DEFAULT_VIDEO_TIMEOUT_MS = 300000; // 5 minutes for videos
@@ -90,7 +90,7 @@ export const extractVideoMetadataFromUrl = (videoUrl: string): Promise<VideoMeta
     };
     
     video.onerror = () => {
-      handleError(new Error('Failed to load video metadata from URL'), { context: 'videoUploader:extractMetadata', showToast: false });
+      normalizeAndPresentError(new Error('Failed to load video metadata from URL'), { context: 'videoUploader:extractMetadata', showToast: false });
       reject(new Error('Failed to load video metadata from URL'));
     };
     
@@ -133,7 +133,7 @@ export const uploadVideoToStorage = async (
   }
 
   // Get session for auth and user ID (initial check)
-  const { data: initialSessionData } = await supabase.auth.getSession();
+  const { data: initialSessionData } = await supabase().auth.getSession();
   if (!initialSessionData?.session?.access_token || !initialSessionData?.session?.user?.id) {
     throw new Error('No active session');
   }
@@ -155,7 +155,7 @@ export const uploadVideoToStorage = async (
     }
 
     // Refresh session token before each attempt (tokens can expire during retries)
-    const { data: sessionData } = await supabase.auth.getSession();
+    const { data: sessionData } = await supabase().auth.getSession();
     const accessToken = sessionData?.session?.access_token;
     if (!accessToken) {
       throw new Error('Session expired - please sign in again');
@@ -244,7 +244,7 @@ export const uploadVideoToStorage = async (
       });
 
       // Get public URL
-      const { data: { publicUrl } } = supabase.storage
+      const { data: { publicUrl } } = supabase().storage
         .from(MEDIA_BUCKET)
         .getPublicUrl(fileName);
 
@@ -252,7 +252,7 @@ export const uploadVideoToStorage = async (
 
     } catch (error) {
       lastError = error instanceof Error ? error : new Error('Unknown upload error');
-      handleError(lastError, { context: 'VideoUploader', showToast: false });
+      normalizeAndPresentError(lastError, { context: 'VideoUploader', showToast: false });
 
       // Don't retry for user cancellation
       if (lastError.message.includes('cancelled')) {

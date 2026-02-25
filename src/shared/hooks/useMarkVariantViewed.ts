@@ -14,8 +14,8 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { DerivedCountsResult } from '@/shared/lib/generationTransformers';
 import { queryKeys } from '@/shared/lib/queryKeys';
 
@@ -33,8 +33,7 @@ export function useMarkVariantViewed() {
 
   const mutation = useMutation({
     mutationFn: async ({ variantId, generationId }: MarkViewedParams) => {
-      const { error } = await supabase
-        .from('generation_variants')
+      const { error } = await supabase().from('generation_variants')
         .update({ viewed_at: new Date().toISOString() })
         .eq('id', variantId)
         .is('viewed_at', null);
@@ -84,15 +83,14 @@ export function useMarkVariantViewed() {
       // Badge data will sync naturally when staleTime (30s) expires.
     },
     onError: (error) => {
-      handleError(error, { context: 'useMarkVariantViewed', showToast: false });
+      normalizeAndPresentError(error, { context: 'useMarkVariantViewed', showToast: false });
     },
   });
 
   // Bulk mutation: mark ALL unviewed variants for a generation
   const bulkMutation = useMutation({
     mutationFn: async ({ generationId }: MarkAllViewedParams) => {
-      const { error } = await supabase
-        .from('generation_variants')
+      const { error } = await supabase().from('generation_variants')
         .update({ viewed_at: new Date().toISOString() })
         .eq('generation_id', generationId)
         .is('viewed_at', null);
@@ -131,7 +129,7 @@ export function useMarkVariantViewed() {
       queryClient.invalidateQueries({ queryKey: queryKeys.generations.derivedAll });
     },
     onError: (error) => {
-      handleError(error, { context: 'useMarkVariantViewed', showToast: false });
+      normalizeAndPresentError(error, { context: 'useMarkVariantViewed', showToast: false });
     },
   });
 

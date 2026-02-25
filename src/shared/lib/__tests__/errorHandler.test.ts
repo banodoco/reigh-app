@@ -7,9 +7,6 @@ const mockToast = Object.assign(vi.fn(), {
   warning: vi.fn(),
   info: vi.fn(),
 });
-vi.mock('@/shared/components/ui/toast', () => ({
-  toast: mockToast,
-}));
 
 // Mock navigator.onLine for NetworkError detection
 Object.defineProperty(globalThis, 'navigator', {
@@ -18,11 +15,20 @@ Object.defineProperty(globalThis, 'navigator', {
   configurable: true,
 });
 
-import { handleError, AppError, NetworkError, AuthError, SilentError, isAppError, isAuthError, isNetworkError } from '../errorHandler';
+import { handleError, AppError, NetworkError, AuthError, SilentError, isAppError, isAuthError, isNetworkError } from '../compat/errorHandler';
+import { installErrorNotifier, resetErrorNotifierForTests } from '../errorHandling/errorNotifier';
 
 describe('errorHandler', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetErrorNotifierForTests();
+    installErrorNotifier(({ title, description }) => {
+      mockToast({
+        title,
+        description,
+        variant: 'destructive',
+      });
+    }, 'test-suite');
     // Reset navigator.onLine to true
     Object.defineProperty(navigator, 'onLine', { value: true, writable: true, configurable: true });
   });

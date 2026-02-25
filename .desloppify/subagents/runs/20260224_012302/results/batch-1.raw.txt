@@ -1,0 +1,99 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "high_level_elegance": 72.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/domains/generation/types/generationRow.ts` is a cross-feature mega-contract mixing DB-shaped fields (`thumbnail_url`, `created_at`, `shot_generation_id`) with UI/app aliases (`thumbUrl`, `createdAt`, `shotImageEntryId`) and legacy compatibility fields in one top-level type.",
+        "`src/domains/generation/types/shot.ts` embeds `GenerationRow[]`, pulling this broad mixed contract into core shot domain ownership rather than keeping translation at boundaries.",
+        "`src/shared/lib/errorHandling/handleError.ts` acts as a global facade (normalize/log/notify + notifier configuration exports), and consumers like `src/shared/hooks/useMobile.tsx`, `src/features/gallery/hooks/useAdjacentPagePreloader.ts`, and `src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts` couple unrelated domains to one shared error pipeline.",
+        "Install UX ownership is split across `src/pages/Home/components/InstallInstructionsModal.tsx`, `src/pages/Home/components/installInstructions/scenarios.ts`, and `src/pages/Home/components/installInstructions/visuals.tsx` with string-key routing between files, making feature behavior depend on distributed conventions rather than a single bounded module."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "generation_row_boundary_collapse",
+      "summary": "A single shared generation type mixes persistence, API, legacy, and UI concerns, weakening domain ownership boundaries.",
+      "related_files": [
+        "src/domains/generation/types/generationRow.ts",
+        "src/domains/generation/types/shot.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts"
+      ],
+      "evidence": [
+        "`GenerationRow` contains both snake_case DB columns and camelCase app aliases plus legacy aliases in one interface.",
+        "`Shot.images?: GenerationRow[]` propagates this broad contract into shot domain surfaces.",
+        "Gallery handlers consume shot data via broad shape assumptions rather than a narrow, feature-owned view model."
+      ],
+      "suggestion": "Split `GenerationRow` into boundary-specific models (DB record, normalized domain entity, and UI view model), and constrain `Shot`/gallery layers to normalized domain or view-model types only.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "global_error_facade_overreach",
+      "summary": "Error handling is centralized as a catch-all shared facade, creating broad coupling across unrelated subsystems.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/hooks/useMobile.tsx",
+        "src/features/gallery/hooks/useAdjacentPagePreloader.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` combines normalization, logging, toast dispatch, callback hooks, and notifier configuration exports in one shared entrypoint.",
+        "Mobile device detection code routes non-fatal environment errors into the global handler (`useMobile.*` contexts).",
+        "Gallery preloading and gallery action handlers also route local operational failures into the same global pipeline."
+      ],
+      "suggestion": "Introduce thin domain-level error adapters (e.g., `mobileErrorReporter`, `galleryErrorReporter`) over a lower-level core, and keep notifier wiring/configuration in a separate bootstrap module rather than the main call surface.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "install_flow_split_ownership",
+      "summary": "Install-instructions behavior is spread across modal, scenario resolution, and visual registry files with string-key contracts, reducing cohesion.",
+      "related_files": [
+        "src/pages/Home/components/InstallInstructionsModal.tsx",
+        "src/pages/Home/components/installInstructions/scenarios.ts",
+        "src/pages/Home/components/installInstructions/visuals.tsx"
+      ],
+      "evidence": [
+        "Modal decides runtime behavior via `resolveInstallVisualKey(...)` and then indexes `installVisualRegistry[visualKey]` from another file.",
+        "Scenario branching by platform/browser/device lives separately from visual ownership, coupled only by string literal union keys.",
+        "Title resolution and visual resolution are split functions with overlapping decision inputs, increasing change surface for one feature."
+      ],
+      "suggestion": "Create a single feature module that returns a complete install presentation model (title, instructions strategy, and component) from one boundary API, with internalized mapping instead of externally coordinated string keys.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "supabase_client_multi_role_entrypoint",
+      "summary": "The Supabase client module mixes singleton creation, runtime initialization, instrumentation installation, and debug-global exposure.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/integrations/supabase/bootstrap/createSupabaseClient.ts",
+        "src/integrations/supabase/bootstrap/initializeSupabaseRuntime.ts"
+      ],
+      "evidence": [
+        "`client.ts` owns lazy singleton lifecycle and calls both bootstrap/runtime init paths.",
+        "The same module also gates instrumentation install and dev-only window global registration.",
+        "This concentrates operational and diagnostic responsibilities in one integration entrypoint."
+      ],
+      "suggestion": "Separate runtime bootstrap, instrumentation wiring, and debug exposure into distinct modules, leaving `getSupabaseClient()` as a narrowly scoped acquisition API.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

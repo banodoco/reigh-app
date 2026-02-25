@@ -6,6 +6,12 @@
  */
 
 import { extractOrchestratorRef } from '../_shared/billing.ts';
+import {
+  extractAddInPositionParam,
+  extractBasedOnParam,
+  extractRunIdParam,
+  extractShotIdParam,
+} from '../../../src/shared/lib/tasks/taskParamContract.ts';
 
 // ===== THUMBNAIL PATH CONFIGURATION =====
 
@@ -28,46 +34,6 @@ const THUMBNAIL_PATH_CONFIG: Record<string, { path: string[]; extras?: Record<st
   }
 };
 
-// ===== GENERIC PARAM EXTRACTION =====
-
-/**
- * Generic function to extract a value from multiple nested paths in params
- * Checks paths in order and returns the first non-null/undefined value found
- * @param params - The params object to search
- * @param fieldName - The field name being extracted (for logging)
- * @param paths - Array of path arrays (e.g., [['based_on'], ['orchestrator_details', 'based_on']])
- * @param logTag - Optional log tag prefix
- * @returns The extracted value as string, or null if not found
- */
-function extractFromParams(params: unknown, fieldName: string, paths: string[][], logTag: string = 'ParamExtractor'): string | null {
-  try {
-    for (const path of paths) {
-      let value = params;
-      let pathValid = true;
-
-      // Traverse the path
-      for (const key of path) {
-        if (value && typeof value === 'object' && key in value) {
-          value = value[key];
-        } else {
-          pathValid = false;
-          break;
-        }
-      }
-
-      // If we successfully traversed the path and got a value
-      if (pathValid && value !== null && value !== undefined) {
-        return String(value);
-      }
-    }
-
-    return null;
-  } catch (error) {
-    console.error(`[${logTag}] Error extracting ${fieldName}:`, error);
-    return null;
-  }
-}
-
 // ===== SPECIFIC EXTRACTORS =====
 
 /**
@@ -84,19 +50,8 @@ export function extractOrchestratorTaskId(params: unknown, _logTag: string = 'Or
  * Extract orchestrator run_id from task params
  * Used for finding sibling segment tasks
  */
-export function extractOrchestratorRunId(params: unknown, logTag: string = 'OrchestratorExtract'): string | null {
-  return extractFromParams(
-    params,
-    'run_id',
-    [
-      ['orchestrator_run_id'],
-      ['run_id'],
-      ['orchestrator_details', 'run_id'],
-      ['originalParams', 'orchestrator_details', 'run_id'],
-      ['full_orchestrator_payload', 'run_id'],
-    ],
-    logTag
-  );
+export function extractOrchestratorRunId(params: unknown, _logTag: string = 'OrchestratorExtract'): string | null {
+  return extractRunIdParam(params);
 }
 
 /**
@@ -104,18 +59,7 @@ export function extractOrchestratorRunId(params: unknown, logTag: string = 'Orch
  * Supports multiple param shapes for flexibility across different task types
  */
 export function extractBasedOn(params: unknown): string | null {
-  return extractFromParams(
-    params,
-    'based_on',
-    [
-      ['based_on'],                                      // Direct field (most common)
-      ['originalParams', 'orchestrator_details', 'based_on'],
-      ['orchestrator_details', 'based_on'],
-      ['full_orchestrator_payload', 'based_on'],
-      ['originalParams', 'based_on']
-    ],
-    'BasedOn'
-  );
+  return extractBasedOnParam(params);
 }
 
 /**
@@ -123,39 +67,8 @@ export function extractBasedOn(params: unknown): string | null {
  * Supports multiple param shapes as per current DB trigger logic
  */
 export function extractShotAndPosition(params: unknown): { shotId?: string, addInPosition: boolean } {
-  // Extract shot_id using generic helper
-  const shotId = extractFromParams(
-    params,
-    'shot_id',
-    [
-      ['originalParams', 'orchestrator_details', 'shot_id'],  // MOST COMMON for wan_2_2_i2v
-      ['orchestrator_details', 'shot_id'],
-      ['shot_id'],
-      ['full_orchestrator_payload', 'shot_id'],              // For travel_stitch
-      ['shotId']                                               // camelCase variant
-    ],
-    'GenMigration'
-  ) || undefined;
-
-  // Extract add_in_position flag from multiple locations
-  let addInPosition = false; // Default: unpositioned
-
-  const addInPositionValue = extractFromParams(
-    params,
-    'add_in_position',
-    [
-      ['add_in_position'],
-      ['originalParams', 'add_in_position'],
-      ['orchestrator_details', 'add_in_position'],
-      ['originalParams', 'orchestrator_details', 'add_in_position']
-    ],
-    'GenMigration'
-  );
-
-  if (addInPositionValue !== null) {
-    addInPosition = addInPositionValue === 'true' || addInPositionValue === '1';
-  }
-
+  const shotId = extractShotIdParam(params) || undefined;
+  const addInPosition = extractAddInPositionParam(params);
   return { shotId, addInPosition };
 }
 

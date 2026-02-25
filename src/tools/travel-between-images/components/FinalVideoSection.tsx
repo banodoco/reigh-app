@@ -22,12 +22,12 @@ import {
 import { useSegmentOutputsForShot } from '@/shared/hooks/segments';
 import { VideoItem } from './VideoGallery/components/VideoItem';
 import MediaLightbox from '@/shared/components/MediaLightbox';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 import { formatDistanceToNow } from 'date-fns';
-import { useIsMobile } from '@/shared/hooks/useMobile';
+import { useIsMobile } from '@/shared/hooks/mobile';
 import { useTaskDetails } from '@/shared/components/ShotImageManager/hooks/useTaskDetails';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { useVariantBadges } from '@/shared/hooks/useVariantBadges';
 import { useShareGeneration } from '@/shared/hooks/useShareGeneration';
 import { useMarkVariantViewed } from '@/shared/hooks/useMarkVariantViewed';
@@ -168,6 +168,7 @@ export const FinalVideoSection: React.FC<FinalVideoSectionProps> = ({
     taskError,
   } = useTaskDetails({
     generationId: selectedParentId,
+    projectId,
     onApplySettingsFromTask,
   });
 
@@ -188,8 +189,7 @@ export const FinalVideoSection: React.FC<FinalVideoSectionProps> = ({
       if (!shotId || !projectId) return null;
 
       // Query for join_clips_orchestrator tasks that are queued or generating
-      const { data, error } = await supabase
-        .from('tasks')
+      const { data, error } = await supabase().from('tasks')
         .select('id, status, params')
         .eq('task_type', 'join_clips_orchestrator')
         .eq('project_id', projectId)

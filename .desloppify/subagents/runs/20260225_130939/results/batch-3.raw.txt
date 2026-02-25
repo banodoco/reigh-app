@@ -1,0 +1,137 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "test_strategy": 81.0,
+    "api_surface_coherence": 78.0,
+    "mid_level_elegance": 80.0
+  },
+  "dimension_notes": {
+    "test_strategy": {
+      "evidence": [
+        "Multiple high-impact modules in this batch have no direct test files discovered by name/reference search: `src/shared/components/ImageGenerationForm/hooks/referenceUpload/referenceDomainService.ts`, `supabase/functions/_shared/edgeOperation.ts`, `src/shared/lib/governance/deprecationPolicy.ts`, `src/shared/lib/errorHandling/recoverableError.ts`, `src/shared/components/ui/useTooltipInteractionPolicy.ts`, `src/shared/components/ui/touchableTooltip.tsx`, and `supabase/functions/complete_task/errors.ts`.",
+        "Existing tests in nearby areas focus on consumers and broad flows (e.g., `orchestrator.test.ts`, `edgeRequest.test.ts`, `rateLimit.test.ts`) but do not isolate several edge/failure contracts implemented directly in the listed files."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "api_surface_coherence": {
+      "evidence": [
+        "`src/shared/lib/toolSettingsService.ts` documents `fetchToolSettingsSupabase` as returning a `{ settings, hasShotSettings }` wrapper, but the function signature returns `OperationResult<SettingsFetchResult>` and all call sites must branch on `ok`.",
+        "`src/shared/components/ImageGenerationForm/hooks/referenceUpload/referenceDomainService.ts` uses throw/catch+fallback patterns (`throw new Error(...)`, broad `catch { return fallbackUrl; }`) instead of the `OperationResult` envelope used by adjacent service APIs (`toolSettingsService`, `clipInitService`, `generateVideoService`).",
+        "`supabase/functions/_shared/edgeRequest.ts` mixes two incompatible public response styles in one boundary module (`EdgeRuntimeResult` object with `errorResponse` vs `OperationResult`-based helpers)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "`supabase/functions/complete_task/orchestrator.ts` uses run-scoped sibling lookup in `findSiblingSegments` (`lookupTasksByRunIdWithFallback` first), but `checkFinalStitchStatus` only queries by orchestrator task id (`lookupTasksByOrchestratorIdWithFallback`) and ignores run identity.",
+        "This creates an asymmetric seam in orchestrator completion gating: segment readiness is run-aware while final-step readiness is not, increasing risk of cross-run contamination when historical rows share the same orchestrator id."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "operation_result_contract_drift",
+      "summary": "Service-layer APIs in the same workflow mix `OperationResult`, thrown exceptions, and fallback-return contracts, forcing callers to handle incompatible error shapes.",
+      "related_files": [
+        "src/shared/lib/toolSettingsService.ts",
+        "src/shared/components/ImageGenerationForm/hooks/referenceUpload/referenceDomainService.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/tools/join-clips/lib/clipInitService.ts",
+        "supabase/functions/_shared/edgeRequest.ts"
+      ],
+      "evidence": [
+        "`fetchToolSettingsSupabase` returns `Promise<OperationResult<SettingsFetchResult>>` and encodes failures with `operationFailure`.",
+        "`referenceDomainService` throws raw `Error` in `uploadAndProcessReference` but swallows all errors in `resolveReferenceThumbnailUrl` by returning `fallbackUrl` with no structured error signal.",
+        "`generateVideoService` and `clipInitService` expose `OperationResult` contracts, while `edgeRequest` also exposes non-OperationResult `EdgeRuntimeResult` for runtime initialization."
+      ],
+      "suggestion": "Standardize boundary APIs on one contract (preferably `OperationResult`) for this layer, including a migration adapter for legacy throw-based functions; then enforce the contract in callers and tests.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "incomplete_operation_result_migration"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "orchestrator_final_step_lookup_not_run_scoped",
+      "summary": "Final-step completion checks are not run-scoped, unlike sibling segment discovery, creating a seam inconsistency that can gate on stale rows.",
+      "related_files": [
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/_shared/billing.ts"
+      ],
+      "evidence": [
+        "`findSiblingSegments` first calls `lookupTasksByRunIdWithFallback(...runId...)` and only falls back to orchestrator-id lookup.",
+        "`checkFinalStitchStatus` always calls `lookupTasksByOrchestratorIdWithFallback` and never takes `orchestratorRunId`, so final-step state can be derived from a different run when historical rows exist."
+      ],
+      "suggestion": "Pass run id through final-step status checks and use the same run-first/fallback strategy as sibling segment lookup; add ordering/selection rules when multiple candidate final-step rows are returned.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "orchestrator_identity_scope_drift"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "completion_error_wrapping_loses_boundary_context",
+      "summary": "`toCompletionError` returns pre-existing `CompletionError` unchanged, so outer boundary code/context metadata is silently dropped.",
+      "related_files": [
+        "supabase/functions/complete_task/errors.ts",
+        "supabase/functions/complete_task/orchestrator.ts"
+      ],
+      "evidence": [
+        "In `toCompletionError`, `if (error instanceof CompletionError) return error;` bypasses new `code/context/message/metadata` passed by outer callers.",
+        "`checkOrchestratorCompletion` catch block supplies boundary-specific `code: 'orchestrator_completion_failed'`, `context`, and metadata, but these are ignored whenever an inner function already threw `CompletionError`."
+      ],
+      "suggestion": "Wrap existing `CompletionError` with boundary context (or merge/append metadata) instead of returning it verbatim; preserve original error as `cause` while promoting boundary-level code/context.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "error_contract_layering_gap"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "critical_paths_without_targeted_tests",
+      "summary": "Several critical boundary/util modules in this batch have no focused tests, leaving failure-path behavior unverified.",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/hooks/referenceUpload/referenceDomainService.ts",
+        "supabase/functions/_shared/edgeOperation.ts",
+        "src/shared/lib/governance/deprecationPolicy.ts",
+        "src/shared/lib/errorHandling/recoverableError.ts",
+        "src/shared/components/ui/useTooltipInteractionPolicy.ts",
+        "src/shared/components/ui/touchableTooltip.tsx",
+        "supabase/functions/complete_task/errors.ts"
+      ],
+      "evidence": [
+        "No direct test module surfaced for `referenceDomainService`, despite multi-step upload/transform/session/storage behavior and mixed throw/fallback logic.",
+        "No direct tests surfaced for `edgeOperation`, even though it defines the shared error/success envelope consumed by edge request, billing, and rate limit paths.",
+        "No direct tests surfaced for date-bound policy logic in `deprecationPolicy`, wrapper behavior in `recoverableError`, and wrapping semantics in `complete_task/errors`."
+      ],
+      "suggestion": "Add targeted unit tests for each listed boundary module, prioritizing failure-path contracts (invalid payloads, auth/session absence, date boundary behavior, and error-wrapping semantics) rather than only consumer-level integration tests.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "boundary_module_test_gap"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "OperationResult migration is partial, leaving mixed exception/result/fallback contracts across adjacent APIs.",
+      "Identity scoping rules are not consistently enforced across orchestrator completion seams (run id vs orchestrator id).",
+      "Boundary utility modules are under-tested relative to their blast radius."
+    ],
+    "likely_symptoms": [
+      "operation_result_contract_drift",
+      "orchestrator_final_step_lookup_not_run_scoped",
+      "completion_error_wrapping_loses_boundary_context",
+      "critical_paths_without_targeted_tests"
+    ],
+    "possible_false_positives": []
+  }
+}

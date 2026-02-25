@@ -1,0 +1,97 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "cross_module_architecture": 74.0,
+    "high_level_elegance": 71.0,
+    "package_organization": 68.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "src/integrations/supabase/client.ts exports `supabase = getOrCreateSupabaseClient()` at module scope, so importing the module triggers client creation and runtime initialization side effects.",
+        "The same module mutates global window state (`window.__supabase_client__`, `window.supabase`), creating hidden cross-module coupling to import order/runtime environment.",
+        "README.md does not declare this import-time initialization contract, so architectural behavior is not discoverable from top-level governance docs."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "src/types/shots.ts is a deprecated compatibility shim with a hard remove date (`2026-05-31`) but holistic context marks it as a high-import hub (~200 importers), indicating the migration contract is not actively enforced.",
+        "README.md links quality/structure docs but does not define a compatibility-policy mechanism (owner, enforcement, gate) to prevent expired shims from becoming permanent architecture.",
+        "Governance contracts are therefore split between inline comments and docs without a single enforced policy path."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "package_organization": {
+      "evidence": [
+        "src/shared/lib/utils.ts is a generic barrel that re-exports unrelated helpers (`cn`, `cropFilename`, `truncateText`), obscuring ownership boundaries.",
+        "src/shared/components/ui/button.tsx imports `cn` via `@/shared/lib/utils` instead of a UI-local utility entrypoint, increasing UI→shared-lib coupling.",
+        "holistic_context.structure.coupling_matrix shows strong `src/shared/components/ui/ → src/shared/lib/` traffic (36 edges), and `src/types/shots.ts` remains a high-fan-in compatibility file (~200 importers), both objective organization signals of boundary blur."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "supabase_import_time_runtime_side_effects",
+      "summary": "Supabase client module performs hidden runtime initialization at import time.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`supabase` is created eagerly at module load (`export const supabase = getOrCreateSupabaseClient();`).",
+        "Client creation path mutates global window symbols and initializes runtime/instrumentation, making import order part of runtime behavior.",
+        "Top-level docs do not state this contract, so consumer modules cannot reason about side effects from import alone."
+      ],
+      "suggestion": "Split `client.ts` into explicit `getSupabaseClient()` (lazy) and `initializeSupabase()` (bootstrap-only side effects), keep `supabase` export as deprecated compatibility wrapper for one release, and document bootstrap ownership in README architecture docs so side effects are no longer implicit.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "expired_shim_contract_without_enforcement",
+      "summary": "Deprecated `shots` shim has a sunset contract but no enforceable migration gate.",
+      "related_files": [
+        "src/types/shots.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`src/types/shots.ts` declares deprecation and remove-by date but still acts as a broad re-export shim.",
+        "Holistic context identifies this file as heavily imported (~200 importers), signaling policy drift from intended temporary compatibility role.",
+        "README documents quality references but omits a concrete compatibility/removal enforcement workflow."
+      ],
+      "suggestion": "Add a repository-level compatibility policy section in README (deprecation owner, SLA, and removal gate), then enforce with `no-restricted-imports` banning `@/types/shots` for new code and a CI check (`rg \"@/types/shots\" src`) that must trend to zero before removing the shim.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "shared_utils_barrel_blurs_ui_boundary",
+      "summary": "Generic `shared/lib/utils` barrel weakens package ownership and import boundaries.",
+      "related_files": [
+        "src/shared/lib/utils.ts",
+        "src/shared/components/ui/button.tsx"
+      ],
+      "evidence": [
+        "`utils.ts` is a broad alias entrypoint rather than a concern-scoped module.",
+        "`button.tsx` imports `cn` through that barrel, coupling UI primitives to a general shared-lib namespace.",
+        "Structure signals show heavy `src/shared/components/ui/ → src/shared/lib/` coupling (36 edges), consistent with boundary leakage."
+      ],
+      "suggestion": "Staged reorg plan: Stage 1 target folders: create `src/shared/components/ui/lib/` for UI-only class helpers and keep string helpers in `src/shared/lib/stringFormatting.ts`; Stage 2 move order: (1) move `cn` access to UI-local entrypoint, (2) update `button.tsx` and other `src/shared/components/ui/*` imports, (3) shrink `src/shared/lib/utils.ts` to temporary compatibility re-export, (4) remove barrel after call sites are migrated; Stage 3 import-update/validation commands: `rg \"@/shared/lib/utils\" src/shared/components/ui src/shared/components`, apply import rewrites, then run `npm run lint` and `npm run test -- src/shared/components/ui/button.tsx`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

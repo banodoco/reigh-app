@@ -2,7 +2,7 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7'
 import { authenticateRequest } from "../_shared/auth.ts"
 import { SystemLogger } from "../_shared/systemLogger.ts"
-import { checkRateLimit, rateLimitResponse } from "../_shared/rateLimit.ts"
+import { checkRateLimit, isRateLimitExceededFailure, rateLimitFailureResponse } from "../_shared/rateLimit.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -33,7 +33,7 @@ serve(async (req) => {
     }
 
     // Rate limit: 10 requests per minute for this destructive operation
-    const deleteProjectLimit = { maxRequests: 10, windowSeconds: 60, identifierType: 'user' as const }
+    const deleteProjectLimit = { maxRequests: 10, windowSeconds: 60 }
     const rateLimitResult = await checkRateLimit(
       supabaseAdmin,
       'delete-project',
@@ -41,10 +41,31 @@ serve(async (req) => {
       deleteProjectLimit,
       '[DELETE-PROJECT]'
     )
-    if (!rateLimitResult.allowed) {
-      logger.warn("Rate limit exceeded", { user_id: auth.userId })
+    if (!rateLimitResult.ok) {
+      if (isRateLimitExceededFailure(rateLimitResult)) {
+        logger.warn("Rate limit exceeded", { user_id: auth.userId })
+        await logger.flush()
+        return rateLimitFailureResponse(rateLimitResult, deleteProjectLimit)
+      }
+
+      logger.error("Rate limit check failed", {
+        user_id: auth.userId,
+        error_code: rateLimitResult.errorCode,
+        message: rateLimitResult.message,
+      })
       await logger.flush()
-      return rateLimitResponse(rateLimitResult, deleteProjectLimit)
+      return new Response(
+        JSON.stringify({ error: 'Rate limit service unavailable' }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (rateLimitResult.policy === 'fail_open') {
+      logger.warn("Rate limit check degraded; allowing request", {
+        user_id: auth.userId,
+        reason: rateLimitResult.value.degraded?.reason,
+        message: rateLimitResult.value.degraded?.message,
+      })
     }
 
     // Parse request body

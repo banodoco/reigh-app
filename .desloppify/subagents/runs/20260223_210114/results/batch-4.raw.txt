@@ -1,0 +1,111 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "low_level_elegance": 68.0
+  },
+  "dimension_notes": {
+    "low_level_elegance": {
+      "evidence": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts keeps both BuildTravelRequestBodyLegacyParams and BuildTravelRequestBodyV2Params plus adapter exports (_buildTravelRequestBodyLegacy), which duplicates local parameter plumbing instead of a single internal flow.",
+        "buildTimelinePairConfig in generateVideoService builds frame gaps from a sorted list but reads per-pair overrides from unsorted filteredShotGenerations by index, creating implicit ordering assumptions in local control flow.",
+        "Aspect-ratio helper logic is duplicated across src/shared/lib/imageAspectRatio.ts and src/shared/components/ShotImageManager/utils/image-utils.ts with separate fallback behavior, increasing drift risk in simple utility internals.",
+        "src/shared/lib/taskTypeUtils.ts uses taskType.includes('travel') in isTravelTaskType while task config/visibility lookups in src/shared/lib/taskConfig.ts rely on exact task-type keys, creating imprecise and inconsistent low-level classification behavior.",
+        "supabase/functions/complete_task/storage.ts has dead/legacy-style function parameters in generateThumbnail (_sourceBytes, _userId, _taskId) and recomputes objectPath despite already receiving it, indicating migration residue in function internals."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "travel_request_dual_path_residue",
+      "summary": "Travel request construction keeps a deprecated legacy adapter path that duplicates local mapping logic.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/shared/lib/tasks/travelBetweenImages/types.ts"
+      ],
+      "evidence": [
+        "generateVideoService defines both BuildTravelRequestBodyLegacyParams and BuildTravelRequestBodyV2Params, then maps legacy->V2 via toV2TravelRequestParams and exposes buildTravelRequestBodyFromLegacy marked @deprecated (lines ~477-622).",
+        "types.ts still exposes TravelBetweenImagesTaskParamsInput as canonical params plus Partial<LegacyTravelBetweenImagesTaskParamsInput> (lines ~348-354), so the legacy shape remains in normal call flow."
+      ],
+      "suggestion": "Remove the legacy adapter/export once callers are migrated, collapse to one request-builder signature, and keep legacy decoding only at ingestion boundaries.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "pair_override_index_alignment_risk",
+      "summary": "Per-pair override assignment relies on index alignment across differently ordered collections.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/shared/lib/taskCreation/arrayUtils.ts"
+      ],
+      "evidence": [
+        "buildTimelinePairConfig computes frameGaps from sortedPositions (sorted by timeline frame) but fills pairPrompts/pairPhaseConfigs/pairMotionSettings from filteredShotGenerations iteration order (lines ~295-377).",
+        "This helper is exported and reusable; if caller ordering changes, override arrays can bind to wrong pairs without explicit keying.",
+        "arrayUtils.ts already acknowledges stale-order/length scenarios by truncating arrays to target count, which reinforces that order-sensitive array logic is an active concern in this area."
+      ],
+      "suggestion": "Derive both gaps and per-pair overrides from one sorted pair list keyed by start/end frame or pair shot_generation IDs, then map outputs from that single source.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "aspect_ratio_helper_duplication",
+      "summary": "Aspect-ratio utility logic is duplicated in two helpers with partially different behavior, increasing drift risk.",
+      "related_files": [
+        "src/shared/lib/imageAspectRatio.ts",
+        "src/shared/components/ShotImageManager/utils/image-utils.ts"
+      ],
+      "evidence": [
+        "imageAspectRatio.ts resolves dimensions from metadata/originalParams/project ratio and returns stringified numeric aspect ratio (lines ~35-69).",
+        "image-utils.ts implements a separate getAspectRatioStyle with only project-ratio fallback and same default of '1' (lines ~55-66).",
+        "Both functions return the same shape but with different source precedence and parsing scope."
+      ],
+      "suggestion": "Centralize to one shared aspect-ratio resolver and let call sites pass optional metadata/context inputs rather than maintaining separate implementations.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "task_type_fuzzy_match_leak",
+      "summary": "Travel task classification uses substring matching, which is imprecise relative to exact-key config flows.",
+      "related_files": [
+        "src/shared/lib/taskTypeUtils.ts",
+        "src/shared/lib/taskConfig.ts"
+      ],
+      "evidence": [
+        "isTravelTaskType returns TRAVEL_TYPES.has(taskType) || taskType.includes('travel') (taskTypeUtils.ts lines ~44-48).",
+        "taskConfig.ts resolves visibility/category/display using exact task-type keys from cache/fallback registries (lines ~47-109), so fuzzy positives can diverge from configured semantics."
+      ],
+      "suggestion": "Replace substring matching with an explicit registry (or prefix policy with strict delimiter checks) shared with task-type config sources.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "storage_thumbnail_signature_debt",
+      "summary": "Thumbnail generation keeps dead parameters and redundant path recomputation, indicating migration residue in internals.",
+      "related_files": [
+        "supabase/functions/complete_task/storage.ts",
+        "src/shared/lib/storagePaths.ts"
+      ],
+      "evidence": [
+        "generateThumbnail signature includes unused _sourceBytes, _userId, _taskId parameters and optional objectPath (storage.ts lines ~163-170).",
+        "handleThumbnail recomputes objectPath and passes it to generateThumbnail even though taskOutput path generation is already centralized and used earlier in upload flow (storage.ts lines ~65-67 and ~145-149).",
+        "This leaves function internals carrying stale arguments and duplicate path responsibilities."
+      ],
+      "suggestion": "Simplify generateThumbnail to accept only required inputs (supabase, mainImageUrl, objectPath), remove dead args, and pass the previously computed objectPath through the flow once.",
+      "confidence": "high",
+      "impact_scope": "local",
+      "fix_scope": "single_edit"
+    }
+  ]
+}

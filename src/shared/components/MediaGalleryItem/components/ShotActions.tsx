@@ -5,16 +5,19 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-  TooltipProvider,
 } from "@/shared/components/ui/tooltip";
 import { ShotSelector } from "@/shared/components/ShotSelector";
-import { cn } from "@/shared/lib/utils";
-import type { GeneratedImageWithMetadata } from "../../MediaGallery/types";
+import { cn } from '@/shared/components/ui/contracts/cn';
+import type {
+  GeneratedImageWithMetadata,
+  SimplifiedShotOption,
+} from "../../MediaGallery/types";
+import { useShotActionController } from "../hooks/useShotActionController";
 
 /** Shot selector dropdown state and options */
 export interface ShotSelectorState {
   selectedShotId: string;
-  simplifiedShotOptions: { id: string; name: string }[];
+  simplifiedShotOptions: SimplifiedShotOption[];
   isShotSelectorOpen: boolean;
   setIsShotSelectorOpen: (open: boolean) => void;
   setSelectedShotIdLocal: (id: string) => void;
@@ -103,42 +106,20 @@ export const ShotActions: React.FC<ShotActionsProps> = ({
     onAddToShotWithoutPosition,
   } = actions;
 
-  // Handle add to shot click - navigate if already positioned, otherwise add
-  const handleAddToShotClick = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-
-    // If in transient success or already positioned, navigate to shot
-    if ((showTickForImageId === image.id || isAlreadyPositionedInSelectedShot) && selectedShotId && simplifiedShotOptions) {
-      const targetShot = simplifiedShotOptions.find(s => s.id === selectedShotId);
-      if (targetShot) {
-        onNavigateToShot(targetShot);
-        return;
-      }
-    }
-
-    // If already positioned in shot, nothing else to do (navigation already handled)
-    if (isAlreadyPositionedInSelectedShot) {
-      return;
-    }
-
-    await onAddToShot();
-  };
-
-  // Handle add without position click
-  const handleAddWithoutPositionClick = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-
-    // If already associated without position, navigate to shot
-    if (isAlreadyAssociatedWithoutPosition && selectedShotId && simplifiedShotOptions) {
-      const targetShot = simplifiedShotOptions.find(s => s.id === selectedShotId);
-      if (targetShot) {
-        onNavigateToShot(targetShot);
-        return;
-      }
-    }
-
-    await onAddToShotWithoutPosition();
-  };
+  const {
+    handleAddToShotIntent,
+    handleAddWithoutPositionIntent,
+  } = useShotActionController({
+    imageId: image.id,
+    selectedShotId,
+    simplifiedShotOptions,
+    showTickForImageId,
+    isAlreadyPositionedInSelectedShot,
+    isAlreadyAssociatedWithoutPosition,
+    onNavigateToShot,
+    onAddToShot,
+    onAddToShotWithoutPosition,
+  });
 
   return (
     <div className={cn(
@@ -175,85 +156,81 @@ export const ShotActions: React.FC<ShotActionsProps> = ({
 
       {!isVideoContent && (
         <div className="relative">
-          <TooltipProvider delayDuration={0}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className={`h-7 w-7 p-0 rounded-full bg-black/50 hover:bg-black/70 text-white ${
+                  showTickForImageId === image.id
+                    ? 'bg-emerald-500 hover:bg-emerald-600'
+                    : isAlreadyPositionedInSelectedShot
+                      ? 'bg-muted/60 hover:bg-muted/70 text-foreground'
+                      : ''
+                }`}
+                onClick={handleAddToShotIntent}
+                disabled={!selectedShotId || addingToShotImageId === image.id}
+                aria-label={
+                  isAlreadyPositionedInSelectedShot ? `Jump to ${currentTargetShotName}` :
+                  showTickForImageId === image.id ? `Jump to ${currentTargetShotName}` :
+                  (currentTargetShotName ? `Add to '${currentTargetShotName}' at final position` : "Add to selected shot")
+                }
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                {addingToShotImageId === image.id ? (
+                  <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
+                ) : showTickForImageId === image.id ? (
+                  <Check className="h-4 w-4" />
+                ) : isAlreadyPositionedInSelectedShot ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  <PlusCircle className="h-4 w-4" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              {isAlreadyPositionedInSelectedShot ? `Jump to ${currentTargetShotName || 'shot'}` :
+              showTickForImageId === image.id ? `Jump to ${currentTargetShotName || 'shot'}` :
+              (selectedShotId && currentTargetShotName ? `Add to '${currentTargetShotName}' at final position` : "Select a shot then click to add")}
+            </TooltipContent>
+          </Tooltip>
+
+          {/* Add without position button - visibility now memoized for performance */}
+          {shouldShowAddWithoutPositionButton && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="outline"
                   size="icon"
-                  className={`h-7 w-7 p-0 rounded-full bg-black/50 hover:bg-black/70 text-white ${
-                    showTickForImageId === image.id
-                      ? 'bg-emerald-500 hover:bg-emerald-600'
-                      : isAlreadyPositionedInSelectedShot
-                        ? 'bg-muted/60 hover:bg-muted/70 text-foreground'
-                        : ''
+                  className={`absolute -top-1 -right-1 h-4 w-4 p-0 rounded-full border-0 scale-75 hover:scale-100 transition-transform duration-200 ease-out ${
+                    isAlreadyAssociatedWithoutPosition
+                      ? 'bg-muted/80 hover:bg-muted/90 text-foreground'
+                      : 'bg-black/60 hover:bg-black/80 text-white'
                   }`}
-                  onClick={handleAddToShotClick}
-                  disabled={!selectedShotId || addingToShotImageId === image.id}
+                  onClick={handleAddWithoutPositionIntent}
+                  disabled={!selectedShotId || addingToShotWithoutPositionImageId === image.id || addingToShotImageId === image.id}
                   aria-label={
-                    isAlreadyPositionedInSelectedShot ? `Jump to ${currentTargetShotName}` :
-                    showTickForImageId === image.id ? `Jump to ${currentTargetShotName}` :
-                    (currentTargetShotName ? `Add to '${currentTargetShotName}' at final position` : "Add to selected shot")
+                    isAlreadyAssociatedWithoutPosition
+                      ? (currentTargetShotName ? `Jump to ${currentTargetShotName}` : 'Jump to shot')
+                      : (currentTargetShotName ? `Add to '${currentTargetShotName}' without position` : "Add to selected shot without position")
                   }
                   onPointerDown={(e) => e.stopPropagation()}
                 >
-                  {addingToShotImageId === image.id ? (
-                    <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
-                  ) : showTickForImageId === image.id ? (
-                    <Check className="h-4 w-4" />
-                  ) : isAlreadyPositionedInSelectedShot ? (
-                    <Check className="h-4 w-4" />
+                  {addingToShotWithoutPositionImageId === image.id ? (
+                    <div className="h-2 w-2 animate-spin rounded-full border-b border-white"></div>
+                  ) : isAlreadyAssociatedWithoutPosition ? (
+                    <Check className="h-2 w-2" />
                   ) : (
-                    <PlusCircle className="h-4 w-4" />
+                    <Plus className="h-2 w-2" />
                   )}
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                {isAlreadyPositionedInSelectedShot ? `Jump to ${currentTargetShotName || 'shot'}` :
-                showTickForImageId === image.id ? `Jump to ${currentTargetShotName || 'shot'}` :
-                (selectedShotId && currentTargetShotName ? `Add to '${currentTargetShotName}' at final position` : "Select a shot then click to add")}
+                {isAlreadyAssociatedWithoutPosition
+                  ? `Jump to ${currentTargetShotName || 'shot'}`
+                  : (selectedShotId && currentTargetShotName ? `Add to '${currentTargetShotName}' without position` : "Add to selected shot without position")}
               </TooltipContent>
             </Tooltip>
-          </TooltipProvider>
-
-          {/* Add without position button - visibility now memoized for performance */}
-          {shouldShowAddWithoutPositionButton && (
-            <TooltipProvider delayDuration={0}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className={`absolute -top-1 -right-1 h-4 w-4 p-0 rounded-full border-0 scale-75 hover:scale-100 transition-transform duration-200 ease-out ${
-                      isAlreadyAssociatedWithoutPosition
-                        ? 'bg-muted/80 hover:bg-muted/90 text-foreground'
-                        : 'bg-black/60 hover:bg-black/80 text-white'
-                    }`}
-                    onClick={handleAddWithoutPositionClick}
-                    disabled={!selectedShotId || addingToShotWithoutPositionImageId === image.id || addingToShotImageId === image.id}
-                    aria-label={
-                      isAlreadyAssociatedWithoutPosition
-                        ? (currentTargetShotName ? `Jump to ${currentTargetShotName}` : 'Jump to shot')
-                        : (currentTargetShotName ? `Add to '${currentTargetShotName}' without position` : "Add to selected shot without position")
-                    }
-                    onPointerDown={(e) => e.stopPropagation()}
-                  >
-                    {addingToShotWithoutPositionImageId === image.id ? (
-                      <div className="h-2 w-2 animate-spin rounded-full border-b border-white"></div>
-                    ) : isAlreadyAssociatedWithoutPosition ? (
-                      <Check className="h-2 w-2" />
-                    ) : (
-                      <Plus className="h-2 w-2" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  {isAlreadyAssociatedWithoutPosition
-                    ? `Jump to ${currentTargetShotName || 'shot'}`
-                    : (selectedShotId && currentTargetShotName ? `Add to '${currentTargetShotName}' without position` : "Add to selected shot without position")}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
           )}
         </div>
       )}

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { calculateMultiDragOrder } from '../reorder-utils';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 
 const makeImage = (id: string): GenerationRow => ({ id } as GenerationRow);
 

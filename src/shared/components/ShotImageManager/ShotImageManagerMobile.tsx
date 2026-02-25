@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useCallback, useRef } from 'react';
-import { toast } from '@/shared/components/ui/sonner';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { Button } from '@/shared/components/ui/button';
 import {
   ArrowDown,
@@ -12,13 +12,13 @@ import {
   FolderPlus,
   ExternalLink
 } from 'lucide-react';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import { cn } from '@/shared/lib/utils';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { usePanes } from '@/shared/contexts/PanesContext';
-import { ConfirmDialog } from '@/shared/components/ConfirmDialog';
+import { ConfirmDialog } from '@/shared/components/dialogs/ConfirmDialog';
 import { ShotBatchItemMobile } from './ShotBatchItemMobile';
 import { BaseShotImageManagerProps } from './types';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 import { PairPromptIndicator } from './components/PairPromptIndicator';
 import { InlineSegmentVideo } from '@/shared/components/InlineSegmentVideo';
 import { useMarkVariantViewed } from '@/shared/hooks/useMarkVariantViewed';
@@ -286,7 +286,7 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
       await onImageReorder(orderedIds, draggedItemId);
       
     } catch (error) {
-      handleError(error, { context: 'ShotImageManagerMobile', showToast: false });
+      normalizeAndPresentError(error, { context: 'ShotImageManagerMobile', showToast: false });
       // Don't clear selection on error so user can retry
     }
   }, [mobileSelectedIds, currentImages, onImageReorder, onSelectionChange]);

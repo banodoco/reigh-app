@@ -8,7 +8,7 @@ import {
   TooltipTrigger,
 } from '@/shared/components/ui/tooltip';
 import { VariantBadge } from '@/shared/components/VariantBadge';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 
 interface VideoItemActionsProps {
   video: GenerationRow;

@@ -1,60 +1,33 @@
-/**
- * Centralized task type utilities
- *
- * This module provides a single source of truth for task type categorization.
- * Use these utilities instead of inline checks like `taskType?.includes('travel')`.
- *
- * Note: Some types like 'clip_join' are variant_types (stored on generation_variants),
- * not task_types (in task_types DB table). This utility handles both uniformly.
- */
+import { getTaskTypeFamilyFromFallback } from '@/shared/lib/taskTypeConfigFallback';
 
-// Join clips related types (includes variant_type 'clip_join')
-const JOIN_CLIPS_TYPES = new Set([
-  'join_clips_orchestrator',
-  'join_clips_segment',
-  'join_clips',
-  'clip_join', // variant_type, not a task_type
-]);
+type TaskTypeFamily = 'travel' | 'join_clips' | 'character_animate';
 
-// Travel/video generation types
-const TRAVEL_TYPES = new Set([
-  'travel_orchestrator',
-  'travel_segment',
-  'individual_travel_segment',
-]);
+function resolveTaskTypeFamily(taskType: string): TaskTypeFamily | undefined {
+  // `clip_join` is a persisted variant_type, not a task_types row.
+  if (taskType === 'clip_join') {
+    return 'join_clips';
+  }
 
-// Character animation types
-const CHARACTER_ANIMATE_TYPES = new Set([
-  'animate_character',
-]);
+  if (taskType === 'join_clips') {
+    return 'join_clips';
+  }
 
-/**
- * Check if a task type is a join clips type
- * Includes: join_clips_orchestrator, join_clips_segment, join_clips, clip_join
- */
+  return getTaskTypeFamilyFromFallback(taskType);
+}
+
 export const isJoinClipsTaskType = (taskType: string | null | undefined): boolean => {
   if (!taskType) return false;
-  return JOIN_CLIPS_TYPES.has(taskType);
+  return resolveTaskTypeFamily(taskType) === 'join_clips';
 };
 
-/**
- * Check if a task type is a travel/video generation type
- * Includes: travel_orchestrator, travel_segment, individual_travel_segment
- */
 export const isTravelTaskType = (taskType: string | null | undefined): boolean => {
   if (!taskType) return false;
-  // Also check for partial match to handle any future travel types
-  return TRAVEL_TYPES.has(taskType) || taskType.includes('travel');
+  return resolveTaskTypeFamily(taskType) === 'travel';
 };
 
-/**
- * Check if a task type is a character animate type
- */
 export const isCharacterAnimateTaskType = (taskType: string | null | undefined): boolean => {
   if (!taskType) return false;
-  return CHARACTER_ANIMATE_TYPES.has(taskType);
+  return resolveTaskTypeFamily(taskType) === 'character_animate';
 };
 
-
-// Re-export from canonical location (taskParamsUtils is the source of truth)
 export { parseTaskParams } from '@/shared/lib/taskParamsUtils';

@@ -1,0 +1,108 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 6,
+  "assessments": {
+    "error_consistency": 76.0,
+    "logic_clarity": 71.0
+  },
+  "dimension_notes": {
+    "error_consistency": {
+      "evidence": [
+        "src/shared/lib/generationTaskRepository.ts mixes thrown exceptions (resolveGenerationProjectId) with OperationResult returns (getPrimaryTaskIdForGenerationResult/getPrimaryTaskIdsForGenerationsResult) for closely related task-ID lookup flows.",
+        "src/shared/hooks/useGetPrimaryTaskIdForGeneration.ts converts OperationResult back into thrown errors (`throw result.error`), creating a layered throw/result/throw path through src/shared/lib/generationTaskQueries.ts.",
+        "src/shared/lib/tasks/taskCreatorPipeline.ts reports errors then rethrows raw `error`; outer callers in src/shared/lib/tasks/imageGeneration.ts and src/shared/lib/tasks/magicEdit.ts catch and report again, duplicating failure reporting context."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "logic_clarity": {
+      "evidence": [
+        "src/shared/hooks/__tests__/useTaskCancellation.test.ts mocks `@/integrations/supabase/client` as `{ supabase: { from } }` and mocks `handleError`, but src/shared/hooks/useTaskCancellation.ts uses `getSupabaseClient()` and `reportRuntimeError`; test doubles do not match runtime dependencies.",
+        "src/shared/lib/tasks/__tests__/joinClips.test.ts and src/shared/lib/tasks/__tests__/individualTravelSegment.test.ts mock `@/shared/lib/errorHandler`, while task code uses the newer error-handling module (`errorHandling/handleError`), leaving dead/irrelevant mocks.",
+        "src/pages/Home/hooks/useDiscordSignIn.ts and src/pages/Home/hooks/auth/useAuthReferralFinalize.ts both report errors then return without rejecting, so callers cannot distinguish success vs failure from resolved Promise flow."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "error_consistency",
+      "identifier": "mixed_task_lookup_error_contracts",
+      "summary": "Task lookup APIs mix throw-based and Result-based failures in one flow, forcing callers through inconsistent error semantics.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/lib/generationTaskQueries.ts",
+        "src/shared/hooks/useGetPrimaryTaskIdForGeneration.ts"
+      ],
+      "evidence": [
+        "resolveGenerationProjectId throws `Error` directly on not-found/scope mismatch.",
+        "getPrimaryTaskIdForGenerationResult and getPrimaryTaskIdsForGenerationsResult return OperationResult failures instead of throwing.",
+        "useGetPrimaryTaskIdForGeneration then throws `result.error` in mutationFn, converting Result back to throw."
+      ],
+      "suggestion": "Choose one boundary contract for this subsystem (prefer OperationResult or prefer throwing), then normalize repository/query/hook layers to that single contract so mutation callers do not need throw/result translation.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "double_report_rethrow_pipeline",
+      "summary": "Task creation failures are reported in inner pipeline and again in outer batch wrappers, producing duplicated error events with fragmented context.",
+      "related_files": [
+        "src/shared/lib/tasks/taskCreatorPipeline.ts",
+        "src/shared/lib/tasks/imageGeneration.ts",
+        "src/shared/lib/tasks/magicEdit.ts"
+      ],
+      "evidence": [
+        "runTaskCreationPipeline catches any error, calls reportRuntimeError, then `throw error`.",
+        "createBatchImageGenerationTasks catches around runBatchTaskPipeline, calls reportRuntimeError again, then rethrows.",
+        "createBatchMagicEditTasks uses the same outer catch-report-rethrow pattern."
+      ],
+      "suggestion": "Define a single reporting boundary for task creation (either pipeline-level or top-level batch function) and pass normalized AppError/cause upward without re-reporting at each layer.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "logic_clarity",
+      "identifier": "stale_error_module_mocks_in_tests",
+      "summary": "Several tests mock obsolete error modules or wrong exports, so assertions do not exercise the real production error path.",
+      "related_files": [
+        "src/shared/hooks/__tests__/useTaskCancellation.test.ts",
+        "src/shared/lib/tasks/__tests__/joinClips.test.ts",
+        "src/shared/lib/tasks/__tests__/individualTravelSegment.test.ts",
+        "src/shared/hooks/useTaskCancellation.ts"
+      ],
+      "evidence": [
+        "useTaskCancellation.test mocks `handleError` from `errorHandling/handleError`, but source uses `reportRuntimeError`.",
+        "useTaskCancellation.test mocks supabase client as `{ supabase: { from } }`, but source calls `getSupabaseClient()`.",
+        "joinClips.test and individualTravelSegment.test mock `@/shared/lib/errorHandler`, which is not the error module used in current task code."
+      ],
+      "suggestion": "Update test mocks to match actual imports (`getSupabaseClient`, `reportRuntimeError`) and remove obsolete `errorHandler` mocks so failures in the real error path are observable.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "logic_clarity",
+      "identifier": "silent_failure_async_auth_hooks",
+      "summary": "Auth async hooks report failures but resolve normally, making success/failure indistinguishable to callers.",
+      "related_files": [
+        "src/pages/Home/hooks/useDiscordSignIn.ts",
+        "src/pages/Home/hooks/auth/useAuthReferralFinalize.ts"
+      ],
+      "evidence": [
+        "useDiscordSignIn reports OAuth errors (`reportRuntimeError`) but does not throw or return failure state.",
+        "useAuthReferralFinalize catches RPC failures, reports, then returns `void`, with no status return contract.",
+        "Both hooks expose async callbacks that appear awaitable but do not propagate failure semantics."
+      ],
+      "suggestion": "Return an explicit result type (e.g., `{ ok: boolean; error?: Error }`) or throw after reporting so caller logic can branch on actual outcome.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

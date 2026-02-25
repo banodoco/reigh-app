@@ -1,11 +1,15 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
 import { toast } from '@/shared/components/ui/toast';
 import { Project } from '@/types/project';
 import { UserPreferences } from '@/shared/settings/userPreferences';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { fetchInheritableProjectSettings, buildShotSettingsForNewProject } from '@/shared/lib/projectSettingsInheritance';
+import {
+  createDefaultShotWithRollback,
+  ensureUserRecordExists,
+} from '@/shared/services/projects/projectSetupService';
 
 // Type for updating projects
 interface ProjectUpdate {
@@ -37,83 +41,6 @@ function toJsonObject(value: unknown): Record<string, Json | undefined> {
   }
   return {};
 }
-
-/**
- * Copy template content to a new user's Getting Started shot.
- * Calls a SECURITY DEFINER database function that copies starred images,
- * timeline content, and featured video from the template project.
- */
-const copyTemplateToNewUser = async (newProjectId: string, newShotId: string): Promise<void> => {
-  const { error } = await supabase.rpc('copy_onboarding_template', {
-    target_project_id: newProjectId,
-    target_shot_id: newShotId,
-  });
-
-  if (error) {
-    throw error;
-  }
-};
-
-const cleanupFailedProjectSetup = async (projectId: string, userId: string): Promise<void> => {
-  const { error } = await supabase
-    .from('projects')
-    .delete()
-    .eq('id', projectId)
-    .eq('user_id', userId);
-
-  if (error) {
-    handleError(error, { context: 'ProjectContext.cleanupFailedProjectSetup', showToast: false });
-  }
-};
-
-// Helper function to create a default shot for a new project
-const createDefaultShot = async (
-  projectId: string,
-  initialSettings?: Record<string, Json | undefined>,
-  isFirstProject: boolean = false
-): Promise<string> => {
-  const shotName = isFirstProject ? 'Getting Started' : 'Default Shot';
-
-  const { data: shot, error } = await supabase
-    .from('shots')
-    .insert({
-      name: shotName,
-      project_id: projectId,
-      settings: initialSettings || {},
-    })
-    .select('id')
-    .single();
-
-  if (error) {
-    throw error;
-  }
-
-  if (!shot?.id) {
-    throw new Error('Default shot creation returned no shot id');
-  }
-
-  if (isFirstProject) {
-    await copyTemplateToNewUser(projectId, shot.id);
-  }
-
-  return shot.id;
-};
-
-/** Ensure the user record exists in the users table. */
-const ensureUserRecord = async (userId: string): Promise<void> => {
-  const { data: existingUser } = await supabase
-    .from('users')
-    .select('id')
-    .eq('id', userId)
-    .single();
-
-  if (!existingUser) {
-    const { error: userError } = await supabase.rpc('create_user_record_if_not_exists');
-    if (userError) {
-      handleError(userError, { context: 'ProjectContext.createUser', showToast: false });
-    }
-  }
-};
 
 export const determineProjectIdToSelect = (
   projects: Project[],
@@ -165,10 +92,9 @@ export function useProjectCRUD({
       if (!userId) throw new Error('Not authenticated');
       const user = { id: userId };
 
-      await ensureUserRecord(user.id);
+      await ensureUserRecordExists(user.id);
 
-      const { data: projectsData, error } = await supabase
-        .from('projects')
+      const { data: projectsData, error } = await supabase().from('projects')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
@@ -176,8 +102,7 @@ export function useProjectCRUD({
       if (error) throw error;
 
       if (!projectsData || projectsData.length === 0) {
-        const { data: newProject, error: createError } = await supabase
-          .from('projects')
+        const { data: newProject, error: createError } = await supabase().from('projects')
           .insert({
             name: 'Sample Project',
             user_id: user.id,
@@ -187,12 +112,7 @@ export function useProjectCRUD({
           .single();
 
         if (createError) throw createError;
-        try {
-          await createDefaultShot(newProject.id, undefined, true);
-        } catch (setupError) {
-          await cleanupFailedProjectSetup(newProject.id, user.id);
-          throw setupError;
-        }
+        await createDefaultShotWithRollback(newProject.id, user.id, { isFirstProject: true });
 
         const mappedProject = mapDbProjectToProject(newProject);
         setProjects([mappedProject]);
@@ -203,7 +123,7 @@ export function useProjectCRUD({
         onProjectsLoaded(mappedProjects, false);
       }
     } catch (error: unknown) {
-      handleError(error, { context: 'ProjectContext', toastTitle: 'Failed to load projects' });
+      normalizeAndPresentError(error, { context: 'ProjectContext', toastTitle: 'Failed to load projects' });
       setProjects([]);
     } finally {
       setIsLoadingProjects(false);
@@ -224,14 +144,13 @@ export function useProjectCRUD({
       if (!userId) throw new Error('Not authenticated');
       const user = { id: userId };
 
-      await ensureUserRecord(user.id);
+      await ensureUserRecordExists(user.id);
 
       const settingsToInherit = selectedProjectId
         ? toJsonObject(await fetchInheritableProjectSettings(selectedProjectId))
         : {};
 
-      const { data: newProject, error } = await supabase
-        .from('projects')
+      const { data: newProject, error } = await supabase().from('projects')
         .insert({
           name: projectData.name,
           user_id: user.id,
@@ -247,12 +166,9 @@ export function useProjectCRUD({
         ? toJsonObject(await buildShotSettingsForNewProject(selectedProjectId, settingsToInherit))
         : {};
 
-      try {
-        await createDefaultShot(newProject.id, shotSettingsToInherit);
-      } catch (setupError) {
-        await cleanupFailedProjectSetup(newProject.id, user.id);
-        throw setupError;
-      }
+      await createDefaultShotWithRollback(newProject.id, user.id, {
+        initialSettings: shotSettingsToInherit,
+      });
 
       const mappedProject = mapDbProjectToProject(newProject);
       setProjects(prevProjects => sortProjectsByCreatedAt([...prevProjects, mappedProject]));
@@ -262,7 +178,7 @@ export function useProjectCRUD({
 
       return mappedProject;
     } catch (err: unknown) {
-      handleError(err, { context: 'ProjectContext', toastTitle: 'Failed to create project' });
+      normalizeAndPresentError(err, { context: 'ProjectContext', toastTitle: 'Failed to create project' });
       return null;
     } finally {
       setIsCreatingProject(false);
@@ -283,8 +199,7 @@ export function useProjectCRUD({
       if (updates.name !== undefined) dbUpdates.name = updates.name;
       if (updates.aspectRatio !== undefined) dbUpdates.aspect_ratio = updates.aspectRatio;
 
-      const { data: updatedProject, error } = await supabase
-        .from('projects')
+      const { data: updatedProject, error } = await supabase().from('projects')
         .update(dbUpdates)
         .eq('id', projectId)
         .eq('user_id', user.id)
@@ -302,7 +217,7 @@ export function useProjectCRUD({
       );
       return true;
     } catch (err: unknown) {
-      handleError(err, { context: 'ProjectContext', toastTitle: 'Failed to update project' });
+      normalizeAndPresentError(err, { context: 'ProjectContext', toastTitle: 'Failed to update project' });
       return false;
     } finally {
       setIsUpdatingProject(false);
@@ -314,7 +229,7 @@ export function useProjectCRUD({
     try {
       if (!userId) throw new Error('Not authenticated');
 
-      const { data, error } = await supabase.functions.invoke('delete-project', {
+      const { data, error } = await supabase().functions.invoke('delete-project', {
         body: { projectId },
       });
 
@@ -329,7 +244,7 @@ export function useProjectCRUD({
 
       return true;
     } catch (err: unknown) {
-      handleError(err, { context: 'ProjectContext', toastTitle: 'Failed to delete project' });
+      normalizeAndPresentError(err, { context: 'ProjectContext', toastTitle: 'Failed to delete project' });
       return false;
     } finally {
       setIsDeletingProject(false);

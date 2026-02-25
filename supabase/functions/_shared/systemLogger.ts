@@ -12,7 +12,7 @@
  *   await logger.flush(); // Call before returning response
  */
 
-import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
+import type { SupabaseClient } from './supabaseClient.ts';
 
 type LogLevel = 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL';
 

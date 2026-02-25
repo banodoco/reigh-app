@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 import type { SegmentSlot } from '@/shared/hooks/segments';
 import type { AdjacentSegmentsData } from '@/shared/components/MediaLightbox/types';
 

@@ -1,0 +1,107 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 76.0,
+    "mid_level_elegance": 72.0,
+    "low_level_elegance": 70.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "src/integrations/supabase/client.ts exposes getSupabaseClient() as a direct pass-through to getSupabaseRuntimeClient() with no translation, policy, or lifecycle behavior.",
+        "Multiple files add extra wrapper layers around that facade without leverage (e.g., src/shared/lib/tasks/individualTravelSegment.ts uses const getSupabase = () => getSupabaseClient(); while hooks call getSupabaseClient() directly).",
+        "Task payload domains each create their own mode/contracts and payload shims (src/shared/lib/tasks/joinClips.ts, src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts, src/shared/lib/tasks/individualTravelSegment.ts), increasing abstraction surface area with limited reuse."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 68.0,
+        "indirection_cost": 74.0,
+        "interface_honesty": 81.0
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Supabase edge boundaries use duplicated but different shape-normalization seams (asRecord/toRecord/toTaskWithProject/readProjectUserId) across supabase/functions/complete_task/orchestrator.ts, supabase/functions/complete_task/generation.ts, and supabase/functions/calculate-task-cost/index.ts.",
+        "Task-family handoff contracts are composed independently in several builders (buildOrchestrationContract + family contract + task_view_contract in joinClips/travelBetweenImages/individualTravelSegment), which creates repeated seam choreography and higher drift risk during contract evolution.",
+        "Routing fallback behavior is split between contract-driven and legacy paths in supabase/functions/complete_task/generation.ts, making cross-module behavior less predictable when new routing modes are introduced."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Large payload assemblers rely on long conditional object-spread chains with many inline branches (src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts buildTravelPayloadBase; src/shared/lib/tasks/joinClips.ts buildJoinClipsPayload and related builders; src/shared/lib/tasks/individualTravelSegment.ts buildTaskParamsPayload/buildIndividualSegmentParamsPayload).",
+        "State/model construction in the lightbox path is heavily fragmented into model adapters and pass-through objects (src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx and src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx), increasing local cognitive load for small behavior changes.",
+        "Several modules combine many responsibilities in a single function path (validation + normalization + contract creation + payload serialization), reducing directness and making edge-case edits harder to reason about."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "supabase_facade_indirection_without_policy",
+      "summary": "Supabase client layering adds indirection without behavioral value.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/hooks/useGenerationMutations.ts",
+        "src/pages/Home/hooks/useDiscordSignIn.ts"
+      ],
+      "evidence": [
+        "getSupabaseClient() in src/integrations/supabase/client.ts is a direct return of getSupabaseRuntimeClient().",
+        "Callers then add another wrapper (e.g., const getSupabase = () => getSupabaseClient()) or immediate local aliasing, but no caller-visible contract differences exist across these layers.",
+        "No centralized policy (scoping, retries, telemetry context, auth mode separation) is enforced at the facade boundary, so the extra abstraction does not buy seam consistency."
+      ],
+      "suggestion": "Collapse to one explicit access seam: either export the runtime accessor directly and remove local getSupabase wrappers, or make getSupabaseClient enforce concrete cross-cutting policy (for example, scoped client mode + telemetry tag injection) and require all callers to use that behavior.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "edge_boundary_decoder_duplication",
+      "summary": "Edge handlers duplicate payload decoding and normalization seams with drift risk.",
+      "related_files": [
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/complete_task/generation.ts",
+        "supabase/functions/calculate-task-cost/index.ts"
+      ],
+      "evidence": [
+        "Each file defines its own record decoders/converters (asRecord/toRecord/readProjectUserId/toTaskWithProject) instead of sharing one boundary contract utility.",
+        "Nullability and coercion rules differ subtly by file (e.g., generation id extraction, project join shape parsing, params coercion), so equivalent task payloads can be treated differently by sibling handlers.",
+        "This creates extra integration friction when task param schema changes because every boundary module must be updated in parallel."
+      ],
+      "suggestion": "Create a shared edge-contract decoding module in supabase/functions/_shared for task payloads and project join rows, then replace local converters in these handlers with typed shared decoders plus explicit error mapping.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "payload_builder_branch_sprawl",
+      "summary": "Task payload builders are branch-heavy and overlong, reducing local clarity.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/imageGeneration.ts"
+      ],
+      "evidence": [
+        "buildTravelPayloadBase constructs a very wide object with numerous conditional spreads and mixed concerns (defaults, mode toggles, optional sections, runtime flags) in one block.",
+        "joinClips and individualTravelSegment repeat the same pattern: normalization, validation, contract generation, and serialization all in long builder flows.",
+        "These functions are difficult to diff safely because small field changes are embedded inside large object literals with many conditional clauses."
+      ],
+      "suggestion": "Refactor each payload builder into staged, named sections (core required fields, mode-specific fields, optional feature blocks, contract blocks) with small pure helpers returning typed partials; then compose with a final merge in one place.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

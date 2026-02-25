@@ -1,0 +1,137 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 64.0,
+    "high_level_elegance": 60.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/integrations/supabase/client.ts` creates and exports `supabase` eagerly at import time (`export const supabase = getOrCreateSupabaseClient()`), installs instrumentation, initializes runtime, and mutates `window` globals.",
+        "`src/shared/lib/errorHandling/handleError.ts` imports UI toast directly and is consumed by non-UI hooks like `src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts` and `src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts`, forcing infra/hooks to depend on UI layer.",
+        "`src/app/hooks/useSettingsModal.ts` and `src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts` both rely on `useAppEventListener(...)` for cross-feature orchestration, creating hidden runtime coupling instead of explicit dependency paths."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "`src/pages/Home/components/InstallInstructionsModal.tsx` is a 441-line component containing many inline browser/device mockup components plus scenario selection logic and modal rendering, mixing multiple responsibilities in one file.",
+        "`src/shared/components/MediaLightbox/components/LightboxShell.tsx` is a 437-line shell that combines scroll locking, Safari viewport workarounds, z-index arbitration, pointer/touch policy, accessibility labels, and layout calculations in one ownership unit.",
+        "UI ownership boundaries are blurred: `src/shared/components/ui/button.tsx` holds product/theme-specific variant taxonomy (`retro`, `theme-*`, `success`) while being a global primitive imported widely."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "import_time_supabase_singleton_side_effects",
+      "summary": "Supabase client module performs broad side effects at import boundary",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/hooks/useMobile.tsx"
+      ],
+      "evidence": [
+        "`src/integrations/supabase/client.ts` eagerly initializes client on import, installs instrumentation, initializes runtime, and writes `window.__supabase_client__` / `window.supabase`.",
+        "This turns plain importing into startup behavior, increasing order sensitivity and making browser-global state part of module contract."
+      ],
+      "suggestion": "Replace eager export with lazy accessor (`getSupabaseClient()`), keep initialization idempotent inside accessor, and isolate global diagnostics registration behind an explicit dev-only init call.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "ui_coupled_error_core",
+      "summary": "Shared error utility is coupled to UI toast layer",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+      ],
+      "evidence": [
+        "`handleError` imports `toast` from UI and executes toast behavior directly.",
+        "Non-UI hooks call `handleError`, so hook/logic modules are forced to depend on UI-capable error handling semantics."
+      ],
+      "suggestion": "Split into a pure error-normalization/logging function and a UI adapter (`handleErrorWithToast`) so domain/hooks can depend on the pure core while UI layers opt into toast presentation.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "implicit_event_bus_feature_coupling",
+      "summary": "Feature coordination relies on implicit app events instead of explicit contracts",
+      "related_files": [
+        "src/app/hooks/useSettingsModal.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts"
+      ],
+      "evidence": [
+        "`useSettingsModal` listens to `'openSettings'` via `useAppEventListener`.",
+        "`useMediaGalleryHandlers` listens to `'selectShotForAddition'` via the same event mechanism.",
+        "Consumers cannot infer upstream callers from module interfaces, making behavior discovery and safe refactor harder."
+      ],
+      "suggestion": "Move these interactions to explicit typed service/context APIs (e.g., modal controller and gallery command interface) and reserve global events for truly app-global concerns only.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "install_modal_overloaded_ownership",
+      "summary": "InstallInstructionsModal mixes presentation library and orchestration in one module",
+      "related_files": [
+        "src/pages/Home/components/InstallInstructionsModal.tsx",
+        "src/pages/Home/components/CreativePartnerPane.tsx"
+      ],
+      "evidence": [
+        "`InstallInstructionsModal` defines many scenario-specific mockup components plus branching policy (`getMainVisual`, `getTitle`) and modal rendering in one file.",
+        "Home-area components are carrying large UI scenario engines directly, making ownership boundaries within the Home feature unclear."
+      ],
+      "suggestion": "Extract install-visual registry/config (platform/browser/device -> visual + copy) and move mockup primitives into a dedicated submodule; keep modal component focused on composition and state wiring.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "lightbox_shell_multi_responsibility_hub",
+      "summary": "LightboxShell acts as a multi-concern hub instead of a narrow shell",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/LightboxShell.tsx",
+        "src/shared/components/MediaGallery/hooks/useMobileInteractions.ts"
+      ],
+      "evidence": [
+        "`LightboxShell` centralizes overlay close policy, z-index conflict detection, iOS keyboard viewport repair, scroll locking, pointer/touch filtering, and dialog wiring.",
+        "Touch/pointer interaction policy exists in multiple places (`LightboxShell`, `useMobileInteractions`), indicating concern spread and weak decomposition."
+      ],
+      "suggestion": "Split LightboxShell into focused layers: viewport-lock hook, dismissal-policy hook, and presentational shell; consolidate touch policy into one shared interaction module used by both gallery and lightbox.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "global_button_primitive_theme_bloat",
+      "summary": "Global button primitive carries product/theme-specific variant policy",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/MediaTypeFilter.tsx",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx"
+      ],
+      "evidence": [
+        "`button.tsx` includes many semantic/theme variants (`retro`, `theme-*`, `success`) in a shared primitive consumed across domains.",
+        "Feature components (`ShotActions`, `MediaTypeFilter`) consume global UI primitives whose style policy is broadened by product-specific concerns, expanding shared surface area."
+      ],
+      "suggestion": "Keep `Button` limited to core semantic variants and move product-theme variants into feature/theme wrappers (e.g., `HomeButton`, `ThemeButton`) to tighten primitive ownership.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

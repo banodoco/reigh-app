@@ -1,19 +1,19 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { toast } from '@/shared/components/ui/sonner';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import { createTask, generateUUID, generateRunId } from '@/shared/lib/taskCreation';
-import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
+import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
 import { formatTime, PortionSelection } from '@/shared/components/VideoPortionTimeline';
-import { useEditVideoSettings } from '@/shared/hooks/useEditVideoSettings';
+import { useEditVideoSettings } from '@/shared/settings/hooks/useEditVideoSettings';
 import { VACE_GENERATION_DEFAULTS } from '@/shared/lib/vaceDefaults';
 import { useLoraManager } from '@/shared/hooks/useLoraManager';
 import { usePublicLoras } from '@/shared/hooks/useResources';
 import type { LoraModel } from '@/shared/hooks/useLoraManager';
 import { useTaskPlaceholder } from '@/shared/hooks/useTaskPlaceholder';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
 
 interface UseVideoEditingProps {
   media: GenerationRow | null;

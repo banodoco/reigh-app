@@ -1,0 +1,80 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 6,
+  "assessments": {
+    "error_consistency": 84.0
+  },
+  "dimension_notes": {
+    "error_consistency": {
+      "evidence": [
+        "Client task-creation modules normalize and rethrow via `throw handleError(error, { ... })` (e.g., `src/shared/lib/tasks/imageGeneration.ts`, `src/shared/lib/tasks/joinClips.ts`, `src/shared/lib/tasks/magicEdit.ts`, `src/shared/lib/tasks/individualTravelSegment.ts`), while adjacent mutation/repository code still creates fresh `Error` strings (`src/shared/hooks/useGenerationMutations.ts`, `src/shared/hooks/useTasks.ts`).",
+        "Several UI action handlers catch and log via `handleError` but then suppress propagation (`src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts`, `src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts`, `src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts`), producing inconsistent caller-visible failure semantics.",
+        "Supabase/runtime and edge-task boundaries do not use one rethrow convention: `src/integrations/supabase/client.ts` logs with `handleError` then throws raw fallback errors, while other callsites use `handleAndRethrow`; edge completion paths mix raw rethrow + `console.error` (`supabase/functions/complete_task/generation.ts`) with wrapped thrown errors in sibling orchestration logic (`supabase/functions/complete_task/orchestrator.ts`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "error_consistency",
+      "identifier": "mixed_error_shape_between_task_and_mutation_layers",
+      "summary": "Neighboring data/task paths use incompatible error shapes (normalized AppError vs ad-hoc Error strings), making failure handling non-uniform.",
+      "related_files": [
+        "src/shared/hooks/useGenerationMutations.ts",
+        "src/shared/hooks/useTasks.ts",
+        "src/shared/lib/tasks/imageGeneration.ts",
+        "src/shared/lib/tasks/joinClips.ts"
+      ],
+      "evidence": [
+        "`useGenerationMutations` and `useTasks` throw new string-wrapped `Error` instances (e.g., `Failed to update generation...`, `Task with ID ... not found...`), which discard upstream structured metadata.",
+        "Task builders (`imageGeneration`, `joinClips`, plus other task modules in this batch) consistently use `throw handleError(error, { context, showToast: false })`, yielding normalized `AppError` payloads.",
+        "Callers across these modules cannot reliably depend on one contract (e.g., preserved context/error code/showToast metadata) because thrown types differ by file."
+      ],
+      "suggestion": "Standardize thrown errors at data/task boundaries: replace ad-hoc `new Error(...)` wrapping with a shared normalizer (e.g., `handleAndRethrow` or dedicated mapper that preserves original cause/code) and only add user-facing copy at presentation layer.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "silent_failure_in_ui_action_handlers",
+      "summary": "Multiple UI handlers swallow failures after logging/toasting, so upstream logic gets success-like control flow despite operational failure.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+      ],
+      "evidence": [
+        "`useDeleteSegmentHandler` catches deletion errors, calls `handleError(...)`, and returns without signaling failure to callers.",
+        "`handleNavigateToShot` / `handleVisitShotFromNotifier` in `useMediaGalleryHandlers` catch and log but do not propagate or return failure state.",
+        "`handleCreateShot` in `useMediaGalleryItemState` catches and toasts, then completes normally, so parent flow cannot branch on failure."
+      ],
+      "suggestion": "Adopt one explicit UI action contract: either rethrow after `handleError`, or return `Result`/boolean status from handlers and require callers to branch on it. Apply consistently to all imperative callbacks in this surface.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "inconsistent_rethrow_and_logging_at_runtime_boundaries",
+      "summary": "Runtime/edge boundary code mixes raw rethrow, wrapped throw, and duplicate logging patterns, causing uneven context preservation and noisy diagnostics.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "supabase/functions/complete_task/generation.ts",
+        "supabase/functions/complete_task/orchestrator.ts"
+      ],
+      "evidence": [
+        "`getSupabaseClient()` logs fallback initialization failure via `handleError(...)` but then throws raw `fallbackInitializationError`, while nearby client code uses `handleAndRethrow(...)` for normalized rethrow behavior.",
+        "`complete_task/generation.ts` catch block logs via `console.error` and logger, then rethrows raw error; sibling `orchestrator.ts` typically throws newly wrapped contextual `Error` messages.",
+        "These mixed patterns make stack traces/context and retry classification inconsistent across adjacent runtime boundaries."
+      ],
+      "suggestion": "Define and enforce a boundary policy: single structured log per boundary and one rethrow strategy (prefer wrapped error with preserved cause). Replace raw `throw error` and duplicate console/logger emission with the shared helper.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

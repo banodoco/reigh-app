@@ -1,0 +1,73 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 5,
+  "assessments": {
+    "low_level_elegance": 78.0
+  },
+  "dimension_notes": {
+    "low_level_elegance": {
+      "evidence": [
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelinePositions.ts declares a \"single source of truth\" but still exposes three compatibility aliases (displayPositions, framePositions, setFramePositions), which preserves duplicate mental models in internals.",
+        "Browser hooks use mixed timer typing patterns: src/tools/travel-between-images/hooks/useOperationTracking.ts and src/tools/travel-between-images/hooks/useTemporaryVisibility.ts use NodeJS.Timeout, while src/tools/travel-between-images/hooks/useStableSkeletonVisibility.ts uses numeric browser timer IDs.",
+        "src/shared/lib/typedEvents.ts dispatchAppEvent/listenAppEvent directly call window APIs without runtime guards, while src/shared/lib/supabaseSession.ts explicitly guards non-browser execution."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "timeline_positions_compat_alias_sprawl",
+      "summary": "Timeline positions hook keeps duplicate legacy APIs despite claiming one source of truth",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelinePositions.ts",
+        "src/types/generationRow.ts"
+      ],
+      "evidence": [
+        "useTimelinePositions return type and return object expose positions plus displayPositions/framePositions/setFramePositions aliases marked for backwards compatibility.",
+        "The same migration-era compatibility facade pattern appears in src/types/generationRow.ts, indicating legacy overlap has been retained rather than retired."
+      ],
+      "suggestion": "Introduce a deprecation removal phase: keep only `positions`/`updatePositions` internally, migrate remaining callers off alias members, then remove compatibility fields and the wrapper setter in one cleanup pass.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "browser_timer_type_drift",
+      "summary": "Browser hooks leak NodeJS timeout types, creating inconsistent low-level timer handling",
+      "related_files": [
+        "src/tools/travel-between-images/hooks/useOperationTracking.ts",
+        "src/tools/travel-between-images/hooks/useTemporaryVisibility.ts",
+        "src/tools/travel-between-images/hooks/useStableSkeletonVisibility.ts"
+      ],
+      "evidence": [
+        "useOperationTracking and useTemporaryVisibility type timeout refs as NodeJS.Timeout | null in client hooks.",
+        "useStableSkeletonVisibility uses window.setTimeout and number | null, which is the browser-native shape in the same subsystem."
+      ],
+      "suggestion": "Standardize timer refs in browser hooks to `ReturnType<typeof window.setTimeout>` (or `number`) and consistently use window timer APIs to remove Node type coupling.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "typed_events_missing_browser_guard",
+      "summary": "Typed event helpers assume window exists, unlike nearby browser-safe utilities",
+      "related_files": [
+        "src/shared/lib/typedEvents.ts",
+        "src/shared/lib/supabaseSession.ts"
+      ],
+      "evidence": [
+        "dispatchAppEvent and listenAppEvent call window.dispatchEvent/addEventListener directly with no `typeof window` check.",
+        "supabaseSession in the same shared layer protects non-browser execution paths before touching window/localStorage."
+      ],
+      "suggestion": "Add a small browser-runtime guard helper in typedEvents (no-op or safe unsubscribe in non-browser environments) and route all window access through it.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ]
+}

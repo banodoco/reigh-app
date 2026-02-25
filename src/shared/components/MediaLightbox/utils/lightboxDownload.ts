@@ -6,9 +6,9 @@
  */
 
 import type { GenerationVariant } from '@/shared/hooks/useVariants';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 import { readSegmentOverrides } from '@/shared/lib/settingsMigration';
-import { downloadMedia } from './download';
+import { downloadMedia } from '@/shared/lib/media/downloadMedia';
 
 interface LightboxDownloadOptions {
   /** Ref to the variant the user intends to download (synchronous, avoids race condition) */

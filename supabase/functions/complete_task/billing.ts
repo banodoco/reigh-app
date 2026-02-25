@@ -7,11 +7,14 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
 import {
   getSubTaskOrchestratorId,
+  type CostCalculationTriggerResult,
   triggerCostCalculation,
 } from '../_shared/billing.ts';
+import { operationFailure, operationSuccess } from '../_shared/edgeOperation.ts';
 
 // Re-export triggerCostCalculation so existing imports from orchestrator.ts continue to work
 export { triggerCostCalculation };
+export type { CostCalculationTriggerResult };
 
 /**
  * Trigger cost calculation for a task, but skip if it's a sub-task
@@ -27,7 +30,7 @@ export async function triggerCostCalculationIfNotSubTask(
   supabaseUrl: string,
   serviceKey: string,
   taskId: string
-): Promise<void> {
+): Promise<CostCalculationTriggerResult> {
   try {
     const { data: taskForCostCheck } = await supabase
       .from("tasks")
@@ -37,11 +40,28 @@ export async function triggerCostCalculationIfNotSubTask(
 
     const subTaskOrchestratorRef = getSubTaskOrchestratorId(taskForCostCheck?.params, taskId);
     if (subTaskOrchestratorRef) {
-      return;
+      return operationSuccess(
+        {
+          status: null,
+          skipped: true,
+        },
+        { policy: 'best_effort' },
+      );
     }
 
-    await triggerCostCalculation(supabaseUrl, serviceKey, taskId, 'COMPLETE-TASK');
+    return await triggerCostCalculation({
+      supabaseUrl,
+      serviceKey,
+      taskId,
+      logTag: 'COMPLETE-TASK',
+    });
   } catch (costErr) {
-    console.error("[COMPLETE-TASK] Error triggering cost calculation:", costErr);
+    return operationFailure(costErr, {
+      policy: 'degrade',
+      errorCode: 'cost_calculation_precheck_error',
+      message: costErr instanceof Error ? costErr.message : String(costErr),
+      recoverable: true,
+      cause: costErr,
+    });
   }
 }

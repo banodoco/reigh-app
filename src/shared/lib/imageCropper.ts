@@ -1,4 +1,4 @@
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 interface ProjectCropResult {
   croppedFile: File;
@@ -30,12 +30,12 @@ export const cropImageToProjectAspectRatio = async (
   const looksLikeImageByName = typeof inputFile.name === 'string' && /\.(heic|heif|jpg|jpeg|png|webp|gif|bmp|tif|tiff)$/i.test(inputFile.name);
 
   if (!hasImageMime && !looksLikeImageByName) {
-    handleError(new Error(`Invalid file type: ${inputFile?.name} (${inputFile?.type})`), { context: 'imageCropper:invalidFileType', showToast: false });
+    normalizeAndPresentError(new Error(`Invalid file type: ${inputFile?.name} (${inputFile?.type})`), { context: 'imageCropper:invalidFileType', showToast: false });
     return null;
   }
 
   if (isNaN(targetAspectRatio) || targetAspectRatio <= 0) {
-    handleError(new Error(`Invalid target aspect ratio: ${targetAspectRatio}`), { context: 'imageCropper:invalidAspectRatio', showToast: false });
+    normalizeAndPresentError(new Error(`Invalid target aspect ratio: ${targetAspectRatio}`), { context: 'imageCropper:invalidAspectRatio', showToast: false });
     return null;
   }
 

@@ -1,0 +1,115 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 1,
+  "assessments": {
+    "low_level_elegance": 81.0
+  },
+  "dimension_notes": {
+    "low_level_elegance": {
+      "evidence": [
+        "State/view-model objects are rebuilt as large mutable aggregates without stable identity (e.g., `imageEditValue` in `useInlineEditState` is reconstructed inline and then provided via context).",
+        "Memoization is neutralized by depending on freshly-created object containers (`props` and `state`) in `useSegmentSlotModeData`, while those containers are recreated each render in `useSegmentSlotMode`.",
+        "Task payload assembly is repeated across multiple modules with many conditional spreads and mixed canonical/legacy branches, creating drift-prone field handling instead of a shared mapper contract.",
+        "Join Clips keeps both canonical and compatibility entrypoints active, with duplicated boundary validation/shape resolution across `joinClipsCompatAdapter.ts` and `joinClips.ts`."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "inline_edit_context_identity_churn",
+      "summary": "Inline edit state builds a huge context value object per render, forcing broad rerender churn and making behavior harder to reason about.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "`useInlineEditState` constructs `imageEditValue` as a large inline object (`lines 344-421`) without `useMemo`, then returns it.",
+        "`InlineEditView` passes that object to `<ImageEditProvider value={state.imageEditValue}>` (`line 109`), so any parent re-render creates a new provider value identity.",
+        "Downstream lightbox/layout code consumes image-edit context heavily; unstable provider identity widens rerender scope across overlay/tooling components."
+      ],
+      "suggestion": "Extract a dedicated selector-based context model or memoize `imageEditValue` with stable callbacks/segments (`canvas`, `drawing`, `generation`) so provider value identity only changes when relevant slices change.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "state_aggregation_without_stable_contracts"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "segment_slot_memo_invalidated_by_object_deps",
+      "summary": "Segment-slot memoization is effectively bypassed because `useMemo` depends on object wrappers recreated every render.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts",
+        "src/shared/components/MediaLightbox/VideoLightbox.tsx"
+      ],
+      "evidence": [
+        "`useSegmentSlotModeData` uses `useMemo` with `[props, state, ...]` (`lines 414-421`).",
+        "`useSegmentSlotMode` recreates `state` as a new object literal each render (`lines 459-468`), and `props` is a fresh function argument object.",
+        "This defeats the intended memo boundary for `segmentSlotModeData`, increasing callback/data identity churn passed into video lightbox mode flows."
+      ],
+      "suggestion": "Stop depending on wrapper objects in memo deps; destructure only primitive/stable dependencies and memoize callback bundles separately (or convert to smaller hooks returning stable slices).",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "state_aggregation_without_stable_contracts"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "payload_builder_null_semantics_drift",
+      "summary": "Manual payload mappers implement inconsistent null/optional semantics for the same field set, creating subtle contract drift.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/joinClips.ts"
+      ],
+      "evidence": [
+        "`travelBetweenImages/payloadBuilder.ts` only includes `selected_phase_preset_id` when truthy (`lines 208-210`), dropping explicit `null` clears.",
+        "`individualTravelSegment.ts` also gates `selected_phase_preset_id` on truthiness (`lines 548-550`).",
+        "`joinClips.ts` always writes `selected_phase_preset_id` with fallback/default (`line 321`), so identical conceptual field has different write semantics by task family."
+      ],
+      "suggestion": "Centralize shared payload field semantics in a reusable mapper (including explicit null-pass-through policy), then have each task family compose from that mapper instead of hand-rolled conditional spreads.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "payload_contract_sprawl"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "join_clips_dual_boundary_persists",
+      "summary": "Join-clips keeps dual API boundaries (compat + canonical) with duplicated validation/mapping, increasing indirection cost and migration drag.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClipsCompatAdapter.ts",
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/__tests__/joinClips.test.ts"
+      ],
+      "evidence": [
+        "`JoinClipsTaskCompatParams` duplicates most canonical fields plus legacy ones in a large parallel interface (`joinClipsCompatAdapter.ts` lines 24-88).",
+        "Validation and mode-boundary logic exists in both adapter (`validateCompatModeBoundaries`, `toCanonicalJoinClipsTaskInput`) and canonical module (`normalizeJoinClipsParams`).",
+        "Test coverage remains heavily centered on compat entrypoint (`joinClips.test.ts` describe block and many compat calls), which keeps the legacy seam a first-class dependency."
+      ],
+      "suggestion": "Collapse to one public entrypoint: move legacy coercion into a small pre-normalization utility, make canonical input the only exported creation API, and pivot tests to canonical behavior with a minimal legacy fixture set.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "payload_contract_sprawl"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Large orchestrator hooks/components aggregate too many responsibilities into wide state objects without stable identity contracts.",
+      "Task-family payload composition is distributed across several hand-written mappers rather than a shared semantic layer.",
+      "Migration adapters remain in hot paths long enough to become permanent abstractions."
+    ],
+    "likely_symptoms": [
+      "inline_edit_context_identity_churn",
+      "segment_slot_memo_invalidated_by_object_deps",
+      "payload_builder_null_semantics_drift",
+      "join_clips_dual_boundary_persists"
+    ],
+    "possible_false_positives": []
+  }
+}

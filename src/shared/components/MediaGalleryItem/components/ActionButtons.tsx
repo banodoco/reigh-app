@@ -1,12 +1,13 @@
 import React from "react";
 import { Trash2, Star, Pencil } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
-import { cn } from "@/shared/lib/utils";
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { getGenerationId } from "@/shared/lib/mediaTypeHelpers";
 import type { GeneratedImageWithMetadata } from "../../MediaGallery/types";
 
 interface ActionButtonsProps {
   image: GeneratedImageWithMetadata;
+  projectId?: string | null;
   localStarred: boolean;
   isTogglingStar: boolean;
   isDeleting: boolean;
@@ -14,7 +15,7 @@ interface ActionButtonsProps {
   showEdit: boolean;
   showDelete: boolean;
   onToggleStar?: (id: string, starred: boolean) => void;
-  toggleStarMutation: { mutate: (vars: { id: string; starred: boolean }, options?: { onSettled?: () => void }) => void };
+  toggleStarMutation: { mutate: (vars: { id: string; starred: boolean; projectId: string }, options?: { onSettled?: () => void }) => void };
   setIsTogglingStar: (toggling: boolean) => void;
   setLocalStarred: (starred: boolean) => void;
   onOpenLightbox: (image: GeneratedImageWithMetadata, autoEnterEditMode?: boolean) => void;
@@ -23,6 +24,7 @@ interface ActionButtonsProps {
 
 export const ActionButtons: React.FC<ActionButtonsProps> = ({
   image,
+  projectId,
   localStarred,
   isTogglingStar,
   isDeleting,
@@ -53,8 +55,13 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
         onToggleStar(targetId, nextStarred);
         setIsTogglingStar(false);
       } else {
+        if (!projectId) {
+          setIsTogglingStar(false);
+          setLocalStarred(!nextStarred);
+          return;
+        }
         toggleStarMutation.mutate(
-          { id: targetId, starred: nextStarred },
+          { id: targetId, starred: nextStarred, projectId },
           {
             onSettled: () => {
               setIsTogglingStar(false);

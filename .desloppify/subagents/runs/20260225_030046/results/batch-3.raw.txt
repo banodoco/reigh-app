@@ -1,0 +1,92 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 3,
+  "assessments": {
+    "incomplete_migration": 81.0
+  },
+  "dimension_notes": {
+    "incomplete_migration": {
+      "evidence": [
+        "Multiple files still parse both canonical and legacy field names with no enforceable sunset gate (e.g., `getSourceTaskId` falls back to `task_id`, `getGenerationId` falls back across `generation_id`/`metadata.generation_id`/`id`, and `extractSegmentImages` reads both explicit and array/orchestrator formats).",
+        "`useCredits` defines a past-removal check but `warnIfPastRemovalTarget` only flips a boolean and emits no log/metric/error, so post-deadline usage can remain invisible.",
+        "`createJoinClipsTaskCompat` keeps a wide mixed-shape API surface and legacy usage telemetry is optional (`onCompatUse?`), so migration progress is not guaranteed to be observable."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "silent_deprecation_aliases",
+      "summary": "Deprecated aliases have inconsistent and sometimes silent removal enforcement.",
+      "related_files": [
+        "src/shared/hooks/useCredits.ts",
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts"
+      ],
+      "evidence": [
+        "`useCredits` calls `warnIfPastRemovalTarget()` but the function only sets `hasWarnedPastRemovalTarget = true` and performs no log/throw/telemetry (`useCredits.ts` lines 14-20).",
+        "`handleError.ts` keeps deprecated alias exports (`reportRuntimeError`, `RuntimeErrorOptions`) with no deprecation policy hook or runtime signal (lines 39-48).",
+        "By contrast, `legacySupabaseFacade` logs when the removal target is passed (`console.error` in lines 30-32), showing migration enforcement is not standardized."
+      ],
+      "suggestion": "Introduce one shared deprecation-shim utility used by all alias modules that enforces a standard policy: pre-deadline usage metric, post-deadline warning or throw (configurable), and owner/remove-by metadata. Migrate `useCredits` and `handleError` aliases to that utility.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "missing_migration_governance_layer"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "unbounded_legacy_field_fallbacks",
+      "summary": "Core readers accept legacy and canonical payload shapes without sunset boundaries.",
+      "related_files": [
+        "src/shared/lib/taskIdHelpers.ts",
+        "src/shared/lib/mediaTypeHelpers.ts",
+        "src/shared/lib/galleryUtils.ts"
+      ],
+      "evidence": [
+        "`getSourceTaskId` still reads `source_task_id`, `orchestrator_task_id`, and legacy `task_id` with no owner/remove-by policy (`taskIdHelpers.ts` lines 13-32).",
+        "`getGenerationId` supports three ID locations and URL helpers accept mixed naming (`thumbnail_url`/`thumbUrl`, `location`/`url`/`imageUrl`) without migration gates (`mediaTypeHelpers.ts` lines 16-72).",
+        "`extractSegmentImages` reads dual schemas (`individual_segment_params.*` and `orchestrator_details.*`) and falls back across both indefinitely (`galleryUtils.ts` lines 43-73)."
+      ],
+      "suggestion": "Define canonical read contracts per domain and add policy-backed deprecation wrappers for non-canonical fields (owner/remove-by + telemetry). After writer migration, remove fallback branches in phased PRs.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "missing_migration_governance_layer"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "compat_adapter_without_mandatory_tracking",
+      "summary": "Join-clips compatibility adapter preserves mixed API surface while migration tracking is optional.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClipsCompatAdapter.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts"
+      ],
+      "evidence": [
+        "`JoinClipsTaskCompatParams` includes both canonical and legacy fields in one wide interface (e.g., `clip_source` plus `starting_video_path`/`ending_video_path`, and `video_edit` plus legacy `video_edit_mode` + `source_*`) (`joinClipsCompatAdapter.ts` lines 32-95).",
+        "Legacy usage emission is optional via `onCompatUse?`, so call sites can bypass migration telemetry entirely (`joinClipsCompatAdapter.ts` lines 369-391).",
+        "`legacyStructureVideo.ts` defines deprecated travel fields and a sunset contract in comments, but no enforcement helper in this module to block or report usage after policy deadlines (lines 9-49)."
+      ],
+      "suggestion": "Split canonical creation into a strict public entrypoint and move legacy parsing behind an explicitly deprecated internal adapter that always emits structured usage telemetry; add policy-based post-deadline hard failure toggle for legacy branches.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "missing_migration_governance_layer"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Legacy compatibility is handled ad hoc per module instead of through a single governance/enforcement abstraction.",
+      "Fallback readers were added for safe rollout but retained without mandatory observability to prove they are no longer needed."
+    ],
+    "likely_symptoms": [
+      "silent_deprecation_aliases",
+      "unbounded_legacy_field_fallbacks",
+      "compat_adapter_without_mandatory_tracking"
+    ],
+    "possible_false_positives": []
+  }
+}

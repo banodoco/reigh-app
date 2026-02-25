@@ -1,0 +1,72 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "high_level_elegance": 76.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "README.md defines runtime contracts (centralized Supabase ownership, error notifier bootstrap), but those contracts are documented text only and not reinforced by constrained exports or linted boundaries in the reviewed files.",
+        "src/domains/generation/types/index.ts is a domain entry point that re-exports from generic '@/types/*' paths, which weakens domain ownership and blurs whether generation contracts live in the domain or in shared global type buckets.",
+        "src/shared/lib/ui/cn.ts exposes a pass-through alias to '@/shared/lib/uiClassNames', while high-traffic callers like src/shared/components/ui/button.tsx consume the alias; this creates an extra architectural surface without additional policy or behavior."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "domain_types_ownership_blur",
+      "summary": "Generation domain contracts are presented as domain-owned but source from global type buckets, weakening ownership boundaries.",
+      "related_files": [
+        "README.md",
+        "src/domains/generation/types/index.ts"
+      ],
+      "evidence": [
+        "src/domains/generation/types/index.ts re-exports GenerationParams, GenerationRow, Shot, and generation metadata from '@/types/*' instead of domain-local modules.",
+        "README.md positions architecture docs/contracts as trustworthy ownership guidance, but this entry point makes domain contract location ambiguous for future changes."
+      ],
+      "suggestion": "Either move generation contract types into domain-owned paths (and export from there) or explicitly document that '@/types/*' is the canonical contract layer and make domain barrels thin compatibility shims with a deprecation policy.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "ui_alias_contract_duplication",
+      "summary": "The `cn` compatibility alias introduces redundant public surface without an explicit compatibility policy.",
+      "related_files": [
+        "src/shared/lib/ui/cn.ts",
+        "src/shared/components/ui/button.tsx"
+      ],
+      "evidence": [
+        "src/shared/lib/ui/cn.ts only re-exports `cn` from '@/shared/lib/uiClassNames' and adds no behavior.",
+        "src/shared/components/ui/button.tsx imports from the alias path, so both alias and source path can become de facto contracts."
+      ],
+      "suggestion": "Choose one canonical import path for `cn` and enforce it with lint/codemod; if the alias must remain for migration, mark it as compatibility-only with a removal timeline.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "error_boundary_mixed_responsibility",
+      "summary": "Core error normalization and browser notification transport are coupled in one shared module, diluting architectural contract clarity.",
+      "related_files": [
+        "README.md",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "handleError.ts includes normalization/logging plus browser event wiring (`window.dispatchEvent`, notifier registration state, listener lifecycle) in the same file.",
+        "README.md states shared modules should remain UI-agnostic unless bootstrap wiring runs, but this module still owns UI transport mechanics directly."
+      ],
+      "suggestion": "Split error-core behavior (normalize/log/rethrow) from UI transport wiring into separate modules, with one explicit composition point in app bootstrap so runtime contracts are enforced by module boundaries.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

@@ -14,8 +14,9 @@ import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUpdateResource, useDeleteResource, StyleReferenceMetadata } from '@/shared/hooks/useResources';
 import { updateSettingsCache } from '@/shared/hooks/useToolSettings';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { settingsQueryKeys } from '@/shared/lib/queryKeys/settings';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 import type { ReferenceImage, HydratedReferenceImage, ProjectImageSettings } from '../types';
 
 // ============================================================================
@@ -108,7 +109,7 @@ export function useReferenceResourceMutations(
         type: 'style-reference',
       });
     } catch (error) {
-      handleError(error, { context: 'useReferenceResourceMutations.handleDeleteReference', toastTitle: 'Failed to delete reference' });
+      normalizeAndPresentError(error, { context: 'useReferenceResourceMutations.handleDeleteReference', toastTitle: 'Failed to delete reference' });
       return;
     }
 
@@ -125,7 +126,7 @@ export function useReferenceResourceMutations(
 
     // Optimistic UI update
     try {
-      queryClient.setQueryData(settingsQueryKeys.tool('project-image-settings', selectedProjectId, undefined), (prev: unknown) =>
+      queryClient.setQueryData(settingsQueryKeys.tool(SETTINGS_IDS.PROJECT_IMAGE_SETTINGS, selectedProjectId, undefined), (prev: unknown) =>
         updateSettingsCache<ProjectImageSettings>(prev, {
           references: filteredPointers,
           selectedReferenceIdByShot: updatedSelections
@@ -165,7 +166,7 @@ export function useReferenceResourceMutations(
       });
 
     } catch (error) {
-      handleError(error, { context: 'useReferenceResourceMutations.handleUpdateReferenceName', toastTitle: 'Failed to update name' });
+      normalizeAndPresentError(error, { context: 'useReferenceResourceMutations.handleUpdateReferenceName', toastTitle: 'Failed to update name' });
     }
   }, [hydratedReferences, updateStyleReference]);
 
@@ -191,7 +192,7 @@ export function useReferenceResourceMutations(
       });
 
     } catch (error) {
-      handleError(error, { context: 'useReferenceResourceMutations.handleToggleVisibility', toastTitle: 'Failed to update visibility' });
+      normalizeAndPresentError(error, { context: 'useReferenceResourceMutations.handleToggleVisibility', toastTitle: 'Failed to update visibility' });
     }
   }, [hydratedReferences, updateStyleReference]);
 

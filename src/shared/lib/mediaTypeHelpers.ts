@@ -2,13 +2,15 @@
  * Loose type for objects that might have generation_id and/or id.
  * Use this when dealing with untyped or loosely-typed media objects.
  */
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 
 interface MaybeHasGenerationId {
   generation_id?: string | null;
   id?: string | null;
   metadata?: Record<string, unknown>;
 }
+
+const NON_PRELOADABLE_URL_MARKERS = ['_joined_frame.jpg'] as const;
 
 /**
  * Get the canonical generation ID from a media item.
@@ -29,6 +31,17 @@ export function getGenerationId(
     ? media.metadata.generation_id
     : null;
   return media.generation_id || metadataGenerationId || media.id || null;
+}
+
+/**
+ * Centralized preload eligibility contract for URL-based media entries.
+ */
+export function isPreloadableMediaUrl(url: string | null | undefined): boolean {
+  if (!url) {
+    return false;
+  }
+
+  return !NON_PRELOADABLE_URL_MARKERS.some((marker) => url.includes(marker));
 }
 
 /**
@@ -82,7 +95,7 @@ export function variantToGenerationRow(
   const generationId = getGenerationId(media) ?? media.id;
 
   return {
-    id: generationId,
+    id: media.id,
     generation_id: generationId,
     location: media.url,
     thumbnail_url: media.thumbUrl,

@@ -10,8 +10,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Play, Pause, Trash2 } from 'lucide-react';
 import { MultiPortionTimeline, formatTime } from '@/shared/components/VideoPortionTimeline';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { SEGMENT_OVERLAY_COLORS } from '@/shared/lib/segmentColors';
+import { safePlay } from '@/shared/lib/media/safePlay';
 
 interface VideoEditModeDisplayProps {
   /** Reference to the video element */
@@ -156,9 +157,11 @@ export const VideoEditModeDisplay: React.FC<VideoEditModeDisplayProps> = ({
 
   const handlePlayPause = () => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !videoUrl) return;
     if (video.paused) {
-      video.play().catch(() => {});
+      void safePlay(video, 'VideoEditModeDisplay.handlePlayPause', {
+        videoUrl,
+      });
     } else {
       video.pause();
     }
@@ -170,10 +173,10 @@ export const VideoEditModeDisplay: React.FC<VideoEditModeDisplayProps> = ({
     <>
       <video
         ref={videoRef}
-        src={videoUrl}
+        src={videoUrl || undefined}
         poster={posterUrl}
         muted
-        autoPlay
+        autoPlay={!!videoUrl}
         playsInline
         controls={false}
         preload="auto"

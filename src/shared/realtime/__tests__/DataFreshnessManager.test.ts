@@ -7,11 +7,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock dependencies
-vi.mock('@/shared/lib/errorHandler', () => ({
+vi.mock('@/shared/lib/compat/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 
-vi.mock('@/shared/components/ui/sonner', () => ({
+vi.mock('@/shared/components/ui/runtime/sonner', () => ({
   toast: {
     error: vi.fn(),
     success: vi.fn(),
@@ -235,7 +235,7 @@ describe('DataFreshnessManager', () => {
     });
 
     it('does not show success toast when circuit breaker resets', async () => {
-      const { toast } = await import('@/shared/components/ui/sonner');
+      const { toast } = await import('@/shared/components/ui/runtime/sonner');
       const queryKey = ['tasks', 'proj-1'];
 
       dataFreshnessManager.onFetchFailure(queryKey, new Error('Fail 1'));

@@ -4,7 +4,7 @@ import { Separator as SeparatorPrimitive } from "@base-ui-components/react/separ
 import { Check, ChevronRight, Circle } from "lucide-react"
 import { cva, type VariantProps } from "class-variance-authority"
 
-import { cn } from "@/shared/lib/utils"
+import { cn } from "@/shared/components/ui/contracts/cn"
 
 const DropdownMenu = MenuPrimitive.Root
 

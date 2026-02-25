@@ -1,0 +1,105 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 69.0,
+    "high_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "src/integrations/supabase/client.ts keeps module-level mutable singleton state (`clientInstance`, `instrumentationInstalled`) and also mutates `window.__supabase_client__`/`window.supabase`, creating hidden runtime coupling and boot-order sensitivity.",
+        "src/shared/lib/errorHandling/handleError.ts stores a process-wide mutable `errorNotifier` configured out-of-band via `configureErrorNotifier`, so behavior depends on external initialization order.",
+        "src/features/gallery/hooks/useAdjacentPagePreloader.ts mixes a shared query-key factory with hardcoded query-key tuple matching (`key[0] === 'unified-generations'` etc.), coupling feature logic to cache key internals."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Mobile interaction ownership is split across multiple layers: src/shared/hooks/useMobile.tsx (device classification), src/shared/components/ui/tooltip.tsx (`TouchableTooltip` touch/open lifecycle), and src/shared/components/MediaGallery/hooks/useMobileInteractions.ts (tap/double-tap/global close policy), yielding parallel interaction policies instead of one coherent boundary.",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts combines navigation, filtering, context synchronization, modal orchestration, and error policy in one hook, while related concerns are also spread into src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "hidden_singleton_bootstrap_coupling",
+      "summary": "Global mutable singletons create hidden cross-module initialization dependencies.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/ui/sonner.tsx"
+      ],
+      "evidence": [
+        "Supabase client module persists mutable singleton state and writes debug globals on `window`, so import/use order influences runtime behavior.",
+        "Error handling module keeps a process-wide `errorNotifier` that must be configured elsewhere before toasts can work.",
+        "Toaster wiring relies on shared `toastManager`/`toast` exports, reinforcing globally shared mutable UI state instead of explicit dependency flow."
+      ],
+      "suggestion": "Create an explicit app bootstrap/composition root that instantiates Supabase, error notifier, and toast services once, inject them through providers/context, and keep shared libs pure by removing mutable module-level registries where possible.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "query_key_contract_leak",
+      "summary": "Gallery preloader depends on React Query key internals instead of a stable boundary.",
+      "related_files": [
+        "src/features/gallery/hooks/useAdjacentPagePreloader.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts"
+      ],
+      "evidence": [
+        "Preloader cleanup inspects raw query key positions and string literals (`key[0]`, `key[1]`, `key[2]`) instead of using a shared key parser/predicate API.",
+        "The same feature area already centralizes behavior behind hooks, but this cache-shape knowledge bypasses those boundaries and increases ripple risk when key schema changes."
+      ],
+      "suggestion": "Add shared query-key predicates/helpers (e.g., `isProjectGenerationsKey`, `extractProjectGenerationsPage`) in the query-keys module and switch cleanup logic to those helpers so key shape changes are localized.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "fragmented_mobile_interaction_ownership",
+      "summary": "Mobile interaction behavior is spread across unrelated shared modules with overlapping policies.",
+      "related_files": [
+        "src/shared/hooks/useMobile.tsx",
+        "src/shared/components/ui/tooltip.tsx",
+        "src/shared/components/MediaGallery/hooks/useMobileInteractions.ts",
+        "src/pages/Home/components/CreativePartnerPane.tsx"
+      ],
+      "evidence": [
+        "Device/touch detection exists in `useMobile.tsx`, while tooltip touch-open/close policy is independently reimplemented in `TouchableTooltip`.",
+        "Media gallery separately implements tap timing, double-tap semantics, and outside-click closure, duplicating interaction policy at feature level.",
+        "Home pane adds another mobile-specific tooltip state machine (`ecosystemTipOpen`/`ecosystemTipDisabled`) instead of using a unified interaction abstraction."
+      ],
+      "suggestion": "Define one shared mobile interaction contract (e.g., a `useTouchOverlayBehavior` or interaction policy service) and migrate tooltip/gallery/home consumers to that contract so gesture timing and open/close semantics are owned in one place.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "media_gallery_hook_responsibility_mix",
+      "summary": "Media gallery orchestration hooks blend multiple responsibilities and blur ownership.",
+      "related_files": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx"
+      ],
+      "evidence": [
+        "`useMediaGalleryHandlers` coordinates navigation, context-driven shot switching, filter mutations, modal state transitions, and error reporting in one boundary.",
+        "`useMediaGalleryItemState` accumulates unrelated local concerns (star state, drag state, selector state, modal lifecycle, async create-shot handling), while `ShotActions` also embeds navigation/addition branching tied to the same flows."
+      ],
+      "suggestion": "Split gallery logic into explicit domain controllers (shot targeting, detail modal flow, item UI state) with narrow hook interfaces, then keep components as thin render layers over those controllers.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

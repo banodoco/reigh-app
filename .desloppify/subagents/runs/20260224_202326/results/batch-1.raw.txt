@@ -1,0 +1,99 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 1,
+  "assessments": {
+    "abstraction_fitness": 81.4
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "Task builder contracts remain mixed-mode parameter bags: `JoinClipsTaskParams` carries legacy/new clip inputs, edit-mode fields, orchestration metadata, and UI restoration fields in one interface (`src/shared/lib/tasks/joinClips.ts:66-117`).",
+        "`IndividualTravelSegmentParams` combines source payload replay (`originalParams`), runtime overrides, identity/linkage, and deprecated SVI fields in a single input contract (`src/shared/lib/tasks/individualTravelSegment.ts:31-97`).",
+        "`buildTravelBetweenImagesPayload` still conditionally mutates a broad `Record<string, unknown>` output with many mode flags and optional arrays, rather than constructing from mode-specific typed payloads (`src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts:65-217`).",
+        "Consumers must probe multiple fallback shapes for the same semantic fields (`orchestrator_details`, `full_orchestrator_payload`, `individual_segment_params`, top-level), showing interface drift and weak contract honesty (`src/shared/components/TaskDetails/VideoTravelDetails.tsx:77-187`, `src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts:56-80`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 76.8,
+        "indirection_cost": 79.5,
+        "interface_honesty": 72.9
+      }
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "task_param_bag_mixed_modes_persist",
+      "summary": "Task builders still use oversized mixed-mode param bags, forcing runtime branching instead of explicit mode contracts.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts"
+      ],
+      "evidence": [
+        "`JoinClipsTaskParams` includes legacy and new input shapes plus video-edit-only and orchestration fields in one type (`joinClips.ts:66-117`).",
+        "`IndividualTravelSegmentParams` accepts both replayed raw payload (`originalParams`) and override values for nearly every field (`individualTravelSegment.ts:43-97`).",
+        "`buildTravelBetweenImagesPayload` composes one mutable object with many conditional mode switches (`advanced_mode`, pair overrides, structure fields), rather than narrowing with discriminated unions (`payloadBuilder.ts:113-217`)."
+      ],
+      "suggestion": "Split each task family into discriminated input contracts (for example `mode: 'legacy_join' | 'multi_clip' | 'video_edit'`, `source: 'orchestrator_replay' | 'manual_override'`) and route to mode-specific payload builders. Keep one adapter layer for backward compatibility, but isolate it at module boundaries and emit a single canonical payload schema.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "task_param_bag_overreach"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "task_payload_schema_drift_fallback_chains",
+      "summary": "Multiple consumers depend on fallback chains across duplicate payload paths, indicating a drifting, non-canonical task param interface.",
+      "related_files": [
+        "src/shared/components/TaskDetails/VideoTravelDetails.tsx",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "supabase/functions/complete_task/orchestrator.ts"
+      ],
+      "evidence": [
+        "`VideoTravelDetails` resolves the same logical fields from several locations (`individual_segment_params`, `orchestrator_payload`, `orchestrator_details`, top-level), including advanced-mode and prompt fields (`VideoTravelDetails.tsx:77-187`).",
+        "`useShotImagesEditorCallbacks` checks `pair_shot_generation_id` in FK column and two nested JSON paths (`params` + `individual_segment_params`) during deletion logic (`useShotImagesEditorCallbacks.ts:56-80`).",
+        "Orchestrator completion logic still reads expected segment counts from both nested and top-level keys (`orchestrator_details.num_new_segments_to_generate` and `num_new_segments_to_generate`) (`orchestrator.ts:45-61`)."
+      ],
+      "suggestion": "Define and enforce a single versioned task-params schema per task family, then add a one-time normalization adapter when reading legacy rows. After normalization, downstream modules should read only canonical fields to remove fallback probing.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "task_param_bag_overreach"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "thin_pass_through_exports_add_hops",
+      "summary": "Thin pass-through exports remain that add import hops without policy or transformation.",
+      "related_files": [
+        "src/shared/lib/utils.ts",
+        "src/shared/hooks/useUpdatingTimestamp.ts"
+      ],
+      "evidence": [
+        "`src/shared/lib/utils.ts` is a pure re-export of `cropFilename` and `truncateText` (`utils.ts:1`).",
+        "`useUpdatingTimestamp` is a direct alias to `useRelativeTimestamp` without additional behavior (`useUpdatingTimestamp.ts:42-44`)."
+      ],
+      "suggestion": "Either remove these pass-throughs and migrate call sites to canonical modules, or convert them into intentional compatibility boundaries with explicit deprecation tags and removal timeline to keep indirection accountable.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "pass_through_module_indirection"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Backward-compatibility was preserved by accreting fields into shared parameter bags instead of introducing typed adapters per mode.",
+      "Canonical task payload ownership is split between builders, completion handlers, and UI readers, so each layer added fallback reads rather than converging the contract."
+    ],
+    "likely_symptoms": [
+      "task_param_bag_mixed_modes_persist",
+      "task_payload_schema_drift_fallback_chains",
+      "thin_pass_through_exports_add_hops"
+    ],
+    "possible_false_positives": [
+      "Some tiny wrappers may be intentional temporary compatibility shims; only wrappers with no ownership metadata should be considered debt."
+    ]
+  }
+}

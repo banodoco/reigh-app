@@ -1,5 +1,5 @@
 import * as React from "react"
-import { cn } from "@/shared/lib/utils"
+import { cn } from "@/shared/components/ui/contracts/cn"
 
 interface TextActionProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode

@@ -1,12 +1,11 @@
-import { supabase } from '@/integrations/supabase/client';
-import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
 import { ServerError } from '@/shared/lib/errorHandling/errors';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { DEFAULT_ASPECT_RATIO, type ProjectResolutionResult } from './types';
 
 async function resolveProjectResolutionStrict(projectId: string): Promise<ProjectResolutionResult> {
-  const { data: project, error } = await supabase
-    .from('projects')
+  const { data: project, error } = await supabase().from('projects')
     .select('aspect_ratio')
     .eq('id', projectId)
     .single();
@@ -46,7 +45,7 @@ export async function resolveProjectResolution(
   try {
     return await resolveProjectResolutionStrict(projectId);
   } catch (error) {
-    handleError(error, { context: 'TaskCreation', showToast: false });
+    normalizeAndPresentError(error, { context: 'TaskCreation', showToast: false });
     // Fallback to default resolution
     return {
       resolution: ASPECT_RATIO_TO_RESOLUTION[DEFAULT_ASPECT_RATIO],

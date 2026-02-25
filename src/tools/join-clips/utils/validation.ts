@@ -126,9 +126,11 @@ export function calculateEffectiveFrameCount(
   useInputVideoFps: boolean,
   inputVideoFps?: number
 ): number {
-  // If using input video FPS, use that (or estimate 24fps for typical videos)
-  // Otherwise, default to 16fps which is what the backend uses
-  const targetFps = useInputVideoFps ? (inputVideoFps || 24) : 16;
+  // If using input video FPS, use metadata or the shared input-video fallback.
+  // Otherwise, use the backend generation timeline default.
+  const targetFps = useInputVideoFps
+    ? (inputVideoFps || ASSUMED_INPUT_VIDEO_FPS)
+    : DEFAULT_GENERATION_TIMELINE_FPS;
   return Math.floor(durationSeconds * targetFps);
 }
 
@@ -210,4 +212,8 @@ export function validateClipsForJoin(
 
 
 
+import {
+  ASSUMED_INPUT_VIDEO_FPS,
+  DEFAULT_GENERATION_TIMELINE_FPS,
+} from '@/shared/lib/videoFrameRate';
 

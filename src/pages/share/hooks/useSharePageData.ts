@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { CreatorProfile, SharedData } from '../types';
 
 interface UseSharePageDataResult {
@@ -60,12 +60,11 @@ export function useSharePageData(shareId: string | undefined): UseSharePageDataR
       setLoading(true);
       setError(null);
 
-      const { data, error: fetchError } = await supabase
-        .rpc('get_shared_shot_data', { share_slug_param: shareId });
+      const { data, error: fetchError } = await supabase().rpc('get_shared_shot_data', { share_slug_param: shareId });
 
       const sharePayload = toSharedShotPayload(data);
       if (fetchError) {
-        handleError(fetchError, { context: 'SharePage', showToast: false });
+        normalizeAndPresentError(fetchError, { context: 'SharePage', showToast: false });
         setError('Failed to load shared generation');
         setLoading(false);
         return;
@@ -77,7 +76,7 @@ export function useSharePageData(shareId: string | undefined): UseSharePageDataR
         return;
       }
 
-      void supabase.rpc('increment_share_view_count', {
+      void supabase().rpc('increment_share_view_count', {
         share_slug_param: shareId,
       });
 
@@ -100,7 +99,7 @@ export function useSharePageData(shareId: string | undefined): UseSharePageDataR
         avatar_url: sharePayload.creator_avatar_url ?? null,
       });
     } catch (err) {
-      handleError(err, { context: 'SharePage', showToast: false });
+      normalizeAndPresentError(err, { context: 'SharePage', showToast: false });
       setError('Failed to load shared generation');
     } finally {
       setLoading(false);

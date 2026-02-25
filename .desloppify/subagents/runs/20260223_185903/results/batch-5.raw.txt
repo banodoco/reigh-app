@@ -1,0 +1,96 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 5,
+  "assessments": {
+    "package_organization": 74.0,
+    "high_level_elegance": 78.0
+  },
+  "dimension_notes": {
+    "package_organization": {
+      "evidence": [
+        "holistic_context.structure.root_files marks `vitest.edge.config.ts` (fan_in 1), `vitest.edge.smoke.config.ts` (fan_in 1), `tailwind.config.ts` (fan_in 0), `vite.config.ts` (fan_in 0), and `vitest.config.ts` (fan_in 0) as low-fan-in peripheral root stragglers with the same build/test concern.",
+        "`src/shared/hooks/` has 98 production files in one flat directory (directory_profiles), well above the >10 mixed-concern split threshold; assigned hooks (`useAIInteractionService.ts`, `useAdjacentPagePreloader.ts`, `useApiKeys.ts`) represent different domains (AI orchestration, pagination preloading, credential persistence) but share the same top-level folder.",
+        "Test placement is inconsistent inside shared packages: hooks use `src/shared/hooks/__tests__/...` while components use colocated tests like `src/shared/components/ActiveLoRAsDisplay.test.tsx` and `src/shared/components/AppErrorBoundary.test.tsx`, increasing navigation variance."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Test configuration ownership is fragmented across three root vitest files (`vitest.config.ts`, `vitest.edge.config.ts`, `vitest.edge.smoke.config.ts`) with shared responsibility split by include/exclude conventions instead of a cohesive testing package boundary.",
+        "`useAdjacentPagePreloader.ts` imports from both query-key infra (`@/shared/lib/queryKeys/unified`) and feature data hook internals (`@/shared/hooks/useProjectGenerations`), while remaining in the global flat hooks package; this blurs whether preloading belongs to gallery feature, shared infra, or query orchestration.",
+        "The assigned shared files show domain crossing inside top-level `src/shared/hooks/` and `src/shared/components/` roots rather than purpose-driven subpackages, so ownership of AI, API credential, media/gallery, and error-boundary concerns is not immediately inferable from path alone."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "package_organization",
+      "identifier": "root_config_stragglers_not_packaged",
+      "summary": "Peripheral test/build config files are scattered at root instead of a single config package.",
+      "related_files": [
+        "vitest.edge.config.ts",
+        "vitest.edge.smoke.config.ts",
+        "vitest.config.ts",
+        "vite.config.ts",
+        "tailwind.config.ts"
+      ],
+      "evidence": [
+        "All five assigned root config files are flagged as peripheral in structure data, and four have fan_in 0-1.",
+        "`vitest.config.ts` depends on `./vitest.edge.config` only to derive include/exclude boundaries, indicating shared concern but split ownership.",
+        "Root-level accumulation makes build/test topology discovery depend on filename guessing rather than directory boundary."
+      ],
+      "suggestion": "Staged reorg plan: (1) create `config/testing/`, `config/build/`, and `config/styles/`; (2) move `vitest.edge.config.ts` and `vitest.edge.smoke.config.ts` to `config/testing/`, then move `vitest.config.ts` to `config/testing/web.vitest.config.ts`; (3) move `vite.config.ts` to `config/build/vite.config.ts` and `tailwind.config.ts` to `config/styles/tailwind.config.ts`; (4) add tiny root shim files only when tool discovery requires root presence; (5) update imports/scripts (`rg \"vitest\\.edge\\.config|vitest\\.config|vite\\.config|tailwind\\.config\" -n .` then update package scripts); (6) validate with `pnpm vitest -c config/testing/web.vitest.config.ts`, `pnpm vitest -c config/testing/vitest.edge.config.ts`, and `pnpm vite build --config config/build/vite.config.ts`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "shared_hooks_flat_directory_overload",
+      "summary": "A 98-file flat hooks directory mixes unrelated domains and weakens ownership boundaries.",
+      "related_files": [
+        "src/shared/hooks/useAIInteractionService.ts",
+        "src/shared/hooks/useAdjacentPagePreloader.ts",
+        "src/shared/hooks/useApiKeys.ts",
+        "src/shared/hooks/__tests__/useAIInteractionService.test.ts",
+        "src/shared/hooks/__tests__/useAdjacentPagePreloader.test.ts",
+        "src/shared/hooks/__tests__/useApiKeys.test.ts"
+      ],
+      "evidence": [
+        "directory_profiles reports `src/shared/hooks/` with file_count 98, exceeding flat-directory split threshold.",
+        "Assigned hooks in the same folder implement distinct responsibilities (AI prompt orchestration, gallery page preloading, API-key persistence) with no common domain boundary in path.",
+        "Coupling matrix shows heavy outward edges from shared hooks to multiple infra areas (e.g., `src/shared/hooks/ → src/shared/lib/` 63 and `→ src/integrations/supabase/` 50), reinforcing that the folder is a broad catch-all."
+      ],
+      "suggestion": "Staged reorg plan: (1) create target folders `src/shared/hooks/ai/`, `src/shared/hooks/gallery/`, and `src/shared/hooks/account/`; (2) move files in this order: `useAIInteractionService.ts` + test, then `useAdjacentPagePreloader.ts` + test, then `useApiKeys.ts` + test; (3) convert old paths to temporary re-export shims for one cycle to reduce churn; (4) run import updates via `rg \"@/shared/hooks/(useAIInteractionService|useAdjacentPagePreloader|useApiKeys)\" -n src` and replace with new paths; (5) validate with `pnpm vitest src/shared/hooks/__tests__/useAIInteractionService.test.ts src/shared/hooks/__tests__/useAdjacentPagePreloader.test.ts src/shared/hooks/__tests__/useApiKeys.test.ts` and full typecheck.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "testing_topology_split_across_root_and_package_styles",
+      "summary": "Test ownership model is split between centralized hook tests and colocated component tests.",
+      "related_files": [
+        "src/shared/hooks/__tests__/useAIInteractionService.test.ts",
+        "src/shared/hooks/__tests__/useAdjacentPagePreloader.test.ts",
+        "src/shared/hooks/__tests__/useApiKeys.test.ts",
+        "src/shared/components/ActiveLoRAsDisplay.test.tsx",
+        "src/shared/components/AppErrorBoundary.test.tsx"
+      ],
+      "evidence": [
+        "Hooks tests are centralized under `src/shared/hooks/__tests__/`, while component tests are colocated with production files in `src/shared/components/`.",
+        "This mixed policy creates two discovery rules for sibling shared packages and weakens predictability of where ownership and verification live.",
+        "The inconsistency appears in assigned files directly rather than being isolated to one legacy area."
+      ],
+      "suggestion": "Staged reorg plan: (1) choose one policy per package layer (recommended: colocate tests beside units for both hooks and components); (2) move `src/shared/hooks/__tests__/useAIInteractionService.test.ts` to `src/shared/hooks/ai/useAIInteractionService.test.ts`, `useAdjacentPagePreloader.test.ts` to `src/shared/hooks/gallery/useAdjacentPagePreloader.test.ts`, and `useApiKeys.test.ts` to `src/shared/hooks/account/useApiKeys.test.ts` after hook folder split; (3) keep `src/shared/components/*.test.tsx` colocated; (4) update glob patterns in vitest configs to avoid brittle folder assumptions; (5) validate with `pnpm vitest --run` and `rg \"__tests__/use(AIInteractionService|AdjacentPagePreloader|ApiKeys)\" -n src` to confirm no stale paths.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

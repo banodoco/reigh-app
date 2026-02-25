@@ -1,0 +1,72 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "high_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/integrations/supabase/client.ts` explicitly states import-time initialization side effects, then eagerly executes `getOrCreateSupabaseClient()` and mutates `window.__supabase_client__` and `window.supabase`.",
+        "`src/types/shots.ts` declares a deprecation sunset contract (`Remove by: 2026-05-31`, removal gate = zero imports) but no governance/enforcement mechanism is visible in the reviewed contract docs entrypoint (`README.md`).",
+        "`src/shared/lib/errorHandling/handleError.ts` is placed under `shared/lib` but directly imports UI toast and performs normalization, logging, optional UI notification, and callback dispatch in one shared surface, blurring ownership boundaries."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "deprecated_shim_without_enforced_policy",
+      "summary": "Type migration contract is documented in code but not enforced by repository governance entrypoints.",
+      "related_files": [
+        "src/types/shots.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`src/types/shots.ts` includes a hard sunset date and removal gate for `@/types/shots`.",
+        "`README.md` documents setup and docs links but does not define compatibility/deprecation enforcement or CI gates for contract sunsets."
+      ],
+      "suggestion": "Add a compatibility/deprecation policy section in `README.md` (or linked canonical governance doc) and wire a CI check that fails on new/remaining imports of `@/types/shots` after the declared sunset date.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "supabase_client_contract_hidden_side_effects",
+      "summary": "Supabase client module exposes a simple import contract while performing global and runtime side effects.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`src/integrations/supabase/client.ts` comments acknowledge eager import-boundary side effects, then executes instrumentation install, runtime initialization, and global window registration.",
+        "`README.md` quick-start/runtime docs do not surface this import-side-effect contract, making ownership and initialization boundaries implicit."
+      ],
+      "suggestion": "Split side-effectful initialization from client access (e.g., explicit app-bootstrap `initSupabaseRuntime()` plus pure `getSupabaseClient()`), and document when/where initialization is allowed.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_error_layer_boundary_blur",
+      "summary": "Core error utility in shared lib mixes infrastructure and UI responsibilities.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`handleError` in `src/shared/lib/errorHandling/handleError.ts` normalizes and logs errors, then conditionally renders UI toast by importing `@/shared/components/ui/toast`.",
+        "This places presentation behavior in a shared lib-level contract, reducing clarity of architectural ownership for error handling paths."
+      ],
+      "suggestion": "Separate error-core behavior from presentation adapters: keep normalization/logging in `shared/lib/errorHandling/*`, move toast behavior to a UI-facing wrapper, and document the layering contract in architecture docs linked from `README.md`.",
+      "confidence": "medium",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import type { TrainingDataVideo } from './types';
 
 /**
@@ -32,7 +32,7 @@ export function useVideoUrlCache(videos: TrainingDataVideo[]) {
         const batch = videosNeedingUrls.slice(i, i + batchSize);
 
         const urlPromises = batch.map(async (video) => {
-          const { data, error } = await supabase.storage
+          const { data, error } = await supabase().storage
             .from('training-data')
             .createSignedUrl(video.storageLocation, 3600); // 1 hour expiry
 

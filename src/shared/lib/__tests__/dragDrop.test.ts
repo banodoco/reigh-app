@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
 // Mock errorHandler to avoid pulling in toast/Supabase dependencies
-vi.mock('@/shared/lib/errorHandler', () => ({
+vi.mock('@/shared/lib/compat/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 
@@ -12,8 +12,8 @@ import {
   isValidDropTarget,
   isFileDrag,
   NEW_GROUP_DROPPABLE_ID,
-} from '../dragDrop';
-import type { GenerationDropData } from '../dragDrop';
+} from '../dnd/dragDrop';
+import type { GenerationDropData } from '../dnd/dragDrop';
 
 /**
  * Create a minimal mock of React.DragEvent for testing

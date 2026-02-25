@@ -1,0 +1,120 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 4,
+  "assessments": {
+    "package_organization": 82.0
+  },
+  "dimension_notes": {
+    "package_organization": {
+      "evidence": [
+        "`src/shared/hooks/` is overloaded (81 production files) and mixes broad concerns; assigned files include a deprecated billing shim (`useCredits.ts`), theme hook (`useDarkMode.ts`), and generic timing hook (`useDebounce.ts`) in one flat package.",
+        "`src/shared/components/` is also overloaded (70 files with mixed production/test), and assigned files include both production components (`AuthGate.tsx`, `AspectRatioVisualizer.tsx`) and a colocated test (`BulkEditControls.test.tsx`), while the repo also maintains `src/shared/components/__tests__/` (35 files), indicating inconsistent test boundaries.",
+        "For assigned symbols, import paths show migration drift: consumers still import `@/shared/components/AuthGate`, `@/shared/components/AspectRatioVisualizer`, and `@/shared/hooks/useDarkMode`, while duplicate implementations now exist in domain folders (`src/shared/auth/components/`, `src/shared/components/generation-controls/`, `src/shared/hooks/theme/`).",
+        "`useDebounce` has very low practical fan-in from app code (single observed production consumer: `src/pages/Home/HomePage.tsx`), which matches the packet’s straggler heuristic (fan-in <5) and suggests feature-level placement rather than shared-root placement."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "package_organization",
+      "identifier": "duplicate-module-sources",
+      "summary": "Core modules have duplicate implementations across old `shared` paths and new domain folders, creating ambiguous ownership boundaries.",
+      "related_files": [
+        "src/shared/components/AspectRatioVisualizer.tsx",
+        "src/shared/components/generation-controls/AspectRatioVisualizer.tsx",
+        "src/shared/components/AuthGate.tsx",
+        "src/shared/auth/components/AuthGate.tsx",
+        "src/shared/hooks/useDarkMode.ts",
+        "src/shared/hooks/theme/useDarkMode.ts"
+      ],
+      "evidence": [
+        "`AspectRatioVisualizer.tsx` in `src/shared/components/` and `src/shared/components/generation-controls/` are duplicated implementations.",
+        "`AuthGate.tsx` in `src/shared/components/` and `src/shared/auth/components/` are duplicated implementations.",
+        "`useDarkMode.ts` in `src/shared/hooks/` and `src/shared/hooks/theme/` both exist, but production imports still target the old shared-root path."
+      ],
+      "suggestion": "Staged reorg plan: (1) pick canonical targets (`src/shared/components/generation-controls/AspectRatioVisualizer.tsx`, `src/shared/auth/components/AuthGate.tsx`, `src/shared/hooks/theme/useDarkMode.ts`), (2) update all imports from legacy paths using `rg -l \"@/shared/components/AspectRatioVisualizer|@/shared/components/AuthGate|@/shared/hooks/useDarkMode\" src`, then edit to canonical paths, (3) convert legacy files to temporary re-export shims with explicit deprecation comments or remove them once callers are migrated, (4) validate with `npx vitest run src/shared/components/__tests__/AuthGate.test.tsx src/shared/components/__tests__/AspectRatioVisualizer.test.tsx src/shared/hooks/__tests__/useDarkMode.test.ts` and `npx tsc --noEmit`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "shared_to_domain_migration_drift"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "legacy-shim-in-shared-root",
+      "summary": "`useCredits` remains as a deprecated compatibility shim in shared root, blurring feature ownership after migration to billing feature hooks.",
+      "related_files": [
+        "src/shared/hooks/useCredits.ts",
+        "src/features/billing/hooks/useCredits.ts",
+        "src/integrations/supabase/legacy/legacySupabaseAllowlist.json"
+      ],
+      "evidence": [
+        "`src/shared/hooks/useCredits.ts` is only a deprecated re-export to `@/features/billing/hooks/useCredits`.",
+        "The path is still explicitly allowlisted in legacy governance (`legacySupabaseAllowlist.json`), indicating organizational debt was formalized rather than removed.",
+        "Production consumers in sampled files already import billing hook directly, so mixed path ownership is unnecessary for most current callers."
+      ],
+      "suggestion": "Staged reorg plan: (1) create a compatibility namespace like `src/shared/hooks/compat/` (or `src/shared/legacy/hooks/`) and move `useCredits.ts` there with `git mv`, (2) replace any remaining imports to canonical feature path via `rg -l \"@/shared/hooks/useCredits\" src | xargs -I{} sed -i '' 's#@/shared/hooks/useCredits#@/features/billing/hooks/useCredits#g' {}`, (3) remove the legacy allowlist entry once no imports remain, (4) validate with `npx vitest run src/features/billing/hooks/__tests__/useCredits.test.ts` and `npx tsc --noEmit`.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shared_to_domain_migration_drift"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "mixed-test-placement-components-root",
+      "summary": "Component tests are split between `__tests__` and root colocated files, increasing directory noise in an already overloaded shared components package.",
+      "related_files": [
+        "src/shared/components/BulkEditControls.test.tsx",
+        "src/shared/components/__tests__/AuthGate.test.tsx",
+        "src/shared/components/__tests__/AspectRatioVisualizer.test.tsx"
+      ],
+      "evidence": [
+        "Assigned file `src/shared/components/BulkEditControls.test.tsx` is colocated in production directory root.",
+        "Same package also has dedicated `src/shared/components/__tests__/` with 35 tests, so placement conventions conflict.",
+        "Packet structure shows `src/shared/components/` already exceeds flat-directory cohesion thresholds (70 files, mixed concerns)."
+      ],
+      "suggestion": "Staged reorg plan: (1) standardize on one test boundary for this package (`src/shared/components/__tests__/` or strict colocated-only), (2) if choosing `__tests__`, move `BulkEditControls.test.tsx` first with `git mv src/shared/components/BulkEditControls.test.tsx src/shared/components/__tests__/BulkEditControls.test.tsx`, (3) adjust relative imports in moved tests (e.g., `../BulkEditControls`), (4) enforce with lint rule/glob convention and validate using `npx vitest run src/shared/components/__tests__/BulkEditControls.test.tsx src/shared/components/__tests__/AuthGate.test.tsx src/shared/components/__tests__/AspectRatioVisualizer.test.tsx`.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shared_package_flattening"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "low-fanin-hook-in-shared-root",
+      "summary": "`useDebounce` is placed in global shared hooks despite low observed fan-in and feature-skewed usage.",
+      "related_files": [
+        "src/shared/hooks/useDebounce.ts",
+        "src/shared/hooks/__tests__/useDebounce.test.ts",
+        "src/pages/Home/HomePage.tsx"
+      ],
+      "evidence": [
+        "Observed production import usage for `useDebounce` is concentrated in `src/pages/Home/HomePage.tsx`.",
+        "The hook sits in `src/shared/hooks/`, a high-volume directory (81 files), where low-fan-in utilities become hard to discover and own.",
+        "This matches package straggler criteria from the packet (fan-in <5 suggests non-core placement)."
+      ],
+      "suggestion": "Staged reorg plan: (1) decide scope: if truly generic keep in shared but move to `src/shared/hooks/timing/useDebounce.ts`; if feature-specific move to `src/pages/Home/hooks/useDebounce.ts`, (2) move file and its test together (`git mv` both implementation and test), (3) update imports with `rg -l \"@/shared/hooks/useDebounce\" src`, (4) validate with `npx vitest run src/shared/hooks/__tests__/useDebounce.test.ts src/pages/Home/HomePage.test.tsx` (or new path equivalent) plus `npx tsc --noEmit`.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shared_package_flattening"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Incomplete shared-to-domain migration left duplicate implementations and legacy entry points active.",
+      "Flat `shared` root directories accumulated mixed responsibilities without a strict placement convention."
+    ],
+    "likely_symptoms": [
+      "duplicate-module-sources",
+      "legacy-shim-in-shared-root",
+      "mixed-test-placement-components-root",
+      "low-fanin-hook-in-shared-root"
+    ],
+    "possible_false_positives": [
+      "low-fanin-hook-in-shared-root may be intentionally shared for future reuse, but current observed fan-in is still below package-core threshold."
+    ]
+  }
+}

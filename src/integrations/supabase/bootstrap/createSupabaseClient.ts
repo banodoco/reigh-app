@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { Database } from '@/integrations/supabase/types';
 import {
   getSupabasePublishableKey,
@@ -67,7 +67,7 @@ export function createSupabaseClient() {
 
     return client;
   } catch (error: unknown) {
-    handleError(error, { context: 'SupabaseClient', showToast: false });
+    normalizeAndPresentError(error, { context: 'SupabaseClient', showToast: false });
     throw error;
   }
 }

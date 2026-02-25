@@ -1,0 +1,112 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "high_level_elegance": 69.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/integrations/supabase/client.ts` performs eager singleton creation at import time (`export const supabase = getOrCreateSupabaseClient()`), installs instrumentation, initializes runtime, and mutates `window` globals, so importing a client utility triggers runtime behavior.",
+        "`src/shared/lib/errorHandling/handleError.ts` is in `shared/lib` but directly imports UI toast (`@/shared/components/ui/toast`), collapsing infrastructure and presentation responsibilities into one highly shared surface.",
+        "`src/types/shots.ts` is a deprecated compatibility barrel, but assigned feature code still imports it (`src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts`), indicating ownership boundaries are not yet converged on the new type module.",
+        "`src/pages/Home/components/InstallInstructionsModal.tsx` (441 lines) and `src/shared/components/MediaLightbox/components/LightboxShell.tsx` (437 lines) each combine multiple concerns (UI rendering, behavior policy, and orchestration) in single files, creating broad change surfaces.",
+        "Tooltip interaction policy is split across layers: base wrapper + touch behavior in `src/shared/components/ui/tooltip.tsx`, while feature-specific custom tooltip state machines remain in `src/pages/Home/components/CreativePartnerPane.tsx` and `src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx`."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "import_time_runtime_hub",
+      "summary": "Shared foundational modules execute runtime side effects at import boundaries, making ownership and startup behavior implicit.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "`src/integrations/supabase/client.ts` eagerly constructs the client at module load and triggers instrumentation/runtime setup plus `window` mutation.",
+        "`src/shared/lib/errorHandling/handleError.ts` couples normalize/log utility flow with immediate UI side effects (toast), so importing a lib helper also imports UI policy."
+      ],
+      "suggestion": "Split pure core APIs from side-effectful adapters: expose a lazy `getSupabaseClient()` from a pure module and move UI toast behavior into an optional presentation-layer error reporter that wraps `handleError`.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "legacy_type_surface_persists",
+      "summary": "Deprecated type barrel remains in active feature paths, preserving ambiguous ownership of the shot domain contract.",
+      "related_files": [
+        "src/types/shots.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts"
+      ],
+      "evidence": [
+        "`src/types/shots.ts` is marked deprecated with a migration target (`@/types/generationAndShots`).",
+        "`src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts` still imports `Shot` from `@/types/shots`."
+      ],
+      "suggestion": "Complete migration in assigned feature modules to `@/types/generationAndShots`, then remove the compatibility barrel on the planned sunset path to restore one authoritative domain entry point.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "god_component_accumulation",
+      "summary": "Large UI files aggregate many responsibilities, weakening decomposition and making feature ownership hard to reason about.",
+      "related_files": [
+        "src/pages/Home/components/InstallInstructionsModal.tsx",
+        "src/shared/components/MediaLightbox/components/LightboxShell.tsx"
+      ],
+      "evidence": [
+        "`src/pages/Home/components/InstallInstructionsModal.tsx` contains many embedded mockup primitives/variants and decision branching in one 441-line file.",
+        "`src/shared/components/MediaLightbox/components/LightboxShell.tsx` centralizes overlay rendering, z-index arbitration, touch/pointer policy, scroll-lock workarounds, and accessibility scaffolding in one 437-line shell."
+      ],
+      "suggestion": "Extract policy and view strata: move browser/device visual presets into separate presentational modules and split lightbox interaction/scroll-lock policies into dedicated hooks/services with a thinner shell component.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "tooltip_policy_fragmentation",
+      "summary": "Tooltip behavior standards are not centralized, causing duplicated interaction logic across shared and feature layers.",
+      "related_files": [
+        "src/shared/components/ui/tooltip.tsx",
+        "src/pages/Home/components/CreativePartnerPane.tsx",
+        "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx"
+      ],
+      "evidence": [
+        "`src/shared/components/ui/tooltip.tsx` includes a custom `TouchableTooltip` abstraction with explicit outside-tap and touch toggle behavior.",
+        "`src/pages/Home/components/CreativePartnerPane.tsx` reimplements mobile/desktop tooltip open-state rules and pointer gating manually.",
+        "`src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx` uses raw tooltip primitives with separate state handling, not the shared touch-aware abstraction."
+      ],
+      "suggestion": "Define one supported tooltip interaction contract in shared UI (desktop-only, touch-aware, controlled) and migrate feature components to that contract to reduce per-feature policy forks.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "modal_contract_drift",
+      "summary": "Modal ownership contracts vary across nearby components, increasing integration friction and making boundaries less predictable.",
+      "related_files": [
+        "src/shared/components/ConfirmDialog.tsx",
+        "src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx",
+        "src/pages/Home/components/InstallInstructionsModal.tsx"
+      ],
+      "evidence": [
+        "`src/shared/components/ConfirmDialog.tsx` uses `open`/`onOpenChange` with internal suppression state and async confirm handling.",
+        "`src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx` maps `onOpenChange` directly to `onClose`, changing callback semantics.",
+        "`src/pages/Home/components/InstallInstructionsModal.tsx` follows `open`/`onOpenChange` but adds feature-specific fallback behavior and scenario logic in the same module."
+      ],
+      "suggestion": "Introduce a shared modal contract guideline (callback semantics, close reasons, async action handling) and align feature wrappers to a common adapter pattern instead of ad hoc per-component behavior.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

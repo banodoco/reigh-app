@@ -1,80 +1,34 @@
 import { useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import { deepMerge } from '@/shared/lib/deepEqual';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { settingsQueryKeys } from '@/shared/lib/queryKeys/settings';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
-import { toolDefaultsRegistry } from '@/tooling/toolDefaultsRegistry';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
+import {
+  fetchToolSettingsSupabase,
+  toToolSettingsErrorFromOperationFailure,
+  type SettingsFetchResult,
+} from '@/shared/lib/toolSettingsService';
 
 // Central list of tool IDs we want to preload. Update when you add more tools.
 const PREFETCH_TOOL_IDS = [
-  TOOL_IDS.IMAGE_GENERATION,
-  TOOL_IDS.TRAVEL_BETWEEN_IMAGES,
-  'project-image-settings', // Shared settings including reference images
+  SETTINGS_IDS.IMAGE_GENERATION,
+  SETTINGS_IDS.TRAVEL_BETWEEN_IMAGES,
+  SETTINGS_IDS.PROJECT_IMAGE_SETTINGS, // Shared settings including reference images
 ];
 const EMPTY_SHOT_IDS: string[] = [];
 
 /**
- * Fetch tool settings using Supabase (for prefetching)
+ * Fetch tool settings using the shared service contract (for prefetching).
  */
-async function fetchToolSettingsSupabase(toolId: string, ctx: { projectId?: string; shotId?: string }): Promise<unknown> {
-  try {
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      throw new Error('Authentication required');
-    }
-
-    // Fetch all needed data in parallel using Supabase client
-    const [userResult, projectResult, shotResult] = await Promise.all([
-      // User settings
-      supabase
-        .from('users')
-        .select('settings')
-        .eq('id', user.id)
-        .single(),
-      
-      // Project settings (if projectId provided)
-      ctx.projectId ? 
-        supabase
-          .from('projects')
-          .select('settings')
-          .eq('id', ctx.projectId)
-          .single() :
-        Promise.resolve({ data: null, error: null }),
-      
-      // Shot settings (if shotId provided)  
-      ctx.shotId ?
-        supabase
-          .from('shots')
-          .select('settings')
-          .eq('id', ctx.shotId)
-          .single() :
-        Promise.resolve({ data: null, error: null }),
-    ]);
-
-    // Extract tool-specific settings from each scope
-    const userSettingsData = userResult.data?.settings as Record<string, unknown> | null;
-    const projectSettingsData = projectResult.data?.settings as Record<string, unknown> | null;
-    const shotSettingsData = shotResult.data?.settings as Record<string, unknown> | null;
-    const userSettings = (userSettingsData?.[toolId] as Record<string, unknown>) ?? {};
-    const projectSettings = (projectSettingsData?.[toolId] as Record<string, unknown>) ?? {};
-    const shotSettings = (shotSettingsData?.[toolId] as Record<string, unknown>) ?? {};
-
-      // Merge in priority order: defaults → user → project → shot
-      return deepMerge(
-        {},
-        toolDefaultsRegistry[toolId] ?? {},
-        userSettings,
-        projectSettings,
-        shotSettings
-    );
-
-  } catch (error: unknown) {
-    handleError(error, { context: 'usePrefetchToolSettings', showToast: false });
-    throw error;
+async function fetchSettingsForPrefetch(
+  toolId: string,
+  ctx: { projectId?: string; shotId?: string },
+): Promise<SettingsFetchResult> {
+  const result = await fetchToolSettingsSupabase(toolId, ctx);
+  if (!result.ok) {
+    throw toToolSettingsErrorFromOperationFailure(result);
   }
+  return result.value;
 }
 
 /**
@@ -102,11 +56,11 @@ export function usePrefetchToolSettings(projectId?: string | null, shotIds: stri
     PREFETCH_TOOL_IDS.forEach((toolId) => {
       queryClient.prefetchQuery({
         queryKey: settingsQueryKeys.tool(toolId, projectId, undefined),
-        queryFn: () => fetchToolSettingsSupabase(toolId, { projectId }),
+        queryFn: () => fetchSettingsForPrefetch(toolId, { projectId }),
         staleTime: 5 * 60 * 1000, // keep fresh for 5 min (same as useToolSettings)
       }).then(() => {
       }).catch((error) => {
-        handleError(error, { context: 'usePrefetchToolSettings', showToast: false });
+        normalizeAndPresentError(error, { context: 'usePrefetchToolSettings', showToast: false });
       });
     });
 
@@ -116,7 +70,7 @@ export function usePrefetchToolSettings(projectId?: string | null, shotIds: stri
         PREFETCH_TOOL_IDS.forEach((toolId) => {
           queryClient.prefetchQuery({
             queryKey: settingsQueryKeys.tool(toolId, projectId, shotId),
-            queryFn: () => fetchToolSettingsSupabase(toolId, { projectId, shotId }),
+            queryFn: () => fetchSettingsForPrefetch(toolId, { projectId, shotId }),
             staleTime: 5 * 60 * 1000,
           });
         });

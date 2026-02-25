@@ -3,8 +3,8 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { GenerationRow } from '@/types/shots';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { GenerationRow } from '@/domains/generation/types';
 import { mapShotGenerationToRow } from './mappers';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import { queryKeys } from '@/shared/lib/queryKeys';
@@ -32,8 +32,7 @@ export const useListShots = (
       }
 
       // Get shots ordered by position
-      const { data: shots, error: shotsError } = await supabase
-        .from('shots')
+      const { data: shots, error: shotsError } = await supabase().from('shots')
         .select('*')
         .eq('project_id', projectId)
         .order('position', { ascending: true });
@@ -48,8 +47,7 @@ export const useListShots = (
 
       // Fetch all shot_generations in a single query instead of one per shot
       const shotIds = shots.map(shot => shot.id);
-      const { data: allShotGenerations, error: sgError } = await supabase
-        .from('shot_generations')
+      const { data: allShotGenerations, error: sgError } = await supabase().from('shot_generations')
         .select(`
           id,
           shot_id,
@@ -143,8 +141,7 @@ export const useProjectImageStats = (projectId?: string | null) => {
       if (!projectId) return { allCount: 0, noShotCount: 0 };
 
       // Get total unique generations in project
-      const { count: allCount, error: allErr } = await supabase
-        .from('generations')
+      const { count: allCount, error: allErr } = await supabase().from('generations')
         .select('id', { count: 'exact', head: true })
         .eq('project_id', projectId)
         .not('location', 'is', null);
@@ -152,8 +149,7 @@ export const useProjectImageStats = (projectId?: string | null) => {
       if (allErr) throw allErr;
 
       // Get count of generations without ANY shot
-      const { count: noShotCount, error: noShotErr } = await supabase
-        .from('generations')
+      const { count: noShotCount, error: noShotErr } = await supabase().from('generations')
         .select('id', { count: 'exact', head: true })
         .eq('project_id', projectId)
         .not('location', 'is', null)

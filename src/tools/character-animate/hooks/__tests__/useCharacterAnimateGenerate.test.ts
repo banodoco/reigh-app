@@ -27,8 +27,8 @@ vi.mock('@/shared/lib/queryKeys', () => ({
   },
 }));
 
-vi.mock('@/shared/lib/errorHandling/handleError', () => ({
-  handleError: (...args: unknown[]) => mockHandleError(...args),
+vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
+  normalizeAndPresentError: (...args: unknown[]) => mockHandleError(...args),
 }));
 
 vi.mock('@/shared/contexts/IncomingTasksContext', () => ({

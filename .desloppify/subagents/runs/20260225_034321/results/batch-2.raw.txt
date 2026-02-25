@@ -1,0 +1,92 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 2,
+  "assessments": {
+    "api_surface_coherence": 81.0
+  },
+  "dimension_notes": {
+    "api_surface_coherence": {
+      "evidence": [
+        "Outcome contracts are fragmented across the same batch: `supabase/functions/_shared/edgeOperation.ts` uses `{ ok, value|errorCode }`, `src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts` uses `{ success, error? }`, and `src/shared/lib/media/safePlay.ts` collapses failures to `boolean`.",
+        "`src/shared/lib/toolSettingsService.ts` mixes throw-based failure (`ToolSettingsError`) with silent success fallback to defaults for some auth/network-adjacent states, so callers cannot rely on one error channel.",
+        "`supabase/functions/_shared/edgeOperation.ts` exports parallel alias families (`Edge*` and `Operation*`) for the same result types, creating multiple canonical names for one API surface."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "mixed_result_envelopes_across_services",
+      "summary": "Service APIs expose incompatible success/failure shapes, forcing per-call adapters.",
+      "related_files": [
+        "supabase/functions/_shared/edgeOperation.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts",
+        "src/shared/lib/media/safePlay.ts",
+        "src/shared/hooks/useTaskStatusCounts.ts"
+      ],
+      "evidence": [
+        "`edgeOperation` defines a discriminated union with `ok: true/false`, `errorCode`, and `recoverable`.",
+        "`generateVideoService` returns `{ success: boolean, error?: string }` and drops structured error metadata in `failureResult`.",
+        "`safePlay` returns only `Promise<boolean>`, so callers cannot inspect reason/category for playback failures.",
+        "`useTaskStatusCounts` encodes partial failure as domain fields (`degraded`, `failedQueries`, `errorCode`) instead of a shared result envelope."
+      ],
+      "suggestion": "Standardize on one discriminated result contract (for example `{ ok, value } | { ok, errorCode, message, recoverable, cause }`) for service-layer boundaries and add small adapter shims at UI edges only.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "result_contract_fragmentation"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "tool_settings_dual_error_channel",
+      "summary": "Tool settings fetch mixes exceptions with silent fallback success, making failure semantics unpredictable.",
+      "related_files": [
+        "src/shared/lib/toolSettingsService.ts",
+        "supabase/functions/_shared/rateLimit.ts"
+      ],
+      "evidence": [
+        "`fetchToolSettingsSupabase` throws `ToolSettingsError` for many failures (`auth_required`, `network`, `scope_fetch_failed`) but returns successful default settings for some auth-timeout string paths.",
+        "In contrast, `checkRateLimit` consistently returns `OperationResult` and marks fail-open behavior inside the returned payload (`degraded.reason`) without switching channels."
+      ],
+      "suggestion": "Use one error channel for tool settings: either always return a typed `OperationResult` (including a degraded/defaults mode with reason codes) or always throw typed errors, but avoid mixing both in one API.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "result_contract_fragmentation"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "edge_operation_dual_naming_surface",
+      "summary": "Edge operation result types expose duplicate naming families for identical contracts.",
+      "related_files": [
+        "supabase/functions/_shared/edgeOperation.ts",
+        "supabase/functions/_shared/edgeRequest.ts",
+        "supabase/functions/_shared/billing.ts"
+      ],
+      "evidence": [
+        "`edgeOperation.ts` exports both `EdgeOperationResult` and `OperationResult` aliases (and matching success/failure aliases) for the same shape.",
+        "Downstream files import the `Operation*` names, while the same module also advertises `Edge*` names, leaving two valid public vocabularies for one API."
+      ],
+      "suggestion": "Choose a single canonical naming family (`Operation*` or `Edge*`), deprecate the other with a removal window, and update imports to one consistent surface.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "result_contract_fragmentation"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "No single repository-wide contract standard for recoverable vs terminal API outcomes.",
+      "Compatibility aliases and local fail-open decisions were added independently without a shared result policy."
+    ],
+    "likely_symptoms": [
+      "mixed_result_envelopes_across_services",
+      "tool_settings_dual_error_channel",
+      "edge_operation_dual_naming_surface"
+    ],
+    "possible_false_positives": []
+  }
+}

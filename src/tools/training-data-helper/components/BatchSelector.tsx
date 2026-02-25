@@ -10,11 +10,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/shared/components/ui/dialog';
 import { Input } from '@/shared/components/ui/input';
-import { Label } from '@/shared/components/ui/label';
+import { Label } from '@/shared/components/ui/primitives/label';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { TrainingDataBatch, TrainingDataVideo, TrainingDataSegment } from '../hooks/useTrainingData';
 import { useUpdatingTimestamp } from '@/shared/hooks/useUpdatingTimestamp';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { useBatchDownload } from '../hooks/useBatchDownload';
 
 interface BatchSelectorProps {
@@ -77,7 +77,7 @@ function CreateBatchDialog({ isOpen, onOpenChange, onCreateBatch, trigger }: Cre
       setNewBatchDescription('');
       onOpenChange(false);
     } catch (error) {
-      handleError(error, { context: 'BatchSelector', showToast: false });
+      normalizeAndPresentError(error, { context: 'BatchSelector', showToast: false });
     } finally {
       setIsCreating(false);
     }
@@ -173,7 +173,7 @@ export function BatchSelector({ batches, selectedBatchId, onSelectBatch, onCreat
       setEditName('');
       setEditDescription('');
     } catch (error) {
-      handleError(error, { context: 'BatchSelector', showToast: false });
+      normalizeAndPresentError(error, { context: 'BatchSelector', showToast: false });
     } finally {
       setIsUpdating(false);
     }
@@ -187,7 +187,7 @@ export function BatchSelector({ batches, selectedBatchId, onSelectBatch, onCreat
       setIsDeleteDialogOpen(false);
       setBatchToDelete(null);
     } catch (error) {
-      handleError(error, { context: 'BatchSelector', showToast: false });
+      normalizeAndPresentError(error, { context: 'BatchSelector', showToast: false });
     }
   };
 

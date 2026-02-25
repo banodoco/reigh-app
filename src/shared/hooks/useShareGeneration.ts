@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { toast } from '@/shared/components/ui/toast';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { isNotFoundError, isUniqueViolationError } from '@/shared/constants/supabaseErrors';
 
 interface UseShareGenerationResult {
@@ -144,7 +144,7 @@ export function useShareGeneration(
     setIsCreatingShare(true);
 
     try {
-      const { data: session } = await supabase.auth.getSession();
+      const { data: session } = await supabase().auth.getSession();
 
       if (!session?.session?.access_token) {
         toast({
@@ -157,15 +157,14 @@ export function useShareGeneration(
       }
 
       // First, check if share already exists in DB
-      const { data: existingShare, error: existingError } = await supabase
-        .from('shared_generations')
+      const { data: existingShare, error: existingError } = await supabase().from('shared_generations')
         .select('share_slug')
         .eq('generation_id', generationId)
         .eq('creator_id', session.session.user.id)
         .maybeSingle();
 
       if (existingError && !isNotFoundError(existingError)) {
-        handleError(existingError, { context: 'useShareGeneration', showToast: false });
+        normalizeAndPresentError(existingError, { context: 'useShareGeneration', showToast: false });
         toast({
           title: "Share failed",
           description: "Please try again",
@@ -200,13 +199,13 @@ export function useShareGeneration(
       }
 
       // Share doesn't exist, fetch only the fields needed for display
-      const generationResult = await supabase.from('generations')
+      const generationResult = await supabase().from('generations')
         .select('id, location, thumbnail_url, type, params, created_at, name')
         .eq('id', generationId)
         .single();
 
       if (generationResult.error) {
-        handleError(generationResult.error, { context: 'useShareGeneration', showToast: false });
+        normalizeAndPresentError(generationResult.error, { context: 'useShareGeneration', showToast: false });
         toast({
           title: "Share failed",
           description: "Failed to load generation data",
@@ -219,7 +218,7 @@ export function useShareGeneration(
       // Only fetch task data if taskId is available (optional)
       let taskResultData: Record<string, unknown> | null = null;
       if (taskId) {
-        const { data } = await supabase.from('tasks')
+        const { data } = await supabase().from('tasks')
           .select('id, task_type, params, status, created_at')
           .eq('id', taskId)
           .single();
@@ -236,15 +235,13 @@ export function useShareGeneration(
 
         try {
           // Fetch shot with settings
-          const { data: shotData, error: shotError } = await supabase
-            .from('shots')
+          const { data: shotData, error: shotError } = await supabase().from('shots')
             .select('id, name, settings')
             .eq('id', shotId)
             .single();
 
           // Fetch shot generations (input images) - only images, not videos
-          const { data: shotGenerations, error: genError } = await supabase
-            .from('shot_generations')
+          const { data: shotGenerations, error: genError } = await supabase().from('shot_generations')
             .select(`
               timeline_frame,
               generation:generations!shot_generations_generation_id_generations_id_fk(
@@ -308,8 +305,7 @@ export function useShareGeneration(
       let newSlug: string | null = null;
 
       // Fetch creator profile once (outside the retry loop)
-      const { data: creatorRow } = await supabase
-        .from('users')
+      const { data: creatorRow } = await supabase().from('users')
         .select('username, name, avatar_url')
         .eq('id', session.session.user.id)
         .maybeSingle();
@@ -331,8 +327,7 @@ export function useShareGeneration(
           shot_id: shotId || null,
         };
 
-        const { data: newShare, error: insertError } = await supabase
-          .from('shared_generations')
+        const { data: newShare, error: insertError } = await supabase().from('shared_generations')
           .insert(sharedGenerationInsert)
           .select('share_slug')
           .single();
@@ -350,7 +345,7 @@ export function useShareGeneration(
 
         // Other error
         if (insertError) {
-          handleError(insertError, { context: 'useShareGeneration', showToast: false });
+          normalizeAndPresentError(insertError, { context: 'useShareGeneration', showToast: false });
           toast({
             title: "Share failed",
             description: insertError.message || "Please try again",
@@ -395,7 +390,7 @@ export function useShareGeneration(
         });
       }
     } catch (error) {
-      handleError(error, {
+      normalizeAndPresentError(error, {
         context: 'useShareGeneration',
         toastTitle: 'Something went wrong',
         logData: { message: 'Please try again' }

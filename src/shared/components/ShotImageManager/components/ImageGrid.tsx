@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo } from 'react';
-import { GenerationRow, PairLoraConfig, PairMotionSettings } from '@/types/shots';
+import { GenerationRow, PairLoraConfig, PairMotionSettings } from '@/domains/generation/types';
 import { ShotBatchItemDesktop } from '../ShotBatchItemDesktop';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { DEFAULT_BATCH_VIDEO_FRAMES } from '../constants';
 import { AddImagesCard } from './AddImagesCard';
 import { PairPromptIndicator } from './PairPromptIndicator';

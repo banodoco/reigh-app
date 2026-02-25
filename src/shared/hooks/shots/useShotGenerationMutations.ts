@@ -7,9 +7,9 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { GenerationRow } from '@/types/shots';
-import { toast } from '@/shared/components/ui/sonner';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { GenerationRow } from '@/domains/generation/types';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { invalidateGenerationsSync } from '@/shared/hooks/invalidation';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import {
@@ -209,8 +209,7 @@ export const useRemoveImageFromShot = () => {
         throw new Error(`Missing required parameters`);
       }
 
-      const { error } = await supabase
-        .from('shot_generations')
+      const { error } = await supabase().from('shot_generations')
         .update({ timeline_frame: null })
         .eq('id', shotGenerationId);
 
@@ -325,8 +324,7 @@ export const useUpdateShotImageOrder = () => {
       shotId: string;
     }) => {
       const promises = updates.map(update =>
-        supabase
-          .from('shot_generations')
+        supabase().from('shot_generations')
           .update({ timeline_frame: update.timeline_frame })
           .eq('shot_id', update.shot_id)
           .eq('generation_id', update.generation_id)
@@ -406,7 +404,7 @@ export const usePositionExistingGenerationInShot = () => {
       generation_id: string;
       project_id: string;
     }) => {
-      const { data, error } = await supabase.rpc('add_generation_to_shot', {
+      const { data, error } = await supabase().rpc('add_generation_to_shot', {
         p_shot_id: shot_id,
         p_generation_id: generation_id,
         p_with_position: true,

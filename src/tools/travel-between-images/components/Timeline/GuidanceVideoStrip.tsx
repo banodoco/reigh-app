@@ -6,7 +6,7 @@ import { TimelineResizeHandle } from './TimelineResizeHandle';
 import { Button } from '@/shared/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
 import { X } from 'lucide-react';
-import { useIsTablet } from '@/shared/hooks/useMobile';
+import { useIsTablet } from '@/shared/hooks/mobile';
 import { useTemporaryVisibility } from '../../hooks/useTemporaryVisibility';
 import { useVideoMetadata } from '../../hooks/useVideoMetadata';
 import { useVideoFrameExtraction } from '@/shared/hooks/useVideoFrameExtraction';

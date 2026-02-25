@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/components/ui/dialog';
-import { Label } from '@/shared/components/ui/label';
+import { Label } from '@/shared/components/ui/primitives/label';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { NumberInput } from '@/shared/components/ui/number-input';
 import { Slider } from '@/shared/components/ui/slider';

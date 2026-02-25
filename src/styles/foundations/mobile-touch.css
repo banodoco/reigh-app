@@ -1,0 +1,16 @@
+/* Eliminate the 300 ms mobile tap-delay everywhere (still allows pinch-zoom) */
+body {
+  touch-action: manipulation;
+}
+
+/* Prevent iOS Safari auto-zoom on input focus (MUST be outside @layer base).
+   iOS zooms inputs with font-size < 16px, shifting the visual viewport.
+   This floors all form fields at 16px on touch devices (coarse pointer).
+   Desktop (fine pointer) is unaffected.
+   Unlayered !important rule = highest cascade priority — beats Tailwind utilities.
+   Note: iPad reports hover:hover, so we use pointer:coarse (not hover:none). */
+@media (pointer: coarse) {
+  input, textarea, select, [contenteditable="true"] {
+    font-size: 16px !important;
+  }
+}

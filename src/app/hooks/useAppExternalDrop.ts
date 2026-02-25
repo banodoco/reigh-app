@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import type { DragEndEvent } from '@dnd-kit/core';
-import { NEW_GROUP_DROPPABLE_ID } from '@/shared/lib/dragDrop';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { NEW_GROUP_DROPPABLE_ID } from '@/shared/lib/dnd/dragDrop';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 interface DropZoneData {
   type?: 'shot-group' | 'new-group-zone' | string;
@@ -138,7 +138,7 @@ export function useAppExternalDrop(options: UseAppExternalDropOptions) {
         }
       }
     } catch (error) {
-      handleError(error, { context: 'App', showToast: false });
+      normalizeAndPresentError(error, { context: 'App', showToast: false });
     } finally {
       // Always finalize drag overlay state, including invalid targets and failed drops.
       onDropHandled();

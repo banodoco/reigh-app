@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { Task } from '@/types/tasks';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 import { extractSourceGenerationId } from '../utils/task-utils';
 import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
 import { expandShotData } from '@/shared/lib/shotData';
@@ -34,8 +34,7 @@ export function useImageGeneration({
       if (!task.outputLocation) return null;
 
       // First try: Look up by location in generations table
-      const { data: genByLocation, error: genError } = await supabase
-        .from('generations')
+      const { data: genByLocation, error: genError } = await supabase().from('generations')
         .select('*')
         .eq('location', task.outputLocation)
         .eq('project_id', task.projectId)
@@ -46,8 +45,7 @@ export function useImageGeneration({
       }
 
       // Second try: Check generation_variants by location (for edit tasks that create variants)
-      const { data: variantByLocation, error: variantError } = await supabase
-        .from('generation_variants')
+      const { data: variantByLocation, error: variantError } = await supabase().from('generation_variants')
         .select('id, generation_id, location, thumbnail_url, is_primary, params')
         .eq('location', task.outputLocation)
         .limit(1);
@@ -56,8 +54,7 @@ export function useImageGeneration({
         const variant = variantByLocation[0];
 
         // Fetch the parent generation
-        const { data: parentGen, error: parentError } = await supabase
-          .from('generations')
+        const { data: parentGen, error: parentError } = await supabase().from('generations')
           .select('*')
           .eq('id', variant.generation_id)
           .single();
@@ -77,8 +74,7 @@ export function useImageGeneration({
       }
 
       // Fallback: Search by task ID in the tasks JSONB array
-      const { data: byTaskId, error: taskIdError } = await supabase
-        .from('generations')
+      const { data: byTaskId, error: taskIdError } = await supabase().from('generations')
         .select('*')
         .filter('tasks', 'cs', JSON.stringify([task.id]))
         .eq('project_id', task.projectId)

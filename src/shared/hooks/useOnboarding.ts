@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 /**
  * Hook to check if user has completed onboarding and show modal if not
@@ -13,15 +13,14 @@ export function useOnboarding() {
 
     const checkOnboardingStatus = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user } } = await supabase().auth.getUser();
 
         if (!user) {
           return;
         }
 
         // Check if user has completed onboarding
-        const { data: userData, error } = await supabase
-          .from('users')
+        const { data: userData, error } = await supabase().from('users')
           .select('onboarding_completed')
           .eq('id', user.id)
           .single();
@@ -44,7 +43,7 @@ export function useOnboarding() {
         }
 
       } catch (error) {
-        handleError(error, { context: 'useOnboarding', showToast: false });
+        normalizeAndPresentError(error, { context: 'useOnboarding', showToast: false });
       }
     };
 
@@ -57,15 +56,14 @@ export function useOnboarding() {
 
   const completeOnboarding = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase().auth.getUser();
       if (!user) return;
 
-      await supabase
-        .from('users')
+      await supabase().from('users')
         .update({ onboarding_completed: true })
         .eq('id', user.id);
     } catch (error) {
-      handleError(error, { context: 'useOnboarding', showToast: false });
+      normalizeAndPresentError(error, { context: 'useOnboarding', showToast: false });
     }
   };
 

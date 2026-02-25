@@ -7,10 +7,10 @@ const mockSelect = vi.fn(() => ({ eq: mockEq }));
 const mockFrom = vi.fn(() => ({ select: mockSelect }));
 
 vi.mock('@/integrations/supabase/client', () => ({
-  supabase: {
+  getSupabaseClient: () => ({
     from: (...args: unknown[]) => mockFrom(...args),
     auth: {},
-  },
+  }),
 }));
 
 vi.mock('@/integrations/supabase/config/env', () => ({
@@ -24,7 +24,7 @@ vi.mock('@/tooling/toolDefaultsRegistry', () => ({
   },
 }));
 
-vi.mock('@/shared/lib/deepEqual', () => ({
+vi.mock('@/shared/lib/utils/deepEqual', () => ({
   deepMerge: (...objects: Record<string, unknown>[]) => {
     return Object.assign({}, ...objects);
   },
@@ -37,11 +37,19 @@ vi.mock('@/shared/lib/errorHandling/errorUtils', () => ({
     err instanceof Error ? err.message : String(err),
 }));
 
-vi.mock('@/shared/lib/errorHandling/handleError', () => ({
-  handleError: vi.fn(),
+vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
+  normalizeAndPresentError: vi.fn(),
 }));
 
 import { getUserWithTimeout, fetchToolSettingsSupabase, setCachedUserId, _resetCachedUserForTesting } from '../toolSettingsService';
+
+function expectSuccess<T>(result: { ok: true; value: T } | { ok: false; errorCode: string; message: string }): T {
+  expect(result.ok).toBe(true);
+  if (!result.ok) {
+    throw new Error(`${result.errorCode}: ${result.message}`);
+  }
+  return result.value;
+}
 
 /** Helper: write a fake Supabase session to localStorage so readUserIdFromStorage works */
 function setStoredSession(userId: string | null) {
@@ -128,7 +136,7 @@ describe('toolSettingsService', () => {
     it('returns defaults when no settings exist', async () => {
       mockMaybeSingle.mockResolvedValue({ data: null, error: null });
 
-      const result = await fetchToolSettingsSupabase('test-tool', {});
+      const result = expectSuccess(await fetchToolSettingsSupabase('test-tool', {}));
 
       expect(result.settings).toEqual({
         setting1: 'default1',
@@ -144,7 +152,7 @@ describe('toolSettingsService', () => {
       });
       mockMaybeSingle.mockResolvedValueOnce({ data: null, error: null });
 
-      const result = await fetchToolSettingsSupabase('test-tool', {});
+      const result = expectSuccess(await fetchToolSettingsSupabase('test-tool', {}));
 
       expect(result.settings).toEqual(
         expect.objectContaining({
@@ -158,9 +166,13 @@ describe('toolSettingsService', () => {
       const controller = new AbortController();
       controller.abort();
 
-      await expect(
-        fetchToolSettingsSupabase('test-tool', {}, controller.signal)
-      ).rejects.toThrow();
+      const result = await fetchToolSettingsSupabase('test-tool', {}, controller.signal);
+      expect(result.ok).toBe(false);
+      if (result.ok) {
+        throw new Error('Expected cancellation failure result');
+      }
+      expect(result.errorCode).toBe('cancelled');
+      expect(result.message).toContain('cancelled');
     });
 
     it('skips project query when no projectId provided', async () => {
@@ -175,9 +187,13 @@ describe('toolSettingsService', () => {
     it('throws Authentication required when not logged in', async () => {
       setStoredSession(null); // no session in storage, cache already cleared by beforeEach
 
-      await expect(
-        fetchToolSettingsSupabase('test-tool', {})
-      ).rejects.toThrow('Authentication required');
+      const result = await fetchToolSettingsSupabase('test-tool', {});
+      expect(result.ok).toBe(false);
+      if (result.ok) {
+        throw new Error('Expected auth_required failure result');
+      }
+      expect(result.errorCode).toBe('auth_required');
+      expect(result.message).toContain('Authentication required');
     });
   });
 });

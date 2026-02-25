@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getTaskVariantId } from '../getTaskVariantId';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 
 describe('getTaskVariantId', () => {
   it('returns explicitVariantId when provided', () => {

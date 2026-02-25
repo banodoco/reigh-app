@@ -1,58 +1,51 @@
 import { formatDistanceToNow } from 'date-fns';
-import { abbreviateRelativeTime } from '@/shared/lib/timeFormatting';
+import { abbreviateRelativeTime, formatRelativeDuration } from '@/shared/lib/timeFormatting';
 import { useLiveRelativeTimestamp } from './useLiveRelativeTimestamp';
 
-/**
- * Simple hook that returns a live-updating formatted timestamp string
- * Perfect for inline timestamps in task lists, galleries, etc.
- */
+export type RelativeTimestampPreset = 'default' | 'task' | 'processing' | 'completed';
 
 interface UseUpdatingTimestampOptions {
-  /** Date to format */
   date?: string | Date | null;
-  /** Custom abbreviation function */
   abbreviate?: (str: string) => string;
-  /** Disable automatic updates */
   disabled?: boolean;
+  preset?: RelativeTimestampPreset;
 }
 
-/**
- * Hook that returns a formatted, live-updating timestamp string
- * 
- * @example
- * const timeAgo = useUpdatingTimestamp({ date: task.createdAt });
- * return <span>Created: {timeAgo}</span>;
- */
-export function useUpdatingTimestamp({ 
-  date, 
+const relativeTimestampFormatters: Record<
+  RelativeTimestampPreset,
+  (date: Date, abbreviate: (str: string) => string) => string
+> = {
+  default: (date, abbreviate) => abbreviate(formatDistanceToNow(date, { addSuffix: true })),
+  task: (date) => {
+    const abbreviated = abbreviateRelativeTime(formatDistanceToNow(date, { addSuffix: true }));
+    return abbreviated || '<1 min ago';
+  },
+  processing: (date) => `Processing for ${formatRelativeDuration(date, { includeDays: false })}`,
+  completed: (date) => `Completed ${formatRelativeDuration(date)} ago`,
+};
+
+export function useRelativeTimestamp({
+  date,
   abbreviate = abbreviateRelativeTime,
-  disabled = false 
+  disabled = false,
+  preset = 'default',
 }: UseUpdatingTimestampOptions = {}): string | null {
+  const formatter = relativeTimestampFormatters[preset];
+
   return useLiveRelativeTimestamp({
     dateInput: date,
     disabled,
-    formatter: (parsedDate) => {
-    const formatted = formatDistanceToNow(parsedDate, { addSuffix: true });
-      return abbreviate(formatted);
-    },
+    formatter: (parsedDate) => formatter(parsedDate, abbreviate),
   });
 }
 
-function abbreviateTaskRelativeTime(relativeTime: string): string {
-  const abbreviated = abbreviateRelativeTime(relativeTime);
-  if (!abbreviated) {
-    return '<1 min ago';
-  }
-  return abbreviated;
+export function useUpdatingTimestamp(options: UseUpdatingTimestampOptions = {}): string | null {
+  return useRelativeTimestamp(options);
 }
 
-/**
- * Task-specific wrapper keeps compact task-list formatting stable even if
- * generic timestamp defaults evolve.
- */
 export function useTaskTimestamp(date?: string | Date | null) {
-  return useUpdatingTimestamp({
+  return useRelativeTimestamp({
     date,
-    abbreviate: abbreviateTaskRelativeTime,
+    preset: 'task',
   });
 }

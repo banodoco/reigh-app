@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from 'react';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import {
   detectPlatform,
   detectBrowser,
@@ -131,7 +131,7 @@ export function usePlatformInstall(): PlatformInstallState {
       setPromptConsumed(true);
       return outcome === 'accepted';
     } catch (error) {
-      handleError(error, { context: 'usePlatformInstall', showToast: false });
+      normalizeAndPresentError(error, { context: 'usePlatformInstall', showToast: false });
       setPromptConsumed(true);
       return false;
     }

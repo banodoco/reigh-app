@@ -1,0 +1,77 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "high_level_elegance": 79.4
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "src/integrations/supabase/client.ts keeps three access surfaces simultaneously (`initializeSupabase`, `getSupabaseClient`, and deprecated `supabase` proxy), which preserves legacy behavior but blurs the canonical boundary for data access ownership.",
+        "src/shared/hooks/useMobile.tsx and src/shared/lib/errorHandling/handleError.ts both keep deprecated compatibility exports (`useMobile` barrel and `reportRuntimeError`/`RuntimeErrorOptions`), extending migration-era API surfaces in highly imported modules.",
+        "src/types/generationAndShots.ts and src/shared/lib/utils.ts are broad shared barrels that flatten dependency boundaries; many modules can depend on aggregate surfaces instead of domain-local entry points.",
+        "src/pages/Home/components/panes/CreativePartnerPane.tsx combines product narrative content, routing actions, tooltip interaction policy, and mobile behavior in one component, while src/shared/components/MediaLightbox/components/LightboxShell.tsx combines dialog shell concerns with global scroll/viewport workarounds and pane-layout coordination."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "legacy_surface_sprawl",
+      "summary": "Legacy compatibility layers keep multiple architectural entry points alive in core shared modules.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/hooks/useMobile.tsx",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "Supabase client exposes both new runtime API and deprecated proxy export in the same module, including migration metadata and fallback behavior.",
+        "Deprecated compatibility exports remain in high-traffic shared modules (`useMobile` barrel and `reportRuntimeError` alias), so consumers can continue bypassing target boundaries."
+      ],
+      "suggestion": "Set a hard deprecation removal sprint: add lint bans/codemods for deprecated imports, migrate callers to canonical APIs, then remove proxy/alias exports so each subsystem has one authoritative entry point.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_barrel_gravity",
+      "summary": "High-import shared barrels create dependency gravity that weakens domain ownership boundaries.",
+      "related_files": [
+        "src/types/generationAndShots.ts",
+        "src/shared/lib/utils.ts",
+        "src/shared/components/ui/tooltip.tsx"
+      ],
+      "evidence": [
+        "`generationAndShots.ts` is a canonical aggregate type barrel, encouraging broad cross-feature coupling through one shared surface.",
+        "`shared/lib/utils.ts` and `shared/components/ui/tooltip.tsx` re-export mixed helper/UI primitives, letting features import through generic hubs instead of domain-scoped modules."
+      ],
+      "suggestion": "Replace broad barrels with narrower domain entry points (for example per-feature type modules and UI primitive subpaths), then enforce import-path rules to keep dependencies aligned with ownership boundaries.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "mixed_component_ownership",
+      "summary": "Key components mix multiple responsibilities, making ownership and decomposition harder to reason about.",
+      "related_files": [
+        "src/pages/Home/components/panes/CreativePartnerPane.tsx",
+        "src/shared/components/MediaLightbox/components/LightboxShell.tsx",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts"
+      ],
+      "evidence": [
+        "`CreativePartnerPane` bundles marketing copy, navigation, external links, tooltip lifecycle rules, and mobile input branching in one feature component.",
+        "`LightboxShell` is nominally a shell but also owns global scroll-lock/viewport repair behavior and tasks-pane layout negotiation.",
+        "`useMediaGalleryHandlers` centralizes unrelated gallery actions (navigation, notifier handling, task-details modal orchestration), indicating blurred role boundaries."
+      ],
+      "suggestion": "Split these modules by responsibility: isolate presentation content, interaction policies, and global environment adapters into dedicated collaborators with explicit ownership contracts.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

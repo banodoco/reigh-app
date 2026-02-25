@@ -15,12 +15,12 @@
  */
 
 import { QueryClient } from '@tanstack/react-query';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { buildTaskParams, type SegmentSettings } from '@/shared/components/segmentSettingsUtils';
 import { createIndividualTravelSegmentTask } from '@/shared/lib/tasks/individualTravelSegment';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import type { StructureVideoConfig } from '@/shared/lib/tasks/travelBetweenImages';
+import type { LegacyStructureVideoConfig } from '@/shared/lib/tasks/travelBetweenImages/legacyStructureVideo';
 import type { RunTaskPlaceholder } from '@/shared/hooks/useTaskPlaceholder';
 
 // ============================================================================
@@ -50,7 +50,7 @@ interface StructureVideoInputs {
 export function buildStructureVideoForTask(
   inputs: StructureVideoInputs,
   getSettingsForTaskCreation: () => Pick<SegmentSettings, 'structureTreatment' | 'structureMotionStrength' | 'structureUni3cEndPercent'>,
-): StructureVideoConfig | null {
+): LegacyStructureVideoConfig | null {
   const { structureVideoUrl, structureVideoType, structureVideoFrameRange, structureVideoDefaults } = inputs;
   if (!structureVideoUrl || !structureVideoType || !structureVideoFrameRange) {
     return null;
@@ -93,7 +93,7 @@ interface SegmentTaskContext {
   segmentIndex: number;
   pairShotGenerationId?: string;
   projectResolution?: string;
-  structureVideo: StructureVideoConfig | null;
+  structureVideo: LegacyStructureVideoConfig | null;
 }
 
 /** Submission configuration */
@@ -178,7 +178,7 @@ function applyPromptAffixes(settings: EffectiveSettings, prompt: string): string
 async function createTaskOrThrow(taskParams: ReturnType<BuildTaskParams>): Promise<string> {
   const result = await createIndividualTravelSegmentTask(taskParams);
   if (!result.task_id) {
-    throw new Error(result.error || 'Failed to create task');
+    throw new Error('Failed to create task');
   }
   return result.task_id;
 }
@@ -195,20 +195,18 @@ async function saveEnhancedPromptMetadata(
   }
 
   const pairShotGenerationId = task.pairShotGenerationId;
-  const { data: current, error: fetchError } = await supabase
-    .from('shot_generations')
+  const { data: current, error: fetchError } = await supabase().from('shot_generations')
     .select('metadata')
     .eq('id', pairShotGenerationId)
     .single();
 
   if (fetchError) {
-    handleError(fetchError, { context: 'submitSegmentTask.fetchMetadata' });
+    normalizeAndPresentError(fetchError, { context: 'submitSegmentTask.fetchMetadata' });
     return;
   }
 
   const currentMetadata = (current?.metadata as Record<string, unknown>) || {};
-  const { error: updateError } = await supabase
-    .from('shot_generations')
+  const { error: updateError } = await supabase().from('shot_generations')
     .update({
       metadata: {
         ...currentMetadata,
@@ -219,7 +217,7 @@ async function saveEnhancedPromptMetadata(
     .eq('id', pairShotGenerationId);
 
   if (updateError) {
-    handleError(updateError, { context: 'submitSegmentTask.saveEnhancedPrompt' });
+    normalizeAndPresentError(updateError, { context: 'submitSegmentTask.saveEnhancedPrompt' });
     return;
   }
 
@@ -244,7 +242,7 @@ async function enhanceSegmentPrompt(
   promptToEnhance: string,
   defaultNumFrames: number,
 ): Promise<string> {
-  const { data: enhanceResult, error: enhanceError } = await supabase.functions.invoke('ai-prompt', {
+  const { data: enhanceResult, error: enhanceError } = await supabase().functions.invoke('ai-prompt', {
     body: {
       task: 'enhance_segment_prompt',
       prompt: promptToEnhance,
@@ -254,7 +252,7 @@ async function enhanceSegmentPrompt(
   });
 
   if (enhanceError) {
-    handleError(enhanceError, { context: runtime.errorContext });
+    normalizeAndPresentError(enhanceError, { context: runtime.errorContext });
   }
 
   return enhanceResult?.enhanced_prompt?.trim() || promptToEnhance;

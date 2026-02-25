@@ -6,7 +6,7 @@ import {
   TooltipTrigger,
 } from "@/shared/components/ui/tooltip";
 import { Images, X, Globe, Lock } from "lucide-react";
-import { cn } from "@/shared/lib/utils";
+import { cn } from '@/shared/components/ui/contracts/cn';
 
 interface ReferenceThumbnailProps {
   id: string;

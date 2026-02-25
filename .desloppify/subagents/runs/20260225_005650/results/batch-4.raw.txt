@@ -1,0 +1,115 @@
+{
+  "batch": "Design coherence — Mechanical Concern Signals",
+  "batch_index": 4,
+  "assessments": {
+    "design_coherence": 78.5
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "Lightbox stack still relies on very wide state/prop surfaces: `MediaLightboxProps` exposes ~55 fields and then re-bundles them (`src/shared/components/MediaLightbox/MediaLightbox.tsx:11-77`, `:79-147`), while downstream hooks/components keep large composite contracts (`useSharedLightboxState` return sections in `src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts:144-253`, `EditModePanelProps` in `src/shared/components/MediaLightbox/components/EditModePanel.tsx:27-98`).",
+        "Travel-between-images editor uses pass-through mega interfaces rather than bounded feature seams: `ShotEditorLayoutProps` carries many unrelated concerns and forwards them to multiple sections (`src/tools/travel-between-images/components/ShotEditor/ShotEditorLayout.tsx:8-83`, `:154-235`), while `ShotSettingsContextValue` aggregates broad domain state and handlers in one context (`src/tools/travel-between-images/components/ShotEditor/ShotSettingsContext.tsx:194-248`).",
+        "Supabase edge functions show scaffold drift: some handlers use shared runtime/body helpers (`complete-auto-topup-setup` via `initEdgeRuntime` and `parseJsonBodyStrictResponse`), while others manually re-implement env/client/body/auth/response plumbing (`claim-next-task`, `update-shot-pair-prompts`, `process-auto-topup`), increasing structural inconsistency across sibling endpoints."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "lightbox_state_surface_bloat",
+      "summary": "Lightbox split keeps a large shared contract, so decomposition reduced file size more than responsibility coupling.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/MediaLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts",
+        "src/shared/components/MediaLightbox/components/EditModePanel.tsx",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx"
+      ],
+      "evidence": [
+        "`MediaLightboxProps` defines a very broad API (navigation, shot workflow, task details, trim, optimistic updates, segment-slot state) in one interface (`MediaLightbox.tsx:11-77`).",
+        "The `useBundledLightboxProps` hook repackages the same wide surface into grouped objects but does not reduce behavioral coupling (`MediaLightbox.tsx:79-147`).",
+        "`useSharedLightboxState` returns many nested capability groups in one hook result (`useSharedLightboxState.ts:144-253`), and `EditModePanel` still consumes a broad mixed prop contract (`EditModePanel.tsx:27-98`)."
+      ],
+      "suggestion": "Introduce task-focused facades (`LightboxNavigationController`, `ShotWorkflowController`, `EditSessionController`) created near ownership boundaries, and pass those facades down instead of raw field bags. Keep each controller under a tight method/state budget and migrate components incrementally (MediaLightbox -> Image/VideoLightbox -> panel/layout children).",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "state_surface_bloat"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "shot_editor_pass_through_architecture",
+      "summary": "Shot editor composition relies on pass-through mega props plus mega context, blurring ownership boundaries.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/ShotEditorLayout.tsx",
+        "src/tools/travel-between-images/components/ShotEditor/ShotSettingsContext.tsx",
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineOrchestrator.ts"
+      ],
+      "evidence": [
+        "`ShotEditorLayoutProps` includes large cross-cutting concerns (header behavior, timeline state, generation controls, modal state, refs) and forwards most of them into child sections (`ShotEditorLayout.tsx:8-83`, `:154-235`).",
+        "`ShotSettingsContextValue` centralizes many domains (shot data, structure video, audio, image handlers, generation mode, join state, dimensions, query client) into one context contract (`ShotSettingsContext.tsx:194-248`).",
+        "`useTimelineOrchestrator` exposes a very large return interface covering refs, dimensions, drag/drop, selection, pending state, endpoint drag, video-browser controls, and device logic (`useTimelineOrchestrator.ts:54-139`)."
+      ],
+      "suggestion": "Split the editor into explicit bounded contexts (`timeline`, `generation`, `asset-management`, `modals`) and keep each section wired to only its own context slice. Replace the monolithic layout prop interface with section-specific view models built by a top-level coordinator.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "state_surface_bloat"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "edge_function_scaffold_drift",
+      "summary": "Sibling edge functions use inconsistent runtime/request scaffolds, causing repeated orchestration boilerplate.",
+      "related_files": [
+        "supabase/functions/claim-next-task/index.ts",
+        "supabase/functions/update-shot-pair-prompts/index.ts",
+        "supabase/functions/process-auto-topup/index.ts",
+        "supabase/functions/complete-auto-topup-setup/index.ts"
+      ],
+      "evidence": [
+        "`claim-next-task` and `update-shot-pair-prompts` manually perform env checks, client creation, method gates, JSON parsing, auth, and response building (`claim-next-task/index.ts:41-87`, `update-shot-pair-prompts/index.ts:35-111`).",
+        "`process-auto-topup` defines local CORS/json helper and manual runtime bootstrapping (`process-auto-topup/index.ts:7-20`, `:61-84`).",
+        "`complete-auto-topup-setup` instead uses shared runtime/body abstractions (`initEdgeRuntime`, `parseJsonBodyStrictResponse`) (`complete-auto-topup-setup/index.ts:33-53`), showing partial adoption of a better pattern."
+      ],
+      "suggestion": "Standardize all edge handlers on a single `edgeRequest` pipeline (runtime init, method guard, auth policy, body parsing, response helpers, logger lifecycle). Migrate manual handlers to the shared wrapper and keep endpoint files focused on business logic only.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "edge_handler_scaffold_drift"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "complete_task_params_module_mixed_concerns",
+      "summary": "`complete_task/params.ts` mixes param-path migration logic with media utilities and payload mutation.",
+      "related_files": [
+        "supabase/functions/complete_task/params.ts",
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/complete_task/generation-child.ts"
+      ],
+      "evidence": [
+        "`params.ts` contains multiple unrelated responsibilities: path extraction fallback logic (`extractFromParams`), thumbnail-path mutation (`setThumbnailInParams`), MIME type detection (`getContentType`), and generation payload composition (`buildGenerationParams`) (`params.ts:33-260`).",
+        "The same module is consumed by both orchestration status flow and generation creation flow (`orchestrator.ts` imports extraction helpers at `:7`; `generation-child.ts` imports extraction and payload builders at `:17`), increasing coupling between distinct concerns."
+      ],
+      "suggestion": "Split `params.ts` into focused modules: `paramExtractors.ts` (read-only path resolution), `generationPayloadBuilder.ts` (write/transformation logic), and `mediaTypes.ts` (content-type mapping). Keep orchestrator and generation-child imports isolated to only the concern they actually need.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "schema_fallback_sprawl"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Feature growth favored additive props/context fields over bounded controllers.",
+      "Shared abstraction rollout for edge handlers is only partially adopted, so old and new scaffolds coexist.",
+      "Compatibility/fallback handling accumulated in central helper files without concern-based partitioning."
+    ],
+    "likely_symptoms": [
+      "lightbox_state_surface_bloat",
+      "shot_editor_pass_through_architecture",
+      "edge_function_scaffold_drift"
+    ],
+    "possible_false_positives": []
+  }
+}

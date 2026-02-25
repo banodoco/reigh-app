@@ -1,0 +1,90 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "mid_level_elegance": 68.0
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "Boundary helpers in edge request flow expose four different result contracts for similar request-validation tasks (`Response | null`, `EdgeOperationResult<T>`, `{ body?, errorResponse? }`, and plain object fallback), which pushes adapter glue into each caller (`supabase/functions/_shared/edgeRequest.ts:49-163`, `supabase/functions/_shared/edgeOperation.ts:1-47`).",
+        "Orchestrator-reference contract is not normalized at integration seams: writer emits `orchestration_contract` (`src/shared/lib/tasks/orchestrationContract.ts:28-45`) while billing readers/filters must query five historical paths (`supabase/functions/_shared/billing.ts:36-95`).",
+        "Async lifecycle semantics differ across task pipeline utilities: `runBatchTaskPipeline` resolves after settled task results (`src/shared/lib/tasks/batchTaskPipeline.ts:14-26`), but `preloadGenerationTaskMappings` resolves before nested `prefetchQuery` work is guaranteed complete because those promises are not awaited (`src/shared/lib/generationTaskBridge.ts:176-195`).",
+        "Join-clips duration lookup is implemented through two unrelated boundary adapters with different failure behavior and observability (`src/tools/join-clips/lib/clipInitService.ts:91-99,127-168` vs `src/tools/join-clips/lib/clipManager/metadata.ts:12-38`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "edge_request_contract_fragmentation",
+      "summary": "Edge request helpers use incompatible response contracts for equivalent boundary checks, creating avoidable glue code at call sites.",
+      "related_files": [
+        "supabase/functions/_shared/edgeRequest.ts",
+        "supabase/functions/_shared/edgeOperation.ts"
+      ],
+      "evidence": [
+        "`ensureRequestMethod` returns `Promise<Response | null>` while parse helpers return either `EdgeOperationResult<Record<string, unknown>>`, `{ body?: ..., errorResponse?: Response }`, or raw object fallback (`edgeRequest.ts:49-83,95-163`).",
+        "Shared result type already exists (`EdgeOperationResult`) but is only used for some of these entry-point checks (`edgeOperation.ts:19-47`)."
+      ],
+      "suggestion": "Standardize request-boundary helpers on one contract (prefer `EdgeOperationResult<T>`), then provide a single adapter for HTTP response conversion so handlers can compose method-check + body-parse uniformly.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "orchestration_ref_multi_path_contract",
+      "summary": "Task orchestration identity is written in one shape but read through multiple legacy shapes, indicating an unresolved cross-layer contract migration.",
+      "related_files": [
+        "src/shared/lib/tasks/orchestrationContract.ts",
+        "supabase/functions/_shared/billing.ts"
+      ],
+      "evidence": [
+        "Contract builder emits `orchestration_contract.orchestrator_task_id` as canonical field (`orchestrationContract.ts:31-43`).",
+        "Billing extraction and sub-task lookup still depend on five alternative paths including legacy `originalParams` and top-level keys (`billing.ts:45-51,87-95`)."
+      ],
+      "suggestion": "Introduce a single normalized orchestrator-ref accessor at ingestion time (or migration write-back), then collapse billing filters/readers to one canonical storage path and remove multi-path `.or()` queries after backfill.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "preload_completion_semantics_mismatch",
+      "summary": "`preloadGenerationTaskMappings` resolves before all downstream prefetches complete, so caller-visible completion semantics differ from other pipeline utilities.",
+      "related_files": [
+        "src/shared/lib/generationTaskBridge.ts",
+        "src/shared/lib/tasks/batchTaskPipeline.ts"
+      ],
+      "evidence": [
+        "`runBatchTaskPipeline` waits for all operations and settled results before returning (`batchTaskPipeline.ts:19-26`).",
+        "`preloadGenerationTaskMappings` kicks off `queryClient.prefetchQuery` inside `forEach` without awaiting, so function completion does not imply preloaded task data is ready (`generationTaskBridge.ts:176-195`)."
+      ],
+      "suggestion": "Decide and document one completion contract: either await collected prefetch promises before resolving, or split API into `schedule...` and `await...` variants so consumers can explicitly choose fire-and-forget vs completion-guaranteed behavior.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "join_clips_duration_boundary_split",
+      "summary": "Join-clips duration loading uses two unrelated adapters with different error propagation rules, producing inconsistent integration behavior across clip sources.",
+      "related_files": [
+        "src/tools/join-clips/lib/clipInitService.ts",
+        "src/tools/join-clips/lib/clipManager/metadata.ts"
+      ],
+      "evidence": [
+        "Pending-clip flow reads duration via raw `<video>` metadata and silently falls back to `0` with no structured error channel (`clipInitService.ts:91-99,145-168`).",
+        "Metadata manager flow uses `extractVideoMetadataFromUrl`, wraps in `OperationResult`, and emits centralized `handleError` on failure (`metadata.ts:12-38`)."
+      ],
+      "suggestion": "Unify on one duration service (prefer `OperationResult`-based adapter) used by both pending-clip consumption and metadata refresh paths, so failures and fallback policy are consistent.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

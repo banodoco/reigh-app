@@ -1,0 +1,56 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 4,
+  "assessments": {
+    "high_level_elegance": 88.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "src/shared/components/ActiveLoRAsDisplay.tsx combines reusable UI primitives with LoRA-domain behavior (trigger-word insertion, LoRA model lookup via \"Model ID\", media-type inference), indicating feature ownership inside a shared package.",
+        "src/shared/hooks/useApiTokens.ts places account/security-token lifecycle logic (Supabase auth/session checks plus generate/revoke token RPC calls) under shared/hooks rather than a domain-owned area.",
+        "src/shared/hooks/useAutoTopup.test.ts shows another account/billing-specific hook consumed from shared/hooks, reinforcing that shared is acting as a feature catch-all rather than a narrow cross-domain utility boundary."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "issues_preventing_higher_score": "The sampled files show repeated domain logic living under shared/ directories, which weakens ownership clarity and makes future boundary decisions less predictable."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_component_feature_leak_lora",
+      "summary": "LoRA-specific feature behavior is packaged as a shared component, blurring domain ownership boundaries.",
+      "related_files": [
+        "src/shared/components/ActiveLoRAsDisplay.tsx",
+        "src/shared/components/ActiveLoRAsDisplay.test.tsx"
+      ],
+      "evidence": [
+        "ActiveLoRAsDisplay imports LoRA domain types/utilities and implements feature semantics (trigger-word actions, LoRA metadata lookup, video-preview heuristics), not just presentation concerns.",
+        "The colocated test validates feature behaviors (remove, trigger-word add, strength updates), confirming this module is feature-facing rather than cross-cutting shared UI."
+      ],
+      "suggestion": "Move ActiveLoRAsDisplay into a LoRA/generation feature package (for example under a feature/domain directory), keep only generic primitives in shared/components, and expose a small feature-level API for callers.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_hooks_domain_mixing_account",
+      "summary": "Account/billing token-management workflows are stored in shared/hooks, turning shared into a domain-agnostic dumping layer.",
+      "related_files": [
+        "src/shared/hooks/useApiTokens.ts",
+        "src/shared/hooks/__tests__/useAutoTopup.test.ts"
+      ],
+      "evidence": [
+        "useApiTokens performs authenticated token lifecycle orchestration (auth checks plus generate/revoke PAT operations), which is account/security domain logic.",
+        "useAutoTopup test coverage references a similarly domain-specific financial preferences hook from shared/hooks, showing recurring placement of business workflows in shared rather than domain-owned packages."
+      ],
+      "suggestion": "Create an account/billing domain hook area and relocate domain-specific hooks there; reserve shared/hooks for truly cross-domain hooks with stable, generic responsibilities.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

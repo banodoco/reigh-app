@@ -20,15 +20,18 @@ interface ShotValidationResult {
 function extractShotIdByToolType(params: unknown, toolType: string | null): unknown {
   if (toolType === 'travel-between-images') {
     // For travel-between-images tasks, try multiple possible locations
-    return params?.originalParams?.orchestrator_details?.shot_id ||
+    return params?.orchestration_contract?.shot_id ||
+           params?.originalParams?.orchestrator_details?.shot_id ||
            params?.orchestrator_details?.shot_id ||
            params?.full_orchestrator_payload?.shot_id;
   } else if (toolType === 'image-generation') {
     // For image generation tasks, shot_id is typically at top level
-    return params?.shot_id;
+    return params?.orchestration_contract?.shot_id || params?.shot_id;
   } else {
     // Fallback for other task types - try common locations
-    return params?.shot_id || params?.orchestrator_details?.shot_id;
+    return params?.orchestration_contract?.shot_id ||
+           params?.shot_id ||
+           params?.orchestrator_details?.shot_id;
   }
 }
 
@@ -41,6 +44,9 @@ function removeShotIdByToolType(params: Record<string, unknown>, toolType: strin
 
   if (toolType === 'travel-between-images') {
     // Clean up all possible locations for travel-between-images tasks
+    if (updatedParams.orchestration_contract) {
+      delete updatedParams.orchestration_contract.shot_id;
+    }
     if (updatedParams.originalParams?.orchestrator_details) {
       delete updatedParams.originalParams.orchestrator_details.shot_id;
     }
@@ -51,9 +57,15 @@ function removeShotIdByToolType(params: Record<string, unknown>, toolType: strin
       delete updatedParams.full_orchestrator_payload.shot_id;
     }
   } else if (toolType === 'image-generation') {
+    if (updatedParams.orchestration_contract) {
+      delete updatedParams.orchestration_contract.shot_id;
+    }
     delete updatedParams.shot_id;
   } else {
     // Fallback cleanup for other task types
+    if (updatedParams.orchestration_contract) {
+      delete updatedParams.orchestration_contract.shot_id;
+    }
     delete updatedParams.shot_id;
     if (updatedParams.orchestrator_details) {
       delete updatedParams.orchestrator_details.shot_id;

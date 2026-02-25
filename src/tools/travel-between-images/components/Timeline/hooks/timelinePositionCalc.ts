@@ -1,4 +1,4 @@
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 import { TRAILING_ENDPOINT_KEY } from '../utils/timeline-utils';
 
 export interface PendingUpdate {

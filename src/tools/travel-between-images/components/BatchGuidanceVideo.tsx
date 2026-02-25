@@ -1,15 +1,15 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/shared/components/ui/button';
-import { Label } from '@/shared/components/ui/label';
+import { Label } from '@/shared/components/ui/primitives/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
 import { Slider } from '@/shared/components/ui/slider';
 import { Video, X, Images } from 'lucide-react';
-import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { uploadVideoToStorage, extractVideoMetadata, VideoMetadata } from '@/shared/lib/videoUploader';
 import { DatasetBrowserModal } from '@/shared/components/DatasetBrowserModal';
 import { useCreateResource, Resource, StructureVideoMetadata } from '@/shared/hooks/useResources';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 
 interface BatchGuidanceVideoProps {
@@ -212,7 +212,7 @@ export const BatchGuidanceVideo: React.FC<BatchGuidanceVideoProps> = ({
       setUploadProgress(90);
 
       // Create resource for reuse
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase().auth.getUser();
       const now = new Date().toISOString();
       const resourceMetadata: StructureVideoMetadata = {
         name: `Guidance Video ${new Date().toLocaleString()}`,
@@ -236,7 +236,7 @@ export const BatchGuidanceVideo: React.FC<BatchGuidanceVideoProps> = ({
       // Notify parent with resource ID
       onVideoUploaded(uploadedVideoUrl, metadata, resource.id);
     } catch (error) {
-      handleError(error, { context: 'BatchGuidanceVideo', toastTitle: 'Failed to upload video' });
+      normalizeAndPresentError(error, { context: 'BatchGuidanceVideo', toastTitle: 'Failed to upload video' });
     } finally {
       setIsUploading(false);
       setUploadProgress(0);

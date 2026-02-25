@@ -1,0 +1,121 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "api_surface_coherence": 82.4,
+    "mid_level_elegance": 79.6
+  },
+  "dimension_notes": {
+    "api_surface_coherence": {
+      "evidence": [
+        "`TOOL_IDS` is defined as a canonical registry, but downstream APIs still accept untyped `string` tool identifiers (`fetchToolSettingsSupabase(toolId: string)`), so the canonical surface is not enforced by type contracts.",
+        "`TravelBetweenImagesTaskParams` documents strict cardinality for `pair_shot_generation_ids` (N-1), but request assembly only checks `length > 0` while other arrays (`image_generation_ids`, `image_variant_ids`) enforce strict length parity."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Repository/service seams mix three failure contracts: status-union objects (`generationTaskRepository`), thrown typed errors (`useLineageChain`), and `OperationResult` envelopes (`referenceDomainService`, `generateVideoService`), forcing adapter logic between layers.",
+        "`fetchToolSettingsSupabase` exposes per-call cancellation (`signal`) but single-flight dedupe is keyed only by request shape and shares one promise, so later aborted callers cannot independently cancel while awaiting the shared in-flight request."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "tool-id-stringly-api",
+      "summary": "Canonical tool IDs exist, but boundary APIs still accept plain strings, allowing silent identifier drift.",
+      "related_files": [
+        "src/shared/lib/toolIds.ts",
+        "src/shared/lib/toolSettingsService.ts",
+        "src/shared/lib/generationTransformers.ts"
+      ],
+      "evidence": [
+        "`TOOL_IDS` is declared as the shared source of truth for tool keys in `toolIds.ts`.",
+        "`fetchToolSettingsSupabase` accepts `toolId: string` and indexes settings/default registries with arbitrary strings.",
+        "Other paths compare raw payload values against constants (e.g. `item.params?.tool_type === TOOL_IDS.TRAVEL_BETWEEN_IMAGES`) instead of sharing a typed `ToolId` contract."
+      ],
+      "suggestion": "Export `ToolId = typeof TOOL_IDS[keyof typeof TOOL_IDS]` (and optionally `ToolIdKey`) and require it at API boundaries (`fetchToolSettingsSupabase`, transformer helpers, request builders) so invalid tool IDs are compile-time failures.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "untyped_boundary_identifiers"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "travel-pair-cardinality-not-validated",
+      "summary": "Travel request assembly does not enforce documented pair-array cardinality, creating malformed API payload risk.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/types.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts"
+      ],
+      "evidence": [
+        "`TravelBetweenImagesTaskParams` documents `pair_shot_generation_ids` as N-1 IDs mapped to image pairs.",
+        "`buildTravelRequestBodyV2` includes `pair_shot_generation_ids` whenever the array is non-empty, without validating expected pair length.",
+        "The same function already enforces strict length equality for `image_generation_ids` and `image_variant_ids`, so pair IDs are an inconsistent exception in the same API builder."
+      ],
+      "suggestion": "Apply the same parity validation used for image generation/variant IDs to pair IDs (`pairShotGenerationIds.length === max(0, image_urls.length - 1)`), and fail fast with a validation error before task submission.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "request_contract_validation_gaps"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "mixed-error-seam-contracts",
+      "summary": "Cross-layer seams use incompatible failure contracts, increasing glue code and making orchestration paths harder to reason about.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/hooks/useLineageChain.ts",
+        "src/shared/components/ImageGenerationForm/hooks/referenceUpload/referenceDomainService.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts"
+      ],
+      "evidence": [
+        "`generationTaskRepository` returns status+payload objects (`ok`, `scope_mismatch`, `query_failed`) instead of `OperationResult`.",
+        "`useLineageChain` turns repository status failures into thrown `LineageScopeError`, while also throwing normalized runtime errors for DB misses.",
+        "`referenceDomainService` and `generateVideoService` use `OperationResult` envelopes, creating a separate failure-handling style that callers must bridge."
+      ],
+      "suggestion": "Standardize seam contracts per layer (for example, repositories/services return `OperationResult`, UI hooks map to user-facing errors) and remove mixed throw/status/result conversions across these paths.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "mixed_boundary_error_contracts"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "singleflight-cancellation-leak",
+      "summary": "Settings fetch dedupe shares one promise across callers but does not preserve per-caller abort semantics.",
+      "related_files": [
+        "src/shared/lib/toolSettingsService.ts",
+        "src/shared/hooks/invalidation/useGenerationInvalidation.ts"
+      ],
+      "evidence": [
+        "`fetchToolSettingsSupabase` accepts `signal` but when an identical request is already in-flight it returns `await existingPromise` without signal-aware short-circuit.",
+        "Single-flight key excludes cancellation identity, so an aborted caller can remain blocked behind another caller’s request.",
+        "In contrast, other coordination code (`waitForVariantDelay`) explicitly resolves coalesced callers, showing this seam currently lacks equivalent cancellation-aware handoff behavior."
+      ],
+      "suggestion": "Wrap shared in-flight waits with per-caller abort handling (e.g., race shared promise with abort signal), or explicitly remove `signal` from the API if cancellation cannot be honored under dedupe.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "coalescing_without_per_caller_contract"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Boundary contracts are defined locally per module (status unions vs throw vs OperationResult) rather than enforced uniformly at seam layers.",
+      "Canonical registries/types exist (tool IDs, task param docs) but are not consistently used to constrain API construction code."
+    ],
+    "likely_symptoms": [
+      "mixed-error-seam-contracts",
+      "travel-pair-cardinality-not-validated",
+      "singleflight-cancellation-leak"
+    ],
+    "possible_false_positives": []
+  }
+}

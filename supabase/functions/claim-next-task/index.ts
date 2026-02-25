@@ -1,10 +1,6 @@
 // deno-lint-ignore-file
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { authenticateRequest } from "../_shared/auth.ts";
-import { SystemLogger } from "../_shared/systemLogger.ts";
-
-declare const Deno: { env: { get: (key: string) => string | undefined } };
+import { bootstrapEdgeHandler } from "../_shared/edgeHandler.ts";
 
 /**
  * Edge function: claim-next-task
@@ -39,54 +35,28 @@ declare const Deno: { env: { get: (key: string) => string | undefined } };
  * - 500 Internal Server Error
  */
 serve(async (req) => {
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-
-  if (!serviceKey || !supabaseUrl) {
-    console.error("[CLAIM-NEXT-TASK] Missing required environment variables");
-    return new Response("Server configuration error", { status: 500 });
+  const bootstrap = await bootstrapEdgeHandler(req, {
+    functionName: "claim-next-task",
+    logPrefix: "[CLAIM-NEXT-TASK]",
+    parseBody: "loose",
+    errorResponseFormat: "text",
+  });
+  if (!bootstrap.ok) {
+    return bootstrap.response;
   }
 
-  // Create admin client for database operations
-  const supabaseAdmin = createClient(supabaseUrl, serviceKey);
+  const { supabaseAdmin, logger, body: requestBody, auth } = bootstrap.value;
+  const workerId = typeof requestBody.worker_id === "string"
+    ? requestBody.worker_id
+    : `edge_${crypto.randomUUID()}`;
+  const runType = requestBody.run_type === "gpu" || requestBody.run_type === "api"
+    ? requestBody.run_type
+    : null;
+  const sameModelOnly = requestBody.same_model_only === true;
+  const debug = requestBody.debug === true;
 
-  // Create logger
-  const logger = new SystemLogger(supabaseAdmin, 'claim-next-task');
-
-  // Only accept POST requests
-  if (req.method !== "POST") {
-    logger.warn("Method not allowed", { method: req.method });
-    await logger.flush();
-    return new Response("Method not allowed", { status: 405 });
-  }
-
-  // Parse request body
-  let requestBody: unknown = {};
-  try {
-    const bodyText = await req.text();
-    if (bodyText) {
-      requestBody = JSON.parse(bodyText);
-    }
-  } catch {
-    logger.debug("No valid JSON body provided, using defaults");
-  }
-
-  const workerId = requestBody.worker_id || `edge_${crypto.randomUUID()}`;
-  const runType = requestBody.run_type || null; // 'gpu', 'api', or null (no filtering)
-  const sameModelOnly = requestBody.same_model_only || false; // Only claim tasks matching worker's current model
-  const debug = requestBody.debug === true; // Enable verbose analysis on 204 responses
-
-  // Authenticate using shared auth module
-  const auth = await authenticateRequest(req, supabaseAdmin, "[CLAIM-NEXT-TASK]");
-
-  if (!auth.success) {
-    logger.error("Authentication failed", { error: auth.error });
-    await logger.flush();
-    return new Response(auth.error || "Authentication failed", { status: auth.statusCode || 403 });
-  }
-
-  const isServiceRole = auth.isServiceRole;
-  const callerId = auth.userId;
+  const isServiceRole = auth!.isServiceRole;
+  const callerId = auth!.userId;
 
   if (isServiceRole) {
     logger.info("Authenticated via service-role key", { worker_id: workerId, run_type: runType });

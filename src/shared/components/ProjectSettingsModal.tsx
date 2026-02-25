@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
-import { Label } from "@/shared/components/ui/label";
+import { Label } from "@/shared/components/ui/primitives/label";
 import { useProject } from '@/shared/contexts/ProjectContext';
-import { toast } from '@/shared/components/ui/sonner';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { Project } from '@/types/project';
 import { Checkbox } from '@/shared/components/ui/checkbox';
 import { useToolSettings } from '@/shared/hooks/useToolSettings';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/components/ui/collapsible';
 import { ChevronDown, AlertTriangle, RefreshCw } from 'lucide-react';
-import { AspectRatioSelector } from '@/shared/components/AspectRatioSelector';
+import { AspectRatioSelector } from '@/shared/components/generation-controls/AspectRatioSelector';
 import { recropAllReferences, type RecropReferenceInput } from '@/shared/lib/recropReferences';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { ModalContainer } from '@/shared/components/ModalContainer';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 
 interface ProjectImageSettings {
   references?: RecropReferenceInput[];
@@ -30,10 +31,10 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ isOp
   const [projectName, setProjectName] = useState('');
   const [aspectRatio, setAspectRatio] = useState<string>('');
   // Persistent project-level upload settings
-  const { settings: uploadSettings, update: updateUploadSettings, isLoading: isLoadingUploadSettings } = useToolSettings<{ cropToProjectSize?: boolean }>('upload', { projectId: project?.id });
+  const { settings: uploadSettings, update: updateUploadSettings, isLoading: isLoadingUploadSettings } = useToolSettings<{ cropToProjectSize?: boolean }>(SETTINGS_IDS.UPLOAD, { projectId: project?.id });
   
   // Project image settings for reference recropping
-  const { settings: imageSettings, update: updateImageSettings } = useToolSettings<ProjectImageSettings>('project-image-settings', { projectId: project?.id });
+  const { settings: imageSettings, update: updateImageSettings } = useToolSettings<ProjectImageSettings>(SETTINGS_IDS.PROJECT_IMAGE_SETTINGS, { projectId: project?.id });
 
   const [cropToProjectSize, setCropToProjectSize] = useState<boolean>(true);
   const { updateProject, isUpdatingProject, deleteProject, isDeletingProject } = useProject();
@@ -141,7 +142,7 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ isOp
       });
       
     } catch (error) {
-      handleError(error, { context: 'ProjectSettingsModal', toastTitle: 'Failed to update some reference images. You may need to re-upload them.' });
+      normalizeAndPresentError(error, { context: 'ProjectSettingsModal', toastTitle: 'Failed to update some reference images. You may need to re-upload them.' });
     }
   };
 

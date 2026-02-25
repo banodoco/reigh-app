@@ -1,5 +1,5 @@
-import { supabase } from '@/integrations/supabase/client';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { GenVariantInfo, SourceSlotData, StartGenToNextInfo } from './sourceMismatchAnalysis';
 
 function buildStartGenToNextMap(
@@ -43,13 +43,12 @@ async function fetchVariantLocations(variantIds: string[]): Promise<Record<strin
     return variantLocations;
   }
 
-  const { data: variantData, error: variantError } = await supabase
-    .from('generation_variants')
+  const { data: variantData, error: variantError } = await supabase().from('generation_variants')
     .select('id, location')
     .in('id', variantIds);
 
   if (variantError) {
-    handleError(variantError, { context: 'useSourceImageChanges:variantLookup', showToast: false });
+    normalizeAndPresentError(variantError, { context: 'useSourceImageChanges:variantLookup', showToast: false });
     return variantLocations;
   }
 
@@ -65,14 +64,13 @@ export async function fetchSourceSlotData(startGenIds: string[]): Promise<Source
     return null;
   }
 
-  const { data: startSlots, error: startError } = await supabase
-    .from('shot_generations')
+  const { data: startSlots, error: startError } = await supabase().from('shot_generations')
     .select('shot_id, generation_id, updated_at')
     .in('generation_id', startGenIds)
     .not('timeline_frame', 'is', null);
 
   if (startError) {
-    handleError(startError, { context: 'useSourceImageChanges:startSlots', showToast: false });
+    normalizeAndPresentError(startError, { context: 'useSourceImageChanges:startSlots', showToast: false });
     return null;
   }
 
@@ -82,15 +80,14 @@ export async function fetchSourceSlotData(startGenIds: string[]): Promise<Source
 
   const shotId = startSlots[0].shot_id;
 
-  const { data: allSlots, error: allError } = await supabase
-    .from('shot_generations')
+  const { data: allSlots, error: allError } = await supabase().from('shot_generations')
     .select('generation_id, timeline_frame, updated_at')
     .eq('shot_id', shotId)
     .not('timeline_frame', 'is', null)
     .order('timeline_frame', { ascending: true });
 
   if (allError) {
-    handleError(allError, { context: 'useSourceImageChanges:allSlots', showToast: false });
+    normalizeAndPresentError(allError, { context: 'useSourceImageChanges:allSlots', showToast: false });
     return null;
   }
 
@@ -101,13 +98,12 @@ export async function fetchSourceSlotData(startGenIds: string[]): Promise<Source
     return null;
   }
 
-  const { data: genData, error: genError } = await supabase
-    .from('generations')
+  const { data: genData, error: genError } = await supabase().from('generations')
     .select('id, primary_variant_id, updated_at')
     .in('id', generationIds);
 
   if (genError) {
-    handleError(genError, { context: 'useSourceImageChanges:generations', showToast: false });
+    normalizeAndPresentError(genError, { context: 'useSourceImageChanges:generations', showToast: false });
     return null;
   }
 

@@ -1,0 +1,106 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "mid_level_elegance": 78.0,
+    "low_level_elegance": 81.0
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "`src/shared/components/ui/tooltip.tsx` re-exports `TouchableTooltip` from `touchableTooltip.tsx`, while `touchableTooltip.tsx` imports `Tooltip*` symbols back from `./tooltip`, creating a bidirectional module seam.",
+        "Task/orchestrator boundary contracts are duplicated across multiple payload shapes and query predicates: `src/shared/lib/tasks/joinClips.ts` writes nested `orchestrator_details`, `src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts` writes mixed top-level and nested orchestrator identifiers, and `supabase/functions/complete_task/orchestrator.ts` must query several JSON paths (`params->>orchestrator_run_id`, `params->>run_id`, `params->orchestrator_details->>run_id`, etc.).",
+        "`supabase/functions/complete_task/generation.ts` depends on many alternate routing fields (`parent_generation_id` at top-level and in `orchestrator_details`, `child_order`/`segment_index`/`join_index`) which indicates integration seams are permissive instead of explicit."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "`src/tools/edit-images/hooks/useImageEditValue.ts` defines a very large `UseImageEditValueParams` bag and composes multiple partial builders, increasing call-site ceremony and making local behavior hard to track.",
+        "`useImageEditValue` memoizes on `[params]`, but `params` is an object assembled by `src/tools/edit-images/hooks/useInlineEditState.ts`; this undermines the intended memo granularity because identity changes can invalidate the memo wholesale.",
+        "`src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts` is a pass-through remapping layer that copies nested objects field-by-field without changing semantics, adding indirection and maintenance surface."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "tooltip_bidirectional_module_seam",
+      "summary": "Tooltip primitives and touch-tooltip wrapper form a circular dependency that makes UI boundary behavior brittle.",
+      "related_files": [
+        "src/shared/components/ui/tooltip.tsx",
+        "src/shared/components/ui/touchableTooltip.tsx"
+      ],
+      "evidence": [
+        "`tooltip.tsx` contains `export { TouchableTooltip } from '@/shared/components/ui/touchableTooltip'`.",
+        "`touchableTooltip.tsx` imports `{ Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './tooltip'`.",
+        "This creates a cycle (`tooltip -> touchableTooltip -> tooltip`) in the same integration seam used by shared UI consumers."
+      ],
+      "suggestion": "Break the cycle by moving base primitives into a third module (for example `tooltipPrimitives.tsx`) that both files import, and keep `tooltip.tsx` as a one-way public barrel.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "orchestrator_contract_path_drift",
+      "summary": "Orchestrator identifiers are carried in multiple incompatible JSON paths, forcing defensive cross-path queries and weakening module handoffs.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/complete_task/generation.ts"
+      ],
+      "evidence": [
+        "`payloadBuilder.ts` writes orchestrator metadata across top-level and nested fields (`orchestrator_task_id`, `run_id`, `orchestrator_details` values).",
+        "`orchestrator.ts` must search several alternate JSON paths for both run id and orchestrator id using `.or(...)` clauses.",
+        "`generation.ts` similarly reads routing params from multiple fallback locations (`parent_generation_id` and `orchestrator_details.parent_generation_id`, plus multiple child-order keys)."
+      ],
+      "suggestion": "Define and enforce one canonical task payload contract for orchestrator metadata (single path per identifier), migrate writers to it, then remove fallback query/read paths after backfill.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "inline_edit_state_param_bag_overgrowth",
+      "summary": "Inline edit state composition relies on an oversized param object and broad object-level memoization, obscuring intent and reducing local precision.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/hooks/useImageEditValue.ts"
+      ],
+      "evidence": [
+        "`UseImageEditValueParams` aggregates dozens of fields spanning mode state, canvas control, form values, generation flags, and mutation status.",
+        "`buildImageEditState` merges four large partial builders, so behavioral ownership is fragmented across helper layers.",
+        "`useImageEditValue` depends on `[params]`, making memo invalidation coarse and tied to wrapper object identity rather than field-level dependencies."
+      ],
+      "suggestion": "Split the context into smaller typed slices (for example mode/canvas/form/generation contexts) and memoize each slice with explicit primitive/function dependencies before composing.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "pass_through_wrapper_indirection",
+      "summary": "Several helpers are pure pass-through wrappers that add indirection without reducing complexity.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts",
+        "src/shared/hooks/useUpdatingTimestamp.ts"
+      ],
+      "evidence": [
+        "`useButtonGroupProps` rebuilds `topRight`, `bottomLeft`, and `bottomRight` objects by copying input fields 1:1 and maintaining a long dependency list.",
+        "`useUpdatingTimestamp` is a direct alias to `useRelativeTimestamp(options)` while both are exported from the same module.",
+        "These wrappers increase API surface and maintenance overhead with no meaningful boundary translation."
+      ],
+      "suggestion": "Remove or inline pass-through wrappers where possible; if a wrapper must remain, make it responsible for a real transformation (normalization/defaulting) and shrink exposed signatures.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ]
+}

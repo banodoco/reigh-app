@@ -9,7 +9,7 @@
 
 import React, { useCallback, useRef } from 'react';
 import { Card } from '@/shared/components/ui/card';
-import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
+import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
 import {
   useShotImagesEditorModel,
 } from './ShotImagesEditor/hooks';
@@ -55,6 +55,7 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = (props) => {
 
   const callbacks = useShotImagesEditorCallbacks({
     selectedShotId: resolvedProps.selectedShotId,
+    projectId: resolvedProps.projectId,
     preloadedImages: resolvedProps.preloadedImages,
     onImageDelete: resolvedProps.onImageDelete,
     onAddToShot: resolvedProps.onAddToShot,

@@ -1,8 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { GenerationRow } from "@/types/generationAndShots";
+import { GenerationRow } from "@/domains/generation/types";
 import { pixelToFrame, applyFluidTimeline, applyFluidTimelineMulti, TRAILING_ENDPOINT_KEY } from "../utils/timeline-utils";
 import { log } from "@/shared/lib/logger";
-import { handleError } from "@/shared/lib/errorHandling/handleError";
+import { normalizeAndPresentError } from "@/shared/lib/errorHandling/runtimeError";
 import { createSessionId } from "@/shared/lib/sessionId";
 import { TIMELINE_PADDING_OFFSET } from "../constants";
 
@@ -360,7 +360,7 @@ export const useTimelineDrag = ({
       try {
         await setFramePositions(finalPositions);
       } catch (error) {
-        handleError(error, { context: 'TimelineDrag', showToast: false });
+        normalizeAndPresentError(error, { context: 'TimelineDrag', showToast: false });
         console.error(`${TIMELINE_DRAG_LOG_PREFIX} setFramePositions failed`, {
           activeId: shortId(dragState.activeId),
           dragSessionId: dragState.dragSessionId?.slice(0, 12) ?? null,

@@ -9,7 +9,12 @@ import { reactProfilerOnRender } from '@/shared/lib/logger';
 import { createRoot } from 'react-dom/client';
 import { Profiler } from 'react';
 import App from '@/app/App';
-import { AppErrorBoundary } from '@/shared/components/AppErrorBoundary';
+import { AppErrorBoundary } from '@/app/components/error/AppErrorBoundary';
+import { initializeSupabase } from '@/integrations/supabase/client';
+import { initializeUiToastManager } from '@/shared/components/ui/runtime/toastManager';
+import { registerToastErrorPresenter } from '@/shared/components/ui/registerToastErrorPresenter';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { initializeViewportLockRuntime } from '@/shared/runtime/viewportLockRuntime';
 import '@/index.css';
 
 let environmentInitialized = false;
@@ -38,10 +43,13 @@ export function initializeAppEnvironment(): void {
   }
 
   const env = import.meta.env;
+  initializeUiToastManager();
+  registerToastErrorPresenter();
+  initializeViewportLockRuntime();
 
   // Initialize autoplay monitoring in development (after console suppression check)
   if (shouldLoadAutoplayMonitor(env)) {
-    import('@/shared/lib/autoplayMonitor');
+    import('@/shared/lib/debug/autoplayMonitor');
   }
 
   // Debug tooling is intentionally loaded only for local dev runtime, never test/prod.
@@ -55,6 +63,35 @@ export function initializeAppEnvironment(): void {
   const storedDarkMode = localStorage.getItem('dark-mode');
   if (storedDarkMode === null || storedDarkMode === 'true') {
     document.documentElement.classList.add('dark');
+  }
+
+  if (!isTestRuntimeEnvironment(env)) {
+    initializeSupabase();
+
+    if (shouldLoadDevDebugTools(env)) {
+      import('@/integrations/supabase/debug/initializeSupabaseDebugGlobals')
+        .then(({ initializeSupabaseDebugGlobals }) => {
+          initializeSupabaseDebugGlobals();
+        })
+        .catch((error) => {
+          normalizeAndPresentError(error, {
+            context: 'initializeAppEnvironment.initializeSupabaseDebugGlobals',
+            showToast: false,
+          });
+          return undefined;
+        });
+      import('@/shared/realtime/DataFreshnessManager')
+        .then(({ registerDataFreshnessManagerDebugGlobal }) => {
+          registerDataFreshnessManagerDebugGlobal();
+        })
+        .catch((error) => {
+          normalizeAndPresentError(error, {
+            context: 'initializeAppEnvironment.registerDataFreshnessManagerDebugGlobal',
+            showToast: false,
+          });
+          return undefined;
+        });
+    }
   }
 
   environmentInitialized = true;

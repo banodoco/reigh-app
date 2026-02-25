@@ -1,8 +1,8 @@
 import React from 'react';
 import TaskDetailsPanel from '@/shared/components/TaskDetailsPanel';
-import type { GenerationRow } from '@/types/shots';
+import type { GenerationRow } from '@/domains/generation/types';
 import type { TaskDetailsData } from '../types';
-import type { DerivedItem } from '@/shared/hooks/useDerivedItems';
+import type { DerivedItem } from '@/domains/generation/hooks/useDerivedItems';
 
 interface VariantInfo {
   id: string;

@@ -1,0 +1,133 @@
+{
+  "assessments": {
+    "high_level_elegance": 48.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/domains/generation/types/generationRow.ts` exports `GenerationRow = GenerationRowDomain & Partial<GenerationRowLegacyAliases>`, so domain contracts and DB/API legacy aliases are merged into one widely shared type surface.",
+        "`src/shared/lib/errorHandling/handleError.ts` combines normalization, logging, notification dispatch, callback invocation, rethrow helper, and notifier configuration re-exports, creating a broad cross-cutting entry point.",
+        "`src/shared/hooks/useMobile.tsx` colocates multiple device hooks plus a composite `useDeviceInfo` orchestration API in one high-import module, mixing low-level detection and high-level presentation-oriented derivations.",
+        "`src/integrations/supabase/client.ts` mixes singleton acquisition with optional debug global mutation (`window.__supabase_client__`, `window.supabase`), blending production runtime boundary and diagnostics concerns."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "generation_row_boundary_blur",
+      "summary": "Generation domain type is coupled to legacy transport aliases in one shared contract",
+      "related_files": [
+        "src/domains/generation/types/generationRow.ts",
+        "src/domains/generation/types/shot.ts"
+      ],
+      "evidence": [
+        "`GenerationRow` is defined as `GenerationRowDomain & Partial<GenerationRowLegacyAliases>`, exposing `created_at`, `thumbnail_url`, and other boundary alias fields in the same type used as domain data.",
+        "`Shot.images` depends on `GenerationRowDomain[]`, but the module still publishes the merged `GenerationRow` type from the same location, encouraging consumers to depend on mixed-layer fields."
+      ],
+      "suggestion": "Keep `GenerationRowDomain` as the only domain export in this module, move alias fields to a dedicated mapper/DTO type file (e.g., `generationRowDto.ts`), and require explicit mapping at API/DB boundaries before data reaches domain-level consumers.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "error_handling_facade_god_module",
+      "summary": "Error handling entrypoint owns too many responsibilities for one shared module",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/features/gallery/hooks/useAdjacentPagePreloader.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` performs normalization, logging, toast/title/description construction, notification emission, callback dispatch, plus exports notifier configuration and a rethrow variant.",
+        "Feature hooks (`useAdjacentPagePreloader`, `useMediaGalleryItemState`) import this single facade directly, which makes unrelated subsystems converge on one broad utility contract."
+      ],
+      "suggestion": "Split the facade into narrower entry points (`normalizeAndLogError`, `notifyError`, `handleAndRethrow`) and keep notifier configuration in a dedicated bootstrap module, so consumers import only the behavior they need and ownership boundaries become explicit.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "mobile_hook_responsibility_mixing",
+      "summary": "Mobile utilities module mixes primitive detection hooks and composite UI policy",
+      "related_files": [
+        "src/shared/hooks/useMobile.tsx",
+        "src/pages/Home/components/CreativePartnerPane.tsx",
+        "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx"
+      ],
+      "evidence": [
+        "`useMobile.tsx` defines `useIsMobile`, `useIsTablet`, `useIsTouchDevice`, and `useDeviceInfo` with derived UI policy (`mobileColumns`) in one module.",
+        "UI components consume only small slices (`useIsMobile`), but the shared module still owns broader orchestration concerns and multiple window listener setups."
+      ],
+      "suggestion": "Separate low-level device signal hooks into a `deviceSignals` module and move `useDeviceInfo`/`mobileColumns` policy into a higher-level `responsiveViewModel` hook so consumers opt into either primitive detection or composed UI policy explicitly.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "supabase_runtime_and_debug_coupled",
+      "summary": "Supabase client module couples runtime bootstrapping with debug global exposure",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/integrations/supabase/bootstrap/initializeSupabaseRuntime.ts"
+      ],
+      "evidence": [
+        "The same module that provides `getSupabaseClient()` singleton creation also exports `initializeSupabaseDebugGlobals()` that mutates `window` globals.",
+        "This blends integration runtime concerns and diagnostics wiring in one ownership boundary, even though debug setup is optional and environment-specific."
+      ],
+      "suggestion": "Move debug-global registration into a separate dev-only diagnostics module and keep `client.ts` focused on client lifecycle/bootstrap only; call diagnostics initialization from explicit development entrypoints.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ],
+  "review_quality": {
+    "batch_count": 1,
+    "dimension_coverage": 1.0,
+    "evidence_density": 1.0,
+    "high_score_without_risk": 0,
+    "finding_pressure": 10.346,
+    "dimensions_with_findings": 1
+  },
+  "reviewed_files": [
+    "src/shared/lib/errorHandling/handleError.ts",
+    "src/domains/generation/types/generationRow.ts",
+    "src/shared/components/ui/button.tsx",
+    "src/integrations/supabase/client.ts",
+    "src/shared/lib/uiClassNames.ts",
+    "src/shared/components/ui/sonner.tsx",
+    "src/domains/generation/types/shot.ts",
+    "src/shared/components/ui/tooltip.tsx",
+    "src/shared/hooks/useMobile.tsx",
+    "src/shared/components/ui/label.tsx",
+    "src/features/gallery/hooks/useAdjacentPagePreloader.ts",
+    "src/features/layout/hooks/useBottomOffset.test.ts",
+    "src/pages/Home/components/CreativePartnerPane.tsx",
+    "src/pages/Home/components/InstallInstructionsModal.tsx",
+    "src/shared/components/ConfirmDialog.tsx",
+    "src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx",
+    "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx",
+    "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+    "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+  ],
+  "provenance": {
+    "kind": "blind_review_batch_import",
+    "blind": true,
+    "runner": "codex",
+    "run_stamp": "20260224_015017",
+    "created_at": "2026-02-24T01:51:06+00:00",
+    "batch_count": 1,
+    "batch_indexes": [
+      1
+    ],
+    "packet_path": "/Users/peteromalley/Documents/reigh/.desloppify/review_packet_blind.json",
+    "packet_sha256": "e6b88e1bac5583586c7b3fdb6608ae2aea1c99ab0627b9b16877b0d927179938"
+  }
+}

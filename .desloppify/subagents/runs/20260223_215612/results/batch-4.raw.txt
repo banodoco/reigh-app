@@ -1,0 +1,97 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 4,
+  "assessments": {
+    "high_level_elegance": 72.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/hooks/useAutoTopup.ts` couples a `shared` hook directly to billing/auth infrastructure via `@/integrations/supabase/client`, edge-function invocation, and credits query-key invalidation.",
+        "`src/shared/hooks/useBackgroundThumbnailGenerator.ts` embeds generation-domain queue orchestration and direct cache writes under `src/shared/hooks`, including assumptions about `{ items: [...] }` generation query data shape.",
+        "`src/shared/components/ActiveLoRAsDisplay.tsx` and `src/shared/components/AspectRatioSelector.tsx` are feature-specific generation UI but are placed in global `shared/components`, which broadens the apparent public surface of `shared`.",
+        "Hook tests under `src/shared/hooks/__tests__` mirror these domain-heavy hooks inside `shared`, reinforcing a package boundary where `shared` acts as a catch-all rather than a stable cross-domain layer."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_hook_billing_infra_coupling",
+      "summary": "`useAutoTopup` is placed in `shared/hooks` despite owning billing/auth infrastructure behavior.",
+      "related_files": [
+        "src/shared/hooks/useAutoTopup.ts",
+        "src/shared/hooks/__tests__/useAutoTopup.test.ts",
+        "src/shared/components/AppErrorBoundary.tsx"
+      ],
+      "evidence": [
+        "`useAutoTopup` imports `getSupabaseClient` from integrations, calls auth/session APIs, invokes `setup-auto-topup`, and invalidates credits query keys.",
+        "This behavior is product/billing-domain specific and not a generic reusable hook contract expected from `shared/hooks`.",
+        "The paired test is also under `shared/hooks/__tests__`, indicating the package is being used as a domain host rather than a true shared utility layer."
+      ],
+      "suggestion": "Move this hook (and its test) to a billing/credits domain package (for example `src/domains/billing/hooks`) and keep `shared` limited to UI-agnostic primitives/interfaces consumed by that domain.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_hook_generation_cache_ownership",
+      "summary": "`useBackgroundThumbnailGenerator` in `shared` owns generation-specific orchestration and cache-shape knowledge.",
+      "related_files": [
+        "src/shared/hooks/useBackgroundThumbnailGenerator.ts",
+        "src/shared/hooks/__tests__/useBackgroundThumbnailGenerator.test.ts",
+        "src/shared/hooks/useBatchImageLoading.ts"
+      ],
+      "evidence": [
+        "The hook manages a thumbnail generation queue, calls `generateAndUploadThumbnail`, and invalidates/patches `unifiedGenerationQueryKeys` data.",
+        "It directly mutates query data assuming an `items` collection, binding it tightly to one generation subsystem representation.",
+        "Placement in `shared/hooks` makes this domain ownership non-obvious and increases risk of cross-feature coupling."
+      ],
+      "suggestion": "Relocate the hook and tests to a generation/media domain folder and expose only a narrow interface (e.g., a service adapter) from shared utilities if needed.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_components_feature_ui_flattening",
+      "summary": "Feature-specific generation UI components are organized as globally shared components.",
+      "related_files": [
+        "src/shared/components/ActiveLoRAsDisplay.tsx",
+        "src/shared/components/AspectRatioSelector.tsx",
+        "src/shared/hooks/useAutoTopup.ts"
+      ],
+      "evidence": [
+        "`ActiveLoRAsDisplay` is tightly tied to LoRA model semantics (`ActiveLora`, trigger words, strength controls).",
+        "`AspectRatioSelector` depends on generation-oriented `ASPECT_RATIO_TO_RESOLUTION` and visualizer behavior.",
+        "Keeping such components under `shared/components` obscures ownership and invites unrelated features to couple to generation-specific UI contracts."
+      ],
+      "suggestion": "Move these components into domain/feature directories (for example `src/domains/generation/components`) and keep `shared/components` for cross-domain primitives only.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "config_and_product_policy_co_location",
+      "summary": "Root build config mixes generic tooling setup with product/deployment-specific policy.",
+      "related_files": [
+        "vite.config.ts",
+        "tailwind.config.ts"
+      ],
+      "evidence": [
+        "`vite.config.ts` contains environment-specific preview host allowlists and manual vendor chunk strategy alongside baseline bundler setup.",
+        "`tailwind.config.ts` includes a large product-specific theme/palette surface in the same top-level config used for all app styling compilation.",
+        "This co-location increases top-level cognitive load and makes ownership between platform/config and product design policy less explicit."
+      ],
+      "suggestion": "Extract product/deployment policy into dedicated config modules (e.g., `config/vite/hosts.ts`, `config/theme/wesPalette.ts`) and keep root config files as thin composition entry points.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

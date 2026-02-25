@@ -8,8 +8,8 @@
 import React from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { Trash2, Copy, Check, Maximize2 } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
-import { useBatchImageLoading } from '@/shared/hooks/useBatchImageLoading';
+import { cn } from '@/shared/components/ui/contracts/cn';
+import { useBatchImageLoading } from '@/shared/hooks/ui-image/useBatchImageLoading';
 import { getImageAspectRatioStyle } from '@/shared/lib/imageAspectRatio';
 import { ShotBatchItemMobileProps } from './types';
 import { VariantBadge } from '@/shared/components/VariantBadge';

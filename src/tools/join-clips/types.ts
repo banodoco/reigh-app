@@ -8,6 +8,7 @@ export interface VideoClip {
   playing: boolean;
   durationSeconds?: number;
   metadataLoading?: boolean;
+  durationLoadFailed?: boolean;
   /** Source generation ID (when added via "Add to Join" from lightbox) */
   generationId?: string;
 }

@@ -28,7 +28,7 @@ import React, {
   useMemo,
   useRef
 } from 'react';
-import { Shot } from '@/types/shots';
+import { Shot } from '@/domains/generation/types';
 import { useShotSettings, UseShotSettingsReturn } from '../hooks/useShotSettings';
 import { useVideoTravelSettingsHandlers, VideoTravelSettingsHandlers } from '../hooks/useVideoTravelSettingsHandlers';
 import { VideoTravelSettings, PhaseConfig } from '../settings';

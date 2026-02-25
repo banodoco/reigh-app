@@ -9,13 +9,13 @@
 
 import React, { useState, useMemo } from 'react';
 import { Check, Loader2, ArrowDown, ArrowUp, X, ImagePlus, Star } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { Button } from '@/shared/components/ui/button';
 import { Skeleton } from '@/shared/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/shared/components/ui/tooltip';
-import { useIsMobile } from '@/shared/hooks/useMobile';
+import { useIsMobile } from '@/shared/hooks/mobile';
 import { usePublicLoras } from '@/shared/hooks/useResources';
-import { ChunkLoadErrorBoundary } from '@/shared/components/ChunkLoadErrorBoundary';
+import { ChunkLoadErrorBoundary } from '@/shared/runtime/ChunkLoadErrorBoundary';
 // Lazy load LineageGifModal since it's only opened on demand
 const LazyLineageGifModal = React.lazy(() =>
   import('@/shared/components/LineageGifModal').then(module => ({

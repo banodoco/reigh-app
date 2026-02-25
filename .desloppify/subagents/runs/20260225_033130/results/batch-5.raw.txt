@@ -1,0 +1,91 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 5,
+  "assessments": {
+    "cross_module_architecture": 86.5
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "Deprecation governance is implemented through two different policy wiring patterns: `handleError.ts` resolves policy via `getDeprecationPolicy('runtime_error_alias')`, while `legacySupabaseFacade.ts` assembles policy from separate legacy constants and calls enforcement directly.",
+        "`src/shared/components/ui/button.tsx` imports base primitives from `baseButton` but also re-exports both themed and base-layer contracts from one module (`BaseButton`, `baseButtonVariants`, `buttonVariants`), which mixes abstraction boundaries at a high-import entry point.",
+        "Compatibility aliases (`reportRuntimeError`, `RuntimeErrorOptions`, and `getLegacySupabaseClient`) are still co-located in primary runtime modules, so legacy and canonical contracts share the same import surface instead of being isolated behind explicit legacy entry points."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Governance contracts are documented clearly, but runtime boundary enforcement remains split across policy mechanisms and mixed-layer export surfaces, increasing drift risk as deprecations evolve."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "split_deprecation_policy_paths",
+      "summary": "Deprecation contract enforcement uses divergent policy sources across modules",
+      "related_files": [
+        "README.md",
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts"
+      ],
+      "evidence": [
+        "`handleError.ts` pulls policy from centralized governance (`getDeprecationPolicy('runtime_error_alias')`).",
+        "`legacySupabaseFacade.ts` bypasses that registry and constructs policy from `legacySupabasePolicy` constants before enforcement.",
+        "README presents these as governed compatibility contracts under shared quality gates, but runtime implementation is not structurally uniform."
+      ],
+      "suggestion": "Standardize deprecation policy lookup through one governance API (for example, `getDeprecationPolicy(...)`) for both error and Supabase legacy aliases, and keep module-specific constants only as data inputs to that shared resolver.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "legacy_compatibility_embedded_in_primary_modules"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "button_module_layer_leak",
+      "summary": "UI button entry point blends themed app surface with base primitive exports",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/ui/cn.ts"
+      ],
+      "evidence": [
+        "`button.tsx` wraps base primitives and app theme variants, but exports both `Button` and base-layer contracts (`BaseButton`, `baseButtonVariants`) from the same module.",
+        "This creates a single high-import hub where consumers can cross layers accidentally, weakening intended boundary direction between primitive and themed surfaces."
+      ],
+      "suggestion": "Split exports into explicit layer entry points (`ui/baseButton` for primitives, `ui/button` for themed app button) and remove base exports from `button.tsx` to enforce dependency direction at import boundaries.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "mixed_abstraction_entrypoints"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "legacy_aliases_in_primary_contract_modules",
+      "summary": "Deprecated aliases remain inside canonical modules, prolonging contract ambiguity",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`handleError.ts` exports both canonical API (`handleError`) and deprecated alias API (`reportRuntimeError`, `RuntimeErrorOptions`) in the same contract file.",
+        "`legacySupabaseFacade.ts` remains a runtime callable shim with active importers, while README describes migration gates and a removal target (`2026-06-30`).",
+        "Keeping live aliases in primary runtime surfaces increases long-tail compatibility usage and broadens blast radius for future removals."
+      ],
+      "suggestion": "Move deprecated aliases into dedicated legacy-only modules with explicit re-export boundaries, then keep canonical modules alias-free; wire quality gates to fail new imports from those legacy entry points.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "legacy_compatibility_embedded_in_primary_modules"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Governance metadata is centralized in docs and checks, but runtime contract ownership is still partially distributed across module-local implementations.",
+      "High-traffic entry points are being used to carry both stable and transitional APIs, which blurs architectural boundaries."
+    ],
+    "likely_symptoms": [
+      "split_deprecation_policy_paths",
+      "legacy_aliases_in_primary_contract_modules"
+    ],
+    "possible_false_positives": []
+  }
+}

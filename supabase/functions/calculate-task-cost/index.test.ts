@@ -2,6 +2,40 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { __getServeHandler, __resetServeHandler } from '../_tests/mocks/denoHttpServer.ts';
 import * as CalculateTaskCostEntrypoint from './index.ts';
 
+describe('calculate-task-cost parsing contracts', () => {
+  it('preserves validated known fields and extra unknown fields', () => {
+    const parsed = CalculateTaskCostEntrypoint.__internal.parseTaskCostParams({
+      resolution: '1280x720',
+      frame_count: 32,
+      model_type: 'i2v',
+      result: { output_frames: 12 },
+      custom_flag: true,
+    });
+
+    expect(parsed.resolution).toBe('1280x720');
+    expect(parsed.frame_count).toBe(32);
+    expect(parsed.model_type).toBe('i2v');
+    expect(parsed.result).toEqual({ output_frames: 12 });
+    expect(parsed.custom_flag).toBe(true);
+  });
+
+  it('drops malformed known billing keys instead of re-injecting raw values', () => {
+    const parsed = CalculateTaskCostEntrypoint.__internal.parseTaskCostParams({
+      resolution: 123,
+      frame_count: '32',
+      model_type: 999,
+      result: 'not-an-object',
+      passthrough: 'ok',
+    });
+
+    expect(parsed.resolution).toBeUndefined();
+    expect(parsed.frame_count).toBeUndefined();
+    expect(parsed.model_type).toBeUndefined();
+    expect(parsed.result).toBeUndefined();
+    expect(parsed.passthrough).toBe('ok');
+  });
+});
+
 describe('calculate-task-cost edge entrypoint', () => {
   it('imports entrypoint module directly', () => {
     expect(CalculateTaskCostEntrypoint).toBeDefined();

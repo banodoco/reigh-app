@@ -12,18 +12,24 @@ interface UsePanelModeRestoreProps {
   mediaId: string;
   /** Persisted panel mode from last used settings */
   persistedPanelMode: 'edit' | 'info' | null | undefined;
-  /** Whether viewing a video */
-  isVideo: boolean;
   /** Whether currently in special edit mode (image) */
   isSpecialEditMode: boolean;
   /** Whether currently in video edit mode */
   isInVideoEditMode: boolean;
   /** Whether initial video trim mode was requested */
   initialVideoTrimMode?: boolean;
-  /** Whether auto-enter inpaint was requested */
-  autoEnterInpaint?: boolean;
+  /** Whether initial edit active was requested (explicit mode set, skip restore) */
+  initialEditActive?: boolean;
+}
+
+interface UseVideoPanelModeRestoreProps extends UsePanelModeRestoreProps {
+  isVideo: true;
   /** Handler to enter video edit mode */
   handleEnterVideoEditMode: () => void;
+}
+
+interface UseImagePanelModeRestoreProps extends UsePanelModeRestoreProps {
+  isVideo: false;
   /** Handler to enter magic edit mode (image) */
   handleEnterMagicEditMode: () => void;
 }
@@ -44,11 +50,13 @@ export function usePanelModeRestore({
   isSpecialEditMode,
   isInVideoEditMode,
   initialVideoTrimMode,
-  autoEnterInpaint,
-  handleEnterVideoEditMode,
-  handleEnterMagicEditMode,
-}: UsePanelModeRestoreProps): UsePanelModeRestoreReturn {
+  initialEditActive,
+  ...modeHandlers
+}: UseVideoPanelModeRestoreProps | UseImagePanelModeRestoreProps): UsePanelModeRestoreReturn {
   const hasRestoredPanelModeRef = useRef(false);
+  const enterEditMode = isVideo
+    ? modeHandlers.handleEnterVideoEditMode
+    : modeHandlers.handleEnterMagicEditMode;
 
   // Main restoration effect
   useEffect(() => {
@@ -58,8 +66,8 @@ export function usePanelModeRestore({
       return;
     }
 
-    // Don't restore if initialVideoTrimMode or autoEnterInpaint is set (explicit modes take precedence)
-    if (initialVideoTrimMode || autoEnterInpaint) {
+    // Don't restore if initialVideoTrimMode or initialEditActive is set (explicit modes take precedence)
+    if (initialVideoTrimMode || initialEditActive) {
       hasRestoredPanelModeRef.current = true;
       return;
     }
@@ -72,15 +80,18 @@ export function usePanelModeRestore({
 
     if (persistedPanelMode === 'edit') {
       hasRestoredPanelModeRef.current = true;
-      if (isVideo) {
-        setTimeout(() => handleEnterVideoEditMode(), 0);
-      } else {
-        setTimeout(() => handleEnterMagicEditMode(), 0);
-      }
+      setTimeout(() => enterEditMode(), 0);
     } else {
       hasRestoredPanelModeRef.current = true;
     }
-  }, [persistedPanelMode, isVideo, handleEnterVideoEditMode, handleEnterMagicEditMode, initialVideoTrimMode, autoEnterInpaint, isSpecialEditMode, isInVideoEditMode]);
+  }, [
+    persistedPanelMode,
+    enterEditMode,
+    initialVideoTrimMode,
+    initialEditActive,
+    isSpecialEditMode,
+    isInVideoEditMode,
+  ]);
 
   // Reset restore flag when media changes
   useEffect(() => {

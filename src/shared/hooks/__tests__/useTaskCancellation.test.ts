@@ -14,8 +14,8 @@ vi.mock('@/integrations/supabase/client', () => ({
   },
 }));
 
-vi.mock('@/shared/lib/errorHandling/handleError', () => ({
-  handleError: mockHandleError,
+vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
+  normalizeAndPresentError: mockHandleError,
 }));
 
 vi.mock('@/shared/lib/queryKeys/tasks', () => ({

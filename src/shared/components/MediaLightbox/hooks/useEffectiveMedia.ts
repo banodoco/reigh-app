@@ -8,7 +8,7 @@
  */
 
 import { useMemo } from 'react';
-import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
+import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
 
 interface UseEffectiveMediaProps {
   isVideo: boolean;

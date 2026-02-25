@@ -93,7 +93,7 @@ vi.mock('./MediaGalleryItem/hooks/useShotPositionChecks', () => ({
   }),
 }));
 
-vi.mock('@/shared/lib/dragDrop', () => ({
+vi.mock('@/shared/lib/dnd/dragDrop', () => ({
   setGenerationDragData: vi.fn(),
   createDragPreview: vi.fn(() => undefined),
 }));
@@ -106,7 +106,7 @@ vi.mock('@/shared/contexts/ProjectContext', () => ({
   useProject: () => ({ selectedProjectId: 'project-1' }),
 }));
 
-vi.mock('@/shared/lib/toolConstants', () => ({
+vi.mock('@/shared/lib/toolIds', () => ({
   TOOL_IDS: {
     TRAVEL_BETWEEN_IMAGES: 'travel-between-images',
   },
@@ -128,7 +128,7 @@ vi.mock('@/shared/hooks/useQuickShotCreate', () => ({
   }),
 }));
 
-vi.mock('@/shared/lib/aspectRatios', () => ({
+vi.mock('@/shared/lib/media/aspectRatios', () => ({
   parseRatio: () => 16 / 9,
 }));
 

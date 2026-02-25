@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Slider as SliderPrimitive } from "@base-ui-components/react/slider"
-import { cn } from "@/shared/lib/utils"
+import { cn } from "@/shared/components/ui/contracts/cn"
 
 interface SliderProps extends Omit<React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root>, "children" | "onValueChange"> {
   variant?: "primary" | "secondary";

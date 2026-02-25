@@ -29,5 +29,6 @@
   "finding_noise_global_budget": 0,
   "target_strict_score": 95,
   "review_allow_custom_dimensions": false,
-  "review_custom_dimensions": []
+  "review_custom_dimensions": [],
+  "review_batch_max_files": 80
 }

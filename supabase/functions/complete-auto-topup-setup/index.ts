@@ -1,23 +1,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import Stripe from "https://esm.sh/stripe@14.21.0";
-import { SystemLogger } from "../_shared/systemLogger.ts";
-import { authenticateRequest } from "../_shared/auth.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      ...corsHeaders,
-      'Content-Type': 'application/json',
-    },
-  });
-}
+import { jsonResponse } from "../_shared/http.ts";
+import { bootstrapEdgeHandler } from "../_shared/edgeHandler.ts";
+import { createStripeClient, getAutoTopupConfigFailure } from "../_shared/autoTopupDomain.ts";
 
 /**
  * Edge function: complete-auto-topup-setup
@@ -35,22 +19,27 @@ function jsonResponse(body: unknown, status = 200) {
  * - 500 Internal Server Error
  */
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return jsonResponse({ ok: true });
+  const bootstrap = await bootstrapEdgeHandler(req, {
+    functionName: "complete-auto-topup-setup",
+    logPrefix: "[COMPLETE-AUTO-TOPUP-SETUP]",
+    parseBody: "strict",
+    auth: {
+      requireServiceRole: true,
+    },
+    runtimeOptions: {
+      clientOptions: {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      },
+    },
+  });
+  if (!bootstrap.ok) {
+    return bootstrap.response;
   }
 
-  if (req.method !== "POST") {
-    return jsonResponse({ error: "Method not allowed" }, 405);
-  }
-
-  // ─── 1. Parse body ──────────────────────────────────────────────
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return jsonResponse({ error: "Invalid JSON body" }, 400);
-  }
+  const { supabaseAdmin, logger, body } = bootstrap.value;
   
   const { sessionId, userId } = body;
 
@@ -58,44 +47,9 @@ serve(async (req) => {
     return jsonResponse({ error: "sessionId and userId are required" }, 400);
   }
 
-  // ─── 2. Verify service role authentication ──────────────────────
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  if (!supabaseUrl || !serviceRoleKey) {
-    console.error("Missing required environment variables");
-    return jsonResponse({ error: "Server configuration error" }, 500);
-  }
-
-  // ─── 3. Create Supabase admin client ────────────────────────────
-  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  });
-
-  const logger = new SystemLogger(supabaseAdmin, 'complete-auto-topup-setup');
-
-  const auth = await authenticateRequest(req, supabaseAdmin, "[COMPLETE-AUTO-TOPUP-SETUP]");
-  if (!auth.success) {
-    return jsonResponse({ error: auth.error || "Authentication failed" }, auth.statusCode || 401);
-  }
-  if (!auth.isServiceRole) {
-    return jsonResponse({ error: "Unauthorized - service role required" }, 403);
-  }
-
   try {
     // ─── 4. Initialize Stripe ───────────────────────────────────────
-    const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeSecretKey) {
-      logger.error("Missing Stripe configuration");
-      await logger.flush();
-      return jsonResponse({ error: "Stripe not configured" }, 500);
-    }
-
-    const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: "2024-06-20",
-    });
+    const stripe = createStripeClient();
 
     // ─── 5. Retrieve checkout session and payment intent ────────────
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
@@ -152,14 +106,22 @@ serve(async (req) => {
       message: 'Auto-top-up setup completed successfully'
     });
 
-  } catch (error) {
-    logger.error('Error in complete-auto-topup-setup', { error: error.message });
+  } catch (error: unknown) {
+    const configFailure = getAutoTopupConfigFailure(error);
+    if (configFailure) {
+      logger.error(configFailure.logMessage);
+      await logger.flush();
+      return jsonResponse({ error: configFailure.userMessage }, 500);
+    }
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error('Error in complete-auto-topup-setup', { error: errorMessage });
     
     // Handle specific Stripe errors
-    if (error.type === 'StripeInvalidRequestError') {
+    const stripeErrorType = (error as { type?: string } | null)?.type;
+    if (stripeErrorType === 'StripeInvalidRequestError') {
       return jsonResponse({
         error: 'Invalid Stripe request',
-        message: error.message,
+        message: errorMessage,
       }, 400);
     }
 

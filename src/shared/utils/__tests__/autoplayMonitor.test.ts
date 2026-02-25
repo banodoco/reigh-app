@@ -12,14 +12,14 @@ describe('autoplayMonitor', () => {
     // In test environment, the autostart should not run (process.env.NODE_ENV !== 'development')
     // This test just verifies the module loads without errors
     expect(async () => {
-      await import('../autoplayMonitor');
+      await import('@/shared/lib/debug/autoplayMonitor');
     }).not.toThrow();
   });
 
   it('captureVideoStates returns empty array when no videos in DOM', async () => {
     // Since captureVideoStates is not exported, we test indirectly by verifying
     // the module imports successfully with no videos in the document
-    const module = await import('../autoplayMonitor');
+    const module = await import('@/shared/lib/debug/autoplayMonitor');
     // The module has no public exports but the internal functions should work
     expect(module).toBeDefined();
   });

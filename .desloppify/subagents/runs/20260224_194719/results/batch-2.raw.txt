@@ -1,0 +1,151 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 81.0,
+    "low_level_elegance": 78.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "Supabase access has overlapping abstraction layers: `src/integrations/supabase/client.ts` is a pure pass-through export, while `src/integrations/supabase/legacy/legacySupabaseFacade.ts` builds a partial facade and force-casts it to `SupabaseClient` (`as unknown as SupabaseClientInstance`).",
+        "Legacy facade usage is still spread across active feature code (`src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts`, `src/shared/components/TaskDetails/VideoTravelDetails.tsx`, `src/shared/lib/tasks/individualTravelSegment.ts`), so both old and new client access patterns remain coupled.",
+        "Task creation APIs are parameter-bag heavy and mode-mixed: `JoinClipsTaskParams` and `IndividualTravelSegmentParams` each carry large sets of optional fields spanning legacy/new paths, and builders like `src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts` must stitch many optional branches and fallbacks."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 76.0,
+        "indirection_cost": 82.0,
+        "interface_honesty": 78.0
+      }
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Orchestrator completion logic has a brittle hard gate: `evaluateSegmentCompletionGate` in `supabase/functions/complete_task/orchestrator.ts` returns `wait` on any expected/found mismatch, and caller returns immediately, which can leave orchestrators stuck if sibling count drifts.",
+        "Segment slot state computation in `src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts` uses `useMemo` with broad object dependencies (`props`, `state`), forcing frequent recomputation of heavy logic and weakening intent-revealing locality.",
+        "Seed handling is inconsistent across related task modules: `src/shared/lib/tasks/individualTravelSegment.ts` generates random seeds in `[0, 1_000_000)`, while `src/shared/lib/tasks/magicEdit.ts` uses 32-bit range, and `src/shared/lib/tasks/imageGeneration.ts` enforces 32-bit validation."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "legacy_supabase_surface_split",
+      "summary": "A deprecated Supabase facade and the new client API are both active, creating redundant abstraction and migration drag.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/shared/components/TaskDetails/VideoTravelDetails.tsx",
+        "src/shared/lib/tasks/individualTravelSegment.ts"
+      ],
+      "evidence": [
+        "`client.ts` only re-exports runtime accessors, while `legacySupabaseFacade.ts` wraps selected methods/getters and force-casts the wrapper object to `SupabaseClient`.",
+        "Feature modules in this batch still import `supabase` from the legacy facade, so two access contracts remain in active use."
+      ],
+      "suggestion": "Run a focused migration to `getSupabaseClient()` in these call sites, then delete the facade cast layer and keep one explicit client access contract.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "task_param_bag_overreach",
+      "summary": "Task builders rely on oversized mixed-mode parameter bags instead of explicit mode-specific contracts.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/magicEdit.ts"
+      ],
+      "evidence": [
+        "`JoinClipsTaskParams` includes both new multi-clip and legacy start/end/intermediate structures plus edit-mode fields in one interface.",
+        "`IndividualTravelSegmentParams` mixes canonical fields with `originalParams?: Record<string, unknown>`, then reconstructs payload behavior from loosely typed maps.",
+        "`buildTravelBetweenImagesPayload` conditionally assembles many expanded arrays and fallback fields, reflecting contract overload at the call boundary."
+      ],
+      "suggestion": "Split task inputs into discriminated unions per mode (legacy/new/edit), with dedicated builders per variant and a thin shared normalization layer.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "pass_through_module_indirection",
+      "summary": "Some modules add import hops without adding policy, validation, or translation.",
+      "related_files": [
+        "src/shared/lib/utils.ts",
+        "src/integrations/supabase/client.ts",
+        "src/shared/hooks/useTasks.ts"
+      ],
+      "evidence": [
+        "`src/shared/lib/utils.ts` is a one-line re-export only.",
+        "`src/integrations/supabase/client.ts` is a one-line re-export only.",
+        "`src/shared/hooks/useTasks.ts` mixes real query logic with unrelated backward-compatibility re-exports, increasing surface area without behavioral boundaries."
+      ],
+      "suggestion": "Inline/remove pure pass-through files or convert them into intentional boundary modules with clear ownership constraints and documented policy.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "orchestrator_completion_mismatch_wait",
+      "summary": "Orchestrator completion can stall indefinitely when sibling count differs from expected count.",
+      "related_files": [
+        "supabase/functions/complete_task/orchestrator.ts",
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts"
+      ],
+      "evidence": [
+        "`evaluateSegmentCompletionGate` returns `{ kind: 'wait', reason: 'expected_count_mismatch' }` when `foundSegments !== expectedSegmentCount`.",
+        "`checkOrchestratorCompletion` immediately returns for all `wait` outcomes, so there is no recovery path for count drift.",
+        "Expected counts are derived from static payload fields (`clip_list`/`num_joins` or `num_new_segments_to_generate`), while runtime sibling lookup is broader and can diverge."
+      ],
+      "suggestion": "Change completion gating to reconcile by logical segment identity (e.g., child order/pair id), tolerate supersets, and fail fast on impossible deficits instead of open-ended waits.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "memo_dependency_churn_segment_slot_mode",
+      "summary": "Segment slot render-model computation uses coarse object dependencies that defeat memoization and obscure update triggers.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx"
+      ],
+      "evidence": [
+        "`useSegmentSlotModeData` memo depends on `props` and `state` objects directly, so most parent renders invalidate the memo regardless of semantic changes.",
+        "The memo body performs multiple scans/lookups over slots and generations, so dependency churn creates repeated heavy recomputation in an interaction-heavy path."
+      ],
+      "suggestion": "Destructure stable primitives/callbacks before memo usage and depend only on those fields; split heavy derivations into narrower memos keyed by specific data slices.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "seed_policy_fragmentation",
+      "summary": "Related task modules implement different seed ranges/default behaviors, increasing unpredictability across task families.",
+      "related_files": [
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/magicEdit.ts",
+        "src/shared/lib/tasks/imageGeneration.ts"
+      ],
+      "evidence": [
+        "`individualTravelSegment.ts` randomizes seed with `Math.floor(Math.random() * 1000000)` and fallback seed `789`.",
+        "`magicEdit.ts` randomizes with `Math.floor(Math.random() * 0x7fffffff)` and validates 32-bit positive integer semantics.",
+        "`imageGeneration.ts` uses shared 32-bit validation (`validateSeed32Bit`), so seed policy differs by task builder."
+      ],
+      "suggestion": "Centralize seed generation/validation defaults in shared task-creation utilities and make each task builder consume the same policy object.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

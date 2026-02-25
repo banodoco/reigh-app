@@ -1,0 +1,337 @@
+{
+  "assessments": {
+    "cross_module_architecture": 42.6,
+    "high_level_elegance": 43.1,
+    "incomplete_migration": 54.3
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/integrations/supabase/client.ts` creates and exports `supabase` eagerly at import time (`export const supabase = getOrCreateSupabaseClient()`), installs instrumentation, initializes runtime, and mutates `window` globals.",
+        "`src/shared/lib/errorHandling/handleError.ts` imports UI toast directly and is consumed by non-UI hooks like `src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts` and `src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts`, forcing infra/hooks to depend on UI layer.",
+        "`src/app/hooks/useSettingsModal.ts` and `src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts` both rely on `useAppEventListener(...)` for cross-feature orchestration, creating hidden runtime coupling instead of explicit dependency paths."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "`vitest.edge.config.ts` hardcodes many Supabase function-specific include/exclude globs and remote-module alias shims, while `vitest.config.ts` imports that file just to derive excludes, making root test config ownership depend on edge-function internals.",
+        "`vitest.edge.smoke.config.ts` and `vitest.edge.config.ts` are both root-level and both target `supabase/functions/**` tests, but suite boundaries (smoke vs unit) are encoded by filename conventions rather than a directory-owned test config under `supabase/functions`.",
+        "`src/shared/hooks/useAIInteractionService.ts`, `src/shared/hooks/useAdjacentPagePreloader.ts`, and `src/shared/hooks/useApiKeys.ts` each embed feature-specific behavior (AI prompt RPCs, media gallery pagination preloading, user API-key persistence) despite being placed in a broad `shared/hooks` namespace.",
+        "Test placement is inconsistent across the same shared layer: hook tests live under `src/shared/hooks/__tests__/...` while component tests like `src/shared/components/ActiveLoRAsDisplay.test.tsx` and `src/shared/components/AppErrorBoundary.test.tsx` are colocated, reducing predictability of ownership and discovery."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "incomplete_migration": {
+      "evidence": [
+        "`ProjectImageSettings` keeps a large deprecated surface (`selectedLorasByTextModel`, `selectedReferenceId`, `styleReference*`, `subject*`, `inThisScene`) alongside replacement fields with no removal gate/date in `src/shared/components/ImageGenerationForm/types.ts:98`-`src/shared/components/ImageGenerationForm/types.ts:118`.",
+        "A dedicated compatibility shim still exports legacy travel payload fields (`structure_video_*`, `use_uni3c`, legacy LoRA format) while newer `phase_config`/`structure_guidance` paths coexist in `src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts:5`-`src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts:44`.",
+        "Runtime readers normalize multiple historical payload shapes instead of a versioned canonical schema (e.g., `individual_segment_params.*` vs root params arrays; `generation_id` vs `metadata.generation_id` vs `id`) in `src/shared/lib/galleryUtils.ts:23`-`src/shared/lib/galleryUtils.ts:66` and `src/shared/lib/mediaTypeHelpers.ts:14`-`src/shared/lib/mediaTypeHelpers.ts:31`."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "import_time_supabase_singleton_side_effects",
+      "summary": "Supabase client module performs broad side effects at import boundary",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/hooks/useMobile.tsx"
+      ],
+      "evidence": [
+        "`src/integrations/supabase/client.ts` eagerly initializes client on import, installs instrumentation, initializes runtime, and writes `window.__supabase_client__` / `window.supabase`.",
+        "This turns plain importing into startup behavior, increasing order sensitivity and making browser-global state part of module contract."
+      ],
+      "suggestion": "Replace eager export with lazy accessor (`getSupabaseClient()`), keep initialization idempotent inside accessor, and isolate global diagnostics registration behind an explicit dev-only init call.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "ui_coupled_error_core",
+      "summary": "Shared error utility is coupled to UI toast layer",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts"
+      ],
+      "evidence": [
+        "`handleError` imports `toast` from UI and executes toast behavior directly.",
+        "Non-UI hooks call `handleError`, so hook/logic modules are forced to depend on UI-capable error handling semantics."
+      ],
+      "suggestion": "Split into a pure error-normalization/logging function and a UI adapter (`handleErrorWithToast`) so domain/hooks can depend on the pure core while UI layers opt into toast presentation.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "implicit_event_bus_feature_coupling",
+      "summary": "Feature coordination relies on implicit app events instead of explicit contracts",
+      "related_files": [
+        "src/app/hooks/useSettingsModal.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts"
+      ],
+      "evidence": [
+        "`useSettingsModal` listens to `'openSettings'` via `useAppEventListener`.",
+        "`useMediaGalleryHandlers` listens to `'selectShotForAddition'` via the same event mechanism.",
+        "Consumers cannot infer upstream callers from module interfaces, making behavior discovery and safe refactor harder."
+      ],
+      "suggestion": "Move these interactions to explicit typed service/context APIs (e.g., modal controller and gallery command interface) and reserve global events for truly app-global concerns only.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "install_modal_overloaded_ownership",
+      "summary": "InstallInstructionsModal mixes presentation library and orchestration in one module",
+      "related_files": [
+        "src/pages/Home/components/InstallInstructionsModal.tsx",
+        "src/pages/Home/components/CreativePartnerPane.tsx"
+      ],
+      "evidence": [
+        "`InstallInstructionsModal` defines many scenario-specific mockup components plus branching policy (`getMainVisual`, `getTitle`) and modal rendering in one file.",
+        "Home-area components are carrying large UI scenario engines directly, making ownership boundaries within the Home feature unclear."
+      ],
+      "suggestion": "Extract install-visual registry/config (platform/browser/device -> visual + copy) and move mockup primitives into a dedicated submodule; keep modal component focused on composition and state wiring.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "lightbox_shell_multi_responsibility_hub",
+      "summary": "LightboxShell acts as a multi-concern hub instead of a narrow shell",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/LightboxShell.tsx",
+        "src/shared/components/MediaGallery/hooks/useMobileInteractions.ts"
+      ],
+      "evidence": [
+        "`LightboxShell` centralizes overlay close policy, z-index conflict detection, iOS keyboard viewport repair, scroll locking, pointer/touch filtering, and dialog wiring.",
+        "Touch/pointer interaction policy exists in multiple places (`LightboxShell`, `useMobileInteractions`), indicating concern spread and weak decomposition."
+      ],
+      "suggestion": "Split LightboxShell into focused layers: viewport-lock hook, dismissal-policy hook, and presentational shell; consolidate touch policy into one shared interaction module used by both gallery and lightbox.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "global_button_primitive_theme_bloat",
+      "summary": "Global button primitive carries product/theme-specific variant policy",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/MediaTypeFilter.tsx",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx"
+      ],
+      "evidence": [
+        "`button.tsx` includes many semantic/theme variants (`retro`, `theme-*`, `success`) in a shared primitive consumed across domains.",
+        "Feature components (`ShotActions`, `MediaTypeFilter`) consume global UI primitives whose style policy is broadened by product-specific concerns, expanding shared surface area."
+      ],
+      "suggestion": "Keep `Button` limited to core semantic variants and move product-theme variants into feature/theme wrappers (e.g., `HomeButton`, `ThemeButton`) to tighten primitive ownership.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "project_image_settings_deprecated_surface",
+      "summary": "Image settings type still embeds many deprecated fields next to new fields without a bounded removal contract.",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/types.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts"
+      ],
+      "evidence": [
+        "`ProjectImageSettings` documents legacy migration support and retains multiple `@deprecated` properties in the same interface as replacement fields (`selectedLorasByCategory`, `selectedReferenceIdByShot`) at `src/shared/components/ImageGenerationForm/types.ts:98`-`src/shared/components/ImageGenerationForm/types.ts:118`.",
+        "The same pattern appears in travel task types where deprecated fields remain first-class interface members in `src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts:28`-`src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts:41`."
+      ],
+      "suggestion": "Split legacy input types from canonical settings types: keep canonical interfaces strict, add an explicit `Legacy...` decode/upgrade function that transforms old payloads once on load, then persist only canonical fields. Add a concrete removal owner/date for each deprecated settings field, mirroring the shim sunset style.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_travel_shim_still_expands_api_surface",
+      "summary": "Legacy travel payload shim preserves old fields in active contracts, extending dual-path maintenance.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts",
+        "src/shared/lib/galleryUtils.ts"
+      ],
+      "evidence": [
+        "The shim explicitly keeps deprecated `structure_video_*`, `uni3c_*`, and `use_uni3c` fields in `LegacyTravelBetweenImagesTaskParams` at `src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts:24`-`src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts:41`.",
+        "Downstream extraction logic still handles multiple legacy/current param shapes (`individual_segment_params.*` and root/orchestrator arrays), indicating continued dual-path payload handling in `src/shared/lib/galleryUtils.ts:42`-`src/shared/lib/galleryUtils.ts:66`."
+      ],
+      "suggestion": "Introduce a single migration boundary at task ingestion: parse old travel payloads into a canonical schema, then remove deprecated fields from shared exported interfaces and utility readers. Gate deletion with telemetry/caller audit rather than keeping both shapes indefinitely.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "multi_shape_media_param_readers_without_versioning",
+      "summary": "Utilities normalize several historical object shapes at read-time instead of enforcing one migrated schema.",
+      "related_files": [
+        "src/shared/lib/mediaTypeHelpers.ts",
+        "src/shared/lib/galleryUtils.ts",
+        "src/shared/lib/taskConfig.ts"
+      ],
+      "evidence": [
+        "`getGenerationId` accepts three competing ID locations (`generation_id`, `metadata.generation_id`, `id`) in `src/shared/lib/mediaTypeHelpers.ts:16`-`src/shared/lib/mediaTypeHelpers.ts:31`.",
+        "`extractSegmentImages` merges explicit per-segment fields and array-based orchestrator fields in `src/shared/lib/galleryUtils.ts:23`-`src/shared/lib/galleryUtils.ts:66`.",
+        "`taskConfig` also keeps a hardcoded compatibility registry next to DB-backed config (`HARDCODED_TASK_TYPE_CONFIG`) in `src/shared/lib/taskConfig.ts:27`-`src/shared/lib/taskConfig.ts:99`."
+      ],
+      "suggestion": "Add schema versioning and one normalization pass per domain object (media rows, segment params, task types). After normalization, enforce canonical keys in downstream helpers and gradually delete fallback branches tied to older versions.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "root_test_config_owns_edge_domain_details",
+      "summary": "Root Vitest configs absorb edge-function domain details and blur test-suite ownership boundaries.",
+      "related_files": [
+        "vitest.edge.config.ts",
+        "vitest.edge.smoke.config.ts",
+        "vitest.config.ts"
+      ],
+      "evidence": [
+        "`vitest.edge.config.ts` contains function-by-function include globs and Deno/esm alias mappings specific to `supabase/functions` internals.",
+        "`vitest.config.ts` imports `vitest.edge.config.ts` and reuses its include list for exclusion, coupling browser/jsdom suite shape to edge suite internals.",
+        "`vitest.edge.smoke.config.ts` duplicates top-level edge suite setup but is separated only by root filename, not by domain-owned folder structure."
+      ],
+      "suggestion": "Move edge test configuration ownership into `supabase/functions/` (for example `supabase/functions/vitest.unit.config.ts` and `supabase/functions/vitest.smoke.config.ts`) and make the root `vitest.config.ts` only compose named projects or top-level suite entries, not import edge internals to compute excludes.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_hooks_contains_feature_specific_services",
+      "summary": "`shared/hooks` hosts multiple domain-specific hooks, obscuring ownership and change boundaries.",
+      "related_files": [
+        "src/shared/hooks/useAIInteractionService.ts",
+        "src/shared/hooks/useAdjacentPagePreloader.ts",
+        "src/shared/hooks/useApiKeys.ts"
+      ],
+      "evidence": [
+        "`useAIInteractionService` directly implements AI prompt generation/edit/summarize RPC workflows (`ai-prompt` tasks), which are feature semantics rather than cross-app generic hook behavior.",
+        "`useAdjacentPagePreloader` is tightly coupled to gallery generations (`fetchGenerations`, `unifiedGenerationQueryKeys`, image preloading priorities), indicating media-gallery ownership.",
+        "`useApiKeys` encapsulates authenticated `users.api_keys` persistence and query-key wiring, which maps to account/settings data boundaries rather than generic shared primitives."
+      ],
+      "suggestion": "Relocate these hooks under feature-scoped directories (for example `src/features/ai/hooks`, `src/features/gallery/hooks`, `src/features/settings/hooks`) and keep `src/shared/hooks` for reusable, domain-agnostic hooks only; then update imports through explicit feature entry points.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "test_file_placement_conventions_are_mixed",
+      "summary": "Mixed test placement conventions in shared modules reduce structural predictability.",
+      "related_files": [
+        "src/shared/hooks/__tests__/useAIInteractionService.test.ts",
+        "src/shared/hooks/__tests__/useAdjacentPagePreloader.test.ts",
+        "src/shared/hooks/__tests__/useApiKeys.test.ts",
+        "src/shared/components/ActiveLoRAsDisplay.test.tsx",
+        "src/shared/components/AppErrorBoundary.test.tsx"
+      ],
+      "evidence": [
+        "Hook tests are grouped in a centralized `__tests__` folder under `src/shared/hooks/`.",
+        "Component tests in the same `src/shared` tree are colocated beside source files (`ActiveLoRAsDisplay.test.tsx`, `AppErrorBoundary.test.tsx`).",
+        "No single placement rule is evident from these files, so new files cannot follow a predictable ownership convention."
+      ],
+      "suggestion": "Adopt one repository-wide test placement rule per layer (either strict co-location or strict `__tests__` grouping) and normalize existing files in `src/shared/hooks` and `src/shared/components` to that rule to make discovery and ownership consistent.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "shared_error_handler_ui_side_effect",
+      "summary": "Shared error helper mixes domain error normalization with UI toast side effects.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`handleError` imports `toast` from UI (`@/shared/components/ui/toast`) and emits toasts based on options/defaults, while also normalizing/logging errors.",
+        "This helper is positioned as central shared error handling; embedding UI side effects in a shared lib broadens coupling and makes non-UI callers inherit presentation behavior."
+      ],
+      "suggestion": "Split into a pure shared core (`normalizeAndLogError`) and a UI adapter (`handleErrorWithToast`) in a UI/app layer. Keep the current export as a compatibility wrapper temporarily, then migrate callers to explicit APIs.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "supabase_client_import_time_bootstrap",
+      "summary": "Supabase client module has implicit import-time initialization and global mutation.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`src/integrations/supabase/client.ts` exports `supabase` via eager execution (`getOrCreateSupabaseClient()`), so importing the module triggers runtime initialization.",
+        "The factory mutates globals (`window.__supabase_client__`, `window.supabase`) and runs instrumentation/runtime setup, which creates hidden startup contracts across all importers."
+      ],
+      "suggestion": "Replace eager singleton export with an explicit `getSupabaseClient()` and initialize once in a dedicated app bootstrap path. Keep global diagnostics optional and gated behind dev-only flags.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "button_primitive_ownership_drift",
+      "summary": "Shared Button primitive mixes base control semantics with product/theme-specific styling policy.",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "README.md"
+      ],
+      "evidence": [
+        "`button.tsx` contains numerous brand/app-specific variants (`retro`, `retro-secondary`, `theme`, `theme-ghost`, `theme-outline`, `theme-soft`, `success`) and comments tied to homepage style.",
+        "This makes a foundational UI primitive responsible for both generic control behavior and evolving product visual policy, increasing blast radius for design changes."
+      ],
+      "suggestion": "Keep `Button` limited to core semantic variants (`default`, `destructive`, `outline`, etc.) and move product-theme variants into higher-level wrapper components or feature/theme modules.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ],
+  "review_quality": {
+    "batch_count": 4,
+    "dimension_coverage": 0.5,
+    "evidence_density": 1.333,
+    "high_score_without_risk": 0,
+    "finding_pressure": 39.584,
+    "dimensions_with_findings": 3
+  },
+  "provenance": {
+    "kind": "blind_review_batch_import",
+    "blind": true,
+    "runner": "codex",
+    "run_stamp": "20260223_190826",
+    "created_at": "2026-02-23T19:09:37+00:00",
+    "batch_count": 4,
+    "batch_indexes": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "packet_path": "/Users/peteromalley/Documents/reigh/.desloppify/review_packet_blind.json",
+    "packet_sha256": "737605ad638036b70c15fa4e2abbecb10fc1ac46d4c1c0a983def2cacfd87648"
+  }
+}

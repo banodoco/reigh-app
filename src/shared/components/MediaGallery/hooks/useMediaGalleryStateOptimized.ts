@@ -302,9 +302,6 @@ interface UseMediaGalleryStateOptimizedReturn {
   // Refs (unchanged)
   mainTickTimeoutRef: React.MutableRefObject<NodeJS.Timeout | null>;
   secondaryTickTimeoutRef: React.MutableRefObject<NodeJS.Timeout | null>;
-  lastTouchTimeRef: React.MutableRefObject<number>;
-  lastTappedImageIdRef: React.MutableRefObject<string | null>;
-  doubleTapTimeoutRef: React.MutableRefObject<NodeJS.Timeout | null>;
   galleryTopRef: React.MutableRefObject<HTMLDivElement | null>;
   safetyTimeoutRef: React.MutableRefObject<NodeJS.Timeout | null>;
 }
@@ -385,9 +382,6 @@ export const useMediaGalleryStateOptimized = ({
   // Refs (unchanged from original)
   const mainTickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const secondaryTickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastTouchTimeRef = useRef<number>(0);
-  const lastTappedImageIdRef = useRef<string | null>(null);
-  const doubleTapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const galleryTopRef = useRef<HTMLDivElement | null>(null);
   const safetyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -460,7 +454,6 @@ export const useMediaGalleryStateOptimized = ({
     return () => {
       clearTimer(mainTickTimeoutRef);
       clearTimer(secondaryTickTimeoutRef);
-      clearTimer(doubleTapTimeoutRef);
       clearTimer(safetyTimeoutRef);
     };
   }, []);
@@ -472,9 +465,6 @@ export const useMediaGalleryStateOptimized = ({
     // Refs
     mainTickTimeoutRef,
     secondaryTickTimeoutRef,
-    lastTouchTimeRef,
-    lastTappedImageIdRef,
-    doubleTapTimeoutRef,
     galleryTopRef,
     safetyTimeoutRef,
   };

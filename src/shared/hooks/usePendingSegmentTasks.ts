@@ -8,7 +8,7 @@
 
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { TASK_STATUS } from '@/types/tasks';
 import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 
@@ -73,8 +73,7 @@ export function usePendingSegmentTasks(
 
       // Query tasks that are Queued or In Progress
       // Filter for travel segment task types
-      const { data, error } = await supabase
-        .from('tasks')
+      const { data, error } = await supabase().from('tasks')
         .select('id, status, params')
         .eq('project_id', projectId)
         .in('status', [TASK_STATUS.QUEUED, TASK_STATUS.IN_PROGRESS])

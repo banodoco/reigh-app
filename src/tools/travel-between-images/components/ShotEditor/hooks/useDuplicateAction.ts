@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react';
-import { toast } from "@/shared/components/ui/sonner";
-import { handleError } from "@/shared/lib/errorHandling/handleError";
-import { GenerationRow, Shot } from "@/types/shots";
+import { toast } from "@/shared/components/ui/runtime/sonner";
+import { normalizeAndPresentError } from "@/shared/lib/errorHandling/runtimeError";
+import { GenerationRow, Shot } from "@/domains/generation/types";
 import { useDuplicateAsNewGeneration } from "@/shared/hooks/shots";
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import { ShotEditorState } from '../state/types';
@@ -127,7 +127,7 @@ export const useDuplicateAction = ({
         setTimeout(() => actionsRef.current.setDuplicateSuccessImageId(null), 2000);
       },
       onError: (error) => {
-        handleError(error, { context: 'DUPLICATE', toastTitle: 'Failed to duplicate image' });
+        normalizeAndPresentError(error, { context: 'DUPLICATE', toastTitle: 'Failed to duplicate image' });
       },
       onSettled: () => {
         actionsRef.current.setDuplicatingImageId(null);

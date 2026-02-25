@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { hasLoadedImage, markImageLoaded } from '@/shared/lib/preloading';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { createSessionId } from '@/shared/lib/sessionId';
 
 type ImagePhase = 'idle' | 'thumb' | 'loadingFull' | 'full' | 'error';
@@ -226,7 +226,7 @@ export const useProgressiveImage = (
           .catch((err) => {
             // Only log non-abort errors (abort is expected during navigation)
             if (err.message !== 'Session aborted') {
-              handleError(err, { context: 'useProgressiveImage', showToast: false });
+              normalizeAndPresentError(err, { context: 'useProgressiveImage', showToast: false });
             }
             safeSetState(session, () => {
               setPhase('error');
@@ -291,7 +291,7 @@ export const useProgressiveImage = (
             .catch((err) => {
               // Only log non-abort errors (abort is expected during navigation)
               if (err.message !== 'Session aborted') {
-                handleError(err, { context: 'useProgressiveImage', showToast: false });
+                normalizeAndPresentError(err, { context: 'useProgressiveImage', showToast: false });
               }
               safeSetState(session, () => {
                 setError(err.message);
@@ -329,14 +329,14 @@ export const useProgressiveImage = (
               });
             })
             .catch((fullErr) => {
-              handleError(fullErr, { context: 'useProgressiveImage', showToast: false });
+              normalizeAndPresentError(fullErr, { context: 'useProgressiveImage', showToast: false });
               safeSetState(session, () => {
                 setPhase('error');
                 setError(`Both thumbnail and full image failed: ${fullErr.message}`);
               });
             });
         } else {
-          handleError(new Error('Thumbnail failed and no full URL available'), { context: 'useProgressiveImage', showToast: false });
+          normalizeAndPresentError(new Error('Thumbnail failed and no full URL available'), { context: 'useProgressiveImage', showToast: false });
           safeSetState(session, () => {
             setPhase('error');
             setError(`Thumbnail failed to load: ${thumbErr.message}`);

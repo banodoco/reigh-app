@@ -1,0 +1,579 @@
+{
+  "assessments": {
+    "ai_generated_debt": 61.0,
+    "error_consistency": 54.5,
+    "high_level_elegance": 48.8,
+    "low_level_elegance": 54.1,
+    "mid_level_elegance": 48.2
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/hooks/useAutoTopup.ts` encapsulates billing/auth edge-function behavior (`setup-auto-topup`, `creditQueryKeys`) but is placed under a generic shared hook bucket.",
+        "`src/shared/hooks/useBackgroundThumbnailGenerator.ts` owns project/video thumbnail pipeline behavior and query invalidation for generation data, also under shared hooks rather than a generation/media domain area.",
+        "`src/shared/components/ActiveLoRAsDisplay.tsx` and `src/shared/components/AspectRatioSelector.tsx` are domain-specific generation controls but live in `shared/components`, flattening ownership boundaries.",
+        "`src/shared/components/AppErrorBoundary.tsx` is app-shell infrastructure (global boundary/reload UI) but is grouped with reusable presentational components.",
+        "`tailwind.config.ts` content paths include `./pages`, `./components`, `./app`, and `./src`, indicating overlapping historical directory contracts instead of one clear top-level package shape."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Two major prop-boundary resolvers flatten large grouped contracts with spread-merges (`...displayOptions`, `...imageState`, `...editActions`, `...shotWorkflow`; similarly for join-clips form), creating implicit precedence and collision risk at integration seams.",
+        "Task/orchestration boundary contracts are weakened at handoff points (`buildOrchestrationContract` returns `Record<string, unknown>` and video generation forces `requestBody as unknown as TravelBetweenImagesTaskParams`), so invalid payload drift can cross module boundaries undetected.",
+        "Edge shared helpers use mixed boundary failure semantics: some paths return `EdgeOperationResult` (`billing.ts`, thumbnail handling in storage), while sibling paths throw raw errors (`handleStorageOperations` upload failure) or return permissive fail-open structs (`rateLimit.ts`).",
+        "Invalidation orchestration has non-uniform lifecycle semantics: delayed invalidation in `useInvalidateGenerations` is fire-and-forget via timers without hook-level cleanup, while other queue flows (timeline write queue) explicitly serialize and expose lifecycle events.",
+        "Generation-to-UI transformation seams are inconsistent by consumer path: `transformGeneration` derives thumbnail via fallback logic, while `transformForTimeline` hardcodes `thumbUrl` to main location and bypasses thumbnail normalization."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "`useButtonGroupProps` builds four near-identical prop objects via thin helper functions and memoizes on `[params]`, so object recreation and indirection remain while local logic stays minimal.",
+        "`useImageEditValue` and `useVideoLightboxRenderModel` contain large manual property-mapping blocks that restate structure rather than compute behavior, making local edits high-friction and error-prone.",
+        "`useShotImagesEditorCallbacks` introduces layered result wrappers/adapters (`runCallback` + `*Result` + `*Adapter`) that multiply local branches and placeholder return paths for simple callback forwarding."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "ai_generated_debt": {
+      "evidence": [
+        "Migration residue remains in primary type surfaces: `LegacyProjectImageSettings` with multiple `@deprecated` fields and a dated sunset contract in `src/shared/components/ImageGenerationForm/types.ts` lines 101-128.",
+        "Legacy decode fields are still carried in active config types (`StructureVideoConfigWithMetadata` keeps `motion_strength`, `structure_type`, `uni3c_*`) in `src/shared/lib/tasks/travelBetweenImages/types.ts` lines 123-132.",
+        "A deprecated compatibility alias is still exported (`getStoragePublicUrl = buildStoragePublicUrl`) in `supabase/functions/complete_task/storage.ts` lines 216-219, extending dual-path API usage."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    },
+    "error_consistency": {
+      "evidence": [
+        "Client-side flows mix strategies in the same feature: `useLoraSubmission` emits `toast.error(...)` and returns `null` (`src/shared/components/LoraSelectorModal/components/MyLorasTab/hooks/useLoraSubmission.ts:160-163`, `:180-183`, `:385-388`) while nearby paths use centralized `handleError(...)` (`:445-449`).",
+        "Background/helper code sometimes swallows failures with no propagation or telemetry (`src/shared/hooks/useMobile.tsx:10-12`, `:42-44`, `:169-170`, `:177-178`; `src/pages/Home/hooks/useDiscordSignIn.ts:10-14`) unlike other modules that normalize/log with `handleError`.",
+        "Edge/server error surfaces are inconsistent: `calculate-task-cost` returns raw caught message in HTTP response (`supabase/functions/calculate-task-cost/index.ts:494-497`), while `complete_task/generation` logs then rethrows (`supabase/functions/complete_task/generation.ts:143-149`) and other paths return `null` sentinels (`:58-67`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "unreported_risk": ""
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "error_handler_cross_layer_bus",
+      "summary": "Shared error handler also owns UI notification bus wiring, coupling domain error flow to browser runtime concerns.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/ui/sonner.tsx"
+      ],
+      "evidence": [
+        "`handleError.ts` defines `ERROR_NOTIFICATION_EVENT`, mutable module-level notifier state, and window listener registration in `configureErrorNotifier` in addition to error normalization/logging.",
+        "Toast infrastructure (`sonner.tsx`) is a separate UI subsystem, but notification dispatch contract is embedded in shared error core rather than an app-layer adapter."
+      ],
+      "suggestion": "Extract browser notification transport into an app/UI boundary module (for example `errorNotifierBridge`) and keep `handleError` focused on normalization/logging plus callback hooks; inject notifier behavior from composition root.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "device_detection_god_hook",
+      "summary": "A single shared hook module owns multiple device policies, creating a broad change hotspot with unclear responsibility boundaries.",
+      "related_files": [
+        "src/shared/hooks/useMobile.tsx",
+        "src/pages/Home/components/CreativePartnerPane.tsx",
+        "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx"
+      ],
+      "evidence": [
+        "`useMobile.tsx` includes UA heuristics, pointer detection, orientation listeners, layout column derivation, and both hook and non-hook APIs (`isMobileUA`).",
+        "Feature components (`CreativePartnerPane`, `InfoTooltip`) consume this global policy surface, so policy changes ripple across unrelated Home and gallery behaviors."
+      ],
+      "suggestion": "Split device capability concerns into focused modules (viewport breakpoints, touch capability, orientation/layout policy), then expose a small composed API for consumers that truly need aggregation.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "domain_type_ownership_leak",
+      "summary": "Generation domain type index re-exports from generic root types, obscuring true ownership of domain contracts.",
+      "related_files": [
+        "src/domains/generation/types/index.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryController.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts"
+      ],
+      "evidence": [
+        "`src/domains/generation/types/index.ts` exports symbols from `@/types/generation*` and `@/types/shot` rather than domain-local definitions.",
+        "Gallery hooks import `Shot` via the domain path, but the contracts are actually anchored elsewhere, so the domain layer acts as a pass-through fa\u00e7ade."
+      ],
+      "suggestion": "Move generation contracts under `src/domains/generation/types/*` as canonical ownership, then adapt root-level aliases (if needed) to point inward, not vice versa.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "install_flow_key_coupling",
+      "summary": "Install-instructions behavior depends on string-key synchronization across scenario resolution and visual registry, increasing ripple edits.",
+      "related_files": [
+        "src/pages/Home/components/installInstructions/scenarios.ts",
+        "src/pages/Home/components/installInstructions/visuals.tsx",
+        "src/pages/Home/components/InstallInstructionsModal.tsx"
+      ],
+      "evidence": [
+        "`resolveInstallVisualKey` returns `InstallVisualKey` literals that must match keys in `installVisualRegistry` exactly.",
+        "`visuals.tsx` is a large monolithic registry file containing all platform renderers, so adding or changing one scenario requires touching central registry and selector logic together."
+      ],
+      "suggestion": "Define scenario objects as typed records containing both predicate and renderer reference (or lazy import), so mapping is declarative and localized per platform/scenario instead of cross-file string contracts.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "task_payload_param_bag_drift",
+      "summary": "Task boundary contracts are fragmented into multiple oversized param-bag builders with duplicated translation and validation logic.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/imageGeneration.ts",
+        "src/shared/lib/tasks/magicEdit.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts"
+      ],
+      "evidence": [
+        "Each module independently validates required fields and builds large `Record<string, unknown>` payloads with similar defaulting/normalization patterns.",
+        "Field-shaping behavior is distributed (e.g., expanded arrays, conditional top-level keys, orchestration contract insertion), so cross-task changes require touching several implementations.",
+        "The same conceptual seam (UI/task params -> worker/orchestrator payload) is not centralized, which increases integration inconsistency risk."
+      ],
+      "suggestion": "Introduce a shared typed task-payload pipeline (normalize -> validate -> serialize) with task-specific extensions; keep one canonical boundary schema per task family and reuse common validators/default resolvers from a single module.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "import_time_client_coupling",
+      "summary": "Import-time Supabase singletons create implicit dependency coupling across hooks/services.",
+      "related_files": [
+        "src/shared/hooks/useTasks.ts",
+        "src/shared/hooks/useGenerationMutations.ts",
+        "src/shared/lib/generationTaskBridge.ts",
+        "src/pages/Home/hooks/useDiscordSignIn.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts"
+      ],
+      "evidence": [
+        "Multiple modules define `const supabase = getSupabaseClient()` at module scope rather than at call-site or via injected dependency.",
+        "This hides lifecycle requirements in import order and makes seam-level replacement harder for tests and alternative runtimes.",
+        "The pattern is repeated across unrelated feature boundaries, so dependency behavior is globally coupled rather than explicit per operation."
+      ],
+      "suggestion": "Use a small dependency-provider abstraction (`getDb()` or injected client param) at function/hook boundary; default to shared client but allow explicit override for tests and non-browser contexts.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "prop_builder_indirection_chain",
+      "summary": "Local implementation relies on high-volume pass-through mapping layers that add indirection without adding behavior.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts",
+        "src/tools/edit-images/hooks/useImageEditValue.ts",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx"
+      ],
+      "evidence": [
+        "`useButtonGroupProps` has four builder helpers that mostly repeat shared fields and forward inputs unchanged.",
+        "`useImageEditValue` is dominated by large state-reassembly helpers that mirror source models rather than transform logic.",
+        "`useVideoLightboxRenderModel` composes many memoized object maps with long dependency arrays, making local edits verbose and easy to desynchronize."
+      ],
+      "suggestion": "Collapse pass-through layers: move shared fields into a single base object, use narrower typed slices per consumer, and keep only mappings that actually transform semantics.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "callback_adapter_overwrapping",
+      "summary": "Callback handling in shot-image editor is over-wrapped into result/adapter tiers, increasing branch noise for simple flows.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts"
+      ],
+      "evidence": [
+        "`useShotImagesEditorCallbacks` layers `runCallback`, specialized `*Result` wrappers, and final `*Adapter` wrappers before reaching actual operations.",
+        "Several error paths return placeholder values (`false`, empty IDs) rather than preserving one clear failure channel.",
+        "The callback surface becomes harder to reason about because control flow is split across wrapper strata."
+      ],
+      "suggestion": "Standardize on one callback contract (throwing or typed result) and remove adapter tiers; keep a single wrapper for logging/toast policy and let callers handle a uniform failure shape.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "flattened_prop_contract_collision_risk",
+      "summary": "Cross-module prop contracts are flattened with spread-merges, making boundary precedence implicit and fragile.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/types.ts",
+        "src/shared/components/JoinClipsSettingsForm/types.ts"
+      ],
+      "evidence": [
+        "`resolveShotImagesEditorProps` merges four large prop groups by spread order (lines 174-180), so duplicate keys silently override earlier groups.",
+        "`resolveJoinClipsSettingsFormProps` repeats the same pattern (lines 106-111), creating another implicit override seam between clip settings, motion config, and UI state."
+      ],
+      "suggestion": "Replace flattening with explicit nested props in consumers, or enforce a compile-time collision guard (e.g., disjoint key utility type + explicit mapping) so boundary ownership is unambiguous.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "typed_api_boundary_downgraded_to_unknown",
+      "summary": "Payload handoffs across task-generation boundaries lose type guarantees through generic records and double-casts.",
+      "related_files": [
+        "src/shared/lib/tasks/orchestrationContract.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts"
+      ],
+      "evidence": [
+        "`buildOrchestrationContract` returns `Record<string, unknown>` (line 17) rather than a concrete contract type, weakening downstream guarantees.",
+        "`generateVideo` builds a broad `Record<string, unknown>` request and submits via `requestBody as unknown as TravelBetweenImagesTaskParams` (line 701), bypassing structural validation at the seam."
+      ],
+      "suggestion": "Define strict DTO types for orchestration contract and travel request payloads, return those from builders, and remove `unknown` bridge casts by validating and narrowing before submission.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "edge_failure_semantics_inconsistent",
+      "summary": "Shared edge modules expose inconsistent failure contracts (result object vs throw vs fail-open), making caller behavior unpredictable.",
+      "related_files": [
+        "supabase/functions/_shared/edgeOperation.ts",
+        "supabase/functions/_shared/billing.ts",
+        "supabase/functions/_shared/rateLimit.ts",
+        "supabase/functions/complete_task/storage.ts"
+      ],
+      "evidence": [
+        "`billing.ts` returns `EdgeOperationResult` for cost-trigger failures (`edgeFailure`/`edgeSuccess`), while `storage.ts` throws on upload failure (`throw new Error(...)`, line 77) but uses `EdgeOperationResult` for thumbnail outcomes.",
+        "`rateLimit.ts` defines a separate `RateLimitResult` with policy/errorCode fail-open semantics, parallel to but disconnected from `EdgeOperationResult` conventions."
+      ],
+      "suggestion": "Standardize edge boundary outcomes on one shared result contract (or one shared throw strategy) and provide adapters at outer handlers so integration points can compose predictable lifecycle/error behavior.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "invalidation_lifecycle_contract_is_implicit",
+      "summary": "Generation invalidation scheduling exposes mixed completion semantics and timer lifecycle handling at integration boundaries.",
+      "related_files": [
+        "src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+        "src/shared/lib/timelineWriteQueue.ts"
+      ],
+      "evidence": [
+        "`useInvalidateGenerations` returns `Promise<void>` but delayed mode returns immediately after scheduling timeout (lines 81-89), so callers cannot await actual invalidation completion.",
+        "Timeout map entries are only cleared on same-shot reschedule or callback execution; no hook unmount cleanup path is present.",
+        "By contrast, timeline write orchestration explicitly models queued/start/end phases and serialized completion, highlighting inconsistency in lifecycle contract discipline."
+      ],
+      "suggestion": "Expose a consistent async contract for scheduled invalidations (e.g., return cancellable handles/promises), add unmount cleanup, and align lifecycle semantics with other orchestration utilities.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "generation_viewmodel_translation_drift",
+      "summary": "Sibling generation transformation paths produce divergent thumbnail and metadata semantics, increasing glue logic at call sites.",
+      "related_files": [
+        "src/shared/lib/generationTransformers.ts",
+        "src/shared/hooks/useLineageChain.ts"
+      ],
+      "evidence": [
+        "`transformGeneration` uses layered thumbnail extraction/fallback and URL normalization (`extractThumbnailUrl`, identity stripping), while `transformForTimeline` sets `thumbUrl` directly to `genData.location` (line 405), ignoring `thumbnail_url`.",
+        "`useLineageChain` exposes a separate `thumbnailUrl` chain model from raw variant data, introducing a third representation path for similar UI needs."
+      ],
+      "suggestion": "Centralize a single generation/variant view-model adapter for thumbnail/url fields and reuse it across timeline, lineage, and gallery seams to eliminate per-consumer translation drift.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "duplicated_aspect_ratio_fallback_logic",
+      "summary": "Aspect-ratio fallback behavior is implemented in two separate helpers with overlapping responsibility.",
+      "related_files": [
+        "src/shared/components/ShotImageManager/utils/image-utils.ts",
+        "src/shared/lib/imageAspectRatio.ts"
+      ],
+      "evidence": [
+        "`getAspectRatioStyle` returns parsed project ratio or `'1'` default in `image-utils.ts` lines 58-66.",
+        "`getImageAspectRatioStyle` independently repeats the same project-ratio parsing and `'1'` fallback in `imageAspectRatio.ts` lines 61-68."
+      ],
+      "suggestion": "Extract one shared `resolveAspectRatioStyle` helper and route both call sites through it so defaults and parsing rules cannot diverge.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "non_functional_toggle_update",
+      "summary": "Text-case toggle uses closure state inversion instead of functional update, making the state transition less robust.",
+      "related_files": [
+        "src/shared/hooks/useTextCase.ts",
+        "src/shared/hooks/useDeleteGenerationWithConfirm.tsx"
+      ],
+      "evidence": [
+        "`useTextCase` defines `toggle` as `setPreserveUserText(!preserveUserText)` in `useTextCase.ts` line 25.",
+        "Nearby hooks in the same layer already depend on stable callback semantics (`useDeleteGenerationWithConfirm.tsx` lines 31-46), so this closure-style inversion is a weaker local pattern."
+      ],
+      "suggestion": "Use functional updates (`setPreserveUserText(prev => !prev)`) to make the toggle atomic and remove closure sensitivity.",
+      "confidence": "high",
+      "impact_scope": "local",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "legacy_type_surface_not_fully_retired",
+      "summary": "Migration-era legacy fields remain embedded in canonical public types, prolonging dual-shape maintenance.",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/types.ts",
+        "src/shared/lib/tasks/travelBetweenImages/types.ts"
+      ],
+      "evidence": [
+        "`LegacyProjectImageSettings` is still part of accepted input via `ProjectImageSettingsInput` in `ImageGenerationForm/types.ts` lines 109-136.",
+        "`StructureVideoConfigWithMetadata` still carries legacy guidance fields for decode compatibility in `travelBetweenImages/types.ts` lines 123-132."
+      ],
+      "suggestion": "Move legacy decode contracts to dedicated migration adapters/modules and keep exported runtime-facing types canonical-only.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "deprecated_alias_keeps_dual_api_path_alive",
+      "summary": "Deprecated storage URL alias remains exported, which encourages continued usage of the old path.",
+      "related_files": [
+        "supabase/functions/complete_task/storage.ts",
+        "src/shared/components/ImageGenerationForm/types.ts"
+      ],
+      "evidence": [
+        "`getStoragePublicUrl` is explicitly deprecated but still exported as alias to `buildStoragePublicUrl` in `storage.ts` lines 216-219.",
+        "The codebase already uses explicit sunset contracts elsewhere (`ImageGenerationForm/types.ts` lines 104-108), but this alias has no comparable removal gate."
+      ],
+      "suggestion": "Add a hard deprecation window (or removal ticket/date) and migrate call sites to `buildStoragePublicUrl`, then delete the alias.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_domain_leakage_components",
+      "summary": "Domain-specific generation UI is stored in `shared/components`, obscuring ownership and expected change boundaries.",
+      "related_files": [
+        "src/shared/components/ActiveLoRAsDisplay.tsx",
+        "src/shared/components/AspectRatioSelector.tsx"
+      ],
+      "evidence": [
+        "`ActiveLoRAsDisplay` depends on LoRA-specific models/types (`LoraDisplayModel`, `ActiveLora`, trigger words, LoRA strength).",
+        "`AspectRatioSelector` depends on generation-specific ratio mappings (`ASPECT_RATIO_TO_RESOLUTION`) and visualizer behavior, not a generic cross-domain primitive."
+      ],
+      "suggestion": "Move these components into a generation-focused package (for example `src/domains/generation/components/...`) and keep `shared/components` for truly domain-agnostic primitives.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_domain_leakage_hooks",
+      "summary": "Feature workflows with strong business context are placed in `shared/hooks`, creating a catch-all layer instead of domain-owned modules.",
+      "related_files": [
+        "src/shared/hooks/useAutoTopup.ts",
+        "src/shared/hooks/useBackgroundThumbnailGenerator.ts",
+        "src/shared/hooks/useBatchImageLoading.ts"
+      ],
+      "evidence": [
+        "`useAutoTopup` orchestrates auth session retrieval, users table fields, and a billing edge function (`setup-auto-topup`).",
+        "`useBackgroundThumbnailGenerator` manages generation/video queueing, thumbnail pipeline, and generation query cache updates.",
+        "`useBatchImageLoading` is labeled for batch view components and couples to app settings/media URL policy; it is feature workflow glue rather than a broadly reusable hook."
+      ],
+      "suggestion": "Relocate hooks to domain/feature folders (billing/credits, media-generation, gallery/batch) and expose only stable shared abstractions from `shared/hooks`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "app_shell_component_misplaced",
+      "summary": "Global app-shell error boundary is packaged as a shared component, blurring framework boundary lines.",
+      "related_files": [
+        "src/shared/components/AppErrorBoundary.tsx",
+        "vite.config.ts"
+      ],
+      "evidence": [
+        "`AppErrorBoundary` is explicitly app-level infrastructure (global fallback UI and page reload/retry behavior), not a reusable feature component.",
+        "Root-level infrastructure concerns are already centralized (e.g., Vite app config), but app-shell runtime boundary code is mixed into `shared/components`."
+      ],
+      "suggestion": "Move `AppErrorBoundary` to an app-shell package (for example `src/app/boundaries`), and keep `shared/components` focused on reusable UI blocks.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "legacy_structure_signals_in_root_config",
+      "summary": "Root config still encodes multiple historical directory conventions, weakening package-shape clarity.",
+      "related_files": [
+        "tailwind.config.ts",
+        "src/shared/components/ActiveLoRAsDisplay.tsx"
+      ],
+      "evidence": [
+        "`tailwind.config.ts` scans `./pages`, `./components`, `./app`, and `./src` simultaneously, signaling overlapping top-level organization models.",
+        "Current feature code lives under `src/shared/...`, but config still treats multiple roots as active first-class package boundaries."
+      ],
+      "suggestion": "Converge on one canonical source root and prune obsolete content globs after verifying no active files depend on legacy top-level roots.",
+      "confidence": "medium",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "domain_types_ownership_blur",
+      "summary": "Generation domain contracts are presented as domain-owned but source from global type buckets, weakening ownership boundaries.",
+      "related_files": [
+        "README.md",
+        "src/domains/generation/types/index.ts"
+      ],
+      "evidence": [
+        "src/domains/generation/types/index.ts re-exports GenerationParams, GenerationRow, Shot, and generation metadata from '@/types/*' instead of domain-local modules.",
+        "README.md positions architecture docs/contracts as trustworthy ownership guidance, but this entry point makes domain contract location ambiguous for future changes."
+      ],
+      "suggestion": "Either move generation contract types into domain-owned paths (and export from there) or explicitly document that '@/types/*' is the canonical contract layer and make domain barrels thin compatibility shims with a deprecation policy.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "ui_alias_contract_duplication",
+      "summary": "The `cn` compatibility alias introduces redundant public surface without an explicit compatibility policy.",
+      "related_files": [
+        "src/shared/lib/ui/cn.ts",
+        "src/shared/components/ui/button.tsx"
+      ],
+      "evidence": [
+        "src/shared/lib/ui/cn.ts only re-exports `cn` from '@/shared/lib/uiClassNames' and adds no behavior.",
+        "src/shared/components/ui/button.tsx imports from the alias path, so both alias and source path can become de facto contracts."
+      ],
+      "suggestion": "Choose one canonical import path for `cn` and enforce it with lint/codemod; if the alias must remain for migration, mark it as compatibility-only with a removal timeline.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "error_boundary_mixed_responsibility",
+      "summary": "Core error normalization and browser notification transport are coupled in one shared module, diluting architectural contract clarity.",
+      "related_files": [
+        "README.md",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "handleError.ts includes normalization/logging plus browser event wiring (`window.dispatchEvent`, notifier registration state, listener lifecycle) in the same file.",
+        "README.md states shared modules should remain UI-agnostic unless bootstrap wiring runs, but this module still owns UI transport mechanics directly."
+      ],
+      "suggestion": "Split error-core behavior (normalize/log/rethrow) from UI transport wiring into separate modules, with one explicit composition point in app bootstrap so runtime contracts are enforced by module boundaries.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "mixed_error_channels_lora_submission",
+      "summary": "LoRA submission paths mix sentinel returns + direct toasts with centralized error normalization, producing inconsistent failure behavior.",
+      "related_files": [
+        "src/shared/components/LoraSelectorModal/components/MyLorasTab/hooks/useLoraSubmission.ts",
+        "src/shared/hooks/useGenerationMutations.ts"
+      ],
+      "evidence": [
+        "`uploadToHuggingFaceIfNeeded` uses `toast.error(...)` and returns `null` on upload failure (`useLoraSubmission.ts:160-163`, `:180-183`), then caller exits early (`:385-388`) without normalized error context.",
+        "Same module later uses `handleError(...)` in catch (`useLoraSubmission.ts:445-449`), while sibling mutation hooks standardize on throw + `onError` with `handleError` (`useGenerationMutations.ts:49-50`, `:99-103`, `:163-165`, `:195-197`)."
+      ],
+      "suggestion": "Use one contract per feature: throw typed/domain errors from internal async helpers and route all user-visible/logging behavior through `handleError` at mutation boundary; reserve sentinel `null` only for truly non-error optional flows.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "silent_catch_without_context",
+      "summary": "Several catch blocks silently suppress runtime failures, creating hidden and non-diagnosable behavior differences.",
+      "related_files": [
+        "src/shared/hooks/useMobile.tsx",
+        "src/pages/Home/hooks/useDiscordSignIn.ts"
+      ],
+      "evidence": [
+        "`useMobile` catches exceptions and returns fallback values or no-ops without logging (`useMobile.tsx:10-12`, `:42-44`, `:169-170`, `:177-178`).",
+        "`useDiscordSignIn` intentionally ignores localStorage failure in inner catch (`useDiscordSignIn.ts:10-14`) while other errors in same function go through `handleError` (`:24-27`)."
+      ],
+      "suggestion": "Keep graceful fallback behavior, but add lightweight structured diagnostics (e.g., `handleError(..., { showToast: false, context, logData })`) for suppressed exceptions so operational failures are observable and consistent.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "edge_error_contract_drift",
+      "summary": "Supabase edge flows expose inconsistent failure contracts across similar orchestration/cost paths.",
+      "related_files": [
+        "supabase/functions/calculate-task-cost/index.ts",
+        "supabase/functions/complete_task/generation.ts",
+        "supabase/functions/complete_task/orchestrator.ts"
+      ],
+      "evidence": [
+        "`calculate-task-cost` catch returns `jsonResponse({ error: error?.message || 'Unknown error occurred' }, 500)` (`index.ts:494-497`), leaking raw runtime messages to clients.",
+        "`complete_task/generation` catches, logs, then rethrows (`generation.ts:143-149`), while normal control paths also use `return null` sentinels for non-generation tasks (`generation.ts:58-67`).",
+        "`orchestrator` wraps many failures with contextual `new Error(..., { cause })` (`orchestrator.ts:73-76`, `:216-218`, `:242-244`), giving a different contract again."
+      ],
+      "suggestion": "Define a shared edge-function error policy: consistent error envelope for HTTP responses, consistent wrapping/preservation of cause, and explicit typed result semantics for \"skip\" vs \"failure\" paths.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ],
+  "review_quality": {
+    "batch_count": 7,
+    "dimension_coverage": 0.257,
+    "evidence_density": 1.179,
+    "high_score_without_risk": 0,
+    "finding_pressure": 64.202,
+    "dimensions_with_findings": 5
+  },
+  "provenance": {
+    "kind": "blind_review_batch_import",
+    "blind": true,
+    "runner": "codex",
+    "run_stamp": "20260223_214400",
+    "created_at": "2026-02-23T21:45:34+00:00",
+    "batch_count": 7,
+    "batch_indexes": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "packet_path": "/Users/peteromalley/Documents/reigh/.desloppify/review_packet_blind.json",
+    "packet_sha256": "e11ac5a2e7d15c0d21a506a27e798ac441d9356c9145128c1de81c238a34f799"
+  }
+}

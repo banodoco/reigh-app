@@ -1,0 +1,94 @@
+{
+  "batch": "Design coherence — Mechanical Concern Signals",
+  "batch_index": 3,
+  "assessments": {
+    "design_coherence": 82.4
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "Timeline component combines data fetching, cache/task lookup, preloading, drag/drop orchestration, navigation policy, and rendering in one file (`src/tools/travel-between-images/components/Timeline.tsx`, including logic at lines 264-412 and JSX assembly at 414-533).",
+        "ImageLightbox keeps a split-hook architecture but still centralizes very broad orchestration and prop-assembly layers (`src/shared/components/MediaLightbox/ImageLightbox.tsx`), with large config object construction and dependency-heavy memo blocks (for example 567-859).",
+        "Auto-topup/Stripe edge handlers repeat near-identical validation and setup flows instead of sharing one cohesive domain service (`supabase/functions/setup-auto-topup/index.ts` 62-70 vs `supabase/functions/stripe-checkout/index.ts` 61-69; repeated Stripe env/client setup in `stripe-checkout`, `complete-auto-topup-setup`, and `process-auto-topup`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "timeline_orchestrator_overload",
+      "summary": "Timeline mixes domain orchestration, data access, and view composition in a single component",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline.tsx",
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineActionHandlers.ts",
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineViewportController.ts"
+      ],
+      "evidence": [
+        "`Timeline.tsx` performs adapter/error policy (`handleAddToShotAdapter`), task-query orchestration (`useTaskFromUnifiedCache` + `useGetTask`), image preloading side effects, event-bus refresh handling, and large render assembly in one body (not just composition).",
+        "The component still has very large prop and handler surfaces (props block 34-99; many callback adapters and derived models 264-412), indicating multiple responsibilities beyond view coordination.",
+        "Related timeline hooks (`useTimelineActionHandlers`, `useTimelineViewportController`) use large bag-style pipeline inputs, suggesting the parent orchestration boundary is still too broad and hard to reason about."
+      ],
+      "suggestion": "Extract a dedicated `useTimelineLightboxOrchestrator` (task lookup, preloading, adjacent/derived navigation, add-to-shot adapters) and keep `Timeline.tsx` as a thin composition shell. Replace pipeline bag inputs with narrower domain objects per concern (drop, endpoint, structure-video) to shrink cognitive surface.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "overloaded_ui_orchestrators"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "lightbox_viewmodel_bloat",
+      "summary": "ImageLightbox split architecture still accumulates oversized orchestration layers",
+      "related_files": [
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts",
+        "src/shared/components/MediaLightbox/components/EditModePanel.tsx"
+      ],
+      "evidence": [
+        "`ImageLightbox.tsx` builds multiple large memoized view-model objects (`lightboxVariants`, `lightboxStateValue`, `workflowBar`, `workflowControls`, `layoutProps`) with long dependency arrays and mixed UI/action/state concerns (567-859).",
+        "The orchestration path combines environment wiring, edit orchestration, side-panel decision logic, and workflow action adaptation in one file, creating a high-indirection but still centralized decision hub.",
+        "Shared lightbox state and edit panel integrations force this file to coordinate many unrelated concerns (variant badges, task details, shot workflow, edit modes), indicating boundaries are not yet cleanly separated by feature slice."
+      ],
+      "suggestion": "Introduce explicit presenter contracts per panel/zone (for example `buildWorkflowBarModel`, `buildLayoutModel`, `buildPanelModel`) in separate modules, with each contract owning only one concern. Keep `ImageLightbox.tsx` focused on wiring providers and top-level composition.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "overloaded_ui_orchestrators"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "auto_topup_flow_duplication",
+      "summary": "Auto-topup Stripe edge functions duplicate validation and payment setup logic",
+      "related_files": [
+        "supabase/functions/setup-auto-topup/index.ts",
+        "supabase/functions/stripe-checkout/index.ts",
+        "supabase/functions/complete-auto-topup-setup/index.ts",
+        "supabase/functions/process-auto-topup/index.ts"
+      ],
+      "evidence": [
+        "Auto-topup amount/threshold validation rules are repeated almost verbatim in `setup-auto-topup` (62-70) and `stripe-checkout` (61-69).",
+        "Stripe secret retrieval and client construction patterns are repeated in multiple handlers (`stripe-checkout` 109-126, `complete-auto-topup-setup` 52-61, `process-auto-topup` 121-130).",
+        "The flow is split across endpoints with hand-rolled, repeated preconditions and error branches, increasing divergence risk when pricing/threshold rules change."
+      ],
+      "suggestion": "Create shared `autoTopupDomain` utilities (validation schema, Stripe client factory, shared error mapping) and import them across the four endpoints. Keep endpoint files as thin transport adapters that only parse request/response.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "duplicated_payment_workflow"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Coordinator modules are carrying both domain decisions and UI transport concerns.",
+      "Reusable hooks/services evolved into option-heavy multi-mode APIs instead of focused contracts.",
+      "Payment/auto-topup workflow lacks a shared domain layer, so endpoint handlers duplicate rules."
+    ],
+    "likely_symptoms": [
+      "timeline_orchestrator_overload",
+      "lightbox_viewmodel_bloat"
+    ],
+    "possible_false_positives": []
+  }
+}

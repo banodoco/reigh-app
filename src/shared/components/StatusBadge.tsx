@@ -6,8 +6,8 @@
  */
 
 import React from 'react';
-import { cn } from '@/shared/lib/utils';
-import { TouchableTooltip } from '@/shared/components/ui/tooltip';
+import { cn } from '@/shared/components/ui/contracts/cn';
+import { TouchableTooltip } from '@/shared/components/ui/touchableTooltip';
 import { TextAction } from '@/shared/components/ui/text-action';
 
 const colorVariants = {

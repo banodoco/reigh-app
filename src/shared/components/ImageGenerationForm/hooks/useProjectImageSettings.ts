@@ -11,12 +11,14 @@ import { useToolSettings, extractSettingsFromCache } from '@/shared/hooks/useToo
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { useQueryClient } from '@tanstack/react-query';
 import { settingsQueryKeys } from '@/shared/lib/queryKeys/settings';
-import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
+import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 import { useHydratedReferences } from '@/shared/hooks/useHydratedReferences';
 import { useReferenceSelection } from './useReferenceSelection';
 import { useLegacyMigrations } from './useLegacyMigrations';
 
 import type { ProjectImageSettings } from '../types';
+import type { ProjectImageSettingsInput } from './legacyMigrations/legacyProjectImageSettings';
 
 export function useProjectImageSettings(associatedShotId: string | null) {
   const { selectedProjectId, projects } = useProject();
@@ -43,7 +45,7 @@ export function useProjectImageSettings(associatedShotId: string | null) {
     settings: projectImageSettings,
     update: updateProjectImageSettings,
     isLoading: isLoadingProjectSettings
-  } = useToolSettings<ProjectImageSettings>('project-image-settings', {
+  } = useToolSettings<ProjectImageSettingsInput>(SETTINGS_IDS.PROJECT_IMAGE_SETTINGS, {
     projectId: selectedProjectId ?? undefined,
     enabled: !!selectedProjectId
   });
@@ -53,14 +55,15 @@ export function useProjectImageSettings(associatedShotId: string | null) {
 
   // Get reference pointers array and selected reference for current shot
   const cachedProjectSettings = selectedProjectId
-    ? extractSettingsFromCache<ProjectImageSettings>(
-        queryClient.getQueryData(settingsQueryKeys.tool('project-image-settings', selectedProjectId, undefined))
+    ? extractSettingsFromCache<ProjectImageSettingsInput>(
+        queryClient.getQueryData(settingsQueryKeys.tool(SETTINGS_IDS.PROJECT_IMAGE_SETTINGS, selectedProjectId, undefined))
       )
     : undefined;
 
-  const referencePointers = projectImageSettings?.references ?? cachedProjectSettings?.references ?? [];
+  const effectiveProjectImageSettings = projectImageSettings ?? cachedProjectSettings;
+  const referencePointers = effectiveProjectImageSettings?.references ?? [];
   const referenceCount = referencePointers.length;
-  const selectedReferenceIdByShot = projectImageSettings?.selectedReferenceIdByShot ?? cachedProjectSettings?.selectedReferenceIdByShot ?? {};
+  const selectedReferenceIdByShot = effectiveProjectImageSettings?.selectedReferenceIdByShot ?? {};
   const selectedReferenceId = selectedReferenceIdByShot[effectiveShotId] ?? null;
 
   // Hydrate references with data from resources table
@@ -81,7 +84,7 @@ export function useProjectImageSettings(associatedShotId: string | null) {
   });
 
   // For backward compatibility with single reference - used in legacy migration
-  const rawStyleReferenceImage = selectedReference?.styleReferenceImage || projectImageSettings?.styleReferenceImage || null;
+  const rawStyleReferenceImage = selectedReference?.styleReferenceImage || effectiveProjectImageSettings?.styleReferenceImage || null;
 
   // Legacy migrations (runs effects to migrate old reference formats)
   useLegacyMigrations({
@@ -104,7 +107,7 @@ export function useProjectImageSettings(associatedShotId: string | null) {
     projectResolution,
     privacyDefaults,
     isLocalGenerationEnabled,
-    projectImageSettings: projectImageSettings ?? null,
+    projectImageSettings: (projectImageSettings as ProjectImageSettings | null),
     updateProjectImageSettings,
     isLoadingProjectSettings,
     effectiveShotId,

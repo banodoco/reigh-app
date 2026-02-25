@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useMemo, useCallback, type RefObject } from 'react';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { useContainerDimensions } from '@/shared/components/MediaGallery/hooks';
 import { calculateGalleryLayout } from '@/shared/components/MediaGallery/utils';
 import { useProjectGenerations } from '@/shared/hooks/useProjectGenerations';
-import { useAutoSaveSettings } from '@/shared/hooks/useAutoSaveSettings';
+import { useAutoSaveSettings } from '@/shared/hooks/settings/useAutoSaveSettings';
 import { useStableObject } from '@/shared/hooks/useStableObject';
 import { DEFAULT_GALLERY_FILTERS, type GalleryFilterState } from '@/shared/components/MediaGallery';
 import { useStickyHeader } from './useStickyHeader';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 
 
 interface ImageGenPagePrefs {
@@ -54,7 +55,7 @@ export function useImageGenGallery({
   const scrollPosRef = useRef<number>(0);
 
   const pagePrefs = useAutoSaveSettings<ImageGenPagePrefs>({
-    toolId: 'image-gen-page-prefs',
+    toolId: SETTINGS_IDS.IMAGE_GEN_PAGE_PREFS,
     shotId: formAssociatedShotId,
     projectId,
     scope: 'shot',

@@ -1,17 +1,19 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { useSearchParams } from 'react-router-dom';
 
-import { ImageGenerationForm } from "../components/ImageGenerationForm";
+import { ImageGenerationForm } from "@/shared/components/ImageGenerationForm";
 import { MediaGallery } from "@/shared/components/MediaGallery";
 import { Button } from "@/shared/components/ui/button";
 import { useProject } from "@/shared/contexts/ProjectContext";
 import { usePublicLoras, usePublicStyleReferences, useMyStyleReferences } from '@/shared/hooks/useResources';
 import { PageFadeIn } from '@/shared/components/transitions';
-import { useIsMobile, useIsTablet } from "@/shared/hooks/useMobile";
+import { useIsMobile, useIsTablet } from "@/shared/hooks/mobile";
 import { SkeletonGallery } from '@/shared/components/ui/skeleton-gallery';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/components/ui/collapsible';
 import { ChevronDown, ChevronLeft, Sparkles, Settings2 } from 'lucide-react';
+import { DeleteGenerationConfirmDialog } from '@/shared/components/dialogs/DeleteGenerationConfirmDialog';
+import { getProjectSelectionFallbackId } from '@/shared/contexts/projectSelectionStore';
 
 import { useImageGenGallery } from "../hooks/useImageGenGallery";
 import { useImageGenActions } from "../hooks/useImageGenActions";
@@ -39,9 +41,11 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
 
   const effectiveProjectId = useMemo(() => {
     if (selectedProjectId) return selectedProjectId;
+    const fromRuntime = getProjectSelectionFallbackId();
+    if (fromRuntime) {
+      return fromRuntime;
+    }
     if (typeof window !== 'undefined') {
-      const fromGlobal = window.__PROJECT_CONTEXT__?.selectedProjectId;
-      if (fromGlobal) return fromGlobal;
       try {
         const fromStorage = window.localStorage.getItem('lastSelectedProjectId');
         if (fromStorage) return fromStorage;
@@ -210,7 +214,7 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
           )}
         </div>
       </div>
-      <actions.DeleteConfirmDialog />
+      <DeleteGenerationConfirmDialog {...actions.confirmDialogProps} />
     </PageFadeIn>
   );
 }, () => true); // Always return true since component has no props

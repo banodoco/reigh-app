@@ -1,0 +1,111 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 3,
+  "assessments": {
+    "incomplete_migration": 74.0
+  },
+  "dimension_notes": {
+    "incomplete_migration": {
+      "evidence": [
+        "`src/integrations/supabase/legacy/legacySupabaseFacade.ts` is explicitly deprecated with removal target `2026-06-30` but remains a high-traffic compatibility surface; the blind packet lists it as 129 importers.",
+        "`src/shared/lib/errorHandling/handleError.ts` keeps deprecated aliases (`reportRuntimeError`, `RuntimeErrorOptions`) with removal target `2026-06-30`; packet context lists `reportRuntimeError` still imported broadly.",
+        "`src/shared/hooks/useCredits.ts` is a legacy shim with removal target `2026-06-30`, but `warnIfPastRemovalTarget()` only flips a boolean and produces no warning/error/telemetry.",
+        "`src/shared/lib/tasks/joinClipsCompatAdapter.ts` and `src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts` preserve mixed legacy and canonical payload shapes in active exported contracts, extending migration overlap instead of constraining it."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_shims_still_core_paths",
+      "summary": "Multiple deprecated compatibility APIs remain primary runtime entrypoints near removal date",
+      "related_files": [
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/hooks/useCredits.ts"
+      ],
+      "evidence": [
+        "`legacySupabaseFacade.ts` declares `@deprecated` with removal target `2026-06-30` and remains heavily depended on (packet context: 129 importers).",
+        "`handleError.ts` keeps deprecated aliases (`reportRuntimeError`, `RuntimeErrorOptions`) with the same `2026-06-30` removal target while still used in active codepaths.",
+        "`useCredits.ts` is also a deprecated alias shim targeting `2026-06-30`, indicating repeated old/new API coexistence in shared/core locations."
+      ],
+      "suggestion": "Execute a staged migration cutover: (1) codemod imports to canonical APIs (`getSupabaseClient`, `handleError`, `features/billing` hooks), (2) enforce no-new-imports at CI for legacy modules, (3) remove deprecated exports once import count reaches zero.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "legacy_aliases_without_cutover"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "credits_alias_no_past_target_signal",
+      "summary": "Credits shim silently passes removal target without any enforcement or observability",
+      "related_files": [
+        "src/shared/hooks/useCredits.ts",
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts"
+      ],
+      "evidence": [
+        "In `useCredits.ts`, `warnIfPastRemovalTarget()` (lines 14-20) only sets `hasWarnedPastRemovalTarget = true` and emits no log/error/metric.",
+        "By contrast, `legacySupabaseFacade.ts` emits a console error after target expiry (lines 24-32), showing inconsistent migration-governance behavior across shims."
+      ],
+      "suggestion": "Replace the no-op with a shared deprecation enforcement helper that at least emits structured telemetry after removal date and optionally throws in non-production/tested phases.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "legacy_aliases_without_cutover"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "compat_contracts_keep_dual_payload_shapes",
+      "summary": "Join-clips and travel contracts still encode legacy fields as first-class API surface",
+      "related_files": [
+        "src/shared/lib/tasks/joinClipsCompatAdapter.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts"
+      ],
+      "evidence": [
+        "`JoinClipsTaskCompatParams` includes broad legacy fields (`starting_video_path`, `video_edit_mode`, `source_video_*`, `portions_to_regenerate`) and `createJoinClipsTaskCompat` remains exported as an active adapter.",
+        "`LegacyTravelBetweenImagesTaskParams` exports multiple deprecated fields (`structure_video_*`, `use_uni3c`, legacy percent keys), keeping deprecated shape in exported type contracts."
+      ],
+      "suggestion": "Narrow legacy support to explicit edge translators: move legacy field parsing behind non-exported adapter boundaries, expose only canonical input types publicly, and gate legacy translators with hard removal policy checks.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "legacy_contract_bleed"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "unbounded_legacy_fallback_chains",
+      "summary": "Fallback parsing for historical field names persists without sunset metadata or deadlines",
+      "related_files": [
+        "src/shared/lib/taskIdHelpers.ts",
+        "src/shared/lib/galleryUtils.ts",
+        "src/shared/lib/mediaTypeHelpers.ts"
+      ],
+      "evidence": [
+        "`taskIdHelpers.ts` still resolves `source_task_id || orchestrator_task_id || task_id` with no deprecation annotations or expiry policy.",
+        "`galleryUtils.ts` supports both explicit and array/orchestrator shapes simultaneously (`start_image_url`/`end_image_url` and `input_image_paths_resolved`), with no removal-target governance.",
+        "`mediaTypeHelpers.ts` prioritizes mixed ID/URL shapes (`generation_id`, `metadata.generation_id`, `id`; multiple URL keys), indicating long-lived compatibility normalization."
+      ],
+      "suggestion": "Introduce migration lifecycle metadata for each fallback key path (owner + target date), add usage instrumentation per legacy branch, and remove branches once observed usage drops to zero.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "legacy_contract_bleed"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Deprecated APIs are retained in shared/core import paths without strict cutover enforcement.",
+      "Legacy compatibility is embedded directly into public types instead of isolated translator boundaries.",
+      "Fallback parsing was added for resilience but lacks lifecycle governance (deadline + telemetry + removal automation)."
+    ],
+    "likely_symptoms": [
+      "legacy_shims_still_core_paths",
+      "compat_contracts_keep_dual_payload_shapes",
+      "unbounded_legacy_fallback_chains"
+    ],
+    "possible_false_positives": []
+  }
+}

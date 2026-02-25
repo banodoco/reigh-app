@@ -4,7 +4,7 @@ import { Button } from "@/shared/components/ui/button";
 import { MediaGalleryPagination } from "@/shared/components/MediaGalleryPagination";
 import { MediaTypeFilter } from "@/shared/components/MediaTypeFilter";
 import { ShotFilter } from "@/shared/components/ShotFilter";
-import type { Shot } from "@/types/shots";
+import type { Shot } from "@/domains/generation/types";
 
 interface MediaGalleryHeaderPaginationProps {
   totalPages: number;

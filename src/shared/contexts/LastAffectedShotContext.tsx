@@ -1,6 +1,7 @@
 import React, { createContext, useState, ReactNode, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useProject } from './ProjectContext';
 import { useToolSettings } from '@/shared/hooks/useToolSettings';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 
 interface LastAffectedShotContextType {
   lastAffectedShotId: string | null;
@@ -30,7 +31,7 @@ export const LastAffectedShotProvider = ({ children }: { children: ReactNode }) 
     settings, 
     update: updateSettings,
     isLoading 
-  } = useToolSettings<LastAffectedShotSettings>('last-affected-shot', { 
+  } = useToolSettings<LastAffectedShotSettings>(SETTINGS_IDS.LAST_AFFECTED_SHOT, { 
     projectId: selectedProjectId ?? undefined,
     enabled: !!selectedProjectId 
   });

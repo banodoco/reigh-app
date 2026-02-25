@@ -2,11 +2,11 @@ import { useState, useCallback, useMemo } from 'react';
 import { toast } from '@/shared/components/ui/toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import { createJoinClipsTask } from '@/shared/lib/tasks/joinClips';
-import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/aspectRatios';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { createCanonicalJoinClipsTask } from '@/shared/lib/tasks/joinClips';
+import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { useTaskPlaceholder } from '@/shared/hooks/useTaskPlaceholder';
-import { joinClipsSettings } from '../settings';
+import { joinClipsSettings } from '@/shared/lib/joinClipsDefaults';
 import { DEFAULT_VACE_PHASE_CONFIG, BUILTIN_VACE_DEFAULT_ID, VACE_GENERATION_DEFAULTS } from '@/shared/lib/vaceDefaults';
 import type { VideoClip, TransitionPrompt } from '../types';
 import type { useJoinClipsSettings } from './useJoinClipsSettings';
@@ -118,9 +118,13 @@ export function useJoinClipsGenerate({
             }
           }
 
-          const taskParams: import('@/shared/lib/tasks/joinClips').JoinClipsTaskParams = {
+          const taskParams = {
             project_id: selectedProjectId,
-            clips: clipsForTask,
+            mode: 'multi_clip' as const,
+            clip_source: {
+              kind: 'clips' as const,
+              clips: clipsForTask,
+            },
             per_join_settings: perJoinSettings,
             context_frame_count: contextFrameCount,
             gap_frame_count: gapFrameCount,
@@ -150,7 +154,7 @@ export function useJoinClipsGenerate({
             tool_type: TOOL_IDS.JOIN_CLIPS,
           };
 
-          return createJoinClipsTask(taskParams);
+          return createCanonicalJoinClipsTask(taskParams);
         },
         onSuccess: () => {
           setShowSuccessState(true);

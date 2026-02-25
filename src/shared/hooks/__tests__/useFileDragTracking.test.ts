@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useFileDragTracking, preventDefaultDragOver, createSingleFileDropHandler } from '../useFileDragTracking';
 
-vi.mock('@/shared/components/ui/sonner', () => ({
+vi.mock('@/shared/components/ui/runtime/sonner', () => ({
   toast: { error: vi.fn() },
 }));
 
@@ -152,7 +152,7 @@ describe('createSingleFileDropHandler', () => {
   });
 
   it('shows error toast for wrong file type', async () => {
-    const { toast } = await import('@/shared/components/ui/sonner');
+    const { toast } = await import('@/shared/components/ui/runtime/sonner');
     const resetDrag = vi.fn();
 
     const handler = createSingleFileDropHandler({

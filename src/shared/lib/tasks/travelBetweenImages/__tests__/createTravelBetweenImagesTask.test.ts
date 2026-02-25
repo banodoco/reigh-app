@@ -24,11 +24,11 @@ vi.mock('@/integrations/supabase/client', () => ({
   supabase: mockSupabase,
 }));
 
-vi.mock('@/shared/lib/errorHandling/handleError', () => ({
-  handleError: vi.fn(),
+vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
+  normalizeAndPresentError: vi.fn(),
 }));
 
-vi.mock('@/shared/lib/toolConstants', () => ({
+vi.mock('@/shared/lib/toolIds', () => ({
   TOOL_IDS: {
     TRAVEL_BETWEEN_IMAGES: 'travel-between-images',
   },

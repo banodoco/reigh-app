@@ -14,7 +14,7 @@ vi.mock('@/shared/hooks/invalidation/useGenerationInvalidation', () => ({
   invalidateVariantChange: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('@/shared/lib/errorHandler', () => ({
+vi.mock('@/shared/lib/compat/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 

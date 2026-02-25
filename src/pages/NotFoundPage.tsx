@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useRouteError, useNavigate, isRouteErrorResponse } from 'react-router-dom';
 import { Home, Compass, Sparkles } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 export default function NotFoundPage() {
   const error = useRouteError();
@@ -10,7 +10,7 @@ export default function NotFoundPage() {
 
   useEffect(() => {
     if (!error) return;
-    handleError(error, {
+    normalizeAndPresentError(error, {
       context: 'NotFoundPage.routeError',
       showToast: false,
     });

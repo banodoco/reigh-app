@@ -5,7 +5,7 @@ import { renderHookWithProviders } from '@/test/test-utils';
 const mockDbUpdate = vi.fn();
 
 vi.mock('@/integrations/supabase/client', () => ({
-  supabase: {
+  getSupabaseClient: () => ({
     from: vi.fn(() => ({
       update: vi.fn(() => ({
         eq: vi.fn(() => ({
@@ -13,10 +13,10 @@ vi.mock('@/integrations/supabase/client', () => ({
         })),
       })),
     })),
-  },
+  }),
 }));
 
-vi.mock('@/shared/lib/errorHandler', () => ({
+vi.mock('@/shared/lib/compat/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 

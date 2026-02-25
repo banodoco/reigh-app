@@ -9,8 +9,8 @@
 
 import { useCallback } from 'react';
 import { LoraModel } from '@/shared/components/LoraSelectorModal';
-import { ActiveLora } from '@/shared/components/ActiveLoRAsDisplay';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import type { ActiveLora } from '@/shared/types/lora';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { SettingsScope } from '@/shared/hooks/useToolSettings';
 import {
   GenerationSource,
@@ -93,7 +93,7 @@ export function useLoraHandlers(props: UseLoraHandlersProps): UseLoraHandlersRet
     try {
       await updateProjectImageSettings('project', { selectedLorasByCategory: updatedLorasByCategory });
     } catch (error) {
-      handleError(error, { context: 'useLoraHandlers.persistLorasToCategory', showToast: false });
+      normalizeAndPresentError(error, { context: 'useLoraHandlers.persistLorasToCategory', showToast: false });
     }
   }, [updateProjectImageSettings, projectImageSettings?.selectedLorasByCategory, selectedTextModel, generationSource]);
 

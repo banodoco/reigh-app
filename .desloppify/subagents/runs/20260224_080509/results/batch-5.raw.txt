@@ -1,0 +1,74 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 5,
+  "assessments": {
+    "high_level_elegance": 79.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/hooks/useDeleteGenerationWithConfirm.tsx` defines both a hook (`useDeleteGenerationWithConfirm`) and a UI component (`DeleteGenerationConfirmDialog`) in a hooks package.",
+        "`src/shared/hooks/useDebouncedSettingsSave.ts` is a settings-persistence orchestration hook (React Query invalidation, Supabase update flushes, beforeunload lifecycle), but sits beside generic cross-cutting hooks like `useDebounce`.",
+        "`src/shared/lib` mixes pure transform helpers (`caseConversion.ts`, `deepEqual.ts`) with browser/storage workflow code (`clientThumbnailGenerator.ts`) that coordinates FileReader, Canvas, and storage uploads."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "hooks_contains_ui_component",
+      "summary": "A hooks module also exports UI rendering, blurring package ownership between behavior hooks and components.",
+      "related_files": [
+        "src/shared/hooks/useDeleteGenerationWithConfirm.tsx",
+        "src/shared/hooks/__tests__/useDeleteGenerationWithConfirm.test.ts"
+      ],
+      "evidence": [
+        "`useDeleteGenerationWithConfirm.tsx` declares `DeleteGenerationConfirmDialog` (JSX UI) and `useDeleteGenerationWithConfirm` (stateful behavior hook) in the same `shared/hooks` file.",
+        "The colocated test only exercises hook behavior, reinforcing that UI and hook concerns have separate change drivers despite being packaged together."
+      ],
+      "suggestion": "Move `DeleteGenerationConfirmDialog` to a component-oriented path (for example `src/shared/components/dialogs/`) and keep `shared/hooks` focused on hook logic; export a small typed dialog-state contract from the hook if needed.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "settings_orchestration_in_generic_hooks",
+      "summary": "A domain-specific settings persistence orchestrator is placed in generic shared hooks, weakening directory boundary clarity.",
+      "related_files": [
+        "src/shared/hooks/useDebouncedSettingsSave.ts",
+        "src/shared/hooks/useDebounce.ts",
+        "src/shared/hooks/__tests__/useDebouncedSettingsSave.test.ts"
+      ],
+      "evidence": [
+        "`useDebouncedSettingsSave` coordinates tool settings flushing, query invalidation, and storage-mode branching (`shot|project`, custom vs Supabase), which is settings-subsystem behavior rather than generic hook utility.",
+        "It is packaged next to generic utility hook `useDebounce`, making the `shared/hooks` directory represent mixed abstraction levels."
+      ],
+      "suggestion": "Relocate `useDebouncedSettingsSave` into a settings-owned package (for example `src/shared/settings/hooks/`), and keep `src/shared/hooks` for cross-domain reusable hooks only.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_lib_catchall_mixing_pure_and_io",
+      "summary": "The shared lib directory mixes pure data utilities with browser/storage IO workflows, creating a catch-all package boundary.",
+      "related_files": [
+        "src/shared/lib/caseConversion.ts",
+        "src/shared/lib/deepEqual.ts",
+        "src/shared/lib/clientThumbnailGenerator.ts"
+      ],
+      "evidence": [
+        "`caseConversion.ts` and `deepEqual.ts` are pure transformation helpers with no runtime side effects.",
+        "`clientThumbnailGenerator.ts` performs browser APIs (FileReader, Image, Canvas, `document.createElement`) and storage upload orchestration, which reflects media/upload integration behavior, not generic library utility."
+      ],
+      "suggestion": "Split `src/shared/lib` into clearer ownership zones (for example `shared/lib/utils` for pure functions and `shared/media` or `shared/upload` for browser/storage workflows), then migrate imports to those explicit boundaries.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

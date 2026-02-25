@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getRandomDummyName } from '../dummyNames';
+import { getRandomDummyName } from '../seeding/dummyNames';
 
 describe('getRandomDummyName', () => {
   it('returns a string', () => {

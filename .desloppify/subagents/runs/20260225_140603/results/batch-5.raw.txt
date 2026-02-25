@@ -1,0 +1,93 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 5,
+  "assessments": {
+    "package_organization": 78.5
+  },
+  "dimension_notes": {
+    "package_organization": {
+      "evidence": [
+        "`src/shared/hooks/useDeleteGenerationWithConfirm.tsx` and `src/shared/hooks/useDerivedItems.ts` are deprecated compatibility shims that only re-export domain hooks, leaving legacy entrypoints in a broad shared package instead of the owning domain package.",
+        "Repository imports now target domain locations (`@/domains/generation/hooks/...`) while the shared-hook shim files remain in place, indicating migration residue and blurred package boundaries.",
+        "`src/shared/hooks/useEditToolMediaPersistence.ts` is edit-media/edit-video specific (tool settings + generations fetch) but sits in the top-level `src/shared/hooks/` bucket; its test is also in the flat `src/shared/hooks/__tests__/` root.",
+        "Holistic structure shows flat overload in `src/shared/lib/` (70 production files) and the assigned files there (`dragDrop.ts`, `dragDropUpload.ts`, `dummyNames.ts`) span unrelated concerns, reducing navigability and ownership clarity."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "package_organization",
+      "identifier": "legacy_shared_hook_shims_blur_domain_boundary",
+      "summary": "Deprecated shared-hook shim files keep stale package boundaries after generation-hook migration.",
+      "related_files": [
+        "src/shared/hooks/useDeleteGenerationWithConfirm.tsx",
+        "src/shared/hooks/useDerivedItems.ts",
+        "src/shared/hooks/__tests__/useDeleteGenerationWithConfirm.test.ts"
+      ],
+      "evidence": [
+        "`src/shared/hooks/useDeleteGenerationWithConfirm.tsx` only re-exports `@/domains/generation/hooks/useDeleteGenerationWithConfirm` and is marked deprecated.",
+        "`src/shared/hooks/useDerivedItems.ts` only re-exports `@/domains/generation/hooks/useDerivedItems` and is marked deprecated.",
+        "Current non-test imports use domain hook paths, so the shared-package shim placement is now migration residue rather than active ownership."
+      ],
+      "suggestion": "Staged reorg plan: (1) move shim consumer tests to domain-owned test locations first (or retarget imports) so coverage follows ownership; (2) update all remaining imports from `@/shared/hooks/useDeleteGenerationWithConfirm` and `@/shared/hooks/useDerivedItems` to domain paths with `rg -n \"@/shared/hooks/(useDeleteGenerationWithConfirm|useDerivedItems)\" src`; (3) delete the two shim files once search returns no runtime consumers; (4) validate with `pnpm vitest src/shared/hooks/__tests__/useDeleteGenerationWithConfirm.test.ts` (or updated domain test path) and a full typecheck/lint run.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "migration_residue_in_shared_entrypoints"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "edit_media_hook_in_root_hooks_bucket",
+      "summary": "Edit-media persistence hook is placed in top-level shared hooks instead of media-scoped package.",
+      "related_files": [
+        "src/shared/hooks/useEditToolMediaPersistence.ts",
+        "src/shared/hooks/__tests__/useEditToolMediaPersistence.test.ts"
+      ],
+      "evidence": [
+        "The hook is explicitly for edit tool media persistence and handles edit-flow-specific settings (`settingsToolId`, `lastEditedMediaId`, editor close behavior), not generic cross-domain hook behavior.",
+        "Its test is located in flat `src/shared/hooks/__tests__/` rather than a media-scoped test folder, so package ownership is split.",
+        "The codebase already has `src/shared/hooks/media/`, indicating an existing boundary this hook should align with."
+      ],
+      "suggestion": "Staged reorg plan: (1) move `src/shared/hooks/useEditToolMediaPersistence.ts` to `src/shared/hooks/media/useEditToolMediaPersistence.ts`; (2) move its test to `src/shared/hooks/__tests__/media/useEditToolMediaPersistence.test.ts` (or mirror the production folder with a colocated media test folder); (3) add a temporary re-export stub at the old path only if required for incremental migration; (4) update imports via `rg -n \"@/shared/hooks/useEditToolMediaPersistence\" src` and replace with the media path; (5) validate with `pnpm vitest src/shared/hooks/__tests__/media/useEditToolMediaPersistence.test.ts` plus `pnpm tsc --noEmit`.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "flat_shared_hooks_bucket"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "shared_lib_flat_bucket_mixes_dnd_and_dummy_naming",
+      "summary": "Flat `shared/lib` placement mixes drag-drop flow code with unrelated dummy-name utility.",
+      "related_files": [
+        "src/shared/lib/dragDrop.ts",
+        "src/shared/lib/dragDropUpload.ts",
+        "src/shared/lib/dummyNames.ts"
+      ],
+      "evidence": [
+        "Holistic structure reports `src/shared/lib/` at 70 production files (well above the >10 mixed-concern threshold), indicating a flat utility bucket.",
+        "`dragDrop.ts` contains cross-component generation DnD protocol logic, `dragDropUpload.ts` is edit-flow upload handler creation, and `dummyNames.ts` is sample name generation; these are distinct ownership areas in one broad package.",
+        "The filename/function pair in `dummyNames.ts` suggests seed/mock/demo concern mixed into runtime utility namespace, increasing discovery cost."
+      ],
+      "suggestion": "Staged reorg plan: (1) create purpose folders under `src/shared/lib/` such as `dnd/` for drag-drop protocol (`dragDrop.ts`, `dragDropUpload.ts`) and `seeding/` or `fixtures/` for `dummyNames.ts` if it is runtime-owned; (2) move files with `git mv` in this order: drag-drop files first, then dummy-name utility; (3) update imports with `rg -n \"@/shared/lib/(dragDrop|dragDropUpload|dummyNames)\" src`; (4) run validation `pnpm vitest src/shared/lib/__tests__/dragDrop.test.ts src/shared/lib/__tests__/dragDropUpload.test.ts src/shared/lib/__tests__/dummyNames.test.ts` and project typecheck.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "flat_shared_lib_bucket"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Incremental migrations retained compatibility entrypoints in `shared/hooks` after ownership moved to `domains/generation`.",
+      "Top-level `shared/hooks` and `shared/lib` directories are acting as catch-all buckets, so concern-based boundaries are not enforced."
+    ],
+    "likely_symptoms": [
+      "legacy_shared_hook_shims_blur_domain_boundary",
+      "edit_media_hook_in_root_hooks_bucket",
+      "shared_lib_flat_bucket_mixes_dnd_and_dummy_naming"
+    ],
+    "possible_false_positives": []
+  }
+}

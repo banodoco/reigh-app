@@ -1,14 +1,39 @@
 import {
-  createTask,
   TaskValidationError,
-  resolveProjectResolution
+  resolveProjectResolution,
+  resolveSeed32Bit,
 } from "../taskCreation";
 import type { TaskCreationResult } from "../taskCreation";
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient } from '@/integrations/supabase/client';
 import { PhaseConfig, buildBasicModePhaseConfig } from '@/shared/types/phaseConfig';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
 import type { PathLoraConfig } from '@/shared/types/lora';
 import { ensureShotParentGenerationId } from './shotParentGeneration';
+import { normalizeStructureGuidance } from '@/shared/lib/tasks/structureGuidance';
+import { stripLegacyStructureParams } from './legacyStructureParams';
+import { buildIndividualSegmentFamilyContract } from './taskFamilyContracts';
+import { composeTaskFamilyPayload } from './taskPayloadContract';
+import { composeTaskRequest } from './taskRequestComposer';
+import { runTaskCreationPipeline } from './taskCreatorPipeline';
+import {
+  buildTaskPayloadSnapshot,
+  resolveSnapshotOrchestratorTaskId,
+  resolveSnapshotRunId,
+} from './taskPayloadSnapshot';
+import { readTravelContractData } from './travelContractData';
+import {
+  toRecordOrEmpty,
+  asNumber,
+  asString,
+  firstDefined,
+  resolveNumberCandidate,
+  resolveStringCandidate,
+  type UnknownRecord,
+} from './taskParamParsers';
+import { composeOptionalFields, resolveByPrecedence } from './taskFieldPolicy';
+import {
+  extractOrchestratorTaskIdParam,
+  extractRunIdParam,
+} from './taskParamContract';
 
 /**
  * Interface for individual travel segment regeneration task parameters
@@ -69,14 +94,11 @@ interface IndividualTravelSegmentParams {
   // Optional generation name for the variant
   generation_name?: string;
 
+  // Resolved width/height string from upstream task payloads.
+  parsed_resolution_wh?: string;
+
   // Whether the new variant should be set as primary (default: true for backward compatibility)
   make_primary_variant?: boolean;
-
-  // Smooth continuations (SVI) - for smoother transitions between segments
-  use_svi?: boolean;
-  svi_predecessor_video_url?: string;
-  svi_strength_1?: number;
-  svi_strength_2?: number;
 
   // Segment position flags (auto-detected from end_image_url for trailing segments)
   is_last_segment?: boolean;
@@ -132,32 +154,6 @@ function validateIndividualTravelSegmentParams(params: IndividualTravelSegmentPa
  * Matches the exact structure of travel_segment tasks
  */
 const DEFAULT_I2V_MODEL = "wan_2_2_i2v_lightning_baseline_2_2_2";
-const STRUCTURE_PREPROCESSING_MAP: Record<string, string> = {
-  flow: 'flow',
-  canny: 'canny',
-  depth: 'depth',
-  raw: 'none',
-};
-const LEGACY_STRUCTURE_PARAMS = [
-  'structure_type',
-  'structure_videos',
-  'structure_video_path',
-  'structure_video_treatment',
-  'structure_video_motion_strength',
-  'structure_video_type',
-  'structure_canny_intensity',
-  'structure_depth_contrast',
-  'structure_guidance_video_url',
-  'structure_guidance_frame_offset',
-  'use_uni3c',
-  'uni3c_guide_video',
-  'uni3c_strength',
-  'uni3c_start_percent',
-  'uni3c_end_percent',
-  'uni3c_guidance_frame_offset',
-] as const;
-
-type UnknownRecord = Record<string, unknown>;
 
 interface SegmentBuildState {
   orig: UnknownRecord;
@@ -188,34 +184,6 @@ interface SegmentBuildState {
   segmentFramesExpanded: unknown;
   frameOverlapExpanded: unknown;
   structureGuidance?: UnknownRecord;
-}
-
-function toRecordOrEmpty(value: unknown): UnknownRecord {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? value
-    : {};
-}
-
-function asRecordArray(value: unknown): UnknownRecord[] | undefined {
-  if (!Array.isArray(value)) {
-    return undefined;
-  }
-  return value
-    .filter((item): item is UnknownRecord => !!item && typeof item === 'object' && !Array.isArray(item));
-}
-
-function asNumber(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value)
-    ? value
-    : undefined;
-}
-
-function asString(value: unknown): string | undefined {
-  return typeof value === 'string' ? value : undefined;
-}
-
-function asBoolean(value: unknown): boolean | undefined {
-  return typeof value === 'boolean' ? value : undefined;
 }
 
 function asMotionMode(value: unknown): SegmentBuildState['motionMode'] | undefined {
@@ -266,9 +234,12 @@ function resolveFinalSeed(
     ?? asNumber(orchDetails.seed_base)
     ?? 789;
 
-  return params.random_seed
-    ? Math.floor(Math.random() * 1000000)
-    : (params.seed ?? baseSeed);
+  return resolveSeed32Bit({
+    seed: params.seed,
+    randomize: params.random_seed === true,
+    fallbackSeed: baseSeed,
+    field: 'seed',
+  });
 }
 
 function mergeAdditionalLoraMap(
@@ -286,7 +257,8 @@ function mergeAdditionalLoraMap(
 function buildAdditionalLoras(
   params: IndividualTravelSegmentParams,
   orig: UnknownRecord,
-  orchDetails: UnknownRecord
+  orchDetails: UnknownRecord,
+  contractAdditionalLoras?: UnknownRecord,
 ): Record<string, number> {
   const additionalLoras: Record<string, number> = {};
 
@@ -297,6 +269,9 @@ function buildAdditionalLoras(
     return additionalLoras;
   }
 
+  if (contractAdditionalLoras) {
+    mergeAdditionalLoraMap(additionalLoras, contractAdditionalLoras);
+  }
   mergeAdditionalLoraMap(additionalLoras, orig.additional_loras);
   if (Object.keys(additionalLoras).length === 0) {
     mergeAdditionalLoraMap(additionalLoras, orchDetails.additional_loras);
@@ -304,66 +279,18 @@ function buildAdditionalLoras(
   return additionalLoras;
 }
 
-function buildStructureGuidanceFromVideos(
-  videos: UnknownRecord[],
-  defaultUni3cEndPercent: number
-): UnknownRecord {
-  const firstVideo = videos[0];
-  const structureType = asString(firstVideo.structure_type) ?? 'flow';
-  const isUni3c = structureType === 'uni3c';
-
-  const cleanedVideos = videos.map((video) => ({
-    path: video.path,
-    start_frame: video.start_frame ?? 0,
-    end_frame: video.end_frame ?? null,
-    treatment: video.treatment ?? 'adjust',
-  }));
-
-  const guidance: UnknownRecord = {
-    target: isUni3c ? 'uni3c' : 'vace',
-    videos: cleanedVideos,
-    strength: firstVideo.motion_strength ?? 1.0,
-  };
-
-  if (isUni3c) {
-    guidance.step_window = [
-      firstVideo.uni3c_start_percent ?? 0,
-      firstVideo.uni3c_end_percent ?? defaultUni3cEndPercent,
-    ];
-    guidance.frame_policy = 'fit';
-    guidance.zero_empty_frames = true;
-    return guidance;
-  }
-
-  guidance.preprocessing = STRUCTURE_PREPROCESSING_MAP[structureType] ?? 'flow';
-  return guidance;
-}
-
 function resolveStructureGuidance(
   params: IndividualTravelSegmentParams,
   orig: UnknownRecord,
-  orchDetails: UnknownRecord
+  orchDetails: UnknownRecord,
+  contractStructureGuidance?: UnknownRecord,
 ): UnknownRecord | undefined {
-  const existingGuidance = orig.structure_guidance ?? orchDetails.structure_guidance;
-  if (existingGuidance && typeof existingGuidance === 'object' && !Array.isArray(existingGuidance)) {
-    return existingGuidance;
-  }
-
-  const directStructureVideos = asRecordArray(params.structure_videos);
-  if (directStructureVideos?.length) {
-    return buildStructureGuidanceFromVideos(directStructureVideos, 0.1);
-  }
-
-  const legacyStructureVideos = (
-    asRecordArray(orchDetails.structure_videos)
-    ?? asRecordArray(orig.structure_videos)
-  );
-
-  if (legacyStructureVideos?.length) {
-    return buildStructureGuidanceFromVideos(legacyStructureVideos, 1.0);
-  }
-
-  return undefined;
+  return normalizeStructureGuidance({
+    structureGuidance: contractStructureGuidance ?? orig.structure_guidance ?? orchDetails.structure_guidance,
+    structureVideos: params.structure_videos ?? orchDetails.structure_videos ?? orig.structure_videos,
+    defaultVideoTreatment: 'adjust',
+    defaultUni3cEndPercent: 0.1,
+  });
 }
 
 function stripOrchestratorReferences(orchDetails: UnknownRecord): UnknownRecord {
@@ -378,26 +305,25 @@ function stripOrchestratorReferences(orchDetails: UnknownRecord): UnknownRecord 
 }
 
 function buildSegmentState(params: IndividualTravelSegmentParams): SegmentBuildState {
-  const orig = toRecordOrEmpty(params.originalParams);
-  const orchDetails = toRecordOrEmpty(orig.orchestrator_details);
+  const snapshot = buildTaskPayloadSnapshot(params.originalParams);
+  const contractData = readTravelContractData(snapshot);
+  const orig = snapshot.rawParams;
+  const orchDetails = snapshot.orchestratorDetails;
   const inputImages = buildInputImages(params);
-  const allInputImages = orchDetails.input_image_paths_resolved ?? inputImages;
+  const allInputImages = contractData.inputImages ?? inputImages;
   const finalSeed = resolveFinalSeed(params, orig, orchDetails);
-  const additionalLoras = buildAdditionalLoras(params, orig, orchDetails);
+  const additionalLoras = buildAdditionalLoras(params, orig, orchDetails, contractData.additionalLoras);
   const motionMode = (
     params.motion_mode
-    ?? asMotionMode(orig.motion_mode)
-    ?? asMotionMode(orchDetails.motion_mode)
+    ?? asMotionMode(contractData.motionMode)
     ?? 'basic'
   );
   const amountOfMotion = params.amount_of_motion
-    ?? asNumber(orig.amount_of_motion)
-    ?? asNumber(orchDetails.amount_of_motion)
+    ?? contractData.amountOfMotion
     ?? 0.5;
   const explicitPhaseConfig = (
     params.phase_config
-    ?? asPhaseConfig(orig.phase_config)
-    ?? asPhaseConfig(orchDetails.phase_config)
+    ?? asPhaseConfig(contractData.phaseConfig)
   );
   const phaseConfig = explicitPhaseConfig
     ?? buildBasicModePhaseConfig(false, amountOfMotion, params.loras ?? []);
@@ -405,8 +331,7 @@ function buildSegmentState(params: IndividualTravelSegmentParams): SegmentBuildS
     ? false
     : (
       params.advanced_mode
-      ?? asBoolean(orig.advanced_mode)
-      ?? asBoolean(orchDetails.advanced_mode)
+      ?? contractData.advancedMode
       ?? !!explicitPhaseConfig
     );
   const loraMultipliers = phaseConfig.phases.flatMap((phase) =>
@@ -415,60 +340,70 @@ function buildSegmentState(params: IndividualTravelSegmentParams): SegmentBuildS
       multiplier: typeof lora.multiplier === 'number' ? lora.multiplier : Number(lora.multiplier) || 0,
     }))
   );
-  const modelName = asString(orig.model_name)
-    ?? asString(orchDetails.model_name)
+  const modelName = contractData.modelName
     ?? DEFAULT_I2V_MODEL;
-  const flowShift = phaseConfig.flow_shift
-    ?? asNumber(orig.flow_shift)
-    ?? asNumber(orchDetails.flow_shift)
-    ?? 5;
-  const sampleSolver = phaseConfig.sample_solver
-    ?? asString(orig.sample_solver)
-    ?? asString(orchDetails.sample_solver)
-    ?? 'euler';
-  const guidanceScale = phaseConfig.phases?.[0]?.guidance_scale
-    ?? asNumber(orig.guidance_scale)
-    ?? asNumber(orchDetails.guidance_scale)
-    ?? 1;
-  const guidance2Scale = phaseConfig.phases?.[1]?.guidance_scale
-    ?? asNumber(orig.guidance2_scale)
-    ?? asNumber(orchDetails.guidance2_scale)
-    ?? 1;
-  const guidancePhases = phaseConfig.num_phases
-    ?? asNumber(orig.guidance_phases)
-    ?? asNumber(orchDetails.guidance_phases)
-    ?? 2;
+  const flowShift = resolveNumberCandidate(
+    phaseConfig.flow_shift,
+    orig.flow_shift,
+    orchDetails.flow_shift,
+  ) ?? 5;
+  const sampleSolver = resolveStringCandidate(
+    phaseConfig.sample_solver,
+    orig.sample_solver,
+    orchDetails.sample_solver,
+  ) ?? 'euler';
+  const guidanceScale = resolveNumberCandidate(
+    phaseConfig.phases?.[0]?.guidance_scale,
+    orig.guidance_scale,
+    orchDetails.guidance_scale,
+  ) ?? 1;
+  const guidance2Scale = resolveNumberCandidate(
+    phaseConfig.phases?.[1]?.guidance_scale,
+    orig.guidance2_scale,
+    orchDetails.guidance2_scale,
+  ) ?? 1;
+  const guidancePhases = resolveNumberCandidate(
+    phaseConfig.num_phases,
+    orig.guidance_phases,
+    orchDetails.guidance_phases,
+  ) ?? 2;
   const numInferenceSteps = phaseConfig.steps_per_phase
     ? phaseConfig.steps_per_phase.reduce((sum: number, steps: number) => sum + steps, 0)
     : (
-      asNumber(orig.num_inference_steps)
-      ?? asNumber(orchDetails.num_inference_steps)
+      resolveNumberCandidate(orig.num_inference_steps, orchDetails.num_inference_steps)
       ?? 6
     );
-  const modelSwitchPhase = phaseConfig.model_switch_phase
-    ?? asNumber(orig.model_switch_phase)
-    ?? asNumber(orchDetails.model_switch_phase)
-    ?? 1;
-  const switchThreshold = orig.switch_threshold ?? orchDetails.switch_threshold;
-  const rawNumFrames = params.num_frames
-    ?? asNumber(orig.num_frames)
-    ?? 49;
+  const modelSwitchPhase = resolveNumberCandidate(
+    phaseConfig.model_switch_phase,
+    orig.model_switch_phase,
+    orchDetails.model_switch_phase,
+  ) ?? 1;
+  const switchThreshold = firstDefined(orig.switch_threshold, orchDetails.switch_threshold);
+  const rawNumFrames = resolveNumberCandidate(params.num_frames, orig.num_frames) ?? 49;
   const numFrames = Math.min(rawNumFrames, MAX_SEGMENT_FRAMES);
-  const basePrompt = params.base_prompt
-    ?? asString(orig.base_prompt)
-    ?? asString(orig.prompt)
-    ?? "";
-  const negativePrompt = params.negative_prompt
-    ?? asString(orig.negative_prompt)
-    ?? "";
-  const enhancedPrompt = params.enhanced_prompt
-    ?? asString(orig.enhanced_prompt);
-  const fpsHelpers = asNumber(orig.fps_helpers)
-    ?? asNumber(orchDetails.fps_helpers)
-    ?? 16;
-  const segmentFramesExpanded = orchDetails.segment_frames_expanded;
-  const frameOverlapExpanded = orchDetails.frame_overlap_expanded;
-  const structureGuidance = resolveStructureGuidance(params, orig, orchDetails);
+  const basePrompt = resolveStringCandidate(
+    params.base_prompt,
+    contractData.prompt,
+    orig.base_prompt,
+    orig.prompt,
+  ) ?? "";
+  const negativePrompt = resolveStringCandidate(
+    params.negative_prompt,
+    contractData.negativePrompt,
+  ) ?? "";
+  const enhancedPrompt = resolveStringCandidate(
+    params.enhanced_prompt,
+    contractData.enhancedPrompt,
+  );
+  const fpsHelpers = resolveNumberCandidate(orig.fps_helpers, orchDetails.fps_helpers) ?? 16;
+  const segmentFramesExpanded = contractData.segmentFramesExpanded;
+  const frameOverlapExpanded = contractData.frameOverlapExpanded;
+  const structureGuidance = resolveStructureGuidance(
+    params,
+    orig,
+    orchDetails,
+    contractData.structureGuidance,
+  );
 
   return {
     orig,
@@ -507,6 +442,11 @@ function buildOrchestratorDetails(
   state: SegmentBuildState,
   finalResolution: string
 ): UnknownRecord {
+  const motionMode = resolveByPrecedence(
+    params.motion_mode,
+    asString(state.orchDetails.motion_mode),
+    'basic',
+  );
   const orchestratorDetails: UnknownRecord = {
     ...stripOrchestratorReferences(state.orchDetails),
     generation_source: 'individual_segment',
@@ -523,32 +463,81 @@ function buildOrchestratorDetails(
     model_switch_phase: state.modelSwitchPhase,
     additional_loras: state.additionalLoras,
     advanced_mode: state.advancedMode,
-    motion_mode: params.motion_mode ?? state.orchDetails.motion_mode ?? 'basic',
+    motion_mode: motionMode,
     amount_of_motion: state.amountOfMotion,
     parent_generation_id: params.parent_generation_id,
     fps_helpers: state.fpsHelpers,
-    ...(state.segmentFramesExpanded ? { segment_frames_expanded: state.segmentFramesExpanded } : {}),
-    ...(state.frameOverlapExpanded ? { frame_overlap_expanded: state.frameOverlapExpanded } : {}),
-    ...(state.structureGuidance ? { structure_guidance: state.structureGuidance } : {}),
+    ...composeOptionalFields([
+      {
+        key: 'segment_frames_expanded',
+        value: state.segmentFramesExpanded,
+        include: (value) => Boolean(value),
+      },
+      {
+        key: 'frame_overlap_expanded',
+        value: state.frameOverlapExpanded,
+        include: (value) => Boolean(value),
+      },
+      {
+        key: 'structure_guidance',
+        value: state.structureGuidance,
+        include: (value) => Boolean(value),
+      },
+    ]),
   };
 
-  orchestratorDetails.use_svi = false;
+  delete orchestratorDetails.use_svi;
   delete orchestratorDetails.svi_predecessor_video_url;
   delete orchestratorDetails.svi_strength_1;
   delete orchestratorDetails.svi_strength_2;
-  for (const param of LEGACY_STRUCTURE_PARAMS) {
-    delete orchestratorDetails[param];
-  }
+  stripLegacyStructureParams(orchestratorDetails);
 
   orchestratorDetails.phase_config = state.phaseConfig;
-  if (state.switchThreshold !== undefined) {
-    orchestratorDetails.switch_threshold = state.switchThreshold;
-  }
-  if (state.loraMultipliers.length > 0) {
-    orchestratorDetails.lora_multipliers = state.loraMultipliers;
-  }
+  Object.assign(
+    orchestratorDetails,
+    composeOptionalFields([
+      {
+        key: 'switch_threshold',
+        value: state.switchThreshold,
+      },
+      {
+        key: 'lora_multipliers',
+        value: state.loraMultipliers,
+        include: (value) => Array.isArray(value) && value.length > 0,
+      },
+    ]),
+  );
 
   return orchestratorDetails;
+}
+
+interface SegmentPostProcessValues {
+  motionMode: 'basic' | 'presets' | 'advanced';
+  afterFirstPostGenerationSaturation: number;
+  afterFirstPostGenerationBrightness: number;
+}
+
+function resolveSegmentPostProcessValues(
+  params: IndividualTravelSegmentParams,
+  state: SegmentBuildState,
+): SegmentPostProcessValues {
+  return {
+    motionMode: resolveByPrecedence(
+      params.motion_mode,
+      asMotionMode(state.orchDetails.motion_mode),
+      'basic',
+    ),
+    afterFirstPostGenerationSaturation: resolveByPrecedence(
+      asNumber(state.orig.after_first_post_generation_saturation),
+      asNumber(state.orchDetails.after_first_post_generation_saturation),
+      1,
+    ),
+    afterFirstPostGenerationBrightness: resolveByPrecedence(
+      asNumber(state.orig.after_first_post_generation_brightness),
+      asNumber(state.orchDetails.after_first_post_generation_brightness),
+      0,
+    ),
+  };
 }
 
 function buildTaskParamsPayload(
@@ -557,6 +546,8 @@ function buildTaskParamsPayload(
   finalResolution: string,
   orchestratorDetails: UnknownRecord
 ): UnknownRecord {
+  const segmentPostProcess = resolveSegmentPostProcessValues(params, state);
+
   const taskParams: UnknownRecord = {
     flow_shift: state.flowShift,
     lora_names: state.orig.lora_names || state.orchDetails.lora_names || [],
@@ -564,14 +555,12 @@ function buildTaskParamsPayload(
     project_id: params.project_id,
     shot_id: params.shot_id,
     base_prompt: state.basePrompt,
-    ...(state.enhancedPrompt ? { enhanced_prompt: state.enhancedPrompt } : {}),
     fps_helpers: state.orig.fps_helpers ?? state.orchDetails.fps_helpers ?? 16,
     seed_to_use: state.finalSeed,
     cfg_zero_step: state.orig.cfg_zero_step ?? -1,
     sample_solver: state.sampleSolver,
     segment_index: params.segment_index,
     guidance_scale: state.guidanceScale,
-    ...(state.structureGuidance ? { structure_guidance: state.structureGuidance } : {}),
     cfg_star_switch: state.orig.cfg_star_switch ?? 0,
     guidance2_scale: state.guidance2Scale,
     guidance_phases: state.guidancePhases,
@@ -591,20 +580,47 @@ function buildTaskParamsPayload(
     parent_generation_id: params.parent_generation_id,
     child_generation_id: params.child_generation_id,
     input_image_paths_resolved: state.inputImages,
-    ...(params.start_image_generation_id && { start_image_generation_id: params.start_image_generation_id }),
-    ...(params.end_image_generation_id && { end_image_generation_id: params.end_image_generation_id }),
-    ...(params.pair_shot_generation_id && { pair_shot_generation_id: params.pair_shot_generation_id }),
-    after_first_post_generation_saturation: state.orig.after_first_post_generation_saturation
-      ?? state.orchDetails.after_first_post_generation_saturation
-      ?? 1,
-    after_first_post_generation_brightness: state.orig.after_first_post_generation_brightness
-      ?? state.orchDetails.after_first_post_generation_brightness
-      ?? 0,
+    after_first_post_generation_saturation: segmentPostProcess.afterFirstPostGenerationSaturation,
+    after_first_post_generation_brightness: segmentPostProcess.afterFirstPostGenerationBrightness,
+    motion_mode: segmentPostProcess.motionMode,
   };
 
-  if (params.generation_name) {
-    taskParams.generation_name = params.generation_name;
-  }
+  Object.assign(
+    taskParams,
+    composeOptionalFields([
+      {
+        key: 'enhanced_prompt',
+        value: state.enhancedPrompt,
+        include: (value) => typeof value === 'string' && value.length > 0,
+      },
+      {
+        key: 'structure_guidance',
+        value: state.structureGuidance,
+        include: (value) => Boolean(value),
+      },
+      {
+        key: 'start_image_generation_id',
+        value: params.start_image_generation_id,
+        include: (value) => typeof value === 'string' && value.length > 0,
+      },
+      {
+        key: 'end_image_generation_id',
+        value: params.end_image_generation_id,
+        include: (value) => typeof value === 'string' && value.length > 0,
+      },
+      {
+        key: 'pair_shot_generation_id',
+        value: params.pair_shot_generation_id,
+        include: (value) => typeof value === 'string' && value.length > 0,
+      },
+      {
+        key: 'generation_name',
+        value: params.generation_name,
+        include: (value) => typeof value === 'string' && value.length > 0,
+      },
+    ]),
+  );
+
   taskParams.make_primary_variant = params.make_primary_variant ?? true;
 
   return taskParams;
@@ -614,37 +630,70 @@ function buildIndividualSegmentParamsPayload(
   params: IndividualTravelSegmentParams,
   state: SegmentBuildState
 ): UnknownRecord {
+  const segmentPostProcess = resolveSegmentPostProcessValues(params, state);
+
   const individualSegmentParams: UnknownRecord = {
     input_image_paths_resolved: state.inputImages,
     start_image_url: params.start_image_url,
-    ...(params.end_image_url && { end_image_url: params.end_image_url }),
-    ...(params.start_image_generation_id && { start_image_generation_id: params.start_image_generation_id }),
-    ...(params.end_image_generation_id && { end_image_generation_id: params.end_image_generation_id }),
-    ...(params.pair_shot_generation_id && { pair_shot_generation_id: params.pair_shot_generation_id }),
-    ...(params.start_image_variant_id && { start_image_variant_id: params.start_image_variant_id }),
-    ...(params.end_image_variant_id && { end_image_variant_id: params.end_image_variant_id }),
     base_prompt: state.basePrompt,
-    ...(state.enhancedPrompt ? { enhanced_prompt: state.enhancedPrompt } : {}),
     negative_prompt: state.negativePrompt,
     num_frames: state.numFrames,
     seed_to_use: state.finalSeed,
     random_seed: params.random_seed ?? false,
     amount_of_motion: state.amountOfMotion,
-    motion_mode: params.motion_mode ?? state.orchDetails.motion_mode ?? 'basic',
+    motion_mode: segmentPostProcess.motionMode,
     advanced_mode: state.advancedMode,
     additional_loras: state.additionalLoras,
-    after_first_post_generation_saturation: state.orig.after_first_post_generation_saturation
-      ?? state.orchDetails.after_first_post_generation_saturation
-      ?? 1,
-    after_first_post_generation_brightness: state.orig.after_first_post_generation_brightness
-      ?? state.orchDetails.after_first_post_generation_brightness
-      ?? 0,
+    after_first_post_generation_saturation: segmentPostProcess.afterFirstPostGenerationSaturation,
+    after_first_post_generation_brightness: segmentPostProcess.afterFirstPostGenerationBrightness,
     phase_config: state.phaseConfig,
   };
 
-  if (params.selected_phase_preset_id) {
-    individualSegmentParams.selected_phase_preset_id = params.selected_phase_preset_id;
-  }
+  Object.assign(
+    individualSegmentParams,
+    composeOptionalFields([
+      {
+        key: 'end_image_url',
+        value: params.end_image_url,
+        include: (value) => typeof value === 'string' && value.length > 0,
+      },
+      {
+        key: 'start_image_generation_id',
+        value: params.start_image_generation_id,
+        include: (value) => typeof value === 'string' && value.length > 0,
+      },
+      {
+        key: 'end_image_generation_id',
+        value: params.end_image_generation_id,
+        include: (value) => typeof value === 'string' && value.length > 0,
+      },
+      {
+        key: 'pair_shot_generation_id',
+        value: params.pair_shot_generation_id,
+        include: (value) => typeof value === 'string' && value.length > 0,
+      },
+      {
+        key: 'start_image_variant_id',
+        value: params.start_image_variant_id,
+        include: (value) => typeof value === 'string' && value.length > 0,
+      },
+      {
+        key: 'end_image_variant_id',
+        value: params.end_image_variant_id,
+        include: (value) => typeof value === 'string' && value.length > 0,
+      },
+      {
+        key: 'enhanced_prompt',
+        value: state.enhancedPrompt,
+        include: (value) => typeof value === 'string' && value.length > 0,
+      },
+      {
+        key: 'selected_phase_preset_id',
+        value: params.selected_phase_preset_id,
+        include: (value) => typeof value === 'string' && value.length > 0,
+      },
+    ]),
+  );
 
   return individualSegmentParams;
 }
@@ -655,7 +704,67 @@ function buildIndividualTravelSegmentParams(
 ): Record<string, unknown> {
   const state = buildSegmentState(params);
   const orchestratorDetails = buildOrchestratorDetails(params, state, finalResolution);
-  const taskParams = buildTaskParamsPayload(params, state, finalResolution, orchestratorDetails);
+  const sourceSnapshot = buildTaskPayloadSnapshot(params.originalParams);
+  const legacyContractTaskId = extractOrchestratorTaskIdParam(params.originalParams);
+  const legacyRunId = extractRunIdParam(params.originalParams);
+  const orchestratorTaskId = resolveSnapshotOrchestratorTaskId(sourceSnapshot)
+    ?? legacyContractTaskId
+    ?? asString(state.orchDetails.orchestrator_task_id)
+    ?? asString(state.orig.orchestrator_task_id_ref);
+  const runId = resolveSnapshotRunId(sourceSnapshot)
+    ?? legacyRunId
+    ?? asString(state.orchDetails.run_id)
+    ?? asString(state.orig.run_id);
+
+  const hasPairShotGenerationId = Boolean(
+    params.pair_shot_generation_id
+    || params.start_image_variant_id
+    || params.end_image_variant_id,
+  );
+  const segmentRegenerationMode = hasPairShotGenerationId
+    ? 'segment_regen_from_pair'
+    : 'segment_regen_from_order';
+  const generationRouting = params.child_generation_id
+    ? 'variant_child'
+    : 'child_generation';
+
+  const familyContract = buildIndividualSegmentFamilyContract({
+    segmentRegenerationMode,
+    generationRouting,
+    segmentIndex: params.segment_index,
+    hasEndImage: Boolean(params.end_image_url),
+    hasPairShotGenerationId,
+  });
+
+  const composedPayload = composeTaskFamilyPayload({
+    taskFamily: 'individual_travel_segment',
+    orchestratorDetails,
+    orchestrationInput: {
+      taskFamily: 'individual_travel_segment',
+      orchestratorTaskId,
+      runId,
+      parentGenerationId: params.parent_generation_id,
+      childGenerationId: params.child_generation_id,
+      childOrder: params.segment_index,
+      shotId: params.shot_id,
+      generationRouting,
+      siblingLookup: runId ? 'run_id' : 'orchestrator_task_id',
+      segmentRegenerationMode,
+    },
+    taskViewInput: {
+      inputImages: state.inputImages,
+      prompt: state.basePrompt,
+      enhancedPrompt: state.enhancedPrompt,
+      negativePrompt: state.negativePrompt,
+      modelName: state.modelName,
+      resolution: finalResolution,
+    },
+    familyContract,
+  });
+  const taskParams = {
+    ...buildTaskParamsPayload(params, state, finalResolution, orchestratorDetails),
+    ...composedPayload,
+  };
   taskParams.individual_segment_params = buildIndividualSegmentParamsPayload(params, state);
   return taskParams;
 }
@@ -671,95 +780,91 @@ function buildIndividualTravelSegmentParams(
  * @returns Promise resolving to the created task
  */
 export async function createIndividualTravelSegmentTask(params: IndividualTravelSegmentParams): Promise<TaskCreationResult> {
-  try {
-    // 1. Validate parameters
-    validateIndividualTravelSegmentParams(params);
+  return runTaskCreationPipeline({
+    params,
+    context: 'IndividualTravelSegment',
+    validate: validateIndividualTravelSegmentParams,
+    buildTaskRequest: async (requestParams) => {
+      const supabase = getSupabaseClient();
 
-    // 2. Ensure we have a canonical parent generation for this shot.
-    // If one already exists, reuse it. If none exists yet, create exactly one.
-    const effectiveParentGenerationId = await ensureShotParentGenerationId({
-      projectId: params.project_id,
-      shotId: params.shot_id,
-      parentGenerationId: params.parent_generation_id,
-      context: 'IndividualTravelSegment',
-    });
+      const effectiveParentGenerationId = await ensureShotParentGenerationId({
+        projectId: requestParams.project_id,
+        shotId: requestParams.shot_id,
+        parentGenerationId: requestParams.parent_generation_id,
+        context: 'IndividualTravelSegment',
+      });
 
-    // 3. Look up existing child to create variant on
-    // Priority: pair_shot_generation_id match > child_order match
-    // This ensures we regenerate the correct video even if timeline was reordered
-    let effectiveChildGenerationId = params.child_generation_id;
-    
-    if (!effectiveChildGenerationId && effectiveParentGenerationId) {
-      // Strategy 1: Look for child with matching pair_shot_generation_id (most accurate)
-      // Query the FK column (source of truth with referential integrity)
-      if (params.pair_shot_generation_id) {
-        const { data: childByPairId, error: pairIdError } = await supabase
-          .from('generations')
-          .select('id')
-          .eq('parent_generation_id', effectiveParentGenerationId)
-          .eq('pair_shot_generation_id', params.pair_shot_generation_id)
-          .limit(1)
-          .maybeSingle();
+      let effectiveChildGenerationId = requestParams.child_generation_id;
 
-        if (!pairIdError && childByPairId) {
-          effectiveChildGenerationId = childByPairId.id;
+      if (!effectiveChildGenerationId && effectiveParentGenerationId) {
+        if (requestParams.pair_shot_generation_id) {
+          const { data: childByPairId, error: pairIdError } = await supabase
+            .from('generations')
+            .select('id')
+            .eq('parent_generation_id', effectiveParentGenerationId)
+            .eq('pair_shot_generation_id', requestParams.pair_shot_generation_id)
+            .limit(1)
+            .maybeSingle();
+
+          if (pairIdError) {
+            throw new Error(
+              `IndividualTravelSegment.lookupChildByPairId failed: ${pairIdError.message}`,
+            );
+          }
+
+          if (childByPairId) {
+            effectiveChildGenerationId = childByPairId.id;
+          }
+        }
+
+        if (!effectiveChildGenerationId && requestParams.segment_index !== undefined && !requestParams.pair_shot_generation_id) {
+          const { data: childByOrder, error: orderError } = await supabase
+            .from('generations')
+            .select('id')
+            .eq('parent_generation_id', effectiveParentGenerationId)
+            .eq('child_order', requestParams.segment_index)
+            .limit(1)
+            .maybeSingle();
+
+          if (orderError) {
+            throw new Error(
+              `IndividualTravelSegment.lookupChildByOrder failed: ${orderError.message}`,
+            );
+          }
+
+          if (childByOrder) {
+            effectiveChildGenerationId = childByOrder.id;
+          }
         }
       }
 
-      // Strategy 2: Fallback to child_order match (legacy ONLY - skip if pair_shot_generation_id was provided)
-      // If pair_shot_generation_id was provided but no match found, we want a NEW child for that pair,
-      // not a variant on some unrelated video that happens to have the same child_order
-      if (!effectiveChildGenerationId && params.segment_index !== undefined && !params.pair_shot_generation_id) {
-        const { data: childByOrder, error: orderError } = await supabase
-          .from('generations')
-          .select('id')
-          .eq('parent_generation_id', effectiveParentGenerationId)
-          .eq('child_order', params.segment_index)
-          .limit(1)
-          .maybeSingle();
+      const paramsWithIds = {
+        ...requestParams,
+        parent_generation_id: effectiveParentGenerationId,
+        child_generation_id: effectiveChildGenerationId,
+      };
 
-        if (!orderError && childByOrder) {
-          effectiveChildGenerationId = childByOrder.id;
-        }
-      }
-    }
-    
-    // Update params with the effective IDs
-    const paramsWithIds = {
-      ...params,
-      parent_generation_id: effectiveParentGenerationId,
-      child_generation_id: effectiveChildGenerationId,
-    };
+      const directResolution = asString(requestParams.parsed_resolution_wh);
+      const originalParams = toRecordOrEmpty(requestParams.originalParams);
+      const originalOrchestratorDetails = toRecordOrEmpty(originalParams.orchestrator_details);
+      const origResolutionValue =
+        originalParams.parsed_resolution_wh ?? originalOrchestratorDetails.parsed_resolution_wh;
+      const origResolution = directResolution
+        ?? (typeof origResolutionValue === 'string' ? origResolutionValue : undefined);
+      const { resolution: finalResolution } = await resolveProjectResolution(
+        requestParams.project_id,
+        origResolution,
+      );
 
-    // 4. Resolve resolution: direct param (from form/shot) > originalParams > project settings
-    const directResolution = asString((params as unknown as Record<string, unknown>).parsed_resolution_wh);
-    const originalParams = toRecordOrEmpty(params.originalParams);
-    const originalOrchestratorDetails = toRecordOrEmpty(originalParams.orchestrator_details);
-    const origResolutionValue =
-      originalParams.parsed_resolution_wh ?? originalOrchestratorDetails.parsed_resolution_wh;
-    const origResolution = directResolution
-      ?? (typeof origResolutionValue === 'string' ? origResolutionValue : undefined);
-    const { resolution: finalResolution } = await resolveProjectResolution(
-      params.project_id,
-      origResolution
-    );
+      const taskParams = buildIndividualTravelSegmentParams(paramsWithIds, finalResolution);
 
-    // 5. Build task params matching travel_segment structure
-    const taskParams = buildIndividualTravelSegmentParams(paramsWithIds, finalResolution);
-
-    // 6. Create task using unified create-task function
-    const result = await createTask({
-      project_id: params.project_id,
-      task_type: 'individual_travel_segment',
-      params: taskParams
-    });
-
-    return result;
-
-  } catch (error) {
-    handleError(error, { context: 'IndividualTravelSegment', showToast: false });
-    throw error;
-  }
+      return composeTaskRequest({
+        source: requestParams,
+        taskType: 'individual_travel_segment',
+        params: taskParams,
+      });
+    },
+  });
 }
 
 // TaskValidationError is used internally - import from taskCreation.ts if needed externally

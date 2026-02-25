@@ -1,11 +1,11 @@
 import React, { useState, useCallback } from 'react';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 import { DerivedNavContext } from '../types';
 import { transformExternalGeneration } from '../utils/external-generation-utils';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { useAddImageToShot, useAddImageToShotWithoutPosition } from '@/shared/hooks/shots';
 import { useProject } from '@/shared/contexts/ProjectContext';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { useAppEventListener } from '@/shared/lib/typedEvents';
 import { expandShotData } from '@/shared/lib/shotData';
 
@@ -52,8 +52,7 @@ export function useExternalGenerations({
       if (upscaleCompleted && (isInExternal || isInTempDerived)) {
 
         try {
-          const { data, error } = await supabase
-            .from('generations')
+          const { data, error } = await supabase().from('generations')
             .select('*')
             .eq('id', generationId)
             .single();
@@ -78,7 +77,7 @@ export function useExternalGenerations({
             }
           }
         } catch (err) {
-          handleError(err, { context: 'useExternalGenerations', showToast: false });
+          normalizeAndPresentError(err, { context: 'useExternalGenerations', showToast: false });
         }
       }
     }
@@ -102,7 +101,7 @@ export function useExternalGenerations({
       });
       return true;
     } catch (error) {
-      handleError(error, { context: 'useExternalGenerations', toastTitle: 'Failed to add to shot' });
+      normalizeAndPresentError(error, { context: 'useExternalGenerations', toastTitle: 'Failed to add to shot' });
       return false;
     }
   }, [externalGenLightboxSelectedShot, selectedProjectId, addToShotMutation]);
@@ -122,7 +121,7 @@ export function useExternalGenerations({
       });
       return true;
     } catch (error) {
-      handleError(error, { context: 'useExternalGenerations', toastTitle: 'Failed to add to shot' });
+      normalizeAndPresentError(error, { context: 'useExternalGenerations', toastTitle: 'Failed to add to shot' });
       return false;
     }
   }, [externalGenLightboxSelectedShot, selectedProjectId, addToShotWithoutPositionMutation]);
@@ -219,8 +218,7 @@ export function useExternalGenerations({
     }
     
     try {
-      const { data, error } = await supabase
-        .from('generations')
+      const { data, error } = await supabase().from('generations')
         .select('*')
         .eq('id', generationId)
         .single();
@@ -264,7 +262,7 @@ export function useExternalGenerations({
         }
       }
     } catch (error) {
-      handleError(error, { context: 'useExternalGenerations', toastTitle: 'Failed to load generation' });
+      normalizeAndPresentError(error, { context: 'useExternalGenerations', toastTitle: 'Failed to load generation' });
     }
   }, [optimisticOrder, images, externalGenerations, tempDerivedGenerations, derivedNavContext, setLightboxIndexRef]);
   

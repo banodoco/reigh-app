@@ -4,9 +4,9 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { invalidateGenerationsSync } from '@/shared/hooks/invalidation/useGenerationInvalidation';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { useCreateShot } from './useShotsCrud';
@@ -33,8 +33,7 @@ export const useCreateShotWithImage = () => {
       shotName: string;
       generationId: string;
     }) => {
-      const { data, error } = await supabase
-        .rpc('create_shot_with_image', {
+      const { data, error } = await supabase().rpc('create_shot_with_image', {
           p_project_id: projectId,
           p_shot_name: shotName,
           p_generation_id: generationId,
@@ -77,7 +76,7 @@ export const useCreateShotWithImage = () => {
     },
 
     onError: (error: Error) => {
-      handleError(error, { context: 'useShotCreation', toastTitle: 'Failed to create shot with image' });
+      normalizeAndPresentError(error, { context: 'useShotCreation', toastTitle: 'Failed to create shot with image' });
     },
   });
 };
@@ -104,7 +103,7 @@ export const useHandleExternalImageDrop = () => {
           addImageToShotWithoutPosition: addImageToShotWithoutPositionMutation.mutateAsync,
         });
       } catch (error) {
-        handleError(error, { context: 'useShotCreation', toastTitle: 'Failed to process dropped image(s)' });
+        normalizeAndPresentError(error, { context: 'useShotCreation', toastTitle: 'Failed to process dropped image(s)' });
         return null;
       }
     },

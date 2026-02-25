@@ -1,0 +1,76 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 7,
+  "assessments": {
+    "type_safety": 74.0
+  },
+  "dimension_notes": {
+    "type_safety": {
+      "evidence": [
+        "`GenerationRow.metadata` is typed as `GenerationMetadata | Record<string, unknown>` (`src/domains/generation/types/generationRow.ts:21`), and consumers repeatedly downcast it (`src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts:305`, `:488`; `src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts:71`, `:90`).",
+        "`calculate-task-cost` coerces a DB row with `task as unknown as TaskWithProject | null` (`supabase/functions/calculate-task-cost/index.ts:227`) and then dereferences `typedTask.projects.user_id` without validating join shape/nullability (`:359`, `:428`, `:442`).",
+        "Edge JSON parsing advertises strict object output (`parseJsonBodyStrict`) but `parseJsonBody` always normalizes non-object JSON to `{}` via `asObject` (`supabase/functions/_shared/edgeRequest.ts:64-67`, `:97`, `:126-130`), weakening declared request-body guarantees."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "type_safety",
+      "identifier": "generation_metadata_contract_dilution",
+      "summary": "Core generation metadata type is too loose, forcing unsafe casts at call sites.",
+      "related_files": [
+        "src/domains/generation/types/generationRow.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts"
+      ],
+      "evidence": [
+        "`GenerationRow.metadata` allows arbitrary records (`GenerationMetadata | Record<string, unknown>`), removing compile-time guarantees for known metadata keys.",
+        "Consumers recover expected fields by asserting `as Record<string, unknown>` and probing ad hoc (`useSegmentSlotMode.ts:305`, `:488`; `useShotImagesEditorCallbacks.ts:71-75`, `:90-95`).",
+        "This pattern makes metadata schema drift invisible to the compiler and shifts correctness to runtime conditionals."
+      ],
+      "suggestion": "Introduce a normalized metadata parser (runtime guard) that converts raw payloads to a stricter `NormalizedGenerationMetadata` type, then replace downstream `Record<string, unknown>` casts with that typed object.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "unsafe_task_join_row_cast",
+      "summary": "Billing edge function bypasses row-shape validation with a double cast and assumes nested join presence.",
+      "related_files": [
+        "supabase/functions/calculate-task-cost/index.ts",
+        "supabase/functions/complete_task/generation.ts"
+      ],
+      "evidence": [
+        "`calculate-task-cost` uses `const typedTask = task as unknown as TaskWithProject | null` (`index.ts:227`) instead of validating the query payload.",
+        "Code then assumes `typedTask.projects.user_id` exists in multiple places (`index.ts:359`, `:428`, `:442`, `:475`), which can throw if the relation is null/missing/unexpectedly shaped.",
+        "`complete_task/generation.ts` shows a safer pattern (`toGenerationTaskData`) that checks unknown input before use (`generation.ts:57-71`)."
+      ],
+      "suggestion": "Replace the double cast with a narrow function (e.g., `toTaskWithProject`) that validates required scalars and `projects.user_id`, and handle missing relation explicitly before ledger/user queries.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "strict_json_parser_coerces_invalid_shapes",
+      "summary": "Strict request parsing reports success for non-object JSON by coercing payloads to empty objects.",
+      "related_files": [
+        "supabase/functions/_shared/edgeRequest.ts",
+        "supabase/functions/_shared/edgeOperation.ts"
+      ],
+      "evidence": [
+        "`asObject` returns `{}` for any non-object JSON value (`edgeRequest.ts:64-67`).",
+        "`parseJsonBody` wraps `JSON.parse(bodyText)` with `asObject(...)` and returns `edgeSuccess` even in strict mode (`edgeRequest.ts:97`).",
+        "`parseJsonBodyStrict` then returns this coerced body as a valid parsed result (`edgeRequest.ts:126-130`), which conflicts with a strict-contract expectation."
+      ],
+      "suggestion": "In strict mode, fail closed when parsed JSON is not a plain object (return `edgeFailure`), and reserve coercion-to-`{}` behavior for explicit loose mode only.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ]
+}

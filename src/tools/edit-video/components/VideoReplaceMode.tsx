@@ -9,7 +9,7 @@
 import type { RefObject } from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { Plus } from 'lucide-react';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { VideoPortionEditor } from '@/shared/components/VideoPortionEditor';
 import { MultiPortionTimeline, type PortionSelection } from '@/shared/components/VideoPortionTimeline';
 import { DEFAULT_VACE_PHASE_CONFIG, BUILTIN_VACE_DEFAULT_ID } from '@/shared/lib/vaceDefaults';

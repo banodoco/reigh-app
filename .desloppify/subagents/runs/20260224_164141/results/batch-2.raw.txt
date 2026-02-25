@@ -1,0 +1,126 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "mid_level_elegance": 81.0,
+    "low_level_elegance": 79.0
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "A direct module cycle exists: `src/shared/components/ui/tooltip.tsx` re-exports `TouchableTooltip` from `touchableTooltip.tsx`, while `touchableTooltip.tsx` imports `{ Tooltip, TooltipContent, TooltipProvider, TooltipTrigger }` from `./tooltip`.",
+        "Boundary contract for task lineage/orchestrator IDs is duplicated across multiple shapes and paths (`params->>orchestrator_run_id`, `params->>run_id`, `params->orchestrator_details->>run_id`; plus top-level and nested `parent_generation_id` fallbacks in `generation.ts` and task builders).",
+        "Lightbox layout orchestration glue is duplicated between image and video flows: both `ImageLightbox.tsx` and `useVideoLightboxRenderModel.tsx` manually assemble near-identical `useLightboxWorkflowProps` argument bags including `shotWorkflow`, `actions`, and `buttonGroupProps`."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "`useButtonGroupProps` is a pass-through micro-wrapper that re-copies every field and keeps a long manual dependency list, adding indirection and drift risk without transforming data.",
+        "Test seam drift in `individualTravelSegment.test.ts`: it mocks `@/shared/lib/errorHandler`, `@/shared/lib/vaceDefaults`, and `@/shared/lib/toolConstants`, while the implementation imports `@/shared/lib/errorHandling/handleError` and does not depend on the other two modules.",
+        "Repeated legacy-cleanup arrays and repetitive payload-shaping internals (`LEGACY_STRUCTURE_PARAMS` / `legacyStructureParams`) increase duplication and maintenance overhead in task payload builders."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "tooltip_module_cycle",
+      "summary": "Tooltip primitives form a circular dependency between base and touch wrappers.",
+      "related_files": [
+        "src/shared/components/ui/tooltip.tsx",
+        "src/shared/components/ui/touchableTooltip.tsx"
+      ],
+      "evidence": [
+        "`tooltip.tsx` exports `TouchableTooltip` from `touchableTooltip.tsx`.",
+        "`touchableTooltip.tsx` imports tooltip primitives from `./tooltip`, creating a cycle (`tooltip -> touchableTooltip -> tooltip`).",
+        "This couples base primitive exports to a higher-level touch behavior wrapper, making module initialization/order and future refactors brittle."
+      ],
+      "suggestion": "Break the cycle by moving base tooltip primitives to a leaf module (for example `tooltipPrimitive.tsx`), import that from both files, and keep `TouchableTooltip` export in a separate barrel file.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "orchestrator_contract_fragmentation",
+      "summary": "Orchestrator and lineage handoff contracts are fragmented across multiple param paths and duplicated fallbacks.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/complete_task/generation.ts"
+      ],
+      "evidence": [
+        "`orchestrator.ts` queries siblings using three alternate locations for run/task linkage (`orchestrator_run_id`, `run_id`, `orchestrator_details.run_id`, and similar task id paths).",
+        "`generation.ts` resolves `parent_generation_id` from both top-level and `orchestrator_details.parent_generation_id`.",
+        "Task builders emit overlapping lineage fields (top-level plus nested objects like `orchestrator_details` and `individual_segment_params`) and maintain duplicated legacy parameter cleanup constants."
+      ],
+      "suggestion": "Define one canonical orchestration metadata shape and central serializer/deserializer shared by task creators and completion handlers; keep legacy fallback parsing behind a single migration adapter instead of spreading it across files.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "lightbox_workflow_glue_duplication",
+      "summary": "Image and video lightbox flows duplicate large workflow prop assembly instead of sharing one seam.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "Both image and video render models build near-identical `useLightboxWorkflowProps` inputs (`panel`, `shotWorkflow`, `actions`, `buttonGroupProps`, `contentRef`, `adjacentSegments`).",
+        "Both paths repeat the same top-right merge pattern (`...sharedState.buttonGroupProps.topRight`, then override `handleDownload`/`handleDelete`).",
+        "Shared layout consumption in `LightboxLayout.tsx` means drift in one assembly path will produce mode-specific behavior differences."
+      ],
+      "suggestion": "Extract a shared workflow-props builder that takes mode-specific deltas (image/video) and returns a normalized layout contract used by both render models.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "pass_through_button_group_wrapper",
+      "summary": "A pass-through hook copies button-group props without behavioral value, increasing internal complexity.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx"
+      ],
+      "evidence": [
+        "`useButtonGroupProps` re-emits the same fields from `topRight`, `bottomLeft`, and `bottomRight` with no normalization/validation.",
+        "The hook maintains a long manual dependency list that must stay perfectly aligned with copied fields.",
+        "Callers still mutate/override portions of the returned object later, so this wrapper does not establish a stable low-level contract."
+      ],
+      "suggestion": "Inline this object construction at the actual composition boundary or replace it with a minimal typed factory that performs real normalization/defaulting.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "stale_test_mock_contracts",
+      "summary": "The individual travel segment test mocks modules that the implementation no longer imports.",
+      "related_files": [
+        "src/shared/lib/tasks/__tests__/individualTravelSegment.test.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts"
+      ],
+      "evidence": [
+        "Implementation imports `handleError` from `@/shared/lib/errorHandling/handleError`.",
+        "Test mocks `@/shared/lib/errorHandler` instead, so the real imported error path is not controlled/asserted by the test.",
+        "Test also mocks `@/shared/lib/vaceDefaults` and `@/shared/lib/toolConstants` though the current implementation file does not import them."
+      ],
+      "suggestion": "Align mocks with actual imports and remove obsolete mocks to keep tests coupled to real boundaries; add assertions around the actual error handler invocation path if behavior matters.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    }
+  ]
+}

@@ -1,428 +1,155 @@
 {
-  "command": "next",
+  "command": "issues",
+  "action": "list",
+  "count": 20,
   "items": [
     {
-      "id": "test_coverage::src/app/App.tsx::placeholder::moduleCoverageConsolidated.test.ts",
-      "kind": "finding",
-      "tier": 2,
-      "effective_tier": 2,
-      "confidence": "high",
-      "detector": "test_coverage",
-      "file": "src/app/App.tsx",
-      "summary": "Placeholder smoke test: moduleCoverageConsolidated.test.ts relies on tautological assertions and likely inflates coverage confidence",
-      "detail": {
-        "kind": "placeholder_test",
-        "test_file": "src/moduleCoverageConsolidated.test.ts",
-        "assertions": 1,
-        "test_functions": 1,
-        "loc_weight": 9.486832980505138
-      },
-      "status": "open",
-      "primary_command": "desloppify resolve fixed \"test_coverage::src/app/App.tsx::placeholder::moduleCoverageConsolidated.test.ts\" --note \"<what you did>\" --attest \"I have actually [DESCRIBE THE CONCRETE CHANGE YOU MADE] and I am not gaming the score by resolving without fixing.\""
+      "id": "review::.::holistic::abstraction_fitness::lightbox_contract_surface_still_oversized::d58f0516",
+      "summary": "Shared lightbox abstraction remains a large multi-concern contract with high adapter overhead.",
+      "dimension": "abstraction_fitness",
+      "investigated": false
     },
     {
-      "id": "test_coverage::src/app/routes.tsx::placeholder::moduleCoverageConsolidated.test.ts",
-      "kind": "finding",
-      "tier": 2,
-      "effective_tier": 2,
-      "confidence": "high",
-      "detector": "test_coverage",
-      "file": "src/app/routes.tsx",
-      "summary": "Placeholder smoke test: moduleCoverageConsolidated.test.ts relies on tautological assertions and likely inflates coverage confidence",
-      "detail": {
-        "kind": "placeholder_test",
-        "test_file": "src/moduleCoverageConsolidated.test.ts",
-        "assertions": 1,
-        "test_functions": 1,
-        "loc_weight": 13.638181696985855
-      },
-      "status": "open",
-      "primary_command": "desloppify resolve fixed \"test_coverage::src/app/routes.tsx::placeholder::moduleCoverageConsolidated.test.ts\" --note \"<what you did>\" --attest \"I have actually [DESCRIBE THE CONCRETE CHANGE YOU MADE] and I am not gaming the score by resolving without fixing.\""
+      "id": "review::.::holistic::ai_generated_debt::commentary_and_passthrough_ceremony::b8ca79c4",
+      "summary": "Documentation and wrapper ceremony is overproduced across simple files, adding noise and maintenance cost without behavioral value.",
+      "dimension": "ai_generated_debt",
+      "investigated": false
     },
     {
-      "id": "test_coverage::src/shared/components/GenerationDetails/index.tsx::placeholder::moduleCoverageConsolidated.test.ts",
-      "kind": "finding",
-      "tier": 2,
-      "effective_tier": 2,
-      "confidence": "high",
-      "detector": "test_coverage",
-      "file": "src/shared/components/GenerationDetails/index.tsx",
-      "summary": "Placeholder smoke test: moduleCoverageConsolidated.test.ts relies on tautological assertions and likely inflates coverage confidence",
-      "detail": {
-        "kind": "placeholder_test",
-        "test_file": "src/moduleCoverageConsolidated.test.ts",
-        "assertions": 1,
-        "test_functions": 1,
-        "loc_weight": 13.416407864998739
-      },
-      "status": "open",
-      "primary_command": "desloppify resolve fixed \"test_coverage::src/shared/components/GenerationDetails/index.tsx::placeholder::moduleCoverageConsolidated.test.ts\" --note \"<what you did>\" --attest \"I have actually [DESCRIBE THE CONCRETE CHANGE YOU MADE] and I am not gaming the score by resolving without fixing.\""
+      "id": "review::.::holistic::api_surface_coherence::generation_task_cache_type_contract_drift::331659bb",
+      "summary": "Task-mapping cache code references a non-existent type name, diverging from repository API.",
+      "dimension": "api_surface_coherence",
+      "investigated": false
     },
     {
-      "id": "test_coverage::src/shared/components/GlobalHeader/index.tsx::placeholder::moduleCoverageConsolidated.test.ts",
-      "kind": "finding",
-      "tier": 2,
-      "effective_tier": 2,
-      "confidence": "high",
-      "detector": "test_coverage",
-      "file": "src/shared/components/GlobalHeader/index.tsx",
-      "summary": "Placeholder smoke test: moduleCoverageConsolidated.test.ts relies on tautological assertions and likely inflates coverage confidence",
-      "detail": {
-        "kind": "placeholder_test",
-        "test_file": "src/moduleCoverageConsolidated.test.ts",
-        "assertions": 1,
-        "test_functions": 1,
-        "loc_weight": 10.677078252031311
-      },
-      "status": "open",
-      "primary_command": "desloppify resolve fixed \"test_coverage::src/shared/components/GlobalHeader/index.tsx::placeholder::moduleCoverageConsolidated.test.ts\" --note \"<what you did>\" --attest \"I have actually [DESCRIBE THE CONCRETE CHANGE YOU MADE] and I am not gaming the score by resolving without fixing.\""
+      "id": "review::.::holistic::contract_coherence::task_params_parser_contract_drift::2a9211d4",
+      "summary": "Task param parsing is reimplemented in task-details hook despite a declared shared parser contract.",
+      "dimension": "contract_coherence",
+      "investigated": false
     },
     {
-      "id": "test_coverage::src/shared/components/HuggingFaceTokenSetup.tsx::placeholder::moduleCoverageConsolidated.test.ts",
-      "kind": "finding",
-      "tier": 2,
-      "effective_tier": 2,
-      "confidence": "high",
-      "detector": "test_coverage",
-      "file": "src/shared/components/HuggingFaceTokenSetup.tsx",
-      "summary": "Placeholder smoke test: moduleCoverageConsolidated.test.ts relies on tautological assertions and likely inflates coverage confidence",
-      "detail": {
-        "kind": "placeholder_test",
-        "test_file": "src/moduleCoverageConsolidated.test.ts",
-        "assertions": 1,
-        "test_functions": 1,
-        "loc_weight": 16.583123951777
-      },
-      "status": "open",
-      "primary_command": "desloppify resolve fixed \"test_coverage::src/shared/components/HuggingFaceTokenSetup.tsx::placeholder::moduleCoverageConsolidated.test.ts\" --note \"<what you did>\" --attest \"I have actually [DESCRIBE THE CONCRETE CHANGE YOU MADE] and I am not gaming the score by resolving without fixing.\""
+      "id": "review::.::holistic::cross_module_architecture::project_context_guard_depends_on_runtime_presenter::fbf3851e",
+      "summary": "Project context guard errors are coupled to global runtime reporting/presentation",
+      "dimension": "cross_module_architecture",
+      "investigated": false
     },
     {
-      "id": "test_coverage::src/shared/components/ImageDragPreview.tsx::placeholder::moduleCoverageConsolidated.test.ts",
-      "kind": "finding",
-      "tier": 2,
-      "effective_tier": 2,
-      "confidence": "high",
-      "detector": "test_coverage",
-      "file": "src/shared/components/ImageDragPreview.tsx",
-      "summary": "Placeholder smoke test: moduleCoverageConsolidated.test.ts relies on tautological assertions and likely inflates coverage confidence",
-      "detail": {
-        "kind": "placeholder_test",
-        "test_file": "src/moduleCoverageConsolidated.test.ts",
-        "assertions": 1,
-        "test_functions": 1,
-        "loc_weight": 9.327379053088816
-      },
-      "status": "open",
-      "primary_command": "desloppify resolve fixed \"test_coverage::src/shared/components/ImageDragPreview.tsx::placeholder::moduleCoverageConsolidated.test.ts\" --note \"<what you did>\" --attest \"I have actually [DESCRIBE THE CONCRETE CHANGE YOU MADE] and I am not gaming the score by resolving without fixing.\""
+      "id": "review::.::holistic::design_coherence::complete_task_workflow_concentration::27b071c6",
+      "summary": "The complete-task edge handler still mixes too many workflow phases in one procedure.",
+      "dimension": "design_coherence",
+      "investigated": false
     },
     {
-      "id": "test_coverage::src/shared/components/ImageGenerationDetails.tsx::placeholder::moduleCoverageConsolidated.test.ts",
-      "kind": "finding",
-      "tier": 2,
-      "effective_tier": 2,
-      "confidence": "high",
-      "detector": "test_coverage",
-      "file": "src/shared/components/ImageGenerationDetails.tsx",
-      "summary": "Placeholder smoke test: moduleCoverageConsolidated.test.ts relies on tautological assertions and likely inflates coverage confidence",
-      "detail": {
-        "kind": "placeholder_test",
-        "test_file": "src/moduleCoverageConsolidated.test.ts",
-        "assertions": 1,
-        "test_functions": 1,
-        "loc_weight": 21.563858652847824
-      },
-      "status": "open",
-      "primary_command": "desloppify resolve fixed \"test_coverage::src/shared/components/ImageGenerationDetails.tsx::placeholder::moduleCoverageConsolidated.test.ts\" --note \"<what you did>\" --attest \"I have actually [DESCRIBE THE CONCRETE CHANGE YOU MADE] and I am not gaming the score by resolving without fixing.\""
+      "id": "review::.::holistic::design_coherence::lightbox_adapter_surface_bloat::e99db40f",
+      "summary": "Lightbox abstractions rely on oversized adapter contracts that re-centralize many concerns.",
+      "dimension": "design_coherence",
+      "investigated": false
     },
     {
-      "id": "test_coverage::src/shared/components/ImageGenerationForm/hooks/formSubmission/types.ts::placeholder::moduleCoverageConsolidated.test.ts",
-      "kind": "finding",
-      "tier": 2,
-      "effective_tier": 2,
-      "confidence": "high",
-      "detector": "test_coverage",
-      "file": "src/shared/components/ImageGenerationForm/hooks/formSubmission/types.ts",
-      "summary": "Placeholder smoke test: moduleCoverageConsolidated.test.ts relies on tautological assertions and likely inflates coverage confidence",
-      "detail": {
-        "kind": "placeholder_test",
-        "test_file": "src/moduleCoverageConsolidated.test.ts",
-        "assertions": 1,
-        "test_functions": 1,
-        "loc_weight": 9.38083151964686
-      },
-      "status": "open",
-      "primary_command": "desloppify resolve fixed \"test_coverage::src/shared/components/ImageGenerationForm/hooks/formSubmission/types.ts::placeholder::moduleCoverageConsolidated.test.ts\" --note \"<what you did>\" --attest \"I have actually [DESCRIBE THE CONCRETE CHANGE YOU MADE] and I am not gaming the score by resolving without fixing.\""
+      "id": "review::.::holistic::design_coherence::timeline_orchestrator_god_hook::74958916",
+      "summary": "Timeline orchestration concentrates unrelated behaviors behind one expansive hook interface.",
+      "dimension": "design_coherence",
+      "investigated": false
     },
     {
-      "id": "test_coverage::src/shared/components/ImageGenerationModal.tsx::placeholder::moduleCoverageConsolidated.test.ts",
-      "kind": "finding",
-      "tier": 2,
-      "effective_tier": 2,
-      "confidence": "high",
-      "detector": "test_coverage",
-      "file": "src/shared/components/ImageGenerationModal.tsx",
-      "summary": "Placeholder smoke test: moduleCoverageConsolidated.test.ts relies on tautological assertions and likely inflates coverage confidence",
-      "detail": {
-        "kind": "placeholder_test",
-        "test_file": "src/moduleCoverageConsolidated.test.ts",
-        "assertions": 1,
-        "test_functions": 1,
-        "loc_weight": 13.856406460551018
-      },
-      "status": "open",
-      "primary_command": "desloppify resolve fixed \"test_coverage::src/shared/components/ImageGenerationModal.tsx::placeholder::moduleCoverageConsolidated.test.ts\" --note \"<what you did>\" --attest \"I have actually [DESCRIBE THE CONCRETE CHANGE YOU MADE] and I am not gaming the score by resolving without fixing.\""
+      "id": "review::.::holistic::high_level_elegance::hook_module_mixes_ui_state_and_transport_helpers::9f0b8041",
+      "summary": "A shared hook file also owns transport-level drag/drop helper exports, blurring module role.",
+      "dimension": "high_level_elegance",
+      "investigated": false
     },
     {
-      "id": "test_coverage::src/shared/components/ImageUploadActions.tsx::placeholder::moduleCoverageConsolidated.test.ts",
-      "kind": "finding",
-      "tier": 2,
-      "effective_tier": 2,
-      "confidence": "high",
-      "detector": "test_coverage",
-      "file": "src/shared/components/ImageUploadActions.tsx",
-      "summary": "Placeholder smoke test: moduleCoverageConsolidated.test.ts relies on tautological assertions and likely inflates coverage confidence",
-      "detail": {
-        "kind": "placeholder_test",
-        "test_file": "src/moduleCoverageConsolidated.test.ts",
-        "assertions": 1,
-        "test_functions": 1,
-        "loc_weight": 9.16515138991168
-      },
-      "status": "open",
-      "primary_command": "desloppify resolve fixed \"test_coverage::src/shared/components/ImageUploadActions.tsx::placeholder::moduleCoverageConsolidated.test.ts\" --note \"<what you did>\" --attest \"I have actually [DESCRIBE THE CONCRETE CHANGE YOU MADE] and I am not gaming the score by resolving without fixing.\""
+      "id": "review::.::holistic::incomplete_migration::migration_compat_surfaces_still_public::f43b505d",
+      "summary": "Legacy/compat contracts remain exposed in active public modules, so migration debt is still embedded in day-to-day import paths.",
+      "dimension": "incomplete_migration",
+      "investigated": false
     },
     {
-      "id": "test_coverage::src/shared/components/JoinClipsSettingsForm/JoinClipsSettingsForm.tsx::placeholder::moduleCoverageConsolidated.test.ts",
-      "kind": "finding",
-      "tier": 2,
-      "effective_tier": 2,
-      "confidence": "high",
-      "detector": "test_coverage",
-      "file": "src/shared/components/JoinClipsSettingsForm/JoinClipsSettingsForm.tsx",
-      "summary": "Placeholder smoke test: moduleCoverageConsolidated.test.ts relies on tautological assertions and likely inflates coverage confidence",
-      "detail": {
-        "kind": "placeholder_test",
-        "test_file": "src/moduleCoverageConsolidated.test.ts",
-        "assertions": 1,
-        "test_functions": 1,
-        "loc_weight": 25.65151067676132
-      },
-      "status": "open",
-      "primary_command": "desloppify resolve fixed \"test_coverage::src/shared/components/JoinClipsSettingsForm/JoinClipsSettingsForm.tsx::placeholder::moduleCoverageConsolidated.test.ts\" --note \"<what you did>\" --attest \"I have actually [DESCRIBE THE CONCRETE CHANGE YOU MADE] and I am not gaming the score by resolving without fixing.\""
+      "id": "review::.::holistic::initialization_coupling::supabase_runtime_boot_order_coupling::5282f568",
+      "summary": "Supabase client access depends on hidden global init order and hard-fails when called early.",
+      "dimension": "initialization_coupling",
+      "investigated": false
     },
     {
-      "id": "test_coverage::src/shared/components/JoinClipsSettingsForm/Visualization.tsx::placeholder::moduleCoverageConsolidated.test.ts",
-      "kind": "finding",
-      "tier": 2,
-      "effective_tier": 2,
-      "confidence": "high",
-      "detector": "test_coverage",
-      "file": "src/shared/components/JoinClipsSettingsForm/Visualization.tsx",
-      "summary": "Placeholder smoke test: moduleCoverageConsolidated.test.ts relies on tautological assertions and likely inflates coverage confidence",
-      "detail": {
-        "kind": "placeholder_test",
-        "test_file": "src/moduleCoverageConsolidated.test.ts",
-        "assertions": 1,
-        "test_functions": 1,
-        "loc_weight": 22.40535650240808
-      },
-      "status": "open",
-      "primary_command": "desloppify resolve fixed \"test_coverage::src/shared/components/JoinClipsSettingsForm/Visualization.tsx::placeholder::moduleCoverageConsolidated.test.ts\" --note \"<what you did>\" --attest \"I have actually [DESCRIBE THE CONCRETE CHANGE YOU MADE] and I am not gaming the score by resolving without fixing.\""
+      "id": "review::.::holistic::low_level_elegance::video_lightbox_unmemoized_render_models::e0501df1",
+      "summary": "Video lightbox render hook recreates heavy state/layout objects each render, unlike image sibling.",
+      "dimension": "low_level_elegance",
+      "investigated": false
     },
     {
-      "id": "test_coverage::src/shared/components/LoraHeaderActions.tsx::placeholder::moduleCoverageConsolidated.test.ts",
-      "kind": "finding",
-      "tier": 2,
-      "effective_tier": 2,
-      "confidence": "high",
-      "detector": "test_coverage",
-      "file": "src/shared/components/LoraHeaderActions.tsx",
-      "summary": "Placeholder smoke test: moduleCoverageConsolidated.test.ts relies on tautological assertions and likely inflates coverage confidence",
-      "detail": {
-        "kind": "placeholder_test",
-        "test_file": "src/moduleCoverageConsolidated.test.ts",
-        "assertions": 1,
-        "test_functions": 1,
-        "loc_weight": 10.344080432788601
-      },
-      "status": "open",
-      "primary_command": "desloppify resolve fixed \"test_coverage::src/shared/components/LoraHeaderActions.tsx::placeholder::moduleCoverageConsolidated.test.ts\" --note \"<what you did>\" --attest \"I have actually [DESCRIBE THE CONCRETE CHANGE YOU MADE] and I am not gaming the score by resolving without fixing.\""
+      "id": "review::.::holistic::mid_level_elegance::duplicated_lightbox_workflow_seam_mapping::73f152d0",
+      "summary": "Image/video lightbox seams duplicate workflow and panel mapping logic with drift-prone parity code.",
+      "dimension": "mid_level_elegance",
+      "investigated": false
     },
     {
-      "id": "test_coverage::src/shared/components/LoraManager.tsx::placeholder::moduleCoverageConsolidated.test.ts",
-      "kind": "finding",
-      "tier": 2,
-      "effective_tier": 2,
-      "confidence": "high",
-      "detector": "test_coverage",
-      "file": "src/shared/components/LoraManager.tsx",
-      "summary": "Placeholder smoke test: moduleCoverageConsolidated.test.ts relies on tautological assertions and likely inflates coverage confidence",
-      "detail": {
-        "kind": "placeholder_test",
-        "test_file": "src/moduleCoverageConsolidated.test.ts",
-        "assertions": 1,
-        "test_functions": 1,
-        "loc_weight": 8.54400374531753
-      },
-      "status": "open",
-      "primary_command": "desloppify resolve fixed \"test_coverage::src/shared/components/LoraManager.tsx::placeholder::moduleCoverageConsolidated.test.ts\" --note \"<what you did>\" --attest \"I have actually [DESCRIBE THE CONCRETE CHANGE YOU MADE] and I am not gaming the score by resolving without fixing.\""
+      "id": "review::.::holistic::mid_level_elegance::lossy_mapping_handoff_in_task_details_hook::681557ff",
+      "summary": "Task-details seam discards mapping status and duplicates fallback choreography.",
+      "dimension": "mid_level_elegance",
+      "investigated": false
     },
     {
-      "id": "test_coverage::src/shared/components/LoraSelectorModal/LoraSelectorModal.tsx::placeholder::moduleCoverageConsolidated.test.ts",
-      "kind": "finding",
-      "tier": 2,
-      "effective_tier": 2,
-      "confidence": "high",
-      "detector": "test_coverage",
-      "file": "src/shared/components/LoraSelectorModal/LoraSelectorModal.tsx",
-      "summary": "Placeholder smoke test: moduleCoverageConsolidated.test.ts relies on tautological assertions and likely inflates coverage confidence",
-      "detail": {
-        "kind": "placeholder_test",
-        "test_file": "src/moduleCoverageConsolidated.test.ts",
-        "assertions": 1,
-        "test_functions": 1,
-        "loc_weight": 16.76305461424021
-      },
-      "status": "open",
-      "primary_command": "desloppify resolve fixed \"test_coverage::src/shared/components/LoraSelectorModal/LoraSelectorModal.tsx::placeholder::moduleCoverageConsolidated.test.ts\" --note \"<what you did>\" --attest \"I have actually [DESCRIBE THE CONCRETE CHANGE YOU MADE] and I am not gaming the score by resolving without fixing.\""
+      "id": "review::.::holistic::package_organization::compat_residue_in_primary_shared_namespaces::3014f19d",
+      "summary": "Legacy compat artifacts still sit in primary shared package locations after migration.",
+      "dimension": "package_organization",
+      "investigated": false
     },
     {
-      "id": "test_coverage::src/shared/components/LoraSelectorModal/components/CommunityLorasTab.tsx::placeholder::moduleCoverageConsolidated.test.ts",
-      "kind": "finding",
-      "tier": 2,
-      "effective_tier": 2,
-      "confidence": "high",
-      "detector": "test_coverage",
-      "file": "src/shared/components/LoraSelectorModal/components/CommunityLorasTab.tsx",
-      "summary": "Placeholder smoke test: moduleCoverageConsolidated.test.ts relies on tautological assertions and likely inflates coverage confidence",
-      "detail": {
-        "kind": "placeholder_test",
-        "test_file": "src/moduleCoverageConsolidated.test.ts",
-        "assertions": 1,
-        "test_functions": 1,
-        "loc_weight": 15.362291495737216
-      },
-      "status": "open",
-      "primary_command": "desloppify resolve fixed \"test_coverage::src/shared/components/LoraSelectorModal/components/CommunityLorasTab.tsx::placeholder::moduleCoverageConsolidated.test.ts\" --note \"<what you did>\" --attest \"I have actually [DESCRIBE THE CONCRETE CHANGE YOU MADE] and I am not gaming the score by resolving without fixing.\""
+      "id": "review::.::holistic::test_strategy::untested_task_details_and_timeline_write_paths::4566297e",
+      "summary": "Critical task-details and timeline write orchestration paths lack direct tests.",
+      "dimension": "test_strategy",
+      "investigated": false
     },
     {
-      "id": "test_coverage::src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx::placeholder::moduleCoverageConsolidated.test.ts",
-      "kind": "finding",
-      "tier": 2,
-      "effective_tier": 2,
-      "confidence": "high",
-      "detector": "test_coverage",
-      "file": "src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx",
-      "summary": "Placeholder smoke test: moduleCoverageConsolidated.test.ts relies on tautological assertions and likely inflates coverage confidence",
-      "detail": {
-        "kind": "placeholder_test",
-        "test_file": "src/moduleCoverageConsolidated.test.ts",
-        "assertions": 1,
-        "test_functions": 1,
-        "loc_weight": 5.385164807134504
-      },
-      "status": "open",
-      "primary_command": "desloppify resolve fixed \"test_coverage::src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx::placeholder::moduleCoverageConsolidated.test.ts\" --note \"<what you did>\" --attest \"I have actually [DESCRIBE THE CONCRETE CHANGE YOU MADE] and I am not gaming the score by resolving without fixing.\""
+      "id": "review::.::holistic::type_safety::browser_timer_type_mismatch::90bd0bbd",
+      "summary": "Browser hook uses `NodeJS.Timeout` instead of environment-neutral timer typing.",
+      "dimension": "type_safety",
+      "investigated": false
     },
     {
-      "id": "test_coverage::src/shared/components/LoraSelectorModal/components/LoraCard.tsx::placeholder::moduleCoverageConsolidated.test.ts",
-      "kind": "finding",
-      "tier": 2,
-      "effective_tier": 2,
-      "confidence": "high",
-      "detector": "test_coverage",
-      "file": "src/shared/components/LoraSelectorModal/components/LoraCard.tsx",
-      "summary": "Placeholder smoke test: moduleCoverageConsolidated.test.ts relies on tautological assertions and likely inflates coverage confidence",
-      "detail": {
-        "kind": "placeholder_test",
-        "test_file": "src/moduleCoverageConsolidated.test.ts",
-        "assertions": 1,
-        "test_functions": 1,
-        "loc_weight": 17.0
-      },
-      "status": "open",
-      "primary_command": "desloppify resolve fixed \"test_coverage::src/shared/components/LoraSelectorModal/components/LoraCard.tsx::placeholder::moduleCoverageConsolidated.test.ts\" --note \"<what you did>\" --attest \"I have actually [DESCRIBE THE CONCRETE CHANGE YOU MADE] and I am not gaming the score by resolving without fixing.\""
+      "id": "review::.::holistic::dependency_health::task_payload_contract_drift_across_builders::d72070c0",
+      "summary": "Task creation modules depend on inconsistent payload contracts, forcing broad reader compatibility.",
+      "dimension": "dependency_health",
+      "investigated": false
     },
     {
-      "id": "test_coverage::src/shared/components/LoraSelectorModal/components/MyLorasTab/MyLorasTab.tsx::placeholder::moduleCoverageConsolidated.test.ts",
-      "kind": "finding",
-      "tier": 2,
-      "effective_tier": 2,
-      "confidence": "high",
-      "detector": "test_coverage",
-      "file": "src/shared/components/LoraSelectorModal/components/MyLorasTab/MyLorasTab.tsx",
-      "summary": "Placeholder smoke test: moduleCoverageConsolidated.test.ts relies on tautological assertions and likely inflates coverage confidence",
-      "detail": {
-        "kind": "placeholder_test",
-        "test_file": "src/moduleCoverageConsolidated.test.ts",
-        "assertions": 1,
-        "test_functions": 1,
-        "loc_weight": 17.029386365926403
-      },
-      "status": "open",
-      "primary_command": "desloppify resolve fixed \"test_coverage::src/shared/components/LoraSelectorModal/components/MyLorasTab/MyLorasTab.tsx::placeholder::moduleCoverageConsolidated.test.ts\" --note \"<what you did>\" --attest \"I have actually [DESCRIBE THE CONCRETE CHANGE YOU MADE] and I am not gaming the score by resolving without fixing.\""
+      "id": "review::.::holistic::design_coherence::freshness_manager_multi_role_singleton::0b56b7b8",
+      "summary": "DataFreshnessManager conflates policy engine, state store, and user-facing error behavior.",
+      "dimension": "design_coherence",
+      "investigated": false
     },
     {
-      "id": "test_coverage::src/shared/components/LoraSelectorModal/components/MyLorasTab/components/FileDropZone.tsx::placeholder::moduleCoverageConsolidated.test.ts",
-      "kind": "finding",
-      "tier": 2,
-      "effective_tier": 2,
-      "confidence": "high",
-      "detector": "test_coverage",
-      "file": "src/shared/components/LoraSelectorModal/components/MyLorasTab/components/FileDropZone.tsx",
-      "summary": "Placeholder smoke test: moduleCoverageConsolidated.test.ts relies on tautological assertions and likely inflates coverage confidence",
-      "detail": {
-        "kind": "placeholder_test",
-        "test_file": "src/moduleCoverageConsolidated.test.ts",
-        "assertions": 1,
-        "test_functions": 1,
-        "loc_weight": 9.591663046625438
-      },
-      "status": "open",
-      "primary_command": "desloppify resolve fixed \"test_coverage::src/shared/components/LoraSelectorModal/components/MyLorasTab/components/FileDropZone.tsx::placeholder::moduleCoverageConsolidated.test.ts\" --note \"<what you did>\" --attest \"I have actually [DESCRIBE THE CONCRETE CHANGE YOU MADE] and I am not gaming the score by resolving without fixing.\""
+      "id": "review::.::holistic::high_level_elegance::gallery_interaction_contract_sprawl::97362a45",
+      "summary": "Gallery interaction ownership remains split across wide prop-bag orchestration contracts",
+      "dimension": "high_level_elegance",
+      "investigated": false
     }
   ],
-  "queue": {
-    "tier_counts": {
-      "1": 16,
-      "2": 485,
-      "3": 476,
-      "4": 776
-    },
-    "requested_tier": 2,
-    "selected_tier": 2,
-    "fallback_reason": null,
-    "available_tiers": [
-      1,
-      2,
-      3,
-      4
-    ],
-    "total": 485
-  },
+  "next_command": "desloppify issues show 1",
   "narrative": {
-    "phase": "regression",
-    "headline": "Score shifted 4.9 pts \u2014 this is normal after structural changes. Rescan after your next fix to see the real trend. (2 review findings \u2014 run `desloppify issues`)",
+    "phase": "refinement",
+    "headline": " (20 review findings \u2014 run `desloppify issues`)",
     "dimensions": {
       "lowest_dimensions": [
         {
-          "name": "Test health",
-          "strict": 44.9,
-          "issues": 527,
-          "impact": 0.0
-        },
-        {
-          "name": "Contracts",
-          "strict": 58.0,
-          "issues": 0,
+          "name": "Design coherence",
+          "strict": 54.4,
+          "issues": 4,
           "impact": 0.0,
           "subjective": true,
           "impact_description": "re-review to improve"
         },
         {
-          "name": "Type Safety",
-          "strict": 62.0,
-          "issues": 0,
+          "name": "Mid elegance",
+          "strict": 63.5,
+          "issues": 2,
+          "impact": 0.0,
+          "subjective": true,
+          "impact_description": "re-review to improve"
+        },
+        {
+          "name": "Abstraction fit",
+          "strict": 66.8,
+          "issues": 1,
           "impact": 0.0,
           "subjective": true,
           "impact_description": "re-review to improve"
@@ -432,7 +159,7 @@
       "stagnant_dimensions": [
         {
           "name": "File health",
-          "strict": 94.7,
+          "strict": 96.0,
           "stuck_scans": 5
         },
         {
@@ -451,88 +178,8 @@
           "stuck_scans": 5
         },
         {
-          "name": "Naming Quality",
-          "strict": 74.0,
-          "stuck_scans": 5
-        },
-        {
-          "name": "Logic Clarity",
-          "strict": 68.0,
-          "stuck_scans": 5
-        },
-        {
-          "name": "Type Safety",
-          "strict": 62.0,
-          "stuck_scans": 5
-        },
-        {
-          "name": "Contracts",
-          "strict": 58.0,
-          "stuck_scans": 5
-        },
-        {
-          "name": "High Elegance",
-          "strict": 96.4,
-          "stuck_scans": 5
-        },
-        {
-          "name": "Mid Elegance",
-          "strict": 96.6,
-          "stuck_scans": 5
-        },
-        {
-          "name": "Low Elegance",
-          "strict": 96.5,
-          "stuck_scans": 5
-        },
-        {
-          "name": "Cross-Module Arch",
-          "strict": 96.5,
-          "stuck_scans": 5
-        },
-        {
-          "name": "Init Coupling",
-          "strict": 96.3,
-          "stuck_scans": 5
-        },
-        {
-          "name": "Convention Drift",
-          "strict": 96.1,
-          "stuck_scans": 5
-        },
-        {
-          "name": "Dep Health",
-          "strict": 97.0,
-          "stuck_scans": 5
-        },
-        {
-          "name": "Test Strategy",
-          "strict": 95.6,
-          "stuck_scans": 5
-        },
-        {
-          "name": "API Coherence",
-          "strict": 96.9,
-          "stuck_scans": 5
-        },
-        {
-          "name": "Auth Consistency",
-          "strict": 98.1,
-          "stuck_scans": 5
-        },
-        {
-          "name": "Stale Migration",
-          "strict": 95.8,
-          "stuck_scans": 5
-        },
-        {
-          "name": "Structure Nav",
-          "strict": 96.9,
-          "stuck_scans": 4
-        },
-        {
-          "name": "Design Coherence",
-          "strict": 96.6,
+          "name": "Design coherence",
+          "strict": 54.4,
           "stuck_scans": 5
         }
       ]
@@ -541,8 +188,8 @@
       {
         "type": "issue_queue",
         "detector": "review",
-        "count": 2,
-        "description": "2 review findings need investigation \u2014 run `desloppify issues` to see the work queue",
+        "count": 20,
+        "description": "20 review findings need investigation \u2014 run `desloppify issues` to see the work queue",
         "command": "desloppify issues",
         "impact": 0.0,
         "dimension": "Unknown",
@@ -552,8 +199,8 @@
       {
         "type": "auto_fix",
         "detector": "unused",
-        "count": 22,
-        "description": "22 unused findings \u2014 run `desloppify fix unused-imports --dry-run` to preview, then apply",
+        "count": 21,
+        "description": "21 unused findings \u2014 run `desloppify fix unused-imports --dry-run` to preview, then apply",
         "command": "desloppify fix unused-imports --dry-run",
         "impact": 0.0,
         "dimension": "Code quality",
@@ -561,36 +208,25 @@
         "lane": "cleanup"
       },
       {
-        "type": "auto_fix",
-        "detector": "logs",
-        "count": 1,
-        "description": "1 logs findings \u2014 run `desloppify fix debug-logs --dry-run` to preview, then apply",
-        "command": "desloppify fix debug-logs --dry-run",
-        "impact": 0.0,
-        "dimension": "Code quality",
-        "priority": 3,
-        "lane": "cleanup"
-      },
-      {
         "type": "reorganize",
         "detector": "orphaned",
-        "count": 1,
-        "description": "1 orphaned findings \u2014 delete dead files or relocate with `desloppify move`",
+        "count": 23,
+        "description": "23 orphaned findings \u2014 delete dead files or relocate with `desloppify move`",
         "command": "desloppify show orphaned --status open",
         "impact": 0.0,
         "dimension": "Code quality",
-        "priority": 4,
+        "priority": 3,
         "lane": "restructure"
       },
       {
         "type": "reorganize",
         "detector": "flat_dirs",
-        "count": 20,
-        "description": "20 flat_dirs findings \u2014 create subdirectories and use `desloppify move`",
+        "count": 19,
+        "description": "19 flat_dirs findings \u2014 create subdirectories and use `desloppify move`",
         "command": "desloppify show flat_dirs --status open",
         "impact": 0.0,
         "dimension": "Code quality",
-        "priority": 5,
+        "priority": 4,
         "lane": "restructure"
       },
       {
@@ -601,25 +237,36 @@
         "command": "desloppify show naming --status open",
         "impact": 0.0,
         "dimension": "Code quality",
+        "priority": 5,
+        "lane": "restructure"
+      },
+      {
+        "type": "reorganize",
+        "detector": "single_use",
+        "count": 2,
+        "description": "2 single_use findings \u2014 inline or relocate with `desloppify move`",
+        "command": "desloppify show single_use --status open",
+        "impact": 0.0,
+        "dimension": "Code quality",
         "priority": 6,
         "lane": "restructure"
       },
       {
         "type": "reorganize",
-        "detector": "cycles",
+        "detector": "coupling",
         "count": 1,
-        "description": "1 cycles findings \u2014 break cycles by extracting shared code or using `desloppify move`",
-        "command": "desloppify show cycles --status open",
+        "description": "1 coupling findings \u2014 fix boundary violations with `desloppify move`",
+        "command": "desloppify show coupling --status open",
         "impact": 0.0,
-        "dimension": "Security",
+        "dimension": "Code quality",
         "priority": 7,
         "lane": "restructure"
       },
       {
         "type": "reorganize",
         "detector": "facade",
-        "count": 1,
-        "description": "1 facade findings \u2014 flatten re-export facades or consolidate barrel files",
+        "count": 6,
+        "description": "6 facade findings \u2014 flatten re-export facades or consolidate barrel files",
         "command": "desloppify show facade --status open",
         "impact": 0.0,
         "dimension": "Code quality",
@@ -629,8 +276,8 @@
       {
         "type": "refactor",
         "detector": "structural",
-        "count": 85,
-        "description": "85 structural findings \u2014 decompose large files \u2014 extract logic into focused modules",
+        "count": 80,
+        "description": "80 structural findings \u2014 decompose large files \u2014 extract logic into focused modules",
         "command": "desloppify show structural --status open",
         "impact": 0.0,
         "dimension": "File health",
@@ -640,8 +287,8 @@
       {
         "type": "refactor",
         "detector": "props",
-        "count": 121,
-        "description": "121 props findings \u2014 split bloated components, extract sub-components",
+        "count": 117,
+        "description": "117 props findings \u2014 split bloated components, extract sub-components",
         "command": "desloppify show props --status open",
         "impact": 0.0,
         "dimension": "Code quality",
@@ -668,7 +315,7 @@
         "impact": 0.0,
         "dimension": "Duplication",
         "priority": 12,
-        "lane": "refactor_1"
+        "lane": "refactor_2"
       },
       {
         "type": "refactor",
@@ -679,13 +326,13 @@
         "impact": 0.0,
         "dimension": "Code quality",
         "priority": 13,
-        "lane": "refactor_2"
+        "lane": "refactor_3"
       },
       {
         "type": "refactor",
         "detector": "test_coverage",
-        "count": 527,
-        "description": "527 test_coverage findings \u2014 add tests for untested production modules \u2014 prioritize by import count",
+        "count": 168,
+        "description": "168 test_coverage findings \u2014 add tests for untested production modules \u2014 prioritize by import count",
         "command": "desloppify show test_coverage --status open",
         "impact": 0.0,
         "dimension": "Test health",
@@ -695,8 +342,8 @@
       {
         "type": "refactor",
         "detector": "signature",
-        "count": 16,
-        "description": "16 signature findings \u2014 consolidate inconsistent function signatures",
+        "count": 17,
+        "description": "17 signature findings \u2014 consolidate inconsistent function signatures",
         "command": "desloppify show signature --status open",
         "impact": 0.0,
         "dimension": "Unknown",
@@ -706,8 +353,8 @@
       {
         "type": "refactor",
         "detector": "responsibility_cohesion",
-        "count": 5,
-        "description": "5 responsibility_cohesion findings \u2014 split modules with too many responsibilities \u2014 extract focused sub-modules",
+        "count": 7,
+        "description": "7 responsibility_cohesion findings \u2014 split modules with too many responsibilities \u2014 extract focused sub-modules",
         "command": "desloppify show responsibility_cohesion --status open",
         "impact": 0.0,
         "dimension": "Code quality",
@@ -717,8 +364,8 @@
       {
         "type": "manual_fix",
         "detector": "smells",
-        "count": 177,
-        "description": "177 smells findings \u2014 inspect with `desloppify next` and fix manually",
+        "count": 192,
+        "description": "192 smells findings \u2014 inspect with `desloppify next` and fix manually",
         "command": "desloppify show smells --status open",
         "impact": 0.0,
         "dimension": "Code quality",
@@ -728,8 +375,8 @@
       {
         "type": "manual_fix",
         "detector": "deprecated",
-        "count": 3,
-        "description": "3 deprecated findings \u2014 remove deprecated symbols or migrate callers",
+        "count": 7,
+        "description": "7 deprecated findings \u2014 remove deprecated symbols or migrate callers",
         "command": "desloppify show deprecated --status open",
         "impact": 0.0,
         "dimension": "Code quality",
@@ -739,8 +386,8 @@
       {
         "type": "manual_fix",
         "detector": "subjective_review",
-        "count": 747,
-        "description": "747 files need design review \u2014 run design review with dimension templates",
+        "count": 888,
+        "description": "888 files need design review \u2014 run design review with dimension templates",
         "command": "desloppify fix review",
         "impact": 0.0,
         "dimension": "Test health",
@@ -750,8 +397,8 @@
     ],
     "strategy": {
       "fixer_leverage": {
-        "auto_fixable_count": 23,
-        "total_count": 1751,
+        "auto_fixable_count": 21,
+        "total_count": 1626,
         "coverage": 0.013,
         "impact_ratio": 0.0,
         "recommendation": "none"
@@ -759,23 +406,23 @@
       "lanes": {
         "cleanup": {
           "actions": [
-            3,
             2
           ],
-          "file_count": 15,
+          "file_count": 19,
           "total_impact": 0.0,
           "automation": "full",
           "run_first": true
         },
         "restructure": {
           "actions": [
+            3,
             4,
             5,
             6,
             7,
             8
           ],
-          "file_count": 23,
+          "file_count": 51,
           "total_impact": 0.0,
           "automation": "manual",
           "run_first": false
@@ -794,19 +441,27 @@
             9,
             10,
             11,
-            12,
             15,
             16,
             17,
             18,
             19
           ],
-          "file_count": 858,
+          "file_count": 1057,
           "total_impact": 0.0,
           "automation": "manual",
           "run_first": false
         },
         "refactor_2": {
+          "actions": [
+            12
+          ],
+          "file_count": 2,
+          "total_impact": 0.0,
+          "automation": "manual",
+          "run_first": false
+        },
+        "refactor_3": {
           "actions": [
             13
           ],
@@ -819,58 +474,52 @@
           "actions": [
             14
           ],
-          "file_count": 526,
+          "file_count": 168,
           "total_impact": 0.0,
           "automation": "manual",
           "run_first": false
         }
       },
       "can_parallelize": true,
-      "hint": "5 independent workstreams, safe to parallelize. Rescan after each phase to verify. Review: 2 finding(s) \u2014 `desloppify issues`."
+      "hint": "6 independent workstreams, safe to parallelize. Rescan after each phase to verify. Review: 20 finding(s) \u2014 `desloppify issues`."
     },
     "tools": {
       "fixers": [
         {
           "name": "unused-imports",
           "detector": "unused",
-          "open_count": 22,
+          "open_count": 21,
           "command": "desloppify fix unused-imports --dry-run"
         },
         {
           "name": "unused-vars",
           "detector": "unused",
-          "open_count": 22,
+          "open_count": 21,
           "command": "desloppify fix unused-vars --dry-run"
         },
         {
           "name": "unused-params",
           "detector": "unused",
-          "open_count": 22,
+          "open_count": 21,
           "command": "desloppify fix unused-params --dry-run"
-        },
-        {
-          "name": "debug-logs",
-          "detector": "logs",
-          "open_count": 1,
-          "command": "desloppify fix debug-logs --dry-run"
         },
         {
           "name": "dead-useeffect",
           "detector": "smells",
-          "open_count": 177,
+          "open_count": 192,
           "command": "desloppify fix dead-useeffect --dry-run"
         },
         {
           "name": "empty-if-chain",
           "detector": "smells",
-          "open_count": 177,
+          "open_count": 192,
           "command": "desloppify fix empty-if-chain --dry-run"
         }
       ],
       "move": {
         "available": true,
         "relevant": true,
-        "reason": "1 orphaned files + 20 flat directories + 1 naming issues",
+        "reason": "23 orphaned files + 1 coupling violations + 2 single-use files + 19 flat directories + 1 naming issues",
         "usage": "desloppify move <source> <dest> [--dry-run]"
       },
       "plan": {
@@ -894,9 +543,9 @@
     "milestone": null,
     "primary_action": {
       "command": "desloppify issues",
-      "description": "2 review findings need investigation \u2014 run `desloppify issues` to see the work queue"
+      "description": "20 review findings need investigation \u2014 run `desloppify issues` to see the work queue"
     },
-    "why_now": "5 independent workstreams, safe to parallelize. Rescan after each phase to verify. Review: 2 finding(s) \u2014 `desloppify issues`.",
+    "why_now": "6 independent workstreams, safe to parallelize. Rescan after each phase to verify. Review: 20 finding(s) \u2014 `desloppify issues`.",
     "verification_step": {
       "command": "desloppify scan",
       "reason": "revalidate after changes"
@@ -904,275 +553,26 @@
     "risk_flags": [],
     "strict_target": {
       "target": 95.0,
-      "current": 87.6,
-      "gap": 7.4,
+      "current": 81.8,
+      "gap": 13.2,
       "state": "below",
       "warning": null
     },
     "reminders": [],
     "reminder_history": {
-      "auto_fixers_available": 3,
-      "dry_run_first": 3,
-      "zone_classification": 3,
-      "report_scores": 340,
-      "feedback_nudge": 3,
-      "stagnant_nudge": 10,
-      "wontfix_growing": 3,
-      "fp_calibration_security_test": 3,
-      "fp_calibration_security_production": 3,
       "review_findings_pending": 3,
-      "fp_calibration_single_use_production": 3,
-      "fp_calibration_test_coverage_production": 3,
-      "fp_calibration_structural_production": 3,
-      "fp_calibration_flat_dirs_production": 3,
-      "fp_calibration_props_production": 3,
-      "fp_calibration_smells_production": 3,
-      "fp_calibration_smells_test": 3,
-      "fp_calibration_react_production": 3,
-      "fp_calibration_subjective_review_production": 3
+      "auto_fixers_available": 3,
+      "zone_classification": 3,
+      "feedback_nudge": 3,
+      "report_scores": 63,
+      "stagnant_nudge": 12,
+      "dry_run_first": 1
     }
   },
-  "overall_score": 87.6,
-  "objective_score": 88.8,
-  "strict_score": 87.6,
-  "scorecard_dimensions": [
-    {
-      "name": "File health",
-      "score": 94.7,
-      "strict": 94.7,
-      "checks": 1122,
-      "issues": 78,
-      "tier": 3,
-      "subjective": false
-    },
-    {
-      "name": "AI Generated Debt",
-      "score": 87.0,
-      "strict": 87.0,
-      "checks": 10,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "ai_generated_debt"
-      ]
-    },
-    {
-      "name": "Abstraction Fit",
-      "score": 88.0,
-      "strict": 88.0,
-      "checks": 10,
-      "issues": 1,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "abstraction_fitness"
-      ]
-    },
-    {
-      "name": "Code quality",
-      "score": 98.5,
-      "strict": 98.5,
-      "checks": 10994,
-      "issues": 314,
-      "tier": 3,
-      "subjective": false
-    },
-    {
-      "name": "Duplication",
-      "score": 100.0,
-      "strict": 100.0,
-      "checks": 2375,
-      "issues": 2,
-      "tier": 3,
-      "subjective": false
-    },
-    {
-      "name": "Elegance",
-      "score": 96.5,
-      "strict": 96.5,
-      "checks": 30,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "high_level_elegance",
-        "mid_level_elegance",
-        "low_level_elegance"
-      ]
-    },
-    {
-      "name": "Error Consistency",
-      "score": 88.0,
-      "strict": 88.0,
-      "checks": 10,
-      "issues": 1,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "error_consistency"
-      ]
-    },
-    {
-      "name": "Logic Clarity",
-      "score": 68.0,
-      "strict": 68.0,
-      "checks": 10,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "logic_clarity"
-      ]
-    },
-    {
-      "name": "Naming Quality",
-      "score": 74.0,
-      "strict": 74.0,
-      "checks": 10,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "naming_quality"
-      ]
-    },
-    {
-      "name": "Security",
-      "score": 100.0,
-      "strict": 100.0,
-      "checks": 2238,
-      "issues": 1,
-      "tier": 4,
-      "subjective": false
-    },
-    {
-      "name": "Test health",
-      "score": 44.9,
-      "strict": 44.9,
-      "checks": 12586,
-      "issues": 527,
-      "tier": 4,
-      "subjective": false
-    },
-    {
-      "name": "Type Safety",
-      "score": 62.0,
-      "strict": 62.0,
-      "checks": 10,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "type_safety"
-      ]
-    }
-  ],
-  "subjective_measures": [
-    {
-      "name": "AI Generated Debt",
-      "score": 87.0,
-      "strict": 87.0,
-      "checks": 10,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "ai_generated_debt"
-      ]
-    },
-    {
-      "name": "Abstraction Fit",
-      "score": 88.0,
-      "strict": 88.0,
-      "checks": 10,
-      "issues": 1,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "abstraction_fitness"
-      ]
-    },
-    {
-      "name": "Elegance",
-      "score": 96.5,
-      "strict": 96.5,
-      "checks": 30,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "high_level_elegance",
-        "mid_level_elegance",
-        "low_level_elegance"
-      ]
-    },
-    {
-      "name": "Error Consistency",
-      "score": 88.0,
-      "strict": 88.0,
-      "checks": 10,
-      "issues": 1,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "error_consistency"
-      ]
-    },
-    {
-      "name": "Logic Clarity",
-      "score": 68.0,
-      "strict": 68.0,
-      "checks": 10,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "logic_clarity"
-      ]
-    },
-    {
-      "name": "Naming Quality",
-      "score": 74.0,
-      "strict": 74.0,
-      "checks": 10,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "naming_quality"
-      ]
-    },
-    {
-      "name": "Type Safety",
-      "score": 62.0,
-      "strict": 62.0,
-      "checks": 10,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "type_safety"
-      ]
-    }
-  ],
   "config": {
     "target_strict_score": 95,
     "review_max_age_days": 30,
+    "review_batch_max_files": 80,
     "holistic_max_age_days": 30,
     "generate_scorecard": true,
     "badge_path": "scorecard.png",

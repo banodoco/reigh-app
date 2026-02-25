@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import type { GenerationRow } from '@/types/shots';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import type { GenerationRow } from '@/domains/generation/types';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { isNotFoundError } from '@/shared/constants/supabaseErrors';
 import {
@@ -49,8 +49,7 @@ async function insertUnpositionedShotGeneration(
   shotId: string,
   generationId: string,
 ): Promise<Record<string, unknown>> {
-  const { data, error } = await supabase
-    .from('shot_generations')
+  const { data, error } = await supabase().from('shot_generations')
     .insert({
       shot_id: shotId,
       generation_id: generationId,
@@ -70,7 +69,7 @@ async function insertAutoPositionedShotGeneration(
   shotId: string,
   generationId: string,
 ): Promise<Record<string, unknown>> {
-  const { data: rpcResult, error: rpcError } = await supabase.rpc('add_generation_to_shot', {
+  const { data: rpcResult, error: rpcError } = await supabase().rpc('add_generation_to_shot', {
     p_shot_id: shotId,
     p_generation_id: generationId,
     p_with_position: true,
@@ -85,8 +84,7 @@ async function insertAutoPositionedShotGeneration(
 }
 
 async function fetchResolvedTimelineFrame(shotId: string, requestedFrame: number): Promise<number> {
-  const { data: existingGens, error: fetchError } = await supabase
-    .from('shot_generations')
+  const { data: existingGens, error: fetchError } = await supabase().from('shot_generations')
     .select('timeline_frame')
     .eq('shot_id', shotId)
     .not('timeline_frame', 'is', null);
@@ -108,8 +106,7 @@ async function insertExplicitlyPositionedShotGeneration(
   timelineFrame: number,
 ): Promise<Record<string, unknown>> {
   const resolvedFrame = await fetchResolvedTimelineFrame(shotId, timelineFrame);
-  const { data, error } = await supabase
-    .from('shot_generations')
+  const { data, error } = await supabase().from('shot_generations')
     .insert({
       shot_id: shotId,
       generation_id: generationId,

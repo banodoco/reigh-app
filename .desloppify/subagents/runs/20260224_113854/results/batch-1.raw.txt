@@ -1,0 +1,61 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "high_level_elegance": 72.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/features/gallery/hooks/useAdjacentPagePreloader.ts` is framed as a unified preloading boundary but imports both data-fetch shape (`fetchGenerations`) and orchestration runtime (`scheduleAdjacentPagePreload`), coupling one hook to multiple subsystem ownership areas.",
+        "`src/features/gallery/hooks/useAdjacentPagePreloader.ts` derives `GenerationFilters` from `Parameters<typeof fetchGenerations>[3]`, creating a hidden positional contract across module boundaries instead of a named domain contract.",
+        "Overlay/modal ownership is split across many UI files (`src/shared/components/ModalContainer.tsx`, `src/pages/Home/components/InstallInstructionsModal.tsx`, `src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx`, `src/shared/components/MediaTypeFilter.tsx`, `src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx`, `src/pages/Home/components/CreativePartnerPane.tsx`) with inconsistent state responsibilities (some pass `OverlayVisibilityState`, others pass multiple setter props).",
+        "Several high-import hub files in this batch are intentionally thin facades (`src/integrations/supabase/client.ts`, `src/shared/lib/errorHandling/handleError.ts`, `src/shared/components/ui/cn.ts`, `src/shared/hooks/mobile/index.ts`), which helps API stability but concentrates change risk into central adapter points."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "gallery_preload_boundary_leak",
+      "summary": "The gallery preloader hook mixes feature orchestration with shared data-contract inference, weakening subsystem ownership boundaries.",
+      "related_files": [
+        "src/features/gallery/hooks/useAdjacentPagePreloader.ts",
+        "src/domains/generation/types/generationViewRow.ts"
+      ],
+      "evidence": [
+        "`useAdjacentPagePreloader` imports `fetchGenerations` only to infer filter type via `Parameters<typeof fetchGenerations>[3]`, coupling this feature hook to another module's function signature.",
+        "The same hook also imports `scheduleAdjacentPagePreload`, so data contract and orchestration policy are both anchored in one feature entry point."
+      ],
+      "suggestion": "Promote a named `GenerationFilters` contract to a shared/domain type module and inject preloading orchestration behind a small feature-facing interface so the hook depends on stable contracts rather than positional signatures.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "overlay_ownership_fragmented",
+      "summary": "Overlay and modal visibility ownership is distributed inconsistently across page and shared UI layers.",
+      "related_files": [
+        "src/shared/components/ModalContainer.tsx",
+        "src/pages/Home/components/InstallInstructionsModal.tsx",
+        "src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx",
+        "src/shared/components/MediaTypeFilter.tsx",
+        "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx",
+        "src/pages/Home/components/CreativePartnerPane.tsx"
+      ],
+      "evidence": [
+        "`ModalContainer` requires external `open/onOpenChange`, but policy behavior (`preventOutsideClose`) is handled internally, splitting responsibility.",
+        "`InstallInstructionsModal` and `DescriptionModal` pass through overlay state directly, while `CreativePartnerPane` manages extra tooltip open/disabled flags and passes multiple setters.",
+        "`MediaTypeFilter` and `InfoTooltip` each adapt optional visibility props through local policy hooks, indicating duplicated boundary decisions at component level."
+      ],
+      "suggestion": "Standardize one overlay ownership pattern per UI layer (for example: container-owned policy hooks + stateless presentational components) and move tooltip/modal policy into dedicated controllers to reduce page-level state choreography.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

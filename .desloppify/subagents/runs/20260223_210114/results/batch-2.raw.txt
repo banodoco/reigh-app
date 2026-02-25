@@ -1,0 +1,110 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "mid_level_elegance": 69.0,
+    "low_level_elegance": 72.0
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "Task payload readers/writers rely on multiple fallback shapes instead of one boundary contract: `src/shared/components/TaskDetails/VideoTravelDetails.tsx` reads from `individual_segment_params`, `full_orchestrator_payload`, `orchestrator_details`, and top-level params for the same fields (lines 95-233), while `src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts` writes yet another mixed shape (lines 119-216).",
+        "Server-side completion also has to query multiple param paths for the same identifiers (`orchestrator_run_id`/`run_id`/`orchestrator_details.run_id` and orchestrator id variants) in `supabase/functions/complete_task/orchestrator.ts` (lines 191-209), which indicates seam drift across modules.",
+        "UI integration seam has pass-through prop-bag mappers with repeated shared fields in `src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts` (lines 56-142) and direct spread consumption in `src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx` (lines 226-228), adding glue without reducing boundary complexity."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "`src/tools/edit-images/hooks/useInlineEditState.ts` performs heavy state reshaping twice: first in `buildImageEditValueModels` (lines 260-349), then again in the final returned `InlineEditStateResult` object (lines 457-524), creating repetitive local mapping code that is hard to verify.",
+        "`src/tools/edit-images/hooks/useImageEditValue.ts` keeps a large decomposition of partial builders plus a legacy interface (`UseImageEditValueLegacyParams`, lines 148-154) and injects placeholder fields (`isFlippedHorizontally`, `isSaving`) in `buildRepositionAndPanelState` (lines 217-218), increasing internal indirection and stale-surface risk.",
+        "`src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts` stacks result wrappers and adapter wrappers (`handle*Result` then `handle*Adapter`, lines 177-247) for the same operations, increasing local ceremony and branch surface."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "task_param_shape_drift_across_boundaries",
+      "summary": "Task orchestration data crosses module boundaries in multiple incompatible shapes, forcing fallback-heavy readers and query conditions.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/components/TaskDetails/VideoTravelDetails.tsx",
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/complete_task/generation.ts"
+      ],
+      "evidence": [
+        "`payloadBuilder` emits mixed top-level/orchestrator_details-style fields and optional arrays (e.g., `run_id`, `orchestrator_task_id`, `*_expanded`, `phase_config`) in one payload object (lines 119-216).",
+        "`VideoTravelDetails` reconstructs meaning by checking 3-4 parallel sources for each field (`individual_segment_params`, `full_orchestrator_payload`, `orchestrator_details`, top-level), including prompts, phase config, negative prompts, and model/resolution (lines 95-233).",
+        "`findSiblingSegments` and final-step lookup in complete_task use OR queries over multiple JSON paths for the same keys (lines 191-209, 239), indicating no single canonical handoff shape.",
+        "`createGenerationFromTask` explicitly warns that `full_orchestrator_payload` is passthrough and should not drive routing (lines 69-74), confirming semantic ambiguity at the seam."
+      ],
+      "suggestion": "Define and enforce one canonical orchestration envelope (versioned if needed) with a shared parser/serializer used by task creators, completion functions, and details UI; migrate readers to canonical-only lookups, then remove fallback paths and OR-query key variants behind a compatibility window.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "inline_edit_state_double_mapping",
+      "summary": "Inline edit state is repeatedly reshaped across layers, creating high local indirection and brittle internals.",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/hooks/useImageEditValue.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx"
+      ],
+      "evidence": [
+        "`useInlineEditState` builds a large grouped model (`mode/canvas/reposition/panel/form/status`) in `buildImageEditValueModels` (lines 260-349), then separately rebuilds another large grouped return object (`canvasEnvironment/inpaintingState/transformState/generationState`) (lines 457-524).",
+        "`useImageEditValue` performs another broad mapping pass from grouped models into `ImageEditState` via multiple partial builders (lines 160-260), adding another transformation hop.",
+        "`InlineEditView` consumes deeply nested state paths (`state.inpaintingState.*`, `state.generationState.*`, `state.canvasEnvironment.*`) across multiple subcomponents, amplifying coupling to this reshaped structure."
+      ],
+      "suggestion": "Collapse to a single canonical edit-state model exposed by one hook, and have UI components consume that model directly (or narrow selectors); remove duplicated reshaping layers and delete legacy shape scaffolding once callers migrate.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "button_group_prop_bag_indirection",
+      "summary": "Button group prop assembly introduces repetitive glue layers without meaningful boundary simplification.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useButtonGroupProps.ts",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx",
+        "src/shared/components/MediaLightbox/VideoLightbox.tsx"
+      ],
+      "evidence": [
+        "`useButtonGroupProps` has four near-identical builders that repeatedly copy the same shared fields plus pass-through handler fields (lines 56-131).",
+        "The hook memoizes on `[params]` (line 142), which defeats stable memoization unless caller object identity is externally stabilized.",
+        "`LightboxLayout` immediately spreads these bags into concrete controls (`BottomLeftControls`, `BottomRightControls`, `TopRightControls`, lines 226-228), so the wrapper layer mostly forwards data instead of isolating policy."
+      ],
+      "suggestion": "Replace per-group builders with a single typed control-model factory (or inline construction at the composition site) and use explicit dependency arrays per primitive input; keep only logic-bearing transforms in the seam.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "callback_adapter_ceremony_in_shot_editor",
+      "summary": "Shot editor callback internals duplicate control flow through layered result and adapter wrappers, increasing local complexity.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/shared/components/ShotImageManager/ShotImageManagerContainer.tsx"
+      ],
+      "evidence": [
+        "Each action is implemented as `handle*Result` with custom error object + `runCallback`, then wrapped again by `handle*Adapter` to convert return shapes (lines 177-247).",
+        "This pattern repeats for add-to-shot, add-without-position, and create-shot, multiplying function count and branch paths for equivalent operations.",
+        "The same module already has a dedicated deletion path (`useDeleteSegmentHandler`) with separate behavior (lines 175 onward), making callback style inconsistent within one file."
+      ],
+      "suggestion": "Adopt one callback contract for this hook (either throw-on-failure or typed result, not both), remove adapter duplication, and centralize error instrumentation in one helper that returns a single stable action shape.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

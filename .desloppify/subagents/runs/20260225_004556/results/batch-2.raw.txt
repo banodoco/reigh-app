@@ -1,0 +1,120 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "abstraction_fitness": 78.6,
+    "mid_level_elegance": 80.8,
+    "low_level_elegance": 83.4
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "Task builders in `src/shared/lib/tasks/imageGeneration.ts`, `src/shared/lib/tasks/joinClips.ts`, `src/shared/lib/tasks/individualTravelSegment.ts`, and `src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts` each define large, partially overlapping param bags and hand-map dozens of fields into payloads.",
+        "The same orchestration concepts (`orchestrator_task_id`, `run_id`, `parent_generation_id`, mode flags, lora/phase settings) are repeatedly translated with per-file fallback precedence, indicating abstraction leakage instead of a stable shared contract.",
+        "`src/tools/edit-images/hooks/useInlineEditState.ts` exports multiple re-shaped state objects (`imageEditValue`, `inpaintingState`, `generationState`, `transformState`) that largely forward underlying hook values, increasing indirection cost."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 74.0,
+        "indirection_cost": 80.0,
+        "interface_honesty": 81.8
+      }
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "`src/shared/lib/tasks/joinClips.ts` always writes `advanced_mode: true` while still exposing `motion_mode` that can be `'basic'`, creating contradictory handoff semantics between producer and consumers.",
+        "`src/shared/components/TaskDetails/VideoTravelDetails.tsx` contains compensating interpretation logic (treat `motion_mode === 'basic'` as non-advanced) to recover from mixed signals in payloads.",
+        "`src/shared/lib/tasks/__tests__/joinClips.test.ts` explicitly locks in the always-advanced behavior, cementing seam inconsistency instead of resolving it."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Annotation UI logic is duplicated across `src/tools/edit-images/components/InlineEditView.tsx` and `src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx` (shape toggle + delete overlay controls), with different styling and local wiring.",
+        "Local implementation divergence is already visible (theme-token classes in InlineEditView vs hardcoded color classes in LightboxLayout), increasing drift risk for future behavior changes.",
+        "`src/tools/edit-images/hooks/useInlineEditState.ts` contains a very large return assembly that manually mirrors many nested fields, making local edits error-prone and hard to verify."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "task_payload_contract_drift",
+      "summary": "Task creation uses duplicated wide param-bag mappers instead of one enforceable contract layer.",
+      "related_files": [
+        "src/shared/lib/tasks/imageGeneration.ts",
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts"
+      ],
+      "evidence": [
+        "Each file builds large `Record<string, unknown>` payloads with repeated orchestration keys and per-file fallback order.",
+        "Similar concerns (family payload composition, routing metadata, lora/phase wiring) are re-implemented independently.",
+        "Resulting contracts are only partially typed at edges, so behavior depends on mapper-specific conditional spreads."
+      ],
+      "suggestion": "Introduce a schema-backed shared payload assembler for orchestration metadata and mode fields (task-family core + per-family extension). Move common precedence rules into that shared layer, and have each task module provide only minimal feature-specific deltas.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "task_payload_contract_drift"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "join_clips_mode_signal_conflict",
+      "summary": "Join-clips payload sends conflicting mode signals across module boundaries.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/components/TaskDetails/VideoTravelDetails.tsx",
+        "src/shared/lib/tasks/__tests__/joinClips.test.ts"
+      ],
+      "evidence": [
+        "`buildJoinClipsPayload` hardcodes `advanced_mode: true` while also emitting `motion_mode` from user settings.",
+        "Consumer logic in `VideoTravelDetails` must override/interpret this conflict (`motion_mode === 'basic'` treated as basic despite advanced flag).",
+        "Tests assert the hardcoded advanced flag, reinforcing contradictory seam behavior."
+      ],
+      "suggestion": "Make `advanced_mode` derived from a single canonical source (`motion_mode` or explicit advanced toggle) and remove consumer-side compensation. Update join-clips tests to assert coherent mode contracts rather than hardcoded advanced mode.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "task_payload_contract_drift"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "annotation_controls_duplicated",
+      "summary": "Annotation overlay controls are duplicated with diverging local implementations.",
+      "related_files": [
+        "src/tools/edit-images/components/InlineEditView.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx",
+        "src/shared/components/MediaLightbox/components/StrokeOverlay.tsx"
+      ],
+      "evidence": [
+        "Both `InlineEditView` and `LightboxLayout` implement near-identical shape mode toggle/delete button overlays.",
+        "The duplicated implementations already diverge in class strategy and palette choices.",
+        "Stroke/selection behavior is centralized in `StrokeOverlay`, but control rendering is split, so behavior updates must be manually mirrored in two UI paths."
+      ],
+      "suggestion": "Extract a shared `AnnotationOverlayControls` component consumed by both layouts, with tokenized style variants (inline vs lightbox) and one prop contract for selected-shape actions.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Task payload evolution happened per feature module without a single typed orchestration contract.",
+      "Compatibility layering favored local adapters and duplicated view models instead of narrowing interfaces at boundaries."
+    ],
+    "likely_symptoms": [
+      "task_payload_contract_drift",
+      "join_clips_mode_signal_conflict",
+      "annotation_controls_duplicated"
+    ],
+    "possible_false_positives": []
+  }
+}

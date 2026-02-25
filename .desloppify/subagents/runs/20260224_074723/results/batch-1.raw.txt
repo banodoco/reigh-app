@@ -1,0 +1,57 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "high_level_elegance": 76.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/domains/generation/types/generationRow.ts` and `src/domains/generation/types/shot.ts` each merge persistence DTO fields with UI/view-model fields in a single exported type (`GenerationRow`, `Shot`), then expose conversion helpers that flatten both concerns.",
+        "`src/integrations/supabase/client.ts` keeps module-level singleton state (`clientInstance`, `instrumentationInstalled`) and performs runtime bootstrap/instrumentation implicitly via accessor calls, creating hidden global lifecycle coupling.",
+        "`src/shared/components/ui/sonner.tsx` pulls a shared toast manager via `getToastManager()` inside a UI primitive wrapper, indicating cross-cutting global state ownership living in generic UI surface."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "mixed_persistence_and_view_types",
+      "summary": "Core generation/shot types conflate DB contracts and UI state in shared domain surfaces.",
+      "related_files": [
+        "src/domains/generation/types/generationRow.ts",
+        "src/domains/generation/types/shot.ts"
+      ],
+      "evidence": [
+        "`GenerationRow` extends both `PersistedGenerationRow` and `GenerationViewModel` in one exported type used broadly.",
+        "`Shot` extends both `PersistedShotRow` and `ShotViewModel`, and `toShot`/`toGenerationRow` flatten both layers into one object shape."
+      ],
+      "suggestion": "Split persistence and UI models into separate modules (for example `.../persistence/*` and `.../view/*`), keep conversion at feature boundaries, and stop exporting merged row types as the default cross-module contract.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "global_runtime_state_in_shared_entrypoints",
+      "summary": "Shared entrypoints own hidden global runtime state, making ownership and lifecycle boundaries implicit.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/components/ui/sonner.tsx",
+        "src/shared/components/MediaLightbox/hooks/useLightboxViewportLock.ts"
+      ],
+      "evidence": [
+        "`client.ts` stores singleton flags/instance at module scope and performs instrumentation/bootstrap through `getSupabaseClient()` side effects.",
+        "`sonner.tsx` fetches a global toast manager from `getToastManager()` inside a generic `ui` wrapper, coupling UI rendering to app-wide singleton state.",
+        "`useLightboxViewportLock.ts` mutates global document/window state (`html.classList`, global focusout listener, `window.scrollTo`) from a hook without a centralized viewport lock service."
+      ],
+      "suggestion": "Introduce explicit runtime providers/services (e.g., `SupabaseRuntimeProvider`, `ToastRuntimeProvider`, `ViewportLockService`) and move singleton/global mutations behind app bootstrap boundaries so shared UI/hooks consume injected contracts instead of owning global lifecycle.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

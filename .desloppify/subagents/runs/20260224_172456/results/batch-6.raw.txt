@@ -1,0 +1,100 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "cross_module_architecture": 82.0,
+    "high_level_elegance": 80.0,
+    "package_organization": 74.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "README.md defines `initializeSupabase()` + `getSupabaseClient()` as explicit runtime contract, but also documents ongoing support for legacy `supabase` imports (README.md:31-34).",
+        "src/integrations/supabase/client.ts still exports a deprecated `supabase` proxy that dynamically forwards every property access to `getSupabaseClient()` (lines 55-99), preserving a second boundary path.",
+        "getSupabaseClient() catches runtime-access failures and lazily initializes fallback runtime (lines 25-51), which keeps initialization order tolerant rather than strictly enforced at boundary."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Governance policy is split across docs and code comments rather than one enforceable contract surface: README migration policy, per-symbol `@deprecationOwner`/`@removalTarget`, and inline sunset notes are all separate (README.md:35-40; src/integrations/supabase/client.ts:85-97; src/shared/lib/errorHandling/handleError.ts:62-73).",
+        "Compatibility policy is unevenly enforced: README defines an explicit command gate for `@/types/shots` removal, but the Supabase legacy path relies on comments/deprecation tags only (README.md:39 vs src/integrations/supabase/client.ts:85-99).",
+        "`src/types/generationAndShots.ts` advertises a canonical type surface, while legacy compatibility framing remains in README and other modules, creating multi-source ownership for contract truth."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    },
+    "package_organization": {
+      "evidence": [
+        "Objective structure signal: `src/shared/lib/` has 79 production files with mixed responsibilities (media, tasks, settings, drag/drop, Supabase helpers, UI helpers), exceeding the >10 mixed-concern overload threshold from the review rubric.",
+        "Objective coupling signal: `src/shared/lib/` is a cross-domain hub (`src/shared/hooks/ -> src/shared/lib/` = 57 edges, `src/shared/components/ -> src/shared/lib/` = 40 edges in coupling_matrix).",
+        "Objective placement signal: `src/shared/components/ui/button.tsx` imports `cn` via the broad barrel `@/shared/lib/utils`, which re-exports from `uiClassNames` and `stringFormatting`, coupling UI primitives to a catch-all utilities package (src/shared/lib/utils.ts:1-2; button.tsx:4)."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "supabase_dual_access_contract",
+      "summary": "Supabase boundary keeps both explicit-runtime and legacy-proxy access paths active.",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "README states explicit runtime contract (`initializeSupabase()`/`getSupabaseClient()`), but also keeps legacy import support (`supabase`) during migration.",
+        "client.ts exports `supabase` via a proxy (lines 55-99) and `getSupabaseClient()` silently recovers by lazy initialization (lines 25-51), so call sites can bypass explicit bootstrap discipline."
+      ],
+      "suggestion": "Collapse to one boundary in stages: (1) add CI check to block new `import { supabase }` usage, (2) switch fallback recovery to fail-fast in production while keeping dev warning, (3) migrate remaining call sites to `getSupabaseClient()`, and (4) remove proxy export at the documented sunset date.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "governance_policy_fragmentation",
+      "summary": "Contract governance is fragmented across README, deprecation comments, and implicit conventions.",
+      "related_files": [
+        "README.md",
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/types/generationAndShots.ts"
+      ],
+      "evidence": [
+        "Deprecation ownership/removal targets appear as local annotations in multiple modules (`client.ts`, `handleError.ts`) without a single runtime-checked registry.",
+        "README provides strong removal-gate guidance for type shim migration but no equivalent explicit command gate for Supabase legacy proxy removal, despite a dated removal target in code.",
+        "Canonical type-surface messaging (`generationAndShots.ts`) and compatibility policy are spread over files, increasing docs-vs-runtime drift risk."
+      ],
+      "suggestion": "Create one governance contract source (for example `docs/compatibility-contracts.md` + machine-checked script) listing each shim, owner, removal date, and enforcement command; wire all listed gates into `quality:check` so README statements and runtime behavior are validated from the same source.",
+      "confidence": "medium",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "shared_lib_flat_hub_overload",
+      "summary": "`src/shared/lib` is an overloaded flat hub, and UI primitives depend on its catch-all barrel.",
+      "related_files": [
+        "src/shared/lib/utils.ts",
+        "src/shared/components/ui/button.tsx",
+        "src/shared/lib/errorHandling/handleError.ts",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "Structure profile shows `src/shared/lib/` has 79 files with mixed concerns (well above mixed-concern threshold), and high cross-directory coupling (`hooks -> lib` 57, `components -> lib` 40).",
+        "`utils.ts` is a broad barrel in that hub; `button.tsx` imports `cn` through it, even though `cn` is UI-class concern (`uiClassNames`).",
+        "Core contracts like error handling (`handleError.ts`) and integration coupling (`client.ts`) are also anchored in the same broad shared-lib domain, reinforcing centralization."
+      ],
+      "suggestion": "Staged reorg plan: Stage 1 target folders: `src/shared/lib/ui/`, `src/shared/lib/text/`, `src/shared/lib/error/`, `src/shared/lib/tasks/` (existing tasks can stay), `src/shared/lib/integrations/`; Stage 2 move order: move leaf helpers first (`uiClassNames.ts`, `stringFormatting.ts`) then update `utils.ts` to temporary compatibility re-exports, then migrate importers (`button.tsx` and other UI files) to direct domain paths, then split remaining mixed files by concern; Stage 3 remove compatibility barrel entries after adoption. Use `desloppify move <src> <dst> --dry-run`, then validate with `rg \"@/shared/lib/utils|@/shared/lib/\" src`, `npm run typecheck`, and `npm run quality:check`.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change"
+    }
+  ]
+}

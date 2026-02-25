@@ -10,11 +10,11 @@
  */
 
 import { useCallback, useMemo } from 'react';
-import { toast } from '@/shared/components/ui/sonner';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { useQueryClient } from '@tanstack/react-query';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { useLastAffectedShot } from '@/shared/hooks/useLastAffectedShot';
-import { Shot } from '@/types/shots';
+import { Shot } from '@/domains/generation/types';
 import { unifiedGenerationQueryKeys } from '@/shared/lib/queryKeys/unified';
 
 interface UseVideoTravelAddToShotParams {
@@ -117,7 +117,7 @@ export const useVideoTravelAddToShot = ({
 
       return true;
     } catch (error) {
-      handleError(error, { context: 'useVideoTravelAddToShot', toastTitle: 'Failed to add item to shot' });
+      normalizeAndPresentError(error, { context: 'useVideoTravelAddToShot', toastTitle: 'Failed to add item to shot' });
       return false;
     }
   }, [targetShotInfo.targetShotIdForButton, selectedProjectId, setLastAffectedShotId, queryClient]);

@@ -2,10 +2,10 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { useAppExternalDrop } from './useAppExternalDrop';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
-vi.mock('@/shared/lib/errorHandling/handleError', () => ({
-  handleError: vi.fn(),
+vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
+  normalizeAndPresentError: vi.fn(),
 }));
 
 function createDragEndEvent(params: {
@@ -60,7 +60,7 @@ describe('useAppExternalDrop', () => {
     expect(handleExternalImageDropMutation.mutateAsync).toHaveBeenCalledTimes(1);
     expect(onDropHandled).toHaveBeenCalledTimes(1);
     expect(setLastAffectedShotId).not.toHaveBeenCalled();
-    expect(handleError).toHaveBeenCalledTimes(1);
+    expect(normalizeAndPresentError).toHaveBeenCalledTimes(1);
   });
 
   it('records affected shot and finalizes overlay for successful external-file drops', async () => {
@@ -167,7 +167,7 @@ describe('useAppExternalDrop', () => {
 
     expect(addImageToShotMutation.mutateAsync).toHaveBeenCalledTimes(1);
     expect(onDropHandled).toHaveBeenCalledTimes(1);
-    expect(handleError).toHaveBeenCalledTimes(1);
+    expect(normalizeAndPresentError).toHaveBeenCalledTimes(1);
     expect(setLastAffectedShotId).not.toHaveBeenCalled();
   });
 });

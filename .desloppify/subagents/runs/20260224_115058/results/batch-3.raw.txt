@@ -1,0 +1,78 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 3,
+  "assessments": {
+    "mid_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "`generationTaskRepository.parsePrimaryTaskId` treats non-array `tasks` as `invalid_tasks_shape`, while `generationTransformers.extractTaskId` still accepts legacy string `tasks`, creating divergent boundary behavior for the same field.",
+        "`generationTaskCache.preloadGenerationTaskMappings` only prefetches task rows when mapping status is `ok`, so the stricter parser can suppress downstream preloading even when a usable task id exists in legacy string form.",
+        "`useGenerationInvalidation` scheduled invalidation path executes `void executeQueryLifecycleActions(...)` inside `setTimeout` without error handling, while other async seam code (for example `adjacentPagePreloadCoordinator.prefetchPage`) explicitly catches and routes errors, producing inconsistent cross-module lifecycle/error contracts.",
+        "Join-clips metadata boundaries use three different failure contracts for similar duration-fetch operations: sentinel `0` (`clipInitService.getVideoDurationFromUrl`), `OperationResult` (`loadClipDurationResult`), and thrown exception (`loadClipDuration`), increasing orchestration/test seam complexity."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "task_mapping_shape_drift",
+      "summary": "Task-id boundary parsing is inconsistent across generation modules.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/lib/generationTransformers.ts",
+        "src/shared/lib/generationTaskCache.ts"
+      ],
+      "evidence": [
+        "`parsePrimaryTaskId` returns `invalid_tasks_shape` for any non-array `tasks` value.",
+        "`extractTaskId` in transformers accepts both `string[]` and single `string` task values.",
+        "Task cache preloading requires mapping status `ok`, so records with legacy string task shape can be treated as invalid and skipped."
+      ],
+      "suggestion": "Unify task-id decoding into a shared helper used by repository and transformers, accepting both current and legacy shapes; keep mapping status semantics aligned so cache preloading and UI transforms make the same decision for identical rows.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "scheduled_invalidation_error_contract_gap",
+      "summary": "Scheduled invalidation drops query lifecycle errors at the async seam.",
+      "related_files": [
+        "src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+        "src/features/gallery/lib/adjacentPagePreloadCoordinator.ts"
+      ],
+      "evidence": [
+        "`scheduleInvalidationPlan` runs `void executeQueryLifecycleActions(...)` inside a timeout without `try/catch` or reporting.",
+        "Immediate invalidation paths are awaited and can surface failures, but scheduled paths silently ignore them.",
+        "`prefetchPage` in adjacent preloading catches and forwards errors via `onError`, showing a different boundary contract for similar async query orchestration."
+      ],
+      "suggestion": "Wrap scheduled execution in `try/catch` and route failures through a consistent reporting callback (or shared error facade) so delayed and immediate invalidation flows expose comparable error/lifecycle behavior.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "clip_duration_failure_semantics_split",
+      "summary": "Clip duration APIs expose conflicting failure semantics across join-clips seams.",
+      "related_files": [
+        "src/tools/join-clips/lib/clipInitService.ts",
+        "src/tools/join-clips/lib/clipManager/metadata.ts",
+        "src/shared/lib/operationResult.ts"
+      ],
+      "evidence": [
+        "`getVideoDurationFromUrl` resolves to `0` on error and caller proceeds with clip insertion.",
+        "`loadClipDurationResult` returns structured `OperationResult` failure metadata.",
+        "`loadClipDuration` converts that failure into a thrown error, creating a third consumer-facing contract."
+      ],
+      "suggestion": "Standardize duration-fetch boundary behavior to one contract (preferably `OperationResult` at seam level), then adapt once at UI entrypoints; avoid mixing sentinel values and exceptions for the same operation type.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

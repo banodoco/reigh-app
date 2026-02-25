@@ -7,7 +7,7 @@
 
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { finalVideoQueryKeys } from '@/shared/lib/queryKeys/finalVideos';
 
 export interface ShotFinalVideo {
@@ -20,8 +20,7 @@ export function useShotFinalVideos(projectId: string | null) {
   const { data: rawData, isLoading } = useQuery({
     queryKey: finalVideoQueryKeys.byProject(projectId!),
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('shot_final_videos')
+      const { data, error } = await supabase().from('shot_final_videos')
         .select('id, location, thumbnail_url, shot_id, created_at')
         .eq('project_id', projectId!)
         .not('location', 'is', null)

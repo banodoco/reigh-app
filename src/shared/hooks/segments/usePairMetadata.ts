@@ -6,7 +6,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { segmentQueryKeys } from '@/shared/lib/queryKeys/segments';
 import type { PairMetadata } from '@/shared/components/segmentSettingsMigration';
 
@@ -25,8 +25,7 @@ export function usePairMetadata(
     queryFn: async (): Promise<PairMetadata | null> => {
       if (!pairShotGenerationId) return null;
 
-      const { data, error } = await supabase
-        .from('shot_generations')
+      const { data, error } = await supabase().from('shot_generations')
         .select('metadata')
         .eq('id', pairShotGenerationId)
         .single();

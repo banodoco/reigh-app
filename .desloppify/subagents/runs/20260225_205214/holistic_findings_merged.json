@@ -1,0 +1,242 @@
+{
+  "assessments": {
+    "design_coherence": 61.0
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "`useSharedLightboxState` composes a very wide API surface (many concern-specific prop groups merged into one input contract and one large return contract), and `ImageLightbox` still has to assemble and pass a large mixed-concern bag into it.",
+        "Edge function architecture is inconsistent in the same subsystem: `complete_task/index.ts` manually handles CORS/method/env/bootstrap concerns while sibling functions (for example `claim-next-task`) rely on `bootstrapEdgeHandler`, despite shared request/runtime helpers existing under `_shared`.",
+        "`useShotImagesEditorCallbacks` and `useTimelineFrameUpdates` each combine domain rules, direct Supabase writes, cache mutation/invalidation strategy, and UI error behavior in single hooks, making behavior coupling high when any one part changes."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": ""
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "lightbox_state_surface_overloaded",
+      "summary": "Shared lightbox hook exposes a broad mixed-responsibility contract that weakens boundaries.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/components/EditModePanel.tsx"
+      ],
+      "evidence": [
+        "`UseSharedLightboxStateProps` merges core, navigation, shot, layout, button, and media concerns into one interface (`useSharedLightboxState.ts` lines 53-137).",
+        "`UseSharedLightboxStateReturn` similarly bundles many unrelated sections (variants, navigation, star, references, lineage, shots, source generation, make-main, layout, button props) in one return object (`useSharedLightboxState.ts` lines 143-258).",
+        "`ImageLightbox` must construct and pass a large multi-domain argument bag into `useSharedLightboxState` (`ImageLightbox.tsx` lines 238-260+), showing the abstraction did not significantly reduce call-site complexity."
+      ],
+      "suggestion": "Split the shared lightbox contract into smaller feature-specific hooks with narrow inputs (`variants`, `navigation`, `shot-actions`, `references`), then compose only the needed subsets in `ImageLightbox` and `VideoLightbox` via explicit adapter objects rather than a single mega-prop object.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "lightbox_orchestration_over_aggregation"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "edge_runtime_pattern_drift",
+      "summary": "Edge handlers use divergent bootstrap patterns, creating structural drift in request lifecycle handling.",
+      "related_files": [
+        "supabase/functions/complete_task/index.ts",
+        "supabase/functions/claim-next-task/index.ts",
+        "supabase/functions/_shared/edgeRequest.ts"
+      ],
+      "evidence": [
+        "`complete_task/index.ts` manually defines CORS headers and method gate (`withCorsHeaders`, `OPTIONS`/`POST` checks, env resolution) at lines 38-54 and 142-168.",
+        "`claim-next-task/index.ts` uses centralized `bootstrapEdgeHandler` flow at lines 37-46 for parsing/auth/bootstrap concerns.",
+        "`_shared/edgeRequest.ts` already provides reusable method/env/json failure primitives (`initEdgeRuntime`, `ensureRequestMethod`, parse helpers; lines 21-74 and 150-220), but `complete_task` does not align with that shared lifecycle."
+      ],
+      "suggestion": "Standardize edge function entrypoints on a single bootstrap/request contract (either fully `bootstrapEdgeHandler` or a shared `edgeRequest` wrapper) and migrate `complete_task` to it so method/CORS/env/auth/error semantics are defined once.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "edge_handler_bootstrap_fragmentation"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "ui_hooks_embed_data_orchestration",
+      "summary": "UI-facing hooks combine domain mutations, persistence, and cache choreography in single units.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/shared/hooks/timeline/useTimelineFrameUpdates.ts",
+        "src/tools/travel-between-images/components/Timeline.tsx"
+      ],
+      "evidence": [
+        "`useDeleteSegmentHandler` in `useShotImagesEditorCallbacks` performs DB lookups, business-rule sibling selection, deletes, cache writes, and multi-query invalidation in one callback (lines 62-176).",
+        "`useTimelineFrameUpdates` owns write queueing, persistence calls, sync behavior, timeout/logging handling, and cache refetch policy in the same hook (lines 102-257).",
+        "`Timeline.tsx` depends on multiple orchestration hooks and passes many mutation handlers/coordination props into container/lightbox layers, indicating high coupling across view and mutation orchestration boundaries."
+      ],
+      "suggestion": "Extract persistence + cache invalidation choreography into domain services (e.g., `timelineMutationService`, `segmentDeletionService`) and keep UI hooks as thin adapters that invoke those services and expose UI state only.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "client_mutation_orchestration_coupling"
+    }
+  ],
+  "review_quality": {
+    "batch_count": 1,
+    "dimension_coverage": 1.0,
+    "evidence_density": 1.0,
+    "high_score_missing_issue_note": 0,
+    "finding_pressure": 7.84,
+    "dimensions_with_findings": 1
+  },
+  "review_scope": {
+    "reviewed_files_count": 79,
+    "successful_batch_count": 1,
+    "full_sweep_included": false,
+    "total_files": 2219,
+    "imported_dimensions": [
+      "design_coherence"
+    ]
+  },
+  "reviewed_files": [
+    "src/domains/generation/hooks/__tests__/useDerivedItems.test.ts",
+    "src/pages/Home/components/panes/PhilosophyPane.tsx",
+    "src/shared/components/GenerationsPane/GenerationsPane.tsx",
+    "src/shared/components/GlobalHeader/ProjectSelectorPopover.tsx",
+    "src/shared/components/ImageGenerationForm/components/reference/ReferenceThumbnail.tsx",
+    "src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx",
+    "src/shared/components/MediaLightbox/components/EditModePanel.tsx",
+    "src/shared/components/MediaLightbox/components/StrokeOverlay.tsx",
+    "src/shared/components/MediaLightbox/components/VideoEditModeDisplay.tsx",
+    "src/shared/components/MediaLightbox/hooks/inpainting/useTaskGeneration.ts",
+    "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts",
+    "src/shared/components/PaneControlTab.tsx",
+    "src/shared/components/PhaseConfigSelectorModal/components/BrowsePresetsTab.tsx",
+    "src/shared/components/SegmentSettingsForm/components/AdvancedSettingsSection.tsx",
+    "src/shared/components/StyledVideoPlayer.tsx",
+    "src/shared/components/TasksPane/TaskList.tsx",
+    "src/shared/components/VideoPortionEditor/index.tsx",
+    "src/shared/hooks/segments/__tests__/useSegmentOutputsForShot.test.ts",
+    "src/shared/hooks/segments/useSegmentOutputsForShot.ts",
+    "src/shared/hooks/shots/__tests__/addImageToShotHelpers.test.ts",
+    "src/shared/hooks/timeline/useTimelineFrameUpdates.ts",
+    "src/shared/hooks/useLoraManager.tsx",
+    "src/shared/hooks/useTaskStatusCounts.ts",
+    "src/shared/lib/tasks/imageGeneration.ts",
+    "src/shared/lib/tasks/individualTravelSegment.ts",
+    "src/tools/join-clips/hooks/__tests__/useJoinClipsGenerate.test.ts",
+    "src/tools/join-clips/pages/JoinClipsPage.tsx",
+    "src/tools/training-data-helper/components/BatchSelector.tsx",
+    "src/tools/travel-between-images/components/BatchGuidanceVideo.tsx",
+    "src/tools/travel-between-images/components/MotionControl.tsx",
+    "src/tools/travel-between-images/components/SharedGenerationView.tsx",
+    "src/tools/travel-between-images/components/ShotEditor/ShotSettingsContext.tsx",
+    "src/tools/travel-between-images/components/ShotEditor/services/__tests__/generateVideoService.test.ts",
+    "src/tools/travel-between-images/components/ShotEditor/ui/Header.tsx",
+    "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotMode.ts",
+    "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+    "src/tools/travel-between-images/components/ShotListDisplay.tsx",
+    "src/tools/travel-between-images/components/SortableShotItem.tsx",
+    "src/tools/travel-between-images/components/Timeline.tsx",
+    "src/tools/travel-between-images/components/Timeline/GuidanceVideoStrip.tsx",
+    "src/tools/travel-between-images/components/Timeline/hooks/useTimelineActionHandlers.ts",
+    "src/tools/travel-between-images/components/Timeline/hooks/useTimelineViewportController.ts",
+    "supabase/functions/complete_task/orchestrator.ts",
+    "src/shared/lib/debug/debugConsole.ts",
+    "src/shared/lib/videoPosterExtractor.ts",
+    "supabase/functions/claim-next-task/index.ts",
+    "supabase/functions/complete-auto-topup-setup/index.ts",
+    "supabase/functions/complete_task/generation-child.ts",
+    "supabase/functions/complete_task/index.ts",
+    "supabase/functions/generate-pat/index.ts",
+    "supabase/functions/generate-upload-url/index.ts",
+    "supabase/functions/get-completed-segments/index.ts",
+    "supabase/functions/get-orchestrator-children/index.ts",
+    "supabase/functions/get-task-output/index.ts",
+    "supabase/functions/process-auto-topup/index.ts",
+    "supabase/functions/revoke-pat/index.ts",
+    "supabase/functions/setup-auto-topup/index.ts",
+    "supabase/functions/stripe-checkout/index.ts",
+    "supabase/functions/update-shot-pair-prompts/index.ts",
+    "config/testing/vitest.edge.config.ts",
+    "src/shared/components/FileInput.tsx",
+    "src/shared/components/HoverScrubVideo.tsx",
+    "src/shared/components/ImageGenerationForm/components/PromptInputRow.tsx",
+    "src/shared/components/LoraSelectorModal/LoraSelectorModal.tsx",
+    "src/shared/components/MediaGalleryItem/hooks/useShotActions.ts",
+    "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+    "src/shared/components/PhaseConfigSelectorModal/components/AddNewPresetTab.tsx",
+    "src/shared/components/SettingsModal/sections/GenerationSection.tsx",
+    "src/shared/components/ShotSelector.tsx",
+    "src/shared/components/ui/ai-input-button.tsx",
+    "src/shared/lib/generationTaskRepository.ts",
+    "src/shared/lib/preloading/service.ts",
+    "src/shared/lib/toolSettingsService.ts",
+    "src/shared/realtime/DataFreshnessManager.ts",
+    "src/tools/join-clips/lib/clipInitService.ts",
+    "src/tools/travel-between-images/components/FinalVideoSection.tsx",
+    "src/tools/travel-between-images/components/Timeline/utils/timeline-utils.ts",
+    "supabase/functions/_shared/edgeRequest.ts",
+    "supabase/functions/complete_task/params.ts"
+  ],
+  "provenance": {
+    "kind": "blind_review_batch_import",
+    "blind": true,
+    "runner": "codex",
+    "run_stamp": "20260225_205214",
+    "created_at": "2026-02-25T20:53:57+00:00",
+    "batch_count": 1,
+    "batch_indexes": [
+      1
+    ],
+    "packet_path": "/Users/peteromalley/Documents/reigh/.desloppify/review_packet_blind.json",
+    "packet_sha256": "9608cd9243e1a5f2cf2e5b60fb7117dbcb915a698fdc84035e3c85408736f1e6"
+  },
+  "assessment_coverage": {
+    "scored_dimensions": [
+      "naming_quality",
+      "logic_clarity",
+      "type_safety",
+      "contract_coherence",
+      "error_consistency",
+      "abstraction_fitness",
+      "ai_generated_debt",
+      "high_level_elegance",
+      "mid_level_elegance",
+      "low_level_elegance",
+      "cross_module_architecture",
+      "initialization_coupling",
+      "convention_outlier",
+      "dependency_health",
+      "test_strategy",
+      "api_surface_coherence",
+      "authorization_consistency",
+      "incomplete_migration",
+      "package_organization",
+      "design_coherence"
+    ],
+    "selected_dimensions": [
+      "design_coherence"
+    ],
+    "imported_dimensions": [
+      "design_coherence"
+    ],
+    "missing_dimensions": [
+      "naming_quality",
+      "logic_clarity",
+      "type_safety",
+      "contract_coherence",
+      "error_consistency",
+      "abstraction_fitness",
+      "ai_generated_debt",
+      "high_level_elegance",
+      "mid_level_elegance",
+      "low_level_elegance",
+      "cross_module_architecture",
+      "initialization_coupling",
+      "convention_outlier",
+      "dependency_health",
+      "test_strategy",
+      "api_surface_coherence",
+      "authorization_consistency",
+      "incomplete_migration",
+      "package_organization"
+    ]
+  }
+}

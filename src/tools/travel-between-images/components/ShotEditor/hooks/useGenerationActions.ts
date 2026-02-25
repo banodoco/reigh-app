@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { GenerationRow, Shot } from "@/types/shots";
+import { GenerationRow, Shot } from "@/domains/generation/types";
 import { ShotEditorState } from '../state/types';
 import { useDeleteActions } from './useDeleteActions';
 import { useDuplicateAction } from './useDuplicateAction';

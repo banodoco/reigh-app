@@ -1,6 +1,6 @@
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { Resource } from './useResources';
 import { isNotFoundError } from '@/shared/constants/supabaseErrors';
 import { resourceQueryKeys } from '@/shared/lib/queryKeys/resources';
@@ -10,8 +10,7 @@ import { resourceQueryKeys } from '@/shared/lib/queryKeys/resources';
  * Used internally by useSpecificResources for individual caching
  */
 const fetchResourceById = async (id: string): Promise<Resource | null> => {
-  const { data, error } = await supabase
-    .from('resources')
+  const { data, error } = await supabase().from('resources')
     .select('*')
     .eq('id', id)
     .single();

@@ -1,0 +1,83 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 4,
+  "assessments": {
+    "cross_module_architecture": 72.0,
+    "high_level_elegance": 78.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "`src/shared/lib/errorHandling/handleError.ts` couples shared error handling to UI by importing `toast` and conditionally emitting toasts inside a broadly shared helper (`handleError`).",
+        "`src/integrations/supabase/client.ts` performs eager import-time initialization (`export const supabase = getOrCreateSupabaseClient()`), installs instrumentation, initializes runtime, and mutates `window` globals, creating implicit startup side effects.",
+        "`README.md` is high-level and does not document these import-time/runtime side-effect contracts, so module boundaries are less predictable than docs imply."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/components/ui/button.tsx` includes app/theme-specific variants (`retro`, `theme-*`, `success`) and comments tying styles to homepage branding, expanding a core UI primitive beyond a narrow shared responsibility.",
+        "`src/shared/lib/utils.ts` is a generic-named shared barrel; even with few exports today, this pattern creates unclear ownership and encourages cross-domain accretion.",
+        "`README.md` references `shadcn-ui` and architecture docs, but the runtime/component surface in shared primitives shows mixed ownership boundaries (design-system base + product-specific styling in one public component)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "shared_error_handler_ui_side_effect",
+      "summary": "Shared error helper mixes domain error normalization with UI toast side effects.",
+      "related_files": [
+        "src/shared/lib/errorHandling/handleError.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`handleError` imports `toast` from UI (`@/shared/components/ui/toast`) and emits toasts based on options/defaults, while also normalizing/logging errors.",
+        "This helper is positioned as central shared error handling; embedding UI side effects in a shared lib broadens coupling and makes non-UI callers inherit presentation behavior."
+      ],
+      "suggestion": "Split into a pure shared core (`normalizeAndLogError`) and a UI adapter (`handleErrorWithToast`) in a UI/app layer. Keep the current export as a compatibility wrapper temporarily, then migrate callers to explicit APIs.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "supabase_client_import_time_bootstrap",
+      "summary": "Supabase client module has implicit import-time initialization and global mutation.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "README.md"
+      ],
+      "evidence": [
+        "`src/integrations/supabase/client.ts` exports `supabase` via eager execution (`getOrCreateSupabaseClient()`), so importing the module triggers runtime initialization.",
+        "The factory mutates globals (`window.__supabase_client__`, `window.supabase`) and runs instrumentation/runtime setup, which creates hidden startup contracts across all importers."
+      ],
+      "suggestion": "Replace eager singleton export with an explicit `getSupabaseClient()` and initialize once in a dedicated app bootstrap path. Keep global diagnostics optional and gated behind dev-only flags.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "button_primitive_ownership_drift",
+      "summary": "Shared Button primitive mixes base control semantics with product/theme-specific styling policy.",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "README.md"
+      ],
+      "evidence": [
+        "`button.tsx` contains numerous brand/app-specific variants (`retro`, `retro-secondary`, `theme`, `theme-ghost`, `theme-outline`, `theme-soft`, `success`) and comments tied to homepage style.",
+        "This makes a foundational UI primitive responsible for both generic control behavior and evolving product visual policy, increasing blast radius for design changes."
+      ],
+      "suggestion": "Keep `Button` limited to core semantic variants (`default`, `destructive`, `outline`, etc.) and move product-theme variants into higher-level wrapper components or feature/theme modules.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

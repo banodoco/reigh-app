@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { isMobileUA } from '@/shared/hooks/useMobile';
+import { isMobileUA } from '@/shared/hooks/mobile';
 
 interface UseMobileTimeoutFallbackOptions {
   /** Whether the operation is currently in a loading state */

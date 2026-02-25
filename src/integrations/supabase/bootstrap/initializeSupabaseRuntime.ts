@@ -2,7 +2,6 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
 import { initAuthStateManager } from '@/integrations/supabase/auth/AuthStateManager';
 import { getReconnectScheduler } from '@/integrations/supabase/reconnect/ReconnectScheduler';
-import { installRealtimeInstrumentation } from '@/integrations/supabase/instrumentation/realtime';
 import { maybeAutoLogin } from '@/integrations/supabase/dev/autoLogin';
 
 export function initializeSupabaseRuntime(
@@ -11,6 +10,5 @@ export function initializeSupabaseRuntime(
   // Shared runtime wiring after client construction.
   getReconnectScheduler();
   initAuthStateManager(client);
-  installRealtimeInstrumentation(client);
   maybeAutoLogin(client);
 }

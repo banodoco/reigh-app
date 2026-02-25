@@ -1,0 +1,131 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 2,
+  "assessments": {
+    "incomplete_migration": 74.0
+  },
+  "dimension_notes": {
+    "incomplete_migration": {
+      "evidence": [
+        "Travel-between-images canonical types still embed deprecated fields by extending `LegacyStructureVideoFields` in `StructureVideoConfig` and by exposing `TravelBetweenImagesTaskInput` as modern+legacy union (`src/shared/lib/tasks/travelBetweenImages/types.ts`).",
+        "Join-clips compatibility surface still accepts and normalizes legacy path/video_edit fields as active input modes (`src/shared/lib/tasks/joinClipsCompatAdapter.ts`).",
+        "Generation row typing is split between new domain contract (`src/domains/generation/types/generationViewRow.ts`) and legacy barrel usage with mixed-shape helpers (`src/shared/lib/mediaTypeHelpers.ts`).",
+        "Legacy alias governance is inconsistent: Supabase legacy facade has deadline warning logic, while deprecated runtime error alias exports in `handleError.ts` have no usage pressure mechanism."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "travel_structure_legacy_leaks_into_canonical_types",
+      "summary": "Canonical travel-between-images types still allow deprecated structure-video fields, so migration boundary is not actually enforced.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/types.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts"
+      ],
+      "evidence": [
+        "`StructureVideoConfig` extends `LegacyStructureVideoFields`, which reintroduces deprecated keys like `motion_strength`, `structure_type`, and `uni3c_*` into the modern structure-video shape.",
+        "`TravelBetweenImagesTaskInput` is defined as `TravelBetweenImagesTaskParams & LegacyTravelBetweenImagesTaskParams`, while comments claim write path should emit only `structure_guidance` + `structure_videos`."
+      ],
+      "suggestion": "Split read/write contracts explicitly: keep a legacy read adapter type, but make canonical write interfaces exclude deprecated fields (`never`/omitted keys), then centralize normalization in one adapter module before task submission.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "canonical_types_still_unioned_with_legacy"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "join_clips_compat_path_still_first_class",
+      "summary": "Join-clips compatibility adapter still treats legacy inputs as normal operational modes, extending migration life instead of constraining it.",
+      "related_files": [
+        "src/shared/lib/tasks/joinClipsCompatAdapter.ts",
+        "src/shared/lib/taskConfig.ts"
+      ],
+      "evidence": [
+        "`JoinClipsTaskCompatParams` still exposes extensive legacy fields (`starting_video_path`, `ending_video_path`, `video_edit_mode`, `source_*`, `portions_to_regenerate`) and supports `mode: 'legacy'`.",
+        "Adapter inference explicitly resolves `legacy_paths` and maps mode to `'legacy'`, then forwards canonical creation through `createCanonicalJoinClipsTask`.",
+        "`taskConfig` still carries hidden legacy processing types (e.g., `join_clips_segment`) as hardcoded fallback inventory, reinforcing old/new coexistence."
+      ],
+      "suggestion": "Gate legacy mode behind a feature flag or strict telemetry threshold, remove `'legacy'` from public compat params first, and force conversion at boundary utilities with explicit deprecation failure after the removal date.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "canonical_types_still_unioned_with_legacy"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "generation_row_type_migration_split_brain",
+      "summary": "Generation-row typing migration is incomplete, with new domain types and legacy barrel types both active, preserving mixed-shape handling.",
+      "related_files": [
+        "src/domains/generation/types/generationViewRow.ts",
+        "src/shared/components/ShotImageManager/utils/image-utils.ts",
+        "src/shared/lib/mediaTypeHelpers.ts"
+      ],
+      "evidence": [
+        "`image-utils.ts` imports `GenerationRow` from new domain path `@/domains/generation/types/generationViewRow`.",
+        "`mediaTypeHelpers.ts` imports `GenerationRow` from legacy barrel `@/types/generationAndShots` and still includes compatibility logic prioritizing `generation_id > metadata.generation_id > id`.",
+        "`variantToGenerationRow` fabricates a row with both `id` and `generation_id` set from fallback logic, indicating unresolved schema/source-of-truth migration."
+      ],
+      "suggestion": "Converge all generation-row consumers on one canonical type module, then isolate legacy shape parsing to a single ingress adapter returning strict domain rows.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "domain_contract_not_fully_adopted"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "deprecation_enforcement_inconsistent_across_alias_facades",
+      "summary": "Deprecated alias surfaces use inconsistent enforcement, so some migrations get pressure while others can stall indefinitely.",
+      "related_files": [
+        "src/integrations/supabase/legacy/legacySupabaseFacade.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "Supabase facade includes runtime removal-target checks (`warnIfPastRemovalTarget`) and explicit migration messaging.",
+        "`handleError.ts` exports deprecated aliases (`reportRuntimeError`, `RuntimeErrorOptions`) with removal metadata but no warning, usage logging, or gate when imported/called.",
+        "Both modules define import budget constants, but only one has runtime behavior to enforce migration pressure."
+      ],
+      "suggestion": "Standardize deprecation policy for alias facades: shared helper for deadline checks, warning/telemetry hooks, and optional hard-fail mode after removal target.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "deprecation_policy_not_uniform"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "task_type_migration_relies_on_legacy_fallbacks_and_name_heuristics",
+      "summary": "Task-type migration is incomplete because canonical DB-driven config still depends on legacy hardcoded fallback tables and heuristic matching.",
+      "related_files": [
+        "src/shared/lib/taskConfig.ts",
+        "src/shared/lib/taskTypeUtils.ts",
+        "src/shared/lib/taskIdHelpers.ts"
+      ],
+      "evidence": [
+        "`taskConfig.ts` describes DB as source of truth but keeps broad `HARDCODED_TASK_TYPE_CONFIG` fallback with old and hidden types.",
+        "`taskTypeUtils.ts` combines explicit sets with heuristic `taskType.includes('travel')`, which can mask unresolved migration naming and classification debt.",
+        "`taskIdHelpers.ts` still resolves multiple legacy task-id fields (`source_task_id`, `orchestrator_task_id`, `task_id`), indicating historic schema variants remain active in the core path."
+      ],
+      "suggestion": "Move to a strict canonical task-type registry contract: limit hardcoded fallback to minimal bootstrap set, remove substring heuristics, and deprecate multi-key task-id extraction once canonical fields are guaranteed.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "canonical_runtime_still_tolerates_legacy_shapes"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Canonical interfaces still include legacy fields instead of forcing normalization at boundaries.",
+      "Deprecation metadata exists, but enforcement mechanisms are inconsistent across modules.",
+      "Fallback-heavy runtime design keeps old and new schemas valid simultaneously, reducing migration pressure."
+    ],
+    "likely_symptoms": [
+      "travel_structure_legacy_leaks_into_canonical_types",
+      "join_clips_compat_path_still_first_class",
+      "task_type_migration_relies_on_legacy_fallbacks_and_name_heuristics"
+    ],
+    "possible_false_positives": []
+  }
+}

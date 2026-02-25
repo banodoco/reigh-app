@@ -1,0 +1,97 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 5,
+  "assessments": {
+    "high_level_elegance": 72.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/hooks/useAutoTopup.ts` couples a supposedly shared hook directly to billing/auth integration details (`getSupabaseClient`, `invokeWithTimeout('setup-auto-topup')`, `creditQueryKeys`), indicating domain-specific ownership inside `shared/hooks`.",
+        "`src/shared/hooks/useBackgroundThumbnailGenerator.ts` embeds generation-domain workflow (`projectId`, `unifiedGenerationQueryKeys`, thumbnail upload orchestration) rather than a cross-domain reusable primitive.",
+        "`src/shared/components/ActiveLoRAsDisplay.tsx` and `src/shared/components/AspectRatioSelector.tsx` are generation-specific UI concepts but are placed under broad `shared/components`, weakening directory boundaries.",
+        "`tailwind.config.ts` still scans multiple top-level app shapes (`./pages`, `./components`, `./app`, `./src`), and `vite.config.ts` contains deployment-host policy (`preview.allowedHosts`), both signaling mixed architectural ownership at the root layer."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_layer_contains_domain_workflows",
+      "summary": "Domain workflows are packaged under `shared/`, obscuring ownership boundaries.",
+      "related_files": [
+        "src/shared/hooks/useAutoTopup.ts",
+        "src/shared/hooks/useBackgroundThumbnailGenerator.ts",
+        "src/shared/components/ActiveLoRAsDisplay.tsx",
+        "src/shared/components/AspectRatioSelector.tsx"
+      ],
+      "evidence": [
+        "`useAutoTopup` performs authenticated Supabase user reads and top-up mutation orchestration (`setup-auto-topup` edge function), which is billing-domain logic.",
+        "`useBackgroundThumbnailGenerator` manages generation queueing, thumbnail generation/upload, and generation query cache invalidation.",
+        "`ActiveLoRAsDisplay` and `AspectRatioSelector` encode LoRA/aspect-ratio domain semantics rather than generic presentation primitives."
+      ],
+      "suggestion": "Create domain-owned packages (for example `src/domains/billing/*` and `src/domains/generation/*`) and move these hooks/components there; keep `shared` for generic UI primitives and stateless utilities only.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "test_structure_reveals_boundary_drift",
+      "summary": "Hook tests show stale module seams, indicating package boundaries have drifted without aligned ownership.",
+      "related_files": [
+        "src/shared/hooks/useAutoTopup.ts",
+        "src/shared/hooks/__tests__/useAutoTopup.test.ts",
+        "src/shared/hooks/useBackgroundThumbnailGenerator.ts",
+        "src/shared/hooks/__tests__/useBackgroundThumbnailGenerator.test.ts"
+      ],
+      "evidence": [
+        "`useAutoTopup.ts` imports `getSupabaseClient` and `@/shared/lib/errorHandling/handleError`, but its test mocks `supabase` and `@/shared/lib/errorHandler`.",
+        "`useAutoTopup.ts` imports `creditQueryKeys` from `@/shared/lib/queryKeys/credits`, while its test mocks `@/shared/lib/queryKeys`.",
+        "`useBackgroundThumbnailGenerator.ts` imports `@/shared/lib/errorHandling/handleError`, but its test mocks `@/shared/lib/errorHandler`."
+      ],
+      "suggestion": "Co-locate tests with domain-owned modules after moving hooks, and align tests to stable public module entry points (barrel/API surface) instead of legacy internal paths.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "root_config_mixes_architecture_and_deployment_concerns",
+      "summary": "Root configuration files combine unrelated ownership concerns, blurring directory and layer boundaries.",
+      "related_files": [
+        "tailwind.config.ts",
+        "vite.config.ts"
+      ],
+      "evidence": [
+        "`tailwind.config.ts` scans both legacy and current directory shapes (`./pages`, `./components`, `./app`, `./src`), which suggests unresolved structural migration at the package level.",
+        "`vite.config.ts` includes environment/deployment-specific host allowlists inside build tooling config (`preview.allowedHosts`), coupling app package structure to deployment policy.",
+        "`vite.config.ts` also contains custom logging suppression and chunking policy in one root file, further centralizing mixed responsibilities."
+      ],
+      "suggestion": "Split root config ownership by concern: keep build mechanics in Vite config, move deploy-host policy to environment-driven config, and remove obsolete content globs once canonical source layout is finalized.",
+      "confidence": "medium",
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "feature_specific_hook_in_shared_catalog",
+      "summary": "`useBatchImageLoading` is a feature-context adapter stored as a shared hook, flattening package boundaries.",
+      "related_files": [
+        "src/shared/hooks/useBatchImageLoading.ts",
+        "src/shared/hooks/__tests__/useBatchImageLoading.test.ts"
+      ],
+      "evidence": [
+        "The hook header explicitly states it is used by specific batch view components (`ShotBatchItemMobile`, `ShotBatchItemDesktop`), indicating feature-local intent.",
+        "It wires progressive image behavior with batch-view defaults (`priority: false`, `lazy: true`, `crossfadeMs: 200`) rather than exposing a domain-agnostic primitive."
+      ],
+      "suggestion": "Move this hook to the owning feature/package (for example a gallery or batch-view module) and keep only a lower-level reusable primitive in `shared/hooks`.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

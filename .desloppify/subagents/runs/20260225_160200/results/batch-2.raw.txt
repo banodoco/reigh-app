@@ -1,0 +1,89 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 2,
+  "assessments": {
+    "low_level_elegance": 82.0
+  },
+  "dimension_notes": {
+    "low_level_elegance": {
+      "evidence": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts builds multiple large mirrored projection objects by hand (`inpaintingState`, `transformState`, `generationState`, `imageEditValue`) and repeats `setQwenEditModel` twice in the same object literal, showing copy-paste drift.",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx and src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx duplicate large `lightboxVariants` and `lightboxStateValue` assembly blocks with near-identical dependency arrays and field wiring.",
+        "src/shared/lib/tasks/individualTravelSegment.ts, src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts, and src/shared/lib/tasks/joinClips.ts each manually construct large `Record<string, unknown>` payload maps with overlapping fields/defaulting patterns, increasing local complexity and drift risk."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "inline_edit_projection_drift",
+      "summary": "Hand-mapped inline-edit state projections have already drifted (duplicate key override).",
+      "related_files": [
+        "src/tools/edit-images/hooks/useInlineEditState.ts",
+        "src/tools/edit-images/components/InlineEditView.tsx"
+      ],
+      "evidence": [
+        "In `buildInlineEditStateModels` (`useInlineEditState.ts`), `imageEditValue` contains `setQwenEditModel` twice; the later property silently overrides the first, proving the projection is brittle.",
+        "The same hook manually maps a very large state surface into multiple objects (`inpaintingState`, `transformState`, `generationState`, `imageEditValue`) that are then consumed downstream by `InlineEditView`, requiring synchronized edits across wide object contracts."
+      ],
+      "suggestion": "Replace manual mega-projection with smaller typed selectors (for example `buildImageEditControls`, `buildGenerationActions`, `buildTransformControls`) and enforce no-duplicate-keys via lint/type checks; then have `InlineEditView` consume those narrower contracts.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "manual_projection_contracts"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "lightbox_render_model_duplication",
+      "summary": "Image and video lightbox render-model builders duplicate large wiring blocks.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "Both render-model paths build near-identical `lightboxVariants` objects (variant list/selection/make-primary/promote/badge wiring) with long dependency arrays, differing only in a few media-specific fields.",
+        "Both paths also assemble a nested `lightboxStateValue` contract with duplicated core/media/navigation scaffolding, then feed the same layout system (`LightboxLayout`) that expects a common shape."
+      ],
+      "suggestion": "Extract a shared render-model composer for common variant/core/navigation wiring and pass media-specific adapters for image/video differences. Keep only truly divergent fields local to each mode hook.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "manual_projection_contracts"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "task_payload_builder_fragmentation",
+      "summary": "Task payload construction is fragmented across large ad-hoc object builders.",
+      "related_files": [
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/joinClips.ts"
+      ],
+      "evidence": [
+        "Each module builds large `Record<string, unknown>` payloads with manual optional spreads and defaults (`motion_mode`, `additional_loras`, `phase_config`, preset IDs, resolution fields), but with separate local rules.",
+        "The same domain fields are repeated in multiple builder functions (`buildTaskParamsPayload`/`buildIndividualSegmentParamsPayload` in individual travel, `buildTravelBetweenImagesPayload`, `buildJoinClipsPayload`), which increases local branching and maintenance burden."
+      ],
+      "suggestion": "Introduce a typed shared payload composer for common generation/orchestrator fields (defaults, optional inclusion policy, naming) and have family-specific builders contribute only their unique fields.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "manual_payload_composition"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Large object-surface contracts are assembled manually instead of via typed shared composers/selectors.",
+      "Migration-era compatibility and feature growth were layered into existing builders without consolidating common field policy."
+    ],
+    "likely_symptoms": [
+      "inline_edit_projection_drift",
+      "lightbox_render_model_duplication",
+      "task_payload_builder_fragmentation"
+    ],
+    "possible_false_positives": []
+  }
+}

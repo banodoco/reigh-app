@@ -1,0 +1,119 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 8,
+  "assessments": {
+    "convention_outlier": 72.0,
+    "error_consistency": 68.0,
+    "authorization_consistency": 81.0
+  },
+  "dimension_notes": {
+    "convention_outlier": {
+      "evidence": [
+        "UI primitive siblings use different formatting conventions: `src/shared/components/ui/button.tsx`, `src/shared/components/ui/label.tsx`, `src/shared/components/ui/toast.tsx`, and `src/shared/components/ui/tooltip.tsx` use double-quote/no-semicolon style, while `src/shared/components/ui/touchableTooltip.tsx` uses single-quote/semicolon style.",
+        "Utility import conventions drift inside the same UI layer: `button.tsx` imports `cn` from `@/shared/lib/utils`, while `label.tsx`/`toast.tsx`/`tooltip.tsx` import `cn` from `@/shared/components/ui/cn`."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "error_consistency": {
+      "evidence": [
+        "Mixed error contracts in similar task-creation paths: `src/shared/lib/tasks/imageGeneration.ts`, `src/shared/lib/tasks/joinClips.ts`, and `src/shared/lib/tasks/individualTravelSegment.ts` normalize via `handleError(...); throw error;` while `src/shared/hooks/useGenerationMutations.ts` sometimes throws raw Supabase errors (e.g., `throw variantError`) and also uses direct `console.error`.",
+        "Edge-function error strategy differs across sibling complete-task modules: `supabase/functions/complete_task/orchestrator.ts` wraps DB failures into contextual `new Error(...)`, while `supabase/functions/complete_task/generation.ts` logs via `console.error` and rethrows the original error."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "authorization_consistency": {
+      "evidence": [
+        "Route redirection uses a localStorage token presence heuristic in `src/app/routes.tsx` (`hasStoredSessionToken`) before routing users to protected tool paths.",
+        "Auth-sensitive operations in `src/pages/Home/hooks/auth/useAuthReferralFinalize.ts` and `src/pages/Home/hooks/useDiscordSignIn.ts` rely on Supabase auth/RPC execution via `runAuthSupabaseOperation`, creating two different auth-source patterns (storage hint vs authenticated operation).",
+        "`supabase/functions/calculate-task-cost/index.ts` enforces explicit service-role auth via `authenticateRequest`, showing stricter server-boundary checks than client-side route prechecks."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "convention_outlier",
+      "identifier": "ui_style_and_import_convention_split",
+      "summary": "Shared UI primitives diverge on code style and `cn` import source, creating a style island in a high-visibility module.",
+      "related_files": [
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/ui/label.tsx",
+        "src/shared/components/ui/toast.tsx",
+        "src/shared/components/ui/tooltip.tsx",
+        "src/shared/components/ui/touchableTooltip.tsx",
+        "src/shared/lib/utils.ts"
+      ],
+      "evidence": [
+        "`button.tsx` uses `cn` from `@/shared/lib/utils`, while `label.tsx`/`toast.tsx`/`tooltip.tsx` use `@/shared/components/ui/cn`.",
+        "`touchableTooltip.tsx` uses single quotes + semicolons, unlike neighboring UI primitives that use double quotes + no semicolons."
+      ],
+      "suggestion": "Choose one canonical `cn` import path for UI primitives and enforce one formatting profile for `src/shared/components/ui/**` (formatter/lint autofix plus a brief module convention note).",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "task_error_contract_mismatch",
+      "summary": "Task and mutation flows mix normalized AppError handling with raw thrown errors and ad-hoc console logging.",
+      "related_files": [
+        "src/shared/lib/tasks/imageGeneration.ts",
+        "src/shared/lib/tasks/joinClips.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/hooks/useGenerationMutations.ts",
+        "src/shared/lib/errorHandling/handleError.ts"
+      ],
+      "evidence": [
+        "Task modules typically use `handleError(error, ...); throw error;`, but `useGenerationMutations.ts` logs with `console.error` and throws `variantError` directly in one path.",
+        "This yields inconsistent downstream error shapes/context (normalized `AppError` in some paths, raw provider errors in others)."
+      ],
+      "suggestion": "Standardize mutation/task failures on one boundary contract: always normalize/wrap before throw (or always return typed operation results), and remove direct `console.error` in favor of centralized error instrumentation.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "edge_completion_error_strategy_drift",
+      "summary": "Sibling `complete_task` modules use different error-context strategies, reducing predictability in logs and failure diagnostics.",
+      "related_files": [
+        "supabase/functions/complete_task/orchestrator.ts",
+        "supabase/functions/complete_task/generation.ts",
+        "supabase/functions/calculate-task-cost/index.ts"
+      ],
+      "evidence": [
+        "`orchestrator.ts` frequently throws contextual `new Error('[OrchestratorComplete] ...')` messages around DB failures.",
+        "`generation.ts` catches, logs via `console.error`, and rethrows without equivalent contextual wrapping.",
+        "`calculate-task-cost/index.ts` primarily maps failures to structured HTTP JSON errors with logger flushes."
+      ],
+      "suggestion": "Adopt one edge-function error policy across task-related functions (context-rich error wrapping + structured logger fields + consistent HTTP mapping at handler boundary).",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "authorization_consistency",
+      "identifier": "mixed_auth_source_of_truth_in_navigation",
+      "summary": "Client navigation prechecks use stored-token heuristics while auth actions use Supabase-validated flows, creating inconsistent authorization semantics.",
+      "related_files": [
+        "src/app/routes.tsx",
+        "src/pages/Home/hooks/auth/useAuthReferralFinalize.ts",
+        "src/pages/Home/hooks/useDiscordSignIn.ts"
+      ],
+      "evidence": [
+        "`routes.tsx` redirects based on `hasStoredSessionToken()` from local storage, which checks token presence rather than validated session state.",
+        "Auth operations (`useAuthReferralFinalize`, `useDiscordSignIn`) rely on Supabase RPC/OAuth through `runAuthSupabaseOperation`, i.e., validated backend/session paths."
+      ],
+      "suggestion": "Use a single auth decision source for navigation (e.g., resolved session state from auth manager/context) and keep local-storage checks as non-authoritative optimization only.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    }
+  ]
+}

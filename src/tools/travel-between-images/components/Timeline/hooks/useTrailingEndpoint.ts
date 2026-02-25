@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useMemo } from 'react';
-import { toast } from '@/shared/components/ui/sonner';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { TRAILING_ENDPOINT_KEY } from '../utils/timeline-utils';
 
 interface UseTrailingEndpointProps {
@@ -146,7 +146,7 @@ export function useTrailingEndpoint({
       // Clean up
       video.src = '';
     } catch (error) {
-      handleError(error, { context: 'extractAndDropFinalFrame' });
+      normalizeAndPresentError(error, { context: 'extractAndDropFinalFrame' });
       toast.error('Failed to extract frame from video');
     }
   }, [trailingVideoUrl, onFileDrop, currentPositions, trailingEndFrame]);

@@ -16,6 +16,20 @@ export interface FalLoraConfig {
   scale?: number;
 }
 
+/** Active LoRA selected in UI workflows. */
+export interface ActiveLora {
+  id: string;
+  name: string;
+  path: string;
+  strength: number;
+  previewImageUrl?: string;
+  trigger_word?: string;
+  /** URL for low-noise (final) phase in multi-stage LoRAs. */
+  lowNoisePath?: string;
+  /** Quick indicator for multi-stage LoRA support. */
+  isMultiStage?: boolean;
+}
+
 interface LoraModelImage {
   alt_text: string;
   url: string;

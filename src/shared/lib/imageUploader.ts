@@ -1,7 +1,7 @@
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { getSupabaseUrl } from '@/integrations/supabase/config/env';
 import { storagePaths, getFileExtension, generateUniqueFilename, MEDIA_BUCKET } from './storagePaths';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -58,7 +58,7 @@ function getRetryDelay(attempt: number): number {
 async function requireSessionUserId(): Promise<string> {
   const {
     data: { session },
-  } = await supabase.auth.getSession();
+  } = await supabase().auth.getSession();
 
   if (!session?.user?.id) {
     throw new Error('User not authenticated');
@@ -70,7 +70,7 @@ async function requireSessionUserId(): Promise<string> {
 async function requireAccessToken(): Promise<string> {
   const {
     data: { session },
-  } = await supabase.auth.getSession();
+  } = await supabase().auth.getSession();
 
   if (!session?.access_token) {
     throw new Error('Session expired - please sign in again');
@@ -169,7 +169,7 @@ async function uploadFileWithXhr(input: {
 function getPublicUrlFromPath(path: string): string {
   const {
     data: { publicUrl },
-  } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(path);
+  } = supabase().storage.from(MEDIA_BUCKET).getPublicUrl(path);
 
   if (!publicUrl) {
     throw new Error('Failed to obtain a public URL for the uploaded image.');
@@ -258,7 +258,7 @@ export const uploadImageToStorage = async (
     }
   }
 
-  handleError(lastError, { context: `ImageUpload:allRetriesFailed:${file.name}`, showToast: false });
+  normalizeAndPresentError(lastError, { context: `ImageUpload:allRetriesFailed:${file.name}`, showToast: false });
   throw new Error(buildUploadFailureMessage(lastError, file.name, fileSizeMB, maxRetries));
 };
 

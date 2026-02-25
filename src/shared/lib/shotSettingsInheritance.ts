@@ -1,7 +1,8 @@
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { STORAGE_KEYS } from '@/shared/lib/storageKeys';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
-import { TOOL_IDS } from '@/shared/lib/toolConstants';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
+import { TOOL_IDS } from '@/shared/lib/toolIds';
 import type { Json } from '@/integrations/supabase/types';
 
 /**
@@ -75,7 +76,7 @@ async function getInheritedSettings(
       joinSegmentsSettings = JSON.parse(storedJoin);
     }
   } catch (e) {
-    handleError(e, { context: 'ShotSettingsInheritance', showToast: false });
+    normalizeAndPresentError(e, { context: 'ShotSettingsInheritance', showToast: false });
   }
   
   // 1b. If no project-specific settings AND this is a new project (no shots), try global fallback
@@ -96,7 +97,7 @@ async function getInheritedSettings(
         }
       }
     } catch (e) {
-      handleError(e, { context: 'ShotSettingsInheritance', showToast: false });
+      normalizeAndPresentError(e, { context: 'ShotSettingsInheritance', showToast: false });
     }
   }
 
@@ -126,8 +127,7 @@ async function getInheritedSettings(
   // 3. Fetch project-level defaults if still missing
   if (!mainSettings || !uiSettings) {
     try {
-      const { data: projectData } = await supabase
-        .from('projects')
+      const { data: projectData } = await supabase().from('projects')
         .select('settings')
         .eq('id', projectId)
         .single();
@@ -137,11 +137,11 @@ async function getInheritedSettings(
         mainSettings = projectSettings[TOOL_IDS.TRAVEL_BETWEEN_IMAGES] as Record<string, unknown>;
       }
 
-      if (!uiSettings && projectSettings?.['travel-ui-state']) {
-        uiSettings = projectSettings['travel-ui-state'] as Record<string, unknown>;
+      if (!uiSettings && projectSettings?.[SETTINGS_IDS.TRAVEL_UI_STATE]) {
+        uiSettings = projectSettings[SETTINGS_IDS.TRAVEL_UI_STATE] as Record<string, unknown>;
       }
     } catch (error) {
-      handleError(error, { context: 'ShotSettingsInheritance', showToast: false });
+      normalizeAndPresentError(error, { context: 'ShotSettingsInheritance', showToast: false });
     }
   }
 

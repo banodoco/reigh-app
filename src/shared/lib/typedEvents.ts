@@ -1,21 +1,10 @@
-/**
- * Typed Custom Event Bus
- * ======================
- *
- * Provides type-safe helpers for dispatching and listening to custom DOM events
- * used for cross-component communication.
- *
- * All custom event types are declared in AppCustomEvents so dispatch/listen
- * sites are type-checked against a single source of truth.
- */
+/** Typed custom event helpers for cross-component window events. */
 
 import { useEffect } from 'react';
 
-/** Registry of all custom events and their detail shapes. */
 export interface AppCustomEvents {
   // --- UI / navigation ---
   openSettings: { tab?: string };
-  selectShotForAddition: { shotId: string; shotName: string };
   'app:scrollToTop': { behavior?: ScrollBehavior };
   mobilePaneOpen: { side: string | null };
   openGenerationsPane: void;
@@ -60,16 +49,8 @@ export interface AppCustomEvents {
   };
 }
 
-// Helper: events whose detail is void can be dispatched without a second arg.
 type VoidEvents = { [K in keyof AppCustomEvents]: AppCustomEvents[K] extends void ? K : never }[keyof AppCustomEvents];
 
-/**
- * Dispatch a typed custom event on `window`.
- *
- * @example
- * dispatchAppEvent('openSettings', { tab: 'credits' });
- * dispatchAppEvent('openGenerationsPane');
- */
 export function dispatchAppEvent<K extends VoidEvents>(type: K): void;
 export function dispatchAppEvent<K extends keyof AppCustomEvents>(
   type: K,
@@ -82,15 +63,6 @@ export function dispatchAppEvent<K extends keyof AppCustomEvents>(
   window.dispatchEvent(new CustomEvent(type, { detail }));
 }
 
-/**
- * React hook that subscribes to a typed custom event on `window`.
- * Automatically cleans up on unmount.
- *
- * @example
- * useAppEventListener('generation-star-updated', ({ generationId, starred }) => {
- *   console.log(generationId, starred);
- * });
- */
 export function useAppEventListener<K extends keyof AppCustomEvents>(
   type: K,
   handler: (detail: AppCustomEvents[K]) => void,
@@ -105,14 +77,6 @@ export function useAppEventListener<K extends keyof AppCustomEvents>(
   }, [type, handler]);
 }
 
-/**
- * Non-React listener for use in classes / plain modules.
- * Returns an unsubscribe function.
- *
- * @example
- * const unsub = listenAppEvent('realtime:auth-heal', (detail) => { ... });
- * // later: unsub();
- */
 export function listenAppEvent<K extends keyof AppCustomEvents>(
   type: K,
   handler: (detail: AppCustomEvents[K]) => void,

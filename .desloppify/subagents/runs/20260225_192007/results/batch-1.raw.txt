@@ -1,0 +1,116 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "high_level_elegance": 83.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "Multiple heavily imported files are pure pass-through facades with \"canonical\" ownership claims but no behavior (`src/shared/lib/errorHandling/runtimeError.ts`, `src/domains/generation/types/public.ts`, `src/shared/components/ui/button.tsx`, `src/shared/components/ui/tooltip.tsx`, `src/shared/hooks/mobile/index.ts`).",
+        "Runtime services expose implicit singleton/lazy-init access patterns rather than a single explicit lifecycle boundary (`src/integrations/supabase/client.ts` exports both initialize and lazy getter; `src/shared/components/ui/runtime/sonner.tsx` binds provider to `getToastManager()` and separately exports `toast`).",
+        "Cross-feature contracts around shot navigation are duplicated and partially divergent (`src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts` defines local `SimplifiedShotOption`/`NavigableShot`; `src/shared/components/MediaGalleryItem/components/ShotActions.tsx` redefines shot shapes inline).",
+        "Project context bundles selection, CRUD operations, and user identity into one broad surface (`src/shared/contexts/ProjectContext.tsx`), while consumers/tests often need only a narrow slice (`src/features/gallery/hooks/__tests__/useGalleryPageState.test.ts` mocks only `selectedProjectId`)."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "canonical_facade_sprawl",
+      "summary": "Too many thin \"canonical\" facade modules blur true ownership boundaries.",
+      "related_files": [
+        "src/shared/lib/errorHandling/runtimeError.ts",
+        "src/domains/generation/types/public.ts",
+        "src/shared/components/ui/button.tsx",
+        "src/shared/components/ui/tooltip.tsx",
+        "src/shared/hooks/mobile/index.ts"
+      ],
+      "evidence": [
+        "`runtimeError.ts` only re-exports from `normalizeOnly`/`throwingOnly` (lines 3-10).",
+        "`public.ts` is only type re-exports while declared as canonical domain surface (lines 1-12).",
+        "`button.tsx`, `tooltip.tsx`, and `mobile/index.ts` are pass-through export files (entire files).",
+        "Each facade claims app/domain-level canonical role, creating many top-level hubs instead of stable, minimal public boundaries."
+      ],
+      "suggestion": "Define one explicit public entrypoint per subsystem (`errorHandling`, `generation/types`, `ui`, `mobile`) and remove extra wrapper chains; keep only facades that enforce policy or hide implementation churn, and migrate imports toward those few stable boundaries.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "wrapper_surface_proliferation"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "implicit_runtime_lifecycle",
+      "summary": "Global runtime services rely on implicit lazy-init/singleton access instead of explicit boot ownership.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/components/ui/runtime/sonner.tsx",
+        "src/features/gallery/hooks/__tests__/useGalleryPageState.test.ts"
+      ],
+      "evidence": [
+        "`client.ts` exposes both `initializeSupabase()` and `getSupabaseClient()` that lazy-initializes if bootstrap was skipped (lines 12-19), permitting mixed lifecycle paths.",
+        "`sonner.tsx` injects `getToastManager()` into provider (line 29) while also exporting global `toast` (line 35), coupling consumers to shared mutable runtime state.",
+        "`useGalleryPageState.test.ts` mocks `@/shared/components/ui/runtime/sonner` directly (lines 61-63), showing feature-layer dependence on runtime singleton API."
+      ],
+      "suggestion": "Move Supabase and toast into explicit app-lifecycle modules: initialize once in bootstrap/providers, export read-only typed contexts/hooks to features, and deprecate direct lazy/global runtime access from leaf modules.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "implicit_runtime_singletons"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "project_context_overreach",
+      "summary": "ProjectContext combines multiple responsibilities into one high-coupling ownership boundary.",
+      "related_files": [
+        "src/shared/contexts/ProjectContext.tsx",
+        "src/features/gallery/hooks/__tests__/useGalleryPageState.test.ts"
+      ],
+      "evidence": [
+        "`ProjectContextType` carries selection state, derived current project, full CRUD operations, loading/mutation flags, and user identity (lines 13-28).",
+        "Provider composes values from `selection` and `crud` plus identity into one object (lines 33-52), forcing one broad dependency surface.",
+        "Consumer test mocks only `selectedProjectId` (lines 7-9), indicating common narrow-use consumers still couple to the large umbrella context contract."
+      ],
+      "suggestion": "Split `ProjectContext` into focused contexts/hooks (`ProjectSelection`, `ProjectCrud`, `ProjectIdentity`) and keep a thin composition hook for places that truly need all three; migrate high-read consumers to narrow contexts first.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "coarse_grained_contexts"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shot_contract_fragmentation",
+      "summary": "Shot domain contracts are duplicated across gallery modules with inconsistent shape ownership.",
+      "related_files": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGalleryItem/components/ShotActions.tsx"
+      ],
+      "evidence": [
+        "`useMediaGalleryHandlers.ts` defines local `SimplifiedShotOption` and `NavigableShot` interfaces (lines 10-20) and accepts both `allShots` and `simplifiedShotOptions` (lines 22-25), then performs dual lookups (lines 66-84).",
+        "`ShotActions.tsx` separately defines `simplifiedShotOptions: { id: string; name: string }[]` and callback shot shape `{ id: string; name: string }` (lines 14-21, 49-53), diverging from handler-local interfaces.",
+        "The same shot identity concept is modeled in multiple local contracts rather than a single domain-owned type surface, increasing translation and mismatch risk."
+      ],
+      "suggestion": "Create shared shot view-model contracts in one domain module (for selector options and navigable targets), pass a normalized `shotsById` map where needed, and remove local per-file interface redefinitions.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "boundary_contract_duplication"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Public-surface governance is missing, so thin wrapper files accumulate as new import hubs.",
+      "Runtime lifecycle ownership is split between bootstrap and leaf accessors, encouraging implicit singleton usage.",
+      "Feature contracts are defined locally instead of in domain-owned shared types, causing drift."
+    ],
+    "likely_symptoms": [
+      "canonical_facade_sprawl",
+      "implicit_runtime_lifecycle",
+      "shot_contract_fragmentation"
+    ],
+    "possible_false_positives": []
+  }
+}

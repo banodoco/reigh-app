@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
-import { cn } from '@/shared/lib/utils';
-import { handleError } from '@/shared/lib/errorHandling/handleError';
+import { cn } from '@/shared/components/ui/contracts/cn';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 // Component to show a mini thumbnail at a specific video time
 export function FrameThumbnail({ videoUrl, time }: { videoUrl: string; time: number }) {
@@ -50,7 +50,7 @@ export function FrameThumbnail({ videoUrl, time }: { videoUrl: string; time: num
             loadedRef.current = true;
             setLoaded(true);
           } catch (e) {
-            handleError(e, { context: 'FrameThumbnail.captureFrame' });
+            normalizeAndPresentError(e, { context: 'FrameThumbnail.captureFrame' });
             setError(true);
           }
         }
@@ -79,7 +79,7 @@ export function FrameThumbnail({ videoUrl, time }: { videoUrl: string; time: num
     };
 
     const handleVideoError = () => {
-      handleError(new Error(`Video load error for ${videoUrl}`), { context: 'FrameThumbnail' });
+      normalizeAndPresentError(new Error(`Video load error for ${videoUrl}`), { context: 'FrameThumbnail' });
       setError(true);
     };
 

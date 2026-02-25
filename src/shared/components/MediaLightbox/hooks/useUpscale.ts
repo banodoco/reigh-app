@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { GenerationRow } from '@/types/shots';
+import { GenerationRow } from '@/domains/generation/types';
 import { createImageUpscaleTask } from '@/shared/lib/tasks/imageUpscale';
 import { getGenerationId, getMediaUrl } from '@/shared/lib/mediaTypeHelpers';
 import type { ImageUpscaleSettings } from '../components/ImageUpscaleForm';
