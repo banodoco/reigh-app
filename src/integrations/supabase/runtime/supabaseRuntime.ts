@@ -10,11 +10,11 @@ const SUPABASE_RUNTIME_NOT_INITIALIZED_MESSAGE =
 let runtimeClient: SupabaseClientInstance | null = null;
 let runtimeError: Error | null = null;
 
-export type SupabaseRuntimeClientResult =
+export type SupabaseClientAccessResult =
   | { ok: true; client: SupabaseClientInstance }
   | { ok: false; error: Error };
 
-function normalizeError(error: unknown): Error {
+export function normalizeSupabaseError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
 }
 
@@ -30,14 +30,14 @@ export function initializeSupabaseClientRuntime(): SupabaseClientInstance {
     runtimeError = null;
     return client;
   } catch (error) {
-    const normalized = normalizeError(error);
+    const normalized = normalizeSupabaseError(error);
     runtimeClient = null;
     runtimeError = normalized;
     throw normalized;
   }
 }
 
-export function getSupabaseRuntimeClientResult(): SupabaseRuntimeClientResult {
+export function getSupabaseRuntimeClientResult(): SupabaseClientAccessResult {
   if (runtimeClient) {
     return { ok: true, client: runtimeClient };
   }

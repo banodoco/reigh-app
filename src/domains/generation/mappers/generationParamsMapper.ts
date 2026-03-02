@@ -109,64 +109,28 @@ function readMappedValue(
 
 type PayloadDirection = 'domain' | 'persisted' | 'derived';
 
-function sanitizeOptionalStringField(
-  payload: Record<string, unknown>,
-  key: string,
-  direction: PayloadDirection,
-  payloadType: 'orchestratorDetails' | 'extra',
-): void {
-  const value = payload[key];
-  if (!isPresent(value)) {
-    return;
+type SanitizeFieldType = 'string' | 'nullable-string' | 'number';
+
+function isValidForType(value: unknown, fieldType: SanitizeFieldType): boolean {
+  switch (fieldType) {
+    case 'string': return typeof value === 'string';
+    case 'nullable-string': return value === null || typeof value === 'string';
+    case 'number': return typeof value === 'number' && Number.isFinite(value);
   }
-  if (typeof value === 'string') {
-    return;
-  }
-  reportMapperIssue('Dropping invalid payload string field', {
-    payloadType,
-    key,
-    direction,
-    receivedType: typeof value,
-  });
-  delete payload[key];
 }
 
-function sanitizeOptionalNullableStringField(
+function sanitizePayloadField(
   payload: Record<string, unknown>,
   key: string,
+  fieldType: SanitizeFieldType,
   direction: PayloadDirection,
   payloadType: 'orchestratorDetails' | 'extra',
 ): void {
   const value = payload[key];
-  if (!isPresent(value) || value === null) {
+  if (!isPresent(value) || isValidForType(value, fieldType)) {
     return;
   }
-  if (typeof value === 'string') {
-    return;
-  }
-  reportMapperIssue('Dropping invalid payload nullable-string field', {
-    payloadType,
-    key,
-    direction,
-    receivedType: typeof value,
-  });
-  delete payload[key];
-}
-
-function sanitizeOptionalNumberField(
-  payload: Record<string, unknown>,
-  key: string,
-  direction: PayloadDirection,
-  payloadType: 'orchestratorDetails' | 'extra',
-): void {
-  const value = payload[key];
-  if (!isPresent(value)) {
-    return;
-  }
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return;
-  }
-  reportMapperIssue('Dropping invalid payload number field', {
+  reportMapperIssue(`Dropping invalid payload ${fieldType} field`, {
     payloadType,
     key,
     direction,
@@ -244,13 +208,13 @@ function validateOrchestratorDetailsPayload(
   }
 
   const payload: Record<string, unknown> = { ...value };
-  sanitizeOptionalStringField(payload, 'prompt', direction, 'orchestratorDetails');
-  sanitizeOptionalStringField(payload, 'base_prompt', direction, 'orchestratorDetails');
-  sanitizeOptionalStringField(payload, 'negative_prompt', direction, 'orchestratorDetails');
-  sanitizeOptionalStringField(payload, 'model_name', direction, 'orchestratorDetails');
-  sanitizeOptionalStringField(payload, 'parsed_resolution_wh', direction, 'orchestratorDetails');
-  sanitizeOptionalNumberField(payload, 'seed_base', direction, 'orchestratorDetails');
-  sanitizeOptionalNullableStringField(payload, 'selected_phase_preset_id', direction, 'orchestratorDetails');
+  sanitizePayloadField(payload, 'prompt', 'string', direction, 'orchestratorDetails');
+  sanitizePayloadField(payload, 'base_prompt', 'string', direction, 'orchestratorDetails');
+  sanitizePayloadField(payload, 'negative_prompt', 'string', direction, 'orchestratorDetails');
+  sanitizePayloadField(payload, 'model_name', 'string', direction, 'orchestratorDetails');
+  sanitizePayloadField(payload, 'parsed_resolution_wh', 'string', direction, 'orchestratorDetails');
+  sanitizePayloadField(payload, 'seed_base', 'number', direction, 'orchestratorDetails');
+  sanitizePayloadField(payload, 'selected_phase_preset_id', 'nullable-string', direction, 'orchestratorDetails');
   sanitizeAdditionalLoras(payload, direction);
   sanitizeMotionMode(payload, direction);
 
@@ -274,10 +238,10 @@ function validateGenerationExtraPayload(
   }
 
   const payload: Record<string, unknown> = { ...value };
-  sanitizeOptionalStringField(payload, 'source', direction, 'extra');
-  sanitizeOptionalStringField(payload, 'original_filename', direction, 'extra');
-  sanitizeOptionalStringField(payload, 'file_type', direction, 'extra');
-  sanitizeOptionalNumberField(payload, 'file_size', direction, 'extra');
+  sanitizePayloadField(payload, 'source', 'string', direction, 'extra');
+  sanitizePayloadField(payload, 'original_filename', 'string', direction, 'extra');
+  sanitizePayloadField(payload, 'file_type', 'string', direction, 'extra');
+  sanitizePayloadField(payload, 'file_size', 'number', direction, 'extra');
 
   return payload as GenerationExtraPayload;
 }
