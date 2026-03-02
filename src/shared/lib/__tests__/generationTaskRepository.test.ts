@@ -30,12 +30,14 @@ function createSupabaseClientMock(options?: {
   };
 }
 
-const { mockGetSupabaseClient } = vi.hoisted(() => ({
-  mockGetSupabaseClient: vi.fn(),
+const { mockGetSupabaseClientResult } = vi.hoisted(() => ({
+  mockGetSupabaseClientResult: vi.fn(),
 }));
 
 vi.mock('@/integrations/supabase/client', () => ({
-  getSupabaseClient: () => mockGetSupabaseClient(),
+  supabaseClientRegistry: {
+    getClientResult: () => mockGetSupabaseClientResult(),
+  },
 }));
 
 vi.mock('@/shared/lib/tasks/orchestratorReference', () => ({
@@ -58,7 +60,7 @@ describe('generationTaskRepository', () => {
     const { client } = createSupabaseClientMock({
       inResponse: { data: null, error: { message: 'DB down' } },
     });
-    mockGetSupabaseClient.mockReturnValue(client);
+    mockGetSupabaseClientResult.mockReturnValue({ ok: true, client });
 
     const result = await getPrimaryTaskMappingsForGenerations(['gen-1', 'gen-2']);
 
@@ -76,7 +78,7 @@ describe('generationTaskRepository', () => {
         error: null,
       },
     });
-    mockGetSupabaseClient.mockReturnValue(client);
+    mockGetSupabaseClientResult.mockReturnValue({ ok: true, client });
 
     const result = await getPrimaryTaskMappingsForGenerations(['gen-ok', 'gen-invalid', 'gen-missing']);
 
@@ -94,7 +96,7 @@ describe('generationTaskRepository', () => {
         error: null,
       },
     });
-    mockGetSupabaseClient.mockReturnValue(client);
+    mockGetSupabaseClientResult.mockReturnValue({ ok: true, client });
 
     const result = await getPrimaryTaskMappingsForGenerations(['gen-1'], { projectId: 'project-b' });
 
@@ -108,7 +110,7 @@ describe('generationTaskRepository', () => {
         error: null,
       },
     });
-    mockGetSupabaseClient.mockReturnValue(client);
+    mockGetSupabaseClientResult.mockReturnValue({ ok: true, client });
 
     const mapping = await getPrimaryTaskIdForGeneration('gen-1');
     expect(mapping).toMatchObject({ generationId: 'gen-1', status: 'ok', taskId: 'task-1' });
@@ -118,7 +120,7 @@ describe('generationTaskRepository', () => {
     const okClient = createSupabaseClientMock({
       singleResponse: { data: { id: 'gen-1', project_id: 'project-1' }, error: null },
     }).client;
-    mockGetSupabaseClient.mockReturnValue(okClient);
+    mockGetSupabaseClientResult.mockReturnValue({ ok: true, client: okClient });
     const ok = await resolveGenerationProjectScope('gen-1', 'project-1');
     expect(ok).toMatchObject({ status: 'ok', projectId: 'project-1' });
 
@@ -128,14 +130,14 @@ describe('generationTaskRepository', () => {
         error: { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned' },
       },
     }).client;
-    mockGetSupabaseClient.mockReturnValue(missingClient);
+    mockGetSupabaseClientResult.mockReturnValue({ ok: true, client: missingClient });
     const missing = await resolveGenerationProjectScope('gen-1', 'project-1');
     expect(missing).toMatchObject({ status: 'missing_generation', projectId: null });
 
     const failedClient = createSupabaseClientMock({
       singleResponse: { data: null, error: { message: 'boom' } },
     }).client;
-    mockGetSupabaseClient.mockReturnValue(failedClient);
+    mockGetSupabaseClientResult.mockReturnValue({ ok: true, client: failedClient });
     const failed = await resolveGenerationProjectScope('gen-1', 'project-1');
     expect(failed).toMatchObject({ status: 'query_failed', projectId: null });
   });
@@ -148,7 +150,7 @@ describe('generationTaskRepository', () => {
     const eqMock = vi.fn().mockReturnValue({ maybeSingle: maybeSingleMock });
     const selectMock = vi.fn().mockReturnValue({ eq: eqMock });
     const fromMock = vi.fn().mockReturnValue({ select: selectMock });
-    mockGetSupabaseClient.mockReturnValue({ from: fromMock });
+    mockGetSupabaseClientResult.mockReturnValue({ ok: true, client: { from: fromMock } });
 
     const scope = await resolveVariantProjectScope('var-1', 'project-1');
 

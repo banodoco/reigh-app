@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { Profiler } from 'react';
 import App from '@/app/App';
 import { AppErrorBoundary } from '@/app/components/error/AppErrorBoundary';
-import { initializeSupabase } from '@/integrations/supabase/client';
+import { initializeSupabaseResult } from '@/integrations/supabase/client';
 import { toast } from '@/shared/components/ui/toast';
 import { initializeToastManager } from '@/shared/runtime/toastRuntime';
 import { installErrorNotifier } from '@/shared/lib/errorHandling/errorNotifier';
@@ -82,9 +82,15 @@ export function initializeAppEnvironment(): void {
   }
 
   if (!isTestRuntimeEnvironment(env)) {
-    initializeSupabase();
+    const supabaseInitResult = initializeSupabaseResult();
+    if (!supabaseInitResult.ok) {
+      normalizeAndPresentError(supabaseInitResult.error, {
+        context: 'initializeAppEnvironment.initializeSupabase',
+        showToast: false,
+      });
+    }
 
-    if (shouldLoadDevDebugTools(env)) {
+    if (supabaseInitResult.ok && shouldLoadDevDebugTools(env)) {
       import('@/integrations/supabase/debug/initializeSupabaseDebugGlobals')
         .then(({ initializeSupabaseDebugGlobals }) => {
           initializeSupabaseDebugGlobals();

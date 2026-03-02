@@ -1,4 +1,7 @@
-import { getSupabaseClient } from '@/integrations/supabase/client';
+import {
+  supabaseClientRegistry,
+  type SupabaseClientRegistry,
+} from '@/integrations/supabase/client';
 import { applyRootTaskFilter } from '@/shared/lib/tasks/orchestratorReference';
 import { parseGenerationTaskId } from '@/shared/lib/generationTaskIdParser';
 
@@ -68,6 +71,11 @@ export interface VariantProjectScopeResolution {
   queryError?: string;
 }
 
+interface GenerationTaskRepositoryOptions {
+  projectId?: string;
+  supabaseRegistry?: SupabaseClientRegistry;
+}
+
 export function normalizeScopedGenerationInput(
   input: ScopedGenerationInput,
 ): { id: string; projectId?: string } {
@@ -77,8 +85,19 @@ export function normalizeScopedGenerationInput(
 export async function resolveGenerationProjectScope(
   generationId: string,
   expectedProjectId?: string,
+  supabaseRegistry: SupabaseClientRegistry = supabaseClientRegistry,
 ): Promise<GenerationProjectScopeResolution> {
-  const supabase = getSupabaseClient();
+  const supabaseResult = supabaseRegistry.getClientResult();
+  if (!supabaseResult.ok) {
+    return {
+      generationId,
+      projectId: null,
+      status: 'query_failed',
+      queryError: supabaseResult.error.message,
+    };
+  }
+
+  const supabase = supabaseResult.client;
   const { data, error } = await supabase
     .from('generations')
     .select('id, project_id')
@@ -135,8 +154,20 @@ export async function resolveGenerationProjectScope(
 export async function resolveVariantProjectScope(
   variantId: string,
   expectedProjectId?: string,
+  supabaseRegistry: SupabaseClientRegistry = supabaseClientRegistry,
 ): Promise<VariantProjectScopeResolution> {
-  const supabase = getSupabaseClient();
+  const supabaseResult = supabaseRegistry.getClientResult();
+  if (!supabaseResult.ok) {
+    return {
+      variantId,
+      generationId: null,
+      projectId: null,
+      status: 'query_failed',
+      queryError: supabaseResult.error.message,
+    };
+  }
+
+  const supabase = supabaseResult.client;
   const { data, error } = await supabase
     .from('generation_variants')
     .select('id, generation_id, project_id')
@@ -191,6 +222,7 @@ export async function resolveVariantProjectScope(
   const generationScope = await resolveGenerationProjectScope(
     data.generation_id,
     expectedProjectId,
+    supabaseRegistry,
   );
 
   if (generationScope.status !== 'ok') {
@@ -217,7 +249,7 @@ export function applyParentTaskFilter<T extends { is: (column: string, value: un
 
 export async function getPrimaryTaskIdForGeneration(
   generationId: string,
-  options?: { projectId?: string },
+  options?: GenerationTaskRepositoryOptions,
 ): Promise<GenerationTaskMapping> {
   const mappings = await getPrimaryTaskMappingsForGenerations([generationId], options);
   return mappings.get(generationId) ?? {
@@ -229,14 +261,28 @@ export async function getPrimaryTaskIdForGeneration(
 
 export async function getPrimaryTaskMappingsForGenerations(
   generationIds: string[],
-  options?: { projectId?: string },
+  options?: GenerationTaskRepositoryOptions,
 ): Promise<Map<string, GenerationTaskMapping>> {
   if (generationIds.length === 0) {
     return new Map();
   }
 
-  const supabase = getSupabaseClient();
   const requestedIds = Array.from(new Set(generationIds));
+  const supabaseResult = (options?.supabaseRegistry ?? supabaseClientRegistry).getClientResult();
+  if (!supabaseResult.ok) {
+    const failures = new Map<string, GenerationTaskMapping>();
+    requestedIds.forEach((generationId) => {
+      failures.set(generationId, {
+        generationId,
+        taskId: null,
+        status: 'query_failed',
+        queryError: supabaseResult.error.message,
+      });
+    });
+    return failures;
+  }
+
+  const supabase = supabaseResult.client;
   const query = supabase
     .from('generations')
     .select('id, tasks, project_id')
