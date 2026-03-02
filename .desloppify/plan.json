@@ -1,9 +1,8 @@
 {
   "version": 4,
   "created": "2026-03-02T01:10:28+00:00",
-  "updated": "2026-03-02T18:42:31+00:00",
+  "updated": "2026-03-02T18:44:06+00:00",
   "queue_order": [
-    "review::.::holistic::package_organization::generation_type_surface_fragmentation::98cfadb0",
     "review::.::holistic::design_coherence::lightbox_workflow_controls_duplication::ea885cec",
     "review::.::holistic::design_coherence::lightbox_passthrough_abstraction_debt::700b5d25",
     "review::.::holistic::initialization_coupling::supabase_dual_init_gates::097f9a89",
@@ -13114,8 +13113,8 @@
     "review::.::holistic::package_organization::generation_type_surface_fragmentation::98cfadb0": {
       "finding_id": "review::.::holistic::package_organization::generation_type_surface_fragmentation::98cfadb0",
       "created_at": "2026-03-02T17:48:08+00:00",
-      "cluster": "synth-contract-boundaries",
-      "updated_at": "2026-03-02T17:48:08+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T18:44:06+00:00"
     },
     "review::.::holistic::package_organization::react_hook_in_lib_layer::8a45db87": {
       "finding_id": "review::.::holistic::package_organization::react_hook_in_lib_layer::8a45db87",
@@ -15435,7 +15434,6 @@
       "description": "Tighten domain/transport boundaries, migration aliases, and contract tests",
       "finding_ids": [
         "review::.::holistic::incomplete_migration::legacy_generation_aliases_still_first_class::0afb1342",
-        "review::.::holistic::package_organization::generation_type_surface_fragmentation::98cfadb0",
         "review::.::holistic::package_organization::thin_wrapper_dirs_fragment_image_edit_ownership::34bf2b5f",
         "review::.::holistic::test_strategy::instrumentation_tests_are_symbol_only::1648aee5",
         "review::.::holistic::type_safety::mapper_unsafe_casts_hide_invalid_payloads::753c610b",
@@ -20690,10 +20688,10 @@
   },
   "epic_synthesis_meta": {
     "synthesis_stages": {},
-    "finding_snapshot_hash": "3064f422d5132298",
+    "finding_snapshot_hash": "632bf16e4ba17190",
     "strategy_summary": "Continue queue-first with dependency-aware cluster ordering. Execute synth-runtime-init-coupling first to finish explicit runtime readiness contracts and remove hidden global/bootstrap dependencies. Execute synth-contract-boundaries second to complete governance/test-surface fixes and ownership boundary cleanup. Execute synth-lightbox-contracts third to finish remaining design-coherence and abstraction simplification once runtime seams and contracts are stable. Validate each completed item with focused unit tests and no-emit TypeScript checks before marking done so behavior contracts and import stability remain intact.",
     "trigger": "manual_synthesis",
-    "last_completed_at": "2026-03-02T18:42:24+00:00",
+    "last_completed_at": "2026-03-02T18:43:56+00:00",
     "synthesized_ids": [
       "review::.::holistic::design_coherence::lightbox_passthrough_abstraction_debt::700b5d25",
       "review::.::holistic::design_coherence::lightbox_workflow_controls_duplication::ea885cec",
@@ -20703,39 +20701,40 @@
       "review::.::holistic::logic_clarity::stored_prompt_count_nan_path::9a419c06",
       "review::.::holistic::package_organization::generation_type_surface_fragmentation::98cfadb0",
       "review::.::holistic::package_organization::thin_wrapper_dirs_fragment_image_edit_ownership::34bf2b5f",
-      "review::.::holistic::test_strategy::contract_gate_not_green_on_head::593f7afc",
       "review::.::holistic::test_strategy::instrumentation_tests_are_symbol_only::1648aee5",
       "review::.::holistic::type_safety::mapper_unsafe_casts_hide_invalid_payloads::753c610b"
     ],
     "last_synthesis": {
-      "completed_at": "2026-03-02T18:42:24+00:00",
+      "completed_at": "2026-03-02T18:43:56+00:00",
       "stages": {
         "observe": {
           "stage": "observe",
-          "report": "Reviewed post-governance-doc updates; remaining findings align with existing runtime-coupling and contract-boundary themes without contradictory directions.",
+          "report": "Reviewed current queue after governance and type-surface checks; remaining findings still align with existing cluster themes without contradictory remediation direction.",
           "cited_ids": [],
-          "timestamp": "2026-03-02T18:42:22+00:00",
-          "finding_count": 11,
-          "confirmed_at": "2026-03-02T18:42:22+00:00",
-          "confirmed_text": "I reviewed test_strategy and initialization_coupling findings in observe stage and confirmed no contradictory dependencies were introduced."
+          "timestamp": "2026-03-02T18:43:43+00:00",
+          "finding_count": 10,
+          "confirmed_at": "2026-03-02T18:43:44+00:00",
+          "confirmed_text": "I reviewed package_organization and initialization_coupling findings in observe stage and confirmed no contradictory dependencies were introduced."
         },
         "reflect": {
           "stage": "reflect",
-          "report": "Recurring design_coherence remains, but contract-boundary and runtime-init risks still gate priority; keep queue-first with synth-runtime-init-coupling and synth-contract-boundaries first.",
+          "report": "Recurring test_strategy remains active with runtime/design findings, so keep queue-first with synth-runtime-init-coupling and synth-contract-boundaries prioritized before final lightbox cleanup.",
           "cited_ids": [],
-          "timestamp": "2026-03-02T18:42:23+00:00",
-          "finding_count": 11,
-          "recurring_dimensions": [],
-          "confirmed_at": "2026-03-02T18:42:23+00:00",
-          "confirmed_text": "I reviewed design_coherence and initialization_coupling and confirmed synth-runtime-init-coupling should remain first."
+          "timestamp": "2026-03-02T18:43:55+00:00",
+          "finding_count": 10,
+          "recurring_dimensions": [
+            "test_strategy"
+          ],
+          "confirmed_at": "2026-03-02T18:43:55+00:00",
+          "confirmed_text": "I reviewed test_strategy and initialization_coupling and confirmed synth-runtime-init-coupling remains first."
         },
         "organize": {
           "stage": "organize",
           "report": "Retained dependency order: synth-runtime-init-coupling first, synth-contract-boundaries second, synth-lightbox-contracts third.",
           "cited_ids": [],
-          "timestamp": "2026-03-02T18:42:24+00:00",
+          "timestamp": "2026-03-02T18:43:56+00:00",
           "finding_count": 3,
-          "confirmed_at": "2026-03-02T18:42:24+00:00",
+          "confirmed_at": "2026-03-02T18:43:56+00:00",
           "confirmed_text": "I verified synth-runtime-init-coupling and synth-contract-boundaries sequencing and confirmed cluster coverage remains coherent."
         }
       },
@@ -25017,10 +25016,131 @@
         "status": "fixed",
         "attestation": "I have actually fixed the failing contract-governance gate checks on head and I am not gaming the score by resolving without fixing."
       }
+    },
+    {
+      "timestamp": "2026-03-02T18:43:33+00:00",
+      "action": "done",
+      "finding_ids": [
+        "review::.::holistic::package_organization::generation_type_surface_fragmentation::98cfadb0"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Validated and enforced canonical generation/shot type ownership on current head: active consumers (e.g., useGenerationMutations and VideoShotDisplay) already import from @/domains/generation/types, legacy @/types/shots shim usage is zero (check-shots-shim-usage --max 0), and contract tests for generationAndShots surface pass.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T18:43:43+00:00",
+      "action": "synthesis_observe",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "finding_count": 10,
+        "cited_ids": [],
+        "reuse": false
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:43:44+00:00",
+      "action": "synthesis_confirm_observe",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "attestation": "I reviewed package_organization and initialization_coupling findings in observe stage and confirmed no contradictory dependencies were introduced."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:43:55+00:00",
+      "action": "synthesis_reflect",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "finding_count": 10,
+        "recurring_dims": [
+          "test_strategy"
+        ],
+        "reuse": false
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:43:55+00:00",
+      "action": "synthesis_confirm_reflect",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "attestation": "I reviewed test_strategy and initialization_coupling and confirmed synth-runtime-init-coupling remains first."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:43:56+00:00",
+      "action": "synthesis_organize",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "cluster_count": 3,
+        "reuse": false
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:43:56+00:00",
+      "action": "synthesis_confirm_organize",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "attestation": "I verified synth-runtime-init-coupling and synth-contract-boundaries sequencing and confirmed cluster coverage remains coherent.",
+        "coverage": "10/10"
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:43:56+00:00",
+      "action": "synthesis_complete",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "strategy_len": 626,
+        "coverage": "10/10"
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:44:06+00:00",
+      "action": "done",
+      "finding_ids": [
+        "review::.::holistic::package_organization::generation_type_surface_fragmentation::98cfadb0"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Validated and enforced canonical generation/shot type ownership on current head: active consumers use @/domains/generation/types, @/types/shots shim usage remains zero (check-shots-shim-usage --max 0), and generation/shot contract tests pass.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T18:44:06+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "review::.::holistic::package_organization::generation_type_surface_fragmentation::98cfadb0"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Validated and enforced canonical generation/shot type ownership on current head: active consumers use @/domains/generation/types, @/types/shots shim usage remains zero (check-shots-shim-usage --max 0), and generation/shot contract tests pass.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually verified and enforced canonical generation and shot type surfaces with passing shim and contract checks, and I am not gaming the score by resolving without fixing."
+      }
     }
   ],
   "promoted_ids": [
-    "review::.::holistic::package_organization::generation_type_surface_fragmentation::98cfadb0",
     "review::.::holistic::design_coherence::lightbox_workflow_controls_duplication::ea885cec",
     "review::.::holistic::design_coherence::lightbox_passthrough_abstraction_debt::700b5d25",
     "review::.::holistic::initialization_coupling::supabase_dual_init_gates::097f9a89",

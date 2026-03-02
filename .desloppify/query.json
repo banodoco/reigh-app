@@ -2,50 +2,6 @@
   "command": "next",
   "items": [
     {
-      "id": "review::.::holistic::package_organization::generation_type_surface_fragmentation::98cfadb0",
-      "kind": "finding",
-      "tier": 1,
-      "effective_tier": 1,
-      "confidence": "high",
-      "detector": "review",
-      "file": ".",
-      "summary": "Generation/shot type ownership is split across canonical and legacy packages",
-      "detail": {
-        "holistic": true,
-        "dimension": "package_organization",
-        "related_files": [
-          "src/domains/generation/types/index.ts",
-          "src/types/generationAndShots.ts",
-          "src/domains/generation/hooks/useGenerationMutations.ts",
-          "src/tools/travel-between-images/components/VideoShotDisplay.tsx",
-          "scripts/quality/check-shots-shim-usage.mjs"
-        ],
-        "evidence": [
-          "Canonical domain type barrel exists at `src/domains/generation/types/index.ts`, but compatibility surface in `src/types/*` remains actively referenced.",
-          "Two production modules still import `@/types/shots`, and the zero-budget gate fails (`[shots-shim-check] FAILED: found 2 imports ... max allowed: 0`).",
-          "Directory-profile evidence shows both directories are active (`src/domains/generation/types/` avg fan-in 25.3; `src/types/` avg fan-in 6.3), indicating unresolved package boundary transition."
-        ],
-        "suggestion": "Staged reorg plan: 1) move all generation/shot consumers to `@/domains/generation/types` (start with `useGenerationMutations.ts`, `VideoShotDisplay.tsx`); 2) keep `src/types/generationAndShots.ts|generationRow.ts|shot.ts` as temporary no-import deprecation stubs; 3) remove `@/types/shots` alias path entirely; 4) validate with `node scripts/quality/check-shots-shim-usage.mjs --max 0`, `npm run test:contracts`, and `npm run typecheck:strict-probe` before deleting residual shims.",
-        "reasoning": ""
-      },
-      "status": "open",
-      "primary_command": "desloppify plan done \"review::.::holistic::package_organization::generation_type_surface_fragmentation::98cfadb0\" --note \"<what you did>\" --confirm",
-      "queue_position": 1,
-      "plan_cluster": {
-        "name": "synth-contract-boundaries",
-        "description": "Tighten domain/transport boundaries, migration aliases, and contract tests",
-        "total_items": 6,
-        "sibling_ids": [
-          "review::.::holistic::incomplete_migration::legacy_generation_aliases_still_first_class::0afb1342",
-          "review::.::holistic::package_organization::generation_type_surface_fragmentation::98cfadb0",
-          "review::.::holistic::package_organization::thin_wrapper_dirs_fragment_image_edit_ownership::34bf2b5f",
-          "review::.::holistic::test_strategy::instrumentation_tests_are_symbol_only::1648aee5",
-          "review::.::holistic::type_safety::mapper_unsafe_casts_hide_invalid_payloads::753c610b",
-          "review::.::holistic::logic_clarity::stored_prompt_count_nan_path::9a419c06"
-        ]
-      }
-    },
-    {
       "id": "review::.::holistic::design_coherence::lightbox_workflow_controls_duplication::ea885cec",
       "kind": "finding",
       "tier": 1,
@@ -73,7 +29,7 @@
       },
       "status": "open",
       "primary_command": "desloppify plan done \"review::.::holistic::design_coherence::lightbox_workflow_controls_duplication::ea885cec\" --note \"<what you did>\" --confirm",
-      "queue_position": 2,
+      "queue_position": 1,
       "plan_cluster": {
         "name": "synth-lightbox-contracts",
         "description": "Reduce lightbox indirection and consolidate state/workflow contracts",
@@ -112,7 +68,7 @@
       },
       "status": "open",
       "primary_command": "desloppify plan done \"review::.::holistic::design_coherence::lightbox_passthrough_abstraction_debt::700b5d25\" --note \"<what you did>\" --confirm",
-      "queue_position": 3,
+      "queue_position": 2,
       "plan_cluster": {
         "name": "synth-lightbox-contracts",
         "description": "Reduce lightbox indirection and consolidate state/workflow contracts",
@@ -150,7 +106,7 @@
       },
       "status": "open",
       "primary_command": "desloppify plan done \"review::.::holistic::initialization_coupling::supabase_dual_init_gates::097f9a89\" --note \"<what you did>\" --confirm",
-      "queue_position": 4,
+      "queue_position": 3,
       "plan_cluster": {
         "name": "synth-runtime-init-coupling",
         "description": "Eliminate hidden runtime/bootstrap coupling around Supabase and globals",
@@ -188,14 +144,52 @@
       },
       "status": "open",
       "primary_command": "desloppify plan done \"review::.::holistic::logic_clarity::stored_prompt_count_nan_path::9a419c06\" --note \"<what you did>\" --confirm",
+      "queue_position": 4,
+      "plan_cluster": {
+        "name": "synth-contract-boundaries",
+        "description": "Tighten domain/transport boundaries, migration aliases, and contract tests",
+        "total_items": 5,
+        "sibling_ids": [
+          "review::.::holistic::incomplete_migration::legacy_generation_aliases_still_first_class::0afb1342",
+          "review::.::holistic::package_organization::thin_wrapper_dirs_fragment_image_edit_ownership::34bf2b5f",
+          "review::.::holistic::test_strategy::instrumentation_tests_are_symbol_only::1648aee5",
+          "review::.::holistic::type_safety::mapper_unsafe_casts_hide_invalid_payloads::753c610b",
+          "review::.::holistic::logic_clarity::stored_prompt_count_nan_path::9a419c06"
+        ]
+      }
+    },
+    {
+      "id": "review::.::holistic::type_safety::mapper_unsafe_casts_hide_invalid_payloads::753c610b",
+      "kind": "finding",
+      "tier": 1,
+      "effective_tier": 1,
+      "confidence": "high",
+      "detector": "review",
+      "file": ".",
+      "summary": "Generation params mapper asserts complex payload types without structural validation",
+      "detail": {
+        "holistic": true,
+        "dimension": "type_safety",
+        "related_files": [
+          "src/domains/generation/mappers/generationParamsMapper.ts",
+          "src/domains/generation/types/generationParams.ts"
+        ],
+        "evidence": [
+          "`toOrchestratorDetailsPayload` and `toGenerationExtraPayload` cast any record to typed payload interfaces after only `isRecord` check.",
+          "Typed outputs can include malformed nested fields while compile-time contracts imply validated structure."
+        ],
+        "suggestion": "Introduce field-level validators/type guards for `OrchestratorDetailsPayload` and `GenerationExtraPayload`, and surface validation failures through structured mapper diagnostics.",
+        "reasoning": ""
+      },
+      "status": "open",
+      "primary_command": "desloppify plan done \"review::.::holistic::type_safety::mapper_unsafe_casts_hide_invalid_payloads::753c610b\" --note \"<what you did>\" --confirm",
       "queue_position": 5,
       "plan_cluster": {
         "name": "synth-contract-boundaries",
         "description": "Tighten domain/transport boundaries, migration aliases, and contract tests",
-        "total_items": 6,
+        "total_items": 5,
         "sibling_ids": [
           "review::.::holistic::incomplete_migration::legacy_generation_aliases_still_first_class::0afb1342",
-          "review::.::holistic::package_organization::generation_type_surface_fragmentation::98cfadb0",
           "review::.::holistic::package_organization::thin_wrapper_dirs_fragment_image_edit_ownership::34bf2b5f",
           "review::.::holistic::test_strategy::instrumentation_tests_are_symbol_only::1648aee5",
           "review::.::holistic::type_safety::mapper_unsafe_casts_hide_invalid_payloads::753c610b",
@@ -206,7 +200,7 @@
   ],
   "queue": {
     "tier_counts": {
-      "1": 10,
+      "1": 9,
       "2": 156,
       "3": 952,
       "4": 771
@@ -220,12 +214,12 @@
       3,
       4
     ],
-    "total": 1889,
+    "total": 1888,
     "suppressed_count": 10
   },
   "narrative": {
     "phase": "regression",
-    "headline": "\u26a0 13 security findings \u2014 review before other cleanup. Score shifted 1.7 pts \u2014 this is normal after structural changes. Rescan after your next fix to see the real trend. (10 review findings \u2014 run `desloppify show review --status open`)",
+    "headline": "\u26a0 13 security findings \u2014 review before other cleanup. Score shifted 1.7 pts \u2014 this is normal after structural changes. Rescan after your next fix to see the real trend. (9 review findings \u2014 run `desloppify show review --status open`)",
     "dimensions": {
       "lowest_dimensions": [
         {
@@ -469,8 +463,8 @@
       {
         "type": "refactor",
         "detector": "review",
-        "count": 10,
-        "description": "10 review findings need investigation \u2014 run `desloppify show review --status open` to see them",
+        "count": 9,
+        "description": "9 review findings need investigation \u2014 run `desloppify show review --status open` to see them",
         "command": "desloppify show review --status open",
         "impact": 0.0,
         "dimension": "Unknown",
@@ -573,7 +567,7 @@
     "strategy": {
       "fixer_leverage": {
         "auto_fixable_count": 0,
-        "total_count": 1929,
+        "total_count": 1926,
         "coverage": 0.0,
         "impact_ratio": 0.0,
         "recommendation": "none"
@@ -640,7 +634,7 @@
         }
       },
       "can_parallelize": true,
-      "hint": "5 independent workstreams, safe to parallelize. Rescan after each phase to verify. Review: 10 finding(s) \u2014 `desloppify show review --status open`."
+      "hint": "5 independent workstreams, safe to parallelize. Rescan after each phase to verify. Review: 9 finding(s) \u2014 `desloppify show review --status open`."
     },
     "tools": {
       "fixers": [
@@ -686,7 +680,7 @@
       "command": "desloppify next",
       "description": "6 orphaned findings in 1 cluster(s) \u2014 run `desloppify next`"
     },
-    "why_now": "5 independent workstreams, safe to parallelize. Rescan after each phase to verify. Review: 10 finding(s) \u2014 `desloppify show review --status open`.",
+    "why_now": "5 independent workstreams, safe to parallelize. Rescan after each phase to verify. Review: 9 finding(s) \u2014 `desloppify show review --status open`.",
     "verification_step": {
       "command": "desloppify scan",
       "reason": "revalidate after changes"
@@ -978,10 +972,10 @@
       {
         "name": "synth-contract-boundaries",
         "description": "Tighten domain/transport boundaries, migration aliases, and contract tests",
-        "item_count": 6
+        "item_count": 5
       }
     ],
-    "total_ordered": 294,
+    "total_ordered": 293,
     "total_skipped": 31,
     "plan_overrides_narrative": true
   },
@@ -1204,7 +1198,7 @@
       "score": 52.6,
       "strict": 52.6,
       "checks": 10,
-      "issues": 2,
+      "issues": 1,
       "tier": 4,
       "subjective": true,
       "placeholder": false,
@@ -1415,7 +1409,7 @@
       "score": 52.6,
       "strict": 52.6,
       "checks": 10,
-      "issues": 2,
+      "issues": 1,
       "tier": 4,
       "subjective": true,
       "placeholder": false,
