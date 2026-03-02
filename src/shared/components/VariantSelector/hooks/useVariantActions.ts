@@ -9,7 +9,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { useAsyncOperationMap } from '@/shared/hooks/async/useAsyncOperation';
-import { usePrefetchTaskData, usePrefetchTaskById } from '@/shared/hooks/useTaskPrefetch';
+import { usePrefetchTaskData, usePrefetchTaskById } from '@/shared/hooks/tasks/useTaskPrefetch';
 import { getLineageDepth } from '@/shared/hooks/useLineageChain';
 import { getSourceTaskIdLegacyCompatible } from '@/shared/lib/taskIdHelpers';
 import { useToggleVariantStar } from '@/shared/hooks/useToggleVariantStar';

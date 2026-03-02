@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { extractVideoPosterFrame, extractVideoFinalFrame } from '../../lib/videoPosterExtractor';
+import { extractVideoPosterFrame, extractVideoFinalFrame } from '../../lib/media/videoPosterExtractor';
 
 // Mock DOM APIs
 const mockCtx = {

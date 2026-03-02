@@ -1,7 +1,7 @@
 import type { UseMutationResult } from '@tanstack/react-query';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import { uploadImageToStorage } from '@/shared/lib/imageUploader';
+import { uploadImageToStorage } from '@/shared/lib/media/imageUploader';
 import type { Resource, CreateResourceArgs, UpdateResourceArgs } from '@/shared/hooks/useResources';
 import type { LoraFiles } from '@/features/lora/hooks/useHuggingFaceUpload';
 import { type LoraFormState, type LoraModel } from '../../../types';

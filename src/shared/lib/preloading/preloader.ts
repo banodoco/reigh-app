@@ -8,8 +8,8 @@
 import type { PreloadableImage, PreloadConfig } from './types';
 import { PreloadQueue } from './queue';
 import { setImageLoadStatus, hasLoadedImage, markImageLoaded } from './tracker';
-import { getDisplayUrl } from '@/shared/lib/mediaUrl';
-import { isPreloadableMediaUrl } from '@/shared/lib/mediaTypeHelpers';
+import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';
+import { isPreloadableMediaUrl } from '@/shared/lib/media/mediaTypeHelpers';
 
 function hasImageId(image: PreloadableImage): image is PreloadableImage & { id: string } {
   return typeof image.id === 'string' && image.id.length > 0;

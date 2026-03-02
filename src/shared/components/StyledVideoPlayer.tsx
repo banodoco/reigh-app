@@ -3,7 +3,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Play, Pause, Volume2, VolumeX, Maximize } from 'lucide-react';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { formatTime } from '@/shared/lib/timeFormatting';
-import { getDisplayUrl } from '@/shared/lib/mediaUrl';
+import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';
 import { useIsMobile } from '@/shared/hooks/mobile';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 

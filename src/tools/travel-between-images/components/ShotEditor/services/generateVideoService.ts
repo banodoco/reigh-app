@@ -1,7 +1,7 @@
 import { QueryClient } from '@tanstack/react-query';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { normalizeAndPresentError, type RuntimeErrorOptions } from '@/shared/lib/errorHandling/runtimeError';
-import { getDisplayUrl } from '@/shared/lib/mediaUrl';
+import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';
 import { ValidationError } from '@/shared/lib/errorHandling/errors';
 import {
   createTravelBetweenImagesTask,
@@ -24,7 +24,7 @@ import {
   readSegmentOverrides,
   type SegmentOverrides,
 } from '@/shared/lib/settingsMigration';
-import { buildMotionTaskFields, stripModeFromPhaseConfig } from '@/shared/components/segmentSettingsUtils';
+import { buildMotionTaskFields, stripModeFromPhaseConfig } from '@/shared/components/SegmentSettingsForm/segmentSettingsUtils';
 import type { Shot } from '@/domains/generation/types';
 import {
   operationFailure,

@@ -4,7 +4,7 @@ import { GuidanceVideoControls } from './GuidanceVideoControls';
 import { TimelineBottomControls } from './TimelineBottomControls';
 import { ZoomControls } from './ZoomControls';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
-import type { VideoMetadata } from '@/shared/lib/videoUploader';
+import type { VideoMetadata } from '@/shared/lib/media/videoUploader';
 
 interface TimelineControlsProps {
   shotId: string;

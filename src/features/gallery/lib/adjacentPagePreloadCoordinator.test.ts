@@ -18,11 +18,11 @@ vi.mock('@/shared/lib/preloading', () => ({
   },
 }));
 
-vi.mock('@/shared/hooks/useProjectGenerations', () => ({
+vi.mock('@/shared/hooks/projects/useProjectGenerations', () => ({
   fetchGenerations: vi.fn(),
 }));
 
-import { fetchGenerations } from '@/shared/hooks/useProjectGenerations';
+import { fetchGenerations } from '@/shared/hooks/projects/useProjectGenerations';
 import {
   cleanupDistantGenerationPages,
   prefetchAdjacentGenerationPages,

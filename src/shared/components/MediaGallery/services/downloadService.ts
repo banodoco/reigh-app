@@ -1,4 +1,4 @@
-import { getDisplayUrl } from '@/shared/lib/mediaUrl';
+import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';
 import type { GeneratedImageWithMetadata } from '@/shared/components/MediaGallery/types';
 import { downloadBlobAsFile } from '@/shared/runtime/browserDownloadRuntime';
 

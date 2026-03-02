@@ -1,5 +1,4 @@
-import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
-import type { RefObject } from 'react';
+import type { MutableRefObject, RefObject } from 'react';
 import type { PairData } from '../../Timeline/TimelineContainer';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 import type { GenerationRow } from '@/domains/generation/types';
@@ -51,13 +50,13 @@ export interface UseSegmentSlotModeReturn {
 
 export interface SegmentSlotState {
   segmentSlotLightboxIndex: number | null;
-  setSegmentSlotLightboxIndex: Dispatch<SetStateAction<number | null>>;
+  setSegmentSlotLightboxIndex: (value: number | null) => void;
   activePairData: PairData | null;
-  setActivePairData: Dispatch<SetStateAction<PairData | null>>;
+  setActivePairData: (value: PairData | null) => void;
   pendingImageToOpen: string | null;
-  setPendingImageToOpen: Dispatch<SetStateAction<string | null>>;
+  setPendingImageToOpen: (value: string | null) => void;
   pendingImageVariantId: string | null;
-  setPendingImageVariantId: Dispatch<SetStateAction<string | null>>;
+  setPendingImageVariantId: (value: string | null) => void;
 }
 
 export interface SegmentSlotLocationState {

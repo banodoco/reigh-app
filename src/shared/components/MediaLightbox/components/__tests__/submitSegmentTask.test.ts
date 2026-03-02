@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { RunTaskPlaceholder } from '@/shared/hooks/useTaskPlaceholder';
+import type { RunTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
 import { createIndividualTravelSegmentTask } from '@/shared/lib/tasks/individualTravelSegment';
 import { buildStructureVideoForTask, submitSegmentTask } from '../submitSegmentTask';
 

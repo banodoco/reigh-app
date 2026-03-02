@@ -22,7 +22,7 @@ import type { GeneratedImageWithMetadata } from '@/shared/components/MediaGaller
 import type { GenerationRow } from '@/domains/generation/types';
 import type { GenerationMetadata } from '@/domains/generation/types';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
-import { stripQueryParameters } from '@/shared/lib/mediaUrl';
+import { stripQueryParameters } from '@/shared/lib/media/mediaUrl';
 import { TOOL_IDS, isToolId } from '@/shared/lib/toolIds';
 import { ServerError } from '@/shared/lib/errorHandling/errors';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';

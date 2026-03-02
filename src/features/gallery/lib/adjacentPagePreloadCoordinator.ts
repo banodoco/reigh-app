@@ -4,7 +4,7 @@ import {
   isUnifiedProjectGenerationsKey,
   unifiedGenerationQueryKeys,
 } from '@/shared/lib/queryKeys/unified';
-import { fetchGenerations, type GenerationFilters } from '@/shared/hooks/useProjectGenerations';
+import { fetchGenerations, type GenerationFilters } from '@/shared/hooks/projects/useProjectGenerations';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import {
   clearLoadedImages,

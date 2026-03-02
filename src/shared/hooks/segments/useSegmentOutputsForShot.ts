@@ -12,7 +12,7 @@ import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { GenerationRow } from '@/domains/generation/types';
 import { useSmartPollingConfig } from '@/shared/hooks/useSmartPolling';
 import { segmentQueryKeys } from '@/shared/lib/queryKeys/segments';
-import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
+import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 // Slot type - either a real child or a placeholder for a processing segment

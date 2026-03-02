@@ -10,7 +10,7 @@ import {
   LEGACY_SUPABASE_IMPORT_BUDGET_PHASES,
   getLegacySupabaseImportBudget,
   isLegacySupabaseFacadePastRemovalTarget,
-} from '@/integrations/supabase/legacy/legacySupabasePolicy';
+} from '@/integrations/supabase/support/legacy/legacySupabasePolicy';
 
 function walkSourceFiles(dir: string): string[] {
   const entries = fs.readdirSync(dir, { withFileTypes: true });

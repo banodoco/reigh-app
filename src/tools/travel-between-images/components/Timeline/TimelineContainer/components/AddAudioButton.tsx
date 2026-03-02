@@ -1,6 +1,6 @@
 import React from 'react';
 import { toast } from '@/shared/components/ui/runtime/sonner';
-import { uploadVideoToStorage } from '@/shared/lib/videoUploader';
+import { uploadVideoToStorage } from '@/shared/lib/media/videoUploader';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 interface AddAudioButtonProps {

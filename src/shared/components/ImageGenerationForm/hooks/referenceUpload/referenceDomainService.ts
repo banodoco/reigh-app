@@ -2,11 +2,11 @@ import { nanoid } from 'nanoid';
 import type { QueryClient } from '@tanstack/react-query';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { fileToDataURL, dataURLtoFile } from '@/shared/lib/fileConversion';
-import { uploadImageToStorage } from '@/shared/lib/imageUploader';
+import { uploadImageToStorage } from '@/shared/lib/media/imageUploader';
 import { generateClientThumbnail } from '@/shared/media/clientThumbnailGenerator';
 import { generateThumbnailFilename, MEDIA_BUCKET, storagePaths } from '@/shared/lib/storagePaths';
 import { resolveProjectResolution } from '@/shared/lib/taskCreation';
-import { processStyleReferenceForAspectRatioString } from '@/shared/lib/styleReferenceProcessor';
+import { processStyleReferenceForAspectRatioString } from '@/shared/lib/media/styleReferenceProcessor';
 import { extractSettingsFromCache } from '@/shared/hooks/useToolSettings';
 import { settingsQueryKeys } from '@/shared/lib/queryKeys/settings';
 import {

@@ -126,18 +126,17 @@ const BatchSettingsForm: React.FC<BatchSettingsFormProps> = ({
         const stepsLength = phaseConfig.steps_per_phase?.length || 0;
         const numPhases = phaseConfig.num_phases;
         
-        if (numPhases !== phasesLength || numPhases !== stepsLength) {
+        if (import.meta.env.DEV && numPhases !== phasesLength || numPhases !== stepsLength) {
           console.error('[BatchSettingsForm] INCONSISTENT PHASE CONFIG:', {
             num_phases: numPhases,
             phases_array_length: phasesLength,
             steps_array_length: stepsLength,
-            phases_data: phaseConfig.phases?.map(p => ({ 
-              phase: p.phase, 
-              guidance_scale: p.guidance_scale, 
-              loras_count: p.loras?.length 
+            phases_data: phaseConfig.phases?.map(p => ({
+              phase: p.phase,
+              guidance_scale: p.guidance_scale,
+              loras_count: p.loras?.length
             })),
             steps_per_phase: phaseConfig.steps_per_phase,
-            WARNING: 'num_phases does not match array lengths! This will cause backend errors.'
           });
         }
       }

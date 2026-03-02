@@ -18,7 +18,7 @@ import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { InlineEditView } from '../components/InlineEditView';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { useIsMobile } from '@/shared/hooks/mobile';
-import { uploadImageToStorage } from '@/shared/lib/imageUploader';
+import { uploadImageToStorage } from '@/shared/lib/media/imageUploader';
 import { generateClientThumbnail, uploadImageWithThumbnail } from '@/shared/media/clientThumbnailGenerator';
 import { VARIANT_TYPE } from '@/shared/constants/variantTypes';
 import { parseRatio } from '@/shared/lib/media/aspectRatios';

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import MediaLightbox, { type MediaLightboxProps } from "@/shared/components/MediaLightbox/MediaLightbox";
-import TaskDetailsModal from '@/shared/components/TaskDetailsModal';
+import MediaLightbox from "@/shared/components/MediaLightbox/MediaLightbox";
+import TaskDetailsModal from '@/shared/components/TaskDetails/TaskDetailsModal';
 import { GenerationRow, Shot } from "@/domains/generation/types";
 import { Task } from "@/types/tasks";
 import type { GeneratedImageWithMetadata } from '../types';
@@ -185,103 +185,64 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
     onClose,
   }), [inputImages, isLoadingTask, lightboxTaskMapping?.taskId, onClose, task, taskError]);
 
-  const lightboxProps = useMemo<MediaLightboxProps | null>(() => {
-    if (!enhancedMedia) {
-      return null;
-    }
+  const selectedShotIdForLightbox = lightboxSelectedShotId
+    || (selectedShotIdLocal !== 'all' ? selectedShotIdLocal : undefined);
 
-    return {
-      media: mediaForLightbox,
-      onClose: () => {
-        setLightboxSelectedShotId(selectedShotIdLocal !== 'all' ? selectedShotIdLocal : undefined);
-        onClose();
-      },
-      shotId: selectedShotIdLocal !== 'all' ? selectedShotIdLocal : undefined,
-      toolTypeOverride,
-      onNext,
-      onPrevious,
-      showNavigation: true,
-      hasNext,
-      hasPrevious,
-      onNavigateToGeneration: handleNavigateToGeneration,
-      onOpenExternalGeneration: handleOpenExternalGeneration,
-      allShots: simplifiedShotOptions,
-      selectedShotId: lightboxSelectedShotId || (selectedShotIdLocal !== 'all' ? selectedShotIdLocal : undefined),
-      onShotChange: (shotId) => {
-        setLightboxSelectedShotId(shotId);
-        onShotChange(shotId);
-      },
-      onAddToShot,
-      onAddToShotWithoutPosition,
-      onCreateShot,
-      onNavigateToShot,
-      positionedInSelectedShot,
-      associatedWithoutPositionInSelectedShot,
-      onDelete,
-      isDeleting,
-      onApplySettings,
-      starred: enhancedMedia.starred ?? false,
-      showTaskDetails: true,
-      taskDetailsData: taskDetailsPayload,
-      onShowTaskDetails: isMobile ? onShowTaskDetails : undefined,
-      showTickForImageId,
-      onShowTick: setShowTickForImageId,
-      showTickForSecondaryImageId,
-      onShowSecondaryTick: setShowTickForSecondaryImageId,
-      optimisticPositionedIds,
-      optimisticUnpositionedIds,
-      onOptimisticPositioned,
-      onOptimisticUnpositioned,
-      showImageEditTools: !((activeLightboxMedia?.type || '').includes('video')),
-      showDownload: true,
-      showMagicEdit: false,
-      initialEditActive: effectiveAutoEnterEditMode,
-    };
-  }, [
-    activeLightboxMedia?.type,
-    associatedWithoutPositionInSelectedShot,
-    enhancedMedia,
-    effectiveAutoEnterEditMode,
-    handleNavigateToGeneration,
-    handleOpenExternalGeneration,
-    hasNext,
-    hasPrevious,
-    isDeleting,
-    isMobile,
-    lightboxSelectedShotId,
-    mediaForLightbox,
-    onAddToShot,
-    onAddToShotWithoutPosition,
-    onApplySettings,
-    onClose,
-    onCreateShot,
-    onNavigateToShot,
-    onNext,
-    onPrevious,
-    onShotChange,
-    onShowTaskDetails,
-    optimisticPositionedIds,
-    optimisticUnpositionedIds,
-    positionedInSelectedShot,
-    selectedShotIdLocal,
-    setShowTickForImageId,
-    setShowTickForSecondaryImageId,
-    showTickForImageId,
-    showTickForSecondaryImageId,
-    simplifiedShotOptions,
-    taskDetailsPayload,
-    toolTypeOverride,
-    onDelete,
-    onOptimisticPositioned,
-    onOptimisticUnpositioned,
-  ]);
+  const handleLightboxClose = () => {
+    setLightboxSelectedShotId(selectedShotIdLocal !== 'all' ? selectedShotIdLocal : undefined);
+    onClose();
+  };
 
+  const handleLightboxShotChange = (shotId: string) => {
+    setLightboxSelectedShotId(shotId);
+    onShotChange(shotId);
+  };
 
   return (
     <>
       {/* Main Lightbox Modal */}
-      {lightboxProps && (
-        <MediaLightbox {...lightboxProps} />
+      {enhancedMedia && (
+        <MediaLightbox
+          media={mediaForLightbox}
+          onClose={handleLightboxClose}
+          shotId={selectedShotIdLocal !== 'all' ? selectedShotIdLocal : undefined}
+          toolTypeOverride={toolTypeOverride}
+          onNext={onNext}
+          onPrevious={onPrevious}
+          showNavigation={true}
+          hasNext={hasNext}
+          hasPrevious={hasPrevious}
+          onNavigateToGeneration={handleNavigateToGeneration}
+          onOpenExternalGeneration={handleOpenExternalGeneration}
+          allShots={simplifiedShotOptions}
+          selectedShotId={selectedShotIdForLightbox}
+          onShotChange={handleLightboxShotChange}
+          onAddToShot={onAddToShot}
+          onAddToShotWithoutPosition={onAddToShotWithoutPosition}
+          onCreateShot={onCreateShot}
+          onNavigateToShot={onNavigateToShot}
+          positionedInSelectedShot={positionedInSelectedShot}
+          associatedWithoutPositionInSelectedShot={associatedWithoutPositionInSelectedShot}
+          onDelete={onDelete}
+          isDeleting={isDeleting}
+          onApplySettings={onApplySettings}
+          starred={enhancedMedia.starred ?? false}
+          showTaskDetails={true}
+          taskDetailsData={taskDetailsPayload}
+          onShowTaskDetails={isMobile ? onShowTaskDetails : undefined}
+          showTickForImageId={showTickForImageId}
+          onShowTick={setShowTickForImageId}
+          showTickForSecondaryImageId={showTickForSecondaryImageId}
+          onShowSecondaryTick={setShowTickForSecondaryImageId}
+          optimisticPositionedIds={optimisticPositionedIds}
+          optimisticUnpositionedIds={optimisticUnpositionedIds}
+          onOptimisticPositioned={onOptimisticPositioned}
+          onOptimisticUnpositioned={onOptimisticUnpositioned}
+          showImageEditTools={!((activeLightboxMedia?.type || '').includes('video'))}
+          showDownload={true}
+          showMagicEdit={false}
+          initialEditActive={effectiveAutoEnterEditMode}
+        />
       )}
 
       {/* Mobile Task Details Modal */}

@@ -44,7 +44,7 @@ vi.mock('@/shared/lib/compat/errorHandler', () => ({
 import {
   generateAndUploadThumbnail,
   extractAndUploadThumbnailOnly,
-} from '../../lib/videoThumbnailGenerator';
+} from '../../lib/media/videoThumbnailGenerator';
 
 // Mock video and canvas for thumbnail extraction
 const mockCtx = {

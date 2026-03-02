@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import type { GenerationRow, Shot } from '@/domains/generation/types';
 import { isVideoAny } from '@/shared/lib/typeGuards';
 import type { AdjacentSegmentsData, SegmentSlotModeData } from './types';
@@ -76,17 +76,17 @@ export interface MediaLightboxProps {
   adjacentSegments?: AdjacentSegmentsData;
 }
 
-/** Bundle flat MediaLightboxProps into the grouped sub-interfaces shared by Image/VideoLightbox. */
-function useBundledLightboxProps(props: MediaLightboxProps) {
-  const navigation: LightboxNavigationProps = useMemo(() => ({
+const MediaLightbox: React.FC<MediaLightboxProps> = (props) => {
+  const { media, segmentSlotMode } = props;
+
+  const navigation: LightboxNavigationProps = {
     onNext: props.onNext,
     onPrevious: props.onPrevious,
     showNavigation: props.showNavigation,
     hasNext: props.hasNext,
     hasPrevious: props.hasPrevious,
-  }), [props.onNext, props.onPrevious, props.showNavigation, props.hasNext, props.hasPrevious]);
-
-  const shotWorkflow: LightboxShotWorkflowProps = useMemo(() => ({
+  };
+  const shotWorkflow: LightboxShotWorkflowProps = {
     allShots: props.allShots,
     selectedShotId: props.selectedShotId,
     onShotChange: props.onShotChange,
@@ -102,33 +102,22 @@ function useBundledLightboxProps(props: MediaLightboxProps) {
     optimisticUnpositionedIds: props.optimisticUnpositionedIds,
     positionedInSelectedShot: props.positionedInSelectedShot,
     associatedWithoutPositionInSelectedShot: props.associatedWithoutPositionInSelectedShot,
-  }), [
-    props.allShots, props.selectedShotId, props.onShotChange,
-    props.onAddToShot, props.onAddToShotWithoutPosition,
-    props.onCreateShot, props.onNavigateToShot,
-    props.onShowTick, props.onShowSecondaryTick,
-    props.onOptimisticPositioned, props.onOptimisticUnpositioned,
-    props.optimisticPositionedIds, props.optimisticUnpositionedIds,
-    props.positionedInSelectedShot, props.associatedWithoutPositionInSelectedShot,
-  ]);
-
-  const features: LightboxFeatureFlags = useMemo(() => ({
+  };
+  const features: LightboxFeatureFlags = {
     showImageEditTools: props.showImageEditTools,
     showDownload: props.showDownload,
     showMagicEdit: props.showMagicEdit,
     initialEditActive: props.initialEditActive,
     showTaskDetails: props.showTaskDetails,
-  }), [props.showImageEditTools, props.showDownload, props.showMagicEdit, props.initialEditActive, props.showTaskDetails]);
-
-  const actions: LightboxActionHandlers = useMemo(() => ({
+  };
+  const actions: LightboxActionHandlers = {
     onDelete: props.onDelete,
     isDeleting: props.isDeleting,
     onApplySettings: props.onApplySettings,
     onToggleStar: props.onToggleStar,
     starred: props.starred,
-  }), [props.onDelete, props.isDeleting, props.onApplySettings, props.onToggleStar, props.starred]);
-
-  const videoProps: VideoLightboxVideoProps = useMemo(() => ({
+  };
+  const videoProps: VideoLightboxVideoProps = {
     initialVideoTrimMode: props.initialVideoTrimMode,
     fetchVariantsForSelf: props.fetchVariantsForSelf,
     currentSegmentImages: props.currentSegmentImages,
@@ -136,23 +125,9 @@ function useBundledLightboxProps(props: MediaLightboxProps) {
     currentFrameCount: props.currentFrameCount,
     onTrimModeChange: props.onTrimModeChange,
     onShowTaskDetails: props.onShowTaskDetails,
-  }), [
-    props.initialVideoTrimMode, props.fetchVariantsForSelf,
-    props.currentSegmentImages, props.onSegmentFrameCountChange,
-    props.currentFrameCount, props.onTrimModeChange,
-    props.onShowTaskDetails,
-  ]);
+  };
 
-  return { navigation, shotWorkflow, features, actions, videoProps };
-}
-
-const MediaLightbox: React.FC<MediaLightboxProps> = (props) => {
-  const { media, segmentSlotMode } = props;
-
-  // Bundle flat props into grouped sub-interfaces (hook must be called unconditionally).
-  // Mode-specific containers consume this shared contract and own rendering details.
-  const bundled = useBundledLightboxProps(props);
-  const sharedContainerProps = useMemo(() => ({
+  const sharedContainerProps = {
     onClose: props.onClose,
     readOnly: props.readOnly,
     shotId: props.shotId,
@@ -164,40 +139,22 @@ const MediaLightbox: React.FC<MediaLightboxProps> = (props) => {
     tasksPaneOpen: props.tasksPaneOpen,
     tasksPaneWidth: props.tasksPaneWidth,
     adjacentSegments: props.adjacentSegments,
-    navigation: bundled.navigation,
-    shotWorkflow: bundled.shotWorkflow,
-    features: bundled.features,
-    actions: bundled.actions,
-  }), [
-    props.onClose,
-    props.readOnly,
-    props.shotId,
-    props.initialVariantId,
-    props.taskDetailsData,
-    props.onOpenExternalGeneration,
-    props.showTickForImageId,
-    props.showTickForSecondaryImageId,
-    props.tasksPaneOpen,
-    props.tasksPaneWidth,
-    props.adjacentSegments,
-    bundled.navigation,
-    bundled.shotWorkflow,
-    bundled.features,
-    bundled.actions,
-  ]);
-
-  const renderVideoLightbox = (videoMedia: GenerationRow | undefined) => (
-    <VideoLightbox
-      {...sharedContainerProps}
-      media={videoMedia}
-      segmentSlotMode={segmentSlotMode}
-      parentGenerationIdOverride={props.parentGenerationIdOverride}
-      videoProps={bundled.videoProps}
-    />
-  );
+    navigation,
+    shotWorkflow,
+    features,
+    actions,
+  };
 
   if (segmentSlotMode) {
-    return renderVideoLightbox(media);
+    return (
+      <VideoLightbox
+        {...sharedContainerProps}
+        media={media}
+        segmentSlotMode={segmentSlotMode}
+        parentGenerationIdOverride={props.parentGenerationIdOverride}
+        videoProps={videoProps}
+      />
+    );
   }
 
   if (!media) {
@@ -205,7 +162,15 @@ const MediaLightbox: React.FC<MediaLightboxProps> = (props) => {
   }
 
   if (isVideoAny(media)) {
-    return renderVideoLightbox(media);
+    return (
+      <VideoLightbox
+        {...sharedContainerProps}
+        media={media}
+        segmentSlotMode={segmentSlotMode}
+        parentGenerationIdOverride={props.parentGenerationIdOverride}
+        videoProps={videoProps}
+      />
+    );
   }
 
   return (

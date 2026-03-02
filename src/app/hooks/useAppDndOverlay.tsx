@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DragStartEvent } from '@dnd-kit/core';
-import { getDisplayUrl } from '@/shared/lib/mediaUrl';
+import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';
 
 type DragData = Record<string, unknown> & {
   imageUrl?: string;

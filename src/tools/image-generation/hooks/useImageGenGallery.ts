@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback, type RefObject } fro
 import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { useContainerDimensions } from '@/shared/components/MediaGallery/hooks';
 import { calculateGalleryLayout } from '@/shared/components/MediaGallery/utils';
-import { useProjectGenerations } from '@/shared/hooks/useProjectGenerations';
+import { useProjectGenerations } from '@/shared/hooks/projects/useProjectGenerations';
 import { useAutoSaveSettings } from '@/shared/hooks/settings/useAutoSaveSettings';
 import { useStableObject } from '@/shared/hooks/useStableObject';
 import { DEFAULT_GALLERY_FILTERS, type GalleryFilterState } from '@/shared/components/MediaGallery';

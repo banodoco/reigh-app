@@ -10,7 +10,7 @@ import { useToolSettings } from '@/shared/hooks/useToolSettings';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/components/ui/collapsible';
 import { ChevronDown, AlertTriangle, RefreshCw } from 'lucide-react';
 import { AspectRatioSelector } from '@/shared/components/generation-controls/AspectRatioSelector';
-import { recropAllReferences, type RecropReferenceInput } from '@/shared/lib/recropReferences';
+import { recropAllReferences, type RecropReferenceInput } from '@/shared/lib/media/recropReferences';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { ModalContainer } from '@/shared/components/ModalContainer';
 import { SETTINGS_IDS } from '@/shared/lib/settingsIds';

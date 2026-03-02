@@ -42,7 +42,7 @@ declare global {
     /** [debug] NetworkStatusManager singleton for console diagnostics */
     __NETWORK_STATUS_MANAGER__?: import('../shared/lib/NetworkStatusManager').NetworkStatusManager;
     /** [debug] ReconnectScheduler singleton for console diagnostics */
-    __RECONNECT_SCHEDULER__?: import('../integrations/supabase/reconnect/ReconnectScheduler').ReconnectScheduler;
+    __RECONNECT_SCHEDULER__?: import('../integrations/supabase/support/reconnect/ReconnectScheduler').ReconnectScheduler;
     /** [debug] Mobile project debug utilities */
     debugMobile?: () => Record<string, unknown>;
     enableProjectDebug?: () => void;

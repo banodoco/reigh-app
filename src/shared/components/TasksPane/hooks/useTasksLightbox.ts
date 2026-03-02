@@ -3,7 +3,7 @@ import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { GenerationRow } from '@/domains/generation/types';
 import { Task } from '@/types/tasks';
 import { deriveTaskInputImages } from '../utils/task-utils';
-import { usePrefetchTaskData } from '@/shared/hooks/useTaskPrefetch';
+import { usePrefetchTaskData } from '@/shared/hooks/tasks/useTaskPrefetch';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { expandShotData } from '@/shared/lib/shotData';
 

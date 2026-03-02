@@ -24,7 +24,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Label } from '@/shared/components/ui/primitives/label';
 import { Slider } from '@/shared/components/ui/slider';
 import { Loader2, RotateCcw, Save } from 'lucide-react';
-import { quantizeFrameCount, framesToSeconds } from '@/shared/lib/videoUtils';
+import { quantizeFrameCount, framesToSeconds } from '@/shared/lib/media/videoUtils';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { usePromptFieldState } from '@/shared/hooks/usePromptFieldState';
 

@@ -15,11 +15,11 @@ vi.mock('@/integrations/supabase/auth/AuthStateManager', () => ({
   initAuthStateManager: initAuthStateManagerMock,
 }));
 
-vi.mock('@/integrations/supabase/reconnect/ReconnectScheduler', () => ({
+vi.mock('@/integrations/supabase/support/reconnect/ReconnectScheduler', () => ({
   getReconnectScheduler: getReconnectSchedulerMock,
 }));
 
-vi.mock('@/integrations/supabase/dev/autoLogin', () => ({
+vi.mock('@/integrations/supabase/support/dev/autoLogin', () => ({
   maybeAutoLogin: maybeAutoLoginMock,
 }));
 

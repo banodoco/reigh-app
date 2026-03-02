@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { useProgressiveImageLoading } from '@/shared/hooks/useProgressiveImageLoading';
+import { useProgressiveImageLoading } from '@/shared/hooks/ui-image/useProgressiveImageLoading';
 
 interface ProgressiveLoadingManagerProps {
   images: { id: string }[];

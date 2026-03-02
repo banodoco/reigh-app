@@ -1,7 +1,7 @@
 import { useOutputSelection } from '../hooks';
 import { useSegmentOutputsForShot } from '@/shared/hooks/segments';
-import { useDemoteOrphanedVariants } from '../../../hooks/useDemoteOrphanedVariants';
-import { useEnsureSelectedOutput } from '../hooks/useEnsureSelectedOutput';
+import { useDemoteOrphanedVariants } from '../../../hooks/workflow/useDemoteOrphanedVariants';
+import { useEnsureSelectedOutput } from '../hooks/video/useEnsureSelectedOutput';
 import type { GenerationRow, Shot } from '@/domains/generation/types';
 
 interface UseOutputControllerParams {

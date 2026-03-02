@@ -1,7 +1,7 @@
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
 import type { LoraConfig } from '@/shared/types/segmentSettings';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
-import type { SegmentSettings } from '../segmentSettingsUtils';
+import type { SegmentSettings } from './segmentSettingsUtils';
 
 interface SegmentOverrideFlags {
   prompt: boolean;
@@ -90,4 +90,4 @@ export interface SegmentSettingsFormProps {
   onNavigateToImage?: (shotGenerationId: string) => void;
 }
 
-export type { SegmentSettings } from '../segmentSettingsUtils';
+export type { SegmentSettings } from './segmentSettingsUtils';

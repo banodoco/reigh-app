@@ -87,7 +87,7 @@ vi.mock('@/shared/hooks/useVideoScrubbing', () => ({
   }),
 }));
 
-vi.mock('@/shared/hooks/useTaskPrefetch', () => ({
+vi.mock('@/shared/hooks/tasks/useTaskPrefetch', () => ({
   usePrefetchTaskData: () => mocks.prefetchTaskData,
 }));
 

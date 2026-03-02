@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useIsTablet } from '@/shared/hooks/mobile';
 import { useTextCase } from '@/shared/hooks/useTextCase';
 import { usePanes } from '@/shared/contexts/PanesContext';
-import { useProjectContextDebug } from '@/shared/hooks/useProjectContextDebug';
+import { useProjectContextDebug } from '@/shared/hooks/projects/useProjectContextDebug';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useGlobalHeaderAuth } from './useGlobalHeaderAuth';
 

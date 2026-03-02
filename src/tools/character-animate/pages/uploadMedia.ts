@@ -1,6 +1,6 @@
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { getFileExtension, MEDIA_BUCKET, storagePaths } from '@/shared/lib/storagePaths';
-import { extractVideoPosterFrame } from '@/shared/lib/videoPosterExtractor';
+import { extractVideoPosterFrame } from '@/shared/lib/media/videoPosterExtractor';
 
 export async function uploadVideoWithPoster(file: File): Promise<{ videoUrl: string; posterUrl: string }> {
   const posterBlob = await extractVideoPosterFrame(file);

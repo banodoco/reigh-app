@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import type { AdjacentSegmentsData, SegmentSlotModeData } from '../../types';
 import type { LightboxButtonGroupProps } from '../../hooks/useSharedLightboxState';
 import type { WorkflowControlsBarProps } from '../WorkflowControlsBar';
-import type { WorkflowControlsProps } from '../WorkflowControls';
 
 type LayoutButtonGroupProps = LightboxButtonGroupProps;
 
@@ -15,7 +14,6 @@ export interface LightboxLayoutProps extends LayoutPanelProps {
   showPanel: boolean;
   shouldShowSidePanel: boolean;
   workflowBar: WorkflowControlsBarProps;
-  workflowControls?: WorkflowControlsProps;
   buttonGroups: LayoutButtonGroupProps;
   controlsPanelContent?: ReactNode;
   adjacentSegments?: AdjacentSegmentsData;

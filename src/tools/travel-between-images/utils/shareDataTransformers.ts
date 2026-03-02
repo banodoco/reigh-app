@@ -8,9 +8,9 @@
  */
 
 import type { GenerationRow } from '@/domains/generation/types';
-import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
+import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
-import type { VideoMetadata } from '@/shared/lib/videoUploader';
+import type { VideoMetadata } from '@/shared/lib/media/videoUploader';
 
 type SharedStructureType = 'uni3c' | 'flow' | 'canny' | 'depth';
 

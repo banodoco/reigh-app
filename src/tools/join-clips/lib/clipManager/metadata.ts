@@ -1,4 +1,4 @@
-import { extractVideoMetadataFromUrl } from '@/shared/lib/videoUploader';
+import { extractVideoMetadataFromUrl } from '@/shared/lib/media/videoUploader';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import {
   operationFailure,

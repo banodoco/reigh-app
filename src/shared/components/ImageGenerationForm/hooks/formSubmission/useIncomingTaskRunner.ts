@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
-import { useTaskPlaceholder } from '@/shared/hooks/useTaskPlaceholder';
-import type { RunTaskPlaceholder } from '@/shared/hooks/useTaskPlaceholder';
+import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
+import type { RunTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
 
 interface RunIncomingTaskOptions {
   label: string;

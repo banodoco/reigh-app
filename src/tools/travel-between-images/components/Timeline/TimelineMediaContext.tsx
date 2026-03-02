@@ -4,7 +4,7 @@
  */
 
 import { createContext, useContext } from 'react';
-import type { VideoMetadata } from '@/shared/lib/videoUploader';
+import type { VideoMetadata } from '@/shared/lib/media/videoUploader';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 
 export interface TimelineMediaContextValue {

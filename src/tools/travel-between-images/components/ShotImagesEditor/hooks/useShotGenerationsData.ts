@@ -5,11 +5,11 @@
 
 import { useRef, useEffect, useMemo } from 'react';
 import { useTimelineCore } from '@/shared/hooks/useTimelineCore';
-import { useTimelinePositionUtils } from '../../../hooks/useTimelinePositionUtils';
+import { useTimelinePositionUtils } from '../../../hooks/timeline/useTimelinePositionUtils';
 import { useVariantBadges } from '@/shared/hooks/useVariantBadges';
 import { isPositioned, isVideoGeneration } from '@/shared/lib/typeGuards';
 import type { GenerationRow } from '@/domains/generation/types';
-import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
+import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 
 /** Generation row with badge data merged in */
 interface GenerationWithBadges extends GenerationRow {

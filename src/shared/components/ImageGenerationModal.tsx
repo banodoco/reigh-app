@@ -15,7 +15,7 @@ import { useProject } from '@/shared/contexts/ProjectContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { toast } from '@/shared/components/ui/runtime/sonner';
-import { useTaskPlaceholder } from '@/shared/hooks/useTaskPlaceholder';
+import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
 import { Skeleton } from '@/shared/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { ExternalLink } from 'lucide-react';

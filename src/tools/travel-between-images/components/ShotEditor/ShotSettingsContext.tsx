@@ -20,14 +20,14 @@ import { QueryClient } from '@tanstack/react-query';
 import { Shot, GenerationRow } from '@/domains/generation/types';
 import type { Project } from '@/types/project';
 import { LoraModel } from '@/shared/components/LoraSelectorModal';
-import type { VideoMetadata } from '@/shared/lib/videoUploader';
+import type { VideoMetadata } from '@/shared/lib/media/videoUploader';
 import { ShotEditorState } from './state/types';
 import { ShotEditorActions } from './state/useShotEditorState';
-import { LoraManagerReturn } from './hooks/useLoraSync';
-import type { UseStructureVideoReturn } from './hooks/useStructureVideo';
-import type { UseAudioReturn } from './hooks/useAudio';
+import { LoraManagerReturn } from './hooks/editor-state/useLoraSync';
+import type { UseStructureVideoReturn } from './hooks/video/useStructureVideo';
+import type { UseAudioReturn } from './hooks/video/useAudio';
 import type { UseLoraManagerReturn } from '@/shared/hooks/useLoraManager';
-import type { JoinSegmentsSettings } from '@/tools/travel-between-images/hooks/useJoinSegmentsSettings';
+import type { JoinSegmentsSettings } from '@/tools/travel-between-images/hooks/settings/useJoinSegmentsSettings';
 import type {
   ImageDeleteHandler,
   BatchImageDeleteHandler,

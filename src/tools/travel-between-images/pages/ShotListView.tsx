@@ -2,12 +2,12 @@ import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { Shot } from '@/domains/generation/types';
 import { Button } from '@/shared/components/ui/button';
 import CreateShotModal from '@/features/shots/components/CreateShotModal';
-import ShotListDisplay from '../components/ShotListDisplay';
+import ShotListDisplay from '../components/VideoGallery/ShotListDisplay';
 import { useIsMobile } from '@/shared/hooks/mobile';
 import { useShotCreation } from '@/shared/hooks/useShotCreation';
 import { useHandleExternalImageDrop, useAddImageToShot, useAddImageToShotWithoutPosition } from '@/shared/hooks/shots';
-import { useProjectGenerations } from '@/shared/hooks/useProjectGenerations';
-import type { GenerationsPaginatedResponse } from '@/shared/hooks/useProjectGenerations';
+import { useProjectGenerations } from '@/shared/hooks/projects/useProjectGenerations';
+import type { GenerationsPaginatedResponse } from '@/shared/hooks/projects/useProjectGenerations';
 import { useDeleteGenerationWithConfirm } from '@/domains/generation/hooks/useDeleteGenerationWithConfirm';
 import { useToggleGenerationStar } from '@/domains/generation/hooks/useGenerationMutations';
 import { DeleteGenerationConfirmDialog } from '@/shared/components/dialogs/DeleteGenerationConfirmDialog';
@@ -21,8 +21,8 @@ import {
   useVideoTravelAddToShot,
   useVideoLayoutConfig,
 } from '../hooks';
-import { VideoTravelListHeader } from '../components/VideoTravelListHeader';
-import { VideoTravelVideosGallery } from '../components/VideoTravelVideosGallery';
+import { VideoTravelListHeader } from '../components/VideoGallery/VideoTravelListHeader';
+import { VideoTravelVideosGallery } from '../components/VideoGallery/VideoTravelVideosGallery';
 
 interface ShotListViewProps {
   /** Array of shots */

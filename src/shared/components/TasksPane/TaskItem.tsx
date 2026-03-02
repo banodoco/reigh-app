@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Task } from '@/types/tasks';
 import { getTaskDisplayName, taskSupportsProgress } from '@/shared/lib/taskConfig';
-import { useCancelTask } from '@/shared/hooks/useTaskCancellation';
+import { useCancelTask } from '@/shared/hooks/tasks/useTaskCancellation';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { toast } from '@/shared/components/ui/toast';
 import { cn } from '@/shared/components/ui/contracts/cn';
@@ -12,7 +12,7 @@ import { useRelativeTimestamp, useTaskTimestamp } from '@/shared/hooks/useUpdati
 import { GenerationRow } from '@/domains/generation/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { useIsMobile } from '@/shared/hooks/mobile';
-import { useTaskType } from '@/shared/hooks/useTaskType';
+import { useTaskType } from '@/shared/hooks/tasks/useTaskType';
 import { usePublicLoras } from '@/shared/hooks/useResources';
 
 // Import from modules

@@ -16,7 +16,7 @@ import { storagePaths, getFileExtension, MEDIA_BUCKET } from '@/shared/lib/stora
 import { InlineEditVideoView } from '../components/InlineEditVideoView';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { useIsMobile } from '@/shared/hooks/mobile';
-import { extractVideoPosterFrame } from '@/shared/lib/videoPosterExtractor';
+import { extractVideoPosterFrame } from '@/shared/lib/media/videoPosterExtractor';
 import { VARIANT_TYPE } from '@/shared/constants/variantTypes';
 import type { PortionSelection } from '@/shared/components/VideoPortionTimeline';
 import { parseRatio } from '@/shared/lib/media/aspectRatios';

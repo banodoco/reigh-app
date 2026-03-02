@@ -32,7 +32,6 @@ import {
 import { MediaDisplayWithCanvas } from '../MediaDisplayWithCanvas';
 import { VideoEditModeDisplay } from '../VideoEditModeDisplay';
 import { VideoTrimModeDisplay } from '../VideoTrimModeDisplay';
-import { WorkflowControls } from '../WorkflowControls';
 import { WorkflowControlsBar } from '../WorkflowControlsBar';
 
 function useLightboxLayoutModel(props: LightboxLayoutProps) {
@@ -364,7 +363,6 @@ function PanelLayoutView({ model }: { model: LightboxLayoutModel }) {
 }
 
 function CenteredLayoutView({ model }: { model: LightboxLayoutModel }) {
-  const workflowControlsProps = model.props.workflowControls ?? null;
   const showAnnotationControls = model.imageEdit.isSpecialEditMode && model.imageEdit.editMode === 'annotate';
 
   return (
@@ -424,11 +422,6 @@ function CenteredLayoutView({ model }: { model: LightboxLayoutModel }) {
         />
       </div>
 
-      {!model.core.readOnly && !model.imageEdit.isSpecialEditMode && workflowControlsProps && (
-        <div className="w-full" onClick={(event) => event.stopPropagation()}>
-          <WorkflowControls {...workflowControlsProps} />
-        </div>
-      )}
     </div>
   );
 }

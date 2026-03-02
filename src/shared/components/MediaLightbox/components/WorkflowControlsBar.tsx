@@ -74,6 +74,7 @@ export const WorkflowControlsBar: React.FC<WorkflowControlsBarProps> = ({
   onAddToShot,
   onDelete,
   onApplySettings,
+  isSpecialEditMode,
   isVideo,
   mediaId,
   imageUrl,
@@ -102,16 +103,7 @@ export const WorkflowControlsBar: React.FC<WorkflowControlsBarProps> = ({
   activeVariantId,
   currentTimelineFrame,
 }) => {
-  // Track if shots loaded after initial render (race condition detection)
-  const prevShotsLengthRef = React.useRef(allShots?.length || 0);
-  const currentShotsLength = allShots?.length || 0;
-  
-  React.useEffect(() => {
-    prevShotsLengthRef.current = currentShotsLength;
-  }, [currentShotsLength, onAddToShot, isVideo]);
-  
-  // Don't render if no workflow actions available
-  if (!(onAddToShot || onDelete || onApplySettings)) {
+  if (isSpecialEditMode || !(onAddToShot || onDelete || onApplySettings)) {
     return null;
   }
 

@@ -17,7 +17,7 @@ vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
   normalizeAndPresentError: handleErrorMock,
 }));
 
-vi.mock('@/integrations/supabase/reconnect/ReconnectScheduler', () => ({
+vi.mock('@/integrations/supabase/support/reconnect/ReconnectScheduler', () => ({
   getReconnectScheduler: getReconnectSchedulerMock,
 }));
 

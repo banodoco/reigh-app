@@ -2,7 +2,7 @@ import React from "react";
 import { Trash2, Star, Pencil } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { cn } from '@/shared/components/ui/contracts/cn';
-import { getGenerationId } from "@/shared/lib/mediaTypeHelpers";
+import { getGenerationId } from "@/shared/lib/media/mediaTypeHelpers";
 import type { GeneratedImageWithMetadata } from "../../MediaGallery/types";
 
 interface ActionButtonsProps {

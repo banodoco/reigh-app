@@ -4,7 +4,7 @@ import {
   collectTravelStructureLegacyUsage,
   enforceTravelStructureLegacyPolicy,
 } from '@/shared/lib/tasks/travelBetweenImages/legacyStructureVideo';
-import type { VideoMetadata } from '@/shared/lib/videoUploader';
+import type { VideoMetadata } from '@/shared/lib/media/videoUploader';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { ExtractedSettings, TaskData } from './types';
 

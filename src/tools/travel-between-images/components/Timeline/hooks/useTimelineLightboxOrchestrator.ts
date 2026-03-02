@@ -2,11 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useIsMobile } from "@/shared/hooks/mobile";
 import { normalizeAndPresentError } from "@/shared/lib/errorHandling/runtimeError";
 import { usePendingImageOpen } from "@/shared/hooks/usePendingImageOpen";
-import { useDerivedNavigation } from "@/tools/travel-between-images/hooks/useDerivedNavigation";
+import { useDerivedNavigation } from "@/tools/travel-between-images/hooks/navigation/useDerivedNavigation";
 import { useExternalGenerations } from "@/shared/components/ShotImageManager/hooks/useExternalGenerations";
 import type { SegmentSlot } from "@/shared/hooks/segments";
 import type { GenerationRow } from "@/domains/generation/types";
-import { useAdjacentSegments } from "./useAdjacentSegments";
+import { useAdjacentSegments } from "./segment/useAdjacentSegments";
 import { useLightbox } from "./useLightbox";
 import { useGenerationTaskDetails } from "@/shared/components/TaskDetails/hooks/useGenerationTaskDetails";
 

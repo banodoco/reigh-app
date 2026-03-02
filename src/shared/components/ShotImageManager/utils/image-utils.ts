@@ -3,7 +3,7 @@ import {
   calculateFrameForIndex,
   extractExistingFrames,
 } from '@/shared/lib/timelinePositionCalculator';
-import { getProjectAspectRatioStyle } from '@/shared/lib/imageAspectRatio';
+import { getProjectAspectRatioStyle } from '@/shared/lib/media/imageAspectRatio';
 
 export const getFramePositionForIndex = (
   index: number,

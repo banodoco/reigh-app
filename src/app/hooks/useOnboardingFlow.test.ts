@@ -11,6 +11,7 @@ const {
   eqMock,
   selectMock,
   fromMock,
+  getSupabaseClientResultMock,
   useUserUIStateMock,
 } = vi.hoisted(() => ({
   navigateMock: vi.fn(),
@@ -21,6 +22,7 @@ const {
   eqMock: vi.fn(),
   selectMock: vi.fn(),
   fromMock: vi.fn(),
+  getSupabaseClientResultMock: vi.fn(),
   useUserUIStateMock: vi.fn(),
 }));
 
@@ -35,9 +37,7 @@ vi.mock('react-router-dom', () => ({
 }));
 
 vi.mock('@/integrations/supabase/client', () => ({
-  getSupabaseClient: () => ({
-    from: fromMock,
-  }),
+  getSupabaseClientResult: () => getSupabaseClientResultMock(),
 }));
 
 vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
@@ -75,6 +75,12 @@ describe('useOnboardingFlow', () => {
     selectMock.mockReturnValue(queryBuilder);
     eqMock.mockReturnValue(queryBuilder);
     fromMock.mockReturnValue(queryBuilder);
+    getSupabaseClientResultMock.mockReturnValue({
+      ok: true,
+      client: {
+        from: fromMock,
+      },
+    });
   });
 
   it('closes modal, navigates to getting started shot, and starts product tour', async () => {
@@ -118,6 +124,32 @@ describe('useOnboardingFlow', () => {
         showToast: false,
       })
     );
+    expect(startTourMock).not.toHaveBeenCalled();
+
+    unmount();
+    vi.useRealTimers();
+  });
+
+  it('reports runtime access errors when supabase client is unavailable', async () => {
+    getSupabaseClientResultMock.mockReturnValue({
+      ok: false,
+      error: new Error('runtime unavailable'),
+    });
+
+    const { result, unmount } = renderHook(() => useOnboardingFlow());
+
+    await act(async () => {
+      await result.current.handleOnboardingClose();
+    });
+
+    expect(handleErrorMock).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        context: 'useOnboardingFlow.supabaseUnavailable',
+        showToast: false,
+      }),
+    );
+    expect(fromMock).not.toHaveBeenCalled();
     expect(startTourMock).not.toHaveBeenCalled();
 
     unmount();

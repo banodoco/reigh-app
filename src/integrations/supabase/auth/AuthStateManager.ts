@@ -42,7 +42,7 @@ export class AuthStateManager {
               
               // Use ReconnectScheduler instead of direct event dispatch
               try {
-                const module = await import('@/integrations/supabase/reconnect/ReconnectScheduler');
+                const module = await import('@/integrations/supabase/support/reconnect/ReconnectScheduler');
                 const { getReconnectScheduler } = module;
                 const scheduler = getReconnectScheduler();
                 scheduler.requestReconnect({

@@ -3,5 +3,4 @@ export type {
 } from './generationParams';
 export type {
   GenerationRowDto,
-  GenerationRowLegacyAliases,
 } from './generationRowDto';

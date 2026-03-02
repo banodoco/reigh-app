@@ -3,7 +3,7 @@ import { useTimelineCore } from '@/shared/hooks/useTimelineCore';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { Shot } from '@/domains/generation/types';
 import { useGenerateBatch, useSteerableMotionHandlers } from '../hooks';
-import type { BatchGenerationRequest, StitchAfterGenerateConfig } from '../hooks/useGenerateBatch';
+import type { BatchGenerationRequest, StitchAfterGenerateConfig } from '../hooks/actions/useGenerateBatch';
 
 interface GenerationControllerCore {
   projectId: string | null;

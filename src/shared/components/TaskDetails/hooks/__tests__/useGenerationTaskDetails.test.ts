@@ -11,11 +11,11 @@ const mockPrimaryTaskLookup = {
   isPending: false,
 };
 
-vi.mock('@/shared/hooks/useTaskPrefetch', () => ({
+vi.mock('@/shared/hooks/tasks/useTaskPrefetch', () => ({
   useTaskFromUnifiedCache: (...args: unknown[]) => mockUseTaskFromUnifiedCache(...args),
 }));
 
-vi.mock('@/shared/hooks/useTasks', () => ({
+vi.mock('@/shared/hooks/tasks/useTasks', () => ({
   useGetTask: (...args: unknown[]) => mockUseGetTask(...args),
 }));
 

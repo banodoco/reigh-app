@@ -1,6 +1,6 @@
 import { useCallback, type ChangeEvent } from 'react';
 
-import { uploadImageToStorage } from '@/shared/lib/imageUploader';
+import { uploadImageToStorage } from '@/shared/lib/media/imageUploader';
 import type { CharacterAnimateBaseState } from './useCharacterAnimateBaseState';
 import { uploadVideoWithPoster } from '../uploadMedia';
 

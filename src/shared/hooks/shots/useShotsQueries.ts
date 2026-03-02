@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { GenerationRow } from '@/domains/generation/types';
 import { mapShotGenerationToRow } from './mappers';
-import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
+import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import { queryKeys } from '@/shared/lib/queryKeys';
 
 // ============================================================================

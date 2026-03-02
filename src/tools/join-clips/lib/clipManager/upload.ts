@@ -1,6 +1,6 @@
-import { uploadBlobToStorage } from '@/shared/lib/imageUploader';
-import { extractVideoFinalFrame, extractVideoPosterFrame } from '@/shared/lib/videoPosterExtractor';
-import { uploadVideoToStorage } from '@/shared/lib/videoUploader';
+import { uploadBlobToStorage } from '@/shared/lib/media/imageUploader';
+import { extractVideoFinalFrame, extractVideoPosterFrame } from '@/shared/lib/media/videoPosterExtractor';
+import { uploadVideoToStorage } from '@/shared/lib/media/videoUploader';
 
 interface UploadVideoResult {
   videoUrl: string;

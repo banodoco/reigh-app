@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock the useTaskType module which provides the database cache
-vi.mock('@/shared/hooks/useTaskType', () => ({
+vi.mock('@/shared/hooks/tasks/useTaskType', () => ({
   isTaskTypeConfigCacheInitialized: vi.fn(() => false),
   getTaskTypeConfigCache: vi.fn(() => ({})),
 }));
@@ -17,7 +17,7 @@ import {
 import {
   isTaskTypeConfigCacheInitialized,
   getTaskTypeConfigCache,
-} from '@/shared/hooks/useTaskType';
+} from '@/shared/hooks/tasks/useTaskType';
 
 const mockCacheInitialized = vi.mocked(isTaskTypeConfigCacheInitialized);
 const mockGetCache = vi.mocked(getTaskTypeConfigCache);

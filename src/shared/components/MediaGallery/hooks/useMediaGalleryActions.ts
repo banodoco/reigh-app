@@ -4,7 +4,7 @@ import { toast } from '@/shared/components/ui/toast';
 import type { GeneratedImageWithMetadata, DisplayableMetadata } from '../types';
 import type { LightboxDeleteHandler } from '@/shared/components/MediaLightbox/types';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
+import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import type { AddToShotHandler } from '@/shared/types/imageHandlers';
 import { INTERACTION_TIMING } from '@/shared/lib/interactions/timing';
 import { computeBackfillLastPage } from '@/shared/components/MediaGallery/services/backfillPolicy';

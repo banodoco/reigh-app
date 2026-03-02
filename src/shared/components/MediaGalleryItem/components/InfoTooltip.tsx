@@ -6,7 +6,7 @@ import {
   TooltipTrigger
 } from "@/shared/components/ui/tooltip";
 import { GenerationDetails } from "@/shared/components/GenerationDetails";
-import { ImageGenerationDetails } from "@/shared/components/ImageGenerationDetails";
+import { ImageGenerationDetails } from "@/shared/components/GenerationDetails/ImageGenerationDetails";
 import type { GeneratedImageWithMetadata } from "../../MediaGallery/types";
 import type { Task } from "@/types/tasks";
 

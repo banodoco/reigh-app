@@ -5,14 +5,14 @@ import { GenerationRow } from '@/domains/generation/types';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { dataURLtoFile } from '@/shared/lib/fileConversion';
-import { uploadImageToStorage } from '@/shared/lib/imageUploader';
+import { uploadImageToStorage } from '@/shared/lib/media/imageUploader';
 import { generateClientThumbnail } from '@/shared/media/clientThumbnailGenerator';
 import {
   generateThumbnailFilename,
   MEDIA_BUCKET,
   storagePaths,
 } from '@/shared/lib/storagePaths';
-import { processStyleReferenceForAspectRatioString } from '@/shared/lib/styleReferenceProcessor';
+import { processStyleReferenceForAspectRatioString } from '@/shared/lib/media/styleReferenceProcessor';
 import { resolveProjectResolution } from '@/shared/lib/taskCreation';
 import { useCreateResource, type StyleReferenceMetadata } from '@/shared/hooks/useResources';
 import { useToolSettings } from '@/shared/hooks/useToolSettings';

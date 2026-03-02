@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { GenerationRow } from '@/domains/generation/types';
 import { useDerivedItems, type DerivedItem } from '@/domains/generation/hooks/useDerivedItems';
-import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
+import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 
 interface UseGenerationLineageProps {
   media: GenerationRow;

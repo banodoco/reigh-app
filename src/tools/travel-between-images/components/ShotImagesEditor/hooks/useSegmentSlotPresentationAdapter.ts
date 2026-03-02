@@ -1,6 +1,6 @@
 import { useMemo, type MutableRefObject } from 'react';
 import { readSegmentOverrides } from '@/shared/lib/settingsMigration';
-import { getDisplayUrl } from '@/shared/lib/mediaUrl';
+import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';
 import { isVideoAny } from '@/shared/lib/typeGuards';
 import { asNumber, asRecord, asString } from '@/shared/lib/tasks/taskParamParsers';
 import type { PairData } from '../../Timeline/TimelineContainer';

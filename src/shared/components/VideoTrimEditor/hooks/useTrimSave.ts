@@ -10,7 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import { extractAndUploadThumbnailOnly } from '@/shared/lib/videoThumbnailGenerator';
+import { extractAndUploadThumbnailOnly } from '@/shared/lib/media/videoThumbnailGenerator';
 import { invalidateVariantChange } from '@/shared/hooks/invalidation/useGenerationInvalidation';
 import type { TrimState, UseTrimSaveReturn } from '@/shared/types/videoTrim';
 

@@ -9,14 +9,14 @@ import { PhaseConfig, DEFAULT_PHASE_CONFIG, DEFAULT_VACE_PHASE_CONFIG } from '..
 import { LoraModel } from '@/shared/components/LoraSelectorModal';
 import { ActiveLoRAsDisplay } from '@/features/lora/components/ActiveLoRAsDisplay';
 import type { ActiveLora } from '@/shared/types/lora';
-import { PhaseConfigVertical } from '@/shared/components/PhaseConfigVertical';
+import { PhaseConfigVertical } from '@/shared/components/PhaseConfigSelectorModal/PhaseConfigVertical';
 import { PhaseConfigSelectorModal } from '@/shared/components/PhaseConfigSelectorModal';
 import { useQuery } from '@tanstack/react-query';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { presetQueryKeys } from '@/shared/lib/queryKeys/presets';
 import HoverScrubVideo from '@/shared/components/HoverScrubVideo';
 import type { PresetMetadata, PresetSampleGeneration } from '@/shared/types/presetMetadata';
-import { usePresetAutoSelect } from '../hooks/usePresetAutoSelect';
+import { usePresetAutoSelect } from '../hooks/settings/usePresetAutoSelect';
 import { SelectedPresetCard } from './SelectedPresetCard';
 
 // =============================================================================

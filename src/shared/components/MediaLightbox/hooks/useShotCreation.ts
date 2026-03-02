@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { GenerationRow, Shot } from '@/domains/generation/types';
 import { QuickCreateSuccess, ShotOption } from '../types';
 import { useQuickShotCreate } from '@/shared/hooks/useQuickShotCreate';
-import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
+import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 
 interface UseShotCreationProps {
   media: GenerationRow;

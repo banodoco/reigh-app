@@ -1,7 +1,7 @@
 import {
   ASSUMED_INPUT_VIDEO_FPS,
   DEFAULT_GENERATION_TIMELINE_FPS,
-} from '@/shared/lib/videoFrameRate';
+} from '@/shared/lib/media/videoFrameRate';
 
 export interface ClipFrameInfo {
   index: number;

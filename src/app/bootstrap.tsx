@@ -91,7 +91,7 @@ export function initializeAppEnvironment(): void {
     }
 
     if (supabaseInitResult.ok && shouldLoadDevDebugTools(env)) {
-      import('@/integrations/supabase/debug/initializeSupabaseDebugGlobals')
+      import('@/integrations/supabase/support/debug/initializeSupabaseDebugGlobals')
         .then(({ initializeSupabaseDebugGlobals }) => {
           initializeSupabaseDebugGlobals();
         })

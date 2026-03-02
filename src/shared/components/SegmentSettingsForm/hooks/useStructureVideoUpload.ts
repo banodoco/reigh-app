@@ -12,12 +12,12 @@ import { useState, useCallback, useRef } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import { extractVideoMetadata, uploadVideoToStorage } from '@/shared/lib/videoUploader';
+import { extractVideoMetadata, uploadVideoToStorage } from '@/shared/lib/media/videoUploader';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { useCreateResource, type Resource, type StructureVideoMetadata } from '@/shared/hooks/useResources';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
-import type { SegmentSettings } from '../../segmentSettingsUtils';
+import type { SegmentSettings } from '../segmentSettingsUtils';
 
 const MAX_UPLOAD_SIZE_MB = 200;
 const BYTES_PER_KB = 1024;

@@ -6,7 +6,8 @@ export function getStoredPromptCount(effectiveShotId: string): number {
         window.sessionStorage.getItem(shotSpecificKey) ||
         window.sessionStorage.getItem('ig:lastPromptCount');
 
-      return stored ? parseInt(stored, 10) : 1;
+      const parsed = stored ? Number.parseInt(stored, 10) : 1;
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
     }
   } catch {
     // Ignore sessionStorage errors.

@@ -4,7 +4,7 @@ import { Label } from '@/shared/components/ui/primitives/label';
 import { Checkbox } from '@/shared/components/ui/checkbox';
 import FileInput from '@/shared/components/FileInput';
 import { parseRatio } from '@/shared/lib/media/aspectRatios';
-import { cropImageToProjectAspectRatio } from '@/shared/lib/imageCropper';
+import { cropImageToProjectAspectRatio } from '@/shared/lib/media/imageCropper';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { AspectRatioSelector } from '@/shared/components/generation-controls/AspectRatioSelector';
 import { useProject } from '@/shared/contexts/ProjectContext';

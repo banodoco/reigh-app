@@ -6,13 +6,13 @@ vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
   reportRuntimeError: vi.fn(),
 }));
 
-vi.mock('@/shared/lib/imageUploader', () => ({
+vi.mock('@/shared/lib/media/imageUploader', () => ({
   uploadImageToStorage: vi.fn().mockResolvedValue('https://storage.com/image.jpg'),
   uploadBlobToStorage: vi.fn().mockResolvedValue('https://storage.com/thumbnail.jpg'),
 }));
 
 import { uploadImageWithThumbnail } from '@/shared/media/clientThumbnailGenerator';
-import { uploadImageToStorage, uploadBlobToStorage } from '@/shared/lib/imageUploader';
+import { uploadImageToStorage, uploadBlobToStorage } from '@/shared/lib/media/imageUploader';
 
 describe('uploadImageWithThumbnail', () => {
   beforeEach(() => {

@@ -8,7 +8,7 @@ vi.mock('@/shared/contexts/ProjectContext', () => ({
   useProjectSelectionContext: () => ({ selectedProjectId: 'test-project-id' }),
 }));
 
-vi.mock('@/shared/hooks/useProjectGenerations', () => ({
+vi.mock('@/shared/hooks/projects/useProjectGenerations', () => ({
   useProjectGenerations: vi.fn().mockReturnValue({
     data: { items: [], total: 0 },
     isLoading: false,

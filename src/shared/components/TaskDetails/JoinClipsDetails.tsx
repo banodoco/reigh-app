@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { TaskDetailsProps, getVariantConfig } from '@/shared/types/taskDetailsTypes';
 import { parseTaskParams } from '@/shared/lib/taskParamsUtils';
-import { framesToSeconds } from '@/shared/lib/videoUtils';
+import { framesToSeconds } from '@/shared/lib/media/videoUtils';
 
 /** Shape of a clip entry in join clips task params */
 interface JoinClip {

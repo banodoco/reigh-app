@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { usePaginatedTasks, type PaginatedTasksResponse } from '@/shared/hooks/useTasks';
-import { useAllTaskTypes, useTaskStatusCounts } from '@/shared/hooks/useTaskStatusCounts';
+import { usePaginatedTasks, type PaginatedTasksResponse } from '@/shared/hooks/tasks/useTasks';
+import { useAllTaskTypes, useTaskStatusCounts } from '@/shared/hooks/tasks/useTaskStatusCounts';
 import { getTaskDisplayName } from '@/shared/lib/taskConfig';
 import { ITEMS_PER_PAGE, STATUS_GROUPS, type FilterGroup } from '../constants';
 import { useTasksPaneViewState } from './useTasksPaneViewState';

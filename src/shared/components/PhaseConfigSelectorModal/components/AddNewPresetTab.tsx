@@ -6,7 +6,7 @@ import { toast } from "@/shared/components/ui/runtime/sonner";
 import { Pencil } from 'lucide-react';
 import { PhaseConfig, DEFAULT_PHASE_CONFIG } from '@/shared/types/phaseConfig';
 import { LoraModel } from '@/shared/components/LoraSelectorModal';
-import { uploadImageToStorage } from '@/shared/lib/imageUploader';
+import { uploadImageToStorage } from '@/shared/lib/media/imageUploader';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { usePresetSampleFiles } from '../hooks/usePresetSampleFiles';
 

@@ -9,7 +9,7 @@ import {
   useSelectedShotResolution,
   useStableSkeletonVisibility,
 } from '../hooks';
-import { useProjectVideoCountsCache } from '@/shared/hooks/useProjectVideoCountsCache';
+import { useProjectVideoCountsCache } from '@/shared/hooks/projects/useProjectVideoCountsCache';
 import {
   VideoTravelContent,
   useProjectErrorTimer,

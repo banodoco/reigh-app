@@ -30,15 +30,15 @@ import { useShotNavigation } from "@/shared/hooks/useShotNavigation";
 import { useLastAffectedShot } from "@/shared/hooks/useLastAffectedShot";
 import { useQuickShotCreate } from "@/shared/hooks/useQuickShotCreate";
 import { parseRatio } from "@/shared/lib/media/aspectRatios";
-import { useTaskFromUnifiedCache, usePrefetchTaskData } from "@/shared/hooks/useTaskPrefetch";
-import { useTaskType } from "@/shared/hooks/useTaskType";
-import { useGetTask } from "@/shared/hooks/useTasks";
+import { useTaskFromUnifiedCache, usePrefetchTaskData } from "@/shared/hooks/tasks/useTaskPrefetch";
+import { useTaskType } from "@/shared/hooks/tasks/useTaskType";
+import { useGetTask } from "@/shared/hooks/tasks/useTasks";
 import { useShareGeneration } from "@/shared/hooks/useShareGeneration";
 import { deriveGalleryInputImages } from "./MediaGallery/utils";
 import { isImageEditTaskType } from "@/shared/lib/taskParamsUtils";
 import { VariantBadge } from "@/shared/components/VariantBadge";
 import { useMarkVariantViewed } from "@/shared/hooks/useMarkVariantViewed";
-import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
+import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 
 export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
   image,

@@ -6,7 +6,7 @@ import { useCreateResource, StructureVideoMetadata } from '@/shared/hooks/useRes
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { calculateNewVideoPlacement } from '../../utils/timeline-utils';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
-import { extractVideoMetadata, uploadVideoToStorage, type VideoMetadata } from '@/shared/lib/videoUploader';
+import { extractVideoMetadata, uploadVideoToStorage, type VideoMetadata } from '@/shared/lib/media/videoUploader';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 

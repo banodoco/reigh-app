@@ -45,7 +45,7 @@ import type {
 export type { GalleryFilterState };
 export { DEFAULT_GALLERY_FILTERS } from './types';
 import { DEFAULT_GALLERY_CONFIG } from './types';
-import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
+import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import type {
   ItemActions,
   ItemFeatures,

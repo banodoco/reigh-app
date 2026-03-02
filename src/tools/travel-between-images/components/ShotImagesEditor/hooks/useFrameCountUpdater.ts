@@ -17,7 +17,7 @@ import { persistTimelineFrameBatch } from '@/shared/lib/timelineFrameBatchPersis
 function shortId(id: string | null | undefined): string | null {
   return id ? id.slice(0, 8) : null;
 }
-const log = (...args: Parameters<typeof console.log>) => console.log(...args);
+const log = import.meta.env.DEV ? (...args: Parameters<typeof console.log>) => console.log(...args) : () => {};
 
 interface UseFrameCountUpdaterProps {
   /** Current shot id (used to serialize timeline writes) */

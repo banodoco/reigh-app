@@ -1,9 +1,9 @@
 import React from 'react';
 import { GenerationRow } from '@/domains/generation/types';
-import { useProgressiveImage } from '@/shared/hooks/useProgressiveImage';
+import { useProgressiveImage } from '@/shared/hooks/ui-image/useProgressiveImage';
 import { isProgressiveLoadingEnabled } from '@/shared/settings/progressiveLoading';
 import { cn } from '@/shared/components/ui/contracts/cn';
-import { getDisplayUrl } from '@/shared/lib/mediaUrl';
+import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';
 
 interface ImagePreviewProps {
   image: GenerationRow;

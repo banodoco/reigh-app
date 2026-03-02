@@ -5,7 +5,7 @@
 import { useCallback, useState } from 'react';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import { getDisplayUrl } from '@/shared/lib/mediaUrl';
+import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';
 import type { GenerationRow } from '@/domains/generation/types';
 
 export interface UseDownloadImagesReturn {

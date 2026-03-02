@@ -5,7 +5,7 @@ import { queryKeys } from '@/shared/lib/queryKeys';
 import { createCanonicalJoinClipsTask } from '@/shared/lib/tasks/joinClips';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
 import { TOOL_IDS } from '@/shared/lib/toolIds';
-import { useTaskPlaceholder } from '@/shared/hooks/useTaskPlaceholder';
+import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
 import { joinClipsSettings } from '@/shared/lib/joinClipsDefaults';
 import { DEFAULT_VACE_PHASE_CONFIG, BUILTIN_VACE_DEFAULT_ID, VACE_GENERATION_DEFAULTS } from '@/shared/lib/vaceDefaults';
 import type { VideoClip, TransitionPrompt } from '../types';

@@ -4,8 +4,8 @@ import { GenerationRow } from '@/domains/generation/types';
 import { createBatchZImageTurboImageToImageTasks } from '@/shared/lib/tasks/zImageTurboI2I';
 import type { FalLoraConfig } from '@/shared/types/lora';
 import { useLoraManager, UseLoraManagerReturn, ActiveLora, LoraModel } from '@/shared/hooks/useLoraManager';
-import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
-import { useTaskPlaceholder } from '@/shared/hooks/useTaskPlaceholder';
+import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
+import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
 
 interface UseImg2ImgModeProps {
   media: GenerationRow;

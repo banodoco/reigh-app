@@ -20,11 +20,11 @@ vi.mock('@/shared/lib/preloading', () => ({
   PRIORITY_VALUES: { high: 1, normal: 2 },
 }));
 
-vi.mock('@/shared/hooks/useProjectGenerations', () => ({
+vi.mock('@/shared/hooks/projects/useProjectGenerations', () => ({
   fetchGenerations: vi.fn(),
 }));
 
-import { fetchGenerations } from '@/shared/hooks/useProjectGenerations';
+import { fetchGenerations } from '@/shared/hooks/projects/useProjectGenerations';
 import { useAdjacentPagePreloader } from '../useAdjacentPagePreloader';
 
 function createQueryClient() {

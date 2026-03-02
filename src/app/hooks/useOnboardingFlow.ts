@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getSupabaseClient } from '@/integrations/supabase/client';
+import { getSupabaseClientResult } from '@/integrations/supabase/client';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { useOnboarding } from '@/shared/hooks/useOnboarding';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
@@ -27,7 +27,15 @@ export function useOnboardingFlow() {
 
     if (selectedProjectId) {
       try {
-        const client = getSupabaseClient();
+        const clientResult = getSupabaseClientResult();
+        if (!clientResult.ok) {
+          normalizeAndPresentError(clientResult.error, {
+            context: 'useOnboardingFlow.supabaseUnavailable',
+            showToast: false,
+          });
+          return;
+        }
+        const client = clientResult.client;
         const { data: shot } = await client
           .from('shots')
           .select('id')

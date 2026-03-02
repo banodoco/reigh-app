@@ -1,7 +1,7 @@
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
 import type { LoraModel } from '@/shared/components/LoraSelectorModal/types';
-import type { VideoMetadata } from '@/shared/lib/videoUploader';
+import type { VideoMetadata } from '@/shared/lib/media/videoUploader';
 
 export interface TaskData {
   params: Record<string, unknown>;

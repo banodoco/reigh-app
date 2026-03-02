@@ -10,8 +10,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/shared/components/ui/toast';
 import { useSegmentSettingsForm } from '@/shared/hooks/useSegmentSettingsForm';
 import { SegmentSettingsForm } from '@/shared/components/SegmentSettingsForm';
-import { extractSettingsFromParams } from '@/shared/components/segmentSettingsMigration';
-import { useTaskPlaceholder } from '@/shared/hooks/useTaskPlaceholder';
+import { extractSettingsFromParams } from '@/shared/components/SegmentSettingsForm/segmentSettingsMigration';
+import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
 import { submitSegmentTask, buildStructureVideoForTask } from './submitSegmentTask';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 

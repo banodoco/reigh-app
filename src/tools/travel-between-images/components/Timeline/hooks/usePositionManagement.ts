@@ -8,7 +8,7 @@
 
 import { useEffect } from 'react';
 import type { GenerationRow } from '@/domains/generation/types';
-import { useTimelinePositions } from './useTimelinePositions';
+import { useTimelinePositions } from './timeline-core/useTimelinePositions';
 import { runSerializedTimelineWrite } from '@/shared/lib/timelineWriteQueue';
 
 interface PositionManagementProps {

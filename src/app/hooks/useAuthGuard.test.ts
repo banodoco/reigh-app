@@ -3,20 +3,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Session } from '@supabase/supabase-js';
 import { useAuthGuard } from './useAuthGuard';
 
-const { getSessionMock, onAuthStateChangeMock, getAuthStateManagerMock, reportRuntimeErrorMock } = vi.hoisted(() => ({
+const {
+  getSessionMock,
+  onAuthStateChangeMock,
+  getAuthStateManagerMock,
+  getSupabaseClientResultMock,
+  normalizeAndPresentErrorMock,
+} = vi.hoisted(() => ({
   getSessionMock: vi.fn(),
   onAuthStateChangeMock: vi.fn(),
   getAuthStateManagerMock: vi.fn(),
-  reportRuntimeErrorMock: vi.fn(),
+  getSupabaseClientResultMock: vi.fn(),
+  normalizeAndPresentErrorMock: vi.fn(),
 }));
 
 vi.mock('@/integrations/supabase/client', () => ({
-  getSupabaseClient: () => ({
-    auth: {
-      getSession: getSessionMock,
-      onAuthStateChange: onAuthStateChangeMock,
-    },
-  }),
+  getSupabaseClientResult: () => getSupabaseClientResultMock(),
 }));
 
 vi.mock('@/integrations/supabase/auth/AuthStateManager', () => ({
@@ -24,13 +26,22 @@ vi.mock('@/integrations/supabase/auth/AuthStateManager', () => ({
 }));
 
 vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
-  reportRuntimeError: reportRuntimeErrorMock,
+  normalizeAndPresentError: normalizeAndPresentErrorMock,
 }));
 
 describe('useAuthGuard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getAuthStateManagerMock.mockReturnValue(null);
+    getSupabaseClientResultMock.mockReturnValue({
+      ok: true,
+      client: {
+        auth: {
+          getSession: getSessionMock,
+          onAuthStateChange: onAuthStateChangeMock,
+        },
+      },
+    });
   });
 
   it('handles getSession rejection and falls back to null session', async () => {
@@ -44,7 +55,7 @@ describe('useAuthGuard', () => {
       expect(result.current.session).toBeNull();
     });
 
-    expect(reportRuntimeErrorMock).toHaveBeenCalledWith(
+    expect(normalizeAndPresentErrorMock).toHaveBeenCalledWith(
       expect.any(Error),
       expect.objectContaining({
         context: 'useAuthGuard.getSession',
@@ -105,5 +116,28 @@ describe('useAuthGuard', () => {
 
     unmount();
     expect(managerUnsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to null session when supabase runtime is unavailable', async () => {
+    getSupabaseClientResultMock.mockReturnValue({
+      ok: false,
+      error: new Error('runtime unavailable'),
+    });
+
+    const { result } = renderHook(() => useAuthGuard());
+
+    await waitFor(() => {
+      expect(result.current.session).toBeNull();
+    });
+
+    expect(getSessionMock).not.toHaveBeenCalled();
+    expect(onAuthStateChangeMock).not.toHaveBeenCalled();
+    expect(normalizeAndPresentErrorMock).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        context: 'useAuthGuard.supabaseUnavailable',
+        showToast: false,
+      }),
+    );
   });
 });

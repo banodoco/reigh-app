@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import type { UseMutationResult } from '@tanstack/react-query';
 import { useToggleGenerationStar } from '@/domains/generation/hooks/useGenerationMutations';
 import { GenerationRow } from '@/domains/generation/types';
-import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
+import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import { useProject } from '@/shared/contexts/ProjectContext';
 
 interface UseStarToggleProps {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { SegmentedControl, SegmentedControlItem } from '@/shared/components/ui/segmented-control';
 import { useCredits, useCreditLedger } from '@/features/billing/hooks/useCredits';
-import { useTaskLog } from '@/shared/hooks/useTaskLog';
+import { useTaskLog } from '@/shared/hooks/tasks/useTaskLog';
 import { useAutoTopupState } from './hooks/useAutoTopupState';
 import { useTaskLogFilters } from './hooks/useTaskLogFilters';
 import { useTaskLogDownload } from './hooks/useTaskLogDownload';

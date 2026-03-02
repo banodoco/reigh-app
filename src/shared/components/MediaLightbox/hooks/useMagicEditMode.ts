@@ -7,9 +7,9 @@ import { useShotGenerationMetadata } from '@/shared/hooks/useShotGenerationMetad
 import { createBatchMagicEditTasks } from '@/shared/lib/tasks/magicEdit';
 import type { EditAdvancedSettings, QwenEditModel } from './useGenerationEditSettings';
 import { convertToHiresFixApiParams } from './useGenerationEditSettings';
-import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
+import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import type { BrushStroke } from './inpainting/types';
-import { useTaskPlaceholder } from '@/shared/hooks/useTaskPlaceholder';
+import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
 
 interface UseMagicEditModeParams {
   media: GenerationRow;

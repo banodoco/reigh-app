@@ -4,7 +4,7 @@
  */
 
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import { uploadImageToStorage, uploadBlobToStorage } from '@/shared/lib/imageUploader';
+import { uploadImageToStorage, uploadBlobToStorage } from '@/shared/lib/media/imageUploader';
 
 interface ThumbnailResult {
   thumbnailBlob: Blob;

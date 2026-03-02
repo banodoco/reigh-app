@@ -3,7 +3,7 @@
  */
 
 import type { GenerationRow, Shot } from '@/domains/generation/types';
-import type { VideoMetadata } from '@/shared/lib/videoUploader';
+import type { VideoMetadata } from '@/shared/lib/media/videoUploader';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 
 // =============================================================================
@@ -194,12 +194,3 @@ export interface PreviewSegment {
   durationFromFrames: number;
 }
 
-interface PreviewTogetherDialogProps {
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  previewableSegments: PreviewSegment[];
-  projectAspectRatio?: string;
-  audioUrl?: string | null;
-}
-
-export type { PreviewTogetherDialogProps };

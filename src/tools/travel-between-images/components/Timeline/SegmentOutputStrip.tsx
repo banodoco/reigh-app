@@ -13,12 +13,12 @@ import { Loader2, X } from 'lucide-react';
 import MediaLightbox from '@/shared/components/MediaLightbox';
 import { InlineSegmentVideo } from '@/shared/components/InlineSegmentVideo';
 import { TIMELINE_HORIZONTAL_PADDING } from './constants';
-import { getDisplayUrl } from '@/shared/lib/mediaUrl';
+import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';
 import { cn } from '@/shared/components/ui/contracts/cn';
 
 import type { PairData } from '@/shared/types/pairData';
 import type { SegmentSlot } from '@/shared/hooks/segments';
-import { useSegmentOutputStrip } from './hooks/useSegmentOutputStrip';
+import { useSegmentOutputStrip } from './hooks/segment/useSegmentOutputStrip';
 
 interface PairInfo {
   index: number;

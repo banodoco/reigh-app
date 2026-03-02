@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { AlertTriangle, Check, ImageOff, Loader2, Play, Trash2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { VariantBadge } from '@/shared/components/VariantBadge';
-import { getDisplayUrl } from '@/shared/lib/mediaUrl';
+import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { SegmentPreviewProps } from './types';

@@ -1,4 +1,4 @@
-import { ASSUMED_INPUT_VIDEO_FPS } from '@/shared/lib/videoFrameRate';
+import { ASSUMED_INPUT_VIDEO_FPS } from '@/shared/lib/media/videoFrameRate';
 
 /** Assumed video frame rate for frame count estimates */
 export const ASSUMED_FPS = ASSUMED_INPUT_VIDEO_FPS;

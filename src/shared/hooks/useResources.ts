@@ -6,7 +6,7 @@ import { PhaseConfig } from '@/shared/types/phaseConfig';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import type { Database, Json } from '@/integrations/supabase/types';
 import { toJson } from '@/shared/lib/supabaseTypeHelpers';
-import type { VideoMetadata } from '@/shared/lib/videoUploader';
+import type { VideoMetadata } from '@/shared/lib/media/videoUploader';
 import { QUERY_PRESETS } from '@/shared/lib/queryDefaults';
 import { resourceQueryKeys } from '@/shared/lib/queryKeys/resources';
 

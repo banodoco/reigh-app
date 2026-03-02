@@ -41,7 +41,7 @@ import {
 } from './timelineMutationService';
 
 const TIMELINE_FRAME_LOG_PREFIX = '[TimelineFramePersist]';
-const log = (...args: Parameters<typeof console.log>) => console.log(...args);
+const log = import.meta.env.DEV ? (...args: Parameters<typeof console.log>) => console.log(...args) : () => {};
 
 function shortId(value: string | null | undefined): string | null {
   return value ? value.slice(0, 8) : null;

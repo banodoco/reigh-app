@@ -1,9 +1,9 @@
 import { useState, useCallback, useRef } from 'react';
 import { GenerationRow } from '@/domains/generation/types';
 import { createImageUpscaleTask } from '@/shared/lib/tasks/imageUpscale';
-import { getGenerationId, getMediaUrl } from '@/shared/lib/mediaTypeHelpers';
+import { getGenerationId, getMediaUrl } from '@/shared/lib/media/mediaTypeHelpers';
 import type { ImageUpscaleSettings } from '../components/ImageUpscaleForm';
-import { useTaskPlaceholder } from '@/shared/hooks/useTaskPlaceholder';
+import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
 
 interface UseUpscaleProps {
   media: GenerationRow | undefined;

@@ -4,7 +4,7 @@ import { Input } from '@/shared/components/ui/input';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { Switch } from '@/shared/components/ui/switch';
 import { Slider } from '@/shared/components/ui/slider';
-import { framesToSecondsValue } from '@/shared/lib/videoUtils';
+import { framesToSecondsValue } from '@/shared/lib/media/videoUtils';
 
 interface BaseGenerationSettingsSectionProps {
   basePrompt: string;

@@ -29,8 +29,8 @@ import React, {
   useRef
 } from 'react';
 import { Shot } from '@/domains/generation/types';
-import { useShotSettings, UseShotSettingsReturn } from '../hooks/useShotSettings';
-import { useVideoTravelSettingsHandlers, VideoTravelSettingsHandlers } from '../hooks/useVideoTravelSettingsHandlers';
+import { useShotSettings, UseShotSettingsReturn } from '../hooks/settings/useShotSettings';
+import { useVideoTravelSettingsHandlers, VideoTravelSettingsHandlers } from '../hooks/settings/useVideoTravelSettingsHandlers';
 import { VideoTravelSettings, PhaseConfig } from '../settings';
 import { LoraModel } from '@/shared/components/LoraSelectorModal';
 

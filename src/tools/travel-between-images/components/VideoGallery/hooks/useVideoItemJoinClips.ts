@@ -9,7 +9,7 @@ import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { VACE_GENERATION_DEFAULTS } from '@/shared/lib/vaceDefaults';
-import { useTaskPlaceholder, type RunTaskPlaceholder } from '@/shared/hooks/useTaskPlaceholder';
+import { useTaskPlaceholder, type RunTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
 
 export interface JoinSettings {
   joinPrompt: string;

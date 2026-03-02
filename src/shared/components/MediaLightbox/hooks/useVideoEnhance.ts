@@ -4,7 +4,7 @@ import {
   type VideoEnhanceTaskParams,
 } from '@/shared/lib/tasks/videoEnhance';
 import type { VideoEnhanceSettings } from './useGenerationEditSettings';
-import { useTaskPlaceholder } from '@/shared/hooks/useTaskPlaceholder';
+import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
 
 export type { VideoEnhanceSettings } from './useGenerationEditSettings';
 

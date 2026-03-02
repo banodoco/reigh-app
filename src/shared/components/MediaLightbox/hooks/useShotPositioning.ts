@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
 import { GenerationRow, Shot, ShotOption } from '@/domains/generation/types';
-import { getGenerationId, getMediaUrl, getThumbnailUrl } from '@/shared/lib/mediaTypeHelpers';
+import { getGenerationId, getMediaUrl, getThumbnailUrl } from '@/shared/lib/media/mediaTypeHelpers';
 
 /**
  * Shot association data that may exist on media objects from gallery queries.

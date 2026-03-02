@@ -1,14 +1,14 @@
 import { useState, useCallback } from 'react';
 import { toast } from '@/shared/components/ui/runtime/sonner';
-import { uploadImageToStorage } from '@/shared/lib/imageUploader';
+import { uploadImageToStorage } from '@/shared/lib/media/imageUploader';
 import { createImageInpaintTask } from '@/shared/lib/tasks/imageInpaint';
-import { generateMaskFromCanvas, createCanvasWithBackground } from '@/shared/lib/maskGeneration';
+import { generateMaskFromCanvas, createCanvasWithBackground } from '@/shared/lib/media/maskGeneration';
 import type { ImageTransform } from './types';
 import type { GenerationRow } from '@/domains/generation/types';
 import type { EditAdvancedSettings, QwenEditModel } from '../useGenerationEditSettings';
 import { convertToHiresFixApiParams } from '../useGenerationEditSettings';
-import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
-import { useTaskPlaceholder } from '@/shared/hooks/useTaskPlaceholder';
+import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
+import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
 
 interface UseRepositionTaskCreationProps {
   media: GenerationRow;

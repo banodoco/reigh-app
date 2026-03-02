@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { getDisplayUrl } from '@/shared/lib/mediaUrl';
+import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';
 import { isProgressiveLoadingEnabled } from '@/shared/settings/progressiveLoading';
-import { useProgressiveImage } from '@/shared/hooks/useProgressiveImage';
+import { useProgressiveImage } from '@/shared/hooks/ui-image/useProgressiveImage';
 import type { GeneratedImageWithMetadata } from '../types';
 
 interface UseStableMediaUrlsParams {

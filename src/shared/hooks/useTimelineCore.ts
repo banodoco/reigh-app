@@ -35,7 +35,7 @@ import {
 import { persistTimelineFrameBatch } from '@/shared/lib/timelineFrameBatchPersist';
 
 const TIMELINE_CORE_LOG_PREFIX = '[TimelineCorePersist]';
-const log = (...args: Parameters<typeof console.log>) => console.log(...args);
+const log = import.meta.env.DEV ? (...args: Parameters<typeof console.log>) => console.log(...args) : () => {};
 
 function shortId(id: string | null | undefined): string | null {
   return id ? id.slice(0, 8) : null;

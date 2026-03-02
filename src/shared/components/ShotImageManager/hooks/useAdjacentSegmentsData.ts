@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import type { AdjacentSegmentsData } from '../../MediaLightbox/types';
 import type { SegmentSlot } from '@/shared/hooks/segments';
 import type { GenerationRow } from '@/domains/generation/types';
-import { getDisplayUrl } from '@/shared/lib/mediaUrl';
+import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';
 
 interface UseAdjacentSegmentsDataProps {
   segmentSlots: SegmentSlot[] | undefined;

@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { cn } from '@/shared/components/ui/contracts/cn';
-import { getDisplayUrl, stripQueryParameters } from '@/shared/lib/mediaUrl';
+import { getDisplayUrl, stripQueryParameters } from '@/shared/lib/media/mediaUrl';
 import { Button } from '@/shared/components/ui/button';
 import { useIsMobile } from '@/shared/hooks/mobile';
 import { useVideoScrubbing } from '@/shared/hooks/useVideoScrubbing';

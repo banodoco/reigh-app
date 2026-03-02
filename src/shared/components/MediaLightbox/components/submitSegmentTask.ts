@@ -17,13 +17,13 @@
 import { QueryClient } from '@tanstack/react-query';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { joinPromptParts } from '@/shared/lib/promptAssembly';
-import { buildTaskParams, type SegmentSettings } from '@/shared/components/segmentSettingsUtils';
+import { buildTaskParams, type SegmentSettings } from '@/shared/components/SegmentSettingsForm/segmentSettingsUtils';
 import { createIndividualTravelSegmentTask } from '@/shared/lib/tasks/individualTravelSegment';
 import type { IndividualTravelSegmentParams } from '@/shared/lib/tasks/individualTravelSegment';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import type { LegacyStructureVideoConfig } from '@/shared/lib/tasks/travelBetweenImages/legacyStructureVideo';
-import type { RunTaskPlaceholder } from '@/shared/hooks/useTaskPlaceholder';
+import type { RunTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
 
 // ============================================================================
 // Structure Video Config Builder (shared between SegmentRegenerateForm & SegmentSlotFormView)

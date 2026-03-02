@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useGetTask } from '@/shared/hooks/useTasks';
+import { useGetTask } from '@/shared/hooks/tasks/useTasks';
 import { deriveInputImages } from '@/shared/lib/taskParamsUtils';
 import { Task } from '@/types/tasks';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';

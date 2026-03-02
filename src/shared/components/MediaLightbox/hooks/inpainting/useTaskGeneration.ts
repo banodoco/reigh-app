@@ -6,15 +6,15 @@
 import { useCallback } from 'react';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import type { GenerationRow } from '@/domains/generation/types';
-import { uploadImageToStorage } from '@/shared/lib/imageUploader';
+import { uploadImageToStorage } from '@/shared/lib/media/imageUploader';
 import { createImageInpaintTask } from '@/shared/lib/tasks/imageInpaint';
 import { createAnnotatedImageEditTask } from '@/shared/lib/tasks/annotatedImageEdit';
 import type { StrokeOverlayHandle } from '../../components/StrokeOverlay';
 import type { BrushStroke, EditAdvancedSettings, QwenEditModel } from './types';
 
 import { convertToHiresFixApiParams } from '../useGenerationEditSettings';
-import { getGenerationId, getMediaUrl } from '@/shared/lib/mediaTypeHelpers';
-import { useTaskPlaceholder } from '@/shared/hooks/useTaskPlaceholder';
+import { getGenerationId, getMediaUrl } from '@/shared/lib/media/mediaTypeHelpers';
+import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
 
 /**
  * Task type configuration - captures the differences between inpaint and annotate modes

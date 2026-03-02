@@ -6,7 +6,7 @@ import { Slider } from '@/shared/components/ui/slider';
 import { Video, X, Images } from 'lucide-react';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import { uploadVideoToStorage, extractVideoMetadata, VideoMetadata } from '@/shared/lib/videoUploader';
+import { uploadVideoToStorage, extractVideoMetadata, VideoMetadata } from '@/shared/lib/media/videoUploader';
 import { StructureVideoBrowserModal } from '@/features/resources/components/StructureVideoBrowserModal';
 import { useCreateResource, Resource, StructureVideoMetadata } from '@/shared/hooks/useResources';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';

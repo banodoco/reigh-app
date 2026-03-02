@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import TaskDetailsPanel from '../TaskDetailsPanel';
+import TaskDetailsPanel from '../TaskDetails/TaskDetailsPanel';
 
 describe('TaskDetailsPanel', () => {
   it('exports expected members', () => {

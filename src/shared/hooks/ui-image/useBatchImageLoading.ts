@@ -7,9 +7,9 @@
  * Used by batch view components (ShotBatchItemMobile, ShotBatchItemDesktop).
  */
 
-import { useProgressiveImage } from '../useProgressiveImage';
+import { useProgressiveImage } from './useProgressiveImage';
 import { isProgressiveLoadingEnabled } from '@/shared/settings/progressiveLoading';
-import { getDisplayUrl } from '@/shared/lib/mediaUrl';
+import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';
 
 interface UseBatchImageLoadingOptions {
   /** Thumb URL for progressive loading */

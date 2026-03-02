@@ -190,7 +190,7 @@ export const useAddImageToShotWithoutPosition = () => {
  */
 export const useRemoveImageFromShot = () => {
   const queryClient = useQueryClient();
-  const log = (...args: Parameters<typeof console.log>) => console.log(...args);
+  const log = import.meta.env.DEV ? (...args: Parameters<typeof console.log>) => console.log(...args) : () => {};
 
   return useMutation({
     mutationFn: async ({

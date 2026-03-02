@@ -12,7 +12,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { invalidateVariantChange } from '@/shared/hooks/invalidation/useGenerationInvalidation';
-import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
+import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import type { GenerationRow } from '@/domains/generation/types';
 
 interface UseMakeMainVariantProps {

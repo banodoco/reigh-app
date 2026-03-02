@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 describe('supabase client runtime contracts', () => {
   it('exports canonical client accessor and keeps debug helpers outside the client facade', async () => {
     const clientExports = await import('@/integrations/supabase/client') as Record<string, unknown>;
-    const debugModule = await import('@/integrations/supabase/debug/initializeSupabaseDebugGlobals');
+    const debugModule = await import('@/integrations/supabase/support/debug/initializeSupabaseDebugGlobals');
     const debugExports = debugModule as Record<string, unknown>;
 
     expect(typeof clientExports.getSupabaseClient).toBe('function');

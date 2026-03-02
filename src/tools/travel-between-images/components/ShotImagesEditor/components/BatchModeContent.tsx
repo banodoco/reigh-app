@@ -10,7 +10,7 @@ import { ShotImageManagerContainer as ShotImageManager } from '@/shared/componen
 import { BatchGuidanceVideo } from '../../BatchGuidanceVideo';
 import { SectionHeader } from '@/shared/components/ImageGenerationForm/components';
 import type { PairData } from '../../Timeline/TimelineContainer';
-import type { VideoMetadata } from '@/shared/lib/videoUploader';
+import type { VideoMetadata } from '@/shared/lib/media/videoUploader';
 import type { GenerationRow, Shot } from '@/domains/generation/types';
 import type { SegmentSlot } from '@/shared/hooks/segments';
 import type { OperationResult } from '@/shared/lib/operationResult';

@@ -21,13 +21,13 @@ import { TimelineTrack } from './components/TimelineTrack';
 import { DragLayer } from './components/DragLayer';
 
 // Hooks
-import { useTimelineOrchestrator } from '../hooks/useTimelineOrchestrator';
-import { useTrailingEndpoint } from '../hooks/useTrailingEndpoint';
+import { useTimelineOrchestrator } from '../hooks/timeline-core/useTimelineOrchestrator';
+import { useTrailingEndpoint } from '../hooks/segment/useTrailingEndpoint';
 import { usePairSettingsHandler } from '../hooks/usePairSettingsHandler';
 
 // Types
 import type { TimelineContainerProps } from './types';
-import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
+import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import { useTimelineMedia } from '../TimelineMediaContext';
 
 function getEnhancedPromptFromMetadata(metadata: unknown): string {

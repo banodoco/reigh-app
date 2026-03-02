@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getSupabaseClient } from '@/integrations/supabase/client';
+import { getSupabaseClientResult } from '@/integrations/supabase/client';
 import type { Session } from '@supabase/supabase-js';
 import { getAuthStateManager } from '@/integrations/supabase/auth/AuthStateManager';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
@@ -9,8 +9,32 @@ export function useAuthGuard() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
 
   useEffect(() => {
-    const client = getSupabaseClient();
     let isMounted = true;
+    const authManager = getAuthStateManager();
+    let unsubscribe: (() => void) | null = null;
+
+    if (authManager) {
+      unsubscribe = authManager.subscribe('Layout', (_event, session) => {
+        setSession(session);
+      });
+    }
+
+    const supabaseResult = getSupabaseClientResult();
+    if (!supabaseResult.ok) {
+      normalizeAndPresentError(supabaseResult.error, {
+        context: 'useAuthGuard.supabaseUnavailable',
+        showToast: false,
+      });
+      if (isMounted && !authManager) {
+        setSession(null);
+      }
+      return () => {
+        isMounted = false;
+        if (unsubscribe) unsubscribe();
+      };
+    }
+
+    const client = supabaseResult.client;
     void client.auth
       .getSession()
       .then(({ data: { session } }) => {
@@ -28,14 +52,7 @@ export function useAuthGuard() {
         }
       });
 
-    const authManager = getAuthStateManager();
-    let unsubscribe: (() => void) | null = null;
-
-    if (authManager) {
-      unsubscribe = authManager.subscribe('Layout', (_event, session) => {
-        setSession(session);
-      });
-    } else {
+    if (!authManager) {
       const { data: { subscription } } = client.auth.onAuthStateChange((_event, session) => {
         setSession(session);
       });

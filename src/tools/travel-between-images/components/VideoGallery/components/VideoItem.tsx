@@ -13,8 +13,8 @@ import { JoinClipsModal } from './JoinClipsModal';
 import { VideoItemActions } from './VideoItemActions';
 import { videoItemPropsAreEqual } from './VideoItemMemo';
 import { determineVideoPhase, createLoadingSummary } from '../utils/video-loading-utils';
-import { getDisplayUrl } from '@/shared/lib/mediaUrl';
-import { useTaskFromUnifiedCache } from '@/shared/hooks/useTaskPrefetch';
+import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';
+import { useTaskFromUnifiedCache } from '@/shared/hooks/tasks/useTaskPrefetch';
 import { useShareGeneration } from '@/shared/hooks/useShareGeneration';
 
 interface VideoItemProps {

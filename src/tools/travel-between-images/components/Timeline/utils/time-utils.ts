@@ -12,4 +12,4 @@ export {
   getValidFrameCounts,
   quantizeGap,
   framesToSeconds,
-} from '@/shared/lib/videoUtils';
+} from '@/shared/lib/media/videoUtils';

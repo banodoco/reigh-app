@@ -10,7 +10,7 @@ import React from 'react';
 import { GenerationDetails } from '@/shared/components/GenerationDetails';
 import type { LoraModel } from '@/shared/components/LoraSelectorModal';
 import { getSourceTaskIdLegacyCompatible } from '@/shared/lib/taskIdHelpers';
-import { useGetTask } from '@/shared/hooks/useTasks';
+import { useGetTask } from '@/shared/hooks/tasks/useTasks';
 import type { GenerationVariant } from '@/shared/hooks/useVariants';
 import { TASK_STATUS } from '@/types/tasks';
 import { useProject } from '@/shared/contexts/ProjectContext';

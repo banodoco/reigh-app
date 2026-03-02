@@ -9,7 +9,7 @@ import { UseQueryResult } from '@tanstack/react-query';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/shared/components/ui/alert-dialog";
 import { Info, Layers, Zap, Settings2, Trash2, Pencil } from 'lucide-react';
 import { Badge } from "@/shared/components/ui/badge";
-import { framesToSecondsValue } from '@/shared/lib/videoUtils';
+import { framesToSecondsValue } from '@/shared/lib/media/videoUtils';
 
 import { SortOption, ModelTypeFilter } from '../types';
 import { CopyIdButton } from './CopyIdButton';

@@ -14,7 +14,7 @@ import React from 'react';
 import { Textarea, TextareaProps } from '@/shared/components/ui/textarea';
 import { Label } from '@/shared/components/ui/primitives/label';
 import { RotateCcw, Save, Loader2 } from 'lucide-react';
-import { getDefaultableField } from './segmentSettingsUtils';
+import { getDefaultableField } from './SegmentSettingsForm/segmentSettingsUtils';
 
 type BadgeType = 'default' | 'enhanced' | null;
 

@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEnhancedShotImageReorder } from '@/tools/travel-between-images/hooks/useEnhancedShotImageReorder';
+import { useEnhancedShotImageReorder } from '@/tools/travel-between-images/hooks/timeline/useEnhancedShotImageReorder';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { isVideoAny } from '@/shared/lib/typeGuards';
 import {

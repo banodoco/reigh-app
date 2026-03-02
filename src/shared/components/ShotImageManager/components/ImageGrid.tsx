@@ -12,9 +12,9 @@ import type { UseVideoScrubbingReturn } from '@/shared/hooks/useVideoScrubbing';
 import type { PairData } from '@/shared/types/pairData';
 import { TrailingDurationIndicator } from './TrailingDurationIndicator';
 import { Loader2 } from 'lucide-react';
-import { usePrefetchTaskData } from '@/shared/hooks/useTaskPrefetch';
-import { useSourceImageChanges } from '@/shared/hooks/useSourceImageChanges';
-import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
+import { usePrefetchTaskData } from '@/shared/hooks/tasks/useTaskPrefetch';
+import { useSourceImageChanges } from '@/shared/hooks/sourceImageChanges/useSourceImageChanges';
+import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import { resolveDuplicateFrame } from '../utils/image-utils';
 
 const FPS = 16;

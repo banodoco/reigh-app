@@ -19,7 +19,7 @@ import { JoinClipsDetails } from '@/shared/components/TaskDetails/JoinClipsDetai
 import { VideoTravelDetails } from '@/shared/components/TaskDetails/VideoTravelDetails';
 import { VideoEnhanceDetails } from '@/shared/components/TaskDetails/VideoEnhanceDetails';
 import { isJoinClipsTaskType, isCharacterAnimateTaskType, isTravelTaskType } from '@/shared/lib/taskTypeUtils';
-import { ImageGenerationDetails } from '@/shared/components/ImageGenerationDetails';
+import { ImageGenerationDetails } from '@/shared/components/GenerationDetails/ImageGenerationDetails';
 import { Task } from '@/types/tasks';
 import type { LoraModel } from '@/shared/components/LoraSelectorModal';
 import type { DisplayableMetadata } from '@/shared/components/MediaGallery/types';

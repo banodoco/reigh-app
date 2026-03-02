@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
-import { useTemporaryVisibility } from '../../../hooks/useTemporaryVisibility';
+import { useTemporaryVisibility } from '../../../hooks/video/useTemporaryVisibility';
 import { useClickOutside } from '../../../hooks/useClickOutside';
 
 const SCROLL_THRESHOLD = 10;

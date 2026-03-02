@@ -1,10 +1,10 @@
 import React, { useRef, useState, useCallback } from "react";
 import { GenerationRow } from "@/domains/generation/types";
 import { cn } from '@/shared/components/ui/contracts/cn';
-import { getDisplayUrl } from "@/shared/lib/mediaUrl";
+import { getDisplayUrl } from "@/shared/lib/media/mediaUrl";
 import { Button } from "@/shared/components/ui/button";
 import { Trash2, Copy, Check, Pencil, Maximize2 } from "lucide-react";
-import { useProgressiveImage } from "@/shared/hooks/useProgressiveImage";
+import { useProgressiveImage } from "@/shared/hooks/ui-image/useProgressiveImage";
 import { isProgressiveLoadingEnabled } from "@/shared/settings/progressiveLoading";
 import { framesToSeconds } from "./utils/time-utils";
 import { TIMELINE_PADDING_OFFSET } from "./constants";

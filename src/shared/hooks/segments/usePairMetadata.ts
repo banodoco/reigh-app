@@ -9,7 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { segmentQueryKeys } from '@/shared/lib/queryKeys/segments';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import type { PairMetadata } from '@/shared/components/segmentSettingsMigration';
+import type { PairMetadata } from '@/shared/components/SegmentSettingsForm/segmentSettingsMigration';
 
 interface UsePairMetadataReturn {
   data: PairMetadata | null | undefined;

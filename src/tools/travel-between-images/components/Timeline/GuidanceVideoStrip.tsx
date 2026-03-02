@@ -1,19 +1,19 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { VideoMetadata } from '@/shared/lib/videoUploader';
+import { VideoMetadata } from '@/shared/lib/media/videoUploader';
 import { TIMELINE_HORIZONTAL_PADDING, TIMELINE_PADDING_OFFSET } from './constants';
 import { TimelineResizeHandle } from './TimelineResizeHandle';
 import { Button } from '@/shared/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
 import { X } from 'lucide-react';
 import { useIsTablet } from '@/shared/hooks/mobile';
-import { useTemporaryVisibility } from '../../hooks/useTemporaryVisibility';
-import { useVideoMetadata } from '../../hooks/useVideoMetadata';
-import { useVideoFrameExtraction } from '@/shared/hooks/useVideoFrameExtraction';
+import { useTemporaryVisibility } from '../../hooks/video/useTemporaryVisibility';
+import { useVideoMetadata } from '../../hooks/video/useVideoMetadata';
+import { useVideoFrameExtraction } from '@/shared/hooks/videoFrameExtraction/useVideoFrameExtraction';
 import { useClickOutside } from '../../hooks/useClickOutside';
-import { useTimelineStripDrag } from './hooks/useTimelineStripDrag';
+import { useTimelineStripDrag } from './hooks/drag/useTimelineStripDrag';
 import { useTabletEndpointSelection } from './hooks/useTabletEndpointSelection';
-import { useVideoHoverPreview } from '@/shared/hooks/useVideoHoverPreview';
+import { useVideoHoverPreview } from '@/shared/hooks/videoHoverPreview/useVideoHoverPreview';
 
 /**
  * Calculate the video frame number from a normalized position (0-1) within the strip.

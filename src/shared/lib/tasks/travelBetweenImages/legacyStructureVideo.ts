@@ -1,6 +1,6 @@
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
 import type { PathLoraConfig } from '@/shared/types/lora';
-import type { VideoMetadata } from '@/shared/lib/videoUploader';
+import type { VideoMetadata } from '@/shared/lib/media/videoUploader';
 import { getDeprecationPolicy } from '@/shared/lib/governance/deprecationPolicy';
 import { signalPastRemovalTargetUsage } from '@/shared/lib/governance/deprecationEnforcement';
 import type {

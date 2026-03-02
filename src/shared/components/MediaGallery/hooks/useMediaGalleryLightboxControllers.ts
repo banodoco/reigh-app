@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo } from "react";
-import { usePrefetchTaskData } from "@/shared/hooks/useTaskPrefetch";
-import { getGenerationId } from "@/shared/lib/mediaTypeHelpers";
+import { usePrefetchTaskData } from "@/shared/hooks/tasks/useTaskPrefetch";
+import { getGenerationId } from "@/shared/lib/media/mediaTypeHelpers";
 import { getSupabaseClient as supabase } from "@/integrations/supabase/client";
 import { toast } from "@/shared/components/ui/runtime/sonner";
 import { normalizeAndPresentError } from "@/shared/lib/errorHandling/runtimeError";

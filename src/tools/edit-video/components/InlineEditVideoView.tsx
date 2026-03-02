@@ -20,7 +20,7 @@ import { cn } from '@/shared/components/ui/contracts/cn';
 import { TooltipProvider } from '@/shared/components/ui/tooltip';
 import { useQueryClient } from '@tanstack/react-query';
 import { unifiedGenerationQueryKeys } from '@/shared/lib/queryKeys/unified';
-import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
+import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import { useVariants } from '@/shared/hooks/useVariants';
 import type { PortionSelection } from '@/shared/components/VideoPortionTimeline';
 import { TrimControlsPanel } from '@/shared/components/VideoTrimEditor';

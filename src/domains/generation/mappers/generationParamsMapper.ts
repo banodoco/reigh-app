@@ -61,9 +61,24 @@ function readPrimitive(value: unknown, type: PrimitiveFieldType): string | numbe
 }
 
 function reportMapperIssue(_context: string, _logData: Record<string, unknown>): void {
-  if (!import.meta.env.DEV) {
+  if (!import.meta.env.DEV || import.meta.env.MODE === 'test') {
     return;
   }
+
+  // Surface mapper diagnostics only in dev to avoid noisy production logs.
+  console.warn(`[generationParamsMapper] ${_context}`, _logData);
+}
+
+function reportLegacyAliasUsage(
+  mapper: 'toGenerationParams' | 'toPersistedGenerationParams',
+  aliasKey: string,
+  canonicalKey: string,
+): void {
+  reportMapperIssue('Legacy alias key used as fallback', {
+    mapper,
+    aliasKey,
+    canonicalKey,
+  });
 }
 
 function readMappedValue(
@@ -92,19 +107,182 @@ function readMappedValue(
   return undefined;
 }
 
-function toOrchestratorDetailsPayload(
+type PayloadDirection = 'domain' | 'persisted' | 'derived';
+
+function sanitizeOptionalStringField(
+  payload: Record<string, unknown>,
+  key: string,
+  direction: PayloadDirection,
+  payloadType: 'orchestratorDetails' | 'extra',
+): void {
+  const value = payload[key];
+  if (!isPresent(value)) {
+    return;
+  }
+  if (typeof value === 'string') {
+    return;
+  }
+  reportMapperIssue('Dropping invalid payload string field', {
+    payloadType,
+    key,
+    direction,
+    receivedType: typeof value,
+  });
+  delete payload[key];
+}
+
+function sanitizeOptionalNullableStringField(
+  payload: Record<string, unknown>,
+  key: string,
+  direction: PayloadDirection,
+  payloadType: 'orchestratorDetails' | 'extra',
+): void {
+  const value = payload[key];
+  if (!isPresent(value) || value === null) {
+    return;
+  }
+  if (typeof value === 'string') {
+    return;
+  }
+  reportMapperIssue('Dropping invalid payload nullable-string field', {
+    payloadType,
+    key,
+    direction,
+    receivedType: typeof value,
+  });
+  delete payload[key];
+}
+
+function sanitizeOptionalNumberField(
+  payload: Record<string, unknown>,
+  key: string,
+  direction: PayloadDirection,
+  payloadType: 'orchestratorDetails' | 'extra',
+): void {
+  const value = payload[key];
+  if (!isPresent(value)) {
+    return;
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return;
+  }
+  reportMapperIssue('Dropping invalid payload number field', {
+    payloadType,
+    key,
+    direction,
+    receivedType: typeof value,
+  });
+  delete payload[key];
+}
+
+function sanitizeAdditionalLoras(
+  payload: Record<string, unknown>,
+  direction: PayloadDirection,
+): void {
+  const value = payload.additional_loras;
+  if (!isPresent(value)) {
+    return;
+  }
+
+  if (!isRecord(value)) {
+    reportMapperIssue('Dropping invalid additional_loras payload', {
+      direction,
+      receivedType: typeof value,
+    });
+    delete payload.additional_loras;
+    return;
+  }
+
+  const sanitized: Record<string, number> = {};
+  for (const [loraKey, loraStrength] of Object.entries(value)) {
+    if (typeof loraStrength === 'number' && Number.isFinite(loraStrength)) {
+      sanitized[loraKey] = loraStrength;
+      continue;
+    }
+    reportMapperIssue('Dropping invalid additional_loras entry', {
+      direction,
+      loraKey,
+      receivedType: typeof loraStrength,
+    });
+  }
+
+  payload.additional_loras = sanitized;
+}
+
+function sanitizeMotionMode(payload: Record<string, unknown>, direction: PayloadDirection): void {
+  const value = payload.motion_mode;
+  if (!isPresent(value)) {
+    return;
+  }
+
+  if (value === 'basic' || value === 'presets' || value === 'advanced') {
+    return;
+  }
+
+  reportMapperIssue('Dropping invalid motion_mode payload field', {
+    direction,
+    receivedType: typeof value,
+    value,
+  });
+  delete payload.motion_mode;
+}
+
+function validateOrchestratorDetailsPayload(
   value: unknown,
+  direction: PayloadDirection,
 ): OrchestratorDetailsPayload | undefined {
-  return isRecord(value) ? (value as OrchestratorDetailsPayload) : undefined;
+  if (!isPresent(value)) {
+    return undefined;
+  }
+
+  if (!isRecord(value)) {
+    reportMapperIssue('Ignoring non-object orchestrator payload', {
+      direction,
+      receivedType: typeof value,
+    });
+    return undefined;
+  }
+
+  const payload: Record<string, unknown> = { ...value };
+  sanitizeOptionalStringField(payload, 'prompt', direction, 'orchestratorDetails');
+  sanitizeOptionalStringField(payload, 'base_prompt', direction, 'orchestratorDetails');
+  sanitizeOptionalStringField(payload, 'negative_prompt', direction, 'orchestratorDetails');
+  sanitizeOptionalStringField(payload, 'model_name', direction, 'orchestratorDetails');
+  sanitizeOptionalStringField(payload, 'parsed_resolution_wh', direction, 'orchestratorDetails');
+  sanitizeOptionalNumberField(payload, 'seed_base', direction, 'orchestratorDetails');
+  sanitizeOptionalNullableStringField(payload, 'selected_phase_preset_id', direction, 'orchestratorDetails');
+  sanitizeAdditionalLoras(payload, direction);
+  sanitizeMotionMode(payload, direction);
+
+  return payload as OrchestratorDetailsPayload;
 }
 
-function toGenerationExtraPayload(
+function validateGenerationExtraPayload(
   value: unknown,
+  direction: PayloadDirection,
 ): GenerationExtraPayload | undefined {
-  return isRecord(value) ? (value as GenerationExtraPayload) : undefined;
+  if (!isPresent(value)) {
+    return undefined;
+  }
+
+  if (!isRecord(value)) {
+    reportMapperIssue('Ignoring non-object extra payload', {
+      direction,
+      receivedType: typeof value,
+    });
+    return undefined;
+  }
+
+  const payload: Record<string, unknown> = { ...value };
+  sanitizeOptionalStringField(payload, 'source', direction, 'extra');
+  sanitizeOptionalStringField(payload, 'original_filename', direction, 'extra');
+  sanitizeOptionalStringField(payload, 'file_type', direction, 'extra');
+  sanitizeOptionalNumberField(payload, 'file_size', direction, 'extra');
+
+  return payload as GenerationExtraPayload;
 }
 
-function extractExtra(record: Record<string, unknown>): GenerationExtraPayload | undefined {
+function extractExtra(record: Record<string, unknown>): Record<string, unknown> | undefined {
   const extra: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(record)) {
@@ -115,6 +293,7 @@ function extractExtra(record: Record<string, unknown>): GenerationExtraPayload |
 
   if (isPresent(record.extra) && !isRecord(record.extra)) {
     reportMapperIssue('Ignoring non-object extra payload', {
+      direction: 'derived',
       receivedType: typeof record.extra,
     });
   }
@@ -124,7 +303,7 @@ function extractExtra(record: Record<string, unknown>): GenerationExtraPayload |
   }
 
   return Object.keys(extra).length > 0
-    ? (extra as GenerationExtraPayload)
+    ? extra
     : undefined;
 }
 
@@ -147,41 +326,35 @@ export function toGenerationParams(input: ParamsInput | null | undefined): Gener
   for (const mapping of FIELD_MAPPINGS) {
     const domainValue = readMappedValue(record, mapping.domainKey, mapping.type, 'domain');
     const persistedValue = readMappedValue(record, mapping.persistedKey, mapping.type, 'persisted');
-    const value = domainValue ?? persistedValue;
+    if (domainValue !== undefined && persistedValue === undefined) {
+      reportLegacyAliasUsage('toGenerationParams', mapping.domainKey, mapping.persistedKey);
+    }
+    const value = persistedValue ?? domainValue;
 
     if (value !== undefined) {
       out[mapping.domainKey] = value;
     }
   }
 
-  const originalParams = record.originalParams ?? record.original_params;
+  if (isPresent(record.originalParams) && !isPresent(record.original_params)) {
+    reportLegacyAliasUsage('toGenerationParams', 'originalParams', 'original_params');
+  }
+  const originalParams = record.original_params ?? record.originalParams;
   if (isPresent(originalParams)) {
     out.originalParams = originalParams;
   }
 
-  const hasDomainDetails = isPresent(record.orchestratorDetails);
-  const hasPersistedDetails = isPresent(record.orchestrator_details);
-
-  if (hasDomainDetails && !isRecord(record.orchestratorDetails)) {
-    reportMapperIssue('Ignoring invalid orchestratorDetails value', {
-      receivedType: typeof record.orchestratorDetails,
-      direction: 'domain',
-    });
+  const persistedOrchestratorDetails = validateOrchestratorDetailsPayload(record.orchestrator_details, 'persisted');
+  const domainOrchestratorDetails = validateOrchestratorDetailsPayload(record.orchestratorDetails, 'domain');
+  if (!persistedOrchestratorDetails && domainOrchestratorDetails) {
+    reportLegacyAliasUsage('toGenerationParams', 'orchestratorDetails', 'orchestrator_details');
   }
-  if (hasPersistedDetails && !isRecord(record.orchestrator_details)) {
-    reportMapperIssue('Ignoring invalid orchestrator_details value', {
-      receivedType: typeof record.orchestrator_details,
-      direction: 'persisted',
-    });
-  }
-
-  const orchestratorDetails = toOrchestratorDetailsPayload(record.orchestratorDetails)
-    ?? toOrchestratorDetailsPayload(record.orchestrator_details);
+  const orchestratorDetails = persistedOrchestratorDetails ?? domainOrchestratorDetails;
   if (orchestratorDetails) {
     out.orchestratorDetails = orchestratorDetails;
   }
 
-  const extra = extractExtra(record);
+  const extra = validateGenerationExtraPayload(extractExtra(record), 'derived');
   if (extra) {
     out.extra = extra;
   }
@@ -210,41 +383,35 @@ export function toPersistedGenerationParams(
   for (const mapping of FIELD_MAPPINGS) {
     const persistedValue = readMappedValue(record, mapping.persistedKey, mapping.type, 'persisted');
     const domainValue = readMappedValue(record, mapping.domainKey, mapping.type, 'domain');
-    const value = persistedValue ?? domainValue;
+    if (persistedValue !== undefined && domainValue === undefined) {
+      reportLegacyAliasUsage('toPersistedGenerationParams', mapping.persistedKey, mapping.domainKey);
+    }
+    const value = domainValue ?? persistedValue;
 
     if (value !== undefined) {
       out[mapping.persistedKey] = value;
     }
   }
 
-  const originalParams = record.original_params ?? record.originalParams;
+  if (isPresent(record.original_params) && !isPresent(record.originalParams)) {
+    reportLegacyAliasUsage('toPersistedGenerationParams', 'original_params', 'originalParams');
+  }
+  const originalParams = record.originalParams ?? record.original_params;
   if (isPresent(originalParams)) {
     out.original_params = originalParams;
   }
 
-  const hasPersistedDetails = isPresent(record.orchestrator_details);
-  const hasDomainDetails = isPresent(record.orchestratorDetails);
-
-  if (hasPersistedDetails && !isRecord(record.orchestrator_details)) {
-    reportMapperIssue('Ignoring invalid orchestrator_details value', {
-      receivedType: typeof record.orchestrator_details,
-      direction: 'persisted',
-    });
+  const domainOrchestratorDetails = validateOrchestratorDetailsPayload(record.orchestratorDetails, 'domain');
+  const persistedOrchestratorDetails = validateOrchestratorDetailsPayload(record.orchestrator_details, 'persisted');
+  if (!domainOrchestratorDetails && persistedOrchestratorDetails) {
+    reportLegacyAliasUsage('toPersistedGenerationParams', 'orchestrator_details', 'orchestratorDetails');
   }
-  if (hasDomainDetails && !isRecord(record.orchestratorDetails)) {
-    reportMapperIssue('Ignoring invalid orchestratorDetails value', {
-      receivedType: typeof record.orchestratorDetails,
-      direction: 'domain',
-    });
-  }
-
-  const orchestratorDetails = toOrchestratorDetailsPayload(record.orchestrator_details)
-    ?? toOrchestratorDetailsPayload(record.orchestratorDetails);
+  const orchestratorDetails = domainOrchestratorDetails ?? persistedOrchestratorDetails;
   if (orchestratorDetails) {
     out.orchestrator_details = orchestratorDetails;
   }
 
-  const extra = toGenerationExtraPayload(extractExtra(record));
+  const extra = validateGenerationExtraPayload(extractExtra(record), 'derived');
   if (extra !== undefined) {
     out.extra = extra;
   }

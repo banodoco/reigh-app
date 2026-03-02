@@ -1,21 +1,21 @@
 // Data fetching
-export { useVideoTravelData } from './useVideoTravelData';
+export { useVideoTravelData } from './workflow/useVideoTravelData';
 
 // View mode and filters
-export { useVideoTravelViewMode } from './useVideoTravelViewMode';
+export { useVideoTravelViewMode } from './workflow/useVideoTravelViewMode';
 
 // Drop and add-to-shot handlers
-export { useVideoTravelDropHandlers } from './useVideoTravelDropHandlers';
-export { useVideoTravelAddToShot } from './useVideoTravelAddToShot';
+export { useVideoTravelDropHandlers } from './workflow/useVideoTravelDropHandlers';
+export { useVideoTravelAddToShot } from './workflow/useVideoTravelAddToShot';
 
 // Page-level state management
-export { useHashDeepLink } from './useHashDeepLink';
-export { useUrlSync } from './useUrlSync';
-export { useVideoLayoutConfig } from './useVideoLayoutConfig';
-export { useNavigationState } from './useNavigationState';
+export { useHashDeepLink } from './navigation/useHashDeepLink';
+export { useUrlSync } from './navigation/useUrlSync';
+export { useVideoLayoutConfig } from './video/useVideoLayoutConfig';
+export { useNavigationState } from './navigation/useNavigationState';
 export { useOperationTracking } from './useOperationTracking';
-export { useSelectedShotResolution } from './useSelectedShotResolution';
+export { useSelectedShotResolution } from './settings/useSelectedShotResolution';
 
 // UI utilities
 export { useStickyHeader } from './useStickyHeader';
-export { useStableSkeletonVisibility } from './useStableSkeletonVisibility';
+export { useStableSkeletonVisibility } from './video/useStableSkeletonVisibility';

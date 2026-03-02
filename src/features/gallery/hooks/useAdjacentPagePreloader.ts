@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { GenerationFilters } from '@/shared/hooks/useProjectGenerations';
+import type { GenerationFilters } from '@/shared/hooks/projects/useProjectGenerations';
 import { scheduleAdjacentGenerationPagePreload } from '@/features/gallery/lib/adjacentPagePreloadCoordinator';
 
 interface UseAdjacentPagePreloaderProps {

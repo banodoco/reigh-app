@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { useTaskFromUnifiedCache } from "@/shared/hooks/useTaskPrefetch";
-import { useGetTask } from "@/shared/hooks/useTasks";
+import { useTaskFromUnifiedCache } from "@/shared/hooks/tasks/useTaskPrefetch";
+import { useGetTask } from "@/shared/hooks/tasks/useTasks";
 import { deriveInputImages, parseTaskParams } from "@/shared/lib/taskParamsUtils";
 import { useGetPrimaryTaskIdForGeneration } from "@/shared/hooks/tasks/usePrimaryTaskMapping";
 import { normalizeAndPresentError } from "@/shared/lib/errorHandling/runtimeError";

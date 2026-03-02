@@ -4,7 +4,7 @@
 import { videoTravelSettings } from './travel-between-images/settings';
 import { imageGenerationSettings } from './image-generation/settings';
 import { characterAnimateSettings } from './character-animate/settings';
-import { joinClipsSettings } from './join-clips/settings';
+import { joinClipsSettings } from '@/shared/lib/joinClipsDefaults';
 import { editImagesSettings } from './edit-images/settings';
 import { editVideoSettings } from '@/shared/settings/config/editVideoDefaults';
 import { trainingDataHelperSettings } from './training-data-helper/settings';

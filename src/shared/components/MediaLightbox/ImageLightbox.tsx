@@ -49,11 +49,10 @@ import { EditModePanel } from './components/EditModePanel';
 import { InfoPanel } from './components/InfoPanel';
 import { ImageEditProvider } from './contexts/ImageEditContext';
 import type { WorkflowControlsBarProps } from './components/WorkflowControlsBar';
-import type { WorkflowControlsProps } from './components/WorkflowControls';
 import type { LightboxLayoutProps } from './components/layouts/types';
 
 import { extractDimensionsFromMedia, handleLightboxDownload } from './utils';
-import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
+import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import { invokeLightboxDelete } from './utils';
 
 // Re-export grouped sub-interfaces for consumers that import from ImageLightbox
@@ -794,77 +793,20 @@ function useImageLightboxRenderModel(
     sharedState.variants.primaryVariant?.id,
   ]);
 
-  const workflowControls = useMemo(() => ({
-    mediaId: env.actualGenerationId ?? media.id,
-    imageUrl: sharedState.effectiveMedia.mediaUrl ?? '',
-    thumbUrl: media.thumbUrl,
-    isVideo: false,
-    isInpaintMode: editOrchestrator.isInpaintMode,
-    allShots,
-    selectedShotId,
-    onShotChange: shotWorkflow?.onShotChange,
-    onCreateShot: shotWorkflow?.onCreateShot,
-    contentRef: env.contentRef,
-    isAlreadyPositionedInSelectedShot: sharedState.shots.isAlreadyPositionedInSelectedShot,
-    isAlreadyAssociatedWithoutPosition: sharedState.shots.isAlreadyAssociatedWithoutPosition,
-    showTickForImageId,
-    showTickForSecondaryImageId,
-    onAddToShot: shotWorkflow?.onAddToShot,
-    onAddToShotWithoutPosition: shotWorkflow?.onAddToShotWithoutPosition,
-    onShowTick: shotWorkflow?.onShowTick,
-    onOptimisticPositioned: shotWorkflow?.onOptimisticPositioned,
-    onShowSecondaryTick: shotWorkflow?.onShowSecondaryTick,
-    onOptimisticUnpositioned: shotWorkflow?.onOptimisticUnpositioned,
-    onApplySettings: actions?.onApplySettings,
-    handleApplySettings,
-    onDelete: actions?.onDelete,
-    handleDelete,
-    isDeleting: actions?.isDeleting,
-    onNavigateToShot: handleNavigateToShotFromSelector,
-    onClose,
-  } satisfies WorkflowControlsProps), [
-    env.actualGenerationId,
-    media.id,
-    media.thumbUrl,
-    sharedState.effectiveMedia.mediaUrl,
-    editOrchestrator.isInpaintMode,
-    allShots,
-    selectedShotId,
-    shotWorkflow?.onShotChange,
-    shotWorkflow?.onCreateShot,
-    env.contentRef,
-    sharedState.shots.isAlreadyPositionedInSelectedShot,
-    sharedState.shots.isAlreadyAssociatedWithoutPosition,
-    showTickForImageId,
-    showTickForSecondaryImageId,
-    shotWorkflow?.onAddToShot,
-    shotWorkflow?.onAddToShotWithoutPosition,
-    shotWorkflow?.onShowTick,
-    shotWorkflow?.onOptimisticPositioned,
-    shotWorkflow?.onShowSecondaryTick,
-    shotWorkflow?.onOptimisticUnpositioned,
-    actions?.onApplySettings,
-    handleApplySettings,
-    actions?.onDelete,
-    handleDelete,
-    actions?.isDeleting,
-    handleNavigateToShotFromSelector,
-    onClose,
-  ]);
-
   const layoutProps = useMemo(() => ({
     showPanel,
     shouldShowSidePanel: sharedState.layout.shouldShowSidePanel,
     effectiveTasksPaneOpen: env.effectiveTasksPaneOpen,
     effectiveTasksPaneWidth: env.effectiveTasksPaneWidth,
     workflowBar,
-    workflowControls: showPanel ? undefined : workflowControls,
-    bottomLeft: sharedState.buttonGroupProps.bottomLeft,
-    bottomRight: sharedState.buttonGroupProps.bottomRight,
-    topRight: {
-      ...sharedState.buttonGroupProps.topRight,
-      handleDownload,
-      handleDelete,
+    buttonGroups: {
+      bottomLeft: sharedState.buttonGroupProps.bottomLeft,
+      bottomRight: sharedState.buttonGroupProps.bottomRight,
+      topRight: {
+        ...sharedState.buttonGroupProps.topRight,
+        handleDownload,
+        handleDelete,
+      },
     },
     adjacentSegments,
     segmentSlotMode: undefined,
@@ -874,7 +816,6 @@ function useImageLightboxRenderModel(
     env.effectiveTasksPaneOpen,
     env.effectiveTasksPaneWidth,
     workflowBar,
-    workflowControls,
     sharedState.buttonGroupProps.bottomLeft,
     sharedState.buttonGroupProps.bottomRight,
     sharedState.buttonGroupProps.topRight,

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { type PaginatedTasksResponse } from '@/shared/hooks/useTasks';
+import { type PaginatedTasksResponse } from '@/shared/hooks/tasks/useTasks';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import TaskItem from './TaskItem';
 import IncomingTaskItem from './IncomingTaskItem';

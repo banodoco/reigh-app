@@ -7,7 +7,7 @@ import { toast } from '@/shared/components/ui/toast';
 import { useAsyncOperation } from '@/shared/hooks/async/useAsyncOperation';
 import { useDeleteGenerationWithConfirm } from '@/domains/generation/hooks/useDeleteGenerationWithConfirm';
 import { useToggleGenerationStar } from '@/domains/generation/hooks/useGenerationMutations';
-import { useProjectGenerations, type GenerationsPaginatedResponse } from '@/shared/hooks/useProjectGenerations';
+import { useProjectGenerations, type GenerationsPaginatedResponse } from '@/shared/hooks/projects/useProjectGenerations';
 import { useIsMobile } from '@/shared/hooks/mobile';
 
 import { useCharacterAnimateGenerate } from '@/tools/character-animate/hooks/useCharacterAnimateGenerate';

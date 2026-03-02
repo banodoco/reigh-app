@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import SortableShotItem from '../SortableShotItem';
+import SortableShotItem from '../VideoGallery/SortableShotItem';
 
 describe('SortableShotItem', () => {
   it('exports expected members', () => {

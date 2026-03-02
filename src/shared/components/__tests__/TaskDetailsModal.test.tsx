@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import TaskDetailsModal from '../TaskDetailsModal';
+import TaskDetailsModal from '../TaskDetails/TaskDetailsModal';
 
 describe('TaskDetailsModal', () => {
   it('exports expected members', () => {

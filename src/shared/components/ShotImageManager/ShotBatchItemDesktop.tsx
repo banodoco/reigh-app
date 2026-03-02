@@ -14,8 +14,8 @@ import { Trash2, Copy, Check } from 'lucide-react';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { useIsMobile } from '@/shared/hooks/mobile';
 import { useBatchImageLoading } from '@/shared/hooks/ui-image/useBatchImageLoading';
-import { getImageAspectRatioStyle } from '@/shared/lib/imageAspectRatio';
-import { framesToSeconds } from '@/shared/lib/videoUtils';
+import { getImageAspectRatioStyle } from '@/shared/lib/media/imageAspectRatio';
+import { framesToSeconds } from '@/shared/lib/media/videoUtils';
 import { VariantBadge } from '@/shared/components/VariantBadge';
 import { useMarkVariantViewed } from '@/shared/hooks/useMarkVariantViewed';
 
