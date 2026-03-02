@@ -12,7 +12,7 @@ import { GuidanceVideoUploader } from '../GuidanceVideoUploader';
 import { GuidanceVideosContainer } from '../GuidanceVideosContainer';
 import { AudioStrip } from '../AudioStrip';
 import { SegmentOutputStrip } from '../SegmentOutputStrip';
-import { DatasetBrowserModal } from '@/features/resources/components/DatasetBrowserModal';
+import { StructureVideoBrowserModal } from '@/features/resources/components/StructureVideoBrowserModal';
 import { SelectionActionBar } from '@/shared/components/ShotImageManager/components/SelectionActionBar';
 
 // Extracted sub-components
@@ -759,10 +759,9 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
       </div>
 
       {/* Video Browser Modal */}
-      <DatasetBrowserModal
+      <StructureVideoBrowserModal
         isOpen={showVideoBrowser}
         onOpenChange={setShowVideoBrowser}
-        resourceType="structure-video"
         title="Browse Guidance Videos"
         onResourceSelect={handleVideoBrowserSelect}
       />
