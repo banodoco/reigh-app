@@ -8,12 +8,4 @@ describe('runtime error contract', () => {
       'normalizeAndPresentError',
     ]);
   });
-
-  it('keeps deprecated aliases isolated in compatibility module', async () => {
-    const compatModule = await import('../handleError');
-    expect(Object.keys(compatModule).sort()).toEqual([
-      'handleAndRethrow',
-      'handleError',
-    ]);
-  });
 });

@@ -42,6 +42,7 @@ serve(async (req) => {
     logPrefix: "[STRIPE-CHECKOUT]",
     parseBody: "strict",
     auth: {
+      required: true,
       options: { allowJwtUserAuth: true },
     },
   });

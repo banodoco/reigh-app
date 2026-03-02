@@ -14,8 +14,8 @@ interface AddAudioButtonProps {
 
 /** Centered "Add Audio" button in the top controls area */
 export const AddAudioButton: React.FC<AddAudioButtonProps> = ({
-  projectId,
-  shotId,
+  projectId: _projectId,
+  shotId: _shotId,
   onAudioChange,
 }) => {
   return (
@@ -35,7 +35,7 @@ export const AddAudioButton: React.FC<AddAudioButtonProps> = ({
               audio.addEventListener('loadedmetadata', () => resolve());
               audio.addEventListener('error', () => reject(new Error('Failed to load audio')));
             });
-            const uploadedUrl = await uploadVideoToStorage(file, projectId!, shotId);
+            const uploadedUrl = await uploadVideoToStorage(file);
             URL.revokeObjectURL(tempUrl);
             onAudioChange(uploadedUrl, { duration: audio.duration, name: file.name });
             e.target.value = '';

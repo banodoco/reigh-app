@@ -1,17 +1,50 @@
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
-import { getSupabaseUrl } from "@/integrations/supabase/config/env";
-import { storagePaths, getFileExtension, generateUniqueFilename, MEDIA_BUCKET } from "./storagePaths";
+import { getSupabaseUrl } from '@/integrations/supabase/config/env';
+import {
+  storagePaths,
+  getFileExtension,
+  generateUniqueFilename,
+  MEDIA_BUCKET,
+} from './storagePaths';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 // Default timeouts for video (longer than images)
 const DEFAULT_VIDEO_TIMEOUT_MS = 300000; // 5 minutes for videos
 const STALL_TIMEOUT_MS = 30000; // 30 seconds without progress = stalled (longer for videos)
 
-interface VideoUploadOptions {
+export interface VideoUploadOptions {
   onProgress?: (progress: number) => void;
   maxRetries?: number;
   signal?: AbortSignal;
   timeoutMs?: number;
+}
+
+interface ResolvedVideoUploadOptions {
+  onProgress?: (progress: number) => void;
+  maxRetries: number;
+  signal?: AbortSignal;
+  timeoutMs: number;
+}
+
+function resolveVideoUploadOptions(
+  maxRetriesOrOptions?: number | VideoUploadOptions,
+  onProgress?: (progress: number) => void,
+): ResolvedVideoUploadOptions {
+  if (maxRetriesOrOptions && typeof maxRetriesOrOptions === 'object') {
+    return {
+      onProgress: maxRetriesOrOptions.onProgress,
+      maxRetries: maxRetriesOrOptions.maxRetries ?? 3,
+      signal: maxRetriesOrOptions.signal,
+      timeoutMs: maxRetriesOrOptions.timeoutMs ?? DEFAULT_VIDEO_TIMEOUT_MS,
+    };
+  }
+
+  return {
+    onProgress,
+    maxRetries: typeof maxRetriesOrOptions === 'number' ? maxRetriesOrOptions : 3,
+    signal: undefined,
+    timeoutMs: DEFAULT_VIDEO_TIMEOUT_MS,
+  };
 }
 
 export interface VideoMetadata {
@@ -102,30 +135,21 @@ export const extractVideoMetadataFromUrl = (videoUrl: string): Promise<VideoMeta
  * Uploads a video file to Supabase storage with real progress tracking,
  * timeout, abort support, and stall detection.
  *
- * Note: projectId and shotId params are kept for backwards compatibility but
- * are no longer used in the storage path (tracked in DB instead).
+ * Uses the same options-style contract as uploadImageToStorage:
+ *   uploadVideoToStorage(file, options?)
+ *   uploadVideoToStorage(file, maxRetries, onProgress?)
  */
-export const uploadVideoToStorage = async (
+export async function uploadVideoToStorage(
   file: File,
-  _projectId: string,
-  _shotId: string,
-  onProgressOrOptions?: ((progress: number) => void) | VideoUploadOptions,
-  maxRetriesParam: number = 3
-): Promise<string> => {
-  // Handle both old signature and new options object
-  let options: VideoUploadOptions;
-  if (typeof onProgressOrOptions === 'function') {
-    options = { onProgress: onProgressOrOptions, maxRetries: maxRetriesParam };
-  } else {
-    options = onProgressOrOptions || {};
-  }
-
+  maxRetriesOrOptions?: number | VideoUploadOptions,
+  onProgress?: (progress: number) => void,
+): Promise<string> {
   const {
-    onProgress,
-    maxRetries = 3,
+    onProgress: progressCallback,
+    maxRetries,
     signal,
-    timeoutMs = DEFAULT_VIDEO_TIMEOUT_MS
-  } = options;
+    timeoutMs,
+  } = resolveVideoUploadOptions(maxRetriesOrOptions, onProgress);
 
   // Check if already aborted
   if (signal?.aborted) {
@@ -207,7 +231,7 @@ export const uploadVideoToStorage = async (
           lastProgressTime = Date.now();
           if (e.lengthComputable) {
             const percentComplete = Math.round((e.loaded / e.total) * 100);
-            onProgress?.(percentComplete);
+            progressCallback?.(percentComplete);
           }
         });
 
@@ -215,7 +239,7 @@ export const uploadVideoToStorage = async (
           cleanup();
           signal?.removeEventListener('abort', abortHandler);
           if (xhr.status >= 200 && xhr.status < 300) {
-            onProgress?.(100);
+            progressCallback?.(100);
             resolve();
           } else {
             reject(new Error(`Upload failed with status ${xhr.status}: ${xhr.responseText}`));
@@ -275,4 +299,4 @@ export const uploadVideoToStorage = async (
   } else {
     throw lastError || new Error('Failed to upload video after multiple attempts');
   }
-};
+}

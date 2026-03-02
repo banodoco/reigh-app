@@ -29,7 +29,15 @@ serve((req) => withEdgeRequest(req, {
   functionName: "get-task-output",
   logPrefix: "[GET-TASK-OUTPUT]",
   parseBody: "strict",
+  auth: {
+    required: true,
+  },
 }, async ({ supabaseAdmin, logger, body, auth }) => {
+  if (!auth || (!auth.userId && !auth.isServiceRole)) {
+    logger.error("Authentication failed");
+    return jsonResponse({ error: "Authentication failed" }, 401);
+  }
+
   const taskId = typeof body.task_id === 'string' || typeof body.task_id === 'number'
     ? String(body.task_id)
     : '';

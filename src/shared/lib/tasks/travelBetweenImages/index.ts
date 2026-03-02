@@ -19,6 +19,7 @@ export type {
 export {
   DEFAULT_VIDEO_STRUCTURE_PARAMS,
 } from './defaults';
+export { extractSegmentImages, type SegmentImageInfo } from './segmentImages';
 
 // buildTravelBetweenImagesPayload is internal - used by createTravelBetweenImagesTask
 

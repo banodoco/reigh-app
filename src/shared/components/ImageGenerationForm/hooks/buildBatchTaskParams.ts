@@ -6,7 +6,9 @@
  */
 
 import { BatchImageGenerationTaskParams } from '@/shared/lib/tasks/imageGeneration';
+import { joinPromptParts } from '@/shared/lib/promptAssembly';
 import { PromptEntry, HiresFixConfig, ReferenceApiParams } from '../types';
+import { toShortPrompt } from './promptUtils';
 
 interface BuildBatchTaskParamsInput {
   projectId: string;
@@ -25,18 +27,48 @@ interface BuildBatchTaskParamsInput {
 
 export function buildBatchTaskParams(input: BuildBatchTaskParamsInput): BatchImageGenerationTaskParams {
   const styleBoostTerms = input.styleBoostTerms?.trim() ?? '';
-  const effectiveAfterText = styleBoostTerms
-    ? `${input.afterPromptText}${input.afterPromptText.trim() ? ', ' : ''}${styleBoostTerms}`
-    : input.afterPromptText;
+  const effectiveAfterText = joinPromptParts(
+    [input.afterPromptText, styleBoostTerms],
+    'legacy_batch_comma',
+  );
+  const referenceParams = {
+    ...(input.referenceParams.style_reference_image !== undefined && {
+      style_reference_image: input.referenceParams.style_reference_image,
+    }),
+    ...(input.referenceParams.subject_reference_image !== undefined && {
+      subject_reference_image: input.referenceParams.subject_reference_image,
+    }),
+    ...(input.referenceParams.style_reference_strength !== undefined && {
+      style_reference_strength: input.referenceParams.style_reference_strength,
+    }),
+    ...(input.referenceParams.subject_strength !== undefined && {
+      subject_strength: input.referenceParams.subject_strength,
+    }),
+    ...(input.referenceParams.subject_description !== undefined && {
+      subject_description: input.referenceParams.subject_description,
+    }),
+    ...(input.referenceParams.in_this_scene !== undefined && {
+      in_this_scene: input.referenceParams.in_this_scene,
+    }),
+    ...(input.referenceParams.in_this_scene_strength !== undefined && {
+      in_this_scene_strength: input.referenceParams.in_this_scene_strength,
+    }),
+    ...(input.referenceParams.reference_mode !== undefined && {
+      reference_mode: input.referenceParams.reference_mode,
+    }),
+  };
 
   return {
     project_id: input.projectId,
     prompts: input.prompts.map(p => {
-      const combinedFull = `${input.beforePromptText ? `${input.beforePromptText.trim()}, ` : ''}${p.fullPrompt.trim()}${effectiveAfterText ? `, ${effectiveAfterText.trim()}` : ''}`.trim();
+      const combinedFull = joinPromptParts(
+        [input.beforePromptText, p.fullPrompt, effectiveAfterText],
+        'batch_comma',
+      );
       return {
         id: p.id,
         fullPrompt: combinedFull,
-        shortPrompt: p.shortPrompt || (combinedFull.substring(0, 30) + (combinedFull.length > 30 ? "..." : ""))
+        shortPrompt: p.shortPrompt || toShortPrompt(combinedFull),
       };
     }),
     imagesPerPrompt: input.imagesPerPrompt,
@@ -44,17 +76,8 @@ export function buildBatchTaskParams(input: BuildBatchTaskParamsInput): BatchIma
     shot_id: input.shotId || undefined,
     model_name: input.modelName,
     steps: input.isLocalGenerationEnabled ? input.hiresFixConfig.base_steps : undefined,
-    // Reference params - spread directly (already snake_case)
-    ...(input.referenceParams.style_reference_image && {
-      style_reference_image: input.referenceParams.style_reference_image,
-      style_reference_strength: input.referenceParams.style_reference_strength,
-      subject_reference_image: input.referenceParams.style_reference_image, // Same image for both
-      subject_strength: input.referenceParams.subject_strength,
-      subject_description: input.referenceParams.subject_description,
-      in_this_scene: input.referenceParams.in_this_scene,
-      in_this_scene_strength: input.referenceParams.in_this_scene_strength,
-      reference_mode: input.referenceParams.reference_mode,
-    }),
+    // Reference params - passthrough explicit values only (already snake_case)
+    ...referenceParams,
     // Resolution scaling params - always sent regardless of local generation mode
     resolution_scale: input.hiresFixConfig.resolution_scale,
     resolution_mode: input.hiresFixConfig.resolution_mode,

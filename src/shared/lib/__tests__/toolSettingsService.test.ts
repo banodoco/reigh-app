@@ -41,7 +41,14 @@ vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
   normalizeAndPresentError: vi.fn(),
 }));
 
-import { getUserWithTimeout, fetchToolSettingsSupabase, setCachedUserId, _resetCachedUserForTesting } from '../toolSettingsService';
+import {
+  getUserWithTimeout,
+  fetchToolSettingsSupabase,
+  fetchToolSettingsSupabaseOrThrow,
+  ToolSettingsError,
+  setCachedUserId,
+  _resetCachedUserForTesting,
+} from '../toolSettingsService';
 
 function expectSuccess<T>(result: { ok: true; value: T } | { ok: false; errorCode: string; message: string }): T {
   expect(result.ok).toBe(true);
@@ -194,6 +201,33 @@ describe('toolSettingsService', () => {
       }
       expect(result.errorCode).toBe('auth_required');
       expect(result.message).toContain('Authentication required');
+    });
+  });
+
+  describe('fetchToolSettingsSupabaseOrThrow', () => {
+    beforeEach(() => {
+      setStoredSession('test-user');
+    });
+
+    it('returns settings when the structured result is ok', async () => {
+      mockMaybeSingle.mockResolvedValue({ data: null, error: null });
+
+      const result = await fetchToolSettingsSupabaseOrThrow('test-tool', {});
+
+      expect(result.settings).toEqual({
+        setting1: 'default1',
+        setting2: 42,
+      });
+      expect(result.hasShotSettings).toBe(false);
+    });
+
+    it('throws ToolSettingsError when the structured result is a failure', async () => {
+      setStoredSession(null);
+
+      await expect(fetchToolSettingsSupabaseOrThrow('test-tool', {})).rejects.toMatchObject({
+        name: 'ToolSettingsError',
+        code: 'auth_required',
+      } satisfies Partial<ToolSettingsError>);
     });
   });
 });

@@ -7,12 +7,15 @@
  * State machine: disconnected → connecting → connected ↔ reconnecting → failed
  */
 
-import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import {
+  createRealtimeChannel,
+  fetchRealtimeSession,
+  setRealtimeAuthToken,
+} from '@/integrations/supabase/repositories/realtimeConnectionRepository';
 import { dataFreshnessManager } from './DataFreshnessManager';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { listenAppEvent } from '@/shared/lib/typedEvents';
-import { requestRealtimeReconnect } from '@/shared/realtime/requestRealtimeReconnect';
 import {
   ConnectionState,
   ConnectionStatusCallback,
@@ -37,6 +40,9 @@ export class RealtimeConnection {
   private statusCallbacks = new Set<ConnectionStatusCallback>();
   private eventCallbacks = new Set<RawEventCallback>();
   private unsubAuthHeal: (() => void) | null = null;
+  private activeConnectSequence = 0;
+  private connectInFlight: Promise<boolean> | null = null;
+  private connectInFlightProjectId: string | null = null;
 
   constructor(config: Partial<RealtimeConfig> = {}) {
     this.config = { ...DEFAULT_REALTIME_CONFIG, ...config };
@@ -66,7 +72,7 @@ export class RealtimeConnection {
       await this.disconnect();
     }
 
-    return this.doConnect(projectId);
+    return this.startConnect(projectId);
   }
 
   /**
@@ -74,6 +80,9 @@ export class RealtimeConnection {
    */
   async disconnect(): Promise<void> {
 
+    this.activeConnectSequence += 1;
+    this.connectInFlight = null;
+    this.connectInFlightProjectId = null;
     this.clearTimeouts();
 
     if (this.channel) {
@@ -125,6 +134,9 @@ export class RealtimeConnection {
    * Reset connection state (useful for testing or forced reconnect).
    */
   reset(): void {
+    this.activeConnectSequence += 1;
+    this.connectInFlight = null;
+    this.connectInFlightProjectId = null;
     this.clearTimeouts();
     this.state = { ...INITIAL_CONNECTION_STATE };
   }
@@ -144,7 +156,37 @@ export class RealtimeConnection {
   // Private: Connection Logic
   // ===========================================================================
 
-  private async doConnect(projectId: string): Promise<boolean> {
+  private startConnect(projectId: string): Promise<boolean> {
+    if (this.connectInFlight && this.connectInFlightProjectId === projectId) {
+      return this.connectInFlight;
+    }
+
+    this.clearTimeouts();
+    const connectSequence = this.activeConnectSequence + 1;
+    this.activeConnectSequence = connectSequence;
+
+    const connectPromise = this.doConnect(projectId, connectSequence);
+    this.connectInFlight = connectPromise;
+    this.connectInFlightProjectId = projectId;
+
+    void connectPromise.finally(() => {
+      if (this.connectInFlight === connectPromise) {
+        this.connectInFlight = null;
+        this.connectInFlightProjectId = null;
+      }
+    });
+
+    return connectPromise;
+  }
+
+  private isCurrentConnectAttempt(connectSequence: number): boolean {
+    return connectSequence === this.activeConnectSequence;
+  }
+
+  private async doConnect(projectId: string, connectSequence: number): Promise<boolean> {
+    if (!this.isCurrentConnectAttempt(connectSequence)) {
+      return false;
+    }
 
     this.setState({
       status: 'connecting',
@@ -156,7 +198,7 @@ export class RealtimeConnection {
 
     // Check authentication
     try {
-      const { data: { session }, error: sessionError } = await supabase().auth.getSession();
+      const { data: { session }, error: sessionError } = await fetchRealtimeSession();
       if (sessionError || !session?.user) {
         const errorMsg = sessionError?.message || 'No valid session';
         normalizeAndPresentError(new Error(errorMsg), {
@@ -177,7 +219,7 @@ export class RealtimeConnection {
 
       // Set auth token for realtime
       if (session.access_token) {
-        supabase().realtime.setAuth(session.access_token);
+        setRealtimeAuthToken(session.access_token);
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Auth check failed';
@@ -193,24 +235,58 @@ export class RealtimeConnection {
       return false;
     }
 
+    if (!this.isCurrentConnectAttempt(connectSequence)) {
+      return false;
+    }
+
     // Create and subscribe to channel
     const topic = `task-updates:${projectId}`;
-    this.channel = supabase().channel(topic);
+    const channel = createRealtimeChannel(topic);
+    if (!this.isCurrentConnectAttempt(connectSequence)) {
+      void channel.unsubscribe().catch(() => {
+        // Ignore cleanup errors for stale attempts
+      });
+      return false;
+    }
+    this.channel = channel;
 
     // Set up event handlers for ALL tables
-    this.setupEventHandlers(projectId);
+    this.setupEventHandlers(projectId, channel);
 
     // Subscribe with timeout
-    const channel = this.channel;
     return new Promise((resolve) => {
-      this.subscribeTimeout = setTimeout(() => {
-        this.handleSubscribeFailure('Timeout', projectId);
-        resolve(false);
+      let settled = false;
+      const settle = (result: boolean) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        resolve(result);
+      };
+
+      const subscribeTimeout = setTimeout(() => {
+        if (this.subscribeTimeout === subscribeTimeout) {
+          this.subscribeTimeout = null;
+        }
+        if (!this.isCurrentConnectAttempt(connectSequence)) {
+          settle(false);
+          return;
+        }
+        this.handleSubscribeFailure('Timeout', projectId, connectSequence);
+        settle(false);
       }, this.config.subscribeTimeout);
+      this.subscribeTimeout = subscribeTimeout;
 
       channel.subscribe((status: string) => {
-        if (this.subscribeTimeout) {
-          clearTimeout(this.subscribeTimeout);
+        if (!this.isCurrentConnectAttempt(connectSequence)) {
+          void channel.unsubscribe().catch(() => {
+            // Ignore cleanup errors for stale callbacks
+          });
+          return;
+        }
+
+        if (this.subscribeTimeout === subscribeTimeout) {
+          clearTimeout(subscribeTimeout);
           this.subscribeTimeout = null;
         }
 
@@ -222,20 +298,19 @@ export class RealtimeConnection {
             nextRetryAt: null,
           });
           dataFreshnessManager.onRealtimeStatusChange('connected', 'Connected');
-          resolve(true);
+          settle(true);
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          this.handleSubscribeFailure(status, projectId);
-          resolve(false);
+          this.handleSubscribeFailure(status, projectId, connectSequence);
+          settle(false);
         }
       });
     });
   }
 
-  private setupEventHandlers(projectId: string): void {
-    if (!this.channel) return;
+  private setupEventHandlers(projectId: string, channel: RealtimeChannel): void {
 
     // Tasks: INSERT and UPDATE
-    this.channel
+    channel
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'tasks', filter: `project_id=eq.${projectId}` },
         (payload) => this.emitEvent('tasks', 'INSERT', payload.new, null)
@@ -246,7 +321,7 @@ export class RealtimeConnection {
       );
 
     // Generations: INSERT, UPDATE, and DELETE
-    this.channel
+    channel
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'generations', filter: `project_id=eq.${projectId}` },
         (payload) => this.emitEvent('generations', 'INSERT', payload.new, null)
@@ -261,7 +336,7 @@ export class RealtimeConnection {
       );
 
     // Shot generations: INSERT, UPDATE, and DELETE (no project filter - cross-project table)
-    this.channel
+    channel
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'shot_generations' },
         (payload) => this.emitEvent('shot_generations', 'INSERT', payload.new, null)
@@ -276,7 +351,7 @@ export class RealtimeConnection {
       );
 
     // Variants: INSERT, UPDATE, and DELETE (no project filter - cross-project table)
-    this.channel
+    channel
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'generation_variants' },
         (payload) => this.emitEvent('generation_variants', 'INSERT', payload.new, null)
@@ -318,7 +393,11 @@ export class RealtimeConnection {
   // Private: Reconnection Logic
   // ===========================================================================
 
-  private handleSubscribeFailure(reason: string, projectId: string): void {
+  private handleSubscribeFailure(reason: string, projectId: string, connectSequence: number): void {
+    if (!this.isCurrentConnectAttempt(connectSequence)) {
+      return;
+    }
+
     const attempt = this.state.reconnectAttempt + 1;
     const isExhausted = attempt > this.config.maxReconnectAttempts;
 
@@ -354,21 +433,19 @@ export class RealtimeConnection {
         nextRetryAt,
       });
       dataFreshnessManager.onRealtimeStatusChange('error', `Reconnecting: ${reason}`);
-      void requestRealtimeReconnect({
-        source: 'RealtimeConnection',
-        reason: `subscribe-failure:${reason}`,
-        priority: 'high',
-      });
 
-      this.scheduleReconnect(projectId, delay);
+      this.scheduleReconnect(projectId, delay, connectSequence);
     }
   }
 
-  private scheduleReconnect(projectId: string, delay: number): void {
+  private scheduleReconnect(projectId: string, delay: number, failedConnectSequence: number): void {
     this.clearTimeouts();
 
     this.reconnectTimeout = setTimeout(async () => {
       this.reconnectTimeout = null;
+      if (!this.isCurrentConnectAttempt(failedConnectSequence)) {
+        return;
+      }
 
       // Clean up old channel before reconnecting
       if (this.channel) {
@@ -380,7 +457,7 @@ export class RealtimeConnection {
         this.channel = null;
       }
 
-      await this.doConnect(projectId);
+      await this.startConnect(projectId);
       // If failed, doConnect will call handleSubscribeFailure which schedules next retry
     }, delay);
   }
@@ -394,7 +471,7 @@ export class RealtimeConnection {
     ) {
       // Reset attempt count on auth heal (fresh start)
       this.setState({ reconnectAttempt: 0 });
-      this.doConnect(this.state.projectId);
+      void this.startConnect(this.state.projectId);
     }
   };
 

@@ -22,7 +22,7 @@ export const useMobileInteractions = ({
 }: UseMobileInteractionsProps): UseMobileInteractionsReturn => {
   const lastTouchTimeRef = useRef<number>(0);
   const lastTappedImageIdRef = useRef<string | null>(null);
-  const doubleTapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const doubleTapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Handle mobile double-tap detection
   // Using 400ms window for snappier, more reliable double-tap detection

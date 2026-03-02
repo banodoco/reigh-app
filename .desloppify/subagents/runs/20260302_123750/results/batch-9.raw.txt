@@ -1,0 +1,170 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 9,
+  "assessments": {
+    "naming_quality": 88.0,
+    "logic_clarity": 90.0,
+    "type_safety": 79.0,
+    "contract_coherence": 82.0,
+    "authorization_consistency": 84.0
+  },
+  "dimension_notes": {
+    "naming_quality": {
+      "evidence": [
+        "In `src/shared/components/MediaLightbox/components/submitSegmentTask.ts` and `src/shared/components/ImageGenerationForm/hooks/referenceUpload/useStyleReferenceUploadHandler.ts`, `getSupabaseClient` is imported as `supabase` and then invoked as `supabase()`, which reads like a pre-instantiated client rather than a factory accessor.",
+        "Cross-module naming around generation row types is mostly coherent, but the `GenerationRow` re-export path (`generationViewRow`) requires extra context to infer persisted-vs-derived boundaries."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "issues_preventing_higher_score": "A few high-traffic modules still use misleading aliases that obscure object-vs-factory semantics at call sites."
+    },
+    "logic_clarity": {
+      "evidence": [
+        "`src/shared/components/MediaGallery/hooks/useMobileInteractions.ts` documents click-outside behavior on mobile but only attaches `mousedown`, which can miss touch-only interaction paths.",
+        "`src/shared/components/ImageGenerationForm/hooks/usePromptManagement.ts` and `usePromptPersistenceEffects.ts` rely on persisted prompt counts from storage without validating malformed values, so state transitions can become non-obvious when storage is corrupted."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "A few interaction and persistence paths rely on implicit browser behavior assumptions instead of explicit normalization."
+    },
+    "type_safety": {
+      "evidence": [
+        "`src/shared/components/MediaLightbox/components/submitSegmentTask.ts` uses `params as unknown as IndividualTravelSegmentTaskParams`, bypassing compiler verification between `buildTaskParams` output and `createIndividualTravelSegmentTask` input.",
+        "`src/shared/components/ImageGenerationForm/hooks/promptManagement/storedPromptCount.ts` returns `parseInt(stored, 10)` directly; malformed storage values produce `NaN` despite the declared `number` contract being consumed as a valid count in `usePromptManagement` and `usePromptPersistenceEffects`."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "contract_coherence": {
+      "evidence": [
+        "`downloadSingleMedia` in `src/shared/components/MediaGallery/services/downloadService.ts` normalizes failures into `DownloadServiceError`, but `downloadStarredMediaArchive` performs raw `fetch` calls where network failures escape as non-`DownloadServiceError` exceptions.",
+        "`src/shared/components/MediaGallery/hooks/useMediaGalleryActions.ts` branches logging behavior based on `error instanceof DownloadServiceError`; starred-archive network failures therefore skip the structured error contract this hook expects."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "authorization_consistency": {
+      "evidence": [
+        "`src/shared/components/MediaLightbox/components/submitSegmentTask.ts` performs mutation calls (`shot_generations` metadata update and edge invocation) without explicit session/user precondition checks at the call boundary.",
+        "Neighboring write paths such as `src/shared/components/ImageGenerationForm/hooks/referenceUpload/useStyleReferenceUploadHandler.ts` explicitly check `supabase().auth.getUser()` and abort unauthenticated writes, and `src/integrations/supabase/auth/ensureAuthenticatedSession.ts` provides shared guard utilities that are not used in `submitSegmentTask`."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "type_safety",
+      "identifier": "unsafe_double_cast_segment_params",
+      "summary": "Double-cast bypasses type checks for segment task params",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/submitSegmentTask.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts"
+      ],
+      "evidence": [
+        "`buildSubmitParamsBuilder` returns `params as unknown as IndividualTravelSegmentTaskParams`.",
+        "The target task API is strongly typed via `createIndividualTravelSegmentTask`, but this cast suppresses compatibility validation between builder output and task input."
+      ],
+      "suggestion": "Replace the double-cast with a typed mapper function that returns `IndividualTravelSegmentTaskParams` directly; if fields differ, adapt at the mapper boundary and let TypeScript enforce completeness.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "boundary_type_bypass"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "stored_prompt_count_nan_contract_break",
+      "summary": "Prompt count loader can return NaN despite numeric contract",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/hooks/promptManagement/storedPromptCount.ts",
+        "src/shared/components/ImageGenerationForm/hooks/usePromptManagement.ts",
+        "src/shared/components/ImageGenerationForm/hooks/promptManagement/usePromptPersistenceEffects.ts"
+      ],
+      "evidence": [
+        "`getStoredPromptCount` returns `parseInt(stored, 10)` with no `Number.isFinite` guard.",
+        "Its result is consumed as a usable count state (`lastKnownPromptCount`) for prompt management and persistence effects."
+      ],
+      "suggestion": "Normalize parsed values with finite/positive checks and fallback to `1` when invalid (e.g., `const parsed = Number.parseInt(...); return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;`).",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "boundary_type_bypass"
+    },
+    {
+      "dimension": "contract_coherence",
+      "identifier": "download_error_contract_divergence",
+      "summary": "Download service exposes inconsistent error types across similar APIs",
+      "related_files": [
+        "src/shared/components/MediaGallery/services/downloadService.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryActions.ts"
+      ],
+      "evidence": [
+        "`downloadSingleMedia` wraps transport failures in `DownloadServiceError` with code/context metadata.",
+        "`downloadStarredMediaArchive` only wraps non-OK HTTP responses; rejected `fetch` promises bubble as raw errors, bypassing `DownloadServiceError`-specific handling in `useMediaGalleryActions`."
+      ],
+      "suggestion": "Standardize both download paths on one error contract by wrapping fetch/XHR failures into `DownloadServiceError` (including network and abort cases) before propagating.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "inconsistent_boundary_contracts"
+    },
+    {
+      "dimension": "authorization_consistency",
+      "identifier": "segment_task_write_without_shared_auth_guard",
+      "summary": "Segment task submission skips shared authenticated-session guard",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/submitSegmentTask.ts",
+        "src/integrations/supabase/auth/ensureAuthenticatedSession.ts",
+        "src/shared/components/ImageGenerationForm/hooks/referenceUpload/useStyleReferenceUploadHandler.ts"
+      ],
+      "evidence": [
+        "`submitSegmentTask` performs Supabase writes/invokes without first requiring a session/user through shared guard utilities.",
+        "Other nearby mutation paths explicitly enforce auth preconditions (`auth.getUser` in reference upload), creating inconsistent client-side authorization posture."
+      ],
+      "suggestion": "Require an authenticated session/user at the start of segment submission (via `requireSession`/`requireUserFromSession`) and fail fast with a typed auth error before any write/invoke operations.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "inconsistent_boundary_contracts"
+    },
+    {
+      "dimension": "naming_quality",
+      "identifier": "supabase_factory_alias_ambiguity",
+      "summary": "Getter function is aliased as an instance-like name",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/submitSegmentTask.ts",
+        "src/shared/components/ImageGenerationForm/hooks/referenceUpload/useStyleReferenceUploadHandler.ts",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "`getSupabaseClient` is imported as `supabase` and called as `supabase()`, which obscures whether it is a client object or factory accessor.",
+        "The same aliasing pattern appears in multiple high-traffic mutation modules, increasing cognitive overhead at API boundaries."
+      ],
+      "suggestion": "Use explicit naming (`getSupabaseClient` or `getSupabase`) and assign `const client = getSupabaseClient()` inside functions before use.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "inconsistent_boundary_contracts"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Boundary-layer helpers are not consistently used, leading to ad-hoc typing and auth checks.",
+      "Parallel implementations of similar workflows (media downloads, Supabase mutations) drifted in contract shape over time."
+    ],
+    "likely_symptoms": [
+      "unsafe_double_cast_segment_params",
+      "download_error_contract_divergence",
+      "segment_task_write_without_shared_auth_guard",
+      "supabase_factory_alias_ambiguity"
+    ],
+    "possible_false_positives": [
+      "Client-side auth prechecks may be intentionally deferred to RLS/edge-function enforcement; if so, consistency concerns still remain at UX/error-contract level."
+    ]
+  }
+}

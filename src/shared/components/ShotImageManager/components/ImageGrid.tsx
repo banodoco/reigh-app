@@ -15,6 +15,7 @@ import { Loader2 } from 'lucide-react';
 import { usePrefetchTaskData } from '@/shared/hooks/useTaskPrefetch';
 import { useSourceImageChanges } from '@/shared/hooks/useSourceImageChanges';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
+import { resolveDuplicateFrame } from '../utils/image-utils';
 
 const FPS = 16;
 
@@ -176,7 +177,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
         // For batch view display: show index × duration per pair in seconds
         const durationPerPairSeconds = batchVideoFrames / FPS;
         const displayTimeSeconds = index * durationPerPairSeconds;
-        const actualTimelineFrame = image.timeline_frame;
+        const duplicateFrame = resolveDuplicateFrame(image, index, batchVideoFrames);
         const isLastImage = index === images.length - 1;
 
         // Get pair data for the indicator after this image
@@ -227,7 +228,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
               }}
               onDelete={() => onDelete(image.id)}
               onDuplicate={onDuplicate}
-              timeline_frame={actualTimelineFrame ?? undefined}
+              timeline_frame={duplicateFrame}
               displayTimeSeconds={displayTimeSeconds}
               onDoubleClick={isMobile ? () => {} : () => onItemDoubleClick(index)}
               onInpaintClick={isMobile ? undefined : () => onInpaintClick(index)}

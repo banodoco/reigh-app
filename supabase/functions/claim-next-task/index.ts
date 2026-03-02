@@ -40,12 +40,21 @@ serve(async (req) => {
     logPrefix: "[CLAIM-NEXT-TASK]",
     parseBody: "loose",
     errorResponseFormat: "text",
+    auth: {
+      required: true,
+    },
   });
   if (!bootstrap.ok) {
     return bootstrap.response;
   }
 
   const { supabaseAdmin, logger, body: requestBody, auth } = bootstrap.value;
+  if (!auth || (!auth.userId && !auth.isServiceRole)) {
+    logger.error("Authentication failed");
+    await logger.flush();
+    return new Response("Authentication failed", { status: 401 });
+  }
+
   const workerId = typeof requestBody.worker_id === "string"
     ? requestBody.worker_id
     : `edge_${crypto.randomUUID()}`;

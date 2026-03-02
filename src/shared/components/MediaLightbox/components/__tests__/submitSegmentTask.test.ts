@@ -1,12 +1,144 @@
-import { describe, it, expect, vi } from 'vitest';
-vi.mock('@/integrations/supabase/client', () => ({ supabase: { from: vi.fn(() => ({ select: vi.fn(() => ({ data: [], error: null })), insert: vi.fn(), update: vi.fn(), delete: vi.fn() })), rpc: vi.fn(), channel: vi.fn(() => ({ on: vi.fn().mockReturnThis(), subscribe: vi.fn() })), auth: { getUser: vi.fn(() => ({ data: { user: { id: 'test' } } })) } } }));
-vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn(), loading: vi.fn(), dismiss: vi.fn() } }));
+import { QueryClient } from '@tanstack/react-query';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { RunTaskPlaceholder } from '@/shared/hooks/useTaskPlaceholder';
+import { createIndividualTravelSegmentTask } from '@/shared/lib/tasks/individualTravelSegment';
 import { buildStructureVideoForTask, submitSegmentTask } from '../submitSegmentTask';
 
+vi.mock('@/shared/lib/tasks/individualTravelSegment', () => ({
+  createIndividualTravelSegmentTask: vi.fn(),
+}));
+
+vi.mock('@/integrations/supabase/client', () => ({
+  getSupabaseClient: () => ({
+    from: vi.fn(() => ({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({ data: null, error: null }),
+      update: vi.fn().mockReturnThis(),
+    })),
+    functions: {
+      invoke: vi.fn(),
+    },
+  }),
+}));
+
+const flushPromises = async (): Promise<void> => {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+};
+
+const getSettings = () => ({
+  prompt: 'A prompt',
+  negativePrompt: '',
+  textBeforePrompts: '',
+  textAfterPrompts: '',
+  motionMode: 'basic' as const,
+  amountOfMotion: 50,
+  phaseConfig: undefined,
+  selectedPhasePresetId: null,
+  loras: [],
+  numFrames: 25,
+  randomSeed: true,
+  seed: null,
+  makePrimaryVariant: true,
+  structureMotionStrength: undefined,
+  structureTreatment: undefined,
+  structureUni3cEndPercent: undefined,
+});
+
 describe('submitSegmentTask', () => {
-  it('exports expected members', () => {
-    expect(buildStructureVideoForTask).toBeDefined();
-    expect(submitSegmentTask).toBeDefined();
-    expect(true).not.toBe(false);
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns null structure video when required inputs are missing', () => {
+    const result = buildStructureVideoForTask(
+      {
+        structureVideoUrl: undefined,
+        structureVideoType: null,
+        structureVideoFrameRange: undefined,
+      },
+      () => getSettings(),
+    );
+
+    expect(result).toBeNull();
+  });
+
+  it('aborts task creation when settings persistence fails', async () => {
+    const createTaskMock = vi.mocked(createIndividualTravelSegmentTask);
+    createTaskMock.mockResolvedValue({ task_id: 'task-1' } as Awaited<ReturnType<typeof createIndividualTravelSegmentTask>>);
+    const saveSettings = vi.fn().mockResolvedValue(false);
+
+    let createError: unknown;
+    const run: RunTaskPlaceholder = async ({ create }) => {
+      try {
+        await create();
+      } catch (error) {
+        createError = error;
+      }
+    };
+
+    submitSegmentTask({
+      taskLabel: 'Segment 1',
+      errorContext: 'submitSegmentTask.test',
+      getSettings,
+      saveSettings,
+      shouldSaveSettings: true,
+      shouldEnhance: false,
+      defaultNumFrames: 25,
+      images: {
+        startImageUrl: 'https://example.com/start.png',
+      },
+      task: {
+        projectId: 'project-1',
+        segmentIndex: 0,
+        structureVideo: null,
+      },
+      run,
+      queryClient: new QueryClient(),
+    });
+
+    await flushPromises();
+
+    expect(saveSettings).toHaveBeenCalledTimes(1);
+    expect(createTaskMock).not.toHaveBeenCalled();
+    expect(createError).toBeInstanceOf(Error);
+    expect((createError as Error).message).toContain('Failed to save segment settings');
+  });
+
+  it('creates a task when settings persistence succeeds', async () => {
+    const createTaskMock = vi.mocked(createIndividualTravelSegmentTask);
+    createTaskMock.mockResolvedValue({ task_id: 'task-2' } as Awaited<ReturnType<typeof createIndividualTravelSegmentTask>>);
+    const saveSettings = vi.fn().mockResolvedValue(true);
+
+    let createdTaskId: string | undefined;
+    const run: RunTaskPlaceholder = async ({ create }) => {
+      createdTaskId = await create() as string;
+    };
+
+    submitSegmentTask({
+      taskLabel: 'Segment 2',
+      errorContext: 'submitSegmentTask.test',
+      getSettings,
+      saveSettings,
+      shouldSaveSettings: true,
+      shouldEnhance: false,
+      defaultNumFrames: 25,
+      images: {
+        startImageUrl: 'https://example.com/start.png',
+      },
+      task: {
+        projectId: 'project-1',
+        segmentIndex: 1,
+        structureVideo: null,
+      },
+      run,
+      queryClient: new QueryClient(),
+    });
+
+    await flushPromises();
+
+    expect(saveSettings).toHaveBeenCalledTimes(1);
+    expect(createTaskMock).toHaveBeenCalledTimes(1);
+    expect(createdTaskId).toBe('task-2');
   });
 });

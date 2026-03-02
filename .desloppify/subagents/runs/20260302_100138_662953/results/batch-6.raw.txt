@@ -1,0 +1,133 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 6,
+  "assessments": {
+    "package_organization": 74.0,
+    "high_level_elegance": 78.0
+  },
+  "dimension_notes": {
+    "package_organization": {
+      "evidence": [
+        "holistic_context.structure.directory_profiles shows `src/shared/components/` has 53 files with low average fan-in (3.3), indicating a broad, low-cohesion catch-all surface.",
+        "`src/shared/components/` root mixes UI render components with non-component artifacts (`segmentSettingsMigration.ts`, `segmentSettingsMigrationLegacy.ts`, `segmentSettingsUtils.ts`, `useImageGenerationDetailsViewModel.ts`).",
+        "Single-owner files are placed in shared root: `ConstellationCanvas.tsx` is imported by `src/pages/Home/components/hero/HomeBackground.tsx` only; `CreateProjectModal.tsx` is imported by `src/shared/components/GlobalHeader/index.tsx` only.",
+        "Batch concern_signals are empty; no packet-provided mechanical concern was confirmed for this batch. scan_evidence complexity hotspots exist but are mostly in other large files and do not counter the placement defects found here."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Reference and segment-source logic is exposed from generic shared entry points (`useHydratedReferences.ts`, `galleryUtils.ts`) but consumed by narrow feature flows (`ImageGenerationForm` reference state and segment mismatch/regenerate paths).",
+        "Clipboard behavior is fragmented across abstractions (`src/shared/lib/clipboard.ts`, `src/shared/hooks/clipboard/useCopyToClipboard.ts`, `src/shared/components/SettingsModal/commandUtils.ts`) plus repeated direct `navigator.clipboard.writeText` calls in many components.",
+        "These patterns indicate ownership boundaries are historical rather than capability-based, increasing discovery and change-scope uncertainty."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "package_organization",
+      "identifier": "shared_components_root_is_catch_all",
+      "summary": "src/shared/components root is overloaded with mixed concerns and weak ownership boundaries",
+      "related_files": [
+        "src/shared/components/BulkEditControls.tsx",
+        "src/shared/components/segmentSettingsMigration.ts",
+        "src/shared/components/useImageGenerationDetailsViewModel.ts",
+        "src/shared/components/CreateProjectModal.tsx"
+      ],
+      "evidence": [
+        "`src/shared/components/` contains 53 production files (directory_profiles) with avg fan-in 3.3, a signature of low-cohesion placement.",
+        "The same root contains both UI elements and migration/view-model files, so folder naming no longer reflects responsibility.",
+        "Feature-local components (BulkEdit/CreateProject) are kept at root instead of feature folders, flattening boundaries."
+      ],
+      "suggestion": "Run a staged reorg: (1) create target folders `src/shared/components/project/`, `src/shared/components/prompt-editor/`, `src/shared/components/image-generation/`, `src/shared/components/segment-settings/`; (2) move files in low-risk order with `git mv` (start with files with 1 importer like `CreateProjectModal.tsx`, then view-model/migration utilities, then coupled UI pieces); (3) update imports via `rg -l \"@/shared/components/(CreateProjectModal|BulkEditControls|useImageGenerationDetailsViewModel|segmentSettings)\" src | xargs sed -i '' ...`; (4) validate with `pnpm typecheck` and focused tests `pnpm vitest src/shared/components/__tests__/BulkEditControls.test.tsx src/shared/components/CreateProjectModal.test.tsx`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shared_root_dumping_ground"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "single_owner_components_in_shared_root",
+      "summary": "Home and GlobalHeader-owned components are misplaced in shared root",
+      "related_files": [
+        "src/shared/components/ConstellationCanvas.tsx",
+        "src/pages/Home/components/hero/HomeBackground.tsx",
+        "src/shared/components/CreateProjectModal.tsx",
+        "src/shared/components/GlobalHeader/index.tsx"
+      ],
+      "evidence": [
+        "`HomeBackground.tsx` imports `ConstellationCanvas` from shared root, and no other production importer appears.",
+        "`GlobalHeader/index.tsx` imports `CreateProjectModal` from shared root, and no other production importer appears.",
+        "These are >60% affinity (effectively 100%) to one owning area, but current placement advertises them as general-purpose shared UI."
+      ],
+      "suggestion": "Use a two-step move plan: (1) move `ConstellationCanvas.tsx` to `src/pages/Home/components/hero/ConstellationCanvas.tsx` and `CreateProjectModal.tsx` to `src/shared/components/GlobalHeader/CreateProjectModal.tsx`; (2) update import paths in `HomeBackground.tsx` and `GlobalHeader/index.tsx`; (3) run `pnpm typecheck` and component tests for both files. If external reuse is later needed, re-export intentionally from a feature index instead of placing directly in shared root.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shared_root_dumping_ground"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "feature_specific_logic_hidden_as_generic_shared",
+      "summary": "Feature-specific reference/segment utilities are surfaced as generic shared APIs",
+      "related_files": [
+        "src/shared/hooks/useHydratedReferences.ts",
+        "src/shared/components/ImageGenerationForm/hooks/useProjectImageSettings.ts",
+        "src/shared/lib/galleryUtils.ts",
+        "src/shared/hooks/sourceImageChanges/sourceMismatchAnalysis.ts",
+        "src/shared/components/MediaLightbox/hooks/useVideoRegenerateMode.ts"
+      ],
+      "evidence": [
+        "`useHydratedReferences` is consumed by `ImageGenerationForm` flow (`useProjectImageSettings`) but lives in top-level shared hooks.",
+        "`extractSegmentImages` in `galleryUtils.ts` is used by source-mismatch and video-regenerate logic, not by a broad gallery utility surface.",
+        "Generic names/locations hide actual ownership (references domain and segment-regeneration domain), making change boundaries less predictable."
+      ],
+      "suggestion": "Refactor by capability boundary: (1) move `useHydratedReferences.ts` under `src/shared/components/ImageGenerationForm/hooks/referenceManagement/` (or a new `src/domains/references/` package if reused cross-feature); (2) move `galleryUtils.ts` function into a domain file like `src/shared/lib/segments/extractSegmentImages.ts`; (3) add transitional re-exports for one release cycle to avoid large PR blast radius; (4) update imports and validate with `pnpm typecheck` plus targeted tests (`useHydratedReferences`, `galleryUtils`, `useSourceImageChanges`, `useVideoRegenerateMode`).",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "ownership_boundary_blur"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "clipboard_boundary_fragmented",
+      "summary": "Clipboard behavior is split across multiple unrelated layers without a single owner",
+      "related_files": [
+        "src/shared/lib/clipboard.ts",
+        "src/shared/hooks/clipboard/useCopyToClipboard.ts",
+        "src/shared/components/SettingsModal/commandUtils.ts",
+        "src/shared/components/TaskDetails/VideoTravelDetails.tsx"
+      ],
+      "evidence": [
+        "A safe clipboard helper exists in `src/shared/lib/clipboard.ts`, but many components still call `navigator.clipboard.writeText` directly.",
+        "A parallel hook abstraction exists (`useCopyToClipboard`) plus another safe-copy implementation in SettingsModal utilities.",
+        "This duplicates policy/location decisions (silent-fail, feedback, fallback behavior) and makes ownership of clipboard contracts unclear."
+      ],
+      "suggestion": "Create one boundary module (for example `src/shared/platform/clipboard/`) with `copyText` + optional React hook wrappers; migrate in stages: (1) adopt boundary in `SettingsModal/commandUtils.ts` and `TaskDetails/VideoTravelDetails.tsx`; (2) migrate direct callers found by `rg \"navigator\\.clipboard\\.writeText\" src/shared src/tools`; (3) keep `useCopyToClipboard` as a thin wrapper over the boundary; (4) run `pnpm typecheck` and clipboard-related tests.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "ownership_boundary_blur"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Top-level `src/shared/components` and `src/shared/hooks` are being used as convenience drop zones instead of capability-owned packages.",
+      "Feature growth happened without periodic folder-boundary normalization, so import-affinity drift was not corrected."
+    ],
+    "likely_symptoms": [
+      "shared_components_root_is_catch_all",
+      "single_owner_components_in_shared_root",
+      "feature_specific_logic_hidden_as_generic_shared",
+      "clipboard_boundary_fragmented"
+    ],
+    "possible_false_positives": [
+      "Some files may be intentionally staged in shared for near-term reuse, but current importer patterns do not yet support that as the dominant use case."
+    ]
+  }
+}

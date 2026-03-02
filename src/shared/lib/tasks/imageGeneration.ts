@@ -32,6 +32,7 @@ export type ReferenceMode = 'style' | 'subject' | 'style-character' | 'scene' | 
  */
 export interface ReferenceApiParams {
   style_reference_image?: string;
+  subject_reference_image?: string;
   style_reference_strength: number;
   subject_strength: number;
   subject_description: string;

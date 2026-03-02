@@ -127,7 +127,7 @@ export function useVideoLightboxRenderModel(
   const showNavigation = navigation?.showNavigation ?? true;
   const showTaskDetails = features?.showTaskDetails ?? false;
 
-  const lightboxVariants = {
+  const lightboxVariants = useMemo(() => ({
     variants: sharedState.variants.list,
     activeVariant: sharedState.variants.activeVariant,
     primaryVariant: sharedState.variants.primaryVariant,
@@ -148,9 +148,30 @@ export function useVideoLightboxRenderModel(
     unviewedVariantCount: editModel.variantBadges.unviewedVariantCount,
     onMarkAllViewed: editModel.variantBadges.handleMarkAllViewed,
     variantsSectionRef: env.variantsSectionRef,
-  };
+  }), [
+    editModel.loadVariantImages,
+    editModel.variantBadges.handleMarkAllViewed,
+    editModel.variantBadges.pendingTaskCount,
+    editModel.variantBadges.unviewedVariantCount,
+    editModel.variantSegmentImages,
+    env.setVariantParamsToLoad,
+    env.variantsSectionRef,
+    sharedState.makeMainVariant.canMake,
+    sharedState.makeMainVariant.handle,
+    sharedState.makeMainVariant.isMaking,
+    sharedState.variants.activeVariant,
+    sharedState.variants.deleteVariant,
+    sharedState.variants.handlePromoteToGeneration,
+    sharedState.variants.isLoading,
+    sharedState.variants.isPromoting,
+    sharedState.variants.list,
+    sharedState.variants.primaryVariant,
+    sharedState.variants.promoteSuccess,
+    sharedState.variants.setActiveVariantId,
+    sharedState.variants.setPrimaryVariant,
+  ]);
 
-  const lightboxStateValue = {
+  const lightboxStateValue = useMemo(() => ({
     core: {
       onClose,
       readOnly,
@@ -177,7 +198,27 @@ export function useVideoLightboxRenderModel(
       handleSlotNavPrev: modeModel.handleSlotNavPrev,
       swipeNavigation: sharedState.navigation.swipeNavigation,
     },
-  };
+  }), [
+    env.actualGenerationId,
+    env.imageDimensions,
+    env.isMobile,
+    env.selectedProjectId,
+    env.setImageDimensions,
+    lightboxVariants,
+    media,
+    modeModel.handleSlotNavNext,
+    modeModel.handleSlotNavPrev,
+    modeModel.hasNext,
+    modeModel.hasPrevious,
+    onClose,
+    readOnly,
+    sharedState.effectiveMedia.imageDimensions,
+    sharedState.effectiveMedia.mediaUrl,
+    sharedState.effectiveMedia.videoUrl,
+    sharedState.layout.isTabletOrLarger,
+    sharedState.navigation.swipeNavigation,
+    showNavigation,
+  ]);
 
   const {
     handleDownload,
@@ -231,7 +272,7 @@ export function useVideoLightboxRenderModel(
   );
   const allShots = useMemo(() => shotWorkflow?.allShots ?? [], [shotWorkflow?.allShots]);
   const selectedShotId = shotWorkflow?.selectedShotId;
-  const workflowBar = {
+  const workflowBar = useMemo(() => ({
     onAddToShot: shotWorkflow?.onAddToShot,
     onDelete: actions?.onDelete,
     onApplySettings: actions?.onApplySettings,
@@ -260,9 +301,39 @@ export function useVideoLightboxRenderModel(
     onAddVariantAsNewGeneration: sharedState.variants.handleAddVariantAsNewGenerationToShot,
     activeVariantId: sharedState.variants.activeVariant?.id || sharedState.variants.primaryVariant?.id,
     currentTimelineFrame: media.timeline_frame ?? undefined,
-  };
+  }), [
+    actions?.onApplySettings,
+    actions?.onDelete,
+    allShots,
+    editModel.variantBadges,
+    env.actualGenerationId,
+    env.contentRef,
+    handleApplySettings,
+    handleNavigateToShotFromSelector,
+    media.id,
+    media.thumbUrl,
+    media.timeline_frame,
+    onClose,
+    selectedShotId,
+    sharedState.effectiveMedia.mediaUrl,
+    sharedState.shots.isAlreadyAssociatedWithoutPosition,
+    sharedState.shots.isAlreadyPositionedInSelectedShot,
+    sharedState.variants.activeVariant?.id,
+    sharedState.variants.handleAddVariantAsNewGenerationToShot,
+    sharedState.variants.primaryVariant?.id,
+    shotWorkflow?.onAddToShot,
+    shotWorkflow?.onAddToShotWithoutPosition,
+    shotWorkflow?.onCreateShot,
+    shotWorkflow?.onOptimisticPositioned,
+    shotWorkflow?.onOptimisticUnpositioned,
+    shotWorkflow?.onShotChange,
+    shotWorkflow?.onShowSecondaryTick,
+    shotWorkflow?.onShowTick,
+    showTickForImageId,
+    showTickForSecondaryImageId,
+  ]);
 
-  const workflowControls = {
+  const workflowControls = useMemo(() => ({
     mediaId: env.actualGenerationId ?? media.id,
     imageUrl: sharedState.effectiveMedia.mediaUrl ?? '',
     thumbUrl: media.thumbUrl,
@@ -290,9 +361,36 @@ export function useVideoLightboxRenderModel(
     isDeleting: actions?.isDeleting,
     onNavigateToShot: handleNavigateToShotFromSelector,
     onClose,
-  };
+  }), [
+    actions?.isDeleting,
+    actions?.onApplySettings,
+    actions?.onDelete,
+    allShots,
+    env.actualGenerationId,
+    env.contentRef,
+    handleApplySettings,
+    handleDelete,
+    handleNavigateToShotFromSelector,
+    media.id,
+    media.thumbUrl,
+    onClose,
+    selectedShotId,
+    sharedState.effectiveMedia.mediaUrl,
+    sharedState.shots.isAlreadyAssociatedWithoutPosition,
+    sharedState.shots.isAlreadyPositionedInSelectedShot,
+    shotWorkflow?.onAddToShot,
+    shotWorkflow?.onAddToShotWithoutPosition,
+    shotWorkflow?.onCreateShot,
+    shotWorkflow?.onOptimisticPositioned,
+    shotWorkflow?.onOptimisticUnpositioned,
+    shotWorkflow?.onShotChange,
+    shotWorkflow?.onShowSecondaryTick,
+    shotWorkflow?.onShowTick,
+    showTickForImageId,
+    showTickForSecondaryImageId,
+  ]);
 
-  const layoutProps = {
+  const layoutProps = useMemo(() => ({
     showPanel,
     shouldShowSidePanel: shouldShowSidePanelWithTrim,
     effectiveTasksPaneOpen: env.effectiveTasksPaneOpen,
@@ -310,7 +408,22 @@ export function useVideoLightboxRenderModel(
     },
     adjacentSegments,
     segmentSlotMode: modeModel.hasSegmentVideo ? props.segmentSlotMode : undefined,
-  };
+  }), [
+    adjacentSegments,
+    env.effectiveTasksPaneOpen,
+    env.effectiveTasksPaneWidth,
+    handleDelete,
+    handleDownload,
+    modeModel.hasSegmentVideo,
+    props.segmentSlotMode,
+    sharedState.buttonGroupProps.bottomLeft,
+    sharedState.buttonGroupProps.bottomRight,
+    sharedState.buttonGroupProps.topRight,
+    shouldShowSidePanelWithTrim,
+    showPanel,
+    workflowBar,
+    workflowControls,
+  ]);
 
   return {
     lightboxStateValue,

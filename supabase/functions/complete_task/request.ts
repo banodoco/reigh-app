@@ -3,6 +3,11 @@
  */
 
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
+import {
+  edgeErrorResponse,
+  parseJsonBodyStrict,
+  parseJsonFailureResponse,
+} from '../_shared/edgeRequest.ts';
 import { getContentType } from './params.ts';
 
 // ===== TYPES =====
@@ -52,31 +57,20 @@ interface CompleteTaskRequestBody {
 
 // ===== REQUEST PARSING =====
 
-const badRequest = (message: string): ParseResult => ({
+const badRequest = (message: string, errorCode = 'invalid_request'): ParseResult => ({
   success: false,
-  response: new Response(message, { status: 400 }),
+  response: edgeErrorResponse(
+    {
+      errorCode,
+      message,
+      recoverable: false,
+    },
+    400,
+  ),
 });
 
 const asString = (value: unknown): string | undefined =>
   typeof value === "string" && value.length > 0 ? value : undefined;
-
-async function parseJsonBody(req: Request): Promise<
-  { success: true; body: CompleteTaskRequestBody }
-  | { success: false; response: Response }
-> {
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return { success: false, response: new Response("Invalid JSON body", { status: 400 }) };
-  }
-
-  if (!body || typeof body !== "object") {
-    return { success: false, response: new Response("Invalid JSON body", { status: 400 }) };
-  }
-
-  return { success: true, body: body as CompleteTaskRequestBody };
-}
 
 function parseStoragePathRequest(body: CompleteTaskRequestBody): ParseResult {
   const taskId = asString(body.task_id);
@@ -84,10 +78,10 @@ function parseStoragePathRequest(body: CompleteTaskRequestBody): ParseResult {
   const thumbnailStoragePath = asString(body.thumbnail_storage_path);
 
   if (!taskId) {
-    return badRequest("task_id required");
+    return badRequest("task_id required", 'task_id_required');
   }
   if (!storagePath) {
-    return badRequest("storage_path required");
+    return badRequest("storage_path required", 'storage_path_required');
   }
 
   const pathParts = storagePath.split('/');
@@ -95,7 +89,10 @@ function parseStoragePathRequest(body: CompleteTaskRequestBody): ParseResult {
   const mode: UploadMode = isMode3Format ? 'presigned' : 'reference';
 
   if (mode === 'reference' && pathParts.length < 2) {
-    return badRequest("Invalid storage_path format. Must be at least userId/filename");
+    return badRequest(
+      "Invalid storage_path format. Must be at least userId/filename",
+      'invalid_storage_path_format',
+    );
   }
 
   let requiresOrchestratorCheck = false;
@@ -110,7 +107,7 @@ function parseStoragePathRequest(body: CompleteTaskRequestBody): ParseResult {
     if (thumbnailStoragePath) {
       const thumbParts = thumbnailStoragePath.split('/');
       if (thumbParts.length < 4 || thumbParts[1] !== 'tasks') {
-        return badRequest("Invalid thumbnail_storage_path format.");
+        return badRequest("Invalid thumbnail_storage_path format.", 'invalid_thumbnail_storage_path_format');
       }
       if (thumbParts[2] !== taskId) {
         requiresOrchestratorCheck = true;
@@ -142,14 +139,15 @@ function parseBase64Request(body: CompleteTaskRequestBody): ParseResult {
   if (!taskId || !fileData || !filename) {
     return badRequest(
       "task_id, file_data (base64), and filename required (or use storage_path for pre-uploaded files)",
+      'missing_base64_upload_fields',
     );
   }
 
   if (firstFrameData && !firstFrameFilename) {
-    return badRequest("first_frame_filename required when first_frame_data is provided");
+    return badRequest("first_frame_filename required when first_frame_data is provided", 'first_frame_filename_required');
   }
   if (firstFrameFilename && !firstFrameData) {
-    return badRequest("first_frame_data required when first_frame_filename is provided");
+    return badRequest("first_frame_data required when first_frame_filename is provided", 'first_frame_data_required');
   }
 
   let fileBuffer: Uint8Array;
@@ -157,7 +155,7 @@ function parseBase64Request(body: CompleteTaskRequestBody): ParseResult {
     fileBuffer = Uint8Array.from(atob(fileData), (c) => c.charCodeAt(0));
   } catch (error) {
     console.error("[RequestParser] Base64 decode error:", error);
-    return badRequest("Invalid base64 file_data");
+    return badRequest("Invalid base64 file_data", 'invalid_base64_file_data');
   }
 
   let thumbnailBuffer: Uint8Array | undefined;
@@ -198,19 +196,27 @@ export async function parseCompleteTaskRequest(req: Request): Promise<ParseResul
   if (contentType.includes("multipart/form-data")) {
     return badRequest(
       "Multipart upload (MODE 2) is not supported. Use MODE 1 (base64 JSON) or MODE 3 (pre-signed URL).",
+      'multipart_not_supported',
     );
   }
 
-  const parsedBody = await parseJsonBody(req);
-  if (!parsedBody.success) {
-    return { success: false, response: parsedBody.response };
+  const parsedBody = await parseJsonBodyStrict(req, undefined, {
+    message: 'Invalid JSON body',
+    nonObjectMessage: 'JSON body must be an object',
+  });
+  if (!parsedBody.ok) {
+    return {
+      success: false,
+      response: parseJsonFailureResponse(parsedBody, 400),
+    };
+  }
+  const body = parsedBody.value as CompleteTaskRequestBody;
+
+  if (asString(body.storage_path)) {
+    return parseStoragePathRequest(body);
   }
 
-  if (asString(parsedBody.body.storage_path)) {
-    return parseStoragePathRequest(parsedBody.body);
-  }
-
-  return parseBase64Request(parsedBody.body);
+  return parseBase64Request(body);
 }
 
 // ===== SECURITY VALIDATION =====

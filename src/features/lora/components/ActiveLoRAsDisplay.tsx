@@ -7,7 +7,6 @@ import HoverScrubVideo from "@/shared/components/HoverScrubVideo";
 import { X, Plus } from "lucide-react";
 import { getDisplayNameFromUrl, type LoraDisplayModel } from "@/shared/lib/loraUtils";
 import type { ActiveLora } from "@/shared/types/lora";
-export type { ActiveLora } from "@/shared/types/lora";
 
 interface ActiveLoRAsDisplayProps {
   selectedLoras: ActiveLora[];

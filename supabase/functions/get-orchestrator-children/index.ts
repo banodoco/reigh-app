@@ -29,12 +29,21 @@ serve(async (req) => {
     logPrefix: "[GET-ORCHESTRATOR-CHILDREN]",
     parseBody: "strict",
     errorResponseFormat: "text",
+    auth: {
+      required: true,
+    },
   });
   if (!bootstrap.ok) {
     return bootstrap.response;
   }
 
   const { supabaseAdmin, logger, body: requestBody, auth } = bootstrap.value;
+  if (!auth || (!auth.userId && !auth.isServiceRole)) {
+    logger.error("Authentication failed");
+    await logger.flush();
+    return new Response("Authentication failed", { status: 401 });
+  }
+
   const orchestratorTaskId = typeof requestBody.orchestrator_task_id === "string"
     ? requestBody.orchestrator_task_id
     : null;

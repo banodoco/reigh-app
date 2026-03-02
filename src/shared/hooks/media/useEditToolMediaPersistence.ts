@@ -1,6 +1,6 @@
 import { getSupabaseClient } from '@/integrations/supabase/client';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { GenerationRow } from '@/domains/generation/types/generationViewRow';
+import type { GenerationRow } from '@/domains/generation/types';
 import { useToolSettings, type SettingsScope } from '@/shared/hooks/useToolSettings';
 
 const getSupabase = () => getSupabaseClient();

@@ -1,6 +1,6 @@
 import { getSupabaseClient } from '@/integrations/supabase/client';
 import { QueryClient } from '@tanstack/react-query';
-import type { GenerationRow } from '@/domains/generation/types/generationViewRow';
+import type { GenerationRow } from '@/domains/generation/types';
 import { Task } from '@/types/tasks';
 import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
@@ -53,7 +53,7 @@ export async function preloadGenerationTaskMappings(
     batch.forEach((generationId) => {
       const mapping = mappings.get(generationId);
       const cacheEntry = toGenerationTaskMappingCacheEntry(mapping);
-      queryClient.setQueryData<GenerationTaskCacheEntry>(
+      queryClient.setQueryData<GenerationTaskMappingCacheEntry>(
         taskQueryKeys.generationMapping(generationId),
         cacheEntry,
       );
@@ -106,7 +106,7 @@ export function enhanceGenerationsWithTaskData(
 ): GenerationWithTaskData[] {
   return generations.map((generation) => {
     const generationId = generation.generation_id ?? generation.id;
-    const cachedMapping = queryClient.getQueryData<GenerationTaskCacheEntry>(
+    const cachedMapping = queryClient.getQueryData<GenerationTaskMappingCacheEntry>(
       taskQueryKeys.generationMapping(generationId),
     );
     const taskId = cachedMapping?.taskId || null;

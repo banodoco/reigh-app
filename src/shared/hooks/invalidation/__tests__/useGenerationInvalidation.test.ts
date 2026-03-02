@@ -288,6 +288,7 @@ describe('invalidateVariantChange', () => {
 
   it('settles superseded delayed callers instead of leaving pending awaits', async () => {
     vi.useFakeTimers();
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
     const first = invalidateVariantChange(queryClient, {
       generationId: 'gen-123',
@@ -304,12 +305,14 @@ describe('invalidateVariantChange', () => {
       delayMs: 500,
     });
 
-    // First caller should settle immediately once superseded.
+    // First caller settles immediately once superseded and should not execute invalidation.
     await expect(first).resolves.toBeUndefined();
+    expect(invalidateSpy).not.toHaveBeenCalled();
 
     // Second caller settles after its own delay window.
     await vi.advanceTimersByTimeAsync(500);
     await expect(second).resolves.toBeUndefined();
+    expect(invalidateSpy).toHaveBeenCalledTimes(7);
 
     vi.useRealTimers();
   });

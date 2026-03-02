@@ -1,0 +1,112 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 5,
+  "assessments": {
+    "ai_generated_debt": 72.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "Travel-between-images still runs a dual legacy/canonical contract: `types.ts` says canonical payload excludes migration aliases, but UI/state/services still carry and map deprecated fields (`structure_type`, `motion_strength`, `structure_video_*`) across adapters and settings readers.",
+        "Migration behavior is inconsistent: `useStructureVideo.migrateToArrayFormat` force-coerces all loaded videos to `structure_type: 'uni3c'`, while other paths (`taskDataService.extractSettings`, `structureGuidance.ts`) continue preserving/deriving `flow|canny|depth`.",
+        "Default payload values include test/scaffold-like literals (`model_name: \"base_tester_model\"`, `debug: true`, `main_output_dir_for_run: \"./outputs/default_travel_output\"`) and are applied by `payloadBuilder` when params are absent.",
+        "Mechanical scan evidence had no explicit concern signals for this batch (`concern_signals: []`); complexity hotspot lead around TimelineContainer was inspected and is mostly complexity/comment density rather than additional migration-defect evidence for this dimension."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "travel_structure_dual_contract_drift",
+      "summary": "Travel structure migration keeps both canonical and legacy payload paths active in core runtime code",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/types.ts",
+        "src/shared/lib/tasks/travelBetweenImages/uiTypes.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/applySettings/taskDataService.ts",
+        "src/tools/travel-between-images/components/VideoGenerationModal.tsx"
+      ],
+      "evidence": [
+        "`types.ts` documents canonical payloads as legacy-free, but `uiTypes.ts` re-introduces `LegacyStructureVideoFields` into editor-facing structures.",
+        "`taskDataService.extractSettings` merges legacy and canonical fields from both params and orchestrator (`structure_video_type`, `structure_type`, `structure_video_motion_strength`, etc.).",
+        "`VideoGenerationModal` still builds `structureVideos` entries with legacy per-video keys (`motion_strength`, `structure_type`) as primary UI output."
+      ],
+      "suggestion": "Finish one migration boundary: keep legacy parsing only in a single adapter at task ingress/egress, then remove legacy fields from UI/editor models and service composition paths. Enforce with one canonical `StructureGuidance` DTO used by settings, modal generation, and payload builder.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "travel_structure_migration_incomplete"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "uni3c_forced_coercion_conflicts_with_supported_types",
+      "summary": "Legacy migration code force-rewrites structure type to uni3c while other modules still support flow/canny/depth",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/hooks/useStructureVideo.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/applySettings/taskDataService.ts",
+        "src/shared/lib/tasks/structureGuidance.ts"
+      ],
+      "evidence": [
+        "`useStructureVideo.migrateToArrayFormat` rewrites both array and single-video loads to `structure_type: 'uni3c'` unconditionally.",
+        "`taskDataService` and `structureGuidance.ts` still read/map non-uni3c variants (`flow`, `canny`, `depth`) into guidance output.",
+        "This creates silent semantic coercion on read/write cycles, which is migration debt disguised as compatibility handling."
+      ],
+      "suggestion": "Pick one explicit policy and encode it centrally: either remove non-uni3c support everywhere now, or preserve all types until cutoff. Add a single conversion helper with telemetry so coercion is intentional and auditable.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "travel_structure_migration_incomplete"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "test_scaffold_defaults_in_runtime_payload",
+      "summary": "Runtime defaults include placeholder/test-like values that leak into production payload construction",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/defaults.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/travelBetweenImages/createTravelBetweenImagesTask.ts"
+      ],
+      "evidence": [
+        "`DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES` contains `model_name: \"base_tester_model\"`, `debug: true`, and `main_output_dir_for_run: \"./outputs/default_travel_output\"`.",
+        "`payloadBuilder` applies these defaults when fields are omitted (`model_name`, `debug_mode_enabled`, `main_output_dir_for_run`).",
+        "`createTravelBetweenImagesTask` does not enforce caller-supplied model/debug/output-dir, so fallback literals can reach persisted orchestrator payloads."
+      ],
+      "suggestion": "Replace scaffold literals with production-safe defaults (or make these fields required at call boundary). Split test-only defaults into test fixtures and fail validation when runtime-critical fields are missing.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "orphaned_generation_ui_type_artifact",
+      "summary": "Generation type module contains an unexported, unused UI row type artifact",
+      "related_files": [
+        "src/domains/generation/types/generationViewRow.ts",
+        "src/domains/generation/types/index.ts"
+      ],
+      "evidence": [
+        "`GenerationUiRow` is defined in `generationViewRow.ts` but never exported or referenced.",
+        "`types/index.ts` exports only `GenerationRow`, leaving `GenerationUiRow` as dead migration/experimentation residue in the canonical types module."
+      ],
+      "suggestion": "Remove `GenerationUiRow` and its private overlay interface, or export and adopt it where optimistic UI state truly needs it. Keep domain type modules free of dead compatibility artifacts.",
+      "confidence": "high",
+      "impact_scope": "local",
+      "fix_scope": "single_edit"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Migration boundaries are not enforced at a single adapter layer; legacy compatibility leaked into UI, state, service, and payload modules.",
+      "Generated-style incremental patching favored additive aliases/fallback chains over removal, leaving contradictory contracts active."
+    ],
+    "likely_symptoms": [
+      "travel_structure_dual_contract_drift",
+      "uni3c_forced_coercion_conflicts_with_supported_types"
+    ],
+    "possible_false_positives": [
+      "Some legacy fallbacks may be temporarily intentional until the deprecation remove-by date, but they still represent active migration debt in this batch dimension."
+    ]
+  }
+}

@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
-import { getSupabaseClient } from '@/integrations/supabase/client';
+import { getSupabaseClientResult } from '@/integrations/supabase/client';
 import {
+  operationFailure,
   operationSuccess,
   type OperationResult,
 } from '@/shared/lib/operationResult';
@@ -16,7 +17,16 @@ const REFERRAL_KEYS = [
 
 export function useAuthReferralFinalize() {
   return useCallback(async (): Promise<OperationResult<{ finalized: boolean }>> => {
-    const supabase = getSupabaseClient();
+    const supabaseResult = getSupabaseClientResult();
+    if (!supabaseResult.ok) {
+      return operationFailure(supabaseResult.error, {
+        policy: 'degrade',
+        recoverable: true,
+        errorCode: 'supabase_runtime_uninitialized',
+        message: 'Supabase runtime is not initialized while finalizing referrals.',
+      });
+    }
+    const supabase = supabaseResult.client;
     const referralSessionId = getStorageItem(
       'referralSessionId',
       'useAuthReferralFinalize.read.referralSessionId',

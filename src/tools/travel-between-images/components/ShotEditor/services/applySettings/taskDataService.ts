@@ -1,5 +1,9 @@
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
+import {
+  collectTravelStructureLegacyUsage,
+  enforceTravelStructureLegacyPolicy,
+} from '@/shared/lib/tasks/travelBetweenImages/legacyStructureVideo';
 import type { VideoMetadata } from '@/shared/lib/videoUploader';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { ExtractedSettings, TaskData } from './types';
@@ -57,6 +61,18 @@ export const extractSettings = (taskData: TaskData): ExtractedSettings => {
     structureGuidance?.videos
   ) as Array<Record<string, unknown>> | undefined;
 
+  enforceTravelStructureLegacyPolicy(
+    collectTravelStructureLegacyUsage({
+      ...params,
+      ...orchestrator,
+      structure_videos: rawStructureVideos,
+    }),
+    {
+      context: 'applySettings.extractSettings',
+      enforcement: 'warn',
+    },
+  );
+
   const structureVideos = Array.isArray(rawStructureVideos)
     ? rawStructureVideos
         .filter(video => typeof video.path === 'string' && video.path.length > 0)
@@ -105,7 +121,11 @@ export const extractSettings = (taskData: TaskData): ExtractedSettings => {
     // model_type is the existing field that stores I2V vs VACE mode
     generationTypeMode: (orchestrator.model_type ?? params.model_type) as 'i2v' | 'vace' | undefined,
     advancedMode: (orchestrator.advanced_mode ?? params.advanced_mode) as boolean | undefined,
-    motionMode: (orchestrator.motion_mode ?? params.motion_mode) as 'basic' | 'advanced' | undefined,
+    motionMode: (orchestrator.motion_mode ?? params.motion_mode) as
+      | 'basic'
+      | 'presets'
+      | 'advanced'
+      | undefined,
 
     // Advanced mode settings
     phaseConfig: (orchestrator.phase_config ?? params.phase_config) as ExtractedSettings['phaseConfig'],

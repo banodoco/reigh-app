@@ -8,7 +8,8 @@ import { useAppEventListener } from "@/shared/lib/typedEvents";
 import { GenerationRow } from "@/domains/generation/types";
 import { toast } from "@/shared/components/ui/runtime/sonner";
 import { TOOL_IDS } from '@/shared/lib/toolIds';
-import { MediaLightboxFromAdapter, type MediaLightboxInputAdapter } from "@/shared/components/MediaLightbox";
+import MediaLightbox, { type MediaLightboxProps } from "@/shared/components/MediaLightbox/MediaLightbox";
+import type { LightboxActionHandlers } from '@/shared/components/MediaLightbox/types';
 import { TimelineEmptyState } from "./TimelineEmptyState";
 import type { SegmentSlot } from "@/shared/hooks/segments";
 import type { PairData } from "@/shared/types/pairData";
@@ -36,7 +37,7 @@ interface TimelineInteractionAdapter {
   onFramePositionsChange?: (framePositions: Map<string, number>) => void;
   onFileDrop?: (files: File[], targetFrame?: number) => Promise<void>;
   onGenerationDrop?: (generationId: string, imageUrl: string, thumbUrl: string | undefined, targetFrame?: number) => Promise<void>;
-  onImageDelete: (imageId: string) => void;
+  onImageDelete: NonNullable<LightboxActionHandlers['onDelete']>;
   onImageDuplicate?: (imageId: string, timeline_frame: number) => void;
   duplicatingImageId?: string | null;
   duplicateSuccessImageId?: string | null;
@@ -245,7 +246,7 @@ const Timeline: React.FC<TimelineProps> = ({
     onImageUpload,
   });
 
-  const timelineLightboxAdapter = useMemo<MediaLightboxInputAdapter | null>(() => {
+  const timelineLightboxProps = useMemo<MediaLightboxProps | null>(() => {
     if (!shotSelection.lightboxShotState || !media.currentLightboxImage) {
       return null;
     }
@@ -255,84 +256,70 @@ const Timeline: React.FC<TimelineProps> = ({
       : shotSelection.lightboxSelectedShotId;
 
     return {
-      core: {
-        media: media.currentLightboxImage,
-        shotId,
-        onClose: () => {
-          lightbox.capturedVariantIdRef.current = null;
-          lightbox.closeLightbox();
-          shotSelection.setLightboxSelectedShotId(selectedShotId || shotId);
-        },
-        readOnly,
-        toolTypeOverride: TOOL_IDS.TRAVEL_BETWEEN_IMAGES,
-        initialVariantId: lightbox.capturedVariantIdRef.current ?? undefined,
-        adjacentSegments: !shotSelection.lightboxShotState.isExternalGen
-          ? shotSelection.adjacentSegmentsData
-          : undefined,
+      media: media.currentLightboxImage,
+      shotId,
+      onClose: () => {
+        lightbox.capturedVariantIdRef.current = null;
+        lightbox.closeLightbox();
+        shotSelection.setLightboxSelectedShotId(selectedShotId || shotId);
       },
-      navigation: {
-        onNext: images.length > 1 ? lightbox.goNext : undefined,
-        onPrevious: images.length > 1 ? lightbox.goPrev : undefined,
-        showNavigation: lightbox.showNavigation,
-        hasNext: lightbox.hasNext,
-        hasPrevious: lightbox.hasPrevious,
-        onNavigateToGeneration: (generationId: string) => {
-          const index = media.currentImages.findIndex((img) => img.id === generationId);
-          if (index !== -1) {
-            lightbox.openLightbox(index);
-          } else {
-            toast.info('This generation is not currently loaded');
+      readOnly,
+      toolTypeOverride: TOOL_IDS.TRAVEL_BETWEEN_IMAGES,
+      initialVariantId: lightbox.capturedVariantIdRef.current ?? undefined,
+      adjacentSegments: !shotSelection.lightboxShotState.isExternalGen
+        ? shotSelection.adjacentSegmentsData
+        : undefined,
+      onNext: images.length > 1 ? lightbox.goNext : undefined,
+      onPrevious: images.length > 1 ? lightbox.goPrev : undefined,
+      showNavigation: lightbox.showNavigation,
+      hasNext: lightbox.hasNext,
+      hasPrevious: lightbox.hasPrevious,
+      onNavigateToGeneration: (generationId: string) => {
+        const index = media.currentImages.findIndex((img) => img.id === generationId);
+        if (index !== -1) {
+          lightbox.openLightbox(index);
+        } else {
+          toast.info('This generation is not currently loaded');
+        }
+      },
+      onOpenExternalGeneration: external.handleOpenExternalGeneration,
+      allShots,
+      selectedShotId: selectedLightboxShotId,
+      onShotChange: shotSelection.lightboxShotState.isExternalGen
+        ? (shotId) => {
+            external.setExternalGenLightboxSelectedShot(shotId);
           }
-        },
-        onOpenExternalGeneration: external.handleOpenExternalGeneration,
+        : (shotId) => {
+            shotSelection.setLightboxSelectedShotId(shotId);
+            onShotChange?.(shotId);
+          },
+      onAddToShot: shotSelection.lightboxShotState.isExternalGen
+        ? external.handleExternalGenAddToShot
+        : shotSelection.addToShot,
+      onAddToShotWithoutPosition: shotSelection.lightboxShotState.isExternalGen
+        ? external.handleExternalGenAddToShotWithoutPosition
+        : shotSelection.addToShotWithoutPosition,
+      onCreateShot,
+      positionedInSelectedShot: shotSelection.lightboxShotState.positionedInSelectedShot,
+      associatedWithoutPositionInSelectedShot: shotSelection.lightboxShotState.associatedWithoutPositionInSelectedShot,
+      onDelete: !readOnly
+        ? (mediaId: string) => onImageDelete(mediaId)
+        : undefined,
+      starred: media.currentLightboxImage.starred ?? false,
+      onMagicEdit: (_imageUrl, _prompt, _numImages) => {
+        // TODO: Implement magic edit generation
       },
-      shotWorkflow: {
-        allShots,
-        selectedShotId: selectedLightboxShotId,
-        onShotChange: shotSelection.lightboxShotState.isExternalGen
-          ? (shotId) => {
-              external.setExternalGenLightboxSelectedShot(shotId);
-            }
-          : (shotId) => {
-              shotSelection.setLightboxSelectedShotId(shotId);
-              onShotChange?.(shotId);
-            },
-        onAddToShot: shotSelection.lightboxShotState.isExternalGen
-          ? external.handleExternalGenAddToShot
-          : shotSelection.addToShot,
-        onAddToShotWithoutPosition: shotSelection.lightboxShotState.isExternalGen
-          ? external.handleExternalGenAddToShotWithoutPosition
-          : shotSelection.addToShotWithoutPosition,
-        onCreateShot,
-        positionedInSelectedShot: shotSelection.lightboxShotState.positionedInSelectedShot,
-        associatedWithoutPositionInSelectedShot: shotSelection.lightboxShotState.associatedWithoutPositionInSelectedShot,
+      showTaskDetails: true,
+      taskDetailsData: {
+        task: taskDetails.task ?? null,
+        isLoading: taskDetails.isLoadingTask,
+        error: taskDetails.taskError,
+        inputImages: taskDetails.inputImages,
+        taskId: taskDetails.task?.id || null,
+        onClose: lightbox.closeLightbox,
       },
-      actions: {
-        onDelete: !readOnly
-          ? (_mediaId: string) => {
-              onImageDelete(media.currentLightboxImage.id);
-            }
-          : undefined,
-        starred: media.currentLightboxImage.starred ?? false,
-        onMagicEdit: (_imageUrl, _prompt, _numImages) => {
-          // TODO: Implement magic edit generation
-        },
-      },
-      taskDetails: {
-        showTaskDetails: true,
-        taskDetailsData: {
-          task: taskDetails.task ?? null,
-          isLoading: taskDetails.isLoadingTask,
-          error: taskDetails.taskError,
-          inputImages: taskDetails.inputImages,
-          taskId: taskDetails.task?.id || null,
-          onClose: lightbox.closeLightbox,
-        },
-      },
-      features: {
-        showMagicEdit: true,
-        initialEditActive: lightbox.initialEditActive,
-      },
+      showMagicEdit: true,
+      initialEditActive: lightbox.initialEditActive,
     };
   }, [
     allShots,
@@ -431,8 +418,8 @@ const Timeline: React.FC<TimelineProps> = ({
       />
 
       {/* Lightbox */}
-      {timelineLightboxAdapter && (
-        <MediaLightboxFromAdapter adapter={timelineLightboxAdapter} />
+      {timelineLightboxProps && (
+        <MediaLightbox {...timelineLightboxProps} />
       )}
     </div>
   );

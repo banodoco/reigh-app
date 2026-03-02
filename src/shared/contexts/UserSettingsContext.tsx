@@ -14,7 +14,9 @@ import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
 import { useMobileTimeoutFallback } from '@/shared/hooks/useMobileTimeoutFallback';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
+import { ToolSettingsError } from '@/shared/lib/toolSettingsService';
 import { useAuth } from './AuthContext';
+import { requireContextValue } from './contextGuard';
 
 interface UserSettingsContextType {
   /** User settings from the server (cross-device, account-level) */
@@ -75,7 +77,17 @@ export const UserSettingsProvider = ({ children }: { children: ReactNode }) => {
 
   // Update user settings directly using the global write queue
   const updateUserSettings = useCallback(async (_scope: 'user', patch: Partial<UserPreferences>) => {
-    if (!userId) return;
+    if (!userId) {
+      const authError = new ToolSettingsError(
+        'auth_required',
+        'Authentication required for user settings update',
+      );
+      normalizeAndPresentError(authError, {
+        context: 'UserSettingsContext.updateUserSettings',
+        showToast: false,
+      });
+      throw authError;
+    }
 
     try {
       // Use the global queue - it handles read-modify-write internally
@@ -94,6 +106,7 @@ export const UserSettingsProvider = ({ children }: { children: ReactNode }) => {
       });
     } catch (error) {
       normalizeAndPresentError(error, { context: 'UserSettingsContext', showToast: false });
+      throw error;
     }
   }, [userId]);
 
@@ -148,14 +161,9 @@ export const UserSettingsProvider = ({ children }: { children: ReactNode }) => {
  * @returns { userSettings, isLoadingSettings, fetchUserSettings, updateUserSettings }
  */
 export const useUserSettings = () => {
-  const context = useContext(UserSettingsContext);
-  if (context === undefined) {
-    const errorMessage = 'useUserSettings must be used within a UserSettingsProvider. ' +
-      'Make sure the component is rendered inside the UserSettingsProvider tree.';
-    console.error('[UserSettingsContext]', errorMessage, {
-      stack: new Error().stack,
-    });
-    throw new Error(errorMessage);
-  }
-  return context;
+  return requireContextValue(
+    useContext(UserSettingsContext),
+    'useUserSettings',
+    'UserSettingsProvider',
+  );
 };

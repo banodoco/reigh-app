@@ -15,6 +15,7 @@ import {
   useLightboxCoreSafe,
   useLightboxMediaSafe,
 } from '../contexts/LightboxStateContext';
+import type { LightboxDeleteHandler } from '../types';
 
 // ============================================================================
 // TOP RIGHT CONTROLS - Download & Delete
@@ -24,8 +25,8 @@ interface TopRightControlsProps {
   showDownload: boolean;
   handleDownload?: () => Promise<void>;
   isDownloading?: boolean;
-  onDelete?: (id: string) => void;
-  handleDelete?: () => void;
+  onDelete?: LightboxDeleteHandler;
+  handleDelete?: () => Promise<void>;
   isDeleting?: string | null;
 }
 
@@ -53,7 +54,7 @@ export const TopRightControls: React.FC<TopRightControlsProps> = ({
               size="sm"
               onClick={(e) => {
                 e.stopPropagation();
-                handleDownload();
+                void handleDownload();
               }}
               disabled={isDownloading}
               className="bg-black/50 hover:bg-black/70 text-white"
@@ -80,7 +81,7 @@ export const TopRightControls: React.FC<TopRightControlsProps> = ({
               size="sm"
               onClick={(e) => {
                 e.stopPropagation();
-                handleDelete();
+                void handleDelete();
               }}
               disabled={isDeleting === actualGenerationId}
               className="bg-red-600/80 hover:bg-red-600 text-white"

@@ -1,9 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useRef, useEffect, useCallback, useMemo } from 'react';
+import { useRef, useCallback, useMemo } from 'react';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { QUERY_PRESETS, STANDARD_RETRY_DELAY } from '@/shared/lib/queryDefaults';
+import {
+  callUpdateToolSettingsAtomicRpc,
+  resolveSettingsScopeTable,
+  selectSettingsForScope,
+} from '@/integrations/supabase/repositories/toolSettingsWriteRepository';
 import {
   enqueueSettingsWrite,
   setSettingsWriteFunction,
@@ -13,15 +17,15 @@ import { deepMerge } from '@/shared/lib/utils/deepEqual';
 import { isCancellationError } from '@/shared/lib/errorHandling/errorUtils';
 import {
   classifyToolSettingsError,
-  fetchToolSettingsSupabase,
+  fetchToolSettingsSupabaseOrThrow,
   getUserWithTimeout,
-  toToolSettingsErrorFromOperationFailure,
   ToolSettingsError,
   type SettingsFetchResult,
 } from '@/shared/lib/toolSettingsService';
 import { getProjectSelectionFallbackId } from '@/shared/contexts/projectSelectionStore';
 
 export type SettingsScope = 'user' | 'project' | 'shot';
+type SettingsWriteMode = 'debounced' | 'immediate';
 
 interface UpdateToolSettingsParams {
   scope: SettingsScope;
@@ -30,49 +34,70 @@ interface UpdateToolSettingsParams {
   patch: unknown;
 }
 
+interface AbortSignalCapable<T> {
+  abortSignal?: (signal: AbortSignal) => T;
+}
+
+function isAbortSignal(value: unknown): value is AbortSignal {
+  return !!value
+    && typeof value === 'object'
+    && 'aborted' in value
+    && typeof (value as AbortSignal).addEventListener === 'function';
+}
+
+function maybeAttachAbortSignal<T>(query: T, signal?: AbortSignal): T {
+  if (!signal) return query;
+
+  const candidate = query as T & AbortSignalCapable<T>;
+  if (typeof candidate.abortSignal === 'function') {
+    return candidate.abortSignal(signal);
+  }
+
+  return query;
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) {
+    throw new ToolSettingsError('cancelled', 'Request was cancelled', {
+      recoverable: true,
+      cause: signal.reason,
+    });
+  }
+}
+
 /**
  * Raw write function - performs the actual DB update.
  * Used internally by the settings write queue.
  *
  * @internal Use updateToolSettingsSupabase (queued) for normal usage
  */
-async function fetchSettingsForScope(scope: SettingsScope, id: string) {
-  switch (scope) {
-    case 'user':
-      return supabase().from('users').select('settings').eq('id', id).single();
-    case 'project':
-      return supabase().from('projects').select('settings').eq('id', id).single();
-    case 'shot':
-      return supabase().from('shots').select('settings').eq('id', id).single();
-  }
+async function fetchSettingsForScope(
+  scope: SettingsScope,
+  id: string,
+  signal?: AbortSignal,
+) {
+  throwIfAborted(signal);
+
+  return maybeAttachAbortSignal(selectSettingsForScope(scope, id), signal);
 }
 
 async function rawUpdateToolSettings(write: QueuedWrite): Promise<Record<string, unknown>> {
-  const { scope, entityId: id, toolId, patch } = write;
+  const { scope, entityId: id, toolId, patch, signal } = write;
 
   try {
-    let tableName: string;
-    switch (scope) {
-      case 'user':
-        tableName = 'users';
-        break;
-      case 'project':
-        tableName = 'projects';
-        break;
-      case 'shot':
-        tableName = 'shots';
-        break;
-      default:
-        throw new ToolSettingsError(
-          'invalid_scope_identifier',
-          `Invalid scope: ${scope}`,
-        );
+    if (scope !== 'user' && scope !== 'project' && scope !== 'shot') {
+      throw new ToolSettingsError(
+        'invalid_scope_identifier',
+        `Invalid scope: ${scope}`,
+      );
     }
+
+    const tableName = resolveSettingsScopeTable(scope);
 
     // For patch updates, we need to fetch current settings to merge
     // This is necessary because the caller provides a partial update
     // TODO: In the future, consider passing full settings to eliminate this fetch
-    const { data: currentEntity, error: fetchError } = await fetchSettingsForScope(scope, id);
+    const { data: currentEntity, error: fetchError } = await fetchSettingsForScope(scope, id, signal);
 
     if (fetchError) {
       const errorMessage = fetchError.message || '';
@@ -99,12 +124,16 @@ async function rawUpdateToolSettings(write: QueuedWrite): Promise<Record<string,
 
     // Use atomic PostgreSQL function to update settings
     // This is much faster than update() because it happens in a single DB operation
-    const { error: rpcError } = await supabase().rpc('update_tool_settings_atomic', {
-      p_table_name: tableName,
-      p_id: id,
-      p_tool_id: toolId,
-      p_settings: updatedToolSettings
-    });
+    throwIfAborted(signal);
+    const { error: rpcError } = await maybeAttachAbortSignal(
+      callUpdateToolSettingsAtomicRpc(
+        tableName,
+        id,
+        toolId,
+        updatedToolSettings,
+      ),
+      signal,
+    );
 
     if (rpcError) {
       throw new ToolSettingsError(
@@ -145,21 +174,38 @@ setSettingsWriteFunction(rawUpdateToolSettings);
  * - Serializes writes globally to prevent network exhaustion
  *
  * @param params - The update parameters
+ * @param signal - Optional AbortSignal (legacy second-arg position) for cancellation
  * @param mode - 'debounced' (default) or 'immediate' for flush-on-unmount
  * @returns The full merged settings after update
  */
+function isSettingsWriteMode(value: unknown): value is SettingsWriteMode {
+  return value === 'debounced' || value === 'immediate';
+}
+
 export function updateToolSettingsSupabase(
   params: UpdateToolSettingsParams,
-  _signal?: AbortSignal,
-  mode: 'debounced' | 'immediate' = 'debounced'
+  mode?: SettingsWriteMode,
+): Promise<Record<string, unknown>>;
+export function updateToolSettingsSupabase(
+  params: UpdateToolSettingsParams,
+  signal?: AbortSignal,
+  mode?: SettingsWriteMode,
+): Promise<Record<string, unknown>>;
+export function updateToolSettingsSupabase(
+  params: UpdateToolSettingsParams,
+  signalOrMode?: AbortSignal | SettingsWriteMode,
+  maybeMode: SettingsWriteMode = 'debounced',
 ): Promise<Record<string, unknown>> {
   const { scope, id, toolId, patch } = params;
+  const signal = isAbortSignal(signalOrMode) ? signalOrMode : undefined;
+  const mode = isSettingsWriteMode(signalOrMode) ? signalOrMode : maybeMode;
 
   return enqueueSettingsWrite({
     scope,
     entityId: id,
     toolId,
     patch: patch as Record<string, unknown>,
+    ...(signal ? { signal } : {}),
   }, mode) as Promise<Record<string, unknown>>;
 }
 
@@ -311,9 +357,6 @@ export function useToolSettings<T>(
 ) {
   const queryClient = useQueryClient();
 
-  // Ref to track active update controllers for cleanup
-  const updateControllersRef = useRef<Set<AbortController>>(new Set());
-
   // Determine parameter shapes
   const projectIdFromRuntime = getProjectSelectionFallbackId() ?? undefined;
   const projectId: string | undefined = context?.projectId ?? projectIdFromRuntime ?? undefined;
@@ -326,27 +369,11 @@ export function useToolSettings<T>(
   const shotIdRef = useRef(shotId);
   shotIdRef.current = shotId;
 
-  // Cleanup abort controllers on unmount
-  // NOTE: We intentionally do NOT abort active update mutations on unmount.
-  // Settings saves should complete even if the component unmounts (e.g., during navigation).
-  // The mutation will complete in the background and update the cache correctly.
-  useEffect(() => {
-    const updateControllers = updateControllersRef.current;
-    return () => {
-      // Just clear the tracking set - mutations will complete on their own
-      updateControllers.clear();
-    };
-  }, []);
-
   // Fetch merged settings using Supabase with mobile optimizations
   const { data: queryResult, isLoading, error } = useQuery({
     queryKey: queryKeys.settings.tool(toolId, projectId, shotId),
     queryFn: async ({ signal }): Promise<SettingsFetchResult> => {
-      const result = await fetchToolSettingsSupabase(toolId, { projectId, shotId }, signal);
-      if (!result.ok) {
-        throw toToolSettingsErrorFromOperationFailure(result);
-      }
-      return result.value;
+      return fetchToolSettingsSupabaseOrThrow(toolId, { projectId, shotId }, signal);
     },
     enabled: !!toolId && fetchEnabled,
     ...QUERY_PRESETS.static,
@@ -368,10 +395,9 @@ export function useToolSettings<T>(
 
   // Update settings mutation
   const updateMutation = useMutation({
-    mutationFn: async ({ scope, settings: newSettings, signal, entityId }: {
+    mutationFn: async ({ scope, settings: newSettings, entityId }: {
       scope: SettingsScope;
       settings: Partial<T>;
-      signal?: AbortSignal;
       entityId?: string;
     }) => {
       let idForScope: string | undefined = entityId;
@@ -380,7 +406,12 @@ export function useToolSettings<T>(
         if (scope === 'user') {
           const { data: { user } } = await getUserWithTimeout();
           idForScope = user?.id;
-          if (!idForScope) return null;
+          if (!idForScope) {
+            throw new ToolSettingsError(
+              'auth_required',
+              'Authentication required for user settings update',
+            );
+          }
         } else if (scope === 'project') {
           idForScope = projectId;
         } else if (scope === 'shot') {
@@ -400,7 +431,7 @@ export function useToolSettings<T>(
           id: idForScope,
           toolId,
           patch: newSettings,
-      }, signal);
+      });
 
       return fullMergedSettings;
     },
@@ -425,28 +456,10 @@ export function useToolSettings<T>(
     // Use refs to get current values without causing callback recreation
     const entityId = scope === 'project' ? projectIdRef.current : (scope === 'shot' ? shotIdRef.current : undefined);
 
-    // Create an AbortController for this update and track it
-    const controller = new AbortController();
-    updateControllersRef.current.add(controller);
-
-    // Clean up controller when mutation completes
-    const cleanup = () => {
-      updateControllersRef.current.delete(controller);
-    };
-
-    // Set up cleanup handlers
-    controller.signal.addEventListener('abort', cleanup);
-
-    try {
-      // NOTE: No debounce here - callers (like useShotSettings) are responsible for debouncing.
-      // Using mutateAsync so callers can await the actual DB write completion.
-      // Use ref to access stable mutateAsync without recreating this callback
-      await mutateAsyncRef.current(
-        { scope, settings, signal: controller.signal, entityId }
-      );
-    } finally {
-      cleanup();
-    }
+    // NOTE: No debounce here - callers (like useShotSettings) are responsible for debouncing.
+    // Using mutateAsync so callers can await the actual DB write completion.
+    // Use ref to access stable mutateAsync without recreating this callback.
+    await mutateAsyncRef.current({ scope, settings, entityId });
   }, []); // Empty deps - all values accessed via refs for stability
 
   return useMemo(() => ({

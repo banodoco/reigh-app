@@ -1,3 +1,5 @@
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+
 export type TaskParamPath = readonly string[];
 
 export const TASK_PARAM_CONTRACT_PATHS = {
@@ -85,8 +87,11 @@ export function extractTaskParamString(
   paths: readonly TaskParamPath[],
 ): string | null {
   const value = extractTaskParamValue(params, paths);
-  if (value === undefined || value === null) return null;
-  return String(value);
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
 }
 
 export function extractTaskParamBoolean(
@@ -94,11 +99,17 @@ export function extractTaskParamBoolean(
   paths: readonly TaskParamPath[],
 ): boolean | null {
   const value = extractTaskParamValue(params, paths);
+  return parseTaskParamBoolean(value);
+}
+
+function parseTaskParamBoolean(value: unknown): boolean | null {
   if (typeof value === 'boolean') {
     return value;
   }
   if (typeof value === 'number') {
-    return value === 1;
+    if (value === 1) return true;
+    if (value === 0) return false;
+    return null;
   }
   if (typeof value === 'string') {
     const normalized = value.trim().toLowerCase();
@@ -106,6 +117,22 @@ export function extractTaskParamBoolean(
     if (normalized === 'false' || normalized === '0') return false;
   }
   return null;
+}
+
+function summarizeTaskParamValue(value: unknown): string | number | boolean | null {
+  if (value === null) {
+    return null;
+  }
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return '[array]';
+  }
+  if (typeof value === 'object') {
+    return '[object]';
+  }
+  return String(value);
 }
 
 export function extractOrchestratorTaskIdParam(params: unknown): string | null {
@@ -125,5 +152,22 @@ export function extractShotIdParam(params: unknown): string | null {
 }
 
 export function extractAddInPositionParam(params: unknown): boolean {
-  return extractTaskParamBoolean(params, TASK_PARAM_CONTRACT_PATHS.addInPosition) ?? false;
+  const rawValue = extractTaskParamValue(params, TASK_PARAM_CONTRACT_PATHS.addInPosition);
+  const parsed = parseTaskParamBoolean(rawValue);
+  if (parsed !== null) {
+    return parsed;
+  }
+
+  if (rawValue !== undefined && rawValue !== null) {
+    normalizeAndPresentError(new Error('Invalid add_in_position param encoding'), {
+      context: 'TaskParamContract.addInPosition.invalid',
+      showToast: false,
+      logData: {
+        rawType: typeof rawValue,
+        rawValue: summarizeTaskParamValue(rawValue),
+      },
+    });
+  }
+
+  return false;
 }

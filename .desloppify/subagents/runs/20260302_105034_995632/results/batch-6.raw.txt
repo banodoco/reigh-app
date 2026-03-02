@@ -1,0 +1,106 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 6,
+  "assessments": {
+    "high_level_elegance": 76.0,
+    "test_strategy": 68.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "Supabase deprecation governance is enforced via static allowlist size (`src/integrations/supabase/__tests__/legacySupabaseFacade.contract.test.ts`) instead of current source imports, while current production imports from `@/integrations/supabase/client` are 151 and allowlist count is 128.",
+        "Allowlist data quality is already degraded (`src/integrations/supabase/legacy/legacySupabaseAllowlist.json` contains malformed path `src/shared/hoo../../compat/hooks/useExternalApiKeys.ts`), but governance test still passes because it checks only count.",
+        "`src/domains/generation/types/index.ts` documents a canonical public type surface, but production code still imports deep internal type modules (e.g. `generationViewRow`, `generationParams`, `shotViewRow`), so compatibility boundary is not actually enforced."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "test_strategy": {
+      "evidence": [
+        "Multiple tests are assertion-light placeholders (e.g. `src/shared/components/TaskDetails/__tests__/VideoTravelDetails.test.tsx` and `src/shared/components/MediaLightbox/hooks/__tests__/useMakeMainVariant.test.ts`) that only check symbol existence and `expect(true).not.toBe(false)`.",
+        "Many tests mock `@/integrations/supabase/client` with a non-canonical `supabase` export, despite runtime contract tests asserting canonical facade should not expose `supabase` (`src/integrations/supabase/__tests__/clientContracts.test.ts`), creating implementation-detached coverage.",
+        "Governance contract test for legacy Supabase migration validates allowlist cardinality rather than real import graph, so quality gate can pass with stale/invalid data and without reflecting runtime reality."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "legacy_supabase_governance_uses_stale_allowlist",
+      "summary": "Legacy Supabase migration gate checks a stale allowlist count, not real import usage.",
+      "related_files": [
+        "src/integrations/supabase/__tests__/legacySupabaseFacade.contract.test.ts",
+        "src/integrations/supabase/legacy/legacySupabaseAllowlist.json",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "Governance test computes `importerCount` from `legacySupabaseAllowlist.json` and compares to budget; it does not scan source imports.",
+        "Current production import count for `@/integrations/supabase/client` is 151, while allowlist has 128 entries.",
+        "Allowlist includes malformed entry (`src/shared/hoo../../compat/hooks/useExternalApiKeys.ts`), proving drift can exist without failing governance checks."
+      ],
+      "suggestion": "Replace allowlist-count enforcement with a real source scan (same pattern used by `runtimeErrorAliasGovernance.contract.test.ts`), then keep allowlist optional as migration metadata only. Fail CI when scanned importer count exceeds budget or when allowlist contains non-existent paths.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "governance_gate_not_bound_to_runtime"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "generation_types_public_surface_not_enforced",
+      "summary": "Generation type barrel is documented as canonical but deep type imports bypass it.",
+      "related_files": [
+        "src/domains/generation/types/index.ts",
+        "src/tools/travel-between-images/components/Timeline/hooks/useTimelineDomainService.ts",
+        "src/shared/hooks/media/useEditToolMediaPersistence.ts"
+      ],
+      "evidence": [
+        "`index.ts` states imports should point to this public surface for compatibility.",
+        "Production modules import internals directly (`@/domains/generation/types/generationViewRow`, `.../generationParams`, `.../shotViewRow`) instead of barrel.",
+        "No contract test was found that enforces barrel-only imports for generation types."
+      ],
+      "suggestion": "Add an import-governance contract test (or lint rule) that forbids deep imports under `@/domains/generation/types/*` outside the types package, then migrate current deep-import callers to `@/domains/generation/types`.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "governance_gate_not_bound_to_runtime"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "placeholder_tests_and_legacy_mock_shape_reduce_signal",
+      "summary": "Many tests are shallow and mock deprecated Supabase shape, weakening change-detection quality.",
+      "related_files": [
+        "src/shared/components/TaskDetails/__tests__/VideoTravelDetails.test.tsx",
+        "src/shared/components/MediaLightbox/hooks/__tests__/useMakeMainVariant.test.ts",
+        "src/integrations/supabase/__tests__/clientContracts.test.ts",
+        "src/shared/lib/__tests__/imageUploader.test.ts"
+      ],
+      "evidence": [
+        "Representative tests assert only symbol presence and tautologies (`expect(true).not.toBe(false)`), giving near-zero behavioral coverage.",
+        "Several tests mock `@/integrations/supabase/client` with `{ supabase: ... }` even though contract test expects no `supabase` export from canonical client facade.",
+        "This mismatch means tests can pass while real runtime integration contracts drift, because mocks preserve old APIs independent of production module shape."
+      ],
+      "suggestion": "Replace placeholder assertions with behavior-level checks and standardize a canonical Supabase client test helper that mocks `getSupabaseClient`/`getSupabaseClientResult` only; add a lint/check to reject `vi.mock('@/integrations/supabase/client', () => ({ supabase: ... }))` patterns.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "tests_detached_from_contracts"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Governance checks rely on static artifacts (allowlists/comments) rather than continuously-derived runtime import graphs.",
+      "Test suite contains a substantial low-signal layer (existence/tautology tests) that masks contract drift.",
+      "Compatibility boundaries are documented but not mechanically enforced."
+    ],
+    "likely_symptoms": [
+      "legacy_supabase_governance_uses_stale_allowlist",
+      "generation_types_public_surface_not_enforced",
+      "placeholder_tests_and_legacy_mock_shape_reduce_signal"
+    ],
+    "possible_false_positives": []
+  }
+}

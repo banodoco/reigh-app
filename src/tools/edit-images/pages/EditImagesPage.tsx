@@ -2,7 +2,8 @@ import React, {
   useMemo,
   useCallback
 } from 'react';
-import { useFileDragTracking, preventDefaultDragOver, createSingleFileDropHandler } from '@/shared/hooks/useFileDragTracking';
+import { useFileDragTracking } from '@/shared/hooks/useFileDragTracking';
+import { preventDefaultDragOver, createSingleFileDropHandler } from '@/shared/lib/dnd/dragDropUpload';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { Button } from '@/shared/components/ui/button';
 import {

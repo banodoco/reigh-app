@@ -59,6 +59,7 @@ export function useClipManager({
   const [draggingOverClipId, setDraggingOverClipId] = useState<string | null>(null);
   const [isScrolling, setIsScrolling] = useState(false);
   const [isLoadingPersistedMedia, setIsLoadingPersistedMedia] = useState(false);
+  const [initialHydrationComplete, setInitialHydrationComplete] = useState(false);
   const [cachedClipsCount, setCachedClipsCountState] = useState(() =>
     getCachedClipsCount(selectedProjectId),
   );
@@ -66,6 +67,9 @@ export function useClipManager({
   // Refs
   const hasLoadedFromSettings = useRef(false);
   const loadedForProjectRef = useRef<string | null>(null);
+  const activeProjectIdRef = useRef<string | null>(selectedProjectId);
+  const hydrationRequestVersionRef = useRef(0);
+  const pendingConsumeVersionRef = useRef(0);
   const preloadedPostersRef = useRef<Set<string>>(new Set());
   const fileInputRefs = useRef<{ [clipId: string]: HTMLInputElement | null }>({});
   const videoRefs = useRef<{ [clipId: string]: HTMLVideoElement | null }>({});
@@ -74,11 +78,16 @@ export function useClipManager({
   // Reset loading state when project changes
   // ---------------------------------------------------------------------------
   useEffect(() => {
+    activeProjectIdRef.current = selectedProjectId;
     if (selectedProjectId && selectedProjectId !== loadedForProjectRef.current) {
+      hydrationRequestVersionRef.current += 1;
+      pendingConsumeVersionRef.current += 1;
       hasLoadedFromSettings.current = false;
       loadedForProjectRef.current = selectedProjectId;
+      setInitialHydrationComplete(false);
       setClips([]);
       setTransitionPrompts([]);
+      setIsLoadingPersistedMedia(false);
       preloadedPostersRef.current.clear();
       setCachedClipsCountState(getCachedClipsCount(selectedProjectId));
     }
@@ -88,9 +97,25 @@ export function useClipManager({
   // Check for pending join clips from lightbox "Add to Join" button
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    if (!settingsLoaded) return;
+    if (!settingsLoaded || !selectedProjectId || !initialHydrationComplete) return;
 
-    consumePendingJoinClips().then(result => {
+    const projectIdAtRequestStart = selectedProjectId;
+    const requestVersion = pendingConsumeVersionRef.current + 1;
+    pendingConsumeVersionRef.current = requestVersion;
+    let cancelled = false;
+
+    void consumePendingJoinClips({ projectId: projectIdAtRequestStart }).then(result => {
+      if (cancelled) {
+        return;
+      }
+      const isCurrentRequest = (
+        pendingConsumeVersionRef.current === requestVersion
+        && activeProjectIdRef.current === projectIdAtRequestStart
+      );
+      if (!isCurrentRequest) {
+        return;
+      }
+
       if (!result.ok) {
         normalizeAndPresentError(toOperationResultError(result), {
           context: 'JoinClipsPage.pendingClipsConsume',
@@ -103,7 +128,11 @@ export function useClipManager({
         setClips(prev => applyPendingClipActions(prev, actions));
       }
     });
-  }, [settingsLoaded]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [settingsLoaded, selectedProjectId, initialHydrationComplete]);
 
   // ---------------------------------------------------------------------------
   // Initialize clips from settings or create 2 empty slots
@@ -111,7 +140,15 @@ export function useClipManager({
   useEffect(() => {
     if (!selectedProjectId || !settingsLoaded || hasLoadedFromSettings.current) return;
 
+    const projectIdAtHydrationStart = selectedProjectId;
+    const requestVersion = hydrationRequestVersionRef.current + 1;
+    hydrationRequestVersionRef.current = requestVersion;
     hasLoadedFromSettings.current = true;
+    setInitialHydrationComplete(false);
+    const isCurrentHydrationRequest = () => (
+      hydrationRequestVersionRef.current === requestVersion
+      && activeProjectIdRef.current === projectIdAtHydrationStart
+    );
 
     const {
       clips: initialClips,
@@ -128,15 +165,27 @@ export function useClipManager({
 
       if (posterUrlsToPreload.length > 0) {
         setIsLoadingPersistedMedia(true);
-        preloadPosterImages(posterUrlsToPreload, preloadedPostersRef.current).then(() => {
+        void preloadPosterImages(posterUrlsToPreload, preloadedPostersRef.current).then(() => {
+          if (!isCurrentHydrationRequest()) {
+            return;
+          }
           setClips(clipsToSet);
           setIsLoadingPersistedMedia(false);
+          setInitialHydrationComplete(true);
         });
       } else {
+        if (!isCurrentHydrationRequest()) {
+          return;
+        }
         setClips(clipsToSet);
+        setInitialHydrationComplete(true);
       }
     } else {
+      if (!isCurrentHydrationRequest()) {
+        return;
+      }
       setClips([createEmptyClip(), createEmptyClip()]);
+      setInitialHydrationComplete(true);
     }
   }, [selectedProjectId, joinSettings.settings, settingsLoaded]);
 
@@ -144,7 +193,7 @@ export function useClipManager({
   // Persist clips to settings whenever they change
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    if (!settingsLoaded) return;
+    if (!settingsLoaded || !initialHydrationComplete) return;
 
     const clipsToSave = buildClipsToSave(clips);
     setCachedClipsCount(selectedProjectId, clipsToSave.length);
@@ -162,7 +211,7 @@ export function useClipManager({
         transitionPrompts: promptsToSave,
       });
     }
-  }, [clips, transitionPrompts, settingsLoaded, joinSettings, selectedProjectId]);
+  }, [clips, transitionPrompts, settingsLoaded, joinSettings, selectedProjectId, initialHydrationComplete]);
 
   // ---------------------------------------------------------------------------
   // Lazy-load duration for clips that have URLs but no duration
@@ -229,28 +278,49 @@ export function useClipManager({
   // Prevent autoplay on mobile
   // ---------------------------------------------------------------------------
   useEffect(() => {
+    const cleanups: Array<() => void> = [];
+
     clips.forEach(clip => {
       const video = videoRefs.current[clip.id];
       if (video) {
         const preventPlay = () => video.pause();
         video.addEventListener('play', preventPlay);
         video.pause();
-        return () => video.removeEventListener('play', preventPlay);
+        cleanups.push(() => {
+          video.removeEventListener('play', preventPlay);
+        });
       }
     });
+
+    return () => {
+      cleanups.forEach(cleanup => cleanup());
+    };
   }, [clips]);
 
   // ---------------------------------------------------------------------------
   // Track scroll state
   // ---------------------------------------------------------------------------
   useEffect(() => {
+    let scrollTimer: ReturnType<typeof setTimeout> | null = null;
+
     const handleScroll = () => {
       setIsScrolling(true);
-      const timer = setTimeout(() => setIsScrolling(false), 200);
-      return () => clearTimeout(timer);
+      if (scrollTimer) {
+        clearTimeout(scrollTimer);
+      }
+      scrollTimer = setTimeout(() => {
+        setIsScrolling(false);
+        scrollTimer = null;
+      }, 200);
     };
+
     window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (scrollTimer) {
+        clearTimeout(scrollTimer);
+      }
+    };
   }, []);
 
   // ---------------------------------------------------------------------------
@@ -271,7 +341,7 @@ export function useClipManager({
 
     setUploadingClipId(clipId);
     try {
-      const result = await uploadClipVideo(file, selectedProjectId || '', clipId);
+      const result = await uploadClipVideo(file);
 
       // Create a generation record so the video appears in the gallery
       if (selectedProjectId) {

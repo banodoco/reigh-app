@@ -168,6 +168,6 @@ describe('createImageUpscaleTask', () => {
         project_id: 'proj-1',
         image_url: 'https://example.com/image.jpg',
       })
-    ).rejects.toThrow('Network failure');
+    ).rejects.toThrow('Network request failed');
   });
 });

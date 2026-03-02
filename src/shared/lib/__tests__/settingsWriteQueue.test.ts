@@ -99,6 +99,45 @@ describe('settingsWriteQueue', () => {
       expect(mockWriteFn).toHaveBeenCalledTimes(1);
     });
 
+    it('forwards AbortSignal to the write function', async () => {
+      const controller = new AbortController();
+      const write: QueuedWrite = {
+        scope: 'user',
+        entityId: 'user-1',
+        toolId: 'tool-1',
+        patch: { x: 1 },
+        signal: controller.signal,
+      };
+
+      const promise = enqueueSettingsWrite(write, 'immediate');
+      await vi.advanceTimersByTimeAsync(0);
+      await promise;
+
+      expect(mockWriteFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          signal: controller.signal,
+        }),
+      );
+    });
+
+    it('rejects immediately when enqueueing an already-aborted write', async () => {
+      const controller = new AbortController();
+      controller.abort();
+
+      const write: QueuedWrite = {
+        scope: 'user',
+        entityId: 'user-1',
+        toolId: 'tool-1',
+        patch: { x: 1 },
+        signal: controller.signal,
+      };
+
+      const result = await enqueueSettingsWrite(write, 'immediate').catch(e => e as Error);
+
+      expect(result.name).toBe('AbortError');
+      expect(mockWriteFn).not.toHaveBeenCalled();
+    });
+
     it('merges patches for same target within debounce window', async () => {
       const write1: QueuedWrite = {
         scope: 'user',

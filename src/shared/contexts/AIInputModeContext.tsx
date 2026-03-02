@@ -1,5 +1,6 @@
 import * as React from "react"
 import { useUserUIState } from "@/shared/hooks/useUserUIState"
+import { requireContextValue } from './contextGuard';
 
 export type AIInputMode = "voice" | "text"
 
@@ -33,12 +34,9 @@ export function AIInputModeProvider({ children }: { children: React.ReactNode })
 }
 
 export function useAIInputMode() {
-  const context = React.useContext(AIInputModeContext)
-  if (!context) {
-    throw new Error(
-      'useAIInputMode must be used within an AIInputModeProvider. ' +
-      'Make sure the component is rendered inside the AIInputModeProvider tree.'
-    )
-  }
-  return context
+  return requireContextValue(
+    React.useContext(AIInputModeContext),
+    'useAIInputMode',
+    'AIInputModeProvider',
+  );
 }

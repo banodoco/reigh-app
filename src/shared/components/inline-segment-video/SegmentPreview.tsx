@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, ImageOff, Loader2, Play, Trash2 } from 'lucide-react';
+import { AlertTriangle, Check, ImageOff, Loader2, Play, Trash2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { VariantBadge } from '@/shared/components/VariantBadge';
 import { getDisplayUrl } from '@/shared/lib/mediaUrl';
@@ -40,6 +40,7 @@ export const SegmentPreview: React.FC<SegmentPreviewProps> = ({
   const { layout, compact, isMobile, roundedClass, flowContainerClasses, adjustedPositionStyle } = layoutProps;
 
   const [isHovering, setIsHovering] = useState(false);
+  const [deleteConfirmPending, setDeleteConfirmPending] = useState(false);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
   const [imageError, setImageError] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -116,6 +117,7 @@ export const SegmentPreview: React.FC<SegmentPreviewProps> = ({
     }
 
     setIsHovering(false);
+    setDeleteConfirmPending(false);
     setCurrentTime(0);
     scrubbingContainerProps?.onMouseLeave?.();
 
@@ -214,20 +216,32 @@ export const SegmentPreview: React.FC<SegmentPreviewProps> = ({
           <button
             className={cn(
               'absolute top-1 right-1 z-20 w-6 h-6 rounded-md flex items-center justify-center',
-              'bg-destructive/90 hover:bg-destructive text-destructive-foreground',
-              'transition-opacity duration-150',
+              'transition-all duration-150',
               isDeleting ? 'opacity-100' : isHovering ? 'opacity-100' : 'opacity-0',
+              deleteConfirmPending
+                ? 'bg-amber-500/90 hover:bg-amber-600 text-white'
+                : 'bg-destructive/90 hover:bg-destructive text-destructive-foreground',
             )}
             onClick={(e) => {
               e.stopPropagation();
-              if (!isDeleting) {
+              if (isDeleting) return;
+              if (deleteConfirmPending) {
                 onDelete(child.id);
+                setDeleteConfirmPending(false);
+              } else {
+                setDeleteConfirmPending(true);
               }
             }}
             disabled={isDeleting}
-            title="Delete segment"
+            title={deleteConfirmPending ? 'Click again to confirm' : 'Delete segment'}
           >
-            {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+            {isDeleting ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : deleteConfirmPending ? (
+              <Check className="w-3.5 h-3.5" />
+            ) : (
+              <Trash2 className="w-3.5 h-3.5" />
+            )}
           </button>
         )}
 

@@ -22,7 +22,7 @@ vi.mock('@/shared/hooks/useToolSettings', () => ({
   })),
 }));
 
-import { useEditToolMediaPersistence } from '../useEditToolMediaPersistence';
+import { useEditToolMediaPersistence } from '@/shared/hooks/media/useEditToolMediaPersistence';
 
 describe('useEditToolMediaPersistence', () => {
   beforeEach(() => {

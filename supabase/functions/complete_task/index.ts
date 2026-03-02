@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
 import { jsonResponse } from "../_shared/http.ts";
+import { edgeErrorResponse } from "../_shared/edgeRequest.ts";
 import {
   checkRateLimit,
   isRateLimitExceededFailure,
@@ -23,6 +24,26 @@ import { triggerCostCalculationIfNotSubTask } from './billing.ts';
 // Provide a loose Deno type for local tooling
 declare const Deno: { env: { get: (key: string) => string | undefined } };
 
+/**
+ * Best-effort mark a task as Failed so the UI can update immediately.
+ * Swallows errors — callers still return their own HTTP error response.
+ */
+async function markTaskFailed(
+  supabase: SupabaseClient,
+  taskId: string,
+  errorMessage: string,
+): Promise<void> {
+  try {
+    await supabase.from("tasks").update({
+      status: "Failed",
+      error_message: errorMessage,
+      updated_at: new Date().toISOString(),
+    }).eq("id", taskId).in("status", ["Queued", "In Progress"]);
+  } catch {
+    // Best-effort — don't mask the original error
+  }
+}
+
 interface TaskContext {
   id: string;
   task_type: string;
@@ -32,6 +53,32 @@ interface TaskContext {
   category: string;
   content_type: 'image' | 'video';
   variant_type: string | null;
+}
+
+function defaultErrorCode(status: number): string {
+  if (status === 401) return 'authentication_failed';
+  if (status === 403) return 'forbidden';
+  if (status === 404) return 'not_found';
+  if (status === 405) return 'method_not_allowed';
+  if (status === 429) return 'rate_limited';
+  if (status === 503) return 'service_unavailable';
+  if (status >= 500) return 'internal_server_error';
+  return 'request_failed';
+}
+
+function completeTaskErrorResponse(
+  message: string,
+  status: number,
+  errorCode = defaultErrorCode(status),
+): Response {
+  return edgeErrorResponse(
+    {
+      errorCode,
+      message,
+      recoverable: status >= 500 || status === 429,
+    },
+    status,
+  );
 }
 
 /**
@@ -118,6 +165,11 @@ export async function completeTaskHandler(req: Request): Promise<Response> {
   }
 
   const { supabaseAdmin, logger, auth } = bootstrap.value;
+  if (!auth || (!auth.userId && !auth.isServiceRole)) {
+    logger.error("Authentication failed");
+    await logger.flush();
+    return completeTaskErrorResponse("Authentication failed", 401);
+  }
 
   // 1) Parse and validate request
   const parseResult = await parseCompleteTaskRequest(req);
@@ -148,7 +200,11 @@ export async function completeTaskHandler(req: Request): Promise<Response> {
     if (!securityResult.allowed) {
       logger.error("Storage path security check failed", { error: securityResult.error });
       await logger.flush();
-      return jsonResponse({ error: securityResult.error || "Access denied" }, 403);
+      return completeTaskErrorResponse(
+        securityResult.error || "Access denied",
+        403,
+        'storage_path_access_denied',
+      );
     }
   }
 
@@ -178,7 +234,11 @@ export async function completeTaskHandler(req: Request): Promise<Response> {
         message: rateLimitResult.message,
       });
       await logger.flush();
-      return jsonResponse({ error: "Rate limit service unavailable" }, 503);
+      return completeTaskErrorResponse(
+        "Rate limit service unavailable",
+        503,
+        'rate_limit_service_unavailable',
+      );
     }
 
     if (rateLimitResult.policy === 'fail_open') {
@@ -205,7 +265,11 @@ export async function completeTaskHandler(req: Request): Promise<Response> {
         status_code: taskActor.statusCode,
       });
       await logger.flush();
-      return jsonResponse({ error: taskActor.error }, taskActor.statusCode);
+      return completeTaskErrorResponse(
+        taskActor.error,
+        taskActor.statusCode,
+        'task_actor_resolution_failed',
+      );
     }
 
     const completionAuthContext = {
@@ -222,7 +286,11 @@ export async function completeTaskHandler(req: Request): Promise<Response> {
       if (!isMode3Format) {
         const fileCheck = await getStoragePublicUrl(supabaseAdmin, parsedRequest.storagePath);
         if (!fileCheck.exists) {
-          return jsonResponse({ error: "Referenced file does not exist or is not accessible in storage" }, 404);
+          return completeTaskErrorResponse(
+            "Referenced file does not exist or is not accessible in storage",
+            404,
+            'storage_reference_not_found',
+          );
         }
       }
     }
@@ -235,7 +303,7 @@ export async function completeTaskHandler(req: Request): Promise<Response> {
     if (!taskContext) {
       logger.error("Failed to fetch task context", { task_id: taskIdString });
       await logger.flush();
-      return jsonResponse({ error: "Task not found" }, 404);
+      return completeTaskErrorResponse("Task not found", 404, 'task_not_found');
     }
 
     // 9) Handle storage operations
@@ -306,9 +374,9 @@ export async function completeTaskHandler(req: Request): Promise<Response> {
       } catch (genErr: unknown) {
         const msg = genErr?.message || String(genErr);
         logger.error("Generation creation failed", { error: msg });
+        await markTaskFailed(supabaseAdmin, taskIdString, `Generation creation failed: ${msg}`);
         await logger.flush();
-        // Preserve atomic semantics: do NOT mark the task Complete if generation creation failed.
-        return jsonResponse({ error: "Internal server error" }, 500);
+        return completeTaskErrorResponse("Internal server error", 500);
       }
     }
 
@@ -320,13 +388,15 @@ export async function completeTaskHandler(req: Request): Promise<Response> {
     }).eq("id", taskIdString).eq("status", "In Progress");
 
     if (dbError) {
+      const dbMsg = dbError instanceof Error ? dbError.message : String(dbError);
       logger.error("Database update failed", {
         task_id: taskIdString,
-        error: dbError instanceof Error ? dbError.message : String(dbError),
+        error: dbMsg,
       });
+      await markTaskFailed(supabaseAdmin, taskIdString, `Task completion DB update failed: ${dbMsg}`);
       await logger.flush();
       await cleanupFile(supabaseAdmin, objectPath);
-      return jsonResponse({ error: "Internal server error" }, 500);
+      return completeTaskErrorResponse("Internal server error", 500);
     }
 
     // 13) Check orchestrator completion (for segment tasks) - uses task context
@@ -384,13 +454,15 @@ export async function completeTaskHandler(req: Request): Promise<Response> {
     return jsonResponse(responseData, 200);
 
   } catch (error: unknown) {
+    const errMsg = error?.message || String(error);
     logger.critical("Unexpected error", {
       task_id: taskIdString,
-      error: error?.message,
+      error: errMsg,
       stack: error?.stack?.substring(0, 500)
     });
+    await markTaskFailed(supabaseAdmin, taskIdString, `Task completion failed: ${errMsg}`);
     await logger.flush();
-    return jsonResponse({ error: "Internal server error" }, 500);
+    return completeTaskErrorResponse("Internal server error", 500);
   }
 }
 

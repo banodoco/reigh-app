@@ -37,8 +37,8 @@ interface GuidanceVideoControlsProps {
 
 /** Controls for uploading/browsing guidance videos */
 export const GuidanceVideoControls = React.memo<GuidanceVideoControlsProps>(function GuidanceVideoControls({
-  shotId,
-  projectId,
+  shotId: _shotId,
+  projectId: _projectId,
   readOnly = false,
   hasNoImages = false,
   primaryStructureVideoType,
@@ -65,7 +65,7 @@ export const GuidanceVideoControls = React.memo<GuidanceVideoControlsProps>(func
     setIsUploadingStructureVideo(true);
     try {
       const metadata = await extractVideoMetadata(file);
-      const videoUrl = await uploadVideoToStorage(file, projectId!, shotId);
+      const videoUrl = await uploadVideoToStorage(file);
 
       // Create resource for reuse
       const { data: { user } } = await supabase().auth.getUser();

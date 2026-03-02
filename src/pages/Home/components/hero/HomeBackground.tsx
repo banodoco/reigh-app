@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import { ConstellationCanvas } from '@/shared/components/ConstellationCanvas';
+import { ConstellationCanvas } from './ConstellationCanvas';
 
 interface HomeBackgroundProps {
   isMobile: boolean;

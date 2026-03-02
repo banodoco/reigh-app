@@ -16,6 +16,7 @@
 
 import { QueryClient } from '@tanstack/react-query';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { joinPromptParts } from '@/shared/lib/promptAssembly';
 import { buildTaskParams, type SegmentSettings } from '@/shared/components/segmentSettingsUtils';
 import { createIndividualTravelSegmentTask } from '@/shared/lib/tasks/individualTravelSegment';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
@@ -105,7 +106,7 @@ interface SubmitSegmentTaskInput {
   /** Get effective settings from the form hook */
   getSettings: () => EffectiveSettings;
   /** Save persisted settings before task creation */
-  saveSettings: () => Promise<boolean | void>;
+  saveSettings: () => Promise<boolean>;
   /** Whether to save settings (requires pairShotGenerationId) */
   shouldSaveSettings: boolean;
   /** Current enhance prompt ref value */
@@ -132,7 +133,7 @@ type BuildTaskParams = (prompt: string, enhancedPromptParam?: string) => Individ
 interface SubmitSegmentRuntime {
   errorContext: string;
   shouldSaveSettings: boolean;
-  saveSettings: () => Promise<boolean | void>;
+  saveSettings: () => Promise<boolean>;
   effectiveSettings: EffectiveSettings;
   task: SegmentTaskContext;
   queryClient: QueryClient;
@@ -170,9 +171,10 @@ function buildSubmitParamsBuilder(
 }
 
 function applyPromptAffixes(settings: EffectiveSettings, prompt: string): string {
-  const beforeText = settings.textBeforePrompts?.trim() || '';
-  const afterText = settings.textAfterPrompts?.trim() || '';
-  return [beforeText, prompt.trim(), afterText].filter(Boolean).join(' ');
+  return joinPromptParts(
+    [settings.textBeforePrompts, prompt, settings.textAfterPrompts],
+    'segment_space',
+  );
 }
 
 async function createTaskOrThrow(taskParams: ReturnType<BuildTaskParams>): Promise<string> {
@@ -226,7 +228,10 @@ async function saveEnhancedPromptMetadata(
 
 async function maybeSaveSettings(runtime: SubmitSegmentRuntime): Promise<void> {
   if (runtime.shouldSaveSettings) {
-    await runtime.saveSettings();
+    const didSave = await runtime.saveSettings();
+    if (!didSave) {
+      throw new Error('Failed to save segment settings before task submission');
+    }
   }
 }
 

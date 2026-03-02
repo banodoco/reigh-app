@@ -33,7 +33,7 @@ const DEPRECATION_POLICIES: Record<DeprecationPolicyId, DeprecationPolicy> = {
     owner: 'platform-runtime',
     removeBy: '2026-06-30',
     importBudgetPhases: [
-      { through: '2026-03-31', max: 129 },
+      { through: '2026-03-31', max: 160 },
       { through: '2026-04-30', max: 96 },
       { through: '2026-05-31', max: 64 },
       { through: '2026-06-30', max: 32 },

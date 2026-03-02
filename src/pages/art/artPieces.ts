@@ -1,3 +1,11 @@
+export type ArtPieceTone =
+  | 'vintageGold'
+  | 'coral'
+  | 'sage'
+  | 'lavender'
+  | 'pink'
+  | 'mustard';
+
 interface ArtPiece {
   id: number;
   title: string;
@@ -6,7 +14,7 @@ interface ArtPiece {
   date: string;
   views: number;
   likes: number;
-  color: string;
+  color: ArtPieceTone;
 }
 
 export const artPieces: ArtPiece[] = [
@@ -18,7 +26,7 @@ export const artPieces: ArtPiece[] = [
     date: '2024-01-15',
     views: 1240,
     likes: 89,
-    color: 'wes-vintage-gold'
+    color: 'vintageGold'
   },
   {
     id: 2,
@@ -28,7 +36,7 @@ export const artPieces: ArtPiece[] = [
     date: '2024-01-12',
     views: 892,
     likes: 156,
-    color: 'wes-coral'
+    color: 'coral'
   },
   {
     id: 3,
@@ -38,7 +46,7 @@ export const artPieces: ArtPiece[] = [
     date: '2024-01-10',
     views: 2103,
     likes: 234,
-    color: 'wes-sage'
+    color: 'sage'
   },
   {
     id: 4,
@@ -48,7 +56,7 @@ export const artPieces: ArtPiece[] = [
     date: '2024-01-08',
     views: 756,
     likes: 67,
-    color: 'wes-lavender'
+    color: 'lavender'
   },
   {
     id: 5,
@@ -58,7 +66,7 @@ export const artPieces: ArtPiece[] = [
     date: '2024-01-05',
     views: 1543,
     likes: 198,
-    color: 'wes-pink'
+    color: 'pink'
   },
   {
     id: 6,
@@ -68,6 +76,6 @@ export const artPieces: ArtPiece[] = [
     date: '2024-01-03',
     views: 987,
     likes: 123,
-    color: 'wes-mustard'
+    color: 'mustard'
   }
 ];

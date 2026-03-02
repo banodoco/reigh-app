@@ -28,7 +28,7 @@ export interface MediaLightboxProps {
   onShotChange?: (shotId: string) => void;
   onAddToShot?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
   onAddToShotWithoutPosition?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
-  onDelete?: (id: string) => void;
+  onDelete?: LightboxActionHandlers['onDelete'];
   isDeleting?: string | null;
   onApplySettings?: (metadata: GenerationRow['metadata']) => void;
   showTickForImageId?: string | null;

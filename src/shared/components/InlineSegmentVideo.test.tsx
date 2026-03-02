@@ -84,6 +84,7 @@ describe('InlineSegmentVideo', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole('button', { name: /delete segment/i }));
+    fireEvent.click(screen.getByRole('button', { name: /click again to confirm/i }));
     expect(onDelete).toHaveBeenCalledWith('child-1');
   });
 });

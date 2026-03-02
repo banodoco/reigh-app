@@ -87,10 +87,12 @@ export interface ShotBatchSettings {
   [key: string]: unknown;
 }
 
+export type PhaseConfigRequest = Omit<PhaseConfig, 'mode'>;
+
 // Strip mode field from phase config (backend determines mode from model)
-export function stripModeFromPhaseConfig(config: PhaseConfig): PhaseConfig {
-  const { mode, ...rest } = config as PhaseConfig & { mode?: string };
-  return rest as PhaseConfig;
+export function stripModeFromPhaseConfig(config: PhaseConfig): PhaseConfigRequest {
+  const { mode: _mode, ...rest } = config;
+  return rest;
 }
 
 interface MotionTaskFieldsInput {

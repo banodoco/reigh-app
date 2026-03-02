@@ -155,10 +155,11 @@ describe('buildTravelBetweenImagesPayload', () => {
     expect(payload.num_new_segments_to_generate).toBe(1); // 2 images - 1 = 1 segment
     expect(payload.parsed_resolution_wh).toBe('1280x720');
     expect(payload.generation_source).toBe('batch');
-    expect(payload.model_name).toBe('base_tester_model');
+    expect(payload.model_name).toBe('wan_2_2_i2v_lightning_baseline_2_2_2');
     expect(payload.seed_base).toBe(789);
     expect(payload.use_svi).toBeUndefined();
     expect(payload.independent_segments).toBe(true);
+    expect(payload.main_output_dir_for_run).toBeUndefined();
   });
 
   it('expands single-element arrays to match segment count', () => {

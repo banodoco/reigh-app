@@ -1,4 +1,5 @@
 import type { Shot } from "@/domains/generation/types";
+import type { LightboxDeleteHandler } from '@/shared/components/MediaLightbox/types';
 import type { AddToShotHandler } from '@/shared/types/imageHandlers';
 
 /**
@@ -223,7 +224,7 @@ export const DEFAULT_GALLERY_CONFIG: GalleryConfig = {
 
 export interface MediaGalleryProps {
   images: GeneratedImageWithMetadata[];
-  onDelete?: (id: string) => void;
+  onDelete?: LightboxDeleteHandler;
   isDeleting?: string | boolean | null;
   onApplySettings?: (metadata: DisplayableMetadata | undefined) => void;
   allShots: Shot[];

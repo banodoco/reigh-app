@@ -10,6 +10,7 @@ import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { getAuthStateManager } from '@/integrations/supabase/auth/AuthStateManager';
 import { setCachedUserId } from '@/shared/lib/toolSettingsService';
 import type { Session } from '@supabase/supabase-js';
+import { requireContextValue } from './contextGuard';
 
 interface AuthContextType {
   /** Current authenticated user ID, null if not logged in */
@@ -153,14 +154,5 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
  * @returns { userId, isAuthenticated }
  */
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    const errorMessage = 'useAuth must be used within an AuthProvider. ' +
-      'Make sure the component is rendered inside the AuthProvider tree.';
-    console.error('[AuthContext]', errorMessage, {
-      stack: new Error().stack,
-    });
-    throw new Error(errorMessage);
-  }
-  return context;
+  return requireContextValue(useContext(AuthContext), 'useAuth', 'AuthProvider');
 };

@@ -188,10 +188,6 @@ export async function lookupCompletedSubTasksForOrchestrator(
 
   const legacyTasks = (legacyResult.data ?? []) as CompletedSubTaskRow[];
   if (legacyTasks.length > 0) {
-    console.warn('[Billing] Legacy sub-task reference fallback matched records', {
-      orchestratorTaskId,
-      count: legacyTasks.length,
-    });
     return legacyTasks;
   }
 

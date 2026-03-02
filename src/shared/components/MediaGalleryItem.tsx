@@ -24,7 +24,7 @@ import { useShotPositionChecks } from "./MediaGalleryItem/hooks/useShotPositionC
 import { setGenerationDragData, createDragPreview } from '@/shared/lib/dnd/dragDrop';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import CreateShotModal from "@/shared/components/CreateShotModal";
-import { useProject } from "@/shared/contexts/ProjectContext";
+import { useProjectSelectionContext } from "@/shared/contexts/ProjectContext";
 import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { useShotNavigation } from "@/shared/hooks/useShotNavigation";
 import { useLastAffectedShot } from "@/shared/hooks/useLastAffectedShot";
@@ -135,7 +135,7 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
   const taskIdFromMetadata = image.metadata?.taskId as string | undefined;
   const actualGenerationId = getGenerationId(image);
   const generationIdForActions = actualGenerationId || image.id;
-  const { selectedProjectId } = useProject();
+  const { selectedProjectId } = useProjectSelectionContext();
   const { data: taskIdMapping } = useTaskFromUnifiedCache(actualGenerationId ?? '');
   const taskIdFromCache = typeof taskIdMapping?.taskId === 'string' ? taskIdMapping.taskId : null;
   const taskId: string | null = taskIdFromMetadata || taskIdFromCache;

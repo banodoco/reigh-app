@@ -14,6 +14,8 @@ import { mapDbTaskToTask } from './useTasks';
 import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 import { getProjectSelectionFallbackId } from '@/shared/contexts/projectSelectionStore';
 import { isUuid } from '@/shared/lib/uuid';
+import { parseGenerationTaskId } from '@/shared/lib/generationTaskIdParser';
+import type { GenerationTaskMappingCacheEntry } from '@/shared/lib/generationTaskRepository';
 
 function resolveProjectScope(projectId?: string | null): string | null {
   if (projectId && projectId.trim().length > 0) {
@@ -35,11 +37,11 @@ function resolveProjectScope(projectId?: string | null): string | null {
  */
 export function useTaskFromUnifiedCache(generationId: string) {
   const hasPersistedGenerationId = isUuid(generationId);
-  const result = useQuery<{ taskId: string | null }>({
+  const result = useQuery<GenerationTaskMappingCacheEntry>({
     queryKey: taskQueryKeys.generationTaskId(generationId),
-    queryFn: async (): Promise<{ taskId: string | null }> => {
+    queryFn: async (): Promise<GenerationTaskMappingCacheEntry> => {
       if (!hasPersistedGenerationId) {
-        return { taskId: null };
+        return { taskId: null, status: 'not_loaded' };
       }
       // Fetch task ID from generations table
       // Note: React Query won't call this if data is cached (staleTime: Infinity)
@@ -49,17 +51,23 @@ export function useTaskFromUnifiedCache(generationId: string) {
         .maybeSingle();
 
       if (error) {
-        throw error;
+        return {
+          taskId: null,
+          status: 'query_failed',
+          queryError: error.message,
+        };
       }
 
       // Return null taskId if generation doesn't exist or has no tasks
       if (!data) {
-        return { taskId: null };
+        return { taskId: null, status: 'missing_generation' };
       }
 
-      const firstTaskId = Array.isArray(data.tasks) && data.tasks.length > 0 ? data.tasks[0] : null;
-      const taskId = typeof firstTaskId === 'string' ? firstTaskId : null;
-      return { taskId };
+      const parsed = parseGenerationTaskId(data.tasks);
+      return {
+        taskId: parsed.taskId,
+        status: parsed.status,
+      };
     },
     // Generation→task mapping is immutable - cache aggressively
     staleTime: Infinity,
@@ -87,7 +95,7 @@ export function usePrefetchTaskData() {
 
     // Check if task ID mapping is already cached (including { taskId: null } for no-task generations)
     let taskId: string | null = null;
-    const cachedMapping = queryClient.getQueryData(taskQueryKeys.generationTaskId(generationId)) as { taskId: string | null } | undefined;
+    const cachedMapping = queryClient.getQueryData(taskQueryKeys.generationTaskId(generationId)) as GenerationTaskMappingCacheEntry | undefined;
 
     if (cachedMapping !== undefined) {
       // Already cached - use the cached value (could be null if no task)
@@ -97,18 +105,28 @@ export function usePrefetchTaskData() {
       try {
         const result = await queryClient.fetchQuery({
           queryKey: taskQueryKeys.generationTaskId(generationId),
-          queryFn: async () => {
+          queryFn: async (): Promise<GenerationTaskMappingCacheEntry> => {
             const { data, error } = await supabase().from('generations')
               .select('tasks')
               .eq('id', generationId)
               .maybeSingle();
 
-            if (error) throw error;
-            if (!data) return { taskId: null };
+            if (error) {
+              return {
+                taskId: null,
+                status: 'query_failed',
+                queryError: error.message,
+              };
+            }
+            if (!data) {
+              return { taskId: null, status: 'missing_generation' };
+            }
 
-            const firstTaskId = Array.isArray(data.tasks) && data.tasks.length > 0 ? data.tasks[0] : null;
-            const fetchedTaskId = typeof firstTaskId === 'string' ? firstTaskId : null;
-            return { taskId: fetchedTaskId };
+            const parsed = parseGenerationTaskId(data.tasks);
+            return {
+              taskId: parsed.taskId,
+              status: parsed.status,
+            };
           },
           staleTime: Infinity,
         });

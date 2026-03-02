@@ -1,5 +1,7 @@
-import { createTask, validateRequiredFields, TaskValidationError } from '../taskCreation';
+import { validateRequiredFields, TaskValidationError } from '../taskCreation';
 import type { TaskCreationResult } from '../taskCreation';
+import { runTaskCreationPipeline } from './taskCreatorPipeline';
+import { composeTaskRequest } from './taskRequestComposer';
 
 /**
  * Parameters for creating an image upscale task
@@ -80,16 +82,14 @@ function buildImageUpscaleTaskParams(
  * @returns Promise resolving to the created task
  */
 export async function createImageUpscaleTask(params: ImageUpscaleTaskParams): Promise<TaskCreationResult> {
-  // 1. Validate parameters
-  validateImageUpscaleParams(params);
-
-  // 2. Build task params in the image-upscale format
-  const taskParams = buildImageUpscaleTaskParams(params);
-
-  // 3. Create task using unified create-task function
-  return createTask({
-    project_id: params.project_id,
-    task_type: "image-upscale",
-    params: taskParams,
+  return runTaskCreationPipeline({
+    params,
+    context: 'createImageUpscaleTask',
+    validate: validateImageUpscaleParams,
+    buildTaskRequest: (pipelineParams) => composeTaskRequest({
+      source: pipelineParams,
+      taskType: 'image-upscale',
+      params: buildImageUpscaleTaskParams(pipelineParams),
+    }),
   });
 }

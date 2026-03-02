@@ -44,7 +44,7 @@ describe('get-task-output edge entrypoint', () => {
       }),
     );
 
-    expect(response.status).toBe(400);
-    expect(await response.text()).toContain('task_id is required');
+    expect(response.status).toBe(401);
+    expect(await response.text()).toContain('authentication_failed');
   });
 });

@@ -98,7 +98,7 @@ export interface JoinClipsSettingsFormProps {
   uiState: JoinClipsUIState;
 }
 
-export type JoinClipsSettingsFormResolvedProps =
+type JoinClipsSettingsFormResolvedProps =
   & JoinClipsClipSettings
   & JoinClipsMotionConfig
   & JoinClipsUIState;

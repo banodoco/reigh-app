@@ -16,7 +16,7 @@ import { useShotCreation } from '@/shared/hooks/useShotCreation';
 import { useShots } from '@/shared/contexts/ShotsContext';
 import { LastAffectedShotContext } from '@/shared/contexts/LastAffectedShotContext';
 import { AppRoutes } from '@/app/routes';
-import { useProject } from '@/shared/contexts/ProjectContext';
+import { useProjectSelectionContext } from '@/shared/contexts/ProjectContext';
 import { AppProviders } from '@/app/providers/AppProviders';
 import { useAppDndOverlay } from '@/app/hooks/useAppDndOverlay';
 import { useAppExternalDrop } from '@/app/hooks/useAppExternalDrop';
@@ -24,7 +24,7 @@ import { getNetworkStatusManager } from '@/shared/services/network/networkStatus
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 const AppInternalContent: React.FC = () => {
-  const { selectedProjectId } = useProject();
+  const { selectedProjectId } = useProjectSelectionContext();
   const context = useContext(LastAffectedShotContext);
   if (!context) {
     throw new Error('useLastAffectedShot must be used within a LastAffectedShotProvider');

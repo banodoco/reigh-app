@@ -3,6 +3,8 @@ import type { Task } from '@/types/database';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 
 export type { ShotOption };
+export type LightboxMaybePromise<T> = T | Promise<T>;
+export type LightboxDeleteHandler = (id: string) => LightboxMaybePromise<void>;
 
 // ============================================================================
 // Props Sub-Interfaces (grouped by concern, shared by ImageLightbox & VideoLightbox)
@@ -47,7 +49,7 @@ export interface LightboxFeatureFlags {
 
 /** Action handlers: delete, star, apply settings */
 export interface LightboxActionHandlers {
-  onDelete?: (id: string) => void;
+  onDelete?: LightboxDeleteHandler;
   isDeleting?: string | null;
   onApplySettings?: (metadata: GenerationRow['metadata']) => void;
   onToggleStar?: (id: string, starred: boolean) => void;

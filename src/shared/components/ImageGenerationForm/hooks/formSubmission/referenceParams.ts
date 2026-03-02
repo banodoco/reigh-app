@@ -20,6 +20,7 @@ export function buildReferenceParams(
 
   return {
     style_reference_image: state.styleReferenceImageGeneration ?? undefined,
+    subject_reference_image: state.styleReferenceImageGeneration ?? undefined,
     style_reference_strength: state.styleReferenceStrength,
     subject_strength: state.subjectStrength,
     subject_description: state.effectiveSubjectDescription,

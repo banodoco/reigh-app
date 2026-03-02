@@ -10,7 +10,7 @@ import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7
 /**
  * Helper to safely extract value from array by index
  */
-function _extractFromArray(arr: unknown[], index: number): unknown | undefined {
+export function extractFromArray(arr: unknown[], index: number): unknown | undefined {
   if (Array.isArray(arr) && index >= 0 && index < arr.length) {
     return arr[index];
   }

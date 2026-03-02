@@ -53,7 +53,7 @@ export function useVariantBadges(
     return ['variant-badges', sortedIds.join(',')];
   }, [generationIds]);
 
-  const { data, isLoading, isFetching } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey,
     queryFn: async (): Promise<DerivedCountsResult> => {
       if (generationIds.length === 0) {

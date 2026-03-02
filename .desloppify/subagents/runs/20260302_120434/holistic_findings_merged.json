@@ -1,0 +1,351 @@
+{
+  "assessments": {
+    "api_surface_coherence": 49.9
+  },
+  "dimension_notes": {
+    "api_surface_coherence": {
+      "evidence": [
+        "Confirmed mechanical signal in `src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx`: dead-internal-code pattern exists via `void cacheVersion;` inside `enhancedMedia` memo, indicating API/state synchronization is being forced indirectly instead of through a clear contract.",
+        "Confirmed mechanical signal in `src/shared/components/MediaLightbox/components/StrokeOverlay.tsx`: the public prop surface combines overlapping mode controls (`isInpaintMode`, `isAnnotateMode`, `annotationMode`, and `editMode`) plus many behavioral callbacks, which creates invalid-state combinations and mode ambiguity at call boundaries.",
+        "Refuted mechanical signal for `src/domains/generation/hooks/useGenerationMutations.ts`: current file does not contain public async APIs without awaits; flagged async smell appears stale or non-material for API coherence.",
+        "Refuted mechanical signal for `src/integrations/supabase/bootstrap/createSupabaseClient.ts`: the core exported API is synchronous and coherent for bootstrap; detector hit is likely from an internal async callback shape, not a boundary-level contract defect.",
+        "Refuted signature-variance signals for `handleKeyDown` and `handleTouchStart/End` in `ProjectSelectorPopover` and `ReferenceThumbnail`: these are local component handlers with React/DOM event-type differences, not shared exported APIs.",
+        "Refuted `generateUniqueFilename` variance signal for `src/shared/components/LoraSelectorModal/utils/validation-utils.ts`: that module exports `generateUniqueLoraFilename`; similarly named `generateUniqueFilename` belongs to `src/shared/lib/storagePaths.ts` and is a separate domain utility.",
+        "Systemic coherence issue remains in lightbox and upload subsystems: multiple parallel adapter/flat contracts and legacy positional APIs increase indirection and behavior drift risk."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": ""
+    }
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "settings_api_error_contract_split",
+      "summary": "Tool settings read/write APIs use incompatible error/result contracts within one boundary, creating adapter churn and inconsistent caller behavior.",
+      "confidence": "high",
+      "suggestion": "Standardize settings service APIs to one failure contract (either all `OperationResult` or all throw typed errors). Prefer a single boundary adapter so hooks/prefetch paths do not need per-call conversion logic.",
+      "related_files": [
+        "src/shared/lib/toolSettingsService.ts",
+        "src/shared/hooks/useToolSettings.ts",
+        "src/shared/hooks/usePrefetchToolSettings.ts",
+        "src/shared/lib/operationResult.ts"
+      ],
+      "evidence": [
+        "`fetchToolSettingsSupabase` returns `Promise<OperationResult<SettingsFetchResult>>` and callers must unwrap `.ok`/`.value` (or convert to throw).",
+        "`updateToolSettingsSupabase` returns a promise from `enqueueSettingsWrite` that rejects on failure (no `OperationResult` wrapper).",
+        "Callers use both patterns in the same feature area (`toToolSettingsErrorFromOperationFailure`, `classifyToolSettingsError`, direct thrown errors), indicating a split API contract instead of one coherent surface."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "reasoning": ""
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "phase_config_strip_type_dishonesty",
+      "summary": "Identically named `stripModeFromPhaseConfig` APIs disagree on return type, and one signature lies about preserving `mode`.",
+      "confidence": "high",
+      "suggestion": "Unify to one exported strip helper and one return type (`Omit<PhaseConfig, 'mode'>`), then update call sites to consume the narrowed request shape explicitly.",
+      "related_files": [
+        "src/shared/components/segmentSettingsUtils.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideo/modelPhase.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/generateVideoService.ts"
+      ],
+      "evidence": [
+        "`segmentSettingsUtils.stripModeFromPhaseConfig` returns `PhaseConfig` but destructures out `mode` and returns `rest`, so runtime shape omits a declared field.",
+        "`modelPhase.stripModeFromPhaseConfig` models the same behavior as `Omit<PhaseConfig, 'mode'>` (`PhaseConfigRequest`), which is the honest contract.",
+        "Both helpers are used in travel/video generation pathways, so consumers see two conflicting API shapes for the same operation."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "reasoning": ""
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "timeline_refetch_sync_async_mismatch",
+      "summary": "`refetchTimelineFrameCaches` is a synchronous `void` API despite performing async refetch work, unlike neighboring mutation APIs.",
+      "confidence": "high",
+      "suggestion": "Return `Promise<void>` from `refetchTimelineFrameCaches` and `await Promise.all([...refetchQueries])` at call sites where post-refetch ordering matters.",
+      "related_files": [
+        "src/shared/hooks/timeline/timelineMutationService.ts",
+        "src/shared/hooks/timeline/useTimelineFrameUpdates.ts",
+        "src/shared/hooks/timeline/__tests__/timelineMutationService.test.ts"
+      ],
+      "evidence": [
+        "`refetchTimelineFrameCaches` calls `queryClient.refetchQueries(...)` multiple times but returns `void` and does not await or expose completion.",
+        "In `useTimelineFrameUpdates`, it is called after persisted writes as if refetch is part of mutation completion flow, but no completion signal exists.",
+        "Same module exports async mutation helpers (`persistSingleTimelineFrame`, `syncTimelineGenerationFrames`) that are awaited, making this one API semantically inconsistent."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "reasoning": ""
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "reference_persist_missing_project_guard",
+      "summary": "Project-scoped reference persistence accepts undefined project ID and still attempts project-scope writes.",
+      "confidence": "medium",
+      "suggestion": "Make `persistReferenceSelection` require `selectedProjectId: string` for project-scope writes, or add explicit fallback behavior (`OperationFailure` with `invalid_scope_identifier`) before cache/write operations when project is missing.",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/hooks/referenceUpload/referenceDomainService.ts",
+        "src/shared/components/ImageGenerationForm/hooks/referenceUpload/useStyleReferenceUploadHandler.ts",
+        "src/shared/components/ImageGenerationForm/hooks/referenceUpload/useResourceSelectHandler.ts",
+        "src/shared/lib/queryKeys/settings.ts"
+      ],
+      "evidence": [
+        "`persistReferenceSelection` takes `selectedProjectId: string | undefined` and always calls `updateProjectImageSettings('project', ...)` without guarding missing project scope.",
+        "Both `useStyleReferenceUploadHandler` and `useResourceSelectHandler` pass through possibly undefined `selectedProjectId` directly to `persistReferenceSelection`.",
+        "Cache access also keys project settings with `settingsQueryKeys.tool(..., selectedProjectId, undefined)` when project may be undefined, blending project-intent APIs with unscoped keys."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "reasoning": ""
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "lightbox_parallel_contracts",
+      "summary": "Media lightbox exposes two parallel API surfaces (flat props and grouped adapter), causing contract duplication and drift risk.",
+      "confidence": "high",
+      "suggestion": "Adopt one canonical public contract for lightbox boundaries (prefer grouped domain contracts), and generate any compatibility mapping in one place with compile-time exhaustiveness checks; remove duplicate flat/grouped definitions.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/MediaLightbox.tsx",
+        "src/shared/components/MediaLightbox/MediaLightboxInputAdapter.tsx",
+        "src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx"
+      ],
+      "evidence": [
+        "`MediaLightboxProps` defines a large flat surface while `MediaLightboxInputAdapter` re-groups nearly the same fields into `core/navigation/shotWorkflow/actions/...` and then flattens them again in `toMediaLightboxProps`.",
+        "`MediaGalleryLightbox` must construct a deep adapter object and maintain conversion logic for values like `isDeleting`, showing boundary indirection rather than a single stable contract.",
+        "The same behavior fields (`onAddToShot`, navigation handlers, feature flags) are repeated across multiple interfaces, increasing mismatch risk when one side evolves."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "reasoning": ""
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "ambiguous_deletion_state_contract",
+      "summary": "Deletion status uses incompatible union semantics across lightbox boundaries (`boolean|string|null` vs `string|null`), forcing ad-hoc coercion.",
+      "confidence": "high",
+      "suggestion": "Replace `isDeleting` unions with a discriminated status contract (for example `{ kind: 'idle' } | { kind: 'pendingAny' } | { kind: 'pendingId', id: string }`) and propagate it consistently through adapter and lightbox types.",
+      "related_files": [
+        "src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx",
+        "src/shared/components/MediaLightbox/types.ts",
+        "src/shared/components/MediaLightbox/MediaLightbox.tsx"
+      ],
+      "evidence": [
+        "`MediaGalleryLightboxActionContract` accepts `isDeleting?: string | boolean | null`, mixing 'any deletion in progress' and 'specific id deleting' semantics.",
+        "Downstream lightbox action types normalize `isDeleting` to `string | null`, so `MediaGalleryLightbox` must coerce boolean into an id-like value (`resolvedDeletingId`).",
+        "This loses semantic precision and can disable controls based on approximated state rather than explicit deletion target identity."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "reasoning": ""
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "upload_api_signature_drift",
+      "summary": "Image and video upload APIs in shared lib have diverged into incompatible signatures, leaving legacy positional parameters in active use.",
+      "confidence": "high",
+      "suggestion": "Create a single upload contract shape for media (`uploadMediaToStorage` options object or aligned `uploadVideoToStorage` v2), deprecate positional args with a typed migration shim, and update call sites in one refactor pass.",
+      "related_files": [
+        "src/shared/lib/imageUploader.ts",
+        "src/shared/lib/videoUploader.ts",
+        "src/tools/travel-between-images/components/Timeline/TimelineContainer/components/GuidanceVideoControls.tsx",
+        "src/tools/join-clips/lib/clipManager/upload.ts"
+      ],
+      "evidence": [
+        "`uploadImageToStorage` uses `(file, maxRetriesOrOptions?, onProgress?)` with an options-object path.",
+        "`uploadVideoToStorage` still requires deprecated positional `_projectId` and `_shotId` args (unused internally) plus mixed options handling.",
+        "Call sites still pass project/shot positional args (`uploadVideoToStorage(file, projectId!, shotId)`), preserving an API shape that no longer matches behavior and differs from image upload conventions."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "reasoning": ""
+    }
+  ],
+  "review_quality": {
+    "batch_count": 2,
+    "dimension_coverage": 1.0,
+    "evidence_density": 1.667,
+    "high_score_missing_issue_note": 0,
+    "finding_pressure": 16.876,
+    "dimensions_with_findings": 1
+  },
+  "review_scope": {
+    "reviewed_files_count": 100,
+    "successful_batch_count": 2,
+    "full_sweep_included": false,
+    "total_files": 1280,
+    "imported_dimensions": [
+      "api_surface_coherence"
+    ]
+  },
+  "reviewed_files": [
+    "src/shared/lib/settingsIds.ts",
+    "src/domains/generation/hooks/useDeleteGenerationWithConfirm.ts",
+    "src/shared/components/dialogs/DeleteGenerationConfirmDialog.tsx",
+    "src/shared/lib/clipboard.ts",
+    "src/features/layout/contracts/overlayViewportConstraints.ts",
+    "src/shared/lib/tasks/taskParamContract.ts",
+    "src/shared/components/ImageGenerationForm/hooks/formSubmission/submissionContext.ts",
+    "src/tools/travel-between-images/components/ShotEditor/services/generateVideo/modelPhase.ts",
+    "src/shared/components/VideoPortionTimeline/types.ts",
+    "src/shared/components/ui/tooltipPrimitives.tsx",
+    "src/features/gallery/lib/adjacentPagePreloadCoordinator.ts",
+    "src/shared/components/ImageGenerationForm/hooks/referenceUpload/referenceDomainService.ts",
+    "src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+    "src/shared/hooks/shots/cacheUtils.ts",
+    "src/shared/hooks/timeline/timelineMutationService.ts",
+    "src/shared/hooks/useLineageChain.ts",
+    "src/shared/lib/generationTaskCache.ts",
+    "src/shared/lib/generationTaskRepository.ts",
+    "src/shared/lib/generationTransformers.ts",
+    "src/shared/lib/timelineWriteQueue.ts",
+    "src/shared/lib/toolSettingsService.ts",
+    "src/tools/join-clips/lib/clipInitService.ts",
+    "src/tools/join-clips/lib/clipManager/metadata.ts",
+    "src/domains/generation/hooks/useGenerationMutations.ts",
+    "src/integrations/supabase/bootstrap/createSupabaseClient.ts",
+    "src/pages/Home/components/panes/PhilosophyPane.tsx",
+    "src/shared/components/GlobalHeader/ProjectSelectorPopover.tsx",
+    "src/shared/components/ImageGenerationForm/components/reference/ReferenceThumbnail.tsx",
+    "src/shared/components/LoraSelectorModal/utils/validation-utils.ts",
+    "src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx",
+    "src/shared/components/MediaLightbox/components/StrokeOverlay.tsx",
+    "src/shared/components/PaneControlTab.tsx",
+    "src/shared/components/PhaseConfigSelectorModal/components/BrowsePresetsTab.tsx",
+    "src/shared/components/StyledVideoPlayer.tsx",
+    "src/shared/components/TasksPane/TaskList.tsx",
+    "src/shared/hooks/segments/useSegmentOutputsForShot.ts",
+    "src/shared/hooks/timeline/useTimelineFrameUpdates.ts",
+    "src/shared/hooks/useLoraManager.tsx",
+    "src/shared/hooks/useProjectCRUD.ts",
+    "src/shared/hooks/useProjectGenerations.ts",
+    "src/shared/hooks/useTaskStatusCounts.ts",
+    "src/shared/hooks/useToolSettings.ts",
+    "src/shared/lib/media/downloadMedia.ts",
+    "src/shared/lib/tasks/imageGeneration.ts",
+    "src/shared/lib/tasks/individualTravelSegment.ts",
+    "src/shared/lib/timeFormatting.ts",
+    "src/shared/services/projects/projectSetupService.ts",
+    "src/tools/join-clips/pages/JoinClipsPage.tsx",
+    "src/tools/training-data-helper/components/BatchSelector.tsx",
+    "src/tools/travel-between-images/components/MotionControl.tsx",
+    "src/tools/travel-between-images/components/ShotEditor/ShotSettingsContext.tsx",
+    "src/tools/travel-between-images/components/ShotEditor/services/applySettings/imageService.ts",
+    "src/tools/travel-between-images/components/ShotEditor/ui/Header.tsx",
+    "src/tools/travel-between-images/components/ShotImagesEditor/hooks/segmentSlotContracts.ts",
+    "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+    "src/tools/travel-between-images/components/SortableShotItem.tsx",
+    "src/tools/travel-between-images/components/Timeline/GuidanceVideoStrip.tsx",
+    "src/tools/travel-between-images/components/Timeline/TimelineContainer/components/TimelineControls.tsx",
+    "src/tools/travel-between-images/components/Timeline/hooks/useTimelineViewportController.ts",
+    "src/tools/travel-between-images/components/VideoShotDisplay.tsx",
+    "src/app/components/error/AppErrorBoundary.tsx",
+    "src/domains/generation/types/generationMetadata.ts",
+    "src/pages/Home/components/panes/CreativePartnerPane.tsx",
+    "src/shared/components/CreditsManagement/components/TaskLogFilters.tsx",
+    "src/shared/components/CreditsManagement/hooks/useTaskLogDownload.ts",
+    "src/shared/components/DefaultableTextarea.tsx",
+    "src/shared/components/GlobalHeader/GlobalHeaderDesktop.tsx",
+    "src/shared/components/ImageGenerationDetails.tsx",
+    "src/shared/components/ImageGenerationForm/components/GenerationSettingsSection.tsx",
+    "src/shared/components/ImageGenerationForm/components/PromptsSection.tsx",
+    "src/shared/components/ImageGenerationForm/hooks/formSubmission/usePromptQueueSubmission.ts",
+    "src/shared/components/ImageGenerationForm/hooks/legacyMigrations/useResourceMigration.ts",
+    "src/shared/components/ImageGenerationForm/hooks/promptManagement/types.ts",
+    "src/shared/components/ImageGenerationForm/hooks/referenceManagement/types.ts",
+    "src/shared/components/ImageGenerationForm/hooks/useFormSubmission.ts",
+    "src/shared/components/ImageGenerationModal.tsx",
+    "src/shared/components/ImageUploadActions.tsx",
+    "src/shared/components/LoraManager.tsx",
+    "src/shared/components/LoraSelectorModal/components/CommunityLorasTab.tsx",
+    "src/shared/components/LoraSelectorModal/components/MyLorasTab/components/FileDropZone.tsx",
+    "src/shared/components/LoraSelectorModal/components/MyLorasTab/components/SampleGenerationsSection.tsx",
+    "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+    "src/shared/components/MediaLightbox/MediaLightbox.tsx",
+    "src/shared/components/MediaLightbox/components/EditPanelLayout.tsx",
+    "src/shared/components/MediaLightbox/components/ShotSelectorControls.tsx",
+    "src/shared/components/MediaLightbox/components/WorkflowControls.tsx",
+    "src/shared/components/MediaLightbox/components/editModes/Img2ImgControls.tsx",
+    "src/shared/components/MediaLightbox/hooks/reposition/types.ts",
+    "src/shared/components/MediaLightbox/hooks/reposition/useRepositionDrag.ts",
+    "src/shared/components/MediaLightbox/hooks/useEditSettingsPersistence.ts",
+    "src/shared/components/MediaLightbox/hooks/useEffectiveMedia.ts",
+    "src/shared/components/MediaLightbox/hooks/useVideoEditing.ts",
+    "src/shared/components/MotionPresetSelector/SelectedPresetCard.tsx",
+    "src/shared/components/MotionPresetSelector/index.tsx",
+    "src/shared/components/PhaseConfigSelectorModal/components/sections/PhaseConfigSection.tsx",
+    "src/shared/components/SegmentSettingsForm/components/PromptSection.tsx",
+    "src/shared/components/SegmentSettingsForm/types.ts",
+    "src/shared/components/ShotImageManager/ShotImageManagerDesktop.tsx",
+    "src/shared/components/ShotImageManager/ShotImageManagerMobile.tsx",
+    "src/shared/components/ShotImageManager/components/BatchDropZone.tsx"
+  ],
+  "provenance": {
+    "kind": "blind_review_batch_import",
+    "blind": true,
+    "runner": "codex",
+    "run_stamp": "20260302_120434",
+    "created_at": "2026-03-02T12:07:15+00:00",
+    "batch_count": 2,
+    "batch_indexes": [
+      1,
+      2
+    ],
+    "packet_path": "/Users/peteromalley/Documents/reigh/.desloppify/review_packet_blind.json",
+    "packet_sha256": "f0dc56725d7d1147ab9ed6ebe9e82fe9699bfc95b953bde62b8238433c586102"
+  },
+  "assessment_coverage": {
+    "scored_dimensions": [
+      "naming_quality",
+      "logic_clarity",
+      "type_safety",
+      "contract_coherence",
+      "error_consistency",
+      "abstraction_fitness",
+      "ai_generated_debt",
+      "high_level_elegance",
+      "mid_level_elegance",
+      "low_level_elegance",
+      "cross_module_architecture",
+      "initialization_coupling",
+      "convention_outlier",
+      "dependency_health",
+      "test_strategy",
+      "api_surface_coherence",
+      "authorization_consistency",
+      "incomplete_migration",
+      "package_organization",
+      "design_coherence"
+    ],
+    "selected_dimensions": [
+      "api_surface_coherence"
+    ],
+    "imported_dimensions": [
+      "api_surface_coherence"
+    ],
+    "missing_dimensions": [
+      "naming_quality",
+      "logic_clarity",
+      "type_safety",
+      "contract_coherence",
+      "error_consistency",
+      "abstraction_fitness",
+      "ai_generated_debt",
+      "high_level_elegance",
+      "mid_level_elegance",
+      "low_level_elegance",
+      "cross_module_architecture",
+      "initialization_coupling",
+      "convention_outlier",
+      "dependency_health",
+      "test_strategy",
+      "authorization_consistency",
+      "incomplete_migration",
+      "package_organization",
+      "design_coherence"
+    ]
+  }
+}

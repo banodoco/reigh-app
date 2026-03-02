@@ -3,14 +3,6 @@ import { type PhaseConfig, buildBasicModePhaseConfig as buildPhaseConfigCore } f
 import type { GenerateVideoParams, ModelPhaseSelection } from './types';
 import type { MotionConfig } from '@/shared/lib/tasks/travelBetweenImages';
 
-/** Strip `mode` field from phase config; backend resolves mode from model. */
-export type PhaseConfigRequest = Omit<PhaseConfig, 'mode'>;
-
-export const stripModeFromPhaseConfig = (config: PhaseConfig): PhaseConfigRequest => {
-  const { mode: _mode, ...rest } = config;
-  return rest;
-};
-
 /**
  * Build phase config for basic mode based on motion amount and user LoRAs.
  * Wraps the shared builder while selecting the canonical basic model.

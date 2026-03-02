@@ -9,6 +9,10 @@ vi.mock('@/shared/lib/taskCreation', () => ({
   generateUUID: vi.fn().mockReturnValue('mock-uuid'),
 }));
 
+vi.mock('@/shared/lib/supabaseSession', () => ({
+  readUserIdFromStorage: vi.fn().mockReturnValue('user-1'),
+}));
+
 import {
   createEmptyClip,
   getCachedClipsCount,
@@ -21,6 +25,7 @@ import {
   type PendingClipAction,
 } from '../clipInitService';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { getPendingJoinClipsStorageKey } from '@/shared/lib/joinClipsPendingQueue';
 
 describe('createEmptyClip', () => {
   it('creates an empty clip with default values', () => {
@@ -131,6 +136,7 @@ describe('applyPendingClipActions', () => {
 
     const actions: PendingClipAction[] = [
       {
+        type: 'deferred_insert',
         clip: { id: 'new', url: 'new.mp4', loaded: false, playing: false },
       },
     ];
@@ -148,6 +154,7 @@ describe('applyPendingClipActions', () => {
 
     const actions: PendingClipAction[] = [
       {
+        type: 'deferred_insert',
         clip: { id: 'new', url: 'new.mp4', loaded: false, playing: false },
       },
     ];
@@ -164,8 +171,8 @@ describe('applyPendingClipActions', () => {
     ];
 
     const actions: PendingClipAction[] = [
-      { clip: { id: 'c1', url: 'c1.mp4', loaded: false, playing: false } },
-      { clip: { id: 'c2', url: 'c2.mp4', loaded: false, playing: false } },
+      { type: 'deferred_insert', clip: { id: 'c1', url: 'c1.mp4', loaded: false, playing: false } },
+      { type: 'deferred_insert', clip: { id: 'c2', url: 'c2.mp4', loaded: false, playing: false } },
     ];
 
     const result = applyPendingClipActions(prevClips, actions);
@@ -227,7 +234,7 @@ describe('consumePendingJoinClips', () => {
     ]));
 
     const readVideoDuration = vi.fn().mockResolvedValue(12);
-    const result = await consumePendingJoinClips(readVideoDuration);
+    const result = await consumePendingJoinClips({ readVideoDuration });
 
     expect(readVideoDuration).toHaveBeenCalledTimes(1);
     expect(readVideoDuration).toHaveBeenCalledWith('https://example.com/a.mp4');
@@ -236,11 +243,50 @@ describe('consumePendingJoinClips', () => {
       return;
     }
     expect(result.value).toHaveLength(1);
+    expect(result.value[0].type).toBe('deferred_insert');
     expect(result.value[0].clip.url).toBe('https://example.com/a.mp4');
     expect(result.value[0].clip.posterUrl).toBe('https://example.com/a.jpg');
     expect(result.value[0].clip.durationSeconds).toBe(12);
     expect(result.value[0].clip.generationId).toBe('gen-a');
     expect(localStorage.getItem('pendingJoinClips')).toBeNull();
+  });
+
+  it('consumes scoped queues for the active project only', async () => {
+    const now = Date.now();
+    const activeKey = getPendingJoinClipsStorageKey('project-1', 'user-1');
+    const otherProjectKey = getPendingJoinClipsStorageKey('project-2', 'user-1');
+
+    localStorage.setItem(activeKey, JSON.stringify([
+      {
+        videoUrl: 'https://example.com/a.mp4',
+        generationId: 'gen-a',
+        timestamp: now,
+        projectId: 'project-1',
+        userId: 'user-1',
+      },
+    ]));
+    localStorage.setItem(otherProjectKey, JSON.stringify([
+      {
+        videoUrl: 'https://example.com/b.mp4',
+        generationId: 'gen-b',
+        timestamp: now,
+        projectId: 'project-2',
+        userId: 'user-1',
+      },
+    ]));
+
+    const readVideoDuration = vi.fn().mockResolvedValue(9);
+    const result = await consumePendingJoinClips({ projectId: 'project-1', readVideoDuration });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    expect(result.value).toHaveLength(1);
+    expect(result.value[0].type).toBe('deferred_insert');
+    expect(result.value[0].clip.generationId).toBe('gen-a');
+    expect(localStorage.getItem(activeKey)).toBeNull();
+    expect(localStorage.getItem(otherProjectKey)).not.toBeNull();
   });
 
   it('clears malformed pending payloads and logs explicitly', async () => {

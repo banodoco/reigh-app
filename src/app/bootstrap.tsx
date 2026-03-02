@@ -1,22 +1,21 @@
-// -----------------------------------------------------------------------------
-// *** Logger initialization - MUST BE FIRST ***
-// Logger handles both console suppression (when VITE_DEBUG_LOGS=false) and
-// console interception for persistence (when VITE_PERSIST_LOGS=true).
-// Import before anything else to capture all logs.
-// -----------------------------------------------------------------------------
-import { reactProfilerOnRender } from '@/shared/lib/logger';
+import { initializeLoggerRuntime, reactProfilerOnRender } from '@/shared/lib/logger';
 
 import { createRoot } from 'react-dom/client';
 import { Profiler } from 'react';
 import App from '@/app/App';
 import { AppErrorBoundary } from '@/app/components/error/AppErrorBoundary';
 import { initializeSupabase } from '@/integrations/supabase/client';
-import { initializeUiToastManager } from '@/shared/components/ui/runtime/toastManager';
-import { registerToastErrorPresenter } from '@/shared/components/ui/registerToastErrorPresenter';
+import { toast } from '@/shared/components/ui/toast';
+import { initializeToastManager } from '@/shared/runtime/toastRuntime';
+import { installErrorNotifier } from '@/shared/lib/errorHandling/errorNotifier';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { notifyError } from '@/shared/lib/errorHandling/notifyError';
+import { installRuntimeErrorPresenter } from '@/shared/lib/errorHandling/runtimeErrorPresenter';
 import { initializeViewportLockRuntime } from '@/shared/runtime/viewportLockRuntime';
 import '@/index.css';
 
+let presenterInstalled = false;
+const ERROR_NOTIFIER_OWNER = 'app-bootstrap';
 let environmentInitialized = false;
 
 interface RuntimeEnvironment {
@@ -37,13 +36,30 @@ export function shouldLoadDevDebugTools(env: RuntimeEnvironment): boolean {
   return !isTestRuntimeEnvironment(env) && Boolean(env.DEV);
 }
 
+function registerToastErrorPresenter(): void {
+  if (presenterInstalled) {
+    return;
+  }
+
+  installRuntimeErrorPresenter((appError, toastTitle) => notifyError(appError, toastTitle));
+  installErrorNotifier(({ title, description }) => {
+    toast({
+      title,
+      description,
+      variant: 'destructive',
+    });
+  }, ERROR_NOTIFIER_OWNER);
+  presenterInstalled = true;
+}
+
 export function initializeAppEnvironment(): void {
   if (environmentInitialized) {
     return;
   }
 
+  initializeLoggerRuntime();
   const env = import.meta.env;
-  initializeUiToastManager();
+  initializeToastManager();
   registerToastErrorPresenter();
   initializeViewportLockRuntime();
 

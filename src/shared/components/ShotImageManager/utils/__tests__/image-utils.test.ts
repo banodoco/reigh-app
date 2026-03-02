@@ -13,7 +13,12 @@ vi.mock('@/shared/lib/timelinePositionCalculator', () => ({
   }),
 }));
 
-import { getFramePositionForIndex, getImageRange, getAspectRatioStyle } from '../image-utils';
+import {
+  getFramePositionForIndex,
+  getImageRange,
+  getAspectRatioStyle,
+  resolveDuplicateFrame,
+} from '../image-utils';
 import type { GenerationRow } from '@/domains/generation/types';
 
 describe('getFramePositionForIndex', () => {
@@ -75,6 +80,23 @@ describe('getImageRange', () => {
 
   it('returns empty array when all indices are out of bounds', () => {
     expect(getImageRange(10, 15, images)).toEqual([]);
+  });
+});
+
+describe('resolveDuplicateFrame', () => {
+  it('uses persisted timeline_frame when available', () => {
+    const frame = resolveDuplicateFrame({ timeline_frame: 120 } as GenerationRow, 3, 50);
+    expect(frame).toBe(120);
+  });
+
+  it('falls back to index-based spacing when timeline_frame is missing', () => {
+    const frame = resolveDuplicateFrame({ timeline_frame: null } as GenerationRow, 3, 50);
+    expect(frame).toBe(150);
+  });
+
+  it('returns undefined when fallback spacing is invalid', () => {
+    const frame = resolveDuplicateFrame({ timeline_frame: undefined } as GenerationRow, 3, 0);
+    expect(frame).toBeUndefined();
   });
 });
 

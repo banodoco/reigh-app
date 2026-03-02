@@ -13,17 +13,20 @@ export {
   useImg2ImgMode,
   useEditSettingsPersistence,
   useEditSettingsSync,
-} from '@/shared/components/MediaLightbox/hooks';
+} from '@/shared/imageEditCore/hooks';
 
 export type {
-  EditMode as SettingsEditMode,
-} from '@/shared/components/MediaLightbox/hooks/editSettingsTypes';
+  SettingsEditMode,
+  InpaintingEditMode,
+  BrushStroke,
+  AnnotationMode,
+  EditAdvancedSettings,
+  QwenEditModel,
+  LoraMode,
+  ImageTransform,
+} from '@/shared/imageEditCore/types';
 
 export type {
-  EditMode as InpaintingEditMode,
-} from '@/shared/components/MediaLightbox/hooks/inpainting/types';
-
-export {
   MediaDisplayWithCanvas,
   TopRightControls,
   BottomLeftControls,
@@ -37,6 +40,6 @@ export {
   ImageEditProvider,
   type ImageEditMode,
   type ImageEditState,
-} from '@/shared/components/MediaLightbox/contexts/ImageEditContext';
+} from '@/shared/imageEditCore/context';
 
 export { downloadMedia } from '@/shared/components/MediaLightbox/utils';

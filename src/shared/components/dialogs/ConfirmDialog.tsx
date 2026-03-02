@@ -93,7 +93,9 @@ export function ConfirmDialog({
   const handleConfirm = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     suppressNextCloseRef.current = true;
-    onConfirm();
+    void Promise.resolve(onConfirm()).catch(() => {
+      // Confirm handlers own error presentation; keep dialog state controlled.
+    });
   };
 
   return (

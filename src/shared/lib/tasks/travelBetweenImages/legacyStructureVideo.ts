@@ -63,7 +63,7 @@ export interface TravelBetweenImagesLegacyTaskInput extends
   structure_videos?: LegacyStructureVideoConfig[];
 }
 
-const LEGACY_TRAVEL_TOP_LEVEL_FIELDS = [
+export const LEGACY_TRAVEL_TOP_LEVEL_FIELDS = [
   'structure_video_path',
   'structure_video_treatment',
   'structure_video_motion_strength',
@@ -73,15 +73,15 @@ const LEGACY_TRAVEL_TOP_LEVEL_FIELDS = [
   'use_uni3c',
 ] as const;
 
-const LEGACY_TRAVEL_STRUCTURE_VIDEO_FIELDS = [
+export const LEGACY_TRAVEL_STRUCTURE_VIDEO_FIELDS = [
   'motion_strength',
   'structure_type',
   'uni3c_start_percent',
   'uni3c_end_percent',
 ] as const;
 
-type LegacyTopLevelField = (typeof LEGACY_TRAVEL_TOP_LEVEL_FIELDS)[number];
-type LegacyStructureVideoField = (typeof LEGACY_TRAVEL_STRUCTURE_VIDEO_FIELDS)[number];
+export type LegacyTopLevelField = (typeof LEGACY_TRAVEL_TOP_LEVEL_FIELDS)[number];
+export type LegacyStructureVideoField = (typeof LEGACY_TRAVEL_STRUCTURE_VIDEO_FIELDS)[number];
 
 function hasLegacyField(
   value: unknown,

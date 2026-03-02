@@ -267,12 +267,6 @@ export interface TravelBetweenImagesRequestPayload {
 }
 
 /**
- * @deprecated Use TravelBetweenImagesRequestPayload.
- * Retained as a compatibility alias for legacy imports.
- */
-export type TravelBetweenImagesTaskParams = TravelBetweenImagesRequestPayload;
-
-/**
  * Canonical create-task input for travel-between-images.
  * Legacy structure aliases should be translated in adapters before reaching this type.
  */

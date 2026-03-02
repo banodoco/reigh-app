@@ -51,18 +51,12 @@ vi.mock('../DataFreshnessManager', () => ({
   },
 }));
 
-vi.mock('../requestRealtimeReconnect', () => ({
-  requestRealtimeReconnect: vi.fn(),
-}));
-
 vi.mock('@/shared/lib/compat/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 
 import { RealtimeConnection } from '../RealtimeConnection';
 import { dataFreshnessManager } from '../DataFreshnessManager';
-import { requestRealtimeReconnect } from '../requestRealtimeReconnect';
-import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 
 describe('RealtimeConnection', () => {
   let connection: RealtimeConnection;
@@ -108,7 +102,7 @@ describe('RealtimeConnection', () => {
       const result = await connection.connect('proj-1');
 
       expect(result).toBe(true);
-      expect(supabase().channel).toHaveBeenCalledWith('task-updates:proj-1');
+      expect(mockChannel).toHaveBeenCalledWith('task-updates:proj-1');
       expect(dataFreshnessManager.onRealtimeStatusChange).toHaveBeenCalledWith('connected', 'Connected');
 
       const state = connection.getState();
@@ -140,11 +134,6 @@ describe('RealtimeConnection', () => {
       const state = connection.getState();
       // Should be reconnecting (not failed, because it tries to reconnect)
       expect(state.status).toBe('reconnecting');
-      expect(requestRealtimeReconnect).toHaveBeenCalledWith({
-        source: 'RealtimeConnection',
-        reason: 'subscribe-failure:CHANNEL_ERROR',
-        priority: 'high',
-      });
     });
 
     it('no-ops when already connected to the same project', async () => {
@@ -159,7 +148,53 @@ describe('RealtimeConnection', () => {
       const result = await connection.connect('proj-1');
       expect(result).toBe(true);
       // Should not create a new channel
-      expect(supabase().channel).not.toHaveBeenCalled();
+      expect(mockChannel).not.toHaveBeenCalled();
+    });
+
+    it('dedupes concurrent connect calls for the same project', async () => {
+      mockSubscribe.mockImplementation((callback: (status: string) => void) => {
+        callback('SUBSCRIBED');
+      });
+
+      const [firstResult, secondResult] = await Promise.all([
+        connection.connect('proj-1'),
+        connection.connect('proj-1'),
+      ]);
+
+      expect(firstResult).toBe(true);
+      expect(secondResult).toBe(true);
+      expect(mockChannel).toHaveBeenCalledTimes(1);
+    });
+
+    it('cancels stale scheduled reconnect when auth heal starts a fresh attempt', async () => {
+      let subscribeCount = 0;
+      mockSubscribe.mockImplementation((callback: (status: string) => void) => {
+        subscribeCount += 1;
+        callback(subscribeCount === 1 ? 'CHANNEL_ERROR' : 'SUBSCRIBED');
+      });
+
+      const initialResult = await connection.connect('proj-1');
+      expect(initialResult).toBe(false);
+      expect(mockChannel).toHaveBeenCalledTimes(1);
+
+      window.dispatchEvent(new CustomEvent('realtime:auth-heal', {
+        detail: {
+          source: 'test',
+          reason: 'force-heal',
+          priority: 'high',
+          coalescedSources: ['test'],
+          coalescedReasons: ['force-heal'],
+          timestamp: Date.now(),
+        },
+      }));
+      await vi.runOnlyPendingTimersAsync();
+
+      expect(mockChannel).toHaveBeenCalledTimes(2);
+      expect(connection.getState().status).toBe('connected');
+
+      // Original local reconnect timer should have been cancelled by the newer heal-driven attempt.
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(mockChannel).toHaveBeenCalledTimes(2);
     });
   });
 

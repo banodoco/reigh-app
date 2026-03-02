@@ -9,6 +9,7 @@ import { useMemo, useCallback } from 'react';
 import type { GenerationVariant } from '@/shared/hooks/useVariants';
 import { usePendingGenerationTasks } from '@/shared/hooks/usePendingGenerationTasks';
 import { useMarkVariantViewed } from '@/shared/hooks/useMarkVariantViewed';
+import { useVariantBadges } from '@/shared/hooks/useVariantBadges';
 
 interface UseLightboxVariantBadgesInput {
   /** Generation ID to check for pending tasks */
@@ -35,10 +36,29 @@ export function useLightboxVariantBadges({
 }: UseLightboxVariantBadgesInput): UseLightboxVariantBadgesReturn {
   const { pendingCount: pendingTaskCount } = usePendingGenerationTasks(pendingTaskGenerationId, selectedProjectId);
 
-  const unviewedVariantCount = useMemo(() => {
+  const localUnviewedVariantCount = useMemo(() => {
     if (!variants || variants.length === 0) return 0;
     return variants.filter((v) => v.viewed_at === null).length;
   }, [variants]);
+
+  const {
+    getBadgeData,
+    isLoading: isBadgeDataLoading,
+  } = useVariantBadges(
+    variantFetchGenerationId ? [variantFetchGenerationId] : [],
+    !!variantFetchGenerationId
+  );
+
+  const badgeUnviewedVariantCount = useMemo(() => {
+    if (!variantFetchGenerationId) return 0;
+    return getBadgeData(variantFetchGenerationId).unviewedVariantCount;
+  }, [getBadgeData, variantFetchGenerationId]);
+
+  // Use the same aggregate badge source as gallery/timeline once loaded.
+  // Fall back to local variants while badge data is still loading.
+  const unviewedVariantCount = variantFetchGenerationId && !isBadgeDataLoading
+    ? badgeUnviewedVariantCount
+    : localUnviewedVariantCount;
 
   const { markAllViewed: markAllViewedMutation } = useMarkVariantViewed();
   const handleMarkAllViewed = useCallback(() => {

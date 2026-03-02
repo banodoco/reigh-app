@@ -42,6 +42,7 @@ interface UsePhilosophyPaneMediaResult {
   handleVideoTimeUpdate: (idx: number, video: HTMLVideoElement) => void;
   playTravelVideo: (idx: number) => void;
   toggleLoraPlay: () => void;
+  handleLoraVideoEnded: () => void;
 }
 
 export function usePhilosophyPaneMedia({
@@ -165,6 +166,14 @@ export function usePhilosophyPaneMedia({
     });
   }, [loraPlaying]);
 
+  const handleLoraVideoEnded = useCallback(() => {
+    const video = loraVideosRef.current[0];
+    if (video) {
+      video.currentTime = 0;
+    }
+    setLoraPlaying(false);
+  }, []);
+
   useEffect(() => {
     if (isOpen) {
       return;
@@ -242,5 +251,6 @@ export function usePhilosophyPaneMedia({
     handleVideoTimeUpdate,
     playTravelVideo,
     toggleLoraPlay,
+    handleLoraVideoEnded,
   };
 }

@@ -150,7 +150,6 @@ export function useSegmentMutations({
             toolId: TOOL_IDS.TRAVEL_BETWEEN_IMAGES,
             patch: shotPatch,
           },
-          undefined,
           'immediate'
         );
 
@@ -182,7 +181,6 @@ export function useSegmentMutations({
             toolId: TOOL_IDS.TRAVEL_BETWEEN_IMAGES,
             patch: { [field]: value },
           },
-          undefined,
           'immediate'
         );
 

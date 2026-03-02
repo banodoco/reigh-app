@@ -6,6 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
+import { useState } from 'react';
 
 // Use vi.hoisted for variables referenced inside vi.mock factories
 const { mockGetUserId, mockSupabaseSelect, mockUpdateToolSettings } = vi.hoisted(() => ({
@@ -19,7 +20,7 @@ vi.mock('../AuthContext', () => ({
 }));
 
 vi.mock('@/integrations/supabase/client', () => ({
-  supabase: {
+  getSupabaseClient: () => ({
     from: vi.fn().mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
@@ -27,7 +28,7 @@ vi.mock('@/integrations/supabase/client', () => ({
         }),
       }),
     }),
-  },
+  }),
 }));
 
 vi.mock('@/shared/hooks/useToolSettings', () => ({
@@ -36,10 +37,6 @@ vi.mock('@/shared/hooks/useToolSettings', () => ({
 
 vi.mock('@/shared/hooks/useMobileTimeoutFallback', () => ({
   useMobileTimeoutFallback: vi.fn(),
-}));
-
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
 }));
 
 import { UserSettingsProvider, useUserSettings } from '../UserSettingsContext';
@@ -177,6 +174,47 @@ describe('UserSettingsContext', () => {
         toolId: 'user-preferences',
         patch: { theme: 'light' },
       });
+    });
+
+    it('surfaces auth failure when updating user settings while signed out', async () => {
+      mockGetUserId.mockReturnValue(null);
+
+      function UpdateConsumer() {
+        const { updateUserSettings } = useUserSettings();
+        const [errorMessage, setErrorMessage] = useState('');
+
+        return (
+          <>
+            <button
+              data-testid="update-signed-out"
+              onClick={() => {
+                void updateUserSettings('user', { theme: 'light' } as Record<string, unknown>)
+                  .catch((error: Error) => setErrorMessage(error.message));
+              }}
+            >
+              Update
+            </button>
+            <span data-testid="error-message">{errorMessage}</span>
+          </>
+        );
+      }
+
+      render(
+        <UserSettingsProvider>
+          <UpdateConsumer />
+        </UserSettingsProvider>
+      );
+
+      await act(async () => {
+        screen.getByTestId('update-signed-out').click();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('error-message')).toHaveTextContent(
+          'Authentication required for user settings update',
+        );
+      });
+      expect(mockUpdateToolSettings).not.toHaveBeenCalled();
     });
   });
 });

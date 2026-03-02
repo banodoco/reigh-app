@@ -26,6 +26,7 @@ export const ShotBatchItemMobile: React.FC<ShotBatchItemMobileProps> = ({
   duplicateSuccessImageId,
   shouldLoad = true,
   projectAspectRatio,
+  frameNumber,
   readOnly = false,
   onMarkAllViewed,
 }) => {
@@ -141,9 +142,11 @@ export const ShotBatchItemMobile: React.FC<ShotBatchItemMobileProps> = ({
             onClick={(e) => {
               e.stopPropagation();
               // Use id (shot_generations.id) for duplication
-              onDuplicate(image.id, image.timeline_frame ?? index);
+              if (frameNumber !== undefined) {
+                onDuplicate(image.id, frameNumber);
+              }
             }}
-            disabled={isDuplicating || image.id?.startsWith('temp-')}
+            disabled={isDuplicating || image.id?.startsWith('temp-') || frameNumber === undefined}
             title={image.id?.startsWith('temp-') ? "Please wait..." : "Duplicate"}
           >
             {showSuccessIcon ? (

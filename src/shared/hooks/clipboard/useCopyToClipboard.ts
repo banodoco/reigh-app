@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { writeClipboardTextSafe } from '@/shared/lib/clipboard';
 
 /**
  * Hook for copying text to clipboard with temporary visual feedback.
@@ -10,9 +11,7 @@ export function useCopyToClipboard(text: string | undefined) {
     if (!text) return;
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    navigator.clipboard.writeText(text).catch(() => {
-      // Silently fail - we already showed feedback
-    });
+    void writeClipboardTextSafe(text);
   }, [text]);
 
   return { copied, handleCopy };

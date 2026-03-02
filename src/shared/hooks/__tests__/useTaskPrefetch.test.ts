@@ -43,7 +43,7 @@ describe('useTaskFromUnifiedCache', () => {
     const { result } = renderHookWithProviders(() => useTaskFromUnifiedCache(GENERATION_ID));
 
     await vi.waitFor(() => {
-      expect(result.current.data).toEqual({ taskId: 'task-1' });
+      expect(result.current.data).toEqual({ taskId: 'task-1', status: 'ok' });
     });
   });
 
@@ -53,7 +53,7 @@ describe('useTaskFromUnifiedCache', () => {
     const { result } = renderHookWithProviders(() => useTaskFromUnifiedCache(GENERATION_ID));
 
     await vi.waitFor(() => {
-      expect(result.current.data).toEqual({ taskId: null });
+      expect(result.current.data).toEqual({ taskId: null, status: 'ok' });
     });
   });
 
@@ -63,7 +63,7 @@ describe('useTaskFromUnifiedCache', () => {
     const { result } = renderHookWithProviders(() => useTaskFromUnifiedCache(MISSING_GENERATION_ID));
 
     await vi.waitFor(() => {
-      expect(result.current.data).toEqual({ taskId: null });
+      expect(result.current.data).toEqual({ taskId: null, status: 'missing_generation' });
     });
   });
 

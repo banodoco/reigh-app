@@ -8,6 +8,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { segmentQueryKeys } from '@/shared/lib/queryKeys/segments';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { PairMetadata } from '@/shared/components/segmentSettingsMigration';
 
 interface UsePairMetadataReturn {
@@ -31,8 +32,12 @@ export function usePairMetadata(
         .single();
 
       if (error) {
-        console.error('[usePairMetadata] Error fetching:', error);
-        return null;
+        normalizeAndPresentError(error, {
+          context: 'usePairMetadata.fetch',
+          showToast: false,
+          logData: { pairShotGenerationId },
+        });
+        throw error;
       }
 
       return (data?.metadata as PairMetadata) || null;

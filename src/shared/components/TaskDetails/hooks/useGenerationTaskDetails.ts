@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTaskFromUnifiedCache } from "@/shared/hooks/useTaskPrefetch";
 import { useGetTask } from "@/shared/hooks/useTasks";
-import { deriveInputImages } from "@/shared/lib/taskParamsUtils";
+import { deriveInputImages, parseTaskParams } from "@/shared/lib/taskParamsUtils";
 import { useGetPrimaryTaskIdForGeneration } from "@/shared/lib/generationTaskBridge";
 import { normalizeAndPresentError } from "@/shared/lib/errorHandling/runtimeError";
 import type { Task } from "@/types/tasks";
 import type { TaskDetailsData as LightboxTaskDetailsData } from "@/shared/components/MediaLightbox/types";
+import type { GenerationTaskMappingStatus } from "@/shared/lib/generationTaskRepository";
 
 interface UseGenerationTaskDetailsOptions {
   generationId: string | null;
@@ -18,6 +19,8 @@ interface UseGenerationTaskDetailsOptions {
 
 interface GenerationTaskMapping {
   taskId: string | null;
+  status: GenerationTaskMappingStatus;
+  queryError?: string;
 }
 
 interface UseGenerationTaskDetailsResult {
@@ -52,6 +55,8 @@ export function useGenerationTaskDetails({
     if (!taskMappingRaw) return undefined;
     return {
       taskId: typeof taskMappingRaw.taskId === "string" ? taskMappingRaw.taskId : null,
+      status: taskMappingRaw.status,
+      queryError: taskMappingRaw.queryError,
     };
   }, [taskMappingRaw]);
 
@@ -60,6 +65,7 @@ export function useGenerationTaskDetails({
     Boolean(activeGenerationId)
     && resolveMappingOnDemand
     && taskMapping?.taskId === null
+    && taskMapping.status !== "query_failed"
     && fallbackTaskId === null
     && !mappingResolutionAttempted
   );
@@ -112,15 +118,7 @@ export function useGenerationTaskDetails({
 
   const inputImages = useMemo(() => {
     if (!task?.params) return [];
-    let params: Record<string, unknown>;
-    try {
-      params = typeof task.params === "string"
-        ? JSON.parse(task.params)
-        : task.params;
-    } catch {
-      return [];
-    }
-    return deriveInputImages(params);
+    return deriveInputImages(parseTaskParams(task.params));
   }, [task]);
 
   const hasNoTask = taskMapping !== undefined && taskMapping.taskId === null && fallbackTaskId === null;
@@ -158,4 +156,3 @@ export function useGenerationTaskDetails({
     taskError,
   };
 }
-

@@ -1,0 +1,119 @@
+{
+  "batch": "Conventions & Errors",
+  "batch_index": 2,
+  "assessments": {
+    "mid_level_elegance": 72.0
+  },
+  "dimension_notes": {
+    "mid_level_elegance": {
+      "evidence": [
+        "Confirmed behavioral outlier: processing-task pagination switches to client-side slicing, but page>1 fetches only `limit` rows without range/offset, then slices by offset, producing empty later pages despite non-zero count (`src/shared/hooks/tasks/paginatedTaskRepository.ts`, used by `src/shared/hooks/useTasks.ts`).",
+        "Confirmed mixed error strategy in the same segment-settings seam: some query hooks swallow DB errors and return null/false with console logging (`src/shared/hooks/segments/usePairMetadata.ts`, `src/shared/hooks/segments/useShotVideoSettings.ts`, `src/shared/hooks/segments/useSegmentMutations.ts`) while adjacent hooks normalize and rethrow (`src/shared/hooks/segments/useSegmentOutputsForShot.ts`).",
+        "Confirmed exception hotspot propagation gap: `submitSegmentTask` always proceeds after `saveSettings()` even when save function reports failure via `false`, so boundary state persistence and task creation can diverge (`src/shared/components/MediaLightbox/components/submitSegmentTask.ts` with `src/shared/hooks/segments/useSegmentMutations.ts`).",
+        "Confirmed duplicate-cluster seam drift: prompt-shortening logic is duplicated with different heuristics (30-char utility, 20-char prefix check, inline 30-char fallback) across prompt management and task-param construction (`src/shared/components/ImageGenerationForm/hooks/promptUtils.ts`, `.../usePromptHandlers.ts`, `.../buildBatchTaskParams.ts`).",
+        "Loop-prone pattern check (workflow integrity): refetch guard can repeatedly re-trigger on stale empty processing queries with no attempt cap/circuit breaker (`src/shared/hooks/tasks/useProcessingRefetchGuard.ts`, `src/shared/hooks/tasks/taskFetchPolicy.ts`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "processing_pagination_page_drop",
+      "summary": "Processing-task pagination can silently drop page>1 results due to mismatched fetch/slice strategy.",
+      "related_files": [
+        "src/shared/hooks/tasks/paginatedTaskRepository.ts",
+        "src/shared/hooks/useTasks.ts",
+        "src/shared/hooks/tasks/taskFetchPolicy.ts"
+      ],
+      "evidence": [
+        "When `isProcessingStatusFilter` is true, data query uses `.limit(fetchLimit)` instead of `.range(offset, ...)`.",
+        "For `page > 1`, `fetchLimit` becomes base limit, but response still does `sortProcessingTasks(...).slice(offset, offset + limit)`.",
+        "Example: page 2 with limit 50 fetches 50 rows then slices `[50,100)`, yielding an empty page despite possible additional matching tasks."
+      ],
+      "suggestion": "Unify pagination contract for processing filters: either fetch enough rows for requested offset (`limit * page` with bounded cap) before slicing, or move processing-priority ordering into SQL and keep server-side `range` pagination. Add a regression test for page 2+ under processing filter.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "task_list_seam_contract_drift"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "segment_save_failure_not_gating_submission",
+      "summary": "Segment task submission ignores settings-save failure and still enqueues generation tasks.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/submitSegmentTask.ts",
+        "src/shared/hooks/segments/useSegmentMutations.ts",
+        "src/shared/components/MediaLightbox/components/SegmentRegenerateForm.tsx"
+      ],
+      "evidence": [
+        "`saveSettings` is typed as `() => Promise<boolean | void>`, and mutation hooks return `false` on persistence failures.",
+        "`maybeSaveSettings` only awaits `saveSettings()` but does not inspect result or abort submission.",
+        "Both regenerate/slot forms pass this save function into `submitSegmentTask`, so failed metadata persistence can be followed by task creation using unsaved state."
+      ],
+      "suggestion": "Make `saveSettings` part of an explicit Result contract (`{ ok:boolean; reason?:... }`) and gate task creation on `ok`. Surface a user-visible error and stop submission when persistence fails.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "segment_submission_error_contract_drift"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "segment_hooks_error_contract_fragmentation",
+      "summary": "Adjacent segment hooks expose inconsistent failure semantics (null/false vs throw), making orchestration brittle.",
+      "related_files": [
+        "src/shared/hooks/segments/usePairMetadata.ts",
+        "src/shared/hooks/segments/useShotVideoSettings.ts",
+        "src/shared/hooks/segments/useSegmentOutputsForShot.ts",
+        "src/shared/hooks/segments/useSegmentMutations.ts"
+      ],
+      "evidence": [
+        "`usePairMetadata` and `useShotVideoSettings` log and return `null` on query errors.",
+        "`useSegmentMutations` logs and returns `false` for failure paths.",
+        "`useSegmentOutputsForShot` normalizes and rethrows query errors, producing a materially different upstream handling path in the same feature seam."
+      ],
+      "suggestion": "Standardize segment data/mutation hooks on one boundary error contract (either throw typed errors for query states, or return explicit `Result` objects everywhere) and update consumers to branch consistently on that contract.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "segment_submission_error_contract_drift"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "prompt_shortlabel_contract_drift",
+      "summary": "Prompt short-label generation rules are duplicated with mismatched heuristics across prompt handoff points.",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/hooks/promptUtils.ts",
+        "src/shared/components/ImageGenerationForm/hooks/promptManagement/usePromptHandlers.ts",
+        "src/shared/components/ImageGenerationForm/hooks/buildBatchTaskParams.ts",
+        "src/shared/components/ImageGenerationForm/hooks/formSubmission/promptSubmissionTransforms.ts"
+      ],
+      "evidence": [
+        "Canonical helper `toShortPrompt` truncates to 30 chars.",
+        "`usePromptHandlers` decides auto-overwrite by checking `startsWith(prompt.fullPrompt.substring(0, 20))`, diverging from 30-char policy.",
+        "`buildBatchTaskParams` reimplements inline 30-char + ellipsis fallback instead of using the same helper used by submission transforms."
+      ],
+      "suggestion": "Centralize a single short-label policy (generation + overwrite-detection comparator) in one utility and consume it from handlers, submission transforms, and batch param builder to remove divergent behavior.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "prompt_contract_duplication"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Boundary contracts are implicit and differ by module (throw/null/false), so seam behavior depends on caller assumptions instead of shared contract types.",
+      "Performance-oriented local workarounds (custom sorting, optimistic submission) were added without preserving end-to-end invariants (pagination correctness, persistence-before-submit gating).",
+      "Policy logic is duplicated across adjacent modules without a shared seam utility, causing drift in user-visible behavior."
+    ],
+    "likely_symptoms": [
+      "processing_pagination_page_drop",
+      "segment_save_failure_not_gating_submission",
+      "segment_hooks_error_contract_fragmentation",
+      "prompt_shortlabel_contract_drift"
+    ],
+    "possible_false_positives": []
+  }
+}

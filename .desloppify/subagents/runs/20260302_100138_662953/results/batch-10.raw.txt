@@ -1,0 +1,126 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 10,
+  "assessments": {
+    "contract_coherence": 74.0,
+    "type_safety": 68.5
+  },
+  "dimension_notes": {
+    "contract_coherence": {
+      "evidence": [
+        "In src/shared/hooks/segments/useSegmentSettings.ts, the public contract declares saveSettings: () => Promise<boolean>, and src/shared/hooks/segments/useSegmentMutations.ts returns false on multiple persistence failures.",
+        "In src/shared/components/MediaLightbox/components/submitSegmentTask.ts, maybeSaveSettings awaits saveSettings() but ignores the boolean result and proceeds to task creation regardless.",
+        "This creates a behavior/signature mismatch where 'save failed' can still produce a submitted task, violating caller expectations for a boolean success contract."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "type_safety": {
+      "evidence": [
+        "src/shared/components/segmentSettingsMigration.ts uses repeated direct casts from Record<string, unknown> (e.g., prompt/negativePrompt/numFrames/motionMode/phaseConfig) without runtime narrowing, so SegmentSettings can be populated with invalid runtime types while still type-checking.",
+        "src/shared/components/MediaLightbox/components/submitSegmentTask.ts force-casts buildTaskParams(...) from Record<string, unknown> to IndividualTravelSegmentTaskParams via `as unknown as`, bypassing compile-time shape checks.",
+        "src/shared/components/MediaLightbox/hooks/reposition/useImageTransform.ts casts activeVariantParams?.transform to ImageTransform and then src/shared/components/MediaLightbox/hooks/reposition/useCanvasTransform.ts performs numeric math/transform string interpolation on those fields; malformed persisted data yields NaN/invalid transforms at runtime.",
+        "src/integrations/supabase/bootstrap/createSupabaseClient.ts mutates client.rest.fetch through `as unknown as { rest: { fetch: ... } }`, coupling behavior to untyped internal shape and defeating type guarantees.",
+        "Mechanical signal refutation: the scan's dead_function hotspot on src/integrations/supabase/bootstrap/fetchWithTimeout.ts is not supported here; composeAbortSignals is used by fetchWithTimeout and by fetchWithTimeout tests."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "contract_coherence",
+      "identifier": "segment_save_result_ignored",
+      "summary": "Segment submission ignores saveSettings success/failure contract before creating tasks.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/submitSegmentTask.ts",
+        "src/shared/hooks/segments/useSegmentSettings.ts",
+        "src/shared/hooks/segments/useSegmentMutations.ts"
+      ],
+      "evidence": [
+        "submitSegmentTask.ts defines saveSettings as Promise<boolean | void>, and maybeSaveSettings only awaits it without checking return value.",
+        "useSegmentSettings.ts exposes saveSettings: () => Promise<boolean>.",
+        "useSegmentMutations.ts save paths return false on fetch/update exceptions and error branches, so failure is explicitly encoded but dropped by submit path."
+      ],
+      "suggestion": "Make submit flow branch on save result: require saveSettings to return Promise<boolean>, abort task submission when false, and surface an explicit user-facing error. Remove `| void` from SubmitSegmentTaskInput once all callers comply.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "unchecked_boundary_results"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "segment_params_type_erasure",
+      "summary": "Segment settings/task params rely on unsafe unknown-to-domain casts instead of validated decoding.",
+      "related_files": [
+        "src/shared/components/segmentSettingsMigration.ts",
+        "src/shared/components/segmentSettingsUtils.ts",
+        "src/shared/components/MediaLightbox/components/submitSegmentTask.ts"
+      ],
+      "evidence": [
+        "extractSettingsFromParams in segmentSettingsMigration.ts casts unknown values directly to string/number/boolean/PhaseConfig unions.",
+        "buildTaskParams in segmentSettingsUtils.ts returns Record<string, unknown>, forcing consumers to recover domain type later.",
+        "submitSegmentTask.ts performs `params as unknown as IndividualTravelSegmentTaskParams`, suppressing mismatch detection between builder output and task contract."
+      ],
+      "suggestion": "Introduce explicit runtime decoders/guards for metadata/task-param parsing and change buildTaskParams to return a concrete typed task-params interface. Remove `as unknown as` by making shape compatibility compile-time checked end-to-end.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "unchecked_unknown_payloads"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "reposition_transform_unvalidated_read",
+      "summary": "Persisted transform payload is trusted without validation and used as numeric math input.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/reposition/useImageTransform.ts",
+        "src/shared/components/MediaLightbox/hooks/reposition/useCanvasTransform.ts",
+        "src/shared/components/MediaLightbox/hooks/reposition/types.ts"
+      ],
+      "evidence": [
+        "useImageTransform.ts reads `activeVariantParams?.transform as ImageTransform | undefined` from Record<string, unknown> and only checks object-ness, not field types/ranges.",
+        "useCanvasTransform.ts consumes transform fields in arithmetic and CSS transform composition (`translate`, `scale`, `rotate`) assuming valid numbers/booleans."
+      ],
+      "suggestion": "Add a strict `parseImageTransform` guard that validates each field (finite numbers + boolean flags + bounds where relevant) and falls back to DEFAULT_TRANSFORM on invalid input before state assignment.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "unchecked_unknown_payloads"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "supabase_rest_fetch_private_patch",
+      "summary": "Supabase client behavior depends on a double-cast mutation of an internal property.",
+      "related_files": [
+        "src/integrations/supabase/bootstrap/createSupabaseClient.ts",
+        "src/integrations/supabase/client.ts",
+        "src/integrations/supabase/bootstrap/fetchWithTimeout.ts"
+      ],
+      "evidence": [
+        "createSupabaseClient.ts sets `(client as unknown as { rest: { fetch: typeof dataFetch } }).rest.fetch = dataFetch`.",
+        "This bypasses official client typings and ties correctness to an undocumented internal shape; compiler cannot detect drift in Supabase internals."
+      ],
+      "suggestion": "Wrap request customization behind supported Supabase extension points (or a local typed adapter/factory) and isolate one narrowly-typed boundary for the patch with runtime assertion + version guard if internal mutation remains unavoidable.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "unchecked_unknown_payloads"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Boundary data is treated as trusted domain objects too early (metadata, params, client internals).",
+      "Boolean/Result-style contracts are declared but not consistently enforced by orchestration layers."
+    ],
+    "likely_symptoms": [
+      "segment_save_result_ignored",
+      "segment_params_type_erasure",
+      "reposition_transform_unvalidated_read"
+    ],
+    "possible_false_positives": [
+      "dead_function signal for fetchWithTimeout appears mis-scoped in this batch context"
+    ]
+  }
+}

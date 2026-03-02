@@ -26,7 +26,7 @@ describe('DEFAULT_VIDEO_STRUCTURE_PARAMS', () => {
 
 describe('DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES', () => {
   it('has correct default model name', () => {
-    expect(DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES.model_name).toBe('base_tester_model');
+    expect(DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES.model_name).toBe('wan_2_2_i2v_lightning_baseline_2_2_2');
   });
 
   it('has correct default seed', () => {
@@ -55,5 +55,9 @@ describe('DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES', () => {
 
   it('defaults show_input_images to false', () => {
     expect(DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES.show_input_images).toBe(false);
+  });
+
+  it('defaults debug to false for production payload safety', () => {
+    expect(DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES.debug).toBe(false);
   });
 });

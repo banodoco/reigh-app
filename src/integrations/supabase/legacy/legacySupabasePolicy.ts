@@ -6,8 +6,8 @@ import {
 
 const legacySupabasePolicy = getDeprecationPolicy('legacy_supabase_facade');
 
+export const LEGACY_SUPABASE_ALIAS_SPECIFIER = '@/integrations/supabase/client';
 export const LEGACY_SUPABASE_ALIAS_REMOVE_BY = legacySupabasePolicy.removeBy;
-export const LEGACY_SUPABASE_ALIAS_OWNER = legacySupabasePolicy.owner;
 export const LEGACY_SUPABASE_IMPORT_BUDGET_PHASES = legacySupabasePolicy.importBudgetPhases;
 
 export function isLegacySupabaseFacadePastRemovalTarget(now: Date = new Date()): boolean {

@@ -1,0 +1,367 @@
+{
+  "assessments": {
+    "api_surface_coherence": 48.0
+  },
+  "dimension_notes": {
+    "api_surface_coherence": {
+      "evidence": [
+        "Confirmed contract drift on delete-loading state: `MediaGalleryProps.isDeleting` allows `string | boolean | null`, but `MediaLightbox` and downstream action contracts use `string | null`; `MediaGalleryLightbox` explicitly drops boolean values with `typeof isDeleting === 'string' || isDeleting == null ? isDeleting : undefined`.",
+        "Confirmed cross-module callback shape drift for shot creation: `MediaGallery` expects `onCreateShot: (shotName, files) => Promise<void>`, `MediaLightbox` expects `Promise<{shotId?: string; shotName?: string} | void>`, and travel-between-images editor callbacks use `Promise<string>`/`Promise<{shotId: string; shotName: string}>`.",
+        "Confirmed name-collision API incoherence for `generateUniqueFilename`: storage path utility uses `(extension: string) => string`, while LoRA validation utility uses `(name, baseModel, huggingfaceUrl?, existingFilenames?) => string`.",
+        "Confirmed mixed success/failure contracts in project CRUD API: same hook surface returns `Promise<Project | null>` for create and `Promise<boolean>` for update/delete, while also invoking async `updateUserSettings(...)` without awaiting or handling rejection.",
+        "Refuted mechanical concern: `useGenerationMutations.ts` does not currently expose async-without-await in the flagged paths; mutation functions either `await` DB/scope checks or return promise-producing helpers.",
+        "Refuted mechanical concern: `createSupabaseClient.ts` does not currently have async-without-await in its flagged path; the async replacement fetch function awaits `fetchWithTimeout` and the exported factory is intentionally synchronous.",
+        "Refuted mechanical concern: `handleKeyDown` and touch-handler signature variance appears to be local handler naming reuse across unrelated components rather than a shared exported API contract."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": ""
+    }
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "timeline_refetch_not_awaitable",
+      "summary": "Timeline update APIs resolve before cache refetches complete, so awaited mutations do not guarantee fresh read state.",
+      "confidence": "high",
+      "suggestion": "Make `refetchTimelineFrameCaches` return `Promise<void>` and await a `Promise.all` of all refetch calls; update timeline mutation callers and tests to assert post-refetch completion behavior.",
+      "related_files": [
+        "src/shared/hooks/timeline/timelineMutationService.ts",
+        "src/shared/hooks/timeline/useTimelineFrameUpdates.ts",
+        "src/shared/hooks/timeline/__tests__/timelineMutationService.test.ts"
+      ],
+      "evidence": [
+        "`refetchTimelineFrameCaches` is synchronous and returns `void` while invoking async `queryClient.refetchQueries(...)` (`timelineMutationService.ts:17-31`).",
+        "Callers await serialized writes and then call `refetchTimelineFrameCaches(...)` as the final step, implying completion semantics that are not actually guaranteed (`useTimelineFrameUpdates.ts:93-131`, `144-205`).",
+        "Current tests only assert invocation order/count, not completion semantics of refetches (`timelineMutationService.test.ts:40-61`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "reasoning": ""
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "task_hooks_scope_mismatch",
+      "summary": "Sibling task hooks expose inconsistent scope contracts: one is project-scoped while the other accepts projectId but ignores it.",
+      "confidence": "high",
+      "suggestion": "Unify hook contracts: either remove the unused parameter from `useAllTaskTypes` and update call sites, or genuinely scope/query-key it by project if per-project behavior is intended.",
+      "related_files": [
+        "src/shared/hooks/useTaskStatusCounts.ts",
+        "src/shared/components/TasksPane/hooks/useTasksPaneController.ts",
+        "src/shared/hooks/__tests__/useTaskStatusCounts.test.ts"
+      ],
+      "evidence": [
+        "`useTaskStatusCounts(projectId)` keys and behavior depend on project scope and disable when missing (`useTaskStatusCounts.ts:37-43,193`).",
+        "`useAllTaskTypes(_projectId)` takes the same parameter shape but discards it and always uses global key `taskQueryKeys.allTypes` (`useTaskStatusCounts.ts:207-219`).",
+        "Consumer passes `selectedProjectId` into both hooks as if they share scope semantics (`useTasksPaneController.ts:102-105`)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "reasoning": ""
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "pending_clips_polymorphic_param",
+      "summary": "A single argument slot in `consumePendingJoinClips` is overloaded for unrelated meanings, increasing misuse risk and obscuring API intent.",
+      "confidence": "high",
+      "suggestion": "Replace the union overload with an options object (`{ projectId?, readVideoDuration? }`) and add a deprecated compatibility wrapper if needed to preserve call sites during migration.",
+      "related_files": [
+        "src/tools/join-clips/lib/clipInitService.ts",
+        "src/tools/join-clips/hooks/useClipManager.ts",
+        "src/tools/join-clips/lib/__tests__/clipInitService.test.ts"
+      ],
+      "evidence": [
+        "Signature accepts `string | null | ((videoUrl) => Promise<number>)` as first argument (`clipInitService.ts:208-210`), then runtime type-switches to determine semantic meaning (`clipInitService.ts:212-217`).",
+        "Production usage passes project scope (`useClipManager.ts:95`), while tests exercise no-arg, function-first, and project+function variants (`clipInitService.test.ts:189,235,276`), confirming multi-shape contract creep."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "reasoning": ""
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "lineage_nullable_api_nonnull_impl",
+      "summary": "The lineage hook declares nullable inputs but internally relies on non-null assertions, creating a dishonest API boundary.",
+      "confidence": "medium",
+      "suggestion": "Split into a strict internal hook/function requiring non-null IDs and keep a thin nullable wrapper that returns early before constructing query key/queryFn, eliminating `!` assertions at the public boundary.",
+      "related_files": [
+        "src/shared/hooks/useLineageChain.ts",
+        "src/shared/lib/queryKeys/generations.ts",
+        "src/shared/hooks/__tests__/useLineageChain.test.ts"
+      ],
+      "evidence": [
+        "Public signature is `useLineageChain(variantId: string | null, projectId: string | null)` (`useLineageChain.ts:190`), but query key and query function use `variantId!`/`projectId!` (`useLineageChain.ts:192,195,199-200`).",
+        "This relies on `enabled: !!variantId && !!projectId` as a runtime guard rather than expressing non-null invariants structurally, while tests assert null-input behavior (`useLineageChain.test.ts:94-114`)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "reasoning": ""
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "delete_loading_union_drift",
+      "summary": "Delete-loading API uses incompatible shapes across gallery/lightbox boundaries, forcing lossy adapter logic.",
+      "confidence": "high",
+      "suggestion": "Standardize deletion state to one explicit contract (e.g., `{mode:'idle'|'deleting', targetId?:string}` or `string | null`) and migrate all call sites/adapters to that single shape; remove boolean fallback once migrated.",
+      "related_files": [
+        "src/shared/components/MediaGallery/types.ts",
+        "src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx",
+        "src/shared/components/MediaLightbox/MediaLightbox.tsx",
+        "src/shared/components/MediaLightbox/types.ts"
+      ],
+      "evidence": [
+        "`MediaGalleryProps` defines `isDeleting?: string | boolean | null`, but `MediaLightboxProps` and `LightboxActionHandlers` define `isDeleting?: string | null`.",
+        "Adapter bridge in `MediaGalleryLightbox` converts only string/null and drops booleans (`... ? isDeleting : undefined`), so one accepted upstream value is silently discarded at boundary."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "reasoning": ""
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "shot_creation_callback_fragmented",
+      "summary": "Shot-creation callback contract is fragmented into incompatible return types across adjacent features.",
+      "confidence": "high",
+      "suggestion": "Introduce a shared `CreateShotResult` type and one canonical callback signature across gallery/lightbox/editor surfaces; adapt legacy call sites with thin wrappers and deprecate divergent forms.",
+      "related_files": [
+        "src/shared/components/MediaGallery/types.ts",
+        "src/shared/components/MediaLightbox/types.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/components/BatchModeContent.tsx"
+      ],
+      "evidence": [
+        "Gallery contract uses `onCreateShot?: (shotName, files) => Promise<void>` while lightbox workflow contracts allow `Promise<{shotId?: string; shotName?: string} | void>`.",
+        "Travel-between-images editor callbacks introduce additional shapes (`Promise<string>` and `Promise<{shotId: string; shotName: string}>`), so shared behavior depends on local adapter assumptions."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "reasoning": ""
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "generate_unique_filename_name_collision",
+      "summary": "Two unrelated utilities export the same function name with different parameter models, creating API ambiguity.",
+      "confidence": "high",
+      "suggestion": "Rename to domain-specific APIs (`generateStorageObjectName`, `generateLoraFilename`) and optionally colocate behind explicit domain namespaces to prevent accidental cross-use.",
+      "related_files": [
+        "src/shared/lib/storagePaths.ts",
+        "src/shared/components/LoraSelectorModal/utils/validation-utils.ts",
+        "src/shared/lib/videoUploader.ts",
+        "src/shared/components/LoraSelectorModal/components/MyLorasTab/hooks/useLoraSubmission.ts"
+      ],
+      "evidence": [
+        "`storagePaths.generateUniqueFilename(extension)` generates timestamp/random storage names.",
+        "`validation-utils.generateUniqueFilename(name, baseModel, huggingfaceUrl?, existingFilenames?)` derives semantic LoRA filenames and de-duplicates against existing names.",
+        "Both are actively consumed in different upload flows, but identical naming hides fundamentally different contracts and intent."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "reasoning": ""
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "project_crud_result_contract_inconsistent",
+      "summary": "Project CRUD exposes mixed result semantics and leaves an async side-effect unobserved, making caller behavior inconsistent.",
+      "confidence": "high",
+      "suggestion": "Unify CRUD operations on a shared `OperationResult<T>` (or throw-on-failure policy) and either await `updateUserSettings` or explicitly decouple it as best-effort with typed status so callers can reason about partial success.",
+      "related_files": [
+        "src/shared/hooks/useProjectCRUD.ts",
+        "src/shared/contexts/ProjectContext.tsx",
+        "src/shared/components/GlobalHeader/CreateProjectModal.tsx",
+        "src/shared/components/ProjectSettingsModal.tsx"
+      ],
+      "evidence": [
+        "`useProjectCRUD` returns heterogeneous success contracts: create -> `Promise<Project | null>`, update/delete -> `Promise<boolean>`.",
+        "In `addNewProject`, `updateUserSettings('user', { lastOpenedProjectId: ... })` is invoked without `await`/error handling, so settings persistence can fail independently of returned create success.",
+        "Callers branch differently (`if (newProject)` vs `if (success)`), reinforcing divergent semantics for operations in one CRUD surface."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "reasoning": ""
+    }
+  ],
+  "review_quality": {
+    "batch_count": 2,
+    "dimension_coverage": 1.0,
+    "evidence_density": 1.5,
+    "high_score_missing_issue_note": 0,
+    "finding_pressure": 17.758,
+    "dimensions_with_findings": 1
+  },
+  "review_scope": {
+    "reviewed_files_count": 99,
+    "successful_batch_count": 2,
+    "full_sweep_included": false,
+    "total_files": 1280,
+    "imported_dimensions": [
+      "api_surface_coherence"
+    ]
+  },
+  "reviewed_files": [
+    "src/shared/lib/settingsIds.ts",
+    "src/domains/generation/hooks/useDeleteGenerationWithConfirm.ts",
+    "src/shared/lib/clipboard.ts",
+    "src/shared/components/dialogs/DeleteGenerationConfirmDialog.tsx",
+    "src/shared/components/ImageGenerationForm/hooks/formSubmission/submissionContext.ts",
+    "src/shared/lib/tasks/taskParamContract.ts",
+    "src/features/layout/contracts/overlayViewportConstraints.ts",
+    "src/shared/components/JoinClipsSettingsForm/types.ts",
+    "src/shared/hooks/useTaskStatusCounts.ts",
+    "src/shared/components/VideoPortionTimeline/types.ts",
+    "src/features/gallery/lib/adjacentPagePreloadCoordinator.ts",
+    "src/shared/components/ImageGenerationForm/hooks/referenceUpload/referenceDomainService.ts",
+    "src/shared/hooks/invalidation/useGenerationInvalidation.ts",
+    "src/shared/hooks/shots/cacheUtils.ts",
+    "src/shared/hooks/timeline/timelineMutationService.ts",
+    "src/shared/hooks/useLineageChain.ts",
+    "src/shared/lib/generationTaskCache.ts",
+    "src/shared/lib/generationTaskRepository.ts",
+    "src/shared/lib/generationTransformers.ts",
+    "src/shared/lib/timelineWriteQueue.ts",
+    "src/shared/lib/toolSettingsService.ts",
+    "src/tools/join-clips/lib/clipInitService.ts",
+    "src/tools/join-clips/lib/clipManager/metadata.ts",
+    "src/domains/generation/hooks/useGenerationMutations.ts",
+    "src/integrations/supabase/bootstrap/createSupabaseClient.ts",
+    "src/pages/Home/components/panes/PhilosophyPane.tsx",
+    "src/shared/components/GlobalHeader/ProjectSelectorPopover.tsx",
+    "src/shared/components/ImageGenerationForm/components/reference/ReferenceThumbnail.tsx",
+    "src/shared/components/LoraSelectorModal/utils/validation-utils.ts",
+    "src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx",
+    "src/shared/components/MediaLightbox/components/StrokeOverlay.tsx",
+    "src/shared/components/PaneControlTab.tsx",
+    "src/shared/components/PhaseConfigSelectorModal/components/BrowsePresetsTab.tsx",
+    "src/shared/components/StyledVideoPlayer.tsx",
+    "src/shared/components/TasksPane/TaskList.tsx",
+    "src/shared/hooks/segments/useSegmentOutputsForShot.ts",
+    "src/shared/hooks/timeline/useTimelineFrameUpdates.ts",
+    "src/shared/hooks/useLoraManager.tsx",
+    "src/shared/hooks/useProjectCRUD.ts",
+    "src/shared/hooks/useProjectGenerations.ts",
+    "src/shared/hooks/useToolSettings.ts",
+    "src/shared/lib/media/downloadMedia.ts",
+    "src/shared/lib/tasks/imageGeneration.ts",
+    "src/shared/lib/tasks/individualTravelSegment.ts",
+    "src/shared/lib/timeFormatting.ts",
+    "src/shared/services/projects/projectSetupService.ts",
+    "src/tools/join-clips/pages/JoinClipsPage.tsx",
+    "src/tools/training-data-helper/components/BatchSelector.tsx",
+    "src/tools/travel-between-images/components/MotionControl.tsx",
+    "src/tools/travel-between-images/components/ShotEditor/ShotSettingsContext.tsx",
+    "src/tools/travel-between-images/components/ShotEditor/services/applySettings/imageService.ts",
+    "src/tools/travel-between-images/components/ShotEditor/ui/Header.tsx",
+    "src/tools/travel-between-images/components/ShotImagesEditor/hooks/segmentSlotContracts.ts",
+    "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+    "src/tools/travel-between-images/components/SortableShotItem.tsx",
+    "src/tools/travel-between-images/components/Timeline/GuidanceVideoStrip.tsx",
+    "src/tools/travel-between-images/components/Timeline/TimelineContainer/components/TimelineControls.tsx",
+    "src/tools/travel-between-images/components/Timeline/hooks/useTimelineViewportController.ts",
+    "src/tools/travel-between-images/components/VideoShotDisplay.tsx",
+    "src/app/components/error/AppErrorBoundary.tsx",
+    "src/domains/generation/types/generationMetadata.ts",
+    "src/pages/Home/components/panes/CreativePartnerPane.tsx",
+    "src/shared/components/CreditsManagement/components/TaskLogFilters.tsx",
+    "src/shared/components/CreditsManagement/hooks/useTaskLogDownload.ts",
+    "src/shared/components/DefaultableTextarea.tsx",
+    "src/shared/components/GlobalHeader/GlobalHeaderDesktop.tsx",
+    "src/shared/components/ImageGenerationDetails.tsx",
+    "src/shared/components/ImageGenerationForm/components/GenerationSettingsSection.tsx",
+    "src/shared/components/ImageGenerationForm/components/PromptsSection.tsx",
+    "src/shared/components/ImageGenerationForm/hooks/formSubmission/usePromptQueueSubmission.ts",
+    "src/shared/components/ImageGenerationForm/hooks/legacyMigrations/useResourceMigration.ts",
+    "src/shared/components/ImageGenerationForm/hooks/promptManagement/types.ts",
+    "src/shared/components/ImageGenerationForm/hooks/referenceManagement/types.ts",
+    "src/shared/components/ImageGenerationForm/hooks/useFormSubmission.ts",
+    "src/shared/components/ImageGenerationModal.tsx",
+    "src/shared/components/ImageUploadActions.tsx",
+    "src/shared/components/LoraManager.tsx",
+    "src/shared/components/LoraSelectorModal/components/CommunityLorasTab.tsx",
+    "src/shared/components/LoraSelectorModal/components/MyLorasTab/components/FileDropZone.tsx",
+    "src/shared/components/LoraSelectorModal/components/MyLorasTab/components/SampleGenerationsSection.tsx",
+    "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+    "src/shared/components/MediaLightbox/MediaLightbox.tsx",
+    "src/shared/components/MediaLightbox/components/EditPanelLayout.tsx",
+    "src/shared/components/MediaLightbox/components/ShotSelectorControls.tsx",
+    "src/shared/components/MediaLightbox/components/WorkflowControls.tsx",
+    "src/shared/components/MediaLightbox/components/editModes/Img2ImgControls.tsx",
+    "src/shared/components/MediaLightbox/hooks/reposition/types.ts",
+    "src/shared/components/MediaLightbox/hooks/reposition/useRepositionDrag.ts",
+    "src/shared/components/MediaLightbox/hooks/useEditSettingsPersistence.ts",
+    "src/shared/components/MediaLightbox/hooks/useEffectiveMedia.ts",
+    "src/shared/components/MediaLightbox/hooks/useVideoEditing.ts",
+    "src/shared/components/MotionPresetSelector/SelectedPresetCard.tsx",
+    "src/shared/components/MotionPresetSelector/index.tsx",
+    "src/shared/components/PhaseConfigSelectorModal/components/sections/PhaseConfigSection.tsx",
+    "src/shared/components/SegmentSettingsForm/components/PromptSection.tsx",
+    "src/shared/components/SegmentSettingsForm/types.ts",
+    "src/shared/components/ShotImageManager/ShotImageManagerDesktop.tsx",
+    "src/shared/components/ShotImageManager/ShotImageManagerMobile.tsx",
+    "src/shared/components/ShotImageManager/components/BatchDropZone.tsx"
+  ],
+  "provenance": {
+    "kind": "blind_review_batch_import",
+    "blind": true,
+    "runner": "codex",
+    "run_stamp": "20260302_115743",
+    "created_at": "2026-03-02T12:00:03+00:00",
+    "batch_count": 2,
+    "batch_indexes": [
+      1,
+      2
+    ],
+    "packet_path": "/Users/peteromalley/Documents/reigh/.desloppify/review_packet_blind.json",
+    "packet_sha256": "c5a3868b46b43d91802558d785b0d6fd056fb3c64b3cb6d73760c3f063fe4b90"
+  },
+  "assessment_coverage": {
+    "scored_dimensions": [
+      "naming_quality",
+      "logic_clarity",
+      "type_safety",
+      "contract_coherence",
+      "error_consistency",
+      "abstraction_fitness",
+      "ai_generated_debt",
+      "high_level_elegance",
+      "mid_level_elegance",
+      "low_level_elegance",
+      "cross_module_architecture",
+      "initialization_coupling",
+      "convention_outlier",
+      "dependency_health",
+      "test_strategy",
+      "api_surface_coherence",
+      "authorization_consistency",
+      "incomplete_migration",
+      "package_organization",
+      "design_coherence"
+    ],
+    "selected_dimensions": [
+      "api_surface_coherence"
+    ],
+    "imported_dimensions": [
+      "api_surface_coherence"
+    ],
+    "missing_dimensions": [
+      "naming_quality",
+      "logic_clarity",
+      "type_safety",
+      "contract_coherence",
+      "error_consistency",
+      "abstraction_fitness",
+      "ai_generated_debt",
+      "high_level_elegance",
+      "mid_level_elegance",
+      "low_level_elegance",
+      "cross_module_architecture",
+      "initialization_coupling",
+      "convention_outlier",
+      "dependency_health",
+      "test_strategy",
+      "authorization_consistency",
+      "incomplete_migration",
+      "package_organization",
+      "design_coherence"
+    ]
+  }
+}

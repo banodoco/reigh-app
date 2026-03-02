@@ -1,0 +1,399 @@
+{
+  "batch": "Full Codebase Sweep",
+  "batch_index": 11,
+  "assessments": {
+    "naming_quality": 88.5,
+    "logic_clarity": 86.8,
+    "type_safety": 84.7,
+    "contract_coherence": 86.7,
+    "error_consistency": 79.8,
+    "abstraction_fitness": 78.6,
+    "ai_generated_debt": 87.9,
+    "high_level_elegance": 85.4,
+    "mid_level_elegance": 86.2,
+    "low_level_elegance": 86.0,
+    "cross_module_architecture": 86.1,
+    "initialization_coupling": 80.4,
+    "convention_outlier": 88.2,
+    "dependency_health": 90.1,
+    "test_strategy": 81.7,
+    "api_surface_coherence": 86.5,
+    "authorization_consistency": 89.4,
+    "incomplete_migration": 80.9,
+    "package_organization": 82.6,
+    "design_coherence": 86.0
+  },
+  "dimension_notes": {
+    "naming_quality": {
+      "evidence": [
+        "Most reviewed symbols are intent-revealing (`useDeleteGenerationWithConfirm`, `initializeSupabaseRuntime`), but there are still ambiguous context labels like `context: 'App'` in `useAppExternalDrop` that reduce diagnosability.",
+        "Legacy/internal naming drift remains in generation contracts (`GenerationRowDto`, `GenerationRowLegacyAliases`, `PersistedGenerationRow`) which requires extra mental mapping."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "A few ambiguous context strings and lingering legacy alias vocabulary still reduce operational clarity."
+    },
+    "logic_clarity": {
+      "evidence": [
+        "`useGalleryPageState` has clear flow but includes repeated pagination resets and state-sync effects that increase orchestration complexity.",
+        "`useDeleteGenerationAction` control flow is straightforward, but failed delete path has an empty catch branch, which makes behavior less explicit."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Several hooks still rely on implicit behavior during failure paths instead of explicit branch outcomes."
+    },
+    "type_safety": {
+      "evidence": [
+        "`generationParamsMapper.ts` uses unchecked assertions (`value as OrchestratorDetailsPayload`, `value as GenerationExtraPayload`) after only record-shape checks, so static types over-promise runtime guarantees.",
+        "Mapper code drops invalid fields silently, leaving typed output with implicit data loss not represented in types."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "contract_coherence": {
+      "evidence": [
+        "Supabase client contract is explicit (`getSupabaseClientResult` and throwing `getSupabaseClient`) and used consistently by reviewed hooks.",
+        "Generation-type boundaries are mostly documented, but legacy alias types keep dual-shape contracts alive."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Dual contract surfaces in generation DTO/legacy aliases still leak migration complexity into normal reads."
+    },
+    "error_consistency": {
+      "evidence": [
+        "`useDeleteGenerationAction.ts` catches delete failures and intentionally keeps dialog open but swallows the error entirely (no normalize/report path).",
+        "`useCredits.ts` constructs new generic `Error(...)` from Supabase errors while sibling hooks (`useApiTokens.ts`, `useApiKeys.ts`) propagate normalized runtime errors; this mixes error semantics and strips structured causes."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "abstraction_fitness": {
+      "evidence": [
+        "`src/features/image-edit/*` and `src/domains/imageEdit/*` are mostly pass-through exports to `src/shared/imageEditCore/*` and `src/shared/components/MediaLightbox/*` with little local behavior.",
+        "This creates a multi-hop API chain where each layer adds naming ceremony but little constraint or translation."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 72.0,
+        "indirection_cost": 78.0,
+        "interface_honesty": 79.0,
+        "delegation_density": 83.0,
+        "definition_directness": 70.0,
+        "type_discipline": 76.0
+      }
+    },
+    "ai_generated_debt": {
+      "evidence": [
+        "Most reviewed files avoid repetitive boilerplate, but some comments restate obvious behavior and several wrappers are purely mechanical re-exports.",
+        "Debug/instrumentation files contain broad defensive catch blocks without diagnostics in some paths."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Low-value wrapper and comment ceremony remains in migration-related surfaces."
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Top-level split (`app`, `domains`, `features`, `integrations`) is coherent, but image-edit ownership is spread across all four layers for one capability.",
+        "Generation domain still exposes migration-era aliases in public-adjacent contracts."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Capability ownership is still fragmented in image-edit and generation migration seams."
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Most boundary handoffs are explicit (`useDeleteGenerationWithConfirm` adapting hook state to dialog contract).",
+        "Some seams still leak behavior, e.g., callers must infer that delete failures are silently retained for retry."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "A few interaction seams still rely on implicit side effects instead of explicit result contracts."
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Hook internals are generally concise and cohesive (`useAppDndOverlay`, `useSplitViewScroll`).",
+        "A few hotspots rely on broad try/catch without preserving useful cause context."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Local error branches in some hooks still optimize UI continuity over observability."
+    },
+    "cross_module_architecture": {
+      "evidence": [
+        "No boundary_violations/deferred_import_density data was populated in this packet (`null`), so architectural assessment used direct import paths in reviewed files.",
+        "Cross-layer imports are mostly stable, but image-edit traverses feature -> domain -> shared chains with thin wrappers."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Thin cross-layer relay modules increase boundary noise and ownership ambiguity."
+    },
+    "initialization_coupling": {
+      "evidence": [
+        "Supabase access depends on `initializeSupabase()` being called during bootstrap (`client.ts` guard + global runtime singleton), while many hooks call `getSupabaseClient()` directly (`useAuthGuard`, `useOnboardingFlow`, billing/account/settings hooks).",
+        "This creates ordering fragility for alternative entrypoints/tests/non-standard mounts, because the dependency is global mutable state rather than injected runtime context."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "convention_outlier": {
+      "evidence": [
+        "Packet convention summary shows broad camelCase consistency; reviewed seed files follow that baseline.",
+        "Notable outlier is persistent legacy snake_case alias presence in TS domain transport types."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Migration-era alias conventions still coexist with normalized domain naming."
+    },
+    "dependency_health": {
+      "evidence": [
+        "No duplicate heavy dependency misuse was observed in reviewed scope; key integrations remain concentrated (`@tanstack/react-query`, Supabase SDK).",
+        "Manual vendor chunk policy is explicit and bounded in `config/vite/policy.ts`."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "A few internal wrappers hide real dependency ownership and make dependency impact less obvious."
+    },
+    "test_strategy": {
+      "evidence": [
+        "Instrumentation tests `index.direct.test.ts` for both realtime and window only assert symbol existence, not runtime behavior of patchers/error collection.",
+        "Critical failure-handling behavior (silent catch paths, instrumentation side effects) is under-validated compared with production impact."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "api_surface_coherence": {
+      "evidence": [
+        "Public Supabase client surface is intentionally constrained and validated by contract tests.",
+        "Image-edit and generation surfaces still expose multiple near-equivalent entry points and alias layers."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Overlapping entry points and migration aliases reduce API predictability."
+    },
+    "authorization_consistency": {
+      "evidence": [
+        "Reviewed data-access hooks consistently use `requireSession` or `requireUserFromSession` before privileged operations.",
+        "No sibling-path auth bypass found in reviewed scope."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Some auth failures are converted to generic errors, which can weaken policy diagnostics."
+    },
+    "incomplete_migration": {
+      "evidence": [
+        "Generation transport still carries explicit legacy aliases (`thumbnail_url`, `shot_generation_id`, `shotImageEntryId`) in `generationRowDto.ts`.",
+        "`env.ts` includes explicit migration contract metadata with future remove-by date, indicating ongoing compatibility phase."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "package_organization": {
+      "evidence": [
+        "Objective structure signal: `src/features/image-edit/` has 6 files and only ~85 LOC total, and `src/domains/imageEdit/` has 2 files and ~25 LOC; both are thin-wrapper directories with low intrinsic ownership.",
+        "This fragmented shape forces one capability across `features/`, `domains/`, and `shared/` without clear boundary value.",
+        "Mechanical structure subkeys like `flat_dir_findings` and `root_files` were null in this packet, so scoring relies on available directory profile metrics and direct file content."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "design_coherence": {
+      "evidence": [
+        "`holistic_context.scan_evidence.signal_density` did not provide targeted overlapping detector hits for these seed files; direct review found localized but repeated seam-level issues (silent failure handling, thin wrapper relays).",
+        "Design is mostly coherent per module, but recurring migration/wrapper patterns create systemic friction."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Repeated thin-wrapper and migration compatibility patterns still dilute responsibility boundaries."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "error_consistency",
+      "identifier": "delete_error_swallowed_without_report",
+      "summary": "Delete confirmation flow swallows mutation failures without any reporting path",
+      "related_files": [
+        "src/domains/generation/hooks/useDeleteGenerationAction.ts",
+        "src/features/gallery/hooks/useGalleryPageState.ts"
+      ],
+      "evidence": [
+        "`confirmDelete` catches errors with `catch {}` and keeps dialog open, but never calls `normalizeAndPresentError` or returns failure metadata.",
+        "Upstream consumers only receive pending/deleting state, so operational failures are invisible unless mutation internals toast independently."
+      ],
+      "suggestion": "Return an explicit result from `confirmDelete` (e.g., `{ ok: false, error }`) and report via `normalizeAndPresentError` with `showToast: false`; let callers decide UX while preserving telemetry.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "implicit_failure_paths"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "credits_hook_error_semantics_drift",
+      "summary": "Billing hook uses generic thrown strings while sibling hooks use normalized app errors",
+      "related_files": [
+        "src/features/billing/hooks/useCredits.ts",
+        "src/features/account/hooks/useApiTokens.ts"
+      ],
+      "evidence": [
+        "`useCredits` throws new `Error('Failed to fetch ...')` from Supabase failures, discarding structured original error properties.",
+        "`useApiTokens` and other hooks consistently use `normalizeAndPresentAndRethrow`, creating divergent error payloads and handling semantics across adjacent features."
+      ],
+      "suggestion": "Standardize all Supabase-facing hooks on one error contract (prefer normalized AppError with preserved cause) and remove generic re-stringification in billing fetchers.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "implicit_failure_paths"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "mapper_unsafe_casts_hide_invalid_payloads",
+      "summary": "Generation params mapper asserts complex payload types without structural validation",
+      "related_files": [
+        "src/domains/generation/mappers/generationParamsMapper.ts",
+        "src/domains/generation/types/generationParams.ts"
+      ],
+      "evidence": [
+        "`toOrchestratorDetailsPayload` and `toGenerationExtraPayload` cast any record to typed payload interfaces after only `isRecord` check.",
+        "Typed outputs can include malformed nested fields while compile-time contracts imply validated structure."
+      ],
+      "suggestion": "Introduce field-level validators/type guards for `OrchestratorDetailsPayload` and `GenerationExtraPayload`, and surface validation failures through structured mapper diagnostics.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "image_edit_facade_chain_low_leverage",
+      "summary": "Image-edit API is split into thin relays that add indirection without behavior",
+      "related_files": [
+        "src/features/image-edit/index.ts",
+        "src/features/image-edit/behavior.ts",
+        "src/domains/imageEdit/index.ts",
+        "src/domains/imageEdit/types.ts"
+      ],
+      "evidence": [
+        "Feature and domain layers mostly re-export shared modules without translation, policy, or invariants.",
+        "Callers traverse multiple package surfaces to reach effectively one implementation in `shared`."
+      ],
+      "suggestion": "Collapse to one canonical boundary: keep either `features/image-edit` or `domains/imageEdit` as public facade and route imports directly to it; remove redundant pass-through modules.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "facade_layering_migration"
+    },
+    {
+      "dimension": "initialization_coupling",
+      "identifier": "supabase_global_runtime_order_dependency",
+      "summary": "Global Supabase singleton requires strict bootstrap order across many hooks",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/app/bootstrap.tsx",
+        "src/app/hooks/useAuthGuard.ts",
+        "src/app/hooks/useOnboardingFlow.ts"
+      ],
+      "evidence": [
+        "`getSupabaseClient` throws unless `initializeSupabase()` has already run, enforced via global mutable flags/singletons.",
+        "Hooks across app/features call `getSupabaseClient()` directly, coupling normal execution to one startup sequence."
+      ],
+      "suggestion": "Move Supabase access behind a React runtime provider/context (or injected accessor) initialized once at app root; make hooks depend on context rather than process-global mutable state.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "runtime_singleton_coupling"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "instrumentation_tests_are_symbol_only",
+      "summary": "Instrumentation tests verify exports but not behavioral patching or failure paths",
+      "related_files": [
+        "src/integrations/supabase/instrumentation/window/index.direct.test.ts",
+        "src/integrations/supabase/instrumentation/realtime/index.direct.test.ts",
+        "src/integrations/supabase/instrumentation/window/index.ts",
+        "src/integrations/supabase/instrumentation/realtime/referencePatchers.ts"
+      ],
+      "evidence": [
+        "Both direct tests only assert function existence (`toBeDefined`) and do not execute patchers or corruption-event collection paths.",
+        "Production behavior includes monkey-patching globals and object properties, which is high risk without behavior-level tests."
+      ],
+      "suggestion": "Add behavior tests that simulate window/websocket/realtime objects, assert patch idempotency, event capture, and error-path handling; keep export smoke tests as a thin sanity layer only.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_generation_aliases_still_first_class",
+      "summary": "Generation transport still carries parallel legacy aliases, extending migration debt",
+      "related_files": [
+        "src/domains/generation/types/generationRowDto.ts",
+        "src/domains/generation/types/index.ts",
+        "src/domains/generation/mappers/generationParamsMapper.ts"
+      ],
+      "evidence": [
+        "`GenerationRowLegacyAliases` includes both snake_case and legacy camelCase IDs (`shot_generation_id`, `shotImageEntryId`) in active type surface.",
+        "Mapper/type layers continue to support dual naming schemes, increasing ongoing maintenance and ambiguity."
+      ],
+      "suggestion": "Define a migration cutoff release: stage 1 deprecate legacy aliases via runtime warnings in mapper layer, stage 2 remove alias fields from DTO/public exports, stage 3 run repo-wide compile/test to update remaining callsites.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "facade_layering_migration"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "thin_wrapper_dirs_fragment_image_edit_ownership",
+      "summary": "Image-edit capability is split across thin directories with minimal local responsibility",
+      "related_files": [
+        "src/features/image-edit/index.ts",
+        "src/features/image-edit/types.ts",
+        "src/domains/imageEdit/index.ts",
+        "src/domains/imageEdit/types.ts"
+      ],
+      "evidence": [
+        "Directory profile metrics show `src/features/image-edit/` (6 files, ~85 LOC) and `src/domains/imageEdit/` (2 files, ~25 LOC), both largely pass-through.",
+        "Primary implementation logic remains in `src/shared/imageEditCore/*`, leaving intermediary folders as indirection islands."
+      ],
+      "suggestion": "Staged reorg plan: 1) choose target folder (`src/features/image-edit` as canonical surface); 2) move/re-export `shared/imageEditCore` symbols into that folder in one direction only; 3) remove `src/domains/imageEdit` wrappers; 4) update imports with `rg -l \"@/domains/imageEdit|@/shared/imageEditCore|@/features/image-edit\" src | xargs sed` (or codemod); 5) validate with `pnpm -s tsc --noEmit` and `pnpm -s vitest run`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "facade_layering_migration"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Migration-era compatibility layers were retained as permanent facades, creating low-leverage indirection and dual contracts.",
+      "Runtime concerns (bootstrap order, error reporting) are handled implicitly in local hooks instead of explicit shared contracts."
+    ],
+    "likely_symptoms": [
+      "image_edit_facade_chain_low_leverage",
+      "thin_wrapper_dirs_fragment_image_edit_ownership",
+      "legacy_generation_aliases_still_first_class",
+      "delete_error_swallowed_without_report"
+    ],
+    "possible_false_positives": [
+      "Some wrapper modules may be intentionally preserved as temporary import-stability facades during staged migration.",
+      "Instrumentation symbol-only tests may be intentional minimum smoke coverage if behavior tests live in a separate suite not included in this batch."
+    ]
+  }
+}

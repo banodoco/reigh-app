@@ -1,0 +1,123 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 5,
+  "assessments": {
+    "ai_generated_debt": 73.0,
+    "low_level_elegance": 71.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "Legacy-structure compatibility logic is duplicated in multiple places: `LEGACY_TRAVEL_STRUCTURE_FIELDS`/`LEGACY_TRAVEL_STRUCTURE_VIDEO_FIELDS` are redefined in `src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts` even though `src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts` already owns the same migration surface.",
+        "`payloadBuilder.ts` throws guidance to \"pass explicit legacyStructureCompatibility\" (line ~108), but no such field exists on `TravelBetweenImagesTaskInput` in `src/shared/lib/tasks/travelBetweenImages/types.ts`, creating dead migration guidance.",
+        "Migration shims remain as thin pass-through modules (for example `src/tools/travel-between-images/components/Timeline/InlineSegmentVideo.tsx`) instead of being retired after import migration."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Mechanical scan evidence flags `src/tools/travel-between-images/components/ShotEditor/useShotEditorController.ts` as a complexity hotspot (846 LOC), and the file still orchestrates an oversized set of concerns in one hook.",
+        "`useShotEditorController.ts` destructures a very large prop bag and repackages it through multiple memo layers (`structureVideoMemo`, `generationModeMemo`, `joinStateMemo`, then `layoutProps`), creating high local indirection cost.",
+        "`src/tools/travel-between-images/components/ShotEditor/state/types.ts` defines a very broad `ShotEditorProps` contract (navigation, generation, cache, refs, UI state, callbacks), which reinforces the monolithic controller shape and slows safe change."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "travel_legacy_field_registry_duplicated",
+      "summary": "Legacy travel-structure field registry is duplicated across migration modules.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts",
+        "src/shared/lib/tasks/travelBetweenImages/types.ts"
+      ],
+      "evidence": [
+        "`payloadBuilder.ts` defines `LEGACY_TRAVEL_STRUCTURE_FIELDS` and `LEGACY_TRAVEL_STRUCTURE_VIDEO_FIELDS` locally, while `legacyStructureVideo.ts` defines and uses the same legacy-field set for policy/enforcement.",
+        "`payloadBuilder.ts` error text references `legacyStructureCompatibility`, but `TravelBetweenImagesTaskInput` has no such field in `types.ts`, so migration guidance and typed contract are out of sync."
+      ],
+      "suggestion": "Create one canonical exported legacy-field registry/helper in `legacyStructureVideo.ts` and import it from `payloadBuilder.ts`; also either add a typed `legacyStructureCompatibility` gate or remove that guidance from the thrown error to match the real contract.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "travel_structure_migration_residue"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "inline_segment_video_shim_not_retired",
+      "summary": "Compatibility re-export remains in active path instead of finishing import migration.",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline/InlineSegmentVideo.tsx",
+        "src/tools/travel-between-images/components/Timeline/SegmentOutputStrip.tsx",
+        "src/shared/components/InlineSegmentVideo.tsx"
+      ],
+      "evidence": [
+        "`Timeline/InlineSegmentVideo.tsx` is a pure re-export shim with no behavior.",
+        "`SegmentOutputStrip.tsx` still imports from `./InlineSegmentVideo`, so the shim remains in runtime path instead of importing `@/shared/components/InlineSegmentVideo` directly."
+      ],
+      "suggestion": "Update timeline consumers to import `InlineSegmentVideo` from the shared component directly, then delete the local shim file and remove any remaining references.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "travel_structure_migration_residue"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "shot_editor_controller_over_orchestrated",
+      "summary": "Shot editor controller remains monolithic with high local indirection despite hook extraction.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/useShotEditorController.ts",
+        "src/tools/travel-between-images/components/ShotEditor/state/types.ts",
+        "src/tools/travel-between-images/components/ShotEditor/ShotEditorLayout.tsx"
+      ],
+      "evidence": [
+        "`useShotEditorController.ts` manages setup, editing, generation, joining, bridge refs, and layout assembly in one 800+ LOC hook, then repackages state through many memoized object bundles before returning `layoutProps`.",
+        "`ShotEditorProps` in `state/types.ts` is very wide and mixed-responsibility, driving the controller to accept and forward many optional callbacks/refs across layers."
+      ],
+      "suggestion": "Split the controller into boundary-specific adapters (e.g., `useShotEditorGenerationAdapter`, `useShotEditorMediaAdapter`, `useShotEditorLayoutAdapter`) with narrower interfaces, then shrink `ShotEditorProps` to only boundary inputs owned by the page.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "shot_editor_boundary_blur"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "generation_row_contract_split_brain",
+      "summary": "GenerationRow contract is split between barrel export and view-model type, creating migration drift.",
+      "related_files": [
+        "src/domains/generation/types/index.ts",
+        "src/domains/generation/types/generationRow.ts",
+        "src/domains/generation/types/generationViewRow.ts",
+        "src/shared/hooks/useShotImages.ts"
+      ],
+      "evidence": [
+        "`index.ts` exports `GenerationRow` from `generationRow.ts` (persisted shape), while `generationViewRow.ts` defines a richer `GenerationRow` including derived view fields (`imageUrl`, `thumbUrl`, badge fields).",
+        "Call sites such as `useShotImages.ts` import `GenerationRow` from the barrel but use view-only fields like `g.imageUrl`, indicating contract drift and mixed migration states."
+      ],
+      "suggestion": "Unify on a single canonical exported `GenerationRow` name (or explicitly separate `PersistedGenerationRow` vs `GenerationViewRow` at the barrel), then update imports so each call site uses the intended contract explicitly.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "generation_type_migration_drift"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Migration work introduced compatibility shims and parallel contracts without a strict retirement pass.",
+      "Local hook extractions in ShotEditor reduced some complexity but kept one large orchestration boundary and oversized prop contract."
+    ],
+    "likely_symptoms": [
+      "travel_legacy_field_registry_duplicated",
+      "inline_segment_video_shim_not_retired",
+      "generation_row_contract_split_brain"
+    ],
+    "possible_false_positives": [
+      "Some compatibility layers may be intentionally temporary if external consumers still depend on old imports/contracts."
+    ]
+  }
+}

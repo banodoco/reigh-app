@@ -197,9 +197,9 @@ function useVideoFileUploadProcessor(input: {
       const { data: { user } } = await supabase().auth.getUser();
       const videoUrl = await uploadVideoToStorage(
         file,
-        '',
-        '',
-        (progress) => setUploadProgress(25 + progress * 0.65)
+        {
+          onProgress: (progress) => setUploadProgress(25 + progress * 0.65),
+        }
       );
       setUploadProgress(90);
 

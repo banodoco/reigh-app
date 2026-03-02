@@ -15,12 +15,12 @@ const { mockGetSession, mockOnAuthStateChange, getAuthStateManagerMock } = vi.ho
 }));
 
 vi.mock('@/integrations/supabase/client', () => ({
-  supabase: {
+  getSupabaseClient: () => ({
     auth: {
       getSession: mockGetSession,
       onAuthStateChange: mockOnAuthStateChange,
     },
-  },
+  }),
 }));
 
 vi.mock('@/integrations/supabase/auth/AuthStateManager', () => ({

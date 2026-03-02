@@ -1,0 +1,118 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 4,
+  "assessments": {
+    "test_strategy": 72.0,
+    "api_surface_coherence": 76.0,
+    "mid_level_elegance": 81.0
+  },
+  "dimension_notes": {
+    "test_strategy": {
+      "evidence": [
+        "Confirmed `holistic_context.testing.critical_untested`: `src/shared/lib/settingsIds.ts` (31 importers), `src/shared/components/dialogs/DeleteGenerationConfirmDialog.tsx` (5 importers), `src/domains/generation/hooks/useDeleteGenerationWithConfirm.ts` (5 importers), and other seed files are still without direct tests.",
+        "`src/shared/components/ImageGenerationForm/hooks/referenceUpload/referenceDomainService.test.ts` defines extensive mocks (file conversion, uploader, resolution, processor, thumbnailer, supabase, cache extraction) but only three failure-path tests; no success-path contract test for upload+thumbnail+persist flow.",
+        "Coverage around delete-confirm orchestration is indirect only (`useDeleteGenerationWithConfirm` is mocked in gallery tests), so open/close cancel behavior and confirm handoff contract are not validated at hook/component seam."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "api_surface_coherence": {
+      "evidence": [
+        "Confirmed `holistic_context.api_surface.sync_async_mix` signal for this batch: affected modules include `generationTaskRepository`, `generationTaskCache`, `timelineMutationService`, `toolSettingsService`, `videoUploader`, and join-clips services.",
+        "`src/shared/lib/videoUploader.ts` exposes overloaded public signatures where legacy `projectId`/`shotId` arguments are accepted but explicitly unused, creating a contract that implies routing/scoping semantics the implementation no longer honors.",
+        "`src/shared/lib/generationTaskRepository.ts` exports several symbols flagged as dead exports in packet and not referenced by other source files (`normalizeScopedGenerationInput`, `applyParentTaskFilter`, and multiple exported scope types), while consumers define similar local contracts (e.g. scoped input in `useGenerationMutations`), indicating drifted public surface."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Workflow integrity check found a queue blind spot: `runSerializedTimelineWrite` in `src/shared/lib/timelineWriteQueue.ts` serializes by shot but does not enforce a queue-level timeout/lease itself; forward progress depends on every caller wrapping inner operations with timeout-safe primitives.",
+        "Some call sites pass composite operations into the queue (`useTimelineFrameUpdates`, `usePositionManagement`, `useTimelineCore`) and rely on nested collaborators to time out correctly, increasing seam fragility and making deadlock/stall root-cause attribution harder.",
+        "Counter-evidence (partial refute): timeout guardrails do exist in several lower-level paths (`runTimelineWriteWithTimeout`, `persistTimelineFrameBatch`), so this is not currently a proven live deadlock, but a structural reliability gap."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "test_strategy",
+      "identifier": "critical_paths_untested_and_overmocked",
+      "summary": "Critical coordination paths remain untested while existing tests over-mock failure-only branches.",
+      "related_files": [
+        "src/domains/generation/hooks/useDeleteGenerationWithConfirm.ts",
+        "src/shared/components/dialogs/DeleteGenerationConfirmDialog.tsx",
+        "src/shared/lib/settingsIds.ts",
+        "src/shared/components/ImageGenerationForm/hooks/referenceUpload/referenceDomainService.ts",
+        "src/shared/components/ImageGenerationForm/hooks/referenceUpload/referenceDomainService.test.ts"
+      ],
+      "evidence": [
+        "Packet still lists these as `critical_untested` and repo has no direct test files for delete-confirm hook/dialog or settings ID contract module.",
+        "`referenceDomainService.test.ts` has heavy module mocking and only failure-path assertions (`reference_aspect_processing_failed`, `reference_thumbnail_auth_required`, `reference_selection_persist_failed`), with no success-path verification of end-to-end contract shape."
+      ],
+      "suggestion": "Add focused seam tests: (1) direct hook/component tests for delete-confirm open/cancel/confirm transitions, (2) contract tests for settings ID lookup usage, (3) at least one minimally mocked happy-path test for `referenceDomainService` that validates returned URLs/metadata and persistence updates.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "boundary_contracts_lack_direct_tests"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "legacy_video_upload_signature_contract_drift",
+      "summary": "Public video upload API keeps legacy parameters that no longer affect behavior.",
+      "related_files": [
+        "src/shared/lib/videoUploader.ts",
+        "src/shared/lib/__tests__/videoUploader.test.ts",
+        "src/tools/join-clips/lib/clipManager/upload.ts"
+      ],
+      "evidence": [
+        "`uploadVideoToStorage` exposes overloads with `(file, projectId, shotId, ...)` while implementation comment states those params are retained only for backwards compatibility and no longer used in storage path decisions.",
+        "Tests still validate legacy signatures, keeping the stale contract alive even though current production callers primarily use options-object form."
+      ],
+      "suggestion": "Deprecate legacy overloads behind a separate `uploadVideoToStorageLegacy` wrapper, migrate call sites/tests to the options-object API, then remove unused positional parameters from the primary export to restore interface honesty.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "drifted_public_interfaces"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "timeline_queue_missing_central_stall_guardrail",
+      "summary": "Serialized timeline queue has no built-in lease/timeout to guarantee forward progress.",
+      "related_files": [
+        "src/shared/lib/timelineWriteQueue.ts",
+        "src/shared/hooks/timeline/useTimelineFrameUpdates.ts",
+        "src/shared/hooks/useTimelineCore.ts",
+        "src/tools/travel-between-images/components/Timeline/hooks/usePositionManagement.ts"
+      ],
+      "evidence": [
+        "`runSerializedTimelineWrite` queues operations per shot but accepts arbitrary async tasks and does not enforce timeout at queue boundary.",
+        "Callers pass multi-step operations through this seam; if any nested step forgets/escapes timeout handling, queued writes behind it can starve indefinitely."
+      ],
+      "suggestion": "Add queue-level guardrails in `timelineWriteQueue`: enforce optional max lease duration per queued task, emit timeout/fault telemetry with requestId+operation, and fail/release the queue deterministically when lease is exceeded. Then require callers to provide operation timeout policy at enqueue time.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "queue_progress_guardrails_missing"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Boundary modules evolved with compatibility layers but lacked periodic API pruning.",
+      "Tests skew toward mocked unit isolation, leaving cross-module contract seams under-validated.",
+      "Reliability policies (timeouts/leases) are implemented in leaf operations instead of enforced at orchestration boundaries."
+    ],
+    "likely_symptoms": [
+      "critical_paths_untested_and_overmocked",
+      "legacy_video_upload_signature_contract_drift",
+      "timeline_queue_missing_central_stall_guardrail"
+    ],
+    "possible_false_positives": [
+      "sync_async_mix is partially intentional in utility/service modules; concern is highest where mixed styles leak into public contracts rather than purely internal helpers."
+    ]
+  }
+}

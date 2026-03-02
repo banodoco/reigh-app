@@ -60,12 +60,10 @@ function readPrimitive(value: unknown, type: PrimitiveFieldType): string | numbe
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
-function reportMapperIssue(context: string, logData: Record<string, unknown>): void {
+function reportMapperIssue(_context: string, _logData: Record<string, unknown>): void {
   if (!import.meta.env.DEV) {
     return;
   }
-  void context;
-  void logData;
 }
 
 function readMappedValue(

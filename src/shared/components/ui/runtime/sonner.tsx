@@ -1,6 +1,6 @@
 import { Toast } from "@base-ui-components/react/toast";
 import { ToastItem, toast } from "@/shared/components/ui/toast";
-import { getToastManager } from "@/shared/components/ui/runtime/toastManager";
+import { getToastManager } from '@/shared/runtime/toastRuntime';
 import { UI_Z_LAYERS } from '@/shared/lib/uiLayers';
 
 interface ToasterProps {

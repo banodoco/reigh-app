@@ -18,7 +18,9 @@
     "vitest.edge.config.ts": "config",
     "vitest.config.ts": "config",
     "supabase/functions/_tests/mocks/denoHttpServer.ts": "test",
-    "src/integrations/supabase/types.ts": "generated"
+    "src/integrations/supabase/types.ts": "generated",
+    "config/testing/vitest.edge.config.ts": "config",
+    "supabase/functions/vitest.smoke.config.ts": "config"
   },
   "review_dimensions": [],
   "large_files_threshold": 0,
@@ -30,5 +32,7 @@
   "target_strict_score": 95,
   "review_allow_custom_dimensions": false,
   "review_custom_dimensions": [],
-  "review_batch_max_files": 80
+  "review_batch_max_files": 80,
+  "needs_rescan": false,
+  "execution_log_max_entries": 10000
 }

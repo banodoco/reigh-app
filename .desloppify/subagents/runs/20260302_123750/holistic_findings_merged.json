@@ -1,0 +1,342 @@
+{
+  "assessments": {
+    "authorization_consistency": 79.4,
+    "contract_coherence": 76.5,
+    "logic_clarity": 90.0,
+    "naming_quality": 84.5,
+    "type_safety": 69.3
+  },
+  "dimension_notes": {
+    "naming_quality": {
+      "evidence": [
+        "In `src/shared/components/MediaLightbox/components/submitSegmentTask.ts` and `src/shared/components/ImageGenerationForm/hooks/referenceUpload/useStyleReferenceUploadHandler.ts`, `getSupabaseClient` is imported as `supabase` and then invoked as `supabase()`, which reads like a pre-instantiated client rather than a factory accessor.",
+        "Cross-module naming around generation row types is mostly coherent, but the `GenerationRow` re-export path (`generationViewRow`) requires extra context to infer persisted-vs-derived boundaries."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "issues_preventing_higher_score": "A few high-traffic modules still use misleading aliases that obscure object-vs-factory semantics at call sites."
+    },
+    "logic_clarity": {
+      "evidence": [
+        "`src/shared/components/MediaGallery/hooks/useMobileInteractions.ts` documents click-outside behavior on mobile but only attaches `mousedown`, which can miss touch-only interaction paths.",
+        "`src/shared/components/ImageGenerationForm/hooks/usePromptManagement.ts` and `usePromptPersistenceEffects.ts` rely on persisted prompt counts from storage without validating malformed values, so state transitions can become non-obvious when storage is corrupted."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "A few interaction and persistence paths rely on implicit browser behavior assumptions instead of explicit normalization."
+    },
+    "type_safety": {
+      "evidence": [
+        "`src/shared/components/MediaLightbox/components/submitSegmentTask.ts` uses `params as unknown as IndividualTravelSegmentTaskParams`, bypassing compiler verification between `buildTaskParams` output and `createIndividualTravelSegmentTask` input.",
+        "`src/shared/components/ImageGenerationForm/hooks/promptManagement/storedPromptCount.ts` returns `parseInt(stored, 10)` directly; malformed storage values produce `NaN` despite the declared `number` contract being consumed as a valid count in `usePromptManagement` and `usePromptPersistenceEffects`."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": ""
+    },
+    "contract_coherence": {
+      "evidence": [
+        "`downloadSingleMedia` in `src/shared/components/MediaGallery/services/downloadService.ts` normalizes failures into `DownloadServiceError`, but `downloadStarredMediaArchive` performs raw `fetch` calls where network failures escape as non-`DownloadServiceError` exceptions.",
+        "`src/shared/components/MediaGallery/hooks/useMediaGalleryActions.ts` branches logging behavior based on `error instanceof DownloadServiceError`; starred-archive network failures therefore skip the structured error contract this hook expects."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": ""
+    },
+    "authorization_consistency": {
+      "evidence": [
+        "`src/shared/components/MediaLightbox/components/submitSegmentTask.ts` performs mutation calls (`shot_generations` metadata update and edge invocation) without explicit session/user precondition checks at the call boundary.",
+        "Neighboring write paths such as `src/shared/components/ImageGenerationForm/hooks/referenceUpload/useStyleReferenceUploadHandler.ts` explicitly check `supabase().auth.getUser()` and abort unauthenticated writes, and `src/integrations/supabase/auth/ensureAuthenticatedSession.ts` provides shared guard utilities that are not used in `submitSegmentTask`."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": ""
+    }
+  },
+  "findings": [
+    {
+      "dimension": "type_safety",
+      "identifier": "unsafe_double_cast_segment_params",
+      "summary": "Double-cast bypasses type checks for segment task params",
+      "confidence": "high",
+      "suggestion": "Replace the double-cast with a typed mapper function that returns `IndividualTravelSegmentTaskParams` directly; if fields differ, adapt at the mapper boundary and let TypeScript enforce completeness.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/submitSegmentTask.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts"
+      ],
+      "evidence": [
+        "`buildSubmitParamsBuilder` returns `params as unknown as IndividualTravelSegmentTaskParams`.",
+        "The target task API is strongly typed via `createIndividualTravelSegmentTask`, but this cast suppresses compatibility validation between builder output and task input."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "reasoning": ""
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "stored_prompt_count_nan_contract_break",
+      "summary": "Prompt count loader can return NaN despite numeric contract",
+      "confidence": "high",
+      "suggestion": "Normalize parsed values with finite/positive checks and fallback to `1` when invalid (e.g., `const parsed = Number.parseInt(...); return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;`).",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/hooks/promptManagement/storedPromptCount.ts",
+        "src/shared/components/ImageGenerationForm/hooks/usePromptManagement.ts",
+        "src/shared/components/ImageGenerationForm/hooks/promptManagement/usePromptPersistenceEffects.ts"
+      ],
+      "evidence": [
+        "`getStoredPromptCount` returns `parseInt(stored, 10)` with no `Number.isFinite` guard.",
+        "Its result is consumed as a usable count state (`lastKnownPromptCount`) for prompt management and persistence effects."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "reasoning": ""
+    },
+    {
+      "dimension": "contract_coherence",
+      "identifier": "download_error_contract_divergence",
+      "summary": "Download service exposes inconsistent error types across similar APIs",
+      "confidence": "high",
+      "suggestion": "Standardize both download paths on one error contract by wrapping fetch/XHR failures into `DownloadServiceError` (including network and abort cases) before propagating.",
+      "related_files": [
+        "src/shared/components/MediaGallery/services/downloadService.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryActions.ts"
+      ],
+      "evidence": [
+        "`downloadSingleMedia` wraps transport failures in `DownloadServiceError` with code/context metadata.",
+        "`downloadStarredMediaArchive` only wraps non-OK HTTP responses; rejected `fetch` promises bubble as raw errors, bypassing `DownloadServiceError`-specific handling in `useMediaGalleryActions`."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "reasoning": ""
+    },
+    {
+      "dimension": "authorization_consistency",
+      "identifier": "segment_task_write_without_shared_auth_guard",
+      "summary": "Segment task submission skips shared authenticated-session guard",
+      "confidence": "medium",
+      "suggestion": "Require an authenticated session/user at the start of segment submission (via `requireSession`/`requireUserFromSession`) and fail fast with a typed auth error before any write/invoke operations.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/submitSegmentTask.ts",
+        "src/integrations/supabase/auth/ensureAuthenticatedSession.ts",
+        "src/shared/components/ImageGenerationForm/hooks/referenceUpload/useStyleReferenceUploadHandler.ts"
+      ],
+      "evidence": [
+        "`submitSegmentTask` performs Supabase writes/invokes without first requiring a session/user through shared guard utilities.",
+        "Other nearby mutation paths explicitly enforce auth preconditions (`auth.getUser` in reference upload), creating inconsistent client-side authorization posture."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "reasoning": ""
+    },
+    {
+      "dimension": "naming_quality",
+      "identifier": "supabase_factory_alias_ambiguity",
+      "summary": "Getter function is aliased as an instance-like name",
+      "confidence": "high",
+      "suggestion": "Use explicit naming (`getSupabaseClient` or `getSupabase`) and assign `const client = getSupabaseClient()` inside functions before use.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/submitSegmentTask.ts",
+        "src/shared/components/ImageGenerationForm/hooks/referenceUpload/useStyleReferenceUploadHandler.ts",
+        "src/integrations/supabase/client.ts"
+      ],
+      "evidence": [
+        "`getSupabaseClient` is imported as `supabase` and called as `supabase()`, which obscures whether it is a client object or factory accessor.",
+        "The same aliasing pattern appears in multiple high-traffic mutation modules, increasing cognitive overhead at API boundaries."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "reasoning": ""
+    }
+  ],
+  "review_quality": {
+    "batch_count": 1,
+    "dimension_coverage": 0.25,
+    "evidence_density": 2.0,
+    "high_score_missing_issue_note": 0,
+    "finding_pressure": 10.192,
+    "dimensions_with_findings": 4
+  },
+  "review_scope": {
+    "reviewed_files_count": 80,
+    "successful_batch_count": 1,
+    "full_sweep_included": false,
+    "total_files": 1281,
+    "imported_dimensions": [
+      "authorization_consistency",
+      "contract_coherence",
+      "logic_clarity",
+      "naming_quality",
+      "type_safety"
+    ]
+  },
+  "reviewed_files": [
+    "src/shared/lib/errorHandling/runtimeError.ts",
+    "src/domains/generation/types/index.ts",
+    "src/shared/components/ui/button.tsx",
+    "src/integrations/supabase/client.ts",
+    "src/shared/components/ui/contracts/cn.ts",
+    "src/shared/components/ui/runtime/sonner.tsx",
+    "src/shared/components/ui/tooltip.tsx",
+    "src/shared/hooks/mobile/index.ts",
+    "src/shared/components/ui/primitives/label.tsx",
+    "src/shared/contexts/ProjectContext.tsx",
+    "src/domains/generation/contracts/deleteGenerationConfirm.ts",
+    "src/domains/generation/hooks/useDeleteGenerationWithConfirm.ts",
+    "src/pages/Home/components/install/InstallInstructionsModal.tsx",
+    "src/pages/Home/components/panes/CreativePartnerPane.tsx",
+    "src/shared/components/LoraSelectorModal/components/DescriptionModal.tsx",
+    "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+    "src/shared/components/MediaGallery/hooks/useMobileInteractions.ts",
+    "src/shared/components/MediaGallery/services/downloadService.ts",
+    "src/shared/components/MediaGalleryItem/components/InfoTooltip.tsx",
+    "src/shared/components/MediaGalleryItem/components/ShotActions.tsx",
+    "src/shared/components/MediaGalleryItem/hooks/useMediaGalleryItemState.ts",
+    "src/shared/components/MediaLightbox/components/LightboxShell.tsx",
+    "integrations/supabase/bootstrap/fetchWithTimeout.ts",
+    "pages/ArtPage.tsx",
+    "pages/NotFoundPage.tsx",
+    "pages/Home/components/hero/ConstellationCanvas.tsx",
+    "pages/Home/components/hero/GoldSpotlight.tsx",
+    "pages/Home/components/hero/HeroCtaContent.tsx",
+    "pages/Home/components/hero/HomeBackground.tsx",
+    "pages/Home/components/install/visuals.tsx",
+    "pages/Home/components/install/scenarios.ts",
+    "shared/components/DecorativeBackground.tsx",
+    "shared/components/InlineSegmentVideo.tsx",
+    "shared/components/MediaLightbox.tsx",
+    "shared/components/ModalContainer.tsx",
+    "shared/components/PhaseConfigSelectorModal.tsx",
+    "shared/components/TaskTypeConfigInitializer.tsx",
+    "shared/components/segmentSettingsMigration.ts",
+    "shared/components/segmentSettingsMigrationLegacy.ts",
+    "shared/components/segmentSettingsUtils.ts",
+    "shared/components/useImageGenerationDetailsViewModel.ts",
+    "shared/components/CreditsManagement/components/TransactionsTable.tsx",
+    "shared/components/CreditsManagement/hooks/useAutoTopupState.ts",
+    "shared/components/GlobalHeader/CreateProjectModal.tsx",
+    "shared/components/GlobalHeader/GlobalHeaderController.ts",
+    "shared/components/GlobalHeader/useGlobalHeaderProject.ts",
+    "shared/components/ImageGenerationForm/components/index.ts",
+    "shared/components/ImageGenerationForm/hooks/buildBatchTaskParams.ts",
+    "shared/components/ImageGenerationForm/hooks/promptUtils.ts",
+    "shared/components/ImageGenerationForm/hooks/promptManagement/storedPromptCount.ts",
+    "shared/components/ImageGenerationForm/hooks/promptManagement/usePromptHandlers.ts",
+    "shared/components/ImageGenerationForm/hooks/promptManagement/usePromptIdDedupEffect.ts",
+    "shared/components/ImageGenerationForm/hooks/referenceUpload/optimisticCacheUpdate.ts",
+    "shared/components/MediaGallery/components/MobileBottomBar.tsx",
+    "shared/components/MediaGallery/components/ShotNotifier.tsx",
+    "shared/components/MediaGallery/hooks/index.ts",
+    "shared/components/MediaGallery/hooks/useContainerWidth.ts",
+    "shared/components/MediaGallery/hooks/useMediaGalleryDebugTools.ts",
+    "shared/components/MediaGallery/hooks/useMediaGalleryInteractionController.ts",
+    "shared/components/MediaLightbox/MediaLightboxInputAdapter.tsx",
+    "shared/components/MediaLightbox/components/index.ts",
+    "shared/components/MediaLightbox/components/AnnotationFloatingControls.tsx",
+    "shared/components/MediaLightbox/components/ButtonGroups.tsx",
+    "shared/components/MediaLightbox/components/FloatingToolControls.tsx",
+    "shared/components/MediaLightbox/components/ImageUpscaleForm.tsx",
+    "shared/components/MediaLightbox/components/MediaDisplayWithCanvas.tsx",
+    "shared/components/MediaLightbox/components/ModeSelector.tsx",
+    "shared/components/MediaLightbox/components/NavigationArrows.tsx",
+    "shared/components/MediaLightbox/components/RepositionOverlay.tsx",
+    "shared/components/MediaLightbox/components/StrokeOverlay.tsx",
+    "shared/components/MediaLightbox/components/VideoEditModeDisplay.tsx",
+    "shared/components/MediaLightbox/components/submitSegmentTask.ts",
+    "shared/components/MediaLightbox/components/editModes/RepositionButtons.tsx",
+    "shared/components/MediaLightbox/components/layouts/types.ts",
+    "shared/components/MediaLightbox/contexts/ImageEditContext.tsx",
+    "shared/components/MediaLightbox/contexts/ImageEditStatusContext.tsx",
+    "shared/components/MediaLightbox/hooks/reposition/types.ts",
+    "shared/components/MediaLightbox/hooks/reposition/useCanvasTransform.ts",
+    "shared/components/MediaLightbox/hooks/reposition/useImageTransform.ts",
+    "shared/components/MediaLightbox/utils/index.ts"
+  ],
+  "provenance": {
+    "kind": "blind_review_batch_import",
+    "blind": true,
+    "runner": "codex",
+    "run_stamp": "20260302_123750",
+    "created_at": "2026-03-02T12:40:58+00:00",
+    "batch_count": 1,
+    "batch_indexes": [
+      9
+    ],
+    "packet_path": "/Users/peteromalley/Documents/reigh/.desloppify/review_packet_blind.json",
+    "packet_sha256": "6a532ac5b5422d7f3ee693e91386bd1d7273aa9af4930035232087f8a2086291"
+  },
+  "assessment_coverage": {
+    "scored_dimensions": [
+      "naming_quality",
+      "logic_clarity",
+      "type_safety",
+      "contract_coherence",
+      "error_consistency",
+      "abstraction_fitness",
+      "ai_generated_debt",
+      "high_level_elegance",
+      "mid_level_elegance",
+      "low_level_elegance",
+      "cross_module_architecture",
+      "initialization_coupling",
+      "convention_outlier",
+      "dependency_health",
+      "test_strategy",
+      "api_surface_coherence",
+      "authorization_consistency",
+      "incomplete_migration",
+      "package_organization",
+      "design_coherence"
+    ],
+    "selected_dimensions": [
+      "naming_quality",
+      "logic_clarity",
+      "type_safety",
+      "contract_coherence",
+      "error_consistency",
+      "abstraction_fitness",
+      "ai_generated_debt",
+      "high_level_elegance",
+      "mid_level_elegance",
+      "low_level_elegance",
+      "cross_module_architecture",
+      "initialization_coupling",
+      "convention_outlier",
+      "dependency_health",
+      "test_strategy",
+      "api_surface_coherence",
+      "authorization_consistency",
+      "incomplete_migration",
+      "package_organization",
+      "design_coherence"
+    ],
+    "imported_dimensions": [
+      "authorization_consistency",
+      "contract_coherence",
+      "logic_clarity",
+      "naming_quality",
+      "type_safety"
+    ],
+    "missing_dimensions": [
+      "error_consistency",
+      "abstraction_fitness",
+      "ai_generated_debt",
+      "high_level_elegance",
+      "mid_level_elegance",
+      "low_level_elegance",
+      "cross_module_architecture",
+      "initialization_coupling",
+      "convention_outlier",
+      "dependency_health",
+      "test_strategy",
+      "api_surface_coherence",
+      "incomplete_migration",
+      "package_organization",
+      "design_coherence"
+    ]
+  }
+}

@@ -4,13 +4,13 @@ import { Button } from '@/shared/components/ui/button';
 import { PromptEntry, PromptInputRow } from './ImageGenerationForm';
 import { Wand2Icon, Edit, PackagePlus, Trash2, ChevronDown, ChevronLeft, Sparkles, Shuffle } from 'lucide-react';
 import { PromptGenerationControls, GenerationControlValues as PGC_GenerationControlValues } from './PromptGenerationControls';
-import { BulkEditControls, BulkEditParams as BEC_BulkEditParams, BulkEditControlValues as BEC_BulkEditControlValues } from './BulkEditControls';
+import { BulkEditControls, BulkEditParams as BEC_BulkEditParams, BulkEditControlValues as BEC_BulkEditControlValues } from './PromptEditorModal/BulkEditControls';
 import { useAIInteractionService } from '@/features/ai/hooks/useAIInteractionService';
 import { GeneratePromptsParams, AIModelType } from '@/types/ai';
 import { toast } from "@/shared/components/ui/runtime/sonner";
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
-import { useProject } from '@/shared/contexts/ProjectContext';
+import { useProjectSelectionContext } from '@/shared/contexts/ProjectContext';
 import { usePersistentToolState } from '@/shared/hooks/usePersistentToolState';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/components/ui/collapsible';
 import { useIsMobile } from "@/shared/hooks/mobile";
@@ -76,7 +76,7 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
   
   // CRITICAL: Get project context BEFORE any effects that use it
   // This must be declared before the useEffect at line 213 to prevent TDZ error
-  const { selectedProjectId } = useProject();
+  const { selectedProjectId } = useProjectSelectionContext();
   
   // Scroll state, ref, and fade effect
   const { showFade, scrollRef } = useScrollFade({

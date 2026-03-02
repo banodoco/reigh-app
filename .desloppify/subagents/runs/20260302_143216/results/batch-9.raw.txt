@@ -1,0 +1,111 @@
+{
+  "batch": "Design coherence — Mechanical Concern Signals",
+  "batch_index": 9,
+  "assessments": {
+    "design_coherence": 71.0,
+    "initialization_coupling": 80.0
+  },
+  "dimension_notes": {
+    "design_coherence": {
+      "evidence": [
+        "Confirmed concern: `WorkflowControlsBar` remains a bloated interface (31 props) and mostly forwards behavior to child controls, while `WorkflowControls` and `ShotSelectorControls` implement overlapping shot-association behavior.",
+        "Confirmed systemic pattern: lightbox architecture carries large contracts across layers (`MediaLightboxProps` flat mega-surface, `MediaGalleryLightbox` session decomposition/recomposition, no-op presenter wrappers in `imageLightboxModels.ts`).",
+        "High-complexity neighbors from scan evidence align with this pattern: `ImageLightbox.tsx` (981 LOC) and `useSharedLightboxState.ts` (819 LOC) centralize many responsibilities.",
+        "Refuted mechanical signal: `PhilosophyPane.tsx` no longer matches the old decomposition concern (now 161 LOC and delegates behavior to `usePhilosophyPaneMedia`/section components).",
+        "Refuted mechanical signal: `MediaGalleryLightbox.tsx` no longer shows the reported dead void-suppressed symbol pattern in current code.",
+        "Refuted/low-impact signals: `ProjectSelectorPopover` and `ReferenceThumbnail` signature-variance flags are cross-file naming/signature drift, not material local design defects in these files."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "initialization_coupling": {
+      "evidence": [
+        "Supabase runtime initialization is split across two mutable module-level gates: `runtimeClient` in `runtime/supabaseRuntime.ts` and `hasInitializedRuntimeClient` in `client.ts`.",
+        "`getSupabaseClientResult()` denies access based on the boolean gate before consulting runtime state, creating an order-sensitive contract tied to calling `initializeSupabase()` from bootstrap.",
+        "`initializeAppEnvironment()` in `app/bootstrap.tsx` currently performs the required call, so runtime works in the main app path, but coupling remains implicit and brittle for alternate entrypoints/tests."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "design_coherence",
+      "identifier": "lightbox_workflow_controls_duplication",
+      "summary": "Two active workflow-control implementations duplicate shot-association behavior and split one responsibility across parallel UI paths.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/WorkflowControlsBar.tsx",
+        "src/shared/components/MediaLightbox/components/WorkflowControls.tsx",
+        "src/shared/components/MediaLightbox/components/ShotSelectorControls.tsx",
+        "src/shared/components/MediaLightbox/components/layouts/LightboxLayout.tsx"
+      ],
+      "evidence": [
+        "`LightboxLayout` renders both control systems depending on layout path (`<WorkflowControlsBar {...props.workflowBar} />` and `<WorkflowControls {...workflowControlsProps} />`).",
+        "`WorkflowControlsBar` and `WorkflowControls` both own nearly identical concerns (shot selection, add-with/without-position, apply-settings) and pass many of the same fields.",
+        "`ShotSelectorControls` adds another overlapping layer, including its own asynchronous add-variant/add-without-position flows and optimistic UI signaling."
+      ],
+      "suggestion": "Consolidate into one workflow-controls domain component with layout-specific visual wrappers only; centralize shot-association action state and async flow in a single hook/model consumed by all layouts.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "lightbox_surface_fragmentation"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "lightbox_passthrough_abstraction_debt",
+      "summary": "Lightbox layers add indirection without transformation, inflating interfaces and obscuring ownership.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/MediaLightbox.tsx",
+        "src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx",
+        "src/shared/components/MediaLightbox/presenters/imageLightboxModels.ts",
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx"
+      ],
+      "evidence": [
+        "`MediaGalleryLightbox` decomposes a large `session` object into sub-contracts, then reconstructs another large prop object for `MediaLightbox`.",
+        "`MediaLightbox` groups flat props via `useBundledLightboxProps` then dispatches them to `ImageLightbox`/`VideoLightbox`; this is mostly reshaping, not behavior isolation.",
+        "`imageLightboxModels.ts` contains no-op wrappers (`buildWorkflowBarModel` and `buildWorkflowControlsModel` both `return input`), indicating ceremony without abstraction leverage."
+      ],
+      "suggestion": "Replace pass-through layers with a smaller, behavior-oriented lightbox context/model (commands + derived state), and remove no-op presenter wrappers; keep mapping only at true boundary translations.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "lightbox_surface_fragmentation"
+    },
+    {
+      "dimension": "initialization_coupling",
+      "identifier": "supabase_dual_init_gates",
+      "summary": "Supabase client availability depends on two mutable init gates, creating hidden ordering coupling.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/integrations/supabase/runtime/supabaseRuntime.ts",
+        "src/app/bootstrap.tsx"
+      ],
+      "evidence": [
+        "`runtime/supabaseRuntime.ts` tracks singleton readiness via `runtimeClient`.",
+        "`client.ts` separately tracks readiness via `hasInitializedRuntimeClient` and blocks `getSupabaseClientResult()` when false.",
+        "Main bootstrap currently calls `initializeSupabase()`, but correctness depends on that exact path rather than a single authoritative runtime registry."
+      ],
+      "suggestion": "Unify readiness state into one source of truth (runtime module), make `getSupabaseClientResult()` derive from actual runtime client presence, and deprecate/remove the duplicate boolean gate.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "split_runtime_state"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Incremental feature additions in the lightbox subsystem accumulated parallel control paths and prop surfaces instead of converging on a single domain model.",
+      "Runtime bootstrap evolved with layered wrappers, leaving duplicate mutable initialization state for Supabase."
+    ],
+    "likely_symptoms": [
+      "lightbox_workflow_controls_duplication",
+      "lightbox_passthrough_abstraction_debt"
+    ],
+    "possible_false_positives": [
+      "Async-without-await detector hits on `useGenerationMutations.ts` and `createSupabaseClient.ts` appear stale in current code.",
+      "Legacy structural flag on `PhilosophyPane.tsx` appears stale after decomposition."
+    ]
+  }
+}

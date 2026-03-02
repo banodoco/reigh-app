@@ -1,5 +1,4 @@
 import {
-  createTask,
   validateRequiredFields,
   TaskValidationError,
   validateNonEmptyString,
@@ -13,6 +12,8 @@ import type { TaskCreationResult } from '../taskCreation';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { FalLoraConfig } from '@/shared/types/lora';
 import { runBatchTaskPipeline } from './batchTaskPipeline';
+import { runTaskCreationPipeline } from './taskCreatorPipeline';
+import { composeTaskRequest } from './taskRequestComposer';
 
 /**
  * Parameters for creating a Z Image Turbo image-to-image task
@@ -158,27 +159,16 @@ function buildTaskParams(params: ZImageTurboImageToImageTaskParams): Record<stri
  * (internal use only - used by createBatchZImageTurboImageToImageTasks)
  */
 async function createZImageTurboImageToImageTask(params: ZImageTurboImageToImageTaskParams): Promise<TaskCreationResult> {
-
-  try {
-    // 1. Validate parameters
-    validateZImageTurboImageToImageParams(params);
-
-    // 2. Build task params
-    const taskParams = buildTaskParams(params);
-
-    // 3. Create task using unified create-task function
-    const result = await createTask({
-      project_id: params.project_id,
-      task_type: 'z_image_turbo_i2i',
-      params: taskParams,
-    });
-
-    return result;
-
-  } catch (error) {
-    normalizeAndPresentError(error, { context: 'ZImageTurboImageToImage', showToast: false });
-    throw error;
-  }
+  return runTaskCreationPipeline({
+    params,
+    context: 'createZImageTurboImageToImageTask',
+    validate: validateZImageTurboImageToImageParams,
+    buildTaskRequest: (pipelineParams) => composeTaskRequest({
+      source: pipelineParams,
+      taskType: 'z_image_turbo_i2i',
+      params: buildTaskParams(pipelineParams),
+    }),
+  });
 }
 
 /**

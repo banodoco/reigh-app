@@ -2,7 +2,7 @@ import { getDisplayUrl } from '@/shared/lib/mediaUrl';
 import type { GeneratedImageWithMetadata } from '@/shared/components/MediaGallery/types';
 import { downloadBlobAsFile } from '@/shared/runtime/browserDownloadRuntime';
 
-export interface DownloadedMediaResult {
+interface DownloadedMediaResult {
   filename: string;
 }
 
@@ -38,6 +38,35 @@ export class DownloadServiceError extends Error {
     this.statusText = params.statusText;
     this.url = params.url;
   }
+}
+
+function toDownloadServiceError(params: {
+  error: unknown;
+  context: string;
+  url?: string;
+  fallbackMessage: string;
+}): DownloadServiceError {
+  if (params.error instanceof DownloadServiceError) {
+    return params.error;
+  }
+
+  if (params.error instanceof DOMException && params.error.name === 'AbortError') {
+    return new DownloadServiceError({
+      code: 'aborted',
+      context: params.context,
+      message: 'Download request was aborted',
+      url: params.url,
+    });
+  }
+
+  return new DownloadServiceError({
+    code: 'network_error',
+    context: params.context,
+    message: params.error instanceof Error && params.error.message
+      ? params.error.message
+      : params.fallbackMessage,
+    url: params.url,
+  });
 }
 
 function downloadBlobWithXHR(
@@ -166,6 +195,7 @@ function buildArchiveFileName(): string {
 export async function downloadStarredMediaArchive(
   options: DownloadStarredArchiveOptions,
 ): Promise<{ count: number; archiveFilename: string }> {
+  const context = 'MediaGallery.downloadStarredMediaArchive';
   const JSZipModule = await import('jszip');
   const zip = new JSZipModule.default();
 
@@ -181,11 +211,22 @@ export async function downloadStarredMediaArchive(
   for (let i = 0; i < sortedImages.length; i += 1) {
     const image = sortedImages[i];
     const accessibleImageUrl = getDisplayUrl(image.url);
-    const response = await fetch(accessibleImageUrl);
+    let response: Response;
+    try {
+      response = await fetch(accessibleImageUrl);
+    } catch (error) {
+      throw toDownloadServiceError({
+        error,
+        context,
+        url: accessibleImageUrl,
+        fallbackMessage: 'Network request failed',
+      });
+    }
+
     if (!response.ok) {
       throw new DownloadServiceError({
         code: 'http_error',
-        context: 'MediaGallery.downloadStarredMediaArchive',
+        context,
         message: `Failed to fetch media: ${response.status} ${response.statusText}`,
         status: response.status,
         statusText: response.statusText,
@@ -193,7 +234,18 @@ export async function downloadStarredMediaArchive(
       });
     }
 
-    const blob = await response.blob();
+    let blob: Blob;
+    try {
+      blob = await response.blob();
+    } catch (error) {
+      throw toDownloadServiceError({
+        error,
+        context,
+        url: accessibleImageUrl,
+        fallbackMessage: 'Failed to read download payload',
+      });
+    }
+
     const extension = inferMediaExtension(image, blob);
     const filename = `${String(i + 1).padStart(3, '0')}.${extension}`;
     zip.file(filename, blob);

@@ -1,0 +1,133 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 4,
+  "assessments": {
+    "test_strategy": 68.0,
+    "api_surface_coherence": 71.0,
+    "mid_level_elegance": 77.0
+  },
+  "dimension_notes": {
+    "test_strategy": {
+      "evidence": [
+        "`supabase/functions/complete_task/generation-core.test.ts` only asserts exported symbols are functions, while `generation-core.ts` contains critical DB branching/error behavior used by `generation.ts`, `generation-child.ts`, and `generation-handlers.ts`.",
+        "`src/tools/travel-between-images/components/MotionControl.tsx` (508 LOC) and `ShotSettingsContext.tsx` (399 LOC) are only covered by import/module-coverage tests (`src/moduleCoverageConsolidated.test.ts`, `src/moduleImportCoverage.test.ts`) rather than behavior assertions for prop/state transitions and context contracts.",
+        "Direct tests for request parsing exist (`supabase/functions/complete_task/request.direct.test.ts`) but cover only two happy/guard paths and miss mode-routing, thumbnail path validation branches, and orchestrator security-lookup failure branches."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "api_surface_coherence": {
+      "evidence": [
+        "Edge JSON error envelopes are inconsistent: `_shared/edgeRequest.ts` uses `{error,errorCode,message,recoverable}` while `_shared/edgeHandler.ts` JSON errors use `{error}` via `buildErrorResponse`.",
+        "`complete_task/request.ts` returns plain-text `Response` objects for parse failures, while the rest of edge stack routes through structured JSON envelopes and operation-result contracts.",
+        "The same endpoint (`complete_task/index.ts`) mixes shared edge bootstrap contracts with bespoke parse/response shapes, producing caller-visible inconsistency for error handling."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Request lifecycle is split across overlapping seams: bootstrap/auth/rate-limit in `_shared/edgeHandler.ts` + `_shared/rateLimit.ts`, but body-parse/error contract in `complete_task/request.ts`; this duplicates boundary logic and weakens a single obvious translation seam.",
+        "The structural pattern is repeated integration glue entropy: `complete_task/index.ts` uses `parseBody: \"none\"` in shared bootstrap, then reimplements request parsing/validation path locally, increasing drift risk between endpoints.",
+        "Workflow-integrity check on queue/orchestration paths did not show loop-prone churn in reviewed files: `timelineWriteQueue.ts` has explicit per-shot serialization and timeout aborts; no reopen/requeue loops were found in this batch scope."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "test_strategy",
+      "identifier": "generation_core_smoke_tests_only",
+      "summary": "Critical complete-task generation primitives are effectively untested beyond export smoke checks",
+      "related_files": [
+        "supabase/functions/complete_task/generation-core.ts",
+        "supabase/functions/complete_task/generation-core.test.ts",
+        "supabase/functions/complete_task/generation.ts"
+      ],
+      "evidence": [
+        "`generation-core.test.ts` only verifies functions exist; no assertions cover DB error/no-row handling, variant insert failures, or shot-link RPC failure behavior.",
+        "`generation-core.ts` functions are invoked across the complete_task routing path (`generation.ts`, `generation-handlers.ts`, `generation-child.ts`) where incorrect behavior affects task completion and generation lineage."
+      ],
+      "suggestion": "Replace export-smoke tests with table-driven behavior tests using stubbed Supabase responses for each branch: no-row vs error in `findExistingGeneration`, insert/variant failures, and `linkGenerationToShot` RPC error swallowing.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "critical_paths_under_specified_tests"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "ui_contracts_only_import_covered",
+      "summary": "Large UI contract modules have import coverage but little direct behavioral verification",
+      "related_files": [
+        "src/tools/travel-between-images/components/MotionControl.tsx",
+        "src/tools/travel-between-images/components/ShotEditor/ShotSettingsContext.tsx",
+        "src/moduleCoverageConsolidated.test.ts"
+      ],
+      "evidence": [
+        "Coverage references for these modules are import-only in module coverage tests, not scenario assertions.",
+        "`ShotEditor/index.test.tsx` mocks `ShotSettingsContext` instead of validating real context hook contracts, and there is no direct test suite for `MotionControl` state transitions (preset selection/custom switch/mode transitions)."
+      ],
+      "suggestion": "Add focused component/context tests: verify `MotionControl` mode/preset callbacks and `ShotSettingsContext` domain hooks return coherent slices; keep import coverage tests but stop treating them as risk coverage for these modules.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "critical_paths_under_specified_tests"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "edge_error_contract_drift",
+      "summary": "Shared edge APIs expose multiple incompatible error envelope shapes",
+      "related_files": [
+        "supabase/functions/_shared/edgeRequest.ts",
+        "supabase/functions/_shared/edgeHandler.ts",
+        "supabase/functions/complete_task/request.ts"
+      ],
+      "evidence": [
+        "`edgeRequest.edgeErrorResponse` emits `{ error, errorCode, message, recoverable }`.",
+        "`edgeHandler.buildErrorResponse` emits `{ error }` for JSON format.",
+        "`complete_task/request.ts` parse failures return plain-text responses, creating a third contract shape."
+      ],
+      "suggestion": "Standardize all edge failures on one shared envelope builder (prefer `edgeErrorResponse`) and remove ad-hoc text/`{error}` responses from edge handler and endpoint-local parsers.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "edge_request_contract_drift"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "split_request_pipeline_complete_task",
+      "summary": "complete_task uses split orchestration seams instead of one coherent request pipeline",
+      "related_files": [
+        "supabase/functions/complete_task/index.ts",
+        "supabase/functions/_shared/edgeHandler.ts",
+        "supabase/functions/complete_task/request.ts"
+      ],
+      "evidence": [
+        "`complete_task/index.ts` bootstraps via shared handler with `parseBody: \"none\"`, then performs separate local parse/validation and returns endpoint-specific response shapes.",
+        "This duplicates boundary translation responsibilities and increases drift between shared bootstrap behavior and endpoint-local parsing behavior."
+      ],
+      "suggestion": "Move complete-task parsing to shared bootstrap extension points (or expose a typed parser hook in `_shared/edgeHandler.ts`) so auth/method/body/error mapping remains in one integration seam.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "edge_request_contract_drift"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Critical-path tests are skewed toward module presence and narrow guards rather than branch behavior of DB/network seams.",
+      "Edge-function request lifecycle has fragmented ownership, allowing error-contract drift across shared and endpoint-local layers."
+    ],
+    "likely_symptoms": [
+      "generation_core_smoke_tests_only",
+      "ui_contracts_only_import_covered",
+      "edge_error_contract_drift",
+      "split_request_pipeline_complete_task"
+    ],
+    "possible_false_positives": []
+  }
+}

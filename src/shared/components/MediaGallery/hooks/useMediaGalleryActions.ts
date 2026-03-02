@@ -2,6 +2,7 @@ import { useCallback, useRef, useEffect } from 'react';
 import { useLastAffectedShot } from '@/shared/hooks/useLastAffectedShot';
 import { toast } from '@/shared/components/ui/toast';
 import type { GeneratedImageWithMetadata, DisplayableMetadata } from '../types';
+import type { LightboxDeleteHandler } from '@/shared/components/MediaLightbox/types';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
 import type { AddToShotHandler } from '@/shared/types/imageHandlers';
@@ -14,7 +15,7 @@ import {
 } from '@/shared/components/MediaGallery/services/downloadService';
 
 interface UseMediaGalleryActionsProps {
-  onDelete?: (id: string) => void;
+  onDelete?: LightboxDeleteHandler;
   onApplySettings?: (metadata: DisplayableMetadata | undefined) => void;
   onAddToLastShot?: AddToShotHandler;
   onAddToLastShotWithoutPosition?: AddToShotHandler;

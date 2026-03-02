@@ -3,7 +3,7 @@ import {
   reportError,
   type ErrorReportOptions,
 } from '@/shared/lib/errorHandling/coreReporter';
-import { notifyError } from '@/shared/lib/errorHandling/notifyError';
+import { presentRuntimeError } from '@/shared/lib/errorHandling/runtimeErrorPresenter';
 
 export interface RuntimeErrorOptions extends ErrorReportOptions {
   toastTitle?: string;
@@ -17,7 +17,7 @@ export function normalizeAndPresentError(error: unknown, options: RuntimeErrorOp
 
   const shouldShowToast = showToast ?? appError.showToast;
   if (shouldShowToast) {
-    notifyError(appError, toastTitle);
+    presentRuntimeError(appError, toastTitle);
   }
 
   return appError;

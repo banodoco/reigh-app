@@ -4,8 +4,7 @@ import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeErro
 import { settingsQueryKeys } from '@/shared/lib/queryKeys/settings';
 import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 import {
-  fetchToolSettingsSupabase,
-  toToolSettingsErrorFromOperationFailure,
+  fetchToolSettingsSupabaseOrThrow,
   type SettingsFetchResult,
 } from '@/shared/lib/toolSettingsService';
 
@@ -24,11 +23,7 @@ async function fetchSettingsForPrefetch(
   toolId: string,
   ctx: { projectId?: string; shotId?: string },
 ): Promise<SettingsFetchResult> {
-  const result = await fetchToolSettingsSupabase(toolId, ctx);
-  if (!result.ok) {
-    throw toToolSettingsErrorFromOperationFailure(result);
-  }
-  return result.value;
+  return fetchToolSettingsSupabaseOrThrow(toolId, ctx);
 }
 
 /**

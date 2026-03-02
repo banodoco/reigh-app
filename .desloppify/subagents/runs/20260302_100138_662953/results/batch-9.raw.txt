@@ -1,0 +1,98 @@
+{
+  "batch": "Design coherence — Mechanical Concern Signals",
+  "batch_index": 9,
+  "assessments": {
+    "initialization_coupling": 71.4
+  },
+  "dimension_notes": {
+    "initialization_coupling": {
+      "evidence": [
+        "Confirmed mechanical signal in src/app/bootstrap.tsx: bootstrap file documents a strict import-order contract ('Logger initialization - MUST BE FIRST') and relies on logger side effects before any other runtime setup.",
+        "Confirmed initialization coupling across src/app/bootstrap.tsx, src/integrations/supabase/client.ts, and src/integrations/supabase/runtime/supabaseRuntime.ts: many modules call getSupabaseClient() directly while runtime throws if bootstrap did not run first.",
+        "Confirmed ambient mutable globals in dev runtime: src/integrations/supabase/debug/initializeSupabaseDebugGlobals.ts, src/shared/realtime/DataFreshnessManager.ts, src/shared/services/network/networkStatusDebug.ts, and src/integrations/supabase/reconnect/ReconnectScheduler.ts assign manager/client instances onto window.* keys.",
+        "Refuted mechanical signal relevance for initialization_coupling in src/domains/generation/hooks/useDeleteGenerationAction.ts and src/pages/Home/components/motionComparison/useMotionComparisonController.ts: deeply nested closures are present but do not create import-time side effects or boot-order dependencies.",
+        "Refuted mechanical signal relevance for initialization_coupling in src/domains/generation/mappers/generationParamsMapper.ts and src/pages/Home/components/panes/PhilosophyPane.tsx: complexity/size concerns exist, but no module-scope initialization dependency was found.",
+        "Refuted stale signal in src/integrations/supabase/bootstrap/createSupabaseClient.ts and src/features/lora/hooks/useHuggingFaceUpload.ts: flagged 'async without await' does not appear as an initialization defect in current code paths."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "initialization_coupling",
+      "identifier": "logger_import_order_contract",
+      "summary": "Logging behavior depends on import order because logger mutates global console at module load time.",
+      "related_files": [
+        "src/app/bootstrap.tsx",
+        "src/shared/lib/logger.ts"
+      ],
+      "evidence": [
+        "bootstrap.tsx requires logger import to be first and calls this out as mandatory for runtime correctness.",
+        "logger.ts executes initializeConsole() at module scope and also installs window.beforeunload listener during import, creating side effects outside explicit bootstrap control."
+      ],
+      "suggestion": "Move console interception and unload wiring behind an explicit initializeLoggerRuntime() called from bootstrap; keep module import side-effect-free and idempotent.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "ambient_singleton_bootstrap"
+    },
+    {
+      "dimension": "initialization_coupling",
+      "identifier": "supabase_ambient_singleton_dependency",
+      "summary": "Supabase access is ambient and bootstrap-dependent, coupling many hooks/services to a hidden global init sequence.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/integrations/supabase/runtime/supabaseRuntime.ts",
+        "src/app/bootstrap.tsx",
+        "src/shared/services/projects/projectSetupService.ts",
+        "src/pages/Home/hooks/useHomeAuth.ts"
+      ],
+      "evidence": [
+        "client.ts throws when getSupabaseClient() is called before initializeSupabase(), encoding a hard runtime ordering dependency.",
+        "Many domain/service modules import getSupabaseClient as supabase and call supabase() directly, so these modules implicitly require app bootstrap to have executed.",
+        "bootstrap.tsx performs initializeSupabase() as side-effectful environment setup, making correctness dependent on app entrypoint order rather than explicit dependency injection."
+      ],
+      "suggestion": "Introduce a typed runtime registry/context (or provider) that owns Supabase lifecycle and inject client into services/hooks; reserve throwing accessor for legacy adapters only and migrate call sites incrementally.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "ambient_singleton_bootstrap"
+    },
+    {
+      "dimension": "initialization_coupling",
+      "identifier": "scattered_debug_window_globals",
+      "summary": "Dev diagnostics expose multiple mutable window globals without a single registry, creating last-writer-wins and stale-reference risk during long-lived dev sessions/HMR.",
+      "related_files": [
+        "src/integrations/supabase/debug/initializeSupabaseDebugGlobals.ts",
+        "src/shared/realtime/DataFreshnessManager.ts",
+        "src/shared/services/network/networkStatusDebug.ts",
+        "src/integrations/supabase/reconnect/ReconnectScheduler.ts"
+      ],
+      "evidence": [
+        "Separate modules assign different manager/client instances directly onto window (__supabase_client__, __DATA_FRESHNESS_MANAGER__, __NETWORK_STATUS_MANAGER__, __RECONNECT_SCHEDULER__).",
+        "No shared registration/cleanup contract exists, so repeated initialization paths can overwrite globals without lifecycle validation."
+      ],
+      "suggestion": "Centralize dev global exposure in one debug registry module with versioned keys, duplicate-registration guards, and teardown hooks for HMR/test isolation.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "ambient_singleton_bootstrap"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Runtime services are exposed via ambient singletons instead of explicit dependency boundaries.",
+      "Initialization relies on import-time side effects and entrypoint sequencing rather than an explicit lifecycle manager."
+    ],
+    "likely_symptoms": [
+      "logger_import_order_contract",
+      "supabase_ambient_singleton_dependency",
+      "scattered_debug_window_globals"
+    ],
+    "possible_false_positives": [
+      "Nested closure/complexity mechanical signals in UI hooks and mappers were mostly structural/readability issues, not initialization-coupling defects."
+    ]
+  }
+}

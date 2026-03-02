@@ -4,7 +4,7 @@ import { renderHookWithProviders } from '@/test/test-utils';
 
 const mockSingle = vi.fn();
 vi.mock('@/integrations/supabase/client', () => ({
-  supabase: {
+  getSupabaseClient: () => ({
     from: vi.fn(() => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
@@ -12,11 +12,15 @@ vi.mock('@/integrations/supabase/client', () => ({
         })),
       })),
     })),
-  },
+  }),
 }));
 
 vi.mock('@/shared/lib/settingsMigration', () => ({
   readShotSettings: vi.fn((raw: unknown) => raw),
+}));
+
+vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
+  normalizeAndPresentError: vi.fn(),
 }));
 
 vi.mock('@/shared/lib/toolIds', () => ({
@@ -24,6 +28,7 @@ vi.mock('@/shared/lib/toolIds', () => ({
 }));
 
 import { useShotVideoSettings } from '../useShotVideoSettings';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 describe('useShotVideoSettings', () => {
   beforeEach(() => {
@@ -53,7 +58,7 @@ describe('useShotVideoSettings', () => {
     });
   });
 
-  it('returns null on error', async () => {
+  it('surfaces query errors consistently', async () => {
     mockSingle.mockResolvedValue({
       data: null,
       error: { message: 'Not found' },
@@ -62,9 +67,10 @@ describe('useShotVideoSettings', () => {
     const { result } = renderHookWithProviders(() => useShotVideoSettings('shot-1'));
 
     await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBeTruthy();
     });
-    expect(result.current.data).toBeNull();
+    expect(result.current.data).toBeUndefined();
+    expect(normalizeAndPresentError).toHaveBeenCalledTimes(1);
   });
 
   it('provides refetch function', () => {

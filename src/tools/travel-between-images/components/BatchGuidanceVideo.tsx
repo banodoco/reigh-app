@@ -35,8 +35,8 @@ interface BatchGuidanceVideoProps {
 }
 
 export const BatchGuidanceVideo: React.FC<BatchGuidanceVideoProps> = ({
-  shotId,
-  projectId,
+  shotId: _shotId,
+  projectId: _projectId,
   videoUrl,
   videoMetadata,
   treatment,
@@ -205,9 +205,9 @@ export const BatchGuidanceVideo: React.FC<BatchGuidanceVideoProps> = ({
       // Upload to storage
       const uploadedVideoUrl = await uploadVideoToStorage(
         file,
-        projectId,
-        shotId,
-        (progress) => setUploadProgress(25 + (progress * 0.65)) // Map 0-100 to 25-90
+        {
+          onProgress: (progress) => setUploadProgress(25 + (progress * 0.65)), // Map 0-100 to 25-90
+        }
       );
       setUploadProgress(90);
 
@@ -244,7 +244,7 @@ export const BatchGuidanceVideo: React.FC<BatchGuidanceVideoProps> = ({
         fileInputRef.current.value = '';
       }
     }
-  }, [projectId, shotId, privacyDefaults.resourcesPublic, createResource, onVideoUploaded]);
+  }, [privacyDefaults.resourcesPublic, createResource, onVideoUploaded]);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

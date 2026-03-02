@@ -5,7 +5,7 @@ import { uploadImageToStorage } from '@/shared/lib/imageUploader';
 import type { Resource, CreateResourceArgs, UpdateResourceArgs } from '@/shared/hooks/useResources';
 import type { LoraFiles } from '@/features/lora/hooks/useHuggingFaceUpload';
 import { type LoraFormState, type LoraModel } from '../../../types';
-import { generateUniqueFilename, validateHuggingFaceUrl } from '../../../utils/validation-utils';
+import { generateUniqueLoraFilename, validateHuggingFaceUrl } from '../../../utils/validation-utils';
 
 type EditableLora = Resource & { metadata: LoraModel };
 
@@ -276,7 +276,7 @@ function resolveUniqueFilename(input: {
     return (
       input.editingLora?.metadata['Model ID'] ||
       input.editingLora?.metadata.filename ||
-      generateUniqueFilename(
+      generateUniqueLoraFilename(
         input.addForm.name,
         input.addForm.base_model,
         input.finalHuggingfaceUrl,
@@ -285,7 +285,7 @@ function resolveUniqueFilename(input: {
     );
   }
 
-  return generateUniqueFilename(
+  return generateUniqueLoraFilename(
     input.addForm.name,
     input.addForm.base_model,
     input.finalHuggingfaceUrl,

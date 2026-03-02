@@ -1,0 +1,94 @@
+{
+  "batch": "State & Design Integrity",
+  "batch_index": 7,
+  "assessments": {
+    "initialization_coupling": 66.0
+  },
+  "dimension_notes": {
+    "initialization_coupling": {
+      "evidence": [
+        "Mechanical packet did not expose `holistic_context.scan_evidence.mutable_globals` or `holistic_context.errors.mutable_globals` (both null), so mutable-global leads were traced via `holistic_context.scan_evidence.systemic_patterns` where `window_global` is flagged.",
+        "Confirmed mutable shared state in production path: Join Clips cross-route handoff uses a single global localStorage key `pendingJoinClips` written in `src/shared/components/MediaLightbox/hooks/useJoinClips.ts` and consumed/cleared in `src/tools/join-clips/lib/clipInitService.ts`.",
+        "Initialization ordering is brittle in `src/tools/join-clips/hooks/useClipManager.ts`: hydration from persisted settings and persistence back to settings run as separate effects without a hydration-complete gate, allowing pre-hydration writes.",
+        "Window-global hotspots from scan evidence are mostly dev diagnostics (`initializeSupabaseDebugGlobals`, `networkStatusDebug`, `useProjectContextDebug`) and are guarded by `import.meta.env.DEV`, so they are lower-risk for production coupling than the Join Clips localStorage bridge."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "initialization_coupling",
+      "identifier": "join_clips_global_queue_unscoped",
+      "summary": "Join Clips handoff is coupled through a single unscoped mutable global queue (`localStorage.pendingJoinClips`), allowing cross-project/session contamination and non-deterministic startup behavior.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useJoinClips.ts",
+        "src/tools/join-clips/lib/clipInitService.ts",
+        "src/tools/join-clips/hooks/useClipManager.ts"
+      ],
+      "evidence": [
+        "`useJoinClips` appends payloads to hard-coded key `pendingJoinClips` without project/user scope (`localStorage.setItem('pendingJoinClips', ...)`).",
+        "`consumePendingJoinClips` reads from the same global key and clears it (`localStorage.removeItem(PENDING_CLIPS_KEY)`), with no projectId filter in payload schema.",
+        "`useClipManager` consumes this queue independently of project identity (`useEffect` depends on `settingsLoaded` only), so queue consumption is not tied to explicit route/project initialization contracts."
+      ],
+      "suggestion": "Replace the global key queue with a scoped registry (`pendingJoinClips:<projectId>:<userId>`) or move handoff to a typed in-app store/query cache keyed by project. Make producer and consumer share one typed contract module and require `projectId` at write/consume boundaries.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "implicit_mutable_global_handoff"
+    },
+    {
+      "dimension": "initialization_coupling",
+      "identifier": "join_clips_hydration_persist_race",
+      "summary": "Join Clips can overwrite persisted clip settings with empty state before hydration completes due to effect ordering and missing hydration gate.",
+      "related_files": [
+        "src/tools/join-clips/hooks/useClipManager.ts",
+        "src/tools/join-clips/hooks/useJoinClipsSettings.ts"
+      ],
+      "evidence": [
+        "`useClipManager` starts with `clips=[]` and has a persist effect that runs whenever `settingsLoaded` is true (`lines 146-165`), serializing and calling `joinSettings.updateFields` if different.",
+        "Hydration effect (`lines 111-141`) may set clips asynchronously after poster preloading; during that window persist effect can compare existing saved clips against empty `clipsToSave` and write empty values.",
+        "No guard like `hasHydratedInitialState`/`isHydrating` is checked in the persist effect before writing."
+      ],
+      "suggestion": "Add an explicit hydration phase flag and block persistence until initial settings hydration (and preload path) completes. Alternatively collapse hydrate+persist into a single reducer/state machine with explicit `UNINITIALIZED -> HYDRATED -> DIRTY` transitions.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "implicit_mutable_global_handoff"
+    },
+    {
+      "dimension": "initialization_coupling",
+      "identifier": "pending_queue_consumed_before_project_binding",
+      "summary": "Pending Join Clips queue can be consumed and cleared before target project binding stabilizes, causing dropped queued work on project transitions.",
+      "related_files": [
+        "src/tools/join-clips/hooks/useClipManager.ts",
+        "src/tools/join-clips/lib/clipInitService.ts",
+        "src/tools/join-clips/pages/JoinClipsPage.tsx"
+      ],
+      "evidence": [
+        "Queue consume effect runs on `[settingsLoaded]` only (`useClipManager` lines 90-106), not on `selectedProjectId`.",
+        "Project change reset effect (`lines 76-85`) clears in-memory clips; consumed queue entries are not replayable because `consumePendingJoinClips` removes storage key once read (`clipInitService` line 272).",
+        "This creates a workflow blind spot: packet/work item (pending clip action) is generated and then dropped if consumption happens before the final project context is settled."
+      ],
+      "suggestion": "Gate queue consumption on a stable `selectedProjectId` and include projectId in queue entries. Only clear consumed entries after they are bound to the same project context and merged successfully; keep unmatched entries for later drain.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "implicit_mutable_global_handoff"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Cross-route coordination relies on implicit mutable storage rather than explicit scoped state contracts.",
+      "Initialization is split across independent effects without lifecycle gates, making startup behavior order-sensitive."
+    ],
+    "likely_symptoms": [
+      "join_clips_hydration_persist_race",
+      "pending_queue_consumed_before_project_binding"
+    ],
+    "possible_false_positives": [
+      "window_global mechanical signal is partially dev-only and not the dominant production coupling risk in this batch."
+    ]
+  }
+}

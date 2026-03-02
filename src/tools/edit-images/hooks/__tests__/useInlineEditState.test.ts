@@ -37,6 +37,7 @@ const mockUseUpscale = vi.fn().mockReturnValue({
   effectiveImageUrl: 'https://example.com/image.png',
   isUpscaling: false,
   handleUpscale: vi.fn(),
+  setActiveVariant: vi.fn(),
 });
 
 const mockUseInpainting = vi.fn().mockReturnValue({

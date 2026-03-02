@@ -26,6 +26,9 @@ serve((req) => withEdgeRequest<GenerateUploadUrlBody>(req, {
   functionName: "generate-upload-url",
   logPrefix: "[GENERATE-UPLOAD-URL]",
   parseBody: "strict",
+  auth: {
+    required: true,
+  },
   runtimeOptions: {
     clientOptions: {
       auth: {
@@ -35,6 +38,11 @@ serve((req) => withEdgeRequest<GenerateUploadUrlBody>(req, {
     },
   },
 }, async ({ supabaseAdmin, logger, body, auth }) => {
+  if (!auth || (!auth.userId && !auth.isServiceRole)) {
+    logger.error("Authentication failed");
+    return jsonResponse({ error: "Authentication failed" }, 401);
+  }
+
   const taskIdString = (
     typeof body.task_id === 'string' || typeof body.task_id === 'number'
   ) ? String(body.task_id) : '';

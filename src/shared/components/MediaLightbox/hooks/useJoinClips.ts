@@ -8,12 +8,18 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import {
+  getPendingJoinClipsStorageKey,
+  type PendingJoinClipEntry,
+} from '@/shared/lib/joinClipsPendingQueue';
+import { readUserIdFromStorage } from '@/shared/lib/supabaseSession';
 import { TOOL_ROUTES } from '@/shared/lib/toolRoutes';
 import { GenerationRow } from '@/domains/generation/types';
 
 interface UseJoinClipsProps {
   media: GenerationRow;
   isVideo: boolean;
+  selectedProjectId: string | null;
 }
 
 interface UseJoinClipsReturn {
@@ -26,6 +32,7 @@ interface UseJoinClipsReturn {
 export function useJoinClips({
   media,
   isVideo,
+  selectedProjectId,
 }: UseJoinClipsProps): UseJoinClipsReturn {
   const navigate = useNavigate();
 
@@ -53,21 +60,26 @@ export function useJoinClips({
         return;
       }
 
+      const userId = readUserIdFromStorage();
+      const queueKey = getPendingJoinClipsStorageKey(selectedProjectId, userId);
+
       // Get existing pending clips or start fresh
-      const existingData = localStorage.getItem('pendingJoinClips');
-      const pendingClips: Array<{ videoUrl: string; thumbnailUrl?: string; generationId: string; timestamp: number }> =
-        existingData ? JSON.parse(existingData) : [];
+      const existingData = localStorage.getItem(queueKey);
+      const parsedPending = existingData ? JSON.parse(existingData) : [];
+      const pendingClips: PendingJoinClipEntry[] = Array.isArray(parsedPending) ? parsedPending : [];
 
       // Add new clip (avoid duplicates by generationId)
       if (!pendingClips.some(clip => clip.generationId === media.id)) {
-        const newClip = {
+        const newClip: PendingJoinClipEntry = {
           videoUrl,
           thumbnailUrl: thumbnailUrl ?? undefined,
           generationId: media.id,
           timestamp: Date.now(),
+          ...(selectedProjectId ? { projectId: selectedProjectId } : {}),
+          ...(userId ? { userId } : {}),
         };
         pendingClips.push(newClip);
-        localStorage.setItem('pendingJoinClips', JSON.stringify(pendingClips));
+        localStorage.setItem(queueKey, JSON.stringify(pendingClips));
       }
 
       setAddToJoinSuccess(true);
@@ -77,7 +89,7 @@ export function useJoinClips({
     } finally {
       setIsAddingToJoin(false);
     }
-  }, [media, isVideo]);
+  }, [media, isVideo, selectedProjectId]);
 
   const handleGoToJoin = useCallback(() => {
     navigate(TOOL_ROUTES.JOIN_CLIPS);

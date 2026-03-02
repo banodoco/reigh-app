@@ -1,6 +1,9 @@
 import React, { useMemo, useEffect, useCallback, useRef } from "react";
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
-import { useProject } from '@/shared/contexts/ProjectContext';
+import {
+  useProjectCrudContext,
+  useProjectSelectionContext,
+} from '@/shared/contexts/ProjectContext';
 import { useShotAdditionSelectionOptional } from '@/shared/contexts/ShotAdditionSelectionContext';
 import { useIsMobile, useIsTablet } from "@/shared/hooks/mobile";
 import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
@@ -26,7 +29,7 @@ import {
 import { MediaGalleryHeader } from './components/MediaGalleryHeader';
 import { ShotNotifier } from './components/ShotNotifier';
 import { MediaGalleryGrid } from './components/MediaGalleryGrid';
-import { MediaGalleryLightbox } from './components/MediaGalleryLightbox';
+import { MediaGalleryLightbox, type LightboxSessionModel } from './components/MediaGalleryLightbox';
 import { MobileBottomBar } from './components/MobileBottomBar';
 import { useMediaGalleryDebugTools } from './hooks/useMediaGalleryDebugTools';
 
@@ -52,10 +55,18 @@ import type {
   ItemShotWorkflow,
 } from '@/shared/components/MediaGalleryItem/types';
 
-// Re-export types that are used externally
-export type {
-  GeneratedImageWithMetadata,
-};
+function resolveLightboxDeletingId(
+  isDeleting: string | boolean | null | undefined,
+  activeMediaId: string | undefined,
+): string | null {
+  if (typeof isDeleting === 'string') {
+    return isDeleting;
+  }
+  if (isDeleting && activeMediaId) {
+    return activeMediaId;
+  }
+  return null;
+}
 
 /**
  * MediaGallery Component with consolidated state management
@@ -117,7 +128,8 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
   } = config;
 
   // Get project context for cache clearing and aspect ratio
-  const { selectedProjectId, projects } = useProject();
+  const { selectedProjectId } = useProjectSelectionContext();
+  const { projects } = useProjectCrudContext();
   const { currentShotId } = useCurrentShot();
 
   // Get current project's aspect ratio
@@ -512,6 +524,116 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
     downloadingImageId: stateHook.state.downloadingImageId,
   }), [isDeleting, stateHook.state.downloadingImageId]);
 
+  const lightboxDeletingId = useMemo(
+    () => resolveLightboxDeletingId(isDeleting, stateHook.state.activeLightboxMedia?.id),
+    [isDeleting, stateHook.state.activeLightboxMedia?.id],
+  );
+
+  const lightboxSession = useMemo<LightboxSessionModel>(() => ({
+    core: {
+      activeLightboxMedia: stateHook.state.activeLightboxMedia,
+      autoEnterEditMode: stateHook.state.autoEnterEditMode,
+      onClose: actionsHook.handleCloseLightbox,
+    },
+    navigation: {
+      filteredImages: filtersHook.filteredImages,
+      isServerPagination: paginationHook.isServerPagination,
+      serverPage,
+      totalPages: paginationHook.totalPages,
+      onServerPageChange,
+      onNext: handleNextImage,
+      onPrevious: handlePreviousImage,
+    },
+    actions: {
+      onDelete: showDelete ? actionsHook.handleOptimisticDelete : undefined,
+      isDeleting: lightboxDeletingId,
+      onApplySettings,
+    },
+    shotWorkflow: {
+      simplifiedShotOptions,
+      selectedShotIdLocal: stateHook.state.selectedShotIdLocal,
+      onShotChange: actionsHook.handleShotChange,
+      onAddToShot: onAddToLastShot,
+      onAddToShotWithoutPosition: onAddToLastShotWithoutPosition,
+    },
+    ui: {
+      showTickForImageId: stateHook.state.showTickForImageId,
+      setShowTickForImageId: stateHook.setShowTickForImageId,
+      showTickForSecondaryImageId: stateHook.state.showTickForSecondaryImageId,
+      setShowTickForSecondaryImageId: stateHook.setShowTickForSecondaryImageId,
+    },
+    optimistic: {
+      optimisticPositionedIds: stateHook.state.optimisticPositionedIds,
+      optimisticUnpositionedIds: stateHook.state.optimisticUnpositionedIds,
+      onOptimisticPositioned: stateHook.markOptimisticPositioned,
+      onOptimisticUnpositioned: stateHook.markOptimisticUnpositioned,
+    },
+    taskModal: {
+      isMobile,
+      showTaskDetailsModal: stateHook.state.showTaskDetailsModal,
+      setShowTaskDetailsModal: stateHook.setShowTaskDetailsModal,
+      selectedImageForDetails: stateHook.state.selectedImageForDetails,
+      setSelectedImageForDetails: stateHook.setSelectedImageForDetails,
+      onShowTaskDetails: handleShowTaskDetails,
+    },
+    taskData: {
+      task,
+      isLoadingTask: taskDetailsData?.isLoading ?? false,
+      taskError,
+      inputImages,
+      lightboxTaskMapping,
+    },
+    integration: {
+      onCreateShot,
+      onNavigateToShot: handleNavigateToShot,
+      toolTypeOverride: currentToolType,
+      setActiveLightboxIndex: handleSetActiveLightboxIndex,
+    },
+  }), [
+    actionsHook.handleCloseLightbox,
+    actionsHook.handleOptimisticDelete,
+    actionsHook.handleShotChange,
+    currentToolType,
+    filtersHook.filteredImages,
+    handleNavigateToShot,
+    handleNextImage,
+    handlePreviousImage,
+    handleSetActiveLightboxIndex,
+    handleShowTaskDetails,
+    inputImages,
+    isMobile,
+    lightboxDeletingId,
+    lightboxTaskMapping,
+    onAddToLastShot,
+    onAddToLastShotWithoutPosition,
+    onApplySettings,
+    onCreateShot,
+    onServerPageChange,
+    paginationHook.isServerPagination,
+    paginationHook.totalPages,
+    serverPage,
+    showDelete,
+    simplifiedShotOptions,
+    stateHook.markOptimisticPositioned,
+    stateHook.markOptimisticUnpositioned,
+    stateHook.setSelectedImageForDetails,
+    stateHook.setShowTaskDetailsModal,
+    stateHook.setShowTickForImageId,
+    stateHook.setShowTickForSecondaryImageId,
+    stateHook.state.activeLightboxMedia,
+    stateHook.state.autoEnterEditMode,
+    stateHook.state.optimisticPositionedIds,
+    stateHook.state.optimisticUnpositionedIds,
+    stateHook.state.selectedImageForDetails,
+    stateHook.state.selectedShotIdLocal,
+    stateHook.state.showTaskDetailsModal,
+    stateHook.state.showTickForImageId,
+    stateHook.state.showTickForSecondaryImageId,
+    task,
+    taskDetailsData?.isLoading,
+    taskError,
+  ]);
+
   return (
     <TooltipProvider>
       <div
@@ -643,67 +765,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {
       </div>
 
       {/* Lightbox and Task Details */}
-      <MediaGalleryLightbox
-        core={{
-          activeLightboxMedia: stateHook.state.activeLightboxMedia,
-          autoEnterEditMode: stateHook.state.autoEnterEditMode,
-          onClose: actionsHook.handleCloseLightbox,
-        }}
-        navigation={{
-          filteredImages: filtersHook.filteredImages,
-          isServerPagination: paginationHook.isServerPagination,
-          serverPage,
-          totalPages: paginationHook.totalPages,
-          onServerPageChange,
-          onNext: handleNextImage,
-          onPrevious: handlePreviousImage,
-        }}
-        actions={{
-          onDelete: showDelete ? actionsHook.handleOptimisticDelete : undefined,
-          isDeleting,
-          onApplySettings,
-        }}
-        shotWorkflow={{
-          simplifiedShotOptions,
-          selectedShotIdLocal: stateHook.state.selectedShotIdLocal,
-          onShotChange: actionsHook.handleShotChange,
-          onAddToShot: onAddToLastShot,
-          onAddToShotWithoutPosition: onAddToLastShotWithoutPosition,
-        }}
-        ui={{
-          showTickForImageId: stateHook.state.showTickForImageId,
-          setShowTickForImageId: stateHook.setShowTickForImageId,
-          showTickForSecondaryImageId: stateHook.state.showTickForSecondaryImageId,
-          setShowTickForSecondaryImageId: stateHook.setShowTickForSecondaryImageId,
-        }}
-        optimistic={{
-          optimisticPositionedIds: stateHook.state.optimisticPositionedIds,
-          optimisticUnpositionedIds: stateHook.state.optimisticUnpositionedIds,
-          onOptimisticPositioned: stateHook.markOptimisticPositioned,
-          onOptimisticUnpositioned: stateHook.markOptimisticUnpositioned,
-        }}
-        taskModal={{
-          isMobile,
-          showTaskDetailsModal: stateHook.state.showTaskDetailsModal,
-          setShowTaskDetailsModal: stateHook.setShowTaskDetailsModal,
-          selectedImageForDetails: stateHook.state.selectedImageForDetails,
-          setSelectedImageForDetails: stateHook.setSelectedImageForDetails,
-          onShowTaskDetails: handleShowTaskDetails,
-        }}
-        taskData={{
-          task,
-          isLoadingTask: taskDetailsData?.isLoading ?? false,
-          taskError,
-          inputImages,
-          lightboxTaskMapping,
-        }}
-        integration={{
-          onCreateShot,
-          onNavigateToShot: handleNavigateToShot,
-          toolTypeOverride: currentToolType,
-          setActiveLightboxIndex: handleSetActiveLightboxIndex,
-        }}
-      />
+      <MediaGalleryLightbox session={lightboxSession} />
 
       {/* Mobile floating bottom bar with pagination and star filter - phones only, not iPad */}
       {isPhoneOnly && !hidePagination && !stateHook.state.activeLightboxMedia && paginationHook.totalPages > 1 && (

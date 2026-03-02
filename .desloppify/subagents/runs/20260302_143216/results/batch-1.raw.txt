@@ -1,0 +1,110 @@
+{
+  "batch": "Architecture & Coupling",
+  "batch_index": 1,
+  "assessments": {
+    "cross_module_architecture": 71.0,
+    "high_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "Direct bidirectional dependency exists between `src/domains/generation` and `src/shared`: `src/domains/generation/hooks/useDeleteGenerationAction.ts` imports `useProjectSelectionContext` from `src/shared/contexts/ProjectContext.tsx`, while `src/shared/components/MediaGallery/index.tsx` imports `useToggleGenerationStar` from `src/domains/generation/hooks/useGenerationMutations.ts`.",
+        "`src/shared` depends broadly on domain types (`src/domains/generation/types/index.ts` is imported from many shared hooks/components), while domain hooks also depend on shared runtime/error/query infra (`src/domains/generation/hooks/useGenerationMutations.ts`). This removes a stable dependency direction.",
+        "`src/integrations/supabase/client.ts` introduces a global initialization gate (`hasInitializedRuntimeClient`) and hard runtime-order contract; `src/app/bootstrap.tsx` must call `initializeSupabase()`, while many non-integration modules call `getSupabaseClient()` directly."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared/components/MediaLightbox/MediaLightbox.tsx` carries a very wide `MediaLightboxProps` surface mixing navigation, editing, tasks, shot workflow, pane layout, and integration concerns, then re-bundles them in `useBundledLightboxProps`.",
+        "`src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx` defines a large `LightboxSessionModel` with many nested contracts and extensive pass-through mapping, indicating orchestration-by-prop-plumbing rather than clear ownership boundaries.",
+        "`src/shared/components/MediaLightbox/components/LightboxShell.tsx` couples overlay event policy, viewport/pane layout integration, and accessibility framing in one shell, reinforcing mixed responsibility at the lightbox boundary.",
+        "Mechanical-signal rationale mentioned deferred import pressure and boundary violations; boundary drift is confirmed in imports above, while deferred import density data is absent in this packet and seed files show no notable function-level dynamic import concentration."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "domain_shared_bidirectional_dependency",
+      "summary": "Generation domain and shared layer are mutually dependent with no stable boundary direction",
+      "related_files": [
+        "src/domains/generation/hooks/useDeleteGenerationAction.ts",
+        "src/shared/contexts/ProjectContext.tsx",
+        "src/shared/components/MediaGallery/index.tsx",
+        "src/domains/generation/hooks/useGenerationMutations.ts"
+      ],
+      "evidence": [
+        "`useDeleteGenerationAction` (domain) imports `useProjectSelectionContext` from shared context, binding domain actions to app/session context shape.",
+        "`MediaGallery/index.tsx` (shared UI) imports domain mutation hook `useToggleGenerationStar`, so shared also depends upward on domain behavior.",
+        "This two-way dependency pattern repeats with domain hooks using shared runtime/query/error modules and shared modules importing domain types/hooks, preventing enforceable module layering."
+      ],
+      "suggestion": "Introduce a one-way dependency rule: move cross-cutting generation contracts (IDs, row types, scope inputs) into a neutral `entities/generation` package, keep domain hooks depending only on domain/integration abstractions, and have shared UI call app-level adapters instead of domain hooks directly.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "missing_layer_boundaries"
+    },
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "supabase_singleton_boot_order_coupling",
+      "summary": "Global Supabase singleton leaks infrastructure dependency across feature and shared modules",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/app/bootstrap.tsx",
+        "src/shared/services/projects/projectSetupService.ts",
+        "src/pages/Home/hooks/useHomeAuth.ts"
+      ],
+      "evidence": [
+        "`src/integrations/supabase/client.ts` uses process-wide mutable state (`hasInitializedRuntimeClient`) and throws when accessed before bootstrap.",
+        "`src/app/bootstrap.tsx` performs mandatory global initialization (`initializeSupabase()`), creating hidden order dependence between bootstrap and consumers.",
+        "Many modules outside integration layer import `getSupabaseClient` directly, spreading infra concerns through pages, hooks, and shared services rather than containing them behind repositories."
+      ],
+      "suggestion": "Constrain `getSupabaseClient` usage to integration/repository modules and expose feature-facing repositories/services via dependency injection (context/provider or explicit factory) so runtime boot order is localized and testable.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "missing_layer_boundaries"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "lightbox_contract_overaggregation",
+      "summary": "Lightbox subsystem relies on oversized contract aggregation and pass-through orchestration",
+      "related_files": [
+        "src/shared/components/MediaLightbox/MediaLightbox.tsx",
+        "src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx",
+        "src/shared/components/MediaLightbox/components/LightboxShell.tsx"
+      ],
+      "evidence": [
+        "`MediaLightboxProps` is a broad mixed interface (navigation, workflow, editing, task details, pane state, external integration), then re-grouped in `useBundledLightboxProps`, showing interface sprawl.",
+        "`MediaGalleryLightbox.tsx` defines `LightboxSessionModel` plus multiple sub-contract interfaces and mostly translates/destructures state into lightbox props, a high indirection handoff.",
+        "`LightboxShell.tsx` blends modal interaction policy with viewport/pane layout policy, making ownership boundaries between layout system and media workflow less direct."
+      ],
+      "suggestion": "Split by responsibility: create mode-specific containers (`ImageLightboxContainer`, `VideoLightboxContainer`) with narrow inputs, move shared overlay mechanics into a reusable overlay boundary module, and reduce session model shape to minimal per-mode contracts.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "overaggregated_ui_orchestration"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "A large `shared` namespace mixes app-level orchestration, UI primitives, and cross-domain logic, making dependency direction unenforceable.",
+      "Infrastructure access is globally convenient (`getSupabaseClient`) but not boundary-contained, so many modules couple to runtime initialization details.",
+      "Lightbox/gallery flows evolved by additive prop-surface growth, producing orchestration wrappers instead of smaller bounded controllers."
+    ],
+    "likely_symptoms": [
+      "domain_shared_bidirectional_dependency",
+      "supabase_singleton_boot_order_coupling",
+      "lightbox_contract_overaggregation"
+    ],
+    "possible_false_positives": [
+      "Deferred import pressure could not be fully validated because `holistic_context.dependencies.deferred_import_density` was absent in this packet."
+    ]
+  }
+}

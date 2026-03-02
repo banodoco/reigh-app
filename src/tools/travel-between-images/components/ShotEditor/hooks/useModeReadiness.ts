@@ -109,7 +109,7 @@ export function useModeReadiness({
 
   // Handle mode setup and readiness transitions
   useEffect(() => {
-    const { hasImageData, criticalSettingsReady, modeCorrect, hasError, isReady } = readinessState;
+    const { hasImageData, modeCorrect, hasError, isReady } = readinessState;
 
     // Skip if already ready
     if (isReady) return;

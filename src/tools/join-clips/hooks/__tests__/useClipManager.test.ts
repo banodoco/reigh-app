@@ -108,6 +108,27 @@ function createDefaultParams() {
   };
 }
 
+function createMockVideoElement() {
+  const addEventListener = vi.fn();
+  const removeEventListener = vi.fn();
+  const pause = vi.fn();
+  const load = vi.fn();
+  const video = {
+    addEventListener,
+    removeEventListener,
+    pause,
+    load,
+    src: '',
+  } as unknown as HTMLVideoElement;
+
+  return {
+    video,
+    addEventListener,
+    removeEventListener,
+    pause,
+  };
+}
+
 describe('useClipManager', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -171,6 +192,46 @@ describe('useClipManager', () => {
     });
   });
 
+  it('does not persist empty clips before initial hydration completes', async () => {
+    let resolvePreload: (() => void) | null = null;
+    mockPreloadPosterImages.mockImplementationOnce(
+      () => new Promise<void[]>((resolve) => {
+        resolvePreload = () => resolve([]);
+      }),
+    );
+    mockBuildInitialClipsFromSettings.mockReturnValueOnce({
+      clips: [
+        { id: 'c1', url: 'https://example.com/v1.mp4', loaded: false, playing: false },
+      ],
+      transitionPrompts: [],
+      posterUrlsToPreload: ['https://example.com/v1.jpg'],
+    });
+    mockPadClipsWithEmptySlots.mockReturnValueOnce([
+      { id: 'c1', url: 'https://example.com/v1.mp4', loaded: false, playing: false },
+      { id: 'empty-0', url: '', loaded: false, playing: false },
+    ]);
+
+    const params = createDefaultParams();
+    params.joinSettings = {
+      settings: {
+        clips: [{ url: 'https://example.com/v1.mp4' }],
+        transitionPrompts: [],
+      },
+      updateField: vi.fn(),
+      updateFields: vi.fn(),
+    } as unknown;
+
+    renderHook(() => useClipManager(params));
+
+    expect((params.joinSettings as { updateFields: ReturnType<typeof vi.fn> }).updateFields).not.toHaveBeenCalled();
+    expect(resolvePreload).toBeTruthy();
+    resolvePreload?.();
+
+    await waitFor(() => {
+      expect(mockPreloadPosterImages).toHaveBeenCalled();
+    });
+  });
+
   it('consumes pending join clips when settings are loaded', async () => {
     mockConsumePendingJoinClips.mockResolvedValue({
       ok: true,
@@ -187,7 +248,7 @@ describe('useClipManager', () => {
     renderHook(() => useClipManager(createDefaultParams()));
 
     await waitFor(() => {
-      expect(mockConsumePendingJoinClips).toHaveBeenCalled();
+      expect(mockConsumePendingJoinClips).toHaveBeenCalledWith({ projectId: 'proj-1' });
     });
   });
 
@@ -314,6 +375,147 @@ describe('useClipManager', () => {
     });
   });
 
+  it('ignores stale hydration preload completion after a project switch', async () => {
+    let resolveProj1Preload: (() => void) | null = null;
+
+    mockBuildInitialClipsFromSettings
+      .mockReturnValueOnce({
+        clips: [
+          {
+            id: 'proj1-clip',
+            url: 'https://example.com/proj1.mp4',
+            loaded: false,
+            playing: false,
+          },
+        ],
+        transitionPrompts: [],
+        posterUrlsToPreload: ['proj1-poster.jpg'],
+      })
+      .mockReturnValueOnce({
+        clips: [],
+        transitionPrompts: [],
+        posterUrlsToPreload: [],
+      });
+
+    mockPadClipsWithEmptySlots.mockImplementation((nextClips: unknown[]) => nextClips);
+    mockPreloadPosterImages.mockImplementationOnce(
+      () => new Promise<void[]>((resolve) => {
+        resolveProj1Preload = () => resolve([]);
+      }),
+    );
+
+    const params = createDefaultParams();
+    const { result, rerender } = renderHook(
+      ({ p }) => useClipManager(p),
+      { initialProps: { p: params } },
+    );
+
+    await waitFor(() => {
+      expect(mockPreloadPosterImages).toHaveBeenCalledTimes(1);
+    });
+
+    rerender({
+      p: {
+        ...params,
+        selectedProjectId: 'proj-2',
+      },
+    });
+
+    await waitFor(() => {
+      expect(result.current.clips).toHaveLength(2);
+      expect(result.current.clips.some(clip => clip.id === 'proj1-clip')).toBe(false);
+    });
+
+    expect(resolveProj1Preload).toBeTruthy();
+    resolveProj1Preload?.();
+
+    await waitFor(() => {
+      expect(result.current.clips).toHaveLength(2);
+      expect(result.current.clips.some(clip => clip.id === 'proj1-clip')).toBe(false);
+    });
+  });
+
+  it('ignores stale pending-clip consumption after a project switch', async () => {
+    let resolveProj1Consume: ((value: unknown) => void) | null = null;
+
+    mockBuildInitialClipsFromSettings.mockReturnValue({
+      clips: [],
+      transitionPrompts: [],
+      posterUrlsToPreload: [],
+    });
+    mockApplyPendingClipActions.mockImplementation((prev: unknown[], actions: unknown[]) => {
+      const typedActions = actions as Array<{ clip: unknown }>;
+      return [...prev, ...typedActions.map(action => action.clip)];
+    });
+    mockConsumePendingJoinClips
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveProj1Consume = resolve as (value: unknown) => void;
+          }),
+      )
+      .mockResolvedValueOnce({
+        ok: true,
+        value: [
+          {
+            type: 'fill' as const,
+            clip: {
+              id: 'proj2-pending',
+              url: 'https://example.com/proj2.mp4',
+              loaded: false,
+              playing: false,
+            },
+          },
+        ],
+        policy: 'best_effort',
+        recoverable: false,
+      });
+
+    const params = createDefaultParams();
+    const { result, rerender } = renderHook(
+      ({ p }) => useClipManager(p),
+      { initialProps: { p: params } },
+    );
+
+    await waitFor(() => {
+      expect(mockConsumePendingJoinClips).toHaveBeenCalledWith({ projectId: 'proj-1' });
+    });
+
+    rerender({
+      p: {
+        ...params,
+        selectedProjectId: 'proj-2',
+      },
+    });
+
+    await waitFor(() => {
+      expect(mockConsumePendingJoinClips).toHaveBeenCalledWith({ projectId: 'proj-2' });
+      expect(result.current.clips.some(clip => clip.id === 'proj2-pending')).toBe(true);
+    });
+
+    expect(resolveProj1Consume).toBeTruthy();
+    resolveProj1Consume?.({
+      ok: true,
+      value: [
+        {
+          type: 'fill' as const,
+          clip: {
+            id: 'proj1-stale',
+            url: 'https://example.com/proj1-stale.mp4',
+            loaded: false,
+            playing: false,
+          },
+        },
+      ],
+      policy: 'best_effort',
+      recoverable: false,
+    });
+
+    await waitFor(() => {
+      expect(result.current.clips.some(clip => clip.id === 'proj1-stale')).toBe(false);
+    });
+  });
+
   it('resets state when project changes', () => {
     const params = createDefaultParams();
     const { rerender } = renderHook(
@@ -332,5 +534,81 @@ describe('useClipManager', () => {
     // The exact behavior depends on internal effects, but we verify
     // getCachedClipsCount is called with the new project
     expect(mockGetCachedClipsCount).toHaveBeenCalledWith('proj-2');
+  });
+
+  it('cleans up clip play listeners when clip set changes and on unmount', async () => {
+    const { result, unmount } = renderHook(() => useClipManager(createDefaultParams()));
+
+    const videoA = createMockVideoElement();
+    const videoB = createMockVideoElement();
+    const videoC = createMockVideoElement();
+
+    act(() => {
+      result.current.videoRefs.current.a = videoA.video;
+      result.current.videoRefs.current.b = videoB.video;
+      result.current.videoRefs.current.c = videoC.video;
+      result.current.setClips([
+        { id: 'a', url: 'a.mp4', loaded: false, playing: false },
+        { id: 'b', url: 'b.mp4', loaded: false, playing: false },
+      ]);
+    });
+
+    await waitFor(() => {
+      expect(videoA.addEventListener).toHaveBeenCalledWith('play', expect.any(Function));
+      expect(videoB.addEventListener).toHaveBeenCalledWith('play', expect.any(Function));
+    });
+
+    const listenerA = videoA.addEventListener.mock.calls[0][1];
+    const listenerB = videoB.addEventListener.mock.calls[0][1];
+
+    act(() => {
+      result.current.setClips([
+        { id: 'b', url: 'b.mp4', loaded: false, playing: false },
+        { id: 'c', url: 'c.mp4', loaded: false, playing: false },
+      ]);
+    });
+
+    await waitFor(() => {
+      expect(videoA.removeEventListener).toHaveBeenCalledWith('play', listenerA);
+      expect(videoB.removeEventListener).toHaveBeenCalledWith('play', listenerB);
+      expect(videoC.addEventListener).toHaveBeenCalledWith('play', expect.any(Function));
+    });
+
+    const listenerBSecond = videoB.addEventListener.mock.calls[1][1];
+    const listenerC = videoC.addEventListener.mock.calls[0][1];
+
+    unmount();
+
+    expect(videoB.removeEventListener).toHaveBeenCalledWith('play', listenerBSecond);
+    expect(videoC.removeEventListener).toHaveBeenCalledWith('play', listenerC);
+  });
+
+  it('clears pending scroll timers when unmounted', () => {
+    vi.useFakeTimers();
+    const addEventListenerSpy = vi.spyOn(window, 'addEventListener');
+    const removeEventListenerSpy = vi.spyOn(window, 'removeEventListener');
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
+
+    const { unmount } = renderHook(() => useClipManager(createDefaultParams()));
+    const scrollHandler = addEventListenerSpy.mock.calls.find(
+      (call) => call[0] === 'scroll',
+    )?.[1];
+
+    expect(scrollHandler).toBeTypeOf('function');
+    if (typeof scrollHandler === 'function') {
+      act(() => {
+        scrollHandler(new Event('scroll'));
+      });
+    }
+
+    unmount();
+
+    expect(removeEventListenerSpy).toHaveBeenCalledWith('scroll', scrollHandler);
+    expect(clearTimeoutSpy).toHaveBeenCalled();
+
+    clearTimeoutSpy.mockRestore();
+    removeEventListenerSpy.mockRestore();
+    addEventListenerSpy.mockRestore();
+    vi.useRealTimers();
   });
 });

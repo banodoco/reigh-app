@@ -14,7 +14,7 @@ import { useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
-import { extractSegmentImages } from '@/shared/lib/galleryUtils';
+import { extractSegmentImages } from '@/shared/lib/tasks/travelBetweenImages/segmentImages';
 import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import type { SegmentRegenerateFormProps } from '../components/SegmentRegenerateForm';
@@ -145,7 +145,7 @@ export function useVideoRegenerateMode({
       patch: {
         structure_videos: updatedVideos,
       },
-    }, undefined, 'immediate');
+    }, 'immediate');
 
     // Refetch to update UI - await so caller knows when complete
     await Promise.all([

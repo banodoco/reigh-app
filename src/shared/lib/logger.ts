@@ -71,6 +71,8 @@ interface BufferedLog {
 const logBuffer: BufferedLog[] = [];
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 let isFlushScheduled = false;
+let loggerRuntimeInitialized = false;
+let unloadHandlerRegistered = false;
 
 // ===== HELPERS =====
 
@@ -188,21 +190,28 @@ async function flushLogs(): Promise<void> {
   }
 }
 
-// Flush on page unload
-if (typeof window !== 'undefined') {
-  window.addEventListener('beforeunload', () => {
-    if (logBuffer.length > 0) {
-      // Use sendBeacon for reliable delivery on unload
-      try {
-        const logsToSend = logBuffer.splice(0, logBuffer.length);
-        // sendBeacon doesn't support RPC, so we just lose these logs
-        // In practice, the periodic flush should have caught most of them
-        originalConsole.log('[Logger] Discarding', logsToSend.length, 'logs on unload (sendBeacon not supported for RPC)');
-      } catch {
-        // Ignore
-      }
-    }
-  });
+function handleBeforeUnload(): void {
+  if (logBuffer.length === 0) {
+    return;
+  }
+
+  // Use sendBeacon for reliable delivery on unload.
+  try {
+    const logsToSend = logBuffer.splice(0, logBuffer.length);
+    // sendBeacon doesn't support RPC, so we just lose these logs.
+    // In practice, the periodic flush should have caught most of them.
+    originalConsole.log('[Logger] Discarding', logsToSend.length, 'logs on unload (sendBeacon not supported for RPC)');
+  } catch {
+    // Ignore
+  }
+}
+
+function registerBeforeUnloadHandler(): void {
+  if (typeof window === 'undefined' || unloadHandlerRegistered) {
+    return;
+  }
+  window.addEventListener('beforeunload', handleBeforeUnload);
+  unloadHandlerRegistered = true;
 }
 
 // ===== PUBLIC API =====
@@ -378,5 +387,11 @@ function addToBufferRaw(level: BufferedLog['log_level'], args: unknown[]): void 
   }
 }
 
-// Initialize console behavior immediately when this module loads
-initializeConsole();
+export function initializeLoggerRuntime(): void {
+  if (loggerRuntimeInitialized) {
+    return;
+  }
+  initializeConsole();
+  registerBeforeUnloadHandler();
+  loggerRuntimeInitialized = true;
+}

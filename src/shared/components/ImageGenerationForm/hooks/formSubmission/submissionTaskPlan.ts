@@ -10,7 +10,7 @@ import type {
   TextToImageModel,
 } from '../../types';
 
-export interface SubmissionTaskContext {
+interface SubmissionTaskContext {
   selectedProjectId: string | undefined;
   imagesPerPrompt: number;
   associatedShotId: string | null;

@@ -1,0 +1,122 @@
+{
+  "batch": "Design coherence — Mechanical Concern Signals",
+  "batch_index": 2,
+  "assessments": {
+    "api_surface_coherence": 72.0
+  },
+  "dimension_notes": {
+    "api_surface_coherence": {
+      "evidence": [
+        "Confirmed contract drift on delete-loading state: `MediaGalleryProps.isDeleting` allows `string | boolean | null`, but `MediaLightbox` and downstream action contracts use `string | null`; `MediaGalleryLightbox` explicitly drops boolean values with `typeof isDeleting === 'string' || isDeleting == null ? isDeleting : undefined`.",
+        "Confirmed cross-module callback shape drift for shot creation: `MediaGallery` expects `onCreateShot: (shotName, files) => Promise<void>`, `MediaLightbox` expects `Promise<{shotId?: string; shotName?: string} | void>`, and travel-between-images editor callbacks use `Promise<string>`/`Promise<{shotId: string; shotName: string}>`.",
+        "Confirmed name-collision API incoherence for `generateUniqueFilename`: storage path utility uses `(extension: string) => string`, while LoRA validation utility uses `(name, baseModel, huggingfaceUrl?, existingFilenames?) => string`.",
+        "Confirmed mixed success/failure contracts in project CRUD API: same hook surface returns `Promise<Project | null>` for create and `Promise<boolean>` for update/delete, while also invoking async `updateUserSettings(...)` without awaiting or handling rejection.",
+        "Refuted mechanical concern: `useGenerationMutations.ts` does not currently expose async-without-await in the flagged paths; mutation functions either `await` DB/scope checks or return promise-producing helpers.",
+        "Refuted mechanical concern: `createSupabaseClient.ts` does not currently have async-without-await in its flagged path; the async replacement fetch function awaits `fetchWithTimeout` and the exported factory is intentionally synchronous.",
+        "Refuted mechanical concern: `handleKeyDown` and touch-handler signature variance appears to be local handler naming reuse across unrelated components rather than a shared exported API contract."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "delete_loading_union_drift",
+      "summary": "Delete-loading API uses incompatible shapes across gallery/lightbox boundaries, forcing lossy adapter logic.",
+      "related_files": [
+        "src/shared/components/MediaGallery/types.ts",
+        "src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx",
+        "src/shared/components/MediaLightbox/MediaLightbox.tsx",
+        "src/shared/components/MediaLightbox/types.ts"
+      ],
+      "evidence": [
+        "`MediaGalleryProps` defines `isDeleting?: string | boolean | null`, but `MediaLightboxProps` and `LightboxActionHandlers` define `isDeleting?: string | null`.",
+        "Adapter bridge in `MediaGalleryLightbox` converts only string/null and drops booleans (`... ? isDeleting : undefined`), so one accepted upstream value is silently discarded at boundary."
+      ],
+      "suggestion": "Standardize deletion state to one explicit contract (e.g., `{mode:'idle'|'deleting', targetId?:string}` or `string | null`) and migrate all call sites/adapters to that single shape; remove boolean fallback once migrated.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "cross_feature_contract_fragmentation"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "shot_creation_callback_fragmented",
+      "summary": "Shot-creation callback contract is fragmented into incompatible return types across adjacent features.",
+      "related_files": [
+        "src/shared/components/MediaGallery/types.ts",
+        "src/shared/components/MediaLightbox/types.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/hooks/useShotImagesEditorCallbacks.ts",
+        "src/tools/travel-between-images/components/ShotImagesEditor/components/BatchModeContent.tsx"
+      ],
+      "evidence": [
+        "Gallery contract uses `onCreateShot?: (shotName, files) => Promise<void>` while lightbox workflow contracts allow `Promise<{shotId?: string; shotName?: string} | void>`.",
+        "Travel-between-images editor callbacks introduce additional shapes (`Promise<string>` and `Promise<{shotId: string; shotName: string}>`), so shared behavior depends on local adapter assumptions."
+      ],
+      "suggestion": "Introduce a shared `CreateShotResult` type and one canonical callback signature across gallery/lightbox/editor surfaces; adapt legacy call sites with thin wrappers and deprecate divergent forms.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "cross_feature_contract_fragmentation"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "generate_unique_filename_name_collision",
+      "summary": "Two unrelated utilities export the same function name with different parameter models, creating API ambiguity.",
+      "related_files": [
+        "src/shared/lib/storagePaths.ts",
+        "src/shared/components/LoraSelectorModal/utils/validation-utils.ts",
+        "src/shared/lib/videoUploader.ts",
+        "src/shared/components/LoraSelectorModal/components/MyLorasTab/hooks/useLoraSubmission.ts"
+      ],
+      "evidence": [
+        "`storagePaths.generateUniqueFilename(extension)` generates timestamp/random storage names.",
+        "`validation-utils.generateUniqueFilename(name, baseModel, huggingfaceUrl?, existingFilenames?)` derives semantic LoRA filenames and de-duplicates against existing names.",
+        "Both are actively consumed in different upload flows, but identical naming hides fundamentally different contracts and intent."
+      ],
+      "suggestion": "Rename to domain-specific APIs (`generateStorageObjectName`, `generateLoraFilename`) and optionally colocate behind explicit domain namespaces to prevent accidental cross-use.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "semantic_name_reuse_without_shared_contract"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "project_crud_result_contract_inconsistent",
+      "summary": "Project CRUD exposes mixed result semantics and leaves an async side-effect unobserved, making caller behavior inconsistent.",
+      "related_files": [
+        "src/shared/hooks/useProjectCRUD.ts",
+        "src/shared/contexts/ProjectContext.tsx",
+        "src/shared/components/GlobalHeader/CreateProjectModal.tsx",
+        "src/shared/components/ProjectSettingsModal.tsx"
+      ],
+      "evidence": [
+        "`useProjectCRUD` returns heterogeneous success contracts: create -> `Promise<Project | null>`, update/delete -> `Promise<boolean>`.",
+        "In `addNewProject`, `updateUserSettings('user', { lastOpenedProjectId: ... })` is invoked without `await`/error handling, so settings persistence can fail independently of returned create success.",
+        "Callers branch differently (`if (newProject)` vs `if (success)`), reinforcing divergent semantics for operations in one CRUD surface."
+      ],
+      "suggestion": "Unify CRUD operations on a shared `OperationResult<T>` (or throw-on-failure policy) and either await `updateUserSettings` or explicitly decouple it as best-effort with typed status so callers can reason about partial success.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "mixed_success_failure_conventions"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Shared feature boundaries evolved independently and now expose parallel but incompatible callback/result contracts.",
+      "Function naming reused across domains without a central API lexicon, causing semantic collisions."
+    ],
+    "likely_symptoms": [
+      "delete_loading_union_drift",
+      "shot_creation_callback_fragmented",
+      "generate_unique_filename_name_collision"
+    ],
+    "possible_false_positives": [
+      "handleKeyDown/handleTouch* signature variance appears mostly naming-level and local-scope, not a shared exported contract defect.",
+      "createSupabaseClient async-without-await mechanical flag appears stale against current implementation."
+    ]
+  }
+}

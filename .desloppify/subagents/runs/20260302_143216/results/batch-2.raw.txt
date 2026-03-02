@@ -1,0 +1,139 @@
+{
+  "batch": "Conventions & Errors",
+  "batch_index": 2,
+  "assessments": {
+    "convention_outlier": 82.0,
+    "error_consistency": 74.0,
+    "mid_level_elegance": 76.0
+  },
+  "dimension_notes": {
+    "convention_outlier": {
+      "evidence": [
+        "Prompt formatting logic is duplicated with different conventions: `submitSegmentTask.ts` `applyPromptAffixes()` joins with spaces, while `buildBatchTaskParams.ts` composes comma-delimited prompt strings inline.",
+        "The same prompt concept is represented with different naming/protocols across adjacent modules (`base_prompt`, `enhanced_prompt`, `fullPrompt`, `shortPrompt`) without a single boundary adapter, so convention drift is leaking into behavior.",
+        "Mechanical `duplicate_clusters` did not surface a direct duplicate cluster in these seed files, but local inspection confirms non-identical duplicated prompt-building logic that creates behavioral outliers."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "error_consistency": {
+      "evidence": [
+        "Packet did not provide `holistic_context.errors.exception_hotspots`; only `errors.strategy_by_directory` is available, which still shows mixed strategies in relevant areas (`tasks/`: throws+returns_null+try_catch; `components/`: returns_null+try_catch+throws).",
+        "`submitSegmentTask.ts` mixes fail-open and fail-fast in one flow: metadata fetch/update failures are normalized and returned from (`saveEnhancedPromptMetadata`), while settings-save failures throw and abort submission (`maybeSaveSettings`).",
+        "`huggingFaceTokenVerifier.ts` swallows all thrown error detail in a broad catch and returns a generic failure string, while repository/task paths throw concrete errors (`paginatedTaskRepository.ts`, `toolSettingsWriteRepository.ts`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Task seam is type-unsafe at boundary: `segmentSettingsUtils.buildTaskParams()` returns `Record<string, unknown>` and `submitSegmentTask.ts` force-casts to `IndividualTravelSegmentTaskParams` via `as unknown as`, hiding contract mismatches until runtime.",
+        "Queue/refetch workflow has loop-prone behavior: `useProcessingRefetchGuard.ts` repeatedly triggers `query.refetch()` whenever stale-empty conditions persist, with no retry cap/circuit breaker beyond time backoff in `taskFetchPolicy.ts`.",
+        "This creates integration friction at seams (task creation and task polling) where correctness depends on convention rather than explicit contracts and guardrails."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "error_consistency",
+      "identifier": "mixed_fail_open_fail_fast_segment_submission",
+      "summary": "Segment submission path inconsistently swallows vs throws errors across adjacent steps.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/submitSegmentTask.ts",
+        "src/shared/hooks/tasks/paginatedTaskRepository.ts",
+        "src/shared/services/externalApiKeys/huggingFaceTokenVerifier.ts"
+      ],
+      "evidence": [
+        "`saveEnhancedPromptMetadata()` logs/normalizes fetch/update failures then returns, allowing task creation to continue with stale metadata.",
+        "`maybeSaveSettings()` throws on false and aborts submission, so user-visible behavior changes by step rather than error class.",
+        "`verifyHuggingFaceToken()` uses a broad `catch {}` and drops root error context, unlike repository/task modules that throw upstream errors."
+      ],
+      "suggestion": "Define and enforce per-layer error contracts: repositories return `Result` or throw consistently, UI orchestration maps those to user-facing outcomes in one place. For `submitSegmentTask`, decide whether metadata persistence is required (throw) or optional (explicitly mark best-effort and surface non-blocking warning). Preserve original caught error details in token verification and similar boundary utilities.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "implicit_error_policy"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "task_boundary_contract_is_cast_not_typed",
+      "summary": "Task handoff relies on unsafe casts instead of an explicit typed boundary contract.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/submitSegmentTask.ts",
+        "src/shared/components/segmentSettingsUtils.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts"
+      ],
+      "evidence": [
+        "`buildTaskParams()` returns `Record<string, unknown>` while downstream API expects structured segment params.",
+        "`submitSegmentTask` converts that payload with `as unknown as IndividualTravelSegmentTaskParams`, bypassing compile-time validation.",
+        "The receiving path validates runtime fields (`validateIndividualTravelSegmentParams`) indicating compile-time seam is not trusted."
+      ],
+      "suggestion": "Introduce a shared exported DTO for segment task creation and make `buildTaskParams` return that DTO directly. Remove `unknown` cast chain and require compile-time satisfaction of required/optional fields before calling `createIndividualTravelSegmentTask`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "implicit_boundary_contracts"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "processing_refetch_guard_has_no_exit_gate",
+      "summary": "Processing refetch guard can churn indefinitely under persistent stale-empty states.",
+      "related_files": [
+        "src/shared/hooks/tasks/useProcessingRefetchGuard.ts",
+        "src/shared/hooks/tasks/taskFetchPolicy.ts",
+        "src/shared/hooks/tasks/paginatedTaskRepository.ts"
+      ],
+      "evidence": [
+        "`useProcessingRefetchGuard` triggers `query.refetch()` whenever `shouldForceProcessingRefetch` is true and only tracks last timestamp, not attempts or terminal conditions.",
+        "`shouldForceProcessingRefetch` re-qualifies on stale empty success states with time-based thresholds, so long-lived backend gaps keep triggering periodic refetches.",
+        "No explicit guard exists for max retries, cooldown escalation, or operator-visible degraded state."
+      ],
+      "suggestion": "Add workflow guardrails: bounded retry counter, exponential cooldown, and a terminal 'degraded polling' state after N attempts. Persist guard state per filter key so reopening panes does not reset churn immediately, and emit a visible diagnostic state for manual recovery.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "missing_workflow_gates"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "duplicated_prompt_composition_protocols",
+      "summary": "Prompt composition conventions diverge across generation paths, causing behavioral drift.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/submitSegmentTask.ts",
+        "src/shared/components/ImageGenerationForm/hooks/buildBatchTaskParams.ts",
+        "src/shared/components/ImageGenerationForm/hooks/promptUtils.ts"
+      ],
+      "evidence": [
+        "`submitSegmentTask` uses `applyPromptAffixes` with space-join semantics.",
+        "`buildBatchTaskParams` builds prompt text inline with comma insertion logic and separate trimming behavior.",
+        "Both paths produce prompt payloads for task creation but lack a shared formatter contract, so edge-case punctuation/spacing differs by entry point."
+      ],
+      "suggestion": "Extract one shared prompt assembly utility with explicit delimiter/normalization policy and use it in both segment and batch task builders. Keep legacy compatibility mode as a named option to avoid hidden drift.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "convention_drift_from_duplicate_logic"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Error handling policy is implicit and local instead of standardized by layer boundaries.",
+      "Boundary contracts between UI builders and task creation are enforced at runtime, not at compile-time.",
+      "Behavioral conventions (prompt assembly, polling/retry lifecycle) are duplicated without a single source of truth."
+    ],
+    "likely_symptoms": [
+      "mixed_fail_open_fail_fast_segment_submission",
+      "task_boundary_contract_is_cast_not_typed",
+      "processing_refetch_guard_has_no_exit_gate",
+      "duplicated_prompt_composition_protocols"
+    ],
+    "possible_false_positives": [
+      "Some fail-open behavior in metadata persistence may be intentional for UX continuity, but current code does not make that policy explicit."
+    ]
+  }
+}

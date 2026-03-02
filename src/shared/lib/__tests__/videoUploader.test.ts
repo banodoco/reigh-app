@@ -1,26 +1,33 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock supabase
-vi.mock('@/integrations/supabase/client', () => ({
-  supabase: {
-    auth: {
-      getSession: vi.fn().mockResolvedValue({
-        data: {
-          session: {
-            [['access', 'token'].join('_')]: 'test-token',
-            user: { id: 'user-123' },
-          },
+const { mockGetSession, mockStorageFrom } = vi.hoisted(() => {
+  const mockGetPublicUrl = vi.fn().mockReturnValue({
+    data: { publicUrl: 'https://storage.com/public/video.mp4' },
+  });
+  return {
+    mockGetSession: vi.fn().mockResolvedValue({
+      data: {
+        session: {
+          access_token: 'test-token',
+          user: { id: 'user-123' },
         },
-      }),
+      },
+    }),
+    mockStorageFrom: vi.fn().mockReturnValue({
+      getPublicUrl: mockGetPublicUrl,
+    }),
+  };
+});
+
+vi.mock('@/integrations/supabase/client', () => ({
+  getSupabaseClient: () => ({
+    auth: {
+      getSession: mockGetSession,
     },
     storage: {
-      from: vi.fn().mockReturnValue({
-        getPublicUrl: vi.fn().mockReturnValue({
-          data: { publicUrl: 'https://storage.com/public/video.mp4' },
-        }),
-      }),
+      from: mockStorageFrom,
     },
-  },
+  }),
 }));
 
 vi.mock('@/integrations/supabase/config/env', () => ({
@@ -34,10 +41,6 @@ vi.mock('@/shared/lib/storagePaths', () => ({
   getFileExtension: vi.fn().mockReturnValue('mp4'),
   generateUniqueFilename: vi.fn().mockReturnValue('unique-file.mp4'),
   MEDIA_BUCKET: 'media',
-}));
-
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
 }));
 
 import { extractVideoMetadata, extractVideoMetadataFromUrl, uploadVideoToStorage } from '../videoUploader';
@@ -128,36 +131,34 @@ describe('extractVideoMetadataFromUrl', () => {
 describe('uploadVideoToStorage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: 'test-token',
+          user: { id: 'user-123' },
+        },
+      },
+    });
   });
 
-  it('throws when abort signal is already aborted', async () => {
+  it('throws when abort signal is already aborted (options signature)', async () => {
     const controller = new AbortController();
     controller.abort();
 
     const file = new File(['video'], 'test.mp4', { type: 'video/mp4' });
 
-    await expect(
-      uploadVideoToStorage(file, 'project-1', 'shot-1', { signal: controller.signal })
-    ).rejects.toThrow('Upload cancelled');
+    await expect(uploadVideoToStorage(file, { signal: controller.signal })).rejects.toThrow(
+      'Upload cancelled',
+    );
   });
 
   it('throws when session is not available', async () => {
-    const { supabase } = await import('@/integrations/supabase/client');
-    vi.mocked(supabase.auth.getSession).mockResolvedValueOnce({
+    mockGetSession.mockResolvedValueOnce({
       data: { session: null },
-    } as unknown);
+    });
 
     const file = new File(['video'], 'test.mp4', { type: 'video/mp4' });
 
-    await expect(
-      uploadVideoToStorage(file, 'project-1', 'shot-1')
-    ).rejects.toThrow('No active session');
-  });
-
-  it('accepts legacy callback signature (type check)', () => {
-    // Verify the function signature accepts both old and new call patterns
-    // We can't actually call it without triggering XHR in jsdom,
-    // but we verify the function exists and accepts the right types
-    expect(typeof uploadVideoToStorage).toBe('function');
+    await expect(uploadVideoToStorage(file)).rejects.toThrow('No active session');
   });
 });

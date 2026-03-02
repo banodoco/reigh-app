@@ -1,0 +1,117 @@
+{
+  "batch": "Conventions & Errors",
+  "batch_index": 2,
+  "assessments": {
+    "convention_outlier": 78.6
+  },
+  "dimension_notes": {
+    "convention_outlier": {
+      "evidence": [
+        "Context hook guard behavior is inconsistent within one subsystem: Auth/UserSettings log to console then throw, while Project/CurrentShot/AIInputMode throw directly with different message formats (`src/shared/contexts/AuthContext.tsx`, `src/shared/contexts/UserSettingsContext.tsx`, `src/shared/contexts/ProjectContext.tsx`, `src/shared/contexts/CurrentShotContext.tsx`, `src/shared/contexts/AIInputModeContext.tsx`).",
+        "Modal open-state naming drifts between siblings: `CreateProjectModal` uses `isOpen` but shared modal contract uses `open` (`src/shared/components/GlobalHeader/CreateProjectModal.tsx`, `src/shared/components/ModalContainer.tsx`).",
+        "Install visual naming mixes acronym casing conventions (`IOS` vs `Ios`, `IPad` vs `ipad`), creating inconsistent symbol vocabulary between component names and exported keys (`src/pages/Home/components/install/visuals.tsx`, `src/pages/Home/components/install/scenarios.ts`).",
+        "Hook discoverability convention drifts in GlobalHeader: `useGlobalHeaderController` is declared in `GlobalHeaderController.ts` while sibling hooks use `use*` filenames (`src/shared/components/GlobalHeader/GlobalHeaderController.ts`, `src/shared/components/GlobalHeader/useGlobalHeaderProject.ts`, `src/shared/components/GlobalHeader/useGlobalHeaderAuth.ts`).",
+        "Mechanical signal check: `dead_function` concern for `fetchWithTimeout.ts` is not confirmed for production behavior; `fetchWithTimeout` is imported by runtime bootstrap (`src/integrations/supabase/bootstrap/createSupabaseClient.ts`) and `composeAbortSignals` is used inside the same module."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "convention_outlier",
+      "identifier": "context_guard_protocol_drift",
+      "summary": "Context hooks use mixed guard/error conventions in the same layer.",
+      "related_files": [
+        "src/shared/contexts/AuthContext.tsx",
+        "src/shared/contexts/UserSettingsContext.tsx",
+        "src/shared/contexts/ProjectContext.tsx",
+        "src/shared/contexts/CurrentShotContext.tsx",
+        "src/shared/contexts/AIInputModeContext.tsx"
+      ],
+      "evidence": [
+        "`useAuth` and `useUserSettings` both call `console.error(...)` then throw.",
+        "`useProject*Context`, `useCurrentShot`, and `useAIInputMode` throw directly without console logging and with different message detail levels.",
+        "This creates non-uniform diagnostics and inconsistent expected behavior for provider misuse across sibling contexts."
+      ],
+      "suggestion": "Adopt one shared guard helper for all context hooks (for example `assertContextPresent(hookName, providerName)`), and decide one standard behavior (throw-only or normalize+report+throw) applied uniformly across all contexts.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "missing_shared_context_contract"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "modal_open_prop_naming_drift",
+      "summary": "Modal state prop naming is inconsistent (`isOpen` vs `open`) across shared UI boundaries.",
+      "related_files": [
+        "src/shared/components/GlobalHeader/CreateProjectModal.tsx",
+        "src/shared/components/ModalContainer.tsx"
+      ],
+      "evidence": [
+        "`CreateProjectModalProps` defines `isOpen` and `onOpenChange(isOpen: boolean)`.",
+        "`ModalContainerProps` and underlying dialog contract use `open` and `onOpenChange(open: boolean)`.",
+        "CreateProjectModal immediately translates `isOpen` into `open` when calling ModalContainer, adding avoidable naming translation."
+      ],
+      "suggestion": "Standardize modal interfaces on `open` across component props and callbacks; rename `CreateProjectModalProps.isOpen` to `open` and align callback parameter naming accordingly.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "ui_state_naming_inconsistency"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "acronym_casing_drift_install_visuals",
+      "summary": "Install visual identifiers mix acronym casing conventions and reduce naming predictability.",
+      "related_files": [
+        "src/pages/Home/components/install/visuals.tsx",
+        "src/pages/Home/components/install/scenarios.ts"
+      ],
+      "evidence": [
+        "Component names include `ChromeIOSShareIcon`, `EdgeIOSShareIcon`, `IPadSafariShareIcon`.",
+        "Exported map keys use `chromeIosShare`, `edgeIosShare`, `ipadSafariShare`.",
+        "Same concept appears with competing acronym styles (`IOS`/`Ios`, `IPad`/`ipad`) within one module family."
+      ],
+      "suggestion": "Choose one acronym casing convention and apply it consistently (for example iOS/iPad across component symbols and keys), then rename symbols/keys together to keep searchability and code completion coherent.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "ui_state_naming_inconsistency"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "hook_filename_convention_drift",
+      "summary": "A hook is stored in a non-`use*` filename while sibling hooks follow `use*` naming.",
+      "related_files": [
+        "src/shared/components/GlobalHeader/GlobalHeaderController.ts",
+        "src/shared/components/GlobalHeader/useGlobalHeaderProject.ts",
+        "src/shared/components/GlobalHeader/useGlobalHeaderAuth.ts"
+      ],
+      "evidence": [
+        "`GlobalHeaderController.ts` exports `useGlobalHeaderController`.",
+        "Sibling hook files are named `useGlobalHeaderProject.ts` and `useGlobalHeaderAuth.ts`.",
+        "This breaks local file-name convention for hooks in the same directory and lowers grep/discoverability consistency."
+      ],
+      "suggestion": "Rename `GlobalHeaderController.ts` to `useGlobalHeaderController.ts` (and update imports) so hook symbol and filename conventions match across the GlobalHeader module.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "hook_contract_discoverability_drift"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "No enforced local convention contract for context guard behavior and modal prop naming.",
+      "Directory-level naming governance is partial, so file/symbol conventions drift as features evolve."
+    ],
+    "likely_symptoms": [
+      "modal_open_prop_naming_drift",
+      "acronym_casing_drift_install_visuals",
+      "hook_filename_convention_drift"
+    ],
+    "possible_false_positives": [
+      "Acronym casing differences may be partially intentional for JSX readability, but the mixed style within one module still creates convention drift."
+    ]
+  }
+}

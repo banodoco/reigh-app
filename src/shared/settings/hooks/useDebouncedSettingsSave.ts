@@ -202,7 +202,7 @@ export function useDebouncedSettingsSave<T extends object>(
         id: pendingForEntity,
         toolId: flushToolId,
         patch: pending,
-      }, undefined, 'immediate')
+      }, 'immediate')
         .then(() => {
           const cacheKey = flushScope === 'shot'
             ? queryKeys.settings.tool(flushToolId, projectId ?? undefined, pendingForEntity)

@@ -10,24 +10,31 @@ import {
 
 type TimelineLogFn = (...args: unknown[]) => void;
 
-function shortId(value: string | null | undefined): string | null {
+function shortNullableId(value: string | null | undefined): string | null {
   return value ? value.slice(0, 8) : null;
 }
 
-export function refetchTimelineFrameCaches(
+export async function refetchTimelineFrameCaches(
   queryClient: QueryClient,
   shotId: string,
   projectId?: string | null,
   includeLiveTimeline = false,
-) {
-  queryClient.refetchQueries({ queryKey: queryKeys.generations.byShot(shotId) });
-  queryClient.refetchQueries({ queryKey: queryKeys.generations.meta(shotId) });
+) : Promise<void> {
+  const refetchOperations: Array<Promise<unknown>> = [
+    queryClient.refetchQueries({ queryKey: queryKeys.generations.byShot(shotId) }),
+    queryClient.refetchQueries({ queryKey: queryKeys.generations.meta(shotId) }),
+  ];
   if (projectId) {
-    queryClient.refetchQueries({ queryKey: queryKeys.shots.list(projectId) });
+    refetchOperations.push(
+      queryClient.refetchQueries({ queryKey: queryKeys.shots.list(projectId) }),
+    );
   }
   if (includeLiveTimeline) {
-    queryClient.refetchQueries({ queryKey: queryKeys.segments.liveTimeline(shotId) });
+    refetchOperations.push(
+      queryClient.refetchQueries({ queryKey: queryKeys.segments.liveTimeline(shotId) }),
+    );
   }
+  await Promise.all(refetchOperations);
 }
 
 interface PersistSingleTimelineFrameInput {
@@ -63,8 +70,8 @@ export async function persistSingleTimelineFrame({
     {
       onTimeout: ({ pendingMs, timeoutMs }) => {
         log(`${logPrefix} updateTimelineFrame timed out`, {
-          shotId: shortId(shotId),
-          shotGenerationId: shortId(shotGenerationId),
+          shotId: shortNullableId(shotId),
+          shotGenerationId: shortNullableId(shotGenerationId),
           targetFrame: frame,
           timeoutMs,
           pendingMs,
@@ -178,7 +185,7 @@ export async function syncTimelineGenerationFrames({
         timeoutMs: 10_000,
         onTimeout: ({ pendingMs, timeoutMs }) => {
           log(`${logPrefix} shot_data sync timed out`, {
-            shotId: shortId(shotId),
+            shotId: shortNullableId(shotId),
             syncCount: targets.length,
             timeoutMs,
             pendingMs,
@@ -189,7 +196,7 @@ export async function syncTimelineGenerationFrames({
   } catch (error) {
     if (ignoreTimeout && isTimelineWriteTimeoutError(error)) {
       log(`${logPrefix} shot_data sync timeout ignored`, {
-        shotId: shortId(shotId),
+        shotId: shortNullableId(shotId),
         syncCount: targets.length,
       });
       return;

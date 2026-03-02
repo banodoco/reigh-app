@@ -46,7 +46,7 @@ function useShotData(
     hasEverHadData,
   } = shotData;
 
-  const { positionedCount, lastImageShotGenId } = useMemo(() => {
+  const { lastImageShotGenId } = useMemo(() => {
     const positioned = shotGenerations
       .filter((generation) => generation.timeline_frame != null && generation.timeline_frame >= 0)
       .sort((a, b) => (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0));

@@ -1,0 +1,130 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 6,
+  "assessments": {
+    "package_organization": 74.0,
+    "high_level_elegance": 77.0
+  },
+  "dimension_notes": {
+    "package_organization": {
+      "evidence": [
+        "Directory shape is overloaded at the root: `src/shared/components/` has 50 production files in `holistic_context.structure.directory_profiles`, and filesystem scan shows 61 top-level files at maxdepth=1.",
+        "`src/shared/hooks/` and `src/shared/lib/` are similarly flat (69 and 67 production files respectively in structure profile; 70 and 67 top-level files in filesystem scan), which weakens domain boundaries.",
+        "Coupling matrix confirms broad cross-layer fan-out from these flat roots (`src/shared/components/ -> src/shared/components/ui/` = 84, `src/shared/components/ -> src/shared/hooks/` = 41, `src/shared/components/ -> src/shared/lib/` = 22, `src/shared/hooks/ -> src/shared/lib/` = 51), indicating umbrella folders used as catch-alls.",
+        "Mechanical signal on large-file placement is confirmed in this batch scope: `src/shared/components/DatasetBrowserModal.tsx` is already flagged as structurally large and remains a top-level shared component despite mixed resource-domain behavior."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "`DatasetBrowserModal` mixes UI rendering, Supabase session access, resource query/update orchestration, and two distinct domain modes (`style-reference` and `structure-video`) in one shared component file.",
+        "`generationTaskBridge.ts` is placed in `shared/lib` but exports a React Query hook (`useGetPrimaryTaskIdForGeneration`), creating a layer mismatch between pure utility/repository code and React runtime concerns.",
+        "`useLightboxOpen` watches a global CSS class (`html.lightbox-open`) set by `viewportLockService`; this creates a hidden global contract across feature/service boundaries instead of an explicit lightbox state interface.",
+        "Workflow-integrity check performed on reviewed orchestration-related path (`useGenerationTaskDetails` + `generationTaskBridge`): no direct reopen loop found due to `mappingResolutionAttempted` guard, but boundary placement still obscures ownership."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "package_organization",
+      "identifier": "shared_root_flattening_catchall",
+      "summary": "Top-level `shared` directories act as catch-all buckets instead of domain boundaries",
+      "related_files": [
+        "src/shared/components/DatasetBrowserModal.tsx",
+        "src/shared/components/CreateShotModal.tsx",
+        "src/shared/hooks/useLightboxOpen.ts",
+        "src/shared/lib/generationTaskBridge.ts"
+      ],
+      "evidence": [
+        "`src/shared/components/` has 50 production files in structure profile and 61 top-level files on disk, including both generic UI and domain-specific modals.",
+        "`src/shared/hooks/` and `src/shared/lib/` are similarly flat at root (69/67 production files), making ownership discovery depend on file-name guessing rather than folder boundaries.",
+        "Cross-folder coupling is high from these roots (`components -> ui` 84, `components -> hooks` 41, `hooks -> lib` 51), consistent with umbrella-folder organization rather than bounded modules."
+      ],
+      "suggestion": "Run a staged reorg: Stage 1 create target folders (`src/features/resources/components`, `src/features/shots/components`, `src/features/lightbox/hooks`, `src/shared/hooks/tasks`, `src/shared/services/resources`). Stage 2 move domain files first (`DatasetBrowserModal`, `CreateShotModal`, `useLightboxOpen`, `generationTaskBridge`) into those folders without behavior changes. Stage 3 update imports with `rg -l \"@/shared/components/DatasetBrowserModal|@/shared/components/CreateShotModal|@/shared/hooks/useLightboxOpen|@/shared/lib/generationTaskBridge\" src` then apply path rewrites. Stage 4 validate with `npm run typecheck && npm run test -- DatasetBrowserModal CreateShotModal useGenerationTaskDetails`.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "shared_root_flattening"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "react_hook_in_lib_layer",
+      "summary": "`shared/lib` contains React Query hook code, blurring utility vs runtime layer boundaries",
+      "related_files": [
+        "src/shared/lib/generationTaskBridge.ts",
+        "src/shared/components/TaskDetails/hooks/useGenerationTaskDetails.ts",
+        "src/shared/lib/generationTaskRepository.ts"
+      ],
+      "evidence": [
+        "`generationTaskBridge.ts` imports `useMutation` and exports `useGetPrimaryTaskIdForGeneration`, but lives under `shared/lib` where most files are non-React utility/repository code.",
+        "`useGenerationTaskDetails` consumes this hook from a `lib` path, forcing React runtime semantics to appear as a library concern.",
+        "The same file includes an `async` wrapper (`getPrimaryTaskMapping`) around direct repository forwarding, adding extra indirection in a mislayered module."
+      ],
+      "suggestion": "Staged move: Stage 1 create `src/shared/hooks/tasks/usePrimaryTaskMapping.ts` and move the hook there; keep a temporary re-export shim in old path. Stage 2 keep repository lookup (`getPrimaryTaskIdForGeneration`) in `generationTaskRepository.ts` only. Stage 3 update imports via `rg -l \"@/shared/lib/generationTaskBridge\" src` and rewrite to new hook path. Stage 4 remove shim after green checks with `npm run typecheck && npm run test -- useGenerationTaskDetails generationTaskBridge`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shared_root_flattening"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "dataset_browser_multi_responsibility_boundary",
+      "summary": "A single shared modal owns two resource domains plus data orchestration and auth access",
+      "related_files": [
+        "src/shared/components/DatasetBrowserModal.tsx",
+        "src/shared/components/ImageGenerationForm/components/reference/ReferenceSection.tsx",
+        "src/shared/components/SegmentSettingsForm/components/StructureVideoSection.tsx",
+        "src/tools/travel-between-images/components/Timeline/TimelineContainer/TimelineContainer.tsx"
+      ],
+      "evidence": [
+        "`DatasetBrowserModal` contains item renderers, search/pagination state, ownership visibility toggles, Supabase session loading, and `useList*`/`useUpdateResource` orchestration in one unit.",
+        "The same component handles both `style-reference` and `structure-video` modes with divergent metadata contracts and selection flows.",
+        "It is consumed by unrelated feature surfaces (image reference selection and timeline structure-video selection), so feature-specific policy and UX decisions are centralized in a generic shared modal."
+      ],
+      "suggestion": "Staged split: Stage 1 extract `useResourceBrowserData` and `ResourceBrowserGrid` into `src/features/resources/`. Stage 2 add thin feature adapters (`StyleReferenceBrowserModal`, `StructureVideoBrowserModal`) in each feature folder with mode-specific contracts. Stage 3 keep `DatasetBrowserModal` as temporary compatibility wrapper delegating to adapters. Stage 4 migrate importers (`ReferenceSection`, `StructureVideoSection`, timeline/batch guidance) and validate with `npm run typecheck && npm run test -- DatasetBrowserModal StructureVideoSection ReferenceSection`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "shared_root_flattening"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "lightbox_state_via_global_css_contract",
+      "summary": "Lightbox open-state is propagated through a global CSS class contract instead of explicit state",
+      "related_files": [
+        "src/shared/hooks/useLightboxOpen.ts",
+        "src/shared/services/viewport/viewportLockService.ts",
+        "src/features/layout/hooks/useBottomOffset.ts",
+        "src/styles/foundations/base-case.css"
+      ],
+      "evidence": [
+        "`useLightboxOpen` derives state by observing `document.documentElement.classList.contains('lightbox-open')`.",
+        "`viewportLockService` mutates that class directly, and layout behavior (`useBottomOffset`) depends on it, creating implicit coupling through DOM/global styles.",
+        "This coupling is cross-boundary (service -> CSS -> hook -> layout feature) and not represented by an explicit typed interface."
+      ],
+      "suggestion": "Staged replacement: Stage 1 introduce `LightboxStateContext` in `src/features/lightbox/state/` and update lightbox open/close flows to publish explicit state. Stage 2 make `useBottomOffset` consume the typed context while keeping CSS class toggling as compatibility side-effect. Stage 3 remove DOM class observer hook and relocate residual style-only logic to lightbox feature. Stage 4 update imports with `rg -l \"useLightboxOpen|lightbox-open\" src` and validate via `npm run typecheck && npm run test -- useBottomOffset`.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "implicit_global_contracts"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Shared root folders are acting as default drop targets, so domain-specific code is not being forced into feature-owned modules.",
+      "UI, data orchestration, and platform contracts are frequently co-located in single files without explicit boundary layers."
+    ],
+    "likely_symptoms": [
+      "shared_root_flattening_catchall",
+      "dataset_browser_multi_responsibility_boundary",
+      "react_hook_in_lib_layer",
+      "lightbox_state_via_global_css_contract"
+    ],
+    "possible_false_positives": []
+  }
+}

@@ -1,0 +1,119 @@
+{
+  "batch": "Conventions & Errors",
+  "batch_index": 2,
+  "assessments": {
+    "convention_outlier": 79.0,
+    "error_consistency": 74.0,
+    "mid_level_elegance": 81.0
+  },
+  "dimension_notes": {
+    "convention_outlier": {
+      "evidence": [
+        "Sibling desktop/mobile implementations of the same ShotImageManager action diverge: desktop duplicates with explicit `timeline_frame`, mobile falls back to `index` when `timeline_frame` is missing.",
+        "The mobile path computes `frameNumber = index * batchVideoFrames` in `ShotImageManagerMobile.tsx` but does not use it for duplication, while `ImageGrid.tsx` explicitly documents using real timeline frame for this action.",
+        "Holistic naming-drift outliers in this batch were mostly weak signal (barrels/constants flagged for missing shared tokens), but behavioral protocol drift between sibling modules is confirmed."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "error_consistency": {
+      "evidence": [
+        "`submitSegmentTask.ts` mixes hard-fail and soft-fail behavior in one orchestration path: save-settings/create-task throw, but prompt-enhancement metadata fetch/update failures are normalized then silently continued.",
+        "`optimisticCacheUpdate.ts` catches all errors and suppresses user feedback (`showToast: false`) with no return channel, creating invisible failures at a data-boundary seam.",
+        "`storedPromptCount.ts` swallows storage errors and returns `parseInt` output without finite validation, allowing invalid persisted values to propagate as non-actionable state."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Processing-task policy predicates are inconsistent across seam boundaries: `isProcessingStatusFilter` is true for either queued or in-progress, but `shouldForceProcessingRefetch` only activates when both are selected.",
+        "This mismatch affects integration between `paginatedTaskRepository`, `taskFetchPolicy`, and `useProcessingRefetchGuard`, creating stale-empty blind spots for single-status processing filters.",
+        "Holistic `exception_hotspots` was null in this packet, so error-seam conclusions were validated by direct code-path inspection rather than hotspot aggregation."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "processing_refetch_predicate_mismatch",
+      "summary": "Processing filter semantics diverge between fetch and refetch guard paths.",
+      "related_files": [
+        "src/shared/hooks/tasks/taskFetchPolicy.ts",
+        "src/shared/hooks/tasks/paginatedTaskRepository.ts",
+        "src/shared/hooks/tasks/useProcessingRefetchGuard.ts"
+      ],
+      "evidence": [
+        "`isProcessingStatusFilter` returns true when either `QUEUED` or `IN_PROGRESS` is present, and `paginatedTaskRepository` uses it to apply special processing-feed behavior.",
+        "`shouldForceProcessingRefetch` requires both statuses to be selected, so stale-empty recovery is skipped for single-status processing filters.",
+        "The guard in `useProcessingRefetchGuard` directly depends on this stricter predicate, producing inconsistent lifecycle behavior for neighboring query modes."
+      ],
+      "suggestion": "Unify processing-filter detection behind one shared predicate (used by fetch sorting and refetch guard), then add tests for three cases: queued-only, in-progress-only, and both-selected to ensure consistent stale-empty recovery.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "split_policy_contracts"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "mobile_desktop_duplicate_frame_drift",
+      "summary": "Mobile duplicate action uses index fallback while desktop uses timeline frame.",
+      "related_files": [
+        "src/shared/components/ShotImageManager/ShotBatchItemMobile.tsx",
+        "src/shared/components/ShotImageManager/components/ImageGrid.tsx",
+        "src/shared/components/ShotImageManager/ShotImageManagerMobile.tsx"
+      ],
+      "evidence": [
+        "`ImageGrid.tsx` states duplication should use actual `timeline_frame`, and desktop passes `actualTimelineFrame` into `ShotBatchItemDesktop`.",
+        "`ShotBatchItemMobile.tsx` calls `onDuplicate(image.id, image.timeline_frame ?? index)`, introducing an index-based fallback that does not match desktop semantics.",
+        "`ShotImageManagerMobile.tsx` computes `frameNumber = index * batchVideoFrames` but the mobile duplicate path does not use it, confirming behavior drift between sibling UI protocols."
+      ],
+      "suggestion": "Extract a shared `resolveDuplicateFrame(image, index, batchVideoFrames)` helper and use it in both desktop and mobile item components; remove raw `index` fallback for duplicate placement unless explicitly intended and documented.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "parallel_ui_drift"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "silent_boundary_failures",
+      "summary": "Multiple boundary utilities swallow failures without signaling degraded outcomes.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/submitSegmentTask.ts",
+        "src/shared/components/ImageGenerationForm/hooks/referenceUpload/optimisticCacheUpdate.ts",
+        "src/shared/components/ImageGenerationForm/hooks/promptManagement/storedPromptCount.ts"
+      ],
+      "evidence": [
+        "In `submitSegmentTask.ts`, metadata fetch/update failures in `saveEnhancedPromptMetadata` are normalized and returned, while task creation continues; other failures in the same flow throw and abort.",
+        "`runOptimisticCacheUpdate` catches all exceptions and suppresses toast/output (`showToast: false`) without returning a result to callers, so reconciliation logic cannot react to failure.",
+        "`getStoredPromptCount` catches storage exceptions and returns parsed data without `Number.isFinite`/range checks, so invalid persisted values can silently shape prompt state."
+      ],
+      "suggestion": "Define explicit failure contracts for these boundary helpers (for example `Result<{...}, ErrorCode>` or `{ok:boolean, degraded:boolean}`), propagate them to callers, and only suppress errors when caller has an explicit fallback branch; add finite/range validation for stored prompt count before returning.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "silent_error_boundaries"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Policy logic duplicated across neighboring modules without a single shared contract.",
+      "Parallel desktop/mobile implementations evolved separately and drifted in behavior.",
+      "Error handling favors local suppression over explicit boundary contracts."
+    ],
+    "likely_symptoms": [
+      "processing_refetch_predicate_mismatch",
+      "mobile_desktop_duplicate_frame_drift",
+      "silent_boundary_failures"
+    ],
+    "possible_false_positives": [
+      "Mechanical naming-drift outliers based on token presence in barrel/constants files where missing tokens are intentional.",
+      "Duplicate-cluster hints in holistic context with `cluster_size: 1` that do not establish actionable cross-file duplication by themselves."
+    ]
+  }
+}

@@ -1,10 +1,47 @@
 import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import {
   getRuntimeErrorAliasImportBudget,
   RUNTIME_ERROR_ALIAS_IMPORT_BUDGET_PHASES,
   RUNTIME_ERROR_ALIAS_OWNER,
   RUNTIME_ERROR_ALIAS_REMOVE_BY,
+  RUNTIME_ERROR_ALIAS_SPECIFIER,
 } from '@/shared/lib/governance/runtimeErrorAliasPolicy';
+
+function walkSourceFiles(dir: string): string[] {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  return entries.flatMap((entry) => {
+    const resolved = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name === 'node_modules' || entry.name === 'dist' || entry.name === '.desloppify') {
+        return [];
+      }
+      return walkSourceFiles(resolved);
+    }
+    if (!/\.(ts|tsx)$/.test(entry.name)) {
+      return [];
+    }
+    if (/\.test\.(ts|tsx)$/.test(entry.name) || /\.spec\.(ts|tsx)$/.test(entry.name)) {
+      return [];
+    }
+    return [resolved];
+  });
+}
+
+function collectRuntimeErrorAliasImporters(): string[] {
+  const srcRoot = path.join(process.cwd(), 'src');
+  const importLiteral = `'${RUNTIME_ERROR_ALIAS_SPECIFIER}'`;
+  const importLiteralDouble = `"${RUNTIME_ERROR_ALIAS_SPECIFIER}"`;
+
+  return walkSourceFiles(srcRoot)
+    .filter((filePath) => {
+      const content = fs.readFileSync(filePath, 'utf8');
+      return content.includes(importLiteral) || content.includes(importLiteralDouble);
+    })
+    .map((filePath) => path.relative(process.cwd(), filePath).replace(/\\/g, '/'))
+    .sort();
+}
 
 describe('runtime error alias governance contract', () => {
   it('keeps owner/removal metadata stable for migration automation', () => {
@@ -23,5 +60,10 @@ describe('runtime error alias governance contract', () => {
     expect(getRuntimeErrorAliasImportBudget(new Date('2026-04-10T00:00:00Z'))).toBe(20);
     expect(getRuntimeErrorAliasImportBudget(new Date('2026-05-20T00:00:00Z'))).toBe(10);
     expect(getRuntimeErrorAliasImportBudget(new Date('2026-07-01T00:00:00Z'))).toBe(0);
+  });
+
+  it('enforces importer budget against real source imports (not a static allowlist)', () => {
+    const importerCount = collectRuntimeErrorAliasImporters().length;
+    expect(importerCount).toBeLessThanOrEqual(getRuntimeErrorAliasImportBudget());
   });
 });

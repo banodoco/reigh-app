@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Task, TaskStatus } from '@/types/tasks';
-import { getSupabaseClient } from '@/integrations/supabase/client';
+import { getSupabaseClientResult } from '@/integrations/supabase/client';
 import { getVisibleTaskTypes } from '@/shared/lib/taskConfig';
 import { normalizeAndPresentAndRethrow } from '@/shared/lib/errorHandling/runtimeError';
 // Removed invalidationRouter - DataFreshnessManager handles all invalidation logic
@@ -74,7 +74,16 @@ export const useGetTask = (taskId: string, projectId?: string | null) => {
   return useQuery<Task | null, Error>({
     queryKey: taskQueryKeys.single(taskId, effectiveProjectId),
     queryFn: async () => {
-      const { data, error } = await getSupabaseClient()
+      const supabaseResult = getSupabaseClientResult();
+      if (!supabaseResult.ok) {
+        normalizeAndPresentAndRethrow(supabaseResult.error, {
+          context: 'useTasks.useGetTask',
+          showToast: false,
+          logData: { taskId, projectId: effectiveProjectId },
+        });
+      }
+
+      const { data, error } = await supabaseResult.client
         .from('tasks')
         .select('*')
         .eq('id', taskId)

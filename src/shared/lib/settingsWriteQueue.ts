@@ -7,6 +7,7 @@
  * - Global concurrency limit (default: 1 in-flight write)
  * - Per-target debouncing (coalesces rapid updates)
  * - Merge-on-write (latest patch wins per field)
+ * - Optional AbortSignal passthrough for caller cancellation
  * - Best-effort flush on page unload
  *
  * @see settings_system.md for the full settings architecture
@@ -19,6 +20,7 @@ export interface QueuedWrite {
   entityId: string;
   toolId: string;
   patch: Record<string, unknown>;
+  signal?: AbortSignal;
 }
 
 interface PendingWrite {
@@ -39,6 +41,21 @@ const flushQueue: Array<{ targetKey: string; pending: PendingWrite }> = [];
 
 // The actual write function - injected to avoid circular imports
 let writeFunction: ((write: QueuedWrite) => Promise<unknown>) | null = null;
+
+function createAbortError(): Error {
+  if (typeof DOMException !== 'undefined') {
+    return new DOMException('Request was cancelled', 'AbortError');
+  }
+  const error = new Error('Request was cancelled');
+  error.name = 'AbortError';
+  return error;
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) {
+    throw createAbortError();
+  }
+}
 
 /**
  * Set the write function that performs the actual DB update.
@@ -84,7 +101,8 @@ async function processQueue() {
     if (!writeFunction) {
       throw new Error('[SettingsWriteQueue] Write function not initialized');
     }
-    
+
+    throwIfAborted(pending.write.signal);
     const result = await writeFunction(pending.write);
     
     // Resolve all waiters
@@ -135,13 +153,21 @@ export function enqueueSettingsWrite(
   mode: 'debounced' | 'immediate' = 'debounced'
 ): Promise<unknown> {
   const key = targetKey(write);
-  
+
   return new Promise((resolve, reject) => {
+    if (write.signal?.aborted) {
+      reject(createAbortError());
+      return;
+    }
+
     const existing = pendingByTarget.get(key);
-    
+
     if (existing) {
       // Merge with existing pending write
       existing.write.patch = shallowMergePatch(existing.write.patch, write.patch);
+      if (write.signal) {
+        existing.write.signal = write.signal;
+      }
       existing.resolvers.push({ resolve, reject });
 
       if (mode === 'immediate') {

@@ -29,6 +29,7 @@ describe('buildReferenceParams', () => {
       })
     ).toEqual({
       style_reference_image: 'https://example.com/ref.png',
+      subject_reference_image: 'https://example.com/ref.png',
       style_reference_strength: 1.1,
       subject_strength: 0.3,
       subject_description: 'subject',

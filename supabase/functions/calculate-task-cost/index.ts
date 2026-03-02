@@ -17,7 +17,17 @@ import {
 
 declare const Deno: { env: { get: (key: string) => string | undefined } };
 
-/** Shape returned by tasks.select('..., projects(user_id)') with joined project */
+/** Billing-relevant fields from task_types, joined via FK */
+interface TaskTypeConfig {
+  id: string;
+  billing_type: string;
+  base_cost_per_second: number;
+  unit_cost: number;
+  cost_factors: CostFactors | null;
+  is_active: boolean;
+}
+
+/** Shape returned by tasks.select('..., projects(user_id), task_types!(...)') with joined project + task type */
 interface TaskWithProject {
   id: string;
   task_type: string;
@@ -27,6 +37,7 @@ interface TaskWithProject {
   generation_processed_at: string | null;
   project_id: string;
   projects: { user_id: string };
+  task_type_config: TaskTypeConfig | null;
 }
 
 interface TaskParseFailure {
@@ -134,6 +145,24 @@ function parseTaskWithProject(value: unknown): TaskParseResult {
   const params = parseTaskCostParams(task.params);
   const status = asString(task.status) ?? "unknown";
 
+  // Extract task_types FK join (PostgREST returns object or null)
+  let taskTypeConfig: TaskTypeConfig | null = null;
+  const ttRaw = asObjectRecord(task.task_types);
+  if (ttRaw) {
+    const ttId = asString(ttRaw.id);
+    const billingType = asString(ttRaw.billing_type);
+    if (ttId && billingType) {
+      taskTypeConfig = {
+        id: ttId,
+        billing_type: billingType,
+        base_cost_per_second: typeof ttRaw.base_cost_per_second === 'number' ? ttRaw.base_cost_per_second : 0,
+        unit_cost: typeof ttRaw.unit_cost === 'number' ? ttRaw.unit_cost : 0,
+        cost_factors: asObjectRecord(ttRaw.cost_factors) as CostFactors | null,
+        is_active: ttRaw.is_active === true,
+      };
+    }
+  }
+
   return {
     ok: true,
     task: {
@@ -145,6 +174,7 @@ function parseTaskWithProject(value: unknown): TaskParseResult {
       generation_processed_at: asString(task.generation_processed_at),
       project_id: projectId,
       projects: { user_id: userId },
+      task_type_config: taskTypeConfig,
     },
   };
 }
@@ -393,7 +423,7 @@ serve(async (req) => {
     logger.setDefaultTaskId(task_id);
     logger.info("Calculating task cost", { task_id });
 
-    // Get task details
+    // Get task details with task_types joined via FK (eliminates separate task_types query)
     const { data: task, error: taskError } = await supabaseAdmin
       .from('tasks')
       .select(`
@@ -404,7 +434,8 @@ serve(async (req) => {
         generation_started_at,
         generation_processed_at,
         project_id,
-        projects(user_id)
+        projects(user_id),
+        task_types!tasks_task_type_fkey(id, billing_type, base_cost_per_second, unit_cost, cost_factors, is_active)
       `)
       .eq('id', task_id)
       .single();
@@ -551,15 +582,10 @@ serve(async (req) => {
       });
     }
 
-    // Get task type configuration
-    const { data: taskType, error: taskTypeError } = await supabaseAdmin
-      .from('task_types')
-      .select('*')
-      .eq('name', typedTask.task_type)
-      .eq('is_active', true)
-      .single();
+    // Get task type configuration (already joined via FK in the task query)
+    const taskType = typedTask.task_type_config;
 
-    if (taskTypeError || !taskType) {
+    if (!taskType || !taskType.is_active) {
       logger.error("No task type config found, using defaults", { task_type: typedTask.task_type });
 
       // Use default cost if no config found — must match DB-level get_task_cost() default of 0.0278

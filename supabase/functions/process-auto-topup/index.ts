@@ -27,6 +27,7 @@ serve(async (req) => {
     logPrefix: "[PROCESS-AUTO-TOPUP]",
     parseBody: "strict",
     auth: {
+      required: true,
       requireServiceRole: true,
     },
     runtimeOptions: {
@@ -42,7 +43,13 @@ serve(async (req) => {
     return bootstrap.response;
   }
 
-  const { supabaseAdmin, logger, body } = bootstrap.value;
+  const { supabaseAdmin, logger, body, auth } = bootstrap.value;
+  if (!auth?.isServiceRole) {
+    logger.error('Authentication failed');
+    await logger.flush();
+    return jsonResponse({ error: 'Authentication failed' }, 401);
+  }
+
   const userId = typeof body.userId === "string" ? body.userId : null;
 
   if (!userId) {

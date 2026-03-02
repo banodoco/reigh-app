@@ -2,7 +2,7 @@ import { createContext, useContext, ReactNode, useMemo } from 'react';
 import { Project } from '@/types/project';
 import { useRenderLogger } from '@/shared/lib/debug/debugRendering';
 import { useProjectSessionCoordinator } from './useProjectSessionCoordinator';
-import { normalizeAndPresentAndRethrow } from '@/shared/lib/errorHandling/runtimeError';
+import { requireContextValue } from './contextGuard';
 
 // Type for updating projects (re-exported for consumers that may need it)
 interface ProjectUpdate {
@@ -41,19 +41,6 @@ interface ProjectContextType
 const ProjectSelectionContext = createContext<ProjectSelectionContextType | undefined>(undefined);
 const ProjectCrudContext = createContext<ProjectCrudContextType | undefined>(undefined);
 const ProjectIdentityContext = createContext<ProjectIdentityContextType | undefined>(undefined);
-
-function throwMissingProvider(hookName: string): never {
-  const errorMessage = `${hookName} must be used within a ProjectProvider. ` +
-    'Make sure the component is rendered inside the ProjectProvider tree. ' +
-    'Check that the component is not being rendered outside of App.tsx or in an error boundary that is outside the provider.';
-  return normalizeAndPresentAndRethrow(new Error(errorMessage), {
-    context: hookName,
-    showToast: false,
-    logData: {
-      windowLocation: typeof window !== 'undefined' ? window.location.href : 'N/A',
-    },
-  });
-}
 
 export const ProjectProvider = ({ children }: { children: ReactNode }) => {
   const { userId, selection, crud } = useProjectSessionCoordinator();
@@ -116,34 +103,46 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
 };
 
 export const useProjectSelectionContext = () => {
-  const context = useContext(ProjectSelectionContext);
-  if (context === undefined) {
-    throwMissingProvider('useProjectSelectionContext');
-  }
-  return context;
+  return requireContextValue(
+    useContext(ProjectSelectionContext),
+    'useProjectSelectionContext',
+    'ProjectProvider',
+  );
 };
 
 export const useProjectCrudContext = () => {
-  const context = useContext(ProjectCrudContext);
-  if (context === undefined) {
-    throwMissingProvider('useProjectCrudContext');
-  }
-  return context;
+  return requireContextValue(
+    useContext(ProjectCrudContext),
+    'useProjectCrudContext',
+    'ProjectProvider',
+  );
 };
 
 export const useProjectIdentityContext = () => {
-  const context = useContext(ProjectIdentityContext);
-  if (context === undefined) {
-    throwMissingProvider('useProjectIdentityContext');
-  }
-  return context;
+  return requireContextValue(
+    useContext(ProjectIdentityContext),
+    'useProjectIdentityContext',
+    'ProjectProvider',
+  );
 };
 
 /** Compatibility hook for existing callers that still need the combined project contract. */
 export const useProject = () => {
-  const selection = useProjectSelectionContext();
-  const crud = useProjectCrudContext();
-  const identity = useProjectIdentityContext();
+  const selection = requireContextValue(
+    useContext(ProjectSelectionContext),
+    'useProject',
+    'ProjectProvider',
+  );
+  const crud = requireContextValue(
+    useContext(ProjectCrudContext),
+    'useProject',
+    'ProjectProvider',
+  );
+  const identity = requireContextValue(
+    useContext(ProjectIdentityContext),
+    'useProject',
+    'ProjectProvider',
+  );
 
   return useMemo<ProjectContextType>(() => ({
     ...crud,

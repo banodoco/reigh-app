@@ -28,8 +28,6 @@ function getVideoDurationFromFile(file: File): Promise<number> {
 
 export async function uploadClipVideo(
   file: File,
-  projectId: string,
-  clipId: string,
 ): Promise<UploadVideoResult> {
   const [posterBlob, finalFrameBlob, durationSeconds] = await Promise.all([
     extractVideoPosterFrame(file),
@@ -38,7 +36,7 @@ export async function uploadClipVideo(
   ]);
 
   const [videoUrl, posterUrl, finalFrameUrl] = await Promise.all([
-    uploadVideoToStorage(file, projectId, clipId, {
+    uploadVideoToStorage(file, {
       maxRetries: 3,
       timeoutMs: 300000,
     }),

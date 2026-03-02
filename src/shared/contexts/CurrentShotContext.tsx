@@ -6,6 +6,7 @@ import React, {
   useMemo,
   useCallback
 } from 'react';
+import { requireContextValue } from './contextGuard';
 
 interface CurrentShotContextType {
   currentShotId: string | null;
@@ -35,9 +36,5 @@ export const CurrentShotProvider: React.FC<{ children: ReactNode }> = ({ childre
 };
 
 export const useCurrentShot = (): CurrentShotContextType => {
-  const context = useContext(CurrentShotContext);
-  if (context === undefined) {
-    throw new Error('useCurrentShot must be used within a CurrentShotProvider');
-  }
-  return context;
+  return requireContextValue(useContext(CurrentShotContext), 'useCurrentShot', 'CurrentShotProvider');
 }; 

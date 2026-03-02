@@ -3,6 +3,7 @@ import {
   isFloatingOverlayElement,
   shouldAllowTouchThrough,
 } from '@/shared/lib/interactions/elementPolicy';
+import { UI_Z_LAYERS } from '@/shared/lib/uiLayers';
 
 interface UseLightboxShellInteractionHandlersArgs {
   hasCanvasOverlay: boolean;
@@ -15,7 +16,7 @@ function hasHigherZIndexDialog(): boolean {
   const dialogOverlays = document.querySelectorAll('[data-dialog-backdrop]');
   return Array.from(dialogOverlays).some((overlay) => {
     const zIndex = parseInt(window.getComputedStyle(overlay as Element).zIndex || '0', 10);
-    return zIndex > 100000;
+    return zIndex > UI_Z_LAYERS.LIGHTBOX_MODAL;
   });
 }
 
@@ -23,7 +24,7 @@ function targetHasHigherZIndex(target: EventTarget | null): boolean {
   let element = target as HTMLElement | null;
   while (element && element !== document.body) {
     const zIndex = parseInt(window.getComputedStyle(element).zIndex || '0', 10);
-    if (zIndex > 100000) {
+    if (zIndex > UI_Z_LAYERS.LIGHTBOX_MODAL) {
       return true;
     }
     element = element.parentElement;

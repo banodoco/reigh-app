@@ -1,0 +1,180 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 9,
+  "assessments": {
+    "naming_quality": 89.0,
+    "logic_clarity": 82.0,
+    "type_safety": 64.0,
+    "contract_coherence": 68.0,
+    "authorization_consistency": 71.0
+  },
+  "dimension_notes": {
+    "naming_quality": {
+      "evidence": [
+        "Most reviewed symbols are intent-revealing (`normalizeAndPresentError`, `useDeleteGenerationWithConfirm`, `fetchWithTimeout`, `buildStructureVideoForTask`).",
+        "Some naming/intent drift remains: `useImageEditCanvasSafe`/`useImageEditFormSafe`/`useImageEditStatusSafe` imply safety but silently return no-op defaults outside providers, which can hide wiring defects."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "“Safe” naming in ImageEdit context hooks does not match failure behavior; rename to explicit fallback semantics or enforce provider presence."
+    },
+    "logic_clarity": {
+      "evidence": [
+        "Mechanical `dead_function` signal on `src/integrations/supabase/bootstrap/fetchWithTimeout.ts` is refuted: `composeAbortSignals` is used by `fetchWithTimeout` and tests (`fetchWithTimeout.test.ts`).",
+        "Image edit context hooks return inert defaults when provider is missing (`useImageEditCanvasSafe`, `useImageEditFormSafe`, `useImageEditStatusSafe`), creating silent no-op behavior instead of explicit failure; this obscures control-flow/debugging.",
+        "The fallback design means UI interaction logic can appear to succeed while state mutations are dropped (setters in EMPTY_* objects are empty functions)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "type_safety": {
+      "evidence": [
+        "Typecheck fails because `src/domains/generation/hooks/useGenerationMutations.ts` imports `@/types/shots`, but `src/types/shots.ts` does not exist under current path mapping (`@/* -> src/*`).",
+        "The same file then degrades to implicit `any` (`TS7006`) because unresolved types collapse downstream typing.",
+        "`src/integrations/supabase/auth/ensureAuthenticatedSession.ts` uses `new Error(message, { cause })` while project target/lib settings (`tsconfig.app.json`) produce `TS2554` for that constructor signature.",
+        "`src/shared/components/MediaLightbox/components/submitSegmentTask.ts` force-casts `buildTaskParams(...)` to `IndividualTravelSegmentTaskParams` via `as unknown as`, bypassing structural checks."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "contract_coherence": {
+      "evidence": [
+        "Image edit contexts document provider-based state composition, but consumer hooks intentionally violate strict-provider expectations by returning fallback defaults (`ImageEditCanvasContext.tsx`, `ImageEditFormContext.tsx`, `ImageEditStatusContext.tsx`).",
+        "`submitSegmentTask` composes task payload through a generic `Record<string, unknown>` builder (`segmentSettingsUtils.buildTaskParams`) then coerces to a stricter task contract in `submitSegmentTask.ts`, indicating contract boundaries are not enforced at source.",
+        "Type surface migration is internally inconsistent: domain code still references removed legacy type entrypoints (`@/types/shots`) while canonical contracts are in `src/domains/generation/types/index.ts`."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "authorization_consistency": {
+      "evidence": [
+        "Generation mutations enforce explicit project scope validation (`ensureProjectScope`, `verifyGenerationScope`, `.eq('project_id', projectId)`) in `src/domains/generation/hooks/useGenerationMutations.ts`.",
+        "Adjacent mutation paths update `shot_generations` by id only (`submitSegmentTask.saveEnhancedPromptMetadata`, `useShotGenerationMetadata.updateMetadata`, `useSegmentMutations.savePairMetadata`) without equivalent project/user scope checks.",
+        "This inconsistency creates mixed trust-boundary handling inside the same feature area (some writes explicitly scoped, some entirely delegated to implicit backend policy)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "type_safety",
+      "identifier": "missing_shots_type_entrypoint",
+      "summary": "Generation mutations import a non-existent `@/types/shots` module, breaking type resolution and cascading into weaker typing.",
+      "related_files": [
+        "src/domains/generation/hooks/useGenerationMutations.ts",
+        "src/domains/generation/types/index.ts",
+        "tsconfig.app.json"
+      ],
+      "evidence": [
+        "`useGenerationMutations.ts` imports `GenerationRow`/`Shot` from `@/types/shots`.",
+        "Path mapping in `tsconfig.app.json` resolves `@/*` to `src/*`, but there is no `src/types/shots.ts`.",
+        "Typecheck reports `TS2307` for this import and additional downstream typing degradation in the same file."
+      ],
+      "suggestion": "Remove legacy `@/types/shots` imports and migrate remaining call sites to `@/domains/generation/types`; add a lint rule or codemod guard to prevent reintroduction of the removed shim path.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "generation_type_surface_drift"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "error_cause_constructor_mismatch",
+      "summary": "`buildAuthError` uses an `Error` constructor overload not supported by current TS lib target, producing compile-time type failure.",
+      "related_files": [
+        "src/integrations/supabase/auth/ensureAuthenticatedSession.ts",
+        "tsconfig.app.json"
+      ],
+      "evidence": [
+        "`buildAuthError` calls `new Error(message, cause ? { cause } : undefined)`.",
+        "Typecheck reports `TS2554: Expected 0-1 arguments, but got 2` under current compiler configuration."
+      ],
+      "suggestion": "Create error first and assign `cause` via narrowing/polyfill pattern (or upgrade lib target consistently if desired) so auth error wrapping remains typed under project settings.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "contract_coherence",
+      "identifier": "silent_noop_context_fallbacks",
+      "summary": "Image edit context hooks silently return no-op defaults outside providers, masking missing-provider defects and violating expected context contracts.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/contexts/ImageEditCanvasContext.tsx",
+        "src/shared/components/MediaLightbox/contexts/ImageEditFormContext.tsx",
+        "src/shared/components/MediaLightbox/contexts/ImageEditStatusContext.tsx",
+        "src/shared/components/MediaLightbox/contexts/ImageEditContext.tsx"
+      ],
+      "evidence": [
+        "`useImageEditCanvasSafe`, `useImageEditFormSafe`, and `useImageEditStatusSafe` return `EMPTY_*` defaults when context is null.",
+        "Fallback defaults include no-op mutators (`set*`, handlers), so missing provider wiring causes dropped actions instead of explicit errors.",
+        "Composed provider docs describe deliberate context composition, but consumers can bypass that contract with silent fallback behavior."
+      ],
+      "suggestion": "Switch to strict hooks that throw on missing provider (or split into explicit `useXOrDefault` APIs) and reserve fallback objects for test-only harnesses.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "silent_fallback_contracts"
+    },
+    {
+      "dimension": "authorization_consistency",
+      "identifier": "inconsistent_scope_enforcement_on_metadata_writes",
+      "summary": "Metadata write paths use inconsistent authorization/scope patterns: some enforce project scope explicitly while others update by id only.",
+      "related_files": [
+        "src/domains/generation/hooks/useGenerationMutations.ts",
+        "src/shared/components/MediaLightbox/components/submitSegmentTask.ts",
+        "src/shared/hooks/useShotGenerationMetadata.ts",
+        "src/shared/hooks/segments/useSegmentMutations.ts"
+      ],
+      "evidence": [
+        "`useGenerationMutations` validates scope via `verifyGenerationScope` and includes `.eq('project_id', projectId)`.",
+        "`submitSegmentTask.saveEnhancedPromptMetadata` updates `shot_generations` with only `.eq('id', pairShotGenerationId)`.",
+        "`useShotGenerationMetadata.updateMetadata` and `useSegmentMutations.savePairMetadata` follow the same id-only update pattern."
+      ],
+      "suggestion": "Standardize mutation entrypoints so all write operations run through a shared scoped repository/helper that validates expected project scope before update.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "inconsistent_scope_policy"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "task_param_contract_bypassed_by_double_cast",
+      "summary": "Segment task submission bypasses structural typing by force-casting generic params into a stricter task contract.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/submitSegmentTask.ts",
+        "src/shared/components/segmentSettingsUtils.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts"
+      ],
+      "evidence": [
+        "`segmentSettingsUtils.buildTaskParams` returns `Record<string, unknown>`.",
+        "`submitSegmentTask` casts this to `IndividualTravelSegmentTaskParams` using `as unknown as`.",
+        "This defeats compiler guarantees that `createIndividualTravelSegmentTask` receives a coherent payload shape."
+      ],
+      "suggestion": "Define and export a single strongly-typed segment-task payload interface at builder source, and make `buildTaskParams` return that type directly (eliminating `unknown` double-casts).",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "generation_type_surface_drift"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Partial migration from legacy type entrypoints to domain type surfaces left unresolved imports and incompatible shape assumptions.",
+      "Convenience fallbacks were prioritized over strict boundary enforcement in context and mutation contracts.",
+      "Authorization scope enforcement evolved in one mutation subsystem but was not propagated to adjacent write paths."
+    ],
+    "likely_symptoms": [
+      "missing_shots_type_entrypoint",
+      "task_param_contract_bypassed_by_double_cast",
+      "inconsistent_scope_enforcement_on_metadata_writes"
+    ],
+    "possible_false_positives": [
+      "Mechanical dead_function signal for `composeAbortSignals` appears stale; function is used in production path and tests."
+    ]
+  }
+}

@@ -24,12 +24,21 @@ serve(async (req) => {
     functionName: "get-completed-segments",
     logPrefix: "[GET-COMPLETED-SEGMENTS]",
     parseBody: "strict",
+    auth: {
+      required: true,
+    },
   });
   if (!bootstrap.ok) {
     return bootstrap.response;
   }
 
   const { supabaseAdmin, logger, body: requestBody, auth } = bootstrap.value;
+  if (!auth || (!auth.userId && !auth.isServiceRole)) {
+    logger.error("Authentication failed");
+    await logger.flush();
+    return jsonResponse({ error: "Authentication failed" }, 401);
+  }
+
   const run_id = typeof requestBody.run_id === "string" ? requestBody.run_id : null;
   const project_id = typeof requestBody.project_id === "string" ? requestBody.project_id : null;
 

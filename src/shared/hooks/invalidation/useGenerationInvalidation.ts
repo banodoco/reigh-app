@@ -26,7 +26,7 @@ type TimeoutStore = Map<string, ReturnType<typeof setTimeout>>;
 const syncInvalidationTimeouts: TimeoutStore = new Map();
 interface VariantDelayEntry {
   timeout: ReturnType<typeof setTimeout>;
-  settleCallbacks: Array<() => void>;
+  settleCallbacks: Array<(shouldRun: boolean) => void>;
 }
 
 const variantInvalidationDelays = new Map<string, VariantDelayEntry>();
@@ -96,9 +96,9 @@ async function waitForVariantDelay(
   generationId: string,
   reason: string,
   delayMs?: number,
-): Promise<void> {
+): Promise<boolean> {
   if (!delayMs || delayMs <= 0) {
-    return;
+    return true;
   }
 
   const key = `variant:${generationId}`;
@@ -106,8 +106,8 @@ async function waitForVariantDelay(
   if (existingDelay) {
     clearTimeout(existingDelay.timeout);
     variantInvalidationDelays.delete(key);
-    // Coalesce superseded callers instead of leaving unresolved awaits.
-    existingDelay.settleCallbacks.forEach((settle) => settle());
+    // Coalesce superseded callers and signal skip so they do not invalidate stale paths.
+    existingDelay.settleCallbacks.forEach((settle) => settle(false));
   }
 
   logInvalidationEvent('schedule_variant', {
@@ -116,11 +116,11 @@ async function waitForVariantDelay(
     delayMs,
   });
 
-  await new Promise<void>((resolve) => {
+  return await new Promise<boolean>((resolve) => {
     const settleCallbacks = [resolve];
     const timeout = setTimeout(() => {
       variantInvalidationDelays.delete(key);
-      settleCallbacks.forEach((settle) => settle());
+      settleCallbacks.forEach((settle) => settle(true));
     }, delayMs);
     variantInvalidationDelays.set(key, {
       timeout,
@@ -192,7 +192,20 @@ export async function invalidateVariantChange(
 ): Promise<void> {
   const { generationId, shotId, projectId } = options;
 
-  await waitForVariantDelay(generationId, options.reason, options.delayMs);
+  const shouldRunInvalidation = await waitForVariantDelay(
+    generationId,
+    options.reason,
+    options.delayMs,
+  );
+  if (!shouldRunInvalidation) {
+    logInvalidationEvent('skip_variant', {
+      reason: options.reason,
+      generationId,
+      shotId,
+      projectId,
+    });
+    return;
+  }
   logInvalidationEvent('run_variant', {
     reason: options.reason,
     generationId,

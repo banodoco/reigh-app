@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { GenerationRow } from '@/domains/generation/types/generationViewRow';
+import type { GenerationRow } from '@/domains/generation/types';
 import { filterTimelineEligiblePositionedImages } from '@/shared/lib/timelineEligibility';
 import { useTimelineCore } from '@/shared/hooks/useTimelineCore';
 import { useTimelinePositionUtils } from '../../../hooks/useTimelinePositionUtils';

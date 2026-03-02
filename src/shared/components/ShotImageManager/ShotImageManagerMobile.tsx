@@ -22,7 +22,7 @@ import type { GenerationRow } from '@/domains/generation/types';
 import { PairPromptIndicator } from './components/PairPromptIndicator';
 import { InlineSegmentVideo } from '@/shared/components/InlineSegmentVideo';
 import { useMarkVariantViewed } from '@/shared/hooks/useMarkVariantViewed';
-import { getAspectRatioStyle } from './utils/image-utils';
+import { getAspectRatioStyle, resolveDuplicateFrame } from './utils/image-utils';
 import { dispatchAppEvent } from '@/shared/lib/typedEvents';
 
 export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
@@ -372,8 +372,7 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
           const isSelected = mobileSelectedIds.includes(imageKey as string);
           const isLastItem = index === currentImages.length - 1;
           
-          // Calculate frame number as position * frames per pair
-          const frameNumber = index * batchVideoFrames;
+          const frameNumber = resolveDuplicateFrame(image, index, batchVideoFrames);
           
           // Show arrow buttons based on selection state and movement logic
           const showLeftArrow = mobileSelectedIds.length > 0 && !isSelected && wouldActuallyMove(index);

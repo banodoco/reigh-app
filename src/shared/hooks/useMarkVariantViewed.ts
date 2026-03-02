@@ -13,7 +13,7 @@
  *   markAllViewed(generationId); // marks all unviewed variants for a generation
  */
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { DerivedCountsResult } from '@/shared/lib/generationTransformers';
@@ -26,6 +26,134 @@ interface MarkViewedParams {
 
 interface MarkAllViewedParams {
   generationId: string;
+}
+
+interface CachedVariant {
+  id?: string;
+  generation_id?: string;
+  viewed_at?: string | null;
+}
+
+function isCachedVariant(value: unknown): value is CachedVariant {
+  return !!value && typeof value === 'object';
+}
+
+function patchCachedVariants(
+  queryClient: QueryClient,
+  updateVariant: (variant: CachedVariant) => CachedVariant
+): boolean {
+  let didPatchAtLeastOneQuery = false;
+
+  queryClient.setQueriesData(
+    { queryKey: queryKeys.generations.variantsAll, exact: false },
+    (oldData: unknown) => {
+      if (!Array.isArray(oldData)) return oldData;
+
+      let didPatchThisQuery = false;
+      const nextData = oldData.map((entry) => {
+        if (!isCachedVariant(entry)) return entry;
+        const updated = updateVariant(entry);
+        if (updated !== entry) {
+          didPatchThisQuery = true;
+        }
+        return updated;
+      });
+
+      if (!didPatchThisQuery) {
+        return oldData;
+      }
+
+      didPatchAtLeastOneQuery = true;
+      return nextData;
+    }
+  );
+
+  return didPatchAtLeastOneQuery;
+}
+
+function markVariantViewedInCache(
+  queryClient: QueryClient,
+  variantId: string,
+  viewedAt: string
+): boolean {
+  return patchCachedVariants(queryClient, (variant) => {
+    if (variant.id !== variantId || variant.viewed_at !== null) {
+      return variant;
+    }
+
+    return {
+      ...variant,
+      viewed_at: viewedAt,
+    };
+  });
+}
+
+function markGenerationViewedInCache(
+  queryClient: QueryClient,
+  generationId: string,
+  viewedAt: string
+): boolean {
+  return patchCachedVariants(queryClient, (variant) => {
+    if (variant.generation_id !== generationId || variant.viewed_at !== null) {
+      return variant;
+    }
+
+    return {
+      ...variant,
+      viewed_at: viewedAt,
+    };
+  });
+}
+
+function decrementBadgeCountOptimistically(
+  queryClient: QueryClient,
+  generationId: string
+): void {
+  queryClient.setQueriesData(
+    { queryKey: queryKeys.generations.variantBadges, exact: false },
+    (oldData: DerivedCountsResult | undefined) => {
+      if (!oldData) return oldData;
+
+      const currentCount = oldData.unviewedVariantCounts[generationId] || 0;
+      const newCount = Math.max(0, currentCount - 1);
+
+      return {
+        ...oldData,
+        hasUnviewedVariants: {
+          ...oldData.hasUnviewedVariants,
+          [generationId]: newCount > 0,
+        },
+        unviewedVariantCounts: {
+          ...oldData.unviewedVariantCounts,
+          [generationId]: newCount,
+        },
+      };
+    }
+  );
+}
+
+function clearBadgeCountOptimistically(
+  queryClient: QueryClient,
+  generationId: string
+): void {
+  queryClient.setQueriesData(
+    { queryKey: queryKeys.generations.variantBadges, exact: false },
+    (oldData: DerivedCountsResult | undefined) => {
+      if (!oldData) return oldData;
+
+      return {
+        ...oldData,
+        hasUnviewedVariants: {
+          ...oldData.hasUnviewedVariants,
+          [generationId]: false,
+        },
+        unviewedVariantCounts: {
+          ...oldData.unviewedVariantCounts,
+          [generationId]: 0,
+        },
+      };
+    }
+  );
 }
 
 export function useMarkVariantViewed() {
@@ -45,42 +173,21 @@ export function useMarkVariantViewed() {
 
       return { variantId, generationId };
     },
-    onMutate: async ({ generationId }) => {
-      // Optimistic update: immediately decrement the unviewed count for this generation
-      if (generationId) {
-        // Find and update any variant-badges queries that include this generation
-        queryClient.setQueriesData(
-          { queryKey: queryKeys.generations.variantBadges, exact: false },
-          (oldData: DerivedCountsResult | undefined) => {
-            if (!oldData) return oldData;
+    onMutate: async ({ variantId, generationId }) => {
+      const viewedAt = new Date().toISOString();
+      const didMarkVariantInCache = markVariantViewedInCache(queryClient, variantId, viewedAt);
 
-            const currentCount = oldData.unviewedVariantCounts[generationId] || 0;
-            const newCount = Math.max(0, currentCount - 1);
-
-            return {
-              ...oldData,
-              hasUnviewedVariants: {
-                ...oldData.hasUnviewedVariants,
-                [generationId]: newCount > 0,
-              },
-              unviewedVariantCounts: {
-                ...oldData.unviewedVariantCounts,
-                [generationId]: newCount,
-              },
-            };
-          }
-        );
+      // Optimistic badge decrement only when we actually transitioned null -> viewed in cache.
+      // This avoids double-decrement races when markViewed is called twice for the same variant.
+      if (generationId && didMarkVariantInCache) {
+        decrementBadgeCountOptimistically(queryClient, generationId);
       }
     },
     onSuccess: () => {
-      // Only invalidate variant-level queries — viewed_at doesn't change generation data
+      // viewed_at affects both variant lists and generation-level NEW badges
       queryClient.invalidateQueries({ queryKey: queryKeys.generations.variantsAll });
       queryClient.invalidateQueries({ queryKey: queryKeys.generations.derivedAll });
-
-      // NOTE: We intentionally do NOT invalidate variant-badges here.
-      // The optimistic update in onMutate already updated the badge count.
-      // Invalidating would trigger a refetch that could race with the DB update.
-      // Badge data will sync naturally when staleTime (30s) expires.
+      queryClient.invalidateQueries({ queryKey: queryKeys.generations.variantBadges });
     },
     onError: (error) => {
       normalizeAndPresentError(error, { context: 'useMarkVariantViewed', showToast: false });
@@ -103,30 +210,19 @@ export function useMarkVariantViewed() {
       return { generationId };
     },
     onMutate: async ({ generationId }) => {
-      // Optimistic update: immediately set unviewed count to 0 for this generation
-      queryClient.setQueriesData(
-        { queryKey: queryKeys.generations.variantBadges, exact: false },
-        (oldData: DerivedCountsResult | undefined) => {
-          if (!oldData) return oldData;
+      const viewedAt = new Date().toISOString();
 
-          return {
-            ...oldData,
-            hasUnviewedVariants: {
-              ...oldData.hasUnviewedVariants,
-              [generationId]: false,
-            },
-            unviewedVariantCounts: {
-              ...oldData.unviewedVariantCounts,
-              [generationId]: 0,
-            },
-          };
-        }
-      );
+      // Optimistic update: mark all unviewed variants for this generation in loaded caches
+      markGenerationViewedInCache(queryClient, generationId, viewedAt);
+
+      // Optimistic update: immediately set unviewed count to 0 for this generation
+      clearBadgeCountOptimistically(queryClient, generationId);
     },
     onSuccess: () => {
-      // Only invalidate variant-level queries — viewed_at doesn't change generation data
+      // viewed_at affects both variant lists and generation-level NEW badges
       queryClient.invalidateQueries({ queryKey: queryKeys.generations.variantsAll });
       queryClient.invalidateQueries({ queryKey: queryKeys.generations.derivedAll });
+      queryClient.invalidateQueries({ queryKey: queryKeys.generations.variantBadges });
     },
     onError: (error) => {
       normalizeAndPresentError(error, { context: 'useMarkVariantViewed', showToast: false });

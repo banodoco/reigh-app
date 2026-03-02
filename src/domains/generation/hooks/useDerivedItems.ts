@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
-import { useSmartPollingConfig } from './useSmartPolling';
+import { useSmartPollingConfig } from '@/shared/hooks/useSmartPolling';
 import {
   fetchDerivedItemsFromRepository,
   type DerivedItem,

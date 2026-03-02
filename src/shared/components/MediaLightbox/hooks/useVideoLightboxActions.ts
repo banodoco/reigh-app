@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { handleLightboxDownload } from '../utils';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type {
   VideoLightboxSharedStateModel,
 } from './useVideoLightboxController';
@@ -38,9 +39,18 @@ export function useVideoLightboxActions({
     env.setIsDownloading,
   ]);
 
-  const handleDelete = useCallback(() => {
-    if (props.actions?.onDelete && props.media) {
-      props.actions.onDelete(props.media.id);
+  const handleDelete = useCallback(async (): Promise<void> => {
+    if (!props.actions?.onDelete || !props.media) {
+      return;
+    }
+
+    try {
+      await Promise.resolve(props.actions.onDelete(props.media.id));
+    } catch (error) {
+      normalizeAndPresentError(error, {
+        context: 'VideoLightbox.delete',
+        toastTitle: 'Delete Failed',
+      });
     }
   }, [props.actions, props.media]);
 

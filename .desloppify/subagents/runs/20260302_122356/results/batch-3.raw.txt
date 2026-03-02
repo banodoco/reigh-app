@@ -1,0 +1,155 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 3,
+  "assessments": {
+    "abstraction_fitness": 72.4,
+    "dependency_health": 87.6,
+    "mid_level_elegance": 74.8,
+    "low_level_elegance": 78.9
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "Mechanical indirection hotspot is confirmed: `MediaGalleryLightbox` decomposes props into 9 contract interfaces, then reassembles them into an adapter object (`src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx`:16-94, 280-345).",
+        "`MediaLightboxInputAdapter` is a pure pass-through abstraction (`toMediaLightboxProps` just object-spreads groups into `MediaLightboxProps`), adding another layer with no validation/translation (`src/shared/components/MediaLightbox/MediaLightboxInputAdapter.tsx`:102-112).",
+        "Wide param-bag signal is confirmed in travel task code: multiple modules independently manage large fallback surfaces for the same payload schema (`src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts`, `src/shared/lib/tasks/individualTravelSegment.ts`, `src/shared/lib/taskParamsUtils.ts`).",
+        "No delegation-heavy classes/facade modules/TypedDict violations were found in this scope; those mechanical concerns are refuted for reviewed files."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 71.0,
+        "indirection_cost": 63.0,
+        "interface_honesty": 79.0,
+        "delegation_density": 88.0,
+        "definition_directness": 68.0,
+        "type_discipline": 87.0
+      }
+    },
+    "dependency_health": {
+      "evidence": [
+        "No import cycle was confirmed in reviewed hotspots (including MediaLightbox/MediaGallery and travel task modules).",
+        "Dependency direction drift exists inside the codebase structure: generic utility `taskParamsUtils` depends directly on travel-specific readers/snapshots, coupling broad consumers to one task family (`src/shared/lib/taskParamsUtils.ts`:7-8).",
+        "Task schema handling is distributed across multiple modules rather than a single canonical parser, increasing internal dependency surface between UI/task-detail code and travel-task internals."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Internal module coupling around task-params parsing remains high even though direct package-level dependency issues/cycles were not confirmed."
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Travel-task boundary translation is duplicated across writer/reader/application seams: payload build (`payloadBuilder`), segment regeneration (`individualTravelSegment`), task reading (`taskParamsUtils`), and settings extraction (`taskDataService`) each implement independent precedence/fallback logic.",
+        "Seam behavior is not centralized; different modules choose different source orders and field aliases (e.g., `base_prompt` vs `base_prompts_expanded`, `structure_*` fallbacks), making cross-module handoffs fragile.",
+        "This confirms mechanical wide-param-bag and indirection concerns as seam-level design debt, not isolated local style."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "`isTravelTaskParams` contains contradictory heuristics: it checks `task_family_contract` (non-canonical key) while canonical payload contract uses `family_contract`, and also treats any payload with `orchestrator_details` as travel (`src/shared/lib/taskParamsUtils.ts`:279-289; `src/shared/lib/tasks/taskPayloadContract.ts`:14,45).",
+        "`createGeneration` performs two sequential writes (`generations` then `generation_variants`) without transactional protection or compensating rollback, leaving partial state if variant insert fails (`src/domains/generation/hooks/useGenerationMutations.ts`:186-224)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "lightbox_adapter_overfragmentation",
+      "summary": "Lightbox contracts are split/recombined through pass-through layers with minimal leverage",
+      "related_files": [
+        "src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx",
+        "src/shared/components/MediaLightbox/MediaLightboxInputAdapter.tsx",
+        "src/shared/components/MediaLightbox/MediaLightbox.tsx"
+      ],
+      "evidence": [
+        "The gallery lightbox defines 9 contract interfaces, destructures them, then rebuilds another grouped adapter object before rendering.",
+        "`toMediaLightboxProps` performs only object spreading from grouped adapter sections into `MediaLightboxProps`, with no semantic normalization or safety checks."
+      ],
+      "suggestion": "Collapse to one boundary contract: keep grouping only at the call site, remove `MediaLightboxInputAdapter`, and let `MediaLightbox` accept either a single typed `props` object or a small number of meaningful sub-objects that perform actual translation/validation.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "lightbox_indirection_stack"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "travel_schema_translation_scattered",
+      "summary": "Travel task schema precedence is duplicated across creation, reading, and apply-settings seams",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/individualTravelSegment.ts",
+        "src/shared/lib/taskParamsUtils.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/applySettings/taskDataService.ts"
+      ],
+      "evidence": [
+        "Each module encodes its own fallback precedence for prompts/images/structure fields (`orchestrator_details`, `full_orchestrator_payload`, params arrays, segment overrides).",
+        "Field-shape and source-order logic is repeated with local variations, increasing drift risk when schema evolves (new field or renamed legacy alias must be updated in several places)."
+      ],
+      "suggestion": "Create a single canonical `TravelTaskSnapshotReader` contract (writer+reader pair) used by payload building, task details, and apply-settings. Keep precedence tables in one module and expose typed accessors instead of re-implementing fallback chains per consumer.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "travel_schema_drift"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "travel_detection_key_drift",
+      "summary": "Travel task detection uses inconsistent contract key and over-broad fallback heuristic",
+      "related_files": [
+        "src/shared/lib/taskParamsUtils.ts",
+        "src/shared/lib/tasks/taskPayloadContract.ts",
+        "src/shared/components/TaskDetails/hooks/normalizeTaskDetailsPayload.ts"
+      ],
+      "evidence": [
+        "`isTravelTaskParams` checks `task_family_contract` even though canonical payload field is `family_contract` in the task payload contract.",
+        "The same predicate classifies any params with `orchestrator_details` as travel, which can route non-travel families through travel-specific prompt logic."
+      ],
+      "suggestion": "Use canonical contract fields first (`task_family`, then `family_contract.task_family`), remove `orchestrator_details` as a family classifier, and add regression tests for non-travel payloads that still include orchestration metadata.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "travel_schema_drift"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "create_generation_partial_write",
+      "summary": "Generation creation is non-atomic and can persist half-written records on variant insert failure",
+      "related_files": [
+        "src/domains/generation/hooks/useGenerationMutations.ts",
+        "src/shared/hooks/shots/useDuplicateAsNewGeneration.ts",
+        "src/shared/hooks/useVariants.ts"
+      ],
+      "evidence": [
+        "`createGeneration` inserts into `generations`, then inserts the primary row in `generation_variants`; on second-step failure it throws but does not compensate the first write.",
+        "Downstream variant workflows assume coherent generation/variant state (primary-variant-first read paths in variant/shot hooks), so partial writes create fragile edge states."
+      ],
+      "suggestion": "Move create-generation+primary-variant into a single RPC/transaction on Supabase (or add compensating delete rollback if second insert fails), and expose one mutation API that guarantees atomicity.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "mutation_atomicity_gap"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Schema evolution without a single canonical read/write boundary for travel task params",
+      "Interface decomposition optimized for local organization but not for net indirection cost",
+      "Mutation orchestration implemented client-side without atomicity guardrails"
+    ],
+    "likely_symptoms": [
+      "travel_schema_translation_scattered",
+      "travel_detection_key_drift",
+      "lightbox_adapter_overfragmentation"
+    ],
+    "possible_false_positives": [
+      "pass-through wrappers around React Query hooks that intentionally preserve API symmetry may be acceptable if used as stable public boundaries"
+    ]
+  }
+}

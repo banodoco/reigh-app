@@ -1,12 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { MediaLightboxFromAdapter, type MediaLightboxInputAdapter } from "@/shared/components/MediaLightbox";
+import MediaLightbox, { type MediaLightboxProps } from "@/shared/components/MediaLightbox/MediaLightbox";
 import TaskDetailsModal from '@/shared/components/TaskDetailsModal';
 import { GenerationRow, Shot } from "@/domains/generation/types";
 import { Task } from "@/types/tasks";
 import type { GeneratedImageWithMetadata } from '../types';
-import { useQueryClient } from '@tanstack/react-query';
-import { unifiedGenerationQueryKeys } from '@/shared/lib/queryKeys/unified';
-import { normalizeAndPresentError } from "@/shared/lib/errorHandling/runtimeError";
+import type { LightboxActionHandlers } from '@/shared/components/MediaLightbox/types';
 import {
   buildTaskDetailsPayload,
   useGenerationNavigationController,
@@ -31,9 +29,9 @@ interface MediaGalleryLightboxNavigationContract {
 }
 
 interface MediaGalleryLightboxActionContract {
-  onDelete?: (id: string) => Promise<void>;
-  isDeleting?: string | boolean | null;
-  onApplySettings?: (metadata: GenerationRow['metadata']) => void;
+  onDelete?: LightboxActionHandlers['onDelete'];
+  isDeleting?: LightboxActionHandlers['isDeleting'];
+  onApplySettings?: LightboxActionHandlers['onApplySettings'];
 }
 
 interface MediaGalleryLightboxShotWorkflowContract {
@@ -82,7 +80,7 @@ interface MediaGalleryLightboxIntegrationContract {
   setActiveLightboxIndex?: (index: number) => void;
 }
 
-interface MediaGalleryLightboxProps {
+export interface LightboxSessionModel {
   core: MediaGalleryLightboxCoreContract;
   navigation: MediaGalleryLightboxNavigationContract;
   actions: MediaGalleryLightboxActionContract;
@@ -94,17 +92,24 @@ interface MediaGalleryLightboxProps {
   integration: MediaGalleryLightboxIntegrationContract;
 }
 
+interface MediaGalleryLightboxProps {
+  session: LightboxSessionModel;
+}
+
 export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
-  core,
-  navigation,
-  actions,
-  shotWorkflow,
-  ui,
-  optimistic,
-  taskModal,
-  taskData,
-  integration,
+  session,
 }) => {
+  const {
+    core,
+    navigation,
+    actions,
+    shotWorkflow,
+    ui,
+    optimistic,
+    taskModal,
+    taskData,
+    integration,
+  } = session;
   const {
     activeLightboxMedia,
     autoEnterEditMode = false,
@@ -186,55 +191,21 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
     totalPages,
   });
 
-  // Get query client for direct cache access
-  const queryClient = useQueryClient();
-  
-  // Subscribe to cache updates to force re-render when starred changes
-  const [cacheVersion, setCacheVersion] = useState(0);
-  useEffect(() => {
-    const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
-      // Only trigger on mutations that might affect starred state
-      if (event.type === 'updated' && event.query.queryKey[0] === unifiedGenerationQueryKeys.all[0]) {
-        setCacheVersion(v => v + 1);
-      }
-    });
-    return unsubscribe;
-  }, [queryClient]);
-  
-  // Enhance media object with starred field - subscribe to React Query cache for real-time updates
+  // Build lightbox media from explicit gallery state only (no cache side-channel subscriptions).
   const enhancedMedia = useMemo(() => {
     if (!activeLightboxMedia) return null;
-    void cacheVersion;
-    
-    // First, try to find in filteredImages (normal case)
-    let foundImage = filteredImages.find(img => img.id === activeLightboxMedia.id);
-    
-    // If not found or starred is undefined, check React Query cache directly
-    // This ensures we get the latest optimistically-updated values
-    if (!foundImage || foundImage.starred === undefined) {
-      const queries = queryClient.getQueriesData({ queryKey: unifiedGenerationQueryKeys.all });
-      for (const [, data] of queries) {
-        if (data && typeof data === 'object' && 'items' in data) {
-          const cacheItem = (data as { items: GeneratedImageWithMetadata[] }).items.find((g: GeneratedImageWithMetadata) => g.id === activeLightboxMedia.id);
-          if (cacheItem) {
-            foundImage = cacheItem;
-            break;
-          }
-        }
-      }
-    }
-    
-    const starred = foundImage?.starred || false;
-    
-    // Clean up internal flags from metadata before passing to MediaLightbox
-    const { __autoEnterEditMode, ...cleanMetadata } = activeLightboxMedia.metadata || {};
-    
+    const sourceMedia = filteredImages.find((img) => img.id === activeLightboxMedia.id) ?? activeLightboxMedia;
+    const sourceMetadata = sourceMedia.metadata ?? activeLightboxMedia.metadata ?? {};
+    const { __autoEnterEditMode, ...cleanMetadata } = sourceMetadata;
+
     return {
       ...activeLightboxMedia,
-      starred,
-      metadata: cleanMetadata
+      ...sourceMedia,
+      starred: sourceMedia.starred ?? activeLightboxMedia.starred ?? false,
+      // Internal-only metadata flags do not cross the lightbox boundary.
+      metadata: cleanMetadata,
     };
-  }, [activeLightboxMedia, filteredImages, queryClient, cacheVersion]);
+  }, [activeLightboxMedia, filteredImages]);
 
   const mediaForLightbox = useMemo<GenerationRow | undefined>(() => {
     if (!enhancedMedia) return undefined;
@@ -278,82 +249,57 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
     onClose,
   }), [inputImages, isLoadingTask, lightboxTaskMapping?.taskId, onClose, task, taskError]);
 
-  const lightboxAdapter = useMemo<MediaLightboxInputAdapter | null>(() => {
+  const lightboxProps = useMemo<MediaLightboxProps | null>(() => {
     if (!enhancedMedia) {
       return null;
     }
 
     return {
-      core: {
-        media: mediaForLightbox,
-        onClose: () => {
-          setLightboxSelectedShotId(selectedShotIdLocal !== 'all' ? selectedShotIdLocal : undefined);
-          onClose();
-        },
-        shotId: selectedShotIdLocal !== 'all' ? selectedShotIdLocal : undefined,
-        toolTypeOverride,
+      media: mediaForLightbox,
+      onClose: () => {
+        setLightboxSelectedShotId(selectedShotIdLocal !== 'all' ? selectedShotIdLocal : undefined);
+        onClose();
       },
-      navigation: {
-        onNext,
-        onPrevious,
-        showNavigation: true,
-        hasNext,
-        hasPrevious,
-        onNavigateToGeneration: handleNavigateToGeneration,
-        onOpenExternalGeneration: handleOpenExternalGeneration,
+      shotId: selectedShotIdLocal !== 'all' ? selectedShotIdLocal : undefined,
+      toolTypeOverride,
+      onNext,
+      onPrevious,
+      showNavigation: true,
+      hasNext,
+      hasPrevious,
+      onNavigateToGeneration: handleNavigateToGeneration,
+      onOpenExternalGeneration: handleOpenExternalGeneration,
+      allShots: simplifiedShotOptions,
+      selectedShotId: lightboxSelectedShotId || (selectedShotIdLocal !== 'all' ? selectedShotIdLocal : undefined),
+      onShotChange: (shotId) => {
+        setLightboxSelectedShotId(shotId);
+        onShotChange(shotId);
       },
-      shotWorkflow: {
-        allShots: simplifiedShotOptions,
-        selectedShotId: lightboxSelectedShotId || (selectedShotIdLocal !== 'all' ? selectedShotIdLocal : undefined),
-        onShotChange: (shotId) => {
-          setLightboxSelectedShotId(shotId);
-          onShotChange(shotId);
-        },
-        onAddToShot,
-        onAddToShotWithoutPosition,
-        onCreateShot,
-        onNavigateToShot,
-        positionedInSelectedShot,
-        associatedWithoutPositionInSelectedShot,
-      },
-      actions: {
-        onDelete,
-        isDeleting: typeof isDeleting === 'string' || isDeleting == null ? isDeleting : undefined,
-        onApplySettings,
-        starred: enhancedMedia.starred ?? false,
-        onMagicEdit: (imageUrl, prompt, numImages) => {
-          normalizeAndPresentError(new Error('Magic edit action is not wired in MediaGalleryLightbox'), {
-            context: 'MediaGalleryLightbox.onMagicEdit',
-            showToast: false,
-            logData: {
-              imageUrl,
-              prompt,
-              numImages,
-            },
-          });
-        },
-      },
-      taskDetails: {
-        showTaskDetails: true,
-        taskDetailsData: taskDetailsPayload,
-        onShowTaskDetails: isMobile ? onShowTaskDetails : undefined,
-      },
-      visualState: {
-        showTickForImageId,
-        onShowTick: setShowTickForImageId,
-        showTickForSecondaryImageId,
-        onShowSecondaryTick: setShowTickForSecondaryImageId,
-        optimisticPositionedIds,
-        optimisticUnpositionedIds,
-        onOptimisticPositioned,
-        onOptimisticUnpositioned,
-      },
-      features: {
-        showImageEditTools: !((activeLightboxMedia?.type || '').includes('video')),
-        showDownload: true,
-        showMagicEdit: true,
-        initialEditActive: effectiveAutoEnterEditMode,
-      },
+      onAddToShot,
+      onAddToShotWithoutPosition,
+      onCreateShot,
+      onNavigateToShot,
+      positionedInSelectedShot,
+      associatedWithoutPositionInSelectedShot,
+      onDelete,
+      isDeleting,
+      onApplySettings,
+      starred: enhancedMedia.starred ?? false,
+      showTaskDetails: true,
+      taskDetailsData: taskDetailsPayload,
+      onShowTaskDetails: isMobile ? onShowTaskDetails : undefined,
+      showTickForImageId,
+      onShowTick: setShowTickForImageId,
+      showTickForSecondaryImageId,
+      onShowSecondaryTick: setShowTickForSecondaryImageId,
+      optimisticPositionedIds,
+      optimisticUnpositionedIds,
+      onOptimisticPositioned,
+      onOptimisticUnpositioned,
+      showImageEditTools: !((activeLightboxMedia?.type || '').includes('video')),
+      showDownload: true,
+      showMagicEdit: false,
+      initialEditActive: effectiveAutoEnterEditMode,
     };
   }, [
     activeLightboxMedia?.type,
@@ -398,8 +344,8 @@ export const MediaGalleryLightbox: React.FC<MediaGalleryLightboxProps> = ({
   return (
     <>
       {/* Main Lightbox Modal */}
-      {lightboxAdapter && (
-        <MediaLightboxFromAdapter adapter={lightboxAdapter} />
+      {lightboxProps && (
+        <MediaLightbox {...lightboxProps} />
       )}
 
       {/* Mobile Task Details Modal */}

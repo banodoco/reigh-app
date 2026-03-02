@@ -1,0 +1,125 @@
+{
+  "batch": "Conventions & Errors",
+  "batch_index": 2,
+  "assessments": {
+    "convention_outlier": 76.5,
+    "error_consistency": 71.8
+  },
+  "dimension_notes": {
+    "convention_outlier": {
+      "evidence": [
+        "src/pages/ArtPage.tsx:49-53 builds Tailwind utility classes via template strings (`from-${piece.color}/20`, `text-${piece.color}`), while the rest of the codebase predominantly uses static class tokens; this creates a style island and brittle build-time class discovery.",
+        "src/shared/components/DecorativeBackground.tsx:1 exports a component named as a visual primitive but always returns `null`; src/shared/components/ReighLoading.tsx:11 renders it as if it has behavior, which violates naming/behavior expectations.",
+        "Mechanical convention signal `duplicate_clusters` was reviewed for nearby seed areas: the reported duplication around `src/shared/components/MediaLightbox/hooks/reposition/*` is detector-level boilerplate and did not surface a material convention defect in inspected files."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "error_consistency": {
+      "evidence": [
+        "src/shared/components/MediaLightbox/components/submitSegmentTask.ts mixes failure contracts in one flow: `createTaskOrThrow` hard-fails (`throw new Error(...)` at 181), but metadata failures in `saveEnhancedPromptMetadata` are normalized then silently returned (204-205, 220-221), producing partial success without caller-level failure signaling.",
+        "Storage boundary errors are handled inconsistently: src/shared/components/ImageGenerationForm/hooks/promptManagement/storedPromptCount.ts:11-13 and usePromptPersistenceEffects.ts:44-46,65-67 swallow exceptions silently, while src/shared/components/ImageGenerationForm/hooks/referenceUpload/optimisticCacheUpdate.ts:6-10 normalizes and reports.",
+        "Provider-hook boundary errors use divergent strategy in same layer: src/shared/contexts/AuthContext.tsx:160-163 and UserSettingsContext.tsx:155-158 log+throw, but src/shared/contexts/ProjectContext.tsx:44-49 throws directly with no normalized reporting.",
+        "Mechanical `errors.strategy_by_directory` is confirmed by sampled code: `promptManagement/` and `contexts/` exhibit mixed catch/swallow/throw patterns rather than a single intentional contract."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "error_consistency",
+      "identifier": "submit_segment_partial_failure_contract",
+      "summary": "Segment submission path mixes hard-fail and soft-fail semantics for adjacent operations.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/submitSegmentTask.ts",
+        "src/shared/lib/errorHandling/runtimeError.ts"
+      ],
+      "evidence": [
+        "src/shared/components/MediaLightbox/components/submitSegmentTask.ts:181 throws when task creation lacks `task_id`.",
+        "src/shared/components/MediaLightbox/components/submitSegmentTask.ts:204-205 and 220-221 normalize metadata errors then return, allowing task creation to continue after persistence failure.",
+        "src/shared/lib/errorHandling/runtimeError.ts:26-28 already provides `normalizeAndPresentAndRethrow`, but this path does not use a consistent rethrow-or-result contract."
+      ],
+      "suggestion": "Define one contract for `submitSegmentTask` sub-steps (either fail-fast with rethrow or explicit typed partial-result), then apply it consistently to prompt-enhancement metadata writes and task creation so callers can reliably react to failure states.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "unified_error_contract_missing"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "storage_error_swallowing_cluster",
+      "summary": "Storage I/O errors are silently swallowed in some paths but surfaced in others.",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/hooks/promptManagement/storedPromptCount.ts",
+        "src/shared/components/ImageGenerationForm/hooks/promptManagement/usePromptPersistenceEffects.ts",
+        "src/shared/components/ImageGenerationForm/hooks/referenceUpload/optimisticCacheUpdate.ts",
+        "src/shared/contexts/projectSelectionStore.ts"
+      ],
+      "evidence": [
+        "storedPromptCount.ts:11-13 catches sessionStorage errors and suppresses them without logging/metrics.",
+        "usePromptPersistenceEffects.ts:44-46 and 65-67 suppress storage write failures in two effects.",
+        "projectSelectionStore.ts:22-23 suppresses localStorage read failures.",
+        "optimisticCacheUpdate.ts:6-10 normalizes and reports caught exceptions, showing a conflicting strategy for similar client-side boundary failures."
+      ],
+      "suggestion": "Create a shared storage error policy helper (e.g., `safeStorageRead/safeStorageWrite`) that always captures context and returns typed fallback values; replace ad-hoc silent catches so storage failures are observable and behavior stays predictable.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "unified_error_contract_missing"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "dynamic_tailwind_token_island",
+      "summary": "Art page uses runtime-generated Tailwind class tokens unlike the static class convention.",
+      "related_files": [
+        "src/pages/ArtPage.tsx",
+        "src/pages/art/artPieces.ts"
+      ],
+      "evidence": [
+        "ArtPage.tsx:49-53 constructs class names with template interpolation (`from-${piece.color}/20`, `border-${piece.color}/40`, `text-${piece.color}`), which depends on runtime values.",
+        "artPieces.ts:21,31,41,51,61,71 provides color keys as data values, coupling styling correctness to data strings rather than explicit style mapping."
+      ],
+      "suggestion": "Replace interpolated utility tokens with a static variant map (`color -> className bundle`) so all classes are explicit and discoverable at build time, and enforce the map type against allowed palette values.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "implicit_ui_contracts"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "misleading_noop_component_contract",
+      "summary": "A named visual component is a permanent no-op, creating misleading API semantics.",
+      "related_files": [
+        "src/shared/components/DecorativeBackground.tsx",
+        "src/shared/components/ReighLoading.tsx"
+      ],
+      "evidence": [
+        "DecorativeBackground.tsx:1 exports `DecorativeBackground` but returns `null` unconditionally.",
+        "ReighLoading.tsx:11 renders `<DecorativeBackground />` as if it contributes UI behavior, making the call site misleading during maintenance and reviews."
+      ],
+      "suggestion": "Either implement the component’s intended visuals or remove the abstraction and call site; if it is intentionally feature-flagged off, rename to an explicit stub (e.g., `DecorativeBackgroundStub`) and document deprecation/removal path.",
+      "confidence": "medium",
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "implicit_ui_contracts"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "No enforced cross-layer error contract for UI-side boundary operations (storage/network/context guards).",
+      "Naming and component contracts are not consistently validated against runtime behavior."
+    ],
+    "likely_symptoms": [
+      "submit_segment_partial_failure_contract",
+      "storage_error_swallowing_cluster",
+      "misleading_noop_component_contract"
+    ],
+    "possible_false_positives": [
+      "conventions.sibling_behavior outliers based only on token-presence heuristics (`type`, `React`, `useCallback`) appear mostly non-material in reviewed files.",
+      "conventions.duplicate_clusters entries with `cluster_size: 1` in this packet did not provide actionable duplication evidence for the inspected seed scope."
+    ]
+  }
+}

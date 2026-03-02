@@ -1,4 +1,4 @@
-import { extractSegmentImages } from '@/shared/lib/galleryUtils';
+import { extractSegmentImages } from '@/shared/lib/tasks/travelBetweenImages/segmentImages';
 
 const SOURCE_CHANGE_WARNING_DURATION_MS = 5 * 60 * 1000;
 

@@ -8,7 +8,7 @@ import type {
   StructureVideoConfigWithMetadata,
 } from '@/shared/lib/tasks/travelBetweenImages';
 import type { SegmentOverrides } from '@/shared/lib/settingsMigration';
-import type { Shot } from '@/domains/generation/types/shotViewRow';
+import type { Shot } from '@/domains/generation/types';
 import type { OperationResult } from '@/shared/lib/operationResult';
 
 export interface GenerateVideoParams {

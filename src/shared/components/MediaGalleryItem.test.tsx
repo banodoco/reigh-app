@@ -103,7 +103,7 @@ vi.mock('@/shared/components/CreateShotModal', () => ({
 }));
 
 vi.mock('@/shared/contexts/ProjectContext', () => ({
-  useProject: () => ({ selectedProjectId: 'project-1' }),
+  useProjectSelectionContext: () => ({ selectedProjectId: 'project-1' }),
 }));
 
 vi.mock('@/shared/lib/toolIds', () => ({

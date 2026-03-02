@@ -181,8 +181,6 @@ export function useTimelinePositions({
   // LIFECYCLE + POSITIONS-CHANGE AUDIT
   // -------------------------------------------------------------------------
 
-
-
   // -------------------------------------------------------------------------
   // DATABASE SYNC
   // -------------------------------------------------------------------------
@@ -245,7 +243,6 @@ export function useTimelinePositions({
       onPositionsChange(mergedPositions);
     }
 
-
   }, [shotGenerations, onPositionsChange, shotId]);
   
   // Auto-sync when shot generations change
@@ -265,7 +262,6 @@ export function useTimelinePositions({
   const applyOptimistic = useCallback((
     updates: Array<{ id: string; position: number; operation: 'add' | 'move' | 'remove' }>
   ): (() => void) => {
-
 
     // Take snapshot for rollback
     snapshotRef.current = new Map(positionsRef.current);
@@ -421,7 +417,6 @@ export function useTimelinePositions({
     // Lock positions to prevent sync interference
     isLockedRef.current = true;
 
-    
     try {
       // Partition changes: trailing endpoint vs. normal images
       const trailingChange = changes.find(c => c.id === TRAILING_ENDPOINT_KEY);
@@ -476,7 +471,6 @@ export function useTimelinePositions({
         clearPendingUpdates(changes.map(c => c.id));
         return;
       }
-
 
       // Batch-update normal image positions (skip if only trailing changed)
       if (dbUpdates.length > 0) {

@@ -48,6 +48,26 @@ interface ShotEditorControllerResult {
   layoutProps: ShotEditorLayoutProps;
 }
 
+type ShotEditorGenerationControllerInput = Parameters<typeof useGenerationController>[0];
+
+function buildShotEditorGenerationControllerInput(
+  slices: {
+    core: ShotEditorGenerationControllerInput['core'];
+    prompt: ShotEditorGenerationControllerInput['prompt'];
+    motion: ShotEditorGenerationControllerInput['motion'];
+    join: ShotEditorGenerationControllerInput['join'];
+    runtime: ShotEditorGenerationControllerInput['runtime'];
+  },
+): ShotEditorGenerationControllerInput {
+  return {
+    core: slices.core,
+    prompt: slices.prompt,
+    motion: slices.motion,
+    join: slices.join,
+    runtime: slices.runtime,
+  };
+}
+
 export function useShotEditorController({
   // Core identifiers
   selectedShotId,
@@ -434,19 +454,7 @@ export function useShotEditorController({
   // Note: Model selection is handled by useGenerateBatch hook
 
   // Generation controller
-  const {
-    clearAllEnhancedPrompts,
-    updatePairPromptsByIndex,
-    loadPositions,
-    handleBatchVideoPromptChangeWithClear,
-    handleRandomSeedChange,
-    handleAcceleratedChange,
-    handleStepsChange,
-    handleGenerateBatch,
-    isSteerableMotionEnqueuing,
-    steerableMotionJustQueued,
-    isGenerationDisabled,
-  } = useGenerationController({
+  const generationControllerInput = buildShotEditorGenerationControllerInput({
     core: {
       projectId,
       selectedProjectId,
@@ -515,6 +523,20 @@ export function useShotEditorController({
       setShowStepsNotification: actions.setShowStepsNotification,
     },
   });
+
+  const {
+    clearAllEnhancedPrompts,
+    updatePairPromptsByIndex,
+    loadPositions,
+    handleBatchVideoPromptChangeWithClear,
+    handleRandomSeedChange,
+    handleAcceleratedChange,
+    handleStepsChange,
+    handleGenerateBatch,
+    isSteerableMotionEnqueuing,
+    steerableMotionJustQueued,
+    isGenerationDisabled,
+  } = useGenerationController(generationControllerInput);
 
   // Mutations for applying settings/images from a task
   const addImageToShotMutation = useAddImageToShot();

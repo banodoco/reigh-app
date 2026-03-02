@@ -2,53 +2,32 @@ import { __WS_INSTRUMENTATION_ENABLED__, __CORRUPTION_TRACE_ENABLED__ } from '@/
 import { captureRealtimeSnapshot } from '@/integrations/supabase/utils/snapshot';
 import { __CORRUPTION_TIMELINE__, addCorruptionEvent } from '@/integrations/supabase/utils/timeline';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import {
+  collectUnhandledRejectionInfo,
+  collectWindowErrorInfo,
+  isKnownSupabaseSourceLine,
+  isSupabaseRealtimeRelated,
+  parsePhoenixMessage,
+} from './eventCollectors';
+import {
+  installGlobalErrorPatchers,
+  installWebSocketProbe,
+  type InstrumentedWindow,
+} from './globalPatchers';
 
-/** Shape of a Phoenix channel message received over WebSocket */
-interface PhoenixMessage {
-  event?: string;
-  topic?: string;
-  ref?: string;
-  payload?: Record<string, unknown>;
-}
-
-/** Window extensions used by instrumentation */
-interface InstrumentedWindow extends Window {
-  __WS_PROBE_INSTALLED__?: boolean;
-  __SUPABASE_WEBSOCKET_INSTANCES__?: Array<{
-    wsId: number;
-    url: string;
-    protocols?: string | string[];
-    createdAt: number;
-    websocketRef: WebSocket;
-  }>;
-  __REALTIME_SNAPSHOT__?: Record<string, unknown>;
-  WebSocket: typeof WebSocket;
-}
-
-export function installWindowOnlyInstrumentation() {
-  if (typeof window === 'undefined') return;
-  const instrumentedWindow = window as InstrumentedWindow;
-
-  // localStorage monitoring removed - not needed in production
-
-  // Global error capture (Supabase realtime related)
-  if (__CORRUPTION_TRACE_ENABLED__) {
-    const originalOnError = window.onerror;
-    const originalOnUnhandledRejection = window.onunhandledrejection;
-
-    window.onerror = function(message, source, lineno, colno, error) {
-      const errorInfo = {
-        message: String(message),
-        source: String(source),
+function installCorruptionTracePatchers(instrumentedWindow: InstrumentedWindow): void {
+  installGlobalErrorPatchers({
+    instrumentedWindow,
+    onWindowError: (message, source, lineno, colno, error) => {
+      const errorInfo = collectWindowErrorInfo({
+        message,
+        source,
         lineno,
         colno,
-        error: error ? { name: error.name, message: error.message, stack: error.stack } : null,
-        timestamp: Date.now(),
-        userAgent: navigator.userAgent.slice(0, 100)
-      };
+        error: error ?? null,
+      });
 
-      const SUPABASE_JS_KNOWN_ERROR_LINE = 2372;
-      if (source && source.includes('supabase-js.js') && lineno === SUPABASE_JS_KNOWN_ERROR_LINE) {
+      if (isKnownSupabaseSourceLine(source, lineno)) {
         normalizeAndPresentError(new Error('[RealtimeCorruptionTrace] Supabase error captured'), {
           context: 'WindowInstrumentation',
           showToast: false,
@@ -59,89 +38,53 @@ export function installWindowOnlyInstrumentation() {
           },
         });
         addCorruptionEvent('SUPABASE_ERROR_2372', errorInfo);
-      } else if (message && (String(message).includes('supabase') || String(message).includes('realtime') || String(message).includes('websocket'))) {
+      } else if (isSupabaseRealtimeRelated(message)) {
         addCorruptionEvent('RELATED_ERROR', errorInfo);
       }
-
-      if (originalOnError) return originalOnError.call(this, message, source, lineno, colno, error);
-      return false;
-    };
-
-    window.onunhandledrejection = function(event: PromiseRejectionEvent) {
-      const rejectionInfo = {
-        reason: event.reason,
-        promise: '[PROMISE_OBJECT]',
-        timestamp: Date.now()
-      };
-
-      if (event.reason && (String(event.reason).includes('supabase') || String(event.reason).includes('realtime'))) {
+    },
+    onUnhandledRejection: (event) => {
+      const rejectionInfo = collectUnhandledRejectionInfo(event);
+      if (isSupabaseRealtimeRelated(event.reason)) {
         addCorruptionEvent('UNHANDLED_REJECTION', rejectionInfo);
       }
+    },
+  });
+}
 
-      if (originalOnUnhandledRejection) return originalOnUnhandledRejection.call(window, event);
-    };
-  }
+function installWebSocketInstrumentation(instrumentedWindow: InstrumentedWindow): void {
+  installWebSocketProbe({
+    instrumentedWindow,
+    onTrackedSocketMessage: ({ event }) => {
+      try {
+        const parsed = parsePhoenixMessage(event.data);
+        if (parsed) {
+          addCorruptionEvent('PHOENIX_MESSAGE', parsed);
+        }
 
-  if (!__WS_INSTRUMENTATION_ENABLED__) {
+        const snapshot = instrumentedWindow.__REALTIME_SNAPSHOT__ || {};
+        instrumentedWindow.__REALTIME_SNAPSHOT__ = {
+          ...snapshot,
+          lastPhoenixMsgAt: Date.now(),
+        };
+      } catch {
+        // Ignore instrumentation parse failures so realtime flow remains unaffected.
+      }
+    },
+  });
+}
+
+export function installWindowOnlyInstrumentation() {
+  if (typeof window === 'undefined') {
     return;
   }
 
-  if (instrumentedWindow.__WS_PROBE_INSTALLED__) return;
+  const instrumentedWindow = window as InstrumentedWindow;
 
-  instrumentedWindow.__WS_PROBE_INSTALLED__ = true;
-  const OriginalWS = window.WebSocket;
+  if (__CORRUPTION_TRACE_ENABLED__) {
+    installCorruptionTracePatchers(instrumentedWindow);
+  }
 
-  let wsCreationCount = 0;
-
-  instrumentedWindow.WebSocket = function(url: string, protocols?: string | string[]) {
-    wsCreationCount++;
-    const wsId = wsCreationCount;
-
-    const isSupabaseRealtime = url.includes('supabase.co/realtime');
-    const isSupabaseWebSocket = url.includes('supabase.co') && url.includes('websocket');
-
-    const ws = protocols ? new OriginalWS(url, protocols) : new OriginalWS(url);
-
-    if (isSupabaseRealtime || isSupabaseWebSocket) {
-      instrumentedWindow.__SUPABASE_WEBSOCKET_INSTANCES__ = instrumentedWindow.__SUPABASE_WEBSOCKET_INSTANCES__ || [];
-      instrumentedWindow.__SUPABASE_WEBSOCKET_INSTANCES__.push({
-        wsId,
-        url,
-        protocols,
-        createdAt: Date.now(),
-        websocketRef: ws
-      });
-    }
-
-    ws.addEventListener('message', (event: MessageEvent) => {
-      if (isSupabaseRealtime || isSupabaseWebSocket) {
-        try {
-          const messageData = typeof event.data === 'string' ? event.data : '[BINARY_DATA]';
-          if (typeof messageData === 'string') {
-            try {
-              const parsed = JSON.parse(messageData) as PhoenixMessage;
-              if (parsed.event) {
-                addCorruptionEvent('PHOENIX_MESSAGE', {
-                  event: parsed.event,
-                  topic: parsed.topic,
-                  ref: parsed.ref,
-                  payload: parsed.payload ? Object.keys(parsed.payload) : null
-                });
-              }
-            } catch {
-              // Ignore malformed websocket payloads during instrumentation.
-            }
-          }
-          const snap = instrumentedWindow.__REALTIME_SNAPSHOT__ || {};
-          instrumentedWindow.__REALTIME_SNAPSHOT__ = { ...snap, lastPhoenixMsgAt: Date.now() };
-        } catch {
-          // Ignore instrumentation parse failures so realtime flow remains unaffected.
-        }
-      }
-    });
-
-    return ws as WebSocket;
-  } as unknown as typeof WebSocket;
-
-  // Global fetch instrumentation removed - not needed in production
+  if (__WS_INSTRUMENTATION_ENABLED__) {
+    installWebSocketInstrumentation(instrumentedWindow);
+  }
 }

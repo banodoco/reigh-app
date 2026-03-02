@@ -9,6 +9,7 @@ import {
 import { ShotSelectorWithAdd } from '@/shared/components/ShotSelectorWithAdd';
 import type { ShotOption } from '@/domains/generation/types';
 import { useShotAssociationControls } from './hooks/useShotAssociationControls';
+import type { LightboxDeleteHandler } from '../types';
 
 export interface WorkflowControlsProps {
   // Media info
@@ -51,8 +52,8 @@ export interface WorkflowControlsProps {
   // Other actions
   onApplySettings?: (metadata: Record<string, unknown>) => void;
   handleApplySettings: () => void;
-  onDelete?: (id: string) => void;
-  handleDelete: () => void;
+  onDelete?: LightboxDeleteHandler;
+  handleDelete: () => Promise<void>;
   isDeleting?: string | null;
   
   // Navigation

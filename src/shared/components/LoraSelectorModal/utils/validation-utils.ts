@@ -46,7 +46,7 @@ function extractFilenameFromUrl(url: string): string {
   }
 }
 
-export function generateUniqueFilename(
+export function generateUniqueLoraFilename(
   name: string,
   baseModel: string,
   huggingfaceUrl: string = '',

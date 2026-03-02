@@ -4,6 +4,7 @@ import {
   type AuthResult,
 } from './auth.ts';
 import {
+  edgeErrorResponse,
   initEdgeRuntime,
   operationFailureResponse,
   parseJsonBody,
@@ -46,6 +47,33 @@ type EdgeBootstrapResult<TBody extends Record<string, unknown>> =
   | { ok: true; value: EdgeRequestContext<TBody> }
   | { ok: false; response: Response };
 
+function deriveErrorCode(message: string, status: number): string {
+  const normalized = message.trim().toLowerCase();
+  if (normalized === 'method not allowed' || status === 405) {
+    return 'method_not_allowed';
+  }
+  if (normalized === 'authentication failed' || status === 401) {
+    return 'authentication_failed';
+  }
+  if (
+    normalized === 'unauthorized - service role required'
+    || (normalized.includes('unauthorized') && normalized.includes('service role'))
+  ) {
+    return 'service_role_required';
+  }
+  if (normalized === 'internal server error' || status >= 500) {
+    return 'internal_server_error';
+  }
+  if (status === 403) {
+    return 'forbidden';
+  }
+  return 'request_failed';
+}
+
+function isRecoverableStatus(status: number): boolean {
+  return status >= 500 || status === 429;
+}
+
 function buildErrorResponse(
   message: string,
   status: number,
@@ -58,21 +86,15 @@ function buildErrorResponse(
       headers: extraHeaders,
     });
   }
-
-  const response = jsonResponse({ error: message }, status);
-  if (!extraHeaders || Object.keys(extraHeaders).length === 0) {
-    return response;
-  }
-
-  const headers = new Headers(response.headers);
-  for (const [key, value] of Object.entries(extraHeaders)) {
-    headers.set(key, value);
-  }
-
-  return new Response(response.body, {
-    status: response.status,
-    headers,
-  });
+  return edgeErrorResponse(
+    {
+      errorCode: deriveErrorCode(message, status),
+      message,
+      recoverable: isRecoverableStatus(status),
+    },
+    status,
+    extraHeaders,
+  );
 }
 
 function parseMode(options: EdgeBootstrapOptions): BodyParseMode {

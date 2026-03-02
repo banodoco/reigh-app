@@ -36,6 +36,9 @@ serve((req) => withEdgeRequest(req, {
   functionName: "update-shot-pair-prompts",
   logPrefix: "[UPDATE-SHOT-PAIR-PROMPTS]",
   parseBody: "strict",
+  auth: {
+    required: true,
+  },
 }, async ({ supabaseAdmin, logger, body: requestBody, auth }) => {
   const isServiceRole = auth!.isServiceRole;
   const callerId = auth!.userId;

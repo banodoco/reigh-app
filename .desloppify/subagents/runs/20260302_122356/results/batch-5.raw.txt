@@ -1,0 +1,137 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 5,
+  "assessments": {
+    "ai_generated_debt": 72.0,
+    "incomplete_migration": 62.0,
+    "low_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "`src/shared/lib/tasks/travelBetweenImages/defaults.ts` ships scaffold-like defaults (`model_name: \"base_tester_model\"`, `debug: true`, `main_output_dir_for_run: \"./outputs/default_travel_output\"`) that are consumed in `payloadBuilder.ts` when callers omit values.",
+        "Comment density and restating prose in migration-heavy modules (for example `useStructureVideo.ts`, `state/types.ts`) is high relative to behavior, increasing ceremony without adding decision logic.",
+        "Mechanical evidence was partially confirmed: `systemic_patterns` reports project-wide `workaround_tag`/migration smell families; signal-density hotspots were not present in the exact seed files, so that detector was refuted for this narrow batch scope."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "incomplete_migration": {
+      "evidence": [
+        "`types.ts` declares canonical payloads should exclude migration aliases, but `uiTypes.ts`, `TimelineMediaContext.tsx`, `useStructureVideo.ts`, and `taskDataService.ts` still carry/read legacy single-video fields in active editor paths.",
+        "`payloadBuilder.ts` hard-rejects implicit legacy structure fields in canonical mode, while adjacent read/adaptation code still prioritizes mixed legacy and modern keys, leaving dual contracts alive across write/read boundaries.",
+        "Deprecated markers are active across the same flow (`legacyStructureVideo.ts` + enforcement hooks), indicating migration remains in-progress rather than bounded to one adapter boundary."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Mechanical scan evidence is confirmed: `complexity_hotspots` flags `useShotEditorController.ts` (846 LOC, complexity 18) and `TimelineContainer.tsx` (784 LOC), both in this subsystem.",
+        "`useShotEditorController.ts` mixes navigation, persistence hooks, context fan-in, and UI orchestration in one hook, with many compatibility comments and aliasing branches, making local reasoning expensive.",
+        "`payloadBuilder.ts` duplicates legacy-field detection flow (collect + recompute + throw path), creating local indirection and drift risk with `legacyStructureVideo.ts` rules."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "travel_structure_dual_contracts",
+      "summary": "Travel structure migration still runs dual legacy+canonical contracts across core UI and payload paths.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/types.ts",
+        "src/shared/lib/tasks/travelBetweenImages/uiTypes.ts",
+        "src/tools/travel-between-images/components/Timeline/TimelineMediaContext.tsx",
+        "src/tools/travel-between-images/components/ShotEditor/hooks/useStructureVideo.ts"
+      ],
+      "evidence": [
+        "`TravelBetweenImagesRequestPayload` is documented as legacy-free, but UI state types explicitly reintroduce `LegacyStructureVideoFields`.",
+        "Timeline context still exposes `primaryStructureVideo*` legacy single-video props alongside new `structureVideos` array.",
+        "`useStructureVideo` persists array format but retains migration code for legacy snake_case/camelCase single-video settings in normal runtime path."
+      ],
+      "suggestion": "Move all legacy shape handling into a single boundary adapter (load-time migration + one serializer), then remove legacy fields from UI/context types and hooks so only canonical `structure_guidance` + `structure_videos` flows through editor internals.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "travel_structure_migration_boundary_missing"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_read_write_asymmetry",
+      "summary": "Canonical write path and legacy read path are asymmetric, leaving migration behavior hard to reason about.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/applySettings/taskDataService.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts"
+      ],
+      "evidence": [
+        "`payloadBuilder` throws on implicit legacy structure fields in canonical mode via `assertNoImplicitLegacyStructureFields`.",
+        "`taskDataService.extractSettings` still reads many legacy keys (`structure_video_path`, `structure_video_type`, `structure_type`) with mixed precedence.",
+        "Both paths run policy warning logic, but strictness differs, so migration expectations vary by direction."
+      ],
+      "suggestion": "Define one explicit migration policy matrix (read old/write new only, with end-date), enforce it in shared adapter utilities, and remove per-callsite key precedence logic from `taskDataService` and `payloadBuilder`.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "travel_structure_migration_boundary_missing"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "scaffold_defaults_in_production_payload",
+      "summary": "Travel payload defaults still include test/scaffold values that leak into runtime behavior.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/defaults.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/travelBetweenImages/__tests__/defaults.test.ts"
+      ],
+      "evidence": [
+        "Defaults include `model_name: \"base_tester_model\"`, `debug: true`, and `main_output_dir_for_run: \"./outputs/default_travel_output\"`.",
+        "`payloadBuilder` uses these defaults when params are absent, so scaffold values are not test-only.",
+        "Tests lock these literals in place, making cleanup harder and normalizing non-production placeholders."
+      ],
+      "suggestion": "Replace scaffold literals with environment/config-driven production-safe defaults (or require explicit caller values for model/debug/output path), then update tests to assert policy constraints instead of fixed placeholder strings.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "travel_editor_orchestration_overgrown",
+      "summary": "Core editor orchestration hooks/components have grown into hard-to-change local god units.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/useShotEditorController.ts",
+        "src/tools/travel-between-images/components/Timeline/TimelineContainer/TimelineContainer.tsx",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts"
+      ],
+      "evidence": [
+        "`useShotEditorController.ts` is 846 LOC and `TimelineContainer.tsx` is 784 LOC (also surfaced by complexity hotspots), combining many responsibilities in single units.",
+        "Controller code mixes persistence wiring, navigation, mutation coordination, and UI-state orchestration, which raises change blast radius for small feature edits.",
+        "`payloadBuilder` contains layered conditionals and duplicated legacy checks, adding local branching and maintenance cost."
+      ],
+      "suggestion": "Split orchestration by concern: extract dedicated domain controllers (timeline state, generation actions, structure-video migration, navigation) behind narrow interfaces, and keep top-level components/hooks as composition shells.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Migration strategy is distributed across many runtime modules instead of being isolated at one adapter boundary.",
+      "Large orchestration units accumulated compatibility concerns and now carry both feature logic and migration logic.",
+      "Scaffold-era constants were promoted to shared defaults and became sticky through tests."
+    ],
+    "likely_symptoms": [
+      "travel_structure_dual_contracts",
+      "legacy_read_write_asymmetry",
+      "travel_editor_orchestration_overgrown"
+    ],
+    "possible_false_positives": [
+      "Some legacy readers may be intentionally retained for old persisted tasks, but current placement still spreads migration logic across active UI paths."
+    ]
+  }
+}

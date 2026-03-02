@@ -27,7 +27,7 @@ vi.mock('@/shared/lib/compat/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 
-vi.mock('@/shared/lib/galleryUtils', () => ({
+vi.mock('@/shared/lib/tasks/travelBetweenImages/segmentImages', () => ({
   extractSegmentImages: vi.fn(() => ({
     startUrl: 'https://example.com/start.jpg',
     endUrl: 'https://example.com/end.jpg',

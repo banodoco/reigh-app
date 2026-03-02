@@ -518,3 +518,22 @@ export async function fetchToolSettingsSupabase(
     return toOperationFailure(classifyToolSettingsError(error));
   }
 }
+
+/**
+ * Fetch tool settings and throw `ToolSettingsError` on failure.
+ *
+ * Use this from hook boundaries that already model errors as thrown exceptions
+ * (for example React Query query functions and mutation pipelines) so read/write
+ * settings flows share the same error contract.
+ */
+export async function fetchToolSettingsSupabaseOrThrow(
+  toolId: string,
+  ctx: ToolSettingsContext,
+  signal?: AbortSignal,
+): Promise<SettingsFetchResult> {
+  const result = await fetchToolSettingsSupabase(toolId, ctx, signal);
+  if (!result.ok) {
+    throw toToolSettingsErrorFromOperationFailure(result);
+  }
+  return result.value;
+}

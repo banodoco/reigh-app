@@ -4,8 +4,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import {
   extractSettingsFromCache,
+  updateToolSettingsSupabase,
   updateSettingsCache,
 } from '../useToolSettings';
+import { enqueueSettingsWrite } from '@/shared/lib/settingsWriteQueue';
 
 // ============================================================================
 // Tests for exported pure helper functions
@@ -105,6 +107,60 @@ describe('updateSettingsCache', () => {
   });
 });
 
+describe('updateToolSettingsSupabase', () => {
+  beforeEach(() => {
+    vi.mocked(enqueueSettingsWrite).mockClear();
+  });
+
+  it('accepts mode as the second argument', async () => {
+    await updateToolSettingsSupabase(
+      {
+        scope: 'user',
+        id: 'user-1',
+        toolId: 'tool-1',
+        patch: { foo: 'bar' },
+      },
+      'immediate',
+    );
+
+    expect(enqueueSettingsWrite).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scope: 'user',
+        entityId: 'user-1',
+        toolId: 'tool-1',
+        patch: { foo: 'bar' },
+      }),
+      'immediate',
+    );
+  });
+
+  it('supports legacy signal + mode args and forwards the signal', async () => {
+    const controller = new AbortController();
+
+    await updateToolSettingsSupabase(
+      {
+        scope: 'project',
+        id: 'project-1',
+        toolId: 'tool-1',
+        patch: { foo: 'bar' },
+      },
+      controller.signal,
+      'immediate',
+    );
+
+    expect(enqueueSettingsWrite).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scope: 'project',
+        entityId: 'project-1',
+        toolId: 'tool-1',
+        patch: { foo: 'bar' },
+        signal: controller.signal,
+      }),
+      'immediate',
+    );
+  });
+});
+
 // ============================================================================
 // Tests for the useToolSettings hook
 // ============================================================================
@@ -115,7 +171,7 @@ vi.mock('@/shared/contexts/ProjectContext', () => ({
 }));
 
 vi.mock('@/integrations/supabase/client', () => ({
-  supabase: {
+  getSupabaseClient: () => ({
     from: vi.fn().mockReturnValue({
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
@@ -125,24 +181,26 @@ vi.mock('@/integrations/supabase/client', () => ({
     auth: {
       getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null }),
     },
-  },
+  }),
 }));
 
-vi.mock('@/shared/lib/toolSettingsService', () => ({
-  fetchToolSettingsSupabase: vi.fn().mockResolvedValue({
-    settings: { prompt: 'default', seed: 1 },
-    hasShotSettings: false,
-  }),
-  getUserWithTimeout: vi.fn().mockResolvedValue({ data: { user: { id: 'user-1' } } }),
-}));
+vi.mock('@/shared/lib/toolSettingsService', async () => {
+  const actual = await vi.importActual<typeof import('@/shared/lib/toolSettingsService')>(
+    '@/shared/lib/toolSettingsService',
+  );
+  return {
+    ...actual,
+    fetchToolSettingsSupabaseOrThrow: vi.fn().mockResolvedValue({
+      settings: { prompt: 'default', seed: 1 },
+      hasShotSettings: false,
+    }),
+    getUserWithTimeout: vi.fn().mockResolvedValue({ data: { user: { id: 'user-1' } } }),
+  };
+});
 
 vi.mock('@/shared/lib/settingsWriteQueue', () => ({
   enqueueSettingsWrite: vi.fn().mockResolvedValue({ prompt: 'saved' }),
   setSettingsWriteFunction: vi.fn(),
-}));
-
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
 }));
 
 vi.mock('@/shared/lib/errorHandling/errorUtils', () => ({
@@ -163,6 +221,7 @@ describe('useToolSettings hook', () => {
   let useToolSettings: typeof import('../useToolSettings').useToolSettings;
 
   beforeEach(async () => {
+    vi.mocked(enqueueSettingsWrite).mockClear();
     const mod = await import('../useToolSettings');
     useToolSettings = mod.useToolSettings;
   });
@@ -211,5 +270,21 @@ describe('useToolSettings hook', () => {
       // Just verify it doesn't crash with custom projectId
       expect(result.current).toHaveProperty('settings');
     });
+  });
+
+  it('throws auth_required for user-scope updates without an authenticated user', async () => {
+    const toolSettingsService = await import('@/shared/lib/toolSettingsService');
+    vi.mocked(toolSettingsService.getUserWithTimeout).mockResolvedValueOnce({
+      data: { user: null },
+      error: null,
+    });
+
+    const wrapper = createWrapper();
+    const { result } = renderHook(() => useToolSettings<Record<string, unknown>>('test-tool'), { wrapper });
+
+    await expect(result.current.update('user', { prompt: 'test' })).rejects.toMatchObject({
+      code: 'auth_required',
+    });
+    expect(enqueueSettingsWrite).not.toHaveBeenCalled();
   });
 });

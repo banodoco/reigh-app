@@ -2,10 +2,65 @@ import { useEffect } from 'react';
 import { Video, Heart, Eye, Calendar } from 'lucide-react';
 import { PageFadeIn, FadeInSection } from '@/shared/components/transitions';
 import { artPieces } from './art/artPieces';
+import type { ArtPieceTone } from './art/artPieces';
 
 const FADE_IN_BASE_DELAY_S = 0.2;
 const FADE_IN_INCREMENT_S = 0.1;
 const MS_PER_SECOND = 1000;
+
+const ART_TONE_CLASSES: Record<
+  ArtPieceTone,
+  {
+    cardGradient: string;
+    cardBorder: string;
+    cardBorderHover: string;
+    iconBackground: string;
+    iconColor: string;
+  }
+> = {
+  vintageGold: {
+    cardGradient: 'from-wes-vintage-gold/20 to-wes-vintage-gold/30',
+    cardBorder: 'border-wes-vintage-gold/20',
+    cardBorderHover: 'group-hover:border-wes-vintage-gold/40',
+    iconBackground: 'bg-wes-vintage-gold/30',
+    iconColor: 'text-wes-vintage-gold',
+  },
+  coral: {
+    cardGradient: 'from-wes-coral/20 to-wes-coral/30',
+    cardBorder: 'border-wes-coral/20',
+    cardBorderHover: 'group-hover:border-wes-coral/40',
+    iconBackground: 'bg-wes-coral/30',
+    iconColor: 'text-wes-coral',
+  },
+  sage: {
+    cardGradient: 'from-wes-sage/20 to-wes-sage/30',
+    cardBorder: 'border-wes-sage/20',
+    cardBorderHover: 'group-hover:border-wes-sage/40',
+    iconBackground: 'bg-wes-sage/30',
+    iconColor: 'text-wes-sage',
+  },
+  lavender: {
+    cardGradient: 'from-wes-lavender/20 to-wes-lavender/30',
+    cardBorder: 'border-wes-lavender/20',
+    cardBorderHover: 'group-hover:border-wes-lavender/40',
+    iconBackground: 'bg-wes-lavender/30',
+    iconColor: 'text-wes-lavender',
+  },
+  pink: {
+    cardGradient: 'from-wes-pink/20 to-wes-pink/30',
+    cardBorder: 'border-wes-pink/20',
+    cardBorderHover: 'group-hover:border-wes-pink/40',
+    iconBackground: 'bg-wes-pink/30',
+    iconColor: 'text-wes-pink',
+  },
+  mustard: {
+    cardGradient: 'from-wes-mustard/20 to-wes-mustard/30',
+    cardBorder: 'border-wes-mustard/20',
+    cardBorderHover: 'group-hover:border-wes-mustard/40',
+    iconBackground: 'bg-wes-mustard/30',
+    iconColor: 'text-wes-mustard',
+  },
+};
 
 export default function ArtPage() {
   // Scroll to top when component mounts
@@ -27,7 +82,7 @@ export default function ArtPage() {
       <div className="container mx-auto px-4 py-16 relative z-10">
         {/* Header */}
         <FadeInSection className="text-center mb-16">
-                      <h1 className="font-cocogoose text-5xl md:text-7xl font-light text-primary mb-8 text-shadow-vintage">
+          <h1 className="font-cocogoose text-5xl md:text-7xl font-light text-primary mb-8 text-shadow-vintage">
             Community Art Gallery
           </h1>
           <div className="w-32 h-1.5 bg-gradient-to-r from-wes-coral to-wes-vintage-gold rounded-full mx-auto mb-8 shadow-inner-vintage"></div>
@@ -39,17 +94,31 @@ export default function ArtPage() {
         {/* Art Grid */}
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {artPieces.map((piece, index) => (
-              <FadeInSection 
-                key={piece.id} 
-                delayMs={(FADE_IN_BASE_DELAY_S + index * FADE_IN_INCREMENT_S) * MS_PER_SECOND}
-                className="wes-vintage-card group"
-              >
+            {artPieces.map((piece, index) => {
+              const tone = ART_TONE_CLASSES[piece.color];
+              return (
+                <FadeInSection
+                  key={piece.id}
+                  delayMs={(FADE_IN_BASE_DELAY_S + index * FADE_IN_INCREMENT_S) * MS_PER_SECOND}
+                  className="wes-vintage-card group"
+                >
                 {/* Video Placeholder */}
-                <div className={`aspect-video bg-gradient-to-br from-${piece.color}/20 to-${piece.color}/30 rounded-lg border-2 border-${piece.color}/20 flex items-center justify-center mb-4 overflow-hidden group-hover:border-${piece.color}/40 transition-all duration-300`}>
+                <div
+                  className={[
+                    'aspect-video bg-gradient-to-br rounded-lg border-2 flex items-center justify-center mb-4 overflow-hidden transition-all duration-300',
+                    tone.cardGradient,
+                    tone.cardBorder,
+                    tone.cardBorderHover,
+                  ].join(' ')}
+                >
                   <div className="text-center">
-                    <div className={`w-16 h-16 bg-${piece.color}/30 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform duration-300`}>
-                      <Video className={`w-8 h-8 text-${piece.color}`} />
+                    <div
+                      className={[
+                        'w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform duration-300',
+                        tone.iconBackground,
+                      ].join(' ')}
+                    >
+                      <Video className={['w-8 h-8', tone.iconColor].join(' ')} />
                     </div>
                     <p className="text-sm text-muted-foreground font-cocogoose">Click to play</p>
                   </div>
@@ -88,8 +157,9 @@ export default function ArtPage() {
 
                 {/* Hover overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg"></div>
-              </FadeInSection>
-            ))}
+                </FadeInSection>
+              );
+            })}
           </div>
         </div>
 

@@ -48,7 +48,6 @@ export const GenerationSection: React.FC<GenerationSectionProps> = ({
   const joinState = useJoinState();
 
   // Derive values
-  const stitchAfterGenerate = joinState.joinSettings.settings.stitchAfterGenerate ?? false;
 
   // Determine header display mode
   const showSimpleHeader = simpleFilteredImages.length <= 2;

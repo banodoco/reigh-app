@@ -45,13 +45,15 @@ import { useSourceGeneration } from './useSourceGeneration';
 import { useMakeMainVariant } from './useMakeMainVariant';
 import { useEffectiveMedia } from './useEffectiveMedia';
 import { useLayoutMode } from './useLayoutMode';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import type { LightboxDeleteHandler } from '../types';
 
 // ============================================================================
 // Props Sub-Interfaces (grouped by concern)
 // ============================================================================
 
 /** Core media and project context */
-interface SharedLightboxCoreProps {
+export interface SharedLightboxCoreProps {
   media: GenerationRow;
   isVideo: boolean;
   selectedProjectId: string | null;
@@ -64,7 +66,7 @@ interface SharedLightboxCoreProps {
 }
 
 /** Navigation state and handlers */
-interface SharedLightboxNavigationProps {
+export interface SharedLightboxNavigationProps {
   showNavigation?: boolean;
   hasNext?: boolean;
   hasPrevious?: boolean;
@@ -74,7 +76,7 @@ interface SharedLightboxNavigationProps {
 }
 
 /** Shot management callbacks and optimistic state */
-interface SharedLightboxShotProps {
+export interface SharedLightboxShotProps {
   shotId?: string;
   selectedShotId?: string;
   allShots?: ShotOption[];
@@ -93,7 +95,7 @@ interface SharedLightboxShotProps {
 }
 
 /** Layout mode inputs (drives panel/edit mode visibility) */
-interface SharedLightboxLayoutProps {
+export interface SharedLightboxLayoutProps {
   showTaskDetails?: boolean;
   isSpecialEditMode: boolean;
   isInpaintMode: boolean;
@@ -101,19 +103,19 @@ interface SharedLightboxLayoutProps {
 }
 
 /** Button group inputs (download, delete, star, upscale, edit mode) */
-interface SharedLightboxButtonGroupProps {
+export interface SharedLightboxButtonGroupProps {
   isCloudMode: boolean;
   showDownload?: boolean;
   isDownloading: boolean;
   setIsDownloading: (v: boolean) => void;
-  onDelete?: (id: string) => void;
+  onDelete?: LightboxDeleteHandler;
   isDeleting?: string | null;
   isUpscaling: boolean;
   handleUpscale: () => void;
 }
 
 /** Effective media inputs (for computing display URLs/dimensions) */
-interface SharedLightboxMediaProps {
+export interface SharedLightboxMediaProps {
   effectiveImageUrl: string;
   imageDimensions: { width: number; height: number };
   projectAspectRatio?: string;
@@ -129,6 +131,18 @@ export interface UseSharedLightboxStateInput {
   starred?: boolean;
   onOpenExternalGeneration?: (generationId: string, derivedContext?: string[]) => Promise<void>;
 }
+
+type SharedVariantsInput = Pick<UseSharedLightboxStateInput, 'core'>;
+type SharedNavigationInput = Pick<UseSharedLightboxStateInput, 'core' | 'navigation'>;
+type SharedShotActionsInput = Pick<UseSharedLightboxStateInput, 'core' | 'shots'>;
+type SharedInteractionInput = Pick<
+  UseSharedLightboxStateInput,
+  'core' | 'shots' | 'starred' | 'onOpenExternalGeneration'
+>;
+type SharedPresentationInput = Pick<
+  UseSharedLightboxStateInput,
+  'core' | 'navigation' | 'layout' | 'actions' | 'media'
+>;
 
 // ============================================================================
 // Return Interface
@@ -264,8 +278,8 @@ export interface LightboxButtonGroupProps {
     showDownload: boolean;
     handleDownload?: () => Promise<void>;
     isDownloading: boolean;
-    onDelete?: (id: string) => void;
-    handleDelete?: () => void;
+    onDelete?: LightboxDeleteHandler;
+    handleDelete?: () => Promise<void>;
     isDeleting?: string | null;
     onClose: () => void;
   };
@@ -291,7 +305,7 @@ export interface LightboxButtonGroupProps {
  * Variants sub-facade: variant loading, selection, promotion.
  * Usable standalone when callers only need variant state.
  */
-export function useSharedVariantsState(input: UseSharedLightboxStateInput): SharedVariantsStateResult {
+export function useSharedVariantsState(input: SharedVariantsInput): SharedVariantsStateResult {
   const {
     media,
     isFormOnlyMode,
@@ -314,6 +328,7 @@ export function useSharedVariantsState(input: UseSharedLightboxStateInput): Shar
   });
   const { setActiveVariantId: baseSetActiveVariantId, isViewingNonPrimaryVariant } = useVariantSelection({
     media,
+    viewedGenerationId: variantFetchGenerationId,
     rawSetActiveVariantId,
     activeVariant,
     variants,
@@ -369,7 +384,7 @@ export function useSharedVariantsState(input: UseSharedLightboxStateInput): Shar
  * Navigation sub-facade: keyboard nav, swipe nav, safe close.
  * Usable standalone when callers only need navigation controls.
  */
-export function useLightboxNavigationModel(input: UseSharedLightboxStateInput): UseSharedLightboxStateReturn['navigation'] {
+export function useLightboxNavigationModel(input: SharedNavigationInput): UseSharedLightboxStateReturn['navigation'] {
   const { onClose, readOnly } = input.core;
   const {
     hasNext = false,
@@ -410,7 +425,7 @@ export const useSharedNavigationState = useLightboxNavigationModel;
  * Shot management sub-facade: positioning, creation, association state.
  * Usable standalone when callers only need shot management.
  */
-export function useLightboxShotActions(input: UseSharedLightboxStateInput): UseSharedLightboxStateReturn['shots'] {
+export function useLightboxShotActions(input: SharedShotActionsInput): UseSharedLightboxStateReturn['shots'] {
   const { media, selectedProjectId, onClose } = input.core;
   const {
     allShots,
@@ -562,8 +577,16 @@ function useSharedButtonGroupState(params: {
     isUpscaling,
     handleUpscale,
   } = input.actions;
-  const handleDelete = useCallback(() => {
-    if (onDelete) onDelete(media.id);
+  const handleDelete = useCallback(async () => {
+    if (!onDelete) return;
+    try {
+      await Promise.resolve(onDelete(media.id));
+    } catch (error) {
+      normalizeAndPresentError(error, {
+        context: 'MediaLightbox.delete',
+        toastTitle: 'Delete Failed',
+      });
+    }
   }, [onDelete, media.id]);
 
   return useMemo<LightboxButtonGroupProps>(() => ({
@@ -616,9 +639,20 @@ function useSharedButtonGroupState(params: {
 }
 
 export function useSharedLightboxState(input: UseSharedLightboxStateInput): UseSharedLightboxStateReturn {
-  const variantsState = useSharedVariantsState(input);
-  const interactionState = useSharedLightboxInteractionState(input, variantsState);
-  const presentationState = useLightboxPanelModel(input, variantsState, interactionState);
+  const variantsState = useSharedVariantsState({ core: input.core });
+  const interactionState = useSharedLightboxInteractionState({
+    core: input.core,
+    shots: input.shots,
+    starred: input.starred,
+    onOpenExternalGeneration: input.onOpenExternalGeneration,
+  }, variantsState);
+  const presentationState = useLightboxPanelModel({
+    core: input.core,
+    navigation: input.navigation,
+    layout: input.layout,
+    actions: input.actions,
+    media: input.media,
+  }, variantsState, interactionState);
 
   return {
     variants: presentationState.variants,
@@ -646,7 +680,7 @@ export interface SharedLightboxInteractionState {
 }
 
 export function useSharedLightboxInteractionState(
-  input: UseSharedLightboxStateInput,
+  input: SharedInteractionInput,
   variantsState: SharedVariantsStateResult,
 ): SharedLightboxInteractionState {
   const star = useStarToggle({
@@ -660,7 +694,11 @@ export function useSharedLightboxInteractionState(
     isVideo: input.core.isVideo,
     selectedShotId: input.shots.selectedShotId,
   });
-  const joinState = useJoinClips({ media: input.core.media, isVideo: input.core.isVideo });
+  const joinState = useJoinClips({
+    media: input.core.media,
+    isVideo: input.core.isVideo,
+    selectedProjectId: input.core.selectedProjectId,
+  });
   const lineageState = useGenerationLineage({
     media: input.core.media,
     enabled: !input.core.isFormOnlyMode,
@@ -725,7 +763,7 @@ export interface SharedLightboxPresentationState {
 }
 
 export function useLightboxPanelModel(
-  input: UseSharedLightboxStateInput,
+  input: SharedPresentationInput,
   variantsState: SharedVariantsStateResult,
   interactionState: SharedLightboxInteractionState,
 ): SharedLightboxPresentationState {

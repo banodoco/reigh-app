@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { useProject } from '@/shared/contexts/ProjectContext';
+import { useProjectSelectionContext } from '@/shared/contexts/ProjectContext';
 import { useDeleteGeneration } from '@/domains/generation/hooks/useGenerationMutations';
 
 interface UseDeleteGenerationActionResult {
@@ -8,11 +8,11 @@ interface UseDeleteGenerationActionResult {
   isPending: boolean;
   requestDelete: (id: string) => void;
   cancelDelete: () => void;
-  confirmDelete: () => void;
+  confirmDelete: () => Promise<void>;
 }
 
 export function useDeleteGenerationAction(): UseDeleteGenerationActionResult {
-  const { selectedProjectId } = useProject();
+  const { selectedProjectId } = useProjectSelectionContext();
   const deleteGenerationMutation = useDeleteGeneration();
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -25,7 +25,7 @@ export function useDeleteGenerationAction(): UseDeleteGenerationActionResult {
     setPendingDeleteId(null);
   }, []);
 
-  const confirmDelete = useCallback(() => {
+  const confirmDelete = useCallback(async () => {
     if (!pendingDeleteId || !selectedProjectId) {
       setPendingDeleteId(null);
       return;
@@ -33,12 +33,14 @@ export function useDeleteGenerationAction(): UseDeleteGenerationActionResult {
 
     const targetId = pendingDeleteId;
     setDeletingId(targetId);
-    deleteGenerationMutation.mutate({ id: targetId, projectId: selectedProjectId }, {
-      onSettled: () => {
-        setDeletingId((current) => (current === targetId ? null : current));
-      },
-    });
-    setPendingDeleteId(null);
+    try {
+      await deleteGenerationMutation.mutateAsync({ id: targetId, projectId: selectedProjectId });
+      setPendingDeleteId((current) => (current === targetId ? null : current));
+    } catch {
+      // Keep the dialog open so users can retry or cancel after a failed delete.
+    } finally {
+      setDeletingId((current) => (current === targetId ? null : current));
+    }
   }, [deleteGenerationMutation, pendingDeleteId, selectedProjectId]);
 
   return {

@@ -6,12 +6,12 @@
  */
 
 import { useState, useRef, useCallback, useEffect, useImperativeHandle, forwardRef } from 'react';
-import { Stage, Layer, Line, Rect } from 'react-konva';
-import Konva from 'konva';
 import { nanoid } from 'nanoid';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { isPointOnShape, getClickedCornerIndex, getRectangleClickType, getRectangleCorners } from '../hooks/inpainting/shapeHelpers';
+import { exportStrokeMask } from './strokeOverlay/maskExport';
+import { StrokeOverlayCanvas } from './strokeOverlay/StrokeOverlayCanvas';
 
 export type { BrushStroke, StrokeOverlayHandle } from '../hooks/inpainting/types';
 import type { BrushStroke, StrokeOverlayHandle } from '../hooks/inpainting/types';
@@ -341,8 +341,6 @@ export const StrokeOverlay = forwardRef<StrokeOverlayHandle, StrokeOverlayProps>
     onStrokesChange,
   } = props;
 
-  const stageRef = useRef<Konva.Stage>(null);
-
   const {
     handlePointerDown, handlePointerMove, handlePointerUp,
     currentStroke, selectedShapeId, updateSelection,
@@ -350,59 +348,12 @@ export const StrokeOverlay = forwardRef<StrokeOverlayHandle, StrokeOverlayProps>
   } = useDrawing(props);
 
   useImperativeHandle(ref, () => ({
-    exportMask: (options?: { pixelRatio?: number }) => {
-      const pixelRatio = options?.pixelRatio ?? 1.5;
-      if (strokes.length === 0) return null;
-
-      const container = document.createElement('div');
-      container.style.position = 'absolute';
-      container.style.left = '-9999px';
-      document.body.appendChild(container);
-
-      try {
-        const stage = new Konva.Stage({ container, width: imageWidth, height: imageHeight });
-        const layer = new Konva.Layer();
-        stage.add(layer);
-        layer.add(new Konva.Rect({ x: 0, y: 0, width: imageWidth, height: imageHeight, fill: 'black' }));
-
-        const sw = 6;
-        for (const stroke of strokes) {
-          if (stroke.points.length < 2) continue;
-          if (stroke.shapeType === 'rectangle') {
-            if (stroke.isFreeForm && stroke.points.length === 4) {
-              layer.add(new Konva.Line({
-                points: stroke.points.flatMap(p => [p.x, p.y]),
-                stroke: 'white', strokeWidth: sw, closed: true, lineCap: 'round', lineJoin: 'round',
-              }));
-            } else {
-              const x = Math.min(stroke.points[0].x, stroke.points[1].x);
-              const y = Math.min(stroke.points[0].y, stroke.points[1].y);
-              layer.add(new Konva.Rect({
-                x, y,
-                width: Math.abs(stroke.points[1].x - stroke.points[0].x),
-                height: Math.abs(stroke.points[1].y - stroke.points[0].y),
-                stroke: 'white', strokeWidth: sw,
-              }));
-            }
-          } else {
-            layer.add(new Konva.Line({
-              points: stroke.points.flatMap(p => [p.x, p.y]),
-              stroke: 'white', strokeWidth: stroke.brushSize, lineCap: 'round', lineJoin: 'round',
-            }));
-          }
-        }
-
-        layer.draw();
-        const dataUrl = stage.toDataURL({ pixelRatio, mimeType: 'image/png' });
-        stage.destroy();
-        document.body.removeChild(container);
-        return dataUrl;
-      } catch (error) {
-        normalizeAndPresentError(error, { context: 'StrokeOverlay', showToast: false });
-        document.body.removeChild(container);
-        return null;
-      }
-    },
+    exportMask: (options?: { pixelRatio?: number }) => exportStrokeMask({
+      strokes,
+      imageWidth,
+      imageHeight,
+      pixelRatio: options?.pixelRatio,
+    }),
 
     getSelectedShapeId: () => selectedShapeId,
 
@@ -438,89 +389,22 @@ export const StrokeOverlay = forwardRef<StrokeOverlayHandle, StrokeOverlayProps>
     },
   }), [strokes, imageWidth, imageHeight, selectedShapeId, onStrokesChange, updateSelection]);
 
-  const renderStroke = (stroke: BrushStroke) => {
-    const isSelected = stroke.id === selectedShapeId;
-    const color = isSelected ? 'rgba(0, 255, 100, 0.9)'
-      : stroke.isErasing ? 'rgba(0, 0, 0, 0.5)'
-      : 'rgba(255, 0, 0, 0.7)';
-
-    if (stroke.shapeType === 'rectangle' && stroke.points.length >= 2) {
-      if (stroke.isFreeForm && stroke.points.length === 4) {
-        return (
-          <Line
-            key={stroke.id}
-            points={stroke.points.flatMap(p => { const s = toStage(p.x, p.y); return [s.x, s.y]; })}
-            stroke={color} strokeWidth={3} closed
-          />
-        );
-      }
-      const p0 = toStage(stroke.points[0].x, stroke.points[0].y);
-      const p1 = toStage(stroke.points[1].x, stroke.points[1].y);
-      return (
-        <Rect
-          key={stroke.id}
-          x={Math.min(p0.x, p1.x)} y={Math.min(p0.y, p1.y)}
-          width={Math.abs(p1.x - p0.x)} height={Math.abs(p1.y - p0.y)}
-          stroke={color} strokeWidth={3}
-        />
-      );
-    }
-
-    return (
-      <Line
-        key={stroke.id}
-        points={stroke.points.flatMap(p => { const s = toStage(p.x, p.y); return [s.x, s.y]; })}
-        stroke={stroke.isErasing ? 'rgba(0, 0, 0, 1)' : color}
-        strokeWidth={stroke.brushSize * scaleX}
-        lineCap="round" lineJoin="round"
-        globalCompositeOperation={stroke.isErasing ? 'destination-out' : 'source-over'}
-      />
-    );
-  };
-
-  const renderCurrentStroke = () => {
-    if (currentStroke.length === 0) return null;
-
-    if (annotationMode === 'rectangle') {
-      const s = toStage(currentStroke[0].x, currentStroke[0].y);
-      const e = toStage(currentStroke[currentStroke.length - 1].x, currentStroke[currentStroke.length - 1].y);
-      return (
-        <Rect
-          x={Math.min(s.x, e.x)} y={Math.min(s.y, e.y)}
-          width={Math.abs(e.x - s.x)} height={Math.abs(e.y - s.y)}
-          stroke="rgba(100, 200, 255, 0.8)" strokeWidth={3} dash={[5, 5]}
-        />
-      );
-    }
-
-    return (
-      <Line
-        points={currentStroke.flatMap(p => { const s = toStage(p.x, p.y); return [s.x, s.y]; })}
-        stroke={isEraseMode ? 'rgba(0, 0, 0, 0.5)' : 'rgba(255, 0, 0, 0.4)'}
-        strokeWidth={brushSize * scaleX}
-        lineCap="round" lineJoin="round"
-      />
-    );
-  };
-
-  if (displayWidth === 0 || displayHeight === 0) return null;
-
   return (
-    <Stage
-      ref={stageRef}
-      width={displayWidth}
-      height={displayHeight}
-      style={{ display: 'block', cursor: 'crosshair', touchAction: 'none' }}
+    <StrokeOverlayCanvas
+      displayWidth={displayWidth}
+      displayHeight={displayHeight}
+      strokes={strokes}
+      currentStroke={currentStroke}
+      selectedShapeId={selectedShapeId}
+      annotationMode={annotationMode}
+      isEraseMode={isEraseMode}
+      brushSize={brushSize}
+      scaleX={scaleX}
+      toStage={toStage}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-    >
-      <Layer>
-        {strokes.map(renderStroke)}
-        {renderCurrentStroke()}
-      </Layer>
-    </Stage>
+    />
   );
 });
 

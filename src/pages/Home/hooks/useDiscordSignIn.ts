@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { getSupabaseClient } from '@/integrations/supabase/client';
+import { getSupabaseClientResult } from '@/integrations/supabase/client';
 import { runAuthSupabaseOperation } from './auth/runAuthSupabaseOperation';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import {
@@ -27,7 +27,16 @@ function cacheOAuthIntentFlag(): OAuthIntentCacheResult {
 
 export function useDiscordSignIn() {
   return useCallback(async () => {
-    const supabase = getSupabaseClient();
+    const supabaseResult = getSupabaseClientResult();
+    if (!supabaseResult.ok) {
+      return operationFailure(supabaseResult.error, {
+        policy: 'degrade',
+        recoverable: true,
+        errorCode: 'supabase_runtime_uninitialized',
+        message: 'Supabase runtime is not initialized yet.',
+      });
+    }
+    const supabase = supabaseResult.client;
     const intentCacheResult = cacheOAuthIntentFlag();
     if (!intentCacheResult.ok) {
       normalizeAndPresentError(intentCacheResult.error, {

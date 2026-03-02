@@ -9,6 +9,7 @@ vi.mock('react-dom/client', () => ({
 }));
 
 vi.mock('@/shared/lib/logger', () => ({
+  initializeLoggerRuntime: vi.fn(),
   reactProfilerOnRender: vi.fn(),
 }));
 

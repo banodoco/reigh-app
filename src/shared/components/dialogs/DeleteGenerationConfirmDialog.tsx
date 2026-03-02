@@ -1,15 +1,13 @@
 import { ConfirmDialog } from './ConfirmDialog';
+import type { DeleteGenerationConfirmContract } from '@/domains/generation/contracts/deleteGenerationConfirm';
 
-export interface DeleteGenerationConfirmDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onConfirm: () => void;
-}
+export type DeleteGenerationConfirmDialogProps = DeleteGenerationConfirmContract;
 
 export function DeleteGenerationConfirmDialog({
   open,
   onOpenChange,
   onConfirm,
+  isConfirming,
 }: DeleteGenerationConfirmDialogProps) {
   return (
     <ConfirmDialog
@@ -20,6 +18,7 @@ export function DeleteGenerationConfirmDialog({
       confirmText="Delete"
       destructive
       onConfirm={onConfirm}
+      isLoading={isConfirming}
     />
   );
 }

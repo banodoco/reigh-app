@@ -42,7 +42,7 @@ export interface PromptManagementOutput {
   setEffectivePromptMode: (mode: PromptMode) => void;
   setCurrentBeforePromptText: (text: string) => void;
   setCurrentAfterPromptText: (text: string) => void;
-  handleAddPrompt: (source?: 'form' | 'modal') => void;
+  handleAddPrompt: () => void;
   handleUpdatePrompt: (id: string, field: 'fullPrompt' | 'shortPrompt', value: string) => void;
   handleRemovePrompt: (id: string) => void;
   handleDeleteAllPrompts: () => void;

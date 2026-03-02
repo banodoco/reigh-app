@@ -4,12 +4,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/
 import { Settings } from 'lucide-react';
 import { ShotSelectorControls } from './ShotSelectorControls';
 import type { ShotOption } from '@/domains/generation/types';
+import type { LightboxDeleteHandler } from '../types';
 
 export interface WorkflowControlsBarProps {
   // Visibility
   // CRITICAL: targetShotId is the shot selected in the DROPDOWN, not the shot being viewed
   onAddToShot?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
-  onDelete?: (id: string) => void;
+  onDelete?: LightboxDeleteHandler;
   onApplySettings?: (metadata: Record<string, unknown>) => void;
   isSpecialEditMode: boolean;
   isVideo: boolean;

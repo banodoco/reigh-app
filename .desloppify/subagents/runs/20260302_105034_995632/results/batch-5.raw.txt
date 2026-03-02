@@ -1,0 +1,134 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 5,
+  "assessments": {
+    "high_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "high_level_elegance": {
+      "evidence": [
+        "`src/shared` is acting as a catch-all for feature and domain code: generation scope/mapping repository (`src/shared/lib/generationTaskRepository.ts`), home hero visual (`src/shared/components/ConstellationCanvas.tsx`), project creation flow (`src/shared/components/CreateProjectModal.tsx`), and prompt-editing controls (`src/shared/components/BulkEditControls.tsx`).",
+        "Domain-layer code in `src/domains/generation/hooks/useGenerationMutations.ts` depends on generation scope functions from `src/shared/lib/generationTaskRepository.ts` even though the repo already has a `src/domains/generation` package; ownership is blurred across shared/domain boundaries.",
+        "`src/shared/components/ConstellationCanvas.tsx` is only imported by `src/pages/Home/components/hero/HomeBackground.tsx`, indicating page-specific placement inside shared.",
+        "`src/shared/components/BulkEditControls.tsx` is consumed by `src/shared/components/PromptEditorModal.tsx` and tied to prompt-editing AI behavior, but sits as a top-level shared component rather than colocated feature module.",
+        "Mechanical scan evidence was checked and confirms this direction: high signal density clusters are concentrated in `src/shared/components/*` and `src/shared/lib/*`, consistent with boundary flattening; for this batch specifically, `investigation_batches[Package Organization].concern_signals` is empty, so no extra per-file concern signal needed confirmation/refutation."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "shared_generation_boundary_erosion",
+      "summary": "Generation domain ownership is split between `domains/generation` and `shared/lib`, obscuring package boundaries.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/domains/generation/hooks/useGenerationMutations.ts",
+        "src/shared/hooks/useLineageChain.ts"
+      ],
+      "evidence": [
+        "`useGenerationMutations` in `src/domains/generation/hooks` imports `resolveGenerationProjectScope` and `resolveVariantProjectScope` from `src/shared/lib/generationTaskRepository.ts`.",
+        "`generationTaskRepository.ts` contains generation/variant scope resolution and mapping logic that is generation-domain specific, not cross-domain generic utility.",
+        "`useLineageChain` also imports `resolveVariantProjectScope` from the same shared file, increasing cross-feature dependence on a mislocated domain service."
+      ],
+      "suggestion": "Move generation scope/mapping services into `src/domains/generation/repository` (or a new `src/domains/generation/services`) and expose a small domain public surface; keep `shared` only for truly domain-agnostic primitives.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "shared_catchall_boundary_erosion"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "bridge_hook_in_wrong_layer",
+      "summary": "A UI hook bridge for generation-task mapping is placed in `shared/lib`, mixing package roles.",
+      "related_files": [
+        "src/shared/lib/generationTaskBridge.ts",
+        "src/shared/components/TaskDetails/hooks/useGenerationTaskDetails.ts",
+        "src/shared/lib/generationTaskRepository.ts"
+      ],
+      "evidence": [
+        "`generationTaskBridge.ts` exports `useGetPrimaryTaskIdForGeneration` (React Query mutation hook) from `shared/lib`, which is typically a non-React utility layer.",
+        "The bridge only wraps `getPrimaryTaskIdForGeneration` from `generationTaskRepository` and is used by `useGenerationTaskDetails`, indicating UI-adapter behavior rather than foundational shared library behavior.",
+        "This creates a layered mismatch (`shared/lib` contains React hook orchestration while underlying data access also lives there)."
+      ],
+      "suggestion": "Relocate this hook bridge into a domain or feature hook package (for example `src/domains/generation/hooks`) and keep repository accessors in repository modules; reserve `shared/lib` for non-React, cross-domain utilities.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shared_catchall_boundary_erosion"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "home_visual_misplaced_in_shared",
+      "summary": "Home-hero-only visual component is stored under global shared components.",
+      "related_files": [
+        "src/shared/components/ConstellationCanvas.tsx",
+        "src/pages/Home/components/hero/HomeBackground.tsx"
+      ],
+      "evidence": [
+        "`HomeBackground.tsx` imports `ConstellationCanvas` from shared, and repo search shows no other production importer.",
+        "`ConstellationCanvas` implements page-atmosphere animation tightly coupled to home hero presentation rather than reusable app UI."
+      ],
+      "suggestion": "Move `ConstellationCanvas` into `src/pages/Home/components/hero` (or a local `visuals` subfolder) and keep a shared version only if a second real consumer appears.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shared_catchall_boundary_erosion"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "project_creation_flow_in_shared_ui",
+      "summary": "Project creation flow logic is packaged as a shared component despite app-specific navigation/context coupling.",
+      "related_files": [
+        "src/shared/components/CreateProjectModal.tsx",
+        "src/shared/components/GlobalHeader/index.tsx",
+        "src/shared/contexts/ProjectContext.tsx"
+      ],
+      "evidence": [
+        "`CreateProjectModal` uses `useProject()` context and hardcoded `navigate('/tools')`, making it app-flow specific.",
+        "Primary usage is from `GlobalHeader`, suggesting ownership belongs with header/app-shell feature rather than generic shared components.",
+        "Keeping this in shared blurs whether shared components are reusable primitives or feature workflow units."
+      ],
+      "suggestion": "Move project-creation modal + controller behavior into an app-shell/global-header feature package (for example `src/features/layout` or `src/shared/components/GlobalHeader` subtree) and leave `shared/components` for reusable, flow-agnostic pieces.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shared_catchall_boundary_erosion"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "prompt_editor_controls_not_colocated",
+      "summary": "Prompt-editor-specific controls are top-level shared components instead of colocated with their owning feature.",
+      "related_files": [
+        "src/shared/components/BulkEditControls.tsx",
+        "src/shared/components/PromptEditorModal.tsx"
+      ],
+      "evidence": [
+        "`BulkEditControls` is imported by `PromptEditorModal` and is tightly coupled to prompt-editing AI semantics (`AIModelType`, bulk edit instruction workflow).",
+        "Current placement as a top-level shared component weakens discoverability of prompt editor ownership and increases shared directory sprawl."
+      ],
+      "suggestion": "Colocate `BulkEditControls` under a prompt-editor module folder (for example `src/shared/components/PromptEditorModal/components` or a dedicated feature package) and expose only a minimal entry from that owner module.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "shared_catchall_boundary_erosion"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "The `shared` package has no strict gate for what qualifies as reusable, so feature/domain workflows accumulate there over time.",
+      "Existing domain folders (for example `src/domains/generation`) are not consistently treated as the canonical ownership boundary for related logic."
+    ],
+    "likely_symptoms": [
+      "shared_generation_boundary_erosion",
+      "bridge_hook_in_wrong_layer",
+      "project_creation_flow_in_shared_ui",
+      "prompt_editor_controls_not_colocated"
+    ],
+    "possible_false_positives": [
+      "Some teams intentionally keep app-shell flows in shared for velocity, but the current import topology still shows strong ownership ambiguity."
+    ]
+  }
+}

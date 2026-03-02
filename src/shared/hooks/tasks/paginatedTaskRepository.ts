@@ -103,12 +103,14 @@ function buildDataQuery(filters: PaginatedTaskQuery) {
 
   if (needsCustomSorting) {
     const effectiveBaseLimit = Math.max(filters.limit, PAGINATION_CONFIG.DEFAULT_LIMIT);
-    const fetchLimit = filters.page === 1
-      ? Math.min(
-        effectiveBaseLimit * PAGINATION_CONFIG.PROCESSING_FETCH_MULTIPLIER,
-        PAGINATION_CONFIG.PROCESSING_MAX_FETCH,
-      )
-      : effectiveBaseLimit;
+    // Processing feeds are sorted in-memory, so fetch enough rows to cover
+    // the requested page window before slicing.
+    const requestedWindow = filters.offset + filters.limit;
+    const prefetchWindow = effectiveBaseLimit * PAGINATION_CONFIG.PROCESSING_FETCH_MULTIPLIER;
+    const fetchLimit = Math.min(
+      Math.max(prefetchWindow, requestedWindow),
+      PAGINATION_CONFIG.PROCESSING_MAX_FETCH,
+    );
 
     return query.limit(fetchLimit);
   }

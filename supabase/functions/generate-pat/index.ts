@@ -24,6 +24,7 @@ serve(async (req) => {
     logPrefix: "[GENERATE-PAT]",
     parseBody: "strict",
     auth: {
+      required: true,
       options: { allowJwtUserAuth: true },
     },
     runtimeOptions: {
@@ -40,14 +41,13 @@ serve(async (req) => {
   }
 
   const { supabaseAdmin, logger, body, auth } = bootstrap.value;
+  if (!auth?.userId) {
+    logger.error('Authentication failed');
+    await logger.flush();
+    return jsonResponse({ error: 'Authentication failed' }, 401);
+  }
 
   try {
-    if (!auth?.userId) {
-      logger.error('Authentication failed');
-      await logger.flush();
-      return jsonResponse({ error: 'Authentication failed' }, 401);
-    }
-
     // Rate limit: max 10 PAT generations per minute per user
     const rateLimitResult = await checkRateLimit(
       supabaseAdmin,
@@ -100,7 +100,7 @@ serve(async (req) => {
       return jsonResponse({ error: 'Failed to store token metadata', details: insertError.message }, 500);
     }
 
-    logger.info('Created PAT token', { user_id: auth.userId, label });
+    logger.info('Created API credential metadata entry', { user_id: auth.userId, label });
     await logger.flush();
     return jsonResponse({ 
       token: apiToken,

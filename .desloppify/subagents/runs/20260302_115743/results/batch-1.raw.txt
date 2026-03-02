@@ -1,0 +1,117 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 1,
+  "assessments": {
+    "api_surface_coherence": 72.0
+  },
+  "dimension_notes": {
+    "api_surface_coherence": {
+      "evidence": [
+        "Timeline mutation APIs are awaited end-to-end by callers in `useTimelineFrameUpdates`, but `refetchTimelineFrameCaches` is a sync `void` wrapper that fires async `queryClient.refetchQueries(...)` calls without awaiting (`src/shared/hooks/timeline/timelineMutationService.ts:17-31`, `src/shared/hooks/timeline/useTimelineFrameUpdates.ts:93-131,144-205`).",
+        "Within the same task-status hook module, `useTaskStatusCounts(projectId)` is explicitly project-scoped and disabled on null (`src/shared/hooks/useTaskStatusCounts.ts:37-43,193`), while `useAllTaskTypes(_projectId)` accepts the same argument shape but ignores it and uses a global key (`src/shared/hooks/useTaskStatusCounts.ts:207-219`), yet call sites pass project scope (`src/shared/components/TasksPane/hooks/useTasksPaneController.ts:102-105`).",
+        "Join-clips pending queue API overloads one parameter as either `projectId` or dependency-injected function (`src/tools/join-clips/lib/clipInitService.ts:208-217`), creating a polymorphic call contract verified by tests for multiple signatures (`src/tools/join-clips/lib/__tests__/clipInitService.test.ts:189,235,276`).",
+        "Lineage hook advertises nullable inputs but internally asserts non-null in both query key and query function (`src/shared/hooks/useLineageChain.ts:190-200`), making the public signature less honest than implementation expectations.",
+        "Mechanical concern signals for this specific batch entry were empty (`concern_signals: []` in the packet), so no listed signal was left unaddressed; targeted hotspot review still found API contract drift patterns in seed/hotspot neighbors."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "timeline_refetch_not_awaitable",
+      "summary": "Timeline update APIs resolve before cache refetches complete, so awaited mutations do not guarantee fresh read state.",
+      "related_files": [
+        "src/shared/hooks/timeline/timelineMutationService.ts",
+        "src/shared/hooks/timeline/useTimelineFrameUpdates.ts",
+        "src/shared/hooks/timeline/__tests__/timelineMutationService.test.ts"
+      ],
+      "evidence": [
+        "`refetchTimelineFrameCaches` is synchronous and returns `void` while invoking async `queryClient.refetchQueries(...)` (`timelineMutationService.ts:17-31`).",
+        "Callers await serialized writes and then call `refetchTimelineFrameCaches(...)` as the final step, implying completion semantics that are not actually guaranteed (`useTimelineFrameUpdates.ts:93-131`, `144-205`).",
+        "Current tests only assert invocation order/count, not completion semantics of refetches (`timelineMutationService.test.ts:40-61`)."
+      ],
+      "suggestion": "Make `refetchTimelineFrameCaches` return `Promise<void>` and await a `Promise.all` of all refetch calls; update timeline mutation callers and tests to assert post-refetch completion behavior.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "api_contract_drift"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "task_hooks_scope_mismatch",
+      "summary": "Sibling task hooks expose inconsistent scope contracts: one is project-scoped while the other accepts projectId but ignores it.",
+      "related_files": [
+        "src/shared/hooks/useTaskStatusCounts.ts",
+        "src/shared/components/TasksPane/hooks/useTasksPaneController.ts",
+        "src/shared/hooks/__tests__/useTaskStatusCounts.test.ts"
+      ],
+      "evidence": [
+        "`useTaskStatusCounts(projectId)` keys and behavior depend on project scope and disable when missing (`useTaskStatusCounts.ts:37-43,193`).",
+        "`useAllTaskTypes(_projectId)` takes the same parameter shape but discards it and always uses global key `taskQueryKeys.allTypes` (`useTaskStatusCounts.ts:207-219`).",
+        "Consumer passes `selectedProjectId` into both hooks as if they share scope semantics (`useTasksPaneController.ts:102-105`)."
+      ],
+      "suggestion": "Unify hook contracts: either remove the unused parameter from `useAllTaskTypes` and update call sites, or genuinely scope/query-key it by project if per-project behavior is intended.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "api_contract_drift"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "pending_clips_polymorphic_param",
+      "summary": "A single argument slot in `consumePendingJoinClips` is overloaded for unrelated meanings, increasing misuse risk and obscuring API intent.",
+      "related_files": [
+        "src/tools/join-clips/lib/clipInitService.ts",
+        "src/tools/join-clips/hooks/useClipManager.ts",
+        "src/tools/join-clips/lib/__tests__/clipInitService.test.ts"
+      ],
+      "evidence": [
+        "Signature accepts `string | null | ((videoUrl) => Promise<number>)` as first argument (`clipInitService.ts:208-210`), then runtime type-switches to determine semantic meaning (`clipInitService.ts:212-217`).",
+        "Production usage passes project scope (`useClipManager.ts:95`), while tests exercise no-arg, function-first, and project+function variants (`clipInitService.test.ts:189,235,276`), confirming multi-shape contract creep."
+      ],
+      "suggestion": "Replace the union overload with an options object (`{ projectId?, readVideoDuration? }`) and add a deprecated compatibility wrapper if needed to preserve call sites during migration.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "api_contract_drift"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "lineage_nullable_api_nonnull_impl",
+      "summary": "The lineage hook declares nullable inputs but internally relies on non-null assertions, creating a dishonest API boundary.",
+      "related_files": [
+        "src/shared/hooks/useLineageChain.ts",
+        "src/shared/lib/queryKeys/generations.ts",
+        "src/shared/hooks/__tests__/useLineageChain.test.ts"
+      ],
+      "evidence": [
+        "Public signature is `useLineageChain(variantId: string | null, projectId: string | null)` (`useLineageChain.ts:190`), but query key and query function use `variantId!`/`projectId!` (`useLineageChain.ts:192,195,199-200`).",
+        "This relies on `enabled: !!variantId && !!projectId` as a runtime guard rather than expressing non-null invariants structurally, while tests assert null-input behavior (`useLineageChain.test.ts:94-114`)."
+      ],
+      "suggestion": "Split into a strict internal hook/function requiring non-null IDs and keep a thin nullable wrapper that returns early before constructing query key/queryFn, eliminating `!` assertions at the public boundary.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "api_contract_drift"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "API evolution favored backward compatibility via ad-hoc overloads and wrappers instead of explicit versioned contracts.",
+      "Async behavior is often abstracted behind sync-looking helper functions, weakening completion semantics at call boundaries.",
+      "Sibling APIs in the same surface were not normalized after incremental refactors, leaving scope and nullability contracts inconsistent."
+    ],
+    "likely_symptoms": [
+      "timeline_refetch_not_awaitable",
+      "task_hooks_scope_mismatch",
+      "pending_clips_polymorphic_param",
+      "lineage_nullable_api_nonnull_impl"
+    ],
+    "possible_false_positives": [
+      "lineage_nullable_api_nonnull_impl (runtime guarded today by React Query `enabled`, so impact depends on future call-path changes)"
+    ]
+  }
+}

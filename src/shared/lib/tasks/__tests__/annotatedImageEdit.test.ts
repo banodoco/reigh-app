@@ -3,10 +3,20 @@ import { createAnnotatedImageEditTask } from '../annotatedImageEdit';
 
 const mockCreateTask = vi.fn();
 const mockBuildHiresFixParams = vi.fn();
+const mockProcessBatchResults = vi.fn();
 
 vi.mock('../../taskCreation', () => ({
   createTask: (...args: unknown[]) => mockCreateTask(...args),
   buildHiresFixParams: (...args: unknown[]) => mockBuildHiresFixParams(...args),
+  processBatchResults: (...args: unknown[]) => mockProcessBatchResults(...args),
+  TaskValidationError: class TaskValidationError extends Error {
+    field?: string;
+    constructor(message: string, field?: string) {
+      super(message);
+      this.name = 'TaskValidationError';
+      this.field = field;
+    }
+  },
 }));
 
 vi.mock('@/shared/lib/compat/errorHandler', () => ({
@@ -18,6 +28,15 @@ describe('createAnnotatedImageEditTask', () => {
     vi.clearAllMocks();
     mockCreateTask.mockResolvedValue({ task_id: 'task-1', status: 'pending' });
     mockBuildHiresFixParams.mockReturnValue({});
+    mockProcessBatchResults.mockImplementation((results: PromiseSettledResult<unknown>[]) => {
+      const fulfilled = results.filter(
+        (result): result is PromiseFulfilledResult<unknown> => result.status === 'fulfilled',
+      );
+      if (fulfilled.length === 0) {
+        throw new Error('All batch tasks failed');
+      }
+      return fulfilled.map((result) => result.value);
+    });
   });
 
   it('creates a single task for num_generations = 1', async () => {
@@ -94,6 +113,7 @@ describe('createAnnotatedImageEditTask', () => {
     });
 
     expect(mockCreateTask).toHaveBeenCalledTimes(2);
+    expect(mockProcessBatchResults).toHaveBeenCalledOnce();
     expect(result).toBe('task-1');
   });
 
@@ -108,7 +128,7 @@ describe('createAnnotatedImageEditTask', () => {
         prompt: 'batch',
         num_generations: 2,
       })
-    ).rejects.toThrow('All annotated image edit tasks failed');
+    ).rejects.toThrow('All batch tasks failed');
   });
 
   it('returns first successful task when some batch tasks fail', async () => {
@@ -124,6 +144,7 @@ describe('createAnnotatedImageEditTask', () => {
       num_generations: 2,
     });
 
+    expect(mockProcessBatchResults).toHaveBeenCalledOnce();
     expect(result).toBe('task-2');
   });
 

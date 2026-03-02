@@ -23,7 +23,10 @@ import { useGalleryPageState } from '@/features/gallery/hooks/useGalleryPageStat
 import { useIsMobile } from '@/shared/hooks/mobile';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
 import { useShots } from '@/shared/contexts/ShotsContext';
-import { useProject } from '@/shared/contexts/ProjectContext';
+import {
+  useProjectCrudContext,
+  useProjectSelectionContext,
+} from '@/shared/contexts/ProjectContext';
 import { useShotCreation } from '@/shared/hooks/useShotCreation';
 import { useStableObject } from '@/shared/hooks/useStableObject';
 import { usePaneInteractionLifecycle } from '@/shared/components/panes/usePaneInteractionLifecycle';
@@ -62,7 +65,8 @@ const GenerationsPaneComponent: React.FC = () => {
   const isOnImageGenerationPage = location.pathname === TOOL_ROUTES.IMAGE_GENERATION;
 
   // Get current project's aspect ratio
-  const { selectedProjectId, projects } = useProject();
+  const { selectedProjectId } = useProjectSelectionContext();
+  const { projects } = useProjectCrudContext();
   const currentProject = projects.find(p => p.id === selectedProjectId);
   const projectAspectRatio = currentProject?.aspectRatio;
   const shouldEnableDataLoading = isGenerationsPaneOpen;

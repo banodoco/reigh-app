@@ -30,6 +30,7 @@ serve(async (req) => {
     logPrefix: "[SETUP-AUTO-TOPUP]",
     parseBody: "strict",
     auth: {
+      required: true,
       options: { allowJwtUserAuth: true },
     },
     runtimeOptions: {

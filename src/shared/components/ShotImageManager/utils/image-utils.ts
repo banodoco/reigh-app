@@ -1,4 +1,4 @@
-import type { GenerationRow } from '@/domains/generation/types/generationViewRow';
+import type { GenerationRow } from '@/domains/generation/types';
 import {
   calculateFrameForIndex,
   extractExistingFrames,
@@ -12,6 +12,30 @@ export const getFramePositionForIndex = (
 ): number | undefined => {
   const existingFrames = extractExistingFrames(currentImages);
   return calculateFrameForIndex(index, existingFrames, batchVideoFrames);
+};
+
+/**
+ * Resolve the timeline frame used for duplication.
+ * Prefers the persisted timeline frame; falls back to normalized index spacing.
+ */
+export const resolveDuplicateFrame = (
+  image: Pick<GenerationRow, 'timeline_frame'>,
+  index: number,
+  batchVideoFrames: number,
+): number | undefined => {
+  if (
+    typeof image.timeline_frame === 'number'
+    && Number.isFinite(image.timeline_frame)
+    && image.timeline_frame >= 0
+  ) {
+    return image.timeline_frame;
+  }
+
+  if (!Number.isFinite(batchVideoFrames) || batchVideoFrames <= 0) {
+    return undefined;
+  }
+
+  return index * batchVideoFrames;
 };
 
 export const getImageRange = (

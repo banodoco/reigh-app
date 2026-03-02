@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { shotQueryKeys } from '@/shared/lib/queryKeys/shots';
 import { readShotSettings, type ShotVideoSettings } from '@/shared/lib/settingsMigration';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { TOOL_IDS } from '@/shared/lib/toolIds';
 
 interface UseShotVideoSettingsReturn {
@@ -32,8 +33,12 @@ export function useShotVideoSettings(
         .single();
 
       if (error) {
-        console.error('[useShotVideoSettings] Error fetching:', error);
-        return null;
+        normalizeAndPresentError(error, {
+          context: 'useShotVideoSettings.fetch',
+          showToast: false,
+          logData: { shotId },
+        });
+        throw error;
       }
 
       const allSettings = data?.settings as Record<string, unknown>;

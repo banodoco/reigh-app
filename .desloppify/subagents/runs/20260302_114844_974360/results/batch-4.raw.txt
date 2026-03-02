@@ -1,0 +1,94 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 4,
+  "assessments": {
+    "ai_generated_debt": 74.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "Migration surface is still dual-path: `src/shared/lib/tasks/travelBetweenImages/uiTypes.ts` claims canonical payloads are legacy-free, but `StructureVideoConfigWithMetadata` extends `LegacyStructureVideoFields` and the UI keeps propagating legacy-shaped fields (`motion_strength`, `structure_type`, `uni3c_end_percent`).",
+        "Legacy single-video API is still first-class in editor/timeline orchestration (`primaryStructureVideo*` fields in `src/tools/travel-between-images/components/Timeline/TimelineMediaContext.tsx` and related timeline/editor props), indicating migration shims became product-surface contracts instead of boundary adapters.",
+        "Hardcoded/test-like fallbacks remain in production task defaults (`src/shared/lib/tasks/travelBetweenImages/defaults.ts`), and are consumed by payload assembly in `src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts` when caller params are absent.",
+        "Batch-local concern signals are empty, but holistic scan evidence shows systemic `workaround_tag` and migration/compatibility residue; spot checks in this batch confirm those patterns are still active in core travel-between-images flows."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "legacy_structure_contract_leaks_into_core_ui",
+      "summary": "Legacy structure-video fields are embedded in core UI state instead of isolated at adapters.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/uiTypes.ts",
+        "src/shared/lib/tasks/travelBetweenImages/legacyStructureVideo.ts",
+        "src/tools/travel-between-images/components/Timeline/TimelineMediaContext.tsx",
+        "src/tools/travel-between-images/components/ShotEditor/hooks/useStructureVideo.ts"
+      ],
+      "evidence": [
+        "`uiTypes.ts` states canonical payload contracts are legacy-free, but `StructureVideoConfigWithMetadata` extends `LegacyStructureVideoFields` directly.",
+        "Timeline/editor APIs still expose legacy single-video fields (`primaryStructureVideoPath`, `primaryStructureVideoType`, `primaryStructureVideoMotionStrength`) alongside multi-video arrays.",
+        "This keeps migration compatibility semantics as long-term application contracts, increasing cross-module coupling and maintenance noise."
+      ],
+      "suggestion": "Define one canonical editor-domain structure-video model (array-based), then move all legacy field parsing/serialization into explicit boundary adapters (task ingestion + settings migration). Remove `primaryStructureVideo*` from shared context contracts once adapters are in place.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "legacy_contract_not_quarantined"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "forced_uni3c_migration_drops_existing_structure_type",
+      "summary": "Array migration forcibly rewrites existing structure types to `uni3c`, causing silent semantic drift.",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotEditor/hooks/useStructureVideo.ts",
+        "src/shared/lib/tasks/structureGuidance.ts",
+        "src/tools/travel-between-images/components/ShotEditor/hooks/useStructureVideoHandlers.ts"
+      ],
+      "evidence": [
+        "`migrateToArrayFormat` maps every existing `structure_videos` entry to `structure_type: 'uni3c'` unconditionally.",
+        "Other active code paths still support non-uni3c structure types (`flow`/`canny`/`depth`) and map them to VACE preprocessing (`structureGuidance.ts`).",
+        "The rewrite is applied during load, so persisted non-uni3c configurations can be silently altered by opening the editor."
+      ],
+      "suggestion": "Preserve existing `structure_type` values during migration and only default to `uni3c` when absent; add a one-time explicit migration routine (with telemetry) if product policy truly requires conversion.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "legacy_contract_not_quarantined"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "test_scaffold_defaults_in_runtime_payload",
+      "summary": "Runtime fallback defaults include test-oriented values that can leak into real task payloads.",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/defaults.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts",
+        "src/shared/lib/tasks/travelBetweenImages/createTravelBetweenImagesTask.ts"
+      ],
+      "evidence": [
+        "`DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES` contains values like `model_name: \"base_tester_model\"`, `debug: true`, and `main_output_dir_for_run: \"./outputs/default_travel_output\"`.",
+        "`buildTravelBetweenImagesPayload` uses these defaults when params are missing, so placeholder/scaffold values are part of production payload assembly.",
+        "These values read as migration/prototyping residue rather than stable product defaults."
+      ],
+      "suggestion": "Replace fallback constants with production-safe defaults sourced from a typed runtime config (or fail validation for missing required runtime values). Keep test-only defaults inside test fixtures.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "prototype_defaults_left_in_core_path"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Legacy compatibility was not constrained to boundary adapters and became part of internal UI/domain contracts.",
+      "Migration work mixed with feature delivery, leaving scaffold defaults and dual-path contracts in primary runtime paths."
+    ],
+    "likely_symptoms": [
+      "legacy_structure_contract_leaks_into_core_ui",
+      "forced_uni3c_migration_drops_existing_structure_type"
+    ],
+    "possible_false_positives": []
+  }
+}

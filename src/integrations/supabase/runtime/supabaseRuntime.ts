@@ -24,11 +24,3 @@ export function getSupabaseRuntimeClient(): SupabaseClientInstance {
   }
   return runtimeClient;
 }
-
-export function isSupabaseRuntimeInitialized(): boolean {
-  return runtimeClient !== null;
-}
-
-export function getOrInitializeSupabaseRuntimeClient(): SupabaseClientInstance {
-  return runtimeClient ?? initializeSupabaseClientRuntime();
-}

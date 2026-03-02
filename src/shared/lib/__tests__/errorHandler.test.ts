@@ -17,6 +17,8 @@ Object.defineProperty(globalThis, 'navigator', {
 
 import { handleError, AppError, NetworkError, AuthError, SilentError, isAppError, isAuthError, isNetworkError } from '../compat/errorHandler';
 import { installErrorNotifier, resetErrorNotifierForTests } from '../errorHandling/errorNotifier';
+import { notifyError } from '../errorHandling/notifyError';
+import { installRuntimeErrorPresenter } from '../errorHandling/runtimeErrorPresenter';
 
 describe('errorHandler', () => {
   beforeEach(() => {
@@ -29,6 +31,7 @@ describe('errorHandler', () => {
         variant: 'destructive',
       });
     }, 'test-suite');
+    installRuntimeErrorPresenter((appError, toastTitle) => notifyError(appError, toastTitle));
     // Reset navigator.onLine to true
     Object.defineProperty(navigator, 'onLine', { value: true, writable: true, configurable: true });
   });

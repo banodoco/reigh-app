@@ -18,25 +18,14 @@ import {
 } from '../taskFamilyContracts';
 import { composeTaskFamilyPayload } from '../taskPayloadContract';
 import { toRecordOrEmpty, asNumber } from '../taskParamParsers';
-
-const LEGACY_TRAVEL_STRUCTURE_FIELDS = [
-  'structure_video_path',
-  'structure_video_treatment',
-  'structure_video_motion_strength',
-  'structure_video_type',
-  'use_uni3c',
-  'uni3c_start_percent',
-  'uni3c_end_percent',
-] as const;
-const LEGACY_TRAVEL_STRUCTURE_VIDEO_FIELDS = [
-  'motion_strength',
-  'structure_type',
-  'uni3c_start_percent',
-  'uni3c_end_percent',
-] as const;
-
-type LegacyTravelStructureField = (typeof LEGACY_TRAVEL_STRUCTURE_FIELDS)[number];
-type LegacyTravelStructureVideoField = (typeof LEGACY_TRAVEL_STRUCTURE_VIDEO_FIELDS)[number];
+import {
+  LEGACY_TRAVEL_TOP_LEVEL_FIELDS,
+  LEGACY_TRAVEL_STRUCTURE_VIDEO_FIELDS,
+  collectTravelStructureLegacyUsage,
+  enforceTravelStructureLegacyPolicy,
+  type LegacyTopLevelField,
+  type LegacyStructureVideoField,
+} from './legacyStructureVideo';
 
 function isLengthOneOrExpected(value: unknown, expected: number): boolean {
   return Array.isArray(value) && (value.length === 1 || value.length === expected);
@@ -88,7 +77,13 @@ function validateImageScopedArray(
 }
 
 function assertNoImplicitLegacyStructureFields(params: TravelBetweenImagesTaskInput): void {
-  const topLevelLegacyFields = LEGACY_TRAVEL_STRUCTURE_FIELDS.filter((field) => params[field] !== undefined);
+  const legacyUsage = collectTravelStructureLegacyUsage(params);
+  enforceTravelStructureLegacyPolicy(legacyUsage, {
+    context: 'buildTravelBetweenImagesPayload',
+    enforcement: 'warn',
+  });
+
+  const topLevelLegacyFields = LEGACY_TRAVEL_TOP_LEVEL_FIELDS.filter((field) => params[field] !== undefined);
   const structureVideos = Array.isArray(params.structure_videos) ? params.structure_videos : [];
   const structureVideoLegacyFields = LEGACY_TRAVEL_STRUCTURE_VIDEO_FIELDS.filter((field) =>
     structureVideos.some((entry) =>
@@ -99,7 +94,10 @@ function assertNoImplicitLegacyStructureFields(params: TravelBetweenImagesTaskIn
         && (entry as Record<string, unknown>)[field] !== undefined,
       )),
   );
-  const usedLegacyFields = [...topLevelLegacyFields, ...structureVideoLegacyFields];
+  const usedLegacyFields: Array<LegacyTopLevelField | LegacyStructureVideoField> = [
+    ...topLevelLegacyFields,
+    ...structureVideoLegacyFields,
+  ];
   if (usedLegacyFields.length === 0) {
     return;
   }
@@ -273,7 +271,9 @@ export function buildTravelBetweenImagesPayload(
     shot_id: params.shot_id,
     // Include parent_generation_id so complete_task uses it instead of creating a new one
     ...(parentGenerationId ? { parent_generation_id: parentGenerationId } : {}),
-    main_output_dir_for_run: params.main_output_dir_for_run ?? DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES.main_output_dir_for_run,
+    ...(params.main_output_dir_for_run
+      ? { main_output_dir_for_run: params.main_output_dir_for_run }
+      : {}),
     enhance_prompt: params.enhance_prompt ?? DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES.enhance_prompt,
     show_input_images: params.show_input_images ?? DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES.show_input_images,
     generation_mode: params.generation_mode ?? DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES.generation_mode,

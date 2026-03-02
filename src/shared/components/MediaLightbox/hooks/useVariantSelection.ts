@@ -24,6 +24,8 @@ interface Variant {
 interface UseVariantSelectionProps {
   /** Media being viewed (needed for generation_id) */
   media: GenerationRow;
+  /** Generation ID associated with the current variant list (preferred for optimistic NEW-badge updates) */
+  viewedGenerationId?: string | null;
   /** Raw setter from useVariants hook */
   rawSetActiveVariantId: (variantId: string) => void;
   /** Current active variant from useVariants hook */
@@ -43,6 +45,7 @@ interface UseVariantSelectionReturn {
 
 export function useVariantSelection({
   media,
+  viewedGenerationId,
   rawSetActiveVariantId,
   activeVariant,
   variants,
@@ -62,11 +65,11 @@ export function useVariantSelection({
     // Mark variant as viewed when selected (fire-and-forget)
     // Pass generationId for optimistic badge update
     if (variantId) {
-      const generationId = getGenerationId(media);
+      const generationId = viewedGenerationId ?? getGenerationId(media);
       markViewed({ variantId, generationId: generationId ?? undefined });
     }
     rawSetActiveVariantId(variantId);
-  }, [rawSetActiveVariantId, markViewed, media]);
+  }, [rawSetActiveVariantId, markViewed, media, viewedGenerationId]);
 
   // Set initial variant when variants load and initialVariantId is provided
   useEffect(() => {
@@ -92,11 +95,11 @@ export function useVariantSelection({
   useEffect(() => {
     if (!media) return;
     if (activeVariant && activeVariant.id && markedViewedVariantRef.current !== activeVariant.id) {
-      const generationId = getGenerationId(media);
+      const generationId = viewedGenerationId ?? getGenerationId(media);
       markViewed({ variantId: activeVariant.id, generationId: generationId ?? undefined });
       markedViewedVariantRef.current = activeVariant.id;
     }
-  }, [activeVariant, media?.generation_id, media?.id, markViewed, media]);
+  }, [activeVariant, media?.generation_id, media?.id, markViewed, media, viewedGenerationId]);
 
   // Reset marked-viewed ref when media changes (new item opened)
   useEffect(() => {

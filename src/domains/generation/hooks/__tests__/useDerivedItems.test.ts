@@ -11,7 +11,7 @@ vi.mock('@/domains/generation/repository/derivedItemsRepository', () => ({
     fetchDerivedItemsFromRepositoryMock(...args),
 }));
 
-vi.mock('@/domains/generation/hooks/useSmartPolling', () => ({
+vi.mock('@/shared/hooks/useSmartPolling', () => ({
   useSmartPollingConfig: () => ({ refetchInterval: false }),
 }));
 

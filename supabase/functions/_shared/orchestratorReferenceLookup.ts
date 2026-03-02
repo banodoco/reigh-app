@@ -92,12 +92,6 @@ export async function lookupTasksByRunIdWithFallback<Row = Record<string, unknow
 
   const legacyRows = (legacyResult.data ?? []) as Row[];
   if (legacyRows.length > 0) {
-    console.warn(`[${contextLabel}] Legacy run_id fallback matched tasks`, {
-      taskType,
-      projectId,
-      runId,
-      count: legacyRows.length,
-    });
     return legacyRows;
   }
 
@@ -157,12 +151,6 @@ export async function lookupTasksByOrchestratorIdWithFallback<Row = Record<strin
 
   const legacyRows = (legacyResult.data ?? []) as Row[];
   if (legacyRows.length > 0) {
-    console.warn(`[${contextLabel}] Legacy orchestrator reference fallback matched tasks`, {
-      taskType,
-      projectId,
-      orchestratorTaskId,
-      count: legacyRows.length,
-    });
     return legacyRows;
   }
 

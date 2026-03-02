@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useFileDragTracking, preventDefaultDragOver, createSingleFileDropHandler } from '../useFileDragTracking';
+import { useFileDragTracking } from '../useFileDragTracking';
+import { preventDefaultDragOver, createSingleFileDropHandler } from '@/shared/lib/dnd/dragDropUpload';
 
 vi.mock('@/shared/components/ui/runtime/sonner', () => ({
   toast: { error: vi.fn() },

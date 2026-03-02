@@ -82,8 +82,10 @@ vi.mock('@/shared/contexts/ShotsContext', () => ({
 }));
 
 vi.mock('@/shared/contexts/ProjectContext', () => ({
-  useProject: () => ({
+  useProjectSelectionContext: () => ({
     selectedProjectId: 'project-1',
+  }),
+  useProjectCrudContext: () => ({
     projects: [{ id: 'project-1', aspectRatio: '16:9' }],
   }),
 }));

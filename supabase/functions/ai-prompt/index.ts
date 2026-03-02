@@ -53,14 +53,6 @@ serve(async (req) => {
     return jsonResponse({ error: 'Rate limit service unavailable' }, 503);
   }
 
-  if (rateLimitResult.policy === 'fail_open') {
-    console.warn('[AI-PROMPT] Rate limit check degraded; allowing request', {
-      userId: auth.userId,
-      reason: rateLimitResult.value.degraded?.reason,
-      message: rateLimitResult.value.degraded?.message,
-    });
-  }
-
   let body: Record<string, unknown>;
   try {
     body = await req.json();

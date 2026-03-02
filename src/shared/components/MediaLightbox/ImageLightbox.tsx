@@ -51,6 +51,7 @@ import { ImageEditProvider } from './contexts/ImageEditContext';
 
 import { extractDimensionsFromMedia, handleLightboxDownload } from './utils';
 import { getGenerationId } from '@/shared/lib/mediaTypeHelpers';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import {
   buildLayoutModel,
   buildVariantsModel,
@@ -196,6 +197,105 @@ function useImageLightboxEnvironment(props: ImageLightboxProps) {
 type ImageLightboxEnvironment = ReturnType<typeof useImageLightboxEnvironment>;
 
 type SharedLightboxInput = Parameters<typeof useSharedLightboxState>[0];
+type SharedLightboxCoreSlice = SharedLightboxInput['core'];
+type SharedLightboxNavigationSlice = SharedLightboxInput['navigation'];
+type SharedLightboxShotSlice = SharedLightboxInput['shots'];
+type SharedLightboxLayoutSlice = SharedLightboxInput['layout'];
+type SharedLightboxActionSlice = SharedLightboxInput['actions'];
+type SharedLightboxMediaSlice = SharedLightboxInput['media'];
+
+function buildImageSharedCoreSlice(props: ImageLightboxProps, env: ImageLightboxEnvironment): SharedLightboxCoreSlice {
+  return {
+    media: props.media,
+    isVideo: false,
+    selectedProjectId: env.selectedProjectId,
+    isMobile: env.isMobile,
+    isFormOnlyMode: false,
+    onClose: props.onClose,
+    readOnly: props.readOnly ?? false,
+    variantFetchGenerationId: env.variantFetchGenerationId,
+    initialVariantId: props.initialVariantId,
+  };
+}
+
+function buildImageSharedNavigationSlice(params: {
+  props: ImageLightboxProps;
+  modeSnapshot: { isInpaintMode: boolean; isMagicEditMode: boolean };
+  handleSlotNavNext: () => void;
+  handleSlotNavPrev: () => void;
+}): SharedLightboxNavigationSlice {
+  const { props, modeSnapshot, handleSlotNavNext, handleSlotNavPrev } = params;
+  const navigation = props.navigation;
+
+  return {
+    showNavigation: navigation?.showNavigation,
+    hasNext: navigation?.hasNext ?? false,
+    hasPrevious: navigation?.hasPrevious ?? false,
+    handleSlotNavNext,
+    handleSlotNavPrev,
+    swipeDisabled: modeSnapshot.isMagicEditMode || (props.readOnly ?? false),
+  };
+}
+
+function buildImageSharedShotSlice(props: ImageLightboxProps): SharedLightboxShotSlice {
+  const shotWorkflow = props.shotWorkflow;
+  return {
+    shotId: props.shotId,
+    selectedShotId: shotWorkflow?.selectedShotId,
+    allShots: shotWorkflow?.allShots,
+    onShotChange: shotWorkflow?.onShotChange,
+    onAddToShot: shotWorkflow?.onAddToShot,
+    onAddToShotWithoutPosition: shotWorkflow?.onAddToShotWithoutPosition,
+    onNavigateToShot: shotWorkflow?.onNavigateToShot,
+    onShowTick: shotWorkflow?.onShowTick,
+    onShowSecondaryTick: shotWorkflow?.onShowSecondaryTick,
+    onOptimisticPositioned: shotWorkflow?.onOptimisticPositioned,
+    onOptimisticUnpositioned: shotWorkflow?.onOptimisticUnpositioned,
+    optimisticPositionedIds: shotWorkflow?.optimisticPositionedIds,
+    optimisticUnpositionedIds: shotWorkflow?.optimisticUnpositionedIds,
+    positionedInSelectedShot: shotWorkflow?.positionedInSelectedShot,
+    associatedWithoutPositionInSelectedShot: shotWorkflow?.associatedWithoutPositionInSelectedShot,
+  };
+}
+
+function buildImageSharedLayoutSlice(
+  features: ImageLightboxProps['features'],
+  modeSnapshot: { isInpaintMode: boolean; isMagicEditMode: boolean },
+): SharedLightboxLayoutSlice {
+  return {
+    showTaskDetails: features?.showTaskDetails,
+    isSpecialEditMode: modeSnapshot.isMagicEditMode,
+    isInpaintMode: modeSnapshot.isInpaintMode,
+    isMagicEditMode: modeSnapshot.isMagicEditMode,
+  };
+}
+
+function buildImageSharedActionSlice(
+  env: ImageLightboxEnvironment,
+  actions: ImageLightboxProps['actions'],
+  features: ImageLightboxProps['features'],
+): SharedLightboxActionSlice {
+  return {
+    isCloudMode: env.isCloudMode,
+    showDownload: features?.showDownload,
+    isDownloading: env.isDownloading,
+    setIsDownloading: env.setIsDownloading,
+    onDelete: actions?.onDelete,
+    isDeleting: actions?.isDeleting,
+    isUpscaling: env.upscaleHook.isUpscaling,
+    handleUpscale: () => {
+      void env.upscaleHook.handleUpscale({ scaleFactor: 2, noiseScale: 0.1 });
+    },
+  };
+}
+
+function buildImageSharedMediaSlice(env: ImageLightboxEnvironment): SharedLightboxMediaSlice {
+  return {
+    effectiveImageUrl: env.upscaleHook.effectiveImageUrl,
+    imageDimensions: env.imageDimensions || { width: 1024, height: 1024 },
+    projectAspectRatio: env.projectAspectRatio,
+  };
+}
 
 function buildImageSharedLightboxInput(params: {
   props: ImageLightboxProps;
@@ -205,71 +305,16 @@ function buildImageSharedLightboxInput(params: {
   handleSlotNavPrev: () => void;
 }): SharedLightboxInput {
   const { props, env, modeSnapshot, handleSlotNavNext, handleSlotNavPrev } = params;
-  const navigation = props.navigation;
-  const shotWorkflow = props.shotWorkflow;
-  const features = props.features;
   const actions = props.actions;
+  const features = props.features;
 
   return {
-    core: {
-      media: props.media,
-      isVideo: false,
-      selectedProjectId: env.selectedProjectId,
-      isMobile: env.isMobile,
-      isFormOnlyMode: false,
-      onClose: props.onClose,
-      readOnly: props.readOnly ?? false,
-      variantFetchGenerationId: env.variantFetchGenerationId,
-      initialVariantId: props.initialVariantId,
-    },
-    navigation: {
-      showNavigation: navigation?.showNavigation,
-      hasNext: navigation?.hasNext ?? false,
-      hasPrevious: navigation?.hasPrevious ?? false,
-      handleSlotNavNext,
-      handleSlotNavPrev,
-      swipeDisabled: modeSnapshot.isMagicEditMode || (props.readOnly ?? false),
-    },
-    shots: {
-      shotId: props.shotId,
-      selectedShotId: shotWorkflow?.selectedShotId,
-      allShots: shotWorkflow?.allShots,
-      onShotChange: shotWorkflow?.onShotChange,
-      onAddToShot: shotWorkflow?.onAddToShot,
-      onAddToShotWithoutPosition: shotWorkflow?.onAddToShotWithoutPosition,
-      onNavigateToShot: shotWorkflow?.onNavigateToShot,
-      onShowTick: shotWorkflow?.onShowTick,
-      onShowSecondaryTick: shotWorkflow?.onShowSecondaryTick,
-      onOptimisticPositioned: shotWorkflow?.onOptimisticPositioned,
-      onOptimisticUnpositioned: shotWorkflow?.onOptimisticUnpositioned,
-      optimisticPositionedIds: shotWorkflow?.optimisticPositionedIds,
-      optimisticUnpositionedIds: shotWorkflow?.optimisticUnpositionedIds,
-      positionedInSelectedShot: shotWorkflow?.positionedInSelectedShot,
-      associatedWithoutPositionInSelectedShot: shotWorkflow?.associatedWithoutPositionInSelectedShot,
-    },
-    layout: {
-      showTaskDetails: features?.showTaskDetails,
-      isSpecialEditMode: modeSnapshot.isMagicEditMode,
-      isInpaintMode: modeSnapshot.isInpaintMode,
-      isMagicEditMode: modeSnapshot.isMagicEditMode,
-    },
-    actions: {
-      isCloudMode: env.isCloudMode,
-      showDownload: features?.showDownload,
-      isDownloading: env.isDownloading,
-      setIsDownloading: env.setIsDownloading,
-      onDelete: actions?.onDelete,
-      isDeleting: actions?.isDeleting,
-      isUpscaling: env.upscaleHook.isUpscaling,
-      handleUpscale: () => {
-        void env.upscaleHook.handleUpscale({ scaleFactor: 2, noiseScale: 0.1 });
-      },
-    },
-    media: {
-      effectiveImageUrl: env.upscaleHook.effectiveImageUrl,
-      imageDimensions: env.imageDimensions || { width: 1024, height: 1024 },
-      projectAspectRatio: env.projectAspectRatio,
-    },
+    core: buildImageSharedCoreSlice(props, env),
+    navigation: buildImageSharedNavigationSlice({ props, modeSnapshot, handleSlotNavNext, handleSlotNavPrev }),
+    shots: buildImageSharedShotSlice(props),
+    layout: buildImageSharedLayoutSlice(features, modeSnapshot),
+    actions: buildImageSharedActionSlice(env, actions, features),
+    media: buildImageSharedMediaSlice(env),
     starred: actions?.starred,
     onOpenExternalGeneration: props.onOpenExternalGeneration,
   };
@@ -684,9 +729,20 @@ function useImageLightboxRenderModel(
     setIsDownloading: env.setIsDownloading,
   });
 
-  const handleDelete = () => {
-    actions?.onDelete?.(media.id);
-  };
+  const handleDelete = useCallback(async (): Promise<void> => {
+    if (!actions?.onDelete) {
+      return;
+    }
+
+    try {
+      await Promise.resolve(actions.onDelete(media.id));
+    } catch (error) {
+      normalizeAndPresentError(error, {
+        context: 'ImageLightbox.delete',
+        toastTitle: 'Delete Failed',
+      });
+    }
+  }, [actions?.onDelete, media.id]);
 
   const handleApplySettings = () => {
     actions?.onApplySettings?.(media.metadata);

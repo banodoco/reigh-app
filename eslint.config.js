@@ -121,5 +121,22 @@ export default tseslint.config(
         }],
       }]
     }
+  },
+  // Supabase runtime boundary for high-churn modules.
+  // These callsites should consume integration repositories/gateways, not the global client facade.
+  {
+    files: [
+      "src/shared/realtime/RealtimeConnection.ts",
+      "src/shared/hooks/useToolSettings.ts",
+      "src/domains/generation/hooks/useGenerationMutations.ts",
+    ],
+    rules: {
+      "no-restricted-imports": ["error", {
+        paths: [{
+          name: "@/integrations/supabase/client",
+          message: "Use an integration repository/gateway under '@/integrations/supabase/repositories/*' instead of importing the global Supabase client facade directly.",
+        }],
+      }],
+    },
   }
 );

@@ -4,7 +4,7 @@ import type { ToastRootToastObject } from "@base-ui-components/react/toast"
 import { cva, type VariantProps } from "class-variance-authority"
 import { X } from "lucide-react"
 import { cn } from "@/shared/components/ui/contracts/cn"
-import { getToastManager, initializeUiToastManager } from "@/shared/components/ui/runtime/toastManager"
+import { getToastManager, initializeToastManager } from '@/shared/runtime/toastRuntime'
 
 // ── Variant styles ──────────────────────────────────────────────────────────
 const toastVariants = cva(
@@ -120,7 +120,7 @@ function addToast(
   // during the same React lifecycle turn as the caller.
   const id = opts?.id ?? `toast-${Date.now()}-${Math.random().toString(36).slice(2)}`
   scheduleToastDispatch(() => {
-    const manager = initializeUiToastManager()
+    const manager = initializeToastManager()
     manager.add({
       type,
       title,
@@ -145,7 +145,7 @@ function toastFn(input: ToastInput, opts?: SonnerMethodOptions): string {
   const type = variant === "destructive" ? "error" : (variant ?? "default")
   const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2)}`
   scheduleToastDispatch(() => {
-    const manager = initializeUiToastManager()
+    const manager = initializeToastManager()
     manager.add({
       type,
       title: title ?? undefined,

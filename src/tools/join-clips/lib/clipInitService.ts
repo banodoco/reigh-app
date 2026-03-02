@@ -11,7 +11,13 @@
  */
 
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import {
+  getPendingJoinClipsCandidateKeys,
+  isPendingJoinClipInScope,
+  type PendingJoinClipEntry,
+} from '@/shared/lib/joinClipsPendingQueue';
 import { generateUUID } from '@/shared/lib/taskCreation';
+import { readUserIdFromStorage } from '@/shared/lib/supabaseSession';
 import {
   operationFailure,
   operationSuccess,
@@ -130,14 +136,6 @@ function getVideoDurationFromUrl(videoUrl: string): Promise<number> {
 // Pending join clips (lightbox "Add to Join" localStorage polling)
 // ---------------------------------------------------------------------------
 
-interface PendingJoinClipEntry {
-  videoUrl: string;
-  thumbnailUrl?: string;
-  generationId: string;
-  timestamp: number;
-}
-
-const PENDING_CLIPS_KEY = 'pendingJoinClips';
 const PENDING_CLIPS_TTL_MS = 5 * 60 * 1000;
 
 interface PendingJoinClipParseResult {
@@ -183,6 +181,12 @@ function parsePendingJoinClips(raw: string): PendingJoinClipParseResult | null {
       ...(typeof candidate.thumbnailUrl === 'string' && candidate.thumbnailUrl.length > 0
         ? { thumbnailUrl: candidate.thumbnailUrl }
         : {}),
+      ...(typeof candidate.projectId === 'string' && candidate.projectId.length > 0
+        ? { projectId: candidate.projectId }
+        : {}),
+      ...(typeof candidate.userId === 'string' && candidate.userId.length > 0
+        ? { userId: candidate.userId }
+        : {}),
     });
   }
 
@@ -191,37 +195,51 @@ function parsePendingJoinClips(raw: string): PendingJoinClipParseResult | null {
 
 /**
  * Reads and consumes pending join clips from localStorage.
- * Returns an array of new/updated clip data to merge into state.
- *
- * Each result item is either:
- * - `{ type: 'fill', clip }` -- fill the first empty slot
- * - `{ type: 'append', clip }` -- append as a new clip
+ * Returns deferred actions that are applied to clip state later.
+ * Placement is intentionally not resolved here because only the consumer has
+ * the previous clip array needed to choose fill-vs-append.
  */
-export interface PendingClipAction {
+export type PendingClipAction = {
+  type: 'deferred_insert';
   clip: VideoClip;
+};
+
+interface ConsumePendingJoinClipsOptions {
+  projectId?: string | null;
+  readVideoDuration?: (videoUrl: string) => Promise<number>;
 }
 
 export async function consumePendingJoinClips(
-  readVideoDuration: (videoUrl: string) => Promise<number> = getVideoDurationFromUrl,
+  options: ConsumePendingJoinClipsOptions = {},
 ): Promise<OperationResult<PendingClipAction[]>> {
-  try {
-    const pendingData = localStorage.getItem(PENDING_CLIPS_KEY);
-    if (!pendingData) return operationSuccess([]);
+  const projectId = options.projectId ?? null;
+  const readVideoDuration = options.readVideoDuration ?? getVideoDurationFromUrl;
 
-    const parsedPendingClips = parsePendingJoinClips(pendingData);
+  try {
+    const userId = readUserIdFromStorage();
+    const pendingKeys = getPendingJoinClipsCandidateKeys({ projectId, userId });
+    const pendingSource = pendingKeys
+      .map((key) => ({ key, raw: localStorage.getItem(key) }))
+      .find((item) => typeof item.raw === 'string' && item.raw.length > 0);
+
+    if (!pendingSource || !pendingSource.raw) {
+      return operationSuccess([]);
+    }
+
+    const parsedPendingClips = parsePendingJoinClips(pendingSource.raw);
     if (!parsedPendingClips) {
       normalizeAndPresentError(new Error('Invalid pending join clips payload'), {
         context: 'JoinClipsPage.pendingClipsInvalid',
         showToast: false,
-        logData: { key: PENDING_CLIPS_KEY },
+        logData: { key: pendingSource.key },
       });
-      localStorage.removeItem(PENDING_CLIPS_KEY);
+      localStorage.removeItem(pendingSource.key);
       return operationFailure(new Error('Invalid pending join clips payload'), {
         policy: 'degrade',
         errorCode: 'pending_join_clips_invalid_payload',
         message: 'Invalid pending join clips payload',
         recoverable: true,
-        cause: { key: PENDING_CLIPS_KEY },
+        cause: { key: pendingSource.key },
       });
     }
 
@@ -230,7 +248,7 @@ export async function consumePendingJoinClips(
         context: 'JoinClipsPage.pendingClipsPartialRecovery',
         showToast: false,
         logData: {
-          key: PENDING_CLIPS_KEY,
+          key: pendingSource.key,
           totalEntries: parsedPendingClips.entries.length + parsedPendingClips.invalidCount,
           invalidEntries: parsedPendingClips.invalidCount,
         },
@@ -241,9 +259,12 @@ export async function consumePendingJoinClips(
     const recentClips = parsedPendingClips.entries.filter(
       clip => now - clip.timestamp < PENDING_CLIPS_TTL_MS,
     );
+    const scopedRecentClips = recentClips.filter((clip) =>
+      isPendingJoinClipInScope(clip, { projectId, userId }),
+    );
 
-    if (recentClips.length === 0) {
-      localStorage.removeItem(PENDING_CLIPS_KEY);
+    if (scopedRecentClips.length === 0) {
+      localStorage.removeItem(pendingSource.key);
       return operationSuccess([], {
         ...(parsedPendingClips.invalidCount > 0 ? { policy: 'degrade' } : {}),
       });
@@ -251,7 +272,7 @@ export async function consumePendingJoinClips(
 
     const actions: PendingClipAction[] = [];
 
-    for (const { videoUrl, thumbnailUrl, generationId } of recentClips) {
+    for (const { videoUrl, thumbnailUrl, generationId } of scopedRecentClips) {
       if (!videoUrl) continue;
 
       const durationSeconds = await readVideoDuration(videoUrl);
@@ -266,10 +287,10 @@ export async function consumePendingJoinClips(
         generationId,
       };
 
-      actions.push({ clip });
+      actions.push({ type: 'deferred_insert', clip });
     }
 
-    localStorage.removeItem(PENDING_CLIPS_KEY);
+    localStorage.removeItem(pendingSource.key);
     return operationSuccess(actions, {
       ...(parsedPendingClips.invalidCount > 0 ? { policy: 'degrade' } : {}),
     });
@@ -287,8 +308,8 @@ export async function consumePendingJoinClips(
 
 /**
  * Apply pending clip actions to an existing clips array.
- * Reproduces the exact same merge logic from the original hook:
- * each action fills the first available empty slot, or appends.
+ * Resolves each deferred action by filling the first available empty slot,
+ * or appending when no empty slots remain.
  */
 export function applyPendingClipActions(
   prevClips: VideoClip[],

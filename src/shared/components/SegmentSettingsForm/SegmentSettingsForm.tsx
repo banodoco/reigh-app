@@ -29,7 +29,8 @@ import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeErro
 import { usePromptFieldState } from '@/shared/hooks/usePromptFieldState';
 
 // Extracted components
-import { AdvancedSettingsSection, PromptSection } from './components';
+import { AdvancedSettingsSection } from './components/AdvancedSettingsSection';
+import { PromptSection } from './components/PromptSection';
 
 // Extracted hooks
 import { useSaveFieldAsDefault, useStructureVideoUpload } from './hooks';

@@ -1,0 +1,151 @@
+{
+  "batch": "Governance & Contracts",
+  "batch_index": 8,
+  "assessments": {
+    "cross_module_architecture": 68.0,
+    "high_level_elegance": 72.0,
+    "test_strategy": 64.0,
+    "package_organization": 78.0
+  },
+  "dimension_notes": {
+    "cross_module_architecture": {
+      "evidence": [
+        "Supabase compatibility policy is split across two incompatible contract definitions: `src/integrations/supabase/legacy/legacySupabasePolicy.ts` defines alias `@/integrations/supabase/client` with budget phase max 160 (through 2026-03-31), while `scripts/quality/check-legacy-supabase-usage.mjs` enforces a different alias `@/integrations/supabase/legacy/legacySupabaseFacade` with max 129 for the same phase.",
+        "Governance tests and scripts are checking different boundaries: `src/integrations/supabase/__tests__/legacySupabaseFacade.contract.test.ts` scans `@/integrations/supabase/client`, but CI script checks `@/integrations/supabase/legacy/legacySupabaseFacade`.",
+        "This creates conflicting architectural migration signals and allows teams to satisfy one gate while violating another."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "`docs/governance/contracts/supabase-runtime.md` documents bootstrap via `initializeSupabaseClientRuntime()` in `src/app/runtime/initRuntimes.ts`, but runtime actually initializes via `initializeSupabase()` in `src/app/bootstrap.tsx`.",
+        "The same doc references `hasInitializedSupabaseClientRuntime()`, which is not exported from `src/integrations/supabase/client.ts`.",
+        "`docs/governance/contracts/error-handling.md` references `runtimeErrorCore.ts` and `normalizeAndReportError`, but the implemented contract is `src/shared/lib/errorHandling/coreReporter.ts` with `reportError`."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "test_strategy": {
+      "evidence": [
+        "Governance checks are not currently self-consistent: `node scripts/quality/check-contract-governance.mjs` fails with unclassified export `getSupabaseClientResult` in `src/integrations/supabase/client.ts` and missing required `@uiContract` tag in `src/shared/components/ui/contracts/button.tsx`.",
+        "`node scripts/quality/check-shots-shim-usage.mjs --max 0` fails with 2 live imports of `@/types/shots`, showing quality gates identify violations but repository state is not gate-clean.",
+        "Contract tests for key surfaces validate export shape but not behavioral contract paths (for example `src/integrations/supabase/__tests__/clientContracts.test.ts` does not verify initialization-state behavior in `getSupabaseClientResult`)."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "package_organization": {
+      "evidence": [
+        "Objective structure signal shows dual ownership for generation types: `src/domains/generation/types/` has high reuse (`avg_fan_in` 25.3) while `src/types/` still has meaningful fan-in (6.3) and includes compatibility barrels (`generationAndShots.ts`, `generationRow.ts`, `shot.ts`).",
+        "Production code still imports deprecated shim path `@/types/shots` (`src/domains/generation/hooks/useGenerationMutations.ts`, `src/tools/travel-between-images/components/VideoShotDisplay.tsx`) while the shim budget gate is zero (`scripts/quality/check-shots-shim-usage.mjs --max 0`).",
+        "The compatibility surface is fragmented across `src/types/*` and `src/domains/generation/types/*`, increasing navigation ambiguity for type ownership."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "cross_module_architecture",
+      "identifier": "supabase_policy_source_of_truth_split",
+      "summary": "Supabase legacy-compat architecture is governed by conflicting policy definitions",
+      "related_files": [
+        "src/integrations/supabase/legacy/legacySupabasePolicy.ts",
+        "scripts/quality/check-legacy-supabase-usage.mjs",
+        "src/integrations/supabase/__tests__/legacySupabaseFacade.contract.test.ts"
+      ],
+      "evidence": [
+        "`legacySupabasePolicy.ts` sets specifier to `@/integrations/supabase/client` and budgets [160, 96, 64, 32], but `check-legacy-supabase-usage.mjs` enforces `@/integrations/supabase/legacy/legacySupabaseFacade` and budgets [129, 96, 64, 32].",
+        "Contract tests validate one migration path while CI script enforces another, creating incompatible boundary contracts."
+      ],
+      "suggestion": "Converge to one canonical migration contract. Stage 1: choose canonical alias/specifier in `legacySupabasePolicy.ts` and update `check-legacy-supabase-usage.mjs` to consume policy constants instead of hardcoded values. Stage 2: align `legacySupabaseFacade.contract.test.ts` with the same specifier and budget source. Stage 3: run `npm run check:legacy-supabase-usage && npm run test:contracts && npm run test:arch` and fail PRs on divergence.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "governance_artifact_drift"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "governance_docs_runtime_drift",
+      "summary": "Governance contract docs no longer describe actual runtime contract surfaces",
+      "related_files": [
+        "docs/governance/contracts/supabase-runtime.md",
+        "docs/governance/contracts/error-handling.md",
+        "src/app/bootstrap.tsx",
+        "src/integrations/supabase/client.ts",
+        "src/shared/lib/errorHandling/coreReporter.ts"
+      ],
+      "evidence": [
+        "Supabase contract doc says bootstrap calls `initializeSupabaseClientRuntime()` via `initRuntimes.ts`, but runtime bootstrap calls `initializeSupabase()` in `app/bootstrap.tsx`.",
+        "Supabase doc references `hasInitializedSupabaseClientRuntime()` accessor not present in `client.ts`.",
+        "Error-handling doc points to non-existent `runtimeErrorCore.ts` / `normalizeAndReportError`; actual core API is `reportError` in `coreReporter.ts`."
+      ],
+      "suggestion": "Treat governance docs as executable contract artifacts: update docs to match current entrypoints and symbols, then add a doc-contract verifier that checks referenced file paths and exported symbols. Wire it into `npm run check:contracts` so docs drift fails the same gate as code-contract drift.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "governance_artifact_drift"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "contract_gate_not_green_on_head",
+      "summary": "Quality gates for contract governance are failing against current production tree",
+      "related_files": [
+        "scripts/quality/check-contract-governance.mjs",
+        "config/contracts/registry.json",
+        "src/integrations/supabase/client.ts",
+        "src/shared/components/ui/contracts/button.tsx"
+      ],
+      "evidence": [
+        "Running `node scripts/quality/check-contract-governance.mjs` fails: unclassified `getSupabaseClientResult` export in `client.ts` and missing required `@uiContract` tag in `contracts/button.tsx`.",
+        "This indicates governance metadata and contract source files are not synchronized, reducing trust in quality-gate health."
+      ],
+      "suggestion": "Restore gate integrity in three steps: 1) decide whether `getSupabaseClientResult` is public contract and either add it to `config/contracts/registry.json` or make it internal; 2) add required `@uiContract` tag to `src/shared/components/ui/contracts/button.tsx`; 3) enforce a CI pre-merge job running `npm run quality:check` with no allowed skips.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "governance_artifact_drift"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "generation_type_surface_fragmentation",
+      "summary": "Generation/shot type ownership is split across canonical and legacy packages",
+      "related_files": [
+        "src/domains/generation/types/index.ts",
+        "src/types/generationAndShots.ts",
+        "src/domains/generation/hooks/useGenerationMutations.ts",
+        "src/tools/travel-between-images/components/VideoShotDisplay.tsx",
+        "scripts/quality/check-shots-shim-usage.mjs"
+      ],
+      "evidence": [
+        "Canonical domain type barrel exists at `src/domains/generation/types/index.ts`, but compatibility surface in `src/types/*` remains actively referenced.",
+        "Two production modules still import `@/types/shots`, and the zero-budget gate fails (`[shots-shim-check] FAILED: found 2 imports ... max allowed: 0`).",
+        "Directory-profile evidence shows both directories are active (`src/domains/generation/types/` avg fan-in 25.3; `src/types/` avg fan-in 6.3), indicating unresolved package boundary transition."
+      ],
+      "suggestion": "Staged reorg plan: 1) move all generation/shot consumers to `@/domains/generation/types` (start with `useGenerationMutations.ts`, `VideoShotDisplay.tsx`); 2) keep `src/types/generationAndShots.ts|generationRow.ts|shot.ts` as temporary no-import deprecation stubs; 3) remove `@/types/shots` alias path entirely; 4) validate with `node scripts/quality/check-shots-shim-usage.mjs --max 0`, `npm run test:contracts`, and `npm run typecheck:strict-probe` before deleting residual shims.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "compatibility_shim_residue"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Governance rules are duplicated across docs, tests, and scripts without a single executable source of truth.",
+      "Compatibility migrations retained interim shims but did not enforce one deprecation lane consistently across all gates.",
+      "Contract checks emphasize export-shape enforcement while allowing behavioral and documentation contract drift."
+    ],
+    "likely_symptoms": [
+      "supabase_policy_source_of_truth_split",
+      "governance_docs_runtime_drift",
+      "contract_gate_not_green_on_head",
+      "generation_type_surface_fragmentation"
+    ],
+    "possible_false_positives": []
+  }
+}

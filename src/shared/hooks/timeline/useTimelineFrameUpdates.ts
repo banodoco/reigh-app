@@ -124,7 +124,7 @@ export function useTimelineFrameUpdates({
           });
         }
 
-        refetchTimelineFrameCaches(queryClient, shotId, projectId);
+        await refetchTimelineFrameCaches(queryClient, shotId, projectId);
       },
       logQueuePhase,
     );
@@ -185,7 +185,7 @@ export function useTimelineFrameUpdates({
             ignoreTimeout: true,
           });
 
-          refetchTimelineFrameCaches(queryClient, shotId, projectId, true);
+          await refetchTimelineFrameCaches(queryClient, shotId, projectId, true);
           log(`${TIMELINE_FRAME_LOG_PREFIX} batchExchange cache refetch triggered`, {
             shotId: shortId(shotId),
             changedCount: canonicalUpdates.length,
@@ -316,7 +316,7 @@ export function useTimelineFrameUpdates({
           throw error;
         }
 
-        refetchTimelineFrameCaches(queryClient, shotId, projectId, true);
+        await refetchTimelineFrameCaches(queryClient, shotId, projectId, true);
         log(`${TIMELINE_FRAME_LOG_PREFIX} midpoint cache refetch triggered`, {
           shotId: shortId(shotId),
           changedCount: changedUpdates.length,

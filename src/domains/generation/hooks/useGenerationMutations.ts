@@ -16,8 +16,15 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
+import {
+  createGenerationPrimaryVariant,
+  createGenerationRecord,
+  deleteGenerationByScope,
+  deleteGenerationVariantByScope,
+  updateGenerationLocationByScope,
+  updateGenerationStarByScope,
+} from '@/integrations/supabase/repositories/generationMutationsRepository';
 import {
   normalizeAndPresentAndRethrow,
   normalizeAndPresentError,
@@ -126,12 +133,12 @@ async function updateGenerationLocation(
     updateData.thumbnail_url = params.thumbUrl;
   }
 
-  const { data, error } = await supabase()
-    .from('generations')
-    .update(updateData)
-    .eq('id', params.id)
-    .eq('project_id', projectId)
-    .select('id');
+  const { data, error } = await updateGenerationLocationByScope({
+    id: params.id,
+    projectId,
+    location: updateData.location,
+    thumbnailUrl: updateData.thumbnail_url,
+  });
 
   if (error) {
     normalizeAndPresentAndRethrow(error, {
@@ -183,17 +190,13 @@ async function createGeneration(params: {
     generationParams.aspect_ratio = params.aspectRatio;
   }
 
-  const { data, error } = await supabase()
-    .from('generations')
-    .insert({
-      location: params.imageUrl,
-      thumbnail_url: params.thumbnailUrl || params.imageUrl, // Use thumbnail URL if provided, fallback to main image
-      type: params.fileType || 'image',
-      project_id: params.projectId,
-      params: generationParams,
-    })
-    .select()
-    .single();
+  const { data, error } = await createGenerationRecord({
+    imageUrl: params.imageUrl,
+    thumbnailUrl: params.thumbnailUrl || params.imageUrl,
+    fileType: params.fileType || 'image',
+    projectId: params.projectId,
+    generationParams,
+  });
 
   if (error || !data) {
     normalizeAndPresentAndRethrow(error ?? new Error('Failed to create generation'), {
@@ -204,17 +207,13 @@ async function createGeneration(params: {
   }
 
   // Create the original variant for this generation
-  const { error: variantError } = await supabase()
-    .from('generation_variants')
-    .insert({
-      generation_id: data.id,
-      location: params.imageUrl,
-      thumbnail_url: params.thumbnailUrl || params.imageUrl,
-      is_primary: true,
-      variant_type: VARIANT_TYPE.ORIGINAL,
-      name: 'Original',
-      params: generationParams,
-    });
+  const { error: variantError } = await createGenerationPrimaryVariant({
+    generationId: data.id,
+    imageUrl: params.imageUrl,
+    thumbnailUrl: params.thumbnailUrl || params.imageUrl,
+    generationParams,
+    variantType: VARIANT_TYPE.ORIGINAL,
+  });
 
   if (variantError) {
     normalizeAndPresentAndRethrow(variantError, {
@@ -241,12 +240,11 @@ async function toggleGenerationStar(params: ScopedGenerationInput & { starred: b
     'useGenerationMutations.toggleGenerationStar.scopeValidation',
   );
 
-  const { data, error } = await supabase()
-    .from('generations')
-    .update({ starred: params.starred })
-    .eq('id', params.id)
-    .eq('project_id', projectId)
-    .select('id, starred');
+  const { data, error } = await updateGenerationStarByScope({
+    id: params.id,
+    projectId,
+    starred: params.starred,
+  });
 
   if (error) {
     normalizeAndPresentAndRethrow(error, {
@@ -289,12 +287,10 @@ function useDeleteFromTable(table: 'generations' | 'generation_variants', entity
           `useGenerationMutations.useDeleteFromTable.${table}.scopeValidation`,
         );
 
-        const { data, error } = await supabase()
-          .from(table)
-          .delete()
-          .eq('id', input.id)
-          .eq('project_id', projectId)
-          .select('id');
+        const { data, error } = await deleteGenerationByScope({
+          id: input.id,
+          projectId,
+        });
 
         if (error) {
           normalizeAndPresentAndRethrow(error, {
@@ -320,12 +316,10 @@ function useDeleteFromTable(table: 'generations' | 'generation_variants', entity
         projectId,
         `useGenerationMutations.useDeleteFromTable.${table}.scopeValidation`,
       );
-      const { data, error } = await supabase()
-        .from(table)
-        .delete()
-        .eq('id', input.id)
-        .eq('generation_id', variantScope.generationId)
-        .select('id');
+      const { data, error } = await deleteGenerationVariantByScope({
+        id: input.id,
+        generationId: variantScope.generationId,
+      });
 
       if (error) {
         normalizeAndPresentAndRethrow(error, {

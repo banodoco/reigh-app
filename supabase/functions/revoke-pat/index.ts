@@ -9,6 +9,7 @@ serve(async (req) => {
     logPrefix: "[REVOKE-PAT]",
     parseBody: "strict",
     auth: {
+      required: true,
       options: { allowJwtUserAuth: true },
     },
     runtimeOptions: {
@@ -24,18 +25,17 @@ serve(async (req) => {
     return bootstrap.response;
   }
   const { supabaseAdmin, logger, auth, body } = bootstrap.value;
+  if (!auth?.userId) {
+    logger.error('Authentication failed');
+    await logger.flush();
+    return jsonResponse({ error: 'Authentication failed' }, 401);
+  }
 
   try {
-    if (!auth?.userId) {
-      logger.error('Authentication failed');
-      await logger.flush();
-      return jsonResponse({ error: 'Authentication failed' }, 401);
-    }
-
     const tokenId = typeof body.tokenId === 'string' ? body.tokenId : null;
 
     if (!tokenId) {
-      logger.error('Missing tokenId');
+      logger.error('Missing credential identifier');
       await logger.flush();
       return jsonResponse({ error: 'tokenId is required' }, 400);
     }
@@ -53,7 +53,7 @@ serve(async (req) => {
       return jsonResponse({ error: 'Failed to revoke token' }, 500);
     }
 
-    logger.info('Revoked PAT token', { user_id: auth.userId, token_id: tokenId });
+    logger.info('Revoked API credential', { user_id: auth.userId });
     await logger.flush();
     return jsonResponse({ success: true });
   } catch (error: unknown) {

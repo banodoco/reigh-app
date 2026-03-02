@@ -46,6 +46,18 @@ describe('complete_task params helpers', () => {
     });
   });
 
+  it('does not coerce non-string shot ids from malformed payloads', () => {
+    expect(
+      extractShotAndPosition({
+        shot_id: 1234,
+        add_in_position: '1',
+      }),
+    ).toEqual({
+      shotId: undefined,
+      addInPosition: true,
+    });
+  });
+
   it('sets thumbnail URL based on task type config without mutating input', () => {
     const input = { full_orchestrator_payload: { existing: true } };
     const updated = setThumbnailInParams(input, 'travel_stitch', 'https://thumb.test/file.webp');

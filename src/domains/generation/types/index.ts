@@ -8,5 +8,6 @@ export type {
   PairLoraConfig,
   PairMotionSettings,
 } from './generationMetadata';
-export type { GenerationRow } from './generationRow';
-export type { Shot, ShotOption } from './shot';
+export type { GenerationRow } from './generationViewRow';
+export type { Shot } from './shotViewRow';
+export type { PersistedShotRow, ShotOption } from './shot';

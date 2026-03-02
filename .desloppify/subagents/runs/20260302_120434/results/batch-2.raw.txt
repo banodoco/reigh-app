@@ -1,0 +1,101 @@
+{
+  "batch": "Design coherence — Mechanical Concern Signals",
+  "batch_index": 2,
+  "assessments": {
+    "api_surface_coherence": 76.4
+  },
+  "dimension_notes": {
+    "api_surface_coherence": {
+      "evidence": [
+        "Confirmed mechanical signal in `src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx`: dead-internal-code pattern exists via `void cacheVersion;` inside `enhancedMedia` memo, indicating API/state synchronization is being forced indirectly instead of through a clear contract.",
+        "Confirmed mechanical signal in `src/shared/components/MediaLightbox/components/StrokeOverlay.tsx`: the public prop surface combines overlapping mode controls (`isInpaintMode`, `isAnnotateMode`, `annotationMode`, and `editMode`) plus many behavioral callbacks, which creates invalid-state combinations and mode ambiguity at call boundaries.",
+        "Refuted mechanical signal for `src/domains/generation/hooks/useGenerationMutations.ts`: current file does not contain public async APIs without awaits; flagged async smell appears stale or non-material for API coherence.",
+        "Refuted mechanical signal for `src/integrations/supabase/bootstrap/createSupabaseClient.ts`: the core exported API is synchronous and coherent for bootstrap; detector hit is likely from an internal async callback shape, not a boundary-level contract defect.",
+        "Refuted signature-variance signals for `handleKeyDown` and `handleTouchStart/End` in `ProjectSelectorPopover` and `ReferenceThumbnail`: these are local component handlers with React/DOM event-type differences, not shared exported APIs.",
+        "Refuted `generateUniqueFilename` variance signal for `src/shared/components/LoraSelectorModal/utils/validation-utils.ts`: that module exports `generateUniqueLoraFilename`; similarly named `generateUniqueFilename` belongs to `src/shared/lib/storagePaths.ts` and is a separate domain utility.",
+        "Systemic coherence issue remains in lightbox and upload subsystems: multiple parallel adapter/flat contracts and legacy positional APIs increase indirection and behavior drift risk."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "lightbox_parallel_contracts",
+      "summary": "Media lightbox exposes two parallel API surfaces (flat props and grouped adapter), causing contract duplication and drift risk.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/MediaLightbox.tsx",
+        "src/shared/components/MediaLightbox/MediaLightboxInputAdapter.tsx",
+        "src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx"
+      ],
+      "evidence": [
+        "`MediaLightboxProps` defines a large flat surface while `MediaLightboxInputAdapter` re-groups nearly the same fields into `core/navigation/shotWorkflow/actions/...` and then flattens them again in `toMediaLightboxProps`.",
+        "`MediaGalleryLightbox` must construct a deep adapter object and maintain conversion logic for values like `isDeleting`, showing boundary indirection rather than a single stable contract.",
+        "The same behavior fields (`onAddToShot`, navigation handlers, feature flags) are repeated across multiple interfaces, increasing mismatch risk when one side evolves."
+      ],
+      "suggestion": "Adopt one canonical public contract for lightbox boundaries (prefer grouped domain contracts), and generate any compatibility mapping in one place with compile-time exhaustiveness checks; remove duplicate flat/grouped definitions.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "lightbox_contract_fragmentation"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "ambiguous_deletion_state_contract",
+      "summary": "Deletion status uses incompatible union semantics across lightbox boundaries (`boolean|string|null` vs `string|null`), forcing ad-hoc coercion.",
+      "related_files": [
+        "src/shared/components/MediaGallery/components/MediaGalleryLightbox.tsx",
+        "src/shared/components/MediaLightbox/types.ts",
+        "src/shared/components/MediaLightbox/MediaLightbox.tsx"
+      ],
+      "evidence": [
+        "`MediaGalleryLightboxActionContract` accepts `isDeleting?: string | boolean | null`, mixing 'any deletion in progress' and 'specific id deleting' semantics.",
+        "Downstream lightbox action types normalize `isDeleting` to `string | null`, so `MediaGalleryLightbox` must coerce boolean into an id-like value (`resolvedDeletingId`).",
+        "This loses semantic precision and can disable controls based on approximated state rather than explicit deletion target identity."
+      ],
+      "suggestion": "Replace `isDeleting` unions with a discriminated status contract (for example `{ kind: 'idle' } | { kind: 'pendingAny' } | { kind: 'pendingId', id: string }`) and propagate it consistently through adapter and lightbox types.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "lightbox_contract_fragmentation"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "upload_api_signature_drift",
+      "summary": "Image and video upload APIs in shared lib have diverged into incompatible signatures, leaving legacy positional parameters in active use.",
+      "related_files": [
+        "src/shared/lib/imageUploader.ts",
+        "src/shared/lib/videoUploader.ts",
+        "src/tools/travel-between-images/components/Timeline/TimelineContainer/components/GuidanceVideoControls.tsx",
+        "src/tools/join-clips/lib/clipManager/upload.ts"
+      ],
+      "evidence": [
+        "`uploadImageToStorage` uses `(file, maxRetriesOrOptions?, onProgress?)` with an options-object path.",
+        "`uploadVideoToStorage` still requires deprecated positional `_projectId` and `_shotId` args (unused internally) plus mixed options handling.",
+        "Call sites still pass project/shot positional args (`uploadVideoToStorage(file, projectId!, shotId)`), preserving an API shape that no longer matches behavior and differs from image upload conventions."
+      ],
+      "suggestion": "Create a single upload contract shape for media (`uploadMediaToStorage` options object or aligned `uploadVideoToStorage` v2), deprecate positional args with a typed migration shim, and update call sites in one refactor pass.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "legacy_boundary_compatibility"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Boundary contracts are evolving via additive wrappers and compatibility shims instead of consolidating to one canonical interface per subsystem.",
+      "State semantics are encoded as permissive unions rather than explicit state models, forcing downstream coercion."
+    ],
+    "likely_symptoms": [
+      "lightbox_parallel_contracts",
+      "ambiguous_deletion_state_contract",
+      "upload_api_signature_drift"
+    ],
+    "possible_false_positives": [
+      "Detector hits based on common local handler names (`handleKeyDown`, `handleTouchEnd`) are often lexical collisions rather than shared API incoherence.",
+      "Function-name similarity (`generateUniqueFilename`) across unrelated modules can be mis-scoped by signature detectors."
+    ]
+  }
+}

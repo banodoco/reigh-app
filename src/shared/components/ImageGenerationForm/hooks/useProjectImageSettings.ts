@@ -6,22 +6,26 @@
  */
 
 import { useMemo } from 'react';
-import { useProject } from '@/shared/contexts/ProjectContext';
+import {
+  useProjectCrudContext,
+  useProjectSelectionContext,
+} from '@/shared/contexts/ProjectContext';
 import { useToolSettings, extractSettingsFromCache } from '@/shared/hooks/useToolSettings';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { useQueryClient } from '@tanstack/react-query';
 import { settingsQueryKeys } from '@/shared/lib/queryKeys/settings';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
 import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
-import { useHydratedReferences } from '@/shared/hooks/useHydratedReferences';
 import { useReferenceSelection } from './useReferenceSelection';
 import { useLegacyMigrations } from './useLegacyMigrations';
+import { useHydratedReferences } from './useHydratedReferences';
 
 import type { ProjectImageSettings } from '../types';
 import type { ProjectImageSettingsInput } from './legacyMigrations/legacyProjectImageSettings';
 
 export function useProjectImageSettings(associatedShotId: string | null) {
-  const { selectedProjectId, projects } = useProject();
+  const { selectedProjectId } = useProjectSelectionContext();
+  const { projects } = useProjectCrudContext();
   const queryClient = useQueryClient();
 
   // Derive project aspect ratio and resolution for GenerationSettingsSection

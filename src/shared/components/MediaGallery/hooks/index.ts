@@ -3,8 +3,6 @@ export { useMediaGalleryStateOptimized as useMediaGalleryState } from './useMedi
 export { useMediaGalleryFiltersOptimized as useMediaGalleryFilters } from './useMediaGalleryFiltersOptimized';
 export { useMediaGalleryPagination } from './useMediaGalleryPagination';
 export { useMediaGalleryActions } from './useMediaGalleryActions';
-export { useMobileInteractions } from './useMobileInteractions';
 export { useContainerWidth, useContainerDimensions } from './useContainerWidth';
 export { useLightboxNavigation } from './useLightboxNavigation';
-export { useMediaGalleryHandlers } from './useMediaGalleryHandlers';
 export { useMediaGalleryInteractionController } from './useMediaGalleryInteractionController';
