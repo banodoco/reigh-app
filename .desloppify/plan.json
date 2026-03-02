@@ -1,12 +1,8 @@
 {
   "version": 4,
   "created": "2026-03-02T01:10:28+00:00",
-  "updated": "2026-03-02T18:18:24+00:00",
+  "updated": "2026-03-02T18:32:50+00:00",
   "queue_order": [
-    "review::.::holistic::package_organization::react_hook_in_lib_layer::8a45db87",
-    "review::.::holistic::high_level_elegance::dataset_browser_multi_responsibility_boundary::276834e4",
-    "review::.::holistic::high_level_elegance::lightbox_state_via_global_css_contract::3d96b62f",
-    "review::.::holistic::initialization_coupling::supabase_runtime_boot_order_contract::e5d981fe",
     "review::.::holistic::initialization_coupling::window_global_singleton_escape_hatches::7309c41e",
     "review::.::holistic::design_coherence::lightbox_adapter_overfragmentation::74d6e7d3",
     "review::.::holistic::high_level_elegance::governance_docs_runtime_drift::2a579b1e",
@@ -13074,14 +13070,14 @@
     "review::.::holistic::high_level_elegance::lightbox_state_via_global_css_contract::3d96b62f": {
       "finding_id": "review::.::holistic::high_level_elegance::lightbox_state_via_global_css_contract::3d96b62f",
       "created_at": "2026-03-02T17:48:06+00:00",
-      "cluster": "synth-lightbox-contracts",
-      "updated_at": "2026-03-02T17:48:06+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T18:29:24+00:00"
     },
     "review::.::holistic::high_level_elegance::dataset_browser_multi_responsibility_boundary::276834e4": {
       "finding_id": "review::.::holistic::high_level_elegance::dataset_browser_multi_responsibility_boundary::276834e4",
       "created_at": "2026-03-02T17:48:06+00:00",
-      "cluster": "synth-lightbox-contracts",
-      "updated_at": "2026-03-02T17:48:06+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T18:26:22+00:00"
     },
     "review::.::holistic::initialization_coupling::supabase_dual_init_gates::097f9a89": {
       "finding_id": "review::.::holistic::initialization_coupling::supabase_dual_init_gates::097f9a89",
@@ -13098,8 +13094,8 @@
     "review::.::holistic::initialization_coupling::supabase_runtime_boot_order_contract::e5d981fe": {
       "finding_id": "review::.::holistic::initialization_coupling::supabase_runtime_boot_order_contract::e5d981fe",
       "created_at": "2026-03-02T17:48:07+00:00",
-      "cluster": "synth-runtime-init-coupling",
-      "updated_at": "2026-03-02T17:48:07+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T18:32:50+00:00"
     },
     "review::.::holistic::initialization_coupling::window_global_singleton_escape_hatches::7309c41e": {
       "finding_id": "review::.::holistic::initialization_coupling::window_global_singleton_escape_hatches::7309c41e",
@@ -13128,8 +13124,8 @@
     "review::.::holistic::package_organization::react_hook_in_lib_layer::8a45db87": {
       "finding_id": "review::.::holistic::package_organization::react_hook_in_lib_layer::8a45db87",
       "created_at": "2026-03-02T17:48:08+00:00",
-      "cluster": "synth-contract-boundaries",
-      "updated_at": "2026-03-02T17:48:08+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T18:21:21+00:00"
     },
     "review::.::holistic::package_organization::shared_root_flattening_catchall::d6c966e4": {
       "finding_id": "review::.::holistic::package_organization::shared_root_flattening_catchall::d6c966e4",
@@ -15406,9 +15402,7 @@
       "finding_ids": [
         "review::.::holistic::design_coherence::lightbox_adapter_overfragmentation::74d6e7d3",
         "review::.::holistic::design_coherence::lightbox_passthrough_abstraction_debt::700b5d25",
-        "review::.::holistic::design_coherence::lightbox_workflow_controls_duplication::ea885cec",
-        "review::.::holistic::high_level_elegance::lightbox_state_via_global_css_contract::3d96b62f",
-        "review::.::holistic::high_level_elegance::dataset_browser_multi_responsibility_boundary::276834e4"
+        "review::.::holistic::design_coherence::lightbox_workflow_controls_duplication::ea885cec"
       ],
       "created_at": "2026-03-02T17:48:05+00:00",
       "updated_at": "2026-03-02T17:48:06+00:00",
@@ -15428,7 +15422,6 @@
       "finding_ids": [
         "review::.::holistic::initialization_coupling::supabase_dual_init_gates::097f9a89",
         "review::.::holistic::initialization_coupling::supabase_global_runtime_order_dependency::4f8699e2",
-        "review::.::holistic::initialization_coupling::supabase_runtime_boot_order_contract::e5d981fe",
         "review::.::holistic::initialization_coupling::window_global_singleton_escape_hatches::7309c41e"
       ],
       "created_at": "2026-03-02T17:48:07+00:00",
@@ -15449,7 +15442,6 @@
       "finding_ids": [
         "review::.::holistic::incomplete_migration::legacy_generation_aliases_still_first_class::0afb1342",
         "review::.::holistic::package_organization::generation_type_surface_fragmentation::98cfadb0",
-        "review::.::holistic::package_organization::react_hook_in_lib_layer::8a45db87",
         "review::.::holistic::package_organization::thin_wrapper_dirs_fragment_image_edit_ownership::34bf2b5f",
         "review::.::holistic::high_level_elegance::governance_docs_runtime_drift::2a579b1e",
         "review::.::holistic::test_strategy::contract_gate_not_green_on_head::593f7afc",
@@ -20706,17 +20698,15 @@
   },
   "epic_synthesis_meta": {
     "synthesis_stages": {},
-    "finding_snapshot_hash": "fb0d7e5af6f3300f",
-    "strategy_summary": "Continue queue-first with current dependency-safe order. First execute synth-contract-boundaries to finish package_organization and contract/test-surface corrections, including ownership moves and governance checks. Second execute synth-lightbox-contracts to remove pass-through indirection and clarify explicit state/data flow. Third execute synth-runtime-init-coupling to eliminate mutable bootstrap/global coupling around Supabase and runtime managers. After each item, run focused unit tests and  before  to verify no behavior regressions and preserve stable imports/contracts.",
+    "finding_snapshot_hash": "69f9cc2ee401c543",
+    "strategy_summary": "Continue queue-first with dependency-aware cluster ordering. Prioritize synth-runtime-init-coupling and synth-contract-boundaries to finish explicit runtime readiness contracts, governance/test-surface repairs, and ownership boundary cleanup that remove hidden initialization risk. Follow with synth-lightbox-contracts and remaining high_level_elegance cleanup once runtime seams are stable. Validate each completed item with focused unit tests and no-emit TypeScript checks before marking done so behavior contracts and import stability remain intact.",
     "trigger": "manual_synthesis",
-    "last_completed_at": "2026-03-02T18:18:02+00:00",
+    "last_completed_at": "2026-03-02T18:32:40+00:00",
     "synthesized_ids": [
       "review::.::holistic::design_coherence::lightbox_adapter_overfragmentation::74d6e7d3",
       "review::.::holistic::design_coherence::lightbox_passthrough_abstraction_debt::700b5d25",
       "review::.::holistic::design_coherence::lightbox_workflow_controls_duplication::ea885cec",
-      "review::.::holistic::high_level_elegance::dataset_browser_multi_responsibility_boundary::276834e4",
       "review::.::holistic::high_level_elegance::governance_docs_runtime_drift::2a579b1e",
-      "review::.::holistic::high_level_elegance::lightbox_state_via_global_css_contract::3d96b62f",
       "review::.::holistic::incomplete_migration::legacy_generation_aliases_still_first_class::0afb1342",
       "review::.::holistic::initialization_coupling::supabase_dual_init_gates::097f9a89",
       "review::.::holistic::initialization_coupling::supabase_global_runtime_order_dependency::4f8699e2",
@@ -20724,46 +20714,46 @@
       "review::.::holistic::initialization_coupling::window_global_singleton_escape_hatches::7309c41e",
       "review::.::holistic::logic_clarity::stored_prompt_count_nan_path::9a419c06",
       "review::.::holistic::package_organization::generation_type_surface_fragmentation::98cfadb0",
-      "review::.::holistic::package_organization::react_hook_in_lib_layer::8a45db87",
-      "review::.::holistic::package_organization::shared_root_flattening_catchall::d6c966e4",
       "review::.::holistic::package_organization::thin_wrapper_dirs_fragment_image_edit_ownership::34bf2b5f",
       "review::.::holistic::test_strategy::contract_gate_not_green_on_head::593f7afc",
       "review::.::holistic::test_strategy::instrumentation_tests_are_symbol_only::1648aee5",
       "review::.::holistic::type_safety::mapper_unsafe_casts_hide_invalid_payloads::753c610b"
     ],
     "last_synthesis": {
-      "completed_at": "2026-03-02T18:18:02+00:00",
+      "completed_at": "2026-03-02T18:32:40+00:00",
       "stages": {
         "observe": {
           "stage": "observe",
-          "report": "Reviewed recent queue deltas after shared-boundary moves; new findings align with existing contract-boundary and runtime-coupling themes and do not introduce conflicting dependencies.",
+          "report": "Reviewed current review deltas after Supabase runtime registry/readiness changes; remaining findings still map to existing cluster themes without contradictory remediation directions.",
           "cited_ids": [],
-          "timestamp": "2026-03-02T18:17:46+00:00",
-          "finding_count": 19,
-          "confirmed_at": "2026-03-02T18:17:46+00:00",
-          "confirmed_text": "I reviewed the observe-stage findings directly, including package_organization and runtime coupling deltas, and confirmed no contradictory execution constraints."
+          "timestamp": "2026-03-02T18:32:27+00:00",
+          "finding_count": 15,
+          "confirmed_at": "2026-03-02T18:32:28+00:00",
+          "confirmed_text": "I reviewed initialization_coupling and design_coherence findings in observe stage and confirmed no contradictory dependencies were introduced."
         },
         "reflect": {
           "stage": "reflect",
-          "report": "Maintain queue-first order: finish contract-boundary and test-surface cleanup before broader runtime/bootstrap decoupling and lightbox abstraction consolidation.",
+          "report": "Recurring high_level_elegance remains active alongside initialization_coupling, so keep queue-first with synth-runtime-init-coupling and synth-contract-boundaries first, then finish remaining lightbox/high-level-elegance cleanup.",
           "cited_ids": [],
-          "timestamp": "2026-03-02T18:17:47+00:00",
-          "finding_count": 19,
-          "recurring_dimensions": [],
-          "confirmed_at": "2026-03-02T18:17:56+00:00",
-          "confirmed_text": "I reviewed package_organization and initialization_coupling findings and confirmed synth-contract-boundaries should remain first in execution order."
+          "timestamp": "2026-03-02T18:32:38+00:00",
+          "finding_count": 15,
+          "recurring_dimensions": [
+            "high_level_elegance"
+          ],
+          "confirmed_at": "2026-03-02T18:32:39+00:00",
+          "confirmed_text": "I reviewed high_level_elegance and initialization_coupling and confirmed synth-runtime-init-coupling should remain in the first execution wave."
         },
         "organize": {
           "stage": "organize",
-          "report": "Reused existing cluster organization with unchanged dependency flow: synth-contract-boundaries before synth-lightbox-contracts and synth-runtime-init-coupling.",
+          "report": "Retained dependency order: synth-runtime-init-coupling and synth-contract-boundaries first, then synth-lightbox-contracts.",
           "cited_ids": [],
-          "timestamp": "2026-03-02T18:17:57+00:00",
+          "timestamp": "2026-03-02T18:32:39+00:00",
           "finding_count": 3,
-          "confirmed_at": "2026-03-02T18:17:57+00:00",
-          "confirmed_text": "I verified synth-contract-boundaries and synth-lightbox-contracts sequencing and confirmed cluster coverage remains actionable."
+          "confirmed_at": "2026-03-02T18:32:40+00:00",
+          "confirmed_text": "I verified synth-runtime-init-coupling and synth-contract-boundaries sequencing and confirmed cluster coverage remains coherent."
         }
       },
-      "strategy": "Continue queue-first with current dependency-safe order. First execute synth-contract-boundaries to finish package_organization and contract/test-surface corrections, including ownership moves and governance checks. Second execute synth-lightbox-contracts to remove pass-through indirection and clarify explicit state/data flow. Third execute synth-runtime-init-coupling to eliminate mutable bootstrap/global coupling around Supabase and runtime managers. After each item, run focused unit tests and  before  to verify no behavior regressions and preserve stable imports/contracts."
+      "strategy": "Continue queue-first with dependency-aware cluster ordering. Prioritize synth-runtime-init-coupling and synth-contract-boundaries to finish explicit runtime readiness contracts, governance/test-surface repairs, and ownership boundary cleanup that remove hidden initialization risk. Follow with synth-lightbox-contracts and remaining high_level_elegance cleanup once runtime seams are stable. Validate each completed item with focused unit tests and no-emit TypeScript checks before marking done so behavior contracts and import stability remain intact."
     }
   },
   "execution_log": [
@@ -24067,13 +24057,497 @@
         "status": "fixed",
         "attestation": "I have actually moved the flagged modules, updated import consumers and tests, and I am not gaming the score by resolving without fixing."
       }
+    },
+    {
+      "timestamp": "2026-03-02T18:20:45+00:00",
+      "action": "done",
+      "finding_ids": [
+        "review::.::holistic::package_organization::react_hook_in_lib_layer::8a45db87"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Moved the React Query generation-task hook from src/shared/lib/generationTaskBridge.ts into src/shared/hooks/tasks/usePrimaryTaskMapping.ts, updated all import consumers/tests, and removed the lib-layer hook module.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T18:21:10+00:00",
+      "action": "synthesis_observe",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "finding_count": 18,
+        "cited_ids": [],
+        "reuse": false
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:21:10+00:00",
+      "action": "synthesis_confirm_observe",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "attestation": "I reviewed package_organization and design_coherence findings in the observe stage and confirmed no contradictory dependencies were introduced."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:21:11+00:00",
+      "action": "synthesis_reflect",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "finding_count": 18,
+        "recurring_dims": [
+          "package_organization"
+        ],
+        "reuse": false
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:21:11+00:00",
+      "action": "synthesis_confirm_reflect",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "attestation": "I reviewed package_organization and initialization_coupling and confirmed synth-contract-boundaries remains the first cluster to execute safely."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:21:12+00:00",
+      "action": "synthesis_organize",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "cluster_count": 3,
+        "reuse": false
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:21:12+00:00",
+      "action": "synthesis_confirm_organize",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "attestation": "I verified synth-contract-boundaries and synth-lightbox-contracts ordering and confirmed cluster coverage remains actionable.",
+        "coverage": "18/18"
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:21:13+00:00",
+      "action": "synthesis_complete",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "strategy_len": 660,
+        "coverage": "18/18"
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:21:20+00:00",
+      "action": "done",
+      "finding_ids": [
+        "review::.::holistic::package_organization::react_hook_in_lib_layer::8a45db87"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Moved the React Query generation-task hook from src/shared/lib/generationTaskBridge.ts into src/shared/hooks/tasks/usePrimaryTaskMapping.ts, updated import consumers/tests, and removed the lib-layer hook module.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T18:21:21+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "review::.::holistic::package_organization::react_hook_in_lib_layer::8a45db87"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Moved the React Query generation-task hook from src/shared/lib/generationTaskBridge.ts into src/shared/hooks/tasks/usePrimaryTaskMapping.ts, updated import consumers/tests, and removed the lib-layer hook module.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually moved the hook out of shared/lib, updated references, and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:25:56+00:00",
+      "action": "done",
+      "finding_ids": [
+        "review::.::holistic::high_level_elegance::dataset_browser_multi_responsibility_boundary::276834e4"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Split resource-browser responsibilities by extracting a shared feature hook (useResourceBrowserData) and grid renderer (ResourceBrowserGrid), added mode-specific adapters (StyleReferenceBrowserModal/StructureVideoBrowserModal), retained DatasetBrowserModal as compatibility wrapper, and migrated call sites to the domain adapters.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T18:26:04+00:00",
+      "action": "synthesis_observe",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "finding_count": 17,
+        "cited_ids": [],
+        "reuse": false
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:26:05+00:00",
+      "action": "synthesis_confirm_observe",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "attestation": "I reviewed high_level_elegance and package_organization findings in observe stage and confirmed there are no contradictory dependencies."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:26:14+00:00",
+      "action": "synthesis_reflect",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "finding_count": 17,
+        "recurring_dims": [
+          "package_organization"
+        ],
+        "reuse": false
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:26:14+00:00",
+      "action": "synthesis_confirm_reflect",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "attestation": "I reviewed package_organization and initialization_coupling and confirmed synth-contract-boundaries remains first in the execution sequence."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:26:15+00:00",
+      "action": "synthesis_organize",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "cluster_count": 3,
+        "reuse": false
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:26:15+00:00",
+      "action": "synthesis_confirm_organize",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "attestation": "I verified synth-contract-boundaries and synth-lightbox-contracts sequencing and confirmed cluster coverage remains coherent.",
+        "coverage": "17/17"
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:26:16+00:00",
+      "action": "synthesis_complete",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "strategy_len": 620,
+        "coverage": "17/17"
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:26:22+00:00",
+      "action": "done",
+      "finding_ids": [
+        "review::.::holistic::high_level_elegance::dataset_browser_multi_responsibility_boundary::276834e4"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Split resource-browser responsibilities by extracting a shared feature hook (useResourceBrowserData) and grid renderer (ResourceBrowserGrid), added mode-specific adapters (StyleReferenceBrowserModal/StructureVideoBrowserModal), retained DatasetBrowserModal as compatibility wrapper, and migrated call sites to the domain adapters.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T18:26:22+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "review::.::holistic::high_level_elegance::dataset_browser_multi_responsibility_boundary::276834e4"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Split resource-browser responsibilities by extracting a shared feature hook (useResourceBrowserData) and grid renderer (ResourceBrowserGrid), added mode-specific adapters (StyleReferenceBrowserModal/StructureVideoBrowserModal), retained DatasetBrowserModal as compatibility wrapper, and migrated call sites to the domain adapters.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually separated data, presentation, and domain adapter responsibilities for the browser modal and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:28:49+00:00",
+      "action": "done",
+      "finding_ids": [
+        "review::.::holistic::high_level_elegance::lightbox_state_via_global_css_contract::3d96b62f"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Replaced lightbox-open DOM-class observation with explicit feature state publication: added lightboxOpenState store, made useLightboxOpen consume that state, and updated useLightboxViewportLock to publish open/close lifecycle while retaining CSS class lock as a compatibility side effect.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T18:29:16+00:00",
+      "action": "synthesis_observe",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "finding_count": 16,
+        "cited_ids": [],
+        "reuse": false
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:29:16+00:00",
+      "action": "synthesis_confirm_observe",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "attestation": "I reviewed high_level_elegance and initialization_coupling findings in observe stage and confirmed no contradictory dependencies were introduced."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:29:16+00:00",
+      "action": "synthesis_reflect",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "finding_count": 16,
+        "recurring_dims": [
+          "high_level_elegance"
+        ],
+        "reuse": false
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:29:17+00:00",
+      "action": "synthesis_confirm_reflect",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "attestation": "I reviewed high_level_elegance and package_organization and confirmed synth-lightbox-contracts plus synth-contract-boundaries should remain the leading execution wave."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:29:17+00:00",
+      "action": "synthesis_organize",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "cluster_count": 3,
+        "reuse": false
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:29:18+00:00",
+      "action": "synthesis_confirm_organize",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "attestation": "I verified synth-lightbox-contracts and synth-contract-boundaries ordering and confirmed cluster coverage remains coherent.",
+        "coverage": "16/16"
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:29:18+00:00",
+      "action": "synthesis_complete",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "strategy_len": 559,
+        "coverage": "16/16"
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:29:23+00:00",
+      "action": "done",
+      "finding_ids": [
+        "review::.::holistic::high_level_elegance::lightbox_state_via_global_css_contract::3d96b62f"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Replaced lightbox-open DOM-class observation with explicit feature state publication: added lightboxOpenState store, made useLightboxOpen consume that state, and updated useLightboxViewportLock to publish open/close lifecycle while retaining CSS class lock as a compatibility side effect.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T18:29:24+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "review::.::holistic::high_level_elegance::lightbox_state_via_global_css_contract::3d96b62f"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Replaced lightbox-open DOM-class observation with explicit feature state publication: added lightboxOpenState store, made useLightboxOpen consume that state, and updated useLightboxViewportLock to publish open/close lifecycle while retaining CSS class lock as a compatibility side effect.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually replaced the CSS-class state contract with explicit lightbox open state publication and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:32:17+00:00",
+      "action": "done",
+      "finding_ids": [
+        "review::.::holistic::initialization_coupling::supabase_runtime_boot_order_contract::e5d981fe"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Introduced an explicit Supabase runtime registry/result contract in integrations/supabase/client, switched app bootstrap to initialize via initializeSupabaseResult() with graceful error handling, and updated generationTaskRepository to consume injected registry readiness (query_failed fallback) instead of throw-on-access getSupabaseClient semantics.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T18:32:27+00:00",
+      "action": "synthesis_observe",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "finding_count": 15,
+        "cited_ids": [],
+        "reuse": false
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:32:28+00:00",
+      "action": "synthesis_confirm_observe",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "attestation": "I reviewed initialization_coupling and design_coherence findings in observe stage and confirmed no contradictory dependencies were introduced."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:32:39+00:00",
+      "action": "synthesis_reflect",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "finding_count": 15,
+        "recurring_dims": [
+          "high_level_elegance"
+        ],
+        "reuse": false
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:32:39+00:00",
+      "action": "synthesis_confirm_reflect",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "attestation": "I reviewed high_level_elegance and initialization_coupling and confirmed synth-runtime-init-coupling should remain in the first execution wave."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:32:39+00:00",
+      "action": "synthesis_organize",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "cluster_count": 3,
+        "reuse": false
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:32:40+00:00",
+      "action": "synthesis_confirm_organize",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "attestation": "I verified synth-runtime-init-coupling and synth-contract-boundaries sequencing and confirmed cluster coverage remains coherent.",
+        "coverage": "15/15"
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:32:40+00:00",
+      "action": "synthesis_complete",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "strategy_len": 552,
+        "coverage": "15/15"
+      }
+    },
+    {
+      "timestamp": "2026-03-02T18:32:49+00:00",
+      "action": "done",
+      "finding_ids": [
+        "review::.::holistic::initialization_coupling::supabase_runtime_boot_order_contract::e5d981fe"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Introduced an explicit Supabase runtime registry/result contract in integrations/supabase/client, switched app bootstrap to initialize via initializeSupabaseResult() with graceful error handling, and updated generationTaskRepository to consume injected registry readiness (query_failed fallback) instead of throw-on-access getSupabaseClient semantics.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T18:32:50+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "review::.::holistic::initialization_coupling::supabase_runtime_boot_order_contract::e5d981fe"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Introduced an explicit Supabase runtime registry/result contract in integrations/supabase/client, switched app bootstrap to initialize via initializeSupabaseResult() with graceful error handling, and updated generationTaskRepository to consume injected registry readiness (query_failed fallback) instead of throw-on-access getSupabaseClient semantics.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually replaced throw-coupled Supabase readiness paths with explicit registry/result branching in the flagged runtime and repository surfaces, and I am not gaming the score by resolving without fixing."
+      }
     }
   ],
   "promoted_ids": [
-    "review::.::holistic::package_organization::react_hook_in_lib_layer::8a45db87",
-    "review::.::holistic::high_level_elegance::dataset_browser_multi_responsibility_boundary::276834e4",
-    "review::.::holistic::high_level_elegance::lightbox_state_via_global_css_contract::3d96b62f",
-    "review::.::holistic::initialization_coupling::supabase_runtime_boot_order_contract::e5d981fe",
     "review::.::holistic::initialization_coupling::window_global_singleton_escape_hatches::7309c41e",
     "review::.::holistic::design_coherence::lightbox_adapter_overfragmentation::74d6e7d3",
     "review::.::holistic::high_level_elegance::governance_docs_runtime_drift::2a579b1e",

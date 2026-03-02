@@ -1,239 +1,50 @@
 {
-  "command": "next",
-  "items": [
-    {
-      "id": "review::.::holistic::package_organization::react_hook_in_lib_layer::8a45db87",
-      "kind": "finding",
-      "tier": 1,
-      "effective_tier": 1,
-      "confidence": "high",
-      "detector": "review",
-      "file": ".",
-      "summary": "`shared/lib` contains React Query hook code, blurring utility vs runtime layer boundaries",
-      "detail": {
-        "holistic": true,
-        "dimension": "package_organization",
-        "related_files": [
-          "src/shared/lib/generationTaskBridge.ts",
-          "src/shared/components/TaskDetails/hooks/useGenerationTaskDetails.ts",
-          "src/shared/lib/generationTaskRepository.ts"
-        ],
-        "evidence": [
-          "`generationTaskBridge.ts` imports `useMutation` and exports `useGetPrimaryTaskIdForGeneration`, but lives under `shared/lib` where most files are non-React utility/repository code.",
-          "`useGenerationTaskDetails` consumes this hook from a `lib` path, forcing React runtime semantics to appear as a library concern.",
-          "The same file includes an `async` wrapper (`getPrimaryTaskMapping`) around direct repository forwarding, adding extra indirection in a mislayered module."
-        ],
-        "suggestion": "Staged move: Stage 1 create `src/shared/hooks/tasks/usePrimaryTaskMapping.ts` and move the hook there; keep a temporary re-export shim in old path. Stage 2 keep repository lookup (`getPrimaryTaskIdForGeneration`) in `generationTaskRepository.ts` only. Stage 3 update imports via `rg -l \"@/shared/lib/generationTaskBridge\" src` and rewrite to new hook path. Stage 4 remove shim after green checks with `npm run typecheck && npm run test -- useGenerationTaskDetails generationTaskBridge`.",
-        "reasoning": ""
-      },
-      "status": "open",
-      "primary_command": "desloppify plan done \"review::.::holistic::package_organization::react_hook_in_lib_layer::8a45db87\" --note \"<what you did>\" --confirm",
-      "queue_position": 1,
-      "plan_cluster": {
-        "name": "synth-contract-boundaries",
-        "description": "Tighten domain/transport boundaries, migration aliases, and contract tests",
-        "total_items": 9,
-        "sibling_ids": [
-          "review::.::holistic::incomplete_migration::legacy_generation_aliases_still_first_class::0afb1342",
-          "review::.::holistic::package_organization::generation_type_surface_fragmentation::98cfadb0",
-          "review::.::holistic::package_organization::react_hook_in_lib_layer::8a45db87",
-          "review::.::holistic::package_organization::thin_wrapper_dirs_fragment_image_edit_ownership::34bf2b5f",
-          "review::.::holistic::high_level_elegance::governance_docs_runtime_drift::2a579b1e",
-          "review::.::holistic::test_strategy::contract_gate_not_green_on_head::593f7afc",
-          "review::.::holistic::test_strategy::instrumentation_tests_are_symbol_only::1648aee5",
-          "review::.::holistic::type_safety::mapper_unsafe_casts_hide_invalid_payloads::753c610b",
-          "review::.::holistic::logic_clarity::stored_prompt_count_nan_path::9a419c06"
-        ]
-      }
+  "command": "show",
+  "query": "7309c41e",
+  "status_filter": "open",
+  "total": 1,
+  "summary": {
+    "by_tier": {
+      "T1": 1
     },
-    {
-      "id": "review::.::holistic::high_level_elegance::dataset_browser_multi_responsibility_boundary::276834e4",
-      "kind": "finding",
-      "tier": 1,
-      "effective_tier": 1,
-      "confidence": "high",
-      "detector": "review",
-      "file": ".",
-      "summary": "A single shared modal owns two resource domains plus data orchestration and auth access",
-      "detail": {
-        "holistic": true,
-        "dimension": "high_level_elegance",
-        "related_files": [
-          "src/shared/components/DatasetBrowserModal.tsx",
-          "src/shared/components/ImageGenerationForm/components/reference/ReferenceSection.tsx",
-          "src/shared/components/SegmentSettingsForm/components/StructureVideoSection.tsx",
-          "src/tools/travel-between-images/components/Timeline/TimelineContainer/TimelineContainer.tsx"
-        ],
-        "evidence": [
-          "`DatasetBrowserModal` contains item renderers, search/pagination state, ownership visibility toggles, Supabase session loading, and `useList*`/`useUpdateResource` orchestration in one unit.",
-          "The same component handles both `style-reference` and `structure-video` modes with divergent metadata contracts and selection flows.",
-          "It is consumed by unrelated feature surfaces (image reference selection and timeline structure-video selection), so feature-specific policy and UX decisions are centralized in a generic shared modal."
-        ],
-        "suggestion": "Staged split: Stage 1 extract `useResourceBrowserData` and `ResourceBrowserGrid` into `src/features/resources/`. Stage 2 add thin feature adapters (`StyleReferenceBrowserModal`, `StructureVideoBrowserModal`) in each feature folder with mode-specific contracts. Stage 3 keep `DatasetBrowserModal` as temporary compatibility wrapper delegating to adapters. Stage 4 migrate importers (`ReferenceSection`, `StructureVideoSection`, timeline/batch guidance) and validate with `npm run typecheck && npm run test -- DatasetBrowserModal StructureVideoSection ReferenceSection`.",
-        "reasoning": ""
-      },
-      "status": "open",
-      "primary_command": "desloppify plan done \"review::.::holistic::high_level_elegance::dataset_browser_multi_responsibility_boundary::276834e4\" --note \"<what you did>\" --confirm",
-      "queue_position": 2,
-      "plan_cluster": {
-        "name": "synth-lightbox-contracts",
-        "description": "Reduce lightbox indirection and consolidate state/workflow contracts",
-        "total_items": 5,
-        "sibling_ids": [
-          "review::.::holistic::design_coherence::lightbox_adapter_overfragmentation::74d6e7d3",
-          "review::.::holistic::design_coherence::lightbox_passthrough_abstraction_debt::700b5d25",
-          "review::.::holistic::design_coherence::lightbox_workflow_controls_duplication::ea885cec",
-          "review::.::holistic::high_level_elegance::lightbox_state_via_global_css_contract::3d96b62f",
-          "review::.::holistic::high_level_elegance::dataset_browser_multi_responsibility_boundary::276834e4"
-        ]
-      }
+    "by_detector": {
+      "review": 1
     },
-    {
-      "id": "review::.::holistic::high_level_elegance::lightbox_state_via_global_css_contract::3d96b62f",
-      "kind": "finding",
-      "tier": 2,
-      "effective_tier": 2,
-      "confidence": "medium",
-      "detector": "review",
-      "file": ".",
-      "summary": "Lightbox open-state is propagated through a global CSS class contract instead of explicit state",
-      "detail": {
-        "holistic": true,
-        "dimension": "high_level_elegance",
-        "related_files": [
-          "src/shared/hooks/useLightboxOpen.ts",
-          "src/shared/services/viewport/viewportLockService.ts",
-          "src/features/layout/hooks/useBottomOffset.ts",
-          "src/styles/foundations/base-case.css"
-        ],
-        "evidence": [
-          "`useLightboxOpen` derives state by observing `document.documentElement.classList.contains('lightbox-open')`.",
-          "`viewportLockService` mutates that class directly, and layout behavior (`useBottomOffset`) depends on it, creating implicit coupling through DOM/global styles.",
-          "This coupling is cross-boundary (service -> CSS -> hook -> layout feature) and not represented by an explicit typed interface."
-        ],
-        "suggestion": "Staged replacement: Stage 1 introduce `LightboxStateContext` in `src/features/lightbox/state/` and update lightbox open/close flows to publish explicit state. Stage 2 make `useBottomOffset` consume the typed context while keeping CSS class toggling as compatibility side-effect. Stage 3 remove DOM class observer hook and relocate residual style-only logic to lightbox feature. Stage 4 update imports with `rg -l \"useLightboxOpen|lightbox-open\" src` and validate via `npm run typecheck && npm run test -- useBottomOffset`.",
-        "reasoning": ""
-      },
-      "status": "open",
-      "primary_command": "desloppify plan done \"review::.::holistic::high_level_elegance::lightbox_state_via_global_css_contract::3d96b62f\" --note \"<what you did>\" --confirm",
-      "queue_position": 3,
-      "plan_cluster": {
-        "name": "synth-lightbox-contracts",
-        "description": "Reduce lightbox indirection and consolidate state/workflow contracts",
-        "total_items": 5,
-        "sibling_ids": [
-          "review::.::holistic::design_coherence::lightbox_adapter_overfragmentation::74d6e7d3",
-          "review::.::holistic::design_coherence::lightbox_passthrough_abstraction_debt::700b5d25",
-          "review::.::holistic::design_coherence::lightbox_workflow_controls_duplication::ea885cec",
-          "review::.::holistic::high_level_elegance::lightbox_state_via_global_css_contract::3d96b62f",
-          "review::.::holistic::high_level_elegance::dataset_browser_multi_responsibility_boundary::276834e4"
-        ]
-      }
-    },
-    {
-      "id": "review::.::holistic::initialization_coupling::supabase_runtime_boot_order_contract::e5d981fe",
-      "kind": "finding",
-      "tier": 1,
-      "effective_tier": 1,
-      "confidence": "high",
-      "detector": "review",
-      "file": ".",
-      "summary": "Supabase access is coupled to hidden bootstrap ordering via mutable module state and throw-on-access semantics.",
-      "detail": {
-        "holistic": true,
-        "dimension": "initialization_coupling",
-        "related_files": [
-          "src/integrations/supabase/client.ts",
-          "src/app/bootstrap.tsx",
-          "src/shared/lib/generationTaskRepository.ts"
-        ],
-        "evidence": [
-          "`getSupabaseClient()` throws unless `initializeSupabase()` has already flipped `hasInitializedRuntimeClient` (`client.ts:11-47`).",
-          "Bootstrap performs that init in `initializeAppEnvironment()` (`bootstrap.tsx:84-86`), so callers outside that path can fail at runtime.",
-          "Repositories directly call `getSupabaseClient()` (`generationTaskRepository.ts:1,77,81`) and therefore inherit this implicit init contract."
-        ],
-        "suggestion": "Replace throw-based global readiness with an explicit runtime provider/registry interface that is injected into repositories/hooks; for compatibility, keep `getSupabaseClientResult()` and migrate call sites to branch on readiness instead of relying on global bootstrap order.",
-        "reasoning": ""
-      },
-      "status": "open",
-      "primary_command": "desloppify plan done \"review::.::holistic::initialization_coupling::supabase_runtime_boot_order_contract::e5d981fe\" --note \"<what you did>\" --confirm",
-      "queue_position": 4,
-      "plan_cluster": {
-        "name": "synth-runtime-init-coupling",
-        "description": "Eliminate hidden runtime/bootstrap coupling around Supabase and globals",
-        "total_items": 4,
-        "sibling_ids": [
-          "review::.::holistic::initialization_coupling::supabase_dual_init_gates::097f9a89",
-          "review::.::holistic::initialization_coupling::supabase_global_runtime_order_dependency::4f8699e2",
-          "review::.::holistic::initialization_coupling::supabase_runtime_boot_order_contract::e5d981fe",
-          "review::.::holistic::initialization_coupling::window_global_singleton_escape_hatches::7309c41e"
-        ]
-      }
-    },
-    {
-      "id": "review::.::holistic::initialization_coupling::window_global_singleton_escape_hatches::7309c41e",
-      "kind": "finding",
-      "tier": 1,
-      "effective_tier": 1,
-      "confidence": "high",
-      "detector": "review",
-      "file": ".",
-      "summary": "Debug and runtime managers are exposed through mutable `window` globals, increasing cross-module hidden coupling.",
-      "detail": {
-        "holistic": true,
-        "dimension": "initialization_coupling",
-        "related_files": [
-          "src/integrations/supabase/debug/initializeSupabaseDebugGlobals.ts",
-          "src/integrations/supabase/reconnect/ReconnectScheduler.ts",
-          "src/shared/realtime/DataFreshnessManager.ts",
-          "src/app/bootstrap.tsx"
-        ],
-        "evidence": [
-          "Supabase debug init writes `window.__supabase_client__` and `window.supabase` (`initializeSupabaseDebugGlobals.ts:29-30`).",
-          "Reconnect scheduler uses a global singleton and also writes `window.__RECONNECT_SCHEDULER__` in dev (`ReconnectScheduler.ts:147-161`).",
-          "Data freshness manager exports a process singleton and writes `window.__DATA_FRESHNESS_MANAGER__` via bootstrap-loaded registration (`DataFreshnessManager.ts:360-369`, `bootstrap.tsx:99-102`)."
-        ],
-        "suggestion": "Consolidate debug exposure behind one typed `debugRegistry` module with explicit `register/get` APIs and teardown support; keep `window` writes in a single boundary file to avoid ad-hoc globals and reduce hidden startup dependencies.",
-        "reasoning": ""
-      },
-      "status": "open",
-      "primary_command": "desloppify plan done \"review::.::holistic::initialization_coupling::window_global_singleton_escape_hatches::7309c41e\" --note \"<what you did>\" --confirm",
-      "queue_position": 5,
-      "plan_cluster": {
-        "name": "synth-runtime-init-coupling",
-        "description": "Eliminate hidden runtime/bootstrap coupling around Supabase and globals",
-        "total_items": 4,
-        "sibling_ids": [
-          "review::.::holistic::initialization_coupling::supabase_dual_init_gates::097f9a89",
-          "review::.::holistic::initialization_coupling::supabase_global_runtime_order_dependency::4f8699e2",
-          "review::.::holistic::initialization_coupling::supabase_runtime_boot_order_contract::e5d981fe",
-          "review::.::holistic::initialization_coupling::window_global_singleton_escape_hatches::7309c41e"
-        ]
-      }
-    }
-  ],
-  "queue": {
-    "tier_counts": {
-      "1": 16,
-      "2": 158,
-      "3": 952,
-      "4": 772
-    },
-    "requested_tier": null,
-    "selected_tier": null,
-    "fallback_reason": null,
-    "available_tiers": [
-      1,
-      2,
-      3,
-      4
-    ],
-    "total": 1898,
-    "suppressed_count": 9
+    "files": 1
   },
+  "by_file": {
+    ".": [
+      {
+        "id": "review::.::holistic::initialization_coupling::window_global_singleton_escape_hatches::7309c41e",
+        "tier": 1,
+        "confidence": "high",
+        "summary": "Debug and runtime managers are exposed through mutable `window` globals, increasing cross-module hidden coupling.",
+        "detail": {
+          "holistic": true,
+          "dimension": "initialization_coupling",
+          "related_files": [
+            "src/integrations/supabase/debug/initializeSupabaseDebugGlobals.ts",
+            "src/integrations/supabase/reconnect/ReconnectScheduler.ts",
+            "src/shared/realtime/DataFreshnessManager.ts",
+            "src/app/bootstrap.tsx"
+          ],
+          "evidence": [
+            "Supabase debug init writes `window.__supabase_client__` and `window.supabase` (`initializeSupabaseDebugGlobals.ts:29-30`).",
+            "Reconnect scheduler uses a global singleton and also writes `window.__RECONNECT_SCHEDULER__` in dev (`ReconnectScheduler.ts:147-161`).",
+            "Data freshness manager exports a process singleton and writes `window.__DATA_FRESHNESS_MANAGER__` via bootstrap-loaded registration (`DataFreshnessManager.ts:360-369`, `bootstrap.tsx:99-102`)."
+          ],
+          "suggestion": "Consolidate debug exposure behind one typed `debugRegistry` module with explicit `register/get` APIs and teardown support; keep `window` writes in a single boundary file to avoid ad-hoc globals and reduce hidden startup dependencies.",
+          "reasoning": ""
+        }
+      }
+    ]
+  },
+  "total_matching": 1,
+  "noise_budget": 10,
+  "noise_global_budget": 0,
   "narrative": {
     "phase": "regression",
-    "headline": "\u26a0 13 security findings \u2014 review before other cleanup. Score shifted 1.7 pts \u2014 this is normal after structural changes. Rescan after your next fix to see the real trend. (18 review findings \u2014 run `desloppify show review --status open`)",
+    "headline": "\u26a0 13 security findings \u2014 review before other cleanup. Score shifted 1.7 pts \u2014 this is normal after structural changes. Rescan after your next fix to see the real trend. (14 review findings \u2014 run `desloppify show review --status open`)",
     "dimensions": {
       "lowest_dimensions": [
         {
@@ -295,45 +106,33 @@
         "type": "reorganize",
         "detector": "orphaned",
         "count": 6,
-        "description": "6 orphaned findings in 1 cluster(s) \u2014 run `desloppify next`",
-        "command": "desloppify next",
+        "description": "6 orphaned findings \u2014 delete dead files or relocate with `desloppify move`",
+        "command": "desloppify show orphaned --status open",
         "impact": 0.0,
         "dimension": "Code quality",
         "priority": 1,
-        "clusters": [
-          "auto/orphaned"
-        ],
-        "cluster_count": 1,
         "lane": "restructure"
       },
       {
         "type": "reorganize",
         "detector": "flat_dirs",
         "count": 28,
-        "description": "28 flat_dirs findings in 1 cluster(s) \u2014 run `desloppify next`",
-        "command": "desloppify next",
+        "description": "28 flat_dirs findings \u2014 create subdirectories and use `desloppify move`",
+        "command": "desloppify show flat_dirs --status open",
         "impact": 0.0,
         "dimension": "Code quality",
         "priority": 2,
-        "clusters": [
-          "auto/flat_dirs-overload"
-        ],
-        "cluster_count": 1,
         "lane": "restructure"
       },
       {
         "type": "reorganize",
         "detector": "naming",
         "count": 3,
-        "description": "3 naming findings in 1 cluster(s) \u2014 run `desloppify next`",
-        "command": "desloppify next",
+        "description": "3 naming findings \u2014 rename files with `desloppify move` to fix conventions",
+        "command": "desloppify show naming --status open",
         "impact": 0.0,
         "dimension": "Code quality",
         "priority": 3,
-        "clusters": [
-          "auto/naming-camelCase"
-        ],
-        "cluster_count": 1,
         "lane": "restructure"
       },
       {
@@ -351,94 +150,66 @@
         "type": "refactor",
         "detector": "structural",
         "count": 77,
-        "description": "77 structural findings in 1 cluster(s) \u2014 run `desloppify next`",
-        "command": "desloppify next",
+        "description": "77 structural findings \u2014 decompose large files \u2014 extract logic into focused modules",
+        "command": "desloppify show structural --status open",
         "impact": 0.0,
         "dimension": "File health",
         "priority": 5,
-        "clusters": [
-          "auto/structural-index.tsx"
-        ],
-        "cluster_count": 1,
         "lane": "refactor_0"
       },
       {
         "type": "refactor",
         "detector": "props",
         "count": 119,
-        "description": "119 props findings in 3 cluster(s) \u2014 run `desloppify next`",
-        "command": "desloppify next",
+        "description": "119 props findings \u2014 split bloated components, extract sub-components",
+        "command": "desloppify show props --status open",
         "impact": 0.0,
         "dimension": "Code quality",
         "priority": 6,
-        "clusters": [
-          "auto/props-props",
-          "auto/props-state",
-          "auto/props-context"
-        ],
-        "cluster_count": 3,
         "lane": "refactor_0"
       },
       {
         "type": "refactor",
         "detector": "react",
         "count": 13,
-        "description": "13 react findings in 3 cluster(s) \u2014 run `desloppify next`",
-        "command": "desloppify next",
+        "description": "13 react findings \u2014 refactor React antipatterns (state sync, provider nesting, hook bloat)",
+        "command": "desloppify show react --status open",
         "impact": 0.0,
         "dimension": "Code quality",
         "priority": 7,
-        "clusters": [
-          "auto/react-(mixed)",
-          "auto/react-setShow",
-          "auto/react-setIs"
-        ],
-        "cluster_count": 3,
         "lane": "refactor_0"
       },
       {
         "type": "refactor",
         "detector": "dupes",
         "count": 2,
-        "description": "2 dupes findings in 1 cluster(s) \u2014 run `desloppify next`",
-        "command": "desloppify next",
+        "description": "2 dupes findings \u2014 extract shared utility or consolidate duplicates",
+        "command": "desloppify show dupes --status open",
         "impact": 0.0,
         "dimension": "Duplication",
         "priority": 8,
-        "clusters": [
-          "auto/dupes-near-duplicate"
-        ],
-        "cluster_count": 1,
         "lane": "refactor_0"
       },
       {
         "type": "refactor",
         "detector": "patterns",
         "count": 2,
-        "description": "2 patterns findings in 1 cluster(s) \u2014 run `desloppify next`",
-        "command": "desloppify next",
+        "description": "2 patterns findings \u2014 align to single pattern across the codebase",
+        "command": "desloppify show patterns --status open",
         "impact": 0.0,
         "dimension": "Code quality",
         "priority": 9,
-        "clusters": [
-          "auto/patterns-tool_settings"
-        ],
-        "cluster_count": 1,
         "lane": "refactor_1"
       },
       {
         "type": "refactor",
         "detector": "test_coverage",
         "count": 171,
-        "description": "171 test_coverage findings in 1 cluster(s) \u2014 run `desloppify next`",
-        "command": "desloppify next",
+        "description": "171 test_coverage findings \u2014 add tests for untested production modules \u2014 prioritize by import count",
+        "command": "desloppify show test_coverage --status open",
         "impact": 0.0,
         "dimension": "Test health",
         "priority": 10,
-        "clusters": [
-          "auto/test_coverage"
-        ],
-        "cluster_count": 1,
         "lane": "test_coverage"
       },
       {
@@ -477,8 +248,8 @@
       {
         "type": "refactor",
         "detector": "review",
-        "count": 18,
-        "description": "18 review findings need investigation \u2014 run `desloppify show review --status open` to see them",
+        "count": 14,
+        "description": "14 review findings need investigation \u2014 run `desloppify show review --status open` to see them",
         "command": "desloppify show review --status open",
         "impact": 0.0,
         "dimension": "Unknown",
@@ -489,99 +260,62 @@
         "type": "manual_fix",
         "detector": "smells",
         "count": 322,
-        "description": "322 smells findings in 18 cluster(s) \u2014 run `desloppify next`",
-        "command": "desloppify next",
+        "description": "322 smells findings \u2014 inspect with `desloppify next` and fix manually",
+        "command": "desloppify show smells --status open",
         "impact": 0.0,
         "dimension": "Code quality",
         "priority": 15,
-        "clusters": [
-          "auto/smells-hardcoded_url",
-          "auto/smells-console_error_no_throw",
-          "auto/smells-dead_function",
-          "auto/smells-async_no_await",
-          "auto/smells-voided_symbol",
-          "auto/smells-window_global",
-          "auto/smells-any_type",
-          "auto/smells-swallowed_error",
-          "auto/smells-ts_ignore",
-          "auto/smells-sort_no_comparator",
-          "auto/smells-magic_number",
-          "auto/smells-non_null_assert",
-          "auto/smells-workaround_tag",
-          "auto/smells-switch_no_default",
-          "auto/smells-todo_fixme",
-          "auto/smells-monster_function",
-          "auto/smells-nested_closure",
-          "auto/smells-high_cyclomatic_complexity"
-        ],
-        "cluster_count": 18,
         "lane": "refactor_0"
       },
       {
         "type": "manual_fix",
         "detector": "exports",
         "count": 148,
-        "description": "148 exports findings in 1 cluster(s) \u2014 run `desloppify next`",
-        "command": "desloppify next",
+        "description": "148 exports findings \u2014 run `knip --fix` to remove dead exports",
+        "command": "desloppify show exports --status open",
         "impact": 0.0,
         "dimension": "Code quality",
         "priority": 16,
-        "clusters": [
-          "auto/exports"
-        ],
-        "cluster_count": 1,
         "lane": "refactor_0"
       },
       {
         "type": "manual_fix",
         "detector": "deprecated",
         "count": 5,
-        "description": "5 deprecated findings in 1 cluster(s) \u2014 run `desloppify next`",
-        "command": "desloppify next",
+        "description": "5 deprecated findings \u2014 remove deprecated symbols or migrate callers",
+        "command": "desloppify show deprecated --status open",
         "impact": 0.0,
         "dimension": "Code quality",
         "priority": 17,
-        "clusters": [
-          "auto/deprecated"
-        ],
-        "cluster_count": 1,
         "lane": "refactor_0"
       },
       {
         "type": "manual_fix",
         "detector": "security",
         "count": 13,
-        "description": "13 security findings in 1 cluster(s) \u2014 run `desloppify next`",
-        "command": "desloppify next",
+        "description": "13 security findings \u2014 review and fix security findings \u2014 prioritize by severity",
+        "command": "desloppify show security --status open",
         "impact": 0.0,
         "dimension": "Security",
         "priority": 18,
-        "clusters": [
-          "auto/security"
-        ],
-        "cluster_count": 1,
         "lane": "refactor_0"
       },
       {
         "type": "manual_fix",
         "detector": "subjective_review",
         "count": 753,
-        "description": "753 subjective_review findings in 1 cluster(s) \u2014 run `desloppify next`",
-        "command": "desloppify next",
+        "description": "753 files need design review \u2014 run holistic review to refresh subjective scores",
+        "command": "desloppify review --prepare",
         "impact": 0.0,
         "dimension": "Test health",
         "priority": 19,
-        "clusters": [
-          "auto/subjective_review"
-        ],
-        "cluster_count": 1,
         "lane": "refactor_0"
       }
     ],
     "strategy": {
       "fixer_leverage": {
         "auto_fixable_count": 0,
-        "total_count": 1953,
+        "total_count": 1941,
         "coverage": 0.0,
         "impact_ratio": 0.0,
         "recommendation": "none"
@@ -648,7 +382,7 @@
         }
       },
       "can_parallelize": true,
-      "hint": "5 independent workstreams, safe to parallelize. Rescan after each phase to verify. Review: 18 finding(s) \u2014 `desloppify show review --status open`."
+      "hint": "5 independent workstreams, safe to parallelize. Rescan after each phase to verify. Review: 14 finding(s) \u2014 `desloppify show review --status open`."
     },
     "tools": {
       "fixers": [
@@ -691,10 +425,10 @@
     },
     "milestone": null,
     "primary_action": {
-      "command": "desloppify next",
-      "description": "6 orphaned findings in 1 cluster(s) \u2014 run `desloppify next`"
+      "command": "desloppify show orphaned --status open",
+      "description": "6 orphaned findings \u2014 delete dead files or relocate with `desloppify move`"
     },
-    "why_now": "5 independent workstreams, safe to parallelize. Rescan after each phase to verify. Review: 18 finding(s) \u2014 `desloppify show review --status open`.",
+    "why_now": "5 independent workstreams, safe to parallelize. Rescan after each phase to verify. Review: 14 finding(s) \u2014 `desloppify show review --status open`.",
     "verification_step": {
       "command": "desloppify scan",
       "reason": "revalidate after changes"
@@ -719,732 +453,6 @@
       "fp_calibration_naming_production": 3
     }
   },
-  "plan": {
-    "active": true,
-    "focus": "smart-t1-review",
-    "clusters": [
-      {
-        "name": "auto/deprecated",
-        "description": "Fix 5 deprecated issues",
-        "item_count": 5
-      },
-      {
-        "name": "auto/flat_dirs-overload",
-        "description": "Fix 28 overload issues",
-        "item_count": 28
-      },
-      {
-        "name": "auto/props-props",
-        "description": "Fix 88 props issues",
-        "item_count": 88
-      },
-      {
-        "name": "auto/props-state",
-        "description": "Fix 16 state issues",
-        "item_count": 16
-      },
-      {
-        "name": "auto/props-context",
-        "description": "Fix 6 context issues",
-        "item_count": 6
-      },
-      {
-        "name": "auto/orphaned",
-        "description": "Fix 6 orphaned issues",
-        "item_count": 6
-      },
-      {
-        "name": "auto/patterns-tool_settings",
-        "description": "Fix 2 tool settings issues",
-        "item_count": 2
-      },
-      {
-        "name": "auto/test_coverage",
-        "description": "Fix 171 test coverage issues",
-        "item_count": 171
-      },
-      {
-        "name": "auto/smells-hardcoded_url",
-        "description": "Fix 19 hardcoded url issues",
-        "item_count": 19
-      },
-      {
-        "name": "auto/smells-console_error_no_throw",
-        "description": "Fix 20 console error no throw issues",
-        "item_count": 20
-      },
-      {
-        "name": "auto/smells-dead_function",
-        "description": "Fix 30 dead function issues",
-        "item_count": 30
-      },
-      {
-        "name": "auto/smells-async_no_await",
-        "description": "Fix 31 async no await issues",
-        "item_count": 31
-      },
-      {
-        "name": "auto/smells-voided_symbol",
-        "description": "Fix 9 voided symbol issues",
-        "item_count": 9
-      },
-      {
-        "name": "auto/smells-window_global",
-        "description": "Fix 5 window global issues",
-        "item_count": 5
-      },
-      {
-        "name": "auto/smells-any_type",
-        "description": "Fix 5 any type issues",
-        "item_count": 5
-      },
-      {
-        "name": "auto/smells-swallowed_error",
-        "description": "Fix 3 swallowed error issues",
-        "item_count": 3
-      },
-      {
-        "name": "auto/smells-ts_ignore",
-        "description": "Fix 3 ts ignore issues",
-        "item_count": 3
-      },
-      {
-        "name": "auto/smells-sort_no_comparator",
-        "description": "Fix 7 sort no comparator issues",
-        "item_count": 7
-      },
-      {
-        "name": "auto/smells-magic_number",
-        "description": "Fix 35 magic number issues",
-        "item_count": 35
-      },
-      {
-        "name": "auto/smells-non_null_assert",
-        "description": "Fix 10 non null assert issues",
-        "item_count": 10
-      },
-      {
-        "name": "auto/smells-workaround_tag",
-        "description": "Fix 10 workaround tag issues",
-        "item_count": 10
-      },
-      {
-        "name": "auto/smells-switch_no_default",
-        "description": "Fix 10 switch no default issues",
-        "item_count": 10
-      },
-      {
-        "name": "auto/smells-todo_fixme",
-        "description": "Fix 3 todo fixme issues",
-        "item_count": 3
-      },
-      {
-        "name": "auto/react-(mixed)",
-        "description": "Fix 4 (mixed) issues",
-        "item_count": 4
-      },
-      {
-        "name": "auto/react-setShow",
-        "description": "Fix 2 setShow issues",
-        "item_count": 2
-      },
-      {
-        "name": "auto/react-setIs",
-        "description": "Fix 2 setIs issues",
-        "item_count": 2
-      },
-      {
-        "name": "auto/subjective_review",
-        "description": "Address 776 subjective_review review findings",
-        "item_count": 776
-      },
-      {
-        "name": "auto/dupes-near-duplicate",
-        "description": "Fix 2 near-duplicate issues",
-        "item_count": 2
-      },
-      {
-        "name": "auto/smells-monster_function",
-        "description": "Fix 6 monster function issues",
-        "item_count": 6
-      },
-      {
-        "name": "auto/smells-nested_closure",
-        "description": "Fix 47 nested closure issues",
-        "item_count": 47
-      },
-      {
-        "name": "auto/smells-high_cyclomatic_complexity",
-        "description": "Fix 44 high cyclomatic complexity issues",
-        "item_count": 44
-      },
-      {
-        "name": "auto/security",
-        "description": "Fix 13 security issues",
-        "item_count": 13
-      },
-      {
-        "name": "auto/stale-review",
-        "description": "Re-review 8 stale subjective dimensions",
-        "item_count": 8
-      },
-      {
-        "name": "synth-review-coherence",
-        "description": "Execute review-driven architecture cleanup in dependency-safe order with measurable verification.",
-        "item_count": 0
-      },
-      {
-        "name": "auto/exports",
-        "description": "Fix 148 exports issues",
-        "item_count": 148
-      },
-      {
-        "name": "auto/review-high_level_elegance",
-        "description": "Address 2 high_level_elegance review findings",
-        "item_count": 2
-      },
-      {
-        "name": "auto/review-mid_level_elegance",
-        "description": "Address 4 mid_level_elegance review findings",
-        "item_count": 4
-      },
-      {
-        "name": "auto/review-low_level_elegance",
-        "description": "Address 3 low_level_elegance review findings",
-        "item_count": 3
-      },
-      {
-        "name": "auto/review-test_strategy",
-        "description": "Address 2 test_strategy review findings",
-        "item_count": 2
-      },
-      {
-        "name": "auto/review-package_organization",
-        "description": "Address 3 package_organization review findings",
-        "item_count": 3
-      },
-      {
-        "name": "auto/review-initialization_coupling",
-        "description": "Address 3 initialization_coupling review findings",
-        "item_count": 3
-      },
-      {
-        "name": "auto/review-type_safety",
-        "description": "Address 2 type_safety review findings",
-        "item_count": 2
-      },
-      {
-        "name": "smart-t1-review",
-        "description": "High-leverage T1 review fixes to raise coherence/design scores before broad structural churn",
-        "item_count": 0
-      },
-      {
-        "name": "auto/structural-index.tsx",
-        "description": "Decompose index.tsx",
-        "item_count": 3
-      },
-      {
-        "name": "auto/naming-camelCase",
-        "description": "Fix 2 camelCase issues",
-        "item_count": 2
-      },
-      {
-        "name": "auto/review-cross_module_architecture",
-        "description": "Address 3 cross_module_architecture review findings",
-        "item_count": 0
-      },
-      {
-        "name": "auto/review-error_consistency",
-        "description": "Address 2 error_consistency review findings",
-        "item_count": 2
-      },
-      {
-        "name": "auto/review-incomplete_migration",
-        "description": "Address 3 incomplete_migration review findings",
-        "item_count": 3
-      },
-      {
-        "name": "auto/review-design_coherence",
-        "description": "Address 8 design_coherence review findings",
-        "item_count": 0
-      },
-      {
-        "name": "smart-runtime-contract-pass",
-        "description": "Risk-first runtime seam stabilization and contract coherence pass after synthesis",
-        "item_count": 0
-      },
-      {
-        "name": "synth-lightbox-contracts",
-        "description": "Reduce lightbox indirection and consolidate state/workflow contracts",
-        "item_count": 5
-      },
-      {
-        "name": "synth-runtime-init-coupling",
-        "description": "Eliminate hidden runtime/bootstrap coupling around Supabase and globals",
-        "item_count": 4
-      },
-      {
-        "name": "synth-contract-boundaries",
-        "description": "Tighten domain/transport boundaries, migration aliases, and contract tests",
-        "item_count": 9
-      }
-    ],
-    "total_ordered": 302,
-    "total_skipped": 31,
-    "plan_overrides_narrative": true
-  },
-  "overall_score": 74.9,
-  "objective_score": 95.3,
-  "strict_score": 74.9,
-  "scorecard_dimensions": [
-    {
-      "name": "File health",
-      "score": 96.4,
-      "strict": 96.4,
-      "checks": 1367,
-      "issues": 68,
-      "tier": 3,
-      "subjective": false
-    },
-    {
-      "name": "AI generated debt",
-      "score": 76.8,
-      "strict": 76.8,
-      "checks": 10,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "ai_generated_debt"
-      ]
-    },
-    {
-      "name": "API coherence",
-      "score": 63.9,
-      "strict": 63.9,
-      "checks": 10,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "api_surface_coherence"
-      ]
-    },
-    {
-      "name": "Abstraction fit",
-      "score": 60.1,
-      "strict": 60.1,
-      "checks": 10,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "abstraction_fitness",
-        "delegation_density",
-        "definition_directness",
-        "type_discipline"
-      ]
-    },
-    {
-      "name": "Auth consistency",
-      "score": 76.2,
-      "strict": 76.2,
-      "checks": 10,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "authorization_consistency"
-      ]
-    },
-    {
-      "name": "Code quality",
-      "score": 97.1,
-      "strict": 97.1,
-      "checks": 12988,
-      "issues": 585,
-      "tier": 3,
-      "subjective": false
-    },
-    {
-      "name": "Contracts",
-      "score": 77.7,
-      "strict": 77.7,
-      "checks": 10,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "contract_coherence"
-      ]
-    },
-    {
-      "name": "Convention drift",
-      "score": 78.1,
-      "strict": 78.1,
-      "checks": 10,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "convention_outlier"
-      ]
-    },
-    {
-      "name": "Cross-module arch",
-      "score": 47.6,
-      "strict": 47.6,
-      "checks": 10,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "cross_module_architecture"
-      ]
-    },
-    {
-      "name": "Dep health",
-      "score": 72.7,
-      "strict": 72.7,
-      "checks": 10,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "dependency_health"
-      ]
-    },
-    {
-      "name": "Design coherence",
-      "score": 42.8,
-      "strict": 42.8,
-      "checks": 10,
-      "issues": 3,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "design_coherence"
-      ]
-    },
-    {
-      "name": "Duplication",
-      "score": 95.3,
-      "strict": 95.3,
-      "checks": 3078,
-      "issues": 210,
-      "tier": 3,
-      "subjective": false
-    },
-    {
-      "name": "Elegance",
-      "score": 56.6,
-      "strict": 56.6,
-      "checks": 30,
-      "issues": 3,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "high_level_elegance",
-        "mid_level_elegance",
-        "low_level_elegance"
-      ]
-    },
-    {
-      "name": "Error consistency",
-      "score": 59.0,
-      "strict": 59.0,
-      "checks": 10,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "error_consistency"
-      ]
-    },
-    {
-      "name": "Init coupling",
-      "score": 51.2,
-      "strict": 51.2,
-      "checks": 10,
-      "issues": 4,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "initialization_coupling"
-      ]
-    },
-    {
-      "name": "Security",
-      "score": 99.7,
-      "strict": 99.7,
-      "checks": 2721,
-      "issues": 13,
-      "tier": 4,
-      "subjective": false
-    },
-    {
-      "name": "Stale migration",
-      "score": 53.5,
-      "strict": 53.5,
-      "checks": 10,
-      "issues": 1,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "incomplete_migration"
-      ]
-    },
-    {
-      "name": "Structure nav",
-      "score": 52.6,
-      "strict": 52.6,
-      "checks": 10,
-      "issues": 3,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "package_organization"
-      ]
-    },
-    {
-      "name": "Test health",
-      "score": 87.1,
-      "strict": 87.1,
-      "checks": 15763,
-      "issues": 924,
-      "tier": 4,
-      "subjective": false
-    },
-    {
-      "name": "Test strategy",
-      "score": 52.4,
-      "strict": 52.4,
-      "checks": 10,
-      "issues": 2,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "test_strategy"
-      ]
-    }
-  ],
-  "subjective_measures": [
-    {
-      "name": "AI generated debt",
-      "score": 76.8,
-      "strict": 76.8,
-      "checks": 10,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "ai_generated_debt"
-      ]
-    },
-    {
-      "name": "API coherence",
-      "score": 63.9,
-      "strict": 63.9,
-      "checks": 10,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "api_surface_coherence"
-      ]
-    },
-    {
-      "name": "Abstraction fit",
-      "score": 60.1,
-      "strict": 60.1,
-      "checks": 10,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "abstraction_fitness",
-        "delegation_density",
-        "definition_directness",
-        "type_discipline"
-      ]
-    },
-    {
-      "name": "Auth consistency",
-      "score": 76.2,
-      "strict": 76.2,
-      "checks": 10,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "authorization_consistency"
-      ]
-    },
-    {
-      "name": "Contracts",
-      "score": 77.7,
-      "strict": 77.7,
-      "checks": 10,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "contract_coherence"
-      ]
-    },
-    {
-      "name": "Convention drift",
-      "score": 78.1,
-      "strict": 78.1,
-      "checks": 10,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "convention_outlier"
-      ]
-    },
-    {
-      "name": "Cross-module arch",
-      "score": 47.6,
-      "strict": 47.6,
-      "checks": 10,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "cross_module_architecture"
-      ]
-    },
-    {
-      "name": "Dep health",
-      "score": 72.7,
-      "strict": 72.7,
-      "checks": 10,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "dependency_health"
-      ]
-    },
-    {
-      "name": "Design coherence",
-      "score": 42.8,
-      "strict": 42.8,
-      "checks": 10,
-      "issues": 3,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "design_coherence"
-      ]
-    },
-    {
-      "name": "Elegance",
-      "score": 56.6,
-      "strict": 56.6,
-      "checks": 30,
-      "issues": 3,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "high_level_elegance",
-        "mid_level_elegance",
-        "low_level_elegance"
-      ]
-    },
-    {
-      "name": "Error consistency",
-      "score": 59.0,
-      "strict": 59.0,
-      "checks": 10,
-      "issues": 0,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "error_consistency"
-      ]
-    },
-    {
-      "name": "Init coupling",
-      "score": 51.2,
-      "strict": 51.2,
-      "checks": 10,
-      "issues": 4,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "initialization_coupling"
-      ]
-    },
-    {
-      "name": "Stale migration",
-      "score": 53.5,
-      "strict": 53.5,
-      "checks": 10,
-      "issues": 1,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "incomplete_migration"
-      ]
-    },
-    {
-      "name": "Structure nav",
-      "score": 52.6,
-      "strict": 52.6,
-      "checks": 10,
-      "issues": 3,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "package_organization"
-      ]
-    },
-    {
-      "name": "Test strategy",
-      "score": 52.4,
-      "strict": 52.4,
-      "checks": 10,
-      "issues": 2,
-      "tier": 4,
-      "subjective": true,
-      "placeholder": false,
-      "cli_keys": [
-        "test_strategy"
-      ]
-    }
-  ],
   "config": {
     "target_strict_score": 95,
     "review_max_age_days": 30,
