@@ -219,12 +219,18 @@ describe('ShotImageManagerDesktop', () => {
     expect(screen.getByTestId('image-grid')).toBeInTheDocument();
     expect(screen.getByTestId('selection-action-bar')).toBeInTheDocument();
     expect(screen.getByTestId('delete-confirm-dialog')).toBeInTheDocument();
+    expect(screen.queryByTestId('media-lightbox')).toBeNull();
+    expect(props.selection.selectedIds).toEqual(['entry-1']);
+    expect(props.dragAndDrop.activeId).toBe('entry-1');
+    expect(props.images).toHaveLength(2);
+    expect(props.images[0]?.shotImageEntryId).toBe('entry-1');
   });
 
   it('closes lightbox and resets lightbox-related state', () => {
     const props = createProps();
     props.lightbox.lightboxIndex = 0;
     render(<ShotImageManagerDesktop {...props} />);
+    expect(screen.getByTestId('media-lightbox')).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('close-lightbox'));
 

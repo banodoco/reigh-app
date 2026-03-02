@@ -20,6 +20,7 @@ describe('simpleCacheValidator', () => {
     expect(typeof (window as unknown).startCacheWatch).toBe('function');
     expect(typeof (window as unknown).showCacheStats).toBe('function');
     expect(typeof (window as unknown).showCacheHelp).toBe('function');
+    expect((window as unknown).validateImageCache).toBeDefined();
   });
 
   it('validateImageCache runs without throwing', async () => {

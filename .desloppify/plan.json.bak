@@ -1,88 +1,40 @@
 {
   "version": 4,
   "created": "2026-03-02T01:10:28+00:00",
-  "updated": "2026-03-02T20:34:32+00:00",
+  "updated": "2026-03-02T21:23:23+00:00",
   "queue_order": [
-    "test_coverage::src/shared/lib/errorHandling/errorPresentation.ts::transitive_only",
+    "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineContainer/components/TimelineControls.tsx::transitive_only",
     "flat_dirs::supabase/functions/complete_task",
     "flat_dirs::supabase/functions/_shared",
     "flat_dirs::supabase/functions",
     "test_coverage::supabase/functions/complete-auto-topup-setup/index.ts::untested_module",
-    "test_coverage::src/shared/components/MediaLightbox/MediaLightbox.tsx::transitive_only",
     "test_coverage::supabase/functions/complete_task/taskParamNormalizer.ts::transitive_only",
-    "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useOutputController.ts::transitive_only",
     "test_coverage::supabase/functions/grant-credits/index.ts::untested_module",
     "test_coverage::supabase/functions/discord-daily-stats/index.ts::untested_module",
     "test_coverage::supabase/functions/complete_task/index.ts::untested_module",
-    "test_coverage::src/shared/lib/simpleCacheValidator.ts::over_mocked::simpleCacheValidator.test.ts",
-    "test_coverage::src/shared/hooks/platformInstall/signals.ts::transitive_only",
-    "test_coverage::src/tools/travel-between-images/components/ShotEditor/sections/generation/BatchModeContent.tsx::transitive_only",
-    "test_coverage::src/shared/components/VideoPortionTimeline/types.ts::transitive_only",
     "test_coverage::supabase/functions/claim-next-task/index.ts::untested_module",
-    "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useEditingController.ts::transitive_only",
-    "test_coverage::src/shared/components/VideoPortionTimeline/hooks/useHandleDrag.ts::transitive_only",
     "test_coverage::supabase/functions/generate-thumbnail/index.ts::untested_module",
-    "test_coverage::src/shared/hooks/sourceImageChanges/sourceMismatchAnalysis.ts::transitive_only",
-    "test_coverage::src/tools/travel-between-images/components/Timeline/hooks/timelinePositionCalc.ts::transitive_only",
     "test_coverage::supabase/functions/get-completed-segments/index.ts::untested_module",
-    "test_coverage::src/pages/Home/hooks/auth/displayMode.ts::untested_module",
-    "test_coverage::src/shared/hooks/videoFrameExtraction/extractor.ts::transitive_only",
     "test_coverage::supabase/functions/vitest.unit.config.ts::untested_module",
-    "test_coverage::src/shared/lib/storage/localStorageSafe.ts::untested_module",
-    "test_coverage::src/shared/lib/errorHandling/normalizeAndLogError.ts::transitive_only",
-    "test_coverage::src/shared/hooks/mobile/mobileErrorReporter.ts::transitive_only",
-    "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useImageManagementController.ts::transitive_only",
-    "test_coverage::src/shared/lib/taskCreation/parseTaskCreationResponse.ts::transitive_only",
-    "test_coverage::src/shared/components/ProductTour/targets.ts::untested_module",
-    "test_coverage::src/shared/hooks/platformInstall/platformDetection.ts::transitive_only",
-    "test_coverage::src/shared/hooks/videoHoverPreview/useSeekController.ts::transitive_only",
-    "test_coverage::src/pages/Home/hooks/auth/useOAuthHashSessionRestore.ts::untested_module",
-    "test_coverage::src/shared/lib/interactions/elementPolicy.ts::transitive_only",
     "test_coverage::src/shared/components/MediaGalleryItem.tsx::over_mocked::MediaGalleryItem.test.tsx",
-    "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineContainer/components/TimelineTrack.tsx::transitive_only",
-    "test_coverage::src/app/hooks/useAppDndOverlay.tsx::transitive_only",
     "test_coverage::supabase/functions/trim-video/index.ts::untested_module",
-    "test_coverage::src/pages/Home/components/install/visuals.tsx::transitive_only",
-    "test_coverage::src/shared/components/VideoPortionTimeline/components/SelectionOverlay.tsx::transitive_only",
-    "test_coverage::src/tools/travel-between-images/components/Timeline/hooks/useTimelineDomainService.ts::transitive_only",
     "test_coverage::config/tailwind/theme/themeColors.ts::untested_module",
-    "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineContainer/components/DragLayer.tsx::transitive_only",
     "test_coverage::config/vite/policy.ts::untested_module",
-    "test_coverage::src/pages/Home/hooks/auth/useAuthReferralFinalize.ts::untested_module",
-    "test_coverage::src/shared/components/PhaseConfigVertical.tsx::transitive_only",
     "test_coverage::src/shared/components/GenerationsPane/GenerationsPane.tsx::over_mocked::GenerationsPane.test.tsx",
     "test_coverage::supabase/functions/broadcast-realtime/index.ts::untested_module",
-    "test_coverage::src/pages/Home/components/install/scenarios.ts::transitive_only",
     "test_coverage::supabase/functions/complete_task/generation-child-diagnostics.ts::transitive_only",
     "test_coverage::supabase/functions/ai-voice-prompt/index.ts::untested_module",
-    "test_coverage::src/shared/lib/taskRowMapper.ts::transitive_only",
-    "test_coverage::src/shared/services/externalApiKeys/repository.ts::transitive_only",
-    "test_coverage::src/shared/realtime/dataFreshness/taskFetchFreshness.ts::transitive_only",
     "test_coverage::supabase/functions/process-auto-topup/index.ts::untested_module",
     "test_coverage::supabase/functions/setup-auto-topup/index.ts::untested_module",
-    "test_coverage::src/app/providers/queryClient.ts::transitive_only",
     "test_coverage::supabase/functions/ai-prompt/index.ts::untested_module",
     "test_coverage::supabase/functions/revoke-pat/index.ts::untested_module",
-    "test_coverage::src/tools/travel-between-images/components/ShotImagesEditor/components/hooks/usePreviewTogetherPlayback.ts::transitive_only",
-    "test_coverage::src/integrations/supabase/runtime/supabaseRuntime.ts::transitive_only",
-    "test_coverage::src/shared/components/theme/retroButtonPolicy.ts::transitive_only",
-    "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineContainer/components/TimelineControls.tsx::transitive_only",
-    "test_coverage::src/shared/components/VideoPortionTimeline/hooks/usePlayhead.ts::transitive_only",
-    "test_coverage::src/shared/services/externalApiKeys/huggingFaceTokenVerifier.ts::transitive_only",
     "test_coverage::supabase/functions/create-task/index.ts::untested_module",
     "test_coverage::src/tools/travel-between-images/components/ShotImagesEditor/components/PreviewTogetherStage.tsx::transitive_only",
-    "test_coverage::src/shared/services/network/networkStatusDebug.ts::untested_module",
     "test_coverage::supabase/functions/update-shot-pair-prompts/index.ts::untested_module",
-    "test_coverage::src/shared/realtime/dataFreshness/pollingPolicy.ts::untested_module",
-    "test_coverage::src/pages/Home/hooks/auth/runAuthSupabaseOperation.ts::transitive_only",
     "test_coverage::supabase/functions/ai-prompt/templates.ts::untested_module",
     "test_coverage::config/tailwind/theme/themeAnimations.ts::untested_module",
-    "test_coverage::src/shared/hooks/tasks/useProcessingRefetchGuard.ts::transitive_only",
-    "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useGenerationController.ts::transitive_only",
-    "test_coverage::src/shared/components/ShotImageManager/ShotImageManagerDesktop.tsx::over_mocked::ShotImageManagerDesktop.test.tsx",
     "test_coverage::supabase/functions/task-counts/index.ts::untested_module",
     "test_coverage::supabase/functions/get-task-status/index.ts::untested_module",
-    "test_coverage::src/shared/lib/debug/debugConsole.ts::transitive_only",
     "test_coverage::src/shared/components/VideoPortionTimeline/components/FrameThumbnail.tsx::transitive_only",
     "test_coverage::src/integrations/supabase/bootstrap/createSupabaseClient.ts::over_mocked::createSupabaseClient.test.ts",
     "test_coverage::src/tools/travel-between-images/components/ShotImagesEditor/components/PreviewTogetherThumbnails.tsx::transitive_only",
@@ -1705,8 +1657,8 @@
     "test_coverage::src/shared/components/MediaLightbox/MediaLightbox.tsx::transitive_only": {
       "finding_id": "test_coverage::src/shared/components/MediaLightbox/MediaLightbox.tsx::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T21:12:11+00:00"
     },
     "test_coverage::src/shared/hooks/sourceImageChanges/dataAccess.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/hooks/sourceImageChanges/dataAccess.ts::transitive_only",
@@ -1723,8 +1675,8 @@
     "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useOutputController.ts::transitive_only": {
       "finding_id": "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useOutputController.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:47:42+00:00"
     },
     "test_coverage::src/shared/realtime/dataFreshness/errorPolicy.ts::untested_module": {
       "finding_id": "test_coverage::src/shared/realtime/dataFreshness/errorPolicy.ts::untested_module",
@@ -1777,20 +1729,20 @@
     "test_coverage::src/shared/lib/simpleCacheValidator.ts::over_mocked::simpleCacheValidator.test.ts": {
       "finding_id": "test_coverage::src/shared/lib/simpleCacheValidator.ts::over_mocked::simpleCacheValidator.test.ts",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:44:49+00:00"
     },
     "test_coverage::src/shared/hooks/platformInstall/signals.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/hooks/platformInstall/signals.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:37:14+00:00"
     },
     "test_coverage::src/tools/travel-between-images/components/ShotEditor/sections/generation/BatchModeContent.tsx::transitive_only": {
       "finding_id": "test_coverage::src/tools/travel-between-images/components/ShotEditor/sections/generation/BatchModeContent.tsx::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T21:14:13+00:00"
     },
     "test_coverage::src/shared/lib/core/ProjectScopedCache.ts::untested_module": {
       "finding_id": "test_coverage::src/shared/lib/core/ProjectScopedCache.ts::untested_module",
@@ -1801,8 +1753,8 @@
     "test_coverage::src/shared/components/VideoPortionTimeline/types.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/components/VideoPortionTimeline/types.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:40:37+00:00"
     },
     "test_coverage::src/shared/components/modal/ModalFooterButtons.tsx::untested_module": {
       "finding_id": "test_coverage::src/shared/components/modal/ModalFooterButtons.tsx::untested_module",
@@ -1825,20 +1777,20 @@
     "test_coverage::src/shared/lib/errorHandling/errorPresentation.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/lib/errorHandling/errorPresentation.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:34:33+00:00"
     },
     "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useEditingController.ts::transitive_only": {
       "finding_id": "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useEditingController.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T21:06:38+00:00"
     },
     "test_coverage::src/shared/components/VideoPortionTimeline/hooks/useHandleDrag.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/components/VideoPortionTimeline/hooks/useHandleDrag.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T21:15:58+00:00"
     },
     "test_coverage::supabase/functions/generate-thumbnail/index.ts::untested_module": {
       "finding_id": "test_coverage::supabase/functions/generate-thumbnail/index.ts::untested_module",
@@ -1849,14 +1801,14 @@
     "test_coverage::src/shared/hooks/sourceImageChanges/sourceMismatchAnalysis.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/hooks/sourceImageChanges/sourceMismatchAnalysis.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:38:57+00:00"
     },
     "test_coverage::src/tools/travel-between-images/components/Timeline/hooks/timelinePositionCalc.ts::transitive_only": {
       "finding_id": "test_coverage::src/tools/travel-between-images/components/Timeline/hooks/timelinePositionCalc.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:44:40+00:00"
     },
     "test_coverage::supabase/functions/get-completed-segments/index.ts::untested_module": {
       "finding_id": "test_coverage::supabase/functions/get-completed-segments/index.ts::untested_module",
@@ -1867,8 +1819,8 @@
     "test_coverage::src/pages/Home/hooks/auth/displayMode.ts::untested_module": {
       "finding_id": "test_coverage::src/pages/Home/hooks/auth/displayMode.ts::untested_module",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:37:01+00:00"
     },
     "test_coverage::src/shared/lib/errorHandling/notifyError.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/lib/errorHandling/notifyError.ts::transitive_only",
@@ -1879,8 +1831,8 @@
     "test_coverage::src/shared/hooks/videoFrameExtraction/extractor.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/hooks/videoFrameExtraction/extractor.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:46:19+00:00"
     },
     "test_coverage::src/shared/hooks/tasks/paginatedTaskRepository.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/hooks/tasks/paginatedTaskRepository.ts::transitive_only",
@@ -1897,32 +1849,32 @@
     "test_coverage::src/shared/lib/errorHandling/normalizeAndLogError.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/lib/errorHandling/normalizeAndLogError.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:38:41+00:00"
     },
     "test_coverage::src/shared/hooks/mobile/mobileErrorReporter.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/hooks/mobile/mobileErrorReporter.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:38:49+00:00"
     },
     "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useImageManagementController.ts::transitive_only": {
       "finding_id": "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useImageManagementController.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:47:50+00:00"
     },
     "test_coverage::src/shared/lib/taskCreation/parseTaskCreationResponse.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/lib/taskCreation/parseTaskCreationResponse.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:40:28+00:00"
     },
     "test_coverage::src/shared/components/ProductTour/targets.ts::untested_module": {
       "finding_id": "test_coverage::src/shared/components/ProductTour/targets.ts::untested_module",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:40:19+00:00"
     },
     "test_coverage::supabase/functions/generate-pat/index.ts::untested_module": {
       "finding_id": "test_coverage::supabase/functions/generate-pat/index.ts::untested_module",
@@ -1939,8 +1891,8 @@
     "test_coverage::src/shared/hooks/platformInstall/platformDetection.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/hooks/platformInstall/platformDetection.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:42:08+00:00"
     },
     "test_coverage::src/shared/components/JoinClipsSettingsForm/types.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/components/JoinClipsSettingsForm/types.ts::transitive_only",
@@ -1951,20 +1903,20 @@
     "test_coverage::src/shared/hooks/videoHoverPreview/useSeekController.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/hooks/videoHoverPreview/useSeekController.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:51:48+00:00"
     },
     "test_coverage::src/pages/Home/hooks/auth/useOAuthHashSessionRestore.ts::untested_module": {
       "finding_id": "test_coverage::src/pages/Home/hooks/auth/useOAuthHashSessionRestore.ts::untested_module",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:41:59+00:00"
     },
     "test_coverage::src/shared/lib/interactions/elementPolicy.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/lib/interactions/elementPolicy.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:44:28+00:00"
     },
     "test_coverage::src/shared/components/MediaGalleryItem.tsx::over_mocked::MediaGalleryItem.test.tsx": {
       "finding_id": "test_coverage::src/shared/components/MediaGalleryItem.tsx::over_mocked::MediaGalleryItem.test.tsx",
@@ -1975,8 +1927,8 @@
     "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineContainer/components/TimelineTrack.tsx::transitive_only": {
       "finding_id": "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineContainer/components/TimelineTrack.tsx::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:58:28+00:00"
     },
     "test_coverage::src/shared/components/ui/registerToastErrorPresenter.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/components/ui/registerToastErrorPresenter.ts::transitive_only",
@@ -1987,8 +1939,8 @@
     "test_coverage::src/app/hooks/useAppDndOverlay.tsx::transitive_only": {
       "finding_id": "test_coverage::src/app/hooks/useAppDndOverlay.tsx::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:46:10+00:00"
     },
     "test_coverage::supabase/functions/trim-video/index.ts::untested_module": {
       "finding_id": "test_coverage::supabase/functions/trim-video/index.ts::untested_module",
@@ -1999,8 +1951,8 @@
     "test_coverage::src/pages/Home/components/install/visuals.tsx::transitive_only": {
       "finding_id": "test_coverage::src/pages/Home/components/install/visuals.tsx::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:53:00+00:00"
     },
     "test_coverage::src/shared/components/MediaLightbox/components/AnnotationActionOverlay.tsx::untested_module": {
       "finding_id": "test_coverage::src/shared/components/MediaLightbox/components/AnnotationActionOverlay.tsx::untested_module",
@@ -2011,14 +1963,14 @@
     "test_coverage::src/shared/components/VideoPortionTimeline/components/SelectionOverlay.tsx::transitive_only": {
       "finding_id": "test_coverage::src/shared/components/VideoPortionTimeline/components/SelectionOverlay.tsx::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T21:17:03+00:00"
     },
     "test_coverage::src/tools/travel-between-images/components/Timeline/hooks/useTimelineDomainService.ts::transitive_only": {
       "finding_id": "test_coverage::src/tools/travel-between-images/components/Timeline/hooks/useTimelineDomainService.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:50:47+00:00"
     },
     "test_coverage::config/tailwind/theme/themeColors.ts::untested_module": {
       "finding_id": "test_coverage::config/tailwind/theme/themeColors.ts::untested_module",
@@ -2029,8 +1981,8 @@
     "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineContainer/components/DragLayer.tsx::transitive_only": {
       "finding_id": "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineContainer/components/DragLayer.tsx::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:59:09+00:00"
     },
     "test_coverage::config/vite/policy.ts::untested_module": {
       "finding_id": "test_coverage::config/vite/policy.ts::untested_module",
@@ -2041,8 +1993,8 @@
     "test_coverage::src/pages/Home/hooks/auth/useAuthReferralFinalize.ts::untested_module": {
       "finding_id": "test_coverage::src/pages/Home/hooks/auth/useAuthReferralFinalize.ts::untested_module",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:49:04+00:00"
     },
     "test_coverage::src/tools/travel-between-images/components/Timeline/hooks/useDragStable.ts::untested_module": {
       "finding_id": "test_coverage::src/tools/travel-between-images/components/Timeline/hooks/useDragStable.ts::untested_module",
@@ -2065,8 +2017,8 @@
     "test_coverage::src/shared/components/PhaseConfigVertical.tsx::transitive_only": {
       "finding_id": "test_coverage::src/shared/components/PhaseConfigVertical.tsx::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T21:19:57+00:00"
     },
     "test_coverage::src/shared/components/GenerationsPane/GenerationsPane.tsx::over_mocked::GenerationsPane.test.tsx": {
       "finding_id": "test_coverage::src/shared/components/GenerationsPane/GenerationsPane.tsx::over_mocked::GenerationsPane.test.tsx",
@@ -2083,8 +2035,8 @@
     "test_coverage::src/pages/Home/components/install/scenarios.ts::transitive_only": {
       "finding_id": "test_coverage::src/pages/Home/components/install/scenarios.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:53:08+00:00"
     },
     "test_coverage::src/shared/components/ProductTour/tourRuntime.ts::untested_module": {
       "finding_id": "test_coverage::src/shared/components/ProductTour/tourRuntime.ts::untested_module",
@@ -2107,8 +2059,8 @@
     "test_coverage::src/shared/lib/taskRowMapper.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/lib/taskRowMapper.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:54:26+00:00"
     },
     "test_coverage::src/shared/hooks/useRelativeTimestamp.ts::untested_module": {
       "finding_id": "test_coverage::src/shared/hooks/useRelativeTimestamp.ts::untested_module",
@@ -2119,8 +2071,8 @@
     "test_coverage::src/shared/services/externalApiKeys/repository.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/services/externalApiKeys/repository.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:54:34+00:00"
     },
     "test_coverage::src/tools/travel-between-images/components/ShotImagesEditor/structureVideoCompat.ts::untested_module": {
       "finding_id": "test_coverage::src/tools/travel-between-images/components/ShotImagesEditor/structureVideoCompat.ts::untested_module",
@@ -2137,8 +2089,8 @@
     "test_coverage::src/shared/realtime/dataFreshness/taskFetchFreshness.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/realtime/dataFreshness/taskFetchFreshness.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:55:32+00:00"
     },
     "test_coverage::supabase/functions/process-auto-topup/index.ts::untested_module": {
       "finding_id": "test_coverage::supabase/functions/process-auto-topup/index.ts::untested_module",
@@ -2155,8 +2107,8 @@
     "test_coverage::src/app/providers/queryClient.ts::transitive_only": {
       "finding_id": "test_coverage::src/app/providers/queryClient.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:55:41+00:00"
     },
     "test_coverage::supabase/functions/ai-prompt/index.ts::untested_module": {
       "finding_id": "test_coverage::supabase/functions/ai-prompt/index.ts::untested_module",
@@ -2179,20 +2131,20 @@
     "test_coverage::src/tools/travel-between-images/components/ShotImagesEditor/components/hooks/usePreviewTogetherPlayback.ts::transitive_only": {
       "finding_id": "test_coverage::src/tools/travel-between-images/components/ShotImagesEditor/components/hooks/usePreviewTogetherPlayback.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T21:22:20+00:00"
     },
     "test_coverage::src/integrations/supabase/runtime/supabaseRuntime.ts::transitive_only": {
       "finding_id": "test_coverage::src/integrations/supabase/runtime/supabaseRuntime.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:56:30+00:00"
     },
     "test_coverage::src/shared/components/theme/retroButtonPolicy.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/components/theme/retroButtonPolicy.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:57:20+00:00"
     },
     "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineContainer/components/TimelineControls.tsx::transitive_only": {
       "finding_id": "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineContainer/components/TimelineControls.tsx::transitive_only",
@@ -2203,8 +2155,8 @@
     "test_coverage::src/shared/components/VideoPortionTimeline/hooks/usePlayhead.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/components/VideoPortionTimeline/hooks/usePlayhead.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T21:01:13+00:00"
     },
     "test_coverage::src/shared/lib/generationWriteLifecycle.ts::untested_module": {
       "finding_id": "test_coverage::src/shared/lib/generationWriteLifecycle.ts::untested_module",
@@ -2215,8 +2167,8 @@
     "test_coverage::src/shared/services/externalApiKeys/huggingFaceTokenVerifier.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/services/externalApiKeys/huggingFaceTokenVerifier.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T21:00:14+00:00"
     },
     "test_coverage::supabase/functions/create-task/index.ts::untested_module": {
       "finding_id": "test_coverage::supabase/functions/create-task/index.ts::untested_module",
@@ -2239,8 +2191,8 @@
     "test_coverage::src/shared/services/network/networkStatusDebug.ts::untested_module": {
       "finding_id": "test_coverage::src/shared/services/network/networkStatusDebug.ts::untested_module",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T21:02:08+00:00"
     },
     "test_coverage::supabase/functions/update-shot-pair-prompts/index.ts::untested_module": {
       "finding_id": "test_coverage::supabase/functions/update-shot-pair-prompts/index.ts::untested_module",
@@ -2257,8 +2209,8 @@
     "test_coverage::src/shared/realtime/dataFreshness/pollingPolicy.ts::untested_module": {
       "finding_id": "test_coverage::src/shared/realtime/dataFreshness/pollingPolicy.ts::untested_module",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T21:03:15+00:00"
     },
     "test_coverage::src/shared/components/overlay/useOverlayVisibilityState.ts::untested_module": {
       "finding_id": "test_coverage::src/shared/components/overlay/useOverlayVisibilityState.ts::untested_module",
@@ -2269,8 +2221,8 @@
     "test_coverage::src/pages/Home/hooks/auth/runAuthSupabaseOperation.ts::transitive_only": {
       "finding_id": "test_coverage::src/pages/Home/hooks/auth/runAuthSupabaseOperation.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T21:04:06+00:00"
     },
     "test_coverage::supabase/functions/ai-prompt/templates.ts::untested_module": {
       "finding_id": "test_coverage::supabase/functions/ai-prompt/templates.ts::untested_module",
@@ -2287,20 +2239,20 @@
     "test_coverage::src/shared/hooks/tasks/useProcessingRefetchGuard.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/hooks/tasks/useProcessingRefetchGuard.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T21:05:18+00:00"
     },
     "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useGenerationController.ts::transitive_only": {
       "finding_id": "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useGenerationController.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T21:07:52+00:00"
     },
     "test_coverage::src/shared/components/ShotImageManager/ShotImageManagerDesktop.tsx::over_mocked::ShotImageManagerDesktop.test.tsx": {
       "finding_id": "test_coverage::src/shared/components/ShotImageManager/ShotImageManagerDesktop.tsx::over_mocked::ShotImageManagerDesktop.test.tsx",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T21:10:34+00:00"
     },
     "test_coverage::supabase/functions/task-counts/index.ts::untested_module": {
       "finding_id": "test_coverage::supabase/functions/task-counts/index.ts::untested_module",
@@ -2317,8 +2269,8 @@
     "test_coverage::src/shared/lib/debug/debugConsole.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/lib/debug/debugConsole.ts::transitive_only",
       "created_at": "2026-03-02T01:12:18+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T21:08:49+00:00"
     },
     "test_coverage::src/shared/components/VideoPortionTimeline/components/FrameThumbnail.tsx::transitive_only": {
       "finding_id": "test_coverage::src/shared/components/VideoPortionTimeline/components/FrameThumbnail.tsx::transitive_only",
@@ -10837,8 +10789,8 @@
     "test_coverage::src/shared/lib/storage/localStorageSafe.ts::untested_module": {
       "finding_id": "test_coverage::src/shared/lib/storage/localStorageSafe.ts::untested_module",
       "created_at": "2026-03-02T01:22:41+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T19:17:55+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-02T20:37:07+00:00"
     },
     "subjective_review::src/domains/generation/hooks/useDeleteGenerationWithConfirm.ts::changed": {
       "finding_id": "subjective_review::src/domains/generation/hooks/useDeleteGenerationWithConfirm.ts::changed",
@@ -14105,84 +14057,36 @@
       "description": "Fix 184 test coverage issues",
       "finding_ids": [
         "test_coverage::supabase/functions/complete-auto-topup-setup/index.ts::untested_module",
-        "test_coverage::src/shared/components/MediaLightbox/MediaLightbox.tsx::transitive_only",
         "test_coverage::supabase/functions/complete_task/taskParamNormalizer.ts::transitive_only",
-        "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useOutputController.ts::transitive_only",
         "test_coverage::supabase/functions/grant-credits/index.ts::untested_module",
         "test_coverage::supabase/functions/discord-daily-stats/index.ts::untested_module",
         "test_coverage::supabase/functions/complete_task/index.ts::untested_module",
-        "test_coverage::src/shared/lib/simpleCacheValidator.ts::over_mocked::simpleCacheValidator.test.ts",
-        "test_coverage::src/shared/hooks/platformInstall/signals.ts::transitive_only",
-        "test_coverage::src/tools/travel-between-images/components/ShotEditor/sections/generation/BatchModeContent.tsx::transitive_only",
-        "test_coverage::src/shared/components/VideoPortionTimeline/types.ts::transitive_only",
         "test_coverage::supabase/functions/claim-next-task/index.ts::untested_module",
-        "test_coverage::src/shared/lib/errorHandling/errorPresentation.ts::transitive_only",
-        "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useEditingController.ts::transitive_only",
-        "test_coverage::src/shared/components/VideoPortionTimeline/hooks/useHandleDrag.ts::transitive_only",
         "test_coverage::supabase/functions/generate-thumbnail/index.ts::untested_module",
-        "test_coverage::src/shared/hooks/sourceImageChanges/sourceMismatchAnalysis.ts::transitive_only",
-        "test_coverage::src/tools/travel-between-images/components/Timeline/hooks/timelinePositionCalc.ts::transitive_only",
         "test_coverage::supabase/functions/get-completed-segments/index.ts::untested_module",
-        "test_coverage::src/pages/Home/hooks/auth/displayMode.ts::untested_module",
-        "test_coverage::src/shared/hooks/videoFrameExtraction/extractor.ts::transitive_only",
         "test_coverage::supabase/functions/vitest.unit.config.ts::untested_module",
-        "test_coverage::src/shared/lib/storage/localStorageSafe.ts::untested_module",
-        "test_coverage::src/shared/lib/errorHandling/normalizeAndLogError.ts::transitive_only",
-        "test_coverage::src/shared/hooks/mobile/mobileErrorReporter.ts::transitive_only",
-        "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useImageManagementController.ts::transitive_only",
-        "test_coverage::src/shared/lib/taskCreation/parseTaskCreationResponse.ts::transitive_only",
-        "test_coverage::src/shared/components/ProductTour/targets.ts::untested_module",
         "test_coverage::supabase/functions/generate-pat/index.ts::untested_module",
-        "test_coverage::src/shared/hooks/platformInstall/platformDetection.ts::transitive_only",
         "test_coverage::src/shared/components/JoinClipsSettingsForm/types.ts::transitive_only",
-        "test_coverage::src/shared/hooks/videoHoverPreview/useSeekController.ts::transitive_only",
-        "test_coverage::src/pages/Home/hooks/auth/useOAuthHashSessionRestore.ts::untested_module",
-        "test_coverage::src/shared/lib/interactions/elementPolicy.ts::transitive_only",
         "test_coverage::src/shared/components/MediaGalleryItem.tsx::over_mocked::MediaGalleryItem.test.tsx",
-        "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineContainer/components/TimelineTrack.tsx::transitive_only",
-        "test_coverage::src/app/hooks/useAppDndOverlay.tsx::transitive_only",
         "test_coverage::supabase/functions/trim-video/index.ts::untested_module",
-        "test_coverage::src/pages/Home/components/install/visuals.tsx::transitive_only",
-        "test_coverage::src/shared/components/VideoPortionTimeline/components/SelectionOverlay.tsx::transitive_only",
-        "test_coverage::src/tools/travel-between-images/components/Timeline/hooks/useTimelineDomainService.ts::transitive_only",
         "test_coverage::config/tailwind/theme/themeColors.ts::untested_module",
-        "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineContainer/components/DragLayer.tsx::transitive_only",
         "test_coverage::config/vite/policy.ts::untested_module",
-        "test_coverage::src/pages/Home/hooks/auth/useAuthReferralFinalize.ts::untested_module",
-        "test_coverage::src/shared/components/PhaseConfigVertical.tsx::transitive_only",
         "test_coverage::src/shared/components/GenerationsPane/GenerationsPane.tsx::over_mocked::GenerationsPane.test.tsx",
         "test_coverage::supabase/functions/broadcast-realtime/index.ts::untested_module",
-        "test_coverage::src/pages/Home/components/install/scenarios.ts::transitive_only",
         "test_coverage::supabase/functions/complete_task/generation-child-diagnostics.ts::transitive_only",
         "test_coverage::supabase/functions/ai-voice-prompt/index.ts::untested_module",
-        "test_coverage::src/shared/lib/taskRowMapper.ts::transitive_only",
-        "test_coverage::src/shared/services/externalApiKeys/repository.ts::transitive_only",
-        "test_coverage::src/shared/realtime/dataFreshness/taskFetchFreshness.ts::transitive_only",
         "test_coverage::supabase/functions/process-auto-topup/index.ts::untested_module",
         "test_coverage::supabase/functions/setup-auto-topup/index.ts::untested_module",
-        "test_coverage::src/app/providers/queryClient.ts::transitive_only",
         "test_coverage::supabase/functions/ai-prompt/index.ts::untested_module",
         "test_coverage::supabase/functions/revoke-pat/index.ts::untested_module",
-        "test_coverage::src/tools/travel-between-images/components/ShotImagesEditor/components/hooks/usePreviewTogetherPlayback.ts::transitive_only",
-        "test_coverage::src/integrations/supabase/runtime/supabaseRuntime.ts::transitive_only",
-        "test_coverage::src/shared/components/theme/retroButtonPolicy.ts::transitive_only",
         "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineContainer/components/TimelineControls.tsx::transitive_only",
-        "test_coverage::src/shared/components/VideoPortionTimeline/hooks/usePlayhead.ts::transitive_only",
-        "test_coverage::src/shared/services/externalApiKeys/huggingFaceTokenVerifier.ts::transitive_only",
         "test_coverage::supabase/functions/create-task/index.ts::untested_module",
         "test_coverage::src/tools/travel-between-images/components/ShotImagesEditor/components/PreviewTogetherStage.tsx::transitive_only",
-        "test_coverage::src/shared/services/network/networkStatusDebug.ts::untested_module",
         "test_coverage::supabase/functions/update-shot-pair-prompts/index.ts::untested_module",
-        "test_coverage::src/shared/realtime/dataFreshness/pollingPolicy.ts::untested_module",
-        "test_coverage::src/pages/Home/hooks/auth/runAuthSupabaseOperation.ts::transitive_only",
         "test_coverage::supabase/functions/ai-prompt/templates.ts::untested_module",
         "test_coverage::config/tailwind/theme/themeAnimations.ts::untested_module",
-        "test_coverage::src/shared/hooks/tasks/useProcessingRefetchGuard.ts::transitive_only",
-        "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useGenerationController.ts::transitive_only",
-        "test_coverage::src/shared/components/ShotImageManager/ShotImageManagerDesktop.tsx::over_mocked::ShotImageManagerDesktop.test.tsx",
         "test_coverage::supabase/functions/task-counts/index.ts::untested_module",
         "test_coverage::supabase/functions/get-task-status/index.ts::untested_module",
-        "test_coverage::src/shared/lib/debug/debugConsole.ts::transitive_only",
         "test_coverage::src/shared/components/VideoPortionTimeline/components/FrameThumbnail.tsx::transitive_only",
         "test_coverage::src/integrations/supabase/bootstrap/createSupabaseClient.ts::over_mocked::createSupabaseClient.test.ts",
         "test_coverage::src/tools/travel-between-images/components/ShotImagesEditor/components/PreviewTogetherThumbnails.tsx::transitive_only",
@@ -30623,10 +30527,1930 @@
       "actor": "user",
       "note": "Added direct errorPresentation tests for mapped titles, network descriptions, logging payloads, and silent error suppression.",
       "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:34:33+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/lib/errorHandling/errorPresentation.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct errorPresentation tests for mapped titles, network descriptions, logging payloads, and silent error suppression.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/shared/hooks/sourceImageChanges/__tests__/dataAccess.test.ts src/shared/lib/errorHandling/errorPresentation.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:37:00+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/pages/Home/hooks/auth/displayMode.ts::untested_module"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:37:01+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/pages/Home/hooks/auth/displayMode.ts::untested_module"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct displayMode tests for media query and navigator standalone combinations.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:37:01+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/pages/Home/hooks/auth/displayMode.ts::untested_module"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct displayMode tests for media query and navigator standalone combinations.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/pages/Home/hooks/auth/displayMode.test.ts src/shared/lib/storage/localStorageSafe.test.ts src/shared/hooks/platformInstall/signals.test.tsx and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:37:06+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/lib/storage/localStorageSafe.ts::untested_module"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:37:06+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/lib/storage/localStorageSafe.ts::untested_module"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct localStorageSafe tests including fallback/error normalization behavior.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:37:07+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/lib/storage/localStorageSafe.ts::untested_module"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct localStorageSafe tests including fallback/error normalization behavior.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/pages/Home/hooks/auth/displayMode.test.ts src/shared/lib/storage/localStorageSafe.test.ts src/shared/hooks/platformInstall/signals.test.tsx and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:37:13+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/hooks/platformInstall/signals.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:37:13+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/hooks/platformInstall/signals.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct platform install signals hook tests for status updates, prompt event handling, and timeout probing.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:37:14+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/hooks/platformInstall/signals.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct platform install signals hook tests for status updates, prompt event handling, and timeout probing.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/pages/Home/hooks/auth/displayMode.test.ts src/shared/lib/storage/localStorageSafe.test.ts src/shared/hooks/platformInstall/signals.test.tsx and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:38:41+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/lib/errorHandling/normalizeAndLogError.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:38:41+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/lib/errorHandling/normalizeAndLogError.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct normalizeAndLogError test to verify normalization call, logging call, and returned AppError.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:38:41+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/lib/errorHandling/normalizeAndLogError.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct normalizeAndLogError test to verify normalization call, logging call, and returned AppError.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/shared/lib/errorHandling/normalizeAndLogError.test.ts src/shared/hooks/mobile/mobileErrorReporter.test.ts src/shared/hooks/sourceImageChanges/__tests__/sourceMismatchAnalysis.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:38:48+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/hooks/mobile/mobileErrorReporter.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:38:48+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/hooks/mobile/mobileErrorReporter.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct mobileErrorReporter tests for dedupe-by-key and independent-key reporting.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:38:49+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/hooks/mobile/mobileErrorReporter.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct mobileErrorReporter tests for dedupe-by-key and independent-key reporting.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/shared/lib/errorHandling/normalizeAndLogError.test.ts src/shared/hooks/mobile/mobileErrorReporter.test.ts src/shared/hooks/sourceImageChanges/__tests__/sourceMismatchAnalysis.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:38:56+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/hooks/sourceImageChanges/sourceMismatchAnalysis.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:38:57+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/hooks/sourceImageChanges/sourceMismatchAnalysis.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct sourceMismatchAnalysis tests for ID collection, null slot behavior, URL normalization, and reorder mismatch timestamps.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:38:57+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/hooks/sourceImageChanges/sourceMismatchAnalysis.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct sourceMismatchAnalysis tests for ID collection, null slot behavior, URL normalization, and reorder mismatch timestamps.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/shared/lib/errorHandling/normalizeAndLogError.test.ts src/shared/hooks/mobile/mobileErrorReporter.test.ts src/shared/hooks/sourceImageChanges/__tests__/sourceMismatchAnalysis.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:40:18+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/components/ProductTour/targets.ts::untested_module"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:40:19+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/components/ProductTour/targets.ts::untested_module"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct targets tests for stable IDs and selector mapping.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:40:19+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/components/ProductTour/targets.ts::untested_module"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct targets tests for stable IDs and selector mapping.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/shared/components/ProductTour/targets.test.ts src/shared/lib/taskCreation/parseTaskCreationResponse.test.ts src/shared/components/VideoPortionTimeline/types.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:40:28+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/lib/taskCreation/parseTaskCreationResponse.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:40:28+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/lib/taskCreation/parseTaskCreationResponse.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct parseTaskCreationResponse tests for trimming, pending defaults, and ServerError paths.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:40:28+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/lib/taskCreation/parseTaskCreationResponse.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct parseTaskCreationResponse tests for trimming, pending defaults, and ServerError paths.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/shared/components/ProductTour/targets.test.ts src/shared/lib/taskCreation/parseTaskCreationResponse.test.ts src/shared/components/VideoPortionTimeline/types.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:40:36+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/components/VideoPortionTimeline/types.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:40:37+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/components/VideoPortionTimeline/types.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct VideoPortionTimeline types tests for selection color palette stability.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:40:37+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/components/VideoPortionTimeline/types.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct VideoPortionTimeline types tests for selection color palette stability.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/shared/components/ProductTour/targets.test.ts src/shared/lib/taskCreation/parseTaskCreationResponse.test.ts src/shared/components/VideoPortionTimeline/types.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:41:58+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/pages/Home/hooks/auth/useOAuthHashSessionRestore.ts::untested_module"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:41:58+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/pages/Home/hooks/auth/useOAuthHashSessionRestore.ts::untested_module"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct useOAuthHashSessionRestore tests for no-hash noop, successful restore, and error cleanup behavior.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:41:59+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/pages/Home/hooks/auth/useOAuthHashSessionRestore.ts::untested_module"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct useOAuthHashSessionRestore tests for no-hash noop, successful restore, and error cleanup behavior.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/pages/Home/hooks/auth/useOAuthHashSessionRestore.test.tsx src/shared/hooks/platformInstall/platformDetection.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:42:08+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/hooks/platformInstall/platformDetection.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:42:08+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/hooks/platformInstall/platformDetection.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct platformDetection tests for detection branches, install instructions, and CTA text/icon rules.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:42:08+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/hooks/platformInstall/platformDetection.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct platformDetection tests for detection branches, install instructions, and CTA text/icon rules.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/pages/Home/hooks/auth/useOAuthHashSessionRestore.test.tsx src/shared/hooks/platformInstall/platformDetection.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:44:28+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/lib/interactions/elementPolicy.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:44:28+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/lib/interactions/elementPolicy.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct elementPolicy tests covering interactive tags, overlay detection, and touch-through rules.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:44:28+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/lib/interactions/elementPolicy.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct elementPolicy tests covering interactive tags, overlay detection, and touch-through rules.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/shared/lib/interactions/elementPolicy.test.ts src/tools/travel-between-images/components/Timeline/hooks/__tests__/timeline-core/timelinePositionCalc.test.ts src/shared/lib/__tests__/simpleCacheValidator.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:44:39+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/Timeline/hooks/timelinePositionCalc.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:44:40+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/Timeline/hooks/timelinePositionCalc.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct timelinePositionCalc tests (moved to timeline-core) for server position mapping, optimistic merge semantics, and sync/change utilities.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:44:40+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/Timeline/hooks/timelinePositionCalc.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct timelinePositionCalc tests (moved to timeline-core) for server position mapping, optimistic merge semantics, and sync/change utilities.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/shared/lib/interactions/elementPolicy.test.ts src/tools/travel-between-images/components/Timeline/hooks/__tests__/timeline-core/timelinePositionCalc.test.ts src/shared/lib/__tests__/simpleCacheValidator.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:44:48+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/lib/simpleCacheValidator.ts::over_mocked::simpleCacheValidator.test.ts"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:44:49+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/lib/simpleCacheValidator.ts::over_mocked::simpleCacheValidator.test.ts"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added an additional concrete assertion in simpleCacheValidator tests to address the over-mocked warning.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:44:49+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/lib/simpleCacheValidator.ts::over_mocked::simpleCacheValidator.test.ts"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added an additional concrete assertion in simpleCacheValidator tests to address the over-mocked warning.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/shared/lib/interactions/elementPolicy.test.ts src/tools/travel-between-images/components/Timeline/hooks/__tests__/timeline-core/timelinePositionCalc.test.ts src/shared/lib/__tests__/simpleCacheValidator.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:46:09+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/app/hooks/useAppDndOverlay.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:46:09+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/app/hooks/useAppDndOverlay.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct useAppDndOverlay tests for image/video previews and finalize-drop timer cleanup.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:46:10+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/app/hooks/useAppDndOverlay.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct useAppDndOverlay tests for image/video previews and finalize-drop timer cleanup.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/app/hooks/useAppDndOverlay.test.tsx src/shared/hooks/videoFrameExtraction/extractor.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:46:18+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/hooks/videoFrameExtraction/extractor.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:46:19+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/hooks/videoFrameExtraction/extractor.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct extractor tests for cancellation behavior plus invalid total_frames/frame_rate error guards.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:46:19+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/hooks/videoFrameExtraction/extractor.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct extractor tests for cancellation behavior plus invalid total_frames/frame_rate error guards.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/app/hooks/useAppDndOverlay.test.tsx src/shared/hooks/videoFrameExtraction/extractor.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:47:41+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useOutputController.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:47:42+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useOutputController.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct useOutputController tests for ready/unready selection wiring and returned orchestration state.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:47:42+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useOutputController.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct useOutputController tests for ready/unready selection wiring and returned orchestration state.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/tools/travel-between-images/components/ShotEditor/controllers/useOutputController.test.ts src/tools/travel-between-images/components/ShotEditor/controllers/useImageManagementController.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:47:49+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useImageManagementController.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:47:49+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useImageManagementController.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct useImageManagementController tests for delegated handlers and non-empty upload behavior.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:47:50+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useImageManagementController.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct useImageManagementController tests for delegated handlers and non-empty upload behavior.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/tools/travel-between-images/components/ShotEditor/controllers/useOutputController.test.ts src/tools/travel-between-images/components/ShotEditor/controllers/useImageManagementController.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:49:03+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/pages/Home/hooks/auth/useAuthReferralFinalize.ts::untested_module"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:49:03+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/pages/Home/hooks/auth/useAuthReferralFinalize.ts::untested_module"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct useAuthReferralFinalize tests for runtime-uninitialized, incomplete referral state, successful RPC finalize, and RPC failure handling.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:49:04+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/pages/Home/hooks/auth/useAuthReferralFinalize.ts::untested_module"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct useAuthReferralFinalize tests for runtime-uninitialized, incomplete referral state, successful RPC finalize, and RPC failure handling.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/pages/Home/hooks/auth/useAuthReferralFinalize.test.tsx and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:50:46+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/Timeline/hooks/useTimelineDomainService.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:50:46+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/Timeline/hooks/useTimelineDomainService.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct useTimelineDomainService tests (now under timeline-core) for core-driven and prop-driven/read-only behavior.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:50:47+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/Timeline/hooks/useTimelineDomainService.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct useTimelineDomainService tests (now under timeline-core) for core-driven and prop-driven/read-only behavior.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/tools/travel-between-images/components/Timeline/hooks/__tests__/timeline-core/useTimelineDomainService.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:51:47+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/hooks/videoHoverPreview/useSeekController.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:51:47+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/hooks/videoHoverPreview/useSeekController.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct useSeekController tests for no-video safe path, canplay readiness updates, and canvas drawing when already at target frame.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:51:48+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/hooks/videoHoverPreview/useSeekController.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct useSeekController tests for no-video safe path, canplay readiness updates, and canvas drawing when already at target frame.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/shared/hooks/videoHoverPreview/useSeekController.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:52:59+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/pages/Home/components/install/visuals.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:53:00+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/pages/Home/components/install/visuals.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct visuals tests for exported keyset, component factory shape, and successful render for each visual.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:53:00+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/pages/Home/components/install/visuals.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct visuals tests for exported keyset, component factory shape, and successful render for each visual.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/pages/Home/components/install/scenarios.test.ts src/pages/Home/components/install/visuals.test.tsx and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:53:07+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/pages/Home/components/install/scenarios.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:53:07+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/pages/Home/components/install/scenarios.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct scenarios tests for installed-mobile, safari-dock, chromium-prompt, and no-match fallback behavior.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:53:08+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/pages/Home/components/install/scenarios.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct scenarios tests for installed-mobile, safari-dock, chromium-prompt, and no-match fallback behavior.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/pages/Home/components/install/scenarios.test.ts src/pages/Home/components/install/visuals.test.tsx and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:54:25+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/lib/taskRowMapper.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:54:25+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/lib/taskRowMapper.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct taskRowMapper tests for type-guard validation and Task mapping defaults/field projection.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:54:26+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/lib/taskRowMapper.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct taskRowMapper tests for type-guard validation and Task mapping defaults/field projection.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/shared/lib/taskRowMapper.test.ts src/shared/services/externalApiKeys/repository.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:54:33+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/services/externalApiKeys/repository.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:54:33+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/services/externalApiKeys/repository.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct repository tests for auth guard, select filtering, rpc save+reload, and delete RPC call.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:54:34+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/services/externalApiKeys/repository.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct repository tests for auth guard, select filtering, rpc save+reload, and delete RPC call.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/shared/lib/taskRowMapper.test.ts src/shared/services/externalApiKeys/repository.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:55:31+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/realtime/dataFreshness/taskFetchFreshness.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:55:32+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/realtime/dataFreshness/taskFetchFreshness.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct taskFetchFreshness tests for success notifications and failure error normalization behavior.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:55:32+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/realtime/dataFreshness/taskFetchFreshness.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct taskFetchFreshness tests for success notifications and failure error normalization behavior.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/shared/realtime/dataFreshness/taskFetchFreshness.test.ts src/app/providers/queryClient.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:55:40+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/app/providers/queryClient.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:55:41+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/app/providers/queryClient.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct queryClient tests for auth-sensitive retry gates, retry ceilings, and stale-time/retry-delay defaults.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:55:41+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/app/providers/queryClient.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct queryClient tests for auth-sensitive retry gates, retry ceilings, and stale-time/retry-delay defaults.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/shared/realtime/dataFreshness/taskFetchFreshness.test.ts src/app/providers/queryClient.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:56:29+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/integrations/supabase/runtime/supabaseRuntime.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:56:29+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/integrations/supabase/runtime/supabaseRuntime.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct supabaseRuntime tests for singleton initialization, failure persistence, and pre-bootstrap error behavior.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:56:30+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/integrations/supabase/runtime/supabaseRuntime.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct supabaseRuntime tests for singleton initialization, failure persistence, and pre-bootstrap error behavior.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/integrations/supabase/runtime/supabaseRuntime.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:57:19+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/components/theme/retroButtonPolicy.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:57:19+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/components/theme/retroButtonPolicy.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct retroButtonPolicy tests for default classes and variant/size guard logic.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:57:20+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/components/theme/retroButtonPolicy.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct retroButtonPolicy tests for default classes and variant/size guard logic.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/shared/components/theme/retroButtonPolicy.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:58:27+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineContainer/components/TimelineTrack.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:58:28+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineContainer/components/TimelineTrack.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct TimelineTrack tests for drag/drop forwarding, double-click gating, click forwarding, and cursor/state class behavior.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:58:28+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineContainer/components/TimelineTrack.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct TimelineTrack tests for drag/drop forwarding, double-click gating, click forwarding, and cursor/state class behavior.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/tools/travel-between-images/components/Timeline/TimelineContainer/components/TimelineTrack.test.tsx src/tools/travel-between-images/components/Timeline/TimelineContainer/components/DragLayer.test.tsx and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:59:08+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineContainer/components/DragLayer.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T20:59:08+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineContainer/components/DragLayer.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct DragLayer tests for baseline marker rendering and conditional skeleton markers for pending drop/duplicate/external frames.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T20:59:09+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineContainer/components/DragLayer.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct DragLayer tests for baseline marker rendering and conditional skeleton markers for pending drop/duplicate/external frames.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/tools/travel-between-images/components/Timeline/TimelineContainer/components/TimelineTrack.test.tsx src/tools/travel-between-images/components/Timeline/TimelineContainer/components/DragLayer.test.tsx and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:00:14+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/services/externalApiKeys/huggingFaceTokenVerifier.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:00:14+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/services/externalApiKeys/huggingFaceTokenVerifier.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct HuggingFace token verifier tests covering all response branches and fetch exception handling.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T21:00:14+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/services/externalApiKeys/huggingFaceTokenVerifier.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct HuggingFace token verifier tests covering all response branches and fetch exception handling.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/shared/services/externalApiKeys/huggingFaceTokenVerifier.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:01:13+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/components/VideoPortionTimeline/hooks/usePlayhead.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:01:13+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/components/VideoPortionTimeline/hooks/usePlayhead.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct usePlayhead tests for timeupdate tracking, mouse/touch scrub interactions, and drag-start/drag-end playback behavior.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T21:01:13+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/components/VideoPortionTimeline/hooks/usePlayhead.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct usePlayhead tests for timeupdate tracking, mouse/touch scrub interactions, and drag-start/drag-end playback behavior.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/shared/components/VideoPortionTimeline/hooks/usePlayhead.test.tsx and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:02:07+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/services/network/networkStatusDebug.ts::untested_module"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:02:07+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/services/network/networkStatusDebug.ts::untested_module"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct networkStatusDebug tests for window helper wiring, manager calls, event dispatch, and onLine/effectiveType restoration.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T21:02:08+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/services/network/networkStatusDebug.ts::untested_module"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct networkStatusDebug tests for window helper wiring, manager calls, event dispatch, and onLine/effectiveType restoration.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/shared/services/network/networkStatusDebug.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:03:14+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/realtime/dataFreshness/pollingPolicy.ts::untested_module"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:03:15+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/realtime/dataFreshness/pollingPolicy.ts::untested_module"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct pollingPolicy tests for warm-up, recent events, stale/no-event polling, disconnected backoff, and circuit-breaker handling.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T21:03:15+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/realtime/dataFreshness/pollingPolicy.ts::untested_module"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct pollingPolicy tests for warm-up, recent events, stale/no-event polling, disconnected backoff, and circuit-breaker handling.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/shared/realtime/dataFreshness/pollingPolicy.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:04:05+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/pages/Home/hooks/auth/runAuthSupabaseOperation.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:04:06+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/pages/Home/hooks/auth/runAuthSupabaseOperation.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct runAuthSupabaseOperation tests for default/custom success policies and normalized failure metadata.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T21:04:06+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/pages/Home/hooks/auth/runAuthSupabaseOperation.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct runAuthSupabaseOperation tests for default/custom success policies and normalized failure metadata.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/pages/Home/hooks/auth/runAuthSupabaseOperation.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:05:17+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/hooks/tasks/useProcessingRefetchGuard.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:05:18+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/hooks/tasks/useProcessingRefetchGuard.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct useProcessingRefetchGuard tests for force-refetch execution and max stale-empty guard stop condition.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T21:05:18+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/hooks/tasks/useProcessingRefetchGuard.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct useProcessingRefetchGuard tests for force-refetch execution and max stale-empty guard stop condition.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/shared/hooks/tasks/useProcessingRefetchGuard.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:06:37+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useEditingController.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:06:37+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useEditingController.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct useEditingController orchestration test covering child-hook wiring and returned media/join workflow fields.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T21:06:38+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useEditingController.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct useEditingController orchestration test covering child-hook wiring and returned media/join workflow fields.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/tools/travel-between-images/components/ShotEditor/controllers/useEditingController.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:07:51+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useGenerationController.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:07:52+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useGenerationController.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct useGenerationController tests for child-hook wiring, stitch request mapping, prompt-change/clear flow, and clear-error normalization.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T21:07:52+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/ShotEditor/controllers/useGenerationController.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct useGenerationController tests for child-hook wiring, stitch request mapping, prompt-change/clear flow, and clear-error normalization.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/tools/travel-between-images/components/ShotEditor/controllers/useGenerationController.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:08:48+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/lib/debug/debugConsole.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:08:49+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/lib/debug/debugConsole.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct debugConsole tests for debugConfig fallback, channel override lifecycle, tagged logging, and force logging behavior.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T21:08:49+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/lib/debug/debugConsole.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct debugConsole tests for debugConfig fallback, channel override lifecycle, tagged logging, and force logging behavior.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually run pnpm vitest run --config config/testing/vitest.config.ts src/shared/lib/debug/debugConsole.test.ts and pnpm exec tsc --noEmit and I am not gaming the score by resolving without fixing."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:10:25+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/components/ShotImageManager/ShotImageManagerDesktop.tsx::over_mocked::ShotImageManagerDesktop.test.tsx"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:10:34+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/components/ShotImageManager/ShotImageManagerDesktop.tsx::over_mocked::ShotImageManagerDesktop.test.tsx"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added concrete assertions in ShotImageManagerDesktop tests to validate rendered metadata and selection behavior, then verified with vitest for this file and full TypeScript typecheck.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T21:10:34+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/components/ShotImageManager/ShotImageManagerDesktop.tsx::over_mocked::ShotImageManagerDesktop.test.tsx"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added concrete assertions in ShotImageManagerDesktop tests to validate rendered metadata and selection behavior, then verified with vitest for this file and full TypeScript typecheck.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually completed and validated this task, and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:12:10+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/components/MediaLightbox/MediaLightbox.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:12:10+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/components/MediaLightbox/MediaLightbox.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct MediaLightbox routing tests that assert segment-slot, null-media, video, and image branches with mocked child components; validated with vitest and full tsc.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T21:12:11+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/components/MediaLightbox/MediaLightbox.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct MediaLightbox routing tests that assert segment-slot, null-media, video, and image branches with mocked child components; validated with vitest and full tsc.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually completed and validated this task, and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:14:12+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/ShotEditor/sections/generation/BatchModeContent.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:14:12+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/ShotEditor/sections/generation/BatchModeContent.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct BatchModeContent tests for composed props, stitch and swap interactions, and structure-video camera guidance slider handlers; validated with vitest and tsc.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T21:14:13+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/ShotEditor/sections/generation/BatchModeContent.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct BatchModeContent tests for composed props, stitch and swap interactions, and structure-video camera guidance slider handlers; validated with vitest and tsc.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually completed and validated this task, and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:15:57+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/components/VideoPortionTimeline/hooks/useHandleDrag.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:15:57+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/components/VideoPortionTimeline/hooks/useHandleDrag.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct useHandleDrag hook tests for start drag pause/seek behavior, tap-to-move clamping, and window-listener drag updates including max-gap warning and playback resume.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T21:15:58+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/components/VideoPortionTimeline/hooks/useHandleDrag.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct useHandleDrag hook tests for start drag pause/seek behavior, tap-to-move clamping, and window-listener drag updates including max-gap warning and playback resume.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually completed and validated this task, and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:17:02+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/components/VideoPortionTimeline/components/SelectionOverlay.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:17:02+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/components/VideoPortionTimeline/components/SelectionOverlay.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct SelectionOverlay tests validating thumbnail/time rendering, interaction callbacks for selection and handles, and drag-offset visual feedback/clamping behavior.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T21:17:03+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/components/VideoPortionTimeline/components/SelectionOverlay.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct SelectionOverlay tests validating thumbnail/time rendering, interaction callbacks for selection and handles, and drag-offset visual feedback/clamping behavior.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually completed and validated this task, and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:19:56+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/shared/components/PhaseConfigVertical.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:19:57+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/components/PhaseConfigVertical.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct coverage for migrated PhaseConfigVertical component at shared/components/PhaseConfigSelectorModal/PhaseConfigVertical.tsx, including phase transition, random-seed toggle, LoRA additions, and restore-default behavior.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T21:19:57+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/components/PhaseConfigVertical.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct coverage for migrated PhaseConfigVertical component at shared/components/PhaseConfigSelectorModal/PhaseConfigVertical.tsx, including phase transition, random-seed toggle, LoRA additions, and restore-default behavior.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually completed and validated this task, and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:22:20+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/ShotImagesEditor/components/hooks/usePreviewTogetherPlayback.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:22:20+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/ShotImagesEditor/components/hooks/usePreviewTogetherPlayback.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct hook coverage for initialization by pair index, wrapped navigation, close-state reset with audio teardown, audio toggling, and video metadata/seek handler behavior.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-02T21:22:20+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/ShotImagesEditor/components/hooks/usePreviewTogetherPlayback.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct hook coverage for initialization by pair index, wrapped navigation, close-state reset with audio teardown, audio toggling, and video metadata/seek handler behavior.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually completed and validated this task, and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:23:22+00:00",
+      "action": "move",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineContainer/components/TimelineControls.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "position": "top",
+        "target": null,
+        "offset": null
+      }
+    },
+    {
+      "timestamp": "2026-03-02T21:23:23+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineContainer/components/TimelineControls.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct TimelineControls component tests covering top-controls gating branches, guidance control suppression rules, and bottom controls passthrough behavior.",
+      "detail": {}
     }
   ],
   "promoted_ids": [
-    "test_coverage::src/shared/lib/errorHandling/errorPresentation.ts::transitive_only"
+    "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineContainer/components/TimelineControls.tsx::transitive_only"
   ],
   "pending_plan_gate": false
 }
