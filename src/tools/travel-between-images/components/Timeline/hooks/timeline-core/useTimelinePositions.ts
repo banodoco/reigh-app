@@ -473,26 +473,22 @@ export function useTimelinePositions({
 
       // Batch-update normal image positions (skip if only trailing changed)
       if (dbUpdates.length > 0) {
-        try {
-          await persistTimelineFrameBatch({
-            shotId,
-            updates: dbUpdates.map((update) => ({
-              shotGenerationId: update.shot_generation_id,
-              timelineFrame: update.timeline_frame,
-              metadata: {
-                user_positioned: true,
-                drag_source: operation,
-                ...metadata,
-              },
-            })),
-            operationLabel: `timeline-positions-${operation}`,
-            timeoutOperationName: 'timeline-positions-batch-rpc',
-            logPrefix: '',
-            log: () => {},
-          });
-        } catch (rpcError) {
-          throw rpcError;
-        }
+        await persistTimelineFrameBatch({
+          shotId,
+          updates: dbUpdates.map((update) => ({
+            shotGenerationId: update.shot_generation_id,
+            timelineFrame: update.timeline_frame,
+            metadata: {
+              user_positioned: true,
+              drag_source: operation,
+              ...metadata,
+            },
+          })),
+          operationLabel: `timeline-positions-${operation}`,
+          timeoutOperationName: 'timeline-positions-batch-rpc',
+          logPrefix: '',
+          log: () => {},
+        });
       }
       
       // Success!
