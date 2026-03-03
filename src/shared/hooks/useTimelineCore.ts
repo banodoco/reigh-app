@@ -589,18 +589,26 @@ function useTimelineEnhancedPromptOperations(
 
       if (itemsWithEnhancedPrompt.length === 0) return;
 
-      for (const item of itemsWithEnhancedPrompt) {
-        if (!item.shotImageEntryId) continue;
-
-        const currentMetadata = (item.metadata as Record<string, unknown>) || {};
-        await supabase().from('shot_generations')
-          .update({
-            metadata: {
-              ...currentMetadata,
-              enhanced_prompt: '',
-            },
+      const results = await Promise.all(
+        itemsWithEnhancedPrompt
+          .filter(item => item.shotImageEntryId)
+          .map(item => {
+            const currentMetadata = (item.metadata as Record<string, unknown>) || {};
+            return supabase().from('shot_generations')
+              .update({
+                metadata: {
+                  ...currentMetadata,
+                  enhanced_prompt: '',
+                },
+              })
+              .eq('id', item.shotImageEntryId!);
           })
-          .eq('id', item.shotImageEntryId);
+      );
+
+      const firstError = results.find(r => r.error)?.error;
+      if (firstError) {
+        invalidateGenerations(shotId, { reason: 'clear-all-enhanced-prompts-error', scope: 'metadata' });
+        throw firstError;
       }
 
       invalidateGenerations(shotId, { reason: 'clear-all-enhanced-prompts', scope: 'metadata' });

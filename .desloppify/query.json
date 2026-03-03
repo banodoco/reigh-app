@@ -1,11 +1,11 @@
 {
   "command": "resolve",
   "patterns": [
-    "review::.::holistic::api_surface_coherence::generation_task_cache_param_order_inconsistency::95cc36b4"
+    "review::.::holistic::low_level_elegance::clear_enhanced_prompt_ignores_update_error_field::7c2d46f7"
   ],
   "status": "fixed",
   "resolved": [
-    "review::.::holistic::api_surface_coherence::generation_task_cache_param_order_inconsistency::95cc36b4"
+    "review::.::holistic::low_level_elegance::clear_enhanced_prompt_ignores_update_error_field::7c2d46f7"
   ],
   "count": 1,
   "next_command": "desloppify next",
@@ -17,10 +17,10 @@
   "prev_objective_score": 98.5,
   "prev_strict_score": 80.4,
   "prev_verified_strict_score": 98.4,
-  "attestation": "I have actually swapped the parameter order and updated all callers. I am not gaming the score.",
+  "attestation": "I have actually added error field checking on the DB update results. I am not gaming the score.",
   "narrative": {
     "phase": "stagnation",
-    "headline": "\u26a0 13 security issues \u2014 review before other cleanup. Score plateaued at 80.4 for 5 scans. Structure nav (54.2%) is where the breakthrough is. 240 wontfix items may also be worth revisiting. (70 review issues \u2014 run `desloppify show review --status open`)",
+    "headline": "\u26a0 13 security issues \u2014 review before other cleanup. Score plateaued at 80.4 for 5 scans. Structure nav (54.2%) is where the breakthrough is. 240 wontfix items may also be worth revisiting. (68 review issues \u2014 run `desloppify show review --status open`)",
     "dimensions": {
       "lowest_dimensions": [
         {
@@ -152,8 +152,8 @@
       {
         "type": "refactor",
         "detector": "review",
-        "count": 70,
-        "description": "70 review issues need investigation \u2014 run `desloppify show review --status open` to see them",
+        "count": 68,
+        "description": "68 review issues need investigation \u2014 run `desloppify show review --status open` to see them",
         "command": "desloppify show review --status open",
         "impact": 0.0,
         "dimension": "Unknown",
@@ -197,7 +197,7 @@
     "strategy": {
       "fixer_leverage": {
         "auto_fixable_count": 0,
-        "total_count": 547,
+        "total_count": 541,
         "coverage": 0.0,
         "impact_ratio": 0.0,
         "recommendation": "none"
@@ -255,7 +255,7 @@
         }
       },
       "can_parallelize": true,
-      "hint": "5 independent workstreams, safe to parallelize. Rescan after each phase to verify. Review: 70 issue(s) \u2014 `desloppify show review --status open`."
+      "hint": "5 independent workstreams, safe to parallelize. Rescan after each phase to verify. Review: 68 issue(s) \u2014 `desloppify show review --status open`."
     },
     "tools": {
       "fixers": [
@@ -301,7 +301,7 @@
       "command": "desloppify show orphaned --status open",
       "description": "4 orphaned issues \u2014 delete dead files or relocate with `desloppify move`"
     },
-    "why_now": "5 independent workstreams, safe to parallelize. Rescan after each phase to verify. Review: 70 issue(s) \u2014 `desloppify show review --status open`.",
+    "why_now": "5 independent workstreams, safe to parallelize. Rescan after each phase to verify. Review: 68 issue(s) \u2014 `desloppify show review --status open`.",
     "verification_step": {
       "command": "desloppify scan",
       "reason": "revalidate after changes"
@@ -337,7 +337,7 @@
       },
       {
         "type": "review_issues_pending",
-        "message": "70 review issue(s) need investigation. Run `desloppify show review --status open` to see the work queue.",
+        "message": "68 review issue(s) need investigation. Run `desloppify show review --status open` to see the work queue.",
         "command": "desloppify show review --status open",
         "priority": 1,
         "severity": "high"
