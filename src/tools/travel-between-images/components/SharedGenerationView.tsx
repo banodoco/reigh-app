@@ -77,7 +77,7 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
       return;
     }
     setShowProjectSelector(true);
-  }, [isAuthenticated, shareSlug, navigate, toast]);
+  }, [isAuthenticated, shareSlug, navigate]);
 
   const checkPendingShare = useCallback(() => {
     const pendingShare = sessionStorage.getItem('pending_share');
@@ -401,12 +401,6 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
                       onPhaseConfigChange: () => {},
                       randomSeed: false,
                       onRandomSeedChange: () => {},
-                    }}
-                    structureVideo={{
-                      structureType: structureVideo?.structureType as 'uni3c' | 'flow' | 'canny' | 'depth' || 'uni3c',
-                      structureVideoMotionStrength: structureVideo?.motionStrength ?? 1.0,
-                      onStructureVideoMotionStrengthChange: () => {},
-                      onStructureTypeChange: () => {},
                     }}
                     stateOverrides={{
                       turboMode,

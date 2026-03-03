@@ -533,21 +533,27 @@ export const AddNewPresetTab: React.FC<AddNewTabProps> = ({
           />
 
           <SampleGenerationsSection
-            isEditMode={isEditMode}
-            isOverwriting={isOverwriting}
-            editingPreset={editingPreset}
-            deletedExistingSampleUrls={sampleFilesHook.deletedExistingSampleUrls}
-            onDeleteExistingSample={sampleFilesHook.onDeleteExistingSample}
-            initialVideoSample={sampleFilesHook.initialVideoSample}
-            initialVideoDeleted={sampleFilesHook.initialVideoDeleted}
-            onDeleteInitialVideo={sampleFilesHook.onDeleteInitialVideo}
-            sampleFiles={sampleFilesHook.sampleFiles}
-            previewUrls={sampleFilesHook.previewUrls}
-            mainGenerationIndex={sampleFilesHook.mainGenerationIndex}
-            fileInputKey={sampleFilesHook.fileInputKey}
-            onFilesChange={sampleFilesHook.onFilesChange}
-            onMainGenerationIndexChange={sampleFilesHook.setMainGenerationIndex}
-            onDeleteFile={sampleFilesHook.handleDeleteFile}
+            editState={{
+              isEditMode,
+              isOverwriting,
+              editingPreset,
+              deletedExistingSampleUrls: sampleFilesHook.deletedExistingSampleUrls,
+              onDeleteExistingSample: sampleFilesHook.onDeleteExistingSample,
+            }}
+            initialVideo={{
+              initialVideoSample: sampleFilesHook.initialVideoSample,
+              initialVideoDeleted: sampleFilesHook.initialVideoDeleted,
+              onDeleteInitialVideo: sampleFilesHook.onDeleteInitialVideo,
+            }}
+            upload={{
+              sampleFiles: sampleFilesHook.sampleFiles,
+              previewUrls: sampleFilesHook.previewUrls,
+              mainGenerationIndex: sampleFilesHook.mainGenerationIndex,
+              fileInputKey: sampleFilesHook.fileInputKey,
+              onFilesChange: sampleFilesHook.onFilesChange,
+              onMainGenerationIndexChange: sampleFilesHook.setMainGenerationIndex,
+              onDeleteFile: sampleFilesHook.handleDeleteFile,
+            }}
           />
         </CardContent>
         <ItemCardFooter>

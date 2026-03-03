@@ -97,12 +97,6 @@ export interface AdjacentSegmentsData {
   onNavigateToSegment: (pairIndex: number) => void;
 }
 
-interface BrushStroke {
-  id: string;
-  points: Array<{ x: number; y: number }>;
-  isErasing: boolean;
-}
-
 export interface QuickCreateSuccess {
   isSuccessful: boolean;
   shotId: string | null;

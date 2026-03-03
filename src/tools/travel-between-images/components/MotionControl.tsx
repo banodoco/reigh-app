@@ -58,23 +58,12 @@ export const FEATURED_PRESET_IDS: string[] = [
 ];
 
 type GenerationTypeMode = 'i2v' | 'vace';
-type StructureType = 'uni3c' | 'flow' | 'canny' | 'depth';
-
 interface MotionControlModeProps {
   motionMode: 'basic' | 'advanced';
   onMotionModeChange: (mode: 'basic' | 'advanced') => void;
   generationTypeMode?: GenerationTypeMode;
   onGenerationTypeModeChange?: (mode: GenerationTypeMode) => void;
   hasStructureVideo?: boolean;
-}
-
-interface MotionControlStructureVideoProps {
-  structureType?: StructureType;
-  structureVideoMotionStrength?: number;
-  onStructureVideoMotionStrengthChange?: (strength: number) => void;
-  onStructureTypeChange?: (type: StructureType) => void;
-  uni3cEndPercent?: number;
-  onUni3cEndPercentChange?: (value: number) => void;
 }
 
 interface MotionControlLoraProps {
@@ -125,7 +114,6 @@ interface MotionControlProps {
   lora: MotionControlLoraProps;
   presets: MotionControlPresetProps;
   advanced: MotionControlAdvancedProps;
-  structureVideo?: MotionControlStructureVideoProps;
   stateOverrides?: MotionControlStateOverrides;
 }
 

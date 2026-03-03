@@ -80,4 +80,3 @@ export interface PreferencesSectionProps {
   setAIInputMode: (mode: AIInputMode) => void;
 }
 
-type _TransactionsSectionProps = Record<string, never>;

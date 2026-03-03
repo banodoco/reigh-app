@@ -5,20 +5,21 @@ import FileInput from '@/shared/components/FileInput';
 import { Resource, PhaseConfigMetadata } from '@/shared/hooks/useResources';
 import { MediaPreview } from '../MediaPreview';
 
-interface SampleGenerationsSectionProps {
-  // Edit mode state
+interface SampleGenerationsSectionEditStateProps {
   isEditMode: boolean;
   isOverwriting: boolean;
   editingPreset?: (Resource & { metadata: PhaseConfigMetadata }) | null;
   deletedExistingSampleUrls: string[];
   onDeleteExistingSample: (url: string) => void;
+}
 
-  // Initial video sample state
+interface SampleGenerationsSectionInitialVideoProps {
   initialVideoSample: string | null;
   initialVideoDeleted: boolean;
   onDeleteInitialVideo: () => void;
+}
 
-  // File upload state
+interface SampleGenerationsSectionUploadProps {
   sampleFiles: File[];
   previewUrls: string[];
   mainGenerationIndex: number;
@@ -28,23 +29,39 @@ interface SampleGenerationsSectionProps {
   onDeleteFile: (index: number) => void;
 }
 
+interface SampleGenerationsSectionProps {
+  editState: SampleGenerationsSectionEditStateProps;
+  initialVideo: SampleGenerationsSectionInitialVideoProps;
+  upload: SampleGenerationsSectionUploadProps;
+}
+
 export const SampleGenerationsSection: React.FC<SampleGenerationsSectionProps> = ({
-  isEditMode,
-  isOverwriting,
-  editingPreset,
-  deletedExistingSampleUrls,
-  onDeleteExistingSample,
-  initialVideoSample,
-  initialVideoDeleted,
-  onDeleteInitialVideo,
-  sampleFiles,
-  previewUrls,
-  mainGenerationIndex,
-  fileInputKey,
-  onFilesChange,
-  onMainGenerationIndexChange,
-  onDeleteFile,
+  editState,
+  initialVideo,
+  upload,
 }) => {
+  const {
+    isEditMode,
+    isOverwriting,
+    editingPreset,
+    deletedExistingSampleUrls,
+    onDeleteExistingSample,
+  } = editState;
+  const {
+    initialVideoSample,
+    initialVideoDeleted,
+    onDeleteInitialVideo,
+  } = initialVideo;
+  const {
+    sampleFiles,
+    previewUrls,
+    mainGenerationIndex,
+    fileInputKey,
+    onFilesChange,
+    onMainGenerationIndexChange,
+    onDeleteFile,
+  } = upload;
+
   return (
     <div className="space-y-3 pt-2 border-t">
       <Label className="text-base font-semibold">Sample Generations</Label>

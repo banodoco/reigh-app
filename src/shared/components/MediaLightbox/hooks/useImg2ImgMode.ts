@@ -7,31 +7,37 @@ import { useLoraManager, UseLoraManagerReturn, ActiveLora, LoraModel } from '@/s
 import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
 
+interface Img2ImgPersistedState {
+  strength: number;
+  setStrength: (strength: number) => void;
+  enablePromptExpansion: boolean;
+  setEnablePromptExpansion: (enabled: boolean) => void;
+  prompt: string;
+  setPrompt: (prompt: string) => void;
+  promptHasBeenSet: boolean;
+  numGenerations: number;
+}
+
+interface Img2ImgSourceContext {
+  baseImageUrl: string;
+  activeVariantLocation?: string | null;
+  activeVariantId?: string | null;
+  shotId?: string;
+}
+
+interface Img2ImgTaskOptions {
+  toolTypeOverride?: string;
+  createAsGeneration?: boolean;
+}
+
 interface UseImg2ImgModeProps {
   media: GenerationRow;
   selectedProjectId: string | null;
   isVideo: boolean;
-  sourceUrlForTasks: string;
-  toolTypeOverride?: string;
-  createAsGeneration?: boolean;
   availableLoras?: LoraModel[];
-  // Persisted values from editSettingsPersistence
-  img2imgStrength: number;
-  setImg2imgStrength: (strength: number) => void;
-  enablePromptExpansion: boolean;
-  setEnablePromptExpansion: (enabled: boolean) => void;
-  // Prompt is persisted per-generation (shared with other edit modes)
-  img2imgPrompt: string;
-  setImg2imgPrompt: (prompt: string) => void;
-  img2imgPromptHasBeenSet: boolean;
-  // Number of generations (shared with other edit modes)
-  numGenerations: number;
-  // Active variant's image URL - use this instead of sourceUrlForTasks when editing a variant
-  activeVariantLocation?: string | null;
-  // Active variant ID - for tracking source_variant_id in task params
-  activeVariantId?: string | null;
-  // Shot ID for associating task with shot (enables navigation from TasksPane)
-  shotId?: string;
+  state: Img2ImgPersistedState;
+  source: Img2ImgSourceContext;
+  options?: Img2ImgTaskOptions;
 }
 
 interface UseImg2ImgModeReturn {
@@ -65,28 +71,24 @@ export const useImg2ImgMode = ({
   media,
   selectedProjectId,
   isVideo,
-  sourceUrlForTasks,
-  toolTypeOverride,
-  createAsGeneration,
   availableLoras = [],
-  // Persisted values
-  img2imgStrength,
-  setImg2imgStrength,
-  enablePromptExpansion,
-  setEnablePromptExpansion,
-  // Prompt is persisted per-generation
-  img2imgPrompt,
-  setImg2imgPrompt,
-  img2imgPromptHasBeenSet,
-  // Number of generations (shared)
-  numGenerations,
-  // Active variant location
-  activeVariantLocation,
-  // Active variant ID for tracking source
-  activeVariantId,
-  // Shot association
-  shotId,
+  state,
+  source,
+  options,
 }: UseImg2ImgModeProps): UseImg2ImgModeReturn => {
+  const {
+    strength: img2imgStrength,
+    setStrength: setImg2imgStrength,
+    enablePromptExpansion,
+    setEnablePromptExpansion,
+    prompt: img2imgPrompt,
+    setPrompt: setImg2imgPrompt,
+    promptHasBeenSet: img2imgPromptHasBeenSet,
+    numGenerations,
+  } = state;
+  const { baseImageUrl, activeVariantLocation, activeVariantId, shotId } = source;
+  const { toolTypeOverride, createAsGeneration } = options ?? {};
+
   // Local state (not persisted)
   const [isGeneratingImg2Img, setIsGeneratingImg2Img] = useState(false);
   const [img2imgGenerateSuccess, setImg2imgGenerateSuccess] = useState(false);
@@ -134,7 +136,7 @@ export const useImg2ImgMode = ({
       return;
     }
 
-    if (!sourceUrlForTasks && !activeVariantLocation) {
+    if (!baseImageUrl && !activeVariantLocation) {
       toast.error('No source image URL available');
       return;
     }
@@ -160,8 +162,8 @@ export const useImg2ImgMode = ({
             scale: lora.strength,
           }));
 
-          // Use active variant's location if editing a variant, otherwise use sourceUrlForTasks
-          const effectiveImageUrl = activeVariantLocation || sourceUrlForTasks;
+          // Use active variant's location if editing a variant, otherwise use the base image URL
+          const effectiveImageUrl = activeVariantLocation || baseImageUrl;
 
           // Get actual generation ID (handle shot_generations case)
           const actualGenerationId = getGenerationId(media);
@@ -195,7 +197,7 @@ export const useImg2ImgMode = ({
   }, [
     selectedProjectId,
     isVideo,
-    sourceUrlForTasks,
+    baseImageUrl,
     activeVariantLocation,
     activeVariantId,
     media,

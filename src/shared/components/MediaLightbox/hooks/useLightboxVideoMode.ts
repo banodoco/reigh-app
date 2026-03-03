@@ -23,41 +23,41 @@ import { useVideoEnhance, type VideoEnhanceSettings } from './useVideoEnhance';
 import { useVideoEditModeHandlers } from './useVideoEditModeHandlers';
 import type { TrimState } from '@/shared/types/videoTrim';
 
-interface UseLightboxVideoModeProps {
-  // Core
+interface LightboxVideoCoreInput {
   media: GenerationRow;
   isVideo: boolean;
   selectedProjectId: string | null;
   projectAspectRatio?: string;
   shotId?: string;
   actualGenerationId: string | null;
-
-  // Effective URLs
   effectiveVideoUrl: string;
+}
 
-  // Active variant (for source tracking)
+interface LightboxVideoVariantInput {
   activeVariant: GenerationVariant | null;
-
-  // Variant management
   setActiveVariantId: (id: string) => void;
   refetchVariants: () => void;
+}
 
-  // Video edit sub-mode state - pass both the state and the wrapper
+interface LightboxVideoEditStateInput {
   videoEditSubMode: 'trim' | 'replace' | 'regenerate' | 'enhance' | null;
-  // The wrapper that handles both local state and persistence - created by the caller
   setVideoEditSubMode: (mode: 'trim' | 'replace' | 'regenerate' | 'enhance' | null) => void;
-
-  // Persisted settings (only used by handlers, not for wrapper creation)
   persistedVideoEditSubMode: 'trim' | 'replace' | 'regenerate' | 'enhance' | null;
   setPersistedPanelMode: (mode: 'info' | 'edit') => void;
+}
 
-  // Enhance settings
-  enhanceSettings: VideoEnhanceSettings;
-  setEnhanceSettings: (updates: Partial<VideoEnhanceSettings>) => void;
-
-  // Callbacks
-  onTrimModeChange?: (isTrimMode: boolean) => void;
+interface LightboxVideoEnhanceInput {
+  settings: VideoEnhanceSettings;
+  setSettings: (updates: Partial<VideoEnhanceSettings>) => void;
   canRegenerate: boolean;
+}
+
+interface UseLightboxVideoModeProps {
+  core: LightboxVideoCoreInput;
+  variants: LightboxVideoVariantInput;
+  editState: LightboxVideoEditStateInput;
+  enhance: LightboxVideoEnhanceInput;
+  onTrimModeChange?: (isTrimMode: boolean) => void;
 }
 
 interface UseLightboxVideoModeReturn {
@@ -230,6 +230,9 @@ function buildLightboxVideoModeReturn(input: BuildLightboxVideoModeReturnInput):
 
 export function useLightboxVideoMode(props: UseLightboxVideoModeProps): UseLightboxVideoModeReturn {
   const {
+    onTrimModeChange,
+  } = props;
+  const {
     media,
     isVideo,
     selectedProjectId,
@@ -237,18 +240,19 @@ export function useLightboxVideoMode(props: UseLightboxVideoModeProps): UseLight
     shotId,
     actualGenerationId,
     effectiveVideoUrl,
-    activeVariant,
-    setActiveVariantId,
-    refetchVariants,
+  } = props.core;
+  const { activeVariant, setActiveVariantId, refetchVariants } = props.variants;
+  const {
     videoEditSubMode,
     setVideoEditSubMode, // The wrapper is passed in from the caller (handles both local state + persistence)
     persistedVideoEditSubMode,
     setPersistedPanelMode,
-    enhanceSettings,
-    setEnhanceSettings,
-    onTrimModeChange,
+  } = props.editState;
+  const {
+    settings: enhanceSettings,
+    setSettings: setEnhanceSettings,
     canRegenerate,
-  } = props;
+  } = props.enhance;
 
   // Refs
   const trimVideoRef = useRef<HTMLVideoElement>(null);

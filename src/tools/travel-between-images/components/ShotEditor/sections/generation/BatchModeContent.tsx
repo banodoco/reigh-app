@@ -238,14 +238,6 @@ export const BatchModeContent: React.FC<BatchModeContentProps> = ({
               onGenerationTypeModeChange: phaseConfigSettings.setGenerationTypeMode,
               hasStructureVideo: !!structureVideo.structureVideoPath,
             }}
-            structureVideo={{
-              structureType: structureVideo.structureVideoType,
-              structureVideoMotionStrength: structureVideo.structureVideoMotionStrength,
-              onStructureVideoMotionStrengthChange: structureVideoHandlers.handleStructureVideoMotionStrengthChange,
-              onStructureTypeChange: structureVideoHandlers.handleStructureTypeChangeFromMotionControl,
-              uni3cEndPercent: structureVideo.structureVideoUni3cEndPercent,
-              onUni3cEndPercentChange: structureVideoHandlers.handleUni3cEndPercentChange,
-            }}
             lora={{
               selectedLoras: loraManager.selectedLoras,
               availableLoras: loraSettingsFromContext.availableLoras,

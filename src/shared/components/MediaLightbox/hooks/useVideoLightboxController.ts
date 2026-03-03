@@ -168,24 +168,32 @@ export function useVideoLightboxEditing(
   });
 
   const videoMode = useLightboxVideoMode({
-    media: fallbackMedia,
-    isVideo: true,
-    selectedProjectId: env.selectedProjectId,
-    projectAspectRatio: env.projectAspectRatio,
-    shotId,
-    actualGenerationId: env.actualGenerationId,
-    effectiveVideoUrl: sharedState.effectiveMedia.videoUrl ?? env.effectiveImageUrl,
-    activeVariant: sharedState.variants.activeVariant,
-    setActiveVariantId: sharedState.variants.setActiveVariantId,
-    refetchVariants: sharedState.variants.refetch,
-    videoEditSubMode: env.videoEditSubMode,
-    setVideoEditSubMode: env.setVideoEditSubMode,
-    persistedVideoEditSubMode: env.persistedVideoEditSubMode,
-    setPersistedPanelMode: env.setPersistedPanelMode,
-    enhanceSettings: env.enhanceSettings,
-    setEnhanceSettings: env.setEnhanceSettings,
+    core: {
+      media: fallbackMedia,
+      isVideo: true,
+      selectedProjectId: env.selectedProjectId,
+      projectAspectRatio: env.projectAspectRatio,
+      shotId,
+      actualGenerationId: env.actualGenerationId,
+      effectiveVideoUrl: sharedState.effectiveMedia.videoUrl ?? env.effectiveImageUrl,
+    },
+    variants: {
+      activeVariant: sharedState.variants.activeVariant,
+      setActiveVariantId: sharedState.variants.setActiveVariantId,
+      refetchVariants: sharedState.variants.refetch,
+    },
+    editState: {
+      videoEditSubMode: env.videoEditSubMode,
+      setVideoEditSubMode: env.setVideoEditSubMode,
+      persistedVideoEditSubMode: env.persistedVideoEditSubMode,
+      setPersistedPanelMode: env.setPersistedPanelMode,
+    },
+    enhance: {
+      settings: env.enhanceSettings,
+      setSettings: env.setEnhanceSettings,
+      canRegenerate,
+    },
     onTrimModeChange,
-    canRegenerate,
   });
 
   usePanelModeRestore({

@@ -181,7 +181,7 @@ export function useShotActions(props: UseShotActionsProps) {
   }, [
     imageId, generationId, imageUrl, thumbUrl, displayUrl, selectedShotId, isMobile,
     onAddToLastShot, onShowTick, onOptimisticPositioned,
-    setAddingToShotImageId, toast
+    setAddingToShotImageId
   ]);
 
   const addToShotWithoutPosition = useCallback(async () => {
@@ -208,7 +208,7 @@ export function useShotActions(props: UseShotActionsProps) {
   }, [
     imageId, generationId, imageUrl, thumbUrl, displayUrl, selectedShotId, isMobile,
     onAddToLastShotWithoutPosition, onShowSecondaryTick, onOptimisticUnpositioned,
-    setAddingToShotWithoutPositionImageId, toast
+    setAddingToShotWithoutPositionImageId
   ]);
 
   return {
