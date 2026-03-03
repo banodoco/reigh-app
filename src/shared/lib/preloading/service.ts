@@ -289,8 +289,8 @@ class PreloadingService {
 
 export const preloadingService = PreloadingService.getInstance();
 
-// Expose for debugging in browser console
-if (typeof window !== 'undefined') {
+// Expose for debugging in browser console (dev only)
+if (import.meta.env.DEV && typeof window !== 'undefined') {
   (window as unknown as { __PRELOADING_SERVICE__: PreloadingService }).__PRELOADING_SERVICE__ =
     preloadingService;
 }

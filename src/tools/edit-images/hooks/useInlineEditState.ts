@@ -14,23 +14,20 @@ import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { usePublicLoras } from '@/shared/hooks/useResources';
 import { TOOL_IDS } from '@/shared/lib/toolIds';
 
-import {
-  useUpscale,
-  useInpainting,
-  useEditModeLoRAs,
-  useSourceGeneration,
-  useMagicEditMode,
-  useStarToggle,
-  useRepositionMode,
-  useImg2ImgMode,
-  useEditSettingsPersistence,
-  useEditSettingsSync,
-  type SettingsEditMode,
-  type InpaintingEditMode,
-  type ImageEditMode,
-  type ImageEditState,
-  downloadMedia,
-} from '@/features/image-edit';
+import { useUpscale } from '@/shared/components/MediaLightbox/hooks/useUpscale';
+import { useInpainting } from '@/shared/components/MediaLightbox/hooks/useInpainting';
+import { useEditModeLoRAs } from '@/shared/components/MediaLightbox/hooks/useEditModeLoRAs';
+import { useSourceGeneration } from '@/shared/components/MediaLightbox/hooks/useSourceGeneration';
+import { useMagicEditMode } from '@/shared/components/MediaLightbox/hooks/useMagicEditMode';
+import { useStarToggle } from '@/shared/components/MediaLightbox/hooks/useStarToggle';
+import { useRepositionMode } from '@/shared/components/MediaLightbox/hooks/useRepositionMode';
+import { useImg2ImgMode } from '@/shared/components/MediaLightbox/hooks/useImg2ImgMode';
+import { useEditSettingsPersistence } from '@/shared/components/MediaLightbox/hooks/useEditSettingsPersistence';
+import { useEditSettingsSync } from '@/shared/components/MediaLightbox/hooks/useEditSettingsSync';
+import type { EditMode as SettingsEditMode } from '@/shared/components/MediaLightbox/hooks/editSettingsTypes';
+import type { EditMode as InpaintingEditMode } from '@/shared/components/MediaLightbox/hooks/inpainting/types';
+import type { ImageEditMode, ImageEditState } from '@/shared/components/MediaLightbox/contexts/ImageEditContext';
+import { downloadMedia } from '@/shared/components/MediaLightbox/utils';
 import { useVariants } from '@/shared/hooks/useVariants';
 
 // ============================================================================

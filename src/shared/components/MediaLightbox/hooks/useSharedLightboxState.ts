@@ -419,7 +419,6 @@ export function useLightboxNavigationModel(input: SharedNavigationInput): UseSha
     swipeNavigation,
   };
 }
-export const useSharedNavigationState = useLightboxNavigationModel;
 
 /**
  * Shot management sub-facade: positioning, creation, association state.
@@ -493,7 +492,6 @@ export function useLightboxShotActions(input: SharedShotActionsInput): UseShared
     handleQuickCreateSuccess,
   };
 }
-export const useSharedShotState = useLightboxShotActions;
 
 function useSharedMakeMainVariantState(params: {
   media: GenerationRow;
@@ -809,4 +807,3 @@ export function useLightboxPanelModel(
     buttonGroupProps,
   };
 }
-export const useSharedLightboxPresentationState = useLightboxPanelModel;

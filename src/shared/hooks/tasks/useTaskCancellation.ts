@@ -109,9 +109,9 @@ interface CancelAllPendingTasksResponse {
  * For orchestrator tasks (travel_orchestrator, join_clips_orchestrator, etc.), also cancels their subtasks
  */
 async function cancelPendingTasks(projectId: string): Promise<CancelAllPendingTasksResponse> {
-  // First, get all pending tasks to check for orchestrators
+  // Get all pending tasks with type and params in a single query
   const { data: pendingTasks, error: fetchError } = await supabase().from('tasks')
-    .select('id, task_type')
+    .select('id, task_type, params')
     .eq('project_id', projectId)
     .in('status', ['Queued']);
 
@@ -125,28 +125,20 @@ async function cancelPendingTasks(projectId: string): Promise<CancelAllPendingTa
   // Add all pending tasks
   pendingTasks?.forEach(task => tasksToCancel.add(task.id));
 
-  // Find orchestrator tasks
+  // Find orchestrator tasks and their subtasks
   const orchestratorIds = pendingTasks
     ?.filter(task => task.task_type?.includes('orchestrator'))
     .map(task => task.id) || [];
 
-  // If there are orchestrators, find their subtasks
   if (orchestratorIds.length > 0) {
-    const { data: allProjectTasks, error: allTasksError } = await supabase().from('tasks')
-      .select('id, params')
-      .eq('project_id', projectId)
-      .in('status', ['Queued']);
+    pendingTasks?.forEach(task => {
+      const params = task.params as Record<string, unknown> | null;
+      const orchestratorRef = params?.orchestrator_task_id_ref || params?.orchestrator_task_id;
 
-    if (!allTasksError && allProjectTasks) {
-      allProjectTasks.forEach(task => {
-        const params = task.params as Record<string, unknown> | null;
-        const orchestratorRef = params?.orchestrator_task_id_ref || params?.orchestrator_task_id;
-
-        if (typeof orchestratorRef === 'string' && orchestratorIds.includes(orchestratorRef)) {
-          tasksToCancel.add(task.id);
-        }
-      });
-    }
+      if (typeof orchestratorRef === 'string' && orchestratorIds.includes(orchestratorRef)) {
+        tasksToCancel.add(task.id);
+      }
+    });
   }
 
   // Cancel all collected tasks

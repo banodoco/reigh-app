@@ -150,7 +150,7 @@ export const debugConfig = {
   }
 };
 
-// Make debug config available globally for runtime control
-if (typeof window !== 'undefined') {
+// Make debug config available globally for runtime control (dev only)
+if (import.meta.env.DEV && typeof window !== 'undefined') {
   (window as Window & { debugConfig?: typeof debugConfig }).debugConfig = debugConfig;
 }

@@ -8,8 +8,8 @@ import {
   EditModePanel,
   FloatingToolControls,
   AnnotationFloatingControls,
-  ImageEditProvider,
-} from '@/features/image-edit';
+} from '@/shared/components/MediaLightbox/components';
+import { ImageEditProvider } from '@/shared/components/MediaLightbox/contexts/ImageEditContext';
 import { Button } from '@/shared/components/ui/button';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { TooltipProvider } from '@/shared/components/ui/tooltip';
