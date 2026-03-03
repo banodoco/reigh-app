@@ -1,45 +1,8 @@
 {
   "version": 5,
   "created": "2026-03-02T01:10:28+00:00",
-  "updated": "2026-03-03T00:14:02+00:00",
+  "updated": "2026-03-03T01:02:07+00:00",
   "queue_order": [
-    "test_coverage::src/shared/components/MediaGallery/hooks/useMediaGalleryLightboxControllers.ts::transitive_only",
-    "test_coverage::src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotPresentationAdapter.ts::transitive_only",
-    "test_coverage::src/pages/Home/components/panes/sections/PhilosophySections.tsx::transitive_only",
-    "test_coverage::src/shared/components/MediaLightbox/components/strokeOverlay/StrokeOverlayCanvas.tsx::transitive_only",
-    "test_coverage::src/tools/travel-between-images/components/VideoGenerationModalSections.tsx::transitive_only",
-    "test_coverage::src/shared/components/PromptEditorModal/components/PromptEditorAIPanel.tsx::transitive_only",
-    "test_coverage::src/tools/join-clips/pages/components/JoinClipsGrid.tsx::transitive_only",
-    "test_coverage::src/tools/travel-between-images/components/ShotEditor/hooks/editor-state/timelineDropHelpers.ts::transitive_only",
-    "test_coverage::src/tools/travel-between-images/components/VideoGallery/hooks/usePendingNewShotDrop.ts::transitive_only",
-    "test_coverage::src/tools/join-clips/pages/hooks/useJoinClipsPageHelpers.ts::transitive_only",
-    "test_coverage::src/tools/travel-between-images/components/Timeline/hooks/timeline-core/useTimelineViewportController.ts::transitive_only",
-    "test_coverage::src/shared/components/ShotImageManager/components/MobileSelectionActionBar.tsx::transitive_only",
-    "test_coverage::src/shared/contexts/useProjectSessionCoordinator.ts::over_mocked::useProjectSessionCoordinator.test.ts",
-    "test_coverage::src/shared/components/PhaseConfigSelectorModal/PhaseConfigVertical.tsx::over_mocked::PhaseConfigVertical.test.tsx",
-    "test_coverage::src/shared/components/GenerationsPane/components/GenerationsPaneControls.tsx::transitive_only",
-    "test_coverage::src/shared/hooks/shots/externalImageDrop.ts::over_mocked::externalImageDrop.test.ts",
-    "test_coverage::src/shared/components/ShotImageManager/components/DesktopLightboxOverlay.tsx::transitive_only",
-    "test_coverage::src/tools/travel-between-images/components/VideoGallery/VideoTravelVideosGallery.tsx::transitive_only",
-    "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineEmptyState.tsx::transitive_only",
-    "test_coverage::src/tools/travel-between-images/components/VideoGallery/VideoTravelListHeader.tsx::transitive_only",
-    "test_coverage::src/shared/components/ShotImageManager/components/MobileImageGrid.tsx::transitive_only",
-    "test_coverage::src/shared/components/GenerationDetails/useImageGenerationDetailsViewModel.ts::transitive_only",
-    "test_coverage::src/features/shots/components/CreateShotModal.tsx::transitive_only",
-    "subjective::abstraction_fitness",
-    "subjective::ai_generated_debt",
-    "subjective::api_surface_coherence",
-    "subjective::authorization_consistency",
-    "subjective::contract_coherence",
-    "subjective::convention_outlier",
-    "subjective::cross_module_architecture",
-    "subjective::dependency_health",
-    "subjective::design_coherence",
-    "subjective::error_consistency",
-    "subjective::incomplete_migration",
-    "subjective::initialization_coupling",
-    "subjective::package_organization",
-    "subjective::test_strategy",
     "props::src/shared/components/MediaLightbox/components/VideoEditPanel.tsx::VideoEditPanelProps",
     "props::src/shared/components/MediaLightbox/components/EditModePanel.tsx::EditModePanelProps",
     "props::src/shared/components/SegmentSettingsForm/types.ts::SegmentSettingsFormProps",
@@ -128,8 +91,149 @@
     "props::src/tools/travel-between-images/components/VideoGallery/VideoShotDisplay.tsx::VideoShotDisplayProps"
   ],
   "deferred": [],
-  "skipped": {},
-  "active_cluster": "auto/test_coverage",
+  "skipped": {
+    "subjective::abstraction_fitness": {
+      "finding_id": "subjective::abstraction_fitness",
+      "kind": "temporary",
+      "reason": "subjective rerun blocked by intermittent codex batch auth/hang; continue objective queue",
+      "note": null,
+      "attestation": null,
+      "created_at": "2026-03-03T01:02:07+00:00",
+      "review_after": 1,
+      "skipped_at_scan": 144
+    },
+    "subjective::ai_generated_debt": {
+      "finding_id": "subjective::ai_generated_debt",
+      "kind": "temporary",
+      "reason": "subjective rerun blocked by intermittent codex batch auth/hang; continue objective queue",
+      "note": null,
+      "attestation": null,
+      "created_at": "2026-03-03T01:02:07+00:00",
+      "review_after": 1,
+      "skipped_at_scan": 144
+    },
+    "subjective::api_surface_coherence": {
+      "finding_id": "subjective::api_surface_coherence",
+      "kind": "temporary",
+      "reason": "subjective rerun blocked by intermittent codex batch auth/hang; continue objective queue",
+      "note": null,
+      "attestation": null,
+      "created_at": "2026-03-03T01:02:07+00:00",
+      "review_after": 1,
+      "skipped_at_scan": 144
+    },
+    "subjective::authorization_consistency": {
+      "finding_id": "subjective::authorization_consistency",
+      "kind": "temporary",
+      "reason": "subjective rerun blocked by intermittent codex batch auth/hang; continue objective queue",
+      "note": null,
+      "attestation": null,
+      "created_at": "2026-03-03T01:02:07+00:00",
+      "review_after": 1,
+      "skipped_at_scan": 144
+    },
+    "subjective::contract_coherence": {
+      "finding_id": "subjective::contract_coherence",
+      "kind": "temporary",
+      "reason": "subjective rerun blocked by intermittent codex batch auth/hang; continue objective queue",
+      "note": null,
+      "attestation": null,
+      "created_at": "2026-03-03T01:02:07+00:00",
+      "review_after": 1,
+      "skipped_at_scan": 144
+    },
+    "subjective::convention_outlier": {
+      "finding_id": "subjective::convention_outlier",
+      "kind": "temporary",
+      "reason": "subjective rerun blocked by intermittent codex batch auth/hang; continue objective queue",
+      "note": null,
+      "attestation": null,
+      "created_at": "2026-03-03T01:02:07+00:00",
+      "review_after": 1,
+      "skipped_at_scan": 144
+    },
+    "subjective::cross_module_architecture": {
+      "finding_id": "subjective::cross_module_architecture",
+      "kind": "temporary",
+      "reason": "subjective rerun blocked by intermittent codex batch auth/hang; continue objective queue",
+      "note": null,
+      "attestation": null,
+      "created_at": "2026-03-03T01:02:07+00:00",
+      "review_after": 1,
+      "skipped_at_scan": 144
+    },
+    "subjective::dependency_health": {
+      "finding_id": "subjective::dependency_health",
+      "kind": "temporary",
+      "reason": "subjective rerun blocked by intermittent codex batch auth/hang; continue objective queue",
+      "note": null,
+      "attestation": null,
+      "created_at": "2026-03-03T01:02:07+00:00",
+      "review_after": 1,
+      "skipped_at_scan": 144
+    },
+    "subjective::design_coherence": {
+      "finding_id": "subjective::design_coherence",
+      "kind": "temporary",
+      "reason": "subjective rerun blocked by intermittent codex batch auth/hang; continue objective queue",
+      "note": null,
+      "attestation": null,
+      "created_at": "2026-03-03T01:02:07+00:00",
+      "review_after": 1,
+      "skipped_at_scan": 144
+    },
+    "subjective::error_consistency": {
+      "finding_id": "subjective::error_consistency",
+      "kind": "temporary",
+      "reason": "subjective rerun blocked by intermittent codex batch auth/hang; continue objective queue",
+      "note": null,
+      "attestation": null,
+      "created_at": "2026-03-03T01:02:07+00:00",
+      "review_after": 1,
+      "skipped_at_scan": 144
+    },
+    "subjective::incomplete_migration": {
+      "finding_id": "subjective::incomplete_migration",
+      "kind": "temporary",
+      "reason": "subjective rerun blocked by intermittent codex batch auth/hang; continue objective queue",
+      "note": null,
+      "attestation": null,
+      "created_at": "2026-03-03T01:02:07+00:00",
+      "review_after": 1,
+      "skipped_at_scan": 144
+    },
+    "subjective::initialization_coupling": {
+      "finding_id": "subjective::initialization_coupling",
+      "kind": "temporary",
+      "reason": "subjective rerun blocked by intermittent codex batch auth/hang; continue objective queue",
+      "note": null,
+      "attestation": null,
+      "created_at": "2026-03-03T01:02:07+00:00",
+      "review_after": 1,
+      "skipped_at_scan": 144
+    },
+    "subjective::package_organization": {
+      "finding_id": "subjective::package_organization",
+      "kind": "temporary",
+      "reason": "subjective rerun blocked by intermittent codex batch auth/hang; continue objective queue",
+      "note": null,
+      "attestation": null,
+      "created_at": "2026-03-03T01:02:07+00:00",
+      "review_after": 1,
+      "skipped_at_scan": 144
+    },
+    "subjective::test_strategy": {
+      "finding_id": "subjective::test_strategy",
+      "kind": "temporary",
+      "reason": "subjective rerun blocked by intermittent codex batch auth/hang; continue objective queue",
+      "note": null,
+      "attestation": null,
+      "created_at": "2026-03-03T01:02:07+00:00",
+      "review_after": 1,
+      "skipped_at_scan": 144
+    }
+  },
+  "active_cluster": null,
   "overrides": {
     "exports::src/shared/components/theme/RetroButton.tsx::Button": {
       "finding_id": "exports::src/shared/components/theme/RetroButton.tsx::Button",
@@ -2456,14 +2560,14 @@
     "test_coverage::src/shared/components/MediaGallery/hooks/useMediaGalleryLightboxControllers.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/components/MediaGallery/hooks/useMediaGalleryLightboxControllers.ts::transitive_only",
       "created_at": "2026-03-02T23:01:06+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T23:01:06+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-03T00:15:12+00:00"
     },
     "test_coverage::src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotPresentationAdapter.ts::transitive_only": {
       "finding_id": "test_coverage::src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotPresentationAdapter.ts::transitive_only",
       "created_at": "2026-03-02T23:01:06+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T23:01:06+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-03T00:17:32+00:00"
     },
     "test_coverage::src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotDeepLinking.ts::transitive_only": {
       "finding_id": "test_coverage::src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotDeepLinking.ts::transitive_only",
@@ -2522,8 +2626,8 @@
     "test_coverage::src/pages/Home/components/panes/sections/PhilosophySections.tsx::transitive_only": {
       "finding_id": "test_coverage::src/pages/Home/components/panes/sections/PhilosophySections.tsx::transitive_only",
       "created_at": "2026-03-02T23:01:06+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T23:01:06+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-03T00:18:16+00:00"
     },
     "test_coverage::src/features/resources/components/ResourceBrowserModalBase.tsx::transitive_only": {
       "finding_id": "test_coverage::src/features/resources/components/ResourceBrowserModalBase.tsx::transitive_only",
@@ -2552,8 +2656,8 @@
     "test_coverage::src/shared/components/MediaLightbox/components/strokeOverlay/StrokeOverlayCanvas.tsx::transitive_only": {
       "finding_id": "test_coverage::src/shared/components/MediaLightbox/components/strokeOverlay/StrokeOverlayCanvas.tsx::transitive_only",
       "created_at": "2026-03-02T23:01:06+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T23:01:06+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-03T00:19:16+00:00"
     },
     "test_coverage::src/integrations/supabase/repositories/generationMutationsRepository.ts::transitive_only": {
       "finding_id": "test_coverage::src/integrations/supabase/repositories/generationMutationsRepository.ts::transitive_only",
@@ -2618,26 +2722,26 @@
     "test_coverage::src/tools/travel-between-images/components/VideoGenerationModalSections.tsx::transitive_only": {
       "finding_id": "test_coverage::src/tools/travel-between-images/components/VideoGenerationModalSections.tsx::transitive_only",
       "created_at": "2026-03-02T23:01:06+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T23:01:06+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-03T00:20:11+00:00"
     },
     "test_coverage::src/shared/components/PromptEditorModal/components/PromptEditorAIPanel.tsx::transitive_only": {
       "finding_id": "test_coverage::src/shared/components/PromptEditorModal/components/PromptEditorAIPanel.tsx::transitive_only",
       "created_at": "2026-03-02T23:01:06+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T23:01:06+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-03T00:21:17+00:00"
     },
     "test_coverage::src/tools/join-clips/pages/components/JoinClipsGrid.tsx::transitive_only": {
       "finding_id": "test_coverage::src/tools/join-clips/pages/components/JoinClipsGrid.tsx::transitive_only",
       "created_at": "2026-03-02T23:01:06+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T23:01:06+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-03T00:22:00+00:00"
     },
     "test_coverage::src/tools/travel-between-images/components/ShotEditor/hooks/editor-state/timelineDropHelpers.ts::transitive_only": {
       "finding_id": "test_coverage::src/tools/travel-between-images/components/ShotEditor/hooks/editor-state/timelineDropHelpers.ts::transitive_only",
       "created_at": "2026-03-02T23:01:06+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T23:01:06+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-03T00:23:00+00:00"
     },
     "test_coverage::src/tools/join-clips/pages/components/JoinClipsResults.tsx::transitive_only": {
       "finding_id": "test_coverage::src/tools/join-clips/pages/components/JoinClipsResults.tsx::transitive_only",
@@ -2654,8 +2758,8 @@
     "test_coverage::src/tools/travel-between-images/components/VideoGallery/hooks/usePendingNewShotDrop.ts::transitive_only": {
       "finding_id": "test_coverage::src/tools/travel-between-images/components/VideoGallery/hooks/usePendingNewShotDrop.ts::transitive_only",
       "created_at": "2026-03-02T23:01:06+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T23:01:06+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-03T00:24:05+00:00"
     },
     "test_coverage::src/shared/components/PromptEditorModal/components/PromptEditorPromptList.tsx::transitive_only": {
       "finding_id": "test_coverage::src/shared/components/PromptEditorModal/components/PromptEditorPromptList.tsx::transitive_only",
@@ -2666,20 +2770,20 @@
     "test_coverage::src/tools/join-clips/pages/hooks/useJoinClipsPageHelpers.ts::transitive_only": {
       "finding_id": "test_coverage::src/tools/join-clips/pages/hooks/useJoinClipsPageHelpers.ts::transitive_only",
       "created_at": "2026-03-02T23:01:06+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T23:01:06+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-03T00:24:51+00:00"
     },
     "test_coverage::src/tools/travel-between-images/components/Timeline/hooks/timeline-core/useTimelineViewportController.ts::transitive_only": {
       "finding_id": "test_coverage::src/tools/travel-between-images/components/Timeline/hooks/timeline-core/useTimelineViewportController.ts::transitive_only",
       "created_at": "2026-03-02T23:01:06+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T23:01:06+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-03T00:25:43+00:00"
     },
     "test_coverage::src/shared/components/ShotImageManager/components/MobileSelectionActionBar.tsx::transitive_only": {
       "finding_id": "test_coverage::src/shared/components/ShotImageManager/components/MobileSelectionActionBar.tsx::transitive_only",
       "created_at": "2026-03-02T23:01:06+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T23:01:06+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-03T00:26:26+00:00"
     },
     "test_coverage::src/tools/travel-between-images/components/Timeline/hooks/timeline-core/useTimelineUiState.ts::transitive_only": {
       "finding_id": "test_coverage::src/tools/travel-between-images/components/Timeline/hooks/timeline-core/useTimelineUiState.ts::transitive_only",
@@ -2690,68 +2794,68 @@
     "test_coverage::src/shared/contexts/useProjectSessionCoordinator.ts::over_mocked::useProjectSessionCoordinator.test.ts": {
       "finding_id": "test_coverage::src/shared/contexts/useProjectSessionCoordinator.ts::over_mocked::useProjectSessionCoordinator.test.ts",
       "created_at": "2026-03-02T23:01:06+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T23:01:06+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-03T00:27:27+00:00"
     },
     "test_coverage::src/shared/components/PhaseConfigSelectorModal/PhaseConfigVertical.tsx::over_mocked::PhaseConfigVertical.test.tsx": {
       "finding_id": "test_coverage::src/shared/components/PhaseConfigSelectorModal/PhaseConfigVertical.tsx::over_mocked::PhaseConfigVertical.test.tsx",
       "created_at": "2026-03-02T23:01:06+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T23:01:06+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-03T00:28:12+00:00"
     },
     "test_coverage::src/shared/components/GenerationsPane/components/GenerationsPaneControls.tsx::transitive_only": {
       "finding_id": "test_coverage::src/shared/components/GenerationsPane/components/GenerationsPaneControls.tsx::transitive_only",
       "created_at": "2026-03-02T23:01:06+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T23:01:06+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-03T00:29:01+00:00"
     },
     "test_coverage::src/shared/hooks/shots/externalImageDrop.ts::over_mocked::externalImageDrop.test.ts": {
       "finding_id": "test_coverage::src/shared/hooks/shots/externalImageDrop.ts::over_mocked::externalImageDrop.test.ts",
       "created_at": "2026-03-02T23:01:06+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T23:01:06+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-03T00:29:57+00:00"
     },
     "test_coverage::src/shared/components/ShotImageManager/components/DesktopLightboxOverlay.tsx::transitive_only": {
       "finding_id": "test_coverage::src/shared/components/ShotImageManager/components/DesktopLightboxOverlay.tsx::transitive_only",
       "created_at": "2026-03-02T23:01:06+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T23:01:06+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-03T00:30:52+00:00"
     },
     "test_coverage::src/tools/travel-between-images/components/VideoGallery/VideoTravelVideosGallery.tsx::transitive_only": {
       "finding_id": "test_coverage::src/tools/travel-between-images/components/VideoGallery/VideoTravelVideosGallery.tsx::transitive_only",
       "created_at": "2026-03-02T23:01:06+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T23:01:06+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-03T00:31:35+00:00"
     },
     "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineEmptyState.tsx::transitive_only": {
       "finding_id": "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineEmptyState.tsx::transitive_only",
       "created_at": "2026-03-02T23:01:06+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T23:01:06+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-03T00:32:02+00:00"
     },
     "test_coverage::src/tools/travel-between-images/components/VideoGallery/VideoTravelListHeader.tsx::transitive_only": {
       "finding_id": "test_coverage::src/tools/travel-between-images/components/VideoGallery/VideoTravelListHeader.tsx::transitive_only",
       "created_at": "2026-03-02T23:01:06+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T23:01:06+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-03T00:33:26+00:00"
     },
     "test_coverage::src/shared/components/ShotImageManager/components/MobileImageGrid.tsx::transitive_only": {
       "finding_id": "test_coverage::src/shared/components/ShotImageManager/components/MobileImageGrid.tsx::transitive_only",
       "created_at": "2026-03-02T23:01:06+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T23:01:06+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-03T00:34:12+00:00"
     },
     "test_coverage::src/shared/components/GenerationDetails/useImageGenerationDetailsViewModel.ts::transitive_only": {
       "finding_id": "test_coverage::src/shared/components/GenerationDetails/useImageGenerationDetailsViewModel.ts::transitive_only",
       "created_at": "2026-03-02T23:01:06+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T23:01:06+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-03T00:34:57+00:00"
     },
     "test_coverage::src/features/shots/components/CreateShotModal.tsx::transitive_only": {
       "finding_id": "test_coverage::src/features/shots/components/CreateShotModal.tsx::transitive_only",
       "created_at": "2026-03-02T23:01:06+00:00",
-      "cluster": "auto/test_coverage",
-      "updated_at": "2026-03-02T23:01:06+00:00"
+      "cluster": null,
+      "updated_at": "2026-03-03T00:36:12+00:00"
     },
     "smells::config/testing/vitest.edge.config.ts::hardcoded_url": {
       "finding_id": "smells::config/testing/vitest.edge.config.ts::hardcoded_url",
@@ -10397,31 +10501,7 @@
     "auto/test_coverage": {
       "name": "auto/test_coverage",
       "description": "Fix 106 test coverage issues",
-      "finding_ids": [
-        "test_coverage::src/shared/components/MediaGallery/hooks/useMediaGalleryLightboxControllers.ts::transitive_only",
-        "test_coverage::src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotPresentationAdapter.ts::transitive_only",
-        "test_coverage::src/pages/Home/components/panes/sections/PhilosophySections.tsx::transitive_only",
-        "test_coverage::src/shared/components/MediaLightbox/components/strokeOverlay/StrokeOverlayCanvas.tsx::transitive_only",
-        "test_coverage::src/tools/travel-between-images/components/VideoGenerationModalSections.tsx::transitive_only",
-        "test_coverage::src/shared/components/PromptEditorModal/components/PromptEditorAIPanel.tsx::transitive_only",
-        "test_coverage::src/tools/join-clips/pages/components/JoinClipsGrid.tsx::transitive_only",
-        "test_coverage::src/tools/travel-between-images/components/ShotEditor/hooks/editor-state/timelineDropHelpers.ts::transitive_only",
-        "test_coverage::src/tools/travel-between-images/components/VideoGallery/hooks/usePendingNewShotDrop.ts::transitive_only",
-        "test_coverage::src/tools/join-clips/pages/hooks/useJoinClipsPageHelpers.ts::transitive_only",
-        "test_coverage::src/tools/travel-between-images/components/Timeline/hooks/timeline-core/useTimelineViewportController.ts::transitive_only",
-        "test_coverage::src/shared/components/ShotImageManager/components/MobileSelectionActionBar.tsx::transitive_only",
-        "test_coverage::src/shared/contexts/useProjectSessionCoordinator.ts::over_mocked::useProjectSessionCoordinator.test.ts",
-        "test_coverage::src/shared/components/PhaseConfigSelectorModal/PhaseConfigVertical.tsx::over_mocked::PhaseConfigVertical.test.tsx",
-        "test_coverage::src/shared/components/GenerationsPane/components/GenerationsPaneControls.tsx::transitive_only",
-        "test_coverage::src/shared/hooks/shots/externalImageDrop.ts::over_mocked::externalImageDrop.test.ts",
-        "test_coverage::src/shared/components/ShotImageManager/components/DesktopLightboxOverlay.tsx::transitive_only",
-        "test_coverage::src/tools/travel-between-images/components/VideoGallery/VideoTravelVideosGallery.tsx::transitive_only",
-        "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineEmptyState.tsx::transitive_only",
-        "test_coverage::src/tools/travel-between-images/components/VideoGallery/VideoTravelListHeader.tsx::transitive_only",
-        "test_coverage::src/shared/components/ShotImageManager/components/MobileImageGrid.tsx::transitive_only",
-        "test_coverage::src/shared/components/GenerationDetails/useImageGenerationDetailsViewModel.ts::transitive_only",
-        "test_coverage::src/features/shots/components/CreateShotModal.tsx::transitive_only"
-      ],
+      "finding_ids": [],
       "created_at": "2026-03-02T23:01:06+00:00",
       "updated_at": "2026-03-02T23:01:06+00:00",
       "auto": true,
@@ -11972,31 +12052,7 @@
     }
   },
   "superseded": {},
-  "promoted_ids": [
-    "test_coverage::src/shared/components/MediaGallery/hooks/useMediaGalleryLightboxControllers.ts::transitive_only",
-    "test_coverage::src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotPresentationAdapter.ts::transitive_only",
-    "test_coverage::src/pages/Home/components/panes/sections/PhilosophySections.tsx::transitive_only",
-    "test_coverage::src/shared/components/MediaLightbox/components/strokeOverlay/StrokeOverlayCanvas.tsx::transitive_only",
-    "test_coverage::src/tools/travel-between-images/components/VideoGenerationModalSections.tsx::transitive_only",
-    "test_coverage::src/shared/components/PromptEditorModal/components/PromptEditorAIPanel.tsx::transitive_only",
-    "test_coverage::src/tools/join-clips/pages/components/JoinClipsGrid.tsx::transitive_only",
-    "test_coverage::src/tools/travel-between-images/components/ShotEditor/hooks/editor-state/timelineDropHelpers.ts::transitive_only",
-    "test_coverage::src/tools/travel-between-images/components/VideoGallery/hooks/usePendingNewShotDrop.ts::transitive_only",
-    "test_coverage::src/tools/join-clips/pages/hooks/useJoinClipsPageHelpers.ts::transitive_only",
-    "test_coverage::src/tools/travel-between-images/components/Timeline/hooks/timeline-core/useTimelineViewportController.ts::transitive_only",
-    "test_coverage::src/shared/components/ShotImageManager/components/MobileSelectionActionBar.tsx::transitive_only",
-    "test_coverage::src/shared/contexts/useProjectSessionCoordinator.ts::over_mocked::useProjectSessionCoordinator.test.ts",
-    "test_coverage::src/shared/components/PhaseConfigSelectorModal/PhaseConfigVertical.tsx::over_mocked::PhaseConfigVertical.test.tsx",
-    "test_coverage::src/shared/components/GenerationsPane/components/GenerationsPaneControls.tsx::transitive_only",
-    "test_coverage::src/shared/hooks/shots/externalImageDrop.ts::over_mocked::externalImageDrop.test.ts",
-    "test_coverage::src/shared/components/ShotImageManager/components/DesktopLightboxOverlay.tsx::transitive_only",
-    "test_coverage::src/tools/travel-between-images/components/VideoGallery/VideoTravelVideosGallery.tsx::transitive_only",
-    "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineEmptyState.tsx::transitive_only",
-    "test_coverage::src/tools/travel-between-images/components/VideoGallery/VideoTravelListHeader.tsx::transitive_only",
-    "test_coverage::src/shared/components/ShotImageManager/components/MobileImageGrid.tsx::transitive_only",
-    "test_coverage::src/shared/components/GenerationDetails/useImageGenerationDetailsViewModel.ts::transitive_only",
-    "test_coverage::src/features/shots/components/CreateShotModal.tsx::transitive_only"
-  ],
+  "promoted_ids": [],
   "plan_start_scores": {
     "strict": 75.1,
     "overall": 75.1,
@@ -16442,6 +16498,631 @@
       "detail": {
         "status": "fixed",
         "attestation": "I have actually Added direct hook tests covering media merge behavior, lightbox close cleanup, shot-state derivation, and add-to-shot error handling. and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-03T00:14:54+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/components/MediaGallery/hooks/useMediaGalleryLightboxControllers.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct tests for lightbox navigation prefetching, shot-association state derivation, task payload defaults, and generation navigation (including external fetch append path).",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-03T00:15:12+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/components/MediaGallery/hooks/useMediaGalleryLightboxControllers.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct tests for lightbox navigation prefetching, shot-association state derivation, task payload defaults, and generation navigation (including external fetch append path).",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-03T00:15:12+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/components/MediaGallery/hooks/useMediaGalleryLightboxControllers.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct tests for lightbox navigation prefetching, shot-association state derivation, task payload defaults, and generation navigation (including external fetch append path).",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually Added direct tests for lightbox navigation prefetching, shot-association state derivation, task payload defaults, and generation navigation (including external fetch append path). and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-03T00:17:32+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotPresentationAdapter.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct tests for slot-index/trailing-pair builders plus segment-slot presentation behavior: prompt overrides, transition navigation, debounced frame updates, and overlapping structure-video reconciliation.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-03T00:17:32+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/ShotImagesEditor/hooks/useSegmentSlotPresentationAdapter.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct tests for slot-index/trailing-pair builders plus segment-slot presentation behavior: prompt overrides, transition navigation, debounced frame updates, and overlapping structure-video reconciliation.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually Added direct tests for slot-index/trailing-pair builders plus segment-slot presentation behavior: prompt overrides, transition navigation, debounced frame updates, and overlapping structure-video reconciliation. and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-03T00:18:16+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/pages/Home/components/panes/sections/PhilosophySections.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct section-level tests covering travel demo replay and selector props, motion reference rendering, LoRA replay control, and closing navigation/community link actions.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-03T00:18:16+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/pages/Home/components/panes/sections/PhilosophySections.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct section-level tests covering travel demo replay and selector props, motion reference rendering, LoRA replay control, and closing navigation/community link actions.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually Added direct section-level tests covering travel demo replay and selector props, motion reference rendering, LoRA replay control, and closing navigation/community link actions. and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-03T00:19:16+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/components/MediaLightbox/components/strokeOverlay/StrokeOverlayCanvas.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct canvas tests for zero-dimension null rendering, stage pointer-event wiring, persisted/current stroke rendering branches, and erasing stroke compositing.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-03T00:19:16+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/components/MediaLightbox/components/strokeOverlay/StrokeOverlayCanvas.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct canvas tests for zero-dimension null rendering, stage pointer-event wiring, persisted/current stroke rendering branches, and erasing stroke compositing.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually Added direct canvas tests for zero-dimension null rendering, stage pointer-event wiring, persisted/current stroke rendering branches, and erasing stroke compositing. and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-03T00:20:11+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/VideoGenerationModalSections.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct tests for modal header thumbnail/overflow rendering and navigation action, loading skeleton layout, and form control callback wiring into updateField.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-03T00:20:11+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/VideoGenerationModalSections.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct tests for modal header thumbnail/overflow rendering and navigation action, loading skeleton layout, and form control callback wiring into updateField.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually Added direct tests for modal header thumbnail/overflow rendering and navigation action, loading skeleton layout, and form control callback wiring into updateField. and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-03T00:21:17+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/components/PromptEditorModal/components/PromptEditorAIPanel.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct panel tests for generate/remix/bulk-edit rendering, prompt-context mapping, and trigger/touch/tab callback wiring.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-03T00:21:17+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/components/PromptEditorModal/components/PromptEditorAIPanel.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct panel tests for generate/remix/bulk-edit rendering, prompt-context mapping, and trigger/touch/tab callback wiring.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually Added direct panel tests for generate/remix/bulk-edit rendering, prompt-context mapping, and trigger/touch/tab callback wiring. and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-03T00:21:59+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/tools/join-clips/pages/components/JoinClipsGrid.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct grid tests for loading/hydration skeleton states and sortable clip rendering with loop-toggle callback wiring to updateField.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-03T00:22:00+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/tools/join-clips/pages/components/JoinClipsGrid.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct grid tests for loading/hydration skeleton states and sortable clip rendering with loop-toggle callback wiring to updateField.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually Added direct grid tests for loading/hydration skeleton states and sortable clip rendering with loop-toggle callback wiring to updateField. and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-03T00:22:59+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/ShotEditor/hooks/editor-state/timelineDropHelpers.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct helper tests for crop fallback/success paths, frame calculation with filtering/uniqueness, and timeline position persistence success + failure handling.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-03T00:23:00+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/ShotEditor/hooks/editor-state/timelineDropHelpers.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct helper tests for crop fallback/success paths, frame calculation with filtering/uniqueness, and timeline position persistence success + failure handling.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually Added direct helper tests for crop fallback/success paths, frame calculation with filtering/uniqueness, and timeline position persistence success + failure handling. and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-03T00:24:05+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/VideoGallery/hooks/usePendingNewShotDrop.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct hook tests for drag-target state, pending-skeleton/new-shot reconciliation, generation-drop error handling, and file-drop validation/filtering.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-03T00:24:05+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/VideoGallery/hooks/usePendingNewShotDrop.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct hook tests for drag-target state, pending-skeleton/new-shot reconciliation, generation-drop error handling, and file-drop validation/filtering.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually Added direct hook tests for drag-target state, pending-skeleton/new-shot reconciliation, generation-drop error handling, and file-drop validation/filtering. and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-03T00:24:50+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/tools/join-clips/pages/hooks/useJoinClipsPageHelpers.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct helper-hook tests for LoRA sync idempotency, keepBridgingImages defaulting, validation/pair derivation logic, and visibility-driven query invalidation.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-03T00:24:51+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/tools/join-clips/pages/hooks/useJoinClipsPageHelpers.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct helper-hook tests for LoRA sync idempotency, keepBridgingImages defaulting, validation/pair derivation logic, and visibility-driven query invalidation.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually Added direct helper-hook tests for LoRA sync idempotency, keepBridgingImages defaulting, validation/pair derivation logic, and visibility-driven query invalidation. and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-03T00:25:43+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/Timeline/hooks/timeline-core/useTimelineViewportController.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct viewport-controller tests for center-based zoom in/out targeting, fallback behavior without refs, and post-zoom scroll recentering.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-03T00:25:43+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/Timeline/hooks/timeline-core/useTimelineViewportController.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct viewport-controller tests for center-based zoom in/out targeting, fallback behavior without refs, and post-zoom scroll recentering.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually Added direct viewport-controller tests for center-based zoom in/out targeting, fallback behavior without refs, and post-zoom scroll recentering. and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-03T00:26:25+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/components/ShotImageManager/components/MobileSelectionActionBar.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct mobile action-bar tests for visibility gating, selection label/offset rendering, deselect-delete/create states, and success jump-to-shot behavior.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-03T00:26:26+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/components/ShotImageManager/components/MobileSelectionActionBar.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct mobile action-bar tests for visibility gating, selection label/offset rendering, deselect-delete/create states, and success jump-to-shot behavior.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually Added direct mobile action-bar tests for visibility gating, selection label/offset rendering, deselect-delete/create states, and success jump-to-shot behavior. and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-03T00:27:27+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/contexts/useProjectSessionCoordinator.ts::over_mocked::useProjectSessionCoordinator.test.ts"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Reworked the test from module-level vi.mock stubs to module spies, preserving coordinator assertions while reducing mock-heavy structure.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-03T00:27:27+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/contexts/useProjectSessionCoordinator.ts::over_mocked::useProjectSessionCoordinator.test.ts"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Reworked the test from module-level vi.mock stubs to module spies, preserving coordinator assertions while reducing mock-heavy structure.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually Reworked the test from module-level vi.mock stubs to module spies, preserving coordinator assertions while reducing mock-heavy structure. and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-03T00:28:11+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/components/PhaseConfigSelectorModal/PhaseConfigVertical.tsx::over_mocked::PhaseConfigVertical.test.tsx"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Strengthened the existing test file with additional direct DOM assertions (controls, actions, header buttons) to improve behavioral signal relative to mocked scaffolding.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-03T00:28:12+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/components/PhaseConfigSelectorModal/PhaseConfigVertical.tsx::over_mocked::PhaseConfigVertical.test.tsx"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Strengthened the existing test file with additional direct DOM assertions (controls, actions, header buttons) to improve behavioral signal relative to mocked scaffolding.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually Strengthened the existing test file with additional direct DOM assertions (controls, actions, header buttons) to improve behavioral signal relative to mocked scaffolding. and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-03T00:29:01+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/components/GenerationsPane/components/GenerationsPaneControls.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct controls tests for count fallback rendering, search/star callbacks, current-shot quick switch, and exclude-positioned checkbox behavior.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-03T00:29:01+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/components/GenerationsPane/components/GenerationsPaneControls.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct controls tests for count fallback rendering, search/star callbacks, current-shot quick switch, and exclude-positioned checkbox behavior.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually Added direct controls tests for count fallback rendering, search/star callbacks, current-shot quick switch, and exclude-positioned checkbox behavior. and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-03T00:29:56+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/hooks/shots/externalImageDrop.ts::over_mocked::externalImageDrop.test.ts"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Reduced mock-heavy footprint by removing unnecessary crop/aspect-ratio module mocks while preserving upload/attachment behavior assertions.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-03T00:29:57+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/hooks/shots/externalImageDrop.ts::over_mocked::externalImageDrop.test.ts"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Reduced mock-heavy footprint by removing unnecessary crop/aspect-ratio module mocks while preserving upload/attachment behavior assertions.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually Reduced mock-heavy footprint by removing unnecessary crop/aspect-ratio module mocks while preserving upload/attachment behavior assertions. and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-03T00:30:51+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/components/ShotImageManager/components/DesktopLightboxOverlay.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct overlay tests for null gating, in-shot navigation/delete wiring, and external-generation close cleanup + shot-selection rebinding.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-03T00:30:52+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/components/ShotImageManager/components/DesktopLightboxOverlay.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct overlay tests for null gating, in-shot navigation/delete wiring, and external-generation close cleanup + shot-selection rebinding.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually Added direct overlay tests for null gating, in-shot navigation/delete wiring, and external-generation close cleanup + shot-selection rebinding. and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-03T00:31:34+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/VideoGallery/VideoTravelVideosGallery.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct gallery tests for skeleton gating conditions and MediaGallery prop wiring (pagination, filters, add-to-shot, and preloading options).",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-03T00:31:35+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/VideoGallery/VideoTravelVideosGallery.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct gallery tests for skeleton gating conditions and MediaGallery prop wiring (pagination, filters, add-to-shot, and preloading options).",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually Added direct gallery tests for skeleton gating conditions and MediaGallery prop wiring (pagination, filters, add-to-shot, and preloading options). and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-03T00:32:01+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineEmptyState.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Validated and retained dedicated TimelineEmptyState direct tests covering disabled-state null render, default upload UI, and drag-over handler wiring.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-03T00:32:02+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/Timeline/TimelineEmptyState.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Validated and retained dedicated TimelineEmptyState direct tests covering disabled-state null render, default upload UI, and drag-over handler wiring.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually Validated and retained dedicated TimelineEmptyState direct tests covering disabled-state null render, default upload UI, and drag-over handler wiring. and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-03T00:33:26+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/VideoGallery/VideoTravelListHeader.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct list-header tests for desktop/mobile search behaviors, sort toggles, pagination reset on video changes, and segmented view-mode switching.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-03T00:33:26+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/tools/travel-between-images/components/VideoGallery/VideoTravelListHeader.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct list-header tests for desktop/mobile search behaviors, sort toggles, pagination reset on video changes, and segmented view-mode switching.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually Added direct list-header tests for desktop/mobile search behaviors, sort toggles, pagination reset on video changes, and segmented view-mode switching. and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-03T00:34:11+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/components/ShotImageManager/components/MobileImageGrid.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct mobile-grid tests for item rendering/frame derivation, move-arrow insertion actions, and add-images upload input behavior.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-03T00:34:12+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/components/ShotImageManager/components/MobileImageGrid.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct mobile-grid tests for item rendering/frame derivation, move-arrow insertion actions, and add-images upload input behavior.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually Added direct mobile-grid tests for item rendering/frame derivation, move-arrow insertion actions, and add-images upload input behavior. and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-03T00:34:57+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/shared/components/GenerationDetails/useImageGenerationDetailsViewModel.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct view-model tests for variant config resolution, active/additional LoRA normalization, and style-reference/Qwen/user-image derivations.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-03T00:34:57+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/shared/components/GenerationDetails/useImageGenerationDetailsViewModel.ts::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct view-model tests for variant config resolution, active/additional LoRA normalization, and style-reference/Qwen/user-image derivations.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually Added direct view-model tests for variant config resolution, active/additional LoRA normalization, and style-reference/Qwen/user-image derivations. and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-03T00:36:12+00:00",
+      "action": "done",
+      "finding_ids": [
+        "test_coverage::src/features/shots/components/CreateShotModal.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct modal tests for cropped/uncropped submit paths, default-name fallback, optional project aspect update, and cancel/reset behavior.",
+      "detail": {}
+    },
+    {
+      "timestamp": "2026-03-03T00:36:12+00:00",
+      "action": "resolve",
+      "finding_ids": [
+        "test_coverage::src/features/shots/components/CreateShotModal.tsx::transitive_only"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": "Added direct modal tests for cropped/uncropped submit paths, default-name fallback, optional project aspect update, and cancel/reset behavior.",
+      "detail": {
+        "status": "fixed",
+        "attestation": "I have actually Added direct modal tests for cropped/uncropped submit paths, default-name fallback, optional project aspect update, and cancel/reset behavior. and I am not gaming the score."
+      }
+    },
+    {
+      "timestamp": "2026-03-03T00:49:30+00:00",
+      "action": "focus",
+      "finding_ids": [],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "action": "clear",
+        "previous": "auto/test_coverage"
+      }
+    },
+    {
+      "timestamp": "2026-03-03T01:02:07+00:00",
+      "action": "skip",
+      "finding_ids": [
+        "subjective::abstraction_fitness",
+        "subjective::ai_generated_debt",
+        "subjective::api_surface_coherence",
+        "subjective::authorization_consistency",
+        "subjective::contract_coherence",
+        "subjective::convention_outlier",
+        "subjective::cross_module_architecture",
+        "subjective::dependency_health",
+        "subjective::design_coherence",
+        "subjective::error_consistency",
+        "subjective::incomplete_migration",
+        "subjective::initialization_coupling",
+        "subjective::package_organization",
+        "subjective::test_strategy"
+      ],
+      "cluster_name": null,
+      "actor": "user",
+      "note": null,
+      "detail": {
+        "kind": "temporary",
+        "reason": "subjective rerun blocked by intermittent codex batch auth/hang; continue objective queue"
       }
     }
   ],

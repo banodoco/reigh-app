@@ -27,14 +27,8 @@ import type { VideoEnhanceSettings } from '../hooks/useVideoEnhance';
 import { useLightboxCoreSafe, useLightboxVariantsSafe, type LightboxCoreState, type LightboxVariantState } from '../contexts/LightboxStateContext';
 import { useVideoEditSafe, type VideoEditState } from '../contexts/VideoEditContext';
 
-interface VideoEditPanelProps {
-  /** Layout variant */
-  variant: 'desktop' | 'mobile';
-
-  /** Whether cloud mode is enabled (shows enhance mode) */
-  isCloudMode?: boolean;
-
-  // Trim mode props (specialized - refs, handlers, save state)
+interface VideoEditTrimControls {
+  // Trim mode controls (refs, handlers, save state)
   trimState: TrimState;
   onStartTrimChange: (seconds: number) => void;
   onEndTrimChange: (seconds: number) => void;
@@ -49,33 +43,27 @@ interface VideoEditPanelProps {
   videoUrl: string;
   trimCurrentTime: number;
   trimVideoRef: React.RefObject<HTMLVideoElement>;
+}
 
-  // Replace (portion) mode props (specialized manager)
+interface VideoEditReplaceControls {
+  // Replace (portion) mode controls
   videoEditing: UseVideoEditingReturn;
   projectId: string | undefined;
+}
 
-  // Regenerate mode props - pass props instead of JSX for proper hook pattern
-  regenerateFormProps?: SegmentRegenerateFormProps | null;
-
-  // Enhance mode props (specialized handlers)
-  enhanceSettings?: VideoEnhanceSettings;
-  onUpdateEnhanceSetting?: <K extends keyof VideoEnhanceSettings>(
+interface VideoEditEnhanceControls {
+  settings: VideoEnhanceSettings;
+  onUpdateSetting: <K extends keyof VideoEnhanceSettings>(
     key: K,
     value: VideoEnhanceSettings[K]
   ) => void;
-  onEnhanceGenerate?: () => void;
-  isEnhancing?: boolean;
-  enhanceSuccess?: boolean;
-  canEnhance?: boolean;
+  onGenerate: () => void;
+  isGenerating?: boolean;
+  generateSuccess?: boolean;
+  canSubmit?: boolean;
+}
 
-  // Task ID for copy functionality
-  taskId?: string | null;
-
-  // ========================================
-  // Optional state overrides (props-first pattern)
-  // When provided, these override the corresponding context values.
-  // This allows VideoEditPanel to work without requiring parent providers.
-  // ========================================
+interface VideoEditPanelStateOverrides {
   coreState?: Pick<LightboxCoreState, 'onClose'>;
   videoEditState?: Pick<VideoEditState,
     | 'videoEditSubMode'
@@ -96,42 +84,41 @@ interface VideoEditPanelProps {
   >;
 }
 
+interface VideoEditPanelProps {
+  /** Layout variant */
+  variant: 'desktop' | 'mobile';
+
+  /** Whether cloud mode is enabled (shows enhance mode) */
+  isCloudMode?: boolean;
+
+  trim: VideoEditTrimControls;
+  replace: VideoEditReplaceControls;
+
+  // Regenerate mode props - pass props instead of JSX for proper hook pattern
+  regenerateFormProps?: SegmentRegenerateFormProps | null;
+
+  // Enhance mode props (shown only when cloud mode is enabled)
+  enhance?: VideoEditEnhanceControls;
+
+  // Task ID for copy functionality
+  taskId?: string | null;
+
+  // Optional state overrides for props-first pattern
+  stateOverrides?: VideoEditPanelStateOverrides;
+}
+
 export const VideoEditPanel: React.FC<VideoEditPanelProps> = ({
   variant,
   isCloudMode,
-  // Trim props (specialized)
-  trimState,
-  onStartTrimChange,
-  onEndTrimChange,
-  onResetTrim,
-  trimmedDuration,
-  hasTrimChanges,
-  onSaveTrim,
-  isSavingTrim,
-  trimSaveProgress,
-  trimSaveError,
-  trimSaveSuccess,
-  videoUrl,
-  trimCurrentTime,
-  trimVideoRef,
-  // Replace (portion) props (specialized)
-  videoEditing,
-  projectId,
+  trim,
+  replace,
   // Regenerate props (specialized)
   regenerateFormProps,
-  // Enhance props (specialized)
-  enhanceSettings,
-  onUpdateEnhanceSetting,
-  onEnhanceGenerate,
-  isEnhancing,
-  enhanceSuccess,
-  canEnhance,
+  enhance,
   // Task ID
   taskId,
   // Optional state overrides
-  coreState,
-  videoEditState,
-  variantsState,
+  stateOverrides,
 }) => {
   // ========================================
   // STATE: Props-first with context fallback
@@ -143,7 +130,7 @@ export const VideoEditPanel: React.FC<VideoEditPanelProps> = ({
   const contextVariants = useLightboxVariantsSafe();
 
   // Core state
-  const { onClose } = coreState ?? contextCore;
+  const { onClose } = stateOverrides?.coreState ?? contextCore;
 
   // Video edit state
   const {
@@ -153,7 +140,7 @@ export const VideoEditPanel: React.FC<VideoEditPanelProps> = ({
     handleEnterVideoRegenerateMode: onEnterRegenerateMode,
     handleEnterVideoEnhanceMode: onEnterEnhanceMode,
     handleExitVideoEditMode: onExitVideoEditMode,
-  } = videoEditState ?? contextVideoEdit;
+  } = stateOverrides?.videoEditState ?? contextVideoEdit;
 
   // Variants state
   const {
@@ -164,7 +151,7 @@ export const VideoEditPanel: React.FC<VideoEditPanelProps> = ({
     isLoadingVariants,
     onLoadVariantSettings,
     handleDeleteVariant: onDeleteVariant,
-  } = variantsState ?? contextVariants;
+  } = stateOverrides?.variantsState ?? contextVariants;
 
   const activeVariantId = activeVariant?.id || null;
   // Mode selector items for video editing
@@ -221,92 +208,92 @@ export const VideoEditPanel: React.FC<VideoEditPanelProps> = ({
       {/* Sub-mode content */}
       {videoEditSubMode === 'trim' && (
         <TrimControlsPanel
-          trimState={trimState}
-          onStartTrimChange={onStartTrimChange}
-          onEndTrimChange={onEndTrimChange}
-          onResetTrim={onResetTrim}
-          trimmedDuration={trimmedDuration}
-          hasTrimChanges={hasTrimChanges}
-          onSave={onSaveTrim}
-          isSaving={isSavingTrim}
-          saveProgress={trimSaveProgress}
-          saveError={trimSaveError}
-          saveSuccess={trimSaveSuccess}
+          trimState={trim.trimState}
+          onStartTrimChange={trim.onStartTrimChange}
+          onEndTrimChange={trim.onEndTrimChange}
+          onResetTrim={trim.onResetTrim}
+          trimmedDuration={trim.trimmedDuration}
+          hasTrimChanges={trim.hasTrimChanges}
+          onSave={trim.onSaveTrim}
+          isSaving={trim.isSavingTrim}
+          saveProgress={trim.trimSaveProgress}
+          saveError={trim.trimSaveError}
+          saveSuccess={trim.trimSaveSuccess}
           onClose={onClose}
           variant={variant}
-          videoUrl={videoUrl}
-          currentTime={trimCurrentTime}
-          videoRef={trimVideoRef}
+          videoUrl={trim.videoUrl}
+          currentTime={trim.trimCurrentTime}
+          videoRef={trim.trimVideoRef}
           hideHeader
         />
       )}
       {videoEditSubMode === 'replace' && (
         <VideoPortionEditor
-          gapFrames={videoEditing.editSettings.settings.gapFrameCount}
-          setGapFrames={(val) => videoEditing.editSettings.updateField('gapFrameCount', val)}
-          contextFrames={videoEditing.editSettings.settings.contextFrameCount}
+          gapFrames={replace.videoEditing.editSettings.settings.gapFrameCount}
+          setGapFrames={(val) => replace.videoEditing.editSettings.updateField('gapFrameCount', val)}
+          contextFrames={replace.videoEditing.editSettings.settings.contextFrameCount}
           setContextFrames={(val) => {
             const maxGap = Math.max(1, 81 - (val * 2));
-            const gapFrames = videoEditing.editSettings.settings.gapFrameCount;
+            const gapFrames = replace.videoEditing.editSettings.settings.gapFrameCount;
             const newGapFrames = gapFrames > maxGap ? maxGap : gapFrames;
-            videoEditing.editSettings.updateFields({
+            replace.videoEditing.editSettings.updateFields({
               contextFrameCount: val,
               gapFrameCount: newGapFrames
             });
           }}
-          maxContextFrames={videoEditing.maxContextFrames}
-          negativePrompt={videoEditing.editSettings.settings.negativePrompt || ''}
-          setNegativePrompt={(val) => videoEditing.editSettings.updateField('negativePrompt', val)}
-          enhancePrompt={videoEditing.editSettings.settings.enhancePrompt}
-          setEnhancePrompt={(val) => videoEditing.editSettings.updateField('enhancePrompt', val)}
-          selections={videoEditing.selections}
-          onUpdateSelectionSettings={videoEditing.handleUpdateSelectionSettings}
-          onAddSelection={videoEditing.handleAddSelection}
-          onRemoveSelection={videoEditing.handleRemoveSelection}
-          videoUrl={videoUrl}
+          maxContextFrames={replace.videoEditing.maxContextFrames}
+          negativePrompt={replace.videoEditing.editSettings.settings.negativePrompt || ''}
+          setNegativePrompt={(val) => replace.videoEditing.editSettings.updateField('negativePrompt', val)}
+          enhancePrompt={replace.videoEditing.editSettings.settings.enhancePrompt}
+          setEnhancePrompt={(val) => replace.videoEditing.editSettings.updateField('enhancePrompt', val)}
+          selections={replace.videoEditing.selections}
+          onUpdateSelectionSettings={replace.videoEditing.handleUpdateSelectionSettings}
+          onAddSelection={replace.videoEditing.handleAddSelection}
+          onRemoveSelection={replace.videoEditing.handleRemoveSelection}
+          videoUrl={trim.videoUrl}
           fps={16}
-          availableLoras={videoEditing.availableLoras}
-          projectId={projectId ?? null}
-          loraManager={videoEditing.loraManager}
+          availableLoras={replace.videoEditing.availableLoras}
+          projectId={replace.projectId ?? null}
+          loraManager={replace.videoEditing.loraManager}
           // Motion settings
-          motionMode={(videoEditing.editSettings.settings.motionMode || 'basic') as 'basic' | 'advanced'}
-          onMotionModeChange={(mode) => videoEditing.editSettings.updateField('motionMode', mode)}
-          phaseConfig={videoEditing.editSettings.settings.phaseConfig ?? DEFAULT_VACE_PHASE_CONFIG}
-          onPhaseConfigChange={(config) => videoEditing.editSettings.updateField('phaseConfig', config)}
-          randomSeed={videoEditing.editSettings.settings.randomSeed ?? true}
-          onRandomSeedChange={(val) => videoEditing.editSettings.updateField('randomSeed', val)}
-          selectedPhasePresetId={videoEditing.editSettings.settings.selectedPhasePresetId ?? null}
+          motionMode={(replace.videoEditing.editSettings.settings.motionMode || 'basic') as 'basic' | 'advanced'}
+          onMotionModeChange={(mode) => replace.videoEditing.editSettings.updateField('motionMode', mode)}
+          phaseConfig={replace.videoEditing.editSettings.settings.phaseConfig ?? DEFAULT_VACE_PHASE_CONFIG}
+          onPhaseConfigChange={(config) => replace.videoEditing.editSettings.updateField('phaseConfig', config)}
+          randomSeed={replace.videoEditing.editSettings.settings.randomSeed ?? true}
+          onRandomSeedChange={(val) => replace.videoEditing.editSettings.updateField('randomSeed', val)}
+          selectedPhasePresetId={replace.videoEditing.editSettings.settings.selectedPhasePresetId ?? null}
           onPhasePresetSelect={(presetId, config) => {
-            videoEditing.editSettings.updateFields({
+            replace.videoEditing.editSettings.updateFields({
               selectedPhasePresetId: presetId,
               phaseConfig: config,
             });
           }}
           onPhasePresetRemove={() => {
-            videoEditing.editSettings.updateField('selectedPhasePresetId', null);
+            replace.videoEditing.editSettings.updateField('selectedPhasePresetId', null);
           }}
           // Actions
-          onGenerate={videoEditing.handleGenerate}
-          isGenerating={videoEditing.isGenerating}
-          generateSuccess={videoEditing.generateSuccess}
-          isGenerateDisabled={!videoEditing.isValid}
-          validationErrors={videoEditing.validationErrors}
+          onGenerate={replace.videoEditing.handleGenerate}
+          isGenerating={replace.videoEditing.isGenerating}
+          generateSuccess={replace.videoEditing.generateSuccess}
+          isGenerateDisabled={!replace.videoEditing.isValid}
+          validationErrors={replace.videoEditing.validationErrors}
           hideHeader
         />
       )}
       {videoEditSubMode === 'regenerate' && regenerateFormProps && (
         <SegmentRegenerateForm {...regenerateFormProps} />
       )}
-      {videoEditSubMode === 'enhance' && enhanceSettings && onUpdateEnhanceSetting && onEnhanceGenerate && (
+      {videoEditSubMode === 'enhance' && enhance && (
         <VideoEnhanceForm
-          settings={enhanceSettings}
-          onUpdateSetting={onUpdateEnhanceSetting}
-          onGenerate={onEnhanceGenerate}
-          isGenerating={isEnhancing ?? false}
-          generateSuccess={enhanceSuccess ?? false}
-          canSubmit={canEnhance ?? false}
+          settings={enhance.settings}
+          onUpdateSetting={enhance.onUpdateSetting}
+          onGenerate={enhance.onGenerate}
+          isGenerating={enhance.isGenerating ?? false}
+          generateSuccess={enhance.generateSuccess ?? false}
+          canSubmit={enhance.canSubmit ?? false}
           variant={variant}
-          videoUrl={videoUrl}
+          videoUrl={trim.videoUrl}
         />
       )}
     </EditPanelLayout>

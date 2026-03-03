@@ -1,32 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useProjectSessionCoordinator } from './useProjectSessionCoordinator';
-
-const useAuthSpy = vi.fn();
-const useUserSettingsSpy = vi.fn();
-const useProjectSelectionSpy = vi.fn();
-const useProjectCrudSpy = vi.fn();
-const useProjectDefaultsSpy = vi.fn();
-
-vi.mock('./AuthContext', () => ({
-  useAuth: () => useAuthSpy(),
-}));
-
-vi.mock('./UserSettingsContext', () => ({
-  useUserSettings: () => useUserSettingsSpy(),
-}));
-
-vi.mock('@/shared/hooks/projects/useProjectSelection', () => ({
-  useProjectSelection: (args: unknown) => useProjectSelectionSpy(args),
-}));
-
-vi.mock('@/shared/hooks/projects/useProjectCRUD', () => ({
-  useProjectCRUD: (args: unknown) => useProjectCrudSpy(args),
-}));
-
-vi.mock('@/shared/hooks/projects/useProjectDefaults', () => ({
-  useProjectDefaults: (args: unknown) => useProjectDefaultsSpy(args),
-}));
+import * as authModule from './AuthContext';
+import * as userSettingsModule from './UserSettingsContext';
+import * as projectSelectionModule from '@/shared/hooks/projects/useProjectSelection';
+import * as projectCrudModule from '@/shared/hooks/projects/useProjectCRUD';
+import * as projectDefaultsModule from '@/shared/hooks/projects/useProjectDefaults';
 
 describe('useProjectSessionCoordinator', () => {
   beforeEach(() => {
@@ -48,14 +27,15 @@ describe('useProjectSessionCoordinator', () => {
       fetchProjects: vi.fn(),
     };
 
-    useAuthSpy.mockReturnValue({ userId: 'user-1' });
-    useUserSettingsSpy.mockReturnValue({
+    const useAuthSpy = vi.spyOn(authModule, 'useAuth').mockReturnValue({ userId: 'user-1' } as never);
+    const useUserSettingsSpy = vi.spyOn(userSettingsModule, 'useUserSettings').mockReturnValue({
       userSettings: { preferredProjectId: 'project-1' },
       isLoadingSettings: false,
       updateUserSettings,
-    });
-    useProjectSelectionSpy.mockReturnValue(selection);
-    useProjectCrudSpy.mockReturnValue(crud);
+    } as never);
+    const useProjectSelectionSpy = vi.spyOn(projectSelectionModule, 'useProjectSelection').mockReturnValue(selection as never);
+    const useProjectCrudSpy = vi.spyOn(projectCrudModule, 'useProjectCRUD').mockReturnValue(crud as never);
+    const useProjectDefaultsSpy = vi.spyOn(projectDefaultsModule, 'useProjectDefaults').mockImplementation(() => {});
 
     const { result } = renderHook(() => useProjectSessionCoordinator());
 
@@ -82,7 +62,6 @@ describe('useProjectSessionCoordinator', () => {
         isLoadingProjects: false,
       }),
     );
-
     expect(result.current).toEqual({
       userId: 'user-1',
       selection,

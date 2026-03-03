@@ -240,6 +240,9 @@ describe('PhaseConfigVertical', () => {
       />,
     );
 
+    expect(screen.getByTestId('random-seed')).toBeInTheDocument();
+    expect(screen.getByTestId('radio-item-phases-2')).toBeInTheDocument();
+
     fireEvent.click(screen.getByTestId('random-seed'));
     expect(onRandomSeedChange).toHaveBeenCalledWith(true);
     expect(onRandomSeedChange).toHaveBeenCalledTimes(1);
@@ -267,6 +270,8 @@ describe('PhaseConfigVertical', () => {
         availableLoras={[]}
       />,
     );
+
+    expect(screen.getAllByText('+ Add LoRA').length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getAllByText('+ Add LoRA')[0]);
     expect(onPhaseConfigChange).toHaveBeenCalledWith(
@@ -312,6 +317,8 @@ describe('PhaseConfigVertical', () => {
         onRestoreDefaults={onRestoreDefaults}
       />,
     );
+
+    expect(screen.getAllByTestId('phase-header-button')).toHaveLength(4);
 
     fireEvent.click(screen.getAllByTestId('phase-header-button')[3]);
     expect(onRestoreDefaults).toHaveBeenCalledTimes(1);

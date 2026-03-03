@@ -1,0 +1,136 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 10,
+  "assessments": {
+    "naming_quality": 87.0,
+    "logic_clarity": 76.0,
+    "type_safety": 80.0,
+    "contract_coherence": 82.0,
+    "authorization_consistency": 86.0
+  },
+  "dimension_notes": {
+    "naming_quality": {
+      "evidence": [
+        "Most reviewed modules use intention-revealing names (`normalizeAndPresentError`, `useDeleteGenerationWithConfirm`, `resolveSettingsScopeTable`) and consistent domain-oriented naming.",
+        "A few naming drifts remain (e.g., aliasing `getSupabaseClient` to `supabase` in some files while keeping `getSupabaseClient` elsewhere), which reduces scan-time predictability."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Cross-module naming conventions for Supabase access and barrel surfaces are still inconsistent."
+    },
+    "logic_clarity": {
+      "evidence": [
+        "`useResourceBrowserData` performs `setCurrentPage(1)` during render when `showMyResourcesOnly` changes (`src/features/resources/hooks/useResourceBrowserData.ts:65-70`), creating render-phase side effects and re-render churn.",
+        "The hook is consumed directly in a modal controller (`src/features/resources/components/ResourceBrowserModalBase.tsx:41-47`), so this render-side mutation affects a hot UI path."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "high"
+    },
+    "type_safety": {
+      "evidence": [
+        "Persisted JSON is repeatedly cast to concrete shapes without runtime guards (e.g., `activeVariantParams?.transform as ImageTransform` in `src/shared/components/MediaLightbox/hooks/reposition/useImageTransform.ts:80`).",
+        "Database JSON payloads are cast to `Record<string, unknown>` and merged directly (`src/shared/components/MediaLightbox/components/submitSegmentTask.ts:222`), assuming object shape with no structural validation.",
+        "The same trust pattern appears in settings fetch/merge (`src/shared/lib/toolSettingsService.ts`), indicating a broader unchecked-JSON pattern."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "contract_coherence": {
+      "evidence": [
+        "Tool settings auth contract explicitly uses lock-free local-storage identity (`src/shared/lib/toolSettingsService.ts:213-229`, `src/shared/lib/supabaseSession.ts:90-96`).",
+        "Resource browser identity uses `supabase().auth.getSession()` (`src/features/resources/hooks/useResourceBrowserData.ts:77-82`) instead of the lock-free contract used elsewhere, creating divergent behavior and failure modes for equivalent 'current user' checks."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "authorization_consistency": {
+      "evidence": [
+        "Scoped settings writes consistently route through explicit scope-to-table mapping and typed scope identifiers (`src/integrations/supabase/repositories/toolSettingsWriteRepository.ts`).",
+        "Generation destructive mutations enforce project scope verification before write/delete paths (`src/domains/generation/hooks/useGenerationMutations.ts`).",
+        "Mechanical dead-function concern around `fetchWithTimeout` is refuted for this batch: `fetchWithTimeout` is used by Supabase client bootstrap (`src/integrations/supabase/bootstrap/createSupabaseClient.ts`)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Authorization-relevant identity derivation is still split across lock-free and session-locking patterns, which can create inconsistent ownership gating under auth refresh stress."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "logic_clarity",
+      "identifier": "render_phase_state_reset_in_resource_browser",
+      "summary": "The resource-browser hook mutates state during render, which obscures control flow and can trigger unnecessary re-renders.",
+      "related_files": [
+        "src/features/resources/hooks/useResourceBrowserData.ts",
+        "src/features/resources/components/ResourceBrowserModalBase.tsx"
+      ],
+      "evidence": [
+        "`useResourceBrowserData` compares a ref and calls `setCurrentPage(1)` directly in render (`useResourceBrowserData.ts:65-70`).",
+        "Because this hook executes on each modal render (`ResourceBrowserModalBase.tsx:41-47`), it introduces render-phase side effects in an interactive browsing surface."
+      ],
+      "suggestion": "Move page-reset logic into an effect keyed on `showMyResourcesOnly` (or fold into the filter toggle callback) so all state transitions happen in event/effect phases, not during render.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "state_transition_phase_mixing"
+    },
+    {
+      "dimension": "contract_coherence",
+      "identifier": "divergent_user_identity_contracts",
+      "summary": "User identity resolution follows conflicting contracts across modules, causing inconsistent behavior under auth refresh/lock contention.",
+      "related_files": [
+        "src/shared/lib/toolSettingsService.ts",
+        "src/features/resources/hooks/useResourceBrowserData.ts",
+        "src/shared/lib/supabaseSession.ts"
+      ],
+      "evidence": [
+        "`toolSettingsService` documents and implements lock-free identity retrieval via local storage (`getUserWithTimeout`, `toolSettingsService.ts:213-229`).",
+        "`useResourceBrowserData` uses `supabase().auth.getSession()` (`useResourceBrowserData.ts:77-82`) for ownership gating, reintroducing the lock path that the shared session helpers were created to avoid."
+      ],
+      "suggestion": "Standardize a single app-level identity accessor contract (preferably the lock-free helper wrapped in one shared hook/service) and reuse it for resource ownership, settings, and other auth-gated UI branches.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "auth_identity_source_fragmentation"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "unchecked_persisted_json_casts_in_lightbox_and_settings",
+      "summary": "Multiple code paths cast persisted JSON to typed objects without validation, making runtime behavior depend on unchecked remote data shape.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/reposition/useImageTransform.ts",
+        "src/shared/components/MediaLightbox/components/submitSegmentTask.ts",
+        "src/shared/lib/toolSettingsService.ts"
+      ],
+      "evidence": [
+        "`useImageTransform` reads `activeVariantParams?.transform` via direct cast to `ImageTransform` and immediately consumes fields (`useImageTransform.ts:80-92`).",
+        "`submitSegmentTask` casts fetched metadata to `Record<string, unknown>` and spreads it into persisted writes (`submitSegmentTask.ts:222-233`) without asserting object validity.",
+        "Settings merge flow similarly casts scope payloads and merges by assumption (`toolSettingsService.ts`, scope extract/merge section)."
+      ],
+      "suggestion": "Introduce shared runtime validators/guards for persisted JSON blobs (transform payloads, metadata, settings) and only map validated objects into typed domain models before merge/write operations.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "unchecked_persisted_json"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "State transitions are occasionally implemented in render paths instead of event/effect boundaries.",
+      "Auth/identity retrieval evolved through parallel strategies without a single enforced contract.",
+      "Typed interfaces are applied after unchecked casts rather than after runtime validation of persisted JSON."
+    ],
+    "likely_symptoms": [
+      "render_phase_state_reset_in_resource_browser",
+      "divergent_user_identity_contracts",
+      "unchecked_persisted_json_casts_in_lightbox_and_settings"
+    ],
+    "possible_false_positives": [
+      "Mechanical dead_function signal for `fetchWithTimeout` appears stale for current code because it is referenced by Supabase client bootstrap."
+    ]
+  }
+}

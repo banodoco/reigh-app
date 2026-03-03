@@ -1,0 +1,168 @@
+{
+  "batch": "Cross-cutting Sweep",
+  "batch_index": 10,
+  "assessments": {
+    "naming_quality": 84.0,
+    "logic_clarity": 78.0,
+    "type_safety": 81.0,
+    "contract_coherence": 80.0,
+    "authorization_consistency": 83.0
+  },
+  "dimension_notes": {
+    "naming_quality": {
+      "evidence": [
+        "Resource model mixes duplicate naming conventions in the same contract (`userId` + `user_id`, `isPublic` + `is_public`, `createdAt` + `created_at`) in `src/shared/hooks/useResources.ts`, forcing downstream code to carry compatibility naming branches.",
+        "`ResourceBrowserGrid` must implement `legacyOwnerId` fallback logic because of the mixed naming surface instead of relying on one canonical field (`src/features/resources/components/ResourceBrowserGrid.tsx`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "logic_clarity": {
+      "evidence": [
+        "`useResourceBrowserData` performs `setCurrentPage(1)` during render when `showMyResourcesOnly` changes (ref-guarded but still render-phase state mutation), which is fragile in StrictMode and obscures control flow (`src/features/resources/hooks/useResourceBrowserData.ts`).",
+        "`useAutoTopupState` debounces threshold saves using captured `localAutoTopupEnabled` and `purchaseAmount`; timer callbacks can submit stale values if either changes before timeout fires (`src/shared/components/CreditsManagement/hooks/useAutoTopupState.ts`)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "high"
+    },
+    "type_safety": {
+      "evidence": [
+        "`Resource.metadata` is typed as `ResourceMetadata | Json` but consumers cast directly to specific metadata shapes (`StyleReferenceMetadata` / `StructureVideoMetadata`) without runtime narrowing (`src/shared/hooks/useResources.ts`, `src/features/resources/hooks/useResourceBrowserData.ts`, `src/features/resources/components/ResourceBrowserGrid.tsx`).",
+        "Code assumes required metadata fields (`metadata.name.replace`, `metadata.videoMetadata.duration_seconds`) after casts; malformed/legacy rows can bypass compile-time checks and fail at runtime."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "contract_coherence": {
+      "evidence": [
+        "The resource contract is internally contradictory: one public type represents two shapes (camelCase app shape and snake_case DB row shape), so callers cannot trust a single stable field contract (`src/shared/hooks/useResources.ts`).",
+        "Downstream APIs compensate with ad-hoc fallback logic instead of a normalized domain contract (`src/features/resources/components/ResourceBrowserGrid.tsx`, `src/features/resources/hooks/useResourceBrowserData.ts`).",
+        "Mechanical concern refuted: `fetchWithTimeout` is not dead code and has full timeout/abort behavior; prior dead-function signal is stale (`src/integrations/supabase/bootstrap/fetchWithTimeout.ts`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "authorization_consistency": {
+      "evidence": [
+        "Write-path authorization checks are inconsistent across sibling data flows: `useUpdateResource` explicitly verifies ownership (`user_id`) before update (`src/shared/hooks/useResources.ts`), while other client write paths do not perform equivalent ownership prechecks (`src/shared/components/MediaLightbox/components/submitSegmentTask.ts`, `src/integrations/supabase/repositories/toolSettingsWriteRepository.ts`).",
+        "Tool settings write APIs accept arbitrary `scope` + `id` and rely on backend policy only; this diverges from nearby frontend defensive checks and creates inconsistent trust-boundary handling (`src/shared/hooks/useToolSettings.ts`, `src/integrations/supabase/repositories/toolSettingsWriteRepository.ts`).",
+        "Mechanical concern refuted: `resolveSettingsScopeTable` now throws for invalid scope after switch cases; prior `switch_no_default` risk is effectively mitigated (`src/integrations/supabase/repositories/toolSettingsWriteRepository.ts`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "logic_clarity",
+      "identifier": "render_phase_state_update_resource_browser",
+      "summary": "Hook mutates state during render to reset pagination",
+      "related_files": [
+        "src/features/resources/hooks/useResourceBrowserData.ts",
+        "src/features/resources/components/ResourceBrowserModalBase.tsx"
+      ],
+      "evidence": [
+        "`useResourceBrowserData` compares `prevShowMyResourcesOnlyRef.current` during render and calls `setCurrentPage(1)` directly when changed.",
+        "This is a render-phase update pattern (outside effect/event handler), which can produce StrictMode warnings and brittle re-render behavior."
+      ],
+      "suggestion": "Move page reset into a `useEffect` keyed on `showMyResourcesOnly` (or merge page/filter into one reducer) so pagination transitions happen in explicit post-render state flow.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "logic_clarity",
+      "identifier": "autotopup_debounce_stale_closure",
+      "summary": "Debounced auto-topup save can persist stale amount/enabled values",
+      "related_files": [
+        "src/shared/components/CreditsManagement/hooks/useAutoTopupState.ts",
+        "src/shared/hooks/billing/useAutoTopup.ts"
+      ],
+      "evidence": [
+        "`handleAutoTopupThresholdChange` schedules `updateAutoTopup` with captured `localAutoTopupEnabled` and `purchaseAmount`.",
+        "If user changes amount/toggle before the 500ms timer fires, the delayed mutation submits outdated values."
+      ],
+      "suggestion": "Store latest values in refs (or debounce only the threshold field and compose payload at fire-time from refs/current state) so delayed writes always send the current tuple.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "contract_coherence",
+      "identifier": "resource_dual_shape_contract_drift",
+      "summary": "Resource API exposes conflicting camelCase and snake_case fields",
+      "related_files": [
+        "src/shared/hooks/useResources.ts",
+        "src/features/resources/components/ResourceBrowserGrid.tsx",
+        "src/features/resources/hooks/useResourceBrowserData.ts"
+      ],
+      "evidence": [
+        "`Resource` includes duplicated aliases (`userId`/`user_id`, `isPublic`/`is_public`, `createdAt`/`created_at`) and `mapResourceRow` returns row spreads without normalization.",
+        "Consumers implement fallback compatibility branches (`legacyOwnerId`) and cannot rely on a single canonical contract."
+      ],
+      "suggestion": "Introduce one normalized domain `Resource` shape (camelCase only), map DB rows at repository boundary, and remove downstream legacy fallbacks after migration.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "legacy_resource_shape"
+    },
+    {
+      "dimension": "type_safety",
+      "identifier": "unsafe_resource_metadata_downcasts",
+      "summary": "Resource metadata is cast without narrowing before required field access",
+      "related_files": [
+        "src/shared/hooks/useResources.ts",
+        "src/features/resources/hooks/useResourceBrowserData.ts",
+        "src/features/resources/components/ResourceBrowserGrid.tsx"
+      ],
+      "evidence": [
+        "`Resource.metadata` is unioned with `Json`, but consumers cast directly to specific metadata interfaces and dereference required fields (`name`, `videoMetadata`, `styleReferenceImageOriginal`).",
+        "`handleResourceClick` uses `metadata.name.replace(...)` without validating presence/type, allowing malformed records to trigger runtime exceptions."
+      ],
+      "suggestion": "Add runtime type guards per `resource.type` and return narrowed typed metadata (or validation via schema parser) before UI/business logic uses metadata fields.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "legacy_resource_shape"
+    },
+    {
+      "dimension": "authorization_consistency",
+      "identifier": "inconsistent_client_write_auth_guards",
+      "summary": "Ownership validation is applied inconsistently across client write paths",
+      "related_files": [
+        "src/shared/hooks/useResources.ts",
+        "src/integrations/supabase/repositories/toolSettingsWriteRepository.ts",
+        "src/shared/components/MediaLightbox/components/submitSegmentTask.ts"
+      ],
+      "evidence": [
+        "`useUpdateResource` performs explicit ownership verification before mutation (`id` + `user_id` check).",
+        "Tool settings and shot metadata write flows submit writes by entity id/scope without equivalent pre-validation in the client, relying entirely on backend policy."
+      ],
+      "suggestion": "Standardize a single frontend authorization-guard policy for write operations (either always pre-verify ownership/context or centralize explicit 'backend-enforced-only' wrappers with audit logging and tests).",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "write_path_auth_policy_drift"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Legacy compatibility surfaces were kept in public types instead of normalized at boundaries.",
+      "State orchestration in UI hooks mixes immediate UX behavior with persistence side effects, leading to stale closures and render-phase mutations.",
+      "Authorization assumptions are distributed per-module instead of enforced by a shared write-contract pattern."
+    ],
+    "likely_symptoms": [
+      "resource_dual_shape_contract_drift",
+      "unsafe_resource_metadata_downcasts",
+      "inconsistent_client_write_auth_guards"
+    ],
+    "possible_false_positives": [
+      "Older mechanical flags for `fetchWithTimeout` dead code and `switch_no_default` in tool settings are outdated against current code."
+    ]
+  }
+}

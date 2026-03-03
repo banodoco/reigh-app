@@ -1,0 +1,136 @@
+{
+  "batch": "Conventions & Errors",
+  "batch_index": 2,
+  "assessments": {
+    "convention_outlier": 79.0,
+    "error_consistency": 73.0,
+    "mid_level_elegance": 76.0
+  },
+  "dimension_notes": {
+    "convention_outlier": {
+      "evidence": [
+        "Export style is inconsistent inside the same feature areas: `src/shared/components/TaskDetails/TaskDetailsModal.tsx`, `src/shared/components/TaskDetails/TaskDetailsPanel.tsx`, `src/shared/components/SettingsModal/sections/PreferencesSection.tsx`, and `src/shared/components/SettingsModal/sections/TransactionsSection.tsx` use default exports while most sibling component modules use named exports.",
+        "Top-level wrappers are mixed between direct barrel re-exports and nested passthrough wrappers (`src/shared/components/PhaseConfigSelectorModal.tsx`, `src/shared/components/SegmentSettingsForm/index.tsx`, `src/shared/components/MediaLightbox.tsx`), which makes import paths and ownership less predictable.",
+        "Mechanical duplicate-cluster signal was inspected and mostly refuted for this batch: `holistic_context.conventions.duplicate_clusters` entries are predominantly `cluster_size: 1`, so they do not substantiate true cross-file duplication by themselves."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "error_consistency": {
+      "evidence": [
+        "I/O boundaries collapse distinct failure modes into generic fallback values: `src/shared/services/externalApiKeys/huggingFaceTokenVerifier.ts` catches all exceptions and returns `'Failed to connect to HuggingFace'` without preserving error detail, while `src/shared/components/ImageGenerationForm/hooks/promptManagement/storedPromptCount.ts` and `.../usePromptPersistenceEffects.ts` silently ignore storage exceptions.",
+        "Within the same feature, error contracts diverge between throw, null/empty fallback, and silent handling: `src/shared/components/MediaLightbox/components/submitSegmentTask.ts` throws on task creation/save-settings failures but treats metadata/enhance failures as non-fatal; `src/shared/components/GlobalHeader/useGlobalHeaderAuth.ts` normalizes errors then returns `null` for both 'missing data' and 'query failure'.",
+        "The packet did not include `holistic_context.errors.exception_hotspots` (field absent/empty), so hotspot confirmation was performed from direct code inspection and `strategy_by_directory` evidence instead."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Task-details UI orchestration is duplicated and has drifted behavior: `src/shared/components/TaskDetails/TaskDetailsModal.tsx` derives `detailInputImages` via `normalizeTaskDetailsPayload(task)` fallback, while `src/shared/components/TaskDetails/TaskDetailsPanel.tsx` applies settings with raw `inputImages` directly.",
+        "Both task-details implementations duplicate copy-to-clipboard, expand/collapse parameter rendering, and apply-settings choreography with separate local state and error handling, creating seam entropy and inconsistent evolution risk.",
+        "High signal-density files in this batch (`src/shared/components/PhaseConfigSelectorModal/PhaseConfigVertical.tsx` and neighboring modal/task-details components) show orchestration-heavy seams where behavior is spread across multiple UI entry points rather than centralized boundary adapters.",
+        "Workflow integrity check on scoped orchestration paths (segment submission placeholder flow and related UI flows) found no clear infinite reopen/stale-loop pattern in this batch."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "task_details_dual_flow_drift",
+      "summary": "Duplicated TaskDetails orchestration has already diverged in image-application behavior.",
+      "related_files": [
+        "src/shared/components/TaskDetails/TaskDetailsModal.tsx",
+        "src/shared/components/TaskDetails/TaskDetailsPanel.tsx",
+        "src/shared/components/TaskDetails/hooks/normalizeTaskDetailsPayload.ts"
+      ],
+      "evidence": [
+        "Modal computes `detailInputImages` from normalized task payload and uses that in `onApplySettingsFromTask(...)`, but Panel forwards raw `inputImages` directly.",
+        "Both files independently implement parameter-copy, detailed-json toggle, and apply-settings footer logic with near-identical control flow."
+      ],
+      "suggestion": "Extract one shared TaskDetails state/orchestration hook plus a single presentational component contract for `effectiveInputImages`, then have modal/panel wrappers only provide layout shell props.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "duplicated_task_details_workflow"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "silent_io_error_collapse",
+      "summary": "I/O failures are inconsistently swallowed or flattened, masking actionable failure modes.",
+      "related_files": [
+        "src/shared/services/externalApiKeys/huggingFaceTokenVerifier.ts",
+        "src/shared/components/ImageGenerationForm/hooks/promptManagement/storedPromptCount.ts",
+        "src/shared/components/ImageGenerationForm/hooks/promptManagement/usePromptPersistenceEffects.ts"
+      ],
+      "evidence": [
+        "`verifyHuggingFaceToken` uses `catch { return { valid:false, error:'Failed to connect to HuggingFace' } }`, discarding original exception context.",
+        "Prompt persistence/storage helpers use empty `catch {}` blocks and return defaults, so quota/permission/private-mode failures are not distinguishable from legitimate defaults."
+      ],
+      "suggestion": "Adopt a shared boundary error policy: preserve original cause in structured error metadata (`kind`, `source`, `recoverable`) and route non-fatal storage/network failures through one lightweight reporter instead of silent catches.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "inconsistent_boundary_error_contracts"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "null_vs_failure_contract_blur",
+      "summary": "Feature hooks conflate 'missing data' and 'query failure' into the same null shape.",
+      "related_files": [
+        "src/shared/components/GlobalHeader/useGlobalHeaderAuth.ts",
+        "src/shared/components/GenerationDetails/useGenerationDetails.ts"
+      ],
+      "evidence": [
+        "`fetchUsername` returns `null` for both no username and query error after logging; downstream cannot branch on failure vs empty profile.",
+        "`useGenerationDetails` returns empty `inputImages` on JSON parse failure, making malformed task params look identical to a genuine no-input case."
+      ],
+      "suggestion": "Return discriminated result objects (`{status:'ok'|'empty'|'error', ...}`) at these boundaries and let callers explicitly decide fallback UI vs diagnostic state.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "inconsistent_boundary_error_contracts"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "export_style_islands",
+      "summary": "Mixed default/named export conventions create style islands in shared UI modules.",
+      "related_files": [
+        "src/shared/components/TaskDetails/TaskDetailsModal.tsx",
+        "src/shared/components/TaskDetails/TaskDetailsPanel.tsx",
+        "src/shared/components/SettingsModal/sections/PreferencesSection.tsx",
+        "src/shared/components/SettingsModal/sections/TransactionsSection.tsx"
+      ],
+      "evidence": [
+        "These modules default-export React components, while most peer modules in `shared/components` and hook barrels use named exports.",
+        "The inconsistency forces import-style switching and weakens discoverability/refactor safety in the same subsystem."
+      ],
+      "suggestion": "Standardize shared component exports to named exports (with transitional re-exports for compatibility), and enforce via lint rule or repository convention check.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "export_convention_drift"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Boundary behaviors were implemented per-feature without a single error contract for recoverable vs fatal failures.",
+      "Parallel UI surfaces (modal/panel variants) were duplicated instead of sharing one orchestration core.",
+      "Export conventions are not enforced, allowing local style decisions to drift in shared modules."
+    ],
+    "likely_symptoms": [
+      "task_details_dual_flow_drift",
+      "silent_io_error_collapse",
+      "null_vs_failure_contract_blur",
+      "export_style_islands"
+    ],
+    "possible_false_positives": [
+      "Mechanical duplicate-cluster entries with `cluster_size: 1` appear over-reported and are not reliable duplication evidence by themselves."
+    ]
+  }
+}

@@ -7,8 +7,6 @@ const mocks = vi.hoisted(() => ({
   uploadImageToStorage: vi.fn(),
   generateClientThumbnail: vi.fn(),
   uploadImageWithThumbnail: vi.fn(),
-  cropImageToProjectAspectRatio: vi.fn(),
-  parseRatio: vi.fn(),
 }));
 
 vi.mock('@/integrations/supabase/client', () => ({
@@ -36,14 +34,6 @@ vi.mock('@/shared/media/clientThumbnailGenerator', () => ({
   uploadImageWithThumbnail: mocks.uploadImageWithThumbnail,
 }));
 
-vi.mock('@/shared/lib/media/imageCropper', () => ({
-  cropImageToProjectAspectRatio: mocks.cropImageToProjectAspectRatio,
-}));
-
-vi.mock('@/shared/lib/media/aspectRatios', () => ({
-  parseRatio: mocks.parseRatio,
-}));
-
 import { processDroppedImages } from './externalImageDrop';
 
 function createQueryResult(data: unknown) {
@@ -58,8 +48,6 @@ function createQueryResult(data: unknown) {
 describe('processDroppedImages', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.parseRatio.mockReturnValue(16 / 9);
-    mocks.cropImageToProjectAspectRatio.mockResolvedValue(null);
     mocks.generateClientThumbnail.mockResolvedValue({
       thumbnailBlob: new Blob(['thumb'], { type: 'image/jpeg' }),
     });

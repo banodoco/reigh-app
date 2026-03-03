@@ -434,7 +434,7 @@ export async function completeTaskHandler(req: Request): Promise<Response> {
           });
         }
       } catch (genErr: unknown) {
-        const msg = genErr?.message || String(genErr);
+        const msg = genErr instanceof Error ? genErr.message : String(genErr);
         logger.error("Generation creation failed", { error: msg });
         await markTaskFailed(supabaseAdmin, taskIdString, `Generation creation failed: ${msg}`);
         await logger.flush();
@@ -556,11 +556,11 @@ export async function completeTaskHandler(req: Request): Promise<Response> {
     return jsonResponse(responseData, 200);
 
   } catch (error: unknown) {
-    const errMsg = error?.message || String(error);
+    const errMsg = error instanceof Error ? error.message : String(error);
     logger.critical("Unexpected error", {
       task_id: taskIdString,
       error: errMsg,
-      stack: error?.stack?.substring(0, 500)
+      stack: error instanceof Error ? error.stack?.substring(0, 500) : undefined
     });
     await markTaskFailed(supabaseAdmin, taskIdString, `Task completion failed: ${errMsg}`);
     await logger.flush();

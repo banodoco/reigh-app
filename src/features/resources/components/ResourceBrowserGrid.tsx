@@ -250,7 +250,6 @@ export const ResourceBrowserGrid: React.FC<ResourceBrowserGridProps> = ({
         const isOwner = browsing.userId && resourceOwnerId === browsing.userId;
 
         const commonProps = {
-          key: resource.id,
           resource,
           isOwner: !!isOwner,
           isProcessing: browsing.processingResource === resource.id,
@@ -263,10 +262,10 @@ export const ResourceBrowserGrid: React.FC<ResourceBrowserGridProps> = ({
         };
 
         if (browsing.isVideoMode) {
-          return <VideoResourceItem {...commonProps} />;
+          return <VideoResourceItem key={resource.id} {...commonProps} />;
         }
 
-        return <ImageResourceItem {...commonProps} />;
+        return <ImageResourceItem key={resource.id} {...commonProps} />;
       })}
     </div>
   );

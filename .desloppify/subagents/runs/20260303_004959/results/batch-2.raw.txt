@@ -1,0 +1,136 @@
+{
+  "batch": "Conventions & Errors",
+  "batch_index": 2,
+  "assessments": {
+    "convention_outlier": 79.4,
+    "error_consistency": 71.8,
+    "mid_level_elegance": 80.6
+  },
+  "dimension_notes": {
+    "convention_outlier": {
+      "evidence": [
+        "Siblings in the same UI areas mix quote conventions and style patterns: `src/shared/components/ImageGenerationForm/components/index.ts:1` uses double quotes while nearby files use single quotes; `src/shared/components/SettingsModal/sections/TransactionsSection.tsx:1-2` and `src/shared/components/MediaGallery/components/ShotNotifier.tsx:1-2` do the same.",
+        "Feature modules mix export/indirection conventions in ways that are not role-based: `src/shared/components/MediaGallery/hooks/index.ts` renames optimized internals to canonical public names, while other index barrels in this batch are plain passthrough (`src/shared/components/MediaLightbox/components/index.ts`, `src/shared/components/transitions/index.ts`)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "error_consistency": {
+      "evidence": [
+        "Same subsystem alternates between throw, null/default return, and non-fatal swallow: `src/shared/components/MediaLightbox/components/submitSegmentTask.ts` throws on task/save failures (`:190`, `:249`) but swallows metadata/enhance failures after logging (`:213-240`, `:275-283`).",
+        "Hook-level error contracts are mixed: `src/shared/hooks/segments/useSegmentOutputsForShot.ts` normalizes then rethrows query errors (`:243-250`, `:342-349`, `:408-415`) while sibling utility paths return safe defaults silently (`src/shared/components/ImageGenerationForm/hooks/promptManagement/storedPromptCount.ts:2-16`, `src/shared/services/externalApiKeys/huggingFaceTokenVerifier.ts:31-33`).",
+        "Mechanical scan evidence indicates systemic mixed strategy (`review_context.error_handling_patterns` and broad `error_conventions` counts), and inspected files confirm this is designed ad hoc rather than layer-consistent."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Boundary hooks are adding handoff layers without translation logic: `src/shared/components/MediaGallery/hooks/useMediaGalleryInteractionController.ts` only delegates two hook calls and repackages result, increasing seam count with no contract shaping.",
+        "Public boundary renaming adds indirection tax: `src/shared/components/MediaGallery/hooks/index.ts:2-3` maps `*Optimized` implementations to old names, making behavior origin less direct during maintenance/debugging.",
+        "In segment/lightbox flow, orchestration functions carry broad context bags (`SubmitSegmentTaskInput` in `src/shared/components/MediaLightbox/components/submitSegmentTask.ts`) and split error handling per step, creating seam friction when callers need predictable lifecycle outcomes."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "error_consistency",
+      "identifier": "segment_submission_mixed_failure_contract",
+      "summary": "Segment submission path mixes fatal throws and silent non-fatal failures in one flow.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/components/submitSegmentTask.ts",
+        "src/shared/hooks/segments/useSegmentOutputsForShot.ts",
+        "src/shared/components/GenerationDetails/useGenerationDetails.ts"
+      ],
+      "evidence": [
+        "`submitSegmentTask` throws for creation/save settings failures (`submitSegmentTask.ts:190`, `:249`) but returns success path even when metadata/enhance operations fail (`:213-240`, `:275-283`).",
+        "`useSegmentOutputsForShot` rethrows DB query failures after normalize (`useSegmentOutputsForShot.ts:243-250`, `:342-349`, `:408-415`), so neighboring callers face incompatible failure behavior across adjacent operations.",
+        "`useGenerationDetails` catches parse errors and returns empty list (`useGenerationDetails.ts:49-58`), further diverging consumer expectations in the same lightbox/task-details area."
+      ],
+      "suggestion": "Define one explicit error contract for lightbox/segment orchestration (for example: `Result<T, DomainError>` at seam boundaries), make non-fatal side effects explicit in return metadata, and stop mixing throw/null/silent-default semantics inside a single user action path.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "error_contract_fragmentation"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "silent_fallbacks_mask_runtime_context",
+      "summary": "Multiple utilities swallow operational failures and return defaults without usable context.",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/hooks/promptManagement/storedPromptCount.ts",
+        "src/shared/services/externalApiKeys/huggingFaceTokenVerifier.ts",
+        "src/shared/components/ImageGenerationForm/hooks/referenceUpload/optimisticCacheUpdate.ts"
+      ],
+      "evidence": [
+        "`getStoredPromptCount` catches all sessionStorage errors and always returns `1` (`storedPromptCount.ts:2-16`) without surfacing scope/user impact.",
+        "`verifyHuggingFaceToken` catches all fetch/runtime failures and collapses to `'Failed to connect to HuggingFace'` (`huggingFaceTokenVerifier.ts:31-33`), losing original exception detail needed for retry/diagnostics.",
+        "`runOptimisticCacheUpdate` catches sync errors and logs via normalization only (`optimisticCacheUpdate.ts:3-11`), but does not expose failure to caller despite mutating cache flow."
+      ],
+      "suggestion": "Standardize utility boundary behavior to return structured failure metadata (`code`, `cause`, `recoverable`) instead of unconditional defaults, and only swallow errors when caller explicitly opts into best-effort mode.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "error_contract_fragmentation"
+    },
+    {
+      "dimension": "convention_outlier",
+      "identifier": "style_islands_in_shared_ui_modules",
+      "summary": "Shared UI siblings contain style islands (quote/casing/export patterns) without domain rationale.",
+      "related_files": [
+        "src/shared/components/ImageGenerationForm/components/index.ts",
+        "src/shared/components/SettingsModal/sections/TransactionsSection.tsx",
+        "src/shared/components/MediaGallery/components/ShotNotifier.tsx",
+        "src/shared/components/GlobalHeader/CreateProjectModal.tsx"
+      ],
+      "evidence": [
+        "Mixed quote style appears in neighboring production components: double-quote imports in `TransactionsSection.tsx:1-2`, `ShotNotifier.tsx:1-2`, `CreateProjectModal.tsx:3-4`, while most peers in same folders use single quotes.",
+        "Index/barrel style is inconsistent even for tiny surfaces (`ImageGenerationForm/components/index.ts:1` single re-export with differing style), producing avoidable formatting drift and churn in shared modules."
+      ],
+      "suggestion": "Enforce one module-level convention profile (imports/quotes/export style) via lint + autofix across `shared/components/*`, and normalize existing outliers in a single mechanical refactor PR.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "delegation_only_interaction_controller",
+      "summary": "Interaction seam adds pass-through indirection without shaping contracts.",
+      "related_files": [
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryInteractionController.ts",
+        "src/shared/components/MediaGallery/hooks/index.ts",
+        "src/shared/components/MediaGallery/hooks/useMediaGalleryHandlers.ts",
+        "src/shared/components/MediaGallery/hooks/useMobileInteractions.ts"
+      ],
+      "evidence": [
+        "`useMediaGalleryInteractionController` only invokes two hooks and returns them (`useMediaGalleryInteractionController.ts:13-19`), adding another boundary with no transformation, validation, or lifecycle policy.",
+        "Barrel exports alias optimized implementations to generic names (`hooks/index.ts:2-3`), so call sites cannot see whether they depend on specialized behavior without chasing indirection."
+      ],
+      "suggestion": "Either remove the controller layer and compose hooks at call sites, or make the controller the single seam that owns integration policy (error normalization, event mapping, and stable output contract) so the extra boundary has leverage.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "low_leverage_handoff_layers"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "No explicit cross-layer error contract for UI hooks/utilities, leading to local ad hoc choices (throw vs null/default vs swallow).",
+      "Low-friction formatting/style enforcement is not uniformly applied across shared component directories.",
+      "Integration seams accumulated wrapper/controller layers without corresponding contract ownership."
+    ],
+    "likely_symptoms": [
+      "segment_submission_mixed_failure_contract",
+      "silent_fallbacks_mask_runtime_context",
+      "delegation_only_interaction_controller"
+    ],
+    "possible_false_positives": [
+      "Mechanical `holistic_context.conventions.duplicate_clusters` and `naming_drift` were null in this packet; convention findings are based on direct file evidence rather than those signals."
+    ]
+  }
+}

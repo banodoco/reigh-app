@@ -1,0 +1,153 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 4,
+  "assessments": {
+    "test_strategy": 72.0,
+    "api_surface_coherence": 69.0,
+    "mid_level_elegance": 71.0
+  },
+  "dimension_notes": {
+    "test_strategy": {
+      "evidence": [
+        "The queue timeout tests assert that follow-up writes proceed after a timeout (`src/shared/lib/__tests__/timelineWriteQueue.test.ts`), but there is no test proving the timed-out write is actually cancelled/stopped before subsequent writes start.",
+        "A key unit test mocks the wrong import path (`@/shared/lib/videoUploader`) while production code imports `@/shared/lib/media/videoUploader`, so the test does not reliably isolate metadata extraction (`src/tools/join-clips/lib/__tests__/metadata.test.ts`, `src/tools/join-clips/lib/clipManager/metadata.ts`).",
+        "Generation-core tests validate happy paths and some throw paths, but they do not cover failure observability for `linkGenerationToShot`/`findSourceGenerationByImageUrl`, where production swallows errors and returns void/null (`supabase/functions/complete_task/generation-core.ts`, `supabase/functions/complete_task/generation-core.test.ts`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "api_surface_coherence": {
+      "evidence": [
+        "Within `generation-core`, similar DB operations expose incompatible contracts: `insertGeneration`/`createVariant` throw, `findSourceGenerationByImageUrl` returns null on errors, and `linkGenerationToShot` logs and returns void even on failure (`supabase/functions/complete_task/generation-core.ts`).",
+        "Callers await `linkGenerationToShot` as if it were authoritative, but its silent-failure contract makes partial-success states hard to detect (`supabase/functions/complete_task/generation-handlers.ts`, `supabase/functions/complete_task/generation.ts`).",
+        "Previously flagged API-surface clutter in `generationTaskRepository` is still present: multiple exported symbols are unused externally, while `useGenerationMutations` carries a separate local `ScopedGenerationInput` shape instead of reusing the repository contract (`src/shared/lib/generationTaskRepository.ts`, `src/domains/generation/hooks/useGenerationMutations.ts`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Serialized timeline writes are released on timeout without cancellation semantics in `runSerializedTaskWithTimeout`; the queue advances while the original async task may still run, enabling overlapping writes at the integration seam (`src/shared/lib/timelineWriteQueue.ts`).",
+        "`syncTimelineGenerationFrames` relies on this queue boundary for cross-module write ordering, so timeout behavior can violate the intended sequencing guarantee under load (`src/shared/hooks/timeline/timelineMutationService.ts`).",
+        "This confirms a loop-prone orchestration blind spot: stale timed-out work can continue while retries/new writes execute, creating reopen/churn behavior without explicit gating."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "timeline_queue_timeout_does_not_cancel_work",
+      "summary": "Timed-out serialized timeline writes can continue running concurrently with subsequent writes.",
+      "related_files": [
+        "src/shared/lib/timelineWriteQueue.ts",
+        "src/shared/hooks/timeline/timelineMutationService.ts",
+        "src/shared/lib/__tests__/timelineWriteQueue.test.ts"
+      ],
+      "evidence": [
+        "`runSerializedTaskWithTimeout` rejects on timeout but does not pass an abort signal to `task`, so underlying work is not stopped (`src/shared/lib/timelineWriteQueue.ts:137-178`).",
+        "`runSerializedTimelineWrite` always releases tail in `finally`, allowing the next queued write to start immediately after timeout (`src/shared/lib/timelineWriteQueue.ts:267-294`).",
+        "Current tests explicitly validate queue release-after-timeout but do not assert that timed-out work is terminated (`src/shared/lib/__tests__/timelineWriteQueue.test.ts:98-127`)."
+      ],
+      "suggestion": "Change serialized write tasks to accept `AbortSignal` and propagate cancellation through timeout paths; keep queue release but gate subsequent writes on confirmed cancellation or idempotent write tokens. Add a regression test where a timed-out write attempts a late mutation and verify it cannot commit after a follow-up write.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "queue_timeout_without_cancellation"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "queue_timeout_guardrail_not_verified",
+      "summary": "Tests cover timeout release but miss the critical no-overlap invariant after timeout.",
+      "related_files": [
+        "src/shared/lib/__tests__/timelineWriteQueue.test.ts",
+        "src/shared/lib/timelineWriteQueue.ts",
+        "src/shared/hooks/timeline/__tests__/timelineMutationService.test.ts"
+      ],
+      "evidence": [
+        "No test asserts that a timed-out operation cannot still mutate shared state after a later operation completes.",
+        "Integration-level timeline mutation tests mock queue internals and therefore cannot catch overlap/race behavior (`timelineMutationService.test.ts` mocks `runTimelineWriteWithTimeout`)."
+      ],
+      "suggestion": "Add an integration-style test using real queue behavior with two writes: first intentionally times out but performs delayed side effect, second succeeds; assert final state reflects only second write and first side effect is blocked/ignored.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "queue_timeout_without_cancellation"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "join_clips_metadata_test_mocks_wrong_dependency",
+      "summary": "Metadata unit test mocks a non-existent module path, reducing isolation and reliability.",
+      "related_files": [
+        "src/tools/join-clips/lib/__tests__/metadata.test.ts",
+        "src/tools/join-clips/lib/clipManager/metadata.ts"
+      ],
+      "evidence": [
+        "Production imports `extractVideoMetadataFromUrl` from `@/shared/lib/media/videoUploader` (`metadata.ts:1`).",
+        "Test mocks `@/shared/lib/videoUploader` instead (`metadata.test.ts:7-9`), which does not match the production import path."
+      ],
+      "suggestion": "Update the test mock path to `@/shared/lib/media/videoUploader` and add an assertion that the mocked extractor is called exactly once, ensuring the test is truly isolated from real metadata extraction.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "generation_core_error_contracts_are_incompatible",
+      "summary": "Generation-core functions expose inconsistent failure contracts for similar DB operations.",
+      "related_files": [
+        "supabase/functions/complete_task/generation-core.ts",
+        "supabase/functions/complete_task/generation-handlers.ts",
+        "supabase/functions/complete_task/generation.ts"
+      ],
+      "evidence": [
+        "`insertGeneration` and `createVariant` throw on DB error (`generation-core.ts:137-193`).",
+        "`findSourceGenerationByImageUrl` catches/logs and returns null (`generation-core.ts:104-129`).",
+        "`linkGenerationToShot` catches/logs and returns void even on failure (`generation-core.ts:198-217`), while callers await it in write flows (`generation-handlers.ts:406`, `generation.ts:360`)."
+      ],
+      "suggestion": "Unify the module contract to a single error strategy (typed throw or `OperationResult`) across all generation-core operations, and require callers to branch explicitly on failure for shot-link and source-lookup paths.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "boundary_error_contract_drift"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "generation_scope_api_is_fragmented_and_overexported",
+      "summary": "Scope/task mapping API has dead exports and duplicated input contracts across layers.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/domains/generation/hooks/useGenerationMutations.ts",
+        "src/shared/lib/__tests__/generationTaskRepository.test.ts"
+      ],
+      "evidence": [
+        "Repository exports `normalizeScopedGenerationInput` and `applyParentTaskFilter`, but they are not imported outside the file.",
+        "`ScopedGenerationInput` type is exported from repository yet redefined independently in `useGenerationMutations` (`useGenerationMutations.ts:46-49`).",
+        "Mechanical prior flags for dead exports/responsibility fragmentation in this file remain valid."
+      ],
+      "suggestion": "Reduce the public surface to externally used symbols only, remove dead exports, and reuse a single shared scope-input type across repository and mutation layers to avoid contract drift.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "boundary_error_contract_drift"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Timeout handling prioritizes queue liveness but lacks cancellation/idempotency guardrails.",
+      "Boundary modules evolved with mixed error-handling styles and no enforced API contract policy.",
+      "Tests over-index on happy-path delegation and miss seam-level invariants."
+    ],
+    "likely_symptoms": [
+      "timeline_queue_timeout_does_not_cancel_work",
+      "queue_timeout_guardrail_not_verified",
+      "generation_core_error_contracts_are_incompatible",
+      "generation_scope_api_is_fragmented_and_overexported"
+    ],
+    "possible_false_positives": []
+  }
+}

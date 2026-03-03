@@ -1,0 +1,161 @@
+{
+  "batch": "Abstractions & Dependencies",
+  "batch_index": 3,
+  "assessments": {
+    "abstraction_fitness": 76.0,
+    "dependency_health": 82.0,
+    "mid_level_elegance": 78.0,
+    "low_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "abstraction_fitness": {
+      "evidence": [
+        "Mechanical abstraction evidence flags pass-through wrappers in `src/integrations/supabase/repositories/generationMutationsRepository.ts` (6), `projectSetupRepository.ts` (5), and `homeAuthRepository.ts` (3), and those functions mostly forward parameters to `getSupabaseClient()` calls.",
+        "Repository indirection is not consistently the boundary: hooks/services like `src/shared/hooks/useShareGeneration.ts` and `src/shared/hooks/shots/useShotGenerationMutations.ts` query Supabase directly, so abstraction layers are optional rather than authoritative.",
+        "`src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts` introduces broad multi-bag interfaces (`core/navigation/shots/layout/actions/media`) plus a large aggregated return contract, increasing definition ceremony relative to local behavior."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 74.0,
+        "indirection_cost": 69.0,
+        "interface_honesty": 84.0,
+        "delegation_density": 71.0,
+        "definition_directness": 73.0,
+        "type_discipline": 88.0
+      }
+    },
+    "dependency_health": {
+      "evidence": [
+        "`src/integrations/supabase/client.ts` is a major dependency hub (review context top_imported: 154 importers), and Supabase usage is spread across repositories and feature hooks rather than funneled through one dependency boundary.",
+        "Spot-checks show direct client coupling in non-repository code (`src/shared/hooks/useShareGeneration.ts`, `src/shared/hooks/shots/useShotGenerationMutations.ts`, `src/shared/hooks/tasks/useTasks.ts`).",
+        "I did not find confirmed import-cycle evidence in this batch packet (dependencies section is empty and no explicit cycle list in scan evidence), so cycle concern is not confirmed here."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "`src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx` performs large-scale translation from `props/env/sharedState/editModel` into multiple derived view-model objects before forwarding to `VideoEditPanel`/`InfoPanel`.",
+        "`src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts` composes many sub-facades and returns a deeply nested mega-model, while callers still need additional reshaping, indicating seam friction rather than clean handoff contracts.",
+        "Mechanical evidence also marks these files as indirection hotspots (`useVideoLightboxRenderModel.tsx`, `useSharedLightboxState.ts`, `ImageLightbox.tsx`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "`src/shared/hooks/useShareGeneration.ts` contains a long `handleShare` callback that mixes UI event handling, auth/session checks, DB reads/writes, slug generation retry loop, shot/task data shaping, sanitization, and clipboard/toast behavior.",
+        "`src/shared/components/MediaLightbox/components/StrokeOverlay.tsx` packs drawing, hit-testing, drag/resize state management, selection semantics, pointer capture lifecycle, and shape mutation into one hook (`useDrawing`), creating dense branchy local logic."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "supabase_repository_boundary_is_ceremonial",
+      "summary": "Repository wrappers add little behavior while core features still bypass them directly.",
+      "related_files": [
+        "src/integrations/supabase/repositories/generationMutationsRepository.ts",
+        "src/integrations/supabase/repositories/projectSetupRepository.ts",
+        "src/integrations/supabase/repositories/homeAuthRepository.ts",
+        "src/shared/hooks/useShareGeneration.ts",
+        "src/shared/hooks/shots/useShotGenerationMutations.ts"
+      ],
+      "evidence": [
+        "Repository functions in the listed files are mostly thin forwarding calls to `getSupabaseClient().from(...)/rpc(...)` with minimal normalization.",
+        "Feature hooks in `useShareGeneration` and `useShotGenerationMutations` still use direct client calls, so the repository abstraction is not the enforced access seam.",
+        "This creates duplicate query logic and mixed responsibilities across repository and non-repository layers."
+      ],
+      "suggestion": "Choose one enforced data-access boundary: either (1) move Supabase calls into domain-specific repositories/services and ban direct client imports in feature hooks, or (2) remove low-value repository wrappers and keep direct access with shared query helpers. Apply one pattern consistently and codify with lint/import rules.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "supabase_boundary_erosion"
+    },
+    {
+      "dimension": "dependency_health",
+      "identifier": "supabase_client_hub_coupling",
+      "summary": "High fan-out on `getSupabaseClient` creates broad coupling and fragile dependency direction.",
+      "related_files": [
+        "src/integrations/supabase/client.ts",
+        "src/shared/hooks/tasks/useTasks.ts",
+        "src/shared/hooks/useShareGeneration.ts",
+        "src/shared/hooks/shots/useShotGenerationMutations.ts"
+      ],
+      "evidence": [
+        "`src/integrations/supabase/client.ts` is imported by a very large set of modules (packet import graph: 154 importers).",
+        "Batch files show both repository-mediated and direct client access patterns, preventing a stable dependency contract around data operations.",
+        "A change in Supabase client access semantics or auth bootstrap now has wide blast radius across unrelated feature hooks."
+      ],
+      "suggestion": "Introduce a narrower dependency surface (for example `TaskDataGateway`, `GenerationDataGateway`, `AuthDataGateway`) and migrate direct callers behind those interfaces incrementally. Keep `client.ts` as infra-only and prohibit feature-layer imports.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "supabase_boundary_erosion"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "lightbox_seam_translation_overhead",
+      "summary": "Lightbox seam requires heavy prop reshaping between hook layers before rendering panels.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts",
+        "src/shared/components/MediaLightbox/hooks/useVideoLightboxRenderModel.tsx",
+        "src/shared/components/MediaLightbox/components/VideoEditPanel.tsx",
+        "src/shared/components/MediaLightbox/components/InfoPanel.tsx"
+      ],
+      "evidence": [
+        "`useSharedLightboxState` defines multiple grouped input interfaces and returns a large composite structure with nested sections.",
+        "`useVideoLightboxRenderModel` then remaps `props/env/sharedState/editModel` into multiple intermediary models (`lightboxVariants`, `lightboxStateValue`, workflow/panel props) before passing to UI components.",
+        "This repeated translation layer is a seam-smell: handoffs are broad and require adapter code at each boundary."
+      ],
+      "suggestion": "Define a single normalized `VideoLightboxViewModel` contract near the controller boundary, with dedicated adapters for persistence/actions. Pass that view-model directly to panels to remove repeated field-by-field remapping.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "lightbox_viewmodel_fragmentation"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "share_handler_monolith",
+      "summary": "`handleShare` mixes too many concerns, making control flow and failure behavior hard to evolve safely.",
+      "related_files": [
+        "src/shared/hooks/useShareGeneration.ts",
+        "src/pages/share/hooks/useSharePageData.ts",
+        "src/shared/lib/errorHandling/runtimeError.ts"
+      ],
+      "evidence": [
+        "Inside one callback, `useShareGeneration` handles event cancellation, clipboard behavior, session/auth checks, existing-share lookup, generation/task/shot fetches, sensitive-data sanitization, slug generation retries, insertion, and user notifications.",
+        "The function has many early returns and duplicated toast/error paths, which increases branch complexity and makes behavior changes risky.",
+        "The same hook also embeds persistence schema-shaping (`cached_shot_data`, `cached_task_data`) alongside UI concerns."
+      ],
+      "suggestion": "Split into composable units: `buildSharePayload`, `ensureShareRecord` (idempotent create-or-get with retry), and `copyShareUrl`. Keep hook-level logic as orchestration with a single result mapper for toast/UI state.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "workflow_in_ui_hook"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Data-access boundary is not enforced, so abstractions became optional wrappers instead of dependency controls.",
+      "Lightbox/view-model evolution happened via additive adapters, producing seam translation debt.",
+      "High-churn workflow logic accreted inside UI hooks instead of being moved to domain services."
+    ],
+    "likely_symptoms": [
+      "supabase_repository_boundary_is_ceremonial",
+      "supabase_client_hub_coupling",
+      "lightbox_seam_translation_overhead",
+      "share_handler_monolith"
+    ],
+    "possible_false_positives": [
+      "Dep-cycle concern from batch rationale was not directly confirmed by available packet evidence in this scope."
+    ]
+  }
+}

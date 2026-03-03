@@ -52,7 +52,6 @@ function useShotData(
       .sort((a, b) => (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0));
 
     return {
-      positionedCount: positioned.length,
       lastImageShotGenId: positioned[positioned.length - 1]?.id ?? null,
     };
   }, [shotGenerations]);

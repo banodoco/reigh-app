@@ -35,7 +35,7 @@ interface BatchGuidanceVideoProps {
 }
 
 export const BatchGuidanceVideo: React.FC<BatchGuidanceVideoProps> = ({
-  shotId: _shotId,
+  shotId,
   projectId: _projectId,
   videoUrl,
   videoMetadata,

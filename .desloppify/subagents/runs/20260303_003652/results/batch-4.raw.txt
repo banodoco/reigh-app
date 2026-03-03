@@ -1,0 +1,117 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 4,
+  "assessments": {
+    "test_strategy": 72.0,
+    "api_surface_coherence": 61.0,
+    "mid_level_elegance": 68.0
+  },
+  "dimension_notes": {
+    "test_strategy": {
+      "evidence": [
+        "Seed modules are broadly unit-tested (for example `src/shared/lib/__tests__/timelineWriteQueue.test.ts`, `src/shared/hooks/invalidation/__tests__/useGenerationInvalidation.test.ts`, `supabase/functions/_shared/rateLimit.test.ts`), so the mechanical 'untested critical paths' signal is partially refuted.",
+        "Critical cross-module behavior is not tested: no edge-function integration tests assert that `checkRateLimit` denied decisions (`ok: true, value.allowed: false`) are actually blocked in handlers like `supabase/functions/create-task/index.ts` and `supabase/functions/complete_task/index.ts`.",
+        "Current tests validate helper behavior in isolation but miss contract wiring regressions across handler + shared helper boundaries."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "api_surface_coherence": {
+      "evidence": [
+        "`checkRateLimit` returns `OperationResult<RateLimitResult>` and uses `operationSuccess` for allowed and denied outcomes (`allowed: false`), but handler call sites only branch on `!rateLimitResult.ok`.",
+        "Call sites pass the wrong shape to `rateLimitFailureResponse` (`rateLimitResult` instead of a denied decision or operation failure), e.g. `supabase/functions/create-task/index.ts`, `supabase/functions/complete_task/index.ts`, `supabase/functions/stripe-checkout/index.ts`.",
+        "Because denied decisions are represented as `ok: true`, current handler logic does not enforce rate limiting in the normal denied path."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "`runSerializedTimelineWrite` times out via `runSerializedTaskWithTimeout` but does not cancel the underlying task; queue state is released in `finally` immediately after timeout in `src/shared/lib/timelineWriteQueue.ts`.",
+        "Timeline flows (`src/shared/hooks/timeline/useTimelineFrameUpdates.ts`, `src/shared/hooks/timeline/timelineMutationService.ts`) assume serialized write ordering for DB writes + refetch choreography; timed-out writes can continue in background and race with newer writes.",
+        "This creates exactly the loop-prone blind spot of reruns proceeding before prior work is truly drained."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    }
+  },
+  "findings": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "rate_limit_result_contract_drift",
+      "summary": "Rate-limit denied decisions are modeled as success but handlers treat only failure as block",
+      "related_files": [
+        "supabase/functions/_shared/rateLimit.ts",
+        "supabase/functions/create-task/index.ts",
+        "supabase/functions/complete_task/index.ts",
+        "supabase/functions/stripe-checkout/index.ts"
+      ],
+      "evidence": [
+        "`checkRateLimit` returns `operationSuccess({ allowed: false, ... }, { policy: 'fail_closed' })` for blocked requests.",
+        "Handlers gate on `if (!rateLimitResult.ok)` and never branch on `rateLimitResult.ok && rateLimitResult.value.allowed === false`.",
+        "Blocked decisions therefore pass through as normal execution paths instead of returning 429."
+      ],
+      "suggestion": "Standardize one contract and enforce it everywhere: either (A) make blocked rate-limit decisions return `operationFailure('rate_limit_exceeded', cause: deniedDecision)` and keep existing `!ok` branches, or (B) keep denied decisions as `ok` and add a required helper branch `if (result.ok && !result.value.allowed) return rateLimitFailureResponse(result.value, config)` in every handler. Add a shared wrapper (`enforceRateLimit(...)`) to avoid repeating branch logic.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "operation_result_contract_drift"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "serialized_timeline_timeout_leaks_work",
+      "summary": "Serialized timeline queue releases on timeout without aborting in-flight write work",
+      "related_files": [
+        "src/shared/lib/timelineWriteQueue.ts",
+        "src/shared/hooks/timeline/useTimelineFrameUpdates.ts",
+        "src/shared/hooks/timeline/timelineMutationService.ts"
+      ],
+      "evidence": [
+        "`runSerializedTaskWithTimeout` rejects after timeout but has no cancellation channel for `task()`; work may continue after rejection.",
+        "`runSerializedTimelineWrite` releases queue tail/depth in `finally`, so subsequent writes start while timed-out work can still mutate backend/cache.",
+        "Downstream timeline orchestration sequences writes and refetches assuming strict ordering, so overlapping post-timeout completions can reintroduce stale frame state churn."
+      ],
+      "suggestion": "Change serialized queue API to require abort-aware tasks: `task(signal)` and abort signal propagation on timeout; only release queue after task settles or explicit cancellation acknowledgement. Add guardrail metrics (`timed_out_but_completed_late`) and optional per-shot circuit-breaker to pause new writes until timeout incident is resolved.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "timeout_without_cancellation"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "missing_rate_limit_enforcement_integration_tests",
+      "summary": "Tests miss edge-handler enforcement path for denied rate-limit decisions",
+      "related_files": [
+        "supabase/functions/_shared/rateLimit.test.ts",
+        "supabase/functions/create-task/index.ts",
+        "supabase/functions/complete_task/index.ts",
+        "supabase/functions/stripe-checkout/index.ts"
+      ],
+      "evidence": [
+        "Unit tests validate `checkRateLimit` can return `ok: true` with `allowed: false`, but there are no tests asserting handlers convert that into a 429.",
+        "Call-site bug (denied decision ignored) was not caught, indicating a coverage gap at the API boundary between shared limiter and function handlers.",
+        "Current test suite is mostly per-module unit tests and does not include table-driven contract tests across all rate-limited handlers."
+      ],
+      "suggestion": "Add shared contract tests for rate-limited handlers that inject three outcomes (`allowed`, `denied`, `degraded`) and assert status codes/headers. At minimum, add one reusable test helper and apply it to `create-task`, `complete_task`, `generate-pat`, `ai-prompt`, `delete-project`, and `stripe-checkout`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "operation_result_contract_drift"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Shared helper contract drifted from caller assumptions (`OperationResult` semantics not uniformly interpreted).",
+      "Timeout handling optimized for queue liveness without end-to-end cancellation guarantees.",
+      "Test portfolio is strong at unit level but weak at seam-level contract verification across modules."
+    ],
+    "likely_symptoms": [
+      "rate_limit_result_contract_drift",
+      "missing_rate_limit_enforcement_integration_tests"
+    ],
+    "possible_false_positives": []
+  }
+}

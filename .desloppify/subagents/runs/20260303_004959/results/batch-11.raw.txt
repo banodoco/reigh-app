@@ -1,0 +1,359 @@
+{
+  "batch": "Full Codebase Sweep",
+  "batch_index": 11,
+  "assessments": {
+    "naming_quality": 86.5,
+    "logic_clarity": 82.0,
+    "type_safety": 88.5,
+    "contract_coherence": 86.0,
+    "error_consistency": 83.0,
+    "abstraction_fitness": 82.5,
+    "ai_generated_debt": 87.0,
+    "high_level_elegance": 86.0,
+    "mid_level_elegance": 85.5,
+    "low_level_elegance": 86.0,
+    "cross_module_architecture": 86.0,
+    "initialization_coupling": 85.5,
+    "convention_outlier": 86.5,
+    "dependency_health": 90.0,
+    "test_strategy": 88.0,
+    "api_surface_coherence": 85.8,
+    "authorization_consistency": 89.0,
+    "incomplete_migration": 81.5,
+    "package_organization": 84.0,
+    "design_coherence": 86.2
+  },
+  "dimension_notes": {
+    "naming_quality": {
+      "evidence": [
+        "`src/domains/generation/types/index.ts` exports `GenerationRow` from `generationViewRow.ts`, while `generationRow.ts` defines `PersistedGenerationRow`; the naming split is easy to misread at call sites.",
+        "`src/features/image-edit/index.ts` presents a feature-level API name but mostly mirrors `src/shared/components/MediaLightbox/hooks/index.ts` naming one-to-one."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Domain-facing names and persisted/legacy names still overlap in ways that obscure intent."
+    },
+    "logic_clarity": {
+      "evidence": [
+        "`src/features/resources/hooks/useResourceBrowserData.ts` updates state during render (`setCurrentPage(1)` in lines 67-70), creating render-phase side effects and extra render churn.",
+        "Mechanical concern check: `useGenerationMutations.ts` async-without-await signal was reviewed and is mostly refuted; current async paths do await network/scope checks."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "high"
+    },
+    "type_safety": {
+      "evidence": [
+        "Most reviewed hooks and repositories type async boundaries explicitly (for example `useCredits`, `useApiTokens`, `useGenerationMutations`).",
+        "There are still several broad casts around dynamic payloads (`useResourceBrowserData`, `generationParamsMapper`) that rely on runtime guards instead of stronger compile-time narrowing."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Runtime casting remains common in metadata/payload handling paths."
+    },
+    "contract_coherence": {
+      "evidence": [
+        "`useDeleteGenerationWithConfirm` and `deleteGenerationConfirm` align on confirm contract shape.",
+        "Contract clarity is reduced by dual type surfaces (`src/domains/generation/types/*` vs `src/types/*` compatibility shims), which leaves callers multiple valid-but-different import paths."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Legacy compatibility surfaces still blur the canonical contract."
+    },
+    "error_consistency": {
+      "evidence": [
+        "`useDeleteGenerationAction.confirmDelete` catches and presents delete errors, while `useDeleteFromTable` in `useGenerationMutations` also presents errors via mutation `onError`, producing double presentation paths.",
+        "`useResourceBrowserData` mixes `console.error` for one branch with normalized runtime error presentation for others."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "abstraction_fitness": {
+      "evidence": [
+        "`src/features/image-edit/index.ts` is a large pass-through facade over `src/shared/components/MediaLightbox/*`, adding little local behavior while expanding indirection.",
+        "`src/integrations/supabase/repositories/homeAuthRepository.ts` wrappers are near-direct forwards of client auth calls and are single-call-site in `useHomeAuth`, confirming low-leverage abstraction.",
+        "Mechanical concern check: `homeAuthRepository.ts` async-without-await signal is confirmed as ceremony rather than behavior."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 78.0,
+        "indirection_cost": 80.0,
+        "interface_honesty": 84.0,
+        "delegation_density": 74.0,
+        "definition_directness": 82.0,
+        "type_discipline": 87.0
+      }
+    },
+    "ai_generated_debt": {
+      "evidence": [
+        "Some reviewed modules include verbose pass-through comment/extraction style without proportional behavioral payoff (for example feature barrel surfaces and direct forwarder repositories).",
+        "No widespread copied debug boilerplate or blanket try/catch spam was found in the seeded scope."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Low-value wrapper patterns still add generated-style ceremony in several modules."
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Top-level app/bootstrap, feature, domain, and integration areas are present and mostly separable.",
+        "Feature/domain boundaries are weakened by feature barrels that re-export shared internals directly."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Boundary ownership is occasionally blurred by cross-layer re-export patterns."
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "Handoffs in gallery/resource flows are explicit but some seam logic duplicates responsibilities (UI action + mutation-level error presentation).",
+        "Supabase auth flow has two subscription paths (`AuthStateManager` and direct `onAuthStateChange`) with fallback branching."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Cross-layer error and auth choreography still has duplicated handling paths."
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Most reviewed functions use guard-clause style and bounded side effects.",
+        "`useResourceBrowserData` contains a render-phase mutation branch that degrades local implementation precision."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "issues_preventing_higher_score": "A few local implementation choices still violate React runtime best practices."
+    },
+    "cross_module_architecture": {
+      "evidence": [
+        "`holistic_context.coupling.boundary_violations` is null for this packet (no direct hard violations detected).",
+        "Architecture drift still appears via feature-level modules re-exporting deep shared internals (`src/features/image-edit/index.ts` -> `src/shared/components/MediaLightbox/*`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Dependency direction is mostly clean, but boundary intent is diluted by cross-module facade leakage."
+    },
+    "initialization_coupling": {
+      "evidence": [
+        "`holistic_context.errors.mutable_globals` and `scan_evidence.mutable_globals` are null in packet data, so no detector-confirmed global-init hotspot was provided.",
+        "Manual review found module-level state registries (`runtimeClient/runtimeError`, `authStateManager`, and `lightbox openCount`) that are valid but increase boot-order coupling if used pre-init."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Initialization remains partly coordinated via mutable module state rather than an explicit runtime registry."
+    },
+    "convention_outlier": {
+      "evidence": [
+        "Most files follow consistent TS/React conventions.",
+        "Type naming conventions drift in generation contracts (`PersistedGenerationRow`, `GenerationRowDto`, `GenerationRow` view model, legacy aliases)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Generation type conventions still reflect migration-era divergence."
+    },
+    "dependency_health": {
+      "evidence": [
+        "No clear multi-library duplication for the same purpose was found in reviewed seeded scope.",
+        "Supabase, TanStack Query, and DnD usage appears consolidated rather than fragmented in examined modules."
+      ],
+      "impact_scope": "local",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "No strong defect observed here, but this pass was scoped to seeded/hotspot files rather than lockfile-level audit."
+    },
+    "test_strategy": {
+      "evidence": [
+        "Targeted tests exist for many reviewed hotspots (`useResourceBrowserData`, `useGalleryPageState`, `useApiKeys`, `useApiTokens`, `useCredits`, `AuthStateManager`, `createSupabaseClient`, `useSettingsModalIntents`, `useGenerationMutations`).",
+        "Risk remains around integration behavior where multiple hooks compose (for example duplicate error presentation across mutation + action layers)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Cross-hook integration assertions are thinner than unit coverage in critical UI mutation flows."
+    },
+    "api_surface_coherence": {
+      "evidence": [
+        "Public hook APIs are generally consistent (query + mutation returns, typed params).",
+        "Some surfaces expose two equivalent paths with different semantics (auth manager subscription vs direct client subscription fallback)."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "Equivalent capabilities are exposed through parallel APIs in auth flow modules."
+    },
+    "authorization_consistency": {
+      "evidence": [
+        "Reviewed account/billing/settings hooks consistently gate user-sensitive operations via `requireSession`/`requireUserFromSession`.",
+        "Public routes in `routes.tsx` are explicitly segmented from layout-protected routes."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "high",
+      "issues_preventing_higher_score": "Auth checks are mostly consistent, but some legacy flows still call raw auth methods through thin wrappers."
+    },
+    "incomplete_migration": {
+      "evidence": [
+        "`src/types/generationAndShots.ts`, `src/types/generationRow.ts`, and `src/types/shot.ts` remain as compatibility shims while canonical contracts live under `src/domains/generation/types`.",
+        "`generationParamsMapper` and `generationRowDto` still preserve legacy alias handling (`originalParams` vs `original_params`, `orchestratorDetails` vs `orchestrator_details`, `shotImageEntryId` aliases)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "package_organization": {
+      "evidence": [
+        "Objective structure signal: `src/domains/generation/types/` has high fan-in (avg 25.8) while `src/types/` still contains generation-related compatibility files (`generationRow.ts`, `shot.ts`, `generationAndShots.ts`) creating split ownership.",
+        "Objective structure signal: `src/types/` profile shows 9 files with mixed concerns; generation contracts straddle both `src/types` and domain-specific package.",
+        "Staged reorg plan: (1) move all active generation/shot imports to `@/domains/generation/types`; (2) mark `src/types/generation*` + `src/types/shot.ts` deprecated and remove once import count is zero; (3) keep only truly cross-domain primitives in `src/types`.",
+        "Validation commands after each move: `rg -n \"@/types/(generation|shot|generationAndShots)\" src`, `pnpm test -- --runInBand`, `pnpm typecheck`, `pnpm lint`."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "design_coherence": {
+      "evidence": [
+        "Design issue in `useResourceBrowserData` (render-phase state update) indicates responsibility/lifecycle confusion between render and effect phases.",
+        "Workflow integrity check: reviewed seeded orchestration/auth flows for loop-prone stale/reopen churn; no concrete rerun/starvation loop was confirmed in this scope."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "confidence": "medium",
+      "issues_preventing_higher_score": "A few lifecycle-phase violations still indicate local design inconsistency."
+    }
+  },
+  "findings": [
+    {
+      "dimension": "logic_clarity",
+      "identifier": "resource_browser_render_phase_state_update",
+      "summary": "Resource browser mutates pagination state during render instead of effect phase",
+      "related_files": [
+        "src/features/resources/hooks/useResourceBrowserData.ts",
+        "src/features/resources/components/ResourceBrowserModalBase.tsx"
+      ],
+      "evidence": [
+        "`useResourceBrowserData` compares `prevShowMyResourcesOnlyRef` and calls `setCurrentPage(1)` directly in render (lines 66-70), which is a render-phase state update.",
+        "The hook is used directly by `ResourceBrowserModalBase`, so this runs on normal modal rerenders, not only explicit events."
+      ],
+      "suggestion": "Move the filter-change pagination reset into a `useEffect` keyed on `showMyResourcesOnly` (or reset in the filter toggle handler) so render stays side-effect free.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "ui_lifecycle_boundary_blur"
+    },
+    {
+      "dimension": "error_consistency",
+      "identifier": "delete_generation_double_error_presentation",
+      "summary": "Delete-generation failures are normalized and presented in two separate layers",
+      "related_files": [
+        "src/domains/generation/hooks/useGenerationMutations.ts",
+        "src/domains/generation/hooks/useDeleteGenerationAction.ts"
+      ],
+      "evidence": [
+        "`useDeleteFromTable` defines mutation `onError` that calls `normalizeAndPresentError`.",
+        "`useDeleteGenerationAction.confirmDelete` calls `mutateAsync` and catches the same failure path, then calls `normalizeAndPresentError` again."
+      ],
+      "suggestion": "Choose one owner for user-facing error presentation (mutation hook or action hook) and make the other layer propagate typed errors without presenting them again.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "duplicated_error_ownership"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "image_edit_feature_passthrough_facade",
+      "summary": "Feature image-edit surface is mostly a pass-through to shared MediaLightbox internals",
+      "related_files": [
+        "src/features/image-edit/index.ts",
+        "src/shared/components/MediaLightbox/hooks/index.ts"
+      ],
+      "evidence": [
+        "`src/features/image-edit/index.ts` re-exports many hooks/types directly from `src/shared/components/MediaLightbox/*` with near-zero translation.",
+        "A separate shared hooks barrel already exists, so the feature barrel adds indirection without clear feature-owned policy."
+      ],
+      "suggestion": "Either promote a true feature boundary (feature-owned adapters/contracts) or remove the extra feature barrel and import from a single canonical module.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "thin_facade_indirection"
+    },
+    {
+      "dimension": "abstraction_fitness",
+      "identifier": "home_auth_repository_forwarder_layer",
+      "summary": "Home auth repository wraps Supabase auth calls without adding policy or translation",
+      "related_files": [
+        "src/integrations/supabase/repositories/homeAuthRepository.ts",
+        "src/pages/Home/hooks/useHomeAuth.ts"
+      ],
+      "evidence": [
+        "`homeAuthRepository` methods mostly forward directly to `getSupabaseClient().auth.*`/`rpc` with unchanged shapes.",
+        "Primary consumer (`useHomeAuth`) already owns workflow logic and error behavior, so the wrapper layer contributes little leverage."
+      ],
+      "suggestion": "Inline these calls into `useHomeAuth` or upgrade the repository to own concrete concerns (token parsing policy, normalized auth errors, retry/backoff) so the abstraction has clear value.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "thin_facade_indirection"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "generation_type_dual_surface_legacy_aliases",
+      "summary": "Generation types still carry active legacy alias and compatibility pathways",
+      "related_files": [
+        "src/domains/generation/mappers/generationParamsMapper.ts",
+        "src/domains/generation/types/generationRowDto.ts"
+      ],
+      "evidence": [
+        "`generationParamsMapper` still supports both legacy and canonical keys (`originalParams`/`original_params`, `orchestratorDetails`/`orchestrator_details`) and reports alias fallback usage.",
+        "`generationRowDto` exposes legacy alias fields (`shotImageEntryId`, `shot_generation_id`, snake_case DB aliases) in active transport types."
+      ],
+      "suggestion": "Define a migration cutoff: instrument alias usage, remove unused aliases in phases, then narrow DTO contracts to canonical fields only.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "legacy_contract_overlap"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "generation_contracts_split_between_domain_and_root_types",
+      "summary": "Generation/shot contracts are split across `src/domains` and root `src/types`",
+      "related_files": [
+        "src/types/generationAndShots.ts",
+        "src/domains/generation/types/index.ts"
+      ],
+      "evidence": [
+        "`src/types/generationAndShots.ts` (and sibling shims) re-export domain contracts while canonical ownership is documented under `src/domains/generation/types`.",
+        "Structure profile shows a mixed `src/types/` directory (9 files) while generation contracts already have a high-fan-in domain package, creating parallel navigation paths."
+      ],
+      "suggestion": "Staged reorg: 1) migrate all imports to `@/domains/generation/types`; 2) remove generation/shot shims from `src/types`; 3) validate with `rg -n \"@/types/(generation|shot|generationAndShots)\" src`, `pnpm typecheck`, `pnpm test -- --runInBand`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "legacy_contract_overlap"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Migration-era compatibility layers were retained past initial transition, leaving dual contract surfaces.",
+      "Several abstraction layers are naming/packaging facades rather than behavior-owning boundaries.",
+      "Error ownership is not consistently assigned between domain mutation hooks and UI action hooks."
+    ],
+    "likely_symptoms": [
+      "delete_generation_double_error_presentation",
+      "generation_contracts_split_between_domain_and_root_types",
+      "home_auth_repository_forwarder_layer"
+    ],
+    "possible_false_positives": [
+      "Some pass-through facades may be intentional short-term API stabilization points, but no explicit deprecation timeline was found in the reviewed files."
+    ]
+  }
+}

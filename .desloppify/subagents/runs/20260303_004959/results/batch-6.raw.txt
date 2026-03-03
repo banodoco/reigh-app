@@ -1,0 +1,126 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 6,
+  "assessments": {
+    "package_organization": 71.0,
+    "high_level_elegance": 74.0
+  },
+  "dimension_notes": {
+    "package_organization": {
+      "evidence": [
+        "`src/shared/lib/` is overloaded (53 production files, 6732 LOC) and mixes generic utilities with domain repositories (`generationTaskRepository.ts`, `generationTaskCache.ts`, `taskRowMapper.ts`, `toolSettingsService.ts`), weakening directory ownership boundaries.",
+        "`src/shared/hooks/` is similarly mixed (48 files, 9480 LOC), combining generic UI hooks (`useFileDragTracking.ts`) and domain workflows (`useLineageChain.ts`, `useVariants.ts`, `useShotCreation.ts`) rather than separating domain from reusable primitives.",
+        "`src/shared/components/MediaLightbox/hooks/` is a very large feature-local hook package (48 files, 9679 LOC) but still imports broad shared and domain internals (`src/shared/hooks/`, `src/shared/lib/`, `src/domains/generation/types/`), indicating unresolved placement boundaries.",
+        "Coupling matrix confirms concentrated cross-directory dependency seams: `src/shared/hooks/ → src/shared/lib/` (30), `src/shared/components/MediaLightbox/hooks/ → src/shared/hooks/` (21), and `src/shared/components/MediaLightbox/hooks/ → src/shared/lib/` (17), consistent with flattened shared layers.",
+        "Mechanical scan did not provide `boundary_violations` payload in this packet (null), so boundary confirmation relies on direct import/coupling evidence above."
+      ],
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "confidence": "high",
+      "sub_axes": {
+        "abstraction_leverage": 70.0,
+        "indirection_cost": 66.0,
+        "interface_honesty": 73.0,
+        "delegation_density": 69.0,
+        "definition_directness": 71.0,
+        "type_discipline": 79.0
+      }
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "Data-access ownership is split across UI/feature hooks and shared libs: `useAdjustedTaskDetails.ts` performs direct Supabase task reads while related task-scope logic lives in `generationTaskRepository.ts` and `useLineageChain.ts`, producing multiple architectural centers for the same domain.",
+        "Generation/variant lineage and task mapping behaviors are dispersed across `src/shared/hooks`, `src/shared/lib`, and `src/domains/generation/hooks`, so capability boundaries do not map cleanly to top-level packages.",
+        "`src/shared/components/MediaLightbox/hooks/index.ts` exports a broad facade of feature internals, but consumers primarily import individual hook files, leaving an unstable public surface pattern for this package.",
+        "Mechanical systemic signal `async_no_await` includes `src/shared/lib/generationTaskCache.ts`; this was reviewed and appears as packaging drift symptom (workflow/IO responsibilities placed in shared utility layer), not a standalone structural counterexample."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium",
+      "sub_axes": {
+        "abstraction_leverage": 72.0,
+        "indirection_cost": 68.0,
+        "interface_honesty": 70.0,
+        "delegation_density": 71.0,
+        "definition_directness": 74.0,
+        "type_discipline": 81.0
+      }
+    }
+  },
+  "findings": [
+    {
+      "dimension": "package_organization",
+      "identifier": "shared_layer_overloaded_mixed_concerns",
+      "summary": "`src/shared/lib` is a catch-all containing both cross-cutting utilities and generation-domain repositories.",
+      "related_files": [
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/lib/generationTaskCache.ts",
+        "src/shared/lib/fileConversion.ts",
+        "src/shared/lib/clipboard.ts"
+      ],
+      "evidence": [
+        "`generationTaskRepository.ts` and `generationTaskCache.ts` contain generation/variant project-scope and query-cache orchestration logic tied to generation domain behavior, while adjacent files like `clipboard.ts` and `fileConversion.ts` are generic utilities.",
+        "Directory profile reports `src/shared/lib/` with 53 files and high inbound coupling from feature hooks/components, indicating this folder has become a broad dependency sink rather than a focused package."
+      ],
+      "suggestion": "Staged reorg plan: (1) create `src/domains/generation/repository/taskMappingRepository.ts` and move generation/variant scope + mapping retrieval from `generationTaskRepository.ts`; (2) create `src/domains/generation/cache/taskMappingCache.ts` and move React Query preloading/enhancement from `generationTaskCache.ts`; (3) leave only truly generic helpers in `src/shared/lib/` (e.g., `clipboard.ts`, `fileConversion.ts`), and add local barrels in new domain folders; (4) update imports with `rg -n \"generationTaskRepository|generationTaskCache\" src` then apply path rewrites; (5) validate with `npm run typecheck` and `npm test -- generationTaskRepository generationTaskCache useLineageChain`.",
+      "confidence": "high",
+      "impact_scope": "codebase",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "shared_as_dumping_ground"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "domain_hooks_parked_in_shared_hooks",
+      "summary": "Domain-specific lineage/task hooks are placed in `src/shared/hooks`, blurring reusable vs domain ownership.",
+      "related_files": [
+        "src/shared/hooks/useLineageChain.ts",
+        "src/shared/components/LineageGifModal.tsx",
+        "src/shared/components/VariantSelector/hooks/useVariantActions.ts",
+        "src/domains/generation/hooks/useDerivedItems.ts"
+      ],
+      "evidence": [
+        "`useLineageChain.ts` encapsulates generation-variant lineage traversal and project-scope validation (`resolveVariantProjectScope`) but lives in `src/shared/hooks/` despite being generation-domain behavior.",
+        "Its primary consumers are generation/variant features (`LineageGifModal`, `useVariantActions`), while the domain package already contains related data hooks (`useDerivedItems.ts`) under `src/domains/generation/hooks/`."
+      ],
+      "suggestion": "Staged reorg plan: (1) add `src/domains/generation/hooks/useVariantLineageChain.ts` and move `useLineageChain` + `getLineageDepth`; (2) add a temporary compatibility re-export in `src/shared/hooks/useLineageChain.ts` to avoid breakage; (3) migrate call sites via `rg -n \"useLineageChain|getLineageDepth\" src` and update imports to `@/domains/generation/hooks/...`; (4) remove compatibility shim after all call sites migrate; (5) run `npm run typecheck` and focused tests `npm test -- useLineageChain useVariantActions LineageGifModal`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shared_as_dumping_ground"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "task_data_access_split_across_ui_and_shared",
+      "summary": "Task/variant data retrieval is duplicated across feature UI hooks and shared libs, creating unclear ownership.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useAdjustedTaskDetails.ts",
+        "src/shared/hooks/useVariants.ts",
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/domains/generation/hooks/useGenerationMutations.ts"
+      ],
+      "evidence": [
+        "`useAdjustedTaskDetails.ts` performs direct Supabase `tasks` fetches in a MediaLightbox UI hook, while `generationTaskRepository.ts` centralizes related generation/variant scope resolution and mapping logic elsewhere.",
+        "`useVariants.ts` also embeds direct Supabase access and mutation orchestration in a shared hook, while domain mutation flows (`useGenerationMutations.ts`) depend on shared repository logic, resulting in split domain control points."
+      ],
+      "suggestion": "Staged reorg plan: (1) define a single generation-task data access boundary under `src/domains/generation/repository/` (read/write functions for variants, tasks, scope checks); (2) refactor `useAdjustedTaskDetails.ts` and `useVariants.ts` to consume repository functions only; (3) keep UI hooks responsible for view-state composition, not transport/query details; (4) update imports using `rg -n \"getSupabaseClient|from\\('tasks'\\)|from\\('generation_variants'\\)\" src/shared/components/MediaLightbox/hooks src/shared/hooks`; (5) validate with `npm run typecheck` and hook tests `npm test -- useAdjustedTaskDetails useVariants useGenerationMutations`.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "distributed_domain_ownership"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "The `shared` layer is used as a default landing zone for both reusable primitives and domain workflows.",
+      "Repository/data-access boundaries are not enforced, so feature hooks directly own persistence logic.",
+      "Large hook-heavy directories evolved without package-level decomposition gates."
+    ],
+    "likely_symptoms": [
+      "shared_layer_overloaded_mixed_concerns",
+      "domain_hooks_parked_in_shared_hooks",
+      "task_data_access_split_across_ui_and_shared"
+    ],
+    "possible_false_positives": [
+      "The MediaLightbox hook barrel may be intentionally retained for future public-surface stabilization; current evidence shows low usage, not guaranteed defect by itself."
+    ]
+  }
+}
