@@ -1,12 +1,9 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useMemo } from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Label } from '@/shared/components/ui/primitives/label';
 import { Slider } from '@/shared/components/ui/slider';
 import { Copy, Check, LogIn } from 'lucide-react';
-import { toast } from '@/shared/components/ui/toast';
-import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
 import { ProjectSelectorModal } from './ProjectSelectorModal';
 import BatchSettingsForm from './BatchSettingsForm';
 import { MotionControl } from './MotionControl';
@@ -21,6 +18,7 @@ import {
   calculateColumnsForDevice,
   extractStructureVideos,
 } from '../utils/shareDataTransformers';
+import { useShareActions } from '../hooks/useShareActions';
 
 // RPC returns raw data - same format as hooks
 interface SharedGenerationViewProps {
@@ -50,100 +48,17 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
   shareData,
   shareSlug
 }) => {
-  const navigate = useNavigate();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isCopying, setIsCopying] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [showProjectSelector, setShowProjectSelector] = useState(false);
+  const {
+    isAuthenticated, isCopying, copied,
+    showProjectSelector, setShowProjectSelector,
+    handleCopyToAccount, handleProjectSelected,
+  } = useShareActions(shareSlug);
+
   const isMobile = useIsMobile();
   const { mobileColumns } = useDeviceInfo();
 
   // Data comes directly from RPC - same format as the hooks
   const { generation, images, settings } = shareData;
-
-  const checkAuth = useCallback(async () => {
-    const { data: { session } } = await supabase().auth.getSession();
-    setIsAuthenticated(!!session);
-  }, []);
-
-  const handleCopyToAccount = useCallback(() => {
-    if (!isAuthenticated) {
-      sessionStorage.setItem('pending_share', shareSlug);
-      toast({
-        title: "Sign in required",
-        description: "Please sign in to copy this to your account"
-      });
-      navigate('/?action=copy-share');
-      return;
-    }
-    setShowProjectSelector(true);
-  }, [isAuthenticated, shareSlug, navigate]);
-
-  const checkPendingShare = useCallback(() => {
-    const pendingShare = sessionStorage.getItem('pending_share');
-    if (pendingShare) {
-      sessionStorage.removeItem('pending_share');
-      handleCopyToAccount();
-    }
-  }, [handleCopyToAccount]);
-
-  // Check authentication status
-  useEffect(() => {
-    checkAuth();
-
-    const { data: { subscription } } = supabase().auth.onAuthStateChange((event, session) => {
-      setIsAuthenticated(!!session);
-      if (event === 'SIGNED_IN') {
-        checkPendingShare();
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [checkAuth, checkPendingShare]);
-
-  const handleProjectSelected = async (projectId: string) => {
-    setShowProjectSelector(false);
-    setIsCopying(true);
-
-    try {
-      const { error: copyError } = await supabase().rpc('copy_shot_from_share', {
-          share_slug_param: shareSlug,
-          target_project_id: projectId,
-        });
-
-      if (copyError) {
-        console.error('[SharedGenerationView] Failed to copy shot:', copyError);
-        toast({
-          title: "Copy failed",
-          description: copyError.message || "Failed to copy shot to your project",
-          variant: "destructive"
-        });
-        setIsCopying(false);
-        return;
-      }
-
-      setCopied(true);
-      toast({
-        title: "Copied to your account!",
-        description: "The shot has been added to your project"
-      });
-
-      setTimeout(() => {
-        navigate('/tools/travel-between-images');
-      }, 1500);
-
-    } catch (error) {
-      console.error('[SharedGenerationView] Unexpected error:', error);
-      toast({
-        title: "Something went wrong",
-        description: "Please try again",
-        variant: "destructive"
-      });
-      setIsCopying(false);
-    }
-  };
 
   // Transform generation to GenerationRow format for FinalVideoSection
   // Uses utility function to ensure consistency with hook data shapes
