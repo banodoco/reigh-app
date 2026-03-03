@@ -157,7 +157,6 @@ interface InlineEditSidebarProps {
 
 interface InlineEditSidebarModel {
   isSpecialEditMode: boolean;
-  sourceGenerationData: InlineEditStateResult['sourceGenerationData'];
   currentMediaId: string;
   generation: {
     handleUnifiedGenerate: InlineEditStateResult['generationState']['handleUnifiedGenerate'];
@@ -186,7 +185,6 @@ interface InlineEditSidebarModel {
 function buildInlineEditSidebarModel(state: InlineEditStateResult): InlineEditSidebarModel {
   return {
     isSpecialEditMode: state.inpaintingState.isSpecialEditMode,
-    sourceGenerationData: state.sourceGenerationData,
     currentMediaId: state.media.id,
     generation: {
       handleUnifiedGenerate: state.generationState.handleUnifiedGenerate,
@@ -222,20 +220,22 @@ function InlineEditSidebar({ variant, model, onClose, onNavigateToGeneration }: 
       variant={variant === 'mobile' ? 'mobile' : 'desktop'}
       hideInfoEditToggle={true}
       simplifiedHeader={true}
-      sourceGenerationData={model.sourceGenerationData}
-      onOpenExternalGeneration={onNavigateToGeneration ?
-        async (id) => onNavigateToGeneration(id) : undefined
-      }
       currentMediaId={model.currentMediaId}
-      handleUnifiedGenerate={model.generation.handleUnifiedGenerate}
-      handleGenerateAnnotatedEdit={model.generation.handleGenerateAnnotatedEdit}
-      handleGenerateReposition={model.generation.handleGenerateReposition}
-      handleSaveAsVariant={model.generation.handleSaveAsVariant}
-      handleGenerateImg2Img={model.generation.handleGenerateImg2Img}
-      img2imgLoraManager={model.generation.img2imgLoraManager}
-      availableLoras={model.availableLoras}
-      coreState={{ onClose }}
-      imageEditState={model.imageEditValue}
+      actions={{
+        handleUnifiedGenerate: model.generation.handleUnifiedGenerate,
+        handleGenerateAnnotatedEdit: model.generation.handleGenerateAnnotatedEdit,
+        handleGenerateReposition: model.generation.handleGenerateReposition,
+        handleSaveAsVariant: model.generation.handleSaveAsVariant,
+        handleGenerateImg2Img: model.generation.handleGenerateImg2Img,
+      }}
+      lora={{
+        img2imgLoraManager: model.generation.img2imgLoraManager,
+        availableLoras: model.availableLoras,
+      }}
+      stateOverrides={{
+        coreState: { onClose },
+        imageEditState: model.imageEditValue,
+      }}
     />
   ) : (
     <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center gap-y-4">

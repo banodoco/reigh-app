@@ -77,7 +77,7 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
       return;
     }
     setShowProjectSelector(true);
-  }, [isAuthenticated, shareSlug, navigate]);
+  }, [isAuthenticated, shareSlug, navigate, toast]);
 
   const checkPendingShare = useCallback(() => {
     const pendingShare = sessionStorage.getItem('pending_share');
