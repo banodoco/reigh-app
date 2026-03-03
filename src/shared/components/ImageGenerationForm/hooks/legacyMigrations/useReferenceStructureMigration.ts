@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { nanoid } from 'nanoid';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { ProjectImageSettings, ReferenceImage } from '../../types';
 import type { LegacyMigrationsInput } from './types';
@@ -11,7 +10,7 @@ type ReferenceStructureMigrationInput = Pick<
 
 function buildLegacyReference(settings: ProjectImageSettings): ReferenceImage {
   return {
-    id: nanoid(),
+    id: crypto.randomUUID(),
     resourceId: '',
     name: 'Reference 1',
     styleReferenceImage: settings.styleReferenceImage || null,

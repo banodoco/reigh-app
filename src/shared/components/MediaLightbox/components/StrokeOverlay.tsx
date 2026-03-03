@@ -6,7 +6,6 @@
  */
 
 import { useState, useRef, useCallback, useEffect, useImperativeHandle, forwardRef } from 'react';
-import { nanoid } from 'nanoid';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { isPointOnShape, getClickedCornerIndex, getRectangleClickType, getRectangleCorners } from '../hooks/inpainting/shapeHelpers';
@@ -268,7 +267,7 @@ function useDrawing({
       }
 
       const stroke: BrushStroke = {
-        id: nanoid(),
+        id: crypto.randomUUID(),
         points: shapeType === 'rectangle' ? [pts[0], pts[pts.length - 1]] : pts,
         isErasing: isEraseMode,
         brushSize,

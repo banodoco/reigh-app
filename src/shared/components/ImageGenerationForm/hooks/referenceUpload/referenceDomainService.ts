@@ -1,4 +1,3 @@
-import { nanoid } from 'nanoid';
 import type { QueryClient } from '@tanstack/react-query';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { fileToDataURL, dataURLtoFile } from '@/shared/lib/fileConversion';
@@ -208,7 +207,7 @@ export function createReferencePointer(input: CreateReferencePointerInput): Refe
     : getReferenceModeDefaults(input.referenceMode, input.isLocalGenerationEnabled);
 
   return {
-    id: nanoid(),
+    id: crypto.randomUUID(),
     resourceId: input.resourceId,
     subjectDescription: '',
     styleBoostTerms: '',

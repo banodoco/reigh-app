@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { nanoid } from 'nanoid';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { GenerationRow } from '@/domains/generation/types';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
@@ -231,7 +230,7 @@ export const useReferences = ({
       });
 
       const newPointer: ReferenceImage = {
-        id: nanoid(),
+        id: crypto.randomUUID(),
         resourceId: resource.id,
       };
 

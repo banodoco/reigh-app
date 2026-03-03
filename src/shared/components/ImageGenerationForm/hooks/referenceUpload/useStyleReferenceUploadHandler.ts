@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
-import { nanoid } from 'nanoid';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { updateSettingsCache } from '@/shared/hooks/useToolSettings';
@@ -151,7 +150,7 @@ export function useStyleReferenceUploadHandler(
       });
 
       const newPointer: ReferenceImage = {
-        id: nanoid(),
+        id: crypto.randomUUID(),
         resourceId: resource.id,
         createdAt: new Date().toISOString(),
       };

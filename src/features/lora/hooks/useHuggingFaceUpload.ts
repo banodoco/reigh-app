@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 
 interface LoraDetails {
@@ -216,7 +215,7 @@ export function useHuggingFaceUpload() {
    * Upload a file to the temporary storage bucket
    */
   const uploadToTempStorage = async (file: File, userId: string): Promise<string> => {
-    const fileName = `${uuidv4()}-${file.name}`;
+    const fileName = `${crypto.randomUUID()}-${file.name}`;
     const filePath = `${userId}/${fileName}`;
     const { error } = await supabase().storage
       .from('temporary')

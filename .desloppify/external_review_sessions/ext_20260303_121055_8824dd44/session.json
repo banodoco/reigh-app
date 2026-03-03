@@ -1,0 +1,20 @@
+{
+  "session_id": "ext_20260303_121055_8824dd44",
+  "status": "submitted",
+  "runner": "claude",
+  "created_at": "2026-03-03T12:10:55+00:00",
+  "expires_at": "2026-03-04T12:10:55+00:00",
+  "ttl_hours": 24,
+  "token": "e868ff1bd4558594091c06a3532e1265",
+  "attest": "I validated this review was completed without awareness of overall score and is unbiased.",
+  "packet_path": "/Users/peteromalley/Documents/reigh/.desloppify/review_packets/holistic_packet_20260303_121055.json",
+  "blind_packet_path": "/Users/peteromalley/Documents/reigh/.desloppify/review_packet_blind.json",
+  "packet_sha256": "2f729aad16826fee29aa9d41643de9deeb6c37bfd7ec45da44a70e8c6bf0e8d8",
+  "template_path": "/Users/peteromalley/Documents/reigh/.desloppify/external_review_sessions/ext_20260303_121055_8824dd44/review_result.template.json",
+  "launch_prompt_path": "/Users/peteromalley/Documents/reigh/.desloppify/external_review_sessions/ext_20260303_121055_8824dd44/claude_launch_prompt.md",
+  "instructions_path": "/Users/peteromalley/Documents/reigh/.desloppify/external_review_sessions/ext_20260303_121055_8824dd44/reviewer_instructions.md",
+  "expected_output_path": "/Users/peteromalley/Documents/reigh/.desloppify/external_review_sessions/ext_20260303_121055_8824dd44/review_result.json",
+  "submitted_at": "2026-03-03T12:23:40+00:00",
+  "submitted_input_file": ".desloppify/external_review_sessions/ext_20260303_121055_8824dd44/review_result.json",
+  "submitted_canonical_file": "/Users/peteromalley/Documents/reigh/.desloppify/external_review_sessions/ext_20260303_121055_8824dd44/canonical_import_20260303_122340.json"
+}
