@@ -21,7 +21,7 @@ vi.mock('@/shared/lib/fileConversion', () => ({
   dataURLtoFile: (...args: unknown[]) => dataURLtoFileMock(...args),
 }));
 
-vi.mock('@/shared/lib/imageUploader', () => ({
+vi.mock('@/shared/lib/media/imageUploader', () => ({
   uploadImageToStorage: (...args: unknown[]) => uploadImageToStorageMock(...args),
 }));
 
@@ -29,7 +29,7 @@ vi.mock('@/shared/lib/taskCreation', () => ({
   resolveProjectResolution: (...args: unknown[]) => resolveProjectResolutionMock(...args),
 }));
 
-vi.mock('@/shared/lib/styleReferenceProcessor', () => ({
+vi.mock('@/shared/lib/media/styleReferenceProcessor', () => ({
   processStyleReferenceForAspectRatioString: (...args: unknown[]) =>
     processStyleReferenceForAspectRatioStringMock(...args),
 }));
@@ -86,6 +86,9 @@ describe('referenceDomainService', () => {
       throw new Error('Expected failure');
     }
     expect(result.errorCode).toBe('reference_aspect_processing_failed');
+    expect(uploadImageToStorageMock).toHaveBeenCalledTimes(1);
+    expect(resolveProjectResolutionMock).toHaveBeenCalledWith('project-1');
+    expect(processStyleReferenceForAspectRatioStringMock).toHaveBeenCalledTimes(1);
   });
 
   it('returns failure when thumbnail auth/session is missing', async () => {
@@ -104,6 +107,8 @@ describe('referenceDomainService', () => {
       throw new Error('Expected failure');
     }
     expect(result.errorCode).toBe('reference_thumbnail_auth_required');
+    expect(getSessionMock).toHaveBeenCalledTimes(1);
+    expect(uploadMock).not.toHaveBeenCalled();
   });
 
   it('returns failure when selection persistence throws', async () => {
@@ -126,5 +131,7 @@ describe('referenceDomainService', () => {
       throw new Error('Expected failure');
     }
     expect(result.errorCode).toBe('reference_selection_persist_failed');
+    expect(extractSettingsFromCacheMock).toHaveBeenCalledTimes(1);
+    expect(updateProjectImageSettings).toHaveBeenCalledTimes(1);
   });
 });

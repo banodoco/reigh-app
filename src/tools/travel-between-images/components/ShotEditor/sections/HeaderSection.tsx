@@ -10,68 +10,54 @@ import { Header } from '../ui/Header';
 import { useShotSettingsContext } from '../ShotSettingsContext';
 
 interface HeaderSectionProps {
-  // Navigation callbacks
-  onBack: () => void;
-  onPreviousShot?: () => void;
-  onNextShot?: () => void;
-  hasPrevious?: boolean;
-  hasNext?: boolean;
-
-  // Name editing callbacks
-  onUpdateShotName?: (name: string) => void;
-  onNameClick: () => void;
-  onNameSave: () => void;
-  onNameCancel: (e?: React.MouseEvent) => void;
-  onNameKeyDown: (e: React.KeyboardEvent) => void;
-
-  // Refs (passed from parent for scroll tracking)
-  headerContainerRef?: (node: HTMLDivElement | null) => void;
-  centerSectionRef: React.RefObject<HTMLDivElement>;
-
-  // Sticky state (controlled by parent)
-  isSticky?: boolean;
+  callbacks: {
+    onBack: () => void;
+    onPreviousShot?: () => void;
+    onNextShot?: () => void;
+    hasPrevious?: boolean;
+    hasNext?: boolean;
+    onUpdateShotName?: (name: string) => void;
+    onNameClick: () => void;
+    onNameSave: () => void;
+    onNameCancel: (e?: React.MouseEvent) => void;
+    onNameKeyDown: (e: React.KeyboardEvent) => void;
+  };
+  layout: {
+    headerContainerRef?: (node: HTMLDivElement | null) => void;
+    centerSectionRef: React.RefObject<HTMLDivElement>;
+    isSticky?: boolean;
+  };
 }
 
 export const HeaderSection: React.FC<HeaderSectionProps> = ({
-  onBack,
-  onPreviousShot,
-  onNextShot,
-  hasPrevious,
-  hasNext,
-  onUpdateShotName,
-  onNameClick,
-  onNameSave,
-  onNameCancel,
-  onNameKeyDown,
-  headerContainerRef,
-  centerSectionRef,
-  isSticky,
+  callbacks,
+  layout,
 }) => {
   // Get shared state from context
   const { selectedShot, state, actions, effectiveAspectRatio, projectId } = useShotSettingsContext();
 
   return (
-    <div ref={headerContainerRef}>
+    <div ref={layout.headerContainerRef}>
       <Header
         selectedShot={selectedShot}
         isEditingName={state.isEditingName}
         editingName={state.editingName}
         isTransitioningFromNameEdit={state.isTransitioningFromNameEdit}
-        onBack={onBack}
-        onUpdateShotName={onUpdateShotName}
-        onPreviousShot={onPreviousShot}
-        onNextShot={onNextShot}
-        hasPrevious={hasPrevious}
-        hasNext={hasNext}
-        onNameClick={onNameClick}
-        onNameSave={onNameSave}
-        onNameCancel={onNameCancel}
-        onNameKeyDown={onNameKeyDown}
+        onBack={callbacks.onBack}
+        onUpdateShotName={callbacks.onUpdateShotName}
+        onPreviousShot={callbacks.onPreviousShot}
+        onNextShot={callbacks.onNextShot}
+        hasPrevious={callbacks.hasPrevious}
+        hasNext={callbacks.hasNext}
+        onNameClick={callbacks.onNameClick}
+        onNameSave={callbacks.onNameSave}
+        onNameCancel={callbacks.onNameCancel}
+        onNameKeyDown={callbacks.onNameKeyDown}
         onEditingNameChange={actions.setEditingNameValue}
         projectAspectRatio={effectiveAspectRatio}
         projectId={projectId}
-        centerSectionRef={centerSectionRef}
-        isSticky={isSticky}
+        centerSectionRef={layout.centerSectionRef}
+        isSticky={layout.isSticky}
       />
     </div>
   );

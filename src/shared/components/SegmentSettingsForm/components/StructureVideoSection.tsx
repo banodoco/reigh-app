@@ -16,7 +16,7 @@ import { Label } from '@/shared/components/ui/primitives/label';
 import { Slider } from '@/shared/components/ui/slider';
 import { Loader2, Video, X, Images } from 'lucide-react';
 import { SegmentedControl, SegmentedControlItem } from '@/shared/components/ui/segmented-control';
-import { StructureVideoBrowserModal } from '@/features/resources/components/StructureVideoBrowserModal';
+import { ResourceBrowserModalBase } from '@/features/resources/components/ResourceBrowserModalBase';
 import { FieldDefaultControls } from './FieldDefaultControls';
 import { StructureVideoPreview } from './StructureVideoPreview';
 import { VideoPreviewSkeleton } from './VideoPreviewSkeleton';
@@ -426,9 +426,10 @@ export const StructureVideoSection: React.FC<StructureVideoSectionProps> = ({
 
       {/* Structure Video Browser Modal - Timeline Mode Only */}
       {isTimelineMode && (
-        <StructureVideoBrowserModal
+        <ResourceBrowserModalBase
           isOpen={videoUpload.showVideoBrowser}
           onOpenChange={videoUpload.setShowVideoBrowser}
+          resourceType="structure-video"
           title="Browse Guidance Videos"
           onResourceSelect={videoUpload.handleVideoResourceSelect}
         />

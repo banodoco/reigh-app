@@ -95,7 +95,6 @@ const TimelineItem: React.FC<TimelineItemProps> = ({
   const {
     isSelected = false,
     onSelectionClick,
-    selectedCount,
   } = selection ?? {};
   const {
     shouldLoad = true,

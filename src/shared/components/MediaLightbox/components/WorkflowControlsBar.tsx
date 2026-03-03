@@ -3,66 +3,18 @@ import { Button } from '@/shared/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { Settings } from 'lucide-react';
 import { ShotSelectorControls } from './ShotSelectorControls';
-import type { ShotOption } from '@/domains/generation/types';
 import type { LightboxDeleteHandler } from '../types';
+import type { ShotSelectorControlsProps } from './ShotSelectorControls';
 
 export interface WorkflowControlsBarProps {
-  // Visibility
-  // CRITICAL: targetShotId is the shot selected in the DROPDOWN, not the shot being viewed
-  onAddToShot?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
-  onDelete?: LightboxDeleteHandler;
-  onApplySettings?: (metadata: Record<string, unknown>) => void;
-  isSpecialEditMode: boolean;
-  isVideo: boolean;
-  
-  // Media info
-  mediaId: string;
-  imageUrl?: string;
-  thumbUrl?: string;
-  
-  // Shot selector props
-  allShots: ShotOption[];
-  selectedShotId: string | undefined;
-  onShotChange?: (shotId: string) => void;
-  onCreateShot?: (shotName: string, files: File[]) => Promise<{shotId?: string; shotName?: string} | void>;
-  
-  // Shot positioning
-  isAlreadyPositionedInSelectedShot: boolean;
-  isAlreadyAssociatedWithoutPosition: boolean;
-  showTickForImageId?: string | null;
-  showTickForSecondaryImageId?: string | null;
-  
-  // Shot actions
-  // CRITICAL: targetShotId is the shot selected in the DROPDOWN, not the shot being viewed
-  onAddToShotWithoutPosition?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
-  
-  // Optimistic updates
-  onShowTick?: (imageId: string) => void;
-  onOptimisticPositioned?: (imageId: string, shotId: string) => void;
-  onShowSecondaryTick?: (imageId: string) => void;
-  onOptimisticUnpositioned?: (imageId: string, shotId: string) => void;
-  
-  // Loading states
-  isAdding?: boolean;
-  isAddingWithoutPosition?: boolean;
-
-  // UI state
-  setIsSelectOpen?: (isOpen: boolean) => void;
-  contentRef: React.RefObject<HTMLDivElement>;
-
-  // Apply settings
-  handleApplySettings: () => void;
-
-  // Navigation
-  onNavigateToShot?: (shot: ShotOption) => void;
-
-  // Close lightbox
-  onClose?: () => void;
-
-  // Variant promotion - for adding a variant as a new generation to a shot
-  onAddVariantAsNewGeneration?: (shotId: string, variantId: string, currentTimelineFrame?: number) => Promise<boolean>;
-  activeVariantId?: string | null;
-  currentTimelineFrame?: number;
+  core: {
+    onDelete?: LightboxDeleteHandler;
+    onApplySettings?: (metadata: Record<string, unknown>) => void;
+    isSpecialEditMode: boolean;
+    isVideo: boolean;
+    handleApplySettings: () => void;
+  };
+  shotSelector?: ShotSelectorControlsProps;
 }
 
 /**
@@ -71,39 +23,10 @@ export interface WorkflowControlsBarProps {
  * Used across all layout variants (Desktop Side Panel, Mobile Stacked, Regular)
  */
 export const WorkflowControlsBar: React.FC<WorkflowControlsBarProps> = ({
-  onAddToShot,
-  onDelete,
-  onApplySettings,
-  isSpecialEditMode,
-  isVideo,
-  mediaId,
-  imageUrl,
-  thumbUrl,
-  allShots,
-  selectedShotId,
-  onShotChange,
-  onCreateShot,
-  isAlreadyPositionedInSelectedShot,
-  isAlreadyAssociatedWithoutPosition,
-  showTickForImageId,
-  showTickForSecondaryImageId,
-  onAddToShotWithoutPosition,
-  onShowTick,
-  onOptimisticPositioned,
-  onShowSecondaryTick,
-  onOptimisticUnpositioned,
-  isAdding = false,
-  isAddingWithoutPosition = false,
-  setIsSelectOpen,
-  contentRef,
-  handleApplySettings,
-  onNavigateToShot,
-  onClose,
-  onAddVariantAsNewGeneration,
-  activeVariantId,
-  currentTimelineFrame,
+  core,
+  shotSelector,
 }) => {
-  if (isSpecialEditMode || !(onAddToShot || onDelete || onApplySettings)) {
+  if (core.isSpecialEditMode || !(shotSelector || core.onDelete || core.onApplySettings)) {
     return null;
   }
 
@@ -111,45 +34,18 @@ export const WorkflowControlsBar: React.FC<WorkflowControlsBarProps> = ({
     <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center gap-x-2 z-[60]">
       <div className="bg-black/50 backdrop-blur-sm rounded-lg px-1.5 py-1 flex items-center gap-x-2">
         {/* Shot Selection and Add to Shot */}
-        {onAddToShot && allShots.length > 0 && !isVideo && (
-          <ShotSelectorControls
-            mediaId={mediaId}
-            imageUrl={imageUrl}
-            thumbUrl={thumbUrl}
-            allShots={allShots}
-            selectedShotId={selectedShotId}
-            onShotChange={onShotChange}
-            onCreateShot={onCreateShot}
-            isAlreadyPositionedInSelectedShot={isAlreadyPositionedInSelectedShot}
-            isAlreadyAssociatedWithoutPosition={isAlreadyAssociatedWithoutPosition}
-            showTickForImageId={showTickForImageId}
-            showTickForSecondaryImageId={showTickForSecondaryImageId}
-            onAddToShot={onAddToShot}
-            onAddToShotWithoutPosition={onAddToShotWithoutPosition}
-            onAddVariantAsNewGeneration={onAddVariantAsNewGeneration}
-            activeVariantId={activeVariantId}
-            currentTimelineFrame={currentTimelineFrame}
-            onShowTick={onShowTick}
-            onOptimisticPositioned={onOptimisticPositioned}
-            onShowSecondaryTick={onShowSecondaryTick}
-            onOptimisticUnpositioned={onOptimisticUnpositioned}
-            isAdding={isAdding}
-            isAddingWithoutPosition={isAddingWithoutPosition}
-            setIsSelectOpen={setIsSelectOpen}
-            contentRef={contentRef}
-            onNavigateToShot={onNavigateToShot}
-            onClose={onClose}
-          />
+        {shotSelector && shotSelector.allShots.length > 0 && !core.isVideo && (
+          <ShotSelectorControls {...shotSelector} />
         )}
 
         {/* Apply Settings */}
-        {onApplySettings && (
+        {core.onApplySettings && (
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={handleApplySettings}
+                onClick={core.handleApplySettings}
                 className="bg-purple-600/80 hover:bg-purple-600 text-white h-8 px-3"
               >
                 <Settings className="h-4 w-4" />

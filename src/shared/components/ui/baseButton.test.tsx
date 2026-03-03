@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import {
@@ -17,7 +16,9 @@ describe('BaseButton', () => {
     );
 
     const button = screen.getByRole('button', { name: 'Delete' });
-    expect(button.className).toContain(BASE_BUTTON_CLASSNAME);
+    expect(button.className).toContain('inline-flex');
+    expect(button.className).toContain('focus-visible:ring-2');
+    expect(button.className).toContain('disabled:pointer-events-none');
     expect(button.className).toContain(BASE_BUTTON_VARIANTS.destructive);
     expect(button.className).toContain(BASE_BUTTON_SIZES.sm);
   });

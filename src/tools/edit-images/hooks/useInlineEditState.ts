@@ -184,7 +184,6 @@ function useInlineEditReposition(
   media: GenerationRow,
   env: InlineEditEnvironment,
   inpainting: InpaintingHookResult,
-  magic: MagicEditHookResult,
   persistence: InlineEditPersistence,
 ) {
   return useRepositionMode({
@@ -505,7 +504,7 @@ export function useInlineEditState(
 
   const { data: availableLoras } = usePublicLoras();
   const { inpainting, magic } = useInlineEditInpaintingAndMagic(media, env, persistence);
-  const reposition = useInlineEditReposition(media, env, inpainting, magic, persistence);
+  const reposition = useInlineEditReposition(media, env, inpainting, persistence);
   const img2img = useInlineEditImg2Img(media, env, persistence, availableLoras);
 
   useInlineEditSettingsSync(env.actualGenerationId, persistence.editSettings, inpainting);

@@ -112,7 +112,6 @@ export function ShotEditorView({
 
   // Operation tracking
   const {
-    isDraggingInTimeline,
     setIsDraggingInTimeline,
     signalShotOperation,
   } = useOperationTracking();

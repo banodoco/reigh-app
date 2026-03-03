@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const EDGE_UNIT_INCLUDE = [
+  'supabase/functions/*.test.ts',
   'supabase/functions/_shared/**/*.test.ts',
   'supabase/functions/create-task/**/*.test.ts',
   'supabase/functions/calculate-task-cost/**/*.test.ts',

@@ -5,25 +5,15 @@
 
 import React, { useState, useCallback, useRef } from 'react';
 import { toast } from '@/shared/components/ui/runtime/sonner';
-import { Button } from '@/shared/components/ui/button';
-import {
-  ArrowDown,
-  Loader2,
-  FolderPlus,
-  ExternalLink
-} from 'lucide-react';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import { cn } from '@/shared/components/ui/contracts/cn';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import { ConfirmDialog } from '@/shared/components/dialogs/ConfirmDialog';
-import { ShotBatchItemMobile } from './ShotBatchItemMobile';
 import { BaseShotImageManagerProps } from './types';
 import type { GenerationRow } from '@/domains/generation/types';
-import { PairPromptIndicator } from './components/PairPromptIndicator';
-import { InlineSegmentVideo } from '@/shared/components/InlineSegmentVideo';
 import { useMarkVariantViewed } from '@/shared/hooks/useMarkVariantViewed';
-import { getAspectRatioStyle, resolveDuplicateFrame } from './utils/image-utils';
 import { dispatchAppEvent } from '@/shared/lib/typedEvents';
+import { MobileImageGrid } from './components/MobileImageGrid';
+import { MobileSelectionActionBar } from './components/MobileSelectionActionBar';
 
 export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
   images,
@@ -365,344 +355,71 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
   // Always use grid view - no mode switching to prevent component unmount/remount flashing
   return (
     <>
-      <div className={cn("grid gap-3 pt-6 overflow-visible", mobileGridColsClass)}>
-        {currentImages.map((image, index) => {
-          // imageKey is shot_generations.id - unique per entry
-          const imageKey = image.id;
-          const isSelected = mobileSelectedIds.includes(imageKey as string);
-          const isLastItem = index === currentImages.length - 1;
-          
-          const frameNumber = resolveDuplicateFrame(image, index, batchVideoFrames);
-          
-          // Show arrow buttons based on selection state and movement logic
-          const showLeftArrow = mobileSelectedIds.length > 0 && !isSelected && wouldActuallyMove(index);
-          const showRightArrow = mobileSelectedIds.length > 0 && isLastItem && !isSelected && wouldActuallyMove(index + 1);
-          
-          // Get pair data for the indicator
-          // Check if PREVIOUS image was at the end of a row (meaning this image starts a new row)
-          const isAtStartOfRow = index > 0 && index % gridColumns === 0;
-          const prevImageWasEndOfRow = isAtStartOfRow;
-          
-          // This image's pair indicator (after this image)
-          const pairPrompt = pairPrompts?.[index];
-          const enhancedPrompt = enhancedPrompts?.[index];
-          const startImage = currentImages[index];
-          const generationId = image.generation_id;
+      <MobileImageGrid
+        images={currentImages}
+        layout={{
+          mobileGridColsClass,
+          gridColumns,
+          projectAspectRatio,
+          batchVideoFrames,
+        }}
+        selection={{
+          selectedIds: mobileSelectedIds,
+          isInMoveMode,
+          wouldActuallyMove,
+        }}
+        actions={{
+          readOnly,
+          onMobileTap: handleMobileTap,
+          onDeleteImage: handleIndividualDelete,
+          onMoveHere: handleMobileMoveHere,
+          onOpenLightbox,
+          onInpaintClick,
+          onImageDuplicate,
+          duplicatingImageId,
+          duplicateSuccessImageId,
+          onMarkAllViewed: markAllViewed,
+        }}
+        pairing={{
+          onPairClick,
+          pairPrompts,
+          enhancedPrompts,
+          defaultPrompt,
+          defaultNegativePrompt,
+          onClearEnhancedPrompt,
+          pairOverrides,
+          segmentSlots,
+          onSegmentClick,
+          hasPendingTask,
+        }}
+        upload={{
+          enabled: Boolean(onImageUpload),
+          isUploadingImage: Boolean(isUploadingImage),
+          onUpload: onImageUpload,
+        }}
+      />
 
-          // Pair indicator from PREVIOUS image (before this image)
-          const prevPairPrompt = index > 0 ? pairPrompts?.[index - 1] : undefined;
-          const prevEnhancedPrompt = index > 0 ? enhancedPrompts?.[index - 1] : undefined;
-          const prevStartImage = index > 0 ? currentImages[index - 1] : undefined;
-          
-          // Get segment slot for this pair (if available)
-          const segmentSlot = segmentSlots?.find(s => s.index === index);
-          const prevSegmentSlot = index > 0 ? segmentSlots?.find(s => s.index === index - 1) : undefined;
-          // (debug logs removed)
-          
-          return (
-            <React.Fragment key={imageKey}>
-              <div className="relative">
-                {/* Video and pair indicator - centered together (LEFT side, at start of row for previous pair) */}
-                {prevImageWasEndOfRow && !isInMoveMode && (() => {
-                  const hasPrevVideo = prevSegmentSlot && prevSegmentSlot.type === 'child' && prevSegmentSlot.child.location;
-                  const prevPairShotGenId = prevStartImage?.id;
-                  const isPrevPending = hasPendingTask?.(prevPairShotGenId);
-                  const showPrevSegmentArea = hasPrevVideo || isPrevPending;
-
-                  // Only render if there's something to show
-                  if (!showPrevSegmentArea && !onPairClick) return null;
-
-                  return (
-                    <div className="absolute -left-[6px] top-1/2 -translate-y-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1 pointer-events-auto">
-                      {/* Video or pending indicator */}
-                      {showPrevSegmentArea && (
-                        <div className="w-16">
-                          {prevSegmentSlot ? (
-                            <InlineSegmentVideo
-                              slot={prevSegmentSlot}
-                              pairIndex={index - 1}
-                              onClick={() => onSegmentClick?.(index - 1)}
-                              onOpenPairSettings={onPairClick}
-                              projectAspectRatio={projectAspectRatio}
-                              isMobile={true}
-                              layout="flow"
-                              compact={true}
-                              isPending={isPrevPending}
-                            />
-                          ) : isPrevPending ? (
-                            <div className="h-12 bg-muted/40 border-2 border-dashed border-primary/40 rounded-md flex items-center justify-center shadow-sm">
-                              <div className="flex flex-col items-center gap-0.5 text-primary">
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                                <span className="text-[9px] font-medium">Pending</span>
-                              </div>
-                            </div>
-                          ) : null}
-                        </div>
-                      )}
-                      {/* Pair prompt indicator */}
-                      {onPairClick && (
-                        <PairPromptIndicator
-                          pairIndex={index - 1}
-                          frames={batchVideoFrames}
-                          startFrame={(index - 1) * batchVideoFrames}
-                          endFrame={index * batchVideoFrames}
-                          isMobile={true}
-                          onClearEnhancedPrompt={onClearEnhancedPrompt}
-                          onPairClick={() => {
-                            onPairClick(index - 1);
-                          }}
-                          pairPrompt={prevPairPrompt?.prompt}
-                          pairNegativePrompt={prevPairPrompt?.negativePrompt}
-                          enhancedPrompt={prevEnhancedPrompt}
-                          defaultPrompt={defaultPrompt}
-                          defaultNegativePrompt={defaultNegativePrompt}
-                          pairPhaseConfig={pairOverrides?.[index - 1]?.phaseConfig}
-                          pairLoras={pairOverrides?.[index - 1]?.loras}
-                          pairMotionSettings={pairOverrides?.[index - 1]?.motionSettings}
-                        />
-                      )}
-                    </div>
-                  );
-                })()}
-                
-                <ShotBatchItemMobile
-                  image={image}
-                  isSelected={isSelected}
-                  index={index}
-                  onMobileTap={() => handleMobileTap(imageKey as string, index)}
-                  onDelete={() => handleIndividualDelete(image.id)}
-                  onDuplicate={onImageDuplicate}
-                  onOpenLightbox={onOpenLightbox ? () => onOpenLightbox(index) : undefined}
-                  onInpaintClick={onInpaintClick ? () => onInpaintClick(index) : undefined}
-                  hideDeleteButton={mobileSelectedIds.length > 0 || readOnly}
-                  duplicatingImageId={duplicatingImageId}
-                  duplicateSuccessImageId={duplicateSuccessImageId}
-                  shouldLoad={true}
-                  projectAspectRatio={projectAspectRatio}
-                  frameNumber={frameNumber}
-                  readOnly={readOnly}
-                  onMarkAllViewed={generationId ? () => markAllViewed(generationId) : undefined}
-                />
-                
-                {/* Move button on left side of each non-selected item (hidden in readOnly) */}
-                {!readOnly && showLeftArrow && (
-                  <div className="absolute top-1/2 -left-1 -translate-y-1/2 -translate-x-1/2 z-10">
-                    <Button
-                      size="icon"
-                      variant="secondary"
-                      className="h-12 w-6 rounded-full p-0"
-                      onClick={() => {
-                        handleMobileMoveHere(index);
-                      }}
-                      onPointerDown={e => e.stopPropagation()}
-                      title={index === 0 ? "Move to beginning" : "Move here"}
-                    >
-                      <ArrowDown className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-
-                {/* Move to end button on right side of last item (if not selected) (hidden in readOnly) */}
-                {!readOnly && showRightArrow && (
-                  <div className="absolute top-1/2 -right-1 -translate-y-1/2 translate-x-1/2 z-10">
-                    <Button
-                      size="icon"
-                      variant="secondary"
-                      className="h-12 w-6 rounded-full p-0"
-                      onClick={() => {
-                        handleMobileMoveHere(index + 1);
-                      }}
-                      onPointerDown={e => e.stopPropagation()}
-                      title="Move to end"
-                    >
-                      <ArrowDown className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-                
-                {/* Video and pair indicator - centered together in the gap (RIGHT side, not at end of row) */}
-                {!isLastItem && !isInMoveMode && !((index + 1) % gridColumns === 0) && (() => {
-                  const hasVideo = segmentSlot && segmentSlot.type === 'child' && segmentSlot.child.location;
-                  const pairShotGenId = startImage?.id;
-                  const isPending = hasPendingTask?.(pairShotGenId);
-                  const showSegmentArea = hasVideo || isPending;
-
-                  // Only render if there's something to show
-                  if (!showSegmentArea && !onPairClick) return null;
-
-                  return (
-                    <div className="absolute -right-[6px] top-1/2 -translate-y-1/2 translate-x-1/2 z-20 flex flex-col items-center gap-1 pointer-events-auto">
-                      {/* Video or pending indicator */}
-                      {showSegmentArea && (
-                        <div className="w-16">
-                          {segmentSlot ? (
-                            <InlineSegmentVideo
-                              slot={segmentSlot}
-                              pairIndex={index}
-                              onClick={() => onSegmentClick?.(index)}
-                              onOpenPairSettings={onPairClick}
-                              projectAspectRatio={projectAspectRatio}
-                              isMobile={true}
-                              layout="flow"
-                              compact={true}
-                              isPending={isPending}
-                            />
-                          ) : isPending ? (
-                            <div className="h-12 bg-muted/40 border-2 border-dashed border-primary/40 rounded-md flex items-center justify-center shadow-sm">
-                              <div className="flex flex-col items-center gap-0.5 text-primary">
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                                <span className="text-[9px] font-medium">Pending</span>
-                              </div>
-                            </div>
-                          ) : null}
-                        </div>
-                      )}
-                      {/* Pair prompt indicator */}
-                      {onPairClick && (
-                        <PairPromptIndicator
-                          pairIndex={index}
-                          frames={batchVideoFrames}
-                          startFrame={index * batchVideoFrames}
-                          endFrame={(index + 1) * batchVideoFrames}
-                          isMobile={true}
-                          onClearEnhancedPrompt={onClearEnhancedPrompt}
-                          onPairClick={() => {
-                            onPairClick(index);
-                          }}
-                          pairPrompt={pairPrompt?.prompt}
-                          pairNegativePrompt={pairPrompt?.negativePrompt}
-                          enhancedPrompt={enhancedPrompt}
-                          defaultPrompt={defaultPrompt}
-                          defaultNegativePrompt={defaultNegativePrompt}
-                          pairPhaseConfig={pairOverrides?.[index]?.phaseConfig}
-                          pairLoras={pairOverrides?.[index]?.loras}
-                          pairMotionSettings={pairOverrides?.[index]?.motionSettings}
-                        />
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-            </React.Fragment>
-          );
-        })}
-        
-        {/* Add Images card - appears as next item in grid (hidden in readOnly) */}
-        {!readOnly && onImageUpload && (() => {
-          const aspectRatioStyle = getAspectRatioStyle(projectAspectRatio);
-
-          return (
-            <div className="relative" style={aspectRatioStyle}>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(e) => {
-                  const files = Array.from(e.target.files || []);
-                  if (files.length > 0) {
-                    onImageUpload(files);
-                    e.target.value = ''; // Reset input
-                  }
-                }}
-                className="hidden"
-                id="mobile-grid-image-upload"
-                disabled={isUploadingImage}
-              />
-              <label
-                htmlFor="mobile-grid-image-upload"
-                className={cn(
-                  "absolute inset-0 flex flex-col items-center justify-center gap-2",
-                  "border-2 border-dashed rounded-lg cursor-pointer",
-                  "transition-all duration-200",
-                  isUploadingImage
-                    ? "border-muted-foreground/30 bg-muted/30 cursor-not-allowed"
-                    : "border-muted-foreground/40 bg-muted/20 hover:border-primary hover:bg-primary/5"
-                )}
-              >
-                <div className="text-3xl text-muted-foreground">+</div>
-                <div className="text-xs text-muted-foreground font-medium sm:hidden lg:block">
-                  {isUploadingImage ? 'Uploading...' : 'Add Images'}
-                </div>
-              </label>
-            </div>
-          );
-        })()}
-      </div>
-
-      {/* Floating Action Bar for Multiple Selection (hidden in readOnly) */}
-      {!readOnly && showSelectionBar && mobileSelectedIds.length >= 1 && (() => {
-        const leftOffset = isShotsPaneLocked ? shotsPaneWidth : 0;
-        const rightOffset = isTasksPaneLocked ? tasksPaneWidth : 0;
-        
-        return (
-          <div 
-            className="fixed z-50 flex justify-center animate-in fade-in slide-in-from-bottom-4 duration-300 pointer-events-none"
-            style={{
-              left: `${leftOffset}px`,
-              right: `${rightOffset}px`,
-              paddingLeft: '16px',
-              paddingRight: '16px',
-              bottom: '64px', // Higher on mobile
-            }}
-          >
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center gap-3 pointer-events-auto">
-              <span className="text-sm font-light text-gray-700 dark:text-gray-300">
-                {mobileSelectedIds.length} selected
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setMobileSelectedIds([]);
-                    onSelectionChange?.(false);
-                  }}
-                  className="text-sm"
-                >
-                  {mobileSelectedIds.length === 1 ? 'Deselect' : 'Deselect All'}
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => {
-                    setPendingDeleteIds([...mobileSelectedIds]);
-                    setConfirmOpen(true);
-                  }}
-                  className="text-sm"
-                >
-                  {mobileSelectedIds.length === 1 ? 'Delete' : 'Delete All'}
-                </Button>
-                {onNewShotFromSelection && (
-                  newShotState === 'success' && createdShotId && onShotChange ? (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={handleJumpToShot}
-                      className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={handleNewShot}
-                      disabled={newShotState === 'loading'}
-                      className="h-8 w-8 text-muted-foreground"
-                    >
-                      {newShotState === 'loading' ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <FolderPlus className="h-4 w-4" />
-                      )}
-                    </Button>
-                  )
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      <MobileSelectionActionBar
+        visible={!readOnly && showSelectionBar}
+        selectedCount={mobileSelectedIds.length}
+        isShotsPaneLocked={isShotsPaneLocked}
+        isTasksPaneLocked={isTasksPaneLocked}
+        shotsPaneWidth={shotsPaneWidth}
+        tasksPaneWidth={tasksPaneWidth}
+        onDeselect={() => {
+          setMobileSelectedIds([]);
+          onSelectionChange?.(false);
+        }}
+        onDelete={() => {
+          setPendingDeleteIds([...mobileSelectedIds]);
+          setConfirmOpen(true);
+        }}
+        canCreateShot={Boolean(onNewShotFromSelection)}
+        newShotState={newShotState}
+        createdShotId={createdShotId}
+        onCreateShot={handleNewShot}
+        onJumpToShot={handleJumpToShot}
+      />
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog

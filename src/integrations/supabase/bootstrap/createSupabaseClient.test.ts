@@ -40,6 +40,7 @@ describe('createSupabaseClient', () => {
     const client = createSupabaseClient();
 
     expect(client).toBe(fakeClient);
+    expect(createClientMock).toHaveBeenCalledTimes(1);
     expect(createClientMock).toHaveBeenCalledWith(
       'https://example.supabase.co',
       'anon-key',
@@ -52,6 +53,8 @@ describe('createSupabaseClient', () => {
         }),
       })
     );
+    expect(handleErrorMock).not.toHaveBeenCalled();
+    expect(fetchWithTimeoutMock).not.toHaveBeenCalled();
   });
 
   it('reports and rethrows creation errors', () => {
@@ -61,6 +64,7 @@ describe('createSupabaseClient', () => {
     });
 
     expect(() => createSupabaseClient()).toThrow(error);
+    expect(createClientMock).toHaveBeenCalledTimes(1);
     expect(handleErrorMock).toHaveBeenCalledWith(
       error,
       expect.objectContaining({

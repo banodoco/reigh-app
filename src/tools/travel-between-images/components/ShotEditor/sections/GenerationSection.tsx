@@ -19,28 +19,23 @@ import { BatchModeContent, JoinModeContent } from './generation';
 import { useShotImages, useGenerationMode, useJoinState } from '../ShotSettingsContext';
 
 export interface GenerationSectionProps {
-  // Refs - must be passed from parent for DOM positioning
-  generateVideosCardRef: React.RefObject<HTMLDivElement>;
-  ctaContainerRef?: (node: HTMLDivElement | null) => void;
-  swapButtonRef: React.RefObject<HTMLButtonElement>;
-  joinSegmentsSectionRef: React.RefObject<HTMLDivElement>;
-
-  // Parent CTA state - controlled by page-level component
-  parentVariantName?: string;
-  parentOnVariantNameChange?: (name: string) => void;
-  parentIsGeneratingVideo?: boolean;
-  parentVideoJustQueued?: boolean;
+  refs: {
+    generateVideosCardRef: React.RefObject<HTMLDivElement>;
+    ctaContainerRef?: (node: HTMLDivElement | null) => void;
+    swapButtonRef: React.RefObject<HTMLButtonElement>;
+    joinSegmentsSectionRef: React.RefObject<HTMLDivElement>;
+  };
+  cta: {
+    parentVariantName?: string;
+    parentOnVariantNameChange?: (name: string) => void;
+    parentIsGeneratingVideo?: boolean;
+    parentVideoJustQueued?: boolean;
+  };
 }
 
 export const GenerationSection: React.FC<GenerationSectionProps> = ({
-  generateVideosCardRef,
-  ctaContainerRef,
-  swapButtonRef,
-  joinSegmentsSectionRef,
-  parentVariantName,
-  parentOnVariantNameChange,
-  parentIsGeneratingVideo,
-  parentVideoJustQueued,
+  refs,
+  cta,
 }) => {
   // Pull from ShotSettingsContext
   const { simpleFilteredImages } = useShotImages();
@@ -54,7 +49,7 @@ export const GenerationSection: React.FC<GenerationSectionProps> = ({
   const canSwitchToJoin = joinState.joinValidationData.videoCount >= 2;
 
   return (
-    <div className="w-full" ref={generateVideosCardRef} style={{ overflowAnchor: 'none' }}>
+    <div className="w-full" ref={refs.generateVideosCardRef} style={{ overflowAnchor: 'none' }}>
       <Card>
         <CardHeader className="pb-2">
           {showSimpleHeader ? (
@@ -125,17 +120,17 @@ export const GenerationSection: React.FC<GenerationSectionProps> = ({
         <CardContent>
           {generationMode.generateMode === 'batch' ? (
             <BatchModeContent
-              ctaContainerRef={ctaContainerRef}
-              swapButtonRef={swapButtonRef}
-              parentVariantName={parentVariantName}
-              parentOnVariantNameChange={parentOnVariantNameChange}
-              parentIsGeneratingVideo={parentIsGeneratingVideo}
-              parentVideoJustQueued={parentVideoJustQueued}
+              ctaContainerRef={refs.ctaContainerRef}
+              swapButtonRef={refs.swapButtonRef}
+              parentVariantName={cta.parentVariantName}
+              parentOnVariantNameChange={cta.parentOnVariantNameChange}
+              parentIsGeneratingVideo={cta.parentIsGeneratingVideo}
+              parentVideoJustQueued={cta.parentVideoJustQueued}
             />
           ) : (
             <JoinModeContent
-              joinSegmentsSectionRef={joinSegmentsSectionRef}
-              swapButtonRef={swapButtonRef}
+              joinSegmentsSectionRef={refs.joinSegmentsSectionRef}
+              swapButtonRef={refs.swapButtonRef}
             />
           )}
         </CardContent>

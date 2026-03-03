@@ -417,8 +417,6 @@ export function useVideoRegenerateMode({
       onAddSegmentStructureVideo: segmentSlotMode?.onAddSegmentStructureVideo,
       onUpdateSegmentStructureVideo: segmentSlotMode?.onUpdateSegmentStructureVideo,
       onRemoveSegmentStructureVideo: segmentSlotMode?.onRemoveSegmentStructureVideo,
-      // Whether segment has a primary variant (null primaryVariant = orphaned segment)
-      hasPrimaryVariant: !!primaryVariant,
       // Navigation to constituent images
       endImageShotGenerationId: segmentSlotMode?.pairData?.endImage?.id || currentSegmentImages?.endShotGenerationId,
       onNavigateToImage: segmentSlotMode?.onNavigateToImage,

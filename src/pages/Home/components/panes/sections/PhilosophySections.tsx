@@ -39,7 +39,6 @@ interface TravelVideoCardProps {
   videoRef: (el: HTMLVideoElement | null) => void;
   videoSrc: string;
   posterSrc: string;
-  posterLoadKey: string;
   isEnded: boolean;
   isPlayed: boolean;
   isPosterLoaded: boolean;
@@ -59,7 +58,6 @@ function TravelVideoCard({
   videoRef,
   videoSrc,
   posterSrc,
-  posterLoadKey,
   isEnded,
   isPlayed,
   isPosterLoaded,
@@ -226,7 +224,6 @@ export function TravelDemoSection({
                   }}
                   videoSrc={example.video}
                   posterSrc={example.poster}
-                  posterLoadKey={example.poster}
                   isEnded={autoAdvance.videoEnded.has(2)}
                   isPlayed={autoAdvance.videoPlayed.has(2)}
                   isPosterLoaded={loadedImages.has(example.poster)}
@@ -274,7 +271,6 @@ export function TravelDemoSection({
                   }}
                   videoSrc={example.video}
                   posterSrc={example.poster}
-                  posterLoadKey={example.poster}
                   isEnded={autoAdvance.videoEnded.has(1)}
                   isPlayed={autoAdvance.videoPlayed.has(1)}
                   isPosterLoaded={loadedImages.has(example.poster)}
@@ -301,7 +297,6 @@ export function TravelDemoSection({
             }}
             videoSrc={currentExample.video}
             posterSrc={currentExample.image1}
-            posterLoadKey={currentExample.image1}
             isEnded={autoAdvance.videoEnded.has(0)}
             isPlayed={autoAdvance.videoPlayed.has(0)}
             isPosterLoaded={loadedImages.has(currentExample.image1)}

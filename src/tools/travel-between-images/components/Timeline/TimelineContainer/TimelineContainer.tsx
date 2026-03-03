@@ -12,7 +12,7 @@ import { GuidanceVideoUploader } from '../GuidanceVideoUploader';
 import { GuidanceVideosContainer } from '../GuidanceVideosContainer';
 import { AudioStrip } from '../AudioStrip';
 import { SegmentOutputStrip } from '../SegmentOutputStrip';
-import { StructureVideoBrowserModal } from '@/features/resources/components/StructureVideoBrowserModal';
+import { ResourceBrowserModalBase } from '@/features/resources/components/ResourceBrowserModalBase';
 import { SelectionActionBar } from '@/shared/components/ShotImageManager/components/SelectionActionBar';
 
 // Extracted sub-components
@@ -325,38 +325,48 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     <div className="w-full overflow-x-hidden relative">
       <div className="relative">
         <TimelineControls
-          shotId={shotId}
-          projectId={projectId}
-          readOnly={readOnly}
-          hasNoImages={hasNoImages}
-          zoomLevel={zoomLevel}
-          fullMax={fullMax}
-          audioUrl={audioUrl}
-          onAudioChange={onAudioChange}
-          primaryStructureVideoPath={primaryStructureVideoPath}
-          primaryStructureVideoType={primaryStructureVideoType}
-          primaryStructureVideoTreatment={primaryStructureVideoTreatment}
-          primaryStructureVideoMotionStrength={primaryStructureVideoMotionStrength}
-          structureVideos={structureVideos}
-          onAddStructureVideo={onAddStructureVideo}
-          onUpdateStructureVideo={onUpdateStructureVideo}
-          onPrimaryStructureVideoInputChange={onPrimaryStructureVideoInputChange}
-          onShowVideoBrowser={() => setShowVideoBrowser(true)}
-          isUploadingStructureVideo={isUploadingStructureVideo}
-          setIsUploadingStructureVideo={setIsUploadingStructureVideo}
-          onZoomIn={handleZoomInToCenter}
-          onZoomOut={handleZoomOutFromCenter}
-          onZoomReset={handleZoomReset}
-          onZoomToStart={handleZoomToStart}
-          resetGap={resetGap}
-          setResetGap={setResetGap}
-          maxGap={maxGap}
-          onReset={handleReset}
-          onFileDrop={onFileDrop}
-          isUploadingImage={isUploadingImage}
-          uploadProgress={uploadProgress}
-          pushMode={pushMode}
-          showDragHint={!!(dragState.isDragging && dragState.activeId && !isMobile)}
+          timeline={{
+            shotId,
+            projectId,
+            readOnly,
+            hasNoImages,
+            zoomLevel,
+            fullMax,
+            showDragHint: !!(dragState.isDragging && dragState.activeId && !isMobile),
+          }}
+          audio={{
+            audioUrl,
+            onAudioChange,
+          }}
+          guidance={{
+            primaryStructureVideoPath,
+            primaryStructureVideoType,
+            primaryStructureVideoTreatment,
+            primaryStructureVideoMotionStrength,
+            structureVideos,
+            onAddStructureVideo,
+            onUpdateStructureVideo,
+            onPrimaryStructureVideoInputChange,
+            onShowVideoBrowser: () => setShowVideoBrowser(true),
+            isUploadingStructureVideo,
+            setIsUploadingStructureVideo,
+          }}
+          zoom={{
+            onZoomIn: handleZoomInToCenter,
+            onZoomOut: handleZoomOutFromCenter,
+            onZoomReset: handleZoomReset,
+            onZoomToStart: handleZoomToStart,
+          }}
+          bottom={{
+            resetGap,
+            setResetGap,
+            maxGap,
+            onReset: handleReset,
+            onFileDrop,
+            isUploadingImage,
+            uploadProgress,
+            pushMode,
+          }}
         />
 
         <TimelineTrack
@@ -759,9 +769,10 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
       </div>
 
       {/* Video Browser Modal */}
-      <StructureVideoBrowserModal
+      <ResourceBrowserModalBase
         isOpen={showVideoBrowser}
         onOpenChange={setShowVideoBrowser}
+        resourceType="structure-video"
         title="Browse Guidance Videos"
         onResourceSelect={handleVideoBrowserSelect}
       />

@@ -40,7 +40,7 @@ function resolveEnforcementMode(mode: DeprecationSignalOptions['enforcement']): 
 }
 
 /**
- * Emits a one-time runtime signal when a deprecated alias is used past its removal target.
+ * Emits a one-time runtime signal when a legacy alias is used past its removal target.
  * Returns true when the usage is past target, false otherwise.
  */
 export function signalPastRemovalTargetUsage({

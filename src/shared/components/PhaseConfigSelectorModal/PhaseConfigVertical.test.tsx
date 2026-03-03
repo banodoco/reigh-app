@@ -242,6 +242,7 @@ describe('PhaseConfigVertical', () => {
 
     fireEvent.click(screen.getByTestId('random-seed'));
     expect(onRandomSeedChange).toHaveBeenCalledWith(true);
+    expect(onRandomSeedChange).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByTestId('radio-group-2'));
     expect(onPhaseConfigChange).toHaveBeenCalledWith(
@@ -250,6 +251,7 @@ describe('PhaseConfigVertical', () => {
         steps_per_phase: [2, 2, 4],
       }),
     );
+    expect(onPhaseConfigChange).toHaveBeenCalledTimes(1);
   });
 
   it('adds loras via text action and selector modal', () => {
@@ -293,6 +295,7 @@ describe('PhaseConfigVertical', () => {
         ]),
       }),
     );
+    expect(onPhaseConfigChange).toHaveBeenCalledTimes(2);
   });
 
   it('restores defaults using callback override or default config fallback', () => {
@@ -313,6 +316,7 @@ describe('PhaseConfigVertical', () => {
     fireEvent.click(screen.getAllByTestId('phase-header-button')[3]);
     expect(onRestoreDefaults).toHaveBeenCalledTimes(1);
     expect(onPhaseConfigChangeWithOverride).not.toHaveBeenCalledWith(DEFAULT_PHASE_CONFIG);
+    expect(onRandomSeedChange).not.toHaveBeenCalled();
 
     unmount();
 

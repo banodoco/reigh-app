@@ -123,8 +123,8 @@ describe('mapShotGenerationToRow', () => {
     expect(result!.based_on).toBe('gen-0');
   });
 
-  it('sets deprecated fields for backwards compatibility', () => {
-    const result = mapShotGenerationToRow({
+  it('sets legacy compatibility fields', () => {
+    const row = mapShotGenerationToRow({
       id: 'sg-1',
       generation_id: 'gen-1',
       timeline_frame: 100,
@@ -142,8 +142,8 @@ describe('mapShotGenerationToRow', () => {
       },
     });
 
-    expect(result!.shotImageEntryId).toBe('sg-1');
-    expect(result!.shot_generation_id).toBe('sg-1');
+    expect(row!.shotImageEntryId).toBe('sg-1');
+    expect(row!.shot_generation_id).toBe('sg-1');
   });
 
   it('computes position from timeline_frame', () => {

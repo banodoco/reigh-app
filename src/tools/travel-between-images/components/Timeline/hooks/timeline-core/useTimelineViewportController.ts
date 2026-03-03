@@ -81,7 +81,6 @@ export function useTimelineViewportController(
   );
 
   const containerWidth = containerRef.current?.clientWidth || 1000;
-  const containerRect = containerRef.current?.getBoundingClientRect() || null;
 
   useGlobalEvents({
     isDragging: dragState.isDragging,

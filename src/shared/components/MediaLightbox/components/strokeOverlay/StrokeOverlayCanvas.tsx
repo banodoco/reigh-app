@@ -1,4 +1,3 @@
-import React from 'react';
 import { Stage, Layer, Line, Rect } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { BrushStroke } from '../../hooks/inpainting/types';

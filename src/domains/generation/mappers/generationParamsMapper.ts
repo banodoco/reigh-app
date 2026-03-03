@@ -4,6 +4,7 @@ import type {
   OrchestratorDetailsPayload,
   PersistedGenerationParams,
 } from '@/domains/generation/types/generationParams';
+import { log as debugLog } from '@/shared/lib/logger';
 
 type ParamsInput =
   | PersistedGenerationParams
@@ -66,7 +67,7 @@ function reportMapperIssue(_context: string, _logData: Record<string, unknown>):
   }
 
   // Surface mapper diagnostics only in dev to avoid noisy production logs.
-  console.warn(`[generationParamsMapper] ${_context}`, _logData);
+  debugLog('generationParamsMapper', _context, _logData);
 }
 
 function reportLegacyAliasUsage(

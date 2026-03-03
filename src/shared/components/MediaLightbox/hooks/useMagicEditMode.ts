@@ -93,6 +93,9 @@ export const useMagicEditMode = ({
   enabled = true,
   initialActive = false,
 }: UseMagicEditModeParams): UseMagicEditModeReturn => {
+  // Keep API surface stable while current flow remains media-type agnostic.
+  void isVideo;
+
   // Magic Edit mode state
   const [isMagicEditMode, setIsMagicEditMode] = useState(initialActive);
   const [magicEditPrompt, setMagicEditPrompt] = useState('');

@@ -7,7 +7,7 @@ import { Video, X, Images } from 'lucide-react';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { uploadVideoToStorage, extractVideoMetadata, VideoMetadata } from '@/shared/lib/media/videoUploader';
-import { StructureVideoBrowserModal } from '@/features/resources/components/StructureVideoBrowserModal';
+import { ResourceBrowserModalBase } from '@/features/resources/components/ResourceBrowserModalBase';
 import { useCreateResource, Resource, StructureVideoMetadata } from '@/shared/hooks/useResources';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
@@ -381,9 +381,10 @@ export const BatchGuidanceVideo: React.FC<BatchGuidanceVideoProps> = ({
           </div>
         </div>
 
-        <StructureVideoBrowserModal
+        <ResourceBrowserModalBase
           isOpen={showBrowser}
           onOpenChange={setShowBrowser}
+          resourceType="structure-video"
           title="Browse Guidance Videos"
           onResourceSelect={handleResourceSelect}
         />

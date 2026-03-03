@@ -2,7 +2,7 @@ import React from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Images } from "lucide-react";
 import FileInput from "@/shared/components/FileInput";
-import { StyleReferenceBrowserModal } from "@/features/resources/components/StyleReferenceBrowserModal";
+import { ResourceBrowserModalBase } from "@/features/resources/components/ResourceBrowserModalBase";
 import { ReferenceGrid } from "./ReferenceGrid";
 import { ReferencePreview } from "./ReferencePreview";
 import { ReferenceModeControls } from "./ReferenceModeControls";
@@ -94,9 +94,10 @@ export const ReferenceSection: React.FC<ReferenceSectionProps> = ({
       />
 
       {/* Dataset Browser Modal */}
-      <StyleReferenceBrowserModal
+      <ResourceBrowserModalBase
         isOpen={showDatasetBrowser}
         onOpenChange={setShowDatasetBrowser}
+        resourceType="style-reference"
         onResourceSelect={onResourceSelect}
       />
     </div>

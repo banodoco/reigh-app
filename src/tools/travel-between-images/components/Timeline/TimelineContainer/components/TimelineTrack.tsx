@@ -25,7 +25,6 @@ export const TimelineTrack: React.FC<TimelineTrackProps> = ({
   containerRef,
   zoomLevel,
   isFileOver,
-  hasNoImages,
   enableTapToMove,
   selectedCount,
   onDragEnter,
@@ -34,7 +33,6 @@ export const TimelineTrack: React.FC<TimelineTrackProps> = ({
   onDrop,
   onContainerDoubleClick,
   onContainerClick,
-  containerWidth,
   prelude,
   children,
 }) => {

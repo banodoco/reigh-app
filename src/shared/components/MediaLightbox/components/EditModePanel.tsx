@@ -174,7 +174,6 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
     setImg2imgPrompt,
     img2imgStrength,
     setImg2imgStrength,
-    setEnablePromptExpansion,
     qwenEditModel,
     setQwenEditModel,
     // Status

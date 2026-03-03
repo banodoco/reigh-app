@@ -51,6 +51,8 @@ describe('generationTaskBridge', () => {
       taskId: null,
       status: 'scope_mismatch',
     });
+    expect(mockGetPrimaryTaskIdForGeneration).toHaveBeenCalledWith('gen-1');
+    expect(mockHandleError).not.toHaveBeenCalled();
   });
 
   it('routes unexpected mutation errors through the shared error handler', () => {
@@ -65,5 +67,6 @@ describe('generationTaskBridge', () => {
       error,
       expect.objectContaining({ context: 'GenerationTaskBridge', showToast: false }),
     );
+    expect(mockGetPrimaryTaskIdForGeneration).not.toHaveBeenCalled();
   });
 });

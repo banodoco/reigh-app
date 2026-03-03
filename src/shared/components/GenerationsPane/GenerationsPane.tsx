@@ -4,21 +4,16 @@ import { useSlidingPane } from '@/shared/hooks/useSlidingPane';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { useQueryClient } from '@tanstack/react-query';
 import { shotQueryKeys } from '@/shared/lib/queryKeys/shots';
-import { Button } from '@/shared/components/ui/button';
-import { Checkbox } from '@/shared/components/ui/checkbox';
-import { Label } from '@/shared/components/ui/primitives/label';
-import { ChevronLeft, ChevronRight, Star, Sparkles, ExternalLink, Search, X } from 'lucide-react';
+import { Sparkles, ExternalLink } from 'lucide-react';
 import { ImageGenerationModal } from '@/shared/components/ImageGenerationModal';
 import { DeleteGenerationConfirmDialog } from '@/shared/components/dialogs/DeleteGenerationConfirmDialog';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { TOOL_ROUTES } from '@/shared/lib/toolRoutes';
-import { MediaGallery, type GalleryFilterState } from '@/shared/components/MediaGallery';
+import { type GalleryFilterState } from '@/shared/components/MediaGallery';
 import { useContainerWidth } from '@/shared/components/MediaGallery/hooks';
 import { calculateGalleryLayout } from '@/shared/components/MediaGallery/utils';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import PaneControlTab from '../PaneControlTab';
-import { SkeletonGallery } from '@/shared/components/ui/skeleton-gallery';
-import { ShotFilter } from '@/shared/components/ShotFilter';
 import { useGalleryPageState } from '@/features/gallery/hooks/useGalleryPageState';
 import { useIsMobile } from '@/shared/hooks/mobile';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
@@ -30,17 +25,10 @@ import {
 import { useShotCreation } from '@/shared/hooks/useShotCreation';
 import { useStableObject } from '@/shared/hooks/useStableObject';
 import { usePaneInteractionLifecycle } from '@/shared/components/panes/usePaneInteractionLifecycle';
-
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/shared/components/ui/select';
-import { MediaTypeFilter } from '@/shared/components/MediaTypeFilter';
 import { SHOT_FILTER, isSpecialFilter } from '@/shared/constants/filterConstants';
 import { useAppEventListener } from '@/shared/lib/typedEvents';
+import { GenerationsPaneControls } from './components/GenerationsPaneControls';
+import { GenerationsPaneGallery } from './components/GenerationsPaneGallery';
 
 // Fallback rows for pane (smaller than full page galleries)
 const PANE_ROWS = 2;
@@ -320,293 +308,71 @@ const GenerationsPaneComponent: React.FC = () => {
             isPointerEventsEnabled ? 'pointer-events-auto' : 'pointer-events-none'
           )}
         >
-          <div className="px-2 pt-3 pb-2 space-y-2">
-            {/* Row 1: Shot filter (left) + Media type filter (right) */}
-            <div className="flex items-center justify-between min-w-0 mx-2">
-                {/* Left side: Shot filter */}
-                <div
-                  className={cn(
-                    "flex items-center gap-2 min-w-0 flex-shrink",
-                    "transition-all duration-200",
-                    isInteractionDisabled && "pointer-events-none opacity-70"
-                  )}
-                >
-                  <ShotFilter
-                    shots={shotsForFilter}
-                    selectedShotId={selectedShotFilter}
-                    onShotChange={setSelectedShotFilter}
-                    excludePositioned={excludePositioned}
-                    onExcludePositionedChange={setExcludePositioned}
-                    darkSurface
-                    checkboxId="exclude-positioned-generations-pane"
-                    triggerWidth="w-[100px] sm:w-[140px]"
-                    isMobile={isMobile}
-                    contentRef={shotFilterContentRef}
-                    showPositionFilter={false}
-                    open={shotFilterOpen}
-                    onOpenChange={(open) => {
-                      if (isInteractionDisabled && open) {
-                        setShotFilterOpen(false);
-                        return;
-                      }
-                      setShotFilterOpen(open);
-                    }}
-                  />
+          <GenerationsPaneControls
+            filters={{
+              shots: shotsForFilter,
+              selectedShotFilter,
+              onSelectedShotFilterChange: setSelectedShotFilter,
+              excludePositioned,
+              onExcludePositionedChange: setExcludePositioned,
+              isMobile,
+              shotFilterContentRef,
+              mediaTypeFilterContentRef: mediaTypeContentRef,
+              shotFilterOpen,
+              onShotFilterOpenChange: setShotFilterOpen,
+              mediaTypeFilter,
+              onMediaTypeFilterChange: setMediaTypeFilter,
+              mediaTypeFilterOpen,
+              onMediaTypeFilterOpenChange: setMediaTypeFilterOpen,
+              searchTerm,
+              onSearchTermChange: setSearchTerm,
+              isSearchOpen,
+              onSearchOpenChange: setIsSearchOpen,
+              searchInputRef,
+              starredOnly,
+              onStarredOnlyChange: setStarredOnly,
+              currentShotId,
+              isSpecialFilterSelected: isSpecialFilter(selectedShotFilter),
+            }}
+            pagination={{
+              totalCount,
+              perPage: GENERATIONS_PER_PAGE,
+              page,
+              onPageChange: handleServerPageChange,
+            }}
+            interaction={{ isInteractionDisabled }}
+          />
 
-                  {/* CTA buttons - only show when on a shot page */}
-                  {currentShotId && (
-                    selectedShotFilter === currentShotId ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedShotFilter(SHOT_FILTER.ALL)}
-                        className="h-7 px-2 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 whitespace-nowrap hidden sm:flex"
-                      >
-                        <ChevronLeft className="h-3 w-3 -mr-0.5" />
-                        All
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedShotFilter(currentShotId)}
-                        className="h-7 px-2 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 whitespace-nowrap hidden sm:flex"
-                      >
-                        <ChevronLeft className="h-3 w-3 -mr-0.5" />
-                        This shot
-                      </Button>
-                    )
-                  )}
-
-                  {/* Search */}
-                  <div className="flex items-center">
-                    {!isSearchOpen ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setIsSearchOpen(true);
-                          setTimeout(() => searchInputRef.current?.focus(), 0);
-                        }}
-                        className="h-7 w-7 p-0 text-zinc-400 hover:text-white hover:bg-zinc-700"
-                        aria-label="Search prompts"
-                      >
-                        <Search className="h-4 w-4" />
-                      </Button>
-                    ) : (
-                      <div className="flex items-center gap-x-1 border rounded-md px-2 py-1 h-7 bg-zinc-800 border-zinc-600">
-                        <Search className="h-3.5 w-3.5 text-zinc-400" />
-                        <input
-                          ref={searchInputRef}
-                          type="text"
-                          placeholder="Search..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="bg-transparent border-none outline-none text-base lg:text-xs w-20 sm:w-28 text-white placeholder-zinc-400 preserve-case"
-                        />
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            if (searchTerm) {
-                              setSearchTerm('');
-                              searchInputRef.current?.focus();
-                            } else {
-                              setIsSearchOpen(false);
-                            }
-                          }}
-                          className="h-auto p-0.5 text-zinc-400 hover:text-white"
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Right side: Media type filter */}
-                <div
-                  className={cn(
-                    "flex items-center transition-all duration-200",
-                    isInteractionDisabled && "pointer-events-none opacity-70"
-                  )}
-                >
-                  <MediaTypeFilter
-                    value={mediaTypeFilter}
-                    onChange={setMediaTypeFilter}
-                    darkSurface
-                    open={mediaTypeFilterOpen}
-                    onOpenChange={(open) => {
-                      if (isInteractionDisabled && open) {
-                        setMediaTypeFilterOpen(false);
-                        return;
-                      }
-                      setMediaTypeFilterOpen(open);
-                    }}
-                    contentRef={mediaTypeContentRef}
-                  />
-                </div>
-            </div>
-
-            {/* Row 2: Pagination (left) + Star filter (right) */}
-            <div className="flex items-center justify-between min-w-0 gap-2 mx-2">
-                {/* Left side: Pagination */}
-                <div className="flex items-center gap-2">
-                  {totalCount > GENERATIONS_PER_PAGE ? (
-                    <div className="flex items-center gap-x-1">
-                      <button
-                        onClick={() => handleServerPageChange(Math.max(1, page - 1))}
-                        disabled={page === 1}
-                        className="p-1 rounded hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        <ChevronLeft className="h-4 w-4 text-zinc-400" />
-                      </button>
-
-                      {/* Page selector */}
-                      <div className="flex items-center gap-1">
-                        <Select
-                          value={page.toString()}
-                          onValueChange={(value) => {
-                            if (value) {
-                              handleServerPageChange(parseInt(value, 10));
-                            }
-                          }}
-                        >
-                          <SelectTrigger variant="retro-dark" colorScheme="zinc" size="sm" className="h-6 w-9 text-xs px-1 !justify-center [&>span]:!text-center" hideIcon>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent variant="zinc" className="!min-w-0 w-11">
-                            {Array.from({ length: Math.ceil(totalCount / GENERATIONS_PER_PAGE) }, (_, i) => (
-                              <SelectItem variant="zinc" key={i + 1} value={(i + 1).toString()} className="text-xs !px-0 !justify-center [&>span]:!text-center [&>span]:!w-full">
-                                {i + 1}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <span className="text-xs text-zinc-400">
-                          <span className="hidden sm:inline">of {Math.ceil(totalCount / GENERATIONS_PER_PAGE)} ({totalCount})</span>
-                          <span className="sm:hidden">/ {Math.ceil(totalCount / GENERATIONS_PER_PAGE)}</span>
-                        </span>
-                      </div>
-
-                      <button
-                        onClick={() => handleServerPageChange(page + 1)}
-                        disabled={page * GENERATIONS_PER_PAGE >= totalCount}
-                        className="p-1 rounded hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        <ChevronRight className="h-4 w-4 text-zinc-400" />
-                      </button>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-zinc-400">
-                      {totalCount > 0 ? `${totalCount} item${totalCount !== 1 ? 's' : ''}` : 'No items'}
-                    </span>
-                  )}
-                </div>
-
-                {/* Right side: Star filter */}
-                <div
-                  className={cn(
-                    "flex items-center transition-all duration-200 flex-shrink-0",
-                    isInteractionDisabled && "pointer-events-none opacity-70"
-                  )}
-                >
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="p-1 h-8 w-8 text-zinc-400 hover:text-white hover:bg-zinc-700"
-                    onClick={() => setStarredOnly(!starredOnly)}
-                    aria-label={starredOnly ? "Show all items" : "Show only starred items"}
-                  >
-                    <Star
-                      className="h-5 w-5"
-                      fill={starredOnly ? 'currentColor' : 'none'}
-                    />
-                  </Button>
-                </div>
-            </div>
-
-            {/* Row 3: Exclude positioned checkbox - only when a specific shot is selected */}
-            {!isSpecialFilter(selectedShotFilter) && (
-              <div className="flex items-center gap-x-2 mx-2">
-                <Checkbox
-                  id="exclude-positioned-generations-pane"
-                  checked={excludePositioned}
-                  onCheckedChange={(checked) => setExcludePositioned(!!checked)}
-                  className="border-zinc-600 data-[checked]:bg-zinc-600"
-                />
-                <Label
-                  htmlFor="exclude-positioned-generations-pane"
-                  className="text-xs cursor-pointer text-zinc-300"
-                >
-                  Exclude items with a position
-                </Label>
-              </div>
-            )}
-        </div>
-        <div
-          ref={galleryContainerRef as React.RefObject<HTMLDivElement>}
-          className="flex-grow px-1 sm:px-3 overflow-y-auto overscroll-contain flex flex-col"
-          style={{ WebkitOverflowScrolling: 'touch' }}
-          data-tour="gallery-section"
-        >
-            {/* Show skeleton only on initial load when there's no data yet */}
-            {isLoading && paginatedData.items.length === 0 && (
-                <SkeletonGallery
-                    count={expectedItemCount ?? paneLayout.itemsPerPage}
-                    fixedColumns={paneLayout.columns}
-                    gapClasses="gap-2 sm:gap-4"
-                    darkSurface={true}
-                    showControls={false}
-                    projectAspectRatio={projectAspectRatio}
-                    className="space-y-0 pb-4 pt-2"
-                />
-            )}
-            {error && <p className="text-red-500 text-center">Error: {error.message}</p>}
-            {/* Keep MediaGallery mounted during page transitions to preserve lightbox state */}
-            {paginatedData.items.length > 0 && (
-                <div className={isLoading ? 'opacity-60 pointer-events-none transition-opacity duration-200' : ''}>
-                  <MediaGallery
-                    images={paginatedData.items}
-                    onDelete={handleDeleteGeneration}
-                    onToggleStar={handleToggleStar}
-                    isDeleting={isDeleting}
-                    allShots={shotsData || []}
-                    lastShotId={lastAffectedShotId || undefined}
-                    filters={galleryFilters}
-                    onFiltersChange={handleGalleryFiltersChange}
-                    columnsPerRow={paneLayout.columns}
-                    onAddToLastShot={(targetShotId, generationId, imageUrl, thumbUrl) => {
-                      return handleAddToShot(targetShotId, generationId, imageUrl, thumbUrl);
-                    }}
-                    onAddToLastShotWithoutPosition={(targetShotId, generationId, imageUrl, thumbUrl) => {
-                      return handleAddToShotWithoutPosition(targetShotId, generationId, imageUrl, thumbUrl);
-                    }}
-                    offset={(page - 1) * GENERATIONS_PER_PAGE}
-                    totalCount={totalCount}
-                    itemsPerPage={GENERATIONS_PER_PAGE}
-                    className="space-y-0 pb-8"
-                    config={{
-                      darkSurface: true,
-                      reducedSpacing: true,
-                      hidePagination: true,
-                      hideTopFilters: true,
-                      showShare: false,
-                    }}
-                    serverPage={page}
-                    onServerPageChange={handleServerPageChange}
-                    generationFilters={generationFilters}
-                    currentViewingShotId={currentShotId || undefined}
-                    onCreateShot={handleCreateShot}
-                />
-                </div>
-            )}
-            {paginatedData.items.length === 0 && !isLoading && (
-                <div className="flex-1 flex items-center justify-center text-zinc-500">
-                    No generations found for this project.
-                </div>
-            )}
-        </div>
+          <GenerationsPaneGallery
+            containerRef={galleryContainerRef}
+            projectAspectRatio={projectAspectRatio}
+            layout={{
+              columns: paneLayout.columns,
+              itemsPerPage: paneLayout.itemsPerPage,
+            }}
+            loading={{
+              isLoading,
+              expectedItemCount,
+            }}
+            pagination={{ page, totalCount }}
+            error={error}
+            gallery={{
+              items: paginatedData.items,
+              onDelete: handleDeleteGeneration,
+              onToggleStar: handleToggleStar,
+              isDeleting,
+              allShots: shotsData || [],
+              lastShotId: lastAffectedShotId || undefined,
+              filters: galleryFilters,
+              onFiltersChange: handleGalleryFiltersChange,
+              onAddToShot: handleAddToShot,
+              onAddToShotWithoutPosition: handleAddToShotWithoutPosition,
+              onServerPageChange: handleServerPageChange,
+              generationFilters,
+              currentViewingShotId: currentShotId || undefined,
+              onCreateShot: handleCreateShot,
+            }}
+          />
         </div> {/* Close inner wrapper with delayed pointer events */}
       </div>
       

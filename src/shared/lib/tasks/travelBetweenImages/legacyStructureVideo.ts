@@ -21,7 +21,8 @@ export const LEGACY_TRAVEL_STRUCTURE_REMOVE_BY = legacyStructurePolicy.removeBy;
  * - Removal gate: no callers emitting or parsing deprecated structure video fields.
  */
 
-export interface LegacyStructureVideoFields {
+/** Legacy read-shape for structure videos used only at adapter boundaries. */
+export interface LegacyStructureVideoConfig extends StructureVideoConfig {
   /** @deprecated Use structure_guidance.strength instead */
   motion_strength?: number;
   /** @deprecated Use structure_guidance.target + preprocessing instead */
@@ -31,9 +32,6 @@ export interface LegacyStructureVideoFields {
   /** @deprecated Use structure_guidance.step_window[1] instead */
   uni3c_end_percent?: number;
 }
-
-/** Legacy read-shape for structure videos used only at adapter boundaries. */
-export interface LegacyStructureVideoConfig extends StructureVideoConfig, LegacyStructureVideoFields {}
 
 export interface LegacyTravelBetweenImagesTaskParams {
   /** Legacy LoRA format - prefer phase_config.phases[].loras */

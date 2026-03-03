@@ -29,14 +29,7 @@ import type { TaskDetailsData } from '../types';
 import { useCopyToClipboard } from '@/shared/hooks/clipboard/useCopyToClipboard';
 import type { DerivedItem } from '@/domains/generation/hooks/useDerivedItems';
 
-interface InfoPanelProps {
-  /** Layout variant */
-  variant: 'desktop' | 'mobile';
-
-  // Header toggle - only specialized props now
-  showImageEditTools: boolean;
-
-  // TaskDetailsPanelWrapper props (deeply nested data)
+interface InfoPanelTaskPanelModel {
   taskDetailsData: TaskDetailsData | undefined;
   derivedItems: DerivedItem[];
   derivedGenerations: GenerationRow[] | null;
@@ -50,6 +43,17 @@ interface InfoPanelProps {
   replaceImages: boolean;
   onReplaceImagesChange: (value: boolean) => void;
   onSwitchToPrimary?: () => void;
+}
+
+interface InfoPanelProps {
+  /** Layout variant */
+  variant: 'desktop' | 'mobile';
+
+  // Header toggle - only specialized props now
+  showImageEditTools: boolean;
+
+  // TaskDetailsPanelWrapper model (deeply nested data)
+  taskPanel: InfoPanelTaskPanelModel;
 
   /** Task ID for copy functionality (fallback when not in taskDetailsData) */
   taskId?: string | null;
@@ -59,23 +63,26 @@ export const InfoPanel: React.FC<InfoPanelProps> = ({
   variant,
   // Header props
   showImageEditTools,
-  // TaskDetails props
-  taskDetailsData,
-  derivedItems,
-  derivedGenerations,
-  paginatedDerived,
-  derivedPage,
-  derivedTotalPages,
-  onSetDerivedPage,
-  onNavigateToGeneration,
-  currentMediaId,
-  currentShotId,
-  replaceImages,
-  onReplaceImagesChange,
-  onSwitchToPrimary,
+  // TaskDetails model
+  taskPanel,
   // Task ID fallback
   taskId: taskIdProp,
 }) => {
+  const {
+    taskDetailsData,
+    derivedItems,
+    derivedGenerations,
+    paginatedDerived,
+    derivedPage,
+    derivedTotalPages,
+    onSetDerivedPage,
+    onNavigateToGeneration,
+    currentMediaId,
+    currentShotId,
+    replaceImages,
+    onReplaceImagesChange,
+    onSwitchToPrimary,
+  } = taskPanel;
   const isMobile = variant === 'mobile';
 
   // ========================================

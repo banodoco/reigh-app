@@ -58,11 +58,15 @@ describe('useTaskStatusCounts', () => {
   it('returns default counts when projectId is null', () => {
     const { result } = renderHookWithProviders(() => useTaskStatusCounts(null));
     expect(result.current.data).toBeUndefined();
+    expect(result.current.error).toBeNull();
+    expect(result.current.isError).toBe(false);
   });
 
   it('is disabled when projectId is null', () => {
     const { result } = renderHookWithProviders(() => useTaskStatusCounts(null));
     expect(result.current.isFetching).toBe(false);
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(result.current.isRefetching).toBe(false);
   });
 });
 
@@ -73,5 +77,8 @@ describe('useAllTaskTypes', () => {
     await waitFor(() => {
       expect(result.current.data).toEqual(['video_generation', 'travel_segment']);
     });
+    expect(result.current.data).toHaveLength(2);
+    expect(result.current.isSuccess).toBe(true);
+    expect(result.current.error).toBeNull();
   });
 });

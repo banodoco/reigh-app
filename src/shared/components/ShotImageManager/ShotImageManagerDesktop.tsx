@@ -1,5 +1,4 @@
 import React, { useRef, useMemo } from 'react';
-import { createPortal } from 'react-dom';
 import {
   DndContext,
   closestCenter,
@@ -16,21 +15,20 @@ import { SelectionActionBar } from './components/SelectionActionBar';
 import { DeleteConfirmationDialog } from './components/DeleteConfirmationDialog';
 import { MultiImagePreview, SingleImagePreview } from '../ImageDragPreview';
 import BatchDropZone from './components/BatchDropZone';
-import MediaLightbox from '../MediaLightbox';
 import { useIsMobile } from '@/shared/hooks/mobile';
 import { useState, useEffect, useCallback } from 'react';
 import { useTaskDetails } from './hooks/useTaskDetails';
 import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
 import { useVideoScrubbing } from '@/shared/hooks/useVideoScrubbing';
 import type { SegmentSlot } from '@/shared/hooks/segments';
-import { cn } from '@/shared/components/ui/contracts/cn';
-import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';
 import { getPreviewDimensions } from '@/shared/lib/media/aspectRatios';
 import { usePrefetchTaskData } from '@/shared/hooks/tasks/useTaskPrefetch';
 import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import { usePendingImageOpen } from '@/shared/hooks/usePendingImageOpen';
 import { useAdjacentSegmentsData } from './hooks/useAdjacentSegmentsData';
 import type { GenerationRow } from '@/domains/generation/types';
+import { DesktopScrubbingPreview } from './components/DesktopScrubbingPreview';
+import { DesktopLightboxOverlay } from './components/DesktopLightboxOverlay';
 import type { useSelection } from './hooks/useSelection';
 import type { useDragAndDrop } from './hooks/useDragAndDrop';
 import type { useLightbox } from './hooks/useLightbox';
@@ -257,61 +255,16 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
 
   return (
     <>
-      {/* Scrubbing Preview Portal - shared video preview for segment hover */}
-      {activeScrubbingIndex !== null && activeSegmentVideoUrl && createPortal(
-        <div
-          className="fixed pointer-events-none"
-          style={{
-            left: `${clampedPreviewX}px`,
-            top: `${previewPosition.y - previewDimensions.height - 16}px`,
-            transform: 'translateX(-50%)',
-            zIndex: 999999,
-          }}
-        >
-          <div
-            className="relative bg-black rounded-lg overflow-hidden shadow-xl border-2 border-primary/50"
-            style={{
-              width: previewDimensions.width,
-              height: previewDimensions.height,
-            }}
-          >
-            <video
-              ref={previewVideoRef}
-              src={getDisplayUrl(activeSegmentVideoUrl)}
-              className="w-full h-full object-contain"
-              muted
-              playsInline
-              preload="auto"
-              loop
-              {...scrubbing.videoProps}
-            />
-
-            {/* Scrubber progress bar */}
-            {scrubbing.scrubberPosition !== null && (
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50">
-                <div
-                  className={cn(
-                    "h-full bg-primary transition-opacity duration-200",
-                    scrubbing.scrubberVisible ? "opacity-100" : "opacity-50"
-                  )}
-                  style={{ width: `${scrubbing.scrubberPosition}%` }}
-                />
-              </div>
-            )}
-
-            {/* Segment label */}
-            <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-              Segment {(activeSegmentSlot?.index ?? 0) + 1}
-              {scrubbing.duration > 0 && (
-                <span className="ml-2 text-white/70">
-                  {scrubbing.currentTime.toFixed(1)}s / {scrubbing.duration.toFixed(1)}s
-                </span>
-              )}
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <DesktopScrubbingPreview
+        activeScrubbingIndex={activeScrubbingIndex}
+        activeSegmentSlot={activeSegmentSlot ?? null}
+        activeSegmentVideoUrl={activeSegmentVideoUrl}
+        clampedPreviewX={clampedPreviewX}
+        previewY={previewPosition.y}
+        previewDimensions={previewDimensions}
+        previewVideoRef={previewVideoRef}
+        scrubbing={scrubbing}
+      />
 
       <BatchDropZone
       onFileDrop={props.onFileDrop}
@@ -391,128 +344,24 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
             )}
           </DragOverlay>
           
-          {lightbox.lightboxIndex !== null && lightbox.currentImages[lightbox.lightboxIndex] && (() => {
-            const lightboxIndex = lightbox.lightboxIndex;
-            if (lightboxIndex === null) {
-              return null;
-            }
-            const baseImagesCount = (optimistic.optimisticOrder && optimistic.optimisticOrder.length > 0) ? optimistic.optimisticOrder.length : (props.images || []).length;
-            const isExternalGen = lightboxIndex >= baseImagesCount;
-            
-            let hasNext: boolean;
-            let hasPrevious: boolean;
-            
-            if (externalGens.derivedNavContext) {
-              const currentId = lightbox.currentImages[lightboxIndex]?.id;
-              if (!currentId) {
-                hasNext = false;
-                hasPrevious = false;
-              } else {
-                const currentDerivedIndex = externalGens.derivedNavContext.derivedGenerationIds.indexOf(currentId);
-                hasNext = currentDerivedIndex !== -1 && currentDerivedIndex < externalGens.derivedNavContext.derivedGenerationIds.length - 1;
-                hasPrevious = currentDerivedIndex !== -1 && currentDerivedIndex > 0;
-              }
-            } else {
-              hasNext = lightboxIndex < lightbox.currentImages.length - 1;
-              hasPrevious = lightboxIndex > 0;
-            }
-            
-            const currentImage = lightbox.currentImages[lightboxIndex];
-
-            // Extended fields that may be present at runtime from external generation lookups
-            const currentImageShotId = (currentImage as GenerationRow & { shot_id?: string }).shot_id;
-            const currentImageAssociations = (currentImage as GenerationRow & { all_shot_associations?: Array<{ shot_id: string; timeline_frame?: number | null }> }).all_shot_associations;
-
-            // Determine if the current image is positioned in the selected shot
-            // For non-external gens (images from the shot itself), check if they have a timeline_frame
-            // Use lightboxSelectedShotId instead of props.selectedShotId so it updates when dropdown changes
-            const effectiveSelectedShotId = lightboxSelectedShotId || props.selectedShotId;
-            const isInSelectedShot = !isExternalGen && effectiveSelectedShotId && (
-              props.shotId === effectiveSelectedShotId ||
-              currentImageShotId === effectiveSelectedShotId ||
-              (Array.isArray(currentImageAssociations) &&
-               currentImageAssociations.some((assoc) => assoc.shot_id === effectiveSelectedShotId))
-            );
-
-            const positionedInSelectedShot = isInSelectedShot
-              ? currentImage.timeline_frame !== null && currentImage.timeline_frame !== undefined
-              : undefined;
-
-            const associatedWithoutPositionInSelectedShot = isInSelectedShot
-              ? currentImage.timeline_frame === null || currentImage.timeline_frame === undefined
-              : undefined;
-
-            return (
-              <MediaLightbox
-                media={lightbox.currentImages[lightboxIndex]}
-                shotId={props.shotId}
-                toolTypeOverride={props.toolTypeOverride}
-                initialEditActive={lightbox.shouldAutoEnterInpaint}
-                initialVariantId={capturedVariantIdRef.current ?? undefined}
-                onClose={() => {
-                  capturedVariantIdRef.current = null;
-                  lightbox.setLightboxIndex(null);
-                  lightbox.setShouldAutoEnterInpaint(false);
-                  externalGens.setDerivedNavContext(null);
-                  externalGens.setTempDerivedGenerations([]);
-                  if (isExternalGen) {
-                    externalGens.setExternalGenLightboxSelectedShot(props.selectedShotId);
-                  }
-                  // Reset dropdown to current shot when closing
-                  setLightboxSelectedShotId?.(props.selectedShotId);
-                }}
-                onNext={lightbox.handleNext}
-                onPrevious={lightbox.handlePrevious}
-                onDelete={!props.readOnly ? (_mediaId: string) => {
-                  const currentImage = lightbox.currentImages[lightboxIndex];
-                  const shotImageEntryId = currentImage.shotImageEntryId || currentImage.id;
-                  props.onImageDelete(shotImageEntryId);
-                } : undefined}
-                showNavigation={true}
-                showImageEditTools={true}
-                showDownload={true}
-                showMagicEdit={true}
-                hasNext={hasNext}
-                hasPrevious={hasPrevious}
-                starred={lightbox.currentImages[lightboxIndex]?.starred || false}
-                onMagicEdit={props.onMagicEdit}
-                readOnly={props.readOnly}
-                showTaskDetails={true}
-                taskDetailsData={taskDetailsData ?? undefined}
-                onNavigateToGeneration={(generationId: string) => {
-                  const index = lightbox.currentImages.findIndex((img: GenerationRow) => img.id === generationId);
-                  if (index !== -1) {
-                    lightbox.setLightboxIndex(index);
-                  }
-                }}
-                onOpenExternalGeneration={externalGens.handleOpenExternalGeneration}
-                allShots={props.allShots}
-                selectedShotId={isExternalGen ? externalGens.externalGenLightboxSelectedShot : (lightboxSelectedShotId || props.selectedShotId)}
-                onShotChange={isExternalGen ? (shotId) => {
-                  externalGens.setExternalGenLightboxSelectedShot(shotId);
-                } : (shotId) => {
-                  setLightboxSelectedShotId?.(shotId);
-                  props.onShotChange?.(shotId);
-                }}
-                onAddToShot={(() => {
-                  const result = isExternalGen ? externalGens.handleExternalGenAddToShot : props.onAddToShot;
-                  return result;
-                })()}
-                onAddToShotWithoutPosition={isExternalGen ? externalGens.handleExternalGenAddToShotWithoutPosition : props.onAddToShotWithoutPosition}
-                onCreateShot={props.onCreateShot}
-                positionedInSelectedShot={positionedInSelectedShot}
-                associatedWithoutPositionInSelectedShot={associatedWithoutPositionInSelectedShot}
-                showTickForImageId={showTickForImageId}
-                onShowTick={setShowTickForImageId}
-                showTickForSecondaryImageId={showTickForSecondaryImageId}
-                onShowSecondaryTick={setShowTickForSecondaryImageId}
-                onNavigateToShot={(shot) => {
-                  navigateToShot(shot, { scrollToTop: true });
-                }}
-                adjacentSegments={adjacentSegmentsData}
-              />
-            );
-          })()}
+          <DesktopLightboxOverlay
+            lightbox={lightbox}
+            optimistic={optimistic}
+            externalGens={externalGens}
+            managerProps={props}
+            lightboxSelectedShotId={lightboxSelectedShotId}
+            setLightboxSelectedShotId={setLightboxSelectedShotId}
+            taskDetailsData={taskDetailsData ?? undefined}
+            capturedVariantIdRef={capturedVariantIdRef}
+            showTickForImageId={showTickForImageId}
+            onShowTick={setShowTickForImageId}
+            showTickForSecondaryImageId={showTickForSecondaryImageId}
+            onShowSecondaryTick={setShowTickForSecondaryImageId}
+            onNavigateToShot={(shot) => {
+              navigateToShot(shot, { scrollToTop: true });
+            }}
+            adjacentSegments={adjacentSegmentsData}
+          />
           
           {selection.showSelectionBar && selection.selectedIds.length >= 1 && (
             <SelectionActionBar

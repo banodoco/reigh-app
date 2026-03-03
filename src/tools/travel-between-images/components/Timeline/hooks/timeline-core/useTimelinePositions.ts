@@ -30,7 +30,6 @@ import type { GenerationRow } from '@/domains/generation/types';
 import { quantizePositions, TRAILING_ENDPOINT_KEY } from '../../utils/timeline-utils';
 import { useInvalidateGenerations } from '@/shared/hooks/invalidation/useGenerationInvalidation';
 import {
-  isTimelineWriteTimeoutError,
   isTimelineWriteActive,
 } from '@/shared/lib/timelineWriteQueue';
 import { persistTimelineFrameBatch } from '@/shared/lib/timelineFrameBatchPersist';
@@ -510,7 +509,6 @@ export function useTimelinePositions({
       });
       
     } catch (error) {
-      const isTimeout = isTimelineWriteTimeoutError(error);
       normalizeAndPresentError(error, { context: 'TimelinePositions', showToast: false, logData: { operationId } });
 
       // Rollback optimistic update

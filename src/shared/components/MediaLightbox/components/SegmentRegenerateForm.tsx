@@ -95,10 +95,6 @@ export interface SegmentRegenerateFormProps {
   /** Callback to navigate to a constituent image by shot_generation.id */
   onNavigateToImage?: (shotGenerationId: string) => void;
 
-  /** Whether the segment currently has a primary variant.
-   * When false (orphaned), new generations will default to becoming the primary variant. */
-  hasPrimaryVariant?: boolean;
-
   // Per-segment structure video management (Timeline Mode only)
   /** Whether in timeline mode (shows structure video upload) vs batch mode (preview only) */
   isTimelineMode?: boolean;
@@ -138,8 +134,6 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
   // Navigation to constituent images
   endImageShotGenerationId,
   onNavigateToImage,
-  // Whether segment has a primary variant (for defaulting makePrimaryVariant)
-  hasPrimaryVariant = true,
   // Per-segment structure video management
   isTimelineMode,
   onAddSegmentStructureVideo,

@@ -46,7 +46,7 @@ export const PromptSection: React.FC<PromptSectionProps> = ({
   savingField,
 }) => {
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" data-regeneration={isRegeneration ? 'true' : 'false'}>
       <div className="space-y-1">
         <div className="flex items-center gap-2">
           <Label className="text-xs font-medium">Prompt:</Label>

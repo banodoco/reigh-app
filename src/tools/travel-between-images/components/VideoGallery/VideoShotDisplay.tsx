@@ -422,7 +422,6 @@ interface ShotMetadataProps {
 }
 
 const ShotMetadata: React.FC<ShotMetadataProps> = ({
-  shotName,
   displayName,
   isEditingName,
   editableName,

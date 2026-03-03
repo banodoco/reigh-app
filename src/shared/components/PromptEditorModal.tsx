@@ -1,22 +1,21 @@
 import React, { useState, useCallback, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/shared/components/ui/dialog';
-import { Button } from '@/shared/components/ui/button';
-import { PromptEntry, PromptInputRow } from './ImageGenerationForm';
-import { Wand2Icon, Edit, PackagePlus, Trash2, ChevronDown, ChevronLeft, Sparkles, Shuffle } from 'lucide-react';
-import { PromptGenerationControls, GenerationControlValues as PGC_GenerationControlValues } from './PromptGenerationControls';
-import { BulkEditControls, BulkEditParams as BEC_BulkEditParams, BulkEditControlValues as BEC_BulkEditControlValues } from './PromptEditorModal/BulkEditControls';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/components/ui/dialog';
+import { PromptEntry } from './ImageGenerationForm';
+import { type GenerationControlValues as PGC_GenerationControlValues } from './PromptGenerationControls';
+import { type BulkEditParams as BEC_BulkEditParams, type BulkEditControlValues as BEC_BulkEditControlValues } from './PromptEditorModal/BulkEditControls';
 import { useAIInteractionService } from '@/features/ai/hooks/useAIInteractionService';
-import { GeneratePromptsParams, AIModelType } from '@/types/ai';
+import { type GeneratePromptsParams, AIModelType } from '@/types/ai';
 import { toast } from "@/shared/components/ui/runtime/sonner";
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import { useProjectSelectionContext } from '@/shared/contexts/ProjectContext';
 import { usePersistentToolState } from '@/shared/hooks/usePersistentToolState';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/components/ui/collapsible';
 import { useIsMobile } from "@/shared/hooks/mobile";
 import { useExtraLargeModal } from "@/shared/hooks/useModal";
 import { useScrollFade } from "@/shared/hooks/useScrollFade";
 import { useTouchDragDetection } from "@/shared/hooks/useTouchDragDetection";
+import { PromptEditorAIPanel } from './PromptEditorModal/components/PromptEditorAIPanel';
+import { PromptEditorPromptList } from './PromptEditorModal/components/PromptEditorPromptList';
+import { PromptEditorFooter } from './PromptEditorModal/components/PromptEditorFooter';
 
 // Use aliased types for internal state if they were named the same
 type GenerationControlValues = PGC_GenerationControlValues;
@@ -379,6 +378,11 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
     }
   }, [isDragging]);
 
+  const handleActiveTabChange = useCallback((mode: EditorMode) => {
+    markAsInteracted();
+    setActiveTab(mode);
+  }, [markAsInteracted]);
+
   const handleModalClose = useCallback((open: boolean) => {
     if (!open) {
       handleFinalSaveAndClose();
@@ -407,169 +411,50 @@ const PromptEditorModal: React.FC<PromptEditorModalProps> = React.memo(({
           onTouchStartCapture={handleInsideInteraction}
           className={`${modal.scrollClass} ${modal.isMobile ? 'pt-2' : 'pt-6'}`}
         >
-          <Collapsible 
-            open={isAIPromptSectionExpanded} 
-            onOpenChange={setIsAIPromptSectionExpanded}
-            className={`${modal.isMobile ? 'px-2' : 'px-6'}`}
-          >
-            <CollapsibleTrigger asChild>
-              <Button
-                variant="ghost"
-                className={`${isAIPromptSectionExpanded ? 'w-full justify-between p-4 hover:bg-accent/50 border border-accent-foreground/10 rounded-lg' : 'w-full justify-between p-4 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-red-500/20 border border-pink-400/40 hover:from-purple-500/30 hover:to-red-500/30'} transition-colors duration-300`}
-                onTouchStart={handleTouchStart}
-                onClick={handleToggleAIPromptSection}
-              >
-                <div className="flex items-center gap-2">
-                  <Wand2Icon className="h-4 w-4" />
-                  <span className="font-light flex items-center gap-1">
-                    AI Prompt Tools
-                    {!isAIPromptSectionExpanded && <Sparkles className="h-3 w-3 text-pink-400 animate-pulse" />}
-                  </span>
-       
-                </div>
-                {isAIPromptSectionExpanded ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronLeft className="h-4 w-4" />
-                )}
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div className="bg-accent/30 border border-accent-foreground/10 rounded-lg p-4">
-                <Tabs value={activeTab} onValueChange={(value) => { markAsInteracted(); setActiveTab(value as EditorMode); }}>
-                  <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger 
-                      value="generate" 
-                      className="w-full hover:bg-accent/50 data-[active]:hover:bg-background"
-                      title="Generate new prompts"
-                    >
-                      <Wand2Icon className="mr-2 h-4 w-4" />Generate
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      value="remix" 
-                      className="w-full hover:bg-accent/50 data-[active]:hover:bg-background"
-                      title="Remix existing prompts"
-                    >
-                      <Shuffle className="mr-2 h-4 w-4" />Remix
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      value="bulk-edit" 
-                      className="w-full hover:bg-accent/50 data-[active]:hover:bg-background"
-                      title="Edit existing prompts"
-                    >
-                      <Edit className="mr-2 h-4 w-4" />Edit
-                    </TabsTrigger>
-                  </TabsList>
-                    <TabsContent value="generate">
-                      {activeTab === 'generate' && (
-                        <PromptGenerationControls 
-                          onGenerate={handleGenerateAndAddPrompts} 
-                          onGenerateAndQueue={onGenerateAndQueue ? handleGenerateAndQueue : undefined}
-                          isGenerating={isAIGenerating}
-                          initialValues={generationControlValues}
-                          onValuesChange={handleGenerationValuesChange}
-                          hasApiKey={true}
-                          existingPromptsForContext={internalPrompts.map(p => ({ id: p.id, text: p.fullPrompt, shortText: p.shortPrompt, hidden: false}))}
-                        />
-                      )}
-                    </TabsContent>
-                    <TabsContent value="remix">
-                      {activeTab === 'remix' && (
-                        <PromptGenerationControls 
-                          onGenerate={handleGenerateAndAddPrompts} 
-                          onGenerateAndQueue={onGenerateAndQueue ? handleGenerateAndQueue : undefined}
-                          isGenerating={isAIGenerating}
-                          initialValues={generationControlValues}
-                          onValuesChange={handleGenerationValuesChange}
-                          hasApiKey={true}
-                          existingPromptsForContext={internalPrompts.map(p => ({ id: p.id, text: p.fullPrompt, shortText: p.shortPrompt, hidden: false}))}
-                          remixMode={true}
-                        />
-                      )}
-                    </TabsContent>
-                    <TabsContent value="bulk-edit">
-                      {activeTab === 'bulk-edit' && (
-                        <BulkEditControls 
-                          onBulkEdit={handleBulkEditPrompts} 
-                          isEditing={isAIEditing}
-                          initialValues={bulkEditControlValues}
-                          onValuesChange={handleBulkEditValuesChange}
-                          hasApiKey={true}
-                          numberOfPromptsToEdit={internalPrompts.length}
-                        />
-                      )}
-                    </TabsContent>
-                  </Tabs>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-          
-          <div>
-            <div className={`${modal.isMobile ? 'px-2 py-4 pb-1' : 'p-6 pb-2'}`}>
-              {internalPrompts.length === 0 && (
-                <div className="text-center text-muted-foreground py-8">
-                  No prompts yet. Add one manually or use AI generation.
-                </div>
-              )}
-              {internalPrompts.map((prompt, index) => (
-                  <div 
-                    key={prompt.id} 
-                    className="mb-4"
-                    data-prompt-field
-                    data-prompt-id={prompt.id}
-                  >
-                    <PromptInputRow
-                      promptEntry={prompt}
-                      index={index}
-                      totalPrompts={internalPrompts.length}
-                      onUpdate={handlePromptFieldUpdate}
-                      onRemove={() => handleInternalRemovePrompt(prompt.id)}
-                      canRemove={internalPrompts.length > 1}
-                      isGenerating={isAILoading}
-                      onSetActiveForFullView={setActivePromptIdForFullView}
-                      isActiveForFullView={activePromptIdForFullView === prompt.id}
-                      autoEnterEditWhenActive={isMobile}
-                    />
-                  </div>
-                ))}
-            </div>
-          </div>
+          <PromptEditorAIPanel
+            isMobile={modal.isMobile}
+            expanded={isAIPromptSectionExpanded}
+            onExpandedChange={setIsAIPromptSectionExpanded}
+            onToggle={handleToggleAIPromptSection}
+            onTouchStart={handleTouchStart}
+            activeTab={activeTab}
+            onActiveTabChange={handleActiveTabChange}
+            prompts={internalPrompts}
+            generation={{
+              onGenerate: handleGenerateAndAddPrompts,
+              onGenerateAndQueue: onGenerateAndQueue ? handleGenerateAndQueue : undefined,
+              isGenerating: isAIGenerating,
+              values: generationControlValues,
+              onValuesChange: handleGenerationValuesChange,
+            }}
+            bulkEdit={{
+              onBulkEdit: handleBulkEditPrompts,
+              isEditing: isAIEditing,
+              values: bulkEditControlValues,
+              onValuesChange: handleBulkEditValuesChange,
+            }}
+          />
+
+          <PromptEditorPromptList
+            prompts={internalPrompts}
+            isMobile={isMobile}
+            isLoading={isAILoading}
+            activePromptIdForFullView={activePromptIdForFullView}
+            onActivePromptChange={setActivePromptIdForFullView}
+            onUpdatePromptField={handlePromptFieldUpdate}
+            onRemovePrompt={handleInternalRemovePrompt}
+          />
         </div>
 
-        <div className={`${modal.footerClass} relative`}>
-          {/* Fade overlay */}
-          {showFade && (
-            <div 
-              className="absolute top-0 left-0 right-0 h-16 pointer-events-none z-10"
-              style={{ transform: 'translateY(-64px)' }}
-            >
-              <div className="h-full bg-gradient-to-t from-white via-white/95 to-transparent dark:from-gray-950 dark:via-gray-950/95 dark:to-transparent" />
-            </div>
-          )}
-          
-          <DialogFooter className={`${modal.isMobile ? 'p-4 pt-4 pb-1 flex-row justify-between' : 'p-6 pt-6 pb-2'} border-t relative z-20`}>
-            <div className={`flex gap-2 ${modal.isMobile ? '' : 'mr-auto'}`}>
-              <Button variant="retro-secondary" size="retro-sm" onClick={handleInternalAddBlankPrompt}>
-                <PackagePlus className={`h-4 w-4 ${modal.isMobile ? '' : 'mr-2'}`} />
-                <span className={modal.isMobile ? 'hidden' : ''}>Blank Prompt</span>
-                {modal.isMobile && <span className="sr-only">Blank Prompt</span>}
-              </Button>
-              {internalPrompts.length > 0 && (
-                <Button 
-                  variant="destructive" 
-                  size="retro-sm"
-                  onClick={handleRemoveAllPrompts}
-                  disabled={internalPrompts.length === 1 && !internalPrompts[0].fullPrompt.trim() && !internalPrompts[0].shortPrompt?.trim()}
-                >
-                  <Trash2 className={`h-4 w-4 ${modal.isMobile ? '' : 'mr-2'}`} />
-                  <span className={modal.isMobile ? 'hidden' : ''}>Delete Prompts</span>
-                  {modal.isMobile && <span className="sr-only">Delete Prompts</span>}
-                </Button>
-              )}
-            </div>
-            <Button variant="retro" size="retro-sm" onClick={handleFinalSaveAndClose}>Close</Button>
-          </DialogFooter>
-        </div>
+        <PromptEditorFooter
+          showFade={showFade}
+          footerClass={modal.footerClass}
+          isMobile={modal.isMobile}
+          prompts={internalPrompts}
+          onAddBlankPrompt={handleInternalAddBlankPrompt}
+          onRemoveAllPrompts={handleRemoveAllPrompts}
+          onClose={handleFinalSaveAndClose}
+        />
       </DialogContent>
     </Dialog>
   );

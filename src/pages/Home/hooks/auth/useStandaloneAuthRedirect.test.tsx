@@ -1,4 +1,3 @@
-import React from 'react';
 import { act, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Session } from '@getSupabase/supabase-js';

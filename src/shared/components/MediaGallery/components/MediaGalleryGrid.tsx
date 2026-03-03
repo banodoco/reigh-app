@@ -273,14 +273,14 @@ const MediaGalleryGridInner: React.FC<MediaGalleryGridProps> = ({
             isLightboxOpen={isLightboxOpen}
             instanceId={`gallery-${isServerPagination ? (serverPage || 1) : page}`}
             onImagesReady={() => {
-              // Backfill loading is cleared by timer in useMediaGalleryActions
-              // This callback can be used for other purposes if needed
+              // Backfill timer should usually clear this, but clear defensively if still set.
+              setIsBackfillLoading?.(false);
             }}
           >
             {(showImageIndices) => (
               <div>
                 <div
-                  className={`grid ${reducedSpacing ? 'gap-2 sm:gap-4' : 'gap-4'} ${(reducedSpacing || hideBottomPagination) ? 'mb-0' : 'mb-12'}`}
+                  className={`grid ${gridColumnClasses} ${reducedSpacing ? 'gap-2 sm:gap-4' : 'gap-4'} ${(reducedSpacing || hideBottomPagination) ? 'mb-0' : 'mb-12'}`}
                   style={{ gridTemplateColumns: `repeat(${columnsPerRow}, minmax(0, 1fr))` }}
                   data-tour="gallery-grid"
                 >

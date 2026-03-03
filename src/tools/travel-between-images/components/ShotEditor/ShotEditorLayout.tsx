@@ -8,230 +8,185 @@ import { LoraModel } from '@/shared/components/LoraSelectorModal';
 export interface ShotEditorLayoutProps {
   contextValue: ShotSettingsContextValue;
 
-  // Header
-  onBack: () => void;
-  onPreviousShot?: () => void;
-  onNextShot?: () => void;
-  hasPrevious?: boolean;
-  hasNext?: boolean;
-  onUpdateShotName?: (name: string) => void;
-  onNameClick: () => void;
-  onNameSave: () => void;
-  onNameCancel: (e?: React.MouseEvent) => void;
-  onNameKeyDown: (e: React.KeyboardEvent) => void;
-  headerContainerRef?: (node: HTMLDivElement | null) => void;
-  centerSectionRef: React.RefObject<HTMLDivElement>;
-  isSticky?: boolean;
+  header: {
+    onBack: () => void;
+    onPreviousShot?: () => void;
+    onNextShot?: () => void;
+    hasPrevious?: boolean;
+    hasNext?: boolean;
+    onUpdateShotName?: (name: string) => void;
+    onNameClick: () => void;
+    onNameSave: () => void;
+    onNameCancel: (e?: React.MouseEvent) => void;
+    onNameKeyDown: (e: React.KeyboardEvent) => void;
+    headerContainerRef?: (node: HTMLDivElement | null) => void;
+    centerSectionRef: React.RefObject<HTMLDivElement>;
+    isSticky?: boolean;
+  };
 
-  // Final video section
-  selectedShotId: string;
-  projectId: string;
-  effectiveAspectRatio?: string;
-  onApplySettingsFromTask?: (taskId: string, replaceImages: boolean, inputImages: string[]) => void;
-  onJoinSegmentsClick: () => void;
-  selectedOutputId: string | null;
-  onSelectedOutputChange: (id: string | null) => void;
-  parentGenerations: GenerationRow[];
-  initialParentGenerations: GenerationRow[];
-  segmentProgress?: { completed: number; total: number };
-  isSegmentOutputsLoading: boolean;
-  getFinalVideoCount?: (shotId: string | null) => number | null;
-  onDeleteFinalVideo: (generationId: string) => void;
-  isClearingFinalVideo: boolean;
-  videoGalleryRef: React.RefObject<HTMLDivElement>;
-  generateVideosCardRef: React.RefObject<HTMLDivElement>;
+  finalVideo: {
+    selectedShotId: string;
+    projectId: string;
+    effectiveAspectRatio?: string;
+    onApplySettingsFromTask?: (taskId: string, replaceImages: boolean, inputImages: string[]) => void;
+    onJoinSegmentsClick: () => void;
+    selectedOutputId: string | null;
+    onSelectedOutputChange: (id: string | null) => void;
+    parentGenerations: GenerationRow[];
+    initialParentGenerations: GenerationRow[];
+    segmentProgress?: { completed: number; total: number };
+    isSegmentOutputsLoading: boolean;
+    getFinalVideoCount?: (shotId: string | null) => number | null;
+    onDeleteFinalVideo: (generationId: string) => void;
+    isClearingFinalVideo: boolean;
+    videoGalleryRef: React.RefObject<HTMLDivElement>;
+    generateVideosCardRef: React.RefObject<HTMLDivElement>;
+  };
 
-  // Timeline section
-  timelineSectionRef?: (node: HTMLDivElement | null) => void;
-  isModeReady: boolean;
-  settingsError: string | null;
-  isPhone: boolean;
-  generationMode?: 'batch' | 'timeline' | 'by-pair';
-  onGenerationModeChange?: (mode: 'batch' | 'timeline' | 'by-pair') => void;
-  batchVideoFrames: number;
-  onBatchVideoFramesChange: (frames: number) => void;
-  aspectAdjustedColumns: 2 | 3 | 4 | 6;
-  pendingFramePositions: Map<string, number>;
-  onPendingPositionApplied: (generationId: string) => void;
-  onSelectionChange: (hasSelection: boolean) => void;
-  prompt: string;
-  onPromptChange: (prompt: string) => void;
-  negativePrompt: string;
-  onNegativePromptChange: (prompt: string) => void;
-  smoothContinuations?: boolean;
-  onDragStateChange?: (isDragging: boolean) => void;
-  getHasStructureVideo?: (shotId: string | null) => boolean | null;
+  timeline: {
+    timelineSectionRef?: (node: HTMLDivElement | null) => void;
+    isModeReady: boolean;
+    settingsError: string | null;
+    isPhone: boolean;
+    generationMode?: 'batch' | 'timeline' | 'by-pair';
+    onGenerationModeChange?: (mode: 'batch' | 'timeline' | 'by-pair') => void;
+    batchVideoFrames: number;
+    onBatchVideoFramesChange: (frames: number) => void;
+    aspectAdjustedColumns: 2 | 3 | 4 | 6;
+    pendingFramePositions: Map<string, number>;
+    onPendingPositionApplied: (generationId: string) => void;
+    onSelectionChange: (hasSelection: boolean) => void;
+    prompt: string;
+    onPromptChange: (prompt: string) => void;
+    negativePrompt: string;
+    onNegativePromptChange: (prompt: string) => void;
+    smoothContinuations?: boolean;
+    onDragStateChange?: (isDragging: boolean) => void;
+    getHasStructureVideo?: (shotId: string | null) => boolean | null;
+  };
 
-  // Generation section
-  ctaContainerRef?: (node: HTMLDivElement | null) => void;
-  swapButtonRef: React.RefObject<HTMLButtonElement>;
-  joinSegmentsSectionRef: React.RefObject<HTMLDivElement>;
-  parentVariantName?: string;
-  parentOnVariantNameChange?: (name: string) => void;
-  parentIsGeneratingVideo?: boolean;
-  parentVideoJustQueued?: boolean;
+  generation: {
+    ctaContainerRef?: (node: HTMLDivElement | null) => void;
+    swapButtonRef: React.RefObject<HTMLButtonElement>;
+    joinSegmentsSectionRef: React.RefObject<HTMLDivElement>;
+    parentVariantName?: string;
+    parentOnVariantNameChange?: (name: string) => void;
+    parentIsGeneratingVideo?: boolean;
+    parentVideoJustQueued?: boolean;
+  };
 
-  // Modals
-  isLoraModalOpen: boolean;
-  onLoraModalClose: () => void;
-  onAddLora: (lora: LoraModel, isManualAction?: boolean, initialStrength?: number) => void;
-  onRemoveLora: (loraId: string) => void;
-  onUpdateLoraStrength: (loraId: string, strength: number) => void;
-  selectedLoras: Array<{ id: string; name: string; strength: number; path?: string }>;
-  isSettingsModalOpen: boolean;
-  onSettingsModalOpenChange: (open: boolean) => void;
+  modals: {
+    isLoraModalOpen: boolean;
+    onLoraModalClose: () => void;
+    onAddLora: (lora: LoraModel, isManualAction?: boolean, initialStrength?: number) => void;
+    onRemoveLora: (loraId: string) => void;
+    onUpdateLoraStrength: (loraId: string, strength: number) => void;
+    selectedLoras: Array<{ id: string; name: string; strength: number; path?: string }>;
+    isSettingsModalOpen: boolean;
+    onSettingsModalOpenChange: (open: boolean) => void;
+  };
 }
 
 export const ShotEditorLayout: React.FC<ShotEditorLayoutProps> = ({
   contextValue,
-  onBack,
-  onPreviousShot,
-  onNextShot,
-  hasPrevious,
-  hasNext,
-  onUpdateShotName,
-  onNameClick,
-  onNameSave,
-  onNameCancel,
-  onNameKeyDown,
-  headerContainerRef,
-  centerSectionRef,
-  isSticky,
-  selectedShotId,
-  projectId,
-  effectiveAspectRatio,
-  onApplySettingsFromTask,
-  onJoinSegmentsClick,
-  selectedOutputId,
-  onSelectedOutputChange,
-  parentGenerations,
-  initialParentGenerations,
-  segmentProgress,
-  isSegmentOutputsLoading,
-  getFinalVideoCount,
-  onDeleteFinalVideo,
-  isClearingFinalVideo,
-  videoGalleryRef,
-  generateVideosCardRef,
-  timelineSectionRef,
-  isModeReady,
-  settingsError,
-  isPhone,
-  generationMode,
-  onGenerationModeChange,
-  batchVideoFrames,
-  onBatchVideoFramesChange,
-  aspectAdjustedColumns,
-  pendingFramePositions,
-  onPendingPositionApplied,
-  onSelectionChange,
-  prompt,
-  onPromptChange,
-  negativePrompt,
-  onNegativePromptChange,
-  smoothContinuations,
-  onDragStateChange,
-  getHasStructureVideo,
-  ctaContainerRef,
-  swapButtonRef,
-  joinSegmentsSectionRef,
-  parentVariantName,
-  parentOnVariantNameChange,
-  parentIsGeneratingVideo,
-  parentVideoJustQueued,
-  isLoraModalOpen,
-  onLoraModalClose,
-  onAddLora,
-  onRemoveLora,
-  onUpdateLoraStrength,
-  selectedLoras,
-  isSettingsModalOpen,
-  onSettingsModalOpenChange,
+  header,
+  finalVideo,
+  timeline,
+  generation,
+  modals,
 }) => {
   return (
     <ShotSettingsProvider value={contextValue}>
       <div className="flex flex-col gap-y-4 pb-4">
         <HeaderSection
-          onBack={onBack}
-          onPreviousShot={onPreviousShot}
-          onNextShot={onNextShot}
-          hasPrevious={hasPrevious}
-          hasNext={hasNext}
-          onUpdateShotName={onUpdateShotName}
-          onNameClick={onNameClick}
-          onNameSave={onNameSave}
-          onNameCancel={onNameCancel}
-          onNameKeyDown={onNameKeyDown}
-          headerContainerRef={headerContainerRef}
-          centerSectionRef={centerSectionRef}
-          isSticky={isSticky}
+          callbacks={{
+            onBack: header.onBack,
+            onPreviousShot: header.onPreviousShot,
+            onNextShot: header.onNextShot,
+            hasPrevious: header.hasPrevious,
+            hasNext: header.hasNext,
+            onUpdateShotName: header.onUpdateShotName,
+            onNameClick: header.onNameClick,
+            onNameSave: header.onNameSave,
+            onNameCancel: header.onNameCancel,
+            onNameKeyDown: header.onNameKeyDown,
+          }}
+          layout={{
+            headerContainerRef: header.headerContainerRef,
+            centerSectionRef: header.centerSectionRef,
+            isSticky: header.isSticky,
+          }}
         />
 
-        <div ref={videoGalleryRef} className="flex flex-col gap-4">
+        <div ref={finalVideo.videoGalleryRef} className="flex flex-col gap-4">
           <FinalVideoSection
-            shotId={selectedShotId}
-            projectId={projectId}
-            projectAspectRatio={effectiveAspectRatio}
-            onApplySettingsFromTask={onApplySettingsFromTask}
-            onJoinSegmentsClick={onJoinSegmentsClick}
-            selectedParentId={selectedOutputId}
-            onSelectedParentChange={onSelectedOutputChange}
-            parentGenerations={parentGenerations.length > 0 ? parentGenerations : initialParentGenerations}
-            segmentProgress={segmentProgress}
-            isParentLoading={isSegmentOutputsLoading && initialParentGenerations.length === 0}
-            getFinalVideoCount={getFinalVideoCount}
-            onDelete={onDeleteFinalVideo}
-            isDeleting={isClearingFinalVideo}
+            shotId={finalVideo.selectedShotId}
+            projectId={finalVideo.projectId}
+            projectAspectRatio={finalVideo.effectiveAspectRatio}
+            onApplySettingsFromTask={finalVideo.onApplySettingsFromTask}
+            onJoinSegmentsClick={finalVideo.onJoinSegmentsClick}
+            selectedParentId={finalVideo.selectedOutputId}
+            onSelectedParentChange={finalVideo.onSelectedOutputChange}
+            parentGenerations={finalVideo.parentGenerations.length > 0 ? finalVideo.parentGenerations : finalVideo.initialParentGenerations}
+            segmentProgress={finalVideo.segmentProgress}
+            isParentLoading={finalVideo.isSegmentOutputsLoading && finalVideo.initialParentGenerations.length === 0}
+            getFinalVideoCount={finalVideo.getFinalVideoCount}
+            onDelete={finalVideo.onDeleteFinalVideo}
+            isDeleting={finalVideo.isClearingFinalVideo}
           />
         </div>
 
         <div className="flex flex-col gap-4">
           <TimelineSection
-            timelineSectionRef={timelineSectionRef}
-            isModeReady={isModeReady}
-            settingsError={settingsError}
-            isMobile={isPhone}
-            generationMode={generationMode}
-            onGenerationModeChange={onGenerationModeChange}
-            batchVideoFrames={batchVideoFrames}
-            onBatchVideoFramesChange={onBatchVideoFramesChange}
-            columns={aspectAdjustedColumns}
-            pendingPositions={pendingFramePositions}
-            onPendingPositionApplied={onPendingPositionApplied}
-            onSelectionChange={onSelectionChange}
-            defaultPrompt={prompt}
-            onDefaultPromptChange={onPromptChange}
-            defaultNegativePrompt={negativePrompt}
-            onDefaultNegativePromptChange={onNegativePromptChange}
+            timelineSectionRef={timeline.timelineSectionRef}
+            isModeReady={timeline.isModeReady}
+            settingsError={timeline.settingsError}
+            isMobile={timeline.isPhone}
+            generationMode={timeline.generationMode}
+            onGenerationModeChange={timeline.onGenerationModeChange}
+            batchVideoFrames={timeline.batchVideoFrames}
+            onBatchVideoFramesChange={timeline.onBatchVideoFramesChange}
+            columns={timeline.aspectAdjustedColumns}
+            pendingPositions={timeline.pendingFramePositions}
+            onPendingPositionApplied={timeline.onPendingPositionApplied}
+            onSelectionChange={timeline.onSelectionChange}
+            defaultPrompt={timeline.prompt}
+            onDefaultPromptChange={timeline.onPromptChange}
+            defaultNegativePrompt={timeline.negativePrompt}
+            onDefaultNegativePromptChange={timeline.onNegativePromptChange}
             maxFrameLimit={81}
-            smoothContinuations={smoothContinuations}
-            selectedOutputId={selectedOutputId}
-            onSelectedOutputChange={onSelectedOutputChange}
-            onDragStateChange={onDragStateChange}
-            cachedHasStructureVideo={getHasStructureVideo?.(selectedShotId) ?? false}
+            smoothContinuations={timeline.smoothContinuations}
+            selectedOutputId={finalVideo.selectedOutputId}
+            onSelectedOutputChange={finalVideo.onSelectedOutputChange}
+            onDragStateChange={timeline.onDragStateChange}
+            cachedHasStructureVideo={timeline.getHasStructureVideo?.(finalVideo.selectedShotId) ?? false}
           />
 
           <GenerationSection
-            generateVideosCardRef={generateVideosCardRef}
-            ctaContainerRef={ctaContainerRef}
-            swapButtonRef={swapButtonRef}
-            joinSegmentsSectionRef={joinSegmentsSectionRef}
-            parentVariantName={parentVariantName}
-            parentOnVariantNameChange={parentOnVariantNameChange}
-            parentIsGeneratingVideo={parentIsGeneratingVideo}
-            parentVideoJustQueued={parentVideoJustQueued}
+            refs={{
+              generateVideosCardRef: finalVideo.generateVideosCardRef,
+              ctaContainerRef: generation.ctaContainerRef,
+              swapButtonRef: generation.swapButtonRef,
+              joinSegmentsSectionRef: generation.joinSegmentsSectionRef,
+            }}
+            cta={{
+              parentVariantName: generation.parentVariantName,
+              parentOnVariantNameChange: generation.parentOnVariantNameChange,
+              parentIsGeneratingVideo: generation.parentIsGeneratingVideo,
+              parentVideoJustQueued: generation.parentVideoJustQueued,
+            }}
           />
         </div>
 
         <ModalsSection
-          isLoraModalOpen={isLoraModalOpen}
-          onLoraModalClose={onLoraModalClose}
-          onAddLora={onAddLora}
-          onRemoveLora={onRemoveLora}
-          onUpdateLoraStrength={onUpdateLoraStrength}
-          selectedLoras={selectedLoras}
-          isSettingsModalOpen={isSettingsModalOpen}
-          onSettingsModalOpenChange={onSettingsModalOpenChange}
+          isLoraModalOpen={modals.isLoraModalOpen}
+          onLoraModalClose={modals.onLoraModalClose}
+          onAddLora={modals.onAddLora}
+          onRemoveLora={modals.onRemoveLora}
+          onUpdateLoraStrength={modals.onUpdateLoraStrength}
+          selectedLoras={modals.selectedLoras}
+          isSettingsModalOpen={modals.isSettingsModalOpen}
+          onSettingsModalOpenChange={modals.onSettingsModalOpenChange}
         />
       </div>
     </ShotSettingsProvider>

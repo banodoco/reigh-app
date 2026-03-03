@@ -3,7 +3,6 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle,
 } from '@/shared/components/ui/dialog';
 import { Button } from '@/shared/components/ui/button';
 import { useExtraLargeModal } from '@/shared/hooks/useModal';
@@ -11,17 +10,12 @@ import { useProject } from '@/shared/contexts/ProjectContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { Shot } from '@/domains/generation/types';
-import { ExternalLink } from 'lucide-react';
-import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';
 import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
 import { Skeleton } from '@/shared/components/ui/skeleton';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { useShotSettings } from '../hooks/settings/useShotSettings';
 import { useToolSettings } from '@/shared/hooks/useToolSettings';
 import { DEFAULT_STEERABLE_MOTION_SETTINGS } from '@/shared/types/steerableMotion';
-import BatchSettingsForm from './BatchSettingsForm';
-import { MotionControl } from './MotionControl';
-import { SectionHeader } from '@/shared/components/ImageGenerationForm/components';
+import { DEFAULT_PHASE_CONFIG } from '@/tools/travel-between-images/settings';
 import {
   generateVideo,
 } from './ShotEditor/services/generateVideoService';
@@ -32,12 +26,17 @@ import { LoraSelectorModal } from '@/shared/components/LoraSelectorModal';
 import { useShotImages } from '@/shared/hooks/useShotImages';
 import { isPositioned, isVideoGeneration } from '@/shared/lib/typeGuards';
 import { findClosestAspectRatio } from '@/shared/lib/media/aspectRatios';
-import { DEFAULT_PHASE_CONFIG } from '@/shared/types/phaseConfig';
 import { useInvalidateGenerations } from '@/shared/hooks/invalidation/useGenerationInvalidation';
 import { BUILTIN_DEFAULT_I2V_ID, BUILTIN_DEFAULT_VACE_ID, FEATURED_PRESET_IDS } from './MotionControl';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { LoraModel } from '@/shared/components/LoraSelectorModal';
 import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
+import type { ActiveLora } from '@/shared/types/lora';
+import {
+  VideoGenerationModalFormContent,
+  VideoGenerationModalHeader,
+  VideoGenerationModalLoadingContent,
+} from './VideoGenerationModalSections';
 
 interface VideoGenerationModalProps {
   isOpen: boolean;
@@ -128,7 +127,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
   }, [positionedImages, projectAspectRatio]);
   
   // Selected LoRAs as ActiveLora[]
-  const selectedLoras = useMemo(() => {
+  const selectedLoras = useMemo<ActiveLora[]>(() => {
     return (settings.loras || []).map(lora => ({
       id: lora.id,
       name: lora.name,
@@ -326,178 +325,36 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
           style={{ ...modal.style, maxWidth: '1000px' }}
         >
           <DialogHeader className={modal.headerClass}>
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <DialogTitle className="text-xl font-light">
-                  Generate Video - <span className="preserve-case">{shot.name || 'Unnamed Shot'}</span>
-                </DialogTitle>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" onClick={handleNavigateToShot} className="h-7 w-7">
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Open Shot Editor</p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-
-              {/* Input images preview */}
-              <div className="flex items-center gap-1 flex-shrink-0">
-                {positionedImages.slice(0, 6).map((img, idx) => (
-                  <img
-                    key={img.id || idx}
-                    src={getDisplayUrl(img.thumbUrl || img.imageUrl || img.location)}
-                    alt={`Image ${idx + 1}`}
-                    className="w-7 h-7 object-cover rounded border border-zinc-600"
-                  />
-                ))}
-                {positionedImages.length > 6 && (
-                  <div className="w-7 h-7 rounded border border-zinc-600 bg-zinc-700 flex items-center justify-center text-[10px] text-zinc-400">
-                    +{positionedImages.length - 6}
-                  </div>
-                )}
-                {positionedImages.length < 1 && (
-                  <span className="text-xs text-amber-500">(need 1+ images)</span>
-                )}
-              </div>
-            </div>
+            <VideoGenerationModalHeader
+              shotName={shot.name}
+              positionedImages={positionedImages}
+              onNavigateToShot={handleNavigateToShot}
+            />
           </DialogHeader>
           
           <div className={`${modal.scrollClass} -mx-6 px-6 flex-1 min-h-0`}>
             {isLoading ? (
-              <div className="space-y-4 pb-4">
-                <div className="flex flex-col lg:flex-row gap-6">
-                  {/* Left column - Settings (matches BatchSettingsForm) */}
-                  <div className="lg:w-1/2">
-                    <div className="mb-4"><Skeleton className="h-6 w-20" /></div>
-                    <div className="space-y-4">
-                      {/* Prompt + Negative prompt grid */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <Skeleton className="h-4 w-16" />
-                          <Skeleton className="h-[70px] w-full rounded-md" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Skeleton className="h-4 w-24" />
-                          <Skeleton className="h-[70px] w-full rounded-md" />
-                        </div>
-                      </div>
-                      {/* Enhance prompt toggle */}
-                      <Skeleton className="h-12 w-full rounded-lg" />
-                      {/* Before/After prompts grid */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <Skeleton className="h-4 w-28" />
-                          <Skeleton className="h-9 w-full rounded-md" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Skeleton className="h-4 w-24" />
-                          <Skeleton className="h-9 w-full rounded-md" />
-                        </div>
-                      </div>
-                      {/* Duration slider */}
-                      <div className="space-y-1">
-                        <Skeleton className="h-4 w-40" />
-                        <Skeleton className="h-5 w-full rounded-full" />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Right column - Motion (matches MotionControl) */}
-                  <div className="lg:w-1/2">
-                    <div className="mb-4"><Skeleton className="h-6 w-16" /></div>
-                    <div className="space-y-4">
-                      {/* LoRAs section */}
-                      <Skeleton className="h-10 w-full rounded-md" />
-                      {/* Preset chips */}
-                      <div className="flex gap-2">
-                        <Skeleton className="h-8 w-16 rounded-full" />
-                        <Skeleton className="h-8 w-20 rounded-full" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <VideoGenerationModalLoadingContent />
             ) : (
-              <div className="space-y-6 pb-4">
-                <div className="flex flex-col lg:flex-row gap-6">
-                  <div className="lg:w-1/2">
-                    <div className="mb-4"><SectionHeader title="Settings" theme="orange" /></div>
-                    <BatchSettingsForm
-                      batchVideoPrompt={settings.prompt || ''}
-                      onBatchVideoPromptChange={(v) => updateField('prompt', v)}
-                      batchVideoFrames={settings.batchVideoFrames || 61}
-                      onBatchVideoFramesChange={(v) => updateField('batchVideoFrames', v)}
-                      batchVideoSteps={settings.batchVideoSteps || 6}
-                      onBatchVideoStepsChange={(v) => updateField('batchVideoSteps', v)}
-                      dimensionSource={settings.dimensionSource || 'firstImage'}
-                      onDimensionSourceChange={(v) => updateField('dimensionSource', v)}
-                      customWidth={settings.customWidth}
-                      onCustomWidthChange={(v) => updateField('customWidth', v)}
-                      customHeight={settings.customHeight}
-                      onCustomHeightChange={(v) => updateField('customHeight', v)}
-                      negativePrompt={settings.negativePrompt || ''}
-                      onNegativePromptChange={(v) => updateField('negativePrompt', v)}
-                      projects={projects}
-                      selectedProjectId={selectedProjectId}
-                      selectedLoras={selectedLoras}
-                      availableLoras={availableLoras}
-                      isTimelineMode={false}
-                      accelerated={accelerated}
-                      onAcceleratedChange={setAccelerated}
-                      randomSeed={randomSeed}
-                      onRandomSeedChange={setRandomSeed}
-                      turboMode={settings.turboMode || false}
-                      onTurboModeChange={(v) => updateField('turboMode', v)}
-                      amountOfMotion={settings.amountOfMotion || 50}
-                      onAmountOfMotionChange={(v) => updateField('amountOfMotion', v)}
-                      imageCount={positionedImages.length}
-                      enhancePrompt={settings.enhancePrompt}
-                      onEnhancePromptChange={(v) => updateField('enhancePrompt', v)}
-                      advancedMode={(settings.motionMode || 'basic') === 'advanced'}
-                      phaseConfig={settings.phaseConfig || DEFAULT_PHASE_CONFIG}
-                      onPhaseConfigChange={(v) => updateField('phaseConfig', v)}
-                      selectedPhasePresetId={validPresetId}
-                      onPhasePresetSelect={(id, config) => { updateField('selectedPhasePresetId', id); updateField('phaseConfig', config); }}
-                      onPhasePresetRemove={() => updateField('selectedPhasePresetId', undefined)}
-                      videoControlMode="batch"
-                      textBeforePrompts={settings.textBeforePrompts || ''}
-                      onTextBeforePromptsChange={(v) => updateField('textBeforePrompts', v)}
-                      textAfterPrompts={settings.textAfterPrompts || ''}
-                      onTextAfterPromptsChange={(v) => updateField('textAfterPrompts', v)}
-                    />
-                  </div>
-                  
-                  <div className="lg:w-1/2">
-                    <div className="mb-4"><SectionHeader title="Motion" theme="purple" /></div>
-                    <MotionControl
-                      motionMode={(settings.motionMode || 'basic') as 'basic' | 'advanced'}
-                      onMotionModeChange={(v) => { updateField('motionMode', v); updateField('advancedMode', v === 'advanced'); }}
-                      generationTypeMode={settings.generationTypeMode || 'i2v'}
-                      onGenerationTypeModeChange={(v) => updateField('generationTypeMode', v)}
-                      hasStructureVideo={!!settings.structureVideo?.path}
-                      selectedLoras={selectedLoras}
-                      availableLoras={availableLoras}
-                      onAddLoraClick={() => setIsLoraModalOpen(true)}
-                      onRemoveLora={handleRemoveLora}
-                      onLoraStrengthChange={handleLoraStrengthChange}
-                      onAddTriggerWord={(word) => handleAddTriggerWord('', word)}
-                      selectedPhasePresetId={validPresetId}
-                      onPhasePresetSelect={(id, config) => { updateField('selectedPhasePresetId', id); updateField('phaseConfig', config); }}
-                      onPhasePresetRemove={() => updateField('selectedPhasePresetId', undefined)}
-                      currentSettings={{}}
-                      phaseConfig={settings.phaseConfig || DEFAULT_PHASE_CONFIG}
-                      onPhaseConfigChange={(v) => updateField('phaseConfig', v)}
-                      randomSeed={randomSeed}
-                      onRandomSeedChange={setRandomSeed}
-                      turboMode={settings.turboMode || false}
-                      settingsLoading={status !== 'ready' && status !== 'saving'}
-                    />
-                  </div>
-                </div>
-              </div>
+              <VideoGenerationModalFormContent
+                settings={settings}
+                updateField={updateField}
+                projects={projects}
+                selectedProjectId={selectedProjectId}
+                selectedLoras={selectedLoras}
+                availableLoras={availableLoras}
+                accelerated={accelerated}
+                onAcceleratedChange={setAccelerated}
+                randomSeed={randomSeed}
+                onRandomSeedChange={setRandomSeed}
+                imageCount={positionedImages.length}
+                validPresetId={validPresetId}
+                status={status}
+                onOpenLoraModal={() => setIsLoraModalOpen(true)}
+                onRemoveLora={handleRemoveLora}
+                onLoraStrengthChange={handleLoraStrengthChange}
+                onAddTriggerWord={(word) => handleAddTriggerWord('', word)}
+              />
             )}
           </div>
           

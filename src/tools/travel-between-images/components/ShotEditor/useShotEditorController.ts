@@ -784,81 +784,91 @@ export function useShotEditorController({
 
   const layoutProps: ShotEditorLayoutProps = {
     contextValue,
-    onBack,
-    onPreviousShot,
-    onNextShot,
-    hasPrevious,
-    hasNext,
-    onUpdateShotName,
-    onNameClick: handleNameClick,
-    onNameSave: handleNameSave,
-    onNameCancel: handleNameCancel,
-    onNameKeyDown: handleNameKeyDown,
-    headerContainerRef: parentHeaderRef,
-    centerSectionRef,
-    isSticky,
-    selectedShotId,
-    projectId,
-    effectiveAspectRatio,
-    onApplySettingsFromTask: applySettingsFromTask,
-    onJoinSegmentsClick: () => {
-      setGenerateMode('join');
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          const target = generateVideosCardRef.current;
-          if (target) {
-            const rect = target.getBoundingClientRect();
-            const scrollTop = window.scrollY + rect.top - 20;
-            window.scrollTo({ top: scrollTop, behavior: 'smooth' });
-          }
-        });
-      });
+    header: {
+      onBack,
+      onPreviousShot,
+      onNextShot,
+      hasPrevious,
+      hasNext,
+      onUpdateShotName,
+      onNameClick: handleNameClick,
+      onNameSave: handleNameSave,
+      onNameCancel: handleNameCancel,
+      onNameKeyDown: handleNameKeyDown,
+      headerContainerRef: parentHeaderRef,
+      centerSectionRef,
+      isSticky,
     },
-    selectedOutputId,
-    onSelectedOutputChange: setSelectedOutputId,
-    parentGenerations,
-    initialParentGenerations,
-    segmentProgress,
-    isSegmentOutputsLoading,
-    getFinalVideoCount,
-    onDeleteFinalVideo: handleDeleteFinalVideo,
-    isClearingFinalVideo,
-    videoGalleryRef,
-    generateVideosCardRef,
-    timelineSectionRef: parentTimelineRef,
-    isModeReady: state.isModeReady,
-    settingsError: state.settingsError,
-    isPhone,
-    generationMode: generationModeSettings.generationMode,
-    onGenerationModeChange: generationModeSettings.setGenerationMode,
-    batchVideoFrames: frameSettings.batchVideoFrames,
-    onBatchVideoFramesChange: frameSettings.setFrames,
-    aspectAdjustedColumns: aspectAdjustedColumns as 2 | 3 | 4 | 6,
-    pendingFramePositions: state.pendingFramePositions,
-    onPendingPositionApplied: handlePendingPositionApplied,
-    onSelectionChange: handleSelectionChangeLocal,
-    prompt: promptSettings.prompt,
-    onPromptChange: promptSettings.setPrompt,
-    negativePrompt: promptSettings.negativePrompt,
-    onNegativePromptChange: promptSettings.setNegativePrompt,
-    smoothContinuations: motionSettings.smoothContinuations,
-    onDragStateChange: handleDragStateChange,
-    getHasStructureVideo,
-    ctaContainerRef: parentCtaRef,
-    swapButtonRef,
-    joinSegmentsSectionRef,
-    parentVariantName,
-    parentOnVariantNameChange,
-    parentIsGeneratingVideo,
-    parentVideoJustQueued,
-    isLoraModalOpen: loraManager.isLoraModalOpen,
-    onLoraModalClose: () => loraManager.setIsLoraModalOpen(false),
-    onAddLora: loraManager.handleAddLora,
-    onRemoveLora: loraManager.handleRemoveLora,
-    onUpdateLoraStrength: loraManager.handleLoraStrengthChange,
-    selectedLoras: loraManager.selectedLoras,
-    isSettingsModalOpen: state.isSettingsModalOpen,
-    onSettingsModalOpenChange: actions.setSettingsModalOpen,
+    finalVideo: {
+      selectedShotId,
+      projectId,
+      effectiveAspectRatio,
+      onApplySettingsFromTask: applySettingsFromTask,
+      onJoinSegmentsClick: () => {
+        setGenerateMode('join');
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const target = generateVideosCardRef.current;
+            if (target) {
+              const rect = target.getBoundingClientRect();
+              const scrollTop = window.scrollY + rect.top - 20;
+              window.scrollTo({ top: scrollTop, behavior: 'smooth' });
+            }
+          });
+        });
+      },
+      selectedOutputId,
+      onSelectedOutputChange: setSelectedOutputId,
+      parentGenerations,
+      initialParentGenerations,
+      segmentProgress,
+      isSegmentOutputsLoading,
+      getFinalVideoCount,
+      onDeleteFinalVideo: handleDeleteFinalVideo,
+      isClearingFinalVideo,
+      videoGalleryRef,
+      generateVideosCardRef,
+    },
+    timeline: {
+      timelineSectionRef: parentTimelineRef,
+      isModeReady: state.isModeReady,
+      settingsError: state.settingsError,
+      isPhone,
+      generationMode: generationModeSettings.generationMode,
+      onGenerationModeChange: generationModeSettings.setGenerationMode,
+      batchVideoFrames: frameSettings.batchVideoFrames,
+      onBatchVideoFramesChange: frameSettings.setFrames,
+      aspectAdjustedColumns: aspectAdjustedColumns as 2 | 3 | 4 | 6,
+      pendingFramePositions: state.pendingFramePositions,
+      onPendingPositionApplied: handlePendingPositionApplied,
+      onSelectionChange: handleSelectionChangeLocal,
+      prompt: promptSettings.prompt,
+      onPromptChange: promptSettings.setPrompt,
+      negativePrompt: promptSettings.negativePrompt,
+      onNegativePromptChange: promptSettings.setNegativePrompt,
+      smoothContinuations: motionSettings.smoothContinuations,
+      onDragStateChange: handleDragStateChange,
+      getHasStructureVideo,
+    },
+    generation: {
+      ctaContainerRef: parentCtaRef,
+      swapButtonRef,
+      joinSegmentsSectionRef,
+      parentVariantName,
+      parentOnVariantNameChange,
+      parentIsGeneratingVideo,
+      parentVideoJustQueued,
+    },
+    modals: {
+      isLoraModalOpen: loraManager.isLoraModalOpen,
+      onLoraModalClose: () => loraManager.setIsLoraModalOpen(false),
+      onAddLora: loraManager.handleAddLora,
+      onRemoveLora: loraManager.handleRemoveLora,
+      onUpdateLoraStrength: loraManager.handleLoraStrengthChange,
+      selectedLoras: loraManager.selectedLoras,
+      isSettingsModalOpen: state.isSettingsModalOpen,
+      onSettingsModalOpenChange: actions.setSettingsModalOpen,
+    },
   };
 
   return {

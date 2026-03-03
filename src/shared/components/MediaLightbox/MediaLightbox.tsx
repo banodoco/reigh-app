@@ -8,48 +8,13 @@ import type { VideoLightboxVideoProps } from './videoLightboxContracts';
 import { ImageLightbox } from './ImageLightbox';
 import { VideoLightbox } from './VideoLightbox';
 
-export interface MediaLightboxProps {
+interface MediaLightboxCoreProps {
   media?: GenerationRow;
   parentGenerationIdOverride?: string;
   onClose: () => void;
-  onNext?: () => void;
-  onPrevious?: () => void;
   segmentSlotMode?: SegmentSlotModeData;
   readOnly?: boolean;
-  showNavigation?: boolean;
-  showImageEditTools?: boolean;
-  showDownload?: boolean;
-  showMagicEdit?: boolean;
-  initialEditActive?: boolean;
-  hasNext?: boolean;
-  hasPrevious?: boolean;
-  allShots?: ShotOption[];
-  selectedShotId?: string;
-  onShotChange?: (shotId: string) => void;
-  onAddToShot?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
-  onAddToShotWithoutPosition?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
-  onDelete?: LightboxActionHandlers['onDelete'];
-  isDeleting?: string | null;
-  onApplySettings?: (metadata: GenerationRow['metadata']) => void;
-  showTickForImageId?: string | null;
-  onShowTick?: (imageId: string) => void;
-  showTickForSecondaryImageId?: string | null;
-  onShowSecondaryTick?: (imageId: string) => void;
-  onMagicEdit?: (imageUrl: string, prompt: string, numImages: number) => void;
-  starred?: boolean;
-  onToggleStar?: (id: string, starred: boolean) => void;
-  showTaskDetails?: boolean;
-  taskDetailsData?: TaskDetailsData;
-  onShowTaskDetails?: () => void;
-  onCreateShot?: (shotName: string, files: File[]) => Promise<{ shotId?: string; shotName?: string } | void>;
-  onNavigateToShot?: (shot: Shot, options?: { isNewlyCreated?: boolean }) => void;
   toolTypeOverride?: string;
-  optimisticPositionedIds?: Set<string>;
-  optimisticUnpositionedIds?: Set<string>;
-  onOptimisticPositioned?: (mediaId: string, shotId: string) => void;
-  onOptimisticUnpositioned?: (mediaId: string, shotId: string) => void;
-  positionedInSelectedShot?: boolean;
-  associatedWithoutPositionInSelectedShot?: boolean;
   onNavigateToGeneration?: (generationId: string) => void;
   onOpenExternalGeneration?: (generationId: string, derivedContext?: string[]) => Promise<void>;
   shotId?: string;
@@ -75,6 +40,68 @@ export interface MediaLightboxProps {
   currentFrameCount?: number;
   adjacentSegments?: AdjacentSegmentsData;
 }
+
+interface MediaLightboxNavigationFlatProps {
+  onNext?: () => void;
+  onPrevious?: () => void;
+  showNavigation?: boolean;
+  hasNext?: boolean;
+  hasPrevious?: boolean;
+}
+
+interface MediaLightboxFeaturesFlatProps {
+  showImageEditTools?: boolean;
+  showDownload?: boolean;
+  showMagicEdit?: boolean;
+  initialEditActive?: boolean;
+  showTaskDetails?: boolean;
+}
+
+interface MediaLightboxShotWorkflowFlatProps {
+  allShots?: ShotOption[];
+  selectedShotId?: string;
+  onShotChange?: (shotId: string) => void;
+  onAddToShot?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
+  onAddToShotWithoutPosition?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
+  onCreateShot?: (shotName: string, files: File[]) => Promise<{ shotId?: string; shotName?: string } | void>;
+  onNavigateToShot?: (shot: Shot, options?: { isNewlyCreated?: boolean }) => void;
+  onShowTick?: (imageId: string) => void;
+  onShowSecondaryTick?: (imageId: string) => void;
+  onOptimisticPositioned?: (mediaId: string, shotId: string) => void;
+  onOptimisticUnpositioned?: (mediaId: string, shotId: string) => void;
+  optimisticPositionedIds?: Set<string>;
+  optimisticUnpositionedIds?: Set<string>;
+  positionedInSelectedShot?: boolean;
+  associatedWithoutPositionInSelectedShot?: boolean;
+}
+
+interface MediaLightboxActionsFlatProps {
+  onDelete?: LightboxActionHandlers['onDelete'];
+  isDeleting?: string | null;
+  onApplySettings?: (metadata: GenerationRow['metadata']) => void;
+  onMagicEdit?: (imageUrl: string, prompt: string, numImages: number) => void;
+  starred?: boolean;
+  onToggleStar?: (id: string, starred: boolean) => void;
+}
+
+interface MediaLightboxTaskDetailsFlatProps {
+  taskDetailsData?: TaskDetailsData;
+  onShowTaskDetails?: () => void;
+}
+
+interface MediaLightboxTickStateProps {
+  showTickForImageId?: string | null;
+  showTickForSecondaryImageId?: string | null;
+}
+
+export type MediaLightboxProps =
+  & MediaLightboxCoreProps
+  & MediaLightboxNavigationFlatProps
+  & MediaLightboxFeaturesFlatProps
+  & MediaLightboxShotWorkflowFlatProps
+  & MediaLightboxActionsFlatProps
+  & MediaLightboxTaskDetailsFlatProps
+  & MediaLightboxTickStateProps;
 
 const MediaLightbox: React.FC<MediaLightboxProps> = (props) => {
   const { media, segmentSlotMode } = props;

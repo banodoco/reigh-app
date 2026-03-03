@@ -95,6 +95,8 @@ describe('processDroppedImages', () => {
 
     expect(result).toBeNull();
     expect(mocks.toastError).toHaveBeenCalledWith('Failed to create new shot.');
+    expect(mocks.uploadImageToStorage).not.toHaveBeenCalled();
+    expect(mocks.uploadImageWithThumbnail).not.toHaveBeenCalled();
   });
 
   it('uploads, creates generation, and attaches with explicit timeline position', async () => {
@@ -131,5 +133,7 @@ describe('processDroppedImages', () => {
       }),
     );
     expect(addImageToShotWithoutPosition).not.toHaveBeenCalled();
+    expect(mocks.generateClientThumbnail).toHaveBeenCalledTimes(1);
+    expect(mocks.uploadImageWithThumbnail).toHaveBeenCalledTimes(1);
   });
 });

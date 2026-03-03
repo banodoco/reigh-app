@@ -349,7 +349,7 @@ function toCanonicalJoinClipsTaskInput(
 }
 
 /**
- * @deprecated Migration adapter for mixed-shape join-clips inputs.
+ * Compatibility adapter for mixed-shape join-clips inputs.
  * Prefer mode-specific APIs from `joinClips.ts`.
  */
 export function createJoinClipsTaskCompat(
