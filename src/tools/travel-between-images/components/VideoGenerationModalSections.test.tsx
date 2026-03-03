@@ -21,11 +21,13 @@ const mocks = vi.hoisted(() => ({
   ),
   motionControl: vi.fn(
     ({
-      onMotionModeChange,
+      mode,
     }: {
-      onMotionModeChange: (mode: 'basic' | 'advanced') => void;
+      mode: {
+        onMotionModeChange: (mode: 'basic' | 'advanced') => void;
+      };
     }) => (
-      <button data-testid="motion-control" onClick={() => onMotionModeChange('advanced')}>
+      <button data-testid="motion-control" onClick={() => mode.onMotionModeChange('advanced')}>
         motion
       </button>
     ),

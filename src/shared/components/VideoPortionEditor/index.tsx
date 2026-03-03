@@ -175,38 +175,35 @@ function SegmentThumbnail({ videoUrl, time, size = 'small' }: { videoUrl: string
   );
 }
 
-interface VideoPortionEditorProps {
-    // Settings state (global defaults)
+interface VideoPortionEditorSettingsProps {
     gapFrames: number;
     setGapFrames: (val: number) => void;
     contextFrames: number;
     setContextFrames: (val: number) => void;
     /** Max context frames based on shortest keeper clip (prevents invalid inputs) */
     maxContextFrames?: number;
-
     negativePrompt: string;
     setNegativePrompt: (val: string) => void;
-
-    // Enhance prompt toggle
     enhancePrompt?: boolean;
     setEnhancePrompt?: (val: boolean) => void;
+}
 
-    // Per-segment settings
+interface VideoPortionEditorSelectionProps {
     selections?: PortionSelection[];
     onUpdateSelectionSettings?: (id: string, updates: Partial<Pick<PortionSelection, 'gapFrameCount' | 'prompt' | 'name'>>) => void;
     onRemoveSelection?: (id: string) => void;
     onAddSelection?: () => void;
-    videoUrl?: string; // For showing segment thumbnails
-
-    // Video info for duration display
+    videoUrl?: string;
     fps?: number | null;
+}
 
-    // LoRA props
+interface VideoPortionEditorLoraProps {
     availableLoras: LoraModel[];
     projectId: string | null;
     loraManager?: UseLoraManagerReturn;
+}
 
-    // Motion settings (Basic/Advanced mode with presets)
+interface VideoPortionEditorMotionProps {
     motionMode: 'basic' | 'advanced';
     onMotionModeChange: (mode: 'basic' | 'advanced') => void;
     phaseConfig: PhaseConfig;
@@ -216,59 +213,78 @@ interface VideoPortionEditorProps {
     selectedPhasePresetId: string | null;
     onPhasePresetSelect: (presetId: string, config: PhaseConfig, metadata?: PresetMetadata) => void;
     onPhasePresetRemove: () => void;
+}
 
-    // Actions
+interface VideoPortionEditorActionProps {
     onGenerate: () => void;
     isGenerating: boolean;
     generateSuccess: boolean;
     isGenerateDisabled?: boolean;
     validationErrors?: string[];
+}
 
-    // Close
+interface VideoPortionEditorStateOverrides {
     onClose?: () => void;
-
-    // Hide header when embedded in parent panel
     hideHeader?: boolean;
 }
 
+interface VideoPortionEditorProps {
+    settings: VideoPortionEditorSettingsProps;
+    selections?: VideoPortionEditorSelectionProps;
+    lora: VideoPortionEditorLoraProps;
+    motion: VideoPortionEditorMotionProps;
+    actions: VideoPortionEditorActionProps;
+    stateOverrides?: VideoPortionEditorStateOverrides;
+}
+
 export const VideoPortionEditor: React.FC<VideoPortionEditorProps> = ({
-    gapFrames,
-    setGapFrames,
-    contextFrames,
-    setContextFrames,
-    maxContextFrames,
-    negativePrompt,
-    setNegativePrompt,
-    enhancePrompt,
-    setEnhancePrompt,
-    selections = [],
-    onUpdateSelectionSettings,
-    onRemoveSelection,
-    onAddSelection,
-    videoUrl,
-    fps,
-    availableLoras,
-    projectId,
-    loraManager,
-    // Motion settings
-    motionMode,
-    onMotionModeChange,
-    phaseConfig,
-    onPhaseConfigChange,
-    randomSeed,
-    onRandomSeedChange,
-    selectedPhasePresetId,
-    onPhasePresetSelect,
-    onPhasePresetRemove,
-    // Actions
-    onGenerate,
-    isGenerating,
-    generateSuccess,
-    isGenerateDisabled = false,
-    validationErrors = [],
-    hideHeader = false,
+    settings,
+    selections: selectionProps,
+    lora,
+    motion,
+    actions,
+    stateOverrides,
 }) => {
-    const enhancePromptValue = enhancePrompt;
+    const {
+        gapFrames,
+        setGapFrames,
+        contextFrames,
+        setContextFrames,
+        maxContextFrames,
+        negativePrompt,
+        setNegativePrompt,
+        enhancePrompt,
+        setEnhancePrompt,
+    } = settings;
+    const {
+        selections = [],
+        onUpdateSelectionSettings,
+        onRemoveSelection,
+        onAddSelection,
+        videoUrl,
+        fps,
+    } = selectionProps ?? {};
+    const { availableLoras, projectId, loraManager } = lora;
+    const {
+        motionMode,
+        onMotionModeChange,
+        phaseConfig,
+        onPhaseConfigChange,
+        randomSeed,
+        onRandomSeedChange,
+        selectedPhasePresetId,
+        onPhasePresetSelect,
+        onPhasePresetRemove,
+    } = motion;
+    const {
+        onGenerate,
+        isGenerating,
+        generateSuccess,
+        isGenerateDisabled = false,
+        validationErrors = [],
+    } = actions;
+    const { hideHeader = false } = stateOverrides ?? {};
+    const enhancePromptValue = enhancePrompt ?? false;
     const [showAdvanced, setShowAdvanced] = useState(false);
 
     // Format duration from frames

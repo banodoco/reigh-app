@@ -125,54 +125,62 @@ export function ReplacePanelContent({
 
   return (
     <VideoPortionEditor
-      gapFrames={gapFrameCount}
-      setGapFrames={(val) => editSettings.updateField('gapFrameCount', val)}
-      contextFrames={contextFrameCount}
-      setContextFrames={(val) => {
-        const maxGap = Math.max(1, 81 - (val * 2));
-        const newGapFrames = gapFrameCount > maxGap ? maxGap : gapFrameCount;
-        editSettings.updateFields({
-          contextFrameCount: val,
-          gapFrameCount: newGapFrames
-        });
+      settings={{
+        gapFrames: gapFrameCount,
+        setGapFrames: (val) => editSettings.updateField('gapFrameCount', val),
+        contextFrames: contextFrameCount,
+        setContextFrames: (val) => {
+          const maxGap = Math.max(1, 81 - (val * 2));
+          const newGapFrames = gapFrameCount > maxGap ? maxGap : gapFrameCount;
+          editSettings.updateFields({
+            contextFrameCount: val,
+            gapFrameCount: newGapFrames
+          });
+        },
+        maxContextFrames,
+        negativePrompt,
+        setNegativePrompt: (val) => editSettings.updateField('negativePrompt', val),
+        enhancePrompt,
+        setEnhancePrompt: (val) => editSettings.updateField('enhancePrompt', val),
       }}
-      maxContextFrames={maxContextFrames}
-      negativePrompt={negativePrompt}
-      setNegativePrompt={(val) => editSettings.updateField('negativePrompt', val)}
-      enhancePrompt={enhancePrompt}
-      setEnhancePrompt={(val) => editSettings.updateField('enhancePrompt', val)}
-      selections={selections}
-      onUpdateSelectionSettings={handleUpdateSelectionSettings}
-      onRemoveSelection={handleRemoveSelection}
-      onAddSelection={handleAddSelection}
-      videoUrl={videoUrl ?? ''}
-      fps={videoFps}
-      availableLoras={availableLoras}
-      projectId={selectedProjectId ?? null}
-      loraManager={loraManager}
-      // Motion settings
-      motionMode={motionMode as 'basic' | 'advanced'}
-      onMotionModeChange={(mode) => editSettings.updateField('motionMode', mode)}
-      phaseConfig={savedPhaseConfig ?? DEFAULT_VACE_PHASE_CONFIG}
-      onPhaseConfigChange={(config) => editSettings.updateField('phaseConfig', config)}
-      randomSeed={randomSeed}
-      onRandomSeedChange={(val) => editSettings.updateField('randomSeed', val)}
-      selectedPhasePresetId={selectedPhasePresetId ?? BUILTIN_VACE_DEFAULT_ID}
-      onPhasePresetSelect={(presetId, config) => {
-        editSettings.updateFields({
-          selectedPhasePresetId: presetId,
-          phaseConfig: config,
-        });
+      selections={{
+        selections,
+        onUpdateSelectionSettings: handleUpdateSelectionSettings,
+        onRemoveSelection: handleRemoveSelection,
+        onAddSelection: handleAddSelection,
+        videoUrl: videoUrl ?? '',
+        fps: videoFps,
       }}
-      onPhasePresetRemove={() => {
-        editSettings.updateField('selectedPhasePresetId', null);
+      lora={{
+        availableLoras,
+        projectId: selectedProjectId ?? null,
+        loraManager,
       }}
-      // Actions
-      onGenerate={handleGenerate}
-      isGenerating={isGenerating}
-      generateSuccess={showSuccessState}
-      isGenerateDisabled={!isValidPortion}
-      validationErrors={portionValidation.errors}
+      motion={{
+        motionMode: motionMode as 'basic' | 'advanced',
+        onMotionModeChange: (mode) => editSettings.updateField('motionMode', mode),
+        phaseConfig: savedPhaseConfig ?? DEFAULT_VACE_PHASE_CONFIG,
+        onPhaseConfigChange: (config) => editSettings.updateField('phaseConfig', config),
+        randomSeed,
+        onRandomSeedChange: (val) => editSettings.updateField('randomSeed', val),
+        selectedPhasePresetId: selectedPhasePresetId ?? BUILTIN_VACE_DEFAULT_ID,
+        onPhasePresetSelect: (presetId, config) => {
+          editSettings.updateFields({
+            selectedPhasePresetId: presetId,
+            phaseConfig: config,
+          });
+        },
+        onPhasePresetRemove: () => {
+          editSettings.updateField('selectedPhasePresetId', null);
+        },
+      }}
+      actions={{
+        onGenerate: handleGenerate,
+        isGenerating,
+        generateSuccess: showSuccessState,
+        isGenerateDisabled: !isValidPortion,
+        validationErrors: portionValidation.errors,
+      }}
     />
   );
 }

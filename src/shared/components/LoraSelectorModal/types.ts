@@ -23,29 +23,44 @@ export interface LoraSelectorModalProps {
   lora_type: string;
 }
 
-export interface CommunityLorasTabProps {
+export interface CommunityLorasSelectionProps {
   loras: LoraModel[];
   onAddLora: (lora: LoraModel) => void;
   onRemoveLora: (loraId: string) => void;
   onUpdateLoraStrength: (loraId: string, strength: number) => void;
   selectedLoras: (LoraModel & { strength: number })[];
+  onEdit: (lora: Resource & { metadata: LoraModel }) => void;
+  onClose: () => void;
+}
+
+export interface CommunityLorasResourceProps {
   myLorasResource: UseQueryResult<Resource[], Error>;
   createResource: UseMutationResult<Resource, Error, CreateResourceArgs, unknown>;
   updateResource: UseMutationResult<Resource, Error, UpdateResourceArgs, unknown>;
   deleteResource: UseMutationResult<void, Error, { id: string; type: ResourceType }, unknown>;
-  onEdit: (lora: Resource & { metadata: LoraModel }) => void;
-  onPageChange?: (page: number, totalPages: number, setPage: (page: number) => void) => void;
-  onClose: () => void;
+}
+
+export interface CommunityLorasFilterProps {
   showMyLorasOnly: boolean;
   setShowMyLorasOnly: (value: boolean) => void;
   showAddedLorasOnly: boolean;
   setShowAddedLorasOnly: (value: boolean) => void;
-  onProcessedLorasLengthChange: (length: number) => void;
   selectedModelFilter: ModelFilterCategory;
   setSelectedModelFilter: (value: ModelFilterCategory) => void;
   selectedSubFilter: string;
   setSelectedSubFilter: (value: string) => void;
 }
+
+export interface CommunityLorasPaginationProps {
+  onPageChange?: (page: number, totalPages: number, setPage: (page: number) => void) => void;
+  onProcessedLorasLengthChange: (length: number) => void;
+}
+
+export interface CommunityLorasTabProps
+  extends CommunityLorasSelectionProps,
+    CommunityLorasResourceProps,
+    CommunityLorasFilterProps,
+    CommunityLorasPaginationProps {}
 
 export interface MyLorasTabProps {
   myLorasResource: UseQueryResult<Resource[], Error>;

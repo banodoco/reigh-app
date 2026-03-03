@@ -4,22 +4,28 @@ import { Button } from '@/shared/components/ui/button';
 import { Skeleton } from '@/shared/components/ui/skeleton';
 import type { PreviewSegment } from './PreviewTogetherTypes';
 
-interface PreviewTogetherStageProps {
+interface PreviewTogetherStageDataProps {
   currentSegment: PreviewSegment;
   previewableSegments: PreviewSegment[];
   previewAspectStyle: CSSProperties;
   isPreviewVideoLoading: boolean;
   activeVideoSlot: 'A' | 'B';
-  previewVideoRef: MutableRefObject<HTMLVideoElement | null>;
-  previewVideoRefB: MutableRefObject<HTMLVideoElement | null>;
-  previewAudioRef: MutableRefObject<HTMLAudioElement | null>;
   audioUrl?: string | null;
-  onOpenInLightbox?: (segmentIndex: number) => void;
   crossfadeProgress: number;
   previewIsPlaying: boolean;
   previewCurrentTime: number;
   previewDuration: number;
   isAudioEnabled: boolean;
+}
+
+interface PreviewTogetherStageRefProps {
+  previewVideoRef: MutableRefObject<HTMLVideoElement | null>;
+  previewVideoRefB: MutableRefObject<HTMLVideoElement | null>;
+  previewAudioRef: MutableRefObject<HTMLAudioElement | null>;
+}
+
+interface PreviewTogetherStageActionProps {
+  onOpenInLightbox?: (segmentIndex: number) => void;
   onPlayPause: () => void;
   onNavigate: (direction: 'prev' | 'next') => void;
   createVideoHandlers: (slot: 'A' | 'B') => {
@@ -34,6 +40,11 @@ interface PreviewTogetherStageProps {
   onToggleAudio: () => void;
   onSeek: (time: number) => void;
 }
+
+interface PreviewTogetherStageProps
+  extends PreviewTogetherStageDataProps,
+    PreviewTogetherStageRefProps,
+    PreviewTogetherStageActionProps {}
 
 function formatTime(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60);

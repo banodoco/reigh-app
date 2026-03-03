@@ -30,9 +30,11 @@ export interface FormStateSnapshot {
   hiresFixConfig: HiresFixConfig;
 }
 
-export interface UseFormSubmissionProps {
+export interface UseFormSubmissionProjectProps {
   selectedProjectId: string | undefined;
+}
 
+export interface UseFormSubmissionPromptStateProps {
   prompts: PromptEntry[];
   imagesPerPrompt: number;
   promptMultiplier: number;
@@ -45,18 +47,24 @@ export interface UseFormSubmissionProps {
   effectivePromptMode: PromptMode;
   masterPromptText: string;
   actionablePromptsCount: number;
+}
 
+export interface UseFormSubmissionRefStateProps {
   generationSourceRef: MutableRefObject<GenerationSource>;
   selectedTextModelRef: MutableRefObject<TextToImageModel>;
   styleReferenceImageGeneration: string | null;
+}
 
+export interface UseFormSubmissionReferenceProps {
   styleReferenceStrength: number;
   subjectStrength: number;
   effectiveSubjectDescription: string;
   inThisScene: boolean;
   inThisSceneStrength: number;
   referenceMode: ReferenceMode;
+}
 
+export interface UseFormSubmissionHandlersProps {
   aiGeneratePrompts: (params: GeneratePromptsParams) => Promise<AIPromptItem[]>;
 
   onGenerate: (params: BatchImageGenerationTaskParams) => Promise<string[] | void> | string[] | void;
@@ -68,6 +76,13 @@ export interface UseFormSubmissionProps {
     isSuccess: boolean;
   };
 }
+
+export interface UseFormSubmissionProps
+  extends UseFormSubmissionProjectProps,
+    UseFormSubmissionPromptStateProps,
+    UseFormSubmissionRefStateProps,
+    UseFormSubmissionReferenceProps,
+    UseFormSubmissionHandlersProps {}
 
 export interface UseFormSubmissionReturn {
   handleSubmit: (e: FormEvent) => Promise<void>;

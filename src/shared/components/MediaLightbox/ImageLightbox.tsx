@@ -67,27 +67,42 @@ export type {
 // Main Props Interface
 // ============================================================================
 
-interface ImageLightboxProps {
+interface ImageLightboxCoreProps {
   media: GenerationRow;
   onClose: () => void;
   readOnly?: boolean;
   shotId?: string;
   initialVariantId?: string;
   toolTypeOverride?: string;
+}
+
+interface ImageLightboxTaskDetailProps {
   taskDetailsData?: TaskDetailsData;
   onOpenExternalGeneration?: (generationId: string, derivedContext?: string[]) => Promise<void>;
   onNavigateToGeneration?: (generationId: string) => void;
+  adjacentSegments?: AdjacentSegmentsData;
+}
+
+interface ImageLightboxUiStateProps {
   showTickForImageId?: string | null;
   showTickForSecondaryImageId?: string | null;
   tasksPaneOpen?: boolean;
   tasksPaneWidth?: number;
-  adjacentSegments?: AdjacentSegmentsData;
+}
+
+interface ImageLightboxBehaviorProps {
   // Grouped props
   navigation?: LightboxNavigationProps;
   shotWorkflow?: LightboxShotWorkflowProps;
   features?: LightboxFeatureFlags;
   actions?: LightboxActionHandlers;
 }
+
+interface ImageLightboxProps
+  extends ImageLightboxCoreProps,
+    ImageLightboxTaskDetailProps,
+    ImageLightboxUiStateProps,
+    ImageLightboxBehaviorProps {}
 
 function useImageLightboxEnvironment(props: ImageLightboxProps) {
   const { media, shotId, tasksPaneOpen, tasksPaneWidth } = props;
@@ -447,7 +462,6 @@ function useImageLightboxControlsPanel(
     shotId,
     onOpenExternalGeneration,
   } = props;
-  const allShots = props.shotWorkflow?.allShots;
   const selectedShotId = props.shotWorkflow?.selectedShotId;
   const showImageEditTools = props.features?.showImageEditTools ?? true;
 
@@ -467,33 +481,32 @@ function useImageLightboxControlsPanel(
       return (
         <EditModePanel
           variant={panelVariant}
-          sourceGenerationData={sharedState.sourceGeneration.data}
-          onOpenExternalGeneration={onOpenExternalGeneration}
-          currentShotId={selectedShotId || shotId}
-          allShots={allShots || []}
-          isCurrentMediaPositioned={sharedState.shots.isAlreadyPositionedInSelectedShot}
-          onReplaceInShot={() => Promise.resolve()}
-          sourcePrimaryVariant={sharedState.sourceGeneration.primaryVariant}
-          onMakeMainVariant={sharedState.makeMainVariant.handle}
-          canMakeMainVariant={sharedState.makeMainVariant.canMake}
           taskId={panelTaskId}
           currentMediaId={media.id}
-          handleUnifiedGenerate={editOrchestrator.handleUnifiedGenerate}
-          handleGenerateAnnotatedEdit={editOrchestrator.handleGenerateAnnotatedEdit}
-          handleGenerateReposition={editOrchestrator.handleGenerateReposition}
-          handleSaveAsVariant={editOrchestrator.handleSaveAsVariant}
-          handleGenerateImg2Img={editOrchestrator.handleGenerateImg2Img}
-          isCloudMode={env.isCloudMode}
-          handleUpscale={async () => {
-            await env.upscaleHook.handleUpscale({ scaleFactor: 2, noiseScale: 0.1 });
+          actions={{
+            handleUnifiedGenerate: editOrchestrator.handleUnifiedGenerate,
+            handleGenerateAnnotatedEdit: editOrchestrator.handleGenerateAnnotatedEdit,
+            handleGenerateReposition: editOrchestrator.handleGenerateReposition,
+            handleSaveAsVariant: editOrchestrator.handleSaveAsVariant,
+            handleGenerateImg2Img: editOrchestrator.handleGenerateImg2Img,
           }}
-          isUpscaling={env.upscaleHook.isUpscaling}
-          upscaleSuccess={env.upscaleHook.upscaleSuccess}
-          img2imgLoraManager={editOrchestrator.img2imgLoraManager}
-          editLoraManager={env.editLoraManager}
-          availableLoras={env.availableLoras}
-          advancedSettings={env.editSettingsPersistence.advancedSettings}
-          setAdvancedSettings={env.editSettingsPersistence.setAdvancedSettings}
+          upscale={{
+            isCloudMode: env.isCloudMode,
+            handleUpscale: async () => {
+              await env.upscaleHook.handleUpscale({ scaleFactor: 2, noiseScale: 0.1 });
+            },
+            isUpscaling: env.upscaleHook.isUpscaling,
+            upscaleSuccess: env.upscaleHook.upscaleSuccess,
+          }}
+          lora={{
+            img2imgLoraManager: editOrchestrator.img2imgLoraManager,
+            editLoraManager: env.editLoraManager,
+            availableLoras: env.availableLoras,
+          }}
+          advanced={{
+            advancedSettings: env.editSettingsPersistence.advancedSettings,
+            setAdvancedSettings: env.editSettingsPersistence.setAdvancedSettings,
+          }}
           isLocalGeneration={env.isLocalGeneration}
         />
       );
@@ -527,15 +540,9 @@ function useImageLightboxControlsPanel(
     showPanel,
     editOrchestrator.isSpecialEditMode,
     panelVariant,
-    sharedState.sourceGeneration.data,
     onOpenExternalGeneration,
     selectedShotId,
     shotId,
-    allShots,
-    sharedState.shots.isAlreadyPositionedInSelectedShot,
-    sharedState.sourceGeneration.primaryVariant,
-    sharedState.makeMainVariant.handle,
-    sharedState.makeMainVariant.canMake,
     panelTaskId,
     media.id,
     editOrchestrator.handleUnifiedGenerate,
@@ -676,14 +683,22 @@ function useImageLightboxRenderModel(
     sharedState.navigation.swipeNavigation,
   ]);
 
-  const handleDownload = () => handleLightboxDownload({
-    intendedVariantId: sharedState.intendedActiveVariantIdRef.current,
-    variants: sharedState.variants.list,
-    fallbackUrl: sharedState.effectiveMedia.mediaUrl ?? '',
+  const handleDownload = useCallback(() => {
+    return handleLightboxDownload({
+      intendedVariantId: sharedState.intendedActiveVariantIdRef.current,
+      variants: sharedState.variants.list,
+      fallbackUrl: sharedState.effectiveMedia.mediaUrl ?? '',
+      media,
+      isVideo: false,
+      setIsDownloading: env.setIsDownloading,
+    });
+  }, [
+    sharedState.intendedActiveVariantIdRef,
+    sharedState.variants.list,
+    sharedState.effectiveMedia.mediaUrl,
     media,
-    isVideo: false,
-    setIsDownloading: env.setIsDownloading,
-  });
+    env.setIsDownloading,
+  ]);
 
   const handleDelete = useCallback(async (): Promise<void> => {
     if (!actions?.onDelete) {
@@ -692,9 +707,10 @@ function useImageLightboxRenderModel(
     await invokeLightboxDelete(actions.onDelete, media.id, 'ImageLightbox.delete');
   }, [actions?.onDelete, media.id]);
 
-  const handleApplySettings = () => {
-    actions?.onApplySettings?.(media.metadata);
-  };
+  const onApplySettings = actions?.onApplySettings;
+  const handleApplySettings = useCallback(() => {
+    onApplySettings?.(media.metadata);
+  }, [onApplySettings, media.metadata]);
 
   const onNavigateToShot = shotWorkflow?.onNavigateToShot;
   const handleNavigateToShotFromSelector = useCallback((shot: { id: string; name: string }) => {
@@ -732,7 +748,7 @@ function useImageLightboxRenderModel(
     panelVariant,
     panelTaskId,
   );
-  const allShots = shotWorkflow?.allShots ?? [];
+  const allShots = useMemo(() => shotWorkflow?.allShots ?? [], [shotWorkflow?.allShots]);
   const selectedShotId = shotWorkflow?.selectedShotId;
   const workflowBar = useMemo(() => ({
     core: {

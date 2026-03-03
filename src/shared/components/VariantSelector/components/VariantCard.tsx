@@ -23,7 +23,7 @@ import { VariantDetails } from './VariantDetails';
 
 // --- VariantCard ---
 
-interface VariantCardProps {
+interface VariantCardStateProps {
   variant: GenerationVariant;
   isActive: boolean;
   isPrimary: boolean;
@@ -43,7 +43,11 @@ interface VariantCardProps {
   copiedVariantId: string | null;
   /** Loaded settings variant ID (for load-settings feedback) */
   loadedSettingsVariantId: string | null;
-  // Callbacks
+  currentSegmentImages?: CurrentSegmentImagesData;
+  loadedImagesVariantId: string | null;
+}
+
+interface VariantCardActionProps {
   onVariantSelect: (variantId: string) => void;
   onMakePrimary?: (variantId: string) => Promise<void>;
   onDeleteVariant?: (variantId: string) => void;
@@ -55,9 +59,9 @@ interface VariantCardProps {
   onCopyId: (variantId: string) => void;
   onLoadSettings: (variant: GenerationVariant) => void;
   onLoadImages?: (variant: GenerationVariant) => void;
-  currentSegmentImages?: CurrentSegmentImagesData;
-  loadedImagesVariantId: string | null;
 }
+
+interface VariantCardProps extends VariantCardStateProps, VariantCardActionProps {}
 
 export const VariantCard: React.FC<VariantCardProps> = ({
   variant,

@@ -12,21 +12,16 @@ interface VariantInfo {
   is_primary: boolean;
 }
 
-interface TaskDetailsPanelWrapperProps {
-  // Task details data
+interface TaskDetailsPanelCoreProps {
   taskDetailsData?: TaskDetailsData;
-
-  // State
   replaceImages: boolean;
   onReplaceImagesChange: (replace: boolean) => void;
-
-  // Close handler
   onClose: () => void;
-
-  // Variant
   variant?: 'desktop' | 'mobile';
+}
 
-  // Legacy props - kept for compatibility but no longer used
+interface TaskDetailsPanelLegacyProps {
+  // Legacy props - kept for compatibility but no longer used.
   derivedItems?: DerivedItem[] | null;
   paginatedDerived?: DerivedItem[];
   derivedPage?: number;
@@ -41,6 +36,8 @@ interface TaskDetailsPanelWrapperProps {
   primaryVariant?: VariantInfo | null;
   onSwitchToPrimary?: () => void;
 }
+
+interface TaskDetailsPanelWrapperProps extends TaskDetailsPanelCoreProps, TaskDetailsPanelLegacyProps {}
 
 /**
  * TaskDetailsPanelWrapper Component

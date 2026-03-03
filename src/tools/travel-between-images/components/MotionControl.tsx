@@ -57,25 +57,27 @@ export const FEATURED_PRESET_IDS: string[] = [
   '18b879a5-1251-41dc-b263-613358ced541',
 ];
 
-interface MotionControlProps {
-  // Motion mode selection (Basic or Advanced only - Presets tab removed)
+type GenerationTypeMode = 'i2v' | 'vace';
+type StructureType = 'uni3c' | 'flow' | 'canny' | 'depth';
+
+interface MotionControlModeProps {
   motionMode: 'basic' | 'advanced';
   onMotionModeChange: (mode: 'basic' | 'advanced') => void;
-  
-  // Generation type mode (I2V vs VACE) - auto-determined by structure video in Basic mode
-  generationTypeMode?: 'i2v' | 'vace';
-  onGenerationTypeModeChange?: (mode: 'i2v' | 'vace') => void;
-  hasStructureVideo?: boolean; // Whether a structure video is currently set
-  structureType?: 'uni3c' | 'flow' | 'canny' | 'depth'; // Type of structure video guidance
-  
-  // Structure video controls (shown when structure video is present)
+  generationTypeMode?: GenerationTypeMode;
+  onGenerationTypeModeChange?: (mode: GenerationTypeMode) => void;
+  hasStructureVideo?: boolean;
+}
+
+interface MotionControlStructureVideoProps {
+  structureType?: StructureType;
   structureVideoMotionStrength?: number;
   onStructureVideoMotionStrengthChange?: (strength: number) => void;
-  onStructureTypeChange?: (type: 'uni3c' | 'flow' | 'canny' | 'depth') => void;
+  onStructureTypeChange?: (type: StructureType) => void;
   uni3cEndPercent?: number;
   onUni3cEndPercentChange?: (value: number) => void;
-  
-  // LoRA management (for Basic mode - LoRAs are added to phaseConfig)
+}
+
+interface MotionControlLoraProps {
   selectedLoras: ActiveLora[];
   availableLoras: LoraModel[];
   onAddLoraClick: () => void;
@@ -83,8 +85,9 @@ interface MotionControlProps {
   onLoraStrengthChange: (loraId: string, strength: number) => void;
   onAddTriggerWord?: (trigger: string) => void;
   renderLoraHeaderActions?: () => React.ReactNode;
-  
-  // Phase preset props (used in Basic mode for quick-select chips)
+}
+
+interface MotionControlPresetProps {
   selectedPhasePresetId?: string | null;
   onPhasePresetSelect: (presetId: string, config: PhaseConfig, presetMetadata?: PresetMetadata) => void;
   onPhasePresetRemove: () => void;
@@ -98,61 +101,77 @@ interface MotionControlProps {
     lastGeneratedVideoUrl?: string;
     selectedLoras?: Array<{ id: string; name: string; strength: number }>;
   };
-  
-  // Featured preset IDs for quick-select chips (provided by parent)
   featuredPresetIds?: string[];
-  
-  // Advanced mode props (advancedMode is derived from motionMode)
+}
+
+interface MotionControlAdvancedProps {
   phaseConfig?: PhaseConfig;
   onPhaseConfigChange: (config: PhaseConfig) => void;
   onBlurSave?: () => void;
   randomSeed: boolean;
   onRandomSeedChange: (value: boolean) => void;
-  
-  // Turbo mode affects availability
-  turboMode?: boolean;
-
-  // Loading state - prevents sync effects from running during initial load
-  settingsLoading?: boolean;
-
-  // Restore defaults handler (for Advanced mode - respects I2V/VACE mode)
   onRestoreDefaults?: () => void;
+}
 
-  // Smooth continuations (SVI) - for smoother transitions between segments
+interface MotionControlStateOverrides {
+  turboMode?: boolean;
+  settingsLoading?: boolean;
   smoothContinuations?: boolean;
   onSmoothContinuationsChange?: (value: boolean) => void;
 }
 
+interface MotionControlProps {
+  mode: MotionControlModeProps;
+  lora: MotionControlLoraProps;
+  presets: MotionControlPresetProps;
+  advanced: MotionControlAdvancedProps;
+  structureVideo?: MotionControlStructureVideoProps;
+  stateOverrides?: MotionControlStateOverrides;
+}
+
 export const MotionControl: React.FC<MotionControlProps> = ({
-  motionMode,
-  onMotionModeChange,
-  generationTypeMode = 'i2v',
-  onGenerationTypeModeChange: _onGenerationTypeModeChange,
-  hasStructureVideo = false,
-  structureType: _structureType,
-  selectedLoras,
-  availableLoras,
-  onAddLoraClick,
-  onRemoveLora,
-  onLoraStrengthChange,
-  onAddTriggerWord,
-  renderLoraHeaderActions,
-  selectedPhasePresetId,
-  onPhasePresetSelect,
-  onPhasePresetRemove,
-  currentSettings,
-  featuredPresetIds = FEATURED_PRESET_IDS,
-  phaseConfig,
-  onPhaseConfigChange,
-  onBlurSave,
-  randomSeed,
-  onRandomSeedChange,
-  turboMode,
-  settingsLoading,
-  onRestoreDefaults,
-  smoothContinuations,
-  onSmoothContinuationsChange,
+  mode,
+  lora,
+  presets,
+  advanced,
+  stateOverrides,
 }) => {
+  const {
+    motionMode,
+    onMotionModeChange,
+    generationTypeMode = 'i2v',
+    hasStructureVideo = false,
+  } = mode;
+  const {
+    selectedLoras,
+    availableLoras,
+    onAddLoraClick,
+    onRemoveLora,
+    onLoraStrengthChange,
+    onAddTriggerWord,
+    renderLoraHeaderActions,
+  } = lora;
+  const {
+    selectedPhasePresetId,
+    onPhasePresetSelect,
+    onPhasePresetRemove,
+    currentSettings,
+    featuredPresetIds = FEATURED_PRESET_IDS,
+  } = presets;
+  const {
+    phaseConfig,
+    onPhaseConfigChange,
+    onBlurSave,
+    randomSeed,
+    onRandomSeedChange,
+    onRestoreDefaults,
+  } = advanced;
+  const {
+    turboMode,
+    settingsLoading,
+    smoothContinuations,
+    onSmoothContinuationsChange,
+  } = stateOverrides ?? {};
   // State for preset modal
   const [isPresetModalOpen, setIsPresetModalOpen] = useState(false);
 

@@ -43,29 +43,35 @@ function buildVideoLightboxControlsPanel(
       <VideoEditPanel
         variant={panelVariant}
         isCloudMode={env.isCloudMode}
-        trimState={editModel.videoMode.trimState}
-        onStartTrimChange={editModel.videoMode.setStartTrim}
-        onEndTrimChange={editModel.videoMode.setEndTrim}
-        onResetTrim={editModel.videoMode.resetTrim}
-        trimmedDuration={editModel.videoMode.trimmedDuration}
-        hasTrimChanges={editModel.videoMode.hasTrimChanges}
-        onSaveTrim={editModel.videoMode.saveTrimmedVideo}
-        isSavingTrim={editModel.videoMode.isSavingTrim}
-        trimSaveProgress={editModel.videoMode.trimSaveProgress}
-        trimSaveError={editModel.videoMode.trimSaveError}
-        trimSaveSuccess={editModel.videoMode.trimSaveSuccess}
-        videoUrl={sharedState.effectiveMedia.videoUrl ?? ''}
-        trimCurrentTime={editModel.videoMode.trimCurrentTime}
-        trimVideoRef={editModel.videoMode.trimVideoRef}
-        videoEditing={editModel.videoMode.videoEditing}
-        projectId={env.selectedProjectId ?? undefined}
+        trim={{
+          trimState: editModel.videoMode.trimState,
+          onStartTrimChange: editModel.videoMode.setStartTrim,
+          onEndTrimChange: editModel.videoMode.setEndTrim,
+          onResetTrim: editModel.videoMode.resetTrim,
+          trimmedDuration: editModel.videoMode.trimmedDuration,
+          hasTrimChanges: editModel.videoMode.hasTrimChanges,
+          onSaveTrim: editModel.videoMode.saveTrimmedVideo,
+          isSavingTrim: editModel.videoMode.isSavingTrim,
+          trimSaveProgress: editModel.videoMode.trimSaveProgress,
+          trimSaveError: editModel.videoMode.trimSaveError,
+          trimSaveSuccess: editModel.videoMode.trimSaveSuccess,
+          videoUrl: sharedState.effectiveMedia.videoUrl ?? '',
+          trimCurrentTime: editModel.videoMode.trimCurrentTime,
+          trimVideoRef: editModel.videoMode.trimVideoRef,
+        }}
+        replace={{
+          videoEditing: editModel.videoMode.videoEditing,
+          projectId: env.selectedProjectId ?? undefined,
+        }}
         regenerateFormProps={editModel.regenerateFormProps}
-        enhanceSettings={editModel.videoMode.videoEnhance.settings}
-        onUpdateEnhanceSetting={editModel.videoMode.videoEnhance.updateSetting}
-        onEnhanceGenerate={editModel.videoMode.videoEnhance.handleGenerate}
-        isEnhancing={editModel.videoMode.videoEnhance.isGenerating}
-        enhanceSuccess={editModel.videoMode.videoEnhance.generateSuccess}
-        canEnhance={editModel.videoMode.videoEnhance.canSubmit}
+        enhance={{
+          settings: editModel.videoMode.videoEnhance.settings,
+          onUpdateSetting: editModel.videoMode.videoEnhance.updateSetting,
+          onGenerate: editModel.videoMode.videoEnhance.handleGenerate,
+          isGenerating: editModel.videoMode.videoEnhance.isGenerating,
+          generateSuccess: editModel.videoMode.videoEnhance.generateSuccess,
+          canSubmit: editModel.videoMode.videoEnhance.canSubmit,
+        }}
         taskId={panelTaskId}
       />
     );
@@ -315,7 +321,6 @@ export function useVideoLightboxRenderModel(
     actions?.onApplySettings,
     actions?.onDelete,
     allShots,
-    editModel.variantBadges,
     env.actualGenerationId,
     env.contentRef,
     handleApplySettings,

@@ -18,19 +18,29 @@ export interface CommandConfig {
   token: string;
 }
 
-export interface GenerationSectionProps {
+export interface GenerationSectionViewProps {
   isMobile: boolean;
+  creditsTab?: 'purchase' | 'history' | 'task-log';
+}
+
+export interface GenerationSectionMethodProps {
   // Generation method state
   onComputerChecked: boolean;
   inCloudChecked: boolean;
   updateGenerationMethodsWithNotification: (patch: { onComputer?: boolean; inCloud?: boolean }) => void;
   isLoadingGenerationMethods: boolean;
+}
+
+export interface GenerationSectionTokenProps {
   // Token state
   hasValidToken: boolean;
   generatedToken: string | null;
   handleGenerateToken: () => void;
   isGenerating: boolean;
   getActiveToken: () => { token: string; created_at: string } | undefined;
+}
+
+export interface GenerationSectionConfigProps {
   // Config state
   computerType: string;
   setComputerType: (value: string) => void;
@@ -42,12 +52,20 @@ export interface GenerationSectionProps {
   setWindowsShell: (value: string) => void;
   showDebugLogs: boolean;
   setShowDebugLogs: (value: boolean) => void;
+}
+
+export interface GenerationSectionTabProps {
   // Tab state
   activeInstallTab: string;
   setActiveInstallTab: (value: string) => void;
-  // Props
-  creditsTab?: 'purchase' | 'history' | 'task-log';
 }
+
+export interface GenerationSectionProps
+  extends GenerationSectionViewProps,
+    GenerationSectionMethodProps,
+    GenerationSectionTokenProps,
+    GenerationSectionConfigProps,
+    GenerationSectionTabProps {}
 
 export interface PreferencesSectionProps {
   isMobile: boolean;
@@ -62,4 +80,4 @@ export interface PreferencesSectionProps {
   setAIInputMode: (mode: AIInputMode) => void;
 }
 
-type TransactionsSectionProps = Record<string, never>;
+type _TransactionsSectionProps = Record<string, never>;

@@ -4,7 +4,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/shar
 import { Button } from "@/shared/components/ui/button";
 import { framesToSeconds } from "./utils/time-utils";
 
-interface PairRegionProps {
+interface PairRegionGeometryProps {
   index: number;
   startPercent: number;
   endPercent: number;
@@ -16,24 +16,35 @@ interface PairRegionProps {
   numPairs: number;
   startFrame: number;
   endFrame: number;
+  showLabel: boolean;
+  /** Hide the pair label (used during tap-to-move selection on tablets) */
+  hidePairLabel?: boolean;
+  /** Read-only mode - disables click interactions */
+  readOnly?: boolean;
+}
+
+interface PairRegionInteractionProps {
   onPairClick?: (pairIndex: number, pairData: {
     index: number;
     frames: number;
     startFrame: number;
     endFrame: number;
   }) => void;
+}
+
+interface PairRegionPromptProps {
   pairPrompt?: string;
   pairNegativePrompt?: string;
   enhancedPrompt?: string;
   defaultPrompt?: string;
   defaultNegativePrompt?: string;
-  showLabel: boolean;
   onClearEnhancedPrompt?: (pairIndex: number) => void;
-  /** Hide the pair label (used during tap-to-move selection on tablets) */
-  hidePairLabel?: boolean;
-  /** Read-only mode - disables click interactions */
-  readOnly?: boolean;
 }
+
+interface PairRegionProps
+  extends PairRegionGeometryProps,
+    PairRegionInteractionProps,
+    PairRegionPromptProps {}
 
 const PairRegion: React.FC<PairRegionProps> = ({
   index,

@@ -231,38 +231,50 @@ export const BatchModeContent: React.FC<BatchModeContentProps> = ({
             <h4 className="text-sm font-medium text-muted-foreground mb-3">Model Guidance:</h4>
           )}
           <MotionControl
-            motionMode={motionSettings.motionMode || 'basic'}
-            onMotionModeChange={motionSettings.setMotionMode}
-            generationTypeMode={phaseConfigSettings.generationTypeMode}
-            onGenerationTypeModeChange={phaseConfigSettings.setGenerationTypeMode}
-            hasStructureVideo={!!structureVideo.structureVideoPath}
-            structureType={structureVideo.structureVideoType}
-            structureVideoMotionStrength={structureVideo.structureVideoMotionStrength}
-            onStructureVideoMotionStrengthChange={structureVideoHandlers.handleStructureVideoMotionStrengthChange}
-            onStructureTypeChange={structureVideoHandlers.handleStructureTypeChangeFromMotionControl}
-            uni3cEndPercent={structureVideo.structureVideoUni3cEndPercent}
-            onUni3cEndPercentChange={structureVideoHandlers.handleUni3cEndPercentChange}
-            selectedLoras={loraManager.selectedLoras}
-            availableLoras={loraSettingsFromContext.availableLoras}
-            onAddLoraClick={() => loraManager.setIsLoraModalOpen(true)}
-            onRemoveLora={loraManager.handleRemoveLora}
-            onLoraStrengthChange={loraManager.handleLoraStrengthChange}
-            onAddTriggerWord={loraManager.handleAddTriggerWord}
-            renderLoraHeaderActions={loraManager.renderHeaderActions}
-            selectedPhasePresetId={phaseConfigSettings.selectedPhasePresetId}
-            onPhasePresetSelect={phaseConfigSettings.selectPreset}
-            onPhasePresetRemove={phaseConfigSettings.removePreset}
-            currentSettings={generationMode.currentMotionSettings}
-            phaseConfig={phaseConfigSettings.phaseConfig}
-            onPhaseConfigChange={phaseConfigSettings.setPhaseConfig}
-            onBlurSave={blurSaveHandler}
-            randomSeed={generationMode.randomSeed}
-            onRandomSeedChange={generationMode.onRandomSeedChange}
-            turboMode={motionSettings.turboMode}
-            settingsLoading={settingsLoadingFromContext}
-            onRestoreDefaults={phaseConfigSettings.restoreDefaults}
-            smoothContinuations={motionSettings.smoothContinuations}
-            onSmoothContinuationsChange={motionSettings.setSmoothContinuations}
+            mode={{
+              motionMode: motionSettings.motionMode || 'basic',
+              onMotionModeChange: motionSettings.setMotionMode,
+              generationTypeMode: phaseConfigSettings.generationTypeMode,
+              onGenerationTypeModeChange: phaseConfigSettings.setGenerationTypeMode,
+              hasStructureVideo: !!structureVideo.structureVideoPath,
+            }}
+            structureVideo={{
+              structureType: structureVideo.structureVideoType,
+              structureVideoMotionStrength: structureVideo.structureVideoMotionStrength,
+              onStructureVideoMotionStrengthChange: structureVideoHandlers.handleStructureVideoMotionStrengthChange,
+              onStructureTypeChange: structureVideoHandlers.handleStructureTypeChangeFromMotionControl,
+              uni3cEndPercent: structureVideo.structureVideoUni3cEndPercent,
+              onUni3cEndPercentChange: structureVideoHandlers.handleUni3cEndPercentChange,
+            }}
+            lora={{
+              selectedLoras: loraManager.selectedLoras,
+              availableLoras: loraSettingsFromContext.availableLoras,
+              onAddLoraClick: () => loraManager.setIsLoraModalOpen(true),
+              onRemoveLora: loraManager.handleRemoveLora,
+              onLoraStrengthChange: loraManager.handleLoraStrengthChange,
+              onAddTriggerWord: loraManager.handleAddTriggerWord,
+              renderLoraHeaderActions: loraManager.renderHeaderActions,
+            }}
+            presets={{
+              selectedPhasePresetId: phaseConfigSettings.selectedPhasePresetId,
+              onPhasePresetSelect: phaseConfigSettings.selectPreset,
+              onPhasePresetRemove: phaseConfigSettings.removePreset,
+              currentSettings: generationMode.currentMotionSettings,
+            }}
+            advanced={{
+              phaseConfig: phaseConfigSettings.phaseConfig,
+              onPhaseConfigChange: phaseConfigSettings.setPhaseConfig,
+              onBlurSave: blurSaveHandler,
+              randomSeed: generationMode.randomSeed,
+              onRandomSeedChange: generationMode.onRandomSeedChange,
+              onRestoreDefaults: phaseConfigSettings.restoreDefaults,
+            }}
+            stateOverrides={{
+              turboMode: motionSettings.turboMode,
+              settingsLoading: settingsLoadingFromContext,
+              smoothContinuations: motionSettings.smoothContinuations,
+              onSmoothContinuationsChange: motionSettings.setSmoothContinuations,
+            }}
           />
         </div>
       </div>

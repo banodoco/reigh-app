@@ -39,28 +39,43 @@ interface DatabasePreset {
 
 export type Preset = BuiltinPreset | DatabasePreset;
 
-export interface MotionPresetSelectorProps {
+export interface MotionPresetSelectorCoreProps {
   builtinPreset: BuiltinPreset;
   featuredPresetIds?: string[];
   generationTypeMode: GenerationTypeMode;
   selectedPhasePresetId: string | null;
   phaseConfig?: PhaseConfig;
   motionMode: MotionMode;
+}
+
+export interface MotionPresetSelectorActionProps {
   onPresetSelect: (presetId: string, config: PhaseConfig, metadata?: PresetMetadata) => void;
   onPresetRemove: () => void;
   onModeChange: (mode: MotionMode) => void;
   onPhaseConfigChange: (config: PhaseConfig) => void;
   onRestoreDefaults?: () => void;
+}
+
+export interface MotionPresetSelectorStateProps {
   availableLoras?: LoraModel[];
   randomSeed?: boolean;
   onRandomSeedChange?: (value: boolean) => void;
   advancedDisabled?: boolean;
   advancedDisabledReason?: string;
   presetTooltip?: string;
+}
+
+export interface MotionPresetSelectorUiProps {
   renderBasicModeContent?: () => ReactNode;
   queryKeyPrefix?: string;
   labelSuffix?: ReactNode;
 }
+
+export interface MotionPresetSelectorProps
+  extends MotionPresetSelectorCoreProps,
+    MotionPresetSelectorActionProps,
+    MotionPresetSelectorStateProps,
+    MotionPresetSelectorUiProps {}
 
 export interface SelectedPresetCardProps {
   presetId: string;

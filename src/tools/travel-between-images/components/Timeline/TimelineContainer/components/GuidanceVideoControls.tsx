@@ -10,16 +10,22 @@ import { extractVideoMetadata, uploadVideoToStorage, type VideoMetadata } from '
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
-interface GuidanceVideoControlsProps {
+interface GuidanceVideoContextProps {
   shotId: string;
   projectId?: string;
   readOnly?: boolean;
   hasNoImages?: boolean;
+  structureVideos?: StructureVideoConfigWithMetadata[];
+  fullMax: number;
+}
+
+interface GuidanceVideoPrimarySettingsProps {
   primaryStructureVideoType: 'uni3c' | 'flow' | 'canny' | 'depth';
   primaryStructureVideoTreatment: 'adjust' | 'clip';
   primaryStructureVideoMotionStrength: number;
-  structureVideos?: StructureVideoConfigWithMetadata[];
-  fullMax: number;
+}
+
+interface GuidanceVideoActionProps {
   onAddStructureVideo?: (video: StructureVideoConfigWithMetadata) => void;
   onUpdateStructureVideo?: (index: number, updates: Partial<StructureVideoConfigWithMetadata>) => void;
   onPrimaryStructureVideoInputChange?: (
@@ -31,9 +37,18 @@ interface GuidanceVideoControlsProps {
     resourceId?: string
   ) => void;
   onShowVideoBrowser: () => void;
+}
+
+interface GuidanceVideoUploadStateProps {
   isUploadingStructureVideo: boolean;
   setIsUploadingStructureVideo: (value: boolean) => void;
 }
+
+interface GuidanceVideoControlsProps
+  extends GuidanceVideoContextProps,
+    GuidanceVideoPrimarySettingsProps,
+    GuidanceVideoActionProps,
+    GuidanceVideoUploadStateProps {}
 
 /** Controls for uploading/browsing guidance videos */
 export const GuidanceVideoControls = React.memo<GuidanceVideoControlsProps>(function GuidanceVideoControls({

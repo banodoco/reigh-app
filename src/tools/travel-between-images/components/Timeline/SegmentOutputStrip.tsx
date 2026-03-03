@@ -27,17 +27,23 @@ interface PairInfo {
   frames: number;
 }
 
-interface SegmentOutputStripProps {
+interface SegmentOutputStripCoreProps {
   shotId: string;
   projectId?: string | null;
   projectAspectRatio?: string;
   pairInfo: PairInfo[];
+  segmentSlots: SegmentSlot[];
+}
+
+interface SegmentOutputStripRangeProps {
   fullMin: number;
   fullMax: number;
   fullRange: number;
   containerWidth: number;
   zoomLevel: number;
-  segmentSlots: SegmentSlot[];
+}
+
+interface SegmentOutputStripInteractionProps {
   isLoading?: boolean;
   localShotGenPositions?: Map<string, number>;
   hasPendingTask?: (pairShotGenerationId: string | null | undefined) => boolean;
@@ -45,6 +51,9 @@ interface SegmentOutputStripProps {
   selectedParentId?: string | null;
   pairDataByIndex?: Map<number, PairData>;
   onSegmentFrameCountChange?: (pairShotGenerationId: string, frameCount: number) => void;
+}
+
+interface SegmentOutputStripTrailingSegmentProps {
   trailingSegmentMode?: {
     imageId: string;
     imageFrame: number;
@@ -57,6 +66,12 @@ interface SegmentOutputStripProps {
   lastImageFrame?: number;
   onTrailingVideoInfo?: (videoUrl: string | null) => void;
 }
+
+interface SegmentOutputStripProps
+  extends SegmentOutputStripCoreProps,
+    SegmentOutputStripRangeProps,
+    SegmentOutputStripInteractionProps,
+    SegmentOutputStripTrailingSegmentProps {}
 
 export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
   shotId,

@@ -17,13 +17,17 @@ import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';
 import { useTaskFromUnifiedCache } from '@/shared/hooks/tasks/useTaskPrefetch';
 import { useShareGeneration } from '@/shared/hooks/useShareGeneration';
 
-interface VideoItemProps {
+interface VideoItemCoreProps {
   video: GenerationRow;
   index: number;
   originalIndex: number;
   shouldPreload: string;
   isMobile: boolean;
   projectAspectRatio?: string;
+  projectId?: string | null;
+}
+
+interface VideoItemInteractionProps {
   onLightboxOpen: (index: number) => void;
   onMobileTap: (index: number) => void;
   onMobilePreload?: (index: number) => void;
@@ -32,18 +36,33 @@ interface VideoItemProps {
   onHoverStart: (video: GenerationRow, event: React.MouseEvent) => void;
   onHoverEnd: () => void;
   onMobileModalOpen: (video: GenerationRow) => void;
+}
+
+interface VideoItemTaskProps {
   selectedVideoForDetails: GenerationRow | null;
   showTaskDetailsModal: boolean;
   onApplySettingsFromTask: (taskId: string, replaceImages: boolean, inputImages: string[]) => void;
+}
+
+interface VideoItemShareProps {
   existingShareSlug?: string;
   onShareCreated?: (videoId: string, shareSlug: string) => void;
-  projectId?: string | null;
+}
+
+interface VideoItemPresentationProps {
   hideActions?: boolean;
   /** Custom tooltip text for the delete button */
   deleteTooltip?: string;
   /** Optional data-tour attribute for product tour targeting */
   dataTour?: string;
 }
+
+interface VideoItemProps
+  extends VideoItemCoreProps,
+    VideoItemInteractionProps,
+    VideoItemTaskProps,
+    VideoItemShareProps,
+    VideoItemPresentationProps {}
 
 export const VideoItem = React.memo<VideoItemProps>(({
   video,

@@ -19,26 +19,33 @@ import { resolveDuplicateFrame } from '../utils/image-utils';
 
 const FPS = 16;
 
-interface ImageGridProps {
+interface ImageGridCoreProps {
   images: GenerationRow[];
   selectedIds: string[];
   gridColsClass: string;
   /** Number of columns in the grid (for row boundary calculations) */
   columns?: number;
+  isMobile: boolean;
+  readOnly?: boolean;
+}
+
+interface ImageGridInteractionProps {
   onItemClick: (imageKey: string, event: React.MouseEvent) => void;
   onItemDoubleClick: (idx: number) => void;
   onInpaintClick: (idx: number) => void;
   onDelete: (id: string) => void;
-  onDuplicate?: (shotImageEntryId: string, timeline_frame: number) => void;
-  isMobile: boolean;
-  duplicatingImageId?: string | null;
-  duplicateSuccessImageId?: string | null;
-  projectAspectRatio?: string;
-  batchVideoFrames?: number;
   onGridDoubleClick?: () => void;
   onImageUpload?: (files: File[]) => Promise<void>;
   isUploadingImage?: boolean;
-  readOnly?: boolean;
+}
+
+interface ImageGridDuplicationProps {
+  onDuplicate?: (shotImageEntryId: string, timeline_frame: number) => void;
+  duplicatingImageId?: string | null;
+  duplicateSuccessImageId?: string | null;
+}
+
+interface ImageGridPairPromptProps {
   // Pair prompt props - pass index and optionally pairData (for single-image mode)
   onPairClick?: (pairIndex: number, pairData?: PairData) => void;
   pairPrompts?: Record<number, { prompt: string; negativePrompt: string }>;
@@ -46,15 +53,15 @@ interface ImageGridProps {
   defaultPrompt?: string;
   defaultNegativePrompt?: string;
   onClearEnhancedPrompt?: (pairIndex: number) => void;
-  // NEW: Per-pair parameter overrides for showing override icons
+  // Per-pair parameter overrides for showing override icons
   pairOverrides?: Record<number, {
     phaseConfig?: PhaseConfig;
     loras?: PairLoraConfig[];
     motionSettings?: PairMotionSettings;
   }>;
-  isDragging?: boolean;
-  activeDragId?: string | null;
-  dropTargetIndex?: number | null;
+}
+
+interface ImageGridSegmentVideoProps {
   // Segment video output props
   segmentSlots?: SegmentSlot[];
   onSegmentClick?: (slotIndex: number) => void;
@@ -64,6 +71,9 @@ interface ImageGridProps {
   onSegmentDelete?: (generationId: string) => void;
   /** ID of segment currently being deleted */
   deletingSegmentId?: string | null;
+}
+
+interface ImageGridScrubbingProps {
   // Scrubbing preview props
   /** Index of the currently scrubbing segment (null if none) */
   activeScrubbingIndex?: number | null;
@@ -71,6 +81,20 @@ interface ImageGridProps {
   onScrubbingStart?: (index: number, rect: DOMRect) => void;
   /** Scrubbing hook return for the active segment */
   scrubbing?: UseVideoScrubbingReturn;
+}
+
+interface ImageGridProps
+  extends ImageGridCoreProps,
+    ImageGridInteractionProps,
+    ImageGridDuplicationProps,
+    ImageGridPairPromptProps,
+    ImageGridSegmentVideoProps,
+    ImageGridScrubbingProps {
+  projectAspectRatio?: string;
+  batchVideoFrames?: number;
+  isDragging?: boolean;
+  activeDragId?: string | null;
+  dropTargetIndex?: number | null;
 }
 
 export const ImageGrid: React.FC<ImageGridProps> = ({

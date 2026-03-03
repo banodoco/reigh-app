@@ -27,7 +27,7 @@ function asString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
-export interface SegmentRegenerateFormProps {
+export interface SegmentRegenerateTaskProps {
   /** Generation params from the current video */
   params: Record<string, unknown>;
   /** Project ID for task creation */
@@ -40,6 +40,9 @@ export interface SegmentRegenerateFormProps {
   childGenerationId?: string;
   /** Optional segment index (defaults to 0 for single-segment videos) */
   segmentIndex?: number;
+}
+
+export interface SegmentRegenerateImageProps {
   /** Start image URL for the segment */
   startImageUrl?: string;
   /** End image URL for the segment */
@@ -56,6 +59,13 @@ export interface SegmentRegenerateFormProps {
   pairShotGenerationId?: string;
   /** Project resolution for output */
   projectResolution?: string;
+  /** Shot generation ID for the end image (for navigation) */
+  endImageShotGenerationId?: string;
+  /** Callback to navigate to a constituent image by shot_generation.id */
+  onNavigateToImage?: (shotGenerationId: string) => void;
+}
+
+export interface SegmentRegenerateFrameSyncProps {
   /** Callback when frame count changes - for instant timeline updates */
   onFrameCountChange?: (pairShotGenerationId: string, frameCount: number) => void;
   /** Current frame count from timeline positions (source of truth) */
@@ -66,6 +76,9 @@ export interface SegmentRegenerateFormProps {
   variantParamsToLoad?: Record<string, unknown> | null;
   /** Callback when variant params have been loaded (to clear the trigger) */
   onVariantParamsLoaded?: () => void;
+}
+
+export interface SegmentRegenerateStructureDefaultsProps {
   /** Structure video type for this segment (null = no structure video coverage) */
   structureVideoType?: 'uni3c' | 'flow' | 'canny' | 'depth' | null;
   /** Shot-level structure video defaults */
@@ -89,13 +102,9 @@ export interface SegmentRegenerateFormProps {
     treatment?: 'adjust' | 'clip';
     uni3cEndPercent?: number;
   }) => Promise<void>;
+}
 
-  /** Shot generation ID for the end image (for navigation) */
-  endImageShotGenerationId?: string;
-  /** Callback to navigate to a constituent image by shot_generation.id */
-  onNavigateToImage?: (shotGenerationId: string) => void;
-
-  // Per-segment structure video management (Timeline Mode only)
+export interface SegmentRegenerateStructureManagementProps {
   /** Whether in timeline mode (shows structure video upload) vs batch mode (preview only) */
   isTimelineMode?: boolean;
   /** Callback to add a structure video for this segment */
@@ -105,6 +114,13 @@ export interface SegmentRegenerateFormProps {
   /** Callback to remove this segment's structure video */
   onRemoveSegmentStructureVideo?: () => void;
 }
+
+export interface SegmentRegenerateFormProps
+  extends SegmentRegenerateTaskProps,
+    SegmentRegenerateImageProps,
+    SegmentRegenerateFrameSyncProps,
+    SegmentRegenerateStructureDefaultsProps,
+    SegmentRegenerateStructureManagementProps {}
 
 export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
   params: initialParams,
@@ -313,7 +329,6 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
     endImageVariantId,
     pairShotGenerationId,
     projectResolution,
-    toast,
     enhancePromptRef,
     run,
     queryClient,

@@ -4,7 +4,7 @@ import { GenerationRow } from '@/domains/generation/types';
  * Props shape expected by the VideoItem memo comparison.
  * Kept minimal — only the fields the comparator actually inspects.
  */
-interface VideoItemMemoProps {
+interface VideoItemMemoDataProps {
   video: GenerationRow;
   index: number;
   originalIndex: number;
@@ -16,7 +16,10 @@ interface VideoItemMemoProps {
   selectedVideoForDetails: GenerationRow | null;
   showTaskDetailsModal: boolean;
   deleteTooltip?: string;
-  // Handler references (should be stable via useCallback)
+}
+
+interface VideoItemMemoHandlerProps {
+  // Handler references (should be stable via useCallback).
   onLightboxOpen: (index: number) => void;
   onMobileTap: (index: number) => void;
   onMobilePreload?: (index: number) => void;
@@ -26,6 +29,8 @@ interface VideoItemMemoProps {
   onMobileModalOpen: (video: GenerationRow) => void;
   onApplySettingsFromTask: (taskId: string, replaceImages: boolean, inputImages: string[]) => void;
 }
+
+interface VideoItemMemoProps extends VideoItemMemoDataProps, VideoItemMemoHandlerProps {}
 
 /**
  * Custom memo comparison for VideoItem.

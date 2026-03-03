@@ -1,8 +1,8 @@
 {
   "command": "status",
-  "overall_score": 75.6,
+  "overall_score": 75.7,
   "objective_score": 97.3,
-  "strict_score": 75.6,
+  "strict_score": 75.7,
   "verified_strict_score": 95.9,
   "dimension_scores": {
     "File health": {
@@ -23,11 +23,11 @@
       "strict": 96.6
     },
     "Code quality": {
-      "score": 97.0,
-      "strict_score": 97.0,
+      "score": 97.1,
+      "strict_score": 97.1,
       "verified_strict_score": 96.9,
       "checks": 13377,
-      "issues": 614,
+      "issues": 578,
       "tier": 3,
       "detectors": {
         "unused": {
@@ -56,9 +56,9 @@
         },
         "props": {
           "potential": 673,
-          "pass_rate": 0.9399702823179791,
-          "issues": 112,
-          "weighted_failures": 40.400000000000034
+          "pass_rate": 0.9613670133729569,
+          "issues": 76,
+          "weighted_failures": 26.000000000000025
         },
         "smells": {
           "potential": 1417,
@@ -115,7 +115,7 @@
           "weighted_failures": 6.300000000000001
         }
       },
-      "strict": 97.0
+      "strict": 97.1
     },
     "Duplication": {
       "score": 95.7,
@@ -709,10 +709,10 @@
     },
     {
       "name": "Code quality",
-      "score": 97.0,
-      "strict": 97.0,
+      "score": 97.1,
+      "strict": 97.1,
       "checks": 13377,
-      "issues": 614,
+      "issues": 578,
       "tier": 3,
       "subjective": false
     },
@@ -1095,8 +1095,8 @@
     "total": 5460,
     "auto_resolved": 3498,
     "false_positive": 3,
-    "fixed": 113,
-    "open": 1846,
+    "fixed": 149,
+    "open": 1810,
     "wontfix": 0,
     "by_tier": {
       "1": {
@@ -1116,8 +1116,8 @@
       "3": {
         "auto_resolved": 1755,
         "false_positive": 3,
-        "fixed": 105,
-        "open": 796,
+        "fixed": 141,
+        "open": 760,
         "wontfix": 0
       },
       "4": {
@@ -1149,8 +1149,8 @@
     "3": {
       "auto_resolved": 1755,
       "false_positive": 3,
-      "fixed": 105,
-      "open": 796,
+      "fixed": 141,
+      "open": 760,
       "wontfix": 0
     },
     "4": {
@@ -1210,15 +1210,15 @@
     }
   },
   "open_scope": {
-    "in_scope": 1846,
+    "in_scope": 1810,
     "out_of_scope": 0,
-    "global": 1846
+    "global": 1810
   },
   "score_breakdown": {
-    "overall_score": 75.6,
+    "overall_score": 75.7,
     "mechanical_fraction": 0.4,
     "subjective_fraction": 0.6,
-    "mechanical_avg": 97.3,
+    "mechanical_avg": 97.31666666666666,
     "subjective_avg": 61.206504065040654,
     "entries": [
       {
@@ -1237,15 +1237,15 @@
       {
         "name": "Code quality",
         "pool": "mechanical",
-        "score": 97.0,
+        "score": 97.1,
         "checks": 13377.0,
         "sample_factor": 1.0,
         "configured_weight": 1.0,
         "effective_weight": 1.0,
         "pool_share": 0.16666666666666666,
         "overall_per_point": 0.06666666666666667,
-        "overall_contribution": 6.466666666666667,
-        "overall_drag": 0.2
+        "overall_contribution": 6.473333333333333,
+        "overall_drag": 0.19333333333333372
       },
       {
         "name": "Duplication",
@@ -1551,7 +1551,7 @@
   "next_command": "desloppify next",
   "narrative": {
     "phase": "stagnation",
-    "headline": "\u26a0 13 security findings \u2014 review before other cleanup. Score plateaued at 75.6 for 5 scans. Design coherence (42.8%) is where the breakthrough is.",
+    "headline": "\u26a0 13 security findings \u2014 review before other cleanup. Score plateaued at 75.7 for 5 scans. Design coherence (42.8%) is where the breakthrough is.",
     "dimensions": {
       "lowest_dimensions": [
         {
@@ -1703,8 +1703,8 @@
       {
         "type": "refactor",
         "detector": "props",
-        "count": 112,
-        "description": "112 props findings in 3 cluster(s) \u2014 run `desloppify next`",
+        "count": 76,
+        "description": "76 props findings in 3 cluster(s) \u2014 run `desloppify next`",
         "command": "desloppify next",
         "impact": 0.0,
         "dimension": "Code quality",
@@ -1889,7 +1889,7 @@
     "strategy": {
       "fixer_leverage": {
         "auto_fixable_count": 1,
-        "total_count": 1846,
+        "total_count": 1810,
         "coverage": 0.001,
         "impact_ratio": 0.0,
         "recommendation": "none"
@@ -1932,7 +1932,7 @@
             18,
             19
           ],
-          "file_count": 1177,
+          "file_count": 1169,
           "total_impact": 0.0,
           "automation": "manual",
           "run_first": false
@@ -2020,8 +2020,8 @@
     "risk_flags": [],
     "strict_target": {
       "target": 95.0,
-      "current": 75.6,
-      "gap": 19.4,
+      "current": 75.7,
+      "gap": 19.3,
       "state": "below",
       "warning": null
     },
@@ -2040,7 +2040,7 @@
   "plan": {
     "active": true,
     "focus": null,
-    "total_ordered": 86,
+    "total_ordered": 50,
     "total_skipped": 14,
     "plan_overrides_narrative": true
   },

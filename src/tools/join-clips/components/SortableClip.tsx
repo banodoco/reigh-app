@@ -25,20 +25,30 @@ const UploadingVideoState: React.FC = () => (
   </div>
 );
 
-interface SortableClipProps {
+interface SortableClipDataProps {
   clip: VideoClip;
   index: number;
   clips: VideoClip[];
+  transitionPrompts: TransitionPrompt[];
+}
+
+interface SortableClipUiStateProps {
   uploadingClipId: string | null;
   draggingOverClipId: string | null;
   isScrolling: boolean;
   settingsLoaded: boolean;
-  videoRefs: React.MutableRefObject<{ [clipId: string]: HTMLVideoElement | null }>;
-  fileInputRefs: React.MutableRefObject<{ [clipId: string]: HTMLInputElement | null }>;
-  transitionPrompts: TransitionPrompt[];
   useIndividualPrompts: boolean;
   loopFirstClip: boolean;
   firstClipFinalFrameUrl?: string;
+}
+
+interface SortableClipRefProps {
+  videoRefs: React.MutableRefObject<{ [clipId: string]: HTMLVideoElement | null }>;
+  fileInputRefs: React.MutableRefObject<{ [clipId: string]: HTMLInputElement | null }>;
+  setClips: React.Dispatch<React.SetStateAction<VideoClip[]>>;
+}
+
+interface SortableClipActionProps {
   onLoopFirstClipChange: (checked: boolean) => void;
   onRemoveClip: (clipId: string) => void;
   onClearVideo: (clipId: string) => void;
@@ -48,9 +58,14 @@ interface SortableClipProps {
   onDragLeave: (e: React.DragEvent, clipId: string) => void;
   onDrop: (e: React.DragEvent, clipId: string) => void;
   onPromptChange: (clipId: string, prompt: string) => void;
-  setClips: React.Dispatch<React.SetStateAction<VideoClip[]>>;
   onOpenInLightbox: (clip: VideoClip) => void;
 }
+
+interface SortableClipProps
+  extends SortableClipDataProps,
+    SortableClipUiStateProps,
+    SortableClipRefProps,
+    SortableClipActionProps {}
 
 export const SortableClip: React.FC<SortableClipProps> = ({
   clip,

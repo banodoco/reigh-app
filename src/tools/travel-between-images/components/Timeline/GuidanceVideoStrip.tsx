@@ -42,13 +42,16 @@ function calculateVideoFrameFromPosition(
   }
 }
 
-interface GuidanceVideoStripProps {
+interface GuidanceVideoStripMediaProps {
   videoUrl: string;
   videoMetadata: VideoMetadata | null;
   treatment: 'adjust' | 'clip';
   onTreatmentChange: (treatment: 'adjust' | 'clip') => void;
   onRemove: () => void;
   onMetadataExtracted?: (metadata: VideoMetadata) => void;
+}
+
+interface GuidanceVideoStripTimelineProps {
   // Timeline coordinate system
   fullMin: number;
   fullMax: number;
@@ -58,7 +61,9 @@ interface GuidanceVideoStripProps {
   // Timeline dimensions
   timelineFrameCount: number;
   readOnly?: boolean;
+}
 
+interface GuidanceVideoStripRangeProps {
   // Output range - where in timeline this video is positioned
   outputStartFrame?: number;
   outputEndFrame?: number;
@@ -70,13 +75,21 @@ interface GuidanceVideoStripProps {
   // Callbacks for range changes
   onRangeChange?: (startFrame: number, endFrame: number) => void;
   onSourceRangeChange?: (sourceStartFrame: number, sourceEndFrame: number | null) => void;
+}
 
+interface GuidanceVideoStripLayoutProps {
   // Position absolutely within parent (for multi-video same-row layout)
   useAbsolutePosition?: boolean;
 
   // Sibling video ranges for collision detection
   siblingRanges?: Array<{ start: number; end: number }>;
 }
+
+interface GuidanceVideoStripProps
+  extends GuidanceVideoStripMediaProps,
+    GuidanceVideoStripTimelineProps,
+    GuidanceVideoStripRangeProps,
+    GuidanceVideoStripLayoutProps {}
 
 export const GuidanceVideoStrip: React.FC<GuidanceVideoStripProps> = ({
   videoUrl,

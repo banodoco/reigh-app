@@ -24,26 +24,41 @@ import { useReferenceResourceMutations } from './useReferenceResourceMutations';
 import { useResourceSelectHandler } from './referenceUpload/useResourceSelectHandler';
 import { useStyleReferenceUploadHandler } from './referenceUpload/useStyleReferenceUploadHandler';
 
-interface UseReferenceUploadProps {
+interface ReferenceUploadContextProps {
   selectedProjectId: string | undefined;
   effectiveShotId: string;
   selectedReferenceIdByShot: Record<string, string | null>;
   referencePointers: ReferenceImage[];
   hydratedReferences: HydratedReferenceImage[];
+}
+
+interface ReferenceUploadStateProps {
   isLoadingProjectSettings: boolean;
   isLocalGenerationEnabled: boolean;
+}
+
+interface ReferenceUploadSettingsProps {
   updateProjectImageSettings: (
     scope: 'project' | 'shot',
     updates: Partial<ProjectImageSettings>
   ) => Promise<void>;
   markAsInteracted: () => void;
   privacyDefaults: { resourcesPublic: boolean };
+}
+
+interface ReferenceUploadModeProps {
   referenceMode: ReferenceMode;
   styleReferenceStrength: number;
   subjectStrength: number;
   inThisScene: boolean;
   inThisSceneStrength: number;
 }
+
+interface UseReferenceUploadProps
+  extends ReferenceUploadContextProps,
+    ReferenceUploadStateProps,
+    ReferenceUploadSettingsProps,
+    ReferenceUploadModeProps {}
 
 interface UseReferenceUploadReturn {
   isUploadingStyleReference: boolean;

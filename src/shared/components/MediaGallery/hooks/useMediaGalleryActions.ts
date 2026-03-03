@@ -14,15 +14,21 @@ import {
   DownloadServiceError,
 } from '@/shared/components/MediaGallery/services/downloadService';
 
-interface UseMediaGalleryActionsProps {
+interface UseMediaGalleryActionHandlerProps {
   onDelete?: LightboxDeleteHandler;
   onApplySettings?: (metadata: DisplayableMetadata | undefined) => void;
   onAddToLastShot?: AddToShotHandler;
   onAddToLastShotWithoutPosition?: AddToShotHandler;
   onToggleStar?: (id: string, starred: boolean) => void;
+}
+
+interface UseMediaGalleryLightboxStateProps {
   activeLightboxMedia: GeneratedImageWithMetadata | null;
   setActiveLightboxMedia: (media: GeneratedImageWithMetadata | null) => void;
   setAutoEnterEditMode: (value: boolean) => void;
+}
+
+interface UseMediaGalleryOptimisticStateProps {
   markOptimisticDeleted: (imageId: string) => void;
   markOptimisticDeletedWithBackfill: (imageId: string) => void;
   removeOptimisticDeleted: (imageId: string) => void;
@@ -31,6 +37,9 @@ interface UseMediaGalleryActionsProps {
   setShowTickForSecondaryImageId: (id: string | null) => void;
   mainTickTimeoutRef: React.MutableRefObject<NodeJS.Timeout | null>;
   secondaryTickTimeoutRef: React.MutableRefObject<NodeJS.Timeout | null>;
+}
+
+interface UseMediaGalleryBackfillProps {
   onBackfillRequest?: () => Promise<void>;
   serverPage?: number;
   itemsPerPage: number;
@@ -44,6 +53,19 @@ interface UseMediaGalleryActionsProps {
   optimisticDeletedCount: number;
   onPageBoundsExceeded?: (newLastPage: number) => void;
 }
+
+interface UseMediaGalleryDataProps {
+  filteredImages: GeneratedImageWithMetadata[];
+  setIsDownloadingStarred: (downloading: boolean) => void;
+  setSelectedShotIdLocal: (shotId: string) => void;
+}
+
+interface UseMediaGalleryActionsProps
+  extends UseMediaGalleryActionHandlerProps,
+    UseMediaGalleryLightboxStateProps,
+    UseMediaGalleryOptimisticStateProps,
+    UseMediaGalleryBackfillProps,
+    UseMediaGalleryDataProps {}
 
 interface UseMediaGalleryActionsReturn {
   handleOptimisticDelete: (imageId: string) => Promise<void>;

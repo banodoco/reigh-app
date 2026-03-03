@@ -15,48 +15,45 @@ import { cn } from '@/shared/components/ui/contracts/cn';
 import type { Shot } from "@/domains/generation/types";
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
-interface ShotSelectorWithAddProps {
-  // Image data
+interface ShotSelectorWithAddImageProps {
   imageId: string;
   imageUrl?: string;
   thumbUrl?: string;
-  
-  // Shot options
+}
+
+interface ShotSelectorWithAddSelectionProps {
   shots: ShotOption[];
   selectedShotId: string;
   onShotChange: (shotId: string) => void;
-  
-  // Add to shot functionality
+}
+
+interface ShotSelectorWithAddActionProps {
+  // Add to shot functionality.
   // CRITICAL: targetShotId is the shot selected in the DROPDOWN, not the shot being viewed
   onAddToShot: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
-  
-  // Whether to show the "create shot" option in the dropdown
   showCreateShot?: boolean;
-  
-  // State tracking
   isAlreadyPositionedInSelectedShot?: boolean;
   showTick?: boolean;
   isAdding?: boolean;
-  
-  // Callbacks
   onShowTick?: (imageId: string) => void;
   onOptimisticPositioned?: (imageId: string, shotId: string) => void;
   onClose?: () => void; // Close lightbox when navigating to shot
-  
-  // Layout
+}
+
+interface ShotSelectorWithAddLayoutProps {
   layout?: 'vertical' | 'horizontal';
-  
-  // Styling
   className?: string;
   selectorClassName?: string;
   buttonClassName?: string;
-  
-  // Portal container for select dropdown
   container?: HTMLElement | null;
-  
-  // Mobile mode
   isMobile?: boolean;
 }
+
+interface ShotSelectorWithAddProps
+  extends ShotSelectorWithAddImageProps,
+    ShotSelectorWithAddSelectionProps,
+    ShotSelectorWithAddActionProps,
+    ShotSelectorWithAddLayoutProps {}
 
 export const ShotSelectorWithAdd: React.FC<ShotSelectorWithAddProps> = ({
   imageId,
@@ -140,7 +137,7 @@ export const ShotSelectorWithAdd: React.FC<ShotSelectorWithAddProps> = ({
     } catch (error) {
       normalizeAndPresentError(error, { context: 'ShotSelectorWithAdd', toastTitle: 'Could not add image to shot' });
     }
-  }, [showTick, isAlreadyPositionedInSelectedShot, selectedShotId, shots, navigateToShot, onAddToShot, imageId, imageUrl, thumbUrl, onShowTick, onOptimisticPositioned, toast, onClose]);
+  }, [showTick, isAlreadyPositionedInSelectedShot, selectedShotId, shots, navigateToShot, onAddToShot, imageId, imageUrl, thumbUrl, onShowTick, onOptimisticPositioned, onClose]);
   
   // Handle shot change
   const handleShotChange = useCallback((value: string) => {

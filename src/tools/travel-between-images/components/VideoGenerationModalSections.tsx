@@ -220,33 +220,43 @@ export function VideoGenerationModalFormContent({
             <SectionHeader title="Motion" theme="purple" />
           </div>
           <MotionControl
-            motionMode={(settings.motionMode || 'basic') as 'basic' | 'advanced'}
-            onMotionModeChange={(v) => {
-              updateField('motionMode', v);
-              updateField('advancedMode', v === 'advanced');
+            mode={{
+              motionMode: (settings.motionMode || 'basic') as 'basic' | 'advanced',
+              onMotionModeChange: (v) => {
+                updateField('motionMode', v);
+                updateField('advancedMode', v === 'advanced');
+              },
+              generationTypeMode: settings.generationTypeMode || 'i2v',
+              onGenerationTypeModeChange: (v) => updateField('generationTypeMode', v),
+              hasStructureVideo: !!settings.structureVideo?.path,
             }}
-            generationTypeMode={settings.generationTypeMode || 'i2v'}
-            onGenerationTypeModeChange={(v) => updateField('generationTypeMode', v)}
-            hasStructureVideo={!!settings.structureVideo?.path}
-            selectedLoras={selectedLoras}
-            availableLoras={availableLoras || []}
-            onAddLoraClick={onOpenLoraModal}
-            onRemoveLora={onRemoveLora}
-            onLoraStrengthChange={onLoraStrengthChange}
-            onAddTriggerWord={(word) => onAddTriggerWord(word)}
-            selectedPhasePresetId={validPresetId}
-            onPhasePresetSelect={(id, config) => {
-              updateField('selectedPhasePresetId', id);
-              updateField('phaseConfig', config);
+            lora={{
+              selectedLoras,
+              availableLoras: availableLoras || [],
+              onAddLoraClick: onOpenLoraModal,
+              onRemoveLora,
+              onLoraStrengthChange,
+              onAddTriggerWord: (word) => onAddTriggerWord(word),
             }}
-            onPhasePresetRemove={() => updateField('selectedPhasePresetId', undefined)}
-            currentSettings={{}}
-            phaseConfig={settings.phaseConfig || DEFAULT_PHASE_CONFIG}
-            onPhaseConfigChange={(v) => updateField('phaseConfig', v)}
-            randomSeed={randomSeed}
-            onRandomSeedChange={onRandomSeedChange}
-            turboMode={settings.turboMode || false}
-            settingsLoading={status !== 'ready' && status !== 'saving'}
+            presets={{
+              selectedPhasePresetId: validPresetId,
+              onPhasePresetSelect: (id, config) => {
+                updateField('selectedPhasePresetId', id);
+                updateField('phaseConfig', config);
+              },
+              onPhasePresetRemove: () => updateField('selectedPhasePresetId', undefined),
+              currentSettings: {},
+            }}
+            advanced={{
+              phaseConfig: settings.phaseConfig || DEFAULT_PHASE_CONFIG,
+              onPhaseConfigChange: (v) => updateField('phaseConfig', v),
+              randomSeed,
+              onRandomSeedChange,
+            }}
+            stateOverrides={{
+              turboMode: settings.turboMode || false,
+              settingsLoading: status !== 'ready' && status !== 'saving',
+            }}
           />
         </div>
       </div>

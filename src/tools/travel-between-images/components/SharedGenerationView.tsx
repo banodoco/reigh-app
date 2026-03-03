@@ -77,7 +77,7 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
       return;
     }
     setShowProjectSelector(true);
-  }, [isAuthenticated, shareSlug, toast, navigate]);
+  }, [isAuthenticated, shareSlug, navigate]);
 
   const checkPendingShare = useCallback(() => {
     const pendingShare = sessionStorage.getItem('pending_share');
@@ -373,34 +373,45 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
 
                 <div className="pointer-events-none opacity-75">
                   <MotionControl
-                    motionMode={advancedMode ? 'advanced' : (motionMode as 'basic' | 'advanced')}
-                    onMotionModeChange={() => {}}
-                    selectedLoras={loras}
-                    availableLoras={[]}
-                    onAddLoraClick={() => {}}
-                    onRemoveLora={() => {}}
-                    onLoraStrengthChange={() => {}}
-                    selectedPhasePresetId={null}
-                    onPhasePresetSelect={() => {}}
-                    onPhasePresetRemove={() => {}}
-                    currentSettings={{
-                      basePrompt: prompt,
-                      negativePrompt: negativePrompt,
-                      enhancePrompt: enhancePrompt,
-                      durationFrames: batchVideoFrames,
+                    mode={{
+                      motionMode: advancedMode ? 'advanced' : (motionMode as 'basic' | 'advanced'),
+                      onMotionModeChange: () => {},
+                      hasStructureVideo: !!structureVideo?.path,
                     }}
-                    phaseConfig={phaseConfig || undefined}
-                    onPhaseConfigChange={() => {}}
-                    randomSeed={false}
-                    onRandomSeedChange={() => {}}
-                    turboMode={turboMode}
-                    settingsLoading={false}
-                    // Structure video settings
-                    hasStructureVideo={!!structureVideo?.path}
-                    structureType={structureVideo?.structureType as 'uni3c' | 'flow' | 'canny' | 'depth' || 'uni3c'}
-                    structureVideoMotionStrength={structureVideo?.motionStrength ?? 1.0}
-                    onStructureVideoMotionStrengthChange={() => {}}
-                    onStructureTypeChange={() => {}}
+                    lora={{
+                      selectedLoras: loras,
+                      availableLoras: [],
+                      onAddLoraClick: () => {},
+                      onRemoveLora: () => {},
+                      onLoraStrengthChange: () => {},
+                    }}
+                    presets={{
+                      selectedPhasePresetId: null,
+                      onPhasePresetSelect: () => {},
+                      onPhasePresetRemove: () => {},
+                      currentSettings: {
+                        basePrompt: prompt,
+                        negativePrompt: negativePrompt,
+                        enhancePrompt: enhancePrompt,
+                        durationFrames: batchVideoFrames,
+                      },
+                    }}
+                    advanced={{
+                      phaseConfig: phaseConfig || undefined,
+                      onPhaseConfigChange: () => {},
+                      randomSeed: false,
+                      onRandomSeedChange: () => {},
+                    }}
+                    structureVideo={{
+                      structureType: structureVideo?.structureType as 'uni3c' | 'flow' | 'canny' | 'depth' || 'uni3c',
+                      structureVideoMotionStrength: structureVideo?.motionStrength ?? 1.0,
+                      onStructureVideoMotionStrengthChange: () => {},
+                      onStructureTypeChange: () => {},
+                    }}
+                    stateOverrides={{
+                      turboMode,
+                      settingsLoading: false,
+                    }}
                   />
                 </div>
               </div>

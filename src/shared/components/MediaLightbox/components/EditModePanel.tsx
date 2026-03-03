@@ -7,8 +7,6 @@ import { Label } from '@/shared/components/ui/primitives/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { XCircle, Layers, Plus } from 'lucide-react';
 import { cn } from '@/shared/components/ui/contracts/cn';
-import { GenerationRow } from '@/domains/generation/types';
-import type { SourceVariantData } from '../hooks/useSourceGeneration';
 import { ActiveLoRAsDisplay } from '@/features/lora/components/ActiveLoRAsDisplay';
 import { LoraSelectorModal, LoraModel } from '@/shared/components/LoraSelectorModal';
 import type { UseLoraManagerReturn } from '@/shared/hooks/useLoraManager';
@@ -24,64 +22,33 @@ import type { LightboxCoreState, LightboxVariantState } from '../contexts/Lightb
 import type { ImageEditState } from '../contexts/ImageEditContext';
 import { useEditModePanelState } from '../hooks/useEditModePanelState';
 
-interface EditModePanelProps {
-  /** Layout variant */
-  variant: 'desktop' | 'mobile';
-  hideInfoEditToggle?: boolean;
-  /**
-   * Simplified header mode for page views (edit-images, edit-video tools).
-   * When true, shows only [ModeSelector | X button] in header.
-   * When false (default), shows full header with id copy, variants link, pending badge, etc.
-   */
-  simplifiedHeader?: boolean;
-
-  // Source generation (specialized - deeply nested data)
-  sourceGenerationData: GenerationRow | null;
-  onOpenExternalGeneration?: (generationId: string, derivedContext?: string[]) => Promise<void>;
-  currentShotId?: string;
-  allShots?: Array<{ id: string; name: string }>;
-  isCurrentMediaPositioned?: boolean;
-  onReplaceInShot?: (parentGenerationId: string, currentMediaId: string, parentTimelineFrame: number, currentShotId: string) => Promise<void>;
-  sourcePrimaryVariant?: SourceVariantData | null;
-  onMakeMainVariant?: () => Promise<void>;
-  canMakeMainVariant?: boolean;
-
-  // Task ID for copy functionality
-  taskId?: string | null;
-
-  // Current media ID (for tracking prompt changes)
-  currentMediaId: string;
-
-  // Specialized async handlers (mutation triggers)
+interface EditModePanelActions {
   handleUnifiedGenerate: () => void;
   handleGenerateAnnotatedEdit: () => void;
   handleGenerateReposition?: () => void;
   handleSaveAsVariant?: () => void;
   handleGenerateImg2Img?: () => void;
+}
 
-  // Upscale mode props (cloud mode only)
+interface EditModePanelUpscaleControls {
   isCloudMode?: boolean;
   handleUpscale?: () => Promise<void>;
   isUpscaling?: boolean;
   upscaleSuccess?: boolean;
+}
 
-  // Specialized managers (complex objects with methods)
+interface EditModePanelLoraControls {
   img2imgLoraManager?: UseLoraManagerReturn;
   editLoraManager?: UseLoraManagerReturn;
   availableLoras?: LoraModel[];
+}
 
-  // Advanced settings for two-pass generation (deeply nested config)
+interface EditModePanelAdvancedConfig {
   advancedSettings?: EditAdvancedSettingsType;
   setAdvancedSettings?: (updates: Partial<EditAdvancedSettingsType>) => void;
+}
 
-  // Whether running in local generation mode (shows steps slider)
-  isLocalGeneration?: boolean;
-
-  // ========================================
-  // Optional state overrides (props-first pattern)
-  // When provided, these override the corresponding context values.
-  // This allows EditModePanel to work without requiring parent providers.
-  // ========================================
+interface EditModePanelStateOverrides {
   coreState?: Pick<LightboxCoreState, 'onClose'>;
   imageEditState?: ImageEditState;
   variantsState?: Pick<LightboxVariantState,
@@ -95,6 +62,36 @@ interface EditModePanelProps {
     | 'handleDeleteVariant'
     | 'onLoadVariantSettings'
   >;
+}
+
+interface EditModePanelProps {
+  /** Layout variant */
+  variant: 'desktop' | 'mobile';
+  hideInfoEditToggle?: boolean;
+  /**
+   * Simplified header mode for page views (edit-images, edit-video tools).
+   * When true, shows only [ModeSelector | X button] in header.
+   * When false (default), shows full header with id copy, variants link, pending badge, etc.
+   */
+  simplifiedHeader?: boolean;
+
+  // Task ID for copy functionality
+  taskId?: string | null;
+
+  // Current media ID (for tracking prompt changes)
+  currentMediaId: string;
+
+  // Grouped behavior/config props
+  actions: EditModePanelActions;
+  upscale?: EditModePanelUpscaleControls;
+  lora?: EditModePanelLoraControls;
+  advanced?: EditModePanelAdvancedConfig;
+
+  // Whether running in local generation mode (shows steps slider)
+  isLocalGeneration?: boolean;
+
+  // Optional state overrides (props-first pattern)
+  stateOverrides?: EditModePanelStateOverrides;
 }
 
 /**
@@ -117,41 +114,47 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
   variant,
   hideInfoEditToggle = false,
   simplifiedHeader = false,
-  // Source generation props (specialized)
   taskId,
   currentMediaId,
-  // Specialized async handlers
-  handleUnifiedGenerate,
-  handleGenerateAnnotatedEdit,
-  handleGenerateReposition,
-  handleSaveAsVariant,
-  handleGenerateImg2Img,
-  // Upscale mode props (cloud mode only)
-  isCloudMode,
-  handleUpscale,
-  isUpscaling,
-  upscaleSuccess,
-  // Specialized managers
-  img2imgLoraManager,
-  editLoraManager,
-  availableLoras = [],
-  advancedSettings,
-  setAdvancedSettings,
+  actions,
+  upscale,
+  lora,
+  advanced,
   isLocalGeneration = false,
-  // Optional state overrides
-  coreState,
-  imageEditState,
-  variantsState,
+  stateOverrides,
 }) => {
+  const {
+    handleUnifiedGenerate,
+    handleGenerateAnnotatedEdit,
+    handleGenerateReposition,
+    handleSaveAsVariant,
+    handleGenerateImg2Img,
+  } = actions;
+  const {
+    isCloudMode,
+    handleUpscale,
+    isUpscaling,
+    upscaleSuccess,
+  } = upscale ?? {};
+  const {
+    img2imgLoraManager,
+    editLoraManager,
+    availableLoras = [],
+  } = lora ?? {};
+  const {
+    advancedSettings,
+    setAdvancedSettings,
+  } = advanced ?? {};
+
   // All state resolution, side effects, mode config, and responsive styles
   const state = useEditModePanelState({
     variant,
     currentMediaId,
     isCloudMode,
     handleUpscale,
-    coreState,
-    imageEditState,
-    variantsState,
+    coreState: stateOverrides?.coreState,
+    imageEditState: stateOverrides?.imageEditState,
+    variantsState: stateOverrides?.variantsState,
   });
 
   const {

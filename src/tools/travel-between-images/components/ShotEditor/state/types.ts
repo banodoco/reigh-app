@@ -4,15 +4,6 @@ export {
   type GenerationsPaneSettings,
 } from '@/shared/types/steerableMotion';
 
-// JSON type for compatibility with Supabase client types
-type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[];
-
 /**
  * ShotEditorProps - Cleaned up props interface
  *
@@ -28,34 +19,28 @@ type Json =
  *
  * @see providers/VideoTravelSettingsProvider.tsx for settings context
  */
-export interface ShotEditorProps {
-  // ============================================================================
-  // CORE IDENTIFIERS
-  // ============================================================================
+export interface ShotEditorCoreIdentifiersProps {
   selectedShotId: string;
   projectId: string;
   /** Optimistic shot data for newly created shots that aren't in the cache yet */
   optimisticShotData?: Partial<import('@/domains/generation/types').Shot>;
+}
 
-  // ============================================================================
-  // CALLBACKS
-  // ============================================================================
+export interface ShotEditorCallbackProps {
   onShotImagesUpdate: () => void;
   onBack: () => void;
+}
 
-  // ============================================================================
-  // DIMENSION SETTINGS (not in context yet)
-  // ============================================================================
+export interface ShotEditorDimensionSettingsProps {
   dimensionSource?: 'project' | 'firstImage' | 'custom';
   onDimensionSourceChange?: (source: 'project' | 'firstImage' | 'custom') => void;
   customWidth?: number;
   onCustomWidthChange?: (width?: number) => void;
   customHeight?: number;
   onCustomHeightChange?: (height?: number) => void;
+}
 
-  // ============================================================================
-  // NAVIGATION
-  // ============================================================================
+export interface ShotEditorNavigationProps {
   onPreviousShot?: () => void;
   onNextShot?: () => void;
   onPreviousShotNoScroll?: () => void;
@@ -63,18 +48,16 @@ export interface ShotEditorProps {
   hasPrevious?: boolean;
   hasNext?: boolean;
   onUpdateShotName?: (newName: string) => void;
+}
 
-  // ============================================================================
-  // CACHE & VIDEO COUNTS
-  // ============================================================================
+export interface ShotEditorCacheProps {
   getShotVideoCount?: (shotId: string | null) => number | null;
   getFinalVideoCount?: (shotId: string | null) => number | null;
   getHasStructureVideo?: (shotId: string | null) => boolean | null;
   invalidateVideoCountsCache?: () => void;
+}
 
-  // ============================================================================
-  // PARENT REFS (for floating UI coordination)
-  // ============================================================================
+export interface ShotEditorRefProps {
   headerContainerRef?: (node: HTMLDivElement | null) => void;
   timelineSectionRef?: (node: HTMLDivElement | null) => void;
   ctaContainerRef?: (node: HTMLDivElement | null) => void;
@@ -98,10 +81,9 @@ export interface ShotEditorProps {
 
   /** Mutable ref to expose name click handler to parent (for floating header) */
   nameClickRef?: React.MutableRefObject<(() => void) | null>;
+}
 
-  // ============================================================================
-  // UI STATE
-  // ============================================================================
+export interface ShotEditorUiStateProps {
   /** Whether the floating sticky header is visible (hide main header when true) */
   isSticky?: boolean;
 
@@ -114,6 +96,15 @@ export interface ShotEditorProps {
   /** Drag state callback - used to suppress query refetches during drag operations */
   onDragStateChange?: (isDragging: boolean) => void;
 }
+
+export interface ShotEditorProps
+  extends ShotEditorCoreIdentifiersProps,
+    ShotEditorCallbackProps,
+    ShotEditorDimensionSettingsProps,
+    ShotEditorNavigationProps,
+    ShotEditorCacheProps,
+    ShotEditorRefProps,
+    ShotEditorUiStateProps {}
 
 // Internal state interface for the shot editor
 export interface ShotEditorState {

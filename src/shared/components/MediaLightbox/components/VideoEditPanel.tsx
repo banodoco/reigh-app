@@ -229,56 +229,64 @@ export const VideoEditPanel: React.FC<VideoEditPanelProps> = ({
       )}
       {videoEditSubMode === 'replace' && (
         <VideoPortionEditor
-          gapFrames={replace.videoEditing.editSettings.settings.gapFrameCount}
-          setGapFrames={(val) => replace.videoEditing.editSettings.updateField('gapFrameCount', val)}
-          contextFrames={replace.videoEditing.editSettings.settings.contextFrameCount}
-          setContextFrames={(val) => {
-            const maxGap = Math.max(1, 81 - (val * 2));
-            const gapFrames = replace.videoEditing.editSettings.settings.gapFrameCount;
-            const newGapFrames = gapFrames > maxGap ? maxGap : gapFrames;
-            replace.videoEditing.editSettings.updateFields({
-              contextFrameCount: val,
-              gapFrameCount: newGapFrames
-            });
+          settings={{
+            gapFrames: replace.videoEditing.editSettings.settings.gapFrameCount,
+            setGapFrames: (val) => replace.videoEditing.editSettings.updateField('gapFrameCount', val),
+            contextFrames: replace.videoEditing.editSettings.settings.contextFrameCount,
+            setContextFrames: (val) => {
+              const maxGap = Math.max(1, 81 - (val * 2));
+              const gapFrames = replace.videoEditing.editSettings.settings.gapFrameCount;
+              const newGapFrames = gapFrames > maxGap ? maxGap : gapFrames;
+              replace.videoEditing.editSettings.updateFields({
+                contextFrameCount: val,
+                gapFrameCount: newGapFrames
+              });
+            },
+            maxContextFrames: replace.videoEditing.maxContextFrames,
+            negativePrompt: replace.videoEditing.editSettings.settings.negativePrompt || '',
+            setNegativePrompt: (val) => replace.videoEditing.editSettings.updateField('negativePrompt', val),
+            enhancePrompt: replace.videoEditing.editSettings.settings.enhancePrompt,
+            setEnhancePrompt: (val) => replace.videoEditing.editSettings.updateField('enhancePrompt', val),
           }}
-          maxContextFrames={replace.videoEditing.maxContextFrames}
-          negativePrompt={replace.videoEditing.editSettings.settings.negativePrompt || ''}
-          setNegativePrompt={(val) => replace.videoEditing.editSettings.updateField('negativePrompt', val)}
-          enhancePrompt={replace.videoEditing.editSettings.settings.enhancePrompt}
-          setEnhancePrompt={(val) => replace.videoEditing.editSettings.updateField('enhancePrompt', val)}
-          selections={replace.videoEditing.selections}
-          onUpdateSelectionSettings={replace.videoEditing.handleUpdateSelectionSettings}
-          onAddSelection={replace.videoEditing.handleAddSelection}
-          onRemoveSelection={replace.videoEditing.handleRemoveSelection}
-          videoUrl={trim.videoUrl}
-          fps={16}
-          availableLoras={replace.videoEditing.availableLoras}
-          projectId={replace.projectId ?? null}
-          loraManager={replace.videoEditing.loraManager}
-          // Motion settings
-          motionMode={(replace.videoEditing.editSettings.settings.motionMode || 'basic') as 'basic' | 'advanced'}
-          onMotionModeChange={(mode) => replace.videoEditing.editSettings.updateField('motionMode', mode)}
-          phaseConfig={replace.videoEditing.editSettings.settings.phaseConfig ?? DEFAULT_VACE_PHASE_CONFIG}
-          onPhaseConfigChange={(config) => replace.videoEditing.editSettings.updateField('phaseConfig', config)}
-          randomSeed={replace.videoEditing.editSettings.settings.randomSeed ?? true}
-          onRandomSeedChange={(val) => replace.videoEditing.editSettings.updateField('randomSeed', val)}
-          selectedPhasePresetId={replace.videoEditing.editSettings.settings.selectedPhasePresetId ?? null}
-          onPhasePresetSelect={(presetId, config) => {
-            replace.videoEditing.editSettings.updateFields({
-              selectedPhasePresetId: presetId,
-              phaseConfig: config,
-            });
+          selections={{
+            selections: replace.videoEditing.selections,
+            onUpdateSelectionSettings: replace.videoEditing.handleUpdateSelectionSettings,
+            onAddSelection: replace.videoEditing.handleAddSelection,
+            onRemoveSelection: replace.videoEditing.handleRemoveSelection,
+            videoUrl: trim.videoUrl,
+            fps: 16,
           }}
-          onPhasePresetRemove={() => {
-            replace.videoEditing.editSettings.updateField('selectedPhasePresetId', null);
+          lora={{
+            availableLoras: replace.videoEditing.availableLoras,
+            projectId: replace.projectId ?? null,
+            loraManager: replace.videoEditing.loraManager,
           }}
-          // Actions
-          onGenerate={replace.videoEditing.handleGenerate}
-          isGenerating={replace.videoEditing.isGenerating}
-          generateSuccess={replace.videoEditing.generateSuccess}
-          isGenerateDisabled={!replace.videoEditing.isValid}
-          validationErrors={replace.videoEditing.validationErrors}
-          hideHeader
+          motion={{
+            motionMode: (replace.videoEditing.editSettings.settings.motionMode || 'basic') as 'basic' | 'advanced',
+            onMotionModeChange: (mode) => replace.videoEditing.editSettings.updateField('motionMode', mode),
+            phaseConfig: replace.videoEditing.editSettings.settings.phaseConfig ?? DEFAULT_VACE_PHASE_CONFIG,
+            onPhaseConfigChange: (config) => replace.videoEditing.editSettings.updateField('phaseConfig', config),
+            randomSeed: replace.videoEditing.editSettings.settings.randomSeed ?? true,
+            onRandomSeedChange: (val) => replace.videoEditing.editSettings.updateField('randomSeed', val),
+            selectedPhasePresetId: replace.videoEditing.editSettings.settings.selectedPhasePresetId ?? null,
+            onPhasePresetSelect: (presetId, config) => {
+              replace.videoEditing.editSettings.updateFields({
+                selectedPhasePresetId: presetId,
+                phaseConfig: config,
+              });
+            },
+            onPhasePresetRemove: () => {
+              replace.videoEditing.editSettings.updateField('selectedPhasePresetId', null);
+            },
+          }}
+          actions={{
+            onGenerate: replace.videoEditing.handleGenerate,
+            isGenerating: replace.videoEditing.isGenerating,
+            generateSuccess: replace.videoEditing.generateSuccess,
+            isGenerateDisabled: !replace.videoEditing.isValid,
+            validationErrors: replace.videoEditing.validationErrors,
+          }}
+          stateOverrides={{ hideHeader: true }}
         />
       )}
       {videoEditSubMode === 'regenerate' && regenerateFormProps && (
