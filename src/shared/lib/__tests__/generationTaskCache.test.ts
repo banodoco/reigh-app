@@ -45,7 +45,7 @@ vi.mock('@/shared/lib/generationTaskRepository', () => ({
 
 import {
   preloadGenerationTaskMappings,
-  enhanceGenerationsWithTaskData,
+  mergeGenerationsWithTaskData,
 } from '../generationTaskCache';
 
 describe('preloadGenerationTaskMappings', () => {
@@ -156,7 +156,7 @@ describe('preloadGenerationTaskMappings', () => {
   });
 });
 
-describe('enhanceGenerationsWithTaskData', () => {
+describe('mergeGenerationsWithTaskData', () => {
   const mockQueryClient = {
     setQueryData: vi.fn(),
     prefetchQuery: vi.fn(),
@@ -179,9 +179,9 @@ describe('enhanceGenerationsWithTaskData', () => {
     });
 
     const generations = [{ id: 'gen-1' }] as Array<{ id: string }>;
-    const result = enhanceGenerationsWithTaskData(
-      generations as Parameters<typeof enhanceGenerationsWithTaskData>[0],
-      mockQueryClient as unknown as Parameters<typeof enhanceGenerationsWithTaskData>[1],
+    const result = mergeGenerationsWithTaskData(
+      generations as Parameters<typeof mergeGenerationsWithTaskData>[0],
+      mockQueryClient as unknown as Parameters<typeof mergeGenerationsWithTaskData>[1],
     );
 
     expect(result[0].taskId).toBe('task-1');
@@ -192,9 +192,9 @@ describe('enhanceGenerationsWithTaskData', () => {
     mockQueryClient.getQueryData.mockReturnValue(undefined);
 
     const generations = [{ id: 'gen-1' }] as Array<{ id: string }>;
-    const result = enhanceGenerationsWithTaskData(
-      generations as Parameters<typeof enhanceGenerationsWithTaskData>[0],
-      mockQueryClient as unknown as Parameters<typeof enhanceGenerationsWithTaskData>[1],
+    const result = mergeGenerationsWithTaskData(
+      generations as Parameters<typeof mergeGenerationsWithTaskData>[0],
+      mockQueryClient as unknown as Parameters<typeof mergeGenerationsWithTaskData>[1],
     );
 
     expect(result[0].taskId).toBeNull();
@@ -209,9 +209,9 @@ describe('enhanceGenerationsWithTaskData', () => {
       type: string;
       location: string;
     }>;
-    const result = enhanceGenerationsWithTaskData(
-      generations as Parameters<typeof enhanceGenerationsWithTaskData>[0],
-      mockQueryClient as unknown as Parameters<typeof enhanceGenerationsWithTaskData>[1],
+    const result = mergeGenerationsWithTaskData(
+      generations as Parameters<typeof mergeGenerationsWithTaskData>[0],
+      mockQueryClient as unknown as Parameters<typeof mergeGenerationsWithTaskData>[1],
     );
 
     expect(result[0].id).toBe('gen-1');
@@ -231,9 +231,9 @@ describe('enhanceGenerationsWithTaskData', () => {
       id: string;
       generation_id: string;
     }>;
-    const result = enhanceGenerationsWithTaskData(
-      generations as Parameters<typeof enhanceGenerationsWithTaskData>[0],
-      mockQueryClient as unknown as Parameters<typeof enhanceGenerationsWithTaskData>[1],
+    const result = mergeGenerationsWithTaskData(
+      generations as Parameters<typeof mergeGenerationsWithTaskData>[0],
+      mockQueryClient as unknown as Parameters<typeof mergeGenerationsWithTaskData>[1],
     );
 
     expect(result[0].taskId).toBe('task-1');
@@ -249,9 +249,9 @@ describe('enhanceGenerationsWithTaskData', () => {
     });
 
     const generations = [{ id: 'gen-1' }] as Array<{ id: string }>;
-    const result = enhanceGenerationsWithTaskData(
-      generations as Parameters<typeof enhanceGenerationsWithTaskData>[0],
-      mockQueryClient as unknown as Parameters<typeof enhanceGenerationsWithTaskData>[1],
+    const result = mergeGenerationsWithTaskData(
+      generations as Parameters<typeof mergeGenerationsWithTaskData>[0],
+      mockQueryClient as unknown as Parameters<typeof mergeGenerationsWithTaskData>[1],
     );
 
     expect(result[0].taskId).toBeNull();

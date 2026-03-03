@@ -97,10 +97,7 @@ export async function preloadGenerationTaskMappings(
   }
 }
 
-/**
- * Enhance generations with task data from cache.
- */
-export function enhanceGenerationsWithTaskData(
+export function mergeGenerationsWithTaskData(
   generations: GenerationRow[],
   queryClient: QueryClient,
 ): GenerationWithTaskData[] {

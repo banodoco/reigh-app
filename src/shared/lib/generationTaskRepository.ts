@@ -2,7 +2,6 @@ import {
   supabaseClientRegistry,
   type SupabaseClientRegistry,
 } from '@/integrations/supabase/client';
-import { applyRootTaskFilter } from '@/shared/lib/tasks/orchestratorReference';
 import { parseGenerationTaskId } from '@/shared/lib/generationTaskIdParser';
 
 export type ScopedGenerationInput = string | { id: string; projectId?: string };
@@ -241,10 +240,6 @@ export async function resolveVariantProjectScope(
     projectId: generationScope.projectId,
     status: 'ok',
   };
-}
-
-export function applyParentTaskFilter<T extends { is: (column: string, value: unknown) => T }>(query: T): T {
-  return applyRootTaskFilter(query);
 }
 
 export async function getPrimaryTaskIdForGeneration(

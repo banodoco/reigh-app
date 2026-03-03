@@ -4,7 +4,7 @@ import { GenerationRow } from '@/domains/generation/types';
 import type { Task } from '@/types/tasks';
 import {
   preloadGenerationTaskMappings,
-  enhanceGenerationsWithTaskData,
+  mergeGenerationsWithTaskData,
 } from '@/shared/lib/generationTaskCache';
 
 // ================================================================
@@ -59,7 +59,7 @@ export function GenerationTaskProvider({
   }, [queryClient, isPreloadingEnabled, preloadBatchSize, preloadDelay]);
 
   const enhanceWithTaskData = React.useCallback((generations: GenerationRow[]) => {
-    return enhanceGenerationsWithTaskData(generations, queryClient);
+    return mergeGenerationsWithTaskData(generations, queryClient);
   }, [queryClient]);
 
   // Memoize context value to prevent unnecessary re-renders of consumers

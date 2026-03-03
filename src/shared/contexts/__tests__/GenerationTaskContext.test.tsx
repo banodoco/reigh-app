@@ -15,7 +15,7 @@ const mockEnhanceGenerations = vi.fn().mockReturnValue([]);
 
 vi.mock('@/shared/lib/generationTaskCache', () => ({
   preloadGenerationTaskMappings: (...args: unknown[]) => mockPreloadMappings(...args),
-  enhanceGenerationsWithTaskData: (...args: unknown[]) => mockEnhanceGenerations(...args),
+  mergeGenerationsWithTaskData: (...args: unknown[]) => mockEnhanceGenerations(...args),
 }));
 
 import { GenerationTaskProvider } from '../GenerationTaskContext';

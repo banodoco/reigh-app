@@ -234,19 +234,6 @@ export function getCachedUserId(): Promise<{ data: { user: { id: string } | null
 
 type SettingsRow = { data: { settings: unknown } | null; error: unknown };
 
-function describeScopeError(error: unknown): string {
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-  if (error && typeof error === 'object') {
-    const message = (error as { message?: unknown }).message;
-    if (typeof message === 'string' && message.length > 0) {
-      return message;
-    }
-  }
-  return 'unknown error';
-}
-
 function throwIfAborted(signal?: AbortSignal): void {
   if (!signal?.aborted) {
     return;
@@ -363,21 +350,21 @@ function extractAndMergeSettings(
   if (userResult.error) {
     throw new ToolSettingsError(
       'scope_fetch_failed',
-      `Failed to load user settings: ${describeScopeError(userResult.error)}`,
+      `Failed to load user settings: ${getErrorMessage(userResult.error)}`,
       { recoverable: true, cause: userResult.error, metadata: { scope: 'user' } },
     );
   }
   if (ctx.projectId && projectResult.error) {
     throw new ToolSettingsError(
       'scope_fetch_failed',
-      `Failed to load project settings: ${describeScopeError(projectResult.error)}`,
+      `Failed to load project settings: ${getErrorMessage(projectResult.error)}`,
       { recoverable: true, cause: projectResult.error, metadata: { scope: 'project', projectId: ctx.projectId } },
     );
   }
   if (ctx.shotId && shotResult.error) {
     throw new ToolSettingsError(
       'scope_fetch_failed',
-      `Failed to load shot settings: ${describeScopeError(shotResult.error)}`,
+      `Failed to load shot settings: ${getErrorMessage(shotResult.error)}`,
       { recoverable: true, cause: shotResult.error, metadata: { scope: 'shot', shotId: ctx.shotId } },
     );
   }
