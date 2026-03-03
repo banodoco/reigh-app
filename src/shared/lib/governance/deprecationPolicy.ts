@@ -13,10 +13,7 @@ export type DeprecationPolicyId =
   | 'runtime_error_alias'
   | 'legacy_supabase_facade'
   | 'join_clips_compat'
-  | 'travel_structure_legacy'
-  | 'tool_constants_alias'
-  | 'button_theme_variants_alias'
-  | 'external_api_keys_hook_alias';
+  | 'travel_structure_legacy';
 
 const DEPRECATION_POLICIES: Record<DeprecationPolicyId, DeprecationPolicy> = {
   runtime_error_alias: {
@@ -47,21 +44,6 @@ const DEPRECATION_POLICIES: Record<DeprecationPolicyId, DeprecationPolicy> = {
   travel_structure_legacy: {
     owner: 'video-workflow',
     removeBy: '2026-05-31',
-    importBudgetPhases: [],
-  },
-  tool_constants_alias: {
-    owner: 'tooling-foundation',
-    removeBy: '2026-06-30',
-    importBudgetPhases: [],
-  },
-  button_theme_variants_alias: {
-    owner: 'ui-foundation',
-    removeBy: '2026-06-30',
-    importBudgetPhases: [],
-  },
-  external_api_keys_hook_alias: {
-    owner: 'platform-runtime',
-    removeBy: '2026-06-30',
     importBudgetPhases: [],
   },
 };
