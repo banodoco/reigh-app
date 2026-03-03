@@ -5,13 +5,7 @@ export interface HoverScrubVideoProps extends Omit<React.HTMLAttributes<HTMLDivE
    * Source URL for the video. Can be a full URL or relative path handled by getDisplayUrl.
    */
   src: string;
-  /**
-   * Optional poster (thumbnail) URL.
-   */
   poster?: string;
-  /**
-   * Extra className applied to the root div.
-   */
   className?: string;
   /**
    * Extra className applied to the underlying <video> element.
@@ -62,16 +56,7 @@ export interface HoverScrubVideoProps extends Omit<React.HTMLAttributes<HTMLDivE
    * When true, toggle play/pause on click (helpful on mobile where hover is absent)
    */
   playOnClick?: boolean;
-  /**
-   * Callback for video load error
-   */
   onVideoError?: React.ReactEventHandler<HTMLVideoElement>;
-  /**
-   * Callback for video load start
-   */
   onLoadStart?: React.ReactEventHandler<HTMLVideoElement>;
-  /**
-   * Callback for video loaded data
-   */
   onLoadedData?: React.ReactEventHandler<HTMLVideoElement>;
 }

@@ -1,5 +1,3 @@
-/** Segment-level video generation settings and outputs hooks. */
-
 // Main composed hook
 export { useSegmentSettings } from './useSegmentSettings';
 export type {

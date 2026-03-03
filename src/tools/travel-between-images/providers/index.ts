@@ -1,7 +1,3 @@
-/**
- * Video Travel tool providers
- */
-
 export {
   VideoTravelSettingsProvider,
   useVideoTravelSettings,

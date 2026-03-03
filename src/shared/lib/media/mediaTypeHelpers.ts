@@ -55,29 +55,17 @@ interface MediaWithUrls {
   imageUrl?: string | null;
 }
 
-/**
- * Get the primary URL for a media item
- */
 export function getMediaUrl(media: MediaWithUrls | null | undefined): string | undefined {
   if (!media) return undefined;
   return media.location || media.url || media.imageUrl || undefined;
 }
 
-/**
- * Get the thumbnail URL for a media item
- */
 export function getThumbnailUrl(media: MediaWithUrls | null | undefined): string | undefined {
   if (!media) return undefined;
   return media.thumbnail_url || media.thumbUrl || undefined;
 }
 
-/**
- * Transform a variant (GeneratedImageWithMetadata shape) to a GenerationRow shape.
- * Used by edit-video and edit-images pages for lightbox display.
- *
- * @param media The variant data
- * @param mediaType 'video' or 'image'
- */
+/** Transform a variant to a GenerationRow shape for lightbox display. */
 export function variantToGenerationRow(
   media: {
     id: string;

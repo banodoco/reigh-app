@@ -1,9 +1,3 @@
-/**
- * ShotEditor hooks barrel file
- *
- * Re-exports all hooks used by the ShotEditor component.
- */
-
 export { useAudio } from './video/useAudio';
 export { useStructureVideo } from './video/useStructureVideo';
 export { useApplySettingsHandler } from './actions/useApplySettingsHandler';

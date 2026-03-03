@@ -1,7 +1,3 @@
-/**
- * ShotImagesEditor sub-components barrel.
- */
-
 export { PreviewTogetherDialog } from './PreviewTogetherDialog';
 export type { PreviewSegment } from './PreviewTogetherDialog';
 

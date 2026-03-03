@@ -1,21 +1,12 @@
 import { ValidationError } from '@/shared/lib/errorHandling/errors';
 
-/**
- * Default aspect ratio to use when project aspect ratio is not found.
- */
 export const DEFAULT_ASPECT_RATIO = '1:1';
 
-/**
- * Interface for project resolution lookup result.
- */
 export interface ProjectResolutionResult {
   resolution: string;
   aspectRatio: string;
 }
 
-/**
- * Common task creation parameters that all tasks should have.
- */
 export interface BaseTaskParams {
   project_id: string;
   task_type: string;
@@ -31,10 +22,6 @@ export interface TaskCreationResult {
   status: string;
 }
 
-/**
- * Validation error type for task parameter validation.
- * Extends ValidationError for consistent error handling.
- */
 export class TaskValidationError extends ValidationError {
   constructor(message: string, field?: string) {
     super(message, { field });
