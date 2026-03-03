@@ -1,3 +1,5 @@
+import { TOOL_ROUTES } from '@/shared/lib/toolRoutes';
+
 interface PhilosophyClosingSectionProps {
   navigate: (path: string) => void;
 }
@@ -18,7 +20,7 @@ export function PhilosophyClosingSection({ navigate }: PhilosophyClosingSectionP
 
       <div className="flex items-center gap-x-2">
         <button
-          onClick={() => navigate('/tools')}
+          onClick={() => navigate(TOOL_ROUTES.TOOLS_HOME)}
           className="text-muted-foreground hover:text-primary text-xs underline transition-colors duration-200"
         >
           Try the tool

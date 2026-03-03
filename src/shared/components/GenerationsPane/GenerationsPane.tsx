@@ -7,6 +7,7 @@ import PaneControlTab from '../PaneControlTab';
 import { GenerationsPaneControls } from './components/GenerationsPaneControls';
 import { GenerationsPaneGallery } from './components/GenerationsPaneGallery';
 import { useGenerationsPaneController } from './hooks/useGenerationsPaneController';
+import { UI_Z_LAYERS } from '@/shared/lib/uiLayers';
 
 const GenerationsPaneComponent: React.FC = () => {
   const controller = useGenerationsPaneController();
@@ -17,7 +18,8 @@ const GenerationsPaneComponent: React.FC = () => {
       {/* When locked, GenerationsPane allows interaction with outside content */}
       {controller.showBackdrop && (
         <div
-          className="fixed inset-0 z-[99] touch-none"
+          className="fixed inset-0 touch-none"
+          style={{ zIndex: UI_Z_LAYERS.GENERATIONS_PANE_BACKDROP }}
           onTouchStart={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -61,7 +63,7 @@ const GenerationsPaneComponent: React.FC = () => {
           customIcon={<Sparkles className="h-4 w-4" />}
           paneTooltip="Generate new image"
           allowMobileLock={true}
-          customOpenAction={() => setIsGenerationModalOpen(true)}
+          customOpenAction={() => controller.setIsGenerationModalOpen(true)}
           dataTour="generations-pane-tab"
           dataTourLock="generations-lock"
           dataTourFourthButton="generations-sparkles"
@@ -74,9 +76,10 @@ const GenerationsPaneComponent: React.FC = () => {
           height: `${controller.generationsPaneHeight}px`,
           left: controller.isShotsPaneLocked ? `${controller.shotsPaneWidth}px` : 0,
           right: controller.isTasksPaneLocked ? `${controller.tasksPaneWidth}px` : 0,
+          zIndex: UI_Z_LAYERS.GENERATIONS_PANE,
         }}
         className={cn(
-          `fixed bottom-0 bg-zinc-900/95 border-t border-zinc-700 shadow-xl z-[100] transform transition-all duration-300 ease-smooth flex flex-col pointer-events-auto`,
+          `fixed bottom-0 bg-zinc-900/95 border-t border-zinc-700 shadow-xl transform transition-all duration-300 ease-smooth flex flex-col pointer-events-auto`,
           controller.transformClass
         )}
       >

@@ -1,5 +1,7 @@
 /** Shared z-layer contract for cross-module overlay ordering. */
 export const UI_Z_LAYERS = {
+  GENERATIONS_PANE_BACKDROP: 99,
+  GENERATIONS_PANE: 100,
   HOME_GLASS_PANE: 100,
   LIGHTBOX_MODAL: 100000,
   TASKS_PANE_TAB_ABOVE_LIGHTBOX: 100001,
