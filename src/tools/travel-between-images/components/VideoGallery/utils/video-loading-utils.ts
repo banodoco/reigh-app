@@ -1,5 +1,3 @@
-import { GenerationRow } from '@/domains/generation/types';
-
 /**
  * Video loading phase determination
  */
@@ -38,17 +36,3 @@ export const createLoadingSummary = (hasThumbnail: boolean, thumbnailLoaded: boo
     ? `Thumbnail: ${thumbnailLoaded ? '✅' : '⏳'} | Video: ${videoPosterLoaded ? '✅' : '⏳'}`
     : `Video: ${videoPosterLoaded ? '✅' : shouldLoad ? '⏳' : '⏸️'}`;
 };
-
-/**
- * Sort video outputs by creation date
- * @internal - only used within this file
- */
-const sortVideoOutputsByDate = (videoOutputs: GenerationRow[]): GenerationRow[] => {
-  return [...videoOutputs]
-    .map(v => ({ v, time: new Date(v.createdAt || (v as { created_at?: string | null }).created_at || 0).getTime() }))
-    .sort((a, b) => b.time - a.time)
-    .map(({ v }) => v);
-};
-
-// Keeping for potential future use but not exporting
-void sortVideoOutputsByDate;

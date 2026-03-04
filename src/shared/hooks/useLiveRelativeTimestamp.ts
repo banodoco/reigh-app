@@ -32,8 +32,6 @@ export function useLiveRelativeTimestamp({
     if (!parsedDate) {
       return null;
     }
-
-    void updateTrigger;
     return formatter(parsedDate);
   }, [formatter, parsedDate, updateTrigger]);
 }

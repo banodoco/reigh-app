@@ -2,16 +2,16 @@ import { useMemo } from 'react';
 import type { LoraModel } from '@/shared/components/LoraSelectorModal';
 import type { ActiveLora } from '@/shared/types/lora';
 import type { ImageGenerationFormUIState, FormUIActions } from '../state/useFormUIState';
-import {
-  useContextValue,
-  type FormCoreState,
-  type FormPromptState,
-  type FormPromptHandlers,
-  type FormReferenceState,
-  type FormReferenceHandlers,
-  type FormLoraState,
-  type FormLoraHandlers,
-} from '../ImageGenerationFormContext';
+import { useContextValue } from '../ImageGenerationFormContext';
+import type {
+  FormCoreState,
+  FormPromptState,
+  FormPromptHandlers,
+  FormReferenceState,
+  FormReferenceHandlers,
+  FormLoraState,
+  FormLoraHandlers,
+} from '../ImageGenerationFormContext.types';
 
 /** Grouped inputs matching the sub-hook return shapes */
 interface UseFormContextBuilderProps {

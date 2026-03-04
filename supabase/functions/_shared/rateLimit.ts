@@ -288,3 +288,65 @@ export function rateLimitFailureResponse(
   }
   return rateLimitResponse(extractDeniedResultFromFailure(result, config), config);
 }
+
+interface RateLimitLogger {
+  warn: (message: string, context?: Record<string, unknown>) => void;
+  error: (message: string, context?: Record<string, unknown>) => void;
+  flush: () => Promise<void>;
+}
+
+/**
+ * Full rate-limit enforcement: check → error response → fail_open logging.
+ * Returns a Response to short-circuit (exceeded or service error), or null to proceed.
+ *
+ * @param serviceUnavailableResponse Optional factory for 503 responses.
+ *   Defaults to a generic 503 edge error.
+ */
+export async function enforceRateLimit(
+  supabaseAdmin: SupabaseAdminClient,
+  functionName: string,
+  userId: string,
+  config: RateLimitConfig,
+  logger: RateLimitLogger,
+  logPrefix: string,
+  serviceUnavailableResponse?: () => Response,
+): Promise<Response | null> {
+  const result = await checkRateLimit(supabaseAdmin, functionName, userId, config, logPrefix);
+
+  // Rate limit exceeded — works for both ok (fail_closed) and !ok paths
+  if (isRateLimitExceededFailure(result)) {
+    logger.warn('Rate limit exceeded', { user_id: userId });
+    await logger.flush();
+    if (result.ok) {
+      return rateLimitResponse(result.value, config);
+    }
+    return rateLimitFailureResponse(result, config);
+  }
+
+  // Operation failure that's not rate-limit-exceeded
+  if (!result.ok) {
+    logger.error('Rate limit check failed', {
+      user_id: userId,
+      error_code: result.errorCode,
+      message: result.message,
+    });
+    await logger.flush();
+    return serviceUnavailableResponse
+      ? serviceUnavailableResponse()
+      : edgeErrorResponse(
+          { errorCode: 'rate_limit_service_unavailable', message: 'Rate limit service unavailable', recoverable: true },
+          503,
+        );
+  }
+
+  // Success but degraded (fail_open) — proceed with warning
+  if (result.policy === 'fail_open') {
+    logger.warn('Rate limit check degraded; allowing request', {
+      user_id: userId,
+      reason: result.value.degraded?.reason,
+      message: result.value.degraded?.message,
+    });
+  }
+
+  return null;
+}

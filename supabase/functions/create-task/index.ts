@@ -3,9 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { authenticateRequest } from "../_shared/auth.ts";
 import { SystemLogger } from "../_shared/systemLogger.ts";
 import {
-  checkRateLimit,
-  isRateLimitExceededFailure,
-  rateLimitFailureResponse,
+  enforceRateLimit,
   RATE_LIMITS,
 } from "../_shared/rateLimit.ts";
 import { buildTaskInsertObject, getErrorMessage, parseCreateTaskBody } from "./request.ts";
@@ -100,37 +98,11 @@ serve(async (req) => {
   }
 
   if (!isServiceRole && callerId) {
-    const rateLimitResult = await checkRateLimit(
-      supabaseAdmin,
-      "create-task",
-      callerId,
-      RATE_LIMITS.taskCreation,
-      "[CREATE-TASK]"
+    const rateLimitDenied = await enforceRateLimit(
+      supabaseAdmin, 'create-task', callerId, RATE_LIMITS.taskCreation, logger, '[CREATE-TASK]',
+      () => createCorsResponse("Rate limit service unavailable", 503),
     );
-
-    if (!rateLimitResult.ok) {
-      if (isRateLimitExceededFailure(rateLimitResult)) {
-        logger.warn("Rate limit exceeded", { user_id: callerId });
-        await logger.flush();
-        return rateLimitFailureResponse(rateLimitResult, RATE_LIMITS.taskCreation);
-      }
-
-      logger.error("Rate limit check failed", {
-        user_id: callerId,
-        error_code: rateLimitResult.errorCode,
-        message: rateLimitResult.message,
-      });
-      await logger.flush();
-      return createCorsResponse("Rate limit service unavailable", 503);
-    }
-
-    if (rateLimitResult.policy === 'fail_open') {
-      logger.warn("Rate limit check degraded; allowing request", {
-        user_id: callerId,
-        reason: rateLimitResult.value.degraded?.reason,
-        message: rateLimitResult.value.degraded?.message,
-      });
-    }
+    if (rateLimitDenied) return rateLimitDenied;
   }
 
   let finalProjectId: string;

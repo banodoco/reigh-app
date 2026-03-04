@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { jsonResponse } from "../_shared/http.ts";
-import { bootstrapEdgeHandler } from "../_shared/edgeHandler.ts";
-import { createStripeClient, getAutoTopupConfigFailure } from "../_shared/autoTopupDomain.ts";
+import { bootstrapEdgeHandler, NO_SESSION_RUNTIME_OPTIONS } from "../_shared/edgeHandler.ts";
+import { createStripeClient, handleAutoTopupConfigError } from "../_shared/autoTopupDomain.ts";
 
 /**
  * Edge function: complete-auto-topup-setup
@@ -27,14 +27,7 @@ serve(async (req) => {
       required: true,
       requireServiceRole: true,
     },
-    runtimeOptions: {
-      clientOptions: {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      },
-    },
+    ...NO_SESSION_RUNTIME_OPTIONS,
   });
   if (!bootstrap.ok) {
     return bootstrap.response;
@@ -113,12 +106,8 @@ serve(async (req) => {
     });
 
   } catch (error: unknown) {
-    const configFailure = getAutoTopupConfigFailure(error);
-    if (configFailure) {
-      logger.error(configFailure.logMessage);
-      await logger.flush();
-      return jsonResponse({ error: configFailure.userMessage }, 500);
-    }
+    const configResponse = await handleAutoTopupConfigError(error, logger);
+    if (configResponse) return configResponse;
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error('Error in complete-auto-topup-setup', { error: errorMessage });
     

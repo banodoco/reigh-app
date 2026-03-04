@@ -1,9 +1,9 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { bootstrapEdgeHandler } from "../_shared/edgeHandler.ts";
+import { bootstrapEdgeHandler, NO_SESSION_RUNTIME_OPTIONS } from "../_shared/edgeHandler.ts";
 import { jsonResponse } from "../_shared/http.ts";
 import {
   createStripeClient,
-  getAutoTopupConfigFailure,
+  handleAutoTopupConfigError,
   validatePersistedAutoTopupConfig,
 } from "../_shared/autoTopupDomain.ts";
 
@@ -30,14 +30,7 @@ serve(async (req) => {
       required: true,
       requireServiceRole: true,
     },
-    runtimeOptions: {
-      clientOptions: {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      },
-    },
+    ...NO_SESSION_RUNTIME_OPTIONS,
   });
   if (!bootstrap.ok) {
     return bootstrap.response;
@@ -228,12 +221,8 @@ serve(async (req) => {
     }
 
   } catch (error: unknown) {
-    const configFailure = getAutoTopupConfigFailure(error);
-    if (configFailure) {
-      logger.error(configFailure.logMessage);
-      await logger.flush();
-      return jsonResponse({ error: configFailure.userMessage }, 500);
-    }
+    const configResponse = await handleAutoTopupConfigError(error, logger);
+    if (configResponse) return configResponse;
 
     const errorMessage = error instanceof Error ? error.message : String(error);
     const stripeErrorType = (error as { type?: string } | null)?.type;

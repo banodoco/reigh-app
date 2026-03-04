@@ -6,8 +6,6 @@ import { normalizeAndPresentError } from "@/shared/lib/errorHandling/runtimeErro
 import { createSessionId } from "@/shared/lib/sessionId";
 import { TIMELINE_PADDING_OFFSET } from "../../constants";
 
-const TIMELINE_DRAG_LOG_PREFIX = '[TimelineImageDrag]';
-
 interface DragState {
   isDragging: boolean;
   activeId: string | null;
@@ -361,7 +359,7 @@ export const useTimelineDrag = ({
         await setFramePositions(finalPositions);
       } catch (error) {
         normalizeAndPresentError(error, { context: 'TimelineDrag', showToast: false });
-        console.error(`${TIMELINE_DRAG_LOG_PREFIX} setFramePositions failed`, {
+        log('TimelineDrag', 'setFramePositions failed', {
           activeId: shortId(dragState.activeId),
           dragSessionId: dragState.dragSessionId?.slice(0, 12) ?? null,
           error,

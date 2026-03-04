@@ -71,7 +71,6 @@ export const TimeStamp: React.FC<TimeStampProps> = ({
     if (!date) {
       return null;
     }
-    void updateTrigger;
 
     if (isMobile && showOnHover && !isHovered) {
       return null; // Skip formatting until hovered

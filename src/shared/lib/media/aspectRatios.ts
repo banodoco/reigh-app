@@ -62,44 +62,6 @@ export function findClosestAspectRatio(targetRatio: number): string {
 }
 
 /**
- * Gets dimensions from aspect ratio for UI display purposes.
- * @param aspectRatio The aspect ratio string (e.g., "16:9")
- * @param baseSize The base size for the smaller dimension (default: 128px for thumbnails)
- * @returns Object with width and height for CSS styling
- * @internal Not currently used externally.
- */
-function getDisplayDimensions(aspectRatio?: string, baseSize: number = 128): { width: number; height: number } {
-  if (!aspectRatio) {
-    // Default to square if no aspect ratio
-    return { width: baseSize, height: baseSize };
-  }
-
-  const ratio = parseRatio(aspectRatio);
-  if (isNaN(ratio)) {
-    // Fallback to square if parsing fails
-    return { width: baseSize, height: baseSize };
-  }
-
-  // For landscape (ratio > 1), width is larger
-  // For portrait (ratio < 1), height is larger
-  // For square (ratio = 1), both are equal
-  if (ratio >= 1) {
-    // Landscape or square
-    const height = baseSize;
-    const width = Math.round(height * ratio);
-    return { width, height };
-  } else {
-    // Portrait
-    const width = baseSize;
-    const height = Math.round(width / ratio);
-    return { width, height };
-  }
-}
-
-// Keep for potential future use
-void getDisplayDimensions;
-
-/**
  * Get preview dimensions constrained to a max height, maintaining aspect ratio.
  * Used for video scrubbing previews and similar floating popups.
  * @param aspectRatioStr The aspect ratio string (e.g., "16:9"). Falls back to 16:9 if invalid.

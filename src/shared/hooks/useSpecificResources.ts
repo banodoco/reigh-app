@@ -1,5 +1,5 @@
-import { useQueries, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useCallback } from 'react';
+import { useQueries } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { Resource } from './useResources';
 import { isNotFoundError } from '@/shared/constants/supabaseErrors';
@@ -64,22 +64,3 @@ export const useSpecificResources = (resourceIds: string[]) => {
 
   return result;
 };
-
-/**
- * Hook to invalidate cache for a specific resource
- * Call this when a resource is deleted to clean up its cache entry
- *
- * @internal Currently unused - kept for potential future use
- */
-const useInvalidateResource = () => {
-  const queryClient = useQueryClient();
-
-  return useCallback((resourceId: string) => {
-    queryClient.removeQueries({ queryKey: resourceQueryKeys.detail(resourceId) });
-  }, [queryClient]);
-};
-
-// Keep for potential future use
-void useInvalidateResource;
-
-

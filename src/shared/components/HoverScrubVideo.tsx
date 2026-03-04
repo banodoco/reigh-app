@@ -53,7 +53,6 @@ const HoverScrubVideo: React.FC<HoverScrubVideoProps> = ({
   const handleScrubLoadedMetadata = scrubbing.videoProps.onLoadedMetadata;
   const resetScrubbing = scrubbing.reset;
   const setScrubVideoElement = scrubbing.setVideoElement;
-  void _playOnClick;
 
   // Additional refs for features not covered by the hook
   const localVideoRef = useRef<HTMLVideoElement | null>(null);

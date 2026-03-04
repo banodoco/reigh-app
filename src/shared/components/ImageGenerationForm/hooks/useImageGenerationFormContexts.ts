@@ -1,8 +1,8 @@
 import { useContext } from 'react';
 import {
   ImageGenerationFormContext,
-  type ImageGenerationFormContextValue,
-} from '../ImageGenerationFormContext';
+} from '../ImageGenerationFormContext.store';
+import type { ImageGenerationFormContextValue } from '../ImageGenerationFormContext.types';
 
 export function useImageGenerationFormContext(): ImageGenerationFormContextValue {
   const context = useContext(ImageGenerationFormContext);

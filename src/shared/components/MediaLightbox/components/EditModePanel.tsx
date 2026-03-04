@@ -8,91 +8,17 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/
 import { XCircle, Layers, Plus } from 'lucide-react';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { ActiveLoRAsDisplay } from '@/features/lora/components/ActiveLoRAsDisplay';
-import { LoraSelectorModal, LoraModel } from '@/shared/components/LoraSelectorModal';
-import type { UseLoraManagerReturn } from '@/shared/hooks/useLoraManager';
+import { LoraSelectorModal } from '@/shared/components/LoraSelectorModal';
+import type { LoraModel } from '@/shared/components/LoraSelectorModal';
 import { EditAdvancedSettings } from './EditAdvancedSettings';
-import type { EditAdvancedSettings as EditAdvancedSettingsType } from '../hooks/useGenerationEditSettings';
 import { EditPanelLayout } from './EditPanelLayout';
 import { ImageUpscaleForm } from './ImageUpscaleForm';
 import { ModeSelector } from './ModeSelector';
 import { RepositionButtons } from './editModes/RepositionButtons';
 import { Img2ImgControls } from './editModes/Img2ImgControls';
 import { GenerateButton } from './editModes/GenerateButton';
-import type { LightboxCoreState, LightboxVariantState } from '../contexts/LightboxStateContext';
-import type { ImageEditState } from '../contexts/ImageEditContext';
+import type { EditModePanelProps } from './EditModePanel.types';
 import { useEditModePanelState } from '../hooks/useEditModePanelState';
-
-interface EditModePanelActions {
-  handleUnifiedGenerate: () => void;
-  handleGenerateAnnotatedEdit: () => void;
-  handleGenerateReposition?: () => void;
-  handleSaveAsVariant?: () => void;
-  handleGenerateImg2Img?: () => void;
-}
-
-interface EditModePanelUpscaleControls {
-  isCloudMode?: boolean;
-  handleUpscale?: () => Promise<void>;
-  isUpscaling?: boolean;
-  upscaleSuccess?: boolean;
-}
-
-interface EditModePanelLoraControls {
-  img2imgLoraManager?: UseLoraManagerReturn;
-  editLoraManager?: UseLoraManagerReturn;
-  availableLoras?: LoraModel[];
-}
-
-interface EditModePanelAdvancedConfig {
-  advancedSettings?: EditAdvancedSettingsType;
-  setAdvancedSettings?: (updates: Partial<EditAdvancedSettingsType>) => void;
-}
-
-interface EditModePanelStateOverrides {
-  coreState?: Pick<LightboxCoreState, 'onClose'>;
-  imageEditState?: ImageEditState;
-  variantsState?: Pick<LightboxVariantState,
-    | 'variants'
-    | 'activeVariant'
-    | 'handleVariantSelect'
-    | 'handleMakePrimary'
-    | 'isLoadingVariants'
-    | 'handlePromoteToGeneration'
-    | 'isPromoting'
-    | 'handleDeleteVariant'
-    | 'onLoadVariantSettings'
-  >;
-}
-
-interface EditModePanelProps {
-  /** Layout variant */
-  variant: 'desktop' | 'mobile';
-  hideInfoEditToggle?: boolean;
-  /**
-   * Simplified header mode for page views (edit-images, edit-video tools).
-   * When true, shows only [ModeSelector | X button] in header.
-   * When false (default), shows full header with id copy, variants link, pending badge, etc.
-   */
-  simplifiedHeader?: boolean;
-
-  // Task ID for copy functionality
-  taskId?: string | null;
-
-  // Current media ID (for tracking prompt changes)
-  currentMediaId: string;
-
-  // Grouped behavior/config props
-  actions: EditModePanelActions;
-  upscale?: EditModePanelUpscaleControls;
-  lora?: EditModePanelLoraControls;
-  advanced?: EditModePanelAdvancedConfig;
-
-  // Whether running in local generation mode (shows steps slider)
-  isLocalGeneration?: boolean;
-
-  // Optional state overrides (props-first pattern)
-  stateOverrides?: EditModePanelStateOverrides;
-}
 
 /**
  * EditModePanel Component

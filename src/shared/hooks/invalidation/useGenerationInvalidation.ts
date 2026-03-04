@@ -35,9 +35,6 @@ function logInvalidationEvent(
   message: string,
   payload: Record<string, unknown>,
 ): void {
-  if (import.meta.env.DEV) {
-    console.debug(`[Invalidation] ${message}`, payload);
-  }
 }
 
 function buildInvalidationKey(shotId: string, options: InvalidationOptions): string {

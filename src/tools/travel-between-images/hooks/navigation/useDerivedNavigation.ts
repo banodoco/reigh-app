@@ -9,7 +9,6 @@ interface UseDerivedNavigationProps {
   handleOpenExternalGeneration: (generationId: string, derivedContext?: string[]) => Promise<void>;
   goNext: () => void;
   goPrev: () => void;
-  logPrefix?: string;
 }
 
 /**
@@ -27,8 +26,7 @@ interface UseDerivedNavigationProps {
  *   currentImages,
  *   handleOpenExternalGeneration: externalGens.handleOpenExternalGeneration,
  *   goNext: originalGoNext,
- *   goPrev: originalGoPrev,
- *   logPrefix: '[Timeline:DerivedNav]'
+ *   goPrev: originalGoPrev
  * });
  */
 export function useDerivedNavigation({
@@ -38,10 +36,7 @@ export function useDerivedNavigation({
   handleOpenExternalGeneration,
   goNext,
   goPrev,
-  logPrefix = '[DerivedNav]'
 }: UseDerivedNavigationProps) {
-  void logPrefix;
-  
   const wrappedGoNext = useCallback(() => {
     if (derivedNavContext && lightboxIndex !== null) {
       const currentId = currentImages[lightboxIndex]?.id;

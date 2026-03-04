@@ -18,6 +18,21 @@ import { jsonResponse } from './http.ts';
 type BodyParseMode = 'none' | 'strict' | 'loose';
 type ErrorResponseFormat = 'json' | 'text';
 
+/**
+ * Shared runtime options that disable Supabase auth session management.
+ * Use in edge functions that handle their own auth (PAT, JWT, service-role).
+ */
+export const NO_SESSION_RUNTIME_OPTIONS: Pick<EdgeBootstrapOptions, 'runtimeOptions'> = {
+  runtimeOptions: {
+    clientOptions: {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    },
+  },
+} as const;
+
 export interface EdgeBootstrapOptions {
   functionName: string;
   logPrefix: string;

@@ -1,4 +1,5 @@
 import Stripe from "https://esm.sh/stripe@14.21.0";
+import { jsonResponse } from "./http.ts";
 
 export const AUTO_TOPUP_MIN_AMOUNT_USD = 5;
 export const AUTO_TOPUP_MAX_AMOUNT_USD = 100;
@@ -136,4 +137,20 @@ export function getAutoTopupConfigFailure(error: unknown): AutoTopupConfigFailur
     return AUTO_TOPUP_CONFIG_FAILURES.FRONTEND_URL_MISSING;
   }
   return null;
+}
+
+/**
+ * Check if an error is a config failure (missing env vars) and return a
+ * 500 JSON response if so. Returns null for non-config errors so the
+ * caller can continue with its own error handling.
+ */
+export async function handleAutoTopupConfigError(
+  error: unknown,
+  logger: { error: (msg: string) => void; flush: () => Promise<void> },
+): Promise<Response | null> {
+  const configFailure = getAutoTopupConfigFailure(error);
+  if (!configFailure) return null;
+  logger.error(configFailure.logMessage);
+  await logger.flush();
+  return jsonResponse({ error: configFailure.userMessage }, 500);
 }

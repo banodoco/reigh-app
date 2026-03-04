@@ -1,6 +1,21 @@
 import { useEffect } from 'react';
 import { useProject } from '@/shared/contexts/ProjectContext';
 
+type ProjectContextDebugInfo = {
+  timestamp: string;
+  isMobile: boolean;
+  projectsCount: number;
+  selectedProjectId: string;
+  isLoadingProjects: boolean;
+  userAgent: string;
+};
+
+const projectDebugLog: ProjectContextDebugInfo[] = [];
+
+export function getProjectContextDebugLog(): ProjectContextDebugInfo[] {
+  return projectDebugLog;
+}
+
 /**
  * Debug hook to monitor ProjectContext state changes on mobile.
  * Enable by setting DEBUG_PROJECT_CONTEXT=true in localStorage.
@@ -29,15 +44,11 @@ export const useProjectContextDebug = (enabled: boolean = import.meta.env.DEV) =
       userAgent: navigator.userAgent,
     };
 
-    // Also log to a global debug array for inspection.
-    if (!window.__projectDebugLog) {
-      window.__projectDebugLog = [];
-    }
-    window.__projectDebugLog.push(debugInfo);
+    projectDebugLog.push(debugInfo);
 
     // Keep only last 50 entries.
-    if (window.__projectDebugLog.length > 50) {
-      window.__projectDebugLog = window.__projectDebugLog.slice(-50);
+    if (projectDebugLog.length > 50) {
+      projectDebugLog.splice(0, projectDebugLog.length - 50);
     }
   }, [enabled, projects, selectedProjectId, isLoadingProjects]);
 };

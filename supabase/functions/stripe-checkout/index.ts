@@ -1,8 +1,6 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import {
-  checkRateLimit,
-  isRateLimitExceededFailure,
-  rateLimitFailureResponse,
+  enforceRateLimit,
   RATE_LIMITS,
 } from "../_shared/rateLimit.ts";
 import { bootstrapEdgeHandler } from "../_shared/edgeHandler.ts";
@@ -10,7 +8,7 @@ import { jsonResponse } from "../_shared/http.ts";
 import {
   createStripeClient,
   dollarsToCents,
-  getAutoTopupConfigFailure,
+  handleAutoTopupConfigError,
   requireFrontendUrl,
   validateAutoTopupConfig,
   validateCreditPurchaseAmount,
@@ -80,34 +78,11 @@ serve(async (req) => {
   }
 
   // ─── 3. Rate limit check ──────────────────────────────────────────
-  const rateLimitResult = await checkRateLimit(
-    supabaseAdmin,
-    'stripe-checkout',
-    auth.userId,
-    RATE_LIMITS.expensive,
-    '[STRIPE-CHECKOUT]'
+  const rateLimitDenied = await enforceRateLimit(
+    supabaseAdmin, 'stripe-checkout', auth.userId, RATE_LIMITS.expensive, logger, '[STRIPE-CHECKOUT]',
+    () => jsonResponse({ error: 'Rate limit service unavailable' }, 503),
   );
-  if (!rateLimitResult.ok) {
-    if (isRateLimitExceededFailure(rateLimitResult)) {
-      return rateLimitFailureResponse(rateLimitResult, RATE_LIMITS.expensive);
-    }
-
-    logger.error('Rate limit check failed', {
-      user_id: auth.userId,
-      error_code: rateLimitResult.errorCode,
-      message: rateLimitResult.message,
-    });
-    await logger.flush();
-    return jsonResponse({ error: 'Rate limit service unavailable' }, 503);
-  }
-
-  if (rateLimitResult.policy === 'fail_open') {
-    logger.warn('Rate limit check degraded; allowing request', {
-      user_id: auth.userId,
-      reason: rateLimitResult.value.degraded?.reason,
-      message: rateLimitResult.value.degraded?.message,
-    });
-  }
+  if (rateLimitDenied) return rateLimitDenied;
 
   try {
     // ─── 5. Initialize Stripe and create checkout session ─────────────────────────
@@ -171,12 +146,8 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    const configFailure = getAutoTopupConfigFailure(error);
-    if (configFailure) {
-      logger.error(configFailure.logMessage);
-      await logger.flush();
-      return jsonResponse({ error: configFailure.userMessage }, 500);
-    }
+    const configResponse = await handleAutoTopupConfigError(error, logger);
+    if (configResponse) return configResponse;
 
     logger.error('Error creating Stripe checkout session', {
       error: error instanceof Error ? error.message : String(error),

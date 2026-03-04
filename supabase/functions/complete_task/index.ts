@@ -4,12 +4,10 @@ import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7
 import { jsonResponse } from "../_shared/http.ts";
 import { edgeErrorResponse } from "../_shared/edgeRequest.ts";
 import {
-  checkRateLimit,
-  isRateLimitExceededFailure,
-  rateLimitFailureResponse,
+  enforceRateLimit,
   RATE_LIMITS,
 } from "../_shared/rateLimit.ts";
-import { bootstrapEdgeHandler } from "../_shared/edgeHandler.ts";
+import { bootstrapEdgeHandler, NO_SESSION_RUNTIME_OPTIONS } from "../_shared/edgeHandler.ts";
 import { resolveTaskStorageActor } from "../_shared/taskActorPolicy.ts";
 
 // Import from refactored modules
@@ -206,14 +204,7 @@ export async function completeTaskHandler(req: Request): Promise<Response> {
       required: true,
       options: { allowJwtUserAuth: true },
     },
-    runtimeOptions: {
-      clientOptions: {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      },
-    },
+    ...NO_SESSION_RUNTIME_OPTIONS,
   });
   if (!bootstrap.ok) {
     return bootstrap.response;
@@ -269,40 +260,11 @@ export async function completeTaskHandler(req: Request): Promise<Response> {
 
   // 4b) Rate limit non-service-role callers (workers use service-role and are not rate limited)
   if (!isServiceRole && callerId) {
-    const rateLimitResult = await checkRateLimit(
-      supabaseAdmin,
-      'complete-task',
-      callerId,
-      RATE_LIMITS.userAction,
-      '[COMPLETE-TASK]'
+    const rateLimitDenied = await enforceRateLimit(
+      supabaseAdmin, 'complete-task', callerId, RATE_LIMITS.userAction, logger, '[COMPLETE-TASK]',
+      () => completeTaskErrorResponse("Rate limit service unavailable", 503, 'rate_limit_service_unavailable'),
     );
-    if (!rateLimitResult.ok) {
-      if (isRateLimitExceededFailure(rateLimitResult)) {
-        logger.warn("Rate limit exceeded", { user_id: callerId });
-        await logger.flush();
-        return rateLimitFailureResponse(rateLimitResult, RATE_LIMITS.userAction);
-      }
-
-      logger.error("Rate limit check failed", {
-        user_id: callerId,
-        error_code: rateLimitResult.errorCode,
-        message: rateLimitResult.message,
-      });
-      await logger.flush();
-      return completeTaskErrorResponse(
-        "Rate limit service unavailable",
-        503,
-        'rate_limit_service_unavailable',
-      );
-    }
-
-    if (rateLimitResult.policy === 'fail_open') {
-      logger.warn("Rate limit check degraded; allowing request", {
-        user_id: callerId,
-        reason: rateLimitResult.value.degraded?.reason,
-        message: rateLimitResult.value.degraded?.message,
-      });
-    }
+    if (rateLimitDenied) return rateLimitDenied;
   }
 
   try {

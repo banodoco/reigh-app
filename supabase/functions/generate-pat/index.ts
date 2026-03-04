@@ -1,12 +1,8 @@
 // deno-lint-ignore-file
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import {
-  checkRateLimit,
-  isRateLimitExceededFailure,
-  rateLimitFailureResponse,
-} from "../_shared/rateLimit.ts";
+import { enforceRateLimit } from "../_shared/rateLimit.ts";
 import { jsonResponse } from "../_shared/http.ts";
-import { bootstrapEdgeHandler } from "../_shared/edgeHandler.ts";
+import { bootstrapEdgeHandler, NO_SESSION_RUNTIME_OPTIONS } from "../_shared/edgeHandler.ts";
 
 // Generate a cryptographically secure random 32-character token
 function generateToken(): string {
@@ -27,14 +23,7 @@ serve(async (req) => {
       required: true,
       options: { allowJwtUserAuth: true },
     },
-    runtimeOptions: {
-      clientOptions: {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      },
-    },
+    ...NO_SESSION_RUNTIME_OPTIONS,
   });
   if (!bootstrap.ok) {
     return bootstrap.response;
@@ -49,34 +38,11 @@ serve(async (req) => {
 
   try {
     // Rate limit: max 10 PAT generations per minute per user
-    const rateLimitResult = await checkRateLimit(
-      supabaseAdmin,
-      'generate-pat',
-      auth.userId,
-      GENERATE_PAT_RATE_LIMIT,
-      '[GENERATE-PAT]'
+    const rateLimitDenied = await enforceRateLimit(
+      supabaseAdmin, 'generate-pat', auth.userId, GENERATE_PAT_RATE_LIMIT, logger, '[GENERATE-PAT]',
+      () => jsonResponse({ error: 'Rate limit service unavailable' }, 503),
     );
-    if (!rateLimitResult.ok) {
-      if (isRateLimitExceededFailure(rateLimitResult)) {
-        return rateLimitFailureResponse(rateLimitResult, GENERATE_PAT_RATE_LIMIT);
-      }
-
-      logger.error('Rate limit check failed', {
-        user_id: auth.userId,
-        error_code: rateLimitResult.errorCode,
-        message: rateLimitResult.message,
-      });
-      await logger.flush();
-      return jsonResponse({ error: 'Rate limit service unavailable' }, 503);
-    }
-
-    if (rateLimitResult.policy === 'fail_open') {
-      logger.warn('Rate limit check degraded; allowing request', {
-        user_id: auth.userId,
-        reason: rateLimitResult.value.degraded?.reason,
-        message: rateLimitResult.value.degraded?.message,
-      });
-    }
+    if (rateLimitDenied) return rateLimitDenied;
 
     const label = typeof body.label === 'string' && body.label.trim().length > 0
       ? body.label

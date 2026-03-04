@@ -1,4 +1,3 @@
-import React from 'react';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { getThumbPath } from '../../motion/VideoWithPoster';
 import { MotionComparison } from '../../motion/MotionComparison';

@@ -15,16 +15,15 @@ import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7
 import { VARIANT_TYPE_DEFAULT } from './constants.ts';
 
 import {
-  extractBasedOn,
   extractShotAndPosition,
   buildGenerationParams,
+  resolveBasedOn,
 } from './params.ts';
 
 import {
   insertGeneration,
   createVariant,
   linkGenerationToShot,
-  findSourceGenerationByImageUrl,
 } from './generation-core.ts';
 
 import {
@@ -33,21 +32,9 @@ import {
   getChildVariantViewedAt,
 } from './generation-parent.ts';
 
-interface HandlerContext {
-  supabase: SupabaseClient;
-  taskId: string;
-  taskData: unknown;
-  publicUrl: string;
-  thumbnailUrl: string | null;
-  logger?: unknown;
-  childGenerationId?: string;
-  parentGenerationId?: string;
-  childOrder?: number | null;
-  isSingleItem?: boolean;
-}
-
-// Re-export child generation handlers for backward compatibility
+// Re-export child generation handlers and shared types for backward compatibility
 export {
+  type HandlerContext,
   handleChildGeneration,
   createSingleItemVariant,
   findExistingGenerationAtPosition,
@@ -351,24 +338,7 @@ export async function handleStandaloneGeneration(ctx: HandlerContext): Promise<u
     taskData.params?.full_orchestrator_payload?.generation_name;
 
   // Find based_on
-  let basedOnGenerationId: string | null = extractBasedOn(taskData.params);
-  if (basedOnGenerationId) {
-    const { data: basedOnGen, error: basedOnError } = await supabase
-      .from('generations')
-      .select('id')
-      .eq('id', basedOnGenerationId)
-      .maybeSingle();
-
-    if (basedOnError || !basedOnGen) {
-      basedOnGenerationId = null;
-    }
-  }
-  if (!basedOnGenerationId) {
-    const sourceImageUrl = taskData.params?.image;
-    if (sourceImageUrl) {
-      basedOnGenerationId = await findSourceGenerationByImageUrl(supabase, sourceImageUrl);
-    }
-  }
+  const basedOnGenerationId = await resolveBasedOn(supabase, taskData.params);
 
   logger?.info("Creating standalone generation", {
     task_id: taskId,

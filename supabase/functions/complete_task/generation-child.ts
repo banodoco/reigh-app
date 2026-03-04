@@ -14,13 +14,13 @@
 
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
 import { TASK_TYPES, VARIANT_TYPE_DEFAULT } from './constants.ts';
-import { extractBasedOn, extractShotAndPosition, buildGenerationParams } from './params.ts';
-import { insertGeneration, createVariant, findSourceGenerationByImageUrl } from './generation-core.ts';
+import { extractShotAndPosition, buildGenerationParams, resolveBasedOn } from './params.ts';
+import { insertGeneration, createVariant } from './generation-core.ts';
 import { createVariantOnParent, getChildVariantViewedAt } from './generation-parent.ts';
 import { normalizeSegmentTaskParams } from './taskParamNormalizer.ts';
 import { buildSegmentMasterStateSnapshot } from './generation-child-diagnostics.ts';
 
-interface HandlerContext {
+export interface HandlerContext {
   supabase: SupabaseClient;
   taskId: string;
   taskData: unknown;
@@ -264,24 +264,7 @@ export async function createChildGenerationRecord(
   const generationName = asString(params.generation_name);
 
   // Find based_on
-  let basedOnGenerationId: string | null = extractBasedOn(params);
-  if (basedOnGenerationId) {
-    const { data: basedOnGen, error: basedOnError } = await supabase
-      .from('generations')
-      .select('id')
-      .eq('id', basedOnGenerationId)
-      .maybeSingle();
-
-    if (basedOnError || !basedOnGen) {
-      basedOnGenerationId = null;
-    }
-  }
-  if (!basedOnGenerationId) {
-    const sourceImageUrl = asString(params.image);
-    if (sourceImageUrl) {
-      basedOnGenerationId = await findSourceGenerationByImageUrl(supabase, sourceImageUrl);
-    }
-  }
+  const basedOnGenerationId = await resolveBasedOn(supabase, params);
 
   logger?.info("Creating child generation record", {
     task_id: taskId,

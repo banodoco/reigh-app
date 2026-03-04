@@ -5,6 +5,7 @@
  * supporting multiple possible locations for each field.
  */
 
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
 import { extractOrchestratorRef } from '../_shared/billing.ts';
 import {
   extractAddInPositionParam,
@@ -12,6 +13,7 @@ import {
   extractRunIdParam,
   extractShotIdParam,
 } from '../../../src/shared/lib/tasks/taskParamContract.ts';
+import { findSourceGenerationByImageUrl } from './generation-core.ts';
 
 // ===== THUMBNAIL PATH CONFIGURATION =====
 
@@ -134,6 +136,45 @@ export function getContentType(filename: string): string {
     default:
       return 'application/octet-stream';
   }
+}
+
+/**
+ * Resolve based_on generation ID from params.
+ * Extracts the based_on ID, verifies it exists in the DB, and falls back
+ * to image-URL lookup if the explicit ID is missing or stale.
+ */
+export async function resolveBasedOn(
+  supabase: SupabaseClient,
+  params: unknown,
+): Promise<string | null> {
+  const record = params && typeof params === 'object' && !Array.isArray(params)
+    ? params as Record<string, unknown>
+    : {};
+
+  let basedOnGenerationId: string | null = extractBasedOn(record);
+
+  if (basedOnGenerationId) {
+    const { data: basedOnGen, error: basedOnError } = await supabase
+      .from('generations')
+      .select('id')
+      .eq('id', basedOnGenerationId)
+      .maybeSingle();
+
+    if (basedOnError || !basedOnGen) {
+      basedOnGenerationId = null;
+    }
+  }
+
+  if (!basedOnGenerationId) {
+    const sourceImageUrl = typeof record.image === 'string' && record.image.length > 0
+      ? record.image
+      : null;
+    if (sourceImageUrl) {
+      basedOnGenerationId = await findSourceGenerationByImageUrl(supabase, sourceImageUrl);
+    }
+  }
+
+  return basedOnGenerationId;
 }
 
 /**

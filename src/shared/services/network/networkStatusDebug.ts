@@ -6,8 +6,6 @@ export function installNetworkStatusDebugHelpers(manager: NetworkStatusManager):
     return;
   }
 
-  window.__NETWORK_STATUS_MANAGER__ = manager;
-
   window.checkNetworkStatus = () => {
     manager.getStatus();
     manager.getRecommendedIntervals();

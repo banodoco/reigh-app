@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { jsonResponse } from "../_shared/http.ts";
-import { bootstrapEdgeHandler } from "../_shared/edgeHandler.ts";
+import { bootstrapEdgeHandler, NO_SESSION_RUNTIME_OPTIONS } from "../_shared/edgeHandler.ts";
 import { dollarsToCents, validateAutoTopupConfig } from "../_shared/autoTopupDomain.ts";
 
 /**
@@ -33,14 +33,7 @@ serve(async (req) => {
       required: true,
       options: { allowJwtUserAuth: true },
     },
-    runtimeOptions: {
-      clientOptions: {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      },
-    },
+    ...NO_SESSION_RUNTIME_OPTIONS,
   });
   if (!bootstrap.ok) {
     return bootstrap.response;
