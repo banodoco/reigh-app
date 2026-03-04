@@ -147,7 +147,6 @@ function useInlineEditInpaintingAndMagic(
   const magic = useMagicEditMode({
     media,
     selectedProjectId: env.selectedProjectId,
-    isVideo: env.isVideo,
     isInpaintMode: inpainting.isInpaintMode,
     setIsInpaintMode: (v: boolean) => inpainting.setIsInpaintMode(v),
     handleEnterInpaintMode: inpainting.handleEnterInpaintMode,

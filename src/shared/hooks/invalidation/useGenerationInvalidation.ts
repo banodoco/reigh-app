@@ -32,9 +32,10 @@ interface VariantDelayEntry {
 const variantInvalidationDelays = new Map<string, VariantDelayEntry>();
 
 function logInvalidationEvent(
-  message: string,
-  payload: Record<string, unknown>,
+  _message: string,
+  _payload: Record<string, unknown>,
 ): void {
+  // Intentionally empty — call sites kept for easy re-enablement during debugging
 }
 
 function buildInvalidationKey(shotId: string, options: InvalidationOptions): string {

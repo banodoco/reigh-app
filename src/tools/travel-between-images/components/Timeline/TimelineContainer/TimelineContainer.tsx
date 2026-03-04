@@ -25,6 +25,7 @@ import { usePairSettingsHandler } from '../hooks/usePairSettingsHandler';
 
 import type { TimelineContainerProps } from './types';
 import { useTimelineMedia } from '../TimelineMediaContext';
+import { resolvePrimaryStructureVideo } from '../../structureVideo/primaryStructureVideoAdapter';
 
 const TimelineContainer: React.FC<TimelineContainerProps> = ({
   shotId,
@@ -68,9 +69,10 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
   const {
     primaryStructureVideoPath,
     primaryStructureVideoMetadata,
-    primaryStructureVideoTreatment = 'adjust',
-    primaryStructureVideoMotionStrength = 1.0,
-    primaryStructureVideoType = 'flow',
+    primaryStructureVideoTreatment,
+    primaryStructureVideoMotionStrength,
+    primaryStructureVideoType,
+    primaryStructureVideoUni3cEndPercent,
     onPrimaryStructureVideoInputChange,
     structureVideos,
     isStructureVideoLoading,
@@ -82,6 +84,16 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     audioMetadata,
     onAudioChange,
   } = useTimelineMedia();
+
+  const primaryStructureVideo = resolvePrimaryStructureVideo({
+    structureVideos,
+    primaryStructureVideoPath,
+    primaryStructureVideoMetadata,
+    primaryStructureVideoTreatment,
+    primaryStructureVideoMotionStrength,
+    primaryStructureVideoType,
+    primaryStructureVideoUni3cEndPercent,
+  });
 
   const trailingEndFrame = framePositions.get(TRAILING_ENDPOINT_KEY);
 
@@ -140,9 +152,9 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     isUploadingImage,
     maxFrameLimit,
     structureVideos,
-    primaryStructureVideoType,
-    primaryStructureVideoTreatment,
-    primaryStructureVideoMotionStrength,
+    primaryStructureVideoType: primaryStructureVideo.structureType,
+    primaryStructureVideoTreatment: primaryStructureVideo.treatment,
+    primaryStructureVideoMotionStrength: primaryStructureVideo.motionStrength,
     onAddStructureVideo,
     onUpdateStructureVideo,
     onPrimaryStructureVideoInputChange,
@@ -322,10 +334,10 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
             onAudioChange,
           }}
           guidance={{
-            primaryStructureVideoPath,
-            primaryStructureVideoType,
-            primaryStructureVideoTreatment,
-            primaryStructureVideoMotionStrength,
+            primaryStructureVideoPath: primaryStructureVideo.path,
+            primaryStructureVideoType: primaryStructureVideo.structureType,
+            primaryStructureVideoTreatment: primaryStructureVideo.treatment,
+            primaryStructureVideoMotionStrength: primaryStructureVideo.motionStrength,
             structureVideos,
             onAddStructureVideo,
             onUpdateStructureVideo,
@@ -415,11 +427,11 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
                 onAddStructureVideo,
                 onUpdateStructureVideo,
                 onRemoveStructureVideo,
-                primaryStructureVideoPath,
-                primaryStructureVideoMetadata,
-                primaryStructureVideoTreatment,
-                primaryStructureVideoMotionStrength,
-                primaryStructureVideoType,
+                primaryStructureVideoPath: primaryStructureVideo.path,
+                primaryStructureVideoMetadata: primaryStructureVideo.metadata,
+                primaryStructureVideoTreatment: primaryStructureVideo.treatment,
+                primaryStructureVideoMotionStrength: primaryStructureVideo.motionStrength,
+                primaryStructureVideoType: primaryStructureVideo.structureType,
                 onPrimaryStructureVideoInputChange,
                 isUploadingStructureVideo,
                 setIsUploadingStructureVideo,

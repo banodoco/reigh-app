@@ -1,6 +1,5 @@
 {
   "test:contracts": [
-    "src/shared/components/ui/contracts/button.tsx",
     "src/shared/components/ui/contracts/cn.ts",
     "src/shared/lib/errorHandling/runtimeError.ts",
     "src/domains/generation/types/index.ts"
@@ -13,7 +12,6 @@
   "quality:check": [
     "src/integrations/supabase/client.ts",
     "src/shared/lib/errorHandling/runtimeError.ts",
-    "src/shared/components/ui/contracts/button.tsx",
     "src/shared/components/ui/contracts/cn.ts"
   ]
 }

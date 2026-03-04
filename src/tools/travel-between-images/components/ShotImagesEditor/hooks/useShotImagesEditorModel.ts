@@ -9,6 +9,7 @@ import { useShotGenerationsData } from './useShotGenerationsData';
 import { useSmoothContinuations } from './useSmoothContinuations';
 import type { ShotImagesEditorResolvedProps } from '../types';
 import type { TimelineMediaContextValue } from '../../Timeline/TimelineMediaContext';
+import { resolvePrimaryStructureVideo } from '../../structureVideo/primaryStructureVideoAdapter';
 
 function useShotData(
   props: ShotImagesEditorResolvedProps,
@@ -257,9 +258,10 @@ function useTimelineMediaValue(props: ShotImagesEditorResolvedProps) {
   const {
     primaryStructureVideoPath,
     primaryStructureVideoMetadata,
-    primaryStructureVideoTreatment = 'adjust',
-    primaryStructureVideoMotionStrength = 1.0,
-    primaryStructureVideoType = 'flow',
+    primaryStructureVideoTreatment,
+    primaryStructureVideoMotionStrength,
+    primaryStructureVideoType,
+    primaryStructureVideoUni3cEndPercent,
     onPrimaryStructureVideoInputChange,
     structureVideos,
     isStructureVideoLoading,
@@ -272,12 +274,23 @@ function useTimelineMediaValue(props: ShotImagesEditorResolvedProps) {
     onAudioChange,
   } = props;
 
-  return useMemo<TimelineMediaContextValue>(() => ({
+  const primaryStructureVideo = resolvePrimaryStructureVideo({
+    structureVideos,
     primaryStructureVideoPath,
     primaryStructureVideoMetadata,
     primaryStructureVideoTreatment,
     primaryStructureVideoMotionStrength,
     primaryStructureVideoType,
+    primaryStructureVideoUni3cEndPercent,
+  });
+
+  return useMemo<TimelineMediaContextValue>(() => ({
+    primaryStructureVideoPath: primaryStructureVideo.path,
+    primaryStructureVideoMetadata: primaryStructureVideo.metadata,
+    primaryStructureVideoTreatment: primaryStructureVideo.treatment,
+    primaryStructureVideoMotionStrength: primaryStructureVideo.motionStrength,
+    primaryStructureVideoType: primaryStructureVideo.structureType,
+    primaryStructureVideoUni3cEndPercent: primaryStructureVideo.uni3cEndPercent,
     onPrimaryStructureVideoInputChange,
     structureVideos,
     isStructureVideoLoading,
@@ -289,11 +302,7 @@ function useTimelineMediaValue(props: ShotImagesEditorResolvedProps) {
     audioMetadata,
     onAudioChange,
   }), [
-    primaryStructureVideoPath,
-    primaryStructureVideoMetadata,
-    primaryStructureVideoTreatment,
-    primaryStructureVideoMotionStrength,
-    primaryStructureVideoType,
+    primaryStructureVideo,
     onPrimaryStructureVideoInputChange,
     structureVideos,
     isStructureVideoLoading,

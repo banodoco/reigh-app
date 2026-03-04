@@ -2,16 +2,28 @@
 import { DEFAULT_STEERABLE_MOTION_SETTINGS } from '@/shared/types/steerableMotion';
 
 /**
- * Default values for video structure API params (legacy single-video format)
+ * Canonical defaults for structure video configuration.
+ * Legacy field names are derived from this object at boundary adapters.
+ */
+export const DEFAULT_STRUCTURE_VIDEO = {
+  treatment: 'adjust' as const,
+  motion_strength: 1.2,
+  structure_type: 'uni3c' as const,
+  uni3c_end_percent: 0.1,
+};
+
+/**
+ * Default values for video structure API params (legacy single-video format).
+ * Keep this for compatibility while migrating callers to DEFAULT_STRUCTURE_VIDEO.
  */
 export const DEFAULT_VIDEO_STRUCTURE_PARAMS: {
   structure_video_treatment: 'adjust' | 'clip';
   structure_video_motion_strength: number;
   structure_video_type: 'uni3c' | 'flow' | 'canny' | 'depth';
 } = {
-  structure_video_treatment: 'adjust',
-  structure_video_motion_strength: 1.2,
-  structure_video_type: 'uni3c',  // Hardcoded to uni3c - only supported option now
+  structure_video_treatment: DEFAULT_STRUCTURE_VIDEO.treatment,
+  structure_video_motion_strength: DEFAULT_STRUCTURE_VIDEO.motion_strength,
+  structure_video_type: DEFAULT_STRUCTURE_VIDEO.structure_type,
 };
 
 /**

@@ -1,18 +1,15 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Shot } from '@/domains/generation/types';
 import VideoShotDisplay from './VideoShotDisplay';
 import { cn } from '@/shared/components/ui/contracts/cn';
-import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import { isValidDropTarget, getGenerationDropData, isFileDrag, type GenerationDropData } from '@/shared/lib/dnd/dragDrop';
-import { isVideoGeneration } from '@/shared/lib/typeGuards';
 import { Loader2, Check } from 'lucide-react';
-import { useAppEventListener } from '@/shared/lib/typedEvents';
-
-export interface DropOptions {
-  withoutPosition?: boolean;
-}
+import { type GenerationDropData } from '@/shared/lib/dnd/dragDrop';
+import {
+  useSortableShotDropFeedback,
+  type DropOptions,
+} from './hooks/useSortableShotDropFeedback';
 
 interface SortableShotItemProps {
   shot: Shot;
@@ -25,20 +22,12 @@ interface SortableShotItemProps {
   shotIndex?: number;
   projectAspectRatio?: string;
   isHighlighted?: boolean;
-  // Drop handling for generations from GenerationsPane
   onGenerationDrop?: (shotId: string, data: GenerationDropData, options?: DropOptions) => Promise<void>;
-  // Drop handling for external files
   onFilesDrop?: (shotId: string, files: File[], options?: DropOptions) => Promise<void>;
-  // Initial pending uploads (for newly created shots from drop)
   initialPendingUploads?: number;
-  // Baseline non-video image count at the moment the new shot appeared
-  // (used to avoid latching after some images already arrived)
   initialPendingBaselineNonVideoCount?: number;
-  // Callback when initial pending uploads are consumed
   onInitialPendingUploadsConsumed?: () => void;
-  // Data attribute for product tour
   dataTour?: string;
-  // Final video data for this shot (if available)
   finalVideo?: import('../hooks/useShotFinalVideos').ShotFinalVideo;
 }
 
@@ -70,370 +59,29 @@ const SortableShotItem: React.FC<SortableShotItemProps> = ({
     disabled: isDragDisabled,
   });
 
-  // Drop state for visual feedback
-  const [isDropTarget, setIsDropTarget] = useState(false);
-  // Track if hovering over the "Without Position" zone
-  const [isOverWithoutPositionZone, setIsOverWithoutPositionZone] = useState(false);
-  const withoutPositionZoneRef = useRef<HTMLDivElement>(null);
-  
-  // Track "without position" drop state: 'idle' | 'loading' | 'success'
-  const [withoutPositionDropState, setWithoutPositionDropState] = useState<'idle' | 'loading' | 'success'>('idle');
-  const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Track "with position" drop state for centered loading indicator
-  const [withPositionDropState, setWithPositionDropState] = useState<'idle' | 'loading' | 'success'>('idle');
-  const withPositionSuccessTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Track uploads using refs so we can compute skeleton count during render (no flicker)
-  const expectedNewCountRef = useRef(0);
-  const baselineNonVideoIdsRef = useRef<Set<string> | null>(null);
-  const safetyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // "Latch" the initial pending uploads so we don't lose track when parent clears state
-  // Once we receive initialPendingUploads > 0, we store it and track progress locally
-  const latchedInitialPendingRef = useRef(0);
-  const initialBaselineCountRef = useRef(0);
-  
-  // Get current non-video image IDs
-  const nonVideoImageIds = (shot.images || [])
-    .filter(img => !isVideoGeneration(img))
-    .map(img => img.id);
-  const nonVideoImageCount = nonVideoImageIds.length;
-
-  // Latch the initial pending count when we first receive it.
-  // IMPORTANT: `initialPendingUploads` is now "remaining" uploads, so baseline is the *current* count.
-  if (initialPendingUploads > 0 && latchedInitialPendingRef.current === 0) {
-    latchedInitialPendingRef.current = initialPendingUploads;
-    initialBaselineCountRef.current =
-      typeof initialPendingBaselineNonVideoCount === 'number'
-        ? initialPendingBaselineNonVideoCount
-        : nonVideoImageCount;
-  }
-
-  // Compute pending skeleton count DURING RENDER (no state delay = no flicker)
-  let pendingSkeletonCount = 0;
-  
-  // First check if we have our own drop-initiated pending uploads (from drops on existing shot)
-  if (expectedNewCountRef.current > 0 && baselineNonVideoIdsRef.current) {
-    const baseline = baselineNonVideoIdsRef.current;
-    const newlyAppearedCount = nonVideoImageIds.filter(id => !baseline.has(id)).length;
-    pendingSkeletonCount = Math.max(0, expectedNewCountRef.current - newlyAppearedCount);
-    
-    // If all images have appeared, clear the refs
-    if (pendingSkeletonCount === 0) {
-      expectedNewCountRef.current = 0;
-      baselineNonVideoIdsRef.current = null;
-      if (safetyTimeoutRef.current) {
-        clearTimeout(safetyTimeoutRef.current);
-        safetyTimeoutRef.current = null;
-      }
-    }
-  }
-  // Otherwise, check for latched initial pending uploads (from newly created shot)
-  else if (latchedInitialPendingRef.current > 0) {
-    // How many images have appeared since we latched?
-    const newlyAppearedCount = nonVideoImageCount - initialBaselineCountRef.current;
-    pendingSkeletonCount = Math.max(0, latchedInitialPendingRef.current - newlyAppearedCount);
-    
-    // If all images have appeared, clear the latch
-    if (pendingSkeletonCount === 0) {
-      latchedInitialPendingRef.current = 0;
-      initialBaselineCountRef.current = 0;
-    }
-  }
-
-  // If initial pending uploads are fully satisfied, notify parent (effect; avoids forever-skeleton)
-  useEffect(() => {
-    if (!onInitialPendingUploadsConsumed) return;
-    if (latchedInitialPendingRef.current <= 0) return;
-    const baseline = initialBaselineCountRef.current;
-    const expected = latchedInitialPendingRef.current;
-    if (nonVideoImageCount >= baseline + expected) {
-      latchedInitialPendingRef.current = 0;
-      initialBaselineCountRef.current = 0;
-      onInitialPendingUploadsConsumed();
-    }
-  }, [nonVideoImageCount, onInitialPendingUploadsConsumed]);
-
-  // Track previous pending count to detect when uploads complete
-  const prevPendingCountRef = useRef(pendingSkeletonCount);
-  
-  // When pending count drops to 0 from >0 AND we're showing loading state, show success
-  useEffect(() => {
-    const wasLoading = prevPendingCountRef.current > 0;
-    const nowComplete = pendingSkeletonCount === 0;
-    
-    if (wasLoading && nowComplete && withPositionDropState === 'loading') {
-      // Upload completed - show success state
-      setWithPositionDropState('success');
-      
-      // Clear success state after 1.5s
-      if (withPositionSuccessTimeoutRef.current) clearTimeout(withPositionSuccessTimeoutRef.current);
-      withPositionSuccessTimeoutRef.current = setTimeout(() => {
-        setWithPositionDropState('idle');
-        withPositionSuccessTimeoutRef.current = null;
-      }, 1500);
-    }
-    
-    prevPendingCountRef.current = pendingSkeletonCount;
-  }, [pendingSkeletonCount, withPositionDropState]);
-
-  // Cleanup success timeouts on unmount
-  useEffect(() => {
-    return () => {
-      if (successTimeoutRef.current) {
-        clearTimeout(successTimeoutRef.current);
-      }
-      if (withPositionSuccessTimeoutRef.current) {
-        clearTimeout(withPositionSuccessTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Listen for cross-component "Add to shot" button clicks from GenerationsPane
-  // This triggers the same skeleton animation as drag-and-drop
-  const handlePendingUpload = useCallback((detail: { shotId: string; expectedCount: number }) => {
-    const { shotId, expectedCount } = detail;
-
-    // Only handle if this event is for our shot
-    if (shotId !== shot.id) return;
-
-    // Trigger the same skeleton setup as drag-drop
-    setWithPositionDropState('loading');
-
-    // Setup skeleton placeholders
-    baselineNonVideoIdsRef.current = new Set(nonVideoImageIds);
-    expectedNewCountRef.current = expectedCount;
-
-    // Safety timeout - clear after 5s (same as generation drops)
-    if (safetyTimeoutRef.current) clearTimeout(safetyTimeoutRef.current);
-    safetyTimeoutRef.current = setTimeout(() => {
-      expectedNewCountRef.current = 0;
-      baselineNonVideoIdsRef.current = null;
-      safetyTimeoutRef.current = null;
-    }, 5000);
-  }, [shot.id, nonVideoImageIds]);
-
-  useAppEventListener('shot-pending-upload', handlePendingUpload);
-
-  // Check if we can accept this drop (generation or file)
-  const canAcceptDrop = useCallback((e: React.DragEvent): boolean => {
-    return isValidDropTarget(e) && (!!onGenerationDrop || !!onFilesDrop);
-  }, [onGenerationDrop, onFilesDrop]);
-
-  // Handle drag enter for drop feedback
-  const handleDragEnter = useCallback((e: React.DragEvent) => {
-    if (canAcceptDrop(e)) {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDropTarget(true);
-    }
-  }, [canAcceptDrop]);
-
-  // Handle drag over to allow drop
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    if (canAcceptDrop(e)) {
-      e.preventDefault();
-      e.stopPropagation();
-      e.dataTransfer.dropEffect = 'copy';
-      setIsDropTarget(true);
-    }
-  }, [canAcceptDrop]);
-
-  // Handle drag leave
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    // Only clear if we're leaving the container entirely
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-      setIsDropTarget(false);
-    }
-  }, []);
-
-  // Handle drop - shared logic for both main area and "without position" zone
-  const handleDropInternal = useCallback(async (e: React.DragEvent, withoutPosition: boolean) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // For "without position" drops, keep the zone visible with loading state
-    if (!withoutPosition) {
-      setIsDropTarget(false);
-    }
-    setIsOverWithoutPositionZone(false);
-
-    const dropOptions: DropOptions = { withoutPosition };
-
-    // Try generation drop first
-    const generationData = getGenerationDropData(e);
-    if (generationData && onGenerationDrop) {
-
-      if (withoutPosition) {
-        // For "without position" drops: show loading in the drop zone, no skeleton
-        setWithoutPositionDropState('loading');
-        
-        try {
-          await onGenerationDrop(shot.id, generationData, dropOptions);
-          // Show success state
-          setWithoutPositionDropState('success');
-          // Clear success state after 1.5s
-          if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
-          successTimeoutRef.current = setTimeout(() => {
-            setWithoutPositionDropState('idle');
-            setIsDropTarget(false);
-            successTimeoutRef.current = null;
-          }, 1500);
-        } catch (error) {
-          normalizeAndPresentError(error, { context: 'ShotDrop', showToast: false });
-          setWithoutPositionDropState('idle');
-          setIsDropTarget(false);
-        }
-      } else {
-        // For normal drops: show both skeleton placeholders AND centered loading indicator
-        setWithPositionDropState('loading');
-        
-        // Setup skeleton placeholders
-        baselineNonVideoIdsRef.current = new Set(nonVideoImageIds);
-        expectedNewCountRef.current = 1; // Generation drop adds 1 image
-        
-        // Safety timeout - clear after 5s (generation drops are fast)
-        if (safetyTimeoutRef.current) clearTimeout(safetyTimeoutRef.current);
-        safetyTimeoutRef.current = setTimeout(() => {
-          expectedNewCountRef.current = 0;
-          baselineNonVideoIdsRef.current = null;
-          safetyTimeoutRef.current = null;
-        }, 5000);
-        
-        try {
-          await onGenerationDrop(shot.id, generationData, dropOptions);
-          // Show success state
-          setWithPositionDropState('success');
-          // Clear success state after 1.5s
-          if (withPositionSuccessTimeoutRef.current) clearTimeout(withPositionSuccessTimeoutRef.current);
-          withPositionSuccessTimeoutRef.current = setTimeout(() => {
-            setWithPositionDropState('idle');
-            withPositionSuccessTimeoutRef.current = null;
-          }, 1500);
-        } catch (error) {
-          normalizeAndPresentError(error, { context: 'ShotDrop', showToast: false });
-          setWithPositionDropState('idle');
-          // Clear skeleton on error
-          expectedNewCountRef.current = 0;
-          baselineNonVideoIdsRef.current = null;
-          if (safetyTimeoutRef.current) {
-            clearTimeout(safetyTimeoutRef.current);
-            safetyTimeoutRef.current = null;
-          }
-        }
-      }
-      return;
-    }
-
-    // Try file drop
-    if (isFileDrag(e) && onFilesDrop) {
-      const files = Array.from(e.dataTransfer.files);
-      const validImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
-      const validFiles = files.filter(file => validImageTypes.includes(file.type));
-      
-      if (validFiles.length === 0) {
-        setIsDropTarget(false);
-        return;
-      }
-
-      if (withoutPosition) {
-        // For "without position" drops: show loading in the drop zone, no skeleton
-        setWithoutPositionDropState('loading');
-        
-        try {
-          await onFilesDrop(shot.id, validFiles, dropOptions);
-          // Show success state
-          setWithoutPositionDropState('success');
-          // Clear success state after 1.5s
-          if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
-          successTimeoutRef.current = setTimeout(() => {
-            setWithoutPositionDropState('idle');
-            setIsDropTarget(false);
-            successTimeoutRef.current = null;
-          }, 1500);
-        } catch (error) {
-          normalizeAndPresentError(error, { context: 'ShotDrop', showToast: false });
-          setWithoutPositionDropState('idle');
-          setIsDropTarget(false);
-        }
-      } else {
-        // For normal drops: show both skeleton placeholders AND centered loading indicator
-        setWithPositionDropState('loading');
-        
-        // Setup skeleton placeholders
-        baselineNonVideoIdsRef.current = new Set(nonVideoImageIds);
-        expectedNewCountRef.current = validFiles.length;
-        
-        // Safety timeout - clear after 10s if images don't appear
-        if (safetyTimeoutRef.current) clearTimeout(safetyTimeoutRef.current);
-        safetyTimeoutRef.current = setTimeout(() => {
-          expectedNewCountRef.current = 0;
-          baselineNonVideoIdsRef.current = null;
-          safetyTimeoutRef.current = null;
-        }, 10000);
-        
-        try {
-          await onFilesDrop(shot.id, validFiles, dropOptions);
-          // Show success state
-          setWithPositionDropState('success');
-          // Clear success state after 1.5s
-          if (withPositionSuccessTimeoutRef.current) clearTimeout(withPositionSuccessTimeoutRef.current);
-          withPositionSuccessTimeoutRef.current = setTimeout(() => {
-            setWithPositionDropState('idle');
-            withPositionSuccessTimeoutRef.current = null;
-          }, 1500);
-        } catch (error) {
-          normalizeAndPresentError(error, { context: 'ShotDrop', showToast: false });
-          setWithPositionDropState('idle');
-          // Clear skeleton on error
-          expectedNewCountRef.current = 0;
-          baselineNonVideoIdsRef.current = null;
-          if (safetyTimeoutRef.current) {
-            clearTimeout(safetyTimeoutRef.current);
-            safetyTimeoutRef.current = null;
-          }
-        }
-      }
-    }
-  }, [onGenerationDrop, onFilesDrop, shot.id, nonVideoImageIds]);
-
-  // Handle drop on main area (with position)
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    handleDropInternal(e, false);
-  }, [handleDropInternal]);
-
-  // Handle drop on "Without Position" zone
-  const handleWithoutPositionDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    handleDropInternal(e, true);
-  }, [handleDropInternal]);
-
-  // Handle drag events for the "Without Position" zone
-  const handleWithoutPositionDragEnter = useCallback((e: React.DragEvent) => {
-    if (canAcceptDrop(e)) {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsOverWithoutPositionZone(true);
-    }
-  }, [canAcceptDrop]);
-
-  const handleWithoutPositionDragOver = useCallback((e: React.DragEvent) => {
-    if (canAcceptDrop(e)) {
-      e.preventDefault();
-      e.stopPropagation();
-      e.dataTransfer.dropEffect = 'copy';
-      setIsOverWithoutPositionZone(true);
-    }
-  }, [canAcceptDrop]);
-
-  const handleWithoutPositionDragLeave = useCallback((e: React.DragEvent) => {
-    // Only clear if actually leaving the zone
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-      setIsOverWithoutPositionZone(false);
-    }
-  }, []);
+  const {
+    isDropTarget,
+    isOverWithoutPositionZone,
+    withoutPositionDropState,
+    withPositionDropState,
+    pendingSkeletonCount,
+    withoutPositionZoneRef,
+    handleDragEnter,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    handleWithoutPositionDrop,
+    handleWithoutPositionDragEnter,
+    handleWithoutPositionDragOver,
+    handleWithoutPositionDragLeave,
+  } = useSortableShotDropFeedback({
+    shot,
+    onGenerationDrop,
+    onFilesDrop,
+    initialPendingUploads,
+    initialPendingBaselineNonVideoCount,
+    onInitialPendingUploadsConsumed,
+  });
 
   const style = isDragDisabled
     ? undefined
@@ -461,14 +109,6 @@ const SortableShotItem: React.FC<SortableShotItemProps> = ({
         onSelectShot={onSelectShot}
         onDuplicateShot={onDuplicateShot}
         currentProjectId={currentProjectId}
-        // TEMPORARILY DISABLED: Drag handle hidden while reordering is disabled (Task 20)
-        // To restore: uncomment dragHandleProps below
-        // dragHandleProps={{
-        //   ...attributes,
-        //   ...listeners,
-        //   disabled: isDragDisabled,
-        // }}
-        // dragDisabledReason={disabledReason}
         shouldLoadImages={shouldLoadImages}
         shotIndex={shotIndex}
         projectAspectRatio={projectAspectRatio}
@@ -478,8 +118,7 @@ const SortableShotItem: React.FC<SortableShotItemProps> = ({
         dataTour={dataTour}
         finalVideo={finalVideo}
       />
-      
-      {/* "Without Position" drop zone - appears when dragging over the shot or during loading/success */}
+
       {(isDropTarget || withoutPositionDropState !== 'idle') && (
         <div
           ref={withoutPositionZoneRef}
@@ -489,13 +128,9 @@ const SortableShotItem: React.FC<SortableShotItemProps> = ({
           onDrop={handleWithoutPositionDrop}
           className={cn(
             'absolute bottom-2 left-2 px-2 py-1 rounded text-xs font-medium transition-all duration-150 z-10 flex items-center gap-1.5',
-            // Default state
             withoutPositionDropState === 'idle' && 'bg-muted/90 text-muted-foreground border border-border/50',
-            // Hover state (only when idle and hovering)
             withoutPositionDropState === 'idle' && isOverWithoutPositionZone && 'bg-primary text-primary-foreground border-primary scale-105',
-            // Loading state
             withoutPositionDropState === 'loading' && 'bg-primary/90 text-primary-foreground border border-primary',
-            // Success state
             withoutPositionDropState === 'success' && 'bg-green-600 text-white border border-green-600'
           )}
         >
@@ -518,4 +153,4 @@ const SortableShotItem: React.FC<SortableShotItemProps> = ({
   );
 };
 
-export default SortableShotItem; 
+export default SortableShotItem;

@@ -14,7 +14,6 @@ import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
 interface UseMagicEditModeParams {
   media: GenerationRow;
   selectedProjectId: string | null;
-  isVideo: boolean;
   isInpaintMode: boolean;
   setIsInpaintMode: (value: boolean) => void;
   handleEnterInpaintMode: () => void;
@@ -69,7 +68,6 @@ interface UseMagicEditModeReturn {
 export const useMagicEditMode = ({
   media,
   selectedProjectId,
-  isVideo: _isVideo,
   isInpaintMode,
   setIsInpaintMode,
   handleEnterInpaintMode,

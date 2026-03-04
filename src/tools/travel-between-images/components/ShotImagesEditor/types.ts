@@ -73,7 +73,8 @@ export interface ShotImagesEditorImageState {
   defaultNegativePrompt?: string;
   onDefaultNegativePromptChange?: (prompt: string) => void;
 
-  // Structure video props - legacy single-video interface
+  // Structure video props - legacy compatibility interface.
+  // Internal consumers should prefer `structureVideos` and derive these via adapter helpers.
   primaryStructureVideoPath?: string | null;
   primaryStructureVideoMetadata?: VideoMetadata | null;
   primaryStructureVideoTreatment?: 'adjust' | 'clip';
@@ -82,7 +83,7 @@ export interface ShotImagesEditorImageState {
   /** Uni3C end percent (only used when primaryStructureVideoType is 'uni3c') */
   primaryStructureVideoUni3cEndPercent?: number;
 
-  // Multi-video array interface
+  // Canonical structure video contract
   structureVideos?: StructureVideoConfigWithMetadata[];
   isStructureVideoLoading?: boolean;
 
@@ -193,4 +194,3 @@ export interface PreviewSegment {
   index: number;
   durationFromFrames: number;
 }
-

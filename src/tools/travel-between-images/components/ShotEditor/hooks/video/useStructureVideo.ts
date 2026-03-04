@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useToolSettings } from '@/shared/hooks/useToolSettings';
 import type { VideoMetadata } from '@/shared/lib/media/videoUploader';
 import {
-  DEFAULT_VIDEO_STRUCTURE_PARAMS,
+  DEFAULT_STRUCTURE_VIDEO,
   StructureVideoConfig,
   StructureVideoConfigWithMetadata,
 } from '@/shared/lib/tasks/travelBetweenImages';
@@ -98,10 +98,10 @@ export function useStructureVideo({
         structureVideoSettings ?? null,
         {
           defaultEndFrame: timelineEndFrame,
-          defaultVideoTreatment: DEFAULT_VIDEO_STRUCTURE_PARAMS.structure_video_treatment,
-          defaultMotionStrength: DEFAULT_VIDEO_STRUCTURE_PARAMS.structure_video_motion_strength,
-          defaultStructureType: DEFAULT_VIDEO_STRUCTURE_PARAMS.structure_video_type,
-          defaultUni3cEndPercent: 0.1,
+          defaultVideoTreatment: DEFAULT_STRUCTURE_VIDEO.treatment,
+          defaultMotionStrength: DEFAULT_STRUCTURE_VIDEO.motion_strength,
+          defaultStructureType: DEFAULT_STRUCTURE_VIDEO.structure_type,
+          defaultUni3cEndPercent: DEFAULT_STRUCTURE_VIDEO.uni3c_end_percent,
         },
       );
 
@@ -137,10 +137,10 @@ export function useStructureVideo({
         currentSettings,
         {
           defaultEndFrame: timelineEndFrame,
-          defaultVideoTreatment: DEFAULT_VIDEO_STRUCTURE_PARAMS.structure_video_treatment,
-          defaultMotionStrength: DEFAULT_VIDEO_STRUCTURE_PARAMS.structure_video_motion_strength,
-          defaultStructureType: DEFAULT_VIDEO_STRUCTURE_PARAMS.structure_video_type,
-          defaultUni3cEndPercent: 0.1,
+          defaultVideoTreatment: DEFAULT_STRUCTURE_VIDEO.treatment,
+          defaultMotionStrength: DEFAULT_STRUCTURE_VIDEO.motion_strength,
+          defaultStructureType: DEFAULT_STRUCTURE_VIDEO.structure_type,
+          defaultUni3cEndPercent: DEFAULT_STRUCTURE_VIDEO.uni3c_end_percent,
         },
       );
       setStructureVideosState(migratedVideos);
@@ -223,10 +223,10 @@ export function useStructureVideo({
     isLoading: isStructureVideoSettingsLoading,
     structureVideoPath: primaryStructureVideo?.path ?? null,
     structureVideoMetadata: primaryStructureVideo?.metadata ?? null,
-    structureVideoTreatment: primaryStructureVideo?.treatment ?? DEFAULT_VIDEO_STRUCTURE_PARAMS.structure_video_treatment,
-    structureVideoMotionStrength: primaryStructureVideo?.motion_strength ?? DEFAULT_VIDEO_STRUCTURE_PARAMS.structure_video_motion_strength,
-    structureVideoType: primaryStructureVideo?.structure_type ?? 'uni3c',
+    structureVideoTreatment: primaryStructureVideo?.treatment ?? DEFAULT_STRUCTURE_VIDEO.treatment,
+    structureVideoMotionStrength: primaryStructureVideo?.motion_strength ?? DEFAULT_STRUCTURE_VIDEO.motion_strength,
+    structureVideoType: primaryStructureVideo?.structure_type ?? DEFAULT_STRUCTURE_VIDEO.structure_type,
     structureVideoResourceId: primaryStructureVideo?.resource_id ?? null,
-    structureVideoUni3cEndPercent: primaryStructureVideo?.uni3c_end_percent ?? 0.1,
+    structureVideoUni3cEndPercent: primaryStructureVideo?.uni3c_end_percent ?? DEFAULT_STRUCTURE_VIDEO.uni3c_end_percent,
   };
 }

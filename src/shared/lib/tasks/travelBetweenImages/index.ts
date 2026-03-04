@@ -17,6 +17,7 @@ export type {
 
 // Defaults - used internally, only export what's needed externally
 export {
+  DEFAULT_STRUCTURE_VIDEO,
   DEFAULT_VIDEO_STRUCTURE_PARAMS,
 } from './defaults';
 export { extractSegmentImages, type SegmentImageInfo } from './segmentImages';

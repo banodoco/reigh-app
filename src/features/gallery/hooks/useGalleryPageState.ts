@@ -145,7 +145,8 @@ function useGenerationsPageLogic({
 
     const shouldPositionExisting = selectedShotFilter === resolvedTargetShotId && excludePositioned;
 
-    dispatchAppEvent('shot-pending-upload', { shotId: resolvedTargetShotId, expectedCount: 1 });
+    const operationId = `${resolvedTargetShotId}:${generationId}:${Date.now()}`;
+    dispatchAppEvent('shot-pending-upload', { shotId: resolvedTargetShotId, expectedCount: 1, operationId });
 
     try {
       if (shouldPositionExisting) {
@@ -165,9 +166,11 @@ function useGenerationsPageLogic({
       }
 
       setLastAffectedShotId(resolvedTargetShotId);
+      dispatchAppEvent('shot-pending-upload-succeeded', { shotId: resolvedTargetShotId, operationId });
       return true;
     } catch (error) {
       normalizeAndPresentError(error, { context: 'useGenerationsPageLogic', toastTitle: 'Failed to add image to shot' });
+      dispatchAppEvent('shot-pending-upload-failed', { shotId: resolvedTargetShotId, operationId });
       return false;
     }
   };

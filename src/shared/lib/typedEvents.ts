@@ -20,7 +20,9 @@ export interface AppCustomEvents {
   // --- Shot lifecycle ---
   'shot-pending-create': { imageCount: number };
   'shot-pending-create-clear': void;
-  'shot-pending-upload': { shotId: string; expectedCount: number };
+  'shot-pending-upload': { shotId: string; expectedCount: number; operationId: string };
+  'shot-pending-upload-succeeded': { shotId: string; operationId: string };
+  'shot-pending-upload-failed': { shotId: string; operationId: string };
 
   // --- Timeline ---
   'timeline:duplicate-complete': { shotId: string; newItemId: string };

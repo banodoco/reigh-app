@@ -253,7 +253,6 @@ export function useImageEditOrchestrator({
   const magicEditHook = useMagicEditMode({
     media,
     selectedProjectId,
-    isVideo: false,
     isInpaintMode,
     setIsInpaintMode,
     handleEnterInpaintMode,
