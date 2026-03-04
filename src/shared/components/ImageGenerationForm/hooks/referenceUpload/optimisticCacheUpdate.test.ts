@@ -14,19 +14,26 @@ describe('runOptimisticCacheUpdate', () => {
   it('runs operation without reporting when successful', () => {
     const operation = vi.fn();
 
-    runOptimisticCacheUpdate(operation, 'cache.context');
+    const result = runOptimisticCacheUpdate(operation, 'cache.context');
 
     expect(operation).toHaveBeenCalledTimes(1);
+    expect(result.ok).toBe(true);
     expect(normalizeAndPresentError).not.toHaveBeenCalled();
   });
 
-  it('normalizes and reports errors without throwing', () => {
+  it('normalizes and reports errors and returns a failure result', () => {
     const error = new Error('update failed');
     const operation = vi.fn(() => {
       throw error;
     });
 
-    expect(() => runOptimisticCacheUpdate(operation, 'cache.context')).not.toThrow();
+    const result = runOptimisticCacheUpdate(operation, 'cache.context');
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.errorCode).toBe('reference_optimistic_cache_update_failed');
+      expect(result.message).toBe('Failed to update cached reference selection');
+    }
     expect(normalizeAndPresentError).toHaveBeenCalledWith(error, {
       context: 'cache.context',
       showToast: false,

@@ -135,7 +135,7 @@ export function useResourceSelectHandler(
         inThisSceneStrength,
       });
 
-      runOptimisticCacheUpdate(() => {
+      const optimisticUpdateResult = runOptimisticCacheUpdate(() => {
         applyNewPointerSelection({
           queryClient,
           selectedProjectId,
@@ -143,6 +143,9 @@ export function useResourceSelectHandler(
           newPointer,
         });
       }, 'useReferenceUpload.handleResourceSelect.optimisticUpdate');
+      if (!optimisticUpdateResult.ok) {
+        throw toOperationResultError(optimisticUpdateResult);
+      }
 
       const persistResult = await persistReferenceSelection({
         queryClient,

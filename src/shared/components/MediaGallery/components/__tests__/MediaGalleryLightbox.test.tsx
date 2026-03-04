@@ -28,7 +28,7 @@ vi.mock('../../hooks/useMediaGalleryLightboxControllers', () => ({
     handleNavigateToGeneration: vi.fn(),
     handleOpenExternalGeneration: vi.fn(),
   }),
-  buildTaskDetailsPayload: () => ({ task: null, isLoading: false, error: null, inputImages: [] }),
+  buildTaskDetailsPayload: () => ({ task: null, isLoading: false, status: 'missing', error: null, inputImages: [] }),
 }));
 
 function buildMedia(overrides: Partial<GeneratedImageWithMetadata>): GeneratedImageWithMetadata {

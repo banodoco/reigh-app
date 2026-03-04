@@ -108,6 +108,7 @@ export const FinalVideoSection: React.FC<FinalVideoSectionProps> = (props) => {
           taskDetailsData={{
             task: task ?? null,
             isLoading: taskDetailsData?.isLoading ?? false,
+            status: taskDetailsData?.status ?? (taskError ? 'error' : task ? 'ok' : 'missing'),
             error: taskError,
             inputImages,
             taskId: taskMapping?.taskId || null,

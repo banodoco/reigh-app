@@ -155,7 +155,7 @@ export function useStyleReferenceUploadHandler(
         createdAt: new Date().toISOString(),
       };
 
-      runOptimisticCacheUpdate(() => {
+      const optimisticUpdateResult = runOptimisticCacheUpdate(() => {
         applyOptimisticUploadUpdate({
           queryClient,
           selectedProjectId,
@@ -164,6 +164,9 @@ export function useStyleReferenceUploadHandler(
           resource,
         });
       }, 'useReferenceUpload.handleStyleReferenceUpload.optimisticUpdate');
+      if (!optimisticUpdateResult.ok) {
+        throw toOperationResultError(optimisticUpdateResult);
+      }
 
       const persistResult = await persistReferenceSelection({
         queryClient,

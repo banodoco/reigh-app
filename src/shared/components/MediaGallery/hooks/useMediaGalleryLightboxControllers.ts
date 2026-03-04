@@ -7,6 +7,7 @@ import { normalizeAndPresentError } from "@/shared/lib/errorHandling/runtimeErro
 import { expandShotData } from "@/shared/lib/shotData";
 import type { GeneratedImageWithMetadata } from "../types";
 import type { Task } from "@/types/tasks";
+import type { TaskDetailsStatus } from "@/shared/components/MediaLightbox/types";
 
 interface UseLightboxNavigationStateInput {
   activeLightboxMedia: GeneratedImageWithMetadata | null;
@@ -146,9 +147,16 @@ export function buildTaskDetailsPayload({
   taskId,
   onClose,
 }: BuildTaskDetailsPayloadInput) {
+  const status: TaskDetailsStatus = taskError
+    ? "error"
+    : task
+      ? "ok"
+      : "missing";
+
   return {
     task: task ?? null,
     isLoading: isLoadingTask ?? false,
+    status,
     error: taskError ?? null,
     inputImages: inputImages ?? [],
     taskId: taskId ?? null,
@@ -252,4 +260,3 @@ export function useGenerationNavigationController({
     handleOpenExternalGeneration,
   };
 }
-

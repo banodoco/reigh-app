@@ -40,6 +40,7 @@ export function useTasksLightbox({
   const taskDetailsData = lightboxData?.task ? {
     task: lightboxData.task,
     isLoading: false,
+    status: 'ok' as const,
     error: null,
     inputImages: deriveTaskInputImages(lightboxData.task),
     taskId: lightboxData.task.id,
@@ -224,4 +225,3 @@ export function useTasksLightbox({
     handleOpenExternalGeneration,
   };
 }
-

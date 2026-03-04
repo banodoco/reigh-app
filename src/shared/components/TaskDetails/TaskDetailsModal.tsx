@@ -28,6 +28,7 @@ import { useGenerationTaskDetails } from '@/shared/components/TaskDetails/hooks/
 import { usePublicLoras } from '@/shared/hooks/useResources';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { TaskDetailsSummaryAndParams } from '@/shared/components/TaskDetails/components/TaskDetailsSummaryAndParams';
+import { AlertTriangle } from 'lucide-react';
 
 interface TaskDetailsModalProps {
   generationId: string;
@@ -69,6 +70,8 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({ generationId, child
     task,
     inputImages,
     isLoadingTask,
+    taskError,
+    taskDetailsStatus,
   } = useGenerationTaskDetails({
     generationId,
     projectId: selectedProjectId ?? null,
@@ -158,6 +161,16 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({ generationId, child
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
                 <p className="text-sm text-muted-foreground">Loading task details...</p>
+              </div>
+            </div>
+          ) : taskDetailsStatus === 'error' && !task ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="text-center space-y-2 max-w-sm">
+                <div className="w-12 h-12 mx-auto bg-red-500/10 rounded-full flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6 text-red-500" />
+                </div>
+                <p className="text-sm font-medium">Failed to load task details.</p>
+                <p className="text-xs text-muted-foreground">{taskError?.message ?? 'Please try again.'}</p>
               </div>
             </div>
           ) : task ? (

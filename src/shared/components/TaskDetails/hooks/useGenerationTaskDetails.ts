@@ -6,6 +6,7 @@ import { useGetPrimaryTaskIdForGeneration } from "@/shared/hooks/tasks/usePrimar
 import { normalizeAndPresentError } from "@/shared/lib/errorHandling/runtimeError";
 import type { Task } from "@/types/tasks";
 import type { TaskDetailsData as LightboxTaskDetailsData } from "@/shared/components/MediaLightbox/types";
+import type { TaskDetailsStatus } from "@/shared/components/MediaLightbox/types";
 import type { GenerationTaskMappingStatus } from "@/shared/lib/generationTaskRepository";
 
 interface UseGenerationTaskDetailsOptions {
@@ -25,6 +26,7 @@ interface GenerationTaskMapping {
 
 interface UseGenerationTaskDetailsResult {
   taskDetailsData: LightboxTaskDetailsData | null;
+  taskDetailsStatus: TaskDetailsStatus;
   taskMapping: GenerationTaskMapping | undefined;
   taskId: string | null;
   task: Task | undefined;
@@ -44,10 +46,12 @@ export function useGenerationTaskDetails({
   const activeGenerationId = enabled ? generationId : null;
   const [fallbackTaskId, setFallbackTaskId] = useState<string | null>(null);
   const [mappingResolutionAttempted, setMappingResolutionAttempted] = useState(false);
+  const [mappingResolutionError, setMappingResolutionError] = useState<Error | null>(null);
 
   useEffect(() => {
     setFallbackTaskId(null);
     setMappingResolutionAttempted(false);
+    setMappingResolutionError(null);
   }, [activeGenerationId]);
 
   const { data: taskMappingRaw, isLoading: isLoadingMapping } = useTaskFromUnifiedCache(activeGenerationId || "");
@@ -82,12 +86,17 @@ export function useGenerationTaskDetails({
         const result = await primaryTaskLookup.mutateAsync(activeGenerationId);
         if (cancelled) return;
         if (result.status === "ok") {
+          setMappingResolutionError(null);
           setFallbackTaskId(result.taskId ?? null);
           return;
         }
         if (result.status === "query_failed") {
+          const resolutionError = new Error(
+            result.queryError ?? "Failed to resolve generation-task mapping",
+          );
+          setMappingResolutionError(resolutionError);
           normalizeAndPresentError(
-            new Error(result.queryError ?? "Failed to resolve generation-task mapping"),
+            resolutionError,
             {
               context: "useGenerationTaskDetails.resolveMappingOnDemand",
               showToast: false,
@@ -97,6 +106,10 @@ export function useGenerationTaskDetails({
         }
       } catch (error) {
         if (cancelled) return;
+        const resolutionError = error instanceof Error
+          ? error
+          : new Error("Failed to resolve generation-task mapping");
+        setMappingResolutionError(resolutionError);
         normalizeAndPresentError(error, {
           context: "useGenerationTaskDetails.resolveMappingOnDemand",
           showToast: false,
@@ -115,6 +128,13 @@ export function useGenerationTaskDetails({
     taskId || "",
     projectId,
   );
+  const mappingQueryError = useMemo(() => {
+    if (taskMapping?.status !== "query_failed") {
+      return null;
+    }
+    return new Error(taskMapping.queryError ?? "Failed to resolve generation-task mapping");
+  }, [taskMapping?.queryError, taskMapping?.status]);
+  const combinedTaskError = taskError ?? mappingQueryError ?? mappingResolutionError;
 
   const inputImages = useMemo(() => {
     if (!task?.params) return [];
@@ -125,10 +145,23 @@ export function useGenerationTaskDetails({
   const isLoading = hasNoTask
     ? primaryTaskLookup.isPending
     : (isLoadingMapping || isLoadingTaskData || primaryTaskLookup.isPending);
+  const taskDetailsStatus: TaskDetailsStatus = useMemo(() => {
+    if (!activeGenerationId) {
+      return "missing";
+    }
+    if (combinedTaskError) {
+      return "error";
+    }
+    if (task) {
+      return "ok";
+    }
+    return "missing";
+  }, [activeGenerationId, combinedTaskError, task]);
 
   if (!activeGenerationId) {
     return {
       taskDetailsData: null,
+      taskDetailsStatus: "missing",
       taskMapping: undefined,
       taskId: null,
       task: undefined,
@@ -142,17 +175,19 @@ export function useGenerationTaskDetails({
     taskDetailsData: {
       task: task ?? null,
       isLoading,
-      error: taskError,
+      status: taskDetailsStatus,
+      error: combinedTaskError,
       inputImages,
       taskId,
       onApplySettingsFromTask,
       onClose,
     },
+    taskDetailsStatus,
     taskMapping,
     taskId,
     task,
     inputImages,
     isLoadingTask: isLoadingTaskData,
-    taskError,
+    taskError: combinedTaskError,
   };
 }

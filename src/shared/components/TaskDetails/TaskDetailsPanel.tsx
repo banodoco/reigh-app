@@ -4,14 +4,16 @@ import { Checkbox } from '@/shared/components/ui/checkbox';
 import { useIsMobile } from '@/shared/hooks/mobile';
 import { ScrollArea } from '@/shared/components/ui/scroll-area';
 import { Task } from '@/types/tasks';
-import { CornerDownLeft, ImageIcon } from 'lucide-react';
+import { AlertTriangle, CornerDownLeft, ImageIcon } from 'lucide-react';
 import { usePublicLoras } from '@/shared/hooks/useResources';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { TaskDetailsSummaryAndParams } from '@/shared/components/TaskDetails/components/TaskDetailsSummaryAndParams';
+import type { TaskDetailsStatus } from '@/shared/components/MediaLightbox/types';
 
 interface TaskDetailsPanelProps {
   task: Task | null;
   isLoading: boolean;
+  status?: TaskDetailsStatus;
   error: Error | null;
   inputImages: string[];
   replaceImages: boolean;
@@ -30,6 +32,8 @@ interface TaskDetailsPanelProps {
 const TaskDetailsPanel: React.FC<TaskDetailsPanelProps> = ({
   task,
   isLoading,
+  status,
+  error,
   inputImages,
   replaceImages,
   onReplaceImagesChange,
@@ -41,6 +45,7 @@ const TaskDetailsPanel: React.FC<TaskDetailsPanelProps> = ({
   hideHeader = false
 }) => {
   const isMobile = useIsMobile();
+  const resolvedStatus = status ?? (error ? 'error' : task ? 'ok' : 'missing');
   const [showDetailedParams, setShowDetailedParams] = useState(false);
   const [showAllImages, setShowAllImages] = useState(false);
   const [showFullPrompt, setShowFullPrompt] = useState(false);
@@ -82,6 +87,24 @@ const TaskDetailsPanel: React.FC<TaskDetailsPanelProps> = ({
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
           <p className="text-sm text-muted-foreground">Loading task details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (resolvedStatus === 'error' && !task) {
+    return (
+      <div className={`flex flex-col ${className}`}>
+        {basedOnSection}
+        {derivedSection}
+        <div className="flex justify-center items-center py-6">
+          <div className="text-center space-y-2 max-w-sm">
+            <div className="w-10 h-10 mx-auto bg-red-500/10 rounded-full flex items-center justify-center">
+              <AlertTriangle className="w-5 h-5 text-red-500" />
+            </div>
+            <p className="text-sm font-medium">Failed to load task details.</p>
+            <p className="text-xs text-muted-foreground">{error?.message ?? 'Please try again.'}</p>
+          </div>
         </div>
       </div>
     );

@@ -57,6 +57,7 @@ export const TaskDetailsPanelWrapper: React.FC<TaskDetailsPanelWrapperProps> = (
     <TaskDetailsPanel
       task={taskDetailsData?.task ?? null}
       isLoading={taskDetailsData?.isLoading || false}
+      status={taskDetailsData?.status}
       error={taskDetailsData?.error ?? null}
       inputImages={taskDetailsData?.inputImages || []}
       taskId={taskDetailsData?.taskId || null}

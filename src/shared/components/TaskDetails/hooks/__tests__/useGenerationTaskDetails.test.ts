@@ -64,6 +64,7 @@ describe('useGenerationTaskDetails', () => {
       'https://example.com/a.png',
       'https://example.com/b.png',
     ]);
+    expect(result.current.taskDetailsStatus).toBe('ok');
   });
 
   it('returns empty input images for malformed params payloads', () => {
@@ -99,6 +100,8 @@ describe('useGenerationTaskDetails', () => {
     await waitFor(() => {
       expect(result.current.taskId).toBeNull();
     });
+    expect(result.current.taskDetailsStatus).toBe('error');
+    expect(result.current.taskError?.message).toBe('RPC failed');
     expect(mockMutateAsync).not.toHaveBeenCalled();
   });
 
@@ -132,5 +135,6 @@ describe('useGenerationTaskDetails', () => {
     await waitFor(() => {
       expect(result.current.taskId).toBe('fallback-task');
     });
+    expect(result.current.taskDetailsStatus).toBe('ok');
   });
 });

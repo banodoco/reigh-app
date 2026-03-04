@@ -5,6 +5,7 @@ import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travel
 export type { ShotOption };
 export type LightboxMaybePromise<T> = T | Promise<T>;
 export type LightboxDeleteHandler = (id: string) => LightboxMaybePromise<void>;
+export type TaskDetailsStatus = 'ok' | 'missing' | 'error';
 
 // ============================================================================
 // Props Sub-Interfaces (grouped by concern, shared by ImageLightbox & VideoLightbox)
@@ -63,6 +64,7 @@ export interface LightboxActionHandlers {
 export interface TaskDetailsData {
   task: Task | null;
   isLoading: boolean;
+  status: TaskDetailsStatus;
   error: Error | null;
   inputImages: string[];
   taskId: string | null;

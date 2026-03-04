@@ -102,6 +102,7 @@ describe('useMediaGalleryLightboxControllers', () => {
     expect(payload).toMatchObject({
       task: null,
       isLoading: false,
+      status: 'missing',
       error: null,
       inputImages: [],
       taskId: null,

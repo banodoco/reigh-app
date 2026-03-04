@@ -138,5 +138,19 @@ export default tseslint.config(
         }],
       }],
     },
+  },
+  // Domain boundary: domain modules should consume integration repositories,
+  // not the global Supabase client facade directly.
+  {
+    files: ["src/domains/**/*.{ts,tsx}"],
+    ignores: ["src/domains/**/*.test.ts", "src/domains/**/*.test.tsx"],
+    rules: {
+      "no-restricted-imports": ["error", {
+        paths: [{
+          name: "@/integrations/supabase/client",
+          message: "Use an integration repository under '@/integrations/supabase/repositories/*' instead of importing the global Supabase client facade directly.",
+        }],
+      }],
+    },
   }
 );
