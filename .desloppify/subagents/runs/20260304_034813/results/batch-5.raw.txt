@@ -1,0 +1,136 @@
+{
+  "batch": "AI Debt & Migrations",
+  "batch_index": 5,
+  "assessments": {
+    "ai_generated_debt": 76.0,
+    "incomplete_migration": 68.0,
+    "low_level_elegance": 72.0
+  },
+  "dimension_notes": {
+    "ai_generated_debt": {
+      "evidence": [
+        "src/tools/travel-between-images/components/Timeline/hooks/timeline-core/useTimelinePositions.ts carries unusually dense narrative comments around nearly every branch plus placeholder sections like \"BACKWARDS COMPATIBILITY\" with no implementation, which adds maintenance noise without executable value.",
+        "src/tools/travel-between-images/hooks/video/useStableSkeletonVisibility.ts and src/tools/travel-between-images/hooks/video/useTemporaryVisibility.ts include long tutorial-style comments for straightforward hooks, repeating behavior already explicit in code."
+      ],
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "medium"
+    },
+    "incomplete_migration": {
+      "evidence": [
+        "Dual API surface persists for structure-video data: src/tools/travel-between-images/components/ShotImagesEditor/types.ts defines both legacy primaryStructureVideo* fields and canonical structureVideos array in the same state contract.",
+        "src/tools/travel-between-images/components/ShotEditor/hooks/video/useStructureVideo.ts returns both array mutators and legacy primary accessors, preserving two representations instead of one canonical internal model.",
+        "src/tools/travel-between-images/components/ShotEditor/services/applySettings/taskDataService.ts still fans in multiple legacy keys (structure_video_path, structure_video_type, structure_type) alongside canonical structure_videos parsing, indicating migration remains open-ended rather than boundary-contained.",
+        "Mechanical concern from prior review is confirmed: ShotImagesEditorImageState remains bloated and largely due to this legacy+canonical overlap."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "low_level_elegance": {
+      "evidence": [
+        "Mechanical concern from prior review is confirmed: src/tools/travel-between-images/components/Timeline/hooks/timeline-core/useTimelinePositions.ts is still a 701-LOC monolithic hook mixing sync orchestration, optimistic state machine, DB persistence, queue/race guards, and trailing-endpoint policy in one unit.",
+        "The same hook includes dead/local-noise artifacts (e.g., unused _queryClient and repeated no-op logger wiring), a sign of accreted patching rather than cohesive decomposition.",
+        "Timeline behavior orchestration is split between this hook and src/tools/travel-between-images/components/Timeline/hooks/timeline-core/useTimelineOrchestrator.ts, but responsibility boundaries remain blurry because persistence and UI interaction concerns are interleaved."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "issues": [
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "dual_structure_video_contract",
+      "summary": "Structure-video migration is stalled by maintaining two concurrent state contracts",
+      "related_files": [
+        "src/tools/travel-between-images/components/ShotImagesEditor/types.ts",
+        "src/tools/travel-between-images/components/ShotEditor/hooks/video/useStructureVideo.ts",
+        "src/tools/travel-between-images/components/ShotEditor/services/applySettings/taskDataService.ts"
+      ],
+      "evidence": [
+        "ShotImagesEditorImageState includes legacy single-video fields (primaryStructureVideoPath/type/motion) and new structureVideos array simultaneously.",
+        "useStructureVideo exposes both canonical array operations and legacy primary-field accessors in its return type.",
+        "taskDataService still resolves structure settings by checking new array first, then multiple legacy top-level aliases."
+      ],
+      "suggestion": "Make `structure_videos` the only internal state contract across editor/timeline code. Move legacy key parsing into one adapter at ingestion boundaries, then remove `primaryStructureVideo*` fields from shared props and context interfaces.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "legacy_structure_video_dual_path"
+    },
+    {
+      "dimension": "incomplete_migration",
+      "identifier": "legacy_default_shape_leaks",
+      "summary": "Legacy-named default config is still used as canonical runtime source",
+      "related_files": [
+        "src/shared/lib/tasks/travelBetweenImages/defaults.ts",
+        "src/tools/travel-between-images/components/ShotEditor/hooks/video/useStructureVideo.ts",
+        "src/shared/lib/tasks/travelBetweenImages/payloadBuilder.ts"
+      ],
+      "evidence": [
+        "defaults.ts defines `DEFAULT_VIDEO_STRUCTURE_PARAMS` with legacy key names (`structure_video_*`) and comment indicates partial support assumptions.",
+        "useStructureVideo uses those legacy-key defaults directly when producing canonical structureVideos state and derived accessors.",
+        "payloadBuilder rejects implicit legacy fields in canonical mode, so default configuration semantics and canonical payload semantics are still split."
+      ],
+      "suggestion": "Introduce a canonical `DEFAULT_STRUCTURE_VIDEO` object (`treatment`, `motion_strength`, `structure_type`, `uni3c_end_percent`) and derive legacy aliases only inside migration adapters. Replace direct `structure_video_*` default usage in editor hooks.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "legacy_structure_video_dual_path"
+    },
+    {
+      "dimension": "low_level_elegance",
+      "identifier": "timeline_positions_god_hook",
+      "summary": "useTimelinePositions is a monolithic state machine with mixed responsibilities",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline/hooks/timeline-core/useTimelinePositions.ts",
+        "src/tools/travel-between-images/components/Timeline/hooks/timeline-core/useTimelineOrchestrator.ts",
+        "src/tools/travel-between-images/components/Timeline/hooks/timeline-core/timelinePositionCalc.ts"
+      ],
+      "evidence": [
+        "The hook is 701 LOC and handles sync-from-server, optimistic state mutation, rollback, persistence, locking, queue-guard logic, and trailing endpoint persistence in one file.",
+        "It contains lifecycle/compatibility scaffolding and dead/noise artifacts (unused `_queryClient`, empty compatibility section) that indicate high local indirection cost.",
+        "Orchestrator-level interaction logic still depends on this mixed hook, coupling UI behavior to persistence internals."
+      ],
+      "suggestion": "Split into focused units: `useTimelinePositionState` (optimistic state + rollback), `useTimelinePositionPersistence` (DB writes + invalidation), and `useTimelinePositionSync` (server merge/guards). Keep `useTimelinePositions` as a thin composition wrapper.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "timeline_state_machine_accretion"
+    },
+    {
+      "dimension": "ai_generated_debt",
+      "identifier": "commentary_to_logic_ratio",
+      "summary": "Defensive explanatory scaffolding is drowning signal in timeline/video hooks",
+      "related_files": [
+        "src/tools/travel-between-images/components/Timeline/hooks/timeline-core/useTimelinePositions.ts",
+        "src/tools/travel-between-images/hooks/video/useStableSkeletonVisibility.ts",
+        "src/tools/travel-between-images/hooks/video/useTemporaryVisibility.ts"
+      ],
+      "evidence": [
+        "useTimelinePositions includes extensive prose blocks repeating implementation details at many points, plus placeholder section headers without code.",
+        "Small hooks with simple behavior include long tutorial-style doc blocks that duplicate obvious control flow.",
+        "The pattern increases review overhead and makes true control-path changes harder to spot."
+      ],
+      "suggestion": "Prune comments to invariants and non-obvious race guarantees only; remove empty section scaffolding; keep API docs short and move deeper rationale to a single module-level note if needed.",
+      "confidence": "medium",
+      "impact_scope": "module",
+      "fix_scope": "single_edit",
+      "root_cause_cluster": "timeline_state_machine_accretion"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Migration strategy kept legacy and canonical shapes active throughout feature internals instead of isolating compatibility at boundaries.",
+      "Timeline logic has been patched for race conditions incrementally, producing a single overgrown orchestration hook."
+    ],
+    "likely_symptoms": [
+      "dual_structure_video_contract",
+      "legacy_default_shape_leaks",
+      "timeline_positions_god_hook",
+      "commentary_to_logic_ratio"
+    ],
+    "possible_false_positives": []
+  }
+}

@@ -1,0 +1,156 @@
+{
+  "batch": "Testing & API",
+  "batch_index": 4,
+  "assessments": {
+    "test_strategy": 68.0,
+    "api_surface_coherence": 62.0,
+    "mid_level_elegance": 71.0
+  },
+  "dimension_notes": {
+    "test_strategy": {
+      "evidence": [
+        "Critical hook `src/shared/hooks/tasks/useTaskType.ts` has no direct test file, while it is consumed by UI-critical callers (`src/shared/components/MediaGalleryItem.tsx`, `src/shared/components/TasksPane/TaskItem.tsx`).",
+        "Current `useTaskInvalidation` test suite (`src/shared/hooks/invalidation/__tests__/useTaskInvalidation.test.ts`) validates query-key shapes and raw `queryClient.invalidateQueries` calls but does not exercise any production invalidation function, because `src/shared/hooks/invalidation/useTaskInvalidation.ts` is only a type stub.",
+        "Seed mechanical concern 'critical untested paths' is partially confirmed: some seed files are covered (e.g. `adjacentPagePreloadCoordinator.test.ts`, `timelineWriteQueue.test.ts`, `referenceDomainService.test.ts`), but task-type fetch/invalidation seams are not tested end-to-end."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "api_surface_coherence": {
+      "evidence": [
+        "Two public query-key APIs represent generation->task mapping in parallel: `taskQueryKeys.generationTaskId(...)` and `taskQueryKeys.generationMapping(...)` (`src/shared/lib/queryKeys/tasks.ts`), and both are actively used by different modules (`useTaskPrefetch.ts` vs `generationTaskCache.ts`).",
+        "Task detail cache keys are also split: readers/prefetchers commonly use `taskQueryKeys.single(taskId, projectId)` (`useTasks.ts`, `useTaskPrefetch.ts`), but `generationTaskCache.ts` reads/writes `taskQueryKeys.single(taskId)` with no project scope, creating `__no-project__` cache islands.",
+        "Task-type API masks failure as absence: `useTaskType` returns `null` for both DB errors and missing rows, and `fetchAllTaskTypesConfig` returns `{}` on error, collapsing distinct states into the same shape."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "mid_level_elegance": {
+      "evidence": [
+        "`runSerializedTimelineWrite` timeout path (`runSerializedTaskWithTimeout`) rejects after timeout but does not cancel underlying work; tasks keep running without abort propagation (`src/shared/lib/timelineWriteQueue.ts`).",
+        "Multiple callers rely on serialized ordering for correctness (`src/shared/hooks/useTimelineCore.ts`, `src/shared/hooks/timeline/useTimelineFrameUpdates.ts`, `src/tools/travel-between-images/components/Timeline/hooks/usePositionManagement.ts`), so releasing queue ownership before old work actually stops can reintroduce overlapping writes.",
+        "This is a loop-prone seam: stale write completion after queue timeout can trigger follow-up invalidations/refetches out of order, causing reopen/churn behavior in timeline state synchronization."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "medium"
+    }
+  },
+  "issues": [
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "generation_task_mapping_key_split",
+      "summary": "Generation->task mapping has two incompatible public cache key contracts",
+      "related_files": [
+        "src/shared/lib/queryKeys/tasks.ts",
+        "src/shared/lib/generationTaskCache.ts",
+        "src/shared/hooks/tasks/useTaskPrefetch.ts"
+      ],
+      "evidence": [
+        "`taskQueryKeys` exposes both `generationTaskId(generationId)` and `generationMapping(generationId)`.",
+        "`useTaskPrefetch` reads/writes `generationTaskId` while `generationTaskCache` reads/writes `generationMapping` for the same conceptual data (taskId + status).",
+        "This duplicates cache entries and allows stale/missing reads depending on which API path populated first."
+      ],
+      "suggestion": "Converge on one canonical key (`generationMapping` or `generationTaskId`) and remove the other. Update all readers/writers and tests to the canonical key, then add a migration test that verifies prefetch and merge paths share the same cache entry.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "task_cache_contract_drift"
+    },
+    {
+      "dimension": "api_surface_coherence",
+      "identifier": "task_cache_scope_mismatch",
+      "summary": "Task cache uses mixed scoped/unscoped keys for the same entity",
+      "related_files": [
+        "src/shared/lib/generationTaskCache.ts",
+        "src/shared/hooks/tasks/useTasks.ts",
+        "src/shared/hooks/tasks/useTaskPrefetch.ts"
+      ],
+      "evidence": [
+        "`generationTaskCache` prefetches and reads task data with `taskQueryKeys.single(taskId)` (project omitted => `__no-project__`).",
+        "`useGetTask` and task prefetch hooks use `taskQueryKeys.single(taskId, effectiveProjectId)` and query by both `id` and `project_id`.",
+        "The mismatch means cross-module consumers can miss prefetched data or read divergent entries for the same task id."
+      ],
+      "suggestion": "Make project scope mandatory for all task-detail cache access and carry `projectId` through `generationTaskCache` APIs. Replace unscoped `single(taskId)` calls with `single(taskId, projectId)` and add contract tests across `generationTaskCache` + `useTasks` + `useTaskPrefetch`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "task_cache_contract_drift"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "untested_task_type_boundary",
+      "summary": "Task-type fetch boundary lacks direct tests despite high fan-out",
+      "related_files": [
+        "src/shared/hooks/tasks/useTaskType.ts",
+        "src/shared/components/MediaGalleryItem.tsx",
+        "src/shared/components/TasksPane/TaskItem.tsx"
+      ],
+      "evidence": [
+        "No `useTaskType` test file exists under `src/shared/hooks/tasks`.",
+        "The hook is used in multiple user-facing components to determine task display behavior.",
+        "The hook intentionally collapses error/not-found to `null`, but there is no explicit regression coverage for this contract."
+      ],
+      "suggestion": "Add `useTaskType` tests covering success, DB error, missing row, and cache-init behavior for `useAllTaskTypesConfig`; include one integration-style test from a consuming component to validate UI behavior under each case.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor"
+    },
+    {
+      "dimension": "test_strategy",
+      "identifier": "stubbed_task_invalidation_has_no_behavior_tests",
+      "summary": "Task invalidation tests assert constants while production module is a stub",
+      "related_files": [
+        "src/shared/hooks/invalidation/useTaskInvalidation.ts",
+        "src/shared/hooks/invalidation/__tests__/useTaskInvalidation.test.ts",
+        "src/shared/lib/queryKeys/tasks.ts"
+      ],
+      "evidence": [
+        "`useTaskInvalidation.ts` contains only type/interface declarations (no exported behavior).",
+        "The test suite still passes by asserting key literals and direct `queryClient.invalidateQueries` calls, not by invoking a production invalidation API.",
+        "This creates false confidence around task invalidation behavior."
+      ],
+      "suggestion": "Either remove the dead module/tests entirely or implement and export real task invalidation functions, then rewrite tests to execute that implementation (including list/detail/counts/all scopes and generation-cascade behavior).",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "single_edit"
+    },
+    {
+      "dimension": "mid_level_elegance",
+      "identifier": "serialized_queue_timeout_without_cancellation",
+      "summary": "Serialized timeline queue times out callers but cannot stop underlying write work",
+      "related_files": [
+        "src/shared/lib/timelineWriteQueue.ts",
+        "src/shared/hooks/useTimelineCore.ts",
+        "src/shared/hooks/timeline/useTimelineFrameUpdates.ts"
+      ],
+      "evidence": [
+        "`runSerializedTaskWithTimeout` uses timer-based reject but does not pass an abort signal into `task`.",
+        "When timeout fires, queue bookkeeping is released in `finally`, allowing next writes to start even if previous async DB operation continues.",
+        "Callers depend on queue ordering for timeline correctness; overlapping late completions can reintroduce stale invalidation/refetch churn."
+      ],
+      "suggestion": "Change `runSerializedTimelineWrite` to accept an abortable task signature `(signal) => Promise<T>` and propagate cancellation on timeout. Require all write callers to use abort-aware DB paths, and add a test proving timed-out write side effects cannot complete after queue release.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "timeline_write_orchestration_gaps"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Task-domain cache contracts evolved in parallel without one enforced canonical key/scope model.",
+      "Some tests validate assumptions and constants instead of executable production behavior.",
+      "Timeline orchestration enforces ordering at promise level but not at side-effect cancellation level."
+    ],
+    "likely_symptoms": [
+      "generation_task_mapping_key_split",
+      "task_cache_scope_mismatch",
+      "serialized_queue_timeout_without_cancellation"
+    ],
+    "possible_false_positives": [
+      "Mechanical concern about untested paths is not universal: several seed modules do have targeted tests (adjacent preload, invalidation, timeline queue, reference upload)."
+    ]
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "batch": "Package Organization",
+  "batch_index": 6,
+  "assessments": {
+    "package_organization": 72.0,
+    "high_level_elegance": 76.0
+  },
+  "dimension_notes": {
+    "package_organization": {
+      "evidence": [
+        "Mechanical batch concern signals are empty (`investigation_batches[name=Package Organization].concern_signals = []`), and `holistic_context.scan_evidence.boundary_violations` is null, so there is no direct detector-confirmed boundary break to report.",
+        "`holistic_context.structure.directory_profiles[\"src/shared/hooks/\"]` shows 48 files and mixed responsibilities in one package (UI interaction hooks like `useFileDragTracking.ts` alongside data-access/domain hooks like `useLineageChain.ts`, `usePendingGenerationTasks.ts`, `useShareGeneration.ts`).",
+        "`holistic_context.structure.directory_profiles[\"src/shared/lib/\"]` shows 54 files with mixed generic utilities (`clipboard.ts`, `fileConversion.ts`, `uuid.ts`) and generation/task repositories/cache (`generationTaskCache.ts`, `generationTaskRepository.ts`, `taskRowMapper.ts`) in one directory.",
+        "`src/shared/hooks/useLineageChain.ts` performs direct Supabase reads and lineage traversal while living in the same top-level package as generic UI hooks, indicating placement by convenience rather than domain boundary.",
+        "Coupling matrix shows strong dependence `src/shared/hooks/ -> src/shared/lib/` (30 edges) and `src/shared/hooks/ -> src/integrations/supabase/` (21 edges), consistent with a broad shared layer collecting domain code."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    },
+    "high_level_elegance": {
+      "evidence": [
+        "`holistic_context.structure.directory_profiles[\"src/shared/components/MediaLightbox/hooks/\"]` has 49 files / 9605 LOC with wide import spread across shared hooks/lib/media, domain types, and Supabase, indicating a subsystem-level catch-all package.",
+        "`src/shared/components/MediaLightbox/hooks/index.ts` re-exports many hooks across unrelated concerns (inpainting, edit persistence, task details, video editing, navigation, layout), creating a broad public surface with weak ownership boundaries.",
+        "`buildImageEditStateValue.ts` composes a very large state surface from multiple mode hooks while `editSettingsTypes.ts` defines durable settings models in the same hooks package, mixing orchestration, domain settings, and UI hook concerns.",
+        "Directory profile shows this package is consumed by both `src/shared/components/MediaLightbox/*` and `src/tools/edit-images/hooks/`, confirming the folder acts as cross-feature integration storage rather than a clear capability boundary."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    }
+  },
+  "issues": [
+    {
+      "dimension": "package_organization",
+      "identifier": "shared-hooks-mixed-domain-and-ui-placement",
+      "summary": "`src/shared/hooks` mixes generic UI hooks with generation/task data-access hooks, blurring package boundaries.",
+      "related_files": [
+        "src/shared/hooks/useFileDragTracking.ts",
+        "src/shared/hooks/useLineageChain.ts",
+        "src/shared/hooks/useShareGeneration.ts",
+        "src/shared/hooks/usePendingGenerationTasks.ts"
+      ],
+      "evidence": [
+        "`useFileDragTracking.ts` is a generic drag-state utility, while `useLineageChain.ts` contains Supabase lineage traversal and project scope validation in the same directory.",
+        "`useShareGeneration.ts` and `usePendingGenerationTasks.ts` execute DB/auth queries from the same package that also holds local UI interaction hooks.",
+        "Directory profile: `src/shared/hooks/` has 48 files and imports from both `src/shared/lib/` (30 edges) and `src/integrations/supabase/` (21 edges), signaling mixed layer ownership."
+      ],
+      "suggestion": "Staged reorg plan: Stage 1 create target folders `src/domains/generation/hooks/` and `src/domains/task/hooks/`; Stage 2 move data-centric hooks first (`useLineageChain`, `usePendingGenerationTasks`, `useShareGeneration`) into domain folders while keeping temporary re-export shims in `src/shared/hooks/`; Stage 3 move remaining domain hooks (variants/shot-generation/task-*); Stage 4 keep `src/shared/hooks/` for cross-domain UI/interaction-only hooks. After each stage run import updates via `rg -l \"@/shared/hooks/use(LineageChain|PendingGenerationTasks|ShareGeneration)\" src` and replace paths, then validate with `npm run typecheck` and `npm test -- useLineageChain`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shared_catchall_boundary_erosion"
+    },
+    {
+      "dimension": "package_organization",
+      "identifier": "shared-lib-catchall-mixes-generic-and-domain-logic",
+      "summary": "`src/shared/lib` combines generic helpers and domain repositories/caches, reducing directory cohesion.",
+      "related_files": [
+        "src/shared/lib/clipboard.ts",
+        "src/shared/lib/fileConversion.ts",
+        "src/shared/lib/generationTaskCache.ts",
+        "src/shared/lib/generationTaskRepository.ts",
+        "src/shared/lib/taskRowMapper.ts"
+      ],
+      "evidence": [
+        "Generic browser/file helpers (`clipboard.ts`, `fileConversion.ts`) are co-located with generation/task persistence and query-cache orchestration (`generationTaskCache.ts`, `generationTaskRepository.ts`).",
+        "`generationTaskCache.ts` depends on Supabase client and task query keys, i.e., domain/integration behavior rather than shared primitive utility.",
+        "Directory profile: `src/shared/lib/` has 54 files and is heavily imported by diverse directories, which increases blast radius of changes in a nominally 'shared' package."
+      ],
+      "suggestion": "Staged reorg plan: Stage 1 create `src/domains/generation/repository/`, `src/domains/task/repository/`, and `src/shared/utils/browser/`; Stage 2 move `generationTaskCache.ts`, `generationTaskRepository.ts`, `taskRowMapper.ts` into domain repository folders; Stage 3 move generic helpers (`clipboard.ts`, `fileConversion.ts`) into `shared/utils/browser`; Stage 4 leave compatibility exports in `src/shared/lib/index` for one release, then remove. Update imports with `rg -l \"@/shared/lib/(generationTaskCache|generationTaskRepository|taskRowMapper|clipboard|fileConversion)\" src` and validate using `npm run typecheck` plus focused tests `npm test -- generationTaskCache`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "shared_catchall_boundary_erosion"
+    },
+    {
+      "dimension": "high_level_elegance",
+      "identifier": "medialightbox-hooks-is-overloaded-subsystem-surface",
+      "summary": "MediaLightbox hooks package has become a multi-purpose subsystem hub with unclear ownership boundaries.",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/index.ts",
+        "src/shared/components/MediaLightbox/hooks/buildImageEditStateValue.ts",
+        "src/shared/components/MediaLightbox/hooks/editSettingsTypes.ts",
+        "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts"
+      ],
+      "evidence": [
+        "Directory profile reports 49 files / 9605 LOC for one hooks package, with inbound/outbound coupling across shared hooks/lib/media, domain types, and integrations.",
+        "`index.ts` exposes a broad mixed-scope API (edit orchestration, persistence, task detail hooks, video mode hooks), making ownership and dependency intent hard to infer.",
+        "`buildImageEditStateValue.ts` and `editSettingsTypes.ts` sit together despite representing different layers (state assembly orchestration vs durable settings model).",
+        "This package is consumed from both MediaLightbox components and external tool hooks (`src/tools/edit-images/hooks/`), confirming it acts as a cross-feature bucket."
+      ],
+      "suggestion": "Staged reorg plan: Stage 1 split `src/shared/components/MediaLightbox/hooks/` into subpackages `hooks/orchestration/`, `hooks/modes/`, `hooks/persistence/`, and `model/` (for settings types); Stage 2 move files in dependency-safe order: types/models first (`editSettingsTypes.ts`), then pure state builders (`buildImageEditStateValue.ts`), then mode hooks, then orchestration hooks (`useSharedLightboxState.ts`, controller-level hooks); Stage 3 replace broad barrel with scoped entrypoints (`hooks/modes/index.ts`, `hooks/orchestration/index.ts`) and keep a temporary deprecated root barrel. Update imports via `rg -l \"@/shared/components/MediaLightbox/hooks\" src` and validate with `npm run typecheck` and `npm test -- MediaLightbox/hooks`.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "shared_catchall_boundary_erosion"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Long-lived `shared/*` directories became convenience landing zones for domain and integration code.",
+      "Barrel exports and broad directory names hid ownership drift until packages became subsystem hubs."
+    ],
+    "likely_symptoms": [
+      "shared-hooks-mixed-domain-and-ui-placement",
+      "shared-lib-catchall-mixes-generic-and-domain-logic",
+      "medialightbox-hooks-is-overloaded-subsystem-surface"
+    ],
+    "possible_false_positives": [
+      "Absence of explicit `boundary_violations`/`flat_dir_issues` detector output means some findings rely on structural interpretation of directory profiles and coupling counts rather than a direct detector flag."
+    ]
+  }
+}

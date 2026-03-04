@@ -1,0 +1,109 @@
+{
+  "batch": "State & Design Integrity",
+  "batch_index": 7,
+  "assessments": {
+    "initialization_coupling": 74.0,
+    "design_coherence": 70.0
+  },
+  "dimension_notes": {
+    "initialization_coupling": {
+      "evidence": [
+        "The blind packet has no populated `holistic_context.scan_evidence.mutable_globals` / `holistic_context.errors.mutable_globals` entries, so mechanical mutable-global evidence is absent and had to be validated manually in code.",
+        "`useJoinClips` writes cross-feature workflow state directly to `localStorage` (`pendingJoinClips...` keys), while `useClipManager` reads and consumes that queue later; this is shared mutable browser-global state with implicit lifecycle ordering (`src/shared/components/MediaLightbox/hooks/useJoinClips.ts`, `src/tools/join-clips/lib/clipInitService.ts`, `src/tools/join-clips/hooks/useClipManager.ts`).",
+        "`useClipManager` consumes pending join clips only when `[settingsLoaded, selectedProjectId, initialHydrationComplete]` change; there is no storage/event subscription for later writes, so queue consumption depends on init timing/remount rather than an explicit registry contract (`src/tools/join-clips/hooks/useClipManager.ts:99-135`).",
+        "Cross-component state signaling also uses global `window` events (`dispatchAppEvent`/`useAppEventListener`) with no replay/buffering contract, making delivery order depend on listener mount timing (`src/shared/lib/typedEvents.ts`, `src/features/gallery/hooks/useGalleryPageState.ts`, `src/tools/travel-between-images/components/VideoGallery/SortableShotItem.tsx`)."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "confidence": "high"
+    },
+    "design_coherence": {
+      "evidence": [
+        "Signal-density hotspots called out in packet are confirmed in code: `ImageLightbox`, `useSharedLightboxState`, `MediaGalleryItem`, `GenerationSection`, `AddNewPresetTab`, `FinalVideoSection`, and `SortableShotItem` are all large mixed-responsibility modules.",
+        "`ImageLightbox` composes very large state bags and high-fan-in `useMemo` dependency lists, with editing, navigation, variant orchestration, task-panel assembly, shot actions, and layout concerns in one controller flow (`src/shared/components/MediaLightbox/ImageLightbox.tsx:340-862`, `src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts`).",
+        "`SortableShotItem` contains a custom upload/skeleton state machine that mutates refs during render and combines drag-drop, async completion inference, timeout cleanup, and cross-component event handling in one component (`src/tools/travel-between-images/components/VideoGallery/SortableShotItem.tsx:103-179`, `:193-217`).",
+        "Shot upload feedback path is split across modules and not transactionally tied to mutation success: event emitted before mutation (`useGalleryPageState`) and UI loading state managed separately in `SortableShotItem`, producing phantom loading/success states on failure."
+      ],
+      "impact_scope": "subsystem",
+      "fix_scope": "multi_file_refactor",
+      "confidence": "high"
+    }
+  },
+  "issues": [
+    {
+      "dimension": "initialization_coupling",
+      "identifier": "ambient_join_clips_queue_order_dependency",
+      "summary": "Join-clips handoff relies on ambient localStorage queue with init-timing dependent consumption",
+      "related_files": [
+        "src/shared/components/MediaLightbox/hooks/useJoinClips.ts",
+        "src/tools/join-clips/hooks/useClipManager.ts",
+        "src/tools/join-clips/lib/clipInitService.ts",
+        "src/shared/lib/joinClipsPendingQueue.ts"
+      ],
+      "evidence": [
+        "`useJoinClips` writes pending clip entries directly to `localStorage` (`localStorage.getItem`/`setItem`) using queue keys from `getPendingJoinClipsStorageKey`.",
+        "`useClipManager` consumes pending clips in an effect gated by `settingsLoaded`, `selectedProjectId`, and `initialHydrationComplete`; once those are stable, later queue writes are not automatically observed.",
+        "`consumePendingJoinClips` destructively removes queue keys after read, so behavior depends on which consumer instance initializes first."
+      ],
+      "suggestion": "Replace the ambient queue with a dedicated `JoinClipsIntentStore` (React-query cache slice or context-backed registry) that provides `enqueue`, `subscribe`, and `ack` semantics. Keep localStorage only as persistence fallback behind that store, and trigger consumption through explicit store events rather than init-only effects.",
+      "confidence": "high",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "ambient_global_state_channels"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "shot_upload_feedback_not_transactional",
+      "summary": "Upload feedback state is decoupled from mutation outcome, causing misleading UI transitions",
+      "related_files": [
+        "src/features/gallery/hooks/useGalleryPageState.ts",
+        "src/tools/travel-between-images/components/VideoGallery/SortableShotItem.tsx",
+        "src/shared/lib/typedEvents.ts"
+      ],
+      "evidence": [
+        "`dispatchAppEvent('shot-pending-upload', ...)` is fired before `addImageToShotMutation`/`positionExistingGenerationMutation` resolves (`useGalleryPageState.ts:148-166`).",
+        "`SortableShotItem` immediately enters loading state on this event and infers completion from image-count deltas/timeouts (`SortableShotItem.tsx:195-215`, `:116-143`, `:162-179`), not from actual mutation result.",
+        "On mutation failure path in `useGalleryPageState`, no compensating event or rollback signal is emitted, so the drop indicator can display loading/success despite failure."
+      ],
+      "suggestion": "Move shot-upload feedback to a single transaction model: emit `started/succeeded/failed` events (or, better, share mutation status via central state) keyed by operation id. Update `SortableShotItem` from explicit operation state instead of inferred count/timeouts.",
+      "confidence": "high",
+      "impact_scope": "module",
+      "fix_scope": "multi_file_refactor",
+      "root_cause_cluster": "ambient_global_state_channels"
+    },
+    {
+      "dimension": "design_coherence",
+      "identifier": "lightbox_controller_overaggregation",
+      "summary": "Image lightbox orchestration aggregates too many concerns into one unstable control surface",
+      "related_files": [
+        "src/shared/components/MediaLightbox/ImageLightbox.tsx",
+        "src/shared/components/MediaLightbox/hooks/useSharedLightboxState.ts",
+        "src/tools/edit-images/hooks/useInlineEditState.ts"
+      ],
+      "evidence": [
+        "`ImageLightbox` builds and threads large composite models (`env`, `sharedModel`, `editModel`, `renderModel`) with broad dependency arrays, mixing concerns: variant lifecycle, shot workflows, edit orchestration, task detail panels, layout, and navigation (`ImageLightbox.tsx:340-862`).",
+        "`useSharedLightboxState` exports a very wide return contract containing variants/navigation/star/references/lineage/shot creation/source generation/layout/button groups, increasing coupling pressure across callers.",
+        "`useInlineEditState` mirrors similar broad orchestration for edit modes/persistence/variants/lora/upscale, indicating repeated controller-aggregation pattern rather than bounded feature seams."
+      ],
+      "suggestion": "Introduce bounded feature controllers with narrow interfaces (e.g., `variantController`, `editController`, `shotController`, `panelController`) and compose them via a typed coordinator that only exposes stable cross-cutting contracts. This should remove wide prop bags and reduce re-render churn from unrelated concern changes.",
+      "confidence": "medium",
+      "impact_scope": "subsystem",
+      "fix_scope": "architectural_change",
+      "root_cause_cluster": "controller_aggregation_without_bounded_contexts"
+    }
+  ],
+  "retrospective": {
+    "root_causes": [
+      "Cross-feature workflows depend on ambient browser globals (localStorage/window events) instead of explicit state registries with lifecycle guarantees.",
+      "Large orchestration hooks/components act as de facto god-controllers, concentrating unrelated responsibilities and increasing coupling."
+    ],
+    "likely_symptoms": [
+      "ambient_join_clips_queue_order_dependency",
+      "shot_upload_feedback_not_transactional",
+      "lightbox_controller_overaggregation"
+    ],
+    "possible_false_positives": [
+      "Mechanical large-file signals in `src/integrations/supabase/types.ts` are mostly generated schema shape and do not by themselves prove design defects in this batch."
+    ]
+  }
+}
