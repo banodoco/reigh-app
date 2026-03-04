@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import type { AdjacentSegmentsData, SegmentSlotModeData } from '../../types';
-import type { LightboxButtonGroupProps } from '../../hooks/orchestration/useSharedLightboxState.types';
+import type { LightboxButtonGroupProps } from '../../hooks/useSharedLightboxState';
 import type { WorkflowControlsBarProps } from '../WorkflowControlsBar';
 
 type LayoutButtonGroupProps = LightboxButtonGroupProps;

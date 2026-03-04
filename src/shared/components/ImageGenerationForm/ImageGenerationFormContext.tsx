@@ -10,7 +10,7 @@
  * - Handlers memoized → stable references
  */
 
-import React, { useMemo } from 'react';
+import React, { createContext, useMemo } from 'react';
 import type { ImageGenerationFormUIState, FormUIActions } from './state/useFormUIState';
 import type {
   FormCoreState,
@@ -22,7 +22,8 @@ import type {
   FormReferenceState,
   ImageGenerationFormContextValue,
 } from './ImageGenerationFormContext.types';
-import { ImageGenerationFormContext } from './ImageGenerationFormContext.store';
+
+export const ImageGenerationFormContext = createContext<ImageGenerationFormContextValue | null>(null);
 
 // ============================================================================
 // Context

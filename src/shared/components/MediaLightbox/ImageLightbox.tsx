@@ -38,7 +38,7 @@ import {
   useImageLightboxEditing,
   type ImageLightboxEditModel,
 } from './hooks/useImageLightboxEditing';
-import { useImageLightboxControlsPanel } from './hooks/useImageLightboxControlsPanel';
+import { ImageLightboxControlsPanel } from './components/ImageLightboxControlsPanel';
 
 import { LightboxShell, LightboxProviders } from './components';
 import { LightboxLayout } from './components/layouts/LightboxLayout';
@@ -268,8 +268,20 @@ function useImageLightboxRenderModel(
     handleSlotNavNext, handleSlotNavPrev, sharedState.navigation.swipeNavigation,
   ]);
 
-  const controlsPanelContent = useImageLightboxControlsPanel(
-    props, env, sharedModel, editModel, showPanel, panelVariant, panelTaskId,
+  const controlsPanelContent = (
+    <ImageLightboxControlsPanel
+      media={props.media}
+      shotId={props.shotWorkflow?.shotId}
+      onOpenExternalGeneration={props.onOpenExternalGeneration}
+      shotWorkflow={props.shotWorkflow}
+      features={props.features}
+      env={env}
+      sharedModel={sharedModel}
+      editModel={editModel}
+      showPanel={showPanel}
+      panelVariant={panelVariant}
+      panelTaskId={panelTaskId}
+    />
   );
 
   const layoutProps = useMemo(() => ({
