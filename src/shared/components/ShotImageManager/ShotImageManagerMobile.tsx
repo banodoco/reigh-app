@@ -9,11 +9,13 @@ import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeErro
 import { usePanes } from '@/shared/contexts/PanesContext';
 import { ConfirmDialog } from '@/shared/components/dialogs/ConfirmDialog';
 import { BaseShotImageManagerProps } from './types';
-import type { GenerationRow } from '@/domains/generation/types';
 import { useMarkVariantViewed } from '@/shared/hooks/useMarkVariantViewed';
-import { dispatchAppEvent } from '@/shared/lib/typedEvents';
 import { MobileImageGrid } from './components/MobileImageGrid';
 import { MobileSelectionActionBar } from './components/MobileSelectionActionBar';
+import { useConfirmDialog } from './hooks/useConfirmDialog';
+import { useMobileImageSelection } from './hooks/useMobileImageSelection';
+import { useMobileOptimisticOrder } from './hooks/useMobileOptimisticOrder';
+import { getMobileGridColsClass } from './constants';
 
 export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
   images,
@@ -45,19 +47,33 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
   onNewShotFromSelection,
   onShotChange,
 }) => {
-  const [mobileSelectedIds, setMobileSelectedIds] = useState<string[]>([]);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([]);
+  const {
+    mobileSelectedIds,
+    showSelectionBar,
+    isInMoveMode,
+    handleMobileTap,
+    clearSelection,
+  } = useMobileImageSelection({
+    readOnly,
+    onSelectionChange,
+  });
+  const {
+    confirmOpen,
+    setConfirmOpen,
+    pendingDeleteIds,
+    openConfirm,
+    closeConfirm,
+  } = useConfirmDialog();
+  const {
+    currentImages,
+    setOptimisticOrder,
+    isOptimisticUpdate,
+    setIsOptimisticUpdate,
+  } = useMobileOptimisticOrder(images);
+
   const [newShotState, setNewShotState] = useState<'idle' | 'loading' | 'success'>('idle');
   const [createdShotId, setCreatedShotId] = useState<string | null>(null);
   const newShotResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
-  // State to control when selection bar should be visible (with delay)
-  const [showSelectionBar, setShowSelectionBar] = useState(false);
-  
-  // Optimistic update state for mobile reordering
-  const [optimisticOrder, setOptimisticOrder] = useState<GenerationRow[]>([]);
-  const [isOptimisticUpdate, setIsOptimisticUpdate] = useState(false);
 
   const { markAllViewed } = useMarkVariantViewed();
   const { 
@@ -68,66 +84,8 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
   } = usePanes();
 
   // Use columns from useDeviceInfo (phones=2, tablet portrait=3, tablet landscape=4)
-  const isInMoveMode = mobileSelectedIds.length > 0;
   const effectiveColumns = columns;
-  
-  const mobileGridColsClass = {
-    2: 'grid-cols-2',
-    3: 'grid-cols-3',
-    4: 'grid-cols-4',
-    5: 'grid-cols-5',
-    6: 'grid-cols-6',
-    7: 'grid-cols-7',
-    8: 'grid-cols-8',
-    9: 'grid-cols-9',
-    10: 'grid-cols-10',
-    11: 'grid-cols-11',
-    12: 'grid-cols-12',
-  }[effectiveColumns] || 'grid-cols-2';
-
-  // Use optimistic order if available, otherwise use props images
-  const currentImages = isOptimisticUpdate && optimisticOrder.length > 0 ? optimisticOrder : images;
-
-  // Reset optimistic state when images array changes significantly (e.g., shot navigation)
-  // This prevents flickering when the component receives a completely new dataset
-  const prevImagesLengthRef = React.useRef(images.length);
-  React.useEffect(() => {
-    // If the images array length changes dramatically (not just +/- 1 from reorder/delete/add),
-    // it's likely a new shot or major data refresh - clear optimistic state
-    const lengthDiff = Math.abs(images.length - prevImagesLengthRef.current);
-    if (lengthDiff > 1 && isOptimisticUpdate) {
-      setIsOptimisticUpdate(false);
-      setOptimisticOrder([]);
-    }
-    prevImagesLengthRef.current = images.length;
-  }, [images.length, isOptimisticUpdate]);
-
-  // Show selection bar with a delay after items are selected
-  React.useEffect(() => {
-    if (mobileSelectedIds.length > 0) {
-      // Delay showing selection bar to let CTA hide first
-      const timer = setTimeout(() => {
-        setShowSelectionBar(true);
-      }, 200); // 200ms delay for smooth transition
-      return () => clearTimeout(timer);
-    } else {
-      // Hide immediately when deselected
-      setShowSelectionBar(false);
-    }
-  }, [mobileSelectedIds.length]);
-
-  // Dispatch selection state to hide pane controls on mobile
-  React.useEffect(() => {
-    const hasSelection = mobileSelectedIds.length > 0;
-    dispatchAppEvent('mobileSelectionActive', hasSelection);
-    // Notify parent component of selection change
-    onSelectionChange?.(hasSelection);
-
-    // Cleanup: ensure pane controls are restored when component unmounts
-    return () => {
-      dispatchAppEvent('mobileSelectionActive', false);
-    };
-  }, [mobileSelectedIds.length, onSelectionChange]);
+  const mobileGridColsClass = getMobileGridColsClass(effectiveColumns);
 
   // Cleanup newShotResetTimeout on unmount
   React.useEffect(() => {
@@ -137,46 +95,6 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
       }
     };
   }, []);
-
-  // Reconcile optimistic state with server state when images prop changes
-  React.useEffect(() => {
-    if (isOptimisticUpdate && images && images.length > 0) {
-      // Check if server state matches optimistic state
-      // img.id is shot_generations.id - unique per entry
-      const optimisticIds = optimisticOrder.map(img => img.id).join(',');
-      const serverIds = images.map(img => img.id).join(',');
-      
-      if (optimisticIds === serverIds) {
-        setIsOptimisticUpdate(false);
-        setOptimisticOrder([]);
-      } else {
-        
-        // Safety timeout: force reconciliation after 5 seconds
-        const timeout = setTimeout(() => {
-          if (isOptimisticUpdate) {
-            setIsOptimisticUpdate(false);
-            setOptimisticOrder([]);
-          }
-        }, 5000);
-        
-        return () => clearTimeout(timeout);
-      }
-    }
-  }, [images, isOptimisticUpdate, optimisticOrder]);
-
-  // Mobile tap handler for selection (disabled in readOnly)
-  // Simple toggle - no double-tap detection needed since we show a lightbox button when selected
-  const handleMobileTap = useCallback((imageId: string, _index: number) => {
-    if (readOnly) return; // Don't allow selection in readOnly mode
-
-    const wasSelected = mobileSelectedIds.includes(imageId);
-
-    if (wasSelected) {
-      setMobileSelectedIds(prev => prev.filter(id => id !== imageId));
-    } else {
-      setMobileSelectedIds(prev => [...prev, imageId]);
-    }
-  }, [mobileSelectedIds, readOnly]);
 
   // Handler for creating a new shot from selected images
   const handleNewShot = useCallback(async () => {
@@ -212,9 +130,9 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
       onShotChange(createdShotId);
       setNewShotState('idle');
       setCreatedShotId(null);
-      setMobileSelectedIds([]);
+      clearSelection();
     }
-  }, [createdShotId, onShotChange]);
+  }, [clearSelection, createdShotId, onShotChange]);
 
   // Mobile reordering function
   const handleMobileMoveHere = useCallback(async (targetIndex: number) => {
@@ -269,8 +187,7 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
       setOptimisticOrder(newOrder);
 
       // 2. Clear selection immediately for better UX
-      setMobileSelectedIds([]);
-      onSelectionChange?.(false);
+      clearSelection();
 
       // 3. Call server update
       await onImageReorder(orderedIds, draggedItemId);
@@ -279,7 +196,7 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
       normalizeAndPresentError(error, { context: 'ShotImageManagerMobile', showToast: false });
       // Don't clear selection on error so user can retry
     }
-  }, [mobileSelectedIds, currentImages, onImageReorder, onSelectionChange]);
+  }, [clearSelection, mobileSelectedIds, currentImages, onImageReorder]);
 
   // Individual delete handler
   const handleIndividualDelete = useCallback((shotImageEntryId: string) => {
@@ -301,7 +218,7 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
 
     if (validIds.length === 0) {
       toast.error('Unable to delete images. Metadata still loading, please wait a moment and try again.');
-      setConfirmOpen(false);
+      closeConfirm();
       return;
     }
     
@@ -315,11 +232,9 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
     }
     
     // Clear selections and close dialog
-    setMobileSelectedIds([]);
-    onSelectionChange?.(false);
-    setConfirmOpen(false);
-    setPendingDeleteIds([]);
-  }, [currentImages, onImageDelete, onBatchImageDelete, onSelectionChange]);
+    clearSelection();
+    closeConfirm();
+  }, [clearSelection, closeConfirm, currentImages, onImageDelete, onBatchImageDelete]);
 
   // Check if item would actually move
   const wouldActuallyMove = useCallback((insertIndex: number) => {
@@ -407,12 +322,10 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
         shotsPaneWidth={shotsPaneWidth}
         tasksPaneWidth={tasksPaneWidth}
         onDeselect={() => {
-          setMobileSelectedIds([]);
-          onSelectionChange?.(false);
+          clearSelection();
         }}
         onDelete={() => {
-          setPendingDeleteIds([...mobileSelectedIds]);
-          setConfirmOpen(true);
+          openConfirm([...mobileSelectedIds]);
         }}
         canCreateShot={Boolean(onNewShotFromSelection)}
         newShotState={newShotState}
@@ -425,8 +338,11 @@ export const ShotImageManagerMobile: React.FC<BaseShotImageManagerProps> = ({
       <ConfirmDialog
         open={confirmOpen}
         onOpenChange={(open) => {
-          setConfirmOpen(open);
-          if (!open) setPendingDeleteIds([]);
+          if (!open) {
+            closeConfirm();
+          } else {
+            setConfirmOpen(true);
+          }
         }}
         title="Delete Images"
         description={`Are you sure you want to delete ${pendingDeleteIds.length} selected image${pendingDeleteIds.length > 1 ? 's' : ''}? This action cannot be undone.`}

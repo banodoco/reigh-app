@@ -21,6 +21,11 @@ export const OPTIMISTIC_UPDATE_TIMEOUT = 5000; // ms
 // UI constants
 export const DEFAULT_BATCH_VIDEO_FRAMES = 81;
 
+// Mobile grid column resolver
+export function getMobileGridColsClass(columns: number): string {
+  return GRID_COLS_CLASSES[columns as keyof typeof GRID_COLS_CLASSES] ?? 'grid-cols-2';
+}
+
 // Mobile bottom offset for action bars
 export const MOBILE_BOTTOM_OFFSET = 46; // px
 export const DESKTOP_BOTTOM_OFFSET = 80; // px

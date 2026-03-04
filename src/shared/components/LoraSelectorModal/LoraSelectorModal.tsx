@@ -1,18 +1,17 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
-import { Button } from "@/shared/components/ui/button";
-import { X } from 'lucide-react';
 
 import { useExtraLargeModal } from '@/shared/hooks/useModal';
 import { useScrollFade } from '@/shared/hooks/useScrollFade';
-import { useListResources, useCreateResource, useUpdateResource, useDeleteResource, Resource } from '@/shared/hooks/useResources';
+import { useListResources, useCreateResource, useUpdateResource, useDeleteResource } from '@/shared/hooks/useResources';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 
-import { LoraSelectorModalProps, LoraModel, ModelFilterCategory } from './types';
-import { getFilterCategory, getDefaultSubFilter, getSubFilterOptions } from './utils/filter-utils';
+import { LoraSelectorModalProps } from './types';
 import { CommunityLorasTab } from './components/CommunityLorasTab';
 import { MyLorasTab } from './components/MyLorasTab/MyLorasTab';
+import { LoraSelectorFooter } from './components/LoraSelectorFooter';
+import { useLoraFilters } from './hooks/useLoraFilters';
 
 export const LoraSelectorModal: React.FC<LoraSelectorModalProps> = ({
   isOpen,
@@ -32,60 +31,28 @@ export const LoraSelectorModal: React.FC<LoraSelectorModalProps> = ({
   // Privacy defaults for new LoRAs
   const { value: privacyDefaults } = useUserUIState('privacyDefaults', { resourcesPublic: true, generationsPublic: false });
 
-  // Tab state management
-  const [activeTab, setActiveTab] = useState<string>('browse');
-
-  // Edit state management
-  const [editingLora, setEditingLora] = useState<(Resource & { metadata: LoraModel }) | null>(null);
-
-  // Filter state for footer controls
-  const [showMyLorasOnly, setShowMyLorasOnly] = useState(false);
-  const [showAddedLorasOnly, setShowAddedLorasOnly] = useState(false);
-  const [processedLorasLength, setProcessedLorasLength] = useState(0);
-
-  // Model filter state - initialized from prop mapped to broad category
-  const [selectedModelFilter, setSelectedModelFilter] = useState<ModelFilterCategory>(() => getFilterCategory(lora_type));
-  // Sub-filter for specific model type within category (defaulted from lora_type when possible)
-  const [selectedSubFilter, setSelectedSubFilter] = useState<string>(() => getDefaultSubFilter(lora_type));
-
-  useEffect(() => {
-    setSelectedModelFilter(getFilterCategory(lora_type));
-    setSelectedSubFilter(getDefaultSubFilter(lora_type));
-  }, [lora_type]);
-
-  // Reset sub-filter when category changes and current sub-filter isn't valid
-  const validSubOptions = useMemo(
-    () => getSubFilterOptions(selectedModelFilter).map(opt => opt.value),
-    [selectedModelFilter]
-  );
-  useEffect(() => {
-    if (!validSubOptions.includes(selectedSubFilter)) {
-      setSelectedSubFilter('all');
-    }
-  }, [selectedSubFilter, validSubOptions]);
-
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [setPageFn, setSetPageFn] = useState<((page: number) => void) | null>(null);
-
-  // Handle pagination state from tab
-  const handlePageChange = (page: number, total: number, setPage: (page: number) => void) => {
-    setCurrentPage(page);
-    setTotalPages(total);
-    setSetPageFn(() => setPage);
-  };
-
-  // Handle edit action
-  const handleEdit = (lora: Resource & { metadata: LoraModel }) => {
-    setEditingLora(lora);
-    setActiveTab('add-new');
-  };
-
-  // Handle clear edit
-  const handleClearEdit = () => {
-    setEditingLora(null);
-  };
+  const {
+    activeTab,
+    setActiveTab,
+    editingLora,
+    handleEdit,
+    clearEdit,
+    switchToBrowse,
+    showMyLorasOnly,
+    setShowMyLorasOnly,
+    showAddedLorasOnly,
+    setShowAddedLorasOnly,
+    processedLorasLength,
+    setProcessedLorasLength,
+    selectedModelFilter,
+    setSelectedModelFilter,
+    selectedSubFilter,
+    setSelectedSubFilter,
+    currentPage,
+    totalPages,
+    setPageFn,
+    handlePageChange,
+  } = useLoraFilters(lora_type);
 
   // Modal styling and scroll fade
   const modal = useExtraLargeModal('loraSelector');
@@ -157,12 +124,9 @@ export const LoraSelectorModal: React.FC<LoraSelectorModalProps> = ({
                   deleteResource={deleteResource}
                   createResource={createResource}
                   updateResource={updateResource}
-                  onSwitchToBrowse={() => {
-                    setActiveTab('browse');
-                    handleClearEdit();
-                  }}
+                  onSwitchToBrowse={switchToBrowse}
                   editingLora={editingLora}
-                  onClearEdit={handleClearEdit}
+                  onClearEdit={clearEdit}
                   defaultIsPublic={privacyDefaults.resourcesPublic}
                 />
               </TabsContent>
@@ -172,103 +136,20 @@ export const LoraSelectorModal: React.FC<LoraSelectorModalProps> = ({
 
         {/* Control Panel Footer - Always sticks to bottom like PromptEditorModal */}
         {activeTab === 'browse' && (
-          <div className={`${modal.footerClass} relative`}>
-            {/* Fade overlay */}
-            {showFade && (
-              <div
-                className="absolute top-0 left-0 right-0 h-16 pointer-events-none z-10"
-                style={{ transform: 'translateY(-64px)' }}
-              >
-                <div className="h-full bg-gradient-to-t from-white via-white/95 to-transparent dark:from-gray-950 dark:via-gray-950/95 dark:to-transparent" />
-              </div>
-            )}
-
-            <div className={`${modal.isMobile ? 'p-4 pt-4 pb-1' : 'p-6 pt-6 pb-2'} border-t relative z-20`}>
-              <div className="flex flex-col gap-3">
-                {/* Filter Controls Row */}
-                <div className="flex items-center gap-3 flex-wrap justify-center sm:justify-start">
-                  {/* Added LoRAs Filter */}
-                  <Button
-                    variant={showAddedLorasOnly ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setShowAddedLorasOnly(!showAddedLorasOnly)}
-                    className="flex items-center gap-2"
-                  >
-                    <span className={`h-4 w-4 rounded-sm border flex items-center justify-center ${showAddedLorasOnly ? 'bg-primary border-primary' : 'border-input'}`}>
-                      {showAddedLorasOnly && <span className="text-xs text-primary-foreground">✓</span>}
-                    </span>
-                    <span className="hidden sm:inline">Show selected LoRAs</span>
-                    <span className="sm:hidden">Selected</span>
-                  </Button>
-
-                  {/* My LoRAs Filter */}
-                  <Button
-                    variant={showMyLorasOnly ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setShowMyLorasOnly(!showMyLorasOnly)}
-                    className="flex items-center gap-2"
-                  >
-                    <span className={`h-4 w-4 rounded-sm border flex items-center justify-center ${showMyLorasOnly ? 'bg-primary border-primary' : 'border-input'}`}>
-                      {showMyLorasOnly && <span className="text-xs text-primary-foreground">✓</span>}
-                    </span>
-                    <span className="hidden sm:inline">Show my LoRAs</span>
-                    <span className="sm:hidden">My LoRAs</span>
-                  </Button>
-
-                  {/* Status Text */}
-                  <span className="text-sm text-muted-foreground text-center flex-1 sm:flex-none">
-                    {showMyLorasOnly && showAddedLorasOnly ? (
-                      <>{processedLorasLength} added</>
-                    ) : showMyLorasOnly ? (
-                      <>{processedLorasLength} yours</>
-                    ) : showAddedLorasOnly ? (
-                      <>{processedLorasLength} added</>
-                    ) : (
-                      <>{processedLorasLength} total</>
-                    )}
-                  </span>
-
-                  {/* Pagination */}
-                  {totalPages > 1 && setPageFn && (
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPageFn(currentPage - 1)}
-                        disabled={currentPage === 0}
-                        className="h-8 w-8 p-0"
-                      >
-                        ←
-                      </Button>
-                      <span className="text-sm text-muted-foreground px-2">
-                        {currentPage + 1} / {totalPages}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPageFn(currentPage + 1)}
-                        disabled={currentPage >= totalPages - 1}
-                        className="h-8 w-8 p-0"
-                      >
-                        →
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Close Button */}
-                  <Button
-                    variant="retro"
-                    size="retro-sm"
-                    onClick={onClose}
-                    className={`flex items-center gap-1.5 ${modal.isMobile ? 'w-full mt-2' : 'ml-auto'}`}
-                  >
-                    <X className="h-4 w-4" />
-                    Close
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <LoraSelectorFooter
+            footerClass={modal.footerClass}
+            isMobile={modal.isMobile}
+            showFade={showFade}
+            showAddedLorasOnly={showAddedLorasOnly}
+            setShowAddedLorasOnly={setShowAddedLorasOnly}
+            showMyLorasOnly={showMyLorasOnly}
+            setShowMyLorasOnly={setShowMyLorasOnly}
+            processedLorasLength={processedLorasLength}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            setPageFn={setPageFn}
+            onClose={onClose}
+          />
         )}
       </DialogContent>
     </Dialog>

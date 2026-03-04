@@ -1,5 +1,5 @@
-import React, { useState, useRef } from "react";
-import { Key, Copy, Terminal, HelpCircle, ChevronDown } from "lucide-react";
+import React from "react";
+import { Terminal, HelpCircle, ChevronDown, Copy } from "lucide-react";
 import { SegmentedControl, SegmentedControlItem } from "@/shared/components/ui/segmented-control";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import { Button } from "@/shared/components/ui/button";
@@ -22,31 +22,34 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/
 import CreditsManagement from "../../CreditsManagement/CreditsManagement";
 import { getInstallationCommand, getRunCommand, generateAIInstructions, safeCopy } from "../commandUtils";
 import type { GenerationSectionProps, CommandConfig } from "../types";
-
+import { CommandPreview } from "@/shared/components/SettingsModal/sections/GenerationSection/components/CommandPreview";
+import { GenerationTokenPanel } from "@/shared/components/SettingsModal/sections/GenerationSection/components/GenerationTokenPanel";
 const COMPUTER_LABELS: Record<string, string> = {
-  linux: "Linux",
-  windows: "Windows",
-  mac: "Mac",
+  linux: 'Linux',
+  windows: 'Windows',
+  mac: 'Mac',
 };
 
 const GPU_LABELS: Record<string, string> = {
-  "nvidia-30-40": "NVIDIA ≤40 series",
-  "nvidia-50": "NVIDIA 50 series",
-  "non-nvidia": "Non-NVIDIA",
+  'nvidia-30-40': 'NVIDIA ≤40 series',
+  'nvidia-50': 'NVIDIA 50 series',
+  'non-nvidia': 'Non-NVIDIA',
 };
 
 const MEMORY_LABELS: Record<string, string> = {
-  "1": "Max Performance",
-  "2": "High RAM",
-  "3": "Balanced",
-  "4": "Conservative",
-  "5": "Minimum",
+  '1': 'Max Performance',
+  '2': 'High RAM',
+  '3': 'Balanced',
+  '4': 'Conservative',
+  '5': 'Minimum',
 };
 
 const SHELL_LABELS: Record<string, string> = {
-  cmd: "Command Prompt",
-  powershell: "PowerShell",
+  cmd: 'Command Prompt',
+  powershell: 'PowerShell',
 };
+import { useCommandVisibility } from "@/shared/components/SettingsModal/sections/GenerationSection/hooks/useCommandVisibility";
+import { useCopyFeedback } from "@/shared/components/SettingsModal/sections/GenerationSection/hooks/useCopyFeedback";
 
 const GenerationSection: React.FC<GenerationSectionProps> = ({
   isMobile,
@@ -73,19 +76,26 @@ const GenerationSection: React.FC<GenerationSectionProps> = ({
   setActiveInstallTab,
   creditsTab = "purchase",
 }) => {
-  // Copy command feedback states
-  const [copiedInstallCommand, setCopiedInstallCommand] = useState(false);
-  const [copiedRunCommand, setCopiedRunCommand] = useState(false);
-  const [copiedAIInstructions, setCopiedAIInstructions] = useState(false);
-
-  // Show / hide full command previews
-  const [showFullInstallCommand, setShowFullInstallCommand] = useState(false);
-  const [showFullRunCommand, setShowFullRunCommand] = useState(false);
-  const [showPrerequisites, setShowPrerequisites] = useState(false);
-
-  // Refs for scrolling to commands
-  const installCommandRef = useRef<HTMLDivElement>(null);
-  const runCommandRef = useRef<HTMLDivElement>(null);
+  const {
+    copiedInstallCommand,
+    copiedRunCommand,
+    copiedAIInstructions,
+    markInstallCopied,
+    markRunCopied,
+    markAICopied,
+  } = useCopyFeedback();
+  const {
+    showFullInstallCommand,
+    setShowFullInstallCommand,
+    showFullRunCommand,
+    setShowFullRunCommand,
+    showPrerequisites,
+    setShowPrerequisites,
+    installCommandRef,
+    runCommandRef,
+    revealInstallCommand,
+    revealRunCommand,
+  } = useCommandVisibility();
 
   // Build command config
   const getCommandConfig = (): CommandConfig => ({
@@ -97,48 +107,24 @@ const GenerationSection: React.FC<GenerationSectionProps> = ({
     token: generatedToken || getActiveToken()?.token || 'your-api-token',
   });
 
-  // Functions to reveal commands and scroll to them
-  const handleRevealInstallCommand = () => {
-    setShowFullInstallCommand(true);
-    setTimeout(() => {
-      installCommandRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start'
-      });
-    }, 100);
-  };
-
-  const handleRevealRunCommand = () => {
-    setShowFullRunCommand(true);
-    setTimeout(() => {
-      runCommandRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start'
-      });
-    }, 100);
-  };
-
   const handleCopyInstallCommand = async () => {
     const ok = await safeCopy(getInstallationCommand(getCommandConfig()));
     if (ok) {
-      setCopiedInstallCommand(true);
-      setTimeout(() => setCopiedInstallCommand(false), 3000);
+      markInstallCopied();
     }
   };
 
   const handleCopyRunCommand = async () => {
     const ok = await safeCopy(getRunCommand(getCommandConfig()));
     if (ok) {
-      setCopiedRunCommand(true);
-      setTimeout(() => setCopiedRunCommand(false), 3000);
+      markRunCopied();
     }
   };
 
   const handleCopyAIInstructions = async () => {
     const ok = await safeCopy(generateAIInstructions(getCommandConfig(), activeInstallTab));
     if (ok) {
-      setCopiedAIInstructions(true);
-      setTimeout(() => setCopiedAIInstructions(false), 3000);
+      markAICopied();
     }
   };
 
@@ -241,21 +227,11 @@ const GenerationSection: React.FC<GenerationSectionProps> = ({
         {!isLoadingGenerationMethods && onComputerChecked && (
           <div className="space-y-3 sm:space-y-4">
             {!hasValidToken ? (
-              <div className="space-y-3 sm:space-y-4">
-                <div className="p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Key className="h-5 w-5 text-blue-600" />
-                    <h4 className="font-light text-blue-900">To generate locally, you need an API key.</h4>
-                  </div>
-                  <Button
-                    onClick={handleGenerateToken}
-                    disabled={isGenerating}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    {isGenerating ? "Generating..." : "Generate Key & Show Instructions"}
-                  </Button>
-                </div>
-              </div>
+              <GenerationTokenPanel
+                hasValidToken={hasValidToken}
+                isGenerating={isGenerating}
+                onGenerateToken={handleGenerateToken}
+              />
             ) : (
               <div className="space-y-4">
                 {/* Installation section */}
@@ -524,50 +500,15 @@ const GenerationSection: React.FC<GenerationSectionProps> = ({
                             </p>
                           </div>
 
-                          <div className="relative" ref={installCommandRef}>
-                            <div
-                              className={`bg-gray-900 text-green-400 p-3 pb-12 rounded-lg font-mono text-xs sm:text-sm overflow-hidden ${
-                                showFullInstallCommand ? 'overflow-x-auto' : ''
-                              }`}
-                              style={{
-                                height: showFullInstallCommand ? 'auto' : '100px'
-                              }}
-                            >
-                              <pre className="whitespace-pre-wrap break-all text-xs sm:text-sm leading-relaxed">
-                                {getInstallationCommand(getCommandConfig())}
-                              </pre>
-                            </div>
-
-                            {/* Gradient fade behind buttons */}
-                            {!showFullInstallCommand && (
-                              <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-gray-900 via-gray-900/90 to-transparent pointer-events-none rounded-b-lg" />
-                            )}
-
-                            {/* Fixed buttons at bottom of command block - centered */}
-                            <div className="absolute bottom-2 left-3 right-3 flex items-center justify-center gap-2 z-10">
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={handleCopyInstallCommand}
-                                className="text-xs px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white border-blue-500"
-                              >
-                                {copiedInstallCommand ? "Copied!" : (
-                                  <>
-                                    <Copy className="h-3 w-3 mr-1" />
-                                    Copy
-                                  </>
-                                )}
-                              </Button>
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={showFullInstallCommand ? () => setShowFullInstallCommand(false) : handleRevealInstallCommand}
-                                className="text-xs px-3 py-1 bg-gray-700 hover:bg-gray-600 text-gray-200 border-gray-600"
-                              >
-                                {showFullInstallCommand ? 'Hide' : 'Reveal'}
-                              </Button>
-                            </div>
-                          </div>
+                          <CommandPreview
+                            command={getInstallationCommand(getCommandConfig())}
+                            copied={copiedInstallCommand}
+                            showFull={showFullInstallCommand}
+                            onCopy={handleCopyInstallCommand}
+                            onReveal={revealInstallCommand}
+                            onHide={() => setShowFullInstallCommand(false)}
+                            commandRef={installCommandRef}
+                          />
 
                           <div className="flex justify-center mt-1">
                             {isMobile ? (
@@ -653,50 +594,15 @@ const GenerationSection: React.FC<GenerationSectionProps> = ({
                             </p>
                           </div>
 
-                          <div className="relative" ref={runCommandRef}>
-                            <div
-                              className={`bg-gray-900 text-green-400 p-3 pb-12 rounded-lg font-mono text-xs sm:text-sm overflow-hidden ${
-                                showFullRunCommand ? 'overflow-x-auto' : ''
-                              }`}
-                              style={{
-                                height: showFullRunCommand ? 'auto' : '100px'
-                              }}
-                            >
-                              <pre className="whitespace-pre-wrap break-all text-xs sm:text-sm leading-relaxed">
-                                {getRunCommand(getCommandConfig())}
-                              </pre>
-                            </div>
-
-                            {/* Gradient fade behind buttons */}
-                            {!showFullRunCommand && (
-                              <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-gray-900 via-gray-900/90 to-transparent pointer-events-none rounded-b-lg" />
-                            )}
-
-                            {/* Fixed buttons at bottom of command block - centered */}
-                            <div className="absolute bottom-2 left-3 right-3 flex items-center justify-center gap-2 z-10">
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={handleCopyRunCommand}
-                                className="text-xs px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white border-blue-500"
-                              >
-                                {copiedRunCommand ? "Copied!" : (
-                                  <>
-                                    <Copy className="h-3 w-3 mr-1" />
-                                    Copy
-                                  </>
-                                )}
-                              </Button>
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={showFullRunCommand ? () => setShowFullRunCommand(false) : handleRevealRunCommand}
-                                className="text-xs px-3 py-1 bg-gray-700 hover:bg-gray-600 text-gray-200 border-gray-600"
-                              >
-                                {showFullRunCommand ? 'Hide' : 'Reveal'}
-                              </Button>
-                            </div>
-                          </div>
+                          <CommandPreview
+                            command={getRunCommand(getCommandConfig())}
+                            copied={copiedRunCommand}
+                            showFull={showFullRunCommand}
+                            onCopy={handleCopyRunCommand}
+                            onReveal={revealRunCommand}
+                            onHide={() => setShowFullRunCommand(false)}
+                            commandRef={runCommandRef}
+                          />
 
                           <div className="flex justify-center mt-1">
                             <Popover>

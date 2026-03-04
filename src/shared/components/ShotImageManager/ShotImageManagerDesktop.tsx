@@ -1,22 +1,7 @@
-import React, { useRef, useMemo } from 'react';
-import {
-  DndContext,
-  closestCenter,
-  DragOverlay,
-} from '@dnd-kit/core';
-import {
-  SortableContext,
-  rectSortingStrategy,
-} from '@dnd-kit/sortable';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ShotImageManagerProps } from './types';
 import { GRID_COLS_CLASSES } from './constants';
-import { ImageGrid } from './components/ImageGrid';
-import { SelectionActionBar } from './components/SelectionActionBar';
-import { DeleteConfirmationDialog } from './components/DeleteConfirmationDialog';
-import { MultiImagePreview, SingleImagePreview } from '../ImageDragPreview';
-import BatchDropZone from './components/BatchDropZone';
 import { useIsMobile } from '@/shared/hooks/mobile';
-import { useState, useEffect, useCallback } from 'react';
 import { useTaskDetails } from './hooks/useTaskDetails';
 import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
 import { useVideoScrubbing } from '@/shared/hooks/useVideoScrubbing';
@@ -26,15 +11,16 @@ import { usePrefetchTaskData } from '@/shared/hooks/tasks/useTaskPrefetch';
 import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import { usePendingImageOpen } from '@/shared/hooks/usePendingImageOpen';
 import { useAdjacentSegmentsData } from './hooks/useAdjacentSegmentsData';
-import type { GenerationRow } from '@/domains/generation/types';
-import { DesktopScrubbingPreview } from './components/DesktopScrubbingPreview';
+import { DesktopImageGrid } from './components/DesktopImageGrid';
 import { DesktopLightboxOverlay } from './components/DesktopLightboxOverlay';
+import { DesktopScrubbingPreview } from './components/DesktopScrubbingPreview';
 import type { useSelection } from './hooks/useSelection';
 import type { useDragAndDrop } from './hooks/useDragAndDrop';
 import type { useLightbox } from './hooks/useLightbox';
 import type { useBatchOperations } from './hooks/useBatchOperations';
 import type { useOptimisticOrder } from './hooks/useOptimisticOrder';
 import type { useExternalGenerations } from './hooks/useExternalGenerations';
+import { useImageTickFeedback } from './hooks/useImageTickFeedback';
 
 interface ShotImageManagerDesktopProps extends ShotImageManagerProps {
   selection: ReturnType<typeof useSelection>;
@@ -86,34 +72,12 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
   navigateWithTransition,
   ...props
 }) => {
-  // State for showing success tick after adding to shot (positioned)
-  const [showTickForImageId, setShowTickForImageId] = useState<string | null>(null);
-  // State for showing success tick after adding to shot (without position)
-  const [showTickForSecondaryImageId, setShowTickForSecondaryImageIdInternal] = useState<string | null>(null);
-  
-  // Wrapper to log when setter is called
-  const setShowTickForSecondaryImageId = useCallback((id: string | null) => {
-    setShowTickForSecondaryImageIdInternal(id);
-  }, []);
-  
-  // Clear ticks after 3 seconds
-  useEffect(() => {
-    if (showTickForImageId) {
-      const timer = setTimeout(() => {
-        setShowTickForImageId(null);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [showTickForImageId]);
-  
-  useEffect(() => {
-    if (showTickForSecondaryImageId) {
-      const timer = setTimeout(() => {
-        setShowTickForSecondaryImageId(null);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [showTickForSecondaryImageId, setShowTickForSecondaryImageId]);
+  const {
+    showTickForImageId,
+    showTickForSecondaryImageId,
+    setShowTickForImageId,
+    setShowTickForSecondaryImageId,
+  } = useImageTickFeedback();
   
   // Fetch task details for current lightbox image
   // IMPORTANT: Use generation_id (actual generations.id) when available, falling back to id
@@ -266,84 +230,26 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
         scrubbing={scrubbing}
       />
 
-      <BatchDropZone
-      onFileDrop={props.onFileDrop}
-      onGenerationDrop={props.onGenerationDrop}
-      columns={props.columns || 4}
-      itemCount={lightbox.currentImages.length}
-      disabled={props.readOnly || (!props.onFileDrop && !props.onGenerationDrop)}
-      getFramePositionForIndex={getFramePosition}
-      projectAspectRatio={props.projectAspectRatio}
-    >
-      {(_isFileDragOver, dropTargetIndex) => (
-        <DndContext
-          sensors={dragAndDrop.sensors}
-          collisionDetection={closestCenter}
-          onDragStart={dragAndDrop.handleDragStart}
-          onDragEnd={dragAndDrop.handleDragEnd}
-        >
-          <SortableContext
-            items={lightbox.currentImages.map((img: GenerationRow) => img.shotImageEntryId ?? img.id)}
-            strategy={rectSortingStrategy}
-          >
-            <ImageGrid
-              images={lightbox.currentImages}
-              selectedIds={selection.selectedIds}
-              gridColsClass={gridColsClass}
-              columns={props.columns || 4}
-              onItemClick={selection.handleItemClick}
-              onItemDoubleClick={(idx) => lightbox.setLightboxIndex(idx)}
-              onInpaintClick={(idx) => {
-                lightbox.setShouldAutoEnterInpaint(true);
-                lightbox.setLightboxIndex(idx);
-              }}
-              onDelete={batchOps.handleIndividualDelete}
-              onDuplicate={props.onImageDuplicate}
-              isMobile={isMobile}
-              duplicatingImageId={props.duplicatingImageId}
-              duplicateSuccessImageId={props.duplicateSuccessImageId}
-              projectAspectRatio={props.projectAspectRatio}
-              batchVideoFrames={props.batchVideoFrames}
-              onGridDoubleClick={() => {
-                selection.setSelectedIds([]);
-                selection.setLastSelectedIndex(null);
-              }}
-              onImageUpload={props.onImageUpload}
-              isUploadingImage={props.isUploadingImage}
-              readOnly={props.readOnly}
-              onPairClick={props.onPairClick}
-              pairPrompts={props.pairPrompts}
-              enhancedPrompts={props.enhancedPrompts}
-              defaultPrompt={props.defaultPrompt}
-              defaultNegativePrompt={props.defaultNegativePrompt}
-              onClearEnhancedPrompt={props.onClearEnhancedPrompt}
-              pairOverrides={props.pairOverrides}
-              activeDragId={dragAndDrop.activeId}
-              dropTargetIndex={dropTargetIndex}
-              segmentSlots={segmentSlots}
-              onSegmentClick={onSegmentClick}
-              hasPendingTask={hasPendingTask}
-              onSegmentDelete={onSegmentDelete}
-              deletingSegmentId={deletingSegmentId}
-              // Scrubbing props
-              activeScrubbingIndex={activeScrubbingIndex}
-              onScrubbingStart={handleScrubbingStart}
-              scrubbing={scrubbing}
-            />
-          </SortableContext>
-          
-          <DragOverlay>
-            {dragAndDrop.activeImage && (
-              selection.selectedIds.length > 1 &&
-              dragAndDrop.activeId !== null &&
-              selection.selectedIds.includes(dragAndDrop.activeId) ? (
-                <MultiImagePreview count={selection.selectedIds.length} image={dragAndDrop.activeImage} />
-              ) : (
-                <SingleImagePreview image={dragAndDrop.activeImage} />
-              )
-            )}
-          </DragOverlay>
-          
+      <DesktopImageGrid
+        managerProps={props}
+        currentImages={lightbox.currentImages}
+        columns={props.columns || 4}
+        gridColsClass={gridColsClass}
+        isMobile={isMobile}
+        dragAndDrop={dragAndDrop}
+        selection={selection}
+        lightbox={lightbox}
+        batchOps={batchOps}
+        getFramePositionForIndex={getFramePosition}
+        segmentSlots={segmentSlots}
+        onSegmentClick={onSegmentClick}
+        hasPendingTask={hasPendingTask}
+        onSegmentDelete={onSegmentDelete}
+        deletingSegmentId={deletingSegmentId}
+        activeScrubbingIndex={activeScrubbingIndex}
+        onScrubbingStart={handleScrubbingStart}
+        scrubbing={scrubbing}
+        lightboxPanel={
           <DesktopLightboxOverlay
             lightbox={lightbox}
             optimistic={optimistic}
@@ -362,29 +268,8 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
             }}
             adjacentSegments={adjacentSegmentsData}
           />
-          
-          {selection.showSelectionBar && selection.selectedIds.length >= 1 && (
-            <SelectionActionBar
-              selectedCount={selection.selectedIds.length}
-              onDeselect={selection.clearSelection}
-              onDelete={() => batchOps.handleBatchDelete(selection.selectedIds)}
-              onNewShot={props.onNewShotFromSelection ? async () => {
-                const shotId = await props.onNewShotFromSelection!(selection.selectedIds);
-                return shotId;
-              } : undefined}
-              onJumpToShot={props.onShotChange}
-            />
-          )}
-          
-          <DeleteConfirmationDialog
-            open={batchOps.confirmOpen}
-            onOpenChange={batchOps.setConfirmOpen}
-            pendingDeleteIds={batchOps.pendingDeleteIds}
-            onConfirm={batchOps.performBatchDelete}
-          />
-        </DndContext>
-      )}
-    </BatchDropZone>
+        }
+      />
     </>
   );
 };
