@@ -19,6 +19,7 @@ import {
   extractStructureVideos,
 } from '../utils/shareDataTransformers';
 import { useShareActions } from '../hooks/useShareActions';
+import { resolvePrimaryStructureVideo } from '@/shared/lib/tasks/travelBetweenImages';
 
 // RPC returns raw data - same format as hooks
 interface SharedGenerationViewProps {
@@ -82,9 +83,9 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
   const loras = settings?.loras || [];
   const textBeforePrompts = settings?.textBeforePrompts || '';
   const textAfterPrompts = settings?.textAfterPrompts || '';
-  const structureVideo = settings?.structureVideo;
   // Multi-video array support - uses utility to handle both single and array formats
   const structureVideos = extractStructureVideos(settings);
+  const primaryStructureVideo = resolvePrimaryStructureVideo(structureVideos);
 
   // Calculate columns to match actual page behavior using utility function
   const columns = calculateColumnsForDevice(mobileColumns);
@@ -138,11 +139,6 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
                     onDefaultPromptChange: () => {},
                     defaultNegativePrompt: negativePrompt,
                     onDefaultNegativePromptChange: () => {},
-                    primaryStructureVideoPath: structureVideo?.path || null,
-                    primaryStructureVideoMetadata: structureVideo?.metadata || null,
-                    primaryStructureVideoTreatment: structureVideo?.treatment || 'adjust',
-                    primaryStructureVideoMotionStrength: structureVideo?.motionStrength ?? amountOfMotion,
-                    primaryStructureVideoType: structureVideo?.structureType || 'uni3c',
                     structureVideos,
                   }}
                   editActions={{
@@ -230,7 +226,7 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
                 </div>
 
                 {/* Camera Guidance - shown only when structure video is present */}
-                {structureVideo?.path && (
+                {primaryStructureVideo.path && (
                   <div className="mb-6 pointer-events-none opacity-75">
                     <h4 className="text-sm font-medium text-muted-foreground mb-3">Camera Guidance:</h4>
                     <div className="space-y-4">
@@ -239,10 +235,10 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <Label className="text-sm">Strength:</Label>
-                            <span className="text-sm font-medium">{(structureVideo?.motionStrength ?? 1.0).toFixed(1)}x</span>
+                            <span className="text-sm font-medium">{primaryStructureVideo.motionStrength.toFixed(1)}x</span>
                           </div>
                           <Slider
-                            value={structureVideo?.motionStrength ?? 1.0}
+                            value={primaryStructureVideo.motionStrength}
                             disabled
                             min={0}
                             max={2}
@@ -282,7 +278,7 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
                 )}
 
                 {/* Model Guidance - subheader only shown when Camera Guidance is also present */}
-                {structureVideo?.path && (
+                {primaryStructureVideo.path && (
                   <h4 className="text-sm font-medium text-muted-foreground mb-3 opacity-75">Model Guidance:</h4>
                 )}
 
@@ -291,7 +287,7 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
                     mode={{
                       motionMode: advancedMode ? 'advanced' : (motionMode as 'basic' | 'advanced'),
                       onMotionModeChange: () => {},
-                      hasStructureVideo: !!structureVideo?.path,
+                      hasStructureVideo: !!primaryStructureVideo.path,
                     }}
                     lora={{
                       selectedLoras: loras,

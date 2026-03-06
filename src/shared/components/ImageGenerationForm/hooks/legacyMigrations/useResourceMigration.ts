@@ -42,6 +42,7 @@ function markMigrationSessionComplete(value: boolean): void {
   }
 }
 
+// SUNSET: 2026-09-01 — remove after legacy reference pointers have resourceId in all active projects.
 export function useResourceMigration(input: ResourceMigrationInput): void {
   const {
     hasLegacyReferences,

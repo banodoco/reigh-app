@@ -13,7 +13,7 @@ import { Project } from '@/types/project';
 import type { ActiveLora } from '@/domains/lora/types/lora';
 import { LoraModel } from '@/domains/lora/components/LoraSelectorModal';
 import { PhaseConfig, DEFAULT_PHASE_CONFIG } from '../settings';
-import { framesToSeconds, quantizeFrameCount } from './Timeline/utils/time-utils';
+import { framesToSeconds, quantizeFrameCount } from '@/shared/lib/media/videoUtils';
 
 interface BatchPromptControls {
   batchVideoPrompt: string;

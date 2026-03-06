@@ -16,7 +16,7 @@ import type { PairData } from "@/shared/types/pairData";
 
 
 import { useTimelineDomainService } from "./hooks/timeline-core/useTimelineDomainService";
-import { quantizeGap } from "./utils/time-utils";
+import { quantizeGap } from '@/shared/lib/media/videoUtils';
 import { useTimelineLightboxOrchestrator } from "./hooks/useTimelineLightboxOrchestrator";
 
 import TimelineContainer from "./TimelineContainer/TimelineContainer";

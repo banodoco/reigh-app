@@ -234,10 +234,3 @@ export async function enqueueVariantInvalidation(
     predicate: (query) => query.queryKey[0] === queryKeys.segments.sourceSlotAll[0],
   });
 }
-
-/** @deprecated Use `useEnqueueGenerationsInvalidation` for explicit queue semantics. */
-export const useInvalidateGenerations = useEnqueueGenerationsInvalidation;
-/** @deprecated Use `enqueueGenerationsInvalidation` for explicit queue semantics. */
-export const invalidateGenerationsSync = enqueueGenerationsInvalidation;
-/** @deprecated Use `enqueueVariantInvalidation` for explicit queue semantics. */
-export const invalidateVariantChange = enqueueVariantInvalidation;

@@ -19,7 +19,6 @@ import { usePairSettingsHandler } from '../hooks/usePairSettingsHandler';
 
 import type { TimelineContainerProps } from './types';
 import { useTimelineMedia } from '../TimelineMediaContext';
-import { resolvePrimaryStructureVideo } from '../../structureVideo/primaryStructureVideoAdapter';
 
 const TimelineContainer: React.FC<TimelineContainerProps> = ({
   shotId,
@@ -61,12 +60,7 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
   onRegisterTrailingUpdater,
 }) => {
   const {
-    primaryStructureVideoPath,
-    primaryStructureVideoMetadata,
-    primaryStructureVideoTreatment,
-    primaryStructureVideoMotionStrength,
-    primaryStructureVideoType,
-    primaryStructureVideoUni3cEndPercent,
+    primaryStructureVideo,
     onPrimaryStructureVideoInputChange,
     structureVideos,
     isStructureVideoLoading,
@@ -78,16 +72,6 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     audioMetadata,
     onAudioChange,
   } = useTimelineMedia();
-
-  const primaryStructureVideo = resolvePrimaryStructureVideo({
-    structureVideos,
-    primaryStructureVideoPath,
-    primaryStructureVideoMetadata,
-    primaryStructureVideoTreatment,
-    primaryStructureVideoMotionStrength,
-    primaryStructureVideoType,
-    primaryStructureVideoUni3cEndPercent,
-  });
 
   const trailingEndFrame = framePositions.get(TRAILING_ENDPOINT_KEY);
 
@@ -146,9 +130,7 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     maxFrameLimit,
     structureVideo: {
       structureVideos,
-      primaryStructureVideoType: primaryStructureVideo.structureType,
-      primaryStructureVideoTreatment: primaryStructureVideo.treatment,
-      primaryStructureVideoMotionStrength: primaryStructureVideo.motionStrength,
+      primaryStructureVideo,
       onAddStructureVideo,
       onUpdateStructureVideo,
       onPrimaryStructureVideoInputChange,
@@ -329,10 +311,7 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
             onAudioChange,
           }}
           guidance={{
-            primaryStructureVideoPath: primaryStructureVideo.path,
-            primaryStructureVideoType: primaryStructureVideo.structureType,
-            primaryStructureVideoTreatment: primaryStructureVideo.treatment,
-            primaryStructureVideoMotionStrength: primaryStructureVideo.motionStrength,
+            primaryStructureVideo,
             structureVideos,
             onAddStructureVideo,
             onUpdateStructureVideo,

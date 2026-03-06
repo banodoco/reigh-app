@@ -2,7 +2,7 @@ import React from "react";
 import { MessageSquare, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/shared/components/ui/tooltip";
 import { Button } from "@/shared/components/ui/button";
-import { framesToSeconds } from "./utils/time-utils";
+import { framesToSeconds } from '@/shared/lib/media/videoUtils';
 
 interface PairRegionProps {
   index: number;

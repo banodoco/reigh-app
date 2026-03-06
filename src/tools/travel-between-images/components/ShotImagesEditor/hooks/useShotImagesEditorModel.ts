@@ -9,7 +9,7 @@ import { useShotGenerationsData } from './useShotGenerationsData';
 import { useSmoothContinuations } from './useSmoothContinuations';
 import type { ShotImagesEditorResolvedProps } from '../types';
 import type { TimelineMediaContextValue } from '../../Timeline/TimelineMediaContext';
-import { resolvePrimaryStructureVideo } from '../../structureVideo/primaryStructureVideoAdapter';
+import { resolvePrimaryStructureVideo } from '@/shared/lib/tasks/travelBetweenImages';
 
 function useShotData(
   props: ShotImagesEditorResolvedProps,
@@ -256,12 +256,6 @@ function useModeOrchestration(
 
 function useTimelineMediaValue(props: ShotImagesEditorResolvedProps) {
   const {
-    primaryStructureVideoPath,
-    primaryStructureVideoMetadata,
-    primaryStructureVideoTreatment,
-    primaryStructureVideoMotionStrength,
-    primaryStructureVideoType,
-    primaryStructureVideoUni3cEndPercent,
     onPrimaryStructureVideoInputChange,
     structureVideos,
     isStructureVideoLoading,
@@ -274,23 +268,13 @@ function useTimelineMediaValue(props: ShotImagesEditorResolvedProps) {
     onAudioChange,
   } = props;
 
-  const primaryStructureVideo = resolvePrimaryStructureVideo({
-    structureVideos,
-    primaryStructureVideoPath,
-    primaryStructureVideoMetadata,
-    primaryStructureVideoTreatment,
-    primaryStructureVideoMotionStrength,
-    primaryStructureVideoType,
-    primaryStructureVideoUni3cEndPercent,
-  });
+  const primaryStructureVideo = useMemo(
+    () => resolvePrimaryStructureVideo(structureVideos),
+    [structureVideos],
+  );
 
   return useMemo<TimelineMediaContextValue>(() => ({
-    primaryStructureVideoPath: primaryStructureVideo.path,
-    primaryStructureVideoMetadata: primaryStructureVideo.metadata,
-    primaryStructureVideoTreatment: primaryStructureVideo.treatment,
-    primaryStructureVideoMotionStrength: primaryStructureVideo.motionStrength,
-    primaryStructureVideoType: primaryStructureVideo.structureType,
-    primaryStructureVideoUni3cEndPercent: primaryStructureVideo.uni3cEndPercent,
+    primaryStructureVideo,
     onPrimaryStructureVideoInputChange,
     structureVideos,
     isStructureVideoLoading,

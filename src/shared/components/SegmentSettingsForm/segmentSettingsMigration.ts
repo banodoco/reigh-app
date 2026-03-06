@@ -51,21 +51,13 @@ export interface PairMetadata {
 // LORA FORMAT CONVERTERS
 // =============================================================================
 
-/** Convert legacy loras format (Record<url, strength>) to ActiveLora[] */
-function legacyLorasToArray(lorasObj: Record<string, number>): ActiveLora[] {
-  return Object.entries(lorasObj).map(([url, strength]) => {
-    const filename = url.split('/').pop()?.replace('.safetensors', '') || url;
-    return {
-      id: url,
-      name: filename,
-      path: url,
-      strength: typeof strength === 'number' ? strength : 1.0,
-    };
-  });
+interface NormalizedLoraPair {
+  path: string;
+  strength: number;
 }
 
 /** Convert pair_loras format (Array<{path, strength}>) to ActiveLora[] */
-function pairLorasToArray(pairLoras: Array<{ path: string; strength: number }>): ActiveLora[] {
+function pairLorasToArray(pairLoras: NormalizedLoraPair[]): ActiveLora[] {
   return pairLoras.map((lora) => {
     const filename = lora.path.split('/').pop()?.replace('.safetensors', '') || lora.path;
     return {
@@ -75,6 +67,59 @@ function pairLorasToArray(pairLoras: Array<{ path: string; strength: number }>):
       strength: lora.strength,
     };
   });
+}
+
+function normalizeLegacyLoraRecord(value: unknown): NormalizedLoraPair[] | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const entries = Object.entries(value as Record<string, unknown>);
+  if (entries.length === 0) {
+    return undefined;
+  }
+
+  return entries.map(([path, strength]) => ({
+    path,
+    strength: typeof strength === 'number' ? strength : 1.0,
+  }));
+}
+
+function normalizeLoraPairArray(value: unknown): NormalizedLoraPair[] | undefined {
+  if (!Array.isArray(value) || value.length === 0) {
+    return undefined;
+  }
+
+  const normalized = value
+    .filter((entry): entry is { path?: unknown; strength?: unknown } => !!entry && typeof entry === 'object')
+    .map((entry) => {
+      if (typeof entry.path !== 'string') {
+        return null;
+      }
+      return {
+        path: entry.path,
+        strength: typeof entry.strength === 'number' ? entry.strength : 1.0,
+      };
+    })
+    .filter((entry): entry is NormalizedLoraPair => entry !== null);
+
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+/**
+ * Normalize all supported legacy LoRA shapes to canonical `loras[]` pair format.
+ * Read-side only: write paths can migrate incrementally.
+ */
+function normalizeLoraParams(
+  params: Record<string, unknown>,
+  orchDetails: Record<string, unknown>,
+): NormalizedLoraPair[] | undefined {
+  return (
+    normalizeLoraPairArray(params.loras)
+    ?? normalizeLegacyLoraRecord(params.additional_loras)
+    ?? normalizeLoraPairArray(orchDetails.loras)
+    ?? normalizeLegacyLoraRecord(orchDetails.additional_loras)
+  );
 }
 
 // =============================================================================
@@ -132,28 +177,10 @@ export function extractSettingsFromParams(
   // Extract selected preset ID
   const selectedPhasePresetId = (params.selected_phase_preset_id ?? orchDetails.selected_phase_preset_id ?? defaults?.selectedPhasePresetId ?? null) as string | null;
 
-  // Extract LoRAs - handle multiple formats
-  let loras: ActiveLora[] = [];
-
-  // Format 1: loras array at top level (new format)
-  if (Array.isArray(params.loras) && params.loras.length > 0) {
-    loras = pairLorasToArray(params.loras as Array<{ path: string; strength: number }>);
-  }
-  // Format 2: additional_loras object at top level (legacy)
-  else if (params.additional_loras && typeof params.additional_loras === 'object' && Object.keys(params.additional_loras as Record<string, unknown>).length > 0) {
-    loras = legacyLorasToArray(params.additional_loras as Record<string, number>);
-  }
-  // Format 3: in orchestrator_details (either format)
-  else if (Array.isArray(orchDetails.loras) && orchDetails.loras.length > 0) {
-    loras = pairLorasToArray(orchDetails.loras as Array<{ path: string; strength: number }>);
-  }
-  else if (orchDetails.additional_loras && typeof orchDetails.additional_loras === 'object' && Object.keys(orchDetails.additional_loras as Record<string, unknown>).length > 0) {
-    loras = legacyLorasToArray(orchDetails.additional_loras as Record<string, number>);
-  }
-  // Format 4: use defaults if provided
-  else if (defaults?.loras) {
-    loras = defaults.loras;
-  }
+  const normalizedLoraParams = normalizeLoraParams(params, orchDetails);
+  const loras = normalizedLoraParams
+    ? pairLorasToArray(normalizedLoraParams)
+    : (defaults?.loras ?? []);
 
   const result = {
     prompt,

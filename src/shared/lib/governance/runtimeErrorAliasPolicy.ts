@@ -5,7 +5,7 @@ import {
 
 const runtimeErrorAliasPolicy = getDeprecationPolicy('runtime_error_alias');
 
-export const RUNTIME_ERROR_ALIAS_SPECIFIER = '@/shared/lib/compat/errorHandler';
+export const RUNTIME_ERROR_ALIAS_SPECIFIER = '@/shared/lib/errorHandling/handleError';
 export const RUNTIME_ERROR_ALIAS_OWNER = runtimeErrorAliasPolicy.owner;
 export const RUNTIME_ERROR_ALIAS_REMOVE_BY = runtimeErrorAliasPolicy.removeBy;
 export const RUNTIME_ERROR_ALIAS_IMPORT_BUDGET_PHASES = runtimeErrorAliasPolicy.importBudgetPhases;

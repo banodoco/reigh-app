@@ -9,6 +9,7 @@ type Base64MigrationInput = Pick<
   'rawStyleReferenceImage' | 'selectedProjectId' | 'updateProjectImageSettings'
 >;
 
+// SUNSET: 2026-09-01 — remove after confirming no projects persist base64 styleReferenceImage.
 export function useBase64Migration(input: Base64MigrationInput): void {
   const {
     rawStyleReferenceImage,

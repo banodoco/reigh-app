@@ -22,7 +22,7 @@ import { useUnifiedDrop } from '../drag/useUnifiedDrop';
 import type { GenerationRow } from '@/domains/generation/types';
 import type { PairData } from '../../TimelineContainer/types';
 import type { Resource, StructureVideoMetadata } from '@/shared/hooks/useResources';
-import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
+import type { PrimaryStructureVideo, StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 import type { VideoMetadata } from '@/shared/lib/media/videoUploader';
 import type { DragType } from '@/shared/lib/dnd/dragDrop';
 
@@ -55,9 +55,7 @@ interface TimelineOrchestratorInteractionProps {
 
 interface TimelineOrchestratorStructureVideoConfig {
   structureVideos?: StructureVideoConfigWithMetadata[];
-  primaryStructureVideoType?: 'uni3c' | 'flow' | 'canny' | 'depth';
-  primaryStructureVideoTreatment?: 'adjust' | 'clip';
-  primaryStructureVideoMotionStrength?: number;
+  primaryStructureVideo?: PrimaryStructureVideo;
   onAddStructureVideo?: (video: StructureVideoConfigWithMetadata) => void;
   onUpdateStructureVideo?: (index: number, updates: Partial<StructureVideoConfigWithMetadata>) => void;
   onPrimaryStructureVideoInputChange?: (
@@ -188,9 +186,7 @@ export function useTimelineOrchestrator({
 }: UseTimelineOrchestratorProps): UseTimelineOrchestratorReturn {
   const {
     structureVideos,
-    primaryStructureVideoType = 'flow',
-    primaryStructureVideoTreatment = 'adjust',
-    primaryStructureVideoMotionStrength = 1.0,
+    primaryStructureVideo,
     onAddStructureVideo,
     onUpdateStructureVideo,
     onPrimaryStructureVideoInputChange,
@@ -385,7 +381,7 @@ export function useTimelineOrchestrator({
         end_frame: placement.end_frame,
         treatment: 'adjust',
         motion_strength: 1.0,
-        structure_type: primaryStructureVideoType,
+        structure_type: primaryStructureVideo?.structureType ?? 'flow',
         metadata: metadata.videoMetadata,
         resource_id: resource.id,
       });
@@ -393,9 +389,9 @@ export function useTimelineOrchestrator({
       onPrimaryStructureVideoInputChange(
         metadata.videoUrl,
         metadata.videoMetadata,
-        primaryStructureVideoTreatment,
-        primaryStructureVideoMotionStrength,
-        primaryStructureVideoType,
+        primaryStructureVideo?.treatment ?? 'adjust',
+        primaryStructureVideo?.motionStrength ?? 1.0,
+        primaryStructureVideo?.structureType ?? 'flow',
       );
     }
     uiState.setShowVideoBrowser(false);
@@ -403,9 +399,7 @@ export function useTimelineOrchestrator({
     onAddStructureVideo,
     onPrimaryStructureVideoInputChange,
     onUpdateStructureVideo,
-    primaryStructureVideoMotionStrength,
-    primaryStructureVideoTreatment,
-    primaryStructureVideoType,
+    primaryStructureVideo,
     structureVideos,
     uiState,
     viewport.fullMax,

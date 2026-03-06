@@ -5,17 +5,10 @@
 
 import { createContext, useContext } from 'react';
 import type { VideoMetadata } from '@/shared/lib/media/videoUploader';
-import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
+import type { PrimaryStructureVideo, StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 
 export interface TimelineMediaContextValue {
-  // Structure video — legacy single-video compatibility fields.
-  // Internal consumers should derive these from `structureVideos` via adapter helpers.
-  primaryStructureVideoPath?: string | null;
-  primaryStructureVideoMetadata?: VideoMetadata | null;
-  primaryStructureVideoTreatment?: 'adjust' | 'clip';
-  primaryStructureVideoMotionStrength?: number;
-  primaryStructureVideoType?: 'uni3c' | 'flow' | 'canny' | 'depth';
-  primaryStructureVideoUni3cEndPercent?: number;
+  primaryStructureVideo: PrimaryStructureVideo;
   onPrimaryStructureVideoInputChange?: (
     videoPath: string | null,
     metadata: VideoMetadata | null,

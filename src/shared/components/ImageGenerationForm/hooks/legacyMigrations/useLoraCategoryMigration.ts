@@ -17,6 +17,7 @@ type LoraCategoryMigrationInput = Pick<
  * All qwen-family models share the 'qwen' category, so the migration
  * merges their LoRAs (deduped by id) into a single list.
  */
+// SUNSET: 2026-09-01 — remove once all active projects have selectedLorasByCategory persisted.
 export function useLoraCategoryMigration(input: LoraCategoryMigrationInput): void {
   const {
     projectImageSettings,

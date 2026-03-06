@@ -1,4 +1,4 @@
-import { quantizeGap } from './time-utils';
+import { quantizeGap } from '@/shared/lib/media/videoUtils';
 import { TRAILING_ENDPOINT_KEY } from './timeline-constants';
 
 export { PENDING_POSITION_KEY, TRAILING_ENDPOINT_KEY } from './timeline-constants';

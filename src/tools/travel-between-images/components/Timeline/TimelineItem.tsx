@@ -6,7 +6,7 @@ import { isProgressiveLoadingEnabled } from '@/shared/settings/progressiveLoadin
 import { useMarkVariantViewed } from '@/shared/hooks/variants/useMarkVariantViewed';
 import { useIsTouchDevice } from '@/shared/hooks/mobile';
 import { INTERACTION_TIMING } from '@/shared/lib/interactions/timing';
-import { framesToSeconds } from './utils/time-utils';
+import { framesToSeconds } from '@/shared/lib/media/videoUtils';
 import { getTimelineItemAspectRatioStyle, getTimelineItemPosition } from './TimelineItem.helpers';
 import { TimelineItemActionButtons } from './TimelineItemActionButtons';
 import type { TimelineItemProps } from './TimelineItem.types';

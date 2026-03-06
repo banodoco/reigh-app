@@ -13,7 +13,7 @@ import type {
 } from './hooks/useShotImagesEditorModel';
 import type { ShotImagesEditorCallbacks } from './hooks/useShotImagesEditorCallbacks';
 import type { ShotImagesEditorResolvedProps } from './types';
-import { resolvePrimaryStructureVideo } from '../structureVideo/primaryStructureVideoAdapter';
+import { resolvePrimaryStructureVideo } from '@/shared/lib/tasks/travelBetweenImages';
 import {
   adaptShotCreationOperation,
   adaptShotSelectionOperation,
@@ -230,12 +230,6 @@ function BatchModeEditorContent(props: {
     onCreateShot,
     onNewShotFromSelection,
     projectAspectRatio,
-    primaryStructureVideoPath,
-    primaryStructureVideoMetadata,
-    primaryStructureVideoTreatment,
-    primaryStructureVideoMotionStrength,
-    primaryStructureVideoType,
-    primaryStructureVideoUni3cEndPercent,
     structureVideos,
     onPrimaryStructureVideoInputChange,
     onUni3cEndPercentChange,
@@ -243,15 +237,7 @@ function BatchModeEditorContent(props: {
     onOpenUnpositionedPane,
   } = componentProps;
 
-  const primaryStructureVideo = resolvePrimaryStructureVideo({
-    structureVideos,
-    primaryStructureVideoPath,
-    primaryStructureVideoMetadata,
-    primaryStructureVideoTreatment,
-    primaryStructureVideoMotionStrength,
-    primaryStructureVideoType,
-    primaryStructureVideoUni3cEndPercent,
-  });
+  const primaryStructureVideo = resolvePrimaryStructureVideo(structureVideos);
 
   const onAddToShotLegacy = onAddToShot
     ? adaptShotSelectionOperation(callbacks.runAddToShotOperation)
@@ -284,12 +270,7 @@ function BatchModeEditorContent(props: {
         deletingSegmentId: callbacks.deletingSegmentId,
         pendingImageToOpen: mode.segmentSlot.pendingImageToOpen,
         pendingImageVariantId: mode.segmentSlot.pendingImageVariantId,
-        primaryStructureVideoPath: primaryStructureVideo.path,
-        primaryStructureVideoMetadata: primaryStructureVideo.metadata,
-        primaryStructureVideoTreatment: primaryStructureVideo.treatment,
-        primaryStructureVideoMotionStrength: primaryStructureVideo.motionStrength,
-        primaryStructureVideoType: primaryStructureVideo.structureType,
-        primaryStructureVideoUni3cEndPercent: primaryStructureVideo.uni3cEndPercent,
+        primaryStructureVideo,
         unpositionedGenerationsCount,
       }}
       uiOptions={{

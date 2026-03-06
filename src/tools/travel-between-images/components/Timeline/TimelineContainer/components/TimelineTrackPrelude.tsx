@@ -3,7 +3,7 @@ import { GenerationRow } from '@/domains/generation/types';
 import { SegmentSlot } from '@/shared/hooks/segments';
 import { PairData } from '@/shared/types/pairData';
 import { VideoMetadata } from '@/shared/lib/media/videoUploader';
-import { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
+import { PrimaryStructureVideo, StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 import { AudioStrip } from '../../AudioStrip';
 import { GuidanceVideoStrip } from '../../GuidanceVideoStrip';
 import { GuidanceVideoUploader } from '../../GuidanceVideoUploader';
@@ -57,11 +57,7 @@ interface TimelineTrackPreludeProps {
     onAddStructureVideo?: (video: StructureVideoConfigWithMetadata) => void;
     onUpdateStructureVideo?: (index: number, updates: Partial<StructureVideoConfigWithMetadata>) => void;
     onRemoveStructureVideo?: (index: number) => void;
-    primaryStructureVideoPath?: string | null;
-    primaryStructureVideoMetadata?: VideoMetadata | null;
-    primaryStructureVideoTreatment: 'adjust' | 'clip';
-    primaryStructureVideoMotionStrength: number;
-    primaryStructureVideoType: 'uni3c' | 'flow' | 'canny' | 'depth';
+    primaryStructureVideo: PrimaryStructureVideo;
     onPrimaryStructureVideoInputChange?: (
       videoPath: string | null,
       metadata: VideoMetadata | null,
@@ -216,25 +212,25 @@ export const TimelineTrackPrelude: React.FC<TimelineTrackPreludeProps> = ({
             readOnly={readOnly}
           />
         ) : guidance.onPrimaryStructureVideoInputChange && (
-          guidance.primaryStructureVideoPath ? (
+          guidance.primaryStructureVideo.path ? (
             <GuidanceVideoStrip
-              videoUrl={guidance.primaryStructureVideoPath}
-              videoMetadata={guidance.primaryStructureVideoMetadata || null}
-              treatment={guidance.primaryStructureVideoTreatment}
+              videoUrl={guidance.primaryStructureVideo.path}
+              videoMetadata={guidance.primaryStructureVideo.metadata || null}
+              treatment={guidance.primaryStructureVideo.treatment}
               onTreatmentChange={(treatment) => guidance.onPrimaryStructureVideoInputChange?.(
-                guidance.primaryStructureVideoPath,
-                guidance.primaryStructureVideoMetadata ?? null,
+                guidance.primaryStructureVideo.path,
+                guidance.primaryStructureVideo.metadata ?? null,
                 treatment,
-                guidance.primaryStructureVideoMotionStrength,
-                guidance.primaryStructureVideoType,
+                guidance.primaryStructureVideo.motionStrength,
+                guidance.primaryStructureVideo.structureType,
               )}
               onRemove={() => guidance.onPrimaryStructureVideoInputChange?.(null, null, 'adjust', 1.0, 'flow')}
               onMetadataExtracted={(metadata) => guidance.onPrimaryStructureVideoInputChange?.(
-                guidance.primaryStructureVideoPath,
+                guidance.primaryStructureVideo.path,
                 metadata,
-                guidance.primaryStructureVideoTreatment,
-                guidance.primaryStructureVideoMotionStrength,
-                guidance.primaryStructureVideoType,
+                guidance.primaryStructureVideo.treatment,
+                guidance.primaryStructureVideo.motionStrength,
+                guidance.primaryStructureVideo.structureType,
               )}
               fullMin={layout.fullMin}
               fullMax={layout.fullMax}
@@ -265,13 +261,13 @@ export const TimelineTrackPrelude: React.FC<TimelineTrackPreludeProps> = ({
                   guidance.onPrimaryStructureVideoInputChange?.(
                     videoUrl,
                     metadata,
-                    guidance.primaryStructureVideoTreatment,
-                    guidance.primaryStructureVideoMotionStrength,
-                    guidance.primaryStructureVideoType,
+                    guidance.primaryStructureVideo.treatment,
+                    guidance.primaryStructureVideo.motionStrength,
+                    guidance.primaryStructureVideo.structureType,
                   );
                 }
               }}
-              currentVideoUrl={guidance.primaryStructureVideoPath ?? null}
+              currentVideoUrl={guidance.primaryStructureVideo.path ?? null}
               compact={false}
               zoomLevel={layout.zoomLevel}
               onZoomIn={zoom.onZoomIn}
@@ -296,7 +292,7 @@ export const TimelineTrackPrelude: React.FC<TimelineTrackPreludeProps> = ({
             containerWidth={layout.containerWidth}
             zoomLevel={layout.zoomLevel}
             readOnly={readOnly}
-            compact={!!guidance.primaryStructureVideoPath}
+            compact={!!guidance.primaryStructureVideo.path}
           />
         </div>
       )}

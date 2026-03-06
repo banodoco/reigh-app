@@ -32,6 +32,7 @@ function migrateSceneReference(reference: ReferenceImage): ReferenceImage {
   return updates as ReferenceImage;
 }
 
+// SUNSET: 2026-09-01 — remove once scene mode data has only canonical values.
 export function useSceneModeMigration(input: SceneModeMigrationInput): void {
   const {
     projectImageSettings,

@@ -73,16 +73,6 @@ interface ShotImagesEditorImageState {
   defaultNegativePrompt?: string;
   onDefaultNegativePromptChange?: (prompt: string) => void;
 
-  // Structure video props - legacy compatibility interface.
-  // Internal consumers should prefer `structureVideos` and derive these via adapter helpers.
-  primaryStructureVideoPath?: string | null;
-  primaryStructureVideoMetadata?: VideoMetadata | null;
-  primaryStructureVideoTreatment?: 'adjust' | 'clip';
-  primaryStructureVideoMotionStrength?: number;
-  primaryStructureVideoType?: 'uni3c' | 'flow' | 'canny' | 'depth';
-  /** Uni3C end percent (only used when primaryStructureVideoType is 'uni3c') */
-  primaryStructureVideoUni3cEndPercent?: number;
-
   // Canonical structure video contract
   structureVideos?: StructureVideoConfigWithMetadata[];
   isStructureVideoLoading?: boolean;

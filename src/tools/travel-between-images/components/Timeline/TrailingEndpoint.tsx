@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { GripVertical, ImagePlus } from "lucide-react";
-import { framesToSeconds } from "./utils/time-utils";
+import { framesToSeconds } from '@/shared/lib/media/videoUtils';
 import { TIMELINE_PADDING_OFFSET } from "./constants";
 
 interface TrailingEndpointProps {

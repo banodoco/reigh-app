@@ -5,7 +5,7 @@ import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { useCreateResource, StructureVideoMetadata } from '@/shared/hooks/useResources';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { calculateNewVideoPlacement } from '../../utils/timeline-utils';
-import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
+import type { PrimaryStructureVideo, StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 import { extractVideoMetadata, uploadVideoToStorage, type VideoMetadata } from '@/shared/lib/media/videoUploader';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
@@ -15,9 +15,7 @@ interface GuidanceVideoControlsProps {
   projectId?: string;
   readOnly?: boolean;
   hasNoImages?: boolean;
-  primaryStructureVideoType: 'uni3c' | 'flow' | 'canny' | 'depth';
-  primaryStructureVideoTreatment: 'adjust' | 'clip';
-  primaryStructureVideoMotionStrength: number;
+  primaryStructureVideo: PrimaryStructureVideo;
   structureVideos?: StructureVideoConfigWithMetadata[];
   fullMax: number;
   onAddStructureVideo?: (video: StructureVideoConfigWithMetadata) => void;
@@ -41,9 +39,7 @@ export const GuidanceVideoControls = React.memo<GuidanceVideoControlsProps>(func
   projectId: _projectId,
   readOnly = false,
   hasNoImages = false,
-  primaryStructureVideoType,
-  primaryStructureVideoTreatment,
-  primaryStructureVideoMotionStrength,
+  primaryStructureVideo,
   structureVideos,
   fullMax,
   onAddStructureVideo,
@@ -102,13 +98,19 @@ export const GuidanceVideoControls = React.memo<GuidanceVideoControlsProps>(func
           end_frame: placement.end_frame,
           treatment: 'adjust',
           motion_strength: 1.0,
-          structure_type: primaryStructureVideoType,
+          structure_type: primaryStructureVideo.structureType,
           metadata,
           resource_id: null,
         });
       } else if (onPrimaryStructureVideoInputChange) {
         // Legacy single-video interface
-        onPrimaryStructureVideoInputChange(videoUrl, metadata, primaryStructureVideoTreatment, primaryStructureVideoMotionStrength, primaryStructureVideoType);
+        onPrimaryStructureVideoInputChange(
+          videoUrl,
+          metadata,
+          primaryStructureVideo.treatment,
+          primaryStructureVideo.motionStrength,
+          primaryStructureVideo.structureType,
+        );
       }
       e.target.value = '';
     } catch (error) {
