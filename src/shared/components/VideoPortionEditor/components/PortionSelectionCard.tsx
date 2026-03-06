@@ -8,7 +8,8 @@ import {
   formatDuration,
   getMaxGapFrames,
 } from '@/shared/components/VideoPortionEditor/lib/videoPortionEditorUtils';
-import { PortionSelection, formatTime } from '@/shared/components/VideoPortionTimeline';
+import type { PortionSelection } from '@/shared/components/VideoPortionTimeline';
+import { formatTime } from '@/shared/lib/timeFormatting';
 import { getQuantizedGap } from '@/shared/components/JoinClipsSettingsForm/utils';
 import { getSegmentFormColor } from '@/shared/lib/segmentColors';
 

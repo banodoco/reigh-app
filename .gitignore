@@ -72,7 +72,8 @@ __pycache__/
 .venv*/
 .ruff_cache/
 
-# Audit/review artifacts (keep .desloppify/ tracked)
+# Audit/review artifacts
+.desloppify/
 findings*.json
 perfile_findings.json
 type_safety_review*.json

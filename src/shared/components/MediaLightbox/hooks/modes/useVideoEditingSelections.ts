@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { formatTime, PortionSelection } from '@/shared/components/VideoPortionTimeline';
+import type { PortionSelection } from '@/shared/components/VideoPortionTimeline';
+import { formatTime } from '@/shared/lib/timeFormatting';
 import { generateUUID } from '@/shared/lib/taskCreation';
 
 export interface PortionFrameRange {

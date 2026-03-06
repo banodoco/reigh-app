@@ -9,7 +9,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Play, Pause, Trash2 } from 'lucide-react';
-import { MultiPortionTimeline, formatTime } from '@/shared/components/VideoPortionTimeline';
+import { MultiPortionTimeline } from '@/shared/components/VideoPortionTimeline';
+import { formatTime } from '@/shared/lib/timeFormatting';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { SEGMENT_OVERLAY_COLORS } from '@/shared/lib/segmentColors';
 import { safePlay } from '@/shared/lib/media/safePlay';

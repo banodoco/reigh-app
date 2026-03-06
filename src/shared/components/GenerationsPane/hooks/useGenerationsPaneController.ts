@@ -183,13 +183,15 @@ export const useGenerationsPaneController = () => {
   });
   const paneIsOpen = Boolean(isOpen);
 
+  const handlePaneOpenStart = useCallback(() => {
+    setShotFilterOpen(false);
+    setMediaTypeFilterOpen(false);
+  }, [setShotFilterOpen, setMediaTypeFilterOpen]);
+
   const { isPointerEventsEnabled, isInteractionDisabled } = usePaneInteractionLifecycle({
     isOpen: paneIsOpen,
     disableInteractionsDuringOpen: true,
-    onOpenStart: () => {
-      setShotFilterOpen(false);
-      setMediaTypeFilterOpen(false);
-    },
+    onOpenStart: handlePaneOpenStart,
   });
 
   const handleOpenGenerationsPane = useCallback(() => {

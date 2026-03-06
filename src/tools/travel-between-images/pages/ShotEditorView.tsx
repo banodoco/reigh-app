@@ -163,6 +163,18 @@ export function ShotEditorView({
     }
   }, [sortedShots, shotToEdit, navigateToNextShot]);
 
+  const handlePreviousShotNoScroll = useCallback(() => {
+    if (sortedShots && shotToEdit) {
+      navigateToPreviousShot(sortedShots, shotToEdit, { scrollToTop: false });
+    }
+  }, [sortedShots, shotToEdit, navigateToPreviousShot]);
+
+  const handleNextShotNoScroll = useCallback(() => {
+    if (sortedShots && shotToEdit) {
+      navigateToNextShot(sortedShots, shotToEdit, { scrollToTop: false });
+    }
+  }, [sortedShots, shotToEdit, navigateToNextShot]);
+
   const handleUpdateShotName = useCallback((newName: string) => {
     updateShotNameMutateRef.current({
       shotId: shotToEdit.id,

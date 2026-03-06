@@ -192,16 +192,18 @@ const ImageGenerationToolPage: React.FC = React.memo(() => {
                 initialFilterState={true}
                 filters={gallery.galleryFilters}
                 onFiltersChange={gallery.handleGalleryFiltersChange}
-                itemsPerPage={gallery.itemsPerPage}
-                offset={(gallery.currentPage - 1) * gallery.itemsPerPage}
-                totalCount={gallery.generationsResponse?.total ?? gallery.lastKnownTotal}
-                onServerPageChange={gallery.handleServerPageChange}
-                serverPage={gallery.currentPage}
+                pagination={{
+                  itemsPerPage: gallery.itemsPerPage,
+                  offset: (gallery.currentPage - 1) * gallery.itemsPerPage,
+                  totalCount: gallery.generationsResponse?.total ?? gallery.lastKnownTotal,
+                  onServerPageChange: gallery.handleServerPageChange,
+                  serverPage: gallery.currentPage,
+                  enableAdjacentPagePreloading: true,
+                }}
                 currentToolTypeName="Image Generation"
                 formAssociatedShotId={formAssociatedShotId}
                 onSwitchToAssociatedShot={gallery.handleSwitchToAssociatedShot}
                 generationFilters={gallery.generationsFilters}
-                enableAdjacentPagePreloading
                 onCreateShot={actions.handleCreateShot}
                 onBackfillRequest={actions.handleBackfillRequest}
                 config={{
