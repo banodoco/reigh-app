@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SegmentedControl, SegmentedControlItem } from '@/shared/components/ui/segmented-control';
-import { useCredits, useCreditLedger } from '@/features/billing/hooks/useCredits';
+import { useCredits, useCreditLedger } from '@/shared/hooks/billing/useCredits';
 import { useTaskLog } from '@/shared/hooks/tasks/useTaskLog';
 import { useAutoTopupState } from './hooks/useAutoTopupState';
 import { useTaskLogFilters } from './hooks/useTaskLogFilters';

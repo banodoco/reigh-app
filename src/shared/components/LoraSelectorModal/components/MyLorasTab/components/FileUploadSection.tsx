@@ -5,7 +5,7 @@ import { Progress } from '@/shared/components/ui/progress';
 import { X, Upload } from 'lucide-react';
 
 import { HuggingFaceTokenSetup } from '@/shared/components/HuggingFaceTokenSetup';
-import type { LoraFiles } from '@/features/lora/hooks/useHuggingFaceUpload';
+import type { LoraFiles } from '@/shared/hooks/lora/useHuggingFaceUpload';
 import { FileDropZone } from './FileDropZone';
 
 interface UploadProgressIndicatorProps {

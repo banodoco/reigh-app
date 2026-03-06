@@ -9,7 +9,7 @@ import { useTouchDragDetection } from '@/shared/hooks/useTouchDragDetection';
 import { PromptEditorAIPanel } from './PromptEditorModal/components/PromptEditorAIPanel';
 import { PromptEditorPromptList } from './PromptEditorModal/components/PromptEditorPromptList';
 import { PromptEditorFooter } from './PromptEditorModal/components/PromptEditorFooter';
-import { useAIInteractionService } from '@/features/ai/hooks/useAIInteractionService';
+import { useAIInteractionService } from '@/shared/hooks/ai/useAIInteractionService';
 import { usePersistentPromptSettings } from './PromptEditorModal/hooks/usePersistentPromptSettings';
 import { usePromptEditing } from './PromptEditorModal/hooks/usePromptEditing';
 type EditorMode = 'generate' | 'remix' | 'bulk-edit';

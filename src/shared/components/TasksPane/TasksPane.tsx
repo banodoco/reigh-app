@@ -11,7 +11,7 @@ import PaneControlTab from '../PaneControlTab';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
 import { TasksPaneProcessingWarning } from '../ProcessingWarnings';
-import { useBottomOffset } from '@/features/layout/hooks/useBottomOffset';
+import { useBottomOffset } from '@/shared/hooks/layout/useBottomOffset';
 import MediaLightbox from '@/shared/components/MediaLightbox/MediaLightbox';
 import { useListShots } from '@/shared/hooks/shots';
 import { useLastAffectedShot } from '@/shared/hooks/useLastAffectedShot';

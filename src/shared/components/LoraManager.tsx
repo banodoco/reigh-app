@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from './ui/button';
-import { ActiveLoRAsDisplay } from '@/features/lora/components/ActiveLoRAsDisplay';
+import { ActiveLoRAsDisplay } from '@/shared/components/lora/ActiveLoRAsDisplay';
 import { LoraSelectorModal } from './LoraSelectorModal';
 import { useLoraManager, UseLoraManagerOptions, UseLoraManagerReturn, LoraModel } from '@/shared/hooks/useLoraManager';
 

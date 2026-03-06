@@ -24,7 +24,7 @@ import { useEditSettingsSync } from './persistence/useEditSettingsSync';
 import { useMagicEditMode } from './useMagicEditMode';
 import { useRepositionMode } from './useRepositionMode';
 import { useImg2ImgMode } from './useImg2ImgMode';
-import { buildImageEditStateValue } from '@/tools/edit-images/model/buildImageEditStateValue';
+import { buildImageEditStateValue } from '../model/buildImageEditStateValue';
 
 // ============================================================================
 // Props

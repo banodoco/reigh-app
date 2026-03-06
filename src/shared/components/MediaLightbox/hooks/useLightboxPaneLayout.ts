@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import {
   shouldAccountForTasksPane,
   type OverlayViewportConstraints,
-} from '@/features/layout/contracts/overlayViewportConstraints';
+} from '@/shared/lib/layout/overlayViewportConstraints';
 
 interface UseLightboxPaneLayoutArgs {
   overlayViewport: OverlayViewportConstraints;

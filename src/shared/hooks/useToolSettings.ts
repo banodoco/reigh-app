@@ -7,7 +7,7 @@ import {
   callUpdateToolSettingsAtomicRpc,
   resolveSettingsScopeTable,
   selectSettingsForScope,
-} from '@/shared/hooks/toolSettingsWriteRepository';
+} from '@/shared/lib/toolSettingsWriteRepository';
 import {
   enqueueSettingsWrite,
   setSettingsWriteFunction,

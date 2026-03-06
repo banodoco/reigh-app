@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { ResourceBrowserGrid } from './ResourceBrowserGrid';
-import type { ResourceBrowserData } from '@/features/resources/hooks/useResourceBrowserData';
+import type { ResourceBrowserData } from '@/shared/hooks/resources/useResourceBrowserData';
 
 vi.mock('@/shared/components/ui/button', () => ({
   Button: ({

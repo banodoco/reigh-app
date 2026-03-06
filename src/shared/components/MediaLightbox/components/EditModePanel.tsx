@@ -7,7 +7,7 @@ import { Label } from '@/shared/components/ui/primitives/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { XCircle, Layers, Plus } from 'lucide-react';
 import { cn } from '@/shared/components/ui/contracts/cn';
-import { ActiveLoRAsDisplay } from '@/features/lora/components/ActiveLoRAsDisplay';
+import { ActiveLoRAsDisplay } from '@/shared/components/lora/ActiveLoRAsDisplay';
 import { LoraSelectorModal } from '@/shared/components/LoraSelectorModal';
 import type { LoraModel } from '@/shared/components/LoraSelectorModal';
 import { EditAdvancedSettings } from './EditAdvancedSettings';

@@ -1,5 +1,4 @@
 import React, { useCallback, Suspense, useId } from 'react';
-import { createPortal } from 'react-dom';
 import {
   Dialog,
   DialogContent,
@@ -10,7 +9,7 @@ import { Button } from '@/shared/components/ui/button';
 import { useExtraLargeModal } from '@/shared/hooks/useModal';
 import { ImageGenerationForm } from '@/shared/components/ImageGenerationForm';
 import { createBatchImageGenerationTasks, BatchImageGenerationTaskParams } from '@/shared/lib/tasks/imageGeneration';
-import { useApiKeys } from '@/features/settings/hooks/useApiKeys';
+import { useApiKeys } from '@/shared/hooks/settings/useApiKeys';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
@@ -89,17 +88,7 @@ export const ImageGenerationModal: React.FC<ImageGenerationModalProps> = ({
         }
         if (!open) onClose();
       }}
-      // Always non-modal so we can control closing behavior ourselves
-      modal={false}
     >
-      {/* Custom overlay portaled to body since modal={false} doesn't render the default one */}
-      {isOpen && createPortal(
-        <div
-          className="fixed inset-0 z-[100002] bg-black/80 animate-in fade-in-0 duration-200"
-          onClick={() => !isTourActive() && onClose()}
-        />,
-        document.body
-      )}
       <DialogContent
         className={modal.className}
         style={{

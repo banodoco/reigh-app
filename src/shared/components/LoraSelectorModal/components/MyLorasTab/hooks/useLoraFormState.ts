@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { useHuggingFaceToken } from '@/shared/services/externalApiKeys/hooks/useHuggingFaceToken';
-import { useHuggingFaceUpload, LoraFiles } from '@/features/lora/hooks/useHuggingFaceUpload';
+import { useHuggingFaceUpload, LoraFiles } from '@/shared/hooks/lora/useHuggingFaceUpload';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 import type { Resource } from '@/shared/hooks/useResources';

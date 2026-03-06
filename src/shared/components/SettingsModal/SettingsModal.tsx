@@ -8,7 +8,7 @@ import {
   DialogFooter,
 } from "@/shared/components/ui/dialog";
 import { Button } from "@/shared/components/ui/button";
-import { useApiTokens } from "@/features/account/hooks/useApiTokens";
+import { useApiTokens } from "@/shared/hooks/account/useApiTokens";
 import usePersistentState from "@/shared/hooks/usePersistentState";
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { useIsMobile } from "@/shared/hooks/mobile";

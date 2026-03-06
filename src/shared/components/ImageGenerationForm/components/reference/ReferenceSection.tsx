@@ -2,7 +2,7 @@ import React from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Images } from "lucide-react";
 import FileInput from "@/shared/components/FileInput";
-import { ResourceBrowserModalBase } from "@/features/resources/components/ResourceBrowserModalBase";
+import { ResourceBrowserModalBase } from "@/shared/components/resources/ResourceBrowserModalBase";
 import { ReferenceGrid } from "./ReferenceGrid";
 import { ReferencePreview } from "./ReferencePreview";
 import { ReferenceModeControls } from "./ReferenceModeControls";

@@ -4,7 +4,7 @@ import { SkeletonGallery } from "@/shared/components/ui/skeleton-gallery";
 import { ProgressiveLoadingManager } from "@/shared/components/ProgressiveLoadingManager";
 import { MediaGalleryItem } from "@/shared/components/MediaGalleryItem";
 import { getImageLoadingStrategy } from '@/shared/lib/media/imageLoadingPriority';
-import { useAdjacentPagePreloader } from '@/features/gallery/hooks/useAdjacentPagePreloader';
+import { useAdjacentPagePreloader } from '@/shared/hooks/gallery/useAdjacentPagePreloader';
 import type { ItemShotWorkflow, ItemMobileInteraction, ItemFeatures, ItemActions, ItemLoading } from '@/shared/components/MediaGalleryItem/types';
 import type { GeneratedImageWithMetadata } from '../types';
 import { parseRatio } from '@/shared/lib/media/aspectRatios';

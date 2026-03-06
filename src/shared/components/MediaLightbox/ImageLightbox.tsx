@@ -16,7 +16,7 @@
 
 import React, { useCallback, useMemo } from 'react';
 import type { GenerationRow } from '@/domains/generation/types';
-import type { OverlayViewportConstraints } from '@/features/layout/contracts/overlayViewportConstraints';
+import type { OverlayViewportConstraints } from '@/shared/lib/layout/overlayViewportConstraints';
 import type {
   AdjacentSegmentsData,
   TaskDetailsData,

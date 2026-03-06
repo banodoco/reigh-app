@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { getViewportLockRuntime } from '@/shared/runtime/viewportLockRuntime';
-import { acquireLightboxOpenState } from '@/features/lightbox/state/lightboxOpenState';
+import { acquireLightboxOpenState } from '@/shared/components/MediaLightbox/state/lightboxOpenState';
 
 interface UseLightboxViewportLockArgs {
   isActuallyModal: boolean;

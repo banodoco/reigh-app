@@ -9,7 +9,7 @@ import { type GalleryFilterState } from '@/shared/components/MediaGallery';
 import { useContainerWidth } from '@/shared/components/MediaGallery/hooks/useContainerWidth';
 import { calculateGalleryLayout } from '@/shared/components/MediaGallery/utils';
 import { usePanes } from '@/shared/contexts/PanesContext';
-import { useGalleryPageState } from '@/features/gallery/hooks/useGalleryPageState';
+import { useGalleryPageState } from '@/shared/hooks/gallery/useGalleryPageState';
 import { useIsMobile } from '@/shared/hooks/mobile';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
 import { useShots } from '@/shared/contexts/ShotsContext';

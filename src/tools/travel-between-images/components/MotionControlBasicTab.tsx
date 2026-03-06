@@ -5,7 +5,7 @@ import { Switch } from '@/shared/components/ui/switch';
 import { Label } from '@/shared/components/ui/primitives/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import HoverScrubVideo from '@/shared/components/HoverScrubVideo';
-import { ActiveLoRAsDisplay } from '@/features/lora/components/ActiveLoRAsDisplay';
+import { ActiveLoRAsDisplay } from '@/shared/components/lora/ActiveLoRAsDisplay';
 import { SelectedPresetCard } from './SelectedPresetCard';
 import type { LoraModel } from '@/shared/components/LoraSelectorModal';
 import type { PresetSampleGeneration } from '@/shared/types/presetMetadata';

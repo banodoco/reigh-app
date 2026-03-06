@@ -9,7 +9,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, type Dispatch, type 
 import { useLoraManager } from '@/shared/hooks/useLoraManager';
 import { usePersistentToolState } from '@/shared/hooks/usePersistentToolState';
 import { usePublicLoras } from '@/shared/hooks/useResources';
-import { useAIInteractionService } from '@/features/ai/hooks/useAIInteractionService';
+import { useAIInteractionService } from '@/shared/hooks/ai/useAIInteractionService';
 import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 import { TOOL_IDS } from '@/shared/lib/toolIds';
 

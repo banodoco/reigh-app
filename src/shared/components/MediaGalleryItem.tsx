@@ -18,7 +18,7 @@ import { useShotPositionChecks } from "./MediaGalleryItem/hooks/useShotPositionC
 import { useItemInteraction } from "./MediaGalleryItem/hooks/useItemInteraction";
 import { resolveAspectRatioPadding } from "./MediaGalleryItem/lib/aspectRatioPaddingHelper";
 import { setGenerationDragData, createDragPreview } from '@/shared/lib/dnd/dragDrop';
-import CreateShotModal from "@/features/shots/components/CreateShotModal";
+import CreateShotModal from "@/shared/components/shots/CreateShotModal";
 import { useProjectSelectionContext } from "@/shared/contexts/ProjectContext";
 import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { useShotNavigation } from "@/shared/hooks/useShotNavigation";

@@ -18,11 +18,11 @@ vi.mock('@/shared/hooks/useScrollFade', () => ({
   useScrollFade: (...args: unknown[]) => mocks.useScrollFade(...args),
 }));
 
-vi.mock('@/features/resources/hooks/useResourceBrowserData', () => ({
+vi.mock('@/shared/hooks/resources/useResourceBrowserData', () => ({
   useResourceBrowserData: (...args: unknown[]) => mocks.useResourceBrowserData(...args),
 }));
 
-vi.mock('@/features/resources/components/ResourceBrowserGrid', () => ({
+vi.mock('@/shared/components/resources/ResourceBrowserGrid', () => ({
   ResourceBrowserGrid: (props: unknown) => mocks.ResourceBrowserGrid(props),
 }));
 

@@ -20,7 +20,7 @@ import { cn } from '@/shared/components/ui/contracts/cn';
 import { useLightboxShellInteractionHandlers } from '@/shared/components/MediaLightbox/hooks/useLightboxShellInteractionHandlers';
 import { useLightboxViewportLock } from '@/shared/components/MediaLightbox/hooks/useLightboxViewportLock';
 import { useLightboxPaneLayout } from '@/shared/components/MediaLightbox/hooks/useLightboxPaneLayout';
-import type { OverlayViewportConstraints } from '@/features/layout/contracts/overlayViewportConstraints';
+import type { OverlayViewportConstraints } from '@/shared/lib/layout/overlayViewportConstraints';
 import { UI_Z_LAYERS } from '@/shared/lib/uiLayers';
 
 interface LightboxShellProps {
