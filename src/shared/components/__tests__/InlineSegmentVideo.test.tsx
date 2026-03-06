@@ -4,11 +4,11 @@ import type { SegmentSlot } from '@/shared/hooks/segments/useSegmentOutputsForSh
 import type { GenerationRow } from '@/domains/generation/types';
 import { InlineSegmentVideo } from '../InlineSegmentVideo';
 
-vi.mock('@/shared/hooks/useVariantBadges', () => ({
+vi.mock('@/shared/hooks/variants/useVariantBadges', () => ({
   useVariantBadges: () => ({ getBadgeData: () => null }),
 }));
 
-vi.mock('@/shared/hooks/useMarkVariantViewed', () => ({
+vi.mock('@/shared/hooks/variants/useMarkVariantViewed', () => ({
   useMarkVariantViewed: () => ({ markAllViewed: vi.fn() }),
 }));
 

@@ -15,8 +15,8 @@ import {
   DropdownMenuTrigger,
 } from '@/shared/components/ui/dropdown-menu';
 import { AlertTriangle, Download, Search, Trash2 } from 'lucide-react';
-import { PREDEFINED_LORAS, getDisplayNameFromUrl } from '@/shared/lib/loraUtils';
-import { validateHuggingFaceUrl } from '@/shared/components/LoraSelectorModal/utils/validation-utils';
+import { PREDEFINED_LORAS, getDisplayNameFromUrl } from '@/domains/lora/lib/loraUtils';
+import { validateHuggingFaceUrl } from '@/domains/lora/components/LoraSelectorModal/utils/validation-utils';
 import { updateLoraField } from '../PhaseConfigVertical.helpers';
 import type { PerPhaseCardProps } from '../PhaseConfigVertical.types';
 

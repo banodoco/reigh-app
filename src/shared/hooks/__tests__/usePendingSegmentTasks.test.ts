@@ -18,7 +18,7 @@ vi.mock('@/integrations/supabase/client', () => ({
   }),
 }));
 
-import { usePendingSegmentTasks } from '../usePendingSegmentTasks';
+import { usePendingSegmentTasks } from '@/shared/hooks/tasks/usePendingSegmentTasks';
 
 describe('usePendingSegmentTasks', () => {
   beforeEach(() => {

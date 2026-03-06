@@ -6,7 +6,7 @@ import { useProject } from '@/shared/contexts/ProjectContext';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { Project } from '@/types/project';
 import { Checkbox } from '@/shared/components/ui/checkbox';
-import { useToolSettings } from '@/shared/hooks/useToolSettings';
+import { useToolSettings } from '@/shared/hooks/settings/useToolSettings';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/components/ui/collapsible';
 import { ChevronDown, AlertTriangle, RefreshCw } from 'lucide-react';
 import { AspectRatioSelector } from '@/shared/components/generation-controls/AspectRatioSelector';

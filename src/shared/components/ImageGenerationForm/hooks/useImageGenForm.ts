@@ -6,15 +6,15 @@
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo, type Dispatch, type SetStateAction } from 'react';
-import { useLoraManager } from '@/shared/hooks/useLoraManager';
+import { useLoraManager } from '@/domains/lora/hooks/useLoraManager';
 import { usePersistentToolState } from '@/shared/hooks/usePersistentToolState';
 import { usePublicLoras } from '@/shared/hooks/useResources';
 import { useAIInteractionService } from '@/shared/hooks/ai/useAIInteractionService';
 import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 import { TOOL_IDS } from '@/shared/lib/toolIds';
 
-import type { LoraModel } from '@/shared/components/LoraSelectorModal';
-import type { ActiveLora } from '@/shared/types/lora';
+import type { LoraModel } from '@/domains/lora/components/LoraSelectorModal';
+import type { ActiveLora } from '@/domains/lora/types/lora';
 import { useGenerationSource } from './useGenerationSource';
 import { usePromptManagement } from './usePromptManagement';
 import { useReferenceManagement } from './useReferenceManagement';

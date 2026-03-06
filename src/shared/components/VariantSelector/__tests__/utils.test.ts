@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { Film, Scissors, Sparkles } from 'lucide-react';
-import type { GenerationVariant } from '@/shared/hooks/useVariants';
+import type { GenerationVariant } from '@/shared/hooks/variants/useVariants';
 import {
   getVariantIcon,
   getVariantLabel,

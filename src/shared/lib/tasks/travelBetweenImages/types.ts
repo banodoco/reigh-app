@@ -1,5 +1,5 @@
 import { PhaseConfig } from '@/shared/types/phaseConfig';
-import type { PathLoraConfig } from '@/shared/types/lora';
+import type { PathLoraConfig } from '@/domains/lora/types/lora';
 
 /**
  * Unified structure guidance contract for vace/uni3c.

@@ -22,7 +22,7 @@ const LazyLineageGifModal = React.lazy(() =>
     default: module.LineageGifModal
   }))
 );
-import type { GenerationVariant } from '@/shared/hooks/useVariants';
+import type { GenerationVariant } from '@/shared/hooks/variants/useVariants';
 import type { RelationshipFilter } from './variantPresentation';
 import type { CurrentSegmentImagesData } from './variantSourceImages';
 import { VariantGrid } from './components/VariantGrid';

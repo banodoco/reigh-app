@@ -48,7 +48,7 @@ vi.mock('@/shared/hooks/shots', () => ({
   })),
 }));
 
-import { useShotImages, useTimelineImages, useUnpositionedImages, useVideoOutputs } from '../useShotImages';
+import { useShotImages, useTimelineImages, useUnpositionedImages, useVideoOutputs } from '@/shared/hooks/shots/useShotImages';
 
 function createWrapper() {
   const queryClient = new QueryClient({

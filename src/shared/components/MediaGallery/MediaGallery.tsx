@@ -6,7 +6,7 @@ import {
 } from '@/shared/contexts/ProjectContext';
 import { useShotAdditionSelectionOptional } from '@/shared/contexts/ShotAdditionSelectionContext';
 import { useIsMobile, useIsTablet } from "@/shared/hooks/mobile";
-import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
+import { useShotNavigation } from '@/shared/hooks/shots/useShotNavigation';
 import { useTaskDetails } from '@/shared/components/ShotImageManager/hooks/useTaskDetails';
 import { useBackgroundThumbnailGenerator } from '@/shared/hooks/media/useBackgroundThumbnailGenerator';
 import { TooltipProvider } from "@/shared/components/ui/tooltip";

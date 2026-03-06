@@ -4,9 +4,9 @@
  */
 
 import { useRef, useEffect, useMemo } from 'react';
-import { useTimelineCore } from '@/shared/hooks/useTimelineCore';
+import { useTimelineCore } from '@/shared/hooks/timeline/useTimelineCore';
 import { useTimelinePositionUtils } from '../../../hooks/timeline/useTimelinePositionUtils';
-import { useVariantBadges } from '@/shared/hooks/useVariantBadges';
+import { useVariantBadges } from '@/shared/hooks/variants/useVariantBadges';
 import { isPositioned, isVideoGeneration } from '@/shared/lib/typeGuards';
 import type { GenerationRow } from '@/domains/generation/types';
 import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';

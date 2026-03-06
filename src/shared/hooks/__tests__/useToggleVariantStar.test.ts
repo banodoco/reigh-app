@@ -17,7 +17,7 @@ vi.mock('@/shared/lib/compat/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 
-import { useToggleVariantStar } from '../useToggleVariantStar';
+import { useToggleVariantStar } from '@/shared/hooks/variants/useToggleVariantStar';
 
 describe('useToggleVariantStar', () => {
   beforeEach(() => {

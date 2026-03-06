@@ -10,7 +10,7 @@ vi.mock('@/shared/hooks/shots', () => ({
   useRemoveImageFromShot: () => ({ mutateAsync: vi.fn() }),
 }));
 
-vi.mock('@/shared/hooks/useShotCreation', () => ({
+vi.mock('@/shared/hooks/shotCreation/useShotCreation', () => ({
   useShotCreation: () => ({ createShot: vi.fn() }),
 }));
 
@@ -23,7 +23,7 @@ vi.mock('@/shared/contexts/PanesContext', () => ({
   usePanes: () => ({ setIsGenerationsPaneLocked: vi.fn() }),
 }));
 
-vi.mock('@/shared/hooks/useTimelineCore', () => ({
+vi.mock('@/shared/hooks/timeline/useTimelineCore', () => ({
   useTimelineCore: () => ({
     clearAllEnhancedPrompts: vi.fn(async () => {}),
     updatePairPromptsByIndex: vi.fn(async () => {}),
@@ -31,7 +31,7 @@ vi.mock('@/shared/hooks/useTimelineCore', () => ({
   }),
 }));
 
-vi.mock('@/shared/hooks/useToolSettings', () => ({
+vi.mock('@/shared/hooks/settings/useToolSettings', () => ({
   useToolSettings: () => ({
     settings: {},
     update: vi.fn(),
@@ -43,7 +43,7 @@ vi.mock('@/shared/contexts/CurrentShotContext', () => ({
   useCurrentShot: () => ({ setCurrentShotId: vi.fn() }),
 }));
 
-vi.mock('@/shared/hooks/useShotNavigation', () => ({
+vi.mock('@/shared/hooks/shots/useShotNavigation', () => ({
   useShotNavigation: () => ({ navigateToShot: vi.fn() }),
 }));
 

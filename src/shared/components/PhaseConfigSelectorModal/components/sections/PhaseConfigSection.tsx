@@ -11,8 +11,8 @@ import { TextAction } from '@/shared/components/ui/text-action';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/shared/components/ui/dropdown-menu';
 import { Info, Trash2, RotateCcw, Search, Download } from 'lucide-react';
 import { PhaseConfig } from '@/shared/types/phaseConfig';
-import { LoraModel, LoraSelectorModal } from '@/shared/components/LoraSelectorModal';
-import { PREDEFINED_LORAS, getDisplayNameFromUrl } from '@/shared/lib/loraUtils';
+import { LoraModel, LoraSelectorModal } from '@/domains/lora/components/LoraSelectorModal';
+import { PREDEFINED_LORAS, getDisplayNameFromUrl } from '@/domains/lora/lib/loraUtils';
 
 interface PhaseConfigSectionProps {
   editablePhaseConfig: PhaseConfig;

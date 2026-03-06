@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Check, Copy } from 'lucide-react';
-import { getDisplayNameFromUrl } from '@/shared/lib/loraUtils';
+import { getDisplayNameFromUrl } from '@/domains/lora/lib/loraUtils';
 import { asNumber, asRecord, asString } from '@/shared/lib/tasks/taskParamParsers';
 import { getVariantConfig, type TaskDetailsProps } from '@/shared/types/taskDetailsTypes';
 import type { PhaseLoraConfig, PhaseSettings } from '@/shared/types/phaseConfig';

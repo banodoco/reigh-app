@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 
 // Mock all dependencies
-vi.mock('@/shared/hooks/usePrefetchToolSettings', () => ({
+vi.mock('@/shared/hooks/settings/usePrefetchToolSettings', () => ({
   usePrefetchToolSettings: vi.fn(),
 }));
 
@@ -11,7 +11,7 @@ vi.mock('@/shared/hooks/useMobileTimeoutFallback', () => ({
 }));
 
 import { useProjectDefaults } from '../useProjectDefaults';
-import { usePrefetchToolSettings } from '@/shared/hooks/usePrefetchToolSettings';
+import { usePrefetchToolSettings } from '@/shared/hooks/settings/usePrefetchToolSettings';
 import { useMobileTimeoutFallback } from '@/shared/hooks/useMobileTimeoutFallback';
 
 describe('useProjectDefaults', () => {

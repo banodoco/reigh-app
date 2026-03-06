@@ -6,7 +6,7 @@
  */
 
 import { Task } from '@/types/tasks';
-import { LoraModel } from '@/shared/components/LoraSelectorModal';
+import { LoraModel } from '@/domains/lora/components/LoraSelectorModal';
 
 /**
  * Props for task details display components

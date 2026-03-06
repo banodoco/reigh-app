@@ -21,7 +21,7 @@ vi.mock('@/integrations/supabase/client', () => ({
   }),
 }));
 
-vi.mock('@/shared/hooks/useToolSettings', () => ({
+vi.mock('@/shared/hooks/settings/useToolSettings', () => ({
   updateToolSettingsSupabase: vi.fn().mockResolvedValue(undefined),
 }));
 

@@ -21,7 +21,7 @@ vi.mock('@/integrations/supabase/client', () => ({
   })),
 }));
 
-import { useMarkVariantViewed } from '../useMarkVariantViewed';
+import { useMarkVariantViewed } from '@/shared/hooks/variants/useMarkVariantViewed';
 
 function createQueryClient() {
   return new QueryClient({

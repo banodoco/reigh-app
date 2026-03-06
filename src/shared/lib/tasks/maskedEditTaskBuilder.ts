@@ -3,7 +3,7 @@ import type {
   HiresFixApiParams,
   TaskCreationResult,
 } from '../taskCreation';
-import type { ComfyLoraConfig } from '@/shared/types/lora';
+import type { ComfyLoraConfig } from '@/domains/lora/types/lora';
 import { runTaskCreationPipeline } from './taskCreatorPipeline';
 import { composeTaskParams, composeTaskRequest } from './taskRequestComposer';
 

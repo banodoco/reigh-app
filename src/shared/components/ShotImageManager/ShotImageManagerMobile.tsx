@@ -9,7 +9,7 @@ import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeErro
 import { usePanes } from '@/shared/contexts/PanesContext';
 import { ConfirmDialog } from '@/shared/components/dialogs/ConfirmDialog';
 import { BaseShotImageManagerProps } from './types';
-import { useMarkVariantViewed } from '@/shared/hooks/useMarkVariantViewed';
+import { useMarkVariantViewed } from '@/shared/hooks/variants/useMarkVariantViewed';
 import { MobileImageGrid } from './components/MobileImageGrid';
 import { MobileSelectionActionBar } from './components/MobileSelectionActionBar';
 import { useMobileImageSelection } from './hooks/useMobileImageSelection';

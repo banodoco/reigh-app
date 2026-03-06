@@ -1,4 +1,4 @@
-import type { ActiveLora } from '@/shared/types/lora';
+import type { ActiveLora } from '@/domains/lora/types/lora';
 import type {
   ProjectImageSettings,
   TextToImageModel,

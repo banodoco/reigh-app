@@ -1,6 +1,6 @@
 import React, { createContext, useState, ReactNode, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useProject } from './ProjectContext';
-import { useToolSettings } from '@/shared/hooks/useToolSettings';
+import { useToolSettings } from '@/shared/hooks/settings/useToolSettings';
 import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 
 interface LastAffectedShotContextType {

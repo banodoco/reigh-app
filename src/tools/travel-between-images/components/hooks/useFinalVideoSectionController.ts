@@ -5,9 +5,9 @@ import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { useIsMobile } from '@/shared/hooks/mobile';
 import { useSegmentOutputsForShot } from '@/shared/hooks/segments';
 import { useTaskDetails } from '@/shared/components/ShotImageManager/hooks/useTaskDetails';
-import { useVariantBadges } from '@/shared/hooks/useVariantBadges';
+import { useVariantBadges } from '@/shared/hooks/variants/useVariantBadges';
 import { useShareGeneration } from '@/shared/hooks/useShareGeneration';
-import { useMarkVariantViewed } from '@/shared/hooks/useMarkVariantViewed';
+import { useMarkVariantViewed } from '@/shared/hooks/variants/useMarkVariantViewed';
 import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 import type {
   FinalVideoSectionProgress,

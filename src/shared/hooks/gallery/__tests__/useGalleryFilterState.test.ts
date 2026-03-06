@@ -16,7 +16,7 @@ vi.mock('@/shared/contexts/ShotsContext', () => ({
   }),
 }));
 
-vi.mock('@/shared/hooks/useToolSettings', () => ({
+vi.mock('@/shared/hooks/settings/useToolSettings', () => ({
   useToolSettings: vi.fn().mockReturnValue({
     settings: null,
     update: vi.fn(),

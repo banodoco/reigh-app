@@ -52,7 +52,7 @@ vi.mock('@/integrations/supabase/client', () => ({
   }),
 }));
 
-vi.mock('@/shared/hooks/useToolSettings', () => ({
+vi.mock('@/shared/hooks/settings/useToolSettings', () => ({
   extractSettingsFromCache: (...args: unknown[]) => extractSettingsFromCacheMock(...args),
 }));
 

@@ -19,7 +19,7 @@ vi.mock('@/types/tasks', () => ({
   TASK_STATUS: { QUEUED: 'Queued', IN_PROGRESS: 'In Progress' },
 }));
 
-import { usePendingGenerationTasks } from '../usePendingGenerationTasks';
+import { usePendingGenerationTasks } from '@/shared/hooks/tasks/usePendingGenerationTasks';
 
 describe('usePendingGenerationTasks', () => {
   beforeEach(() => {

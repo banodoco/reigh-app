@@ -17,7 +17,7 @@ vi.mock('@/shared/contexts/ShotsContext', () => ({
   })),
 }));
 
-vi.mock('@/shared/hooks/useLastAffectedShot', () => ({
+vi.mock('@/shared/hooks/shots/useLastAffectedShot', () => ({
   useLastAffectedShot: vi.fn(() => ({
     setLastAffectedShotId: vi.fn(),
   })),
@@ -70,7 +70,7 @@ vi.mock('@/shared/lib/queryKeys', () => ({
   },
 }));
 
-import { useShotCreation } from '../useShotCreation';
+import { useShotCreation } from '@/shared/hooks/shotCreation/useShotCreation';
 
 function createWrapper() {
   const queryClient = new QueryClient({

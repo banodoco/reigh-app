@@ -10,8 +10,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/
 import { CollapsibleSection } from "@/shared/components/ui/collapsible-section";
 import { useIsMobile } from '@/shared/hooks/mobile';
 import { Project } from '@/types/project';
-import type { ActiveLora } from '@/shared/types/lora';
-import { LoraModel } from '@/shared/components/LoraSelectorModal';
+import type { ActiveLora } from '@/domains/lora/types/lora';
+import { LoraModel } from '@/domains/lora/components/LoraSelectorModal';
 import { PhaseConfig, DEFAULT_PHASE_CONFIG } from '../settings';
 import { framesToSeconds, quantizeFrameCount } from './Timeline/utils/time-utils';
 

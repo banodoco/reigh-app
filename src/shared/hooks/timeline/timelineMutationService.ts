@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
-import type { ShotGeneration } from '@/shared/hooks/useTimelineCore';
+import type { ShotGeneration } from '@/shared/hooks/timeline/useTimelineCore';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { persistTimelineFrameBatch } from '@/shared/lib/timelineFrameBatchPersist';
 import {

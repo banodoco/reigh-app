@@ -10,7 +10,7 @@ import {
   useProjectCrudContext,
   useProjectSelectionContext,
 } from '@/shared/contexts/ProjectContext';
-import { useToolSettings, extractSettingsFromCache } from '@/shared/hooks/useToolSettings';
+import { useToolSettings, extractSettingsFromCache } from '@/shared/hooks/settings/useToolSettings';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { useQueryClient } from '@tanstack/react-query';
 import { settingsQueryKeys } from '@/shared/lib/queryKeys/settings';

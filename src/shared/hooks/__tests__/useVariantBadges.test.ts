@@ -10,7 +10,7 @@ vi.mock('@/shared/lib/generationTransformers', () => ({
   calculateDerivedCountsSafe: (...args: unknown[]) => mockCalculateDerivedCountsSafe(...args),
 }));
 
-import { useVariantBadges } from '../useVariantBadges';
+import { useVariantBadges } from '@/shared/hooks/variants/useVariantBadges';
 
 function createWrapper() {
   const queryClient = new QueryClient({

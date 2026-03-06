@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import { toast } from '@/shared/components/ui/runtime/sonner';
-import { updateSettingsCache } from '@/shared/hooks/useToolSettings';
+import { updateSettingsCache } from '@/shared/hooks/settings/useToolSettings';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { toOperationResultError } from '@/shared/lib/operationResult';
 import { settingsQueryKeys } from '@/shared/lib/queryKeys/settings';

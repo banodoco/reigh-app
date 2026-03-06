@@ -10,7 +10,7 @@ import {
 } from '../taskCreation';
 import type { TaskCreationResult } from '../taskCreation';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import type { FalLoraConfig } from '@/shared/types/lora';
+import type { FalLoraConfig } from '@/domains/lora/types/lora';
 import { runBatchTaskPipeline } from './batchTaskPipeline';
 import { runTaskCreationPipeline } from './taskCreatorPipeline';
 import { composeTaskRequest } from './taskRequestComposer';

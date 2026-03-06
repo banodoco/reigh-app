@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { useTimelineCore } from '@/shared/hooks/useTimelineCore';
+import { useTimelineCore } from '@/shared/hooks/timeline/useTimelineCore';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { Shot } from '@/domains/generation/types';
 import { useGenerateBatch } from '../hooks/actions/useGenerateBatch';

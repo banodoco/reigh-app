@@ -1,5 +1,5 @@
 import { TaskValidationError } from './types';
-import type { PathLoraConfig } from '@/shared/types/lora';
+import type { PathLoraConfig } from '@/domains/lora/types/lora';
 
 interface NumericRangeOptions {
   field: string;

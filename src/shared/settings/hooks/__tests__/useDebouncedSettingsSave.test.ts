@@ -7,7 +7,7 @@ vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
   reportRuntimeError: vi.fn(),
 }));
 
-vi.mock('@/shared/hooks/useToolSettings', () => ({
+vi.mock('@/shared/hooks/settings/useToolSettings', () => ({
   updateToolSettingsSupabase: vi.fn().mockResolvedValue(undefined),
 }));
 

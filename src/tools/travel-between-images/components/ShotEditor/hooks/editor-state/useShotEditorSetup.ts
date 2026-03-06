@@ -13,7 +13,7 @@
 import React, { useMemo, useRef } from 'react';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useShots } from '@/shared/contexts/ShotsContext';
-import { useShotImages } from '@/shared/hooks/useShotImages';
+import { useShotImages } from '@/shared/hooks/shots/useShotImages';
 import { Shot, GenerationRow } from '@/domains/generation/types';
 import type { Project } from '@/types/project';
 

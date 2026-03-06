@@ -9,7 +9,7 @@ import type {
   BatchImageGenerationTaskParams,
   ImageGenerationTaskParams,
 } from './imageGenerationTypes';
-import type { PathLoraConfig } from '@/shared/types/lora';
+import type { PathLoraConfig } from '@/domains/lora/types/lora';
 
 /**
  * Validates an array of LoRA configs.

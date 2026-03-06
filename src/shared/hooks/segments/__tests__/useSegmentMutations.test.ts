@@ -11,7 +11,7 @@ vi.mock('@/integrations/supabase/client', () => ({
   }),
 }));
 
-vi.mock('@/shared/hooks/useToolSettings', () => ({
+vi.mock('@/shared/hooks/settings/useToolSettings', () => ({
   updateToolSettingsSupabase: vi.fn().mockResolvedValue({}),
 }));
 
@@ -157,7 +157,7 @@ describe('useSegmentMutations', () => {
     });
 
     it('saves field as shot default via updateToolSettingsSupabase', async () => {
-      const { updateToolSettingsSupabase } = await import('@/shared/hooks/useToolSettings');
+      const { updateToolSettingsSupabase } = await import('@/shared/hooks/settings/useToolSettings');
 
       const { wrapper } = createWrapper();
       const { result } = renderHook(

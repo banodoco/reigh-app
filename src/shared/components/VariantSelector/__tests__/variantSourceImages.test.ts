@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { describe, expect, it } from 'vitest';
-import type { GenerationVariant } from '@/shared/hooks/useVariants';
+import type { GenerationVariant } from '@/shared/hooks/variants/useVariants';
 import { hasDifferentSourceImages } from '../variantSourceImages';
 
 const baseVariant: GenerationVariant = {

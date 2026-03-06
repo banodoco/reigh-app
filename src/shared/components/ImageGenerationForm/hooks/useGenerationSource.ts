@@ -5,7 +5,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import type { ActiveLora } from '@/shared/types/lora';
+import type { ActiveLora } from '@/domains/lora/types/lora';
 import {
   GenerationSource,
   TextToImageModel,

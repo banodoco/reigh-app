@@ -10,7 +10,7 @@ import {
 import type { ClipPairInfo } from '@/shared/components/JoinClipsSettingsForm/types';
 import type { useClipManager } from '@/tools/join-clips/hooks/useClipManager';
 import type { useJoinClipsSettings } from '@/tools/join-clips/hooks/useJoinClipsSettings';
-import type { useLoraManager } from '@/shared/hooks/useLoraManager';
+import type { useLoraManager } from '@/domains/lora/hooks/useLoraManager';
 
 export type JoinSettingsState = ReturnType<typeof useJoinClipsSettings>;
 export type ClipManagerState = ReturnType<typeof useClipManager>;

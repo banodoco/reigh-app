@@ -30,7 +30,7 @@ vi.mock('@/shared/config/panes', () => ({
   },
 }));
 
-vi.mock('@/shared/hooks/useToolSettings', () => ({
+vi.mock('@/shared/hooks/settings/useToolSettings', () => ({
   updateToolSettingsSupabase: vi.fn().mockResolvedValue(undefined),
 }));
 

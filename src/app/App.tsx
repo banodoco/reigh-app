@@ -12,7 +12,7 @@ import {
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { useHandleExternalImageDrop, useAddImageToShot } from '@/shared/hooks/shots';
-import { useShotCreation } from '@/shared/hooks/useShotCreation';
+import { useShotCreation } from '@/shared/hooks/shotCreation/useShotCreation';
 import { useShots } from '@/shared/contexts/ShotsContext';
 import { LastAffectedShotContext } from '@/shared/contexts/LastAffectedShotContext';
 import { AppRoutes } from '@/app/routes';

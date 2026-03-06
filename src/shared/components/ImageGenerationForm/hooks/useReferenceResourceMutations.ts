@@ -13,7 +13,7 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUpdateResource, useDeleteResource, StyleReferenceMetadata } from '@/shared/hooks/useResources';
-import { updateSettingsCache } from '@/shared/hooks/useToolSettings';
+import { updateSettingsCache } from '@/shared/hooks/settings/useToolSettings';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { settingsQueryKeys } from '@/shared/lib/queryKeys/settings';
 import { SETTINGS_IDS } from '@/shared/lib/settingsIds';

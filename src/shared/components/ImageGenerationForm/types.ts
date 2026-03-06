@@ -1,6 +1,6 @@
 // Import API types from shared (used in interfaces below, re-exported at bottom)
 import { ReferenceMode } from '@/shared/lib/tasks/imageGeneration';
-import type { ActiveLora } from '@/shared/types/lora';
+import type { ActiveLora } from '@/domains/lora/types/lora';
 import type { ReferenceImage } from '@/shared/types/referenceImage';
 import type { HydratedReferenceImage as SharedHydratedReferenceImage } from '@/shared/types/referenceHydration';
 
@@ -116,7 +116,7 @@ export interface PromptInputRowProps {
 }
 
 // Re-export ActiveLora from shared component
-export type { ActiveLora } from "@/shared/types/lora";
+export type { ActiveLora } from "@/domains/lora/types/lora";
 
 // ============================================================================
 // Re-export API types from shared (single source of truth)

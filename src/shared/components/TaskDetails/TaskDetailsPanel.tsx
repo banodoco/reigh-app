@@ -8,7 +8,7 @@ import { AlertTriangle, CornerDownLeft, ImageIcon } from 'lucide-react';
 import { usePublicLoras } from '@/shared/hooks/useResources';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { TaskDetailsSummaryAndParams } from '@/shared/components/TaskDetails/components/TaskDetailsSummaryAndParams';
-import type { TaskDetailsStatus } from '@/shared/components/MediaLightbox/types';
+import type { TaskDetailsStatus } from '@/domains/media-lightbox/types';
 
 interface TaskDetailsPanelProps {
   task: Task | null;

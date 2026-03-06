@@ -5,7 +5,7 @@ import { ShotImageManagerProps } from './types';
 import { GRID_COLS_CLASSES } from './constants';
 import { useIsMobile } from '@/shared/hooks/mobile';
 import { useTaskDetails } from './hooks/useTaskDetails';
-import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
+import { useShotNavigation } from '@/shared/hooks/shots/useShotNavigation';
 import type { SegmentSlot } from '@/shared/hooks/segments';
 import type { GenerationRow } from '@/domains/generation/types';
 import { usePrefetchTaskData } from '@/shared/hooks/tasks/useTaskPrefetch';

@@ -75,7 +75,7 @@ const useShotImagesMock = vi.fn().mockReturnValue({
   refetch: vi.fn(),
 });
 
-vi.mock('@/shared/hooks/useShotImages', () => ({
+vi.mock('@/shared/hooks/shots/useShotImages', () => ({
   useShotImages: (...args: unknown[]) => useShotImagesMock(...args),
 }));
 
@@ -101,7 +101,7 @@ vi.mock('@/shared/lib/timelinePositionCalculator', () => ({
   DEFAULT_FRAME_SPACING: 50,
 }));
 
-import { useTimelineCore } from '../useTimelineCore';
+import { useTimelineCore } from '@/shared/hooks/timeline/useTimelineCore';
 import { readSegmentOverrides } from '@/shared/lib/settingsMigration';
 
 const mockReadSegmentOverrides = readSegmentOverrides as ReturnType<typeof vi.fn>;

@@ -34,7 +34,7 @@ vi.mock('@/shared/lib/compat/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 
-import { useLoadVariantImages } from '../useLoadVariantImages';
+import { useLoadVariantImages } from '@/shared/hooks/variants/useLoadVariantImages';
 
 describe('useLoadVariantImages', () => {
   beforeEach(() => {

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
-import { useShotCreation } from '@/shared/hooks/useShotCreation';
+import { useShotNavigation } from '@/shared/hooks/shots/useShotNavigation';
+import { useShotCreation } from '@/shared/hooks/shotCreation/useShotCreation';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { ShotOption } from '@/domains/generation/types';
 

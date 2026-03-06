@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRenderLogger } from '@/shared/lib/debug/debugRendering';
-import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
+import { updateToolSettingsSupabase } from '@/shared/hooks/settings/useToolSettings';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 

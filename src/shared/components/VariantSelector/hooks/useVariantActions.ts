@@ -10,10 +10,10 @@
 import { useState, useCallback, useRef } from 'react';
 import { useAsyncOperationMap } from '@/shared/hooks/async/useAsyncOperation';
 import { usePrefetchTaskData, usePrefetchTaskById } from '@/shared/hooks/tasks/useTaskPrefetch';
-import { getLineageDepth } from '@/shared/hooks/useLineageChain';
+import { getLineageDepth } from '@/shared/hooks/variants/useLineageChain';
 import { getSourceTaskIdLegacyCompatible } from '@/shared/lib/taskIdHelpers';
-import { useToggleVariantStar } from '@/shared/hooks/useToggleVariantStar';
-import type { GenerationVariant } from '@/shared/hooks/useVariants';
+import { useToggleVariantStar } from '@/shared/hooks/variants/useToggleVariantStar';
+import type { GenerationVariant } from '@/shared/hooks/variants/useVariants';
 import { useProject } from '@/shared/contexts/ProjectContext';
 
 interface UseVariantActionsProps {

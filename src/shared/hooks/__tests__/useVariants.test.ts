@@ -18,8 +18,8 @@ vi.mock('@/shared/lib/compat/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 
-import { useVariants } from '../useVariants';
-import type { GenerationVariant } from '../useVariants';
+import { useVariants } from '@/shared/hooks/variants/useVariants';
+import type { GenerationVariant } from '@/shared/hooks/variants/useVariants';
 
 const createVariant = (
   overrides: Partial<GenerationVariant> = {}

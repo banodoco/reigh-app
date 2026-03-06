@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
-import { updateSettingsCache } from '@/shared/hooks/useToolSettings';
+import { updateSettingsCache } from '@/shared/hooks/settings/useToolSettings';
 import { settingsQueryKeys } from '@/shared/lib/queryKeys/settings';
 import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 import type { ProjectImageSettings } from '../../types';

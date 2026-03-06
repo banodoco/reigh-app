@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { usePrefetchToolSettings } from '@/shared/hooks/usePrefetchToolSettings';
+import { usePrefetchToolSettings } from '@/shared/hooks/settings/usePrefetchToolSettings';
 import { useMobileTimeoutFallback } from '@/shared/hooks/useMobileTimeoutFallback';
 import { Project } from '@/types/project';
 

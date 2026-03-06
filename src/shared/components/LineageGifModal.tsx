@@ -9,7 +9,7 @@ import React, { useState } from 'react';
 import { Download, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Progress } from '@/shared/components/ui/progress';
-import { useLineageChain } from '@/shared/hooks/useLineageChain';
+import { useLineageChain } from '@/shared/hooks/variants/useLineageChain';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { GIFEncoder, quantize, applyPalette } from 'gifenc';
 

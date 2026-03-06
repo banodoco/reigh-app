@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { AdjacentSegmentsData } from '../../MediaLightbox/types';
+import type { AdjacentSegmentsData } from '@/domains/media-lightbox/types';
 import type { SegmentSlot } from '@/shared/hooks/segments';
 import type { GenerationRow } from '@/domains/generation/types';
 import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';

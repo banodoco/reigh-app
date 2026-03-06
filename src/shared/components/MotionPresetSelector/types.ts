@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { PhaseConfig } from '@/shared/types/phaseConfig';
-import type { LoraModel } from '@/shared/types/lora';
+import type { LoraModel } from '@/domains/lora/types/lora';
 
 export type MotionMode = 'basic' | 'advanced';
 type GenerationTypeMode = 'i2v' | 'vace';

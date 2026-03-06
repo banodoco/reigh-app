@@ -7,7 +7,7 @@
 
 import { useCallback, useMemo, useEffect } from 'react';
 import { useSourceImageChanges } from '@/shared/hooks/sourceImageChanges/useSourceImageChanges';
-import { useMarkVariantViewed } from '@/shared/hooks/useMarkVariantViewed';
+import { useMarkVariantViewed } from '@/shared/hooks/variants/useMarkVariantViewed';
 import { TIMELINE_PADDING_OFFSET } from '../../constants';
 import type { SegmentSlot } from '@/shared/hooks/segments';
 import type { PairData } from '@/shared/types/pairData';

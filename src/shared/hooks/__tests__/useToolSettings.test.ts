@@ -6,7 +6,7 @@ import {
   extractSettingsFromCache,
   updateToolSettingsSupabase,
   updateSettingsCache,
-} from '../useToolSettings';
+} from '@/shared/hooks/settings/useToolSettings';
 import { enqueueSettingsWrite } from '@/shared/lib/settingsWriteQueue';
 
 // ============================================================================
@@ -218,11 +218,11 @@ function createWrapper() {
 describe('useToolSettings hook', () => {
   // Import the hook directly — vi.mock hoisting ensures mocks are applied
    
-  let useToolSettings: typeof import('../useToolSettings').useToolSettings;
+  let useToolSettings: typeof import('@/shared/hooks/settings/useToolSettings').useToolSettings;
 
   beforeEach(async () => {
     vi.mocked(enqueueSettingsWrite).mockClear();
-    const mod = await import('../useToolSettings');
+    const mod = await import('@/shared/hooks/settings/useToolSettings');
     useToolSettings = mod.useToolSettings;
   });
 

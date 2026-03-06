@@ -6,7 +6,7 @@
  */
 
 import { useCallback } from 'react';
-import type { ShotGeneration } from '@/shared/hooks/useTimelineCore';
+import type { ShotGeneration } from '@/shared/hooks/timeline/useTimelineCore';
 
 // ============================================================================
 // Types

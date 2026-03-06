@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
-import { useToolSettings } from '@/shared/hooks/useToolSettings';
+import { useToolSettings } from '@/shared/hooks/settings/useToolSettings';
 import { useRenderLogger } from '@/shared/lib/debug/debugRendering';
 import { useDebouncedSettingsSave } from '@/shared/settings/hooks/useDebouncedSettingsSave';
 import { deepEqual } from '@/shared/lib/utils/deepEqual';

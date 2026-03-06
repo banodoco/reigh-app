@@ -1,6 +1,6 @@
-import type { LoraModel } from '@/shared/components/LoraSelectorModal';
+import type { LoraModel } from '@/domains/lora/components/LoraSelectorModal';
 import type { PresetMetadata, PresetSampleGeneration } from '@/shared/types/presetMetadata';
-import type { ActiveLora } from '@/shared/types/lora';
+import type { ActiveLora } from '@/domains/lora/types/lora';
 import type { PhaseConfig } from '../settings';
 
 export type GenerationTypeMode = 'i2v' | 'vace';

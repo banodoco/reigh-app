@@ -6,7 +6,7 @@ import { generateClientThumbnail } from '@/shared/media/clientThumbnailGenerator
 import { generateThumbnailFilename, MEDIA_BUCKET, storagePaths } from '@/shared/lib/storagePaths';
 import { resolveProjectResolution } from '@/shared/lib/taskCreation';
 import { processStyleReferenceForAspectRatioString } from '@/shared/lib/media/styleReferenceProcessor';
-import { extractSettingsFromCache } from '@/shared/hooks/useToolSettings';
+import { extractSettingsFromCache } from '@/shared/hooks/settings/useToolSettings';
 import { settingsQueryKeys } from '@/shared/lib/queryKeys/settings';
 import {
   operationFailure,

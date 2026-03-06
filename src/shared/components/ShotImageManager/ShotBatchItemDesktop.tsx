@@ -17,7 +17,7 @@ import { useBatchImageLoading } from '@/shared/hooks/ui-image/useBatchImageLoadi
 import { getImageAspectRatioStyle } from '@/shared/lib/media/imageAspectRatio';
 import { framesToSeconds } from '@/shared/lib/media/videoUtils';
 import { VariantBadge } from '@/shared/components/VariantBadge';
-import { useMarkVariantViewed } from '@/shared/hooks/useMarkVariantViewed';
+import { useMarkVariantViewed } from '@/shared/hooks/variants/useMarkVariantViewed';
 
 interface ShotBatchItemDesktopProps {
   image: GenerationRow;

@@ -2,7 +2,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useLoraCategoryMigration } from './useLoraCategoryMigration';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import type { ActiveLora } from '@/shared/types/lora';
+import type { ActiveLora } from '@/domains/lora/types/lora';
 
 vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
   normalizeAndPresentError: vi.fn(),

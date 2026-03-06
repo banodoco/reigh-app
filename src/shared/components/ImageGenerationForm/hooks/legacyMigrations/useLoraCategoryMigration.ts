@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { LoraCategory } from '../../types';
 import { getLoraCategoryForModel } from '../../types';
-import type { ActiveLora } from '@/shared/types/lora';
+import type { ActiveLora } from '@/domains/lora/types/lora';
 import type { LegacyMigrationsInput } from './types';
 
 type LoraCategoryMigrationInput = Pick<

@@ -1,12 +1,12 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useUpdateShotImageOrder, useAddImageToShot, useAddImageToShotWithoutPosition } from "@/shared/hooks/shots";
-import { useShotCreation } from "@/shared/hooks/useShotCreation";
+import { useShotCreation } from "@/shared/hooks/shotCreation/useShotCreation";
 import { useIsMobile } from "@/shared/hooks/mobile";
 import { Shot } from '@/domains/generation/types';
 import { usePanes } from '@/shared/contexts/PanesContext';
-import { useToolSettings } from '@/shared/hooks/useToolSettings';
+import { useToolSettings } from '@/shared/hooks/settings/useToolSettings';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
-import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
+import { useShotNavigation } from '@/shared/hooks/shots/useShotNavigation';
 import { useQueryClient } from '@tanstack/react-query';
 
 // Import modular components and hooks

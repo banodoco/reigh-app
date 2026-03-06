@@ -5,8 +5,8 @@ import {
   TooltipContent,
   TooltipTrigger
 } from "@/shared/components/ui/tooltip";
-import { GenerationDetails } from "@/shared/components/GenerationDetails";
-import { ImageGenerationDetails } from "@/shared/components/GenerationDetails/ImageGenerationDetails";
+import { GenerationDetails } from "@/domains/generation/components/GenerationDetails";
+import { ImageGenerationDetails } from "@/domains/generation/components/GenerationDetails/ImageGenerationDetails";
 import type { GeneratedImageWithMetadata } from "../../MediaGallery/types";
 import type { Task } from "@/types/tasks";
 

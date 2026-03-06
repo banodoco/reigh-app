@@ -1,8 +1,8 @@
 import React from 'react';
 import { Check, Copy } from 'lucide-react';
-import { getDisplayNameFromUrl } from '@/shared/lib/loraUtils';
+import { getDisplayNameFromUrl } from '@/domains/lora/lib/loraUtils';
 import type { getVariantConfig } from '@/shared/types/taskDetailsTypes';
-import type { LoraModel } from '@/shared/components/LoraSelectorModal';
+import type { LoraModel } from '@/domains/lora/components/LoraSelectorModal';
 
 interface TaskLoraDetailsProps {
   config: ReturnType<typeof getVariantConfig>;

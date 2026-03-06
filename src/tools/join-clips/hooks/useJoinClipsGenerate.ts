@@ -10,7 +10,7 @@ import { joinClipsSettings } from '@/shared/lib/joinClipsDefaults';
 import { DEFAULT_VACE_PHASE_CONFIG, BUILTIN_VACE_DEFAULT_ID, VACE_GENERATION_DEFAULTS } from '@/shared/lib/vaceDefaults';
 import type { VideoClip, TransitionPrompt } from '../types';
 import type { useJoinClipsSettings } from './useJoinClipsSettings';
-import type { UseLoraManagerReturn } from '@/shared/hooks/useLoraManager';
+import type { UseLoraManagerReturn } from '@/domains/lora/hooks/useLoraManager';
 import type { ValidationResult } from '../utils/validation';
 
 interface UseJoinClipsGenerateParams {

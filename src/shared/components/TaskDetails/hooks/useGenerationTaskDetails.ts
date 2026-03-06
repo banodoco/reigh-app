@@ -5,8 +5,8 @@ import { deriveInputImages, parseTaskParams } from "@/shared/lib/taskParamsUtils
 import { useGetPrimaryTaskIdForGeneration } from "@/shared/hooks/tasks/usePrimaryTaskMapping";
 import { normalizeAndPresentError } from "@/shared/lib/errorHandling/runtimeError";
 import type { Task } from "@/types/tasks";
-import type { TaskDetailsData as LightboxTaskDetailsData } from "@/shared/components/MediaLightbox/types";
-import type { TaskDetailsStatus } from "@/shared/components/MediaLightbox/types";
+import type { TaskDetailsData as LightboxTaskDetailsData } from "@/domains/media-lightbox/types";
+import type { TaskDetailsStatus } from "@/domains/media-lightbox/types";
 import type { GenerationTaskMappingStatus } from "@/shared/lib/generationTaskRepository";
 
 interface UseGenerationTaskDetailsOptions {

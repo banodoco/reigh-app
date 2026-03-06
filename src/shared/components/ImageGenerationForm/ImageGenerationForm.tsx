@@ -14,7 +14,7 @@ import { useImageGenForm } from "./hooks/useImageGenForm";
 
 // Lazy load modals to improve initial bundle size and performance
 const LazyLoraSelectorModal = React.lazy(() =>
-  import("@/shared/components/LoraSelectorModal").then(module => ({
+  import("@/domains/lora/components/LoraSelectorModal").then(module => ({
     default: module.LoraSelectorModal
   }))
 );

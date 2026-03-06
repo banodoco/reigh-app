@@ -9,7 +9,7 @@
  * No React hooks or side effects - all functions are stateless.
  */
 
-import type { ShotGeneration } from '@/shared/hooks/useTimelineCore';
+import type { ShotGeneration } from '@/shared/hooks/timeline/useTimelineCore';
 import { calculateAverageSpacing, DEFAULT_FRAME_SPACING } from '@/shared/lib/timelinePositionCalculator';
 
 /** Maximum allowed gap between timeline frames (5s at 16fps). */

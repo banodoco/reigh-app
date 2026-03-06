@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { useRenderLogger } from '@/shared/lib/debug/debugRendering';
 import type { Json } from '@/integrations/supabase/jsonTypes';
-import { updateToolSettingsSupabase } from '@/shared/hooks/useToolSettings';
+import { updateToolSettingsSupabase } from '@/shared/hooks/settings/useToolSettings';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 

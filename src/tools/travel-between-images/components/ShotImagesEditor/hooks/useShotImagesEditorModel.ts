@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
-import { usePendingSegmentTasks } from '@/shared/hooks/usePendingSegmentTasks';
+import { usePendingSegmentTasks } from '@/shared/hooks/tasks/usePendingSegmentTasks';
 import { useSegmentOutputsForShot } from '@/shared/hooks/segments';
 import { useDownloadImages } from './useDownloadImages';
 import { useLightboxTransition } from './useLightboxTransition';

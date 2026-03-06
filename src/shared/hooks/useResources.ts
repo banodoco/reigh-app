@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import type { LoraModel } from '@/shared/types/lora';
+import type { LoraModel } from '@/domains/lora/types/lora';
 import { PhaseConfig } from '@/shared/types/phaseConfig';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/databasePublicTypes';

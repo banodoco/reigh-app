@@ -1,15 +1,15 @@
 import { GenerationRow } from '@/domains/generation/types';
 
-import { MediaDisplayWithCanvas } from '@/shared/components/MediaLightbox/components/MediaDisplayWithCanvas';
+import { MediaDisplayWithCanvas } from '@/domains/media-lightbox/components/MediaDisplayWithCanvas';
 import {
   TopRightControls,
   BottomLeftControls,
   BottomRightControls,
-} from '@/shared/components/MediaLightbox/components/ButtonGroups';
-import { EditModePanel } from '@/shared/components/MediaLightbox/components/EditModePanel';
-import { FloatingToolControls } from '@/shared/components/MediaLightbox/components/FloatingToolControls';
-import { AnnotationFloatingControls } from '@/shared/components/MediaLightbox/components/AnnotationFloatingControls';
-import { ImageEditProvider } from '@/shared/components/MediaLightbox/contexts/ImageEditContext';
+} from '@/domains/media-lightbox/components/ButtonGroups';
+import { EditModePanel } from '@/domains/media-lightbox/components/EditModePanel';
+import { FloatingToolControls } from '@/domains/media-lightbox/components/FloatingToolControls';
+import { AnnotationFloatingControls } from '@/domains/media-lightbox/components/AnnotationFloatingControls';
+import { ImageEditProvider } from '@/domains/media-lightbox/contexts/ImageEditContext';
 import { Button } from '@/shared/components/ui/button';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { TooltipProvider } from '@/shared/components/ui/tooltip';

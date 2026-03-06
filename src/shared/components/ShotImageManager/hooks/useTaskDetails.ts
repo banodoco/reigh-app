@@ -1,5 +1,5 @@
 import type { Task } from '@/types/tasks';
-import type { TaskDetailsData as LightboxTaskDetailsData } from '@/shared/components/MediaLightbox/types';
+import type { TaskDetailsData as LightboxTaskDetailsData } from '@/domains/media-lightbox/types';
 import { useGenerationTaskDetails } from '@/shared/components/TaskDetails/hooks/useGenerationTaskDetails';
 
 interface UseTaskDetailsProps {

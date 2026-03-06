@@ -2,9 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { GenerationRow } from '@/domains/generation/types';
 import { useIsMobile } from '@/shared/hooks/mobile';
 import { isPositioned, isVideoGeneration } from '@/shared/lib/typeGuards';
-import { usePendingSegmentTasks } from '@/shared/hooks/usePendingSegmentTasks';
+import { usePendingSegmentTasks } from '@/shared/hooks/tasks/usePendingSegmentTasks';
 import { useSegmentOutputsForShot } from '@/shared/hooks/segments';
-import MediaLightbox from '../MediaLightbox/MediaLightbox';
+import MediaLightbox from '@/domains/media-lightbox/MediaLightbox';
 import { DEFAULT_BATCH_VIDEO_FRAMES } from './constants';
 import { ShotImageManagerDesktop } from './ShotImageManagerDesktop.tsx';
 import { ShotImageManagerMobileWrapper } from './ShotImageManagerMobileWrapper.tsx';

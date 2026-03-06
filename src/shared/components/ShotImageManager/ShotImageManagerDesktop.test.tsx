@@ -91,7 +91,7 @@ vi.mock('./hooks/useTaskDetails', () => ({
   useTaskDetails: () => ({ taskDetailsData: {} }),
 }));
 
-vi.mock('@/shared/hooks/useShotNavigation', () => ({
+vi.mock('@/shared/hooks/shots/useShotNavigation', () => ({
   useShotNavigation: () => ({ navigateToShot: mocks.navigateToShot }),
 }));
 

@@ -3,7 +3,7 @@ import { Key } from "lucide-react";
 import { SegmentedControl, SegmentedControlItem } from "@/shared/components/ui/segmented-control";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import { Button } from "@/shared/components/ui/button";
-import CreditsManagement from "../../CreditsManagement/CreditsManagement";
+import CreditsManagement from "@/domains/billing/components/CreditsManagement/CreditsManagement";
 import type { GenerationSectionProps } from "../types";
 import { GenerationTokenPanel } from "./GenerationSection/components/GenerationTokenPanel";
 

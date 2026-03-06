@@ -5,7 +5,7 @@ import { isVideoAny } from '@/shared/lib/typeGuards';
 import { asNumber, asRecord, asString } from '@/shared/lib/tasks/taskParamParsers';
 import type { PairData } from '../../Timeline/TimelineContainer/types';
 import type { SegmentSlot } from '@/shared/hooks/segments';
-import type { SegmentSlotModeData } from '@/shared/components/MediaLightbox/types';
+import type { SegmentSlotModeData } from '@/domains/media-lightbox/types';
 import type {
   SegmentSlotGenerationMode,
   SegmentSlotState,

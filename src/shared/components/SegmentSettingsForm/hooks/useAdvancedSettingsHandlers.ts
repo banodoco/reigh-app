@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { stripModeFromPhaseConfig } from '../segmentSettingsUtils';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
-import type { LoraModel } from '@/shared/types/lora';
+import type { LoraModel } from '@/domains/lora/types/lora';
 import type { SegmentSettings, SegmentSettingsFormProps } from '../types';
 
 interface UseAdvancedSettingsHandlersParams {

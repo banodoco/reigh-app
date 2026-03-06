@@ -24,7 +24,7 @@ vi.mock('@/shared/lib/toolRoutes', () => ({
   travelShotUrl: (shotId: string) => `/travel#shot=${shotId}`,
 }));
 
-import { useShotNavigation } from '../useShotNavigation';
+import { useShotNavigation } from '@/shared/hooks/shots/useShotNavigation';
 import type { Shot } from '@/domains/generation/types';
 
 describe('useShotNavigation', () => {

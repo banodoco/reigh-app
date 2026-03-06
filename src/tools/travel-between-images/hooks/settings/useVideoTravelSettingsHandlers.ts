@@ -22,7 +22,7 @@ import { SteerableMotionSettings, DEFAULT_STEERABLE_MOTION_SETTINGS } from '../.
 import { buildBasicModeGenerationRequest as buildBasicModePhaseConfig } from '../../components/ShotEditor/services/generateVideo/modelPhase';
 import { UseShotSettingsReturn } from './useShotSettings';
 import type { PresetMetadata } from '@/shared/types/presetMetadata';
-import type { ActiveLora } from '@/shared/types/lora';
+import type { ActiveLora } from '@/domains/lora/types/lora';
 
 interface UseVideoTravelSettingsHandlersParams {
   /** Ref to the shot settings - used to access current settings without triggering re-renders */

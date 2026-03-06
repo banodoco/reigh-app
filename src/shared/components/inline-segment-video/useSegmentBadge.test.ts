@@ -6,11 +6,11 @@ import { useSegmentBadge } from './useSegmentBadge';
 const markAllViewed = vi.fn();
 const getBadgeData = vi.fn();
 
-vi.mock('@/shared/hooks/useMarkVariantViewed', () => ({
+vi.mock('@/shared/hooks/variants/useMarkVariantViewed', () => ({
   useMarkVariantViewed: () => ({ markAllViewed }),
 }));
 
-vi.mock('@/shared/hooks/useVariantBadges', () => ({
+vi.mock('@/shared/hooks/variants/useVariantBadges', () => ({
   useVariantBadges: () => ({ getBadgeData }),
 }));
 

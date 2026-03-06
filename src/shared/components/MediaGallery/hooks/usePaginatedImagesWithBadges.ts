@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useVariantBadges } from '@/shared/hooks/useVariantBadges';
+import { useVariantBadges } from '@/shared/hooks/variants/useVariantBadges';
 import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import type { GeneratedImageWithMetadata } from '../types';
 

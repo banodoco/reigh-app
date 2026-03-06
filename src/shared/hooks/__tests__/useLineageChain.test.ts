@@ -29,7 +29,7 @@ vi.mock('@/shared/lib/queryKeys/generations', () => ({
   },
 }));
 
-import { useLineageChain } from '../useLineageChain';
+import { useLineageChain } from '@/shared/hooks/variants/useLineageChain';
 
 interface VariantStub {
   id: string;

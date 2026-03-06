@@ -1,5 +1,5 @@
 import type { Shot } from "@/domains/generation/types";
-import type { LightboxDeleteHandler } from '@/shared/components/MediaLightbox/types';
+import type { LightboxDeleteHandler } from '@/domains/media-lightbox/types';
 import type { AddToShotHandler } from '@/shared/types/imageHandlers';
 
 /**

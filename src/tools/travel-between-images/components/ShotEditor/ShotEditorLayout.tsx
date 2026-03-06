@@ -6,7 +6,7 @@ import { HeaderSection } from './sections/HeaderSection';
 import { TimelineSection } from './sections/TimelineSection';
 import { ModalsSection } from './sections/ModalsSection';
 import { GenerationSection } from './sections/GenerationSection';
-import { LoraModel } from '@/shared/components/LoraSelectorModal';
+import { LoraModel } from '@/domains/lora/components/LoraSelectorModal';
 
 export interface ShotEditorLayoutProps {
   contextValue: ShotSettingsContextValue;

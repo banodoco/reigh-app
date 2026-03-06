@@ -9,7 +9,7 @@ import { GenerationRow } from '@/domains/generation/types';
 import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useEditVideoSettings } from '@/shared/settings/hooks/useEditVideoSettings';
-import { useLoraManager } from '@/shared/hooks/useLoraManager';
+import { useLoraManager } from '@/domains/lora/hooks/useLoraManager';
 import { usePublicLoras } from '@/shared/hooks/useResources';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
 import { useQueryClient } from '@tanstack/react-query';

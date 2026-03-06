@@ -11,7 +11,7 @@ import {
 } from '../taskCreation';
 import type { TaskCreationResult } from '../taskCreation';
 import type { HiresFixApiParams } from '../taskCreation';
-import type { ComfyLoraConfig } from '@/shared/types/lora';
+import type { ComfyLoraConfig } from '@/domains/lora/types/lora';
 import { runBatchTaskPipeline } from './batchTaskPipeline';
 import { rethrowTaskCreationError } from './taskCreationError';
 import { composeTaskRequest } from './taskRequestComposer';

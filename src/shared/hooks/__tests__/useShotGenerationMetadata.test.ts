@@ -28,7 +28,7 @@ vi.mock('@/shared/lib/compat/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 
-import { useShotGenerationMetadata } from '../useShotGenerationMetadata';
+import { useShotGenerationMetadata } from '@/shared/hooks/shots/useShotGenerationMetadata';
 
 describe('useShotGenerationMetadata', () => {
   beforeEach(() => {

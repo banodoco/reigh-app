@@ -8,8 +8,8 @@ import {
 } from "@/shared/components/ui/tooltip";
 import { ShotSelector, ShotOption } from "@/shared/components/ShotSelector";
 import { toast } from '@/shared/components/ui/toast';
-import { useShotNavigation } from "@/shared/hooks/useShotNavigation";
-import { useLastAffectedShot } from "@/shared/hooks/useLastAffectedShot";
+import { useShotNavigation } from "@/shared/hooks/shots/useShotNavigation";
+import { useLastAffectedShot } from "@/shared/hooks/shots/useLastAffectedShot";
 import { useQuickShotCreate } from "@/shared/hooks/useQuickShotCreate";
 import { cn } from '@/shared/components/ui/contracts/cn';
 import type { Shot } from "@/domains/generation/types";

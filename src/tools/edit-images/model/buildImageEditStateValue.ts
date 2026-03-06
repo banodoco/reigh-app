@@ -1,1 +1,1 @@
-export { buildImageEditStateValue } from '../../../shared/components/MediaLightbox/model/buildImageEditStateValue';
+export { buildImageEditStateValue } from '../../../domains/media-lightbox/model/buildImageEditStateValue';

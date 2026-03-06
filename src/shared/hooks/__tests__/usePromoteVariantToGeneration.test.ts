@@ -36,7 +36,7 @@ vi.mock('@/shared/lib/compat/errorHandler', () => ({
   handleError: vi.fn(),
 }));
 
-import { usePromoteVariantToGeneration } from '../usePromoteVariantToGeneration';
+import { usePromoteVariantToGeneration } from '@/shared/hooks/variants/usePromoteVariantToGeneration';
 
 describe('usePromoteVariantToGeneration', () => {
   beforeEach(() => {

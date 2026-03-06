@@ -19,7 +19,7 @@ import { toast } from '@/shared/components/ui/runtime/sonner';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { Shot } from '@/domains/generation/types';
 import { LastAffectedShotContext } from '@/shared/contexts/LastAffectedShotContext';
-import { useShotCreation } from '@/shared/hooks/useShotCreation';
+import { useShotCreation } from '@/shared/hooks/shotCreation/useShotCreation';
 
 export interface GenerationDropData {
   generationId: string;

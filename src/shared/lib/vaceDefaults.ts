@@ -2,7 +2,7 @@
 
 import { PhaseConfig } from '@/shared/types/phaseConfig';
 import type { BuiltinPreset } from '@/shared/components/MotionPresetSelector/types';
-import type { PathLoraConfig } from '@/shared/types/lora';
+import type { PathLoraConfig } from '@/domains/lora/types/lora';
 
 /** Default VACE phase config with shared transition LoRAs. */
 export const DEFAULT_VACE_PHASE_CONFIG: PhaseConfig = {

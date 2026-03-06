@@ -25,7 +25,7 @@ vi.mock('@/shared/contexts/ProjectContext', () => ({
   useProject: vi.fn(() => ({ selectedProjectId: 'proj-1' })),
 }));
 
-vi.mock('@/shared/hooks/useToolSettings', () => ({
+vi.mock('@/shared/hooks/settings/useToolSettings', () => ({
   useToolSettings: vi.fn(() => ({
     settings: { sortOrder: 'newest' },
     update: vi.fn(),

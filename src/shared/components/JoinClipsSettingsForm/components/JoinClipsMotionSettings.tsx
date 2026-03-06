@@ -2,7 +2,7 @@ import { LoraManager } from '@/shared/components/LoraManager';
 import { MotionPresetSelector } from '@/shared/components/MotionPresetSelector';
 import type { PresetMetadata } from '@/shared/components/MotionPresetSelector/types';
 import { SectionHeader } from '@/shared/components/ImageGenerationForm/components/SectionHeader';
-import type { LoraModel, UseLoraManagerReturn } from '@/shared/hooks/useLoraManager';
+import type { LoraModel, UseLoraManagerReturn } from '@/domains/lora/hooks/useLoraManager';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
 import { BUILTIN_JOIN_CLIPS_PRESET } from '../constants';
 

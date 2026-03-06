@@ -17,7 +17,7 @@ import {
   useProjectCrudContext,
   useProjectSelectionContext,
 } from '@/shared/contexts/ProjectContext';
-import { useShotCreation } from '@/shared/hooks/useShotCreation';
+import { useShotCreation } from '@/shared/hooks/shotCreation/useShotCreation';
 import { useStableObject } from '@/shared/hooks/useStableObject';
 import { usePaneInteractionLifecycle } from '@/shared/components/panes/usePaneInteractionLifecycle';
 import { SHOT_FILTER, isSpecialFilter } from '@/shared/constants/filterConstants';

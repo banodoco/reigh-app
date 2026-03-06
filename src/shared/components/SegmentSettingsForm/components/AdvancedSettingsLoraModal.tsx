@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { LoraSelectorModal } from '@/shared/components/LoraSelectorModal';
-import type { LoraModel } from '@/shared/types/lora';
+import { LoraSelectorModal } from '@/domains/lora/components/LoraSelectorModal';
+import type { LoraModel } from '@/domains/lora/types/lora';
 import type { SegmentSettings } from '../types';
 
 interface AdvancedSettingsLoraModalProps {

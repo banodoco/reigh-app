@@ -1,6 +1,6 @@
 import type { PresetMetadata } from '@/shared/components/MotionPresetSelector/types';
 import type { PortionSelection } from '@/shared/components/VideoPortionTimeline';
-import type { LoraModel, UseLoraManagerReturn } from '@/shared/hooks/useLoraManager';
+import type { LoraModel, UseLoraManagerReturn } from '@/domains/lora/hooks/useLoraManager';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
 
 interface VideoPortionEditorSettingsProps {

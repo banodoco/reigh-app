@@ -1,8 +1,8 @@
 import type React from 'react';
 import type { ImageGenerationFormUIState, FormUIActions } from './state/useFormUIState';
 import type { PromptEntry, PromptMode, HydratedReferenceImage, ReferenceMode } from './types';
-import type { ActiveLora } from '@/shared/types/lora';
-import type { LoraModel } from '@/shared/components/LoraSelectorModal';
+import type { ActiveLora } from '@/domains/lora/types/lora';
+import type { LoraModel } from '@/domains/lora/components/LoraSelectorModal';
 import type { Resource } from '@/shared/hooks/useResources';
 
 /** Core form state */

@@ -5,7 +5,7 @@ import {
   deduplicateUpdates,
   buildAndNormalizeFinalPositions,
 } from '../timelineFrameCalculators';
-import type { ShotGeneration } from '@/shared/hooks/useTimelineCore';
+import type { ShotGeneration } from '@/shared/hooks/timeline/useTimelineCore';
 
 // Helper to create a minimal ShotGeneration
 function createShotGen(id: string, genId: string, frame: number): ShotGeneration {

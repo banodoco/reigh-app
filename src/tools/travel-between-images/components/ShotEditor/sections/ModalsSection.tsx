@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { LoraSelectorModal, LoraModel } from '@/shared/components/LoraSelectorModal';
+import { LoraSelectorModal, LoraModel } from '@/domains/lora/components/LoraSelectorModal';
 import SettingsModal from '@/shared/components/SettingsModal/SettingsModal';
 import { useShotSettingsContext } from '../ShotSettingsContext';
 

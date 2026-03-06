@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
-import { useLoraManager, type UseLoraManagerReturn } from '@/shared/hooks/useLoraManager';
+import { useLoraManager, type UseLoraManagerReturn } from '@/domains/lora/hooks/useLoraManager';
 import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
-import type { ActiveLora, LoraModel } from '@/shared/types/lora';
+import type { ActiveLora, LoraModel } from '@/domains/lora/types/lora';
 import { ShotLora } from '@/tools/travel-between-images/settings';
 
 interface UseLoRASyncProps {

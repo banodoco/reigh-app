@@ -19,7 +19,7 @@ import { useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { GenerationRow } from '@/domains/generation/types';
-import type { ShotGeneration, PositionMetadata } from '@/shared/hooks/useTimelineCore';
+import type { ShotGeneration, PositionMetadata } from '@/shared/hooks/timeline/useTimelineCore';
 import { isVideoGeneration } from '@/shared/lib/typeGuards';
 import { useEnqueueGenerationsInvalidation } from '@/shared/hooks/invalidation';
 import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';

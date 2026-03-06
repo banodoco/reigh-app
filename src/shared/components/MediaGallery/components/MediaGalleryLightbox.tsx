@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from "react";
-import MediaLightbox from "@/shared/components/MediaLightbox/MediaLightbox";
+import MediaLightbox from "@/domains/media-lightbox/MediaLightbox";
 import TaskDetailsModal from '@/shared/components/TaskDetails/TaskDetailsModal';
 import { GenerationRow, Shot } from "@/domains/generation/types";
 import { Task } from "@/types/tasks";
 import type { GeneratedImageWithMetadata } from '../types';
-import type { LightboxActionHandlers } from '@/shared/components/MediaLightbox/types';
+import type { LightboxActionHandlers } from '@/domains/media-lightbox/types';
 import {
   buildTaskDetailsPayload,
   useGenerationNavigationController,

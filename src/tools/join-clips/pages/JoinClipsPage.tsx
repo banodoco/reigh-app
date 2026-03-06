@@ -6,9 +6,9 @@ import { useProjectGenerations, type GenerationsPaginatedResponse } from '@/shar
 import { useCreateGeneration, useToggleGenerationStar } from '@/domains/generation/hooks/useGenerationMutations';
 import { useDeleteGenerationWithConfirm } from '@/domains/generation/hooks/useDeleteGenerationWithConfirm';
 import { DeleteGenerationConfirmDialog } from '@/shared/components/dialogs/DeleteGenerationConfirmDialog';
-import MediaLightbox from '@/shared/components/MediaLightbox/MediaLightbox';
+import MediaLightbox from '@/domains/media-lightbox/MediaLightbox';
 import { useIsMobile } from '@/shared/hooks/mobile';
-import { useLoraManager } from '@/shared/hooks/useLoraManager';
+import { useLoraManager } from '@/domains/lora/hooks/useLoraManager';
 import { usePublicLoras } from '@/shared/hooks/useResources';
 import { Card } from '@/shared/components/ui/card';
 import { PageFadeIn } from '@/shared/components/transitions/PageFadeIn';

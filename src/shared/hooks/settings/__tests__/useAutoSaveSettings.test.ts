@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 
 // Mock dependencies
-vi.mock('@/shared/hooks/useToolSettings', () => ({
+vi.mock('@/shared/hooks/settings/useToolSettings', () => ({
   useToolSettings: vi.fn().mockReturnValue({
     settings: null,
     isLoading: false,
@@ -24,7 +24,7 @@ vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
 }));
 
 import { useAutoSaveSettings } from '@/shared/settings/hooks/useAutoSaveSettings';
-import { useToolSettings } from '@/shared/hooks/useToolSettings';
+import { useToolSettings } from '@/shared/hooks/settings/useToolSettings';
 
 type TestSettings = Record<string, unknown> & {
   prompt: string;

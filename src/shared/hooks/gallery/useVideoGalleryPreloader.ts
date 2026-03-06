@@ -2,7 +2,7 @@ import { useRef, useEffect, useMemo, useCallback } from 'react';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { useShots } from '@/shared/contexts/ShotsContext';
 import { useProject } from "@/shared/contexts/ProjectContext";
-import { useToolSettings } from '@/shared/hooks/useToolSettings';
+import { useToolSettings } from '@/shared/hooks/settings/useToolSettings';
 import { useProjectVideoCountsCache } from '@/shared/hooks/projects/useProjectVideoCountsCache';
 import { Shot } from '@/domains/generation/types';
 import { preloadingService, hasLoadedImage, PRIORITY } from '@/shared/lib/preloading';

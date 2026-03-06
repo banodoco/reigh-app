@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import React from 'react';
-import { useLastAffectedShot } from '../useLastAffectedShot';
+import { useLastAffectedShot } from '@/shared/hooks/shots/useLastAffectedShot';
 import { LastAffectedShotContext } from '@/shared/contexts/LastAffectedShotContext';
 
 describe('useLastAffectedShot', () => {

@@ -21,8 +21,8 @@ import { setGenerationDragData, createDragPreview } from '@/shared/lib/dnd/dragD
 import CreateShotModal from "@/shared/components/shots/CreateShotModal";
 import { useProjectSelectionContext } from "@/shared/contexts/ProjectContext";
 import { TOOL_IDS } from '@/shared/lib/toolIds';
-import { useShotNavigation } from "@/shared/hooks/useShotNavigation";
-import { useLastAffectedShot } from "@/shared/hooks/useLastAffectedShot";
+import { useShotNavigation } from "@/shared/hooks/shots/useShotNavigation";
+import { useLastAffectedShot } from "@/shared/hooks/shots/useLastAffectedShot";
 import { useQuickShotCreate } from "@/shared/hooks/useQuickShotCreate";
 import { useTaskFromUnifiedCache, usePrefetchTaskData } from "@/shared/hooks/tasks/useTaskPrefetch";
 import { useTaskType } from "@/shared/hooks/tasks/useTaskType";
@@ -30,7 +30,7 @@ import { useGetTask } from "@/shared/hooks/tasks/useTasks";
 import { useShareGeneration } from "@/shared/hooks/useShareGeneration";
 import { deriveGalleryInputImages } from "./MediaGallery/utils";
 import { isImageEditTaskType } from "@/shared/lib/taskParamsUtils";
-import { useMarkVariantViewed } from "@/shared/hooks/useMarkVariantViewed";
+import { useMarkVariantViewed } from "@/shared/hooks/variants/useMarkVariantViewed";
 import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
   image,

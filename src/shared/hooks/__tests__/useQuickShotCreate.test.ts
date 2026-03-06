@@ -4,13 +4,13 @@ import { renderHook, act } from '@testing-library/react';
 const mockNavigateToShot = vi.fn();
 const mockCreateShot = vi.fn();
 
-vi.mock('@/shared/hooks/useShotNavigation', () => ({
+vi.mock('@/shared/hooks/shots/useShotNavigation', () => ({
   useShotNavigation: vi.fn(() => ({
     navigateToShot: mockNavigateToShot,
   })),
 }));
 
-vi.mock('@/shared/hooks/useShotCreation', () => ({
+vi.mock('@/shared/hooks/shotCreation/useShotCreation', () => ({
   useShotCreation: vi.fn(() => ({
     createShot: mockCreateShot,
     isCreating: false,

@@ -8,7 +8,7 @@ import {
   useHandleExternalImageDrop,
 } from "@/shared/hooks/shots";
 import { useQueryClient } from '@tanstack/react-query';
-import { useToolSettings } from '@/shared/hooks/useToolSettings';
+import { useToolSettings } from '@/shared/hooks/settings/useToolSettings';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import {
   cropImagesToShotAspectRatio,

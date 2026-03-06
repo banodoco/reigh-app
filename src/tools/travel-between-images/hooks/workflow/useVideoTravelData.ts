@@ -14,10 +14,10 @@
 import { useShots } from '@/shared/contexts/ShotsContext';
 import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 import { usePublicLoras } from '@/shared/hooks/useResources';
-import { useToolSettings } from '@/shared/hooks/useToolSettings';
+import { useToolSettings } from '@/shared/hooks/settings/useToolSettings';
 import { VideoTravelSettings } from '../../settings';
 import { Shot } from '@/domains/generation/types';
-import type { LoraModel } from '@/shared/components/LoraSelectorModal';
+import type { LoraModel } from '@/domains/lora/components/LoraSelectorModal';
 
 interface ProjectUISettings {
   acceleratedMode?: boolean;

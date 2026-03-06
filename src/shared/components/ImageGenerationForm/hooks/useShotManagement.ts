@@ -1,8 +1,8 @@
 import { useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAutoSaveSettings } from '@/shared/settings/hooks/useAutoSaveSettings';
 import { useListShots } from '@/shared/hooks/shots';
-import { useShotCreation } from '@/shared/hooks/useShotCreation';
-import { useShotNavigation } from '@/shared/hooks/useShotNavigation';
+import { useShotCreation } from '@/shared/hooks/shotCreation/useShotCreation';
+import { useShotNavigation } from '@/shared/hooks/shots/useShotNavigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { shotQueryKeys } from '@/shared/lib/queryKeys/shots';
 import { SETTINGS_IDS } from '@/shared/lib/settingsIds';

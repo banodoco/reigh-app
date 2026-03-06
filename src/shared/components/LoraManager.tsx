@@ -1,8 +1,8 @@
 import React from 'react';
 import { Button } from './ui/button';
 import { ActiveLoRAsDisplay } from '@/shared/components/lora/ActiveLoRAsDisplay';
-import { LoraSelectorModal } from './LoraSelectorModal';
-import { useLoraManager, UseLoraManagerOptions, UseLoraManagerReturn, LoraModel } from '@/shared/hooks/useLoraManager';
+import { LoraSelectorModal } from '@/domains/lora/components/LoraSelectorModal';
+import { useLoraManager, UseLoraManagerOptions, UseLoraManagerReturn, LoraModel } from '@/domains/lora/hooks/useLoraManager';
 
 interface LoraManagerProps extends UseLoraManagerOptions {
   availableLoras: LoraModel[];

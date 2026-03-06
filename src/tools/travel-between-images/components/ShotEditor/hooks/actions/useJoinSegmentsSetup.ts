@@ -13,7 +13,7 @@
 import { useMemo, useCallback, useRef, useState } from 'react';
 import { useJoinSegmentsSettings, JoinSegmentsSettings } from '../../../../hooks/settings/useJoinSegmentsSettings';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
-import type { LoraModel } from '@/shared/components/LoraSelectorModal/types';
+import type { LoraModel } from '@/domains/lora/components/LoraSelectorModal/types';
 
 interface SelectedLora {
   id: string;

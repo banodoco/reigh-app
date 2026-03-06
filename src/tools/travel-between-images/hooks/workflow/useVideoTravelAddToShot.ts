@@ -13,7 +13,7 @@ import { useCallback, useMemo } from 'react';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import { useLastAffectedShot } from '@/shared/hooks/useLastAffectedShot';
+import { useLastAffectedShot } from '@/shared/hooks/shots/useLastAffectedShot';
 import { Shot } from '@/domains/generation/types';
 import { unifiedGenerationQueryKeys } from '@/shared/lib/queryKeys/unified';
 

@@ -169,7 +169,7 @@ vi.mock('@/shared/components/ui/dropdown-menu', () => ({
   DropdownMenuSeparator: () => <hr />,
 }));
 
-vi.mock('@/shared/components/LoraSelectorModal', () => ({
+vi.mock('@/domains/lora/components/LoraSelectorModal', () => ({
   LoraSelectorModal: ({
     isOpen,
     onAddLora,
@@ -191,12 +191,12 @@ vi.mock('@/shared/components/PhaseConfigSelectorModal/PhaseConfigSelectorModal',
   PhaseConfigSelectorModal: () => <div data-testid="phase-config-selector-modal" />,
 }));
 
-vi.mock('@/shared/lib/loraUtils', () => ({
+vi.mock('@/domains/lora/lib/loraUtils', () => ({
   PREDEFINED_LORAS: [],
   getDisplayNameFromUrl: (url: string) => url,
 }));
 
-vi.mock('@/shared/components/LoraSelectorModal/utils/validation-utils', () => ({
+vi.mock('@/domains/lora/components/LoraSelectorModal/utils/validation-utils', () => ({
   validateHuggingFaceUrl: () => ({ isValid: true, message: '' }),
 }));
 

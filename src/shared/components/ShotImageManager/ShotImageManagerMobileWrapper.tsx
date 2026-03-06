@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ShotImageManagerProps } from './types';
 import { ShotImageManagerMobile } from './ShotImageManagerMobile';
-import MediaLightbox from '../MediaLightbox/MediaLightbox';
+import MediaLightbox from '@/domains/media-lightbox/MediaLightbox';
 import { useTaskDetails } from './hooks/useTaskDetails';
 import type { SegmentSlot } from '@/shared/hooks/segments';
 import { usePrefetchTaskData } from '@/shared/hooks/tasks/useTaskPrefetch';

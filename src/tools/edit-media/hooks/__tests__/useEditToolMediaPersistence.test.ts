@@ -14,7 +14,7 @@ vi.mock('@/integrations/supabase/client', () => ({
 }));
 
 const mockUpdate = vi.fn();
-vi.mock('@/shared/hooks/useToolSettings', () => ({
+vi.mock('@/shared/hooks/settings/useToolSettings', () => ({
   useToolSettings: vi.fn(() => ({
     settings: undefined,
     update: mockUpdate,

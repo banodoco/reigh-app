@@ -21,19 +21,19 @@ import { TooltipProvider } from '@/shared/components/ui/tooltip';
 import { useQueryClient } from '@tanstack/react-query';
 import { unifiedGenerationQueryKeys } from '@/shared/lib/queryKeys/unified';
 import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
-import { useVariants } from '@/shared/hooks/useVariants';
+import { useVariants } from '@/shared/hooks/variants/useVariants';
 import type { PortionSelection } from '@/shared/components/VideoPortionTimeline';
 import { TrimControlsPanel } from '@/shared/components/VideoTrimEditor/components/TrimControlsPanel';
 import { useVideoTrimming } from '@/shared/components/VideoTrimEditor/hooks/useVideoTrimming';
 import { useTrimSave } from '@/shared/components/VideoTrimEditor/hooks/useTrimSave';
-import { ModeSelector } from '@/shared/components/MediaLightbox/components/ModeSelector';
-import { VideoEnhanceForm } from '@/shared/components/MediaLightbox/components/VideoEnhanceForm';
-import { useVideoEnhance } from '@/shared/components/MediaLightbox/hooks/useVideoEnhance';
-import { DEFAULT_ENHANCE_SETTINGS } from '@/shared/components/MediaLightbox/model/editSettingsTypes';
-import type { VideoEnhanceSettings } from '@/shared/components/MediaLightbox/model/editSettingsTypes';
-import { VideoEditModeDisplay } from '@/shared/components/MediaLightbox/components/VideoEditModeDisplay';
-import { VideoTrimModeDisplay } from '@/shared/components/MediaLightbox/components/VideoTrimModeDisplay';
-import { MediaDisplayWithCanvas } from '@/shared/components/MediaLightbox/components/MediaDisplayWithCanvas';
+import { ModeSelector } from '@/domains/media-lightbox/components/ModeSelector';
+import { VideoEnhanceForm } from '@/domains/media-lightbox/components/VideoEnhanceForm';
+import { useVideoEnhance } from '@/domains/media-lightbox/hooks/useVideoEnhance';
+import { DEFAULT_ENHANCE_SETTINGS } from '@/domains/media-lightbox/model/editSettingsTypes';
+import type { VideoEnhanceSettings } from '@/domains/media-lightbox/model/editSettingsTypes';
+import { VideoEditModeDisplay } from '@/domains/media-lightbox/components/VideoEditModeDisplay';
+import { VideoTrimModeDisplay } from '@/domains/media-lightbox/components/VideoTrimModeDisplay';
+import { MediaDisplayWithCanvas } from '@/domains/media-lightbox/components/MediaDisplayWithCanvas';
 import {
   useReplaceMode,
   ReplacePanelContent,

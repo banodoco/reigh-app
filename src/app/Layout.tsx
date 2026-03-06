@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useLocation, Navigate } from 'react-router-dom';
-import { TasksPane } from '@/shared/components/TasksPane/TasksPane';
+import { TasksPane } from '@/features/tasks/components/TasksPane/TasksPane';
 import { ToolsPane } from '@/shared/components/ToolsPane/ToolsPane';
 import { GenerationsPane } from '@/shared/components/GenerationsPane/GenerationsPane';
 import { usePanes } from '@/shared/contexts/PanesContext';

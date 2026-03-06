@@ -10,7 +10,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { Loader2, X } from 'lucide-react';
-import MediaLightbox from '@/shared/components/MediaLightbox/MediaLightbox';
+import MediaLightbox from '@/domains/media-lightbox/MediaLightbox';
 import { InlineSegmentVideo } from '@/shared/components/InlineSegmentVideo';
 import { TIMELINE_HORIZONTAL_PADDING } from './constants';
 import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';

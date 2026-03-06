@@ -22,7 +22,7 @@ import {
 import { ShotEditorState } from '../../state/types';
 import { ShotEditorActions } from '../../state/useShotEditorState';
 import { LoraManagerReturn } from './useLoraSync';
-import { LoraModel } from '@/shared/components/LoraSelectorModal';
+import { LoraModel } from '@/domains/lora/components/LoraSelectorModal';
 import type { UseStructureVideoReturn } from '../video/useStructureVideo';
 import type { UseAudioReturn } from '../video/useAudio';
 

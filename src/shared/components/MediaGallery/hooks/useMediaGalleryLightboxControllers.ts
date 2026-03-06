@@ -7,7 +7,7 @@ import { normalizeAndPresentError } from "@/shared/lib/errorHandling/runtimeErro
 import { expandShotData } from "@/shared/lib/shotData";
 import type { GeneratedImageWithMetadata } from "../types";
 import type { Task } from "@/types/tasks";
-import type { TaskDetailsStatus } from "@/shared/components/MediaLightbox/types";
+import type { TaskDetailsStatus } from "@/domains/media-lightbox/types";
 
 interface UseLightboxNavigationStateInput {
   activeLightboxMedia: GeneratedImageWithMetadata | null;

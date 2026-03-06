@@ -1,4 +1,4 @@
-import type { GenerationVariant } from '@/shared/hooks/useVariants';
+import type { GenerationVariant } from '@/shared/hooks/variants/useVariants';
 
 const NON_IMAGE_VARIANT_TYPES = new Set([
   'trimmed',

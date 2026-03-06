@@ -7,11 +7,11 @@
  */
 
 import React from 'react';
-import { GenerationDetails } from '@/shared/components/GenerationDetails';
-import type { LoraModel } from '@/shared/components/LoraSelectorModal';
+import { GenerationDetails } from '@/domains/generation/components/GenerationDetails';
+import type { LoraModel } from '@/domains/lora/components/LoraSelectorModal';
 import { getSourceTaskIdLegacyCompatible } from '@/shared/lib/taskIdHelpers';
 import { useGetTask } from '@/shared/hooks/tasks/useTasks';
-import type { GenerationVariant } from '@/shared/hooks/useVariants';
+import type { GenerationVariant } from '@/shared/hooks/variants/useVariants';
 import { TASK_STATUS } from '@/types/tasks';
 import { useProject } from '@/shared/contexts/ProjectContext';
 

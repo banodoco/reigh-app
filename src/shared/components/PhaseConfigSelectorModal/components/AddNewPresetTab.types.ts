@@ -4,7 +4,7 @@ import type {
   useCreateResource,
   useUpdateResource,
 } from '@/shared/hooks/useResources';
-import type { LoraModel } from '@/shared/components/LoraSelectorModal';
+import type { LoraModel } from '@/domains/lora/components/LoraSelectorModal';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
 
 export interface AddNewTabProps {

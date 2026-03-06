@@ -1,4 +1,4 @@
-import type { LoraModel } from '@/shared/components/LoraSelectorModal';
+import type { LoraModel } from '@/domains/lora/components/LoraSelectorModal';
 import type { PhaseConfig, PhaseSettings } from '@/shared/types/phaseConfig';
 import type { PresetMetadata } from '@/shared/types/presetMetadata';
 

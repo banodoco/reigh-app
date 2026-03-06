@@ -3,7 +3,7 @@ import type { PairData } from '../../Timeline/TimelineContainer/types';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 import type { GenerationRow } from '@/domains/generation/types';
 import type { SegmentSlot } from '@/shared/hooks/segments';
-import type { SegmentSlotModeData } from '@/shared/components/MediaLightbox/types';
+import type { SegmentSlotModeData } from '@/domains/media-lightbox/types';
 
 export type SegmentSlotGenerationMode = 'batch' | 'timeline' | 'by-pair';
 

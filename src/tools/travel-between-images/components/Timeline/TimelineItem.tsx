@@ -3,7 +3,7 @@ import { cn } from '@/shared/components/ui/contracts/cn';
 import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';
 import { useProgressiveImage } from '@/shared/hooks/ui-image/useProgressiveImage';
 import { isProgressiveLoadingEnabled } from '@/shared/settings/progressiveLoading';
-import { useMarkVariantViewed } from '@/shared/hooks/useMarkVariantViewed';
+import { useMarkVariantViewed } from '@/shared/hooks/variants/useMarkVariantViewed';
 import { useIsTouchDevice } from '@/shared/hooks/mobile';
 import { INTERACTION_TIMING } from '@/shared/lib/interactions/timing';
 import { framesToSeconds } from './utils/time-utils';

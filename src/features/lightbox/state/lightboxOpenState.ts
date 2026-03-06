@@ -1,1 +1,1 @@
-export * from '../../../shared/components/MediaLightbox/state/lightboxOpenState';
+export * from '../../../domains/media-lightbox/state/lightboxOpenState';

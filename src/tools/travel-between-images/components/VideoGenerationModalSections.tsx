@@ -8,7 +8,7 @@ import BatchSettingsForm from '@/tools/travel-between-images/components/BatchSet
 import { MotionControl } from '@/tools/travel-between-images/components/MotionControl';
 import { SectionHeader } from '@/shared/components/ImageGenerationForm/components/SectionHeader';
 import { DEFAULT_PHASE_CONFIG, type VideoTravelSettings } from '@/tools/travel-between-images/settings';
-import type { ActiveLora, LoraModel } from '@/shared/types/lora';
+import type { ActiveLora, LoraModel } from '@/domains/lora/types/lora';
 import type { Project } from '@/types/project';
 
 interface PositionedImagePreview {

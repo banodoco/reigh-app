@@ -1,6 +1,6 @@
 import { Film, Scissors, Sparkles } from 'lucide-react';
 import { VARIANT_TYPE } from '@/shared/constants/variantTypes';
-import type { GenerationVariant } from '@/shared/hooks/useVariants';
+import type { GenerationVariant } from '@/shared/hooks/variants/useVariants';
 
 const VARIANT_ICON_BY_TYPE: Record<string, typeof Film> = {
   trimmed: Scissors,

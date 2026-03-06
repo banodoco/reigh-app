@@ -125,15 +125,15 @@ const mockUseImg2ImgMode = vi.fn().mockReturnValue({
   loraManager: { selectedLoras: [], setSelectedLoras: vi.fn() },
 });
 
-vi.mock('@/shared/components/MediaLightbox/hooks/useUpscale', () => ({
+vi.mock('@/domains/media-lightbox/hooks/useUpscale', () => ({
   useUpscale: (...args: unknown[]) => mockUseUpscale(...args),
 }));
 
-vi.mock('@/shared/components/MediaLightbox/hooks/useInpainting', () => ({
+vi.mock('@/domains/media-lightbox/hooks/useInpainting', () => ({
   useInpainting: (...args: unknown[]) => mockUseInpainting(...args),
 }));
 
-vi.mock('@/shared/components/MediaLightbox/hooks/useEditModeLoras', () => ({
+vi.mock('@/domains/media-lightbox/hooks/useEditModeLoras', () => ({
   useEditModeLoras: () => ({
     isInSceneBoostEnabled: false,
     setIsInSceneBoostEnabled: vi.fn(),
@@ -145,17 +145,17 @@ vi.mock('@/shared/components/MediaLightbox/hooks/useEditModeLoras', () => ({
   }),
 }));
 
-vi.mock('@/shared/components/MediaLightbox/hooks/useSourceGeneration', () => ({
+vi.mock('@/domains/media-lightbox/hooks/useSourceGeneration', () => ({
   useSourceGeneration: () => ({
     sourceGenerationData: null,
   }),
 }));
 
-vi.mock('@/shared/components/MediaLightbox/hooks/useMagicEditMode', () => ({
+vi.mock('@/domains/media-lightbox/hooks/useMagicEditMode', () => ({
   useMagicEditMode: (...args: unknown[]) => mockUseMagicEditMode(...args),
 }));
 
-vi.mock('@/shared/components/MediaLightbox/hooks/useStarToggle', () => ({
+vi.mock('@/domains/media-lightbox/hooks/useStarToggle', () => ({
   useStarToggle: () => ({
     localStarred: false,
     toggleStarMutation: { isPending: false },
@@ -163,15 +163,15 @@ vi.mock('@/shared/components/MediaLightbox/hooks/useStarToggle', () => ({
   }),
 }));
 
-vi.mock('@/shared/components/MediaLightbox/hooks/useRepositionMode', () => ({
+vi.mock('@/domains/media-lightbox/hooks/useRepositionMode', () => ({
   useRepositionMode: (...args: unknown[]) => mockUseRepositionMode(...args),
 }));
 
-vi.mock('@/shared/components/MediaLightbox/hooks/useImg2ImgMode', () => ({
+vi.mock('@/domains/media-lightbox/hooks/useImg2ImgMode', () => ({
   useImg2ImgMode: (...args: unknown[]) => mockUseImg2ImgMode(...args),
 }));
 
-vi.mock('@/shared/components/MediaLightbox/hooks/persistence/useEditSettingsPersistence', () => ({
+vi.mock('@/domains/media-lightbox/hooks/persistence/useEditSettingsPersistence', () => ({
   useEditSettingsPersistence: () => ({
     editMode: null,
     setEditMode: vi.fn(),
@@ -191,7 +191,7 @@ vi.mock('@/shared/components/MediaLightbox/hooks/persistence/useEditSettingsPers
   }),
 }));
 
-vi.mock('@/shared/components/MediaLightbox/hooks/persistence/useEditSettingsSync', () => ({
+vi.mock('@/domains/media-lightbox/hooks/persistence/useEditSettingsSync', () => ({
   useEditSettingsSync: vi.fn(),
 }));
 
@@ -199,7 +199,7 @@ vi.mock('@/shared/lib/media/downloadMedia', () => ({
   downloadMedia: vi.fn(),
 }));
 
-vi.mock('@/shared/hooks/useVariants', () => ({
+vi.mock('@/shared/hooks/variants/useVariants', () => ({
   useVariants: () => ({
     activeVariant: null,
     setActiveVariantId: vi.fn(),

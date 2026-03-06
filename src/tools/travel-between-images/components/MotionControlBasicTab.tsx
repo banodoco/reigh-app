@@ -7,9 +7,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/
 import HoverScrubVideo from '@/shared/components/HoverScrubVideo';
 import { ActiveLoRAsDisplay } from '@/shared/components/lora/ActiveLoRAsDisplay';
 import { SelectedPresetCard } from './SelectedPresetCard';
-import type { LoraModel } from '@/shared/components/LoraSelectorModal';
+import type { LoraModel } from '@/domains/lora/components/LoraSelectorModal';
 import type { PresetSampleGeneration } from '@/shared/types/presetMetadata';
-import type { ActiveLora } from '@/shared/types/lora';
+import type { ActiveLora } from '@/domains/lora/types/lora';
 import type { PhaseConfig } from '../settings';
 import type {
   GenerationTypeMode,

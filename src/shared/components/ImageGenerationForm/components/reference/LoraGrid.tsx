@@ -4,7 +4,7 @@ import { Label } from "@/shared/components/ui/primitives/label";
 import { SliderWithValue } from "@/shared/components/ui/slider-with-value";
 import { Images, Plus, X } from "lucide-react";
 import HoverScrubVideo from "@/shared/components/HoverScrubVideo";
-import { getDisplayNameFromUrl } from "@/shared/lib/loraUtils";
+import { getDisplayNameFromUrl } from "@/domains/lora/lib/loraUtils";
 import { useFormCoreContext, useFormLorasContext } from "../../ImageGenerationFormContext";
 
 interface LoraGridProps {

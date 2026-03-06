@@ -1,5 +1,5 @@
 import { PhaseConfig } from '@/shared/types/phaseConfig';
-import type { PathLoraConfig } from '@/shared/types/lora';
+import type { PathLoraConfig } from '@/domains/lora/types/lora';
 import type { UnknownRecord } from './taskParamParsers';
 
 export interface IndividualTravelSegmentParams {

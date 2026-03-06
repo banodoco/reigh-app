@@ -2,7 +2,7 @@ import { MotionPresetSelector } from '@/shared/components/MotionPresetSelector';
 import { ActiveLoRAsDisplay } from '@/shared/components/lora/ActiveLoRAsDisplay';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
 import type { SegmentSettings, SegmentSettingsFormProps } from '@/shared/components/SegmentSettingsForm/types';
-import type { LoraModel } from '@/shared/types/lora';
+import type { LoraModel } from '@/domains/lora/types/lora';
 import { FieldDefaultControls } from '@/shared/components/SegmentSettingsForm/components/FieldDefaultControls';
 
 interface MotionPresetSectionProps {
