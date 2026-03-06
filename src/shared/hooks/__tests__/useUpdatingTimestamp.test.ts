@@ -14,29 +14,29 @@ vi.mock('@/shared/hooks/useTimestampUpdater', () => ({
   })),
 }));
 
-import { useUpdatingTimestamp, useTaskTimestamp } from '../useUpdatingTimestamp';
+import { useRelativeTimestamp, useTaskTimestamp } from '../useUpdatingTimestamp';
 
-describe('useUpdatingTimestamp', () => {
+describe('useRelativeTimestamp', () => {
   it('returns null when no date provided', () => {
-    const { result } = renderHook(() => useUpdatingTimestamp({}));
+    const { result } = renderHook(() => useRelativeTimestamp({}));
     expect(result.current).toBeNull();
   });
 
   it('returns null when date is null', () => {
-    const { result } = renderHook(() => useUpdatingTimestamp({ date: null }));
+    const { result } = renderHook(() => useRelativeTimestamp({ date: null }));
     expect(result.current).toBeNull();
   });
 
   it('returns formatted string for valid date', () => {
     const date = new Date(Date.now() - 30 * 1000).toISOString(); // 30 seconds ago
-    const { result } = renderHook(() => useUpdatingTimestamp({ date }));
+    const { result } = renderHook(() => useRelativeTimestamp({ date }));
     expect(result.current).toBeTruthy();
     expect(result.current).not.toBeNull();
   });
 
   it('abbreviates "less than a minute" to "<1 min ago"', () => {
     const date = new Date(Date.now() - 5 * 1000).toISOString(); // 5 seconds ago
-    const { result } = renderHook(() => useUpdatingTimestamp({ date }));
+    const { result } = renderHook(() => useRelativeTimestamp({ date }));
     expect(result.current).toBe('<1 min ago');
   });
 
@@ -44,7 +44,7 @@ describe('useUpdatingTimestamp', () => {
     const date = new Date(Date.now() - 5 * 1000).toISOString();
     const customAbbreviate = (str: string) => `custom: ${str}`;
     const { result } = renderHook(() =>
-      useUpdatingTimestamp({ date, abbreviate: customAbbreviate })
+      useRelativeTimestamp({ date, abbreviate: customAbbreviate })
     );
     expect(result.current).toContain('custom:');
   });

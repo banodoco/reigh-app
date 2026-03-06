@@ -80,6 +80,7 @@ export function useAutoTopupState({ initialPurchaseAmount }: UseAutoTopupStatePr
   }, [autoTopupPreferences, localAutoTopupEnabled]);
 
   const handleAutoTopupToggle = (enabled: boolean) => {
+    const previousEnabled = localAutoTopupEnabled;
     setLocalAutoTopupEnabled(enabled);
 
     const saveData = {
@@ -87,7 +88,11 @@ export function useAutoTopupState({ initialPurchaseAmount }: UseAutoTopupStatePr
       amount: purchaseAmount,
       threshold: localAutoTopupThreshold,
     };
-    updateAutoTopup(saveData);
+    updateAutoTopup(saveData, {
+      onError: () => {
+        setLocalAutoTopupEnabled(previousEnabled);
+      },
+    });
   };
 
   const handleAutoTopupThresholdChange = (threshold: number) => {
@@ -107,6 +112,8 @@ export function useAutoTopupState({ initialPurchaseAmount }: UseAutoTopupStatePr
   };
 
   const handlePurchaseAmountChange = (amount: number) => {
+    const previousAmount = purchaseAmount;
+    const previousThreshold = localAutoTopupThreshold;
     setPurchaseAmount(amount);
 
     if (localAutoTopupEnabled) {
@@ -118,6 +125,11 @@ export function useAutoTopupState({ initialPurchaseAmount }: UseAutoTopupStatePr
         enabled: localAutoTopupEnabled,
         amount: amount,
         threshold: newThreshold,
+      }, {
+        onError: () => {
+          setPurchaseAmount(previousAmount);
+          setLocalAutoTopupThreshold(previousThreshold);
+        },
       });
     }
   };

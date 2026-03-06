@@ -92,7 +92,7 @@ interface StripTapPlacementParams {
 
 function resolveSiblingLimits(params: StripTapPlacementParams) {
   let leftLimit = Math.max(0, params.fullMin);
-  let rightLimit = Math.min(params.fullMax, params.fullMax);
+  let rightLimit = params.fullMax;
 
   for (const sibling of params.siblingRanges) {
     if (sibling.end <= params.effectiveOutputStart && sibling.end > leftLimit) {

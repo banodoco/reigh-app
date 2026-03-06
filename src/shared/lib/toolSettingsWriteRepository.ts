@@ -12,8 +12,6 @@ export function resolveSettingsScopeTable(scope: SettingsScopeIdentifier): Setti
     case 'shot':
       return 'shots';
   }
-
-  throw new Error(`Invalid settings scope: ${String(scope)}`);
 }
 
 export function selectSettingsForScope(scope: SettingsScopeIdentifier, id: string) {

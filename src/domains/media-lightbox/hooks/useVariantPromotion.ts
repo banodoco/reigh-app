@@ -52,7 +52,7 @@ export function useVariantPromotion({
       setPromoteSuccess(true);
       setTimeout(() => setPromoteSuccess(false), 2000);
     } catch (error) {
-      normalizeAndPresentError(error, { context: 'useVariantPromotion', showToast: false });
+      normalizeAndPresentError(error, { context: 'useVariantPromotion', showToast: true });
     }
   }, [promoteVariantMutation, selectedProjectId]);
 
@@ -127,7 +127,7 @@ export function useVariantPromotion({
       });
       return true;
     } catch (error) {
-      normalizeAndPresentError(error, { context: 'useVariantPromotion', showToast: false });
+      normalizeAndPresentError(error, { context: 'useVariantPromotion', showToast: true });
       return false;
     }
   }, [promoteVariantMutation, addImageToShotMutation, selectedProjectId]);

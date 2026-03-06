@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/components/ui/dialog';
 import { TrainingDataBatch, TrainingDataVideo, TrainingDataSegment } from '../hooks/useTrainingData';
-import { useUpdatingTimestamp } from '@/shared/hooks/useUpdatingTimestamp';
+import { useRelativeTimestamp } from '@/shared/hooks/useUpdatingTimestamp';
 import { useBatchDownload } from '../hooks/useBatchDownload';
 import { useBatchActions } from '../hooks/useBatchActions';
 import { CreateBatchDialog } from './CreateBatchDialog';
@@ -42,7 +42,7 @@ const abbreviateDistance = (str: string) => {
 
 // Component for live-updating batch created timestamp
 const BatchCreatedTimestamp: React.FC<{ createdAt: string }> = ({ createdAt }) => {
-  const timeAgo = useUpdatingTimestamp({
+  const timeAgo = useRelativeTimestamp({
     date: createdAt,
     abbreviate: abbreviateDistance
   });

@@ -39,10 +39,6 @@ export function useRelativeTimestamp({
   });
 }
 
-export function useUpdatingTimestamp(options: UseUpdatingTimestampOptions = {}): string | null {
-  return useRelativeTimestamp(options);
-}
-
 export function useTaskTimestamp(date?: string | Date | null) {
   return useRelativeTimestamp({
     date,

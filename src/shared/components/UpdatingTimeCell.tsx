@@ -1,5 +1,5 @@
 import React from 'react';
-import { useUpdatingTimestamp } from '@/shared/hooks/useUpdatingTimestamp';
+import { useRelativeTimestamp } from '@/shared/hooks/useUpdatingTimestamp';
 
 interface UpdatingTimeCellProps {
   /** Date to display */
@@ -16,7 +16,7 @@ export const UpdatingTimeCell: React.FC<UpdatingTimeCellProps> = ({
   date,
   className = ''
 }) => {
-  const timeAgo = useUpdatingTimestamp({ date });
+  const timeAgo = useRelativeTimestamp({ date });
   
   return (
     <span className={className}>

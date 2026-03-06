@@ -16,8 +16,8 @@ import EditVideoPage from '@/tools/edit-video/pages/EditVideoPage';
 // Secondary tools: lazy-loaded (not default landing pages, so hydration race is less likely)
 const EditImagesPage = lazy(() => import('@/tools/edit-images/pages/EditImagesPage'));
 const TrainingDataHelperPage = lazy(() => import('@/tools/training-data-helper/pages/TrainingDataHelperPage'));
-import BlogListPage from '@/pages/Blog/BlogListPage';
-import BlogPostPage from '@/pages/Blog/BlogPostPage';
+const BlogListPage = lazy(() => import('@/pages/Blog/BlogListPage'));
+const BlogPostPage = lazy(() => import('@/pages/Blog/BlogPostPage'));
 import NotFoundPage from '@/pages/NotFoundPage';
 import ShotsPage from "@/pages/ShotsPage";
 import Layout from './Layout'; // Import the new Layout component
@@ -95,12 +95,20 @@ const router = createBrowserRouter([
   // Blog pages (public, outside of Layout)
   {
     path: '/blog',
-    element: <BlogListPage />,
+    element: (
+      <Suspense fallback={<LazyLoadingFallback />}>
+        <BlogListPage />
+      </Suspense>
+    ),
     errorElement: <NotFoundPage />,
   },
   {
     path: '/blog/:slug',
-    element: <BlogPostPage />,
+    element: (
+      <Suspense fallback={<LazyLoadingFallback />}>
+        <BlogPostPage />
+      </Suspense>
+    ),
     errorElement: <NotFoundPage />,
   },
 

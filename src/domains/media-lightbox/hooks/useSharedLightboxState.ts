@@ -404,9 +404,7 @@ function useSharedButtonGroupState(params: {
     },
     bottomLeft: {
       isUpscaling,
-      handleUpscale: async () => {
-        await Promise.resolve(handleUpscale());
-      },
+      handleUpscale,
       localStarred,
       handleToggleStar,
       toggleStarPending,
