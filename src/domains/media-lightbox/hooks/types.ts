@@ -1,9 +1,9 @@
 import type { RefObject } from 'react';
 import type { UseMutationResult } from '@tanstack/react-query';
-import type { GenerationRow, Shot } from '@/domains/generation/types';
+import type { GenerationRow } from '@/domains/generation/types';
 import type { DerivedItem } from '@/domains/generation/hooks/useDerivedItems';
 import type { GenerationVariant } from '@/shared/hooks/variants/useVariants';
-import type { ShotOption, QuickCreateSuccess, LightboxDeleteHandler } from '../types';
+import type { QuickCreateSuccess, LightboxDeleteHandler, LightboxShotWorkflowProps } from '../types';
 import type { SourceVariantData } from './useSourceGeneration';
 import type { useSwipeNavigation as UseSwipeNavigationType } from './useSwipeNavigation';
 
@@ -33,20 +33,7 @@ export interface SharedLightboxNavigationProps {
 /** Shot management callbacks and optimistic state */
 export interface SharedLightboxShotProps {
   shotId?: string;
-  selectedShotId?: string;
-  allShots?: ShotOption[];
-  onShotChange?: (shotId: string) => void;
-  onAddToShot?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
-  onAddToShotWithoutPosition?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
-  onNavigateToShot?: (shot: Shot, options?: { isNewlyCreated?: boolean }) => void;
-  onShowTick?: (imageId: string) => void;
-  onShowSecondaryTick?: (imageId: string) => void;
-  onOptimisticPositioned?: (mediaId: string, shotId: string) => void;
-  onOptimisticUnpositioned?: (mediaId: string, shotId: string) => void;
-  optimisticPositionedIds?: Set<string>;
-  optimisticUnpositionedIds?: Set<string>;
-  positionedInSelectedShot?: boolean;
-  associatedWithoutPositionInSelectedShot?: boolean;
+  shotWorkflow?: LightboxShotWorkflowProps;
 }
 
 /** Layout mode inputs (drives panel/edit mode visibility) */

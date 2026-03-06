@@ -121,6 +121,7 @@ function useLightboxShotActions(
   shots: SharedLightboxShotProps,
 ): UseSharedLightboxStateReturn['shots'] {
   const { media, selectedProjectId, onClose } = core;
+  const shotWorkflow = shots.shotWorkflow;
   const {
     allShots,
     onNavigateToShot,
@@ -136,7 +137,7 @@ function useLightboxShotActions(
     onShowSecondaryTick,
     onOptimisticPositioned,
     onOptimisticUnpositioned,
-  } = shots;
+  } = shotWorkflow ?? {};
   const {
     isCreatingShot,
     quickCreateSuccess,
@@ -248,7 +249,7 @@ function useInteractionState(
     media: input.core.media,
     selectedProjectId: input.core.selectedProjectId,
     isVideo: input.core.isVideo,
-    selectedShotId: input.shots.selectedShotId,
+    selectedShotId: input.shots.shotWorkflow?.selectedShotId,
   });
   const joinState = useJoinClips({
     media: input.core.media,
@@ -272,7 +273,7 @@ function useInteractionState(
     setPrimaryVariant: variantsState.setPrimaryVariant,
     refetchVariants: variantsState.refetchVariants,
     shotId: input.shots.shotId,
-    selectedShotId: input.shots.selectedShotId,
+    selectedShotId: input.shots.shotWorkflow?.selectedShotId,
     onClose: input.core.onClose,
   });
 

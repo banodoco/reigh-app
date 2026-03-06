@@ -10,13 +10,7 @@ interface LoraPersistenceSettings {
   hasEverSetLoras?: boolean;
 }
 
-interface UseLoraPersistenceArgs {
-  projectId?: string;
-  shotId?: string;
-  persistenceScope: 'project' | 'shot' | 'none';
-  persistenceKey: string;
-  disableAutoLoad: boolean;
-  enableProjectPersistence: boolean;
+interface LoraPersistenceManagerHandle {
   selectedLoras: ActiveLora[];
   selectedLorasRef: React.MutableRefObject<ActiveLora[]>;
   availableLoras: LoraModel[];
@@ -25,6 +19,16 @@ interface UseLoraPersistenceArgs {
   handleLoraStrengthChange: (loraId: string, strength: number) => void;
   markAsUserSet: () => void;
   setHasEverSetLoras: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+interface UseLoraPersistenceArgs {
+  projectId?: string;
+  shotId?: string;
+  persistenceScope: 'project' | 'shot' | 'none';
+  persistenceKey: string;
+  disableAutoLoad: boolean;
+  enableProjectPersistence: boolean;
+  manager: LoraPersistenceManagerHandle;
 }
 
 interface UseLoraPersistenceReturn {
@@ -45,15 +49,18 @@ export function useLoraPersistence({
   persistenceKey,
   disableAutoLoad,
   enableProjectPersistence,
-  selectedLoras,
-  selectedLorasRef,
-  availableLoras,
-  handleAddLora,
-  handleRemoveLora,
-  handleLoraStrengthChange,
-  markAsUserSet,
-  setHasEverSetLoras,
+  manager,
 }: UseLoraPersistenceArgs): UseLoraPersistenceReturn {
+  const {
+    selectedLoras,
+    selectedLorasRef,
+    availableLoras,
+    handleAddLora,
+    handleRemoveLora,
+    handleLoraStrengthChange,
+    markAsUserSet,
+    setHasEverSetLoras,
+  } = manager;
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveFlash, setSaveFlash] = useState(false);
   const [userHasManuallyInteracted, setUserHasManuallyInteracted] = useState(false);

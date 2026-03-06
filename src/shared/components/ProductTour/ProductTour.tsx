@@ -6,7 +6,7 @@ import {
 } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Joyride, { CallBackProps, STATUS, EVENTS, ACTIONS } from 'react-joyride';
-import { tourSteps } from './tourSteps';
+import { TOUR_STEPS, tourSteps } from './tourSteps';
 import { useProductTour } from '@/shared/hooks/useProductTour';
 import { TOOL_ROUTES } from '@/shared/lib/toolRoutes';
 import { usePanes } from '@/shared/contexts/PanesContext';
@@ -118,18 +118,18 @@ function useSpotlightClickAdvance(input: {
     const handleClick = () => {
       const nextIndex = stepIndex + 1;
 
-      if (stepIndex === 4) {
+      if (stepIndex === TOUR_STEPS.OPEN_FIRST_SHOT) {
         pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, LONG_DELAY_MS, scheduleTimeout);
         return;
       }
 
-      if (stepIndex === 8) {
+      if (stepIndex === TOUR_STEPS.TASKS_PANE) {
         setIsTasksPaneLocked(true);
         pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, SHORT_DELAY_MS, scheduleTimeout);
         return;
       }
 
-      if (stepIndex === 0 || stepIndex === 2) {
+      if (stepIndex === TOUR_STEPS.OPEN_GALLERY || stepIndex === TOUR_STEPS.GENERATE_IMAGES) {
         pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, SHORT_DELAY_MS, scheduleTimeout);
         return;
       }
@@ -169,15 +169,15 @@ function useJoyrideCallback(input: {
     if (type === EVENTS.STEP_AFTER || type === EVENTS.TARGET_NOT_FOUND) {
       const nextIndex = index + (action === ACTIONS.PREV ? -1 : 1);
 
-      if (index === 0 && action !== ACTIONS.PREV) {
+      if (index === TOUR_STEPS.OPEN_GALLERY && action !== ACTIONS.PREV) {
         setIsGenerationsPaneLocked(true);
         pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, SHORT_DELAY_MS, scheduleTimeout);
-      } else if (index === 1 && action !== ACTIONS.PREV) {
+      } else if (index === TOUR_STEPS.GALLERY_SECTION && action !== ACTIONS.PREV) {
         setStepIndex(nextIndex);
-      } else if (index === 2 && action !== ACTIONS.PREV) {
+      } else if (index === TOUR_STEPS.GENERATE_IMAGES && action !== ACTIONS.PREV) {
         dispatchTourEvent('openGenerationModal');
         pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, SHORT_DELAY_MS, scheduleTimeout);
-      } else if (index === 3 && action !== ACTIONS.PREV) {
+      } else if (index === TOUR_STEPS.HOW_IT_WORKS && action !== ACTIONS.PREV) {
         dispatchTourEvent('closeGenerationModal');
         setIsGenerationsPaneLocked(false);
         setIsPaused(true);
@@ -193,13 +193,13 @@ function useJoyrideCallback(input: {
           };
           waitForTarget();
         }, WAIT_FOR_TARGET_DELAY_MS);
-      } else if (index === 4 && action !== ACTIONS.PREV) {
+      } else if (index === TOUR_STEPS.OPEN_FIRST_SHOT && action !== ACTIONS.PREV) {
         const firstShot = document.querySelector('[data-tour="first-shot"]') as HTMLElement;
         if (firstShot) {
           firstShot.click();
         }
         pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, LONG_DELAY_MS, scheduleTimeout);
-      } else if (index === 8 && action !== ACTIONS.PREV) {
+      } else if (index === TOUR_STEPS.TASKS_PANE && action !== ACTIONS.PREV) {
         setIsTasksPaneLocked(true);
         pauseThenAdvance(nextIndex, setStepIndex, setIsPaused, SHORT_DELAY_MS, scheduleTimeout);
       } else {

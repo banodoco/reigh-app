@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tourStepColors, tourSteps } from './tourSteps';
+import { TOUR_STEPS, tourStepColors, tourSteps } from './tourSteps';
 
 describe('tourSteps', () => {
   it('defines a stable set of tour step colors', () => {
@@ -12,7 +12,7 @@ describe('tourSteps', () => {
 
   it('contains an ordered guided flow with explicit first and last steps', () => {
     expect(tourSteps.length).toBeGreaterThanOrEqual(10);
-    expect(tourSteps[0]?.target).toBe('[data-tour="generations-lock"]');
-    expect(tourSteps[tourSteps.length - 1]?.title).toBe('Ready to Create!');
+    expect(tourSteps[TOUR_STEPS.OPEN_GALLERY]?.target).toBe('[data-tour="generations-lock"]');
+    expect(tourSteps[TOUR_STEPS.READY_TO_CREATE]?.title).toBe('Ready to Create!');
   });
 });

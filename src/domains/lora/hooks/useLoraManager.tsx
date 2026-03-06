@@ -43,6 +43,8 @@ export interface UseLoraManagerReturn {
   renderHeaderActions?: () => React.ReactNode;
 }
 
+const EMPTY_ACTIVE_LORAS: ActiveLora[] = [];
+
 export const useLoraManager = (
   availableLoras: LoraModel[] = [],
   options: UseLoraManagerOptions = {},
@@ -63,7 +65,12 @@ export const useLoraManager = (
 
   const isControlledSelection = !!(controlledSelectedLoras && onSelectedLorasChange);
   const [internalSelectedLoras, setInternalSelectedLoras] = useState<ActiveLora[]>([]);
-  const selectedLoras = isControlledSelection ? (controlledSelectedLoras ?? []) : internalSelectedLoras;
+  const selectedLoras = useMemo(
+    () => (isControlledSelection
+      ? (controlledSelectedLoras ?? EMPTY_ACTIVE_LORAS)
+      : internalSelectedLoras),
+    [controlledSelectedLoras, internalSelectedLoras, isControlledSelection],
+  );
 
   const [hasEverSetLoras, setHasEverSetLoras] = useState(false);
   const [isLoraModalOpen, setIsLoraModalOpen] = useState(false);
@@ -190,14 +197,16 @@ export const useLoraManager = (
     persistenceKey,
     disableAutoLoad,
     enableProjectPersistence,
-    selectedLoras,
-    selectedLorasRef,
-    availableLoras,
-    handleAddLora,
-    handleRemoveLora,
-    handleLoraStrengthChange,
-    markAsUserSet,
-    setHasEverSetLoras,
+    manager: {
+      selectedLoras,
+      selectedLorasRef,
+      availableLoras,
+      handleAddLora,
+      handleRemoveLora,
+      handleLoraStrengthChange,
+      markAsUserSet,
+      setHasEverSetLoras,
+    },
   });
 
   const shouldApplyDefaults = useMemo(() => shouldApplyLoraDefaults({

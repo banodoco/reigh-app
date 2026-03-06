@@ -59,6 +59,248 @@ function sanitizeTaskDataForSharing(taskData: Record<string, unknown> | null): R
   return sanitized;
 }
 
+function buildShareUrl(slug: string): string {
+  return `${window.location.origin}/share/${slug}`;
+}
+
+const SHARE_COPIED_RESET_DELAY_MS = 2000;
+
+function markShareCopied(
+  setShareCopied: React.Dispatch<React.SetStateAction<boolean>>,
+): void {
+  setShareCopied(true);
+  window.setTimeout(() => setShareCopied(false), SHARE_COPIED_RESET_DELAY_MS);
+}
+
+async function copyToClipboardWithFallback(value: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return true;
+    }
+  } catch {
+    // Fall back to textarea copy path below.
+  }
+
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = value;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    const copied = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    return copied;
+  } catch {
+    return false;
+  }
+}
+
+async function fetchExistingShareSlug(
+  generationId: string,
+  userId: string,
+): Promise<string | null> {
+  const { data, error } = await supabase().from('shared_generations')
+    .select('share_slug')
+    .eq('generation_id', generationId)
+    .eq('creator_id', userId)
+    .maybeSingle();
+
+  if (error && !isNotFoundError(error)) {
+    throw error;
+  }
+
+  return data?.share_slug ?? null;
+}
+
+interface ShareCachedDataResult {
+  generationData: Record<string, unknown>;
+  augmentedTaskData: Record<string, unknown> | null;
+}
+
+async function fetchShareCachedData(
+  generationId: string,
+  taskId: string | null | undefined,
+  shotId?: string | null,
+): Promise<ShareCachedDataResult> {
+  const generationResult = await supabase().from('generations')
+    .select('id, location, thumbnail_url, type, params, created_at, name')
+    .eq('id', generationId)
+    .single();
+
+  if (generationResult.error || !generationResult.data) {
+    throw generationResult.error ?? new Error('Failed to load generation data');
+  }
+
+  let taskResultData: Record<string, unknown> | null = null;
+  if (taskId) {
+    const { data } = await supabase().from('tasks')
+      .select('id, task_type, params, status, created_at')
+      .eq('id', taskId)
+      .single();
+    taskResultData = data as Record<string, unknown> | null;
+  }
+
+  let augmentedTaskData: Record<string, unknown> | null = taskResultData;
+
+  if (shotId) {
+    try {
+      const { data: shotData, error: shotError } = await supabase().from('shots')
+        .select('id, name, settings')
+        .eq('id', shotId)
+        .single();
+
+      const { data: shotGenerations, error: genError } = await supabase().from('shot_generations')
+        .select(`
+          timeline_frame,
+          generation:generations!shot_generations_generation_id_generations_id_fk(
+            id,
+            location,
+            thumbnail_url,
+            type
+          )
+        `)
+        .eq('shot_id', shotId)
+        .order('timeline_frame', { ascending: true });
+
+      if (!shotError && !genError && shotData && shotGenerations) {
+        const travelSettings = (shotData.settings as Record<string, unknown> | undefined)?.travel_between_images as Record<string, unknown> || {};
+        const generationMode = travelSettings.generationMode || 'batch';
+
+        const images = shotGenerations
+          .filter((sg) => sg.generation?.type === 'image' && sg.generation?.location)
+          .map((sg) => ({
+            url: sg.generation.location,
+            thumbnail_url: sg.generation.thumbnail_url,
+            timeline_frame: sg.timeline_frame,
+          }));
+
+        augmentedTaskData = {
+          ...taskResultData,
+          cached_shot_data: {
+            shot_id: shotId,
+            shot_name: shotData.name,
+            generation_mode: generationMode,
+            images,
+            settings: {
+              prompt: travelSettings.batchVideoPrompt || '',
+              negative_prompt: travelSettings.negativePrompt || '',
+              frames: travelSettings.batchVideoFrames || 38,
+              steps: travelSettings.batchVideoSteps || 6,
+              motion: travelSettings.amountOfMotion || 50,
+              enhance_prompt: travelSettings.enhancePrompt || false,
+              phase_config: travelSettings.phaseConfig || null,
+              context_frames: travelSettings.contextFrames || 0,
+            },
+          },
+        };
+      }
+    } catch {
+      // Keep share creation resilient when shot-cache enrichment fails.
+    }
+  }
+
+  return {
+    generationData: generationResult.data as Record<string, unknown>,
+    augmentedTaskData,
+  };
+}
+
+interface InsertShareWithRetryArgs {
+  generationId: string;
+  taskId: string | null | undefined;
+  shotId?: string | null;
+  userId: string;
+  generationData: Record<string, unknown>;
+  augmentedTaskData: Record<string, unknown> | null;
+  generateShareSlug: (length?: number) => string;
+}
+
+async function insertShareWithRetry({
+  generationId,
+  taskId,
+  shotId,
+  userId,
+  generationData,
+  augmentedTaskData,
+  generateShareSlug,
+}: InsertShareWithRetryArgs): Promise<string | null> {
+  const maxAttempts = 5;
+  let attempts = 0;
+
+  const { data: creatorRow } = await supabase().from('users')
+    .select('username, name, avatar_url')
+    .eq('id', userId)
+    .maybeSingle();
+
+  while (attempts < maxAttempts) {
+    const candidateSlug = generateShareSlug(10);
+    const creator = (creatorRow as Record<string, unknown> | null) ?? null;
+    const normalizedTaskId = typeof taskId === 'string' && taskId.length > 0 ? taskId : null;
+    const sharedGenerationInsert = {
+      share_slug: candidateSlug,
+      ...(normalizedTaskId ? { task_id: normalizedTaskId } : {}),
+      generation_id: generationId,
+      creator_id: userId,
+      creator_username: asNullableString(creator?.username),
+      creator_name: asNullableString(creator?.name),
+      creator_avatar_url: asNullableString(creator?.avatar_url),
+      cached_generation_data: generationData,
+      cached_task_data: sanitizeTaskDataForSharing(augmentedTaskData),
+      shot_id: shotId || null,
+    };
+
+    const { data: newShare, error: insertError } = await supabase().from('shared_generations')
+      .insert(sharedGenerationInsert)
+      .select('share_slug')
+      .single();
+
+    if (!insertError && newShare) {
+      return newShare.share_slug;
+    }
+
+    if (isUniqueViolationError(insertError)) {
+      attempts++;
+      continue;
+    }
+
+    if (insertError) {
+      throw insertError;
+    }
+  }
+
+  return null;
+}
+
+interface CopyShareLinkAndNotifyArgs {
+  slug: string;
+  successTitle: string;
+  successDescription: string;
+  fallbackTitle: string;
+  fallbackDescription: string;
+  setShareCopied: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+async function copyShareLinkAndNotify({
+  slug,
+  successTitle,
+  successDescription,
+  fallbackTitle,
+  fallbackDescription,
+  setShareCopied,
+}: CopyShareLinkAndNotifyArgs): Promise<void> {
+  const copied = await copyToClipboardWithFallback(buildShareUrl(slug));
+  if (copied) {
+    markShareCopied(setShareCopied);
+    toast({ title: successTitle, description: successDescription });
+    return;
+  }
+
+  toast({ title: fallbackTitle, description: fallbackDescription });
+}
+
 /**
  * Hook to handle sharing of generations via unique slug
  *
@@ -102,304 +344,100 @@ export function useShareGeneration(
 
     if (!generationId) {
       toast({
-        title: "Cannot create share",
-        description: "Generation information not available",
-        variant: "destructive"
+        title: 'Cannot create share',
+        description: 'Generation information not available',
+        variant: 'destructive',
       });
       return;
     }
 
-    // If share already exists (in local state), copy to clipboard
     if (shareSlug) {
-      const shareUrl = `${window.location.origin}/share/${shareSlug}`;
-
-      // Use fallback for iOS compatibility
-      try {
-        // Try modern API first
-        if (navigator.clipboard?.writeText) {
-          await navigator.clipboard.writeText(shareUrl);
-        }
-      } catch {
-        // Fallback: use textarea + execCommand (works on iOS)
-        const textarea = document.createElement('textarea');
-        textarea.value = shareUrl;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        document.body.appendChild(textarea);
-        textarea.focus();
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-      }
-
-      setShareCopied(true);
-      toast({
-        title: "Link copied!",
-        description: "Share link copied to clipboard"
+      await copyShareLinkAndNotify({
+        slug: shareSlug,
+        successTitle: 'Link copied!',
+        successDescription: 'Share link copied to clipboard',
+        fallbackTitle: 'Share ready',
+        fallbackDescription: 'Click the copy button to copy the link',
+        setShareCopied,
       });
-      setTimeout(() => setShareCopied(false), 2000);
       return;
     }
 
-    // Create new share (client-side) or fetch existing
     setIsCreatingShare(true);
-
     try {
-      const { data: session } = await supabase().auth.getSession();
+      const { data: sessionData } = await supabase().auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      const userId = sessionData.session?.user.id;
 
-      if (!session?.session?.access_token) {
+      if (!accessToken || !userId) {
         toast({
-          title: "Authentication required",
-          description: "Please sign in to create share links",
-          variant: "destructive"
+          title: 'Authentication required',
+          description: 'Please sign in to create share links',
+          variant: 'destructive',
         });
-        setIsCreatingShare(false);
         return;
       }
 
-      // First, check if share already exists in DB
-      const { data: existingShare, error: existingError } = await supabase().from('shared_generations')
-        .select('share_slug')
-        .eq('generation_id', generationId)
-        .eq('creator_id', session.session.user.id)
-        .maybeSingle();
-
-      if (existingError && !isNotFoundError(existingError)) {
-        normalizeAndPresentError(existingError, { context: 'useShareGeneration', showToast: false });
-        toast({
-          title: "Share failed",
-          description: "Please try again",
-          variant: "destructive"
+      const existingSlug = await fetchExistingShareSlug(generationId, userId);
+      if (existingSlug) {
+        setShareSlug(existingSlug);
+        await copyShareLinkAndNotify({
+          slug: existingSlug,
+          successTitle: 'Link copied!',
+          successDescription: 'Existing share link copied to clipboard',
+          fallbackTitle: 'Share found',
+          fallbackDescription: 'Click the copy button to copy the link',
+          setShareCopied,
         });
-        setIsCreatingShare(false);
         return;
       }
 
-      if (existingShare) {
-        // Share already exists, store it and copy it
-        setShareSlug(existingShare.share_slug);
-        const shareUrl = `${window.location.origin}/share/${existingShare.share_slug}`;
-        
-        try {
-          await navigator.clipboard.writeText(shareUrl);
-          toast({
-            title: "Link copied!",
-            description: "Existing share link copied to clipboard"
-          });
-          setShareCopied(true);
-          setTimeout(() => setShareCopied(false), 2000);
-        } catch {
-          toast({
-            title: "Share found",
-            description: "Click the copy button to copy the link",
-          });
-        }
-        
-        setIsCreatingShare(false);
-        return;
-      }
+      const { generationData, augmentedTaskData } = await fetchShareCachedData(
+        generationId,
+        taskId,
+        shotId,
+      );
 
-      // Share doesn't exist, fetch only the fields needed for display
-      const generationResult = await supabase().from('generations')
-        .select('id, location, thumbnail_url, type, params, created_at, name')
-        .eq('id', generationId)
-        .single();
-
-      if (generationResult.error) {
-        normalizeAndPresentError(generationResult.error, { context: 'useShareGeneration', showToast: false });
-        toast({
-          title: "Share failed",
-          description: "Failed to load generation data",
-          variant: "destructive"
-        });
-        setIsCreatingShare(false);
-        return;
-      }
-
-      // Only fetch task data if taskId is available (optional)
-      let taskResultData: Record<string, unknown> | null = null;
-      if (taskId) {
-        const { data } = await supabase().from('tasks')
-          .select('id, task_type, params, status, created_at')
-          .eq('id', taskId)
-          .single();
-        taskResultData = data as Record<string, unknown> | null;
-        // Don't fail on task fetch error - task data is optional
-      }
-
-      // Fetch shot data if shotId is available (for final video shares)
-      // This provides input images and settings for the share page
-      let augmentedTaskData: Record<string, unknown> | null = taskResultData;
-      let cachedShotData: Record<string, unknown> | null = null;
-
-      if (shotId) {
-
-        try {
-          // Fetch shot with settings
-          const { data: shotData, error: shotError } = await supabase().from('shots')
-            .select('id, name, settings')
-            .eq('id', shotId)
-            .single();
-
-          // Fetch shot generations (input images) - only images, not videos
-          const { data: shotGenerations, error: genError } = await supabase().from('shot_generations')
-            .select(`
-              timeline_frame,
-              generation:generations!shot_generations_generation_id_generations_id_fk(
-                id,
-                location,
-                thumbnail_url,
-                type
-              )
-            `)
-            .eq('shot_id', shotId)
-            .order('timeline_frame', { ascending: true });
-
-          if (!shotError && !genError && shotData && shotGenerations) {
-            // Get generation mode from shot settings
-            const travelSettings = (shotData.settings as Record<string, unknown> | undefined)?.travel_between_images as Record<string, unknown> || {};
-            const generationMode = travelSettings.generationMode || 'batch';
-
-            // Extract images with their timeline positions
-            const images = shotGenerations
-              .filter((sg) => sg.generation?.type === 'image' && sg.generation?.location)
-              .map((sg) => ({
-                url: sg.generation.location,
-                thumbnail_url: sg.generation.thumbnail_url,
-                timeline_frame: sg.timeline_frame,
-              }));
-
-            // Store shot data in a clean, standardized format
-            // This is the SOURCE OF TRUTH for the share page
-            cachedShotData = {
-              shot_id: shotId,
-              shot_name: shotData.name,
-              generation_mode: generationMode,
-              images: images,
-              settings: {
-                prompt: travelSettings.batchVideoPrompt || '',
-                negative_prompt: travelSettings.negativePrompt || '',
-                frames: travelSettings.batchVideoFrames || 38,
-                steps: travelSettings.batchVideoSteps || 6,
-                motion: travelSettings.amountOfMotion || 50,
-                enhance_prompt: travelSettings.enhancePrompt || false,
-                phase_config: travelSettings.phaseConfig || null,
-                context_frames: travelSettings.contextFrames || 0,
-              },
-            };
-
-          }
-        } catch { /* intentionally ignored */ }
-      }
-
-      // Augment task data with cached_shot_data field
-      if (cachedShotData) {
-        augmentedTaskData = {
-          ...taskResultData,
-          cached_shot_data: cachedShotData,
-        };
-      }
-
-      // Generate unique slug with retry logic
-      let attempts = 0;
-      const maxAttempts = 5;
-      let newSlug: string | null = null;
-
-      // Fetch creator profile once (outside the retry loop)
-      const { data: creatorRow } = await supabase().from('users')
-        .select('username, name, avatar_url')
-        .eq('id', session.session.user.id)
-        .maybeSingle();
-
-      while (attempts < maxAttempts && !newSlug) {
-        const candidateSlug = generateShareSlug(10);
-        const creator = (creatorRow as Record<string, unknown> | null) ?? null;
-        const normalizedTaskId = typeof taskId === 'string' && taskId.length > 0 ? taskId : null;
-        const sharedGenerationInsert = {
-          share_slug: candidateSlug,
-          ...(normalizedTaskId ? { task_id: normalizedTaskId } : {}),
-          generation_id: generationId,
-          creator_id: session.session.user.id,
-          creator_username: asNullableString(creator?.username),
-          creator_name: asNullableString(creator?.name),
-          creator_avatar_url: asNullableString(creator?.avatar_url),
-          cached_generation_data: generationResult.data,
-          cached_task_data: sanitizeTaskDataForSharing(augmentedTaskData),
-          shot_id: shotId || null,
-        };
-
-        const { data: newShare, error: insertError } = await supabase().from('shared_generations')
-          .insert(sharedGenerationInsert)
-          .select('share_slug')
-          .single();
-
-        if (!insertError && newShare) {
-          newSlug = newShare.share_slug;
-          break;
-        }
-
-        // If error is unique constraint violation, retry with new slug
-        if (isUniqueViolationError(insertError)) {
-          attempts++;
-          continue;
-        }
-
-        // Other error
-        if (insertError) {
-          normalizeAndPresentError(insertError, { context: 'useShareGeneration', showToast: false });
-          toast({
-            title: "Share failed",
-            description: insertError.message || "Please try again",
-            variant: "destructive"
-          });
-          setIsCreatingShare(false);
-          return;
-        }
-      }
+      const newSlug = await insertShareWithRetry({
+        generationId,
+        taskId,
+        shotId,
+        userId,
+        generationData,
+        augmentedTaskData,
+        generateShareSlug,
+      });
 
       if (!newSlug) {
         toast({
-          title: "Share failed",
-          description: "Failed to generate unique link. Please try again.",
-          variant: "destructive"
+          title: 'Share failed',
+          description: 'Failed to generate unique link. Please try again.',
+          variant: 'destructive',
         });
-        setIsCreatingShare(false);
         return;
       }
 
       setShareSlug(newSlug);
+      onShareCreated?.(generationId, newSlug);
 
-      // Notify caller of newly created share
-      if (generationId) {
-        onShareCreated?.(generationId, newSlug);
-      }
-
-      // Copy to clipboard
-      const shareUrl = `${window.location.origin}/share/${newSlug}`;
-      try {
-        await navigator.clipboard.writeText(shareUrl);
-        toast({
-          title: "Share created!",
-          description: "Share link copied to clipboard"
-        });
-        setShareCopied(true);
-        setTimeout(() => setShareCopied(false), 2000);
-      } catch {
-        toast({
-          title: "Share created",
-          description: "Click the copy button to copy the link",
-        });
-      }
+      await copyShareLinkAndNotify({
+        slug: newSlug,
+        successTitle: 'Share created!',
+        successDescription: 'Share link copied to clipboard',
+        fallbackTitle: 'Share created',
+        fallbackDescription: 'Click the copy button to copy the link',
+        setShareCopied,
+      });
     } catch (error) {
       normalizeAndPresentError(error, {
         context: 'useShareGeneration',
-        toastTitle: 'Something went wrong',
-        logData: { message: 'Please try again' }
+        toastTitle: 'Share failed',
+        logData: { message: 'Please try again' },
       });
     } finally {
       setIsCreatingShare(false);
     }
-  }, [shareSlug, generationId, taskId, shotId, toast, onShareCreated]);
+  }, [generationId, onShareCreated, shareSlug, shotId, taskId]);
 
   return {
     handleShare,
