@@ -1,12 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type Dispatch,
-  type SetStateAction,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import type { Shot } from '@/domains/generation/types';
@@ -41,19 +33,6 @@ const knownPresetIds = [
 ];
 
 const clearAllEnhancedPrompts = async () => {};
-
-type VideoGenerationModalControllerProps = {
-  isOpen: boolean;
-  onClose: () => void;
-  shot: Shot;
-};
-
-type ProjectContext = ReturnType<typeof useProject>;
-type ShotSettingsState = ReturnType<typeof useShotSettings>;
-type ShotSettings = ShotSettingsState['settings'];
-type UpdateVideoSettingField = ShotSettingsState['updateField'];
-type ShotImage = NonNullable<ReturnType<typeof useShotImages>['data']>[number];
-type AvailableLora = NonNullable<ReturnType<typeof usePublicLoras>['data']>[number];
 
 function resolveEffectiveAspectRatio(
   projectAspectRatio: string,
@@ -94,6 +73,9 @@ function mapSelectedLorasToActiveLoras(
   }));
 }
 
+// --- Extracted hooks: only where there's a genuine independent boundary ---
+
+/** Per-shot UI toggle persistence (accelerated mode, random seed). Own external hook dep. */
 function useVideoUiSettings(isOpen: boolean, shotId: string) {
   const { settings: shotUISettings, update: updateShotUISettings } = useToolSettings<{
     acceleratedMode?: boolean;
@@ -120,94 +102,16 @@ function useVideoUiSettings(isOpen: boolean, shotId: string) {
     [updateShotUISettings],
   );
 
-  return {
-    accelerated,
-    randomSeed,
-    setAccelerated,
-    setRandomSeed,
-  };
+  return { accelerated, randomSeed, setAccelerated, setRandomSeed };
 }
 
-function useVideoGenerationData({
-  isOpen,
-  shot,
-  selectedProjectId,
-  projects,
-}: {
-  isOpen: boolean;
-  shot: Shot;
-  selectedProjectId: ProjectContext['selectedProjectId'];
-  projects: ProjectContext['projects'];
-}) {
-  const { settings, status, updateField } = useShotSettings(
-    isOpen ? shot.id : null,
-    selectedProjectId,
-  );
-
-  const { data: availableLoras } = usePublicLoras();
-  const { data: shotGenerations, isLoading: generationsLoading } = useShotImages(
-    isOpen ? shot.id : null,
-    { disableRefetch: false },
-  );
-
-  const positionedImages = useMemo(() => {
-    if (!shotGenerations) {
-      return [] as ShotImage[];
-    }
-
-    return shotGenerations
-      .filter((generation) => !isVideoGeneration(generation) && isPositioned(generation))
-      .sort((first, second) => (first.timeline_frame ?? 0) - (second.timeline_frame ?? 0));
-  }, [shotGenerations]);
-
-  const currentProject = projects.find((project) => project.id === selectedProjectId);
-  const projectAspectRatio = currentProject?.aspectRatio || '16:9';
-
-  const effectiveAspectRatio = useMemo(
-    () => resolveEffectiveAspectRatio(projectAspectRatio, positionedImages),
-    [positionedImages, projectAspectRatio],
-  );
-
-  const selectedLoras = useMemo(
-    () => mapSelectedLorasToActiveLoras(settings.loras),
-    [settings.loras],
-  );
-
-  const validPresetId = useMemo(() => {
-    const presetId = settings.selectedPhasePresetId;
-    if (!presetId) {
-      return undefined;
-    }
-    return knownPresetIds.includes(presetId) ? presetId : undefined;
-  }, [settings.selectedPhasePresetId]);
-
-  const isLoading =
-    (status !== 'ready' && status !== 'saving' && status !== 'error') || generationsLoading;
-
-  return {
-    availableLoras,
-    effectiveAspectRatio,
-    isLoading,
-    positionedImages,
-    selectedLoras,
-    settings,
-    status,
-    updateField,
-    validPresetId,
-  };
-}
-
-function useVideoGenerationLoras({
-  availableLoras,
-  selectedLoras,
-  settings,
-  updateField,
-}: {
-  availableLoras: AvailableLora[] | undefined;
-  selectedLoras: ActiveLora[];
-  settings: ShotSettings;
-  updateField: UpdateVideoSettingField;
-}) {
+/** LoRA selection modal + CRUD handlers. Own state (modal open), cohesive unit. */
+function useVideoGenerationLoras(
+  settings: ReturnType<typeof useShotSettings>['settings'],
+  updateField: ReturnType<typeof useShotSettings>['updateField'],
+  availableLoras: NonNullable<ReturnType<typeof usePublicLoras>['data']> | undefined,
+  selectedLoras: ActiveLora[],
+) {
   const [isLoraModalOpen, setIsLoraModalOpen] = useState(false);
 
   const handleAddLora = useCallback(
@@ -274,44 +178,34 @@ function useVideoGenerationLoras({
     });
   }, [availableLoras, selectedLoras]);
 
-  const openLoraModal = useCallback(() => {
-    setIsLoraModalOpen(true);
-  }, []);
-
-  const closeLoraModal = useCallback(() => {
-    setIsLoraModalOpen(false);
-  }, []);
-
   return {
-    closeLoraModal,
-    handleAddLora,
-    handleAddTriggerWord,
-    handleLoraStrengthChange,
-    handleRemoveLora,
     isLoraModalOpen,
-    openLoraModal,
+    openLoraModal: useCallback(() => setIsLoraModalOpen(true), []),
+    closeLoraModal: useCallback(() => setIsLoraModalOpen(false), []),
+    handleAddLora,
+    handleRemoveLora,
+    handleLoraStrengthChange,
+    handleAddTriggerWord,
     selectedLorasForModal,
   };
 }
 
-function useVideoGenerationUiState(onClose: () => void) {
+// --- Main controller ---
+
+export function useVideoGenerationModalController({ isOpen, onClose, shot }: {
+  isOpen: boolean;
+  onClose: () => void;
+  shot: Shot;
+}) {
+  const { selectedProjectId, projects } = useProject();
+  const queryClient = useQueryClient();
+  const invalidateGenerations = useEnqueueGenerationsInvalidation();
+  const { navigateToShot } = useShotNavigation();
+
+  // UI state
   const [isGenerating, setIsGenerating] = useState(false);
   const [justQueued, setJustQueued] = useState(false);
   const justQueuedTimeoutRef = useRef<number | null>(null);
-
-  const queueAndScheduleClose = useCallback(() => {
-    setJustQueued(true);
-
-    if (justQueuedTimeoutRef.current) {
-      clearTimeout(justQueuedTimeoutRef.current);
-    }
-
-    justQueuedTimeoutRef.current = window.setTimeout(() => {
-      setJustQueued(false);
-      justQueuedTimeoutRef.current = null;
-      onClose();
-    }, 1000);
-  }, [onClose]);
 
   useEffect(() => {
     return () => {
@@ -321,25 +215,53 @@ function useVideoGenerationUiState(onClose: () => void) {
     };
   }, []);
 
-  return {
-    isGenerating,
-    justQueued,
-    queueAndScheduleClose,
-    setIsGenerating,
-  };
-}
+  // Data
+  const uiSettings = useVideoUiSettings(isOpen, shot.id);
 
-function useVideoGenerationNavigation({
-  isLoraModalOpen,
-  onClose,
-  shot,
-}: {
-  isLoraModalOpen: boolean;
-  onClose: () => void;
-  shot: Shot;
-}) {
-  const { navigateToShot } = useShotNavigation();
+  const { settings, status, updateField } = useShotSettings(
+    isOpen ? shot.id : null,
+    selectedProjectId,
+  );
 
+  const { data: availableLoras } = usePublicLoras();
+  const { data: shotGenerations, isLoading: generationsLoading } = useShotImages(
+    isOpen ? shot.id : null,
+    { disableRefetch: false },
+  );
+
+  const positionedImages = useMemo(() => {
+    if (!shotGenerations) return [];
+    return shotGenerations
+      .filter((gen) => !isVideoGeneration(gen) && isPositioned(gen))
+      .sort((a, b) => (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0));
+  }, [shotGenerations]);
+
+  const currentProject = projects.find((p) => p.id === selectedProjectId);
+  const projectAspectRatio = currentProject?.aspectRatio || '16:9';
+
+  const effectiveAspectRatio = useMemo(
+    () => resolveEffectiveAspectRatio(projectAspectRatio, positionedImages),
+    [positionedImages, projectAspectRatio],
+  );
+
+  const selectedLoras = useMemo(
+    () => mapSelectedLorasToActiveLoras(settings.loras),
+    [settings.loras],
+  );
+
+  const validPresetId = useMemo(() => {
+    const presetId = settings.selectedPhasePresetId;
+    if (!presetId) return undefined;
+    return knownPresetIds.includes(presetId) ? presetId : undefined;
+  }, [settings.selectedPhasePresetId]);
+
+  const isLoading =
+    (status !== 'ready' && status !== 'saving' && status !== 'error') || generationsLoading;
+
+  // LoRA management (extracted — has own modal state)
+  const loras = useVideoGenerationLoras(settings, updateField, availableLoras, selectedLoras);
+
+  // Navigation callbacks
   const handleNavigateToShot = useCallback(() => {
     onClose();
     navigateToShot(shot);
@@ -347,47 +269,15 @@ function useVideoGenerationNavigation({
 
   const handleDialogOpenChange = useCallback(
     (open: boolean) => {
-      if (!open && !isLoraModalOpen) {
+      if (!open && !loras.isLoraModalOpen) {
         onClose();
       }
     },
-    [isLoraModalOpen, onClose],
+    [loras.isLoraModalOpen, onClose],
   );
 
-  return {
-    handleDialogOpenChange,
-    handleNavigateToShot,
-  };
-}
-
-function useVideoGenerationExecution({
-  effectiveAspectRatio,
-  invalidateGenerations,
-  onGenerationQueued,
-  positionedImages,
-  queryClient,
-  randomSeed,
-  selectedLoras,
-  selectedProjectId,
-  setIsGenerating,
-  settings,
-  shot,
-  updateField,
-}: {
-  effectiveAspectRatio: string;
-  invalidateGenerations: ReturnType<typeof useEnqueueGenerationsInvalidation>;
-  onGenerationQueued: () => void;
-  positionedImages: ShotImage[];
-  queryClient: ReturnType<typeof useQueryClient>;
-  randomSeed: boolean;
-  selectedLoras: ActiveLora[];
-  selectedProjectId: ProjectContext['selectedProjectId'];
-  setIsGenerating: Dispatch<SetStateAction<boolean>>;
-  settings: ShotSettings;
-  shot: Shot;
-  updateField: UpdateVideoSettingField;
-}) {
-  return useCallback(async () => {
+  // Generate
+  const handleGenerate = useCallback(async () => {
     if (!selectedProjectId || !shot.id) {
       toast.error('No project or shot selected.');
       return;
@@ -459,7 +349,7 @@ function useVideoGenerationExecution({
         },
         modelConfig: {
           seed: mergedSteerableSettings.seed,
-          random_seed: randomSeed,
+          random_seed: uiSettings.randomSeed,
           turbo_mode: settings.turboMode || false,
           debug: mergedSteerableSettings.debug || false,
           generation_type_mode: settings.generationTypeMode || 'i2v',
@@ -477,7 +367,15 @@ function useVideoGenerationExecution({
       });
 
       if (result.ok) {
-        onGenerationQueued();
+        setJustQueued(true);
+        if (justQueuedTimeoutRef.current) {
+          clearTimeout(justQueuedTimeoutRef.current);
+        }
+        justQueuedTimeoutRef.current = window.setTimeout(() => {
+          setJustQueued(false);
+          justQueuedTimeoutRef.current = null;
+          onClose();
+        }, 1000);
 
         invalidateGenerations(shot.id, {
           reason: 'video-generation-modal-success',
@@ -500,93 +398,34 @@ function useVideoGenerationExecution({
     selectedProjectId,
     shot,
     positionedImages,
-    setIsGenerating,
     updateField,
     selectedLoras,
     settings,
     queryClient,
     effectiveAspectRatio,
-    randomSeed,
-    onGenerationQueued,
+    uiSettings.randomSeed,
+    onClose,
     invalidateGenerations,
   ]);
-}
-
-export function useVideoGenerationModalController({
-  isOpen,
-  onClose,
-  shot,
-}: VideoGenerationModalControllerProps) {
-  const { selectedProjectId, projects } = useProject();
-  const queryClient = useQueryClient();
-  const invalidateGenerations = useEnqueueGenerationsInvalidation();
-
-  const uiState = useVideoGenerationUiState(onClose);
-  const uiSettings = useVideoUiSettings(isOpen, shot.id);
-  const generationData = useVideoGenerationData({
-    isOpen,
-    shot,
-    selectedProjectId,
-    projects,
-  });
-  const loraController = useVideoGenerationLoras({
-    availableLoras: generationData.availableLoras,
-    selectedLoras: generationData.selectedLoras,
-    settings: generationData.settings,
-    updateField: generationData.updateField,
-  });
-  const navigation = useVideoGenerationNavigation({
-    isLoraModalOpen: loraController.isLoraModalOpen,
-    onClose,
-    shot,
-  });
-
-  const handleGenerate = useVideoGenerationExecution({
-    effectiveAspectRatio: generationData.effectiveAspectRatio,
-    invalidateGenerations,
-    onGenerationQueued: uiState.queueAndScheduleClose,
-    positionedImages: generationData.positionedImages,
-    queryClient,
-    randomSeed: uiSettings.randomSeed,
-    selectedLoras: generationData.selectedLoras,
-    selectedProjectId,
-    setIsGenerating: uiState.setIsGenerating,
-    settings: generationData.settings,
-    shot,
-    updateField: generationData.updateField,
-  });
-
-  const isDisabled =
-    uiState.isGenerating || generationData.isLoading || generationData.positionedImages.length < 1;
 
   return {
     projects,
     selectedProjectId,
-    settings: generationData.settings,
-    status: generationData.status,
-    updateField: generationData.updateField,
-    availableLoras: generationData.availableLoras,
-    positionedImages: generationData.positionedImages,
-    isLoading: generationData.isLoading,
-    isGenerating: uiState.isGenerating,
-    justQueued: uiState.justQueued,
-    isDisabled,
-    accelerated: uiSettings.accelerated,
-    setAccelerated: uiSettings.setAccelerated,
-    randomSeed: uiSettings.randomSeed,
-    setRandomSeed: uiSettings.setRandomSeed,
-    validPresetId: generationData.validPresetId,
-    selectedLoras: generationData.selectedLoras,
-    isLoraModalOpen: loraController.isLoraModalOpen,
-    openLoraModal: loraController.openLoraModal,
-    closeLoraModal: loraController.closeLoraModal,
-    handleAddLora: loraController.handleAddLora,
-    handleRemoveLora: loraController.handleRemoveLora,
-    handleLoraStrengthChange: loraController.handleLoraStrengthChange,
-    handleAddTriggerWord: loraController.handleAddTriggerWord,
-    selectedLorasForModal: loraController.selectedLorasForModal,
+    settings,
+    status,
+    updateField,
+    availableLoras,
+    positionedImages,
+    isLoading,
+    isGenerating,
+    justQueued,
+    isDisabled: isGenerating || isLoading || positionedImages.length < 1,
+    ...uiSettings,
+    validPresetId,
+    selectedLoras,
+    ...loras,
     handleGenerate,
-    handleNavigateToShot: navigation.handleNavigateToShot,
-    handleDialogOpenChange: navigation.handleDialogOpenChange,
+    handleNavigateToShot,
+    handleDialogOpenChange,
   };
 }

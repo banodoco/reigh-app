@@ -7,7 +7,7 @@ import { Switch } from '@/shared/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { Info } from 'lucide-react';
 import { computePhaseTransition } from '../PhaseConfigVertical.helpers';
-import type { PhaseGlobalSettingsProps } from '../PhaseConfigVertical.types';
+import type { PhaseGlobalSettingsProps } from '../types';
 
 export const PhaseGlobalSettingsCard: React.FC<PhaseGlobalSettingsProps> = ({
   phaseConfig,

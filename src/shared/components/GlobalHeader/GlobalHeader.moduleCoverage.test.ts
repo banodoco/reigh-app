@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import * as GlobalHeaderControllerModule from './GlobalHeaderController';
+import * as GlobalHeaderControllerModule from './useGlobalHeaderController';
 import * as GlobalHeaderDesktopModule from './GlobalHeaderDesktop';
 import * as GlobalHeaderMobileModule from './GlobalHeaderMobile';
 import * as ProjectSelectorPopoverModule from './ProjectSelectorPopover';

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildBatchTaskParams } from '../buildBatchTaskParams';
-import { toShortPrompt } from '../promptUtils';
+import { buildBatchTaskParams } from '../../lib/buildBatchTaskParams';
+import { toShortPrompt } from '../../lib/promptUtils';
 import { DEFAULT_HIRES_FIX_CONFIG } from '../../types';
 
 describe('buildBatchTaskParams', () => {

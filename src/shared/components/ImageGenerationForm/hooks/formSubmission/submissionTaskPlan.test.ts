@@ -11,7 +11,7 @@ vi.mock('@/shared/components/ui/runtime/sonner', () => ({
   },
 }));
 
-vi.mock('../buildBatchTaskParams', () => ({
+vi.mock('../../lib/buildBatchTaskParams', () => ({
   buildBatchTaskParams: (...args: unknown[]) => buildBatchTaskParamsSpy(...args),
 }));
 

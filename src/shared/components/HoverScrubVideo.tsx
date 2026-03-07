@@ -5,7 +5,7 @@ import { useIsMobile } from '@/shared/hooks/mobile';
 import { useVideoScrubbing } from '@/shared/hooks/useVideoScrubbing';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { safePlay } from '@/shared/lib/media/safePlay';
-import { HoverScrubVideoOverlays } from '@/shared/components/hover-scrub-video/HoverScrubVideoOverlays';
+import { HoverScrubVideoOverlays } from '@/shared/components/HoverScrubVideo/HoverScrubVideoOverlays';
 
 interface HoverScrubVideoProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onTouchEnd' | 'onLoadStart' | 'onLoadedData'> {
   /**

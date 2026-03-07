@@ -1,6 +1,6 @@
 import type { GeneratedPromptResult, UseFormSubmissionProps } from './types';
 import { truncateText } from '@/shared/lib/stringFormatting';
-import { toShortPrompt } from '../promptUtils';
+import { toShortPrompt } from '../../lib/promptUtils';
 
 export function truncateLabel(text: string): string {
   return truncateText(text, 50);

@@ -14,7 +14,7 @@ import { BaseGenerationSettingsSection } from './sections/BaseGenerationSettings
 import { PhaseConfigSection } from './sections/PhaseConfigSection';
 import { SampleGenerationsSection } from './sections/SampleGenerationsSection';
 import { useAddNewPresetTabController } from '../hooks/useAddNewPresetTabController';
-import type { AddNewTabProps } from './AddNewPresetTab.types';
+import type { AddNewTabProps } from './types';
 
 interface EditModeStatusBannerProps {
   isOverwriting: boolean;

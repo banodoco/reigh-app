@@ -6,7 +6,7 @@ import { useProject } from '@/shared/contexts/ProjectContext';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { getRandomDummyName } from '@/shared/lib/seeding/dummyNames';
-import { AspectRatioSelector } from '@/shared/components/generation-controls/AspectRatioSelector';
+import { AspectRatioSelector } from '@/shared/components/GenerationControls/AspectRatioSelector';
 import { ModalContainer, ModalFooterButtons } from '@/shared/components/ModalContainer';
 
 interface CreateProjectModalProps {

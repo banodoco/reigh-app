@@ -1,5 +1,5 @@
 import { toast } from '@/shared/components/ui/runtime/sonner';
-import { buildBatchTaskParams } from '../buildBatchTaskParams';
+import { buildBatchTaskParams } from '../../lib/buildBatchTaskParams';
 import { buildReferenceParams } from './referenceParams';
 import type { BatchImageGenerationTaskParams } from '@/shared/lib/tasks/imageGeneration';
 import type {

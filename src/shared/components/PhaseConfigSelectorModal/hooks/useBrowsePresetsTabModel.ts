@@ -5,7 +5,7 @@ import type {
   BrowsePresetItem,
   BrowsePresetsTabProps,
   PresetToDeleteState,
-} from '../components/BrowsePresetsTab.types';
+} from '../components/types';
 
 interface UseBrowsePresetsTabModelParams {
   props: BrowsePresetsTabProps;

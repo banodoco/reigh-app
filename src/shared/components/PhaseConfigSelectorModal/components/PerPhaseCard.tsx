@@ -18,7 +18,7 @@ import { AlertTriangle, Download, Search, Trash2 } from 'lucide-react';
 import { PREDEFINED_LORAS, getDisplayNameFromUrl } from '@/domains/lora/lib/loraUtils';
 import { validateHuggingFaceUrl } from '@/domains/lora/components/LoraSelectorModal/utils/validation-utils';
 import { updateLoraField } from '../PhaseConfigVertical.helpers';
-import type { PerPhaseCardProps } from '../PhaseConfigVertical.types';
+import type { PerPhaseCardProps } from '../types';
 
 function groupPredefinedLoras() {
   return Object.entries(

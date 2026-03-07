@@ -9,7 +9,7 @@ import { Checkbox } from '@/shared/components/ui/checkbox';
 import { useToolSettings } from '@/shared/hooks/settings/useToolSettings';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/components/ui/collapsible';
 import { ChevronDown, AlertTriangle, RefreshCw } from 'lucide-react';
-import { AspectRatioSelector } from '@/shared/components/generation-controls/AspectRatioSelector';
+import { AspectRatioSelector } from '@/shared/components/GenerationControls/AspectRatioSelector';
 import { recropAllReferences, type RecropReferenceInput } from '@/shared/lib/media/recropReferences';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { ModalContainer } from '@/shared/components/ModalContainer';

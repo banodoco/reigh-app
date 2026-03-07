@@ -4,7 +4,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Shot } from "@/domains/generation/types";
 import { ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
-import { AspectRatioSelector } from '@/shared/components/generation-controls/AspectRatioSelector';
+import { AspectRatioSelector } from '@/shared/components/GenerationControls/AspectRatioSelector';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';

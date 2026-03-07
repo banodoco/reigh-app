@@ -15,7 +15,7 @@ import * as module12 from './components/reference/ReferenceModeControls';
 import * as module13 from './components/reference/ReferencePreview';
 import * as module14 from './components/reference/ReferenceSection';
 import * as module15 from './components/reference/ReferenceThumbnail';
-import * as module16 from './hooks/buildBatchTaskParams';
+import * as module16 from './lib/buildBatchTaskParams';
 import * as module17 from './hooks/formSubmission/useIncomingTaskRunner';
 import * as module18 from './hooks/formSubmission/usePromptQueueHandlers';
 import * as module20 from './hooks/formSubmission/useSubmitHandler';

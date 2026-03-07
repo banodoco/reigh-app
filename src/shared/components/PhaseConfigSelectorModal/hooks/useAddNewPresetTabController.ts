@@ -6,7 +6,7 @@ import { uploadImageToStorage } from '@/shared/lib/media/imageUploader';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { PhaseConfigMetadata } from '@/shared/hooks/useResources';
 import { usePresetSampleFiles } from '../hooks/usePresetSampleFiles';
-import type { AddNewTabProps } from '../components/AddNewPresetTab.types';
+import type { AddNewTabProps } from '../components/types';
 const generatePresetName = (): string => {
   const now = new Date();
   return `Preset ${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;

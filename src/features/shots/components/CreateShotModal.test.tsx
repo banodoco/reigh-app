@@ -49,7 +49,7 @@ vi.mock('@/shared/components/FileInput', () => ({
   ),
 }));
 
-vi.mock('@/shared/components/generation-controls/AspectRatioSelector', () => ({
+vi.mock('@/shared/components/GenerationControls/AspectRatioSelector', () => ({
   AspectRatioSelector: ({
     value,
     onValueChange,

@@ -11,7 +11,7 @@ import type {
 } from '@/shared/hooks/useResources';
 import { CopyIdButton } from './CopyIdButton';
 import { MediaPreview } from './MediaPreview';
-import type { BrowsePresetItem } from './BrowsePresetsTab.types';
+import type { BrowsePresetItem } from './types';
 
 interface PresetBrowseCardProps {
   preset: BrowsePresetItem;

@@ -1,9 +1,9 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 import { Label } from '@/shared/components/ui/primitives/label';
-import { FileInputEmptyState } from '@/shared/components/file-input/FileInputEmptyState';
-import { FileInputSelectedFiles } from '@/shared/components/file-input/FileInputSelectedFiles';
-import { useFileInputController } from '@/shared/components/file-input/useFileInputController';
+import { FileInputEmptyState } from '@/shared/components/FileInput/FileInputEmptyState';
+import { FileInputSelectedFiles } from '@/shared/components/FileInput/FileInputSelectedFiles';
+import { useFileInputController } from '@/shared/components/FileInput/useFileInputController';
 
 interface FileInputProps {
   onFileChange: (files: File[]) => void;

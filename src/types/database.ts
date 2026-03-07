@@ -12,7 +12,6 @@ export const TASK_STATUS = {
 
 export type TaskStatus = typeof TASK_STATUS[keyof typeof TASK_STATUS];
 
-type CreditLedgerType = 'stripe' | 'manual' | 'spend' | 'refund';
 type TaskParamRecord = Record<string, unknown>;
 
 export const KNOWN_TASK_TYPES = {
@@ -49,48 +48,7 @@ export const KNOWN_TASK_TYPES = {
 export type KnownTaskType = typeof KNOWN_TASK_TYPES[keyof typeof KNOWN_TASK_TYPES];
 export type TaskType = KnownTaskType | (string & { readonly __taskTypeBrand?: never });
 
-export interface IndividualTravelSegmentTaskParams extends TaskParamRecord {
-  segment_index?: number;
-  start_image_generation_id?: string;
-  end_image_generation_id?: string;
-  individual_segment_params?: TaskParamRecord;
-}
-
-export interface JoinClipsOrchestratorTaskParams extends TaskParamRecord {
-  clip_ids?: string[];
-  orchestrator_task_id?: string;
-}
-
-export interface VideoEnhanceTaskParams extends TaskParamRecord {
-  video_url?: string;
-  enhancement_mode?: string;
-}
-
-export interface ImageGenerationTaskParams extends TaskParamRecord {
-  prompt?: string;
-  negative_prompt?: string;
-  seed?: number;
-}
-
-export interface ImageEditTaskParams extends TaskParamRecord {
-  prompt?: string;
-  image_url?: string;
-  mask_url?: string;
-}
-
-export interface CharacterAnimateTaskParams extends TaskParamRecord {
-  prompt?: string;
-  image_url?: string;
-}
-
-export type TaskParams =
-  | IndividualTravelSegmentTaskParams
-  | JoinClipsOrchestratorTaskParams
-  | VideoEnhanceTaskParams
-  | ImageGenerationTaskParams
-  | ImageEditTaskParams
-  | CharacterAnimateTaskParams
-  | TaskParamRecord;
+export type TaskParams = TaskParamRecord;
 
 // Core table types (matching your database structure)
 export interface User {
@@ -108,17 +66,6 @@ export interface Project {
   name: string;
   user_id: string;
   aspect_ratio: string;
-  created_at: string;
-  updated_at?: string;
-  settings?: Record<string, unknown>;
-}
-
-/** Raw DB row shape for shots table. App code should use Shot from @/types/shot instead. */
-interface _DbShot {
-  id: string;
-  name: string;
-  project_id: string;
-  aspect_ratio?: string | null;
   created_at: string;
   updated_at?: string;
   settings?: Record<string, unknown>;
@@ -167,27 +114,6 @@ export interface Worker {
   metadata?: Record<string, unknown>;
 }
 
-interface _CreditLedger {
-  id: string;
-  user_id: string;
-  amount: number;
-  type: CreditLedgerType;
-  description?: string;
-  created_at: string;
-  stripe_payment_intent_id?: string;
-}
-
-
-
-interface _UserAPIToken {
-  id: string;
-  user_id: string;
-  name: string;
-  token_hash: string;
-  created_at: string;
-  last_used_at?: string;
-  expires_at?: string;
-}
 
 export interface Resource {
   id: string;
@@ -203,13 +129,6 @@ export interface TrainingDataBatch {
   user_id: string;
   name: string;
   created_at: string;
-}
-
-interface _TrainingData {
-  id: string;
-  batch_id: string;
-  filename: string;
-  url: string;
 }
 
 export interface TrainingDataSegment {

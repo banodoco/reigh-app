@@ -6,7 +6,7 @@ import { FileInput } from '@/shared/components/FileInput';
 import { parseRatio } from '@/shared/lib/media/aspectRatios';
 import { cropImageToProjectAspectRatio } from '@/shared/lib/media/imageCropper';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import { AspectRatioSelector } from '@/shared/components/generation-controls/AspectRatioSelector';
+import { AspectRatioSelector } from '@/shared/components/GenerationControls/AspectRatioSelector';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { ModalContainer, ModalFooterButtons } from '@/shared/components/ModalContainer';
 

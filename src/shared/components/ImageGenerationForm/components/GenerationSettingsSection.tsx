@@ -4,8 +4,8 @@ import { SliderWithValue } from '@/shared/components/ui/slider-with-value';
 import { Switch } from '@/shared/components/ui/switch';
 import { RotateCcw } from 'lucide-react';
 import { HiresFixConfig, DEFAULT_HIRES_FIX_CONFIG, ResolutionMode } from '../types';
-import { AspectRatioSelector } from '@/shared/components/generation-controls/AspectRatioSelector';
-import { AspectRatioVisualizer } from '@/shared/components/generation-controls/AspectRatioVisualizer';
+import { AspectRatioSelector } from '@/shared/components/GenerationControls/AspectRatioSelector';
+import { AspectRatioVisualizer } from '@/shared/components/GenerationControls/AspectRatioVisualizer';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
 import { ToggleGroup, ToggleGroupItem } from '@/shared/components/ui/toggle-group';
 

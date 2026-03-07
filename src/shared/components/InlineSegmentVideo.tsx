@@ -8,12 +8,12 @@
  */
 
 import type React from 'react';
-import { SegmentPlaceholder } from './inline-segment-video/SegmentPlaceholder';
-import { SegmentPreview } from './inline-segment-video/SegmentPreview';
-import { SegmentProcessing } from './inline-segment-video/SegmentProcessing';
-import type { InlineSegmentVideoProps } from './inline-segment-video/types';
-import { useLayoutProps } from './inline-segment-video/useLayoutProps';
-import { useSegmentBadge } from './inline-segment-video/useSegmentBadge';
+import { SegmentPlaceholder } from './InlineSegmentVideo/SegmentPlaceholder';
+import { SegmentPreview } from './InlineSegmentVideo/SegmentPreview';
+import { SegmentProcessing } from './InlineSegmentVideo/SegmentProcessing';
+import type { InlineSegmentVideoProps } from './InlineSegmentVideo/types';
+import { useLayoutProps } from './InlineSegmentVideo/useLayoutProps';
+import { useSegmentBadge } from './InlineSegmentVideo/useSegmentBadge';
 
 export const InlineSegmentVideo: React.FC<InlineSegmentVideoProps> = ({
   slot,

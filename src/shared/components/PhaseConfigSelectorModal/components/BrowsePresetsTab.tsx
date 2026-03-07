@@ -7,7 +7,7 @@ import { useIsMobile } from '@/shared/hooks/mobile';
 import type { ModelTypeFilter, SortOption } from '../types';
 import { PresetBrowseCard } from './PresetBrowseCard';
 import { useBrowsePresetsTabModel } from '../hooks/useBrowsePresetsTabModel';
-import type { BrowsePresetsTabProps } from './BrowsePresetsTab.types';
+import type { BrowsePresetsTabProps } from './types';
 
 export const BrowsePresetsTab: React.FC<BrowsePresetsTabProps> = (props) => {
   const isMobile = useIsMobile();

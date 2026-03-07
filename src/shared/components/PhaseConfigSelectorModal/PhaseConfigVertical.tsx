@@ -14,7 +14,7 @@ import { usePhaseConfigModals } from './hooks/usePhaseConfigModals';
 import { PhaseConfigHeader } from './components/PhaseConfigHeader';
 import { PhaseGlobalSettingsCard } from './components/PhaseGlobalSettingsCard';
 import { PerPhaseCard } from './components/PerPhaseCard';
-import type { PhaseConfigVerticalProps } from './PhaseConfigVertical.types';
+import type { PhaseConfigVerticalProps } from './types';
 
 export const PhaseConfigVertical: React.FC<PhaseConfigVerticalProps> = ({
   phaseConfig,
