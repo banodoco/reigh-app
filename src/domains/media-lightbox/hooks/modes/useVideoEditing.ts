@@ -1,9 +1,12 @@
 import { useState, useCallback, useRef } from 'react';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/shared/lib/queryKeys';
 import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import { createTask } from '@/shared/lib/taskCreation';
+import {
+  flashSuccessForDuration,
+  invalidateTaskAndProjectQueries,
+} from '@/shared/lib/tasks/taskMutationFeedback';
 import { VACE_GENERATION_DEFAULTS } from '@/shared/lib/vaceDefaults';
 import { useEditVideoSettings } from '@/shared/settings/hooks/useEditVideoSettings';
 import { useLoraManager } from '@/domains/lora/hooks/useLoraManager';
@@ -110,13 +113,8 @@ export const useVideoEditing = ({
           });
         },
         onSuccess: () => {
-          setGenerateSuccess(true);
-          setTimeout(() => setGenerateSuccess(false), 1500);
-
-          queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
-          if (selectedProjectId) {
-            queryClient.invalidateQueries({ queryKey: queryKeys.unified.projectPrefix(selectedProjectId) });
-          }
+          flashSuccessForDuration(setGenerateSuccess, 1500);
+          invalidateTaskAndProjectQueries(queryClient, selectedProjectId);
         },
       });
     } finally {

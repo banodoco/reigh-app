@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { uploadImageToStorage } from '@/shared/lib/media/imageUploader';
 import { createImageInpaintTask } from '@/shared/lib/tasks/imageInpaint';
+import { buildMaskedEditTaskParams } from '@/shared/lib/tasks/buildMaskedEditTaskParams';
 import { generateMaskFromCanvas, createCanvasWithBackground } from '@/shared/lib/media/maskGeneration';
 import type { ImageTransform } from './types';
 import type { GenerationRow } from '@/domains/generation/types';
@@ -128,21 +129,23 @@ export function useRepositionTaskCreation({
           const actualGenerationId = getGenerationId(media);
           const effectivePrompt = inpaintPrompt.trim() || 'seamlessly extend and fill the edges matching the existing image style and content';
 
-          return createImageInpaintTask({
-            project_id: selectedProjectId,
-            image_url: transformedUrl,
-            mask_url: maskUrl,
-            prompt: effectivePrompt,
-            num_generations: inpaintNumGenerations,
-            generation_id: actualGenerationId ?? undefined,
-            shot_id: shotId,
-            tool_type: toolTypeOverride,
-            loras: loras,
-            create_as_generation: createAsGeneration,
-            source_variant_id: activeVariantId || undefined,
-            hires_fix: convertToHiresFixApiParams(advancedSettings),
-            qwen_edit_model: qwenEditModel,
-          });
+          return createImageInpaintTask(
+            buildMaskedEditTaskParams({
+              projectId: selectedProjectId,
+              imageUrl: transformedUrl,
+              maskUrl,
+              prompt: effectivePrompt,
+              numGenerations: inpaintNumGenerations,
+              generationId: actualGenerationId ?? undefined,
+              shotId,
+              toolType: toolTypeOverride,
+              loras,
+              createAsGeneration,
+              sourceVariantId: activeVariantId || undefined,
+              hiresFix: convertToHiresFixApiParams(advancedSettings),
+              qwenEditModel,
+            }),
+          );
         },
         onSuccess: () => {
           setRepositionGenerateSuccess(true);

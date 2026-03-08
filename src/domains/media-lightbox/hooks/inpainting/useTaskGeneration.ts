@@ -9,6 +9,7 @@ import type { GenerationRow } from '@/domains/generation/types';
 import { uploadImageToStorage } from '@/shared/lib/media/imageUploader';
 import { createImageInpaintTask } from '@/shared/lib/tasks/imageInpaint';
 import { createAnnotatedImageEditTask } from '@/shared/lib/tasks/annotatedImageEdit';
+import { buildMaskedEditTaskParams } from '@/shared/lib/tasks/buildMaskedEditTaskParams';
 import type { StrokeOverlayHandle } from '../../components/StrokeOverlay';
 import type { BrushStroke, EditAdvancedSettings, QwenEditModel } from './types';
 
@@ -162,21 +163,23 @@ export function useTaskGeneration({
             throw new Error('Missing generation id');
           }
 
-          return config.createTask({
-            project_id: selectedProjectId,
-            image_url: sourceUrl,
-            mask_url: maskUrl,
-            prompt: inpaintPrompt,
-            num_generations: inpaintNumGenerations,
-            generation_id: actualGenerationId ?? undefined,
-            shot_id: shotId,
-            tool_type: toolTypeOverride,
-            loras: loras,
-            create_as_generation: createAsGeneration,
-            source_variant_id: activeVariantId || undefined,
-            hires_fix: convertToHiresFixApiParams(advancedSettings),
-            qwen_edit_model: qwenEditModel,
-          });
+          return config.createTask(
+            buildMaskedEditTaskParams({
+              projectId: selectedProjectId,
+              imageUrl: sourceUrl,
+              maskUrl,
+              prompt: inpaintPrompt,
+              numGenerations: inpaintNumGenerations,
+              generationId: actualGenerationId ?? undefined,
+              shotId,
+              toolType: toolTypeOverride,
+              loras,
+              createAsGeneration,
+              sourceVariantId: activeVariantId || undefined,
+              hiresFix: convertToHiresFixApiParams(advancedSettings),
+              qwenEditModel,
+            }),
+          );
         },
         onSuccess: () => {
           // Show success state

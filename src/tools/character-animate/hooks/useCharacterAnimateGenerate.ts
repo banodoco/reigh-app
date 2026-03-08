@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/shared/lib/queryKeys';
 import { createCharacterAnimateTask } from '../lib/characterAnimate';
 import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
+import {
+  flashSuccessForDuration,
+  invalidateTaskAndProjectQueries,
+} from '@/shared/lib/tasks/taskMutationFeedback';
 import type { CharacterAnimateTaskParams } from '../lib/characterAnimate';
 
 interface UseCharacterAnimateGenerateParams {
@@ -56,15 +59,9 @@ export function useCharacterAnimateGenerate({
           return createCharacterAnimateTask(taskParams);
         },
         onSuccess: () => {
-          setShowSuccessState(true);
-          setTimeout(() => setShowSuccessState(false), 1500);
-
+          flashSuccessForDuration(setShowSuccessState, 1500);
           setVideosViewJustEnabled(true);
-
-          queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
-          if (selectedProjectId) {
-            queryClient.invalidateQueries({ queryKey: queryKeys.unified.projectPrefix(selectedProjectId) });
-          }
+          invalidateTaskAndProjectQueries(queryClient, selectedProjectId);
         },
       });
     } finally {
