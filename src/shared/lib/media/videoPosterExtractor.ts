@@ -2,6 +2,11 @@
  * Utility for extracting poster images (first frame) from video files
  */
 
+import {
+  configureVideoForFrameCapture,
+  createVideoFrameCaptureElements,
+} from './videoFrameCapturePrimitives';
+
 /**
  * Extract the first frame of a video as a Blob
  * @param videoFile The video file to extract from
@@ -9,18 +14,14 @@
  */
 export function extractVideoPosterFrame(videoFile: File): Promise<Blob> {
   return new Promise((resolve, reject) => {
-    const video = document.createElement('video');
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-
-    if (!ctx) {
+    const captureElements = createVideoFrameCaptureElements();
+    if (!captureElements) {
       reject(new Error('Failed to get canvas context'));
       return;
     }
+    const { video, canvas, ctx } = captureElements;
 
-    video.preload = 'metadata';
-    video.muted = true;
-    video.playsInline = true;
+    configureVideoForFrameCapture(video);
 
     // When metadata is loaded, we can get dimensions
     video.addEventListener('loadedmetadata', () => {
@@ -74,18 +75,14 @@ export function extractVideoPosterFrame(videoFile: File): Promise<Blob> {
  */
 export function extractVideoFinalFrame(videoFile: File): Promise<Blob> {
   return new Promise((resolve, reject) => {
-    const video = document.createElement('video');
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-
-    if (!ctx) {
+    const captureElements = createVideoFrameCaptureElements();
+    if (!captureElements) {
       reject(new Error('Failed to get canvas context'));
       return;
     }
+    const { video, canvas, ctx } = captureElements;
 
-    video.preload = 'metadata';
-    video.muted = true;
-    video.playsInline = true;
+    configureVideoForFrameCapture(video);
 
     // When metadata is loaded, we can get dimensions and duration
     video.addEventListener('loadedmetadata', () => {

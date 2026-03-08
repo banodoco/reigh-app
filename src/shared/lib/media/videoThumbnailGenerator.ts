@@ -9,6 +9,10 @@ import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';
 import { storagePaths, MEDIA_BUCKET } from '@/shared/lib/storagePaths';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import {
+  configureVideoForFrameCapture,
+  createVideoFrameCaptureElements,
+} from './videoFrameCapturePrimitives';
 
 interface ThumbnailGenerationResult {
   success: boolean;
@@ -22,6 +26,16 @@ interface ThumbnailExtractResult {
   error?: string;
 }
 
+export async function resolveAuthenticatedMediaUserId(): Promise<string> {
+  const {
+    data: { session },
+  } = await supabase().auth.getSession();
+  if (!session?.user?.id) {
+    throw new Error('User not authenticated');
+  }
+  return session.user.id;
+}
+
 /**
  * Extracts a thumbnail from a video at a specific time
  */
@@ -30,19 +44,14 @@ function extractThumbnailFromVideo(
   timeInSeconds: number = 0.001
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {
-    const video = document.createElement('video');
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-
-    if (!ctx) {
+    const captureElements = createVideoFrameCaptureElements();
+    if (!captureElements) {
       reject(new Error('Failed to get canvas context'));
       return;
     }
+    const { video, canvas, ctx } = captureElements;
 
-    video.crossOrigin = 'anonymous';
-    video.preload = 'metadata';
-    video.muted = true;
-    video.playsInline = true;
+    configureVideoForFrameCapture(video, 'anonymous');
 
     // Handle video loaded
     video.addEventListener('loadedmetadata', () => {
@@ -101,12 +110,7 @@ async function uploadThumbnailToStorage(
   generationId: string,
   _projectId: string
 ): Promise<string> {
-  // Get userId for storage path
-  const { data: { session } } = await supabase().auth.getSession();
-  if (!session?.user?.id) {
-    throw new Error('User not authenticated');
-  }
-  const userId = session.user.id;
+  const userId = await resolveAuthenticatedMediaUserId();
 
   const fileName = `${generationId}-thumb.jpg`;
   const filePath = storagePaths.thumbnail(userId, fileName);

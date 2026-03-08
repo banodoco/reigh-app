@@ -1,15 +1,11 @@
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { getFileExtension, MEDIA_BUCKET, storagePaths } from '@/shared/lib/storagePaths';
 import { extractVideoPosterFrame } from '@/shared/lib/media/videoPosterExtractor';
+import { resolveAuthenticatedMediaUserId } from '@/shared/lib/media/videoThumbnailGenerator';
 
 export async function uploadVideoWithPoster(file: File): Promise<{ videoUrl: string; posterUrl: string }> {
   const posterBlob = await extractVideoPosterFrame(file);
-
-  const { data: { session } } = await supabase().auth.getSession();
-  if (!session?.user?.id) {
-    throw new Error('User not authenticated');
-  }
-  const userId = session.user.id;
+  const userId = await resolveAuthenticatedMediaUserId();
 
   const fileExt = getFileExtension(file.name, file.type, 'mp4');
   const timestamp = Date.now();
