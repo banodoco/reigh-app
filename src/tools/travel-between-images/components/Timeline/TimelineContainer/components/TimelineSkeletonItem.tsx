@@ -1,6 +1,7 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 import { TIMELINE_PADDING_OFFSET } from '../../constants';
+import { getProjectAspectRatioStyle } from '@/shared/lib/media/imageAspectRatio';
 
 interface TimelineSkeletonItemProps {
   framePosition: number;
@@ -22,14 +23,7 @@ export const TimelineSkeletonItem: React.FC<TimelineSkeletonItemProps> = ({
   const pixelPosition = TIMELINE_PADDING_OFFSET + ((framePosition - fullMin) / fullRange) * effectiveWidth;
   const leftPercent = (pixelPosition / containerWidth) * 100;
 
-  // Calculate aspect ratio
-  let aspectRatioStyle: React.CSSProperties = { aspectRatio: '1' };
-  if (projectAspectRatio) {
-    const [w, h] = projectAspectRatio.split(':').map(Number);
-    if (!isNaN(w) && !isNaN(h)) {
-      aspectRatioStyle = { aspectRatio: `${w / h}` };
-    }
-  }
+  const aspectRatioStyle = getProjectAspectRatioStyle(projectAspectRatio);
 
   return (
     <div

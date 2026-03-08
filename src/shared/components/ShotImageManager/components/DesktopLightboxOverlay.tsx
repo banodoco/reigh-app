@@ -22,8 +22,10 @@ interface DesktopLightboxOverlayProps {
   onShowTick: (id: string | null) => void;
   showTickForSecondaryImageId: string | null;
   onShowSecondaryTick: (id: string | null) => void;
-  onNavigateToShot: (shot: Shot) => void;
+  onNavigateToShot?: (shot: Shot) => void;
   adjacentSegments: MediaLightboxProps['adjacentSegments'];
+  includeDeleteAction?: boolean;
+  onMissingGenerationNavigate?: (generationId: string) => void;
 }
 
 export function DesktopLightboxOverlay({
@@ -41,6 +43,8 @@ export function DesktopLightboxOverlay({
   onShowSecondaryTick,
   onNavigateToShot,
   adjacentSegments,
+  includeDeleteAction = true,
+  onMissingGenerationNavigate,
 }: DesktopLightboxOverlayProps): React.ReactElement | null {
   if (lightbox.lightboxIndex === null || !lightbox.currentImages[lightbox.lightboxIndex]) {
     return null;
@@ -128,7 +132,7 @@ export function DesktopLightboxOverlay({
         initialEditActive: lightbox.shouldAutoEnterInpaint,
       }}
       actions={{
-        onDelete: !managerProps.readOnly
+        onDelete: includeDeleteAction && !managerProps.readOnly
           ? () => {
               const activeImage = lightbox.currentImages[lightboxIndex];
               const shotImageEntryId = activeImage.shotImageEntryId || activeImage.id;
@@ -143,6 +147,8 @@ export function DesktopLightboxOverlay({
         const index = lightbox.currentImages.findIndex((img: GenerationRow) => img.id === generationId);
         if (index !== -1) {
           lightbox.setLightboxIndex(index);
+        } else if (onMissingGenerationNavigate) {
+          onMissingGenerationNavigate(generationId);
         }
       }}
       onOpenExternalGeneration={externalGens.handleOpenExternalGeneration}

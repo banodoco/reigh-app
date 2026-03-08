@@ -1,16 +1,12 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core';
 import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
 import type { ShotImageManagerProps, ShotLightboxSelectionProps } from './types';
 import { GRID_COLS_CLASSES } from './constants';
 import { useIsMobile } from '@/shared/hooks/mobile';
-import { useTaskDetails } from './hooks/useTaskDetails';
+import { useLightboxContextData } from './hooks/useLightboxContextData';
 import { useShotNavigation } from '@/shared/hooks/shots/useShotNavigation';
 import type { GenerationRow } from '@/domains/generation/types';
-import { usePrefetchTaskData } from '@/shared/hooks/tasks/useTaskPrefetch';
-import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
-import { usePendingImageOpen } from '@/shared/hooks/usePendingImageOpen';
-import { useAdjacentSegmentsData } from './hooks/useAdjacentSegmentsData';
 import { useImageTickFeedback } from './hooks/useImageTickFeedback';
 import { useDesktopSegmentScrubbing } from './hooks/useDesktopSegmentScrubbing';
 import { BatchDropZone } from './components/BatchDropZone';
@@ -65,65 +61,16 @@ export const ShotImageManagerDesktop: React.FC<ShotImageManagerDesktopProps> = (
     setShowTickForSecondaryImageId,
   } = useImageTickFeedback();
 
-  // Fetch task details for current lightbox image
-  // IMPORTANT: Use generation_id (actual generations.id) when available, falling back to id
-  // For ShotImageManager, id is shot_generations.id but generation_id is the actual generation ID
-  const currentLightboxImage = lightbox.lightboxIndex !== null
-    ? lightbox.currentImages[lightbox.lightboxIndex]
-    : null;
-  const currentLightboxImageId = getGenerationId(currentLightboxImage) || null;
-  const { taskDetailsData } = useTaskDetails({
-    generationId: currentLightboxImageId,
-    projectId: props.projectId ?? null,
-  });
-
-  // Prefetch task data for adjacent items when lightbox is open
-  const prefetchTaskData = usePrefetchTaskData();
-
-  useEffect(() => {
-    if (lightbox.lightboxIndex === null) return;
-
-    // Prefetch previous item
-    if (lightbox.lightboxIndex > 0) {
-      const prevItem = lightbox.currentImages[lightbox.lightboxIndex - 1];
-      const prevGenerationId = getGenerationId(prevItem);
-      if (prevGenerationId) {
-        prefetchTaskData(prevGenerationId);
-      }
-    }
-
-    // Prefetch next item
-    if (lightbox.lightboxIndex < lightbox.currentImages.length - 1) {
-      const nextItem = lightbox.currentImages[lightbox.lightboxIndex + 1];
-      const nextGenerationId = getGenerationId(nextItem);
-      if (nextGenerationId) {
-        prefetchTaskData(nextGenerationId);
-      }
-    }
-
-    // Prefetch current item too
-    if (currentLightboxImageId) {
-      prefetchTaskData(currentLightboxImageId);
-    }
-  }, [lightbox.lightboxIndex, lightbox.currentImages, currentLightboxImageId, prefetchTaskData]);
-
-  // Handle pending image to open (from constituent image navigation / TasksPane deep-link)
-  const capturedVariantIdRef = usePendingImageOpen({
-    pendingImageToOpen,
-    pendingImageVariantId,
-    images: lightbox.currentImages,
-    openLightbox: lightbox.setLightboxIndex,
-    onClear: onClearPendingImageToOpen,
-  });
-
-  // Build adjacent segments data for the current lightbox image
-  // This enables navigation to videos that start/end with the current image
-  const adjacentSegmentsData = useAdjacentSegmentsData({
-    segmentSlots,
-    onPairClick: props.onPairClick,
+  const { capturedVariantIdRef, adjacentSegmentsData, taskDetailsData } = useLightboxContextData({
     lightboxIndex: lightbox.lightboxIndex,
     currentImages: lightbox.currentImages,
     setLightboxIndex: lightbox.setLightboxIndex,
+    projectId: props.projectId ?? null,
+    pendingImageToOpen,
+    pendingImageVariantId,
+    onClearPendingImageToOpen,
+    segmentSlots,
+    onPairClick: props.onPairClick,
     navigateWithTransition,
   });
 

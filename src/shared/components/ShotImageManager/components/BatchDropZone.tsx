@@ -2,6 +2,7 @@ import React, { useRef, useCallback, useState, useEffect } from "react";
 import { toast } from "@/shared/components/ui/runtime/sonner";
 import { ImagePlus, FileUp, Loader2 } from "lucide-react";
 import { getDragType, getGenerationDropData, type DragType } from "@/shared/lib/dnd/dragDrop";
+import { getProjectAspectRatioStyle } from '@/shared/lib/media/imageAspectRatio';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 // Skeleton component for pending drop items
@@ -58,14 +59,7 @@ const GridSkeletonItem: React.FC<{
 
   if (!position) return null;
 
-  // Calculate aspect ratio
-  let aspectRatioStyle: React.CSSProperties = { aspectRatio: '1' };
-  if (projectAspectRatio) {
-    const [w, h] = projectAspectRatio.split(':').map(Number);
-    if (!isNaN(w) && !isNaN(h)) {
-      aspectRatioStyle = { aspectRatio: `${w / h}` };
-    }
-  }
+  const aspectRatioStyle = getProjectAspectRatioStyle(projectAspectRatio);
 
   return (
     <div

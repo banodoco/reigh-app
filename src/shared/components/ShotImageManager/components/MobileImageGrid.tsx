@@ -6,6 +6,7 @@ import { ShotBatchItemMobile } from '@/shared/components/ShotImageManager/ShotBa
 import { PairPromptIndicator } from '@/shared/components/ShotImageManager/components/PairPromptIndicator';
 import { InlineSegmentVideo } from '@/shared/components/InlineSegmentVideo';
 import { getAspectRatioStyle, resolveDuplicateFrame } from '@/shared/components/ShotImageManager/utils/image-utils';
+import { handleImageFileInputChange } from '@/shared/lib/handleImageFileInputChange';
 import type { BaseShotImageManagerProps } from '@/shared/components/ShotImageManager/types';
 import type { GenerationRow } from '@/domains/generation/types';
 
@@ -289,13 +290,9 @@ export function MobileImageGrid({
               type="file"
               accept="image/*"
               multiple
-              onChange={(e) => {
-                const files = Array.from(e.target.files || []);
-                if (files.length > 0) {
-                  upload.onUpload?.(files);
-                  e.target.value = '';
-                }
-              }}
+              onChange={(event) => handleImageFileInputChange(event, (files) => {
+                upload.onUpload?.(files);
+              })}
               className="hidden"
               id="mobile-grid-image-upload"
               disabled={upload.isUploadingImage}

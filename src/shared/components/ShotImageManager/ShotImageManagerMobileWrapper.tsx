@@ -1,14 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import type { ShotImageManagerProps, ShotLightboxSelectionProps } from './types';
 import { ShotImageManagerMobile } from './ShotImageManagerMobile';
-import { MediaLightbox } from '@/domains/media-lightbox/MediaLightbox';
-import { useTaskDetails } from './hooks/useTaskDetails';
-import { usePrefetchTaskData } from '@/shared/hooks/tasks/useTaskPrefetch';
-import { useAdjacentSegmentsData } from './hooks/useAdjacentSegmentsData';
-import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
-import { usePendingImageOpen } from '@/shared/hooks/usePendingImageOpen';
+import { DesktopLightboxOverlay } from './components/DesktopLightboxOverlay';
+import { useLightboxContextData } from './hooks/useLightboxContextData';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import type { GenerationRow } from '@/domains/generation/types';
 import type { useSelection } from './hooks/useSelection';
 import type { useLightbox } from './hooks/useLightbox';
 import type { useBatchOperations } from './hooks/useBatchOperations';
@@ -26,10 +21,7 @@ interface ShotImageManagerMobileWrapperProps extends ShotImageManagerProps, Shot
 }
 
 export const ShotImageManagerMobileWrapper: React.FC<ShotImageManagerMobileWrapperProps> = ({
-  selection,
   lightbox,
-  batchOps,
-  mobileGestures,
   optimistic,
   externalGens,
   lightboxSelectedShotId,
@@ -67,67 +59,18 @@ export const ShotImageManagerMobileWrapper: React.FC<ShotImageManagerMobileWrapp
     }
   }, [showTickForSecondaryImageId]);
 
-  // Handle pending image to open (from constituent image navigation / TasksPane deep-link)
-  const capturedVariantIdRef = usePendingImageOpen({
-    pendingImageToOpen,
-    pendingImageVariantId,
-    images: lightbox.currentImages,
-    openLightbox: lightbox.setLightboxIndex,
-    onClear: onClearPendingImageToOpen,
-  });
-
-  // Build adjacent segments data for the current lightbox image
-  // This enables navigation to videos that start/end with the current image
-  const adjacentSegmentsData = useAdjacentSegmentsData({
-    segmentSlots,
-    onPairClick: props.onPairClick,
+  const { capturedVariantIdRef, adjacentSegmentsData, taskDetailsData } = useLightboxContextData({
     lightboxIndex: lightbox.lightboxIndex,
     currentImages: lightbox.currentImages,
     setLightboxIndex: lightbox.setLightboxIndex,
+    projectId: props.projectId ?? null,
+    pendingImageToOpen,
+    pendingImageVariantId,
+    onClearPendingImageToOpen,
+    segmentSlots,
+    onPairClick: props.onPairClick,
     navigateWithTransition,
   });
-
-  // Fetch task details for current lightbox image
-  // IMPORTANT: Use generation_id (actual generations.id) when available, falling back to id
-  // For ShotImageManager, id is shot_generations.id but generation_id is the actual generation ID
-  const currentLightboxImage = lightbox.lightboxIndex !== null
-    ? lightbox.currentImages[lightbox.lightboxIndex]
-    : null;
-  const currentLightboxImageId = getGenerationId(currentLightboxImage) || null;
-  const { taskDetailsData } = useTaskDetails({
-    generationId: currentLightboxImageId,
-    projectId: props.projectId ?? null,
-  });
-
-  // Prefetch task data for adjacent items when lightbox is open
-  const prefetchTaskData = usePrefetchTaskData();
-
-  useEffect(() => {
-    if (lightbox.lightboxIndex === null) return;
-
-    // Prefetch previous item
-    if (lightbox.lightboxIndex > 0) {
-      const prevItem = lightbox.currentImages[lightbox.lightboxIndex - 1];
-      const prevGenerationId = getGenerationId(prevItem);
-      if (prevGenerationId) {
-        prefetchTaskData(prevGenerationId);
-      }
-    }
-
-    // Prefetch next item
-    if (lightbox.lightboxIndex < lightbox.currentImages.length - 1) {
-      const nextItem = lightbox.currentImages[lightbox.lightboxIndex + 1];
-      const nextGenerationId = getGenerationId(nextItem);
-      if (nextGenerationId) {
-        prefetchTaskData(nextGenerationId);
-      }
-    }
-
-    // Prefetch current item too
-    if (currentLightboxImageId) {
-      prefetchTaskData(currentLightboxImageId);
-    }
-  }, [lightbox.lightboxIndex, lightbox.currentImages, currentLightboxImageId, prefetchTaskData]);
   
   return (
     <>
@@ -165,130 +108,32 @@ export const ShotImageManagerMobileWrapper: React.FC<ShotImageManagerMobileWrapp
         onShotChange={props.onShotChange}
       />
       
-      {lightbox.lightboxIndex !== null && lightbox.currentImages[lightbox.lightboxIndex] && (() => {
-        const baseImagesCount = (optimistic.optimisticOrder && optimistic.optimisticOrder.length > 0) ? optimistic.optimisticOrder.length : (props.images || []).length;
-        const isExternalGen = lightbox.lightboxIndex >= baseImagesCount;
-        
-        let hasNext: boolean;
-        let hasPrevious: boolean;
-        
-        if (externalGens.derivedNavContext) {
-          const currentId = lightbox.currentImages[lightbox.lightboxIndex]?.id;
-          const currentDerivedIndex = externalGens.derivedNavContext.derivedGenerationIds.indexOf(currentId);
-          hasNext = currentDerivedIndex !== -1 && currentDerivedIndex < externalGens.derivedNavContext.derivedGenerationIds.length - 1;
-          hasPrevious = currentDerivedIndex !== -1 && currentDerivedIndex > 0;
-        } else {
-          hasNext = lightbox.lightboxIndex < lightbox.currentImages.length - 1;
-          hasPrevious = lightbox.lightboxIndex > 0;
-        }
-        
-        const currentImage = lightbox.currentImages[lightbox.lightboxIndex];
-
-        // Extended fields that may be present at runtime from external generation lookups
-        const currentImageShotId = (currentImage as GenerationRow & { shot_id?: string }).shot_id;
-        const currentImageAssociations = (currentImage as GenerationRow & { all_shot_associations?: Array<{ shot_id: string; timeline_frame?: number | null }> }).all_shot_associations;
-
-        // Determine if the current image is positioned in the selected shot
-        // For non-external gens (images from the shot itself), check if they have a timeline_frame
-        // Use lightboxSelectedShotId instead of props.selectedShotId so it updates when dropdown changes
-        const effectiveSelectedShotId = lightboxSelectedShotId || props.selectedShotId;
-        const isInSelectedShot = !isExternalGen && effectiveSelectedShotId && (
-          props.shotId === effectiveSelectedShotId ||
-          currentImageShotId === effectiveSelectedShotId ||
-          (Array.isArray(currentImageAssociations) &&
-           currentImageAssociations.some((assoc) => assoc.shot_id === effectiveSelectedShotId))
-        );
-
-        const positionedInSelectedShot = isInSelectedShot
-          ? currentImage.timeline_frame !== null && currentImage.timeline_frame !== undefined
-          : undefined;
-
-        const associatedWithoutPositionInSelectedShot = isInSelectedShot
-          ? currentImage.timeline_frame === null || currentImage.timeline_frame === undefined
-          : undefined;
-
-        return (
-          <MediaLightbox
-            media={lightbox.currentImages[lightbox.lightboxIndex]}
-            shotId={props.shotId}
-            toolTypeOverride={props.toolTypeOverride}
-            initialVariantId={capturedVariantIdRef.current ?? undefined}
-            onClose={() => {
-              capturedVariantIdRef.current = null;
-              lightbox.setLightboxIndex(null);
-              lightbox.setShouldAutoEnterInpaint(false);
-              externalGens.setDerivedNavContext(null);
-              externalGens.setTempDerivedGenerations([]);
-              if (isExternalGen) {
-                externalGens.setExternalGenLightboxSelectedShot(props.selectedShotId);
-              }
-              // Reset dropdown to current shot when closing
-              setLightboxSelectedShotId?.(props.selectedShotId);
-            }}
-            navigation={{
-              onNext: lightbox.handleNext,
-              onPrevious: lightbox.handlePrevious,
-              showNavigation: true,
-              hasNext,
-              hasPrevious,
-            }}
-            features={{
-              showImageEditTools: true,
-              showDownload: true,
-              showMagicEdit: true,
-              showTaskDetails: true,
-              initialEditActive: lightbox.shouldAutoEnterInpaint,
-            }}
-            actions={{
-              starred: lightbox.currentImages[lightbox.lightboxIndex]?.starred || false,
-            }}
-            readOnly={props.readOnly}
-            taskDetailsData={taskDetailsData ?? undefined}
-            adjacentSegments={adjacentSegmentsData}
-            onNavigateToGeneration={(generationId: string) => {
-              const index = lightbox.currentImages.findIndex((img: GenerationRow) => img.id === generationId);
-              if (index !== -1) {
-                lightbox.setLightboxIndex(index);
-              } else {
-                normalizeAndPresentError(new Error('Generation not found in current images'), {
-                  context: 'ShotImageManagerMobileWrapper',
-                  showToast: false,
-                  logData: {
-                    searchedId: generationId.substring(0, 8),
-                    availableIds: lightbox.currentImages.map((img: GenerationRow) => img.id.substring(0, 8))
-                  },
-                });
-              }
-            }}
-            onOpenExternalGeneration={externalGens.handleOpenExternalGeneration}
-            shotWorkflow={{
-              allShots: props.allShots,
-              selectedShotId: isExternalGen
-                ? externalGens.externalGenLightboxSelectedShot
-                : (lightboxSelectedShotId || props.selectedShotId),
-              onShotChange: isExternalGen
-                ? (shotId) => {
-                    externalGens.setExternalGenLightboxSelectedShot(shotId);
-                  }
-                : (shotId) => {
-                    setLightboxSelectedShotId?.(shotId);
-                    props.onShotChange?.(shotId);
-                  },
-              onAddToShot: isExternalGen ? externalGens.handleExternalGenAddToShot : props.onAddToShot,
-              onAddToShotWithoutPosition: isExternalGen
-                ? externalGens.handleExternalGenAddToShotWithoutPosition
-                : props.onAddToShotWithoutPosition,
-              onCreateShot: props.onCreateShot,
-              positionedInSelectedShot,
-              associatedWithoutPositionInSelectedShot,
-              onShowTick: setShowTickForImageId,
-              onShowSecondaryTick: setShowTickForSecondaryImageId,
-            }}
-            showTickForImageId={showTickForImageId}
-            showTickForSecondaryImageId={showTickForSecondaryImageId}
-          />
-        );
-      })()}
+      <DesktopLightboxOverlay
+        lightbox={lightbox}
+        optimistic={optimistic}
+        externalGens={externalGens}
+        managerProps={props}
+        lightboxSelectedShotId={lightboxSelectedShotId}
+        setLightboxSelectedShotId={setLightboxSelectedShotId}
+        taskDetailsData={taskDetailsData ?? undefined}
+        capturedVariantIdRef={capturedVariantIdRef}
+        showTickForImageId={showTickForImageId}
+        onShowTick={setShowTickForImageId}
+        showTickForSecondaryImageId={showTickForSecondaryImageId}
+        onShowSecondaryTick={setShowTickForSecondaryImageId}
+        adjacentSegments={adjacentSegmentsData}
+        includeDeleteAction={false}
+        onMissingGenerationNavigate={(generationId) => {
+          normalizeAndPresentError(new Error('Generation not found in current images'), {
+            context: 'ShotImageManagerMobileWrapper',
+            showToast: false,
+            logData: {
+              searchedId: generationId.substring(0, 8),
+              availableIds: lightbox.currentImages.map((img) => img.id.substring(0, 8)),
+            },
+          });
+        }}
+      />
     </>
   );
 };
