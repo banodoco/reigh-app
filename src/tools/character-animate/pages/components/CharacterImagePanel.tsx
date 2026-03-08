@@ -1,5 +1,5 @@
 import React from 'react';
-import { Film, Upload, X } from 'lucide-react';
+import { Film, Upload } from 'lucide-react';
 
 import { Button } from '@/shared/components/ui/button';
 import { Label } from '@/shared/components/ui/primitives/label';
@@ -7,6 +7,7 @@ import { cn } from '@/shared/components/ui/contracts/cn';
 
 import type { CharacterImageState } from '../characterAnimate.types';
 import { MediaContainerSkeleton, UploadingMediaState } from './MediaStates';
+import { DeleteMediaButton, MediaDropZone, ReplaceDropOverlay } from './MediaPanelShared';
 
 interface CharacterImagePanelProps {
   mode: 'animate' | 'replace';
@@ -48,15 +49,14 @@ export function CharacterImagePanel(props: CharacterImagePanelProps) {
   return (
     <div className="space-y-3">
       <Label className="text-lg font-medium">{mode === 'animate' ? '✨ Character to animate' : '✨ Character to insert'}</Label>
-      <div
-        className={`aspect-video bg-muted rounded-lg border-2 border-dashed flex items-center justify-center overflow-hidden transition-colors relative ${
-          isDraggingOverImage ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
-        } ${!image && !isUploading ? 'cursor-pointer' : ''}`}
+      <MediaDropZone
+        isDraggingOver={isDraggingOverImage}
+        canOpenPicker={!image && !isUploading}
+        onOpenPicker={() => inputRef.current?.click()}
         onDragOver={onDragOver}
         onDragEnter={onDragEnter}
         onDragLeave={onDragLeave}
         onDrop={onDrop}
-        onClick={() => !image && !isUploading && inputRef.current?.click()}
       >
         {isUploading ? (
           <UploadingMediaState type="image" />
@@ -73,23 +73,8 @@ export function CharacterImagePanel(props: CharacterImagePanelProps) {
               onLoad={onImageLoad}
               onLoadStart={onImageLoad}
             />
-            <Button
-              variant="destructive"
-              size="icon"
-              className="absolute top-2 right-2 h-8 w-8 rounded-full shadow-lg z-10"
-              onClick={(event) => {
-                event.stopPropagation();
-                onDelete();
-              }}
-              disabled={isUploading}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-            {isDraggingOverImage && !isScrolling && (
-              <div className="absolute inset-0 bg-primary/20 backdrop-blur-sm flex items-center justify-center pointer-events-none z-20">
-                <p className="text-lg font-medium text-foreground">Drop to replace</p>
-              </div>
-            )}
+            <DeleteMediaButton onDelete={onDelete} disabled={isUploading} />
+            <ReplaceDropOverlay show={isDraggingOverImage && !isScrolling} />
           </>
         ) : !settingsLoaded ? (
           <MediaContainerSkeleton />
@@ -100,7 +85,7 @@ export function CharacterImagePanel(props: CharacterImagePanelProps) {
             <p className="text-xs text-muted-foreground">{isDraggingOverImage ? '' : 'PNG, JPG supported'}</p>
           </div>
         )}
-      </div>
+      </MediaDropZone>
       <input
         ref={inputRef}
         type="file"
