@@ -2,20 +2,11 @@ import React from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Label } from "@/shared/components/ui/primitives/label";
 import { Textarea } from "@/shared/components/ui/textarea";
-import { Trash2, Wand2, Info } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
-} from "@/shared/components/ui/tooltip";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/shared/components/ui/popover";
+import { Trash2, Wand2 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shared/components/ui/tooltip";
 import { SegmentedControl, SegmentedControlItem } from "@/shared/components/ui/segmented-control";
 import { CollapsibleSection } from "@/shared/components/ui/collapsible-section";
+import { ResponsiveInfoTip } from "@/shared/components/ui/responsive-info-tip";
 import { PromptMode } from "../types";
 import { SectionHeader } from "./SectionHeader";
 import { usePromptsSectionController } from "./prompts-section/usePromptsSectionController";
@@ -62,39 +53,14 @@ export const PromptsSection: React.FC<PromptsSectionProps> = ({
             <Label htmlFor="masterPromptText" className="text-sm font-light block mb-1.5">
               Master Prompt:
             </Label>
-            {controller.isMobile ? (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button 
-                    type="button" 
-                    className="absolute top-0 right-0 text-muted-foreground hover:text-foreground transition-colors bg-transparent border-0 p-0"
-                  >
-                    <Info className="h-4 w-4" />
-                    <span className="sr-only">Info</span>
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 text-sm" side="left" align="start">
-                  <p>
-                    AI will generate multiple prompt variations based on this description
-                  </p>
-                </PopoverContent>
-              </Popover>
-            ) : (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="absolute top-0 right-0 text-muted-foreground cursor-help hover:text-foreground transition-colors">
-                      <Info className="h-4 w-4" />
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      AI will generate multiple prompt variations based on this description
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
+            <ResponsiveInfoTip
+              isMobile={controller.isMobile}
+              content={(
+                <p>
+                  AI will generate multiple prompt variations based on this description
+                </p>
+              )}
+            />
           </div>
             <Textarea
               id="masterPromptText"

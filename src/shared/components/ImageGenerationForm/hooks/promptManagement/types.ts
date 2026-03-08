@@ -28,15 +28,7 @@ export interface PromptManagementInput {
   promptIdCounter: MutableRefObject<number>;
 }
 
-export interface PromptManagementOutput {
-  prompts: PromptEntry[];
-  masterPromptText: string;
-  effectivePromptMode: PromptMode;
-  currentBeforePromptText: string;
-  currentAfterPromptText: string;
-  isShotSettingsReady: boolean;
-  actionablePromptsCount: number;
-  lastKnownPromptCount: number;
+export interface PromptHandlersContract {
   setPrompts: (newPrompts: PromptEntry[] | ((prev: PromptEntry[]) => PromptEntry[])) => void;
   setMasterPromptText: Dispatch<SetStateAction<string>>;
   setEffectivePromptMode: (mode: PromptMode) => void;
@@ -46,6 +38,26 @@ export interface PromptManagementOutput {
   handleUpdatePrompt: (id: string, field: 'fullPrompt' | 'shortPrompt', value: string) => void;
   handleRemovePrompt: (id: string) => void;
   handleDeleteAllPrompts: () => void;
+}
+
+export interface PromptManagementOutput {
+  prompts: PromptEntry[];
+  masterPromptText: string;
+  effectivePromptMode: PromptMode;
+  currentBeforePromptText: string;
+  currentAfterPromptText: string;
+  isShotSettingsReady: boolean;
+  actionablePromptsCount: number;
+  lastKnownPromptCount: number;
+  setPrompts: PromptHandlersContract['setPrompts'];
+  setMasterPromptText: PromptHandlersContract['setMasterPromptText'];
+  setEffectivePromptMode: PromptHandlersContract['setEffectivePromptMode'];
+  setCurrentBeforePromptText: PromptHandlersContract['setCurrentBeforePromptText'];
+  setCurrentAfterPromptText: PromptHandlersContract['setCurrentAfterPromptText'];
+  handleAddPrompt: PromptHandlersContract['handleAddPrompt'];
+  handleUpdatePrompt: PromptHandlersContract['handleUpdatePrompt'];
+  handleRemovePrompt: PromptHandlersContract['handleRemovePrompt'];
+  handleDeleteAllPrompts: PromptHandlersContract['handleDeleteAllPrompts'];
   handleSavePromptsFromModal: (updatedPrompts: PromptEntry[]) => void;
 }
 

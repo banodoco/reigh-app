@@ -8,6 +8,7 @@ import { Info, Eraser, Check } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import { CollapsibleSection } from "@/shared/components/ui/collapsible-section";
+import { ResponsiveInfoTip } from '@/shared/components/ui/responsive-info-tip';
 import { useIsMobile } from '@/shared/hooks/mobile';
 import { Project } from '@/types/project';
 import type { ActiveLora } from '@/domains/lora/types/lora';
@@ -155,43 +156,19 @@ export const BatchSettingsForm: React.FC<BatchSettingsFormProps> = ({
                         : 'Prompt:'
                       }
                     </Label>
-                    {isMobile ? (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <button 
-                            type="button" 
-                            className="absolute top-0 right-0 text-muted-foreground hover:text-foreground transition-colors bg-transparent border-0 p-0"
-                          >
-                            <Info className="h-4 w-4" />
-                            <span className="sr-only">Info</span>
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-64 text-sm" side="left" align="start">
-                          <p>
-                            {enhancePrompt
-                              ? 'This text will be appended after AI-generated individual prompts for each pair.'
-                              : 'This prompt guides the style and transition for all video segments.'
-                            } Small changes can have a big impact.
-                          </p>
-                        </PopoverContent>
-                      </Popover>
-                    ) : (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="absolute top-0 right-0 text-muted-foreground cursor-help hover:text-foreground transition-colors">
-                            <Info className="h-4 w-4" />
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>
-                            {enhancePrompt
-                              ? 'This text will be appended after AI-generated individual prompts for each pair.'
-                              : 'This prompt guides the style and transition for all video segments.'
-                            } <br /> Small changes can have a big impact.
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
+                    <ResponsiveInfoTip
+                      isMobile={isMobile}
+                      content={(
+                        <p>
+                          {enhancePrompt
+                            ? 'This text will be appended after AI-generated individual prompts for each pair.'
+                            : 'This prompt guides the style and transition for all video segments.'
+                          }
+                          <br />
+                          Small changes can have a big impact.
+                        </p>
+                      )}
+                    />
                     <Textarea
                       id="batchVideoPrompt"
                       value={batchVideoPrompt}
@@ -391,33 +368,16 @@ export const BatchSettingsForm: React.FC<BatchSettingsFormProps> = ({
               <Label htmlFor="batchVideoFrames" className="text-sm font-light block mb-1">
                 {isTimelineMode ? 'Duration per pair' : (imageCount === 1 ? 'Duration to generate' : 'Duration per pair')}: {framesToSeconds(batchVideoFrames)} ({batchVideoFrames} frames)
               </Label>
-              {isMobile ? (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button 
-                      type="button" 
-                      className="absolute top-0 right-0 text-muted-foreground hover:text-foreground transition-colors bg-transparent border-0 p-0"
-                    >
-                      <Info className="h-4 w-4" />
-                      <span className="sr-only">Info</span>
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-64 text-sm" side="left" align="start">
-                    <p>Determines the duration of the video segment{imageCount === 1 ? '' : ' for each image'}. More frames result in a longer segment.</p>
-                  </PopoverContent>
-                </Popover>
-              ) : (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="absolute top-0 right-0 text-muted-foreground cursor-help hover:text-foreground transition-colors">
-                      <Info className="h-4 w-4" />
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Determines the duration of the video segment{imageCount === 1 ? '' : ' for each image'}. <br /> More frames result in a longer segment.</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
+              <ResponsiveInfoTip
+                isMobile={isMobile}
+                content={(
+                  <p>
+                    Determines the duration of the video segment{imageCount === 1 ? '' : ' for each image'}.
+                    <br />
+                    More frames result in a longer segment.
+                  </p>
+                )}
+              />
               <Slider
                 id="batchVideoFrames"
                 min={9}
@@ -433,4 +393,3 @@ export const BatchSettingsForm: React.FC<BatchSettingsFormProps> = ({
         </div>
     );
 };
-

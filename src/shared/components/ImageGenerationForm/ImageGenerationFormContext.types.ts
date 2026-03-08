@@ -1,6 +1,6 @@
-import type React from 'react';
 import type { ImageGenerationFormUIState, FormUIActions } from './state/useFormUIState';
 import type { PromptEntry, PromptMode, HydratedReferenceImage, ReferenceMode } from './types';
+import type { PromptHandlersContract } from './hooks/promptManagement/types';
 import type { ActiveLora } from '@/domains/lora/types/lora';
 import type { LoraModel } from '@/domains/lora/types/lora';
 import type { Resource } from '@/shared/hooks/useResources';
@@ -26,16 +26,7 @@ export interface FormPromptState {
 }
 
 /** Prompt handlers */
-export interface FormPromptHandlers {
-  setPrompts: React.Dispatch<React.SetStateAction<PromptEntry[]>>;
-  setMasterPromptText: (text: string) => void;
-  setEffectivePromptMode: (mode: PromptMode) => void;
-  setCurrentBeforePromptText: (text: string) => void;
-  setCurrentAfterPromptText: (text: string) => void;
-  handleAddPrompt: () => void;
-  handleUpdatePrompt: (id: string, field: 'fullPrompt' | 'shortPrompt', value: string) => void;
-  handleRemovePrompt: (id: string) => void;
-  handleDeleteAllPrompts: () => void;
+export interface FormPromptHandlers extends PromptHandlersContract {
   markAsInteracted: () => void;
 }
 
