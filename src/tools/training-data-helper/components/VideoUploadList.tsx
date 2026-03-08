@@ -9,6 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { cropFilename } from '@/shared/lib/stringFormatting';
 import { useRelativeTimestamp } from '@/shared/hooks/useUpdatingTimestamp';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { formatDurationMinutesSeconds, formatFileSize } from '@/tools/training-data-helper/lib/videoFormatters';
 
 // Helper to abbreviate distance strings (e.g., "5 minutes ago" -> "5 mins ago")
 const abbreviateDistance = (str: string) => {
@@ -79,20 +80,11 @@ export function VideoUploadList({ videos, selectedVideo, onVideoSelect, segments
     markVideoAsInvalid(video.id);
   };
 
-  const formatDuration = (seconds: number | null) => {
-    if (!seconds) return 'Unknown';
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
+  const formatDuration = (seconds: number | null) => (
+    seconds ? formatDurationMinutesSeconds(seconds) : 'Unknown'
+  );
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const BYTES_PER_KB = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const unitIndex = Math.floor(Math.log(bytes) / Math.log(BYTES_PER_KB));
-    return parseFloat((bytes / Math.pow(BYTES_PER_KB, unitIndex)).toFixed(2)) + ' ' + sizes[unitIndex];
-  };
+  const formatBytes = (bytes: number) => formatFileSize(bytes);
 
   const getMetadataSize = (video: TrainingDataVideo): number | null => {
     const size = video.metadata?.size;
@@ -170,7 +162,7 @@ export function VideoUploadList({ videos, selectedVideo, onVideoSelect, segments
                     <>
                       <span>•</span>
                       <FileText className="h-3 w-3" />
-                      <span>{formatFileSize(getMetadataSize(video) ?? 0)}</span>
+                      <span>{formatBytes(getMetadataSize(video) ?? 0)}</span>
                     </>
                   )}
                 </div>

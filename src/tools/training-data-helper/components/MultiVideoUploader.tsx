@@ -11,6 +11,7 @@ import { toast } from '@/shared/components/ui/runtime/sonner';
 import { cropFilename } from '@/shared/lib/stringFormatting';
 import { generateUUID } from '@/shared/lib/taskCreation';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { formatDurationMinutesSeconds, formatFileSize } from '@/tools/training-data-helper/lib/videoFormatters';
 
 type SplitMode = 'take-all' | 'manual' | 'auto-scene';
 
@@ -270,19 +271,9 @@ export function MultiVideoUploader({ onUpload, isUploading, selectedBatchId }: M
     }
   };
 
-  const formatDuration = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
+  const formatDuration = (seconds: number) => formatDurationMinutesSeconds(seconds);
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const BYTES_PER_KB = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const unitIndex = Math.floor(Math.log(bytes) / Math.log(BYTES_PER_KB));
-    return parseFloat((bytes / Math.pow(BYTES_PER_KB, unitIndex)).toFixed(2)) + ' ' + sizes[unitIndex];
-  };
+  const formatBytes = (bytes: number) => formatFileSize(bytes);
 
   const getSplitModeIcon = (mode: SplitMode) => {
     switch (mode) {
@@ -362,7 +353,7 @@ export function MultiVideoUploader({ onUpload, isUploading, selectedBatchId }: M
                             </>
                           )}
                           <FileText className="h-3 w-3" />
-                          <span>{formatFileSize(videoFile.file.size)}</span>
+                          <span>{formatBytes(videoFile.file.size)}</span>
                         </div>
                         
                         {/* Split Mode Selection */}

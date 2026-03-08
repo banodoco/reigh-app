@@ -1,6 +1,7 @@
 import React from 'react';
 import { Skeleton } from '@/shared/components/ui/skeleton';
 import { PageFadeIn } from '@/shared/components/transitions/PageFadeIn';
+import { ShotCardPlaceholderGrid } from './VideoGallery/components/ShotCardPlaceholderGrid';
 
 interface LoadingSkeletonProps {
   /** Type of skeleton to show */
@@ -108,12 +109,7 @@ export const LoadingSkeleton: React.FC<LoadingSkeletonProps> = ({
           {/* First item: "Create new shot" drop zone skeleton */}
           <div className="p-4 border-2 border-dashed rounded-lg self-start flex flex-col relative">
             {/* Invisible structure to match shot card height */}
-            <div className="h-8 mb-3" aria-hidden="true" />
-            <div className="grid grid-cols-3 gap-2" aria-hidden="true">
-              <div className="aspect-square" />
-              <div className="aspect-square" />
-              <div className="aspect-square" />
-            </div>
+            <ShotCardPlaceholderGrid />
             {/* Centered content overlay */}
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="flex flex-col items-center gap-2">
