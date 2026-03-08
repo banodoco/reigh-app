@@ -14,18 +14,43 @@ export function generateThumbnailFilename(): string {
   return `thumb_${Date.now()}_${randomToken(6)}.jpg`;
 }
 
+function extensionFromFilename(filename: string): string | null {
+  const normalized = filename.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const filePart = normalized.split(/[\\/]/).pop() ?? normalized;
+  const sanitizedFilePart = filePart.split(/[?#]/, 1)[0];
+  const extensionMatch = /\.([a-zA-Z0-9]+)$/.exec(sanitizedFilePart);
+  if (!extensionMatch?.[1]) {
+    return null;
+  }
+
+  return extensionMatch[1].toLowerCase();
+}
+
+function extensionFromMimeType(mimeType: string): string | null {
+  const subtype = mimeType.split('/')[1]?.split(';')[0]?.trim().toLowerCase();
+  if (!subtype) {
+    return null;
+  }
+
+  return subtype === 'jpeg' ? 'jpg' : subtype;
+}
+
 export function getFileExtension(
   filename: string,
   mimeType?: string,
   defaultExt: string = 'bin'
 ): string {
-  const parts = filename.split('.');
-  if (parts.length > 1) {
-    return parts.pop()!;
+  const filenameExtension = extensionFromFilename(filename);
+  if (filenameExtension) {
+    return filenameExtension;
   }
 
   if (mimeType) {
-    const mimeExt = mimeType.split('/')[1]?.replace('jpeg', 'jpg');
+    const mimeExt = extensionFromMimeType(mimeType);
     if (mimeExt) return mimeExt;
   }
 
