@@ -15,6 +15,7 @@ import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
 import { GenerationRow } from '@/domains/generation/types';
 import { joinClipsSettings } from '@/shared/lib/joinClipsDefaults';
+import { scaleJoinFrameCountsToShortestClip } from '@/shared/lib/joinClipsFrameScaling';
 import { DEFAULT_VACE_PHASE_CONFIG, BUILTIN_VACE_DEFAULT_ID } from '@/shared/lib/vaceDefaults';
 import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
 import type { SegmentSlot } from '@/shared/hooks/segments/useSegmentOutputsForShot';
@@ -251,19 +252,11 @@ export function useJoinSegmentsHandler({
   // Handler to restore join clips defaults
   const handleRestoreJoinDefaults = useCallback(() => {
     const defaults = joinClipsSettings.defaults;
-    let context = defaults.contextFrameCount;
-    let gap = defaults.gapFrameCount;
-
-    // Scale down proportionally if constraint is violated
-    const shortestFrames = joinValidationData.shortestClipFrames;
-    if (shortestFrames && shortestFrames > 0) {
-      const framesNeeded = gap + 2 * context;
-      if (framesNeeded > shortestFrames) {
-        const scale = shortestFrames / framesNeeded;
-        context = Math.max(4, Math.floor(context * scale));
-        gap = Math.max(1, Math.floor(gap * scale));
-      }
-    }
+    const { contextFrameCount: context, gapFrameCount: gap } = scaleJoinFrameCountsToShortestClip({
+      contextFrameCount: defaults.contextFrameCount,
+      gapFrameCount: defaults.gapFrameCount,
+      shortestClipFrames: joinValidationData.shortestClipFrames,
+    });
 
     joinSettings.updateFields({
       prompt: defaults.prompt,

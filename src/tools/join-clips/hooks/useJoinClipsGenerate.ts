@@ -6,6 +6,7 @@ import { resolveAspectRatioResolutionTuple } from '@/shared/lib/video/resolveAsp
 import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
 import { joinClipsSettings } from '@/shared/lib/joinClipsDefaults';
+import { scaleJoinFrameCountsToShortestClip } from '@/shared/lib/joinClipsFrameScaling';
 import {
   flashSuccessForDuration,
   invalidateTaskAndProjectQueries,
@@ -200,18 +201,11 @@ export function useJoinClipsGenerate({
 
   const handleRestoreDefaults = useCallback(() => {
     const defaults = joinClipsSettings.defaults;
-    let context = defaults.contextFrameCount;
-    let gap = defaults.gapFrameCount;
-
-    const shortestFrames = validationResult?.shortestClipFrames;
-    if (shortestFrames && shortestFrames > 0) {
-      const framesNeeded = gap + 2 * context;
-      if (framesNeeded > shortestFrames) {
-        const scale = shortestFrames / framesNeeded;
-        context = Math.max(4, Math.floor(context * scale));
-        gap = Math.max(1, Math.floor(gap * scale));
-      }
-    }
+    const { contextFrameCount: context, gapFrameCount: gap } = scaleJoinFrameCountsToShortestClip({
+      contextFrameCount: defaults.contextFrameCount,
+      gapFrameCount: defaults.gapFrameCount,
+      shortestClipFrames: validationResult?.shortestClipFrames,
+    });
 
     joinSettings.updateFields({
       contextFrameCount: context,
