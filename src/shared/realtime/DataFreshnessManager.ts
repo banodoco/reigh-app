@@ -9,6 +9,10 @@
 
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { registerDebugGlobal } from '@/shared/runtime/debugRegistry';
+import {
+  classifyRealtimeFetchError,
+  toUserFriendlyRealtimeErrorMessage,
+} from '@/shared/realtime/dataFreshness/errorPolicy';
 
 type QueryKeyLike = readonly unknown[];
 type RealtimeStatus = 'connected' | 'disconnected' | 'error';
@@ -216,7 +220,7 @@ class DataFreshnessManager {
 
     const isCircuitBreakerTriggered = newCount >= this.CIRCUIT_BREAKER_THRESHOLD;
 
-    const errorType = this.classifyError(error);
+    const errorType = classifyRealtimeFetchError(error);
 
     // Notify subscribers so polling intervals can adjust
     if (isCircuitBreakerTriggered) {
@@ -242,7 +246,7 @@ class DataFreshnessManager {
     errorType: string;
     error: Error;
   }) {
-    const userMessage = this.getUserFriendlyErrorMessage(input.errorType, input.failureCount);
+    const userMessage = toUserFriendlyRealtimeErrorMessage(input.errorType, input.failureCount);
     normalizeAndPresentError(new Error('Data may be outdated. Will retry automatically.'), {
       context: 'DataFreshnessManager.onFetchFailure',
       toastTitle: userMessage,
@@ -256,26 +260,6 @@ class DataFreshnessManager {
     });
   }
 
-  /**
-   * Get a user-friendly error message based on error type
-   */
-  private getUserFriendlyErrorMessage(errorType: string, failureCount: number): string {
-    switch (errorType) {
-      case 'CONNECTION_CLOSED':
-      case 'NETWORK_ERROR':
-        return 'Connection issue detected';
-      case 'TIMEOUT':
-        return 'Server is slow to respond';
-      case 'RATE_LIMITED':
-        return 'Too many requests - slowing down';
-      case 'SERVICE_UNAVAILABLE':
-        return 'Service temporarily unavailable';
-      case 'AUTH_ERROR':
-        return 'Authentication issue - try refreshing';
-      default:
-        return `Connection issues (${failureCount} failures)`;
-    }
-  }
 
   /**
    * Report a successful fetch (resets circuit breaker)
@@ -290,35 +274,6 @@ class DataFreshnessManager {
     }
   }
 
-  /**
-   * Classify error type for better logging and handling
-   */
-  private classifyError(error: Error): string {
-    const message = error.message?.toLowerCase() || '';
-
-    if (message.includes('connection_closed') || message.includes('err_connection_closed')) {
-      return 'CONNECTION_CLOSED';
-    }
-    if (message.includes('failed to fetch') || message.includes('network')) {
-      return 'NETWORK_ERROR';
-    }
-    if (message.includes('timeout') || message.includes('timed out')) {
-      return 'TIMEOUT';
-    }
-    if (message.includes('abort')) {
-      return 'ABORTED';
-    }
-    if (message.includes('401') || message.includes('unauthorized')) {
-      return 'AUTH_ERROR';
-    }
-    if (message.includes('429') || message.includes('rate limit')) {
-      return 'RATE_LIMITED';
-    }
-    if (message.includes('503') || message.includes('service unavailable')) {
-      return 'SERVICE_UNAVAILABLE';
-    }
-    return 'UNKNOWN';
-  }
 
   /**
    * Check if data for a query is considered fresh
