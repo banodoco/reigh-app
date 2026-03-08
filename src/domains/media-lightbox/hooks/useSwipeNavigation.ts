@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import type { BasicPointerHandlers } from '@/shared/types/pointerHandlers';
 
 /**
  * Horizontal pointer-swipe navigation with edge resistance and scroll-safe gesture locking.
@@ -25,12 +26,7 @@ interface UseSwipeNavigationProps {
 
 interface UseSwipeNavigationReturn {
   /** Handlers to spread on the swipeable element */
-  swipeHandlers: {
-    onPointerDown: (e: React.PointerEvent) => void;
-    onPointerMove: (e: React.PointerEvent) => void;
-    onPointerUp: (e: React.PointerEvent) => void;
-    onPointerCancel: (e: React.PointerEvent) => void;
-  };
+  swipeHandlers: BasicPointerHandlers;
   /** Current horizontal offset for visual feedback (in pixels) */
   swipeOffset: number;
   /** Whether the user is actively swiping */

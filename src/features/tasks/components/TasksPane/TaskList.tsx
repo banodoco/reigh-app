@@ -4,15 +4,15 @@ import { type PaginatedTasksResponse } from '@/shared/hooks/tasks/useTasks';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
 import { TaskStatus, Task } from '@/types/tasks';
-import { GenerationRow } from '@/domains/generation/types';
 import { TaskItem } from './TaskItem';
 import { IncomingTaskItem } from './IncomingTaskItem';
 import { FilterGroup } from './constants';
 import { TaskItemSkeleton } from './components/TaskItemSkeleton';
 import { useTaskFiltering } from './hooks/useTaskFiltering';
 import { useTaskListPresentationState } from './hooks/useTaskListPresentationState';
+import type { TaskLightboxHandlers } from './types';
 
-interface TaskListProps {
+interface TaskListProps extends TaskLightboxHandlers {
   filterStatuses: TaskStatus[];
   activeFilter: FilterGroup;
   statusCounts: {
@@ -24,9 +24,6 @@ interface TaskListProps {
   isLoading?: boolean;
   currentPage?: number;
   activeTaskId?: string | null;
-  onOpenImageLightbox?: (task: Task, media: GenerationRow, initialVariantId?: string) => void;
-  onOpenVideoLightbox?: (task: Task, media: GenerationRow[], videoIndex: number, initialVariantId?: string) => void;
-  onCloseLightbox?: () => void;
   mobileActiveTaskId?: string | null;
   onMobileActiveTaskChange?: (taskId: string | null) => void;
   taskTypeFilter?: string;

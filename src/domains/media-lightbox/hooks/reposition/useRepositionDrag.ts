@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import type { ImageTransform } from './types';
+import type { PointerHandlersWithWheel } from '@/shared/types/pointerHandlers';
 
 interface UseRepositionDragProps {
   transform: ImageTransform;
@@ -11,13 +12,7 @@ interface UseRepositionDragProps {
 
 interface UseRepositionDragReturn {
   isDragging: boolean;
-  dragHandlers: {
-    onPointerDown: (e: React.PointerEvent) => void;
-    onPointerMove: (e: React.PointerEvent) => void;
-    onPointerUp: (e: React.PointerEvent) => void;
-    onPointerCancel: (e: React.PointerEvent) => void;
-    onWheel: (e: React.WheelEvent) => void;
-  };
+  dragHandlers: PointerHandlersWithWheel;
 }
 
 const MIN_SCALE = 0.25;

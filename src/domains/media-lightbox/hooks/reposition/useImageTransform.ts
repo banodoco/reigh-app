@@ -1,5 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { ImageTransform, DEFAULT_TRANSFORM, decodeImageTransform } from './types';
+import {
+  ImageTransform,
+  DEFAULT_TRANSFORM,
+  decodeImageTransform,
+  type ImageTransformControls,
+} from './types';
 
 interface UseImageTransformProps {
   /** Active variant ID or generation ID for cache key */
@@ -10,16 +15,9 @@ interface UseImageTransformProps {
   activeVariantParams?: Record<string, unknown> | null;
 }
 
-interface UseImageTransformReturn {
+interface UseImageTransformReturn extends ImageTransformControls {
   transform: ImageTransform;
   hasTransformChanges: boolean;
-  setTranslateX: (value: number) => void;
-  setTranslateY: (value: number) => void;
-  setScale: (value: number) => void;
-  setRotation: (value: number) => void;
-  toggleFlipH: () => void;
-  toggleFlipV: () => void;
-  resetTransform: () => void;
   /** Get current cache key (for external cache management) */
   getCacheKey: () => string;
   /** Clear cache for a specific key */

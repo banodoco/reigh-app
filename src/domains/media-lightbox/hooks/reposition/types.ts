@@ -1,5 +1,6 @@
 import type { GenerationRow } from '@/domains/generation/types';
 import type { EditAdvancedSettings, QwenEditModel } from '../useGenerationEditSettings';
+import type { PointerHandlersWithWheel } from '@/shared/types/pointerHandlers';
 
 export interface ImageTransform {
   translateX: number; // percentage (0-100)
@@ -75,24 +76,13 @@ export interface UseRepositionModeProps {
   qwenEditModel?: QwenEditModel;
 }
 
-export interface UseRepositionModeReturn {
+export interface UseRepositionModeReturn extends ImageTransformControls {
   transform: ImageTransform;
   hasTransformChanges: boolean;
   isGeneratingReposition: boolean;
   repositionGenerateSuccess: boolean;
   isSavingAsVariant: boolean;
   saveAsVariantSuccess: boolean;
-
-  // Setters
-  setTranslateX: (value: number) => void;
-  setTranslateY: (value: number) => void;
-  setScale: (value: number) => void;
-  setRotation: (value: number) => void;
-  toggleFlipH: () => void;
-  toggleFlipV: () => void;
-
-  // Actions
-  resetTransform: () => void;
   handleGenerateReposition: () => Promise<void>;
   handleSaveAsVariant: () => Promise<void>;
 
@@ -101,11 +91,15 @@ export interface UseRepositionModeReturn {
 
   // Drag-to-move + scroll/pinch-to-zoom handlers
   isDragging: boolean;
-  dragHandlers: {
-    onPointerDown: (e: React.PointerEvent) => void;
-    onPointerMove: (e: React.PointerEvent) => void;
-    onPointerUp: (e: React.PointerEvent) => void;
-    onPointerCancel: (e: React.PointerEvent) => void;
-    onWheel: (e: React.WheelEvent) => void;
-  };
+  dragHandlers: PointerHandlersWithWheel;
+}
+
+export interface ImageTransformControls {
+  setTranslateX: (value: number) => void;
+  setTranslateY: (value: number) => void;
+  setScale: (value: number) => void;
+  setRotation: (value: number) => void;
+  toggleFlipH: () => void;
+  toggleFlipV: () => void;
+  resetTransform: () => void;
 }

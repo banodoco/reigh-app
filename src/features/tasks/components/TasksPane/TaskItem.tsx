@@ -5,7 +5,6 @@ import { Button } from '@/shared/components/ui/button';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { Task } from '@/types/tasks';
-import { GenerationRow } from '@/domains/generation/types';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useIsMobile } from '@/shared/hooks/mobile';
 import { useCancelTask } from '@/shared/hooks/tasks/useTaskCancellation';
@@ -23,14 +22,12 @@ import { useTaskItemDisplay } from './hooks/useTaskItemDisplay';
 import { TaskItemActions } from './components/TaskItemActions';
 import { TaskItemTooltip } from './components/TaskItemTooltip';
 import { TaskItemPreview } from './components/TaskItemPreview';
+import type { TaskLightboxHandlers } from './types';
 
-interface TaskItemProps {
+interface TaskItemProps extends TaskLightboxHandlers {
   task: Task;
   isNew?: boolean;
   isActive?: boolean;
-  onOpenImageLightbox?: (task: Task, media: GenerationRow, initialVariantId?: string) => void;
-  onOpenVideoLightbox?: (task: Task, media: GenerationRow[], videoIndex: number, initialVariantId?: string) => void;
-  onCloseLightbox?: () => void;
   isMobileActive?: boolean;
   onMobileActiveChange?: (taskId: string | null) => void;
   showProjectIndicator?: boolean;

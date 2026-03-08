@@ -9,6 +9,7 @@
 
 import { useMemo } from 'react';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
+import { resolutionToDimensions } from '../utils/dimensions';
 
 interface UseEffectiveMediaProps {
   isVideo: boolean;
@@ -67,10 +68,10 @@ export function useEffectiveMedia({
     // Fallback to project aspect ratio
     if (projectAspectRatio) {
       const resolution = ASPECT_RATIO_TO_RESOLUTION[projectAspectRatio];
-      if (resolution && resolution.includes('x')) {
-        const [w, h] = resolution.split('x').map(Number);
-        if (!isNaN(w) && !isNaN(h) && w > 0 && h > 0) {
-          return { width: w, height: h };
+      if (resolution) {
+        const dimensions = resolutionToDimensions(resolution);
+        if (dimensions) {
+          return dimensions;
         }
       }
     }
