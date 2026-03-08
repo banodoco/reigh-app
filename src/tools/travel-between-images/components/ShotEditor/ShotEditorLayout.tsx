@@ -3,6 +3,7 @@ import { GenerationRow } from '@/domains/generation/types';
 import { FinalVideoSection } from '../FinalVideoSection';
 import { ShotSettingsProvider, ShotSettingsContextValue } from './ShotSettingsContext';
 import { HeaderSection } from './sections/HeaderSection';
+import type { HeaderSectionCallbacks, HeaderSectionLayout } from './sections/headerSectionTypes';
 import { TimelineSection } from './sections/TimelineSection';
 import { ModalsSection } from './sections/ModalsSection';
 import { GenerationSection } from './sections/GenerationSection';
@@ -10,22 +11,7 @@ import type { LoraModel } from '@/domains/lora/types/lora';
 
 export interface ShotEditorLayoutProps {
   contextValue: ShotSettingsContextValue;
-
-  header: {
-    onBack: () => void;
-    onPreviousShot?: () => void;
-    onNextShot?: () => void;
-    hasPrevious?: boolean;
-    hasNext?: boolean;
-    onUpdateShotName?: (name: string) => void;
-    onNameClick: () => void;
-    onNameSave: () => void;
-    onNameCancel: (e?: React.MouseEvent) => void;
-    onNameKeyDown: (e: React.KeyboardEvent) => void;
-    headerContainerRef?: (node: HTMLDivElement | null) => void;
-    centerSectionRef: React.RefObject<HTMLDivElement>;
-    isSticky?: boolean;
-  };
+  header: HeaderSectionCallbacks & HeaderSectionLayout;
 
   finalVideo: {
     selectedShotId: string;

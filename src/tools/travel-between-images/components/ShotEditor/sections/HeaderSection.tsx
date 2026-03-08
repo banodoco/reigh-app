@@ -8,25 +8,11 @@
 import React from 'react';
 import { Header } from '../ui/Header';
 import { useShotSettingsContext } from '../ShotSettingsContext';
+import type { HeaderSectionCallbacks, HeaderSectionLayout } from './headerSectionTypes';
 
 interface HeaderSectionProps {
-  callbacks: {
-    onBack: () => void;
-    onPreviousShot?: () => void;
-    onNextShot?: () => void;
-    hasPrevious?: boolean;
-    hasNext?: boolean;
-    onUpdateShotName?: (name: string) => void;
-    onNameClick: () => void;
-    onNameSave: () => void;
-    onNameCancel: (e?: React.MouseEvent) => void;
-    onNameKeyDown: (e: React.KeyboardEvent) => void;
-  };
-  layout: {
-    headerContainerRef?: (node: HTMLDivElement | null) => void;
-    centerSectionRef: React.RefObject<HTMLDivElement>;
-    isSticky?: boolean;
-  };
+  callbacks: HeaderSectionCallbacks;
+  layout: HeaderSectionLayout;
 }
 
 export const HeaderSection: React.FC<HeaderSectionProps> = ({
