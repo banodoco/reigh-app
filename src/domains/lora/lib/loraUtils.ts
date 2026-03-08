@@ -25,6 +25,28 @@ export const EDIT_MODE_LORA_URLS = {
   "next-scene": "https://huggingface.co/lovis93/next-scene-qwen-image-lora-2509/resolve/main/next-scene_lora-v2-3000.safetensors",
 } as const;
 
+export type EditModeLoraMode = 'none' | 'in-scene' | 'next-scene' | 'custom';
+export type EditModeLoraSelection = Array<{ url: string; strength: number }>;
+
+export function resolveEditModeLoras(
+  loraMode: EditModeLoraMode,
+  customLoraUrl: string,
+): EditModeLoraSelection | undefined {
+  switch (loraMode) {
+    case 'in-scene':
+      return [{ url: EDIT_MODE_LORA_URLS['in-scene'], strength: 1.0 }];
+    case 'next-scene':
+      return [{ url: EDIT_MODE_LORA_URLS['next-scene'], strength: 1.0 }];
+    case 'custom':
+      return customLoraUrl.trim()
+        ? [{ url: customLoraUrl.trim(), strength: 1.0 }]
+        : undefined;
+    case 'none':
+    default:
+      return undefined;
+  }
+}
+
 // Pre-defined LoRA options for quick selection
 export const PREDEFINED_LORAS = [
   {

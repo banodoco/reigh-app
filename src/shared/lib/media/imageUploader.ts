@@ -274,3 +274,25 @@ export const uploadBlobToStorage = (
   const file = new File([blob], filename, { type: contentType });
   return uploadImageToStorage(file, options);
 };
+
+export const uploadThumbnailBlobToStorage = async (
+  blob: Blob,
+  fileName: string,
+  contentType: string = 'image/jpeg',
+): Promise<string> => {
+  const userId = await requireSessionUserId();
+  const filePath = storagePaths.thumbnail(userId, fileName);
+
+  const { error } = await supabase().storage
+    .from(MEDIA_BUCKET)
+    .upload(filePath, blob, {
+      contentType,
+      upsert: true,
+    });
+
+  if (error) {
+    throw error;
+  }
+
+  return getPublicUrlFromPath(filePath);
+};

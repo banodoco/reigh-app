@@ -98,6 +98,21 @@ export interface GenerationEditSettings extends SyncedEditSettings, PerGeneratio
   editMode: EditMode;
 }
 
+export interface EditSettingsSetterMethods {
+  setEditMode: (mode: EditMode) => void;
+  setLoraMode: (mode: LoraMode) => void;
+  setCustomLoraUrl: (url: string) => void;
+  setNumGenerations: (num: number) => void;
+  setPrompt: (prompt: string) => void;
+  setQwenEditModel: (model: QwenEditModel) => void;
+  setImg2imgPrompt: (prompt: string) => void;
+  setImg2imgStrength: (strength: number) => void;
+  setImg2imgEnablePromptExpansion: (enabled: boolean) => void;
+  setAdvancedSettings: (settings: Partial<EditAdvancedSettings>) => void;
+  setEnhanceSettings: (settings: Partial<VideoEnhanceSettings>) => void;
+  setCreateAsGeneration: (value: boolean) => void;
+}
+
 export const DEFAULT_EDIT_SETTINGS: GenerationEditSettings = {
   ...DEFAULT_SYNCED_SETTINGS,
   ...DEFAULT_PER_GENERATION_SETTINGS,

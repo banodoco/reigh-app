@@ -17,6 +17,7 @@ import { useListShots } from '@/shared/hooks/shots';
 import { useLastAffectedShot } from '@/shared/hooks/shots/useLastAffectedShot';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
 import { usePaneInteractionLifecycle } from '@/shared/components/panes/usePaneInteractionLifecycle';
+import { PaneBackdrop } from '@/shared/components/panes/PaneBackdrop';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from '@/shared/components/ui/select';
 
 // Import from new modules
@@ -139,22 +140,7 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
   return (
     <>
       {/* Backdrop overlay for mobile - z-index just below TasksPane (100001) */}
-      {showBackdrop && (
-        <div
-          className="fixed inset-0 z-[100000] touch-none"
-          onTouchStart={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            closePane();
-          }}
-          onPointerDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            closePane();
-          }}
-          aria-hidden="true"
-        />
-      )}
+      <PaneBackdrop show={showBackdrop} zIndex={100000} onClose={closePane} />
       
       <PaneControlTab
         position={{ side: "right", paneDimension: tasksPaneWidth, bottomOffset: useBottomOffset() }}

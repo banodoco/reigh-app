@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useShotNavigation } from '@/shared/hooks/shots/useShotNavigation';
 import { GenerationRow, Shot, ShotOption } from '@/domains/generation/types';
 import { getGenerationId, getMediaUrl, getThumbnailUrl } from '@/shared/lib/media/mediaTypeHelpers';
+import type { LightboxShotWorkflowProps } from '../types';
 
 /**
  * Shot association data that may exist on media objects from gallery queries.
@@ -22,23 +23,24 @@ interface MediaWithShotFields {
   all_shot_associations?: ShotAssociation[];
 }
 
-interface UseShotPositioningProps {
+interface UseShotPositioningProps extends Pick<LightboxShotWorkflowProps,
+  | 'selectedShotId'
+  | 'allShots'
+  | 'positionedInSelectedShot'
+  | 'associatedWithoutPositionInSelectedShot'
+  | 'optimisticPositionedIds'
+  | 'optimisticUnpositionedIds'
+  | 'onNavigateToShot'
+  | 'onAddToShot'
+  | 'onAddToShotWithoutPosition'
+  | 'onShowTick'
+  | 'onShowSecondaryTick'
+  | 'onOptimisticPositioned'
+  | 'onOptimisticUnpositioned'
+> {
   media: GenerationRow;
-  selectedShotId: string | undefined;
   allShots: ShotOption[];
-  positionedInSelectedShot?: boolean;
-  associatedWithoutPositionInSelectedShot?: boolean;
-  optimisticPositionedIds?: Set<string>;
-  optimisticUnpositionedIds?: Set<string>;
-  onNavigateToShot?: (shot: Shot, options?: { isNewlyCreated?: boolean }) => void;
   onClose: () => void;
-  // CRITICAL: targetShotId is the shot selected in the DROPDOWN, not the shot being viewed
-  onAddToShot?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
-  onAddToShotWithoutPosition?: (targetShotId: string, generationId: string, imageUrl?: string, thumbUrl?: string) => Promise<boolean>;
-  onShowTick?: (imageId: string) => void;
-  onShowSecondaryTick?: (imageId: string) => void;
-  onOptimisticPositioned?: (mediaId: string, shotId: string) => void;
-  onOptimisticUnpositioned?: (mediaId: string, shotId: string) => void;
 }
 
 interface UseShotPositioningReturn {

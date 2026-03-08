@@ -8,6 +8,7 @@ import {
 const fileToDataURLMock = vi.fn();
 const dataURLtoFileMock = vi.fn();
 const uploadImageToStorageMock = vi.fn();
+const uploadThumbnailBlobToStorageMock = vi.fn();
 const resolveProjectResolutionMock = vi.fn();
 const processStyleReferenceForAspectRatioStringMock = vi.fn();
 const generateClientThumbnailMock = vi.fn();
@@ -23,6 +24,7 @@ vi.mock('@/shared/lib/fileConversion', () => ({
 
 vi.mock('@/shared/lib/media/imageUploader', () => ({
   uploadImageToStorage: (...args: unknown[]) => uploadImageToStorageMock(...args),
+  uploadThumbnailBlobToStorage: (...args: unknown[]) => uploadThumbnailBlobToStorageMock(...args),
 }));
 
 vi.mock('@/shared/lib/taskCreation', () => ({
@@ -61,6 +63,7 @@ describe('referenceDomainService', () => {
     fileToDataURLMock.mockReset();
     dataURLtoFileMock.mockReset();
     uploadImageToStorageMock.mockReset();
+    uploadThumbnailBlobToStorageMock.mockReset();
     resolveProjectResolutionMock.mockReset();
     processStyleReferenceForAspectRatioStringMock.mockReset();
     generateClientThumbnailMock.mockReset();
@@ -95,7 +98,7 @@ describe('referenceDomainService', () => {
     generateClientThumbnailMock.mockResolvedValue({
       thumbnailBlob: new Blob(['x'], { type: 'image/jpeg' }),
     });
-    getSessionMock.mockResolvedValue({ data: { session: null } });
+    uploadThumbnailBlobToStorageMock.mockRejectedValue(new Error('User not authenticated'));
 
     const result = await resolveReferenceThumbnailUrl({
       file: new File(['x'], 'a.png', { type: 'image/png' }),
@@ -107,7 +110,7 @@ describe('referenceDomainService', () => {
       throw new Error('Expected failure');
     }
     expect(result.errorCode).toBe('reference_thumbnail_auth_required');
-    expect(getSessionMock).toHaveBeenCalledTimes(1);
+    expect(uploadThumbnailBlobToStorageMock).toHaveBeenCalledTimes(1);
     expect(uploadMock).not.toHaveBeenCalled();
   });
 

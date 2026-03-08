@@ -1,16 +1,10 @@
 import { useState } from 'react';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { GenerationRow } from '@/domains/generation/types';
-import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { dataURLtoFile } from '@/shared/lib/fileConversion';
 import { uploadImageToStorage } from '@/shared/lib/media/imageUploader';
-import { generateClientThumbnail } from '@/shared/media/clientThumbnailGenerator';
-import {
-  generateThumbnailFilename,
-  MEDIA_BUCKET,
-  storagePaths,
-} from '@/shared/lib/storagePaths';
+import { uploadReferenceThumbnail } from '@/shared/lib/media/uploadReferenceThumbnail';
 import { processStyleReferenceForAspectRatioString } from '@/shared/lib/media/styleReferenceProcessor';
 import { resolveProjectResolution } from '@/shared/lib/taskCreation';
 import { useCreateResource, type StyleReferenceMetadata } from '@/shared/hooks/useResources';
@@ -66,33 +60,7 @@ function blobToDataUrl(blob: Blob): Promise<string> {
 
 async function uploadThumbnail(originalFile: File, originalUploadedUrl: string): Promise<string> {
   try {
-    const thumbnailResult = await generateClientThumbnail(originalFile, 300, 0.8);
-    const { data: { session } } = await supabase().auth.getSession();
-    if (!session?.user?.id) {
-      throw new Error('User not authenticated');
-    }
-
-    const thumbnailFilename = generateThumbnailFilename();
-    const thumbnailPath = storagePaths.thumbnail(session.user.id, thumbnailFilename);
-    const { error: thumbnailUploadError } = await supabase().storage
-      .from(MEDIA_BUCKET)
-      .upload(thumbnailPath, thumbnailResult.thumbnailBlob, {
-        contentType: 'image/jpeg',
-        upsert: true,
-      });
-
-    if (thumbnailUploadError) {
-      normalizeAndPresentError(thumbnailUploadError, {
-        context: 'useReferences.thumbnailUpload',
-        showToast: false,
-      });
-      return originalUploadedUrl;
-    }
-
-    const { data: thumbnailUrlData } = supabase().storage
-      .from(MEDIA_BUCKET)
-      .getPublicUrl(thumbnailPath);
-    return thumbnailUrlData.publicUrl;
+    return await uploadReferenceThumbnail({ file: originalFile });
   } catch (thumbnailError) {
     normalizeAndPresentError(thumbnailError, { context: 'useReferences.thumbnailGeneration', showToast: false });
     return originalUploadedUrl;

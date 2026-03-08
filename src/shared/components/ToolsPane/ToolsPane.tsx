@@ -8,6 +8,7 @@ import { useBottomOffset } from '@/shared/hooks/layout/useBottomOffset';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { useDarkMode } from '@/shared/hooks/core/useDarkMode';
 import { useClickRipple } from '@/shared/hooks/interaction/useClickRipple';
+import { PaneBackdrop } from '@/shared/components/panes/PaneBackdrop';
 import {
   Paintbrush,
   Video,
@@ -356,22 +357,7 @@ const ToolsPaneComponent: React.FC = () => {
   return (
     <>
       {/* Backdrop overlay to capture taps outside the pane on mobile */}
-      {showBackdrop && (
-        <div
-          className="fixed inset-0 z-[59] touch-none"
-          onTouchStart={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            closePane();
-          }}
-          onPointerDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            closePane();
-          }}
-          aria-hidden="true"
-        />
-      )}
+      <PaneBackdrop show={showBackdrop} zIndex={59} onClose={closePane} />
       <PaneControlTab
         position={{ side: "left", paneDimension: shotsPaneWidth, bottomOffset: useBottomOffset() }}
         state={{ isLocked, isOpen: !!isOpen }}

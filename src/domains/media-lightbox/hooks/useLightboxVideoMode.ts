@@ -61,7 +61,7 @@ interface UseLightboxVideoModeProps {
   onTrimModeChange?: (isTrimMode: boolean) => void;
 }
 
-interface UseLightboxVideoModeReturn {
+export interface UseLightboxVideoModeReturn {
   // Refs
   trimVideoRef: React.RefObject<HTMLVideoElement>;
 

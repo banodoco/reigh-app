@@ -14,6 +14,7 @@ import {
   type EditAdvancedSettings,
   type VideoEnhanceSettings,
   type GenerationEditSettings,
+  type EditSettingsSetterMethods,
   type SyncedEditSettings,
   DEFAULT_EDIT_SETTINGS
 } from '../model/editSettingsTypes';
@@ -64,27 +65,9 @@ export function convertToHiresFixApiParams(settings: EditAdvancedSettings | unde
   };
 }
 
-interface UseGenerationEditSettingsReturn {
+interface UseGenerationEditSettingsReturn extends EditSettingsSetterMethods {
   // Current settings
   settings: GenerationEditSettings;
-
-  // Individual setters (trigger debounced save)
-  setEditMode: (mode: EditMode) => void;
-  setLoraMode: (mode: LoraMode) => void;
-  setCustomLoraUrl: (url: string) => void;
-  setNumGenerations: (num: number) => void;
-  setPrompt: (prompt: string) => void;
-  setQwenEditModel: (model: QwenEditModel) => void;
-  // Img2Img setters
-  setImg2imgPrompt: (prompt: string) => void;
-  setImg2imgStrength: (strength: number) => void;
-  setImg2imgEnablePromptExpansion: (enabled: boolean) => void;
-  // Advanced settings setter
-  setAdvancedSettings: (settings: Partial<EditAdvancedSettings>) => void;
-  // Video enhance settings setter
-  setEnhanceSettings: (settings: Partial<VideoEnhanceSettings>) => void;
-  // Generation options setter
-  setCreateAsGeneration: (value: boolean) => void;
 
   // Bulk update
   updateSettings: (updates: Partial<GenerationEditSettings>) => void;

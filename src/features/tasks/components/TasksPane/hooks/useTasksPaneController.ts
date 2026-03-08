@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { usePaginatedTasks, type PaginatedTasksResponse } from '@/shared/hooks/tasks/useTasks';
 import { useAllTaskTypes, useTaskStatusCounts } from '@/shared/hooks/tasks/useTaskStatusCounts';
 import { getTaskDisplayName } from '@/shared/lib/taskConfig';
-import { ITEMS_PER_PAGE, STATUS_GROUPS, type FilterGroup } from '../constants';
-import { useTasksPaneViewState } from './useTasksPaneViewState';
+import { ITEMS_PER_PAGE, STATUS_GROUPS } from '../constants';
+import { useTasksPaneViewState, type UseTasksPaneViewStateResult } from './useTasksPaneViewState';
 import { useTasksPaneCancelPending } from './useTasksPaneCancelPending';
 
 interface TasksPaneProject {
@@ -23,18 +23,7 @@ interface UseTasksPaneControllerInput {
   cancelAllIncoming: () => void;
 }
 
-interface UseTasksPaneControllerResult {
-  selectedFilter: FilterGroup;
-  selectedTaskType: string | null;
-  projectScope: string;
-  currentPage: number;
-  mobileActiveTaskId: string | null;
-  setProjectScope: (scope: string) => void;
-  setMobileActiveTaskId: (taskId: string | null) => void;
-  handleFilterChange: (filter: FilterGroup) => void;
-  handleTaskTypeChange: (taskType: string | null) => void;
-  handlePageChange: (page: number) => void;
-  handleStatusIndicatorClick: (type: FilterGroup) => void;
+interface UseTasksPaneControllerResult extends UseTasksPaneViewStateResult {
   handleCancelAllPending: () => void;
   isCancelAllPending: boolean;
   paginatedData: PaginatedTasksResponse | undefined;
@@ -99,10 +88,11 @@ export function useTasksPaneController(
     allProjectIds: isAllProjectsMode ? allProjectIds : undefined,
   });
 
+  const scopedProjectId = shouldLoadTasks ? (selectedProjectId ?? null) : null;
   const { data: statusCounts, isLoading: isStatusCountsLoading } = useTaskStatusCounts(
-    shouldLoadTasks ? selectedProjectId : null,
+    scopedProjectId,
   );
-  const { data: allTaskTypes } = useAllTaskTypes(shouldLoadTasks ? selectedProjectId : null);
+  const { data: allTaskTypes } = useAllTaskTypes(scopedProjectId);
 
   const taskTypeOptions = useMemo(() => {
     if (!allTaskTypes || allTaskTypes.length === 0) {

@@ -10,6 +10,7 @@ import {
   type EditAdvancedSettings,
   type VideoEnhanceSettings,
   type GenerationEditSettings,
+  type EditSettingsSetterMethods,
   type LastUsedEditSettings,
   type VideoEditSubMode,
   type PanelMode,
@@ -17,7 +18,7 @@ import {
   DEFAULT_ADVANCED_SETTINGS,
   DEFAULT_ENHANCE_SETTINGS,
 } from '../../model/editSettingsTypes';
-import { EDIT_MODE_LORA_URLS } from '@/domains/lora/lib/loraUtils';
+import { resolveEditModeLoras } from '@/domains/lora/lib/loraUtils';
 
 interface UseEditSettingsPersistenceProps {
   generationId: string | null;
@@ -25,7 +26,7 @@ interface UseEditSettingsPersistenceProps {
   enabled?: boolean;
 }
 
-interface UseEditSettingsPersistenceReturn {
+interface UseEditSettingsPersistenceReturn extends EditSettingsSetterMethods {
   // Current settings values
   editMode: EditMode;
   loraMode: LoraMode;
@@ -45,24 +46,6 @@ interface UseEditSettingsPersistenceReturn {
   qwenEditModel: QwenEditModel;
   // Generation options
   createAsGeneration: boolean;
-
-  // Setters (each triggers persistence)
-  setEditMode: (mode: EditMode) => void;
-  setLoraMode: (mode: LoraMode) => void;
-  setCustomLoraUrl: (url: string) => void;
-  setNumGenerations: (num: number) => void;
-  setPrompt: (prompt: string) => void;
-  setQwenEditModel: (model: QwenEditModel) => void;
-  // Img2Img setters
-  setImg2imgPrompt: (prompt: string) => void;
-  setImg2imgStrength: (strength: number) => void;
-  setImg2imgEnablePromptExpansion: (enabled: boolean) => void;
-  // Advanced settings setter
-  setAdvancedSettings: (updates: Partial<EditAdvancedSettings>) => void;
-  // Video enhance settings setter
-  setEnhanceSettings: (updates: Partial<VideoEnhanceSettings>) => void;
-  // Generation options setter
-  setCreateAsGeneration: (value: boolean) => void;
 
   // Video/Panel mode settings (persisted to "last used" only)
   videoEditSubMode: VideoEditSubMode;
@@ -296,22 +279,10 @@ export function useEditSettingsPersistence({
   // Computed LoRAs based on mode (replaces useEditModeLoras logic)
   const loraMode = effectiveSettings.loraMode;
   const customLoraUrl = effectiveSettings.customLoraUrl;
-  const editModeLoras = useMemo(() => {
-
-    switch (loraMode) {
-      case 'in-scene':
-        return [{ url: EDIT_MODE_LORA_URLS['in-scene'], strength: 1.0 }];
-      case 'next-scene':
-        return [{ url: EDIT_MODE_LORA_URLS['next-scene'], strength: 1.0 }];
-      case 'custom':
-        return customLoraUrl.trim()
-          ? [{ url: customLoraUrl.trim(), strength: 1.0 }]
-          : undefined;
-      case 'none':
-      default:
-        return undefined;
-    }
-  }, [loraMode, customLoraUrl]);
+  const editModeLoras = useMemo(
+    () => resolveEditModeLoras(loraMode, customLoraUrl),
+    [loraMode, customLoraUrl],
+  );
 
   // Legacy compatibility
   const isInSceneBoostEnabled = effectiveSettings.loraMode !== 'none';

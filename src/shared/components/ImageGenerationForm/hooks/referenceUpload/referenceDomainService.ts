@@ -1,9 +1,10 @@
 import type { QueryClient } from '@tanstack/react-query';
-import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { fileToDataURL, dataURLtoFile } from '@/shared/lib/fileConversion';
 import { uploadImageToStorage } from '@/shared/lib/media/imageUploader';
-import { generateClientThumbnail } from '@/shared/media/clientThumbnailGenerator';
-import { generateThumbnailFilename, MEDIA_BUCKET, storagePaths } from '@/shared/lib/storagePaths';
+import {
+  ReferenceThumbnailUploadError,
+  uploadReferenceThumbnail,
+} from '@/shared/lib/media/uploadReferenceThumbnail';
 import { resolveProjectResolution } from '@/shared/lib/taskCreation';
 import { processStyleReferenceForAspectRatioString } from '@/shared/lib/media/styleReferenceProcessor';
 import { extractSettingsFromCache } from '@/shared/hooks/settings/useToolSettings';
@@ -119,44 +120,37 @@ export async function resolveReferenceThumbnailUrl(
   input: ResolveReferenceThumbnailInput,
 ): Promise<OperationResult<string>> {
   try {
-    const thumbnailResult = await generateClientThumbnail(input.file, 300, 0.8);
-    const { data: { session } } = await supabase().auth.getSession();
-    if (!session?.user?.id) {
-      return operationFailure(new Error('User not authenticated'), {
-        policy: 'fail_closed',
-        errorCode: 'reference_thumbnail_auth_required',
-        message: 'User not authenticated',
-        recoverable: false,
-      });
-    }
-
-    const thumbnailFilename = generateThumbnailFilename();
-    const thumbnailPath = storagePaths.thumbnail(session.user.id, thumbnailFilename);
-    const { error: thumbnailUploadError } = await supabase().storage
-      .from(MEDIA_BUCKET)
-      .upload(thumbnailPath, thumbnailResult.thumbnailBlob, {
-        contentType: 'image/jpeg',
-        upsert: true,
-      });
-
-    if (thumbnailUploadError) {
-      return operationFailure(thumbnailUploadError, {
-        policy: 'degrade',
-        errorCode: 'reference_thumbnail_upload_failed',
-        message: 'Failed to upload thumbnail image',
-        recoverable: true,
-        cause: {
-          fallbackUrl: input.fallbackUrl,
-          thumbnailPath,
-        },
-      });
-    }
-
-    const { data: thumbnailUrlData } = supabase().storage
-      .from(MEDIA_BUCKET)
-      .getPublicUrl(thumbnailPath);
-    return operationSuccess(thumbnailUrlData.publicUrl, { policy: 'best_effort' });
+    const thumbnailUrl = await uploadReferenceThumbnail({ file: input.file });
+    return operationSuccess(thumbnailUrl, { policy: 'best_effort' });
   } catch (error) {
+    if (error instanceof ReferenceThumbnailUploadError) {
+      if (error.kind === 'auth') {
+        return operationFailure(error, {
+          policy: 'fail_closed',
+          errorCode: 'reference_thumbnail_auth_required',
+          message: 'User not authenticated',
+          recoverable: false,
+          cause: {
+            fallbackUrl: input.fallbackUrl,
+            error,
+          },
+        });
+      }
+
+      if (error.kind === 'upload') {
+        return operationFailure(error, {
+          policy: 'degrade',
+          errorCode: 'reference_thumbnail_upload_failed',
+          message: 'Failed to upload thumbnail image',
+          recoverable: true,
+          cause: {
+            fallbackUrl: input.fallbackUrl,
+            error: error.cause ?? error,
+          },
+        });
+      }
+    }
+
     return operationFailure(error, {
       policy: 'degrade',
       errorCode: 'reference_thumbnail_resolution_failed',

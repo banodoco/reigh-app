@@ -5,6 +5,7 @@ import { Task } from '@/types/tasks';
 import { GenerationRow } from '@/domains/generation/types';
 import { extractTaskParentGenerationId } from '../utils/task-utils';
 import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
+import { findGenerationByVariantLocation } from '../utils/findGenerationByVariantLocation';
 
 interface UseVideoGenerationsOptions {
   task: Task;
@@ -89,27 +90,13 @@ export function useVideoGenerations({
         }
 
         // If not found in generations, check generation_variants by location
-        const { data: variantByLocation, error: variantError } = await supabase().from('generation_variants')
-          .select('id, generation_id, location, thumbnail_url, is_primary, params')
-          .eq('location', task.outputLocation)
-          .limit(1);
-
-        if (!variantError && variantByLocation && variantByLocation.length > 0) {
-          const variant = variantByLocation[0];
-          const { data: parentGen, error: parentError } = await supabase().from('generations')
-            .select('*')
-            .eq('id', variant.generation_id)
-            .single();
-
-          if (!parentError && parentGen) {
-            return [{
-              ...parentGen,
-              location: variant.location,
-              thumbnail_url: variant.thumbnail_url || parentGen.thumbnail_url,
-              _variant_id: variant.id,
-              _variant_is_primary: variant.is_primary,
-            }];
-          }
+        const variantGeneration = await findGenerationByVariantLocation(task.outputLocation, supabase());
+        if (variantGeneration) {
+          return [{
+            ...variantGeneration.generation,
+            _variant_id: variantGeneration.variantId,
+            _variant_is_primary: variantGeneration.variantIsPrimary,
+          }];
         }
       }
 
@@ -156,22 +143,33 @@ export function useVideoGenerations({
     
     const taskParentGenerationId = extractTaskParentGenerationId(taskParams.parsed);
     
-    return videoGenerations.map(gen => {
+    return videoGenerations.map((gen) => {
       const genRecord = gen as Record<string, unknown>;
       // Individual segments have their parent_generation_id on the generation itself (from DB)
       // Other video tasks may have it in task params or on the generation
       const effectiveParentGenId = (genRecord.parent_generation_id as string | undefined) || taskParentGenerationId;
+      const location = (genRecord.location as string | null | undefined) ?? null;
+      const thumbnailUrl = (genRecord.thumbnail_url as string | null | undefined) ?? null;
+      const type = (genRecord.type as string | null | undefined) ?? 'video';
+      const createdAt =
+        (genRecord.created_at as string | null | undefined) ||
+        task.createdAt ||
+        new Date().toISOString();
+      const metadata = (genRecord.params as Record<string, unknown> | undefined) || {};
+      const generationId =
+        (genRecord.id as string | undefined) ||
+        task.id;
 
       return {
-        id: gen.id,
-        location: gen.location,
-        imageUrl: gen.location,
-        thumbUrl: gen.thumbnail_url || gen.location,
-        videoUrl: (genRecord.video_url as string | undefined) || gen.location,
-        type: gen.type || 'video',
-        createdAt: gen.created_at,
+        id: generationId,
+        location,
+        imageUrl: location,
+        thumbUrl: thumbnailUrl || location,
+        videoUrl: (genRecord.video_url as string | undefined) || location,
+        type,
+        createdAt,
         taskId: genRecord.task_id as string | undefined,
-        metadata: gen.params || {},
+        metadata,
         name: (genRecord.name as string | undefined) || undefined,
         parent_generation_id: effectiveParentGenId || undefined,
         _variant_id: genRecord._variant_id as string | undefined,

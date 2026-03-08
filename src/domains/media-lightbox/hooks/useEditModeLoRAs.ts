@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { EDIT_MODE_LORA_URLS } from '@/domains/lora/lib/loraUtils';
+import { resolveEditModeLoras } from '@/domains/lora/lib/loraUtils';
 
 export type LoraMode = 'none' | 'in-scene' | 'next-scene' | 'custom';
 
@@ -36,29 +36,10 @@ export const useEditModeLoras = (): UseEditModeLorasReturn => {
   };
 
   // Build loras array based on selected mode
-  const editModeLoras = useMemo(() => {
-    switch (loraMode) {
-      case 'in-scene':
-        return [{
-          url: EDIT_MODE_LORA_URLS['in-scene'],
-          strength: 1.0
-        }];
-      case 'next-scene':
-        return [{
-          url: EDIT_MODE_LORA_URLS['next-scene'],
-          strength: 1.0
-        }];
-      case 'custom':
-        // Only return custom lora if URL is provided
-        return customLoraUrl.trim() ? [{
-          url: customLoraUrl.trim(),
-          strength: 1.0
-        }] : undefined;
-      case 'none':
-      default:
-        return undefined;
-    }
-  }, [loraMode, customLoraUrl]);
+  const editModeLoras = useMemo(
+    () => resolveEditModeLoras(loraMode, customLoraUrl),
+    [loraMode, customLoraUrl],
+  );
 
   return {
     // Mode selection

@@ -11,6 +11,7 @@
 import { useMemo, useEffect } from 'react';
 import type { VideoEditState } from '../contexts/VideoEditContext';
 import type { VideoEnhanceSettings } from '../model/editSettingsTypes';
+import type { UseLightboxVideoModeReturn } from './useLightboxVideoMode';
 
 // ============================================================================
 // Types
@@ -18,40 +19,30 @@ import type { VideoEnhanceSettings } from '../model/editSettingsTypes';
 
 type VideoEditSubMode = 'trim' | 'replace' | 'regenerate' | 'enhance' | null;
 
-interface VideoModeOutput {
-  trimVideoRef: React.RefObject<HTMLVideoElement>;
-  trimState: { startTrim: number; endTrim: number; videoDuration: number };
-  trimCurrentTime: number;
-  setTrimCurrentTime: (time: number) => void;
-  trimmedDuration: number;
-  hasTrimChanges: boolean;
-  setStartTrim: (value: number) => void;
-  setEndTrim: (value: number) => void;
-  resetTrim: () => void;
-  setVideoDuration: (duration: number) => void;
-  videoEditing: {
-    videoRef: React.RefObject<HTMLVideoElement>;
-    selections: Array<{ id: string; start: number; end: number }>;
-    activeSelectionId: string | null;
-    handleUpdateSelection: (id: string, start: number, end: number) => void;
-    setActiveSelectionId: (id: string | null) => void;
-    handleRemoveSelection: (id: string) => void;
-    handleAddSelection: () => void;
-  } | null;
-  videoEnhance: {
-    settings: VideoEnhanceSettings;
-    updateSetting: <K extends keyof VideoEnhanceSettings>(key: K, value: VideoEnhanceSettings[K]) => void;
-  };
-  handleEnterVideoEditMode: () => void;
-  handleExitVideoEditMode: () => void;
-  handleEnterVideoTrimMode: () => void;
-  handleEnterVideoReplaceMode: () => void;
-  handleEnterVideoRegenerateMode: () => void;
-  handleEnterVideoEnhanceMode: () => void;
-  isInVideoEditMode: boolean;
-  isVideoTrimModeActive: boolean;
-  isVideoEditModeActive: boolean;
-}
+type VideoModeOutput = Pick<
+  UseLightboxVideoModeReturn,
+  | 'trimVideoRef'
+  | 'trimState'
+  | 'trimCurrentTime'
+  | 'setTrimCurrentTime'
+  | 'trimmedDuration'
+  | 'hasTrimChanges'
+  | 'setStartTrim'
+  | 'setEndTrim'
+  | 'resetTrim'
+  | 'setVideoDuration'
+  | 'videoEditing'
+  | 'videoEnhance'
+  | 'handleEnterVideoEditMode'
+  | 'handleExitVideoEditMode'
+  | 'handleEnterVideoTrimMode'
+  | 'handleEnterVideoReplaceMode'
+  | 'handleEnterVideoRegenerateMode'
+  | 'handleEnterVideoEnhanceMode'
+  | 'isInVideoEditMode'
+  | 'isVideoTrimModeActive'
+  | 'isVideoEditModeActive'
+>;
 
 interface UseVideoEditContextValueProps {
   /** Current video edit sub-mode */

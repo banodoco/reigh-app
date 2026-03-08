@@ -6,6 +6,7 @@ import { GenerationRow } from '@/domains/generation/types';
 import { extractSourceGenerationId } from '../utils/task-utils';
 import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
 import { expandShotData } from '@/shared/lib/shotData';
+import { findGenerationByVariantLocation } from '../utils/findGenerationByVariantLocation';
 
 interface UseImageGenerationOptions {
   task: Task;
@@ -45,32 +46,13 @@ export function useImageGeneration({
       }
 
       // Second try: Check generation_variants by location (for edit tasks that create variants)
-      const { data: variantByLocation, error: variantError } = await supabase().from('generation_variants')
-        .select('id, generation_id, location, thumbnail_url, is_primary, params')
-        .eq('location', task.outputLocation)
-        .limit(1);
-
-      if (!variantError && variantByLocation && variantByLocation.length > 0) {
-        const variant = variantByLocation[0];
-
-        // Fetch the parent generation
-        const { data: parentGen, error: parentError } = await supabase().from('generations')
-          .select('*')
-          .eq('id', variant.generation_id)
-          .single();
-
-        if (!parentError && parentGen) {
-          return {
-            generation: {
-              ...parentGen,
-              // Override with variant's location/thumbnail
-              location: variant.location,
-              thumbnail_url: variant.thumbnail_url || parentGen.thumbnail_url,
-            },
-            variantId: variant.id,
-            variantIsPrimary: variant.is_primary,
-          };
-        }
+      const variantGeneration = await findGenerationByVariantLocation(task.outputLocation, supabase());
+      if (variantGeneration) {
+        return {
+          generation: variantGeneration.generation,
+          variantId: variantGeneration.variantId,
+          variantIsPrimary: variantGeneration.variantIsPrimary,
+        };
       }
 
       // Fallback: Search by task ID in the tasks JSONB array

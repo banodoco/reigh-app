@@ -3,7 +3,7 @@ import type { FilterGroup } from '../constants';
 
 const PROJECT_SCOPE_SESSION_KEY = 'tasks-pane-project-scope';
 
-interface UseTasksPaneViewStateResult {
+export interface UseTasksPaneViewStateResult {
   selectedFilter: FilterGroup;
   selectedTaskType: string | null;
   projectScope: string;
