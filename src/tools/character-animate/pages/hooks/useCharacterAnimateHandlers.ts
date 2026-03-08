@@ -3,6 +3,11 @@ import { useCallback, type ChangeEvent } from 'react';
 import { uploadImageToStorage } from '@/shared/lib/media/imageUploader';
 import type { CharacterAnimateBaseState } from './useCharacterAnimateBaseState';
 import { uploadVideoWithPoster } from '../uploadMedia';
+import {
+  getFirstFile,
+  isSupportedImageType,
+  isSupportedVideoType,
+} from './fileValidation';
 
 export function useCharacterAnimateHandlers(state: CharacterAnimateBaseState) {
   const {
@@ -55,12 +60,12 @@ export function useCharacterAnimateHandlers(state: CharacterAnimateBaseState) {
   }, [videoUpload, setMotionVideoLoaded, setMotionVideoPlaying, setMotionVideo, selectedProjectId, updateFields]);
 
   const handleCharacterImageUpload = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+    const file = getFirstFile(event.target.files);
     if (!file) {
       return;
     }
 
-    if (!['image/png', 'image/jpeg', 'image/jpg'].includes(file.type)) {
+    if (!isSupportedImageType(file.type)) {
       toast({
         title: 'Invalid file type',
         description: 'Please upload a PNG or JPG image (avoid WEBP)',
@@ -73,12 +78,12 @@ export function useCharacterAnimateHandlers(state: CharacterAnimateBaseState) {
   }, [toast, processImageUpload]);
 
   const handleMotionVideoSelect = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+    const file = getFirstFile(event.target.files);
     if (!file) {
       return;
     }
 
-    if (!file.type.startsWith('video/')) {
+    if (!isSupportedVideoType(file.type)) {
       toast({ title: 'Invalid file type', description: 'Please upload a video file', variant: 'destructive' });
       return;
     }

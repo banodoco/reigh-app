@@ -2,6 +2,13 @@ import { useCallback, type DragEvent } from 'react';
 
 import type { CharacterAnimateBaseState } from './useCharacterAnimateBaseState';
 import type { CharacterAnimateHandlers } from './useCharacterAnimateHandlers';
+import {
+  getFirstFile,
+  hasSupportedImageItem,
+  hasSupportedVideoItem,
+  isSupportedImageType,
+  isSupportedVideoType,
+} from './fileValidation';
 
 export function useCharacterAnimateDragHandlers(state: CharacterAnimateBaseState, handlers: CharacterAnimateHandlers) {
   const {
@@ -26,10 +33,7 @@ export function useCharacterAnimateDragHandlers(state: CharacterAnimateBaseState
     event.preventDefault();
     event.stopPropagation();
 
-    const items = Array.from(event.dataTransfer.items);
-    const hasValidImage = items.some((item) => (
-      item.kind === 'file' && ['image/png', 'image/jpeg', 'image/jpg'].includes(item.type)
-    ));
+    const hasValidImage = hasSupportedImageItem(event.dataTransfer.items);
 
     if (hasValidImage) {
       setIsDraggingOverImage(true);
@@ -60,12 +64,12 @@ export function useCharacterAnimateDragHandlers(state: CharacterAnimateBaseState
     event.stopPropagation();
     setIsDraggingOverImage(false);
 
-    const file = event.dataTransfer.files?.[0];
+    const file = getFirstFile(event.dataTransfer.files);
     if (!file) {
       return;
     }
 
-    if (!['image/png', 'image/jpeg', 'image/jpg'].includes(file.type)) {
+    if (!isSupportedImageType(file.type)) {
       toast({ title: 'Invalid file type', description: 'Please upload a PNG or JPG image (avoid WEBP)', variant: 'destructive' });
       return;
     }
@@ -88,8 +92,7 @@ export function useCharacterAnimateDragHandlers(state: CharacterAnimateBaseState
     event.preventDefault();
     event.stopPropagation();
 
-    const items = Array.from(event.dataTransfer.items);
-    const hasValidVideo = items.some((item) => item.kind === 'file' && item.type.startsWith('video/'));
+    const hasValidVideo = hasSupportedVideoItem(event.dataTransfer.items);
 
     if (hasValidVideo) {
       setIsDraggingOverVideo(true);
@@ -120,12 +123,12 @@ export function useCharacterAnimateDragHandlers(state: CharacterAnimateBaseState
     event.stopPropagation();
     setIsDraggingOverVideo(false);
 
-    const file = event.dataTransfer.files?.[0];
+    const file = getFirstFile(event.dataTransfer.files);
     if (!file) {
       return;
     }
 
-    if (!file.type.startsWith('video/')) {
+    if (!isSupportedVideoType(file.type)) {
       toast({ title: 'Invalid file type', description: 'Please upload a video file', variant: 'destructive' });
       return;
     }

@@ -1,6 +1,11 @@
 
 import { MediaGallery } from '@/shared/components/MediaGallery';
 import { SKELETON_COLUMNS } from '@/shared/components/MediaGallery/utils';
+import {
+  buildVideoResultsGalleryConfig,
+  getVideoGalleryItemsPerPage,
+  VIDEO_ONLY_GALLERY_FILTERS,
+} from '@/shared/components/MediaGallery/videoGalleryDefaults';
 import { SkeletonGallery } from '@/shared/components/ui/skeleton-gallery';
 import { TOOL_IDS } from '@/shared/lib/toolIds';
 import type { GenerationsPaginatedResponse } from '@/shared/hooks/projects/useProjectGenerations';
@@ -49,6 +54,7 @@ export function ResultsGallery(props: ResultsGalleryProps) {
   }
 
   if (hasValidData && data?.items) {
+    const itemsPerPage = getVideoGalleryItemsPerPage(isMobile);
     return (
       <div className="space-y-4 pt-4 border-t">
         <h2 className="text-xl font-medium">Previous Results ({data.items.length})</h2>
@@ -61,14 +67,11 @@ export function ResultsGallery(props: ResultsGalleryProps) {
           onToggleStar={onToggleStar}
           isDeleting={deletingId}
           currentToolType={TOOL_IDS.CHARACTER_ANIMATE}
-          defaultFilters={{ mediaType: 'video', toolTypeFilter: true, shotFilter: 'all' }}
+          defaultFilters={VIDEO_ONLY_GALLERY_FILTERS}
           currentToolTypeName="Animate Characters"
           columnsPerRow={3}
-          pagination={{ itemsPerPage: isMobile ? 20 : 12 }}
-          config={{
-            reducedSpacing: true,
-            hidePagination: data.items.length <= (isMobile ? 20 : 12),
-          }}
+          pagination={{ itemsPerPage }}
+          config={buildVideoResultsGalleryConfig(data.items.length, isMobile)}
         />
       </div>
     );

@@ -2,6 +2,11 @@ import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { MediaGallery } from '@/shared/components/MediaGallery';
 import { SkeletonGallery } from '@/shared/components/ui/skeleton-gallery';
 import { SKELETON_COLUMNS } from '@/shared/components/MediaGallery/utils';
+import {
+  buildVideoResultsGalleryConfig,
+  getVideoGalleryItemsPerPage,
+  VIDEO_ONLY_GALLERY_FILTERS,
+} from '@/shared/components/MediaGallery/videoGalleryDefaults';
 import type { GenerationsPaginatedResponse } from '@/shared/hooks/projects/useProjectGenerations';
 
 interface JoinClipsResultsProps {
@@ -45,6 +50,7 @@ export function JoinClipsResults({
   }
 
   if (hasValidData) {
+    const itemsPerPage = getVideoGalleryItemsPerPage(isMobile);
     return (
       <div className="space-y-4 pt-4 border-t">
         <h2 className="text-xl font-medium">Previous Results ({videosData.items.length})</h2>
@@ -57,16 +63,14 @@ export function JoinClipsResults({
           onToggleStar={onToggleStar}
           isDeleting={deletingId}
           currentToolType={TOOL_IDS.JOIN_CLIPS}
-          defaultFilters={{ mediaType: 'video', toolTypeFilter: true, shotFilter: 'all' }}
+          defaultFilters={VIDEO_ONLY_GALLERY_FILTERS}
           columnsPerRow={3}
-          pagination={{ itemsPerPage: isMobile ? 20 : 12 }}
-          config={{
-            reducedSpacing: true,
-            hidePagination: videosData.items.length <= (isMobile ? 20 : 12),
+          pagination={{ itemsPerPage }}
+          config={buildVideoResultsGalleryConfig(videosData.items.length, isMobile, {
             hideBottomPagination: true,
             hideMediaTypeFilter: true,
             showShare: false,
-          }}
+          })}
         />
       </div>
     );
