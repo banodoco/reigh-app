@@ -1,8 +1,9 @@
 import React from 'react';
 import { Label } from "@/shared/components/ui/primitives/label";
 import { Button } from "@/shared/components/ui/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shared/components/ui/tooltip";
-import { Info, X, Upload } from 'lucide-react';
+import { TooltipProvider } from "@/shared/components/ui/tooltip";
+import { X, Upload } from 'lucide-react';
+import { FieldInfoTooltip } from './FieldInfoTooltip';
 
 interface FileDropZoneProps {
   id: string;
@@ -27,18 +28,7 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({
     <TooltipProvider>
       <div className="flex items-center gap-2">
         <Label htmlFor={id}>{label}</Label>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="text-muted-foreground cursor-help hover:text-foreground transition-colors">
-              <Info className="h-4 w-4" />
-            </span>
-          </TooltipTrigger>
-          <TooltipContent className="max-w-md">
-            <div className="text-xs space-y-1">
-              {tooltipContent}
-            </div>
-          </TooltipContent>
-        </Tooltip>
+        <FieldInfoTooltip>{tooltipContent}</FieldInfoTooltip>
       </div>
     </TooltipProvider>
     <div

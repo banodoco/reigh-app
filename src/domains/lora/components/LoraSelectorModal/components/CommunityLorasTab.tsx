@@ -97,6 +97,20 @@ export const CommunityLorasTab: React.FC<CommunityLorasTabProps> = ({
 
   const tabContainerClass = 'relative flex flex-col h-full min-h-0 px-0 sm:px-4';
   const scrollAreaClass = 'flex-1 min-h-0 overflow-y-auto relative';
+  const sortControl = (
+    <Select value={sortOption} onValueChange={(value) => value && setSortOption(value as SortOption)}>
+      <SelectTrigger variant="retro" className="w-[140px]">
+        <SelectValue placeholder="Sort by" />
+      </SelectTrigger>
+      <SelectContent variant="retro">
+        <SelectItem variant="retro" value="default">Default</SelectItem>
+        <SelectItem variant="retro" value="downloads">Downloads</SelectItem>
+        <SelectItem variant="retro" value="likes">Likes</SelectItem>
+        <SelectItem variant="retro" value="lastModified">Modified</SelectItem>
+        <SelectItem variant="retro" value="name">Name</SelectItem>
+      </SelectContent>
+    </Select>
+  );
 
   return (
     <div className={tabContainerClass}>
@@ -108,18 +122,7 @@ export const CommunityLorasTab: React.FC<CommunityLorasTabProps> = ({
           onChange={(e) => setSearchTerm(e.target.value)}
           className="flex-grow"
         />
-        <Select value={sortOption} onValueChange={(value) => value && setSortOption(value as SortOption)}>
-          <SelectTrigger variant="retro" className="w-[140px]">
-            <SelectValue placeholder="Sort by" />
-          </SelectTrigger>
-          <SelectContent variant="retro">
-            <SelectItem variant="retro" value="default">Default</SelectItem>
-            <SelectItem variant="retro" value="downloads">Downloads</SelectItem>
-            <SelectItem variant="retro" value="likes">Likes</SelectItem>
-            <SelectItem variant="retro" value="lastModified">Modified</SelectItem>
-            <SelectItem variant="retro" value="name">Name</SelectItem>
-          </SelectContent>
-        </Select>
+        {sortControl}
         {/* Model Filter Dropdown - far right */}
         <Select value={selectedModelFilter} onValueChange={(v) => v && setSelectedModelFilter(v as ModelFilterCategory)}>
           <SelectTrigger variant="retro" className="w-[120px] ml-auto">

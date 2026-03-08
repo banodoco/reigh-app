@@ -4,6 +4,7 @@ import { Button } from "@/shared/components/ui/button";
 
 import { FileInput } from "@/shared/components/FileInput";
 import { HoverScrubVideo } from '@/shared/components/HoverScrubVideo';
+import { UploadedSampleFileCard } from '@/shared/components/PhaseConfigSelectorModal/components/sections/UploadedSampleFileCard';
 
 import type { Resource } from '@/shared/hooks/useResources';
 import { LoraModel } from '../../../types';
@@ -122,59 +123,24 @@ export const SampleGenerationsSection: React.FC<SampleGenerationsSectionProps> =
         <Label className="text-sm font-light">Uploaded Files: ({sampleFiles.length})</Label>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {sampleFiles.map((file, index) => (
-            <div key={index} className="relative group">
-              <div
-                className={`relative rounded-lg border-2 overflow-hidden cursor-pointer transition-all ${
-                  mainGenerationIndex === index
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-                onClick={() => setMainGenerationIndex(index)}
-                title={mainGenerationIndex === index ? "Primary generation" : "Click to set as primary"}
-              >
-                {file.type.startsWith('image/') ? (
-                  <img
-                    src={previewUrls[index] || ''}
-                    alt={file.name}
-                    className="w-full h-24 object-cover"
-                  />
-                ) : (
-                  <video
-                    src={previewUrls[index] || ''}
-                    className="w-full h-24 object-cover"
-                    muted
-                  />
-                )}
-
-                {mainGenerationIndex === index && (
-                  <div className="absolute top-1 left-1 bg-blue-500 text-white text-xs px-2 py-1 rounded">
-                    Primary
-                  </div>
-                )}
-
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const newFiles = sampleFiles.filter((_, i) => i !== index);
-                    setSampleFiles(newFiles);
-                    if (mainGenerationIndex === index) {
-                      setMainGenerationIndex(0);
-                    } else if (mainGenerationIndex > index) {
-                      setMainGenerationIndex(mainGenerationIndex - 1);
-                    }
-                  }}
-                  title="Delete file"
-                >
-                  x
-                </Button>
-              </div>
-              <p className="text-xs text-gray-600 mt-1 truncate preserve-case" title={file.name}>
-                {file.name}
-              </p>
-            </div>
+            <UploadedSampleFileCard
+              key={index}
+              file={file}
+              previewUrl={previewUrls[index] || ''}
+              index={index}
+              isPrimary={mainGenerationIndex === index}
+              selectedClassName="border-blue-500 bg-blue-50"
+              onSelect={() => setMainGenerationIndex(index)}
+              onDelete={() => {
+                const newFiles = sampleFiles.filter((_, i) => i !== index);
+                setSampleFiles(newFiles);
+                if (mainGenerationIndex === index) {
+                  setMainGenerationIndex(0);
+                } else if (mainGenerationIndex > index) {
+                  setMainGenerationIndex(mainGenerationIndex - 1);
+                }
+              }}
+            />
           ))}
         </div>
         {sampleFiles.length > 1 && (

@@ -4,6 +4,7 @@ import { Label } from '@/shared/components/ui/primitives/label';
 import { FileInput } from '@/shared/components/FileInput';
 import { Resource, PhaseConfigMetadata } from '@/shared/hooks/useResources';
 import { MediaPreview } from '../MediaPreview';
+import { UploadedSampleFileCard } from './UploadedSampleFileCard';
 
 interface SampleGenerationsSectionEditStateProps {
   isEditMode: boolean;
@@ -183,56 +184,15 @@ export const SampleGenerationsSection: React.FC<SampleGenerationsSectionProps> =
           <Label className="text-sm font-light">Uploaded Files: ({sampleFiles.length})</Label>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {sampleFiles.map((file, index) => (
-              <div key={index} className="relative group">
-                <div
-                  className={`relative rounded-lg border-2 overflow-hidden cursor-pointer transition-all ${
-                    mainGenerationIndex === index
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                  onClick={() => onMainGenerationIndexChange(index)}
-                  title={mainGenerationIndex === index ? "Primary generation" : "Click to set as primary"}
-                >
-                  {file.type.startsWith('image/') || file.type.startsWith('video/') ? (
-                    <MediaPreview
-                      url={previewUrls[index] || ''}
-                      type={file.type.startsWith('video/') ? 'video' : 'image'}
-                      alt={file.name}
-                      height="h-24"
-                      objectFit="cover"
-                      enableMobileTap
-                    />
-                  ) : (
-                    <div className="w-full h-24 flex items-center justify-center bg-muted">
-                      <span className="text-xs text-muted-foreground">Preview unavailable</span>
-                    </div>
-                  )}
-
-                  {/* Primary indicator */}
-                  {mainGenerationIndex === index && (
-                    <div className="absolute top-1 left-1 bg-blue-500 text-white text-xs px-2 py-1 rounded">
-                      Primary
-                    </div>
-                  )}
-
-                  {/* Delete button */}
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteFile(index);
-                    }}
-                    title="Delete file"
-                  >
-                    ×
-                  </Button>
-                </div>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 truncate preserve-case" title={file.name}>
-                  {file.name}
-                </p>
-              </div>
+              <UploadedSampleFileCard
+                key={index}
+                file={file}
+                previewUrl={previewUrls[index] || ''}
+                index={index}
+                isPrimary={mainGenerationIndex === index}
+                onSelect={() => onMainGenerationIndexChange(index)}
+                onDelete={() => onDeleteFile(index)}
+              />
             ))}
           </div>
           {sampleFiles.length > 1 && (
