@@ -12,6 +12,11 @@ import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeErro
 import React from 'react';
 
 import { mapShotGenerationToRow } from '@/shared/hooks/shots';
+import {
+  selectTimelineImages,
+  selectUnpositionedImages,
+  selectVideoOutputs,
+} from '@/shared/lib/shotImageSelectors';
 
 /** Loads all shot_generations (positioned + unpositioned) for a shot. */
 const useAllShotGenerations = (
@@ -112,16 +117,7 @@ export const useTimelineImages = (
   const filtered = React.useMemo(() => {
     if (!baseQuery.data) return undefined;
 
-    return baseQuery.data
-      .filter(g => {
-        const location = g.imageUrl || g.location;
-        const hasValidLocation = location && location !== '/placeholder.svg';
-        return g.timeline_frame != null &&
-               g.timeline_frame >= 0 &&
-               !g.type?.includes('video') &&
-               hasValidLocation;
-      })
-      .sort((a, b) => (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0));
+    return selectTimelineImages(baseQuery.data);
   }, [baseQuery.data]);
 
   return { ...baseQuery, data: filtered } as UseQueryResult<GenerationRow[]>;
@@ -136,13 +132,7 @@ export const useUnpositionedImages = (
   const filtered = React.useMemo(() => {
     if (!baseQuery.data) return undefined;
 
-    return baseQuery.data.filter(g => {
-      const location = g.imageUrl || g.location;
-      const hasValidLocation = location && location !== '/placeholder.svg';
-      return g.timeline_frame == null &&
-             !g.type?.includes('video') &&
-             hasValidLocation;
-    });
+    return selectUnpositionedImages(baseQuery.data);
   }, [baseQuery.data]);
 
   return { ...baseQuery, data: filtered } as UseQueryResult<GenerationRow[]>;
@@ -157,7 +147,7 @@ export const useVideoOutputs = (
   const filtered = React.useMemo(() => {
     if (!baseQuery.data) return undefined;
     
-    return baseQuery.data.filter(g => g.type?.includes('video'));
+    return selectVideoOutputs(baseQuery.data);
   }, [baseQuery.data]);
   
   return { ...baseQuery, data: filtered } as UseQueryResult<GenerationRow[]>;

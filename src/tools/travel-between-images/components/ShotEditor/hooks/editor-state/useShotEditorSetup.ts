@@ -15,6 +15,11 @@ import { useProject } from '@/shared/contexts/ProjectContext';
 import { useShots } from '@/shared/contexts/ShotsContext';
 import { useShotImages } from '@/shared/hooks/shots/useShotImages';
 import { Shot, GenerationRow } from '@/domains/generation/types';
+import {
+  selectTimelineImages,
+  selectUnpositionedImages,
+  selectVideoOutputs,
+} from '@/shared/lib/shotImageSelectors';
 import type { Project } from '@/types/project';
 
 interface UseShotEditorSetupProps {
@@ -161,30 +166,15 @@ export function useShotEditorSetup({
   // React Query observer. 4 observers for the same query key amplify the render loop
   // because each runs observer.setOptions() every render.
   const timelineImages = useMemo(() => {
-    return allShotImages
-      .filter(g => {
-        const location = g.imageUrl || g.location;
-        const hasValidLocation = location && location !== '/placeholder.svg';
-        return g.timeline_frame != null &&
-               g.timeline_frame >= 0 &&
-               !g.type?.includes('video') &&
-               hasValidLocation;
-      })
-      .sort((a, b) => (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0));
+    return selectTimelineImages(allShotImages);
   }, [allShotImages]);
 
   const unpositionedImages = useMemo(() => {
-    return allShotImages.filter(g => {
-      const location = g.imageUrl || g.location;
-      const hasValidLocation = location && location !== '/placeholder.svg';
-      return g.timeline_frame == null &&
-             !g.type?.includes('video') &&
-             hasValidLocation;
-    });
+    return selectUnpositionedImages(allShotImages);
   }, [allShotImages]);
 
   const videoOutputs = useMemo(() => {
-    return allShotImages.filter(g => g.type?.includes('video'));
+    return selectVideoOutputs(allShotImages);
   }, [allShotImages]);
 
   // PERF: Derive initial parent generations from fast videoOutputs cache
