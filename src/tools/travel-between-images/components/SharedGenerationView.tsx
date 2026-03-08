@@ -45,6 +45,10 @@ interface SharedGenerationViewProps {
  * - images: GenerationRow[] (same as useShotImages)
  * - settings: VideoTravelSettings (same as useShotSettings)
  */
+const SHARED_SETTINGS_LAYOUT_CLASS = 'flex flex-col lg:flex-row gap-6';
+const SHARED_SETTINGS_LEFT_COLUMN_CLASS = 'lg:w-1/2 order-2 lg:order-1';
+const SHARED_SETTINGS_RIGHT_COLUMN_CLASS = 'lg:w-1/2 order-1 lg:order-2';
+
 export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
   shareData,
   shareSlug
@@ -170,9 +174,9 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
             <CardTitle className="text-base sm:text-lg font-light">Generation Settings</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col lg:flex-row gap-6">
+            <div className={SHARED_SETTINGS_LAYOUT_CLASS}>
               {/* Left Column: Main Settings */}
-              <div className="lg:w-1/2 order-2 lg:order-1">
+              <div className={SHARED_SETTINGS_LEFT_COLUMN_CLASS}>
                 <div className="mb-4">
                   <SectionHeader title="Settings" theme="orange" />
                 </div>
@@ -220,7 +224,7 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
               </div>
 
               {/* Right Column: Motion Control (includes Camera Guidance when structure video exists) */}
-              <div className="lg:w-1/2 order-1 lg:order-2">
+              <div className={SHARED_SETTINGS_RIGHT_COLUMN_CLASS}>
                 <div className="mb-4">
                   <SectionHeader title="Motion" theme="purple" />
                 </div>
