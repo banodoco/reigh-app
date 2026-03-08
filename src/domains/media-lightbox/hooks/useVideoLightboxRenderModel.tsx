@@ -11,6 +11,11 @@ import type {
 import type { VideoLightboxEnvironment, VideoLightboxModeModel } from './useVideoLightboxEnvironment';
 import { useVideoLightboxActions } from './useVideoLightboxActions';
 import { buildVideoLightboxLayoutState } from '../model/buildVideoLightboxLayoutState';
+import {
+  buildLightboxLayoutProps,
+  buildLightboxStateValue,
+  buildLightboxVariantState,
+} from '../model/lightboxRenderBuilders';
 import { useVideoInfoPanelModel } from './useVideoInfoPanelModel';
 import { useVideoWorkflowBarModel } from './useVideoWorkflowBarModel';
 
@@ -44,23 +49,12 @@ export function useVideoLightboxRenderModel(
   const showNavigation = navigation?.showNavigation ?? true;
   const showTaskDetails = features?.showTaskDetails ?? false;
 
-  const lightboxVariants = useMemo(() => ({
-    variants: sharedState.variants.list,
-    activeVariant: sharedState.variants.activeVariant,
-    primaryVariant: sharedState.variants.primaryVariant,
-    isLoadingVariants: sharedState.variants.isLoading,
-    handleVariantSelect: sharedState.variants.setActiveVariantId,
-    handleMakePrimary: sharedState.variants.setPrimaryVariant,
-    handleDeleteVariant: sharedState.variants.deleteVariant,
+  const lightboxVariants = useMemo(() => buildLightboxVariantState({
+    sharedVariants: sharedState.variants,
+    makeMainVariant: sharedState.makeMainVariant,
     onLoadVariantSettings: env.setVariantParamsToLoad,
     onLoadVariantImages: editModel.variantSegmentImages ? editModel.loadVariantImages : undefined,
     currentSegmentImages: editModel.variantSegmentImages,
-    promoteSuccess: sharedState.variants.promoteSuccess,
-    isPromoting: sharedState.variants.isPromoting,
-    handlePromoteToGeneration: sharedState.variants.handlePromoteToGeneration,
-    isMakingMainVariant: sharedState.makeMainVariant.isMaking,
-    canMakeMainVariant: sharedState.makeMainVariant.canMake,
-    handleMakeMainVariant: sharedState.makeMainVariant.handle,
     pendingTaskCount: editModel.variantBadges.pendingTaskCount,
     unviewedVariantCount: editModel.variantBadges.unviewedVariantCount,
     onMarkAllViewed: editModel.variantBadges.handleMarkAllViewed,
@@ -88,33 +82,27 @@ export function useVideoLightboxRenderModel(
     sharedState.variants.setPrimaryVariant,
   ]);
 
-  const lightboxStateValue = useMemo(() => ({
-    core: {
-      onClose,
-      readOnly,
-      isMobile: env.isMobile,
-      isTabletOrLarger: sharedState.layout.isTabletOrLarger,
-      selectedProjectId: env.selectedProjectId,
-      actualGenerationId: env.actualGenerationId,
-    },
-    media: {
-      media,
-      isVideo: true,
-      effectiveMediaUrl: sharedState.effectiveMedia.mediaUrl ?? '',
-      effectiveVideoUrl: sharedState.effectiveMedia.videoUrl ?? '',
-      effectiveImageDimensions: sharedState.effectiveMedia.imageDimensions,
-      imageDimensions: env.imageDimensions,
-      setImageDimensions: env.setImageDimensions,
-    },
+  const lightboxStateValue = useMemo(() => buildLightboxStateValue({
+    onClose,
+    readOnly,
+    isMobile: env.isMobile,
+    isTabletOrLarger: sharedState.layout.isTabletOrLarger,
+    selectedProjectId: env.selectedProjectId,
+    actualGenerationId: env.actualGenerationId,
+    media,
+    isVideo: true,
+    effectiveMediaUrl: sharedState.effectiveMedia.mediaUrl ?? '',
+    effectiveVideoUrl: sharedState.effectiveMedia.videoUrl ?? '',
+    effectiveImageDimensions: sharedState.effectiveMedia.imageDimensions,
+    imageDimensions: env.imageDimensions,
+    setImageDimensions: env.setImageDimensions,
     variants: lightboxVariants,
-    navigation: {
-      showNavigation,
-      hasNext: modeModel.hasNext,
-      hasPrevious: modeModel.hasPrevious,
-      handleSlotNavNext: modeModel.handleSlotNavNext,
-      handleSlotNavPrev: modeModel.handleSlotNavPrev,
-      swipeNavigation: sharedState.navigation.swipeNavigation,
-    },
+    showNavigation,
+    hasNext: modeModel.hasNext,
+    hasPrevious: modeModel.hasPrevious,
+    handleSlotNavNext: modeModel.handleSlotNavNext,
+    handleSlotNavPrev: modeModel.handleSlotNavPrev,
+    swipeNavigation: sharedState.navigation.swipeNavigation,
   }), [
     env.actualGenerationId,
     env.imageDimensions,
@@ -271,21 +259,15 @@ export function useVideoLightboxRenderModel(
     handleNavigateToShotFromSelector,
   });
 
-  const layoutProps = useMemo(() => ({
+  const layoutProps = useMemo(() => buildLightboxLayoutProps({
     showPanel,
     shouldShowSidePanel: shouldShowSidePanelWithTrim,
     effectiveTasksPaneOpen: env.effectiveTasksPaneOpen,
     effectiveTasksPaneWidth: env.effectiveTasksPaneWidth,
     workflowBar,
-    buttonGroups: {
-      bottomLeft: sharedState.buttonGroupProps.bottomLeft,
-      bottomRight: sharedState.buttonGroupProps.bottomRight,
-      topRight: {
-        ...sharedState.buttonGroupProps.topRight,
-        handleDownload,
-        handleDelete,
-      },
-    },
+    buttonGroups: sharedState.buttonGroupProps,
+    handleDownload,
+    handleDelete,
     adjacentSegments,
     segmentSlotMode: modeModel.hasSegmentVideo ? props.segmentSlotMode : undefined,
   }), [
@@ -296,9 +278,7 @@ export function useVideoLightboxRenderModel(
     handleDownload,
     modeModel.hasSegmentVideo,
     props.segmentSlotMode,
-    sharedState.buttonGroupProps.bottomLeft,
-    sharedState.buttonGroupProps.bottomRight,
-    sharedState.buttonGroupProps.topRight,
+    sharedState.buttonGroupProps,
     shouldShowSidePanelWithTrim,
     showPanel,
     workflowBar,
