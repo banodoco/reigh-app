@@ -1,5 +1,6 @@
 import type { SegmentOverrides } from '@/shared/types/segmentSettings';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
+import { asBoolean, asNumber, asRecord, asString } from '@/shared/lib/tasks/taskParamParsers';
 
 /**
  * Per-pair LoRA override configuration.
@@ -50,19 +51,7 @@ export interface GenerationMetadata {
 }
 
 function isMetadataRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
-}
-
-function asBoolean(value: unknown): boolean | undefined {
-  return typeof value === 'boolean' ? value : undefined;
-}
-
-function asNumber(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
-}
-
-function asString(value: unknown): string | undefined {
-  return typeof value === 'string' ? value : undefined;
+  return asRecord(value) !== undefined;
 }
 
 function asStringOrNull(value: unknown): string | null | undefined {

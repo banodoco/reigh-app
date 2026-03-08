@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { TaskDetailsProps, getVariantConfig } from '@/shared/types/taskDetailsTypes';
 import { extractLoras } from '@/shared/lib/taskParamsUtils';
 import { normalizeTaskDetailsPayload } from '@/shared/components/TaskDetails/hooks/normalizeTaskDetailsPayload';
+import { TaskPromptDetails } from './components/TaskPromptDetails';
 
 /**
  * Task details for image editing tasks (img2img, inpaint, magic edit, etc.)
@@ -41,14 +42,18 @@ export const ImageEditTaskDetails: React.FC<TaskDetailsProps> = ({
         </div>
       )}
 
-      {/* Prompt (if provided) */}
       {prompt && (
-        <div className="space-y-1">
-          <p className={`${config.textSize} font-medium text-muted-foreground`}>Prompt</p>
-          <p className={`${config.textSize} ${config.fontWeight} text-foreground break-words whitespace-pre-wrap leading-relaxed preserve-case`}>
-            {prompt.length > config.promptLength ? prompt.slice(0, config.promptLength) + '...' : prompt}
-          </p>
-        </div>
+        <TaskPromptDetails
+          config={config}
+          prompt={prompt}
+          enhancePrompt={undefined}
+          negativePrompt={undefined}
+          showFullPrompt={false}
+          showFullNegativePrompt={false}
+          showCopyButtons={false}
+          copiedPrompt={false}
+          onCopyPrompt={() => {}}
+        />
       )}
 
       {/* Qwen Edit Model (if specified) */}

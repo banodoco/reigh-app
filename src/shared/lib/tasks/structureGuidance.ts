@@ -1,4 +1,4 @@
-type UnknownRecord = Record<string, unknown>;
+import { asNumber, asRecord, asString, type UnknownRecord } from './taskParamParsers';
 
 const STRUCTURE_PREPROCESSING_MAP: Record<string, string> = {
   flow: 'flow',
@@ -7,30 +7,14 @@ const STRUCTURE_PREPROCESSING_MAP: Record<string, string> = {
   raw: 'none',
 };
 
-function asRecordOrUndefined(value: unknown): UnknownRecord | undefined {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? value as UnknownRecord
-    : undefined;
-}
-
 function asRecordArray(value: unknown): UnknownRecord[] | undefined {
   if (!Array.isArray(value)) {
     return undefined;
   }
   const records = value
-    .map((item) => asRecordOrUndefined(item))
+    .map((item) => asRecord(item))
     .filter((item): item is UnknownRecord => !!item);
   return records.length > 0 ? records : undefined;
-}
-
-function asNumber(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value)
-    ? value
-    : undefined;
-}
-
-function asString(value: unknown): string | undefined {
-  return typeof value === 'string' ? value : undefined;
 }
 
 function buildGuidanceFromVideos(
@@ -46,7 +30,7 @@ function buildGuidanceFromVideos(
       if (!path) {
         return null;
       }
-      const metadata = asRecordOrUndefined(video.metadata);
+      const metadata = asRecord(video.metadata);
       const resourceId = asString(video.resource_id);
       return {
         path,
@@ -114,7 +98,7 @@ interface NormalizeStructureGuidanceInput {
 export function normalizeStructureGuidance(
   input: NormalizeStructureGuidanceInput,
 ): UnknownRecord | undefined {
-  const existingGuidance = asRecordOrUndefined(input.structureGuidance);
+  const existingGuidance = asRecord(input.structureGuidance);
   if (existingGuidance) {
     return existingGuidance;
   }
@@ -169,7 +153,7 @@ export function normalizeStructureGuidance(
 
 export function pickFirstStructureGuidance(...candidates: unknown[]): UnknownRecord | undefined {
   for (const candidate of candidates) {
-    const parsed = asRecordOrUndefined(candidate);
+    const parsed = asRecord(candidate);
     if (parsed) {
       return parsed;
     }

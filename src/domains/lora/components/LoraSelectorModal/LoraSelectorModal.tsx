@@ -61,6 +61,8 @@ export const LoraSelectorModal: React.FC<LoraSelectorModalProps> = ({
     debug: false,
     preloadFade: modal.isMobile
   });
+  const modalHeaderPaddingClass = modal.isMobile ? 'px-2 pt-1 pb-2' : 'px-6 pt-2 pb-2';
+  const modalTabRowPaddingClass = `${modal.isMobile ? 'px-2' : 'px-6'} py-2 flex-shrink-0`;
 
   if (!isOpen) {
     return null;
@@ -73,7 +75,7 @@ export const LoraSelectorModal: React.FC<LoraSelectorModalProps> = ({
         style={modal.style}
       >
         <div className={modal.headerClass}>
-          <DialogHeader className={`${modal.isMobile ? 'px-2 pt-1 pb-2' : 'px-6 pt-2 pb-2'} flex-shrink-0`}>
+          <DialogHeader className={`${modalHeaderPaddingClass} flex-shrink-0`}>
             <DialogTitle>LoRA Library</DialogTitle>
           </DialogHeader>
         </div>
@@ -81,7 +83,7 @@ export const LoraSelectorModal: React.FC<LoraSelectorModalProps> = ({
           ref={scrollRef}
           className={modal.scrollClass}
         >
-          <div className={`${modal.isMobile ? 'px-2' : 'px-6'} py-2 flex-shrink-0`}>
+          <div className={modalTabRowPaddingClass}>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col flex-1 overflow-hidden">
               <TabsList className="grid w-full grid-cols-2 mb-2">
                 <TabsTrigger value="browse" className="w-full">Browse LoRAs</TabsTrigger>

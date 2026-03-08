@@ -95,8 +95,11 @@ export const CommunityLorasTab: React.FC<CommunityLorasTabProps> = ({
     }
   }, [page, totalPages, onPageChange, setPage]);
 
+  const tabContainerClass = 'relative flex flex-col h-full min-h-0 px-0 sm:px-4';
+  const scrollAreaClass = 'flex-1 min-h-0 overflow-y-auto relative';
+
   return (
-    <div className="relative flex flex-col h-full min-h-0 px-0 sm:px-4">
+    <div className={tabContainerClass}>
       <div className="flex gap-2 mb-3">
         <Input
           type="text"
@@ -145,7 +148,7 @@ export const CommunityLorasTab: React.FC<CommunityLorasTabProps> = ({
       </div>
 
       {/* Scrollable content area with floating controls */}
-      <div className="flex-1 min-h-0 overflow-y-auto relative">
+      <div className={scrollAreaClass}>
         <div className={`grid grid-cols-1 lg:grid-cols-2 gap-2 ${isMobile ? 'pb-2' : 'pb-4'}`}>
           {paginatedLoras.length > 0 ? (
             paginatedLoras.map((lora) => {
