@@ -70,7 +70,7 @@ export async function handleStorageOperations(
       });
 
     if (uploadError) {
-      console.error("[Storage] Upload error:", uploadError);
+      console.warn("[Storage] Upload error:", uploadError);
       throw new Error(`Storage upload failed: ${uploadError.message}`);
     }
 
@@ -114,14 +114,14 @@ async function handleThumbnail(
         });
 
       if (thumbnailUploadError) {
-        console.error("[Storage] Thumbnail upload error:", thumbnailUploadError);
+        console.warn("[Storage] Thumbnail upload error:", thumbnailUploadError);
         return null;
       }
 
       const { data: thumbnailUrlData } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(thumbnailPath);
       return thumbnailUrlData.publicUrl;
     } catch (thumbnailError) {
-      console.error("[Storage] Error processing thumbnail:", thumbnailError);
+      console.warn("[Storage] Error processing thumbnail:", thumbnailError);
       return null;
     }
   }
@@ -213,7 +213,7 @@ export async function getStoragePublicUrl(
     }
     return { exists: true, publicUrl: urlData.publicUrl };
   } catch (error) {
-    console.error(`[Storage] Error verifying file:`, error);
+    console.warn(`[Storage] Error verifying file:`, error);
     return { exists: false };
   }
 }
@@ -228,6 +228,6 @@ export async function cleanupFile(
   try {
     await supabase.storage.from(MEDIA_BUCKET).remove([objectPath]);
   } catch (error) {
-    console.error(`[Storage] Failed to cleanup file:`, error);
+    console.warn(`[Storage] Failed to cleanup file:`, error);
   }
 }

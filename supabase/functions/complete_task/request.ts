@@ -154,7 +154,7 @@ function parseBase64Request(body: CompleteTaskRequestBody): ParseResult {
   try {
     fileBuffer = Uint8Array.from(atob(fileData), (c) => c.charCodeAt(0));
   } catch (error) {
-    console.error("[RequestParser] Base64 decode error:", error);
+    console.warn("[RequestParser] Base64 decode error:", error);
     return badRequest("Invalid base64 file_data", 'invalid_base64_file_data');
   }
 
@@ -165,7 +165,7 @@ function parseBase64Request(body: CompleteTaskRequestBody): ParseResult {
       thumbnailBuffer = Uint8Array.from(atob(firstFrameData), (c) => c.charCodeAt(0));
       thumbnailFilename = firstFrameFilename;
     } catch (error) {
-      console.error("[RequestParser] Thumbnail base64 decode error:", error);
+      console.warn("[RequestParser] Thumbnail base64 decode error:", error);
       // Continue without thumbnail - non-fatal
     }
   }
@@ -244,7 +244,7 @@ export async function validateStoragePathSecurity(
     .single();
 
   if (error) {
-    console.error(`[SecurityCheck] Error fetching task for validation: ${error.message}`);
+    console.warn(`[SecurityCheck] Error fetching task for validation: ${error.message}`);
     return { allowed: false, error: "storage_path does not match task_id. Files must be uploaded for the correct task." };
   }
 
@@ -253,6 +253,6 @@ export async function validateStoragePathSecurity(
     return { allowed: true };
   }
 
-  console.error(`[SecurityCheck] ❌ Non-orchestrator task attempting to reference different task's output`);
+  console.warn(`[SecurityCheck] ❌ Non-orchestrator task attempting to reference different task's output`);
   return { allowed: false, error: "storage_path does not match task_id. Files must be uploaded for the correct task." };
 }

@@ -12,6 +12,13 @@ const COLORS = {
   videosGenerated: { bg: "rgba(110, 231, 183, 0.85)", border: "rgb(110, 231, 183)" },   // emerald-300
 };
 
+const CHART_THEME = {
+  legendTextColor: "#cbd5e1",
+  axisTextColor: "#64748b",
+  axisGridColor: "rgba(148, 163, 184, 0.08)",
+  backgroundColor: "#1a1a2e",
+} as const;
+
 interface DayBucket {
   date: string;
   images_generated: number;
@@ -326,7 +333,7 @@ async function generateChart(
         legend: {
           position: "bottom",
           labels: {
-            color: "#cbd5e1",
+            color: CHART_THEME.legendTextColor,
             padding: 16,
             usePointStyle: true,
             pointStyle: "circle",
@@ -336,12 +343,12 @@ async function generateChart(
       },
       scales: {
         x: {
-          ticks: { color: "#64748b", maxRotation: 45, font: { size: 10 } },
+          ticks: { color: CHART_THEME.axisTextColor, maxRotation: 45, font: { size: 10 } },
           grid: { display: false },
         },
         y: {
-          ticks: { color: "#64748b", font: { size: 10 } },
-          grid: { color: "rgba(148, 163, 184, 0.08)" },
+          ticks: { color: CHART_THEME.axisTextColor, font: { size: 10 } },
+          grid: { color: CHART_THEME.axisGridColor },
           beginAtZero: true,
         },
       },
@@ -353,7 +360,7 @@ async function generateChart(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        backgroundColor: "#1a1a2e",
+        backgroundColor: CHART_THEME.backgroundColor,
         width: 800,
         height: 350,
         format: "png",
