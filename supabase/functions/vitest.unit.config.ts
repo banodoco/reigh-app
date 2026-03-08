@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitest/config';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildEdgeAliasMap } from '../../config/testing/vitest.edge.aliases';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -34,42 +35,7 @@ const MOCKS_DIR = path.resolve(__dirname, '_tests/mocks');
 export default defineConfig({
   resolve: {
     alias: {
-      'https://deno.land/std@0.224.0/http/server.ts': path.resolve(
-        MOCKS_DIR,
-        'denoHttpServer.ts',
-      ),
-      'https://deno.land/std@0.177.0/http/server.ts': path.resolve(
-        MOCKS_DIR,
-        'denoHttpServer.ts',
-      ),
-      'https://deno.land/std@0.168.0/http/server.ts': path.resolve(
-        MOCKS_DIR,
-        'denoHttpServer.ts',
-      ),
-      'https://deno.land/std@0.177.0/crypto/mod.ts': path.resolve(
-        MOCKS_DIR,
-        'denoCrypto.ts',
-      ),
-      'https://esm.sh/@supabase/supabase-js@2.39.7': path.resolve(
-        MOCKS_DIR,
-        'supabaseClient.ts',
-      ),
-      'https://esm.sh/@supabase/supabase-js@2': path.resolve(
-        MOCKS_DIR,
-        'supabaseClient.ts',
-      ),
-      'npm:@supabase/supabase-js@2': path.resolve(
-        MOCKS_DIR,
-        'supabaseClient.ts',
-      ),
-      'https://esm.sh/stripe@12.18.0?target=deno': path.resolve(
-        MOCKS_DIR,
-        'stripe.ts',
-      ),
-      'https://esm.sh/@huggingface/hub@0.18.2': path.resolve(
-        MOCKS_DIR,
-        'huggingfaceHub.ts',
-      ),
+      ...buildEdgeAliasMap(MOCKS_DIR),
     },
   },
   test: {
