@@ -10,6 +10,7 @@ import { shotQueryKeys } from '@/shared/lib/queryKeys/shots';
 import {
   cancelShotsQueries,
   findShotsCache,
+  invalidateShotsQueries,
   rollbackShotsCaches,
   updateAllShotsCaches,
 } from './cacheUtils';
@@ -74,9 +75,7 @@ export const useUpdateShotName = () => {
       queryClient.setQueryData<Shot>(shotQueryKeys.detail(shotId), (old) =>
         old ? { ...old, name } : old
       );
-
-      // Invalidate all list variants for this project (maxImages variants share this prefix).
-      queryClient.invalidateQueries({ queryKey: [...shotQueryKeys.all, projectId] });
+      invalidateShotsQueries(queryClient, projectId);
     },
 
     onError: (error: Error, _variables, context) => {

@@ -65,6 +65,13 @@ export async function cancelShotsQueries(
   await queryClient.cancelQueries({ queryKey: getShotsProjectPrefix(projectId) });
 }
 
+export function invalidateShotsQueries(
+  queryClient: QueryClient,
+  projectId: string,
+): void {
+  queryClient.invalidateQueries({ queryKey: [...queryKeys.shots.all, projectId] });
+}
+
 export function findShotsCache(
   queryClient: QueryClient,
   projectId: string

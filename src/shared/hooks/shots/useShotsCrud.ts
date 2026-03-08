@@ -13,6 +13,7 @@ import { shotQueryKeys } from '@/shared/lib/queryKeys/shots';
 import {
   cancelShotsQueries,
   findShotsCache,
+  invalidateShotsQueries,
   updateAllShotsCaches,
   rollbackShotsCaches,
 } from './cacheUtils';
@@ -259,9 +260,7 @@ export const useDuplicateShot = () => {
           )
         );
       }
-
-      // Invalidate all list variants for this project (maxImages variants share this prefix).
-      queryClient.invalidateQueries({ queryKey: [...shotQueryKeys.all, projectId] });
+      invalidateShotsQueries(queryClient, projectId);
     },
 
     onError: (error: Error, _variables, context) => {
@@ -339,8 +338,7 @@ export const useReorderShots = () => {
     },
 
     onSuccess: ({ projectId }) => {
-      // Invalidate all list variants for this project (maxImages variants share this prefix).
-      queryClient.invalidateQueries({ queryKey: [...shotQueryKeys.all, projectId] });
+      invalidateShotsQueries(queryClient, projectId);
     },
   });
 };
