@@ -4,6 +4,18 @@ export function getFirstFile(files: FileList | null | undefined): File | null {
   return files?.item(0) ?? null;
 }
 
+export async function withFirstFile(
+  files: FileList | null | undefined,
+  handler: (file: File) => Promise<void> | void
+): Promise<void> {
+  const file = getFirstFile(files);
+  if (!file) {
+    return;
+  }
+
+  await handler(file);
+}
+
 export function isSupportedImageType(mimeType: string): boolean {
   return IMAGE_FILE_MIME_TYPES.has(mimeType);
 }

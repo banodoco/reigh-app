@@ -5,9 +5,7 @@ import React, {
 import { useFileDragTracking } from '@/shared/hooks/useFileDragTracking';
 import { preventDefaultDragOver, createSingleFileDropHandler } from '@/shared/lib/dnd/dragDropUpload';
 import { useProject } from '@/shared/contexts/ProjectContext';
-import { Button } from '@/shared/components/ui/button';
 import {
-  Upload,
   ImageIcon
 } from 'lucide-react';
 import { Skeleton } from '@/shared/components/ui/skeleton';
@@ -24,7 +22,9 @@ import { VARIANT_TYPE } from '@/shared/constants/variantTypes';
 import { parseRatio } from '@/shared/lib/media/aspectRatios';
 import { MediaSelectionPanel } from '@/shared/components/MediaSelectionPanel';
 import { useEditToolMediaPersistence } from '@/shared/hooks/media/useEditToolMediaPersistence';
-import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { EditMediaSelectionLayout } from '@/tools/shared/editMedia/EditMediaSelectionLayout';
+import { navigateToGenerationById } from '@/tools/shared/editMedia/navigation';
+import { requireProjectAndUserId } from '@/tools/shared/editMedia/uploadGuards';
 
 // Preload image helper - warm up the browser cache
 const preloadedImageRef = { current: null as string | null };
@@ -62,13 +62,7 @@ export default function EditImagesPage() {
   });
   // Shared upload logic for both file input and drag-drop
   const uploadImage = useCallback(async (file: File): Promise<GenerationRow> => {
-    if (!selectedProjectId) {
-      throw new Error('No project selected');
-    }
-    const { data: { session } } = await supabase().auth.getSession();
-    if (!session?.user?.id) {
-      throw new Error('User not authenticated');
-    }
+    const { projectId } = await requireProjectAndUserId(selectedProjectId);
 
     let publicUrl = '';
     let thumbnailUrl = '';
@@ -94,7 +88,7 @@ export default function EditImagesPage() {
 
     const { data: generation, error: dbError } = await supabase().from('generations')
       .insert({
-        project_id: selectedProjectId,
+        project_id: projectId,
         location: publicUrl,
         thumbnail_url: thumbnailUrl,
         type: 'image',
@@ -154,6 +148,13 @@ export default function EditImagesPage() {
     }),
     [selectedProjectId, resetDragState, uploadOperation, uploadImage, setSelectedMedia]
   );
+
+  const handleNavigateToGeneration = useCallback(async (generationId: string) => {
+    await navigateToGenerationById(generationId, {
+      context: 'EditImagesPage',
+      onResolved: (generation) => setSelectedMedia(generation),
+    });
+  }, [setSelectedMedia]);
 
   return (
     <div 
@@ -230,79 +231,27 @@ export default function EditImagesPage() {
       )}
       
       {!selectedMedia && !showSkeleton && (
-        <div className="w-full px-4 overflow-y-auto">
-          <div className="max-w-7xl mx-auto">
-            {/* Selection UI - reduced height */}
-            <div className="flex flex-col md:flex-row rounded-2xl overflow-hidden" style={{ height: isMobile ? '60vh' : '65vh' }}>
-              {/* Left Panel - Placeholder */}
-              <div 
-                className="relative flex items-center justify-center bg-black w-full h-[30%] md:w-[60%] md:h-full md:flex-1"
-              >
-                {/* Drag overlay - positioned over left panel */}
-                {isDraggingOver && (
-                  <div className="absolute inset-0 z-20 bg-black/80 backdrop-blur-sm flex items-center justify-center">
-                    <div className="flex flex-col items-center gap-4 p-8 rounded-2xl border-2 border-dashed border-primary bg-primary/10">
-                      <ImageIcon className="w-16 h-16 text-primary animate-bounce" />
-                      <p className="text-xl font-medium text-primary">Drop image to upload</p>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Upload loading state */}
-                {uploadOperation.isLoading && (
-                  <div className="absolute inset-0 z-20 bg-black/80 backdrop-blur-sm flex items-center justify-center">
-                    <div className="flex flex-col items-center gap-4 p-8">
-                      <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                      <p className="text-lg font-medium text-white">Uploading image...</p>
-                    </div>
-                  </div>
-                )}
-                
-                {!uploadOperation.isLoading && !isDraggingOver && (
-                 <div className="bg-background/90 backdrop-blur-sm rounded-lg border border-border/50 p-6 md:p-8 flex flex-col items-center justify-center gap-y-4 md:gap-y-6 max-w-md mx-4">
-                  <div className="text-center space-y-1 md:space-y-2">
-                    <p className="text-muted-foreground text-xs md:hidden">
-                      Select or upload an image
-                    </p>
-                    <p className="text-muted-foreground text-base hidden md:block">
-                      Select an image from the right or upload a new one to start editing.
-                    </p>
-                  </div>
-
-                  <div className="relative w-full max-w-xs">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                      onChange={handleFileUpload}
-                      disabled={uploadOperation.isLoading}
-                    />
-                    <Button variant="outline" size="lg" className="w-full gap-2" disabled={uploadOperation.isLoading}>
-                      <Upload className="w-4 h-4" />
-                      Upload Image
-                    </Button>
-                  </div>
-                 </div>
-                )}
-              </div>
-
-            {/* Right Panel - Selection UI */}
-            <div 
-              className={cn(
-                "bg-background border-t md:border-t-0 md:border-l border-border overflow-hidden relative z-[60] flex flex-col w-full h-[70%] md:w-[40%] md:h-full"
-              )}
-            >
-               <ImageSelectionModal
-                 onSelect={(media) => {
-                   // Preload the image before showing edit view to prevent flash
-                   preloadImage(media);
-                   setSelectedMedia(media);
-                 }}
-               />
-              </div>
-            </div>
-          </div>
-        </div>
+        <EditMediaSelectionLayout
+          isMobile={Boolean(isMobile)}
+          isDraggingOver={isDraggingOver}
+          isUploading={uploadOperation.isLoading}
+          dropIcon={ImageIcon}
+          dropLabel="Drop image to upload"
+          uploadLabel="Upload Image"
+          uploadingLabel="Uploading image..."
+          mobileHint="Select or upload an image"
+          desktopHint="Select an image from the right or upload a new one to start editing."
+          accept="image/*"
+          onFileUpload={handleFileUpload}
+          rightPanel={(
+            <ImageSelectionModal
+              onSelect={(media) => {
+                preloadImage(media);
+                setSelectedMedia(media);
+              }}
+            />
+          )}
+        />
       )}
       
       {selectedMedia && (
@@ -315,20 +264,7 @@ export default function EditImagesPage() {
               <InlineEditView
                 media={selectedMedia}
                 onClose={handleEditorClose}
-                onNavigateToGeneration={async (generationId) => {
-                  try {
-                    const { data, error } = await supabase().from('generations')
-                      .select('*')
-                      .eq('id', generationId)
-                      .single();
-                    
-                    if (data && !error) {
-                      setSelectedMedia(data as unknown as GenerationRow);
-                    }
-                  } catch (e) {
-                    normalizeAndPresentError(e, { context: 'EditImagesPage', showToast: false });
-                  }
-                }}
+                onNavigateToGeneration={handleNavigateToGeneration}
               />
             </div>
           </div>

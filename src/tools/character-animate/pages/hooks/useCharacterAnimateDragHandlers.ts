@@ -3,11 +3,11 @@ import { useCallback, type DragEvent } from 'react';
 import type { CharacterAnimateBaseState } from './useCharacterAnimateBaseState';
 import type { CharacterAnimateHandlers } from './useCharacterAnimateHandlers';
 import {
-  getFirstFile,
   hasSupportedImageItem,
   hasSupportedVideoItem,
   isSupportedImageType,
   isSupportedVideoType,
+  withFirstFile,
 } from './fileValidation';
 
 export function useCharacterAnimateDragHandlers(state: CharacterAnimateBaseState, handlers: CharacterAnimateHandlers) {
@@ -64,17 +64,14 @@ export function useCharacterAnimateDragHandlers(state: CharacterAnimateBaseState
     event.stopPropagation();
     setIsDraggingOverImage(false);
 
-    const file = getFirstFile(event.dataTransfer.files);
-    if (!file) {
-      return;
-    }
+    await withFirstFile(event.dataTransfer.files, async (file) => {
+      if (!isSupportedImageType(file.type)) {
+        toast({ title: 'Invalid file type', description: 'Please upload a PNG or JPG image (avoid WEBP)', variant: 'destructive' });
+        return;
+      }
 
-    if (!isSupportedImageType(file.type)) {
-      toast({ title: 'Invalid file type', description: 'Please upload a PNG or JPG image (avoid WEBP)', variant: 'destructive' });
-      return;
-    }
-
-    await handlers.processImageUpload(file);
+      await handlers.processImageUpload(file);
+    });
   }, [isScrolling, setIsDraggingOverImage, toast, handlers]);
 
   const handleVideoDragOver = useCallback((event: DragEvent) => {
@@ -123,17 +120,14 @@ export function useCharacterAnimateDragHandlers(state: CharacterAnimateBaseState
     event.stopPropagation();
     setIsDraggingOverVideo(false);
 
-    const file = getFirstFile(event.dataTransfer.files);
-    if (!file) {
-      return;
-    }
+    await withFirstFile(event.dataTransfer.files, async (file) => {
+      if (!isSupportedVideoType(file.type)) {
+        toast({ title: 'Invalid file type', description: 'Please upload a video file', variant: 'destructive' });
+        return;
+      }
 
-    if (!isSupportedVideoType(file.type)) {
-      toast({ title: 'Invalid file type', description: 'Please upload a video file', variant: 'destructive' });
-      return;
-    }
-
-    await handlers.processVideoUpload(file);
+      await handlers.processVideoUpload(file);
+    });
   }, [isScrolling, setIsDraggingOverVideo, toast, handlers]);
 
   return {

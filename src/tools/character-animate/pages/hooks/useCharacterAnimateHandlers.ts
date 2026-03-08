@@ -4,9 +4,9 @@ import { uploadImageToStorage } from '@/shared/lib/media/imageUploader';
 import type { CharacterAnimateBaseState } from './useCharacterAnimateBaseState';
 import { uploadVideoWithPoster } from '../uploadMedia';
 import {
-  getFirstFile,
   isSupportedImageType,
   isSupportedVideoType,
+  withFirstFile,
 } from './fileValidation';
 
 export function useCharacterAnimateHandlers(state: CharacterAnimateBaseState) {
@@ -60,35 +60,29 @@ export function useCharacterAnimateHandlers(state: CharacterAnimateBaseState) {
   }, [videoUpload, setMotionVideoLoaded, setMotionVideoPlaying, setMotionVideo, selectedProjectId, updateFields]);
 
   const handleCharacterImageUpload = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = getFirstFile(event.target.files);
-    if (!file) {
-      return;
-    }
+    await withFirstFile(event.target.files, async (file) => {
+      if (!isSupportedImageType(file.type)) {
+        toast({
+          title: 'Invalid file type',
+          description: 'Please upload a PNG or JPG image (avoid WEBP)',
+          variant: 'destructive',
+        });
+        return;
+      }
 
-    if (!isSupportedImageType(file.type)) {
-      toast({
-        title: 'Invalid file type',
-        description: 'Please upload a PNG or JPG image (avoid WEBP)',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    await processImageUpload(file);
+      await processImageUpload(file);
+    });
   }, [toast, processImageUpload]);
 
   const handleMotionVideoSelect = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = getFirstFile(event.target.files);
-    if (!file) {
-      return;
-    }
+    await withFirstFile(event.target.files, async (file) => {
+      if (!isSupportedVideoType(file.type)) {
+        toast({ title: 'Invalid file type', description: 'Please upload a video file', variant: 'destructive' });
+        return;
+      }
 
-    if (!isSupportedVideoType(file.type)) {
-      toast({ title: 'Invalid file type', description: 'Please upload a video file', variant: 'destructive' });
-      return;
-    }
-
-    await processVideoUpload(file);
+      await processVideoUpload(file);
+    });
   }, [toast, processVideoUpload]);
 
   const handleGenerate = useCallback(() => {
