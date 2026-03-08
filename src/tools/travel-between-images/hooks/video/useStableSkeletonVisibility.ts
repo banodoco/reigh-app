@@ -1,21 +1,5 @@
-/**
- * Stable Skeleton Visibility Hook
- * 
- * Prevents rapid skeleton flicker when multiple queries resolve at different times.
- * Shows skeleton immediately when loading starts, delays hiding slightly to prevent toggle flicker.
- * 
- * @see VideoTravelToolPage.tsx - Main page component that uses this hook
- */
-
 import { useState, useEffect, useRef } from 'react';
 
-/**
- * Hook that stabilizes skeleton visibility to avoid rapid flicker.
- * 
- * @param isLoading - Current loading state from queries
- * @param hideDelay - Delay in ms before hiding skeleton (default: 120ms)
- * @returns Whether to show the skeleton (stabilized)
- */
 export const useStableSkeletonVisibility = (
   isLoading: boolean,
   hideDelay: number = 120

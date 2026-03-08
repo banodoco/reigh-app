@@ -9,7 +9,7 @@ import React, { useCallback, useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/shared/components/ui/button';
 import { X } from 'lucide-react';
-import { toast } from '@/shared/components/ui/toast';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { useSegmentSettingsForm } from '@/shared/hooks/useSegmentSettingsForm';
 import { SegmentSettingsForm } from '@/shared/components/SegmentSettingsForm/SegmentSettingsForm';
 import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';

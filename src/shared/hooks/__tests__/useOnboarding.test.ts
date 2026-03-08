@@ -23,10 +23,6 @@ vi.mock('@/integrations/supabase/client', () => ({
   }),
 }));
 
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 import { useOnboarding } from '../useOnboarding';
 
 describe('useOnboarding', () => {

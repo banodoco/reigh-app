@@ -19,6 +19,7 @@ import { enqueueGenerationsInvalidation } from '@/shared/hooks/invalidation/useG
 import type { VideoMetadata } from '@/shared/lib/media/videoUploader';
 import type { AddImageToShotVariables } from '@/shared/hooks/shots/addImageToShotHelpers';
 import type { PresetMetadata } from '@/shared/types/presetMetadata';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 interface ApplySettingsHandlerIds {
   projectId: string;
@@ -160,12 +161,7 @@ function buildServiceApplyContext(handlerState: ApplySettingsHandlerState): Appl
 }
 
 async function fetchTaskData(taskId: string) {
-  try {
-    return await ApplySettingsService.fetchTask(taskId);
-  } catch (fetchError) {
-    console.error('[ApplySettings] fetchTask failed:', fetchError);
-    throw fetchError;
-  }
+  return ApplySettingsService.fetchTask(taskId);
 }
 
 async function applySettingsFromTask(
@@ -245,8 +241,10 @@ export function useApplySettingsHandler(handlerState: ApplySettingsHandlerState)
     try {
       await applySettingsFromTask(taskId, replaceImages, inputImages, latestHandlerState, queryClient);
     } catch (error) {
-      console.error('[ApplySettings] Failed to apply settings:', error);
-      toast.error('Failed to apply settings from task');
+      normalizeAndPresentError(error, {
+        context: 'useApplySettingsHandler',
+        toastTitle: 'Failed to apply settings from task',
+      });
       return;
     }
   }, [queryClient]); // stable identity

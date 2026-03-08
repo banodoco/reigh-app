@@ -1,7 +1,7 @@
 import { __WS_INSTRUMENTATION_ENABLED__, __CORRUPTION_TRACE_ENABLED__ } from '@/integrations/supabase/config/env';
 import { captureRealtimeSnapshot } from '@/integrations/supabase/utils/snapshot';
 import { __CORRUPTION_TIMELINE__, addCorruptionEvent } from '@/integrations/supabase/utils/timeline';
-import { normalizeAndReportError } from '@/shared/lib/errorHandling/runtimeErrorReporting';
+import { normalizeAndLogError } from '@/shared/lib/errorHandling/runtimeErrorReporting';
 import {
   collectUnhandledRejectionInfo,
   collectWindowErrorInfo,
@@ -28,10 +28,9 @@ function installCorruptionTracePatchers(instrumentedWindow: InstrumentedWindow):
       });
 
       if (isKnownSupabaseSourceLine(source, lineno)) {
-        normalizeAndReportError(new Error('[RealtimeCorruptionTrace] Supabase error captured'), {
+        normalizeAndLogError(new Error('[RealtimeCorruptionTrace] Supabase error captured'), {
           context: 'WindowInstrumentation',
-          showToast: false,
-          logData: {
+                    logData: {
             ...errorInfo,
             realtimeSnapshot: captureRealtimeSnapshot(),
             corruptionTimeline: [...__CORRUPTION_TIMELINE__],

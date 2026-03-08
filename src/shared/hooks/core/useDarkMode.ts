@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import usePersistentState from '../usePersistentState';
+import { usePersistentState } from '../usePersistentState';
 
 /**
  * Hook to manage dark mode state with persistence.

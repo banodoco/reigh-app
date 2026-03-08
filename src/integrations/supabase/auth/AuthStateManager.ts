@@ -1,4 +1,4 @@
-import { normalizeAndReportError } from '@/shared/lib/errorHandling/runtimeErrorReporting';
+import { normalizeAndLogError } from '@/shared/lib/errorHandling/runtimeErrorReporting';
 import { getReconnectScheduler } from '@/integrations/supabase/support/reconnect/ReconnectScheduler';
 import type { SupabaseClient, Session } from '@supabase/supabase-js';
 
@@ -25,7 +25,7 @@ export class AuthStateManager {
       try {
         callback(event, session);
       } catch (error) {
-        normalizeAndReportError(error, { context: 'AuthStateManager', showToast: false });
+        normalizeAndLogError(error, { context: 'AuthStateManager' });
       }
     });
   }
@@ -50,12 +50,12 @@ export class AuthStateManager {
               });
             }
           } catch (healError) {
-            normalizeAndReportError(healError, { context: 'AuthStateManager', showToast: false });
+            normalizeAndLogError(healError, { context: 'AuthStateManager' });
           }
         }, 1000);
       }
     } catch (setAuthError) {
-      normalizeAndReportError(setAuthError, { context: 'AuthStateManager', showToast: false });
+      normalizeAndLogError(setAuthError, { context: 'AuthStateManager' });
     }
   }
 
@@ -71,7 +71,7 @@ export class AuthStateManager {
       });
       this.isInitialized = true;
     } catch (authError) {
-      normalizeAndReportError(authError, { context: 'AuthStateManager', showToast: false });
+      normalizeAndLogError(authError, { context: 'AuthStateManager' });
     }
   }
 }

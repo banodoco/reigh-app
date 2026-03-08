@@ -165,7 +165,7 @@ export const ShotActions: React.FC<ShotActionsProps> = ({
                   showTickForImageId === image.id
                     ? 'bg-emerald-500 hover:bg-emerald-600'
                     : isAlreadyPositionedInSelectedShot
-                      ? 'bg-muted/60 hover:bg-muted/70 text-foreground'
+                      ? 'bg-black/40 hover:bg-black/60 text-white'
                       : ''
                 }`}
                 onClick={handleAddToShotIntent}
@@ -204,7 +204,7 @@ export const ShotActions: React.FC<ShotActionsProps> = ({
                   size="icon"
                   className={`absolute -top-1 -right-1 h-4 w-4 p-0 rounded-full border-0 scale-75 hover:scale-100 transition-transform duration-200 ease-out ${
                     isAlreadyAssociatedWithoutPosition
-                      ? 'bg-muted/80 hover:bg-muted/90 text-foreground'
+                      ? 'bg-black/40 hover:bg-black/60 text-white'
                       : 'bg-black/60 hover:bg-black/80 text-white'
                   }`}
                   onClick={handleAddWithoutPositionIntent}

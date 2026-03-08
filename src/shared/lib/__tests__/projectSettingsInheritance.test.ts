@@ -29,10 +29,6 @@ vi.mock('@/shared/lib/toolIds', () => ({
   },
 }));
 
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 import {
   fetchInheritableProjectSettings,
   buildShotSettingsForNewProject,

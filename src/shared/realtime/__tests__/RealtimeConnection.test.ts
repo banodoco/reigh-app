@@ -51,10 +51,6 @@ vi.mock('../DataFreshnessManager', () => ({
   },
 }));
 
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 import { RealtimeConnection } from '../RealtimeConnection';
 import { dataFreshnessManager } from '../DataFreshnessManager';
 

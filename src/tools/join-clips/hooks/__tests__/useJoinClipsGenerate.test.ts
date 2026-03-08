@@ -7,13 +7,11 @@ const {
   mockCreateJoinClipsTask,
   mockAddIncomingTask,
   mockRemoveIncomingTask,
-  mockHandleError,
   mockToast,
 } = vi.hoisted(() => ({
   mockCreateJoinClipsTask: vi.fn(),
   mockAddIncomingTask: vi.fn().mockReturnValue('incoming-1'),
   mockRemoveIncomingTask: vi.fn(),
-  mockHandleError: vi.fn(),
   mockToast: vi.fn(),
 }));
 
@@ -21,7 +19,7 @@ vi.mock('@/shared/lib/tasks/joinClips', () => ({
   createCanonicalJoinClipsTask: (...args: unknown[]) => mockCreateJoinClipsTask(...args),
 }));
 
-vi.mock('@/shared/components/ui/toast', () => ({
+vi.mock('@/shared/components/ui/runtime/sonner', () => ({
   toast: Object.assign(mockToast, {
     error: mockToast,
     success: mockToast,
@@ -41,10 +39,6 @@ vi.mock('@/shared/lib/queryKeys', () => ({
       projectPrefix: (id: string | null) => ['unified', id],
     },
   },
-}));
-
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: (...args: unknown[]) => mockHandleError(...args),
 }));
 
 vi.mock('@/shared/contexts/IncomingTasksContext', () => ({

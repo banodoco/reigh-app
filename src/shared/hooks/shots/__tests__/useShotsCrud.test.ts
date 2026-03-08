@@ -13,10 +13,6 @@ vi.mock('@/integrations/supabase/client', () => ({
   }),
 }));
 
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 vi.mock('@/shared/hooks/invalidation/useGenerationInvalidation', () => ({
   enqueueGenerationsInvalidation: vi.fn(),
 }));

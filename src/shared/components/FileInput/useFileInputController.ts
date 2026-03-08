@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { toast } from '@/shared/components/ui/toast';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 
 interface UseFileInputControllerArgs {
   onFileChange: (files: File[]) => void;

@@ -21,10 +21,6 @@ vi.mock('@/shared/lib/taskCreation', () => ({
   },
 }));
 
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 import { createCharacterAnimateTask, CharacterAnimateTaskParams } from '../characterAnimate';
 
 describe('createCharacterAnimateTask', () => {

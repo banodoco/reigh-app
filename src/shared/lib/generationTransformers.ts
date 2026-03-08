@@ -91,7 +91,7 @@ async function calculateDerivedCounts(
   }
 
   if (variantCountsData) {
-    for (const item of variantCountsData as Array<{ generation_id: string; viewed_at: string | null }>) {
+    for (const item of variantCountsData) {
       const genId = item.generation_id;
       derivedCounts[genId] = (derivedCounts[genId] || 0) + 1;
       if (item.viewed_at === null) {

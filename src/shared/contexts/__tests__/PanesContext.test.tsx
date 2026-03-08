@@ -42,10 +42,6 @@ vi.mock('@/integrations/supabase/client', () => ({
   }),
 }));
 
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 import { PanesProvider, usePanes } from '../PanesContext';
 
 // Test consumer component

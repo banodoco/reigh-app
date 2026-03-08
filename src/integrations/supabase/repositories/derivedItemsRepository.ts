@@ -1,5 +1,5 @@
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
-import { normalizeAndReportError } from '@/shared/lib/errorHandling/runtimeErrorReporting';
+import { normalizeAndLogError } from '@/shared/lib/errorHandling/runtimeErrorReporting';
 import { calculateDerivedCountsSafe } from '@/shared/lib/generationTransformers';
 import { expandShotData } from '@/shared/lib/shotData';
 import { EDIT_VARIANT_TYPES } from '@/shared/constants/variantTypes';
@@ -77,16 +77,14 @@ export async function fetchDerivedItemsFromRepository(
   ]);
 
   if (generationsResult.error) {
-    normalizeAndReportError(generationsResult.error, {
+    normalizeAndLogError(generationsResult.error, {
       context: 'generation.derivedItems.repository.generations',
-      showToast: false,
-    });
+          });
   }
   if (variantsResult.error) {
-    normalizeAndReportError(variantsResult.error, {
+    normalizeAndLogError(variantsResult.error, {
       context: 'generation.derivedItems.repository.variants',
-      showToast: false,
-    });
+          });
   }
 
   const childGenerations = generationsResult.data || [];

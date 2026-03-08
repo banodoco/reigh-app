@@ -56,10 +56,6 @@ vi.mock('@/shared/components/ui/runtime/sonner', () => ({
   },
 }));
 
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 vi.mock('@/shared/lib/queryKeys', () => ({
   queryKeys: {
     shots: {

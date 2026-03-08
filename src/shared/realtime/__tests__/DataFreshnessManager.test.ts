@@ -7,10 +7,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock dependencies
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 vi.mock('@/shared/components/ui/runtime/sonner', () => ({
   toast: {
     error: vi.fn(),

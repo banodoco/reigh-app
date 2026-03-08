@@ -4,7 +4,7 @@ import { useLiveRelativeTimestamp } from './useLiveRelativeTimestamp';
 
 type RelativeTimestampPreset = 'default' | 'task' | 'processing' | 'completed';
 
-interface UseUpdatingTimestampOptions {
+interface UseRelativeTimestampOptions {
   date?: string | Date | null;
   abbreviate?: (str: string) => string;
   disabled?: boolean;
@@ -29,7 +29,7 @@ export function useRelativeTimestamp({
   abbreviate = abbreviateRelativeTime,
   disabled = false,
   preset = 'default',
-}: UseUpdatingTimestampOptions = {}): string | null {
+}: UseRelativeTimestampOptions = {}): string | null {
   const formatter = relativeTimestampFormatters[preset];
 
   return useLiveRelativeTimestamp({

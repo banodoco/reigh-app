@@ -66,10 +66,6 @@ vi.mock('@/shared/components/ui/runtime/sonner', () => ({
   toast: { error: vi.fn() },
 }));
 
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 vi.mock('@/shared/hooks/gallery/useGalleryFilterState', () => ({
   useGalleryFilterState: () => ({
     selectedShotFilter: null,

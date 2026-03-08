@@ -25,10 +25,6 @@ vi.mock('../../taskCreation', () => ({
   },
 }));
 
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 describe('createVideoEnhanceTask', () => {
   beforeEach(() => {
     vi.clearAllMocks();

@@ -19,10 +19,6 @@ vi.mock('../../taskCreation', () => ({
   },
 }));
 
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 describe('createAnnotatedImageEditTask', () => {
   beforeEach(() => {
     vi.clearAllMocks();

@@ -1,5 +1,5 @@
 import React from 'react';
-import MediaLightbox from '@/domains/media-lightbox/MediaLightbox';
+import { MediaLightbox } from '@/domains/media-lightbox/MediaLightbox';
 import type { Shot } from '@/domains/generation/types';
 import type { GenerationRow } from '@/domains/generation/types';
 import type { ShotImageManagerProps } from '@/shared/components/ShotImageManager/types';

@@ -19,6 +19,7 @@ import { insertGeneration, createVariant } from './generation-core.ts';
 import { createVariantOnParent, getChildVariantViewedAt } from './generation-parent.ts';
 import { normalizeSegmentTaskParams } from './taskParamNormalizer.ts';
 import { buildSegmentMasterStateSnapshot } from './generation-child-diagnostics.ts';
+import type { CompletionLogger } from './types.ts';
 
 export interface HandlerContext {
   supabase: SupabaseClient;
@@ -26,7 +27,7 @@ export interface HandlerContext {
   taskData: unknown;
   publicUrl: string;
   thumbnailUrl: string | null;
-  logger?: unknown;
+  logger?: CompletionLogger;
   childGenerationId?: string;
   parentGenerationId?: string;
   childOrder?: number | null;
@@ -333,9 +334,9 @@ export async function createChildGenerationRecord(
         segmentParams: params,
         shotId,
       });
-      logger?.debug?.('Segment master state', segmentSnapshot);
+      logger?.debug('Segment master state', segmentSnapshot);
     } catch (logError) {
-      logger?.warn?.('Failed to build segment master state', {
+      logger?.warn('Failed to build segment master state', {
         taskId,
         generationId: newGeneration.id,
         segmentIndex: childOrder,

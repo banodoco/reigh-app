@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import MediaLightbox from '@/domains/media-lightbox/MediaLightbox';
+import { MediaLightbox } from '@/domains/media-lightbox/MediaLightbox';
 import { FinalVideoSectionControls } from './FinalVideoSectionControls';
 import { FinalVideoSectionDisplay } from './FinalVideoSectionDisplay';
 import { useFinalVideoSectionController } from './hooks/useFinalVideoSectionController';

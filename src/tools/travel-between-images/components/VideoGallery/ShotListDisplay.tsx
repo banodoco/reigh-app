@@ -8,7 +8,7 @@ import {
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import { Shot } from '@/domains/generation/types';
-import SortableShotItem, { type DropOptions } from './SortableShotItem';
+import { SortableShotItem, type DropOptions } from './SortableShotItem';
 import { type GenerationDropData } from '@/shared/lib/dnd/dragDrop';
 import { useShotFinalVideos } from '../../hooks/video/useShotFinalVideos';
 import {
@@ -35,7 +35,7 @@ interface ShotListDisplayProps {
   onSkeletonSetupReady?: (setup: (imageCount: number) => void, clear: () => void) => void;
 }
 
-const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
+export const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
   projectId,
   onSelectShot,
   onCreateNewShot,
@@ -143,4 +143,3 @@ const ShotListDisplay: React.FC<ShotListDisplayProps> = ({
   );
 };
 
-export default ShotListDisplay;

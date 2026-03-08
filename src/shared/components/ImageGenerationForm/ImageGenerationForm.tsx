@@ -20,7 +20,9 @@ const LazyLoraSelectorModal = React.lazy(() =>
 );
 
 const LazyPromptEditorModal = React.lazy(() =>
-  import("../PromptEditorModal")
+  import("../PromptEditorModal").then(module => ({
+    default: module.PromptEditorModal
+  }))
 );
 
 interface ImageGenerationFormProps {

@@ -1,4 +1,4 @@
-import MediaLightbox from '@/domains/media-lightbox/MediaLightbox';
+import { MediaLightbox } from '@/domains/media-lightbox/MediaLightbox';
 import { PreviewTogetherDialog, type PreviewSegment } from './components/PreviewTogetherDialog';
 import type { ShotImagesEditorModeModel } from './hooks/useShotImagesEditorModel';
 import type { ShotImagesEditorResolvedProps } from './types';

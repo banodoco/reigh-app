@@ -32,10 +32,6 @@ vi.mock('@/shared/lib/typeGuards', () => ({
   hasVideoExtension: vi.fn((url: string) => url?.endsWith('.mp4')),
 }));
 
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 import { usePromoteVariantToGeneration } from '@/shared/hooks/variants/usePromoteVariantToGeneration';
 
 describe('usePromoteVariantToGeneration', () => {

@@ -38,10 +38,6 @@ class TVE extends Error {
   }
 }
 
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 describe('createBatchZImageTurboImageToImageTasks', () => {
   beforeEach(() => {
     vi.clearAllMocks();

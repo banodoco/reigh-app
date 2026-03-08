@@ -17,10 +17,6 @@ vi.mock('@/shared/hooks/shotCreation/useShotCreation', () => ({
   })),
 }));
 
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 import { useQuickShotCreate } from '../useQuickShotCreate';
 
 describe('useQuickShotCreate', () => {

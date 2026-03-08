@@ -27,10 +27,6 @@ vi.mock('@/integrations/supabase/client', () => ({
   }),
 }));
 
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 vi.mock('@/shared/lib/imageUploader', () => ({
   uploadImageToStorage: vi.fn().mockResolvedValue('uploaded.jpg'),
 }));

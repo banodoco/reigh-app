@@ -1,1 +1,1 @@
-export { default } from '@/shared/components/shots/CreateShotModal';
+export { CreateShotModal as default } from '@/shared/components/shots/CreateShotModal';

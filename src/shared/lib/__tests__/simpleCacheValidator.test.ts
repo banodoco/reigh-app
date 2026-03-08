@@ -1,10 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 
 // Mock errorHandler
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 // simpleCacheValidator registers globals on import when import.meta.env.DEV is true.
 // In vitest, DEV is true so the globals should be registered.
 // However, the module uses side-effects on import, so we need dynamic import

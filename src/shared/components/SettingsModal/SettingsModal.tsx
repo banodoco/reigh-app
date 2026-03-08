@@ -9,7 +9,7 @@ import {
 } from "@/shared/components/ui/dialog";
 import { Button } from "@/shared/components/ui/button";
 import { useApiTokens } from "@/shared/hooks/account/useApiTokens";
-import usePersistentState from "@/shared/hooks/usePersistentState";
+import { usePersistentState } from "@/shared/hooks/usePersistentState";
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { useIsMobile } from "@/shared/hooks/mobile";
 import { useLargeModal } from '@/shared/hooks/useModal';
@@ -19,9 +19,9 @@ import { useDarkMode } from "@/shared/hooks/core/useDarkMode";
 import { useTextCase } from "@/shared/hooks/useTextCase";
 import { useAIInputMode } from "@/shared/contexts/AIInputModeContext";
 import { dispatchAppEvent } from '@/shared/lib/typedEvents';
-import GenerationSection from "./sections/GenerationSection";
-import PreferencesSection from "./sections/PreferencesSection";
-import TransactionsSection from "./sections/TransactionsSection";
+import { GenerationSection } from "./sections/GenerationSection";
+import { PreferencesSection } from "./sections/PreferencesSection";
+import { TransactionsSection } from "./sections/TransactionsSection";
 import type { SettingsModalProps } from "./types";
 
 const SettingsModal: React.FC<SettingsModalProps> = ({

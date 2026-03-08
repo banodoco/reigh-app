@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { toast } from '@/shared/components/ui/toast';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { createCanonicalJoinClipsTask } from '@/shared/lib/tasks/joinClips';

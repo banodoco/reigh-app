@@ -277,18 +277,10 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
         onDragEnd={handleDragEnd}
         onMouseEnter={handleMouseEnter}
         data-tour={dataTour}
-        onClick={enableSingleClick || !isMobile ? (e) => {
-          if (onImageClick) {
-            e.stopPropagation();
-            onImageClick(image);
-          } else {
-            onOpenLightbox(image);
-          }
-        } : undefined}
         onTouchStart={isMobile && !enableSingleClick && !isVideoContent ? handleTouchStart : undefined}
         onTouchEnd={isMobile && !enableSingleClick && !isVideoContent ? handleInteraction : undefined}
     >
-      <div className="relative w-full">
+      {/* Image layer */}
       <div
         style={{
           paddingBottom: aspectRatioPadding,
@@ -307,6 +299,7 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
               videosAsThumbnails={videosAsThumbnails}
               isMobile={isMobile}
               enableSingleClick={enableSingleClick}
+              onImageClick={onImageClick}
               onOpenLightbox={onOpenLightbox}
               onTouchStart={handleTouchStart}
               onTouchEnd={handleInteraction}
@@ -326,6 +319,8 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
               isFullLoaded={isFullLoaded}
               progressiveRef={progressiveRef}
               isMobile={isMobile}
+              enableSingleClick={enableSingleClick}
+              onImageClick={onImageClick}
               onOpenLightbox={onOpenLightbox}
               onImageLoad={handleImageLoad}
               onImageError={handleImageError}
@@ -334,10 +329,9 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
             />
           )}
       </div>
-      </div>
-      {/* Action buttons and UI elements */}
-      {image.id && ( // Ensure image has ID for actions
-      <>
+      {/* Overlay layer — single container above the image for all UI controls */}
+      {image.id && (
+      <div className="absolute inset-0 z-10 pointer-events-none [&>*]:pointer-events-auto">
           <ItemShotBadges
             image={image}
             isVideoContent={isVideoContent}
@@ -392,7 +386,7 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
             position="top-right"
             showOnHover={false}
             hideOnHover={!isVideoContent}
-            className="z-30"
+            className=""
           />
           <ItemMetadataBar
             image={image}
@@ -425,7 +419,7 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
             onOpenLightbox={onOpenLightbox}
             onDelete={onDelete}
           />
-      </>)
+      </div>)
       }
     </div>
   );

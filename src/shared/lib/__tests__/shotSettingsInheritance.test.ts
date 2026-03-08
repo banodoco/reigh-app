@@ -32,10 +32,6 @@ vi.mock('@/shared/lib/toolIds', () => ({
   },
 }));
 
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 import { inheritSettingsForNewShot } from '../shotSettingsInheritance';
 
 const parseJson = JSON['parse'] as (input: string) => unknown;

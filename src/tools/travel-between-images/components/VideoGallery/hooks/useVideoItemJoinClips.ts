@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { GenerationRow, GenerationParams } from '@/domains/generation/types';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
-import { toast } from '@/shared/components/ui/toast';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { createCanonicalJoinClipsTask } from '@/shared/lib/tasks/joinClips';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';

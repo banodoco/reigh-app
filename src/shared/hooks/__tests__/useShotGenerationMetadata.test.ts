@@ -24,10 +24,6 @@ vi.mock('@/shared/hooks/invalidation/useGenerationInvalidation', () => ({
   useEnqueueGenerationsInvalidation: vi.fn(() => vi.fn()),
 }));
 
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 import { useShotGenerationMetadata } from '@/shared/hooks/shots/useShotGenerationMetadata';
 
 describe('useShotGenerationMetadata', () => {

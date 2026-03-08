@@ -13,10 +13,6 @@ vi.mock('@/integrations/supabase/client', () => ({
   }),
 }));
 
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 import { useToggleVariantStar } from '@/shared/hooks/variants/useToggleVariantStar';
 
 describe('useToggleVariantStar', () => {

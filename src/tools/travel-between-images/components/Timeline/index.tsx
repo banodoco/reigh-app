@@ -8,7 +8,7 @@ import { useAppEventListener } from "@/shared/lib/typedEvents";
 import { GenerationRow } from "@/domains/generation/types";
 import { toast } from "@/shared/components/ui/runtime/sonner";
 import { TOOL_IDS } from '@/shared/lib/toolIds';
-import MediaLightbox, { type MediaLightboxProps } from "@/domains/media-lightbox/MediaLightbox";
+import { MediaLightbox, type MediaLightboxProps } from "@/domains/media-lightbox/MediaLightbox";
 import type { LightboxActionHandlers } from '@/domains/media-lightbox/types';
 import { TimelineEmptyState } from "./TimelineEmptyState";
 import type { SegmentSlot } from "@/shared/hooks/segments";

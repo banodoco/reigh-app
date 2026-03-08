@@ -1,10 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock errorHandler before importing the module under test
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 // The module uses top-level event listeners, so we need to set up DOM mocks first
 const addEventListenerSpy = vi.fn();
 const removeEventListenerSpy = vi.fn();

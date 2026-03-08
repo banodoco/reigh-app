@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { Shot, GenerationRow } from '@/domains/generation/types';
 import { useUpdateShotName, useDeleteShot, useDuplicateShot } from '@/shared/hooks/shots';
 import { toast } from '@/shared/components/ui/runtime/sonner';
@@ -9,9 +9,10 @@ import { Checkbox } from '@/shared/components/ui/checkbox';
 import { useClickRipple } from '@/shared/hooks/interaction/useClickRipple';
 import { isVideoGeneration, isPositioned } from '@/shared/lib/typeGuards';
 import { VideoGenerationModal } from '../VideoGenerationModal';
+import { ImageGenerationModal } from '@/shared/components/ImageGenerationModal';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import { useIsMobile } from '@/shared/hooks/mobile';
-import MediaLightbox from '@/domains/media-lightbox/MediaLightbox';
+import { MediaLightbox } from '@/domains/media-lightbox/MediaLightbox';
 import type { ShotFinalVideo } from '../../hooks/video/useShotFinalVideos';
 import { useShotAdditionSelectionOptional } from '@/shared/contexts/ShotAdditionSelectionContext';
 import { useVideoShotDisplayState } from '../hooks/useVideoShotDisplayState';
@@ -40,7 +41,7 @@ interface VideoShotDisplayProps {
 
 const SKIP_DELETE_CONFIRMATION_KEY = 'reigh-skip-delete-shot-confirmation';
 
-const VideoShotDisplay: React.FC<VideoShotDisplayProps> = ({
+export const VideoShotDisplay: React.FC<VideoShotDisplayProps> = ({
   shot,
   onSelectShot,
   onDuplicateShot,
@@ -99,6 +100,8 @@ const VideoShotDisplay: React.FC<VideoShotDisplayProps> = ({
     selectedShotId: shotAdditionSelection?.selectedShotId,
     isGenerationsPaneLocked,
   });
+
+  const [isImageGenModalOpen, setIsImageGenModalOpen] = useState(false);
 
   const finalVideoRow = useMemo((): GenerationRow | null => {
     if (!finalVideo) return null;
@@ -283,6 +286,7 @@ const VideoShotDisplay: React.FC<VideoShotDisplayProps> = ({
           showMobileSelect={isGenerationsPaneLocked && isMobile}
           isSelectedForAddition={isSelectedForAddition}
           onSelectShotForAddition={handleSelectShotForAddition}
+          onGenerate={() => setIsImageGenModalOpen(true)}
         />
       </div>
 
@@ -328,6 +332,14 @@ const VideoShotDisplay: React.FC<VideoShotDisplayProps> = ({
         />
       )}
 
+      {isImageGenModalOpen && (
+        <ImageGenerationModal
+          isOpen={isImageGenModalOpen}
+          onClose={() => setIsImageGenModalOpen(false)}
+          initialShotId={shot.id}
+        />
+      )}
+
       {isFinalVideoLightboxOpen && finalVideoRow && (
         <MediaLightbox
           media={finalVideoRow}
@@ -349,4 +361,3 @@ const VideoShotDisplay: React.FC<VideoShotDisplayProps> = ({
   );
 };
 
-export default VideoShotDisplay;

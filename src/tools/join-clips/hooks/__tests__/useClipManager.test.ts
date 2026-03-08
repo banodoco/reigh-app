@@ -2,17 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 
 // Mock external dependencies
-vi.mock('@/shared/components/ui/toast', () => ({
+vi.mock('@/shared/components/ui/runtime/sonner', () => ({
   toast: Object.assign(vi.fn(), {
     error: vi.fn(),
     success: vi.fn(),
     warning: vi.fn(),
     info: vi.fn(),
   }),
-}));
-
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
 }));
 
 // Mock dnd-kit (these hooks require DOM context)

@@ -14,7 +14,7 @@ interface PhaseConfigSelectorModalState {
   processedPresetsLength: number;
   currentPage: number;
   totalPages: number;
-  setPageFn: ((page: number) => void) | null;
+  onPageChange: ((page: number) => void) | null;
 }
 
 type PhaseConfigSelectorModalAction =
@@ -37,7 +37,7 @@ function createInitialState(initialTab: ActiveTab): PhaseConfigSelectorModalStat
     processedPresetsLength: 0,
     currentPage: 0,
     totalPages: 0,
-    setPageFn: null,
+    onPageChange: null,
   };
 }
 
@@ -96,7 +96,7 @@ function reducer(
         ...state,
         currentPage: action.page,
         totalPages: action.total,
-        setPageFn: action.setPage,
+        onPageChange: action.setPage,
       };
 
     default:

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import usePersistentState from './usePersistentState';
+import { usePersistentState } from './usePersistentState';
 
 const PRESERVE_USER_TEXT_CLASS = 'preserve-user-text';
 let preserveUserTextClassConsumers = 0;

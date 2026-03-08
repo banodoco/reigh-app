@@ -74,8 +74,6 @@ export function buildStructureVideoForTask(
 // Segment Task Submission
 // ============================================================================
 
-type EffectiveSettings = SegmentSettings;
-
 /** Image context for the segment task */
 interface SegmentTaskImageContext {
   startImageUrl?: string;
@@ -105,7 +103,7 @@ interface SubmitSegmentTaskInput {
   /** Component name for error context (e.g. "SegmentRegenerateForm") */
   errorContext: string;
   /** Get effective settings from the form hook */
-  getSettings: () => EffectiveSettings;
+  getSettings: () => SegmentSettings;
   /** Save persisted settings before task creation */
   saveSettings: () => Promise<boolean>;
   /** Whether to save settings (requires pairShotGenerationId) */
@@ -141,7 +139,7 @@ interface SubmitSegmentRuntime {
   errorContext: string;
   shouldSaveSettings: boolean;
   saveSettings: () => Promise<boolean>;
-  effectiveSettings: EffectiveSettings;
+  effectiveSettings: SegmentSettings;
   task: SegmentTaskContext;
   queryClient: QueryClient;
   buildParams: BuildTaskParams;
@@ -149,7 +147,7 @@ interface SubmitSegmentRuntime {
 }
 
 function buildSubmitParamsBuilder(
-  effectiveSettings: EffectiveSettings,
+  effectiveSettings: SegmentSettings,
   task: SegmentTaskContext,
   images: SegmentTaskImageContext,
 ): BuildTaskParams {
@@ -177,7 +175,7 @@ function buildSubmitParamsBuilder(
   };
 }
 
-function applyPromptAffixes(settings: EffectiveSettings, prompt: string): string {
+function applyPromptAffixes(settings: SegmentSettings, prompt: string): string {
   return joinPromptParts(
     [settings.textBeforePrompts, prompt, settings.textAfterPrompts],
     'segment_space',

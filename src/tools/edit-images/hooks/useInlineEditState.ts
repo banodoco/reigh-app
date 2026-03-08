@@ -413,9 +413,7 @@ export function useInlineEditState(
   useInlineEditSettingsSync(env.actualGenerationId, persistence.editSettings, inpainting);
   const { sourceGenerationData } = useSourceGeneration({
     media,
-    onOpenExternalGeneration: onNavigateToGeneration
-      ? async (id) => onNavigateToGeneration(id)
-      : undefined,
+    onOpenExternalGeneration: onNavigateToGeneration,
   });
   const starToggle = useStarToggle({ media });
   const handleDownload = async () => {

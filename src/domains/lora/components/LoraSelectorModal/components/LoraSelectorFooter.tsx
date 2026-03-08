@@ -9,10 +9,10 @@ interface LoraSelectorFooterProps {
   setShowAddedLorasOnly: (value: boolean) => void;
   showMyLorasOnly: boolean;
   setShowMyLorasOnly: (value: boolean) => void;
-  processedLorasLength: number;
+  filteredLoraCount: number;
   currentPage: number;
   totalPages: number;
-  setPageFn: ((page: number) => void) | null;
+  onPageChange: ((page: number) => void) | null;
   onClose: () => void;
 }
 
@@ -24,10 +24,10 @@ export function LoraSelectorFooter({
   setShowAddedLorasOnly,
   showMyLorasOnly,
   setShowMyLorasOnly,
-  processedLorasLength,
+  filteredLoraCount,
   currentPage,
   totalPages,
-  setPageFn,
+  onPageChange,
   onClose,
 }: LoraSelectorFooterProps) {
   return (
@@ -84,22 +84,22 @@ export function LoraSelectorFooter({
 
             <span className="text-sm text-muted-foreground text-center flex-1 sm:flex-none">
               {showMyLorasOnly && showAddedLorasOnly ? (
-                <>{processedLorasLength} added</>
+                <>{filteredLoraCount} added</>
               ) : showMyLorasOnly ? (
-                <>{processedLorasLength} yours</>
+                <>{filteredLoraCount} yours</>
               ) : showAddedLorasOnly ? (
-                <>{processedLorasLength} added</>
+                <>{filteredLoraCount} added</>
               ) : (
-                <>{processedLorasLength} total</>
+                <>{filteredLoraCount} total</>
               )}
             </span>
 
-            {totalPages > 1 && setPageFn && (
+            {totalPages > 1 && onPageChange && (
               <div className="flex items-center gap-1">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPageFn(currentPage - 1)}
+                  onClick={() => onPageChange(currentPage - 1)}
                   disabled={currentPage === 0}
                   className="h-8 w-8 p-0"
                 >
@@ -111,7 +111,7 @@ export function LoraSelectorFooter({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPageFn(currentPage + 1)}
+                  onClick={() => onPageChange(currentPage + 1)}
                   disabled={currentPage >= totalPages - 1}
                   className="h-8 w-8 p-0"
                 >

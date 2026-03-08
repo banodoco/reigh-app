@@ -12,6 +12,7 @@ interface VideoContentProps {
   videosAsThumbnails: boolean;
   isMobile: boolean;
   enableSingleClick: boolean;
+  onImageClick?: (image: GeneratedImageWithMetadata) => void;
   onOpenLightbox: (image: GeneratedImageWithMetadata) => void;
   onTouchStart?: (e: React.TouchEvent) => void;
   onTouchEnd?: (e: React.TouchEvent) => void;
@@ -30,6 +31,7 @@ export const VideoContent: React.FC<VideoContentProps> = ({
   videosAsThumbnails,
   isMobile,
   enableSingleClick,
+  onImageClick,
   onOpenLightbox,
   onTouchStart,
   onTouchEnd,
@@ -46,6 +48,10 @@ export const VideoContent: React.FC<VideoContentProps> = ({
           alt={image.prompt || ''}
           className="w-full h-full object-cover cursor-pointer"
           loading="lazy"
+          onClick={enableSingleClick || !isMobile ? () => {
+            if (onImageClick) onImageClick(image);
+            else onOpenLightbox(image);
+          } : undefined}
           onDoubleClick={isMobile ? undefined : () => onOpenLightbox(image)}
         />
         {/* Video indicator overlay */}
@@ -80,6 +86,10 @@ export const VideoContent: React.FC<VideoContentProps> = ({
         videoClassName="object-cover cursor-pointer w-full h-full"
         muted
         loop
+        onClick={enableSingleClick || !isMobile ? () => {
+          if (onImageClick) onImageClick(image);
+          else onOpenLightbox(image);
+        } : undefined}
         onDoubleClick={isMobile ? undefined : () => onOpenLightbox(image)}
         onTouchStart={isMobile && !enableSingleClick ? onTouchStart : undefined}
         onTouchEnd={isMobile && !enableSingleClick ? onTouchEnd : undefined}

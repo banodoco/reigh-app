@@ -7,10 +7,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock dependencies
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 import { RealtimeEventProcessor } from '../RealtimeEventProcessor';
 import type { RawDatabaseEvent, ProcessedEvent } from '../types';
 

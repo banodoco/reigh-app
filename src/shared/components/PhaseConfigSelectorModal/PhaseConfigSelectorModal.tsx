@@ -69,7 +69,7 @@ export const PhaseConfigSelectorModal: React.FC<PhaseConfigSelectorModalProps> =
     processedPresetsLength,
     currentPage,
     totalPages,
-    setPageFn,
+    onPageChange,
   } = state;
 
   const modal = useExtraLargeModal('phaseConfigSelector');
@@ -193,12 +193,12 @@ export const PhaseConfigSelectorModal: React.FC<PhaseConfigSelectorModalProps> =
                     )}
                   </span>
 
-                  {totalPages > 1 && setPageFn && (
+                  {totalPages > 1 && onPageChange && (
                     <div className="flex items-center gap-1">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setPageFn(currentPage - 1)}
+                        onClick={() => onPageChange(currentPage - 1)}
                         disabled={currentPage === 0}
                         className="h-8 w-8 p-0"
                       >
@@ -210,7 +210,7 @@ export const PhaseConfigSelectorModal: React.FC<PhaseConfigSelectorModalProps> =
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setPageFn(currentPage + 1)}
+                        onClick={() => onPageChange(currentPage + 1)}
                         disabled={currentPage >= totalPages - 1}
                         className="h-8 w-8 p-0"
                       >

@@ -6,10 +6,6 @@ vi.mock('@/shared/lib/preloading', () => ({
   markImageLoaded: vi.fn(),
 }));
 
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 import { useProgressiveImage } from '../useProgressiveImage';
 
 describe('useProgressiveImage', () => {

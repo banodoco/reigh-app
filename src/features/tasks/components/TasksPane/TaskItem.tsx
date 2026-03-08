@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/shared/components/ui/button';
 import { cn } from '@/shared/components/ui/contracts/cn';
-import { toast } from '@/shared/components/ui/toast';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { Task } from '@/types/tasks';
 import { GenerationRow } from '@/domains/generation/types';
 import { useProject } from '@/shared/contexts/ProjectContext';
@@ -328,4 +328,4 @@ const TaskItem = React.memo(TaskItemComponent, (prevProps, nextProps) => {
   );
 });
 
-export default TaskItem;
+export { TaskItem };

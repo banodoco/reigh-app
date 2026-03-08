@@ -14,7 +14,7 @@ vi.mock('@/integrations/supabase/config/env', () => ({
 }));
 
 vi.mock('@/shared/lib/errorHandling/runtimeErrorReporting', () => ({
-  normalizeAndReportError: handleErrorMock,
+  normalizeAndLogError: handleErrorMock,
 }));
 
 describe('maybeAutoLogin', () => {
@@ -75,7 +75,7 @@ describe('maybeAutoLogin', () => {
     expect(signInWithPassword).not.toHaveBeenCalled();
   });
 
-  it('reports login errors through normalizeAndReportError', async () => {
+  it('reports login errors through normalizeAndLogError', async () => {
     isDevEnvState.value = true;
     vi.stubEnv('VITE_DEV_USER_EMAIL', 'dev@example.com');
     vi.stubEnv('VITE_DEV_USER_PASSWORD', 'password123');
@@ -89,7 +89,6 @@ describe('maybeAutoLogin', () => {
       authError,
       expect.objectContaining({
         context: 'SupabaseAutoLogin',
-        showToast: false,
       })
     );
   });

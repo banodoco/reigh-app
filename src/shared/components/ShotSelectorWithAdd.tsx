@@ -7,7 +7,7 @@ import {
   TooltipTrigger
 } from "@/shared/components/ui/tooltip";
 import { ShotSelector, ShotOption } from "@/shared/components/ShotSelector";
-import { toast } from '@/shared/components/ui/toast';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { useShotNavigation } from "@/shared/hooks/shots/useShotNavigation";
 import { useLastAffectedShot } from "@/shared/hooks/shots/useLastAffectedShot";
 import { useQuickShotCreate } from "@/shared/hooks/useQuickShotCreate";

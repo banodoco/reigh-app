@@ -8,6 +8,7 @@ import { lookupTasksByOrchestratorIdWithFallback, lookupTasksByRunIdWithFallback
 import { asObjectOrEmpty } from '../_shared/payloadNormalization.ts';
 import { isFailureStatus } from '../_shared/taskStatusSemantics.ts';
 import { assertCompletionAuthContext, type CompletionAuthContext } from './authContext.ts';
+import type { CompletionLogger } from './types.ts';
 import { buildBillingOutcome, buildBillingReconciliation, classifyBillingOutcome, evaluateSegmentCompletionGate, resolveExpectedSegmentCount, summarizeSegmentCompletion, type BillingPolicyDecision } from './orchestratorPolicy.ts';
 export { evaluateSegmentCompletionGate } from './orchestratorPolicy.ts';
 
@@ -47,10 +48,7 @@ interface CheckOrchestratorCompletionParams {
   supabaseUrl: string;
   serviceKey: string;
   authContext: CompletionAuthContext;
-  logger?: {
-    warn: (message: string, context?: Record<string, unknown>) => void;
-    error: (message: string, context?: Record<string, unknown>) => void;
-  };
+  logger?: CompletionLogger;
 }
 async function persistBillingOutcome(
   supabase: SupabaseClient,
@@ -58,10 +56,7 @@ async function persistBillingOutcome(
   existingResultData: Record<string, unknown>,
   billingOutcome: Record<string, unknown>,
   decision: BillingPolicyDecision,
-  logger?: {
-    warn: (message: string, context?: Record<string, unknown>) => void;
-    error: (message: string, context?: Record<string, unknown>) => void;
-  },
+  logger?: CompletionLogger,
 ): Promise<void> {
   const reconciliation = buildBillingReconciliation(decision);
   const { error: billingPersistError } = await supabase
@@ -366,10 +361,7 @@ async function markOrchestratorFailed(
   failedSegments: number,
   totalSegments: number,
   errorMessage?: string,
-  logger?: {
-    warn: (message: string, context?: Record<string, unknown>) => void;
-    error: (message: string, context?: Record<string, unknown>) => void;
-  },
+  logger?: CompletionLogger,
 ): Promise<void> {
   const { data: updatedRows, error: updateOrchError } = await supabase
     .from("tasks")
@@ -418,10 +410,7 @@ async function markOrchestratorComplete(
     isFinalStep: boolean;
     supabaseUrl: string;
     serviceKey: string;
-    logger?: {
-      warn: (message: string, context?: Record<string, unknown>) => void;
-      error: (message: string, context?: Record<string, unknown>) => void;
-    };
+    logger?: CompletionLogger;
   },
 ): Promise<void> {
   const {

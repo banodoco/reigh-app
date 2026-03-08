@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useAutoTopup } from '@/shared/hooks/billing/useAutoTopup';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { AutoTopupState } from '../types';
 
 interface UseAutoTopupStateProps {
@@ -89,8 +90,12 @@ export function useAutoTopupState({ initialPurchaseAmount }: UseAutoTopupStatePr
       threshold: localAutoTopupThreshold,
     };
     updateAutoTopup(saveData, {
-      onError: () => {
+      onError: (error) => {
         setLocalAutoTopupEnabled(previousEnabled);
+        normalizeAndPresentError(error, {
+          context: 'useAutoTopupState',
+          toastTitle: 'Failed to update auto top-up',
+        });
       },
     });
   };
@@ -107,6 +112,13 @@ export function useAutoTopupState({ initialPurchaseAmount }: UseAutoTopupStatePr
         enabled: localAutoTopupEnabled,
         amount: purchaseAmount,
         threshold,
+      }, {
+        onError: (error) => {
+          normalizeAndPresentError(error, {
+            context: 'useAutoTopupState',
+            toastTitle: 'Failed to update auto top-up',
+          });
+        },
       });
     }, 500);
   };
@@ -126,9 +138,13 @@ export function useAutoTopupState({ initialPurchaseAmount }: UseAutoTopupStatePr
         amount: amount,
         threshold: newThreshold,
       }, {
-        onError: () => {
+        onError: (error) => {
           setPurchaseAmount(previousAmount);
           setLocalAutoTopupThreshold(previousThreshold);
+          normalizeAndPresentError(error, {
+            context: 'useAutoTopupState',
+            toastTitle: 'Failed to update auto top-up',
+          });
         },
       });
     }

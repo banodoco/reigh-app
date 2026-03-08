@@ -1,10 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock errorHandler
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 // We need to mock FileReader, Image, document.createElement, URL.createObjectURL
 let imageInstances: unknown[] = [];
 

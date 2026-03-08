@@ -14,10 +14,6 @@ vi.mock('@/shared/hooks/invalidation/useGenerationInvalidation', () => ({
   enqueueVariantInvalidation: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 import { useVariants } from '@/shared/hooks/variants/useVariants';
 import type { GenerationVariant } from '@/shared/hooks/variants/useVariants';
 

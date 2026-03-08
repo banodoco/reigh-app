@@ -16,10 +16,6 @@ vi.mock('@/integrations/supabase/client', () => ({
   }),
 }));
 
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 vi.mock('../timelineFrameCalculators', () => ({
   findGeneration: vi.fn((gens: unknown[], id: string) =>
     gens.find((sg: unknown) => sg.generation_id === id || sg.id === id) || null

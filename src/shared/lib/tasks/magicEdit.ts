@@ -48,30 +48,7 @@ interface MagicEditTaskParams {
 /**
  * Parameters for creating multiple magic edit tasks (batch generation)
  */
-interface BatchMagicEditTaskParams {
-  project_id: string;
-  prompt: string;
-  image_url: string;
-  numImages: number; // How many variations to generate
-  negative_prompt?: string;
-  resolution?: string;
-  seed?: number;
-  in_scene?: boolean;
-  shot_id?: string;
-  output_format?: string;
-  enable_sync_mode?: boolean;
-  max_wait_seconds?: number;
-  enable_base64_output?: boolean;
-  tool_type?: string; // Optional: override tool type for generation association
-  loras?: ComfyLoraConfig[]; // Optional: array of lora configurations for model enhancement
-  based_on?: string; // Optional: source generation ID for lineage tracking
-  source_variant_id?: string; // Optional: source variant ID when editing from a non-primary variant
-  create_as_generation?: boolean; // Optional: if true, create a new generation instead of a variant
-  // Advanced hires fix settings
-  hires_fix?: HiresFixApiParams;
-  // Model selection for cloud mode
-  qwen_edit_model?: 'qwen-edit' | 'qwen-edit-2509' | 'qwen-edit-2511';
-}
+type BatchMagicEditTaskParams = MagicEditTaskParams & { numImages: number };
 
 /**
  * Validates magic edit task parameters

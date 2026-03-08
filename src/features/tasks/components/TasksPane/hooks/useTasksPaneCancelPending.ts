@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 import { useCancelAllPendingTasks } from '@/shared/hooks/tasks/useTaskCancellation';
-import { toast } from '@/shared/components/ui/toast';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { ITEMS_PER_PAGE, STATUS_GROUPS, type FilterGroup } from '../constants';
 import type { PaginatedTasksResponse } from '@/shared/hooks/tasks/useTasks';

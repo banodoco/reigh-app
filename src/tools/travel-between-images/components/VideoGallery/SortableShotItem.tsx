@@ -2,7 +2,7 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Shot } from '@/domains/generation/types';
-import VideoShotDisplay from './VideoShotDisplay';
+import { VideoShotDisplay } from './VideoShotDisplay';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { Loader2, Check } from 'lucide-react';
 import { type GenerationDropData } from '@/shared/lib/dnd/dragDrop';
@@ -10,6 +10,7 @@ import {
   useSortableShotDropFeedback,
   type DropOptions,
 } from './hooks/useSortableShotDropFeedback';
+export type { DropOptions };
 
 interface SortableShotItemProps {
   shot: Shot;
@@ -31,7 +32,7 @@ interface SortableShotItemProps {
   finalVideo?: import('../hooks/useShotFinalVideos').ShotFinalVideo;
 }
 
-const SortableShotItem: React.FC<SortableShotItemProps> = ({
+export const SortableShotItem: React.FC<SortableShotItemProps> = ({
   shot,
   onSelectShot,
   onDuplicateShot,
@@ -156,4 +157,3 @@ const SortableShotItem: React.FC<SortableShotItemProps> = ({
   );
 };
 
-export default SortableShotItem;

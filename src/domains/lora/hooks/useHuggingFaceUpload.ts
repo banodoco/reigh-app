@@ -1,5 +1,10 @@
 import { useState } from 'react';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import {
+  operationFailure,
+  operationSuccess,
+  type OperationResult,
+} from '@/shared/lib/operationResult';
 
 interface LoraDetails {
   name: string;
@@ -32,16 +37,16 @@ interface UploadProgress {
   progress?: number;
 }
 
-interface UploadResult {
-  success: boolean;
+export interface HuggingFaceUploadSuccess {
   repoId?: string;
   repoUrl?: string;
   loraUrl?: string;
   highNoiseUrl?: string;
   lowNoiseUrl?: string;
   videoUrls?: string[];
-  error?: string;
 }
+
+type UploadResult = OperationResult<HuggingFaceUploadSuccess>;
 
 interface TempStoragePaths {
   single?: string;
@@ -190,9 +195,8 @@ async function invokeHuggingFaceUpload(input: {
   return data;
 }
 
-function mapUploadSuccess(data: HuggingFaceUploadResponse): UploadResult {
+function mapUploadSuccess(data: HuggingFaceUploadResponse): HuggingFaceUploadSuccess {
   return {
-    success: true,
     repoId: data.repoId,
     repoUrl: data.repoUrl,
     loraUrl: data.loraUrl,
@@ -247,7 +251,11 @@ export function useHuggingFaceUpload() {
     try {
       const { data: { user } } = await supabase().auth.getUser();
       if (!user) {
-        return { success: false, error: 'Not authenticated' };
+        return operationFailure(new Error('Not authenticated'), {
+          errorCode: 'huggingface_upload_not_authenticated',
+          recoverable: false,
+          policy: 'fail_closed',
+        });
       }
 
       const storagePaths = await uploadLoraFilesToTempStorage({
@@ -258,7 +266,11 @@ export function useHuggingFaceUpload() {
       });
 
       if (!storagePaths) {
-        return { success: false, error: 'No LoRA file provided' };
+        return operationFailure(new Error('No LoRA file provided'), {
+          errorCode: 'huggingface_upload_missing_file',
+          recoverable: false,
+          policy: 'fail_closed',
+        });
       }
 
       const sampleVideoMeta = await uploadSampleVideosToTempStorage({
@@ -287,14 +299,17 @@ export function useHuggingFaceUpload() {
         progress: 100,
       });
 
-      return mapUploadSuccess(response);
+      return operationSuccess(mapUploadSuccess(response));
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setUploadProgress({
         stage: 'error',
         message: errorMessage,
       });
-      return { success: false, error: errorMessage };
+      return operationFailure(err, {
+        errorCode: 'huggingface_upload_failed',
+        message: errorMessage,
+      });
     }
   };
 

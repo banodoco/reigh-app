@@ -53,7 +53,7 @@ export type MediaLightboxProps =
   & MediaLightboxTaskDetailsProps
   & MediaLightboxTickStateProps;
 
-const MediaLightbox: React.FC<MediaLightboxProps> = (props) => {
+export const MediaLightbox: React.FC<MediaLightboxProps> = (props) => {
   const {
     media,
     segmentSlotMode,
@@ -120,4 +120,3 @@ const MediaLightbox: React.FC<MediaLightboxProps> = (props) => {
   );
 };
 
-export default MediaLightbox;

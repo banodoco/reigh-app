@@ -476,7 +476,7 @@ const moduleLoaders = [
   () => import('@/shared/components/ui/table'),
   () => import('@/shared/components/ui/tabs'),
   () => import('@/shared/components/ui/text-action'),
-  () => import('@/shared/components/ui/toast'),
+  () => import('@/shared/components/ui/runtime/sonner'),
   () => import('@/shared/components/ui/toggle-group'),
   () => import('@/shared/components/ui/toggle'),
 ] as const;

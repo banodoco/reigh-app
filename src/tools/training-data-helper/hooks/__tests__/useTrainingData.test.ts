@@ -23,10 +23,6 @@ vi.mock('@/integrations/supabase/client', () => ({
   }),
 }));
 
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 // Stable mock references to avoid infinite re-render loops
 // (unstable vi.fn() inside mock factory creates new refs every render,
 // causing useEffect deps to change → re-run → setState → re-render → loop)

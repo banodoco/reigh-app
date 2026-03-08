@@ -3,7 +3,11 @@ import { toast } from '@/shared/components/ui/runtime/sonner';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { uploadImageToStorage } from '@/shared/lib/media/imageUploader';
 import type { Resource, CreateResourceArgs, UpdateResourceArgs } from '@/shared/hooks/useResources';
-import type { LoraFiles } from '@/domains/lora/hooks/useHuggingFaceUpload';
+import type {
+  HuggingFaceUploadSuccess,
+  LoraFiles,
+} from '@/domains/lora/hooks/useHuggingFaceUpload';
+import type { OperationResult } from '@/shared/lib/operationResult';
 import { type LoraFormState, type LoraModel } from '../../../types';
 import { generateUniqueLoraFilename, validateHuggingFaceUrl } from '../../../utils/validation-utils';
 
@@ -29,14 +33,7 @@ interface UseLoraSubmissionArgs {
     details: { name: string; description?: string; baseModel: string; triggerWord?: string; creatorName?: string },
     sampleVideos: File[],
     options?: { isPrivate?: boolean }
-  ) => Promise<{
-    success: boolean;
-    error?: string;
-    repoUrl?: string;
-    loraUrl?: string;
-    highNoiseUrl?: string;
-    lowNoiseUrl?: string;
-  }>;
+  ) => Promise<OperationResult<HuggingFaceUploadSuccess>>;
   createResource: UseMutationResult<Resource, Error, CreateResourceArgs, unknown>;
   updateResource: UseMutationResult<Resource, Error, UpdateResourceArgs, unknown>;
   onClearEdit: () => void;
@@ -157,14 +154,15 @@ function uploadToHuggingFaceIfNeeded(
       getSampleVideos(input.sampleFiles),
       { isPrivate: !input.addForm.is_public }
     ).then((uploadResult) => {
-      if (!uploadResult.success) {
-        throw new Error(`Failed to upload to HuggingFace: ${uploadResult.error || 'Unknown error'}`);
+      if (!uploadResult.ok) {
+        throw new Error(`Failed to upload to HuggingFace: ${uploadResult.message}`);
       }
+      const uploadValue = uploadResult.value;
 
-      toast.success(`Uploaded to HuggingFace: ${uploadResult.repoUrl}`);
+      toast.success(`Uploaded to HuggingFace: ${uploadValue.repoUrl}`);
       return {
         ...input.urls,
-        finalHuggingfaceUrl: uploadResult.loraUrl || input.urls.finalHuggingfaceUrl,
+        finalHuggingfaceUrl: uploadValue.loraUrl || input.urls.finalHuggingfaceUrl,
       };
     });
   }
@@ -176,15 +174,16 @@ function uploadToHuggingFaceIfNeeded(
       getSampleVideos(input.sampleFiles),
       { isPrivate: !input.addForm.is_public }
     ).then((uploadResult) => {
-      if (!uploadResult.success) {
-        throw new Error(`Failed to upload to HuggingFace: ${uploadResult.error || 'Unknown error'}`);
+      if (!uploadResult.ok) {
+        throw new Error(`Failed to upload to HuggingFace: ${uploadResult.message}`);
       }
+      const uploadValue = uploadResult.value;
 
-      toast.success(`Uploaded to HuggingFace: ${uploadResult.repoUrl}`);
+      toast.success(`Uploaded to HuggingFace: ${uploadValue.repoUrl}`);
       return {
         ...input.urls,
-        finalHighNoiseUrl: uploadResult.highNoiseUrl || input.urls.finalHighNoiseUrl,
-        finalLowNoiseUrl: uploadResult.lowNoiseUrl || input.urls.finalLowNoiseUrl,
+        finalHighNoiseUrl: uploadValue.highNoiseUrl || input.urls.finalHighNoiseUrl,
+        finalLowNoiseUrl: uploadValue.lowNoiseUrl || input.urls.finalLowNoiseUrl,
       };
     });
   }

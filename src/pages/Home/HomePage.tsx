@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useReferralTracking } from '@/shared/hooks/useReferralTracking';
 import { useDebounce } from '@/shared/hooks/core/useDebounce';
 import { useIsMobile } from '@/shared/hooks/mobile';
-import usePersistentState from '@/shared/hooks/usePersistentState';
+import { usePersistentState } from '@/shared/hooks/usePersistentState';
 
 import { HeroSection } from './components/hero/HeroSection';
 import { CreativePartnerPane } from './components/panes/CreativePartnerPane';

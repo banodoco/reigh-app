@@ -11,16 +11,6 @@ interface UseOperationTrackingResult {
   signalShotOperation: () => void;
 }
 
-/**
- * Tracks mutation operations to prevent query race conditions.
- *
- * When a shot mutation completes, we briefly disable query refetch to:
- * - Prevent "AbortError" from cancelled queries
- * - Allow timeline position updates to complete without interference
- * - Avoid UI flicker from rapid state changes
- *
- * Also tracks drag state to suppress realtime invalidations during drag.
- */
 export function useOperationTracking(): UseOperationTrackingResult {
   const [isShotOperationInProgress, setIsShotOperationInProgress] = useState(false);
   const [isDraggingInTimeline, setIsDraggingInTimeline] = useState(false);

@@ -72,7 +72,7 @@ const AppInternalContent: React.FC = () => {
   );
 };
 
-function App() {
+export function App() {
   React.useEffect(() => {
     try {
       getNetworkStatusManager();
@@ -91,4 +91,3 @@ function App() {
   );
 }
 
-export default App;

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/jsonTypes';
-import { toast } from '@/shared/components/ui/toast';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { Project } from '@/types/project';
 import { UserPreferences } from '@/shared/settings/userPreferences';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';

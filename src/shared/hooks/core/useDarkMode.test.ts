@@ -14,10 +14,6 @@ vi.mock('@/shared/components/ui/runtime/sonner', () => ({
   toast: { error: vi.fn(), warning: vi.fn() },
 }));
 
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 import { useDarkMode } from './useDarkMode';
 
 describe('useDarkMode', () => {

@@ -14,8 +14,9 @@ export function buildParentGenerationsQueryKey(
 
 export async function fetchParentGenerations(
   shotId: string,
-  projectId: string,
+  projectId: string | null,
 ): Promise<GenerationRow[]> {
+  if (!projectId) return [];
   const { data, error } = await supabase().from('shot_final_videos')
     .select('*')
     .eq('shot_id', shotId)

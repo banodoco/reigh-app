@@ -15,7 +15,7 @@ interface IncomingTaskItemProps {
  * are being created in the background. Matches the visual style of TaskItem
  * but shows a loading state instead of real task data.
  */
-const IncomingTaskItem: React.FC<IncomingTaskItemProps> = ({ task }) => {
+export const IncomingTaskItem: React.FC<IncomingTaskItemProps> = ({ task }) => {
   const { cancelIncoming } = useIncomingTasks();
 
   // Get display name for task type, with fallback
@@ -70,4 +70,3 @@ const IncomingTaskItem: React.FC<IncomingTaskItemProps> = ({ task }) => {
   );
 };
 
-export default IncomingTaskItem;

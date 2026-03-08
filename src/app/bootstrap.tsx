@@ -2,10 +2,10 @@ import { initializeLoggerRuntime, reactProfilerOnRender } from '@/shared/lib/log
 
 import { createRoot } from 'react-dom/client';
 import { Profiler } from 'react';
-import App from '@/app/App';
+import { App } from '@/app/App';
 import { AppErrorBoundary } from '@/app/components/error/AppErrorBoundary';
 import { initializeSupabaseResult } from '@/integrations/supabase/client';
-import { toast } from '@/shared/components/ui/toast';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { initializeToastManager } from '@/shared/runtime/toastRuntime';
 import { installErrorNotifier } from '@/shared/lib/errorHandling/errorNotifier';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';

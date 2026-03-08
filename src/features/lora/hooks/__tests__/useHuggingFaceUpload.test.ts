@@ -27,7 +27,7 @@ vi.mock('uuid', () => ({
   v4: () => 'test-uuid',
 }));
 
-import { useHuggingFaceUpload } from '../useHuggingFaceUpload';
+import { useHuggingFaceUpload } from '@/domains/lora/hooks/useHuggingFaceUpload';
 
 describe('useHuggingFaceUpload', () => {
   beforeEach(() => {
@@ -60,7 +60,7 @@ describe('useHuggingFaceUpload', () => {
 
     const { result } = renderHook(() => useHuggingFaceUpload());
 
-    let uploadResult: unknown;
+    let uploadResult: Awaited<ReturnType<typeof result.current.uploadToHuggingFace>> | null = null;
     await act(async () => {
       uploadResult = await result.current.uploadToHuggingFace(
         { single: new File(['content'], 'lora.safetensors') },
@@ -68,14 +68,16 @@ describe('useHuggingFaceUpload', () => {
       );
     });
 
-    expect(uploadResult.success).toBe(false);
-    expect(uploadResult.error).toBe('Not authenticated');
+    expect(uploadResult?.ok).toBe(false);
+    if (uploadResult && !uploadResult.ok) {
+      expect(uploadResult.message).toBe('Not authenticated');
+    }
   });
 
   it('returns error when no file provided', async () => {
     const { result } = renderHook(() => useHuggingFaceUpload());
 
-    let uploadResult: unknown;
+    let uploadResult: Awaited<ReturnType<typeof result.current.uploadToHuggingFace>> | null = null;
     await act(async () => {
       uploadResult = await result.current.uploadToHuggingFace(
         {},
@@ -83,14 +85,16 @@ describe('useHuggingFaceUpload', () => {
       );
     });
 
-    expect(uploadResult.success).toBe(false);
-    expect(uploadResult.error).toBe('No LoRA file provided');
+    expect(uploadResult?.ok).toBe(false);
+    if (uploadResult && !uploadResult.ok) {
+      expect(uploadResult.message).toBe('No LoRA file provided');
+    }
   });
 
   it('handles successful single-stage upload', async () => {
     const { result } = renderHook(() => useHuggingFaceUpload());
 
-    let uploadResult: unknown;
+    let uploadResult: Awaited<ReturnType<typeof result.current.uploadToHuggingFace>> | null = null;
     await act(async () => {
       uploadResult = await result.current.uploadToHuggingFace(
         { single: new File(['content'], 'lora.safetensors') },
@@ -98,8 +102,10 @@ describe('useHuggingFaceUpload', () => {
       );
     });
 
-    expect(uploadResult.success).toBe(true);
-    expect(uploadResult.repoId).toBe('repo-1');
+    expect(uploadResult?.ok).toBe(true);
+    if (uploadResult && uploadResult.ok) {
+      expect(uploadResult.value.repoId).toBe('repo-1');
+    }
     expect(result.current.uploadProgress.stage).toBe('complete');
   });
 
@@ -111,7 +117,7 @@ describe('useHuggingFaceUpload', () => {
 
     const { result } = renderHook(() => useHuggingFaceUpload());
 
-    let uploadResult: unknown;
+    let uploadResult: Awaited<ReturnType<typeof result.current.uploadToHuggingFace>> | null = null;
     await act(async () => {
       uploadResult = await result.current.uploadToHuggingFace(
         { single: new File(['content'], 'lora.safetensors') },
@@ -119,7 +125,7 @@ describe('useHuggingFaceUpload', () => {
       );
     });
 
-    expect(uploadResult.success).toBe(false);
+    expect(uploadResult?.ok).toBe(false);
     expect(result.current.uploadProgress.stage).toBe('error');
   });
 
@@ -128,7 +134,7 @@ describe('useHuggingFaceUpload', () => {
 
     const { result } = renderHook(() => useHuggingFaceUpload());
 
-    let uploadResult: unknown;
+    let uploadResult: Awaited<ReturnType<typeof result.current.uploadToHuggingFace>> | null = null;
     await act(async () => {
       uploadResult = await result.current.uploadToHuggingFace(
         { single: new File(['content'], 'lora.safetensors') },
@@ -136,7 +142,7 @@ describe('useHuggingFaceUpload', () => {
       );
     });
 
-    expect(uploadResult.success).toBe(false);
+    expect(uploadResult?.ok).toBe(false);
     expect(result.current.uploadProgress.stage).toBe('error');
   });
 

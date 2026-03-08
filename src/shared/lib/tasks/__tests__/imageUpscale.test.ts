@@ -32,10 +32,6 @@ class TaskValidationErrorMock extends Error {
   }
 }
 
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 describe('createImageUpscaleTask', () => {
   beforeEach(() => {
     vi.clearAllMocks();

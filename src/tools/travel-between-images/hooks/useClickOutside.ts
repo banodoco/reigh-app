@@ -13,30 +13,6 @@ interface UseClickOutsideOptions {
   capture?: boolean;
 }
 
-/**
- * Hook that calls a callback when user clicks/touches outside the referenced element.
- *
- * @param callback - Function to call when click outside is detected
- * @param options - Configuration options
- * @returns ref - Attach this to the element you want to detect clicks outside of
- *
- * @example
- * // Basic usage - click outside to close
- * const ref = useClickOutside(() => setIsOpen(false));
- * return <div ref={ref}>...</div>;
- *
- * @example
- * // With options - touch support for iPad
- * const ref = useClickOutside(
- *   () => setSelectedEndpoint(null),
- *   { events: ['touchstart'], enabled: isTablet && selectedEndpoint !== null }
- * );
- *
- * @example
- * // With existing ref
- * const containerRef = useRef<HTMLDivElement>(null);
- * useClickOutside(() => setIsActive(false), { enabled: isActive }, containerRef);
- */
 export function useClickOutside<T extends HTMLElement = HTMLDivElement>(
   callback: () => void,
   options: UseClickOutsideOptions = {},

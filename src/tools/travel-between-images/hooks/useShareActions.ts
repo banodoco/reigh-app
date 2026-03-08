@@ -11,7 +11,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
-import { toast } from '@/shared/components/ui/toast';
+import { toast } from '@/shared/components/ui/runtime/sonner';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 interface UseShareActionsReturn {
   isAuthenticated: boolean;
@@ -83,11 +84,9 @@ export function useShareActions(shareSlug: string): UseShareActionsReturn {
       });
 
       if (copyError) {
-        console.error('[SharedGenerationView] Failed to copy shot:', copyError);
-        toast({
-          title: "Copy failed",
-          description: copyError.message || "Failed to copy shot to your project",
-          variant: "destructive"
+        normalizeAndPresentError(copyError, {
+          context: 'useShareActions',
+          toastTitle: 'Copy failed',
         });
         setIsCopying(false);
         return;
@@ -104,11 +103,9 @@ export function useShareActions(shareSlug: string): UseShareActionsReturn {
       }, 1500);
 
     } catch (error) {
-      console.error('[SharedGenerationView] Unexpected error:', error);
-      toast({
-        title: "Something went wrong",
-        description: "Please try again",
-        variant: "destructive"
+      normalizeAndPresentError(error, {
+        context: 'useShareActions',
+        toastTitle: 'Something went wrong',
       });
       setIsCopying(false);
     }

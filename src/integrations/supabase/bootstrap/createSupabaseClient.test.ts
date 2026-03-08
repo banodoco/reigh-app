@@ -12,7 +12,7 @@ vi.mock('@supabase/supabase-js', () => ({
 }));
 
 vi.mock('@/shared/lib/errorHandling/runtimeErrorReporting', () => ({
-  normalizeAndReportError: handleErrorMock,
+  normalizeAndLogError: handleErrorMock,
 }));
 
 vi.mock('@/integrations/supabase/config/env', () => ({
@@ -69,7 +69,6 @@ describe('createSupabaseClient', () => {
       error,
       expect.objectContaining({
         context: 'SupabaseClient',
-        showToast: false,
       })
     );
   });

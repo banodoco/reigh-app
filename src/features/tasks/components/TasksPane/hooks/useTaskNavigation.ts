@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
-import { toast } from '@/shared/components/ui/toast';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { parseTaskParams } from '@/shared/lib/taskTypeUtils';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';

@@ -12,7 +12,7 @@ type EditableLora = Resource & { metadata: LoraModel };
 export function useLoraFilters(loraType: string) {
   const [showMyLorasOnly, setShowMyLorasOnly] = useState(false);
   const [showAddedLorasOnly, setShowAddedLorasOnly] = useState(false);
-  const [processedLorasLength, setProcessedLorasLength] = useState(0);
+  const [filteredLoraCount, setFilteredLoraCount] = useState(0);
 
   const [selectedModelFilter, setSelectedModelFilter] =
     useState<ModelFilterCategory>(() => getFilterCategory(loraType));
@@ -38,7 +38,7 @@ export function useLoraFilters(loraType: string) {
 
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  const [setPageFn, setSetPageFn] = useState<((page: number) => void) | null>(
+  const [onPageChange, setOnPageChange] = useState<((page: number) => void) | null>(
     null
   );
 
@@ -49,7 +49,7 @@ export function useLoraFilters(loraType: string) {
   ) => {
     setCurrentPage(page);
     setTotalPages(total);
-    setSetPageFn(() => setPage);
+    setOnPageChange(() => setPage);
   };
 
   // Tab & editing state (was useLoraEditing)
@@ -75,15 +75,15 @@ export function useLoraFilters(loraType: string) {
     setShowMyLorasOnly,
     showAddedLorasOnly,
     setShowAddedLorasOnly,
-    processedLorasLength,
-    setProcessedLorasLength,
+    filteredLoraCount,
+    setFilteredLoraCount,
     selectedModelFilter,
     setSelectedModelFilter,
     selectedSubFilter,
     setSelectedSubFilter,
     currentPage,
     totalPages,
-    setPageFn,
+    onPageChange,
     handlePageChange,
     activeTab,
     setActiveTab,

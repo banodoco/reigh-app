@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { GenerationRow } from '@/domains/generation/types';
 import { Input } from '@/shared/components/ui/input';
 import { Button } from '@/shared/components/ui/button';
-import { Pencil, Trash2, Check, X, Copy, GripVertical, Loader2, Video, ChevronDown, ChevronUp, Images } from 'lucide-react';
+import { Pencil, Trash2, Check, X, Copy, GripVertical, Loader2, Video, ChevronDown, ChevronUp, Images, Sparkles } from 'lucide-react';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip';
@@ -179,6 +179,7 @@ interface ThumbnailMosaicProps {
   showMobileSelect: boolean;
   isSelectedForAddition: boolean;
   onSelectShotForAddition: (e: React.MouseEvent) => void;
+  onGenerate?: () => void;
 }
 
 const ThumbnailMosaic: React.FC<ThumbnailMosaicProps> = ({
@@ -194,6 +195,7 @@ const ThumbnailMosaic: React.FC<ThumbnailMosaicProps> = ({
   showMobileSelect,
   isSelectedForAddition,
   onSelectShotForAddition,
+  onGenerate,
 }) => {
   const [isImagesExpanded, setIsImagesExpanded] = useState(false);
 
@@ -307,29 +309,44 @@ const ThumbnailMosaic: React.FC<ThumbnailMosaicProps> = ({
               </div>
             ))}
 
-            {hasMultipleRows && !isImagesExpanded && (
-              <button
-                className="absolute bottom-1 right-1 text-xs bg-black/60 hover:bg-black/80 text-white px-2 py-0.5 rounded flex items-center gap-1 z-10"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsImagesExpanded(true);
-                }}
-              >
-                Show All ({totalImageCount}) <ChevronDown className="w-3 h-3" />
-              </button>
-            )}
+            {/* Bottom overlay buttons */}
+            <div className="absolute bottom-1 right-1 flex items-center gap-1 z-10">
+              {onGenerate && (
+                <button
+                  className="text-xs bg-black/60 hover:bg-black/80 text-white p-1 rounded flex items-center"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onGenerate();
+                  }}
+                >
+                  <Sparkles className="w-3 h-3" />
+                </button>
+              )}
 
-            {isImagesExpanded && hasMultipleRows && (
-              <button
-                className="absolute bottom-1 right-1 text-xs bg-black/60 hover:bg-black/80 text-white px-2 py-0.5 rounded flex items-center gap-1 z-10"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsImagesExpanded(false);
-                }}
-              >
-                Hide <ChevronUp className="w-3 h-3" />
-              </button>
-            )}
+              {hasMultipleRows && !isImagesExpanded && (
+                <button
+                  className="text-xs bg-black/60 hover:bg-black/80 text-white px-2 py-0.5 rounded flex items-center gap-1"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsImagesExpanded(true);
+                  }}
+                >
+                  Show All ({totalImageCount}) <ChevronDown className="w-3 h-3" />
+                </button>
+              )}
+
+              {isImagesExpanded && hasMultipleRows && (
+                <button
+                  className="text-xs bg-black/60 hover:bg-black/80 text-white px-2 py-0.5 rounded flex items-center gap-1"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsImagesExpanded(false);
+                  }}
+                >
+                  Hide <ChevronUp className="w-3 h-3" />
+                </button>
+              )}
+            </div>
 
             {finalVideo && !showVideo && (
               <button
@@ -462,6 +479,7 @@ interface ShotPreviewProps {
   showMobileSelect: boolean;
   isSelectedForAddition: boolean;
   onSelectShotForAddition: (e: React.MouseEvent) => void;
+  onGenerate?: () => void;
 }
 
 export const ShotPreview: React.FC<ShotPreviewProps> = (props) => (

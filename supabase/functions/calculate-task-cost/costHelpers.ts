@@ -199,12 +199,15 @@ const VIDEO_ENHANCE_PRICING = {
   FLASHVSR_COST_PER_MEGAPIXEL: 0.0005,
 };
 
-interface VideoEnhanceResult {
+interface VideoEnhanceMetrics {
   interpolation_compute_seconds?: number;
   output_width?: number;
   output_height?: number;
   output_frames?: number;
-  result?: VideoEnhanceResult;
+}
+
+interface VideoEnhanceResult extends VideoEnhanceMetrics {
+  result?: VideoEnhanceMetrics;
 }
 
 interface VideoEnhanceBreakdown {

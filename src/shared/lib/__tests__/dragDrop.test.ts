@@ -1,10 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 
 // Mock errorHandler to avoid pulling in toast/Supabase dependencies
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 import {
   getDragType,
   setGenerationDragData,

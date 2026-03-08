@@ -42,15 +42,15 @@ export const LoraSelectorModal: React.FC<LoraSelectorModalProps> = ({
     setShowMyLorasOnly,
     showAddedLorasOnly,
     setShowAddedLorasOnly,
-    processedLorasLength,
-    setProcessedLorasLength,
+    filteredLoraCount,
+    setFilteredLoraCount,
     selectedModelFilter,
     setSelectedModelFilter,
     selectedSubFilter,
     setSelectedSubFilter,
     currentPage,
     totalPages,
-    setPageFn,
+    onPageChange,
     handlePageChange,
   } = useLoraFilters(lora_type);
 
@@ -110,7 +110,7 @@ export const LoraSelectorModal: React.FC<LoraSelectorModalProps> = ({
                   setShowMyLorasOnly={setShowMyLorasOnly}
                   showAddedLorasOnly={showAddedLorasOnly}
                   setShowAddedLorasOnly={setShowAddedLorasOnly}
-                  onProcessedLorasLengthChange={setProcessedLorasLength}
+                  onProcessedLorasLengthChange={setFilteredLoraCount}
                   onPageChange={handlePageChange}
                   selectedModelFilter={selectedModelFilter}
                   setSelectedModelFilter={setSelectedModelFilter}
@@ -144,10 +144,10 @@ export const LoraSelectorModal: React.FC<LoraSelectorModalProps> = ({
             setShowAddedLorasOnly={setShowAddedLorasOnly}
             showMyLorasOnly={showMyLorasOnly}
             setShowMyLorasOnly={setShowMyLorasOnly}
-            processedLorasLength={processedLorasLength}
+            filteredLoraCount={filteredLoraCount}
             currentPage={currentPage}
             totalPages={totalPages}
-            setPageFn={setPageFn}
+            onPageChange={onPageChange}
             onClose={onClose}
           />
         )}

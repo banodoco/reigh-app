@@ -26,17 +26,13 @@ vi.mock('@/integrations/supabase/client', () => ({
   }),
 }));
 
-vi.mock('@/shared/components/ui/toast', () => ({
+vi.mock('@/shared/components/ui/runtime/sonner', () => ({
   toast: Object.assign(vi.fn(), {
     error: vi.fn(),
     success: vi.fn(),
     warning: vi.fn(),
     info: vi.fn(),
   }),
-}));
-
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
 }));
 
 vi.mock('@/shared/constants/supabaseErrors', () => ({

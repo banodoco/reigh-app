@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { toast } from '@/shared/components/ui/toast';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import type { AddToShotHandler } from '@/shared/types/imageHandlers';
 
 /**

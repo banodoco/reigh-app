@@ -1,6 +1,6 @@
 import { useCallback, useRef, useEffect } from 'react';
 import { useLastAffectedShot } from '@/shared/hooks/shots/useLastAffectedShot';
-import { toast } from '@/shared/components/ui/toast';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import type { GeneratedImageWithMetadata, DisplayableMetadata } from '../types';
 import type { LightboxDeleteHandler } from '@/domains/media-lightbox/types';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';

@@ -20,7 +20,7 @@ const BlogListPage = lazy(() => import('@/pages/Blog/BlogListPage'));
 const BlogPostPage = lazy(() => import('@/pages/Blog/BlogPostPage'));
 import NotFoundPage from '@/pages/NotFoundPage';
 import ShotsPage from "@/pages/ShotsPage";
-import Layout from './Layout'; // Import the new Layout component
+import { Layout } from './Layout';
 import { AppEnv } from '@/types/env';
 import { ReighLoading } from '@/shared/components/ReighLoading';
 import { ToolErrorBoundary } from '@/shared/components/ToolErrorBoundary';

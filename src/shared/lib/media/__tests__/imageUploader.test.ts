@@ -40,10 +40,6 @@ vi.mock('@/shared/lib/storagePaths', () => ({
   MEDIA_BUCKET: 'media',
 }));
 
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 import { uploadImageToStorage, uploadBlobToStorage } from '../imageUploader';
 
 describe('uploadImageToStorage', () => {

@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { Shot } from '@/domains/generation/types';
 import { Button } from '@/shared/components/ui/button';
 import CreateShotModal from '@/features/shots/components/CreateShotModal';
-import ShotListDisplay from '../components/VideoGallery/ShotListDisplay';
+import { ShotListDisplay } from '../components/VideoGallery/ShotListDisplay';
 import { useIsMobile } from '@/shared/hooks/mobile';
 import { useShotCreation } from '@/shared/hooks/shotCreation/useShotCreation';
 import { useHandleExternalImageDrop, useAddImageToShot, useAddImageToShotWithoutPosition } from '@/shared/hooks/shots';

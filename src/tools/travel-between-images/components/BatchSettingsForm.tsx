@@ -91,7 +91,7 @@ type BatchSettingsFormProps =
   & BatchPhaseControls
   & BatchBehaviorControls;
 
-const BatchSettingsForm: React.FC<BatchSettingsFormProps> = ({
+export const BatchSettingsForm: React.FC<BatchSettingsFormProps> = ({
   batchVideoPrompt,
   onBatchVideoPromptChange,
   batchVideoFrames,
@@ -434,4 +434,3 @@ const BatchSettingsForm: React.FC<BatchSettingsFormProps> = ({
     );
 };
 
-export default BatchSettingsForm; 

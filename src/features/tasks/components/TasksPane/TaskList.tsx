@@ -5,8 +5,8 @@ import { useProject } from '@/shared/contexts/ProjectContext';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
 import { TaskStatus, Task } from '@/types/tasks';
 import { GenerationRow } from '@/domains/generation/types';
-import TaskItem from './TaskItem';
-import IncomingTaskItem from './IncomingTaskItem';
+import { TaskItem } from './TaskItem';
+import { IncomingTaskItem } from './IncomingTaskItem';
 import { FilterGroup } from './constants';
 import { TaskItemSkeleton } from './components/TaskItemSkeleton';
 import { useTaskFiltering } from './hooks/useTaskFiltering';
@@ -152,6 +152,4 @@ const TaskListComponent: React.FC<TaskListProps> = ({
   );
 };
 
-const TaskList = React.memo(TaskListComponent);
-
-export default TaskList;
+export const TaskList = React.memo(TaskListComponent);

@@ -3,7 +3,7 @@ import { useProject } from '@/shared/contexts/ProjectContext';
 import {
   useListShots,
 } from '@/shared/hooks/shots';
-import ShotListDisplay from '@/tools/travel-between-images/components/VideoGallery/ShotListDisplay';
+import { ShotListDisplay } from '@/tools/travel-between-images/components/VideoGallery/ShotListDisplay';
 import { ShotImageManagerContainer as ShotImageManager } from '@/shared/components/ShotImageManager/ShotImageManagerContainer';
 import { Button } from '@/shared/components/ui/button';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';

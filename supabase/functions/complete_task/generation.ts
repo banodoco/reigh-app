@@ -31,6 +31,7 @@ import {
 } from '../_shared/taskPayloadSnapshot.ts';
 import { asObjectOrEmpty } from '../_shared/payloadNormalization.ts';
 import { CompletionError, toCompletionError } from './errors.ts';
+import type { CompletionLogger } from './types.ts';
 
 type GenerationSkipReason =
   | 'orchestration_task'
@@ -68,7 +69,7 @@ interface GenerationHandlerContext {
   taskData: CompletedTaskData;
   publicUrl: string;
   thumbnailUrl: string | null;
-  logger?: unknown;
+  logger?: CompletionLogger;
   childGenerationId?: string;
   parentGenerationId?: string;
   childOrder?: number | null;
@@ -201,7 +202,7 @@ export async function createGenerationFromTask(
   taskData: unknown,
   publicUrl: string,
   thumbnailUrl: string | null | undefined,
-  logger?: unknown,
+  logger?: CompletionLogger,
   authContext: CompletionAuthContext,
 ): Promise<GenerationCreationOutcome> {
   assertCompletionAuthContext(authContext, 'createGenerationFromTask');
@@ -329,7 +330,7 @@ async function handleRegeneration(
   existingGeneration: GenerationRef,
   publicUrl: string,
   thumbnailUrl: string | null | undefined,
-  logger?: unknown
+  logger?: CompletionLogger
 ): Promise<GenerationRef> {
   logger?.info("Existing generation found - creating regenerated variant", {
     task_id: taskId,

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import usePersistentState from '@/shared/hooks/usePersistentState';
+import { usePersistentState } from '@/shared/hooks/usePersistentState';
 
 export function useApplyDarkModeTheme() {
   const [darkMode] = usePersistentState<boolean>('dark-mode', true);

@@ -93,4 +93,5 @@ const ShotImagesEditor: React.FC<ShotImagesEditorProps> = (props) => {
   );
 };
 
-export default React.memo(ShotImagesEditor);
+const ShotImagesEditorMemo = React.memo(ShotImagesEditor);
+export { ShotImagesEditorMemo as ShotImagesEditor };

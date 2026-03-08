@@ -68,11 +68,6 @@ export const FloatingToolControls: React.FC<FloatingToolControlsProps> = ({
 
   const iconSize = isTablet ? 'h-4 w-4' : 'h-3.5 w-3.5';
 
-  // Handle edit mode changes
-  const handleSetEditMode = (mode: 'text' | 'inpaint' | 'annotate' | 'reposition' | 'img2img') => {
-    setEditMode(mode);
-  };
-
   return (
     <div className={cn("absolute z-[70]", leftPosition, topBottomPosition)}>
       {/* Position Toggle Button - at top when panel is at bottom */}
@@ -94,7 +89,7 @@ export const FloatingToolControls: React.FC<FloatingToolControlsProps> = ({
           isMobile ? "grid grid-cols-3 gap-0.5" : "flex items-center gap-0.5"
         )}>
           <button
-            onClick={() => handleSetEditMode('text')}
+            onClick={() => setEditMode('text')}
             className={cn(
               "flex-1 flex items-center justify-center p-2 rounded transition-all",
               editMode === 'text'
@@ -106,7 +101,7 @@ export const FloatingToolControls: React.FC<FloatingToolControlsProps> = ({
             <Type className={iconSize} />
           </button>
           <button
-            onClick={() => handleSetEditMode('inpaint')}
+            onClick={() => setEditMode('inpaint')}
             className={cn(
               "flex-1 flex items-center justify-center p-2 rounded transition-all",
               editMode === 'inpaint'
@@ -118,7 +113,7 @@ export const FloatingToolControls: React.FC<FloatingToolControlsProps> = ({
             <Paintbrush className={iconSize} />
           </button>
           <button
-            onClick={() => handleSetEditMode('annotate')}
+            onClick={() => setEditMode('annotate')}
             className={cn(
               "flex-1 flex items-center justify-center p-2 rounded transition-all",
               editMode === 'annotate'
@@ -130,7 +125,7 @@ export const FloatingToolControls: React.FC<FloatingToolControlsProps> = ({
             <Pencil className={iconSize} />
           </button>
           <button
-            onClick={() => handleSetEditMode('reposition')}
+            onClick={() => setEditMode('reposition')}
             className={cn(
               "flex-1 flex items-center justify-center p-2 rounded transition-all",
               editMode === 'reposition'
@@ -142,7 +137,7 @@ export const FloatingToolControls: React.FC<FloatingToolControlsProps> = ({
             <Move className={iconSize} />
           </button>
           <button
-            onClick={() => handleSetEditMode('img2img')}
+            onClick={() => setEditMode('img2img')}
             className={cn(
               "flex-1 flex items-center justify-center p-2 rounded transition-all",
               editMode === 'img2img'

@@ -1,6 +1,6 @@
 import { __CORRUPTION_TRACE_ENABLED__, __REALTIME_DOWN_FIX_ENABLED__ } from '@/integrations/supabase/config/env';
 import { captureRealtimeSnapshot } from '@/integrations/supabase/utils/snapshot';
-import { normalizeAndReportError } from '@/shared/lib/errorHandling/runtimeErrorReporting';
+import { normalizeAndLogError } from '@/shared/lib/errorHandling/runtimeErrorReporting';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   getCorruptionTimelineSnapshot,
@@ -35,10 +35,9 @@ export function installRealtimeInstrumentation(supabase: SupabaseClient) {
       getTimelineSnapshot: getCorruptionTimelineSnapshot,
     });
   } catch (error) {
-    normalizeAndReportError(error, {
+    normalizeAndLogError(error, {
       context: 'RealtimeInstrumentation',
-      showToast: false,
-    });
+          });
   }
 
   // Reconnect requests are emitted from explicit realtime failure paths

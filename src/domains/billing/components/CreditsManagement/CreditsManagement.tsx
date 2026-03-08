@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { SegmentedControl, SegmentedControlItem } from '@/shared/components/ui/segmented-control';
 import { useCredits, useCreditLedger } from '@/shared/hooks/billing/useCredits';
 import { useTaskLog } from '@/shared/hooks/tasks/useTaskLog';
 import { useAutoTopupState } from './hooks/useAutoTopupState';
@@ -10,7 +9,7 @@ import { TransactionsTable } from './components/TransactionsTable';
 import { TaskLogPanel } from './components/TaskLogPanel';
 import type { CreditsManagementProps } from './types';
 
-const CreditsManagement: React.FC<CreditsManagementProps> = ({
+export const CreditsManagement: React.FC<CreditsManagementProps> = ({
   initialTab = 'history',
   mode = 'all'
 }) => {
@@ -93,20 +92,27 @@ const CreditsManagement: React.FC<CreditsManagementProps> = ({
       {/* Transaction History Section */}
       {(mode === 'all' || mode === 'transactions') && (
         <div className={`px-1 ${mode === 'all' ? 'mt-6' : ''}`}>
-          <div className="flex justify-center mb-3">
-            <SegmentedControl
-              value={activeTab}
-              onValueChange={(value) => setActiveTab(value as 'history' | 'task-log')}
-              size="sm"
-              className="max-w-xs"
+          <div className="flex border-b border-border mb-3">
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`flex-1 pb-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                activeTab === 'history'
+                  ? 'border-primary text-foreground'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
             >
-              <SegmentedControlItem value="history">
-                Transactions
-              </SegmentedControlItem>
-              <SegmentedControlItem value="task-log">
-                Task Log
-              </SegmentedControlItem>
-            </SegmentedControl>
+              Transactions
+            </button>
+            <button
+              onClick={() => setActiveTab('task-log')}
+              className={`flex-1 pb-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                activeTab === 'task-log'
+                  ? 'border-primary text-foreground'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Task Log
+            </button>
           </div>
 
           {activeTab === 'history' && (
@@ -140,4 +146,3 @@ const CreditsManagement: React.FC<CreditsManagementProps> = ({
   );
 };
 
-export default CreditsManagement;

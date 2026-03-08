@@ -1,10 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock all dependencies before importing
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 vi.mock('@/shared/realtime/DataFreshnessManager', () => ({
   dataFreshnessManager: {
     getDiagnostics: vi.fn().mockReturnValue({ realtimeStatus: 'connected' }),

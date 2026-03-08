@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { useProject } from '@/shared/contexts/ProjectContext';
-import { toast } from '@/shared/components/ui/toast';
+import { toast } from '@/shared/components/ui/runtime/sonner';
 import { useAsyncOperation } from '@/shared/hooks/async/useAsyncOperation';
 import { useDeleteGenerationWithConfirm } from '@/domains/generation/hooks/useDeleteGenerationWithConfirm';
 import { useToggleGenerationStar } from '@/domains/generation/hooks/useGenerationMutations';

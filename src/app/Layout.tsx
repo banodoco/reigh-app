@@ -40,7 +40,7 @@ function ScrollToTop() {
   return null;
 }
 
-const Layout: React.FC = () => {
+export const Layout: React.FC = () => {
   const {
     isTasksPaneLocked,
     tasksPaneWidth,
@@ -155,4 +155,3 @@ const Layout: React.FC = () => {
   );
 };
 
-export default Layout;

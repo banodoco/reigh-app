@@ -22,10 +22,6 @@ vi.mock('@/integrations/supabase/client', () => ({
   }),
 }));
 
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 // Mock useShotImages — use vi.hoisted to avoid hoisting issues
 const { mockGenerations } = vi.hoisted(() => {
   const gens = [

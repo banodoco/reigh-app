@@ -14,6 +14,8 @@ interface ImageContentProps {
   isFullLoaded: boolean;
   progressiveRef: React.Ref<HTMLImageElement>;
   isMobile: boolean;
+  enableSingleClick?: boolean;
+  onImageClick?: (image: GeneratedImageWithMetadata) => void;
   onOpenLightbox: (image: GeneratedImageWithMetadata) => void;
   onImageLoad: () => void;
   onImageError: (e?: React.SyntheticEvent) => void;
@@ -32,6 +34,8 @@ export const ImageContent: React.FC<ImageContentProps> = ({
   isFullLoaded,
   progressiveRef,
   isMobile,
+  enableSingleClick,
+  onImageClick,
   onOpenLightbox,
   onImageLoad,
   onImageError,
@@ -68,6 +72,13 @@ export const ImageContent: React.FC<ImageContentProps> = ({
             progressiveEnabled && isThumbShowing && "opacity-90",
             progressiveEnabled && isFullLoaded && "opacity-100"
           )}
+          onClick={enableSingleClick || !isMobile ? () => {
+            if (onImageClick) {
+              onImageClick(image);
+            } else {
+              onOpenLightbox(image);
+            }
+          } : undefined}
           onDoubleClick={isMobile ? undefined : () => onOpenLightbox(image)}
           draggable={false}
           style={{ cursor: 'pointer' }}

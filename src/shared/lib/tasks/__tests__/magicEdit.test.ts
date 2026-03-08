@@ -44,10 +44,6 @@ class TVE extends Error {
   }
 }
 
-vi.mock('@/shared/lib/compat/errorHandler', () => ({
-  handleError: vi.fn(),
-}));
-
 describe('createBatchMagicEditTasks', () => {
   beforeEach(() => {
     vi.clearAllMocks();

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useRenderLogger } from '@/shared/lib/debug/debugRendering';
-import TaskList from './TaskList';
+import { TaskList } from './TaskList';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { Button } from '@/shared/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
@@ -12,7 +12,7 @@ import { useProject } from '@/shared/contexts/ProjectContext';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
 import { TasksPaneProcessingWarning } from '@/shared/components/ProcessingWarnings';
 import { useBottomOffset } from '@/shared/hooks/layout/useBottomOffset';
-import MediaLightbox from '@/domains/media-lightbox/MediaLightbox';
+import { MediaLightbox } from '@/domains/media-lightbox/MediaLightbox';
 import { useListShots } from '@/shared/hooks/shots';
 import { useLastAffectedShot } from '@/shared/hooks/shots/useLastAffectedShot';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';

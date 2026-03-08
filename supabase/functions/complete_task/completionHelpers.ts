@@ -1,6 +1,7 @@
 import { toErrorMessage } from "../_shared/errorMessage.ts";
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
 import { edgeErrorResponse } from "../_shared/edgeRequest.ts";
+import type { CompletionLogger } from './types.ts';
 
 export interface TaskContext {
   id: string;
@@ -121,9 +122,7 @@ export async function persistCompletionFollowUpIssues(
 export async function fetchTaskContext(
   supabase: SupabaseClient,
   taskId: string,
-  logger?: {
-    error: (message: string, context?: Record<string, unknown>) => void;
-  },
+  logger?: CompletionLogger,
 ): Promise<TaskContext | null> {
   const { data: task, error } = await supabase
     .from("tasks")

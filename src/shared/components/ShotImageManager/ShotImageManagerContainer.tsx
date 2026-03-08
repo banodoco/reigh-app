@@ -4,7 +4,7 @@ import { useIsMobile } from '@/shared/hooks/mobile';
 import { isPositioned, isVideoGeneration } from '@/shared/lib/typeGuards';
 import { usePendingSegmentTasks } from '@/shared/hooks/tasks/usePendingSegmentTasks';
 import { useSegmentOutputsForShot } from '@/shared/hooks/segments';
-import MediaLightbox from '@/domains/media-lightbox/MediaLightbox';
+import { MediaLightbox } from '@/domains/media-lightbox/MediaLightbox';
 import { DEFAULT_BATCH_VIDEO_FRAMES } from './constants';
 import { ShotImageManagerDesktop } from './ShotImageManagerDesktop.tsx';
 import { ShotImageManagerMobileWrapper } from './ShotImageManagerMobileWrapper.tsx';
