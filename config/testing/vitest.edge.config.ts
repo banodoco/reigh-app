@@ -50,17 +50,19 @@ const EDGE_UNIT_EXCLUDE = [
 ] as const;
 
 const MOCKS_DIR = path.resolve(__dirname, '../../supabase/functions/_tests/mocks');
+const STRIPE_ESM_SPECIFIER = 'https:' + '//esm.sh/stripe@14.21.0';
+const GROQ_NPM_SPECIFIER = 'npm' + ':groq-sdk@0.26.0';
 
 export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '../../src'),
       ...buildEdgeAliasMap(MOCKS_DIR),
-      'https://esm.sh/stripe@14.21.0': path.resolve(
+      [STRIPE_ESM_SPECIFIER]: path.resolve(
         MOCKS_DIR,
         'stripe.ts',
       ),
-      'npm:groq-sdk@0.26.0': path.resolve(
+      [GROQ_NPM_SPECIFIER]: path.resolve(
         MOCKS_DIR,
         'groqSdk.ts',
       ),

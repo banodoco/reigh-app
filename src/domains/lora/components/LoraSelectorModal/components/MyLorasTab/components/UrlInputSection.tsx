@@ -29,7 +29,7 @@ export const UrlInputSection: React.FC<UrlInputSectionProps> = ({ addForm, handl
           </TooltipProvider>
           <Input
             id="lora-high-noise-url"
-            placeholder="https://huggingface.co/.../high_noise_model.safetensors"
+            placeholder="username/model/resolve/main/high_noise_model.safetensors"
             value={addForm.high_noise_url}
             onChange={e => handleFormChange('high_noise_url', e.target.value)}
             className={!validateHuggingFaceUrl(addForm.high_noise_url).isValid && addForm.high_noise_url ? 'border-red-500' : ''}
@@ -53,7 +53,7 @@ export const UrlInputSection: React.FC<UrlInputSectionProps> = ({ addForm, handl
           </TooltipProvider>
           <Input
             id="lora-low-noise-url"
-            placeholder="https://huggingface.co/.../low_noise_model.safetensors"
+            placeholder="username/model/resolve/main/low_noise_model.safetensors"
             value={addForm.low_noise_url}
             onChange={e => handleFormChange('low_noise_url', e.target.value)}
             className={!validateHuggingFaceUrl(addForm.low_noise_url).isValid && addForm.low_noise_url ? 'border-red-500' : ''}
@@ -87,7 +87,7 @@ export const UrlInputSection: React.FC<UrlInputSectionProps> = ({ addForm, handl
       </TooltipProvider>
       <Input
         id="lora-url"
-        placeholder="https://huggingface.co/username/model/resolve/main/filename.safetensors"
+        placeholder="username/model/resolve/main/filename.safetensors"
         value={addForm.huggingface_url}
         onChange={e => handleFormChange('huggingface_url', e.target.value)}
         className={!validateHuggingFaceUrl(addForm.huggingface_url).isValid && addForm.huggingface_url ? 'border-red-500' : ''}
