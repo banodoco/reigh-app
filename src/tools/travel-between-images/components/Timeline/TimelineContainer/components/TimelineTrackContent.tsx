@@ -8,7 +8,7 @@ import { TrailingEndpointLayer } from './TrailingEndpointLayer';
 import { TimelineItemsLayer } from './TimelineItemsLayer';
 
 interface TimelineTrackContentProps {
-  data: any;
+  data: Record<string, unknown>;
 }
 
 export const TimelineTrackContent: React.FC<TimelineTrackContentProps> = ({ data }) => {
