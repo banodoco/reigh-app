@@ -1,11 +1,35 @@
 // deno-lint-ignore-file
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-// @ts-expect-error - HuggingFace Hub package typings are not fully compatible in edge runtime context
-import { whoAmI, createRepo, uploadFile } from "https://esm.sh/@huggingface/hub@0.18.2";
 import { bootstrapEdgeHandler, NO_SESSION_RUNTIME_OPTIONS } from "../_shared/edgeHandler.ts";
 import { toErrorMessage } from "../_shared/errorMessage.ts";
 
 declare const Deno: { env: { get: (key: string) => string | undefined } };
+
+interface HuggingFaceCredentials {
+  accessToken: string;
+}
+
+interface HuggingFaceHubClient {
+  whoAmI(args: { credentials: HuggingFaceCredentials }): Promise<{ name?: string }>;
+  createRepo(args: {
+    repo: string;
+    private?: boolean;
+    credentials: HuggingFaceCredentials;
+  }): Promise<void>;
+  uploadFile(args: {
+    repo: string;
+    file: File | { path: string; content: File };
+    credentials: HuggingFaceCredentials;
+  }): Promise<void>;
+}
+
+const huggingFaceHubPromise: Promise<HuggingFaceHubClient> = import(
+  "https://esm.sh/@huggingface/hub@0.18.2"
+).then((module) => ({
+  whoAmI: module.whoAmI as HuggingFaceHubClient["whoAmI"],
+  createRepo: module.createRepo as HuggingFaceHubClient["createRepo"],
+  uploadFile: module.uploadFile as HuggingFaceHubClient["uploadFile"],
+}));
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -186,6 +210,8 @@ serve(async (req) => {
   const { supabaseAdmin, logger, auth } = bootstrap.value;
 
   try {
+    const { whoAmI, createRepo, uploadFile } = await huggingFaceHubPromise;
+
     // 1. Authenticate user
     if (!auth?.userId) {
       return createResponse({ error: "Unauthorized" }, 401);
