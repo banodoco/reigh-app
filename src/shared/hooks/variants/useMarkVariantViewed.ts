@@ -18,6 +18,7 @@ import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { DerivedCountsResult } from '@/shared/lib/generationTransformers';
 import { queryKeys } from '@/shared/lib/queryKeys';
+import { withGenerationBadgeCount } from './variantBadgeCacheUtils';
 
 interface MarkViewedParams {
   variantId: string;
@@ -116,18 +117,7 @@ function decrementBadgeCountOptimistically(
 
       const currentCount = oldData.unviewedVariantCounts[generationId] || 0;
       const newCount = Math.max(0, currentCount - 1);
-
-      return {
-        ...oldData,
-        hasUnviewedVariants: {
-          ...oldData.hasUnviewedVariants,
-          [generationId]: newCount > 0,
-        },
-        unviewedVariantCounts: {
-          ...oldData.unviewedVariantCounts,
-          [generationId]: newCount,
-        },
-      };
+      return withGenerationBadgeCount(oldData, generationId, newCount);
     }
   );
 }
@@ -141,17 +131,7 @@ function clearBadgeCountOptimistically(
     (oldData: DerivedCountsResult | undefined) => {
       if (!oldData) return oldData;
 
-      return {
-        ...oldData,
-        hasUnviewedVariants: {
-          ...oldData.hasUnviewedVariants,
-          [generationId]: false,
-        },
-        unviewedVariantCounts: {
-          ...oldData.unviewedVariantCounts,
-          [generationId]: 0,
-        },
-      };
+      return withGenerationBadgeCount(oldData, generationId, 0);
     }
   );
 }

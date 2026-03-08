@@ -16,6 +16,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { calculateDerivedCountsSafe, DerivedCountsResult } from '@/shared/lib/generationTransformers';
+import { withGenerationBadgeCount } from './variantBadgeCacheUtils';
 
 interface VariantBadgeData {
   derivedCount: number;
@@ -98,18 +99,7 @@ export function useVariantBadges(
 
     // Also update the query cache directly for immediate effect across components
     queryClient.setQueryData(queryKey, (oldData: DerivedCountsResult | undefined) => {
-      if (!oldData) return oldData;
-      return {
-        ...oldData,
-        hasUnviewedVariants: {
-          ...oldData.hasUnviewedVariants,
-          [generationId]: false,
-        },
-        unviewedVariantCounts: {
-          ...oldData.unviewedVariantCounts,
-          [generationId]: 0,
-        },
-      };
+      return withGenerationBadgeCount(oldData, generationId, 0);
     });
   }, [queryClient, queryKey]);
 
