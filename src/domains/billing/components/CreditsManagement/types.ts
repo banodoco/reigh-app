@@ -10,6 +10,29 @@ export interface TaskLogFilters {
   projectIds: string[];
 }
 
+export interface TaskLogTask {
+  id: string;
+  createdAt: string;
+  taskType: string;
+  projectName?: string;
+  status: string;
+  duration?: number;
+  cost?: number;
+}
+
+export interface TaskLogPagination {
+  currentPage: number;
+  totalPages: number;
+  total: number;
+  hasMore: boolean;
+}
+
+export interface TaskLogAvailableFilters {
+  statuses: string[];
+  taskTypes: string[];
+  projects: Array<{ id: string; name: string }>;
+}
+
 export type AutoTopupState =
   | 'loading'
   | 'active'

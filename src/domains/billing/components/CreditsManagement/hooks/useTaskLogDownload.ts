@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { getTaskDisplayName } from '@/shared/lib/taskConfig';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { fetchTaskLogCosts } from '@/shared/hooks/tasks/taskLogCosts';
 import type { TaskLogFilters } from '../types';
 
 interface UseTaskLogDownloadReturn {
@@ -56,18 +57,8 @@ export function useTaskLogDownload(filters: TaskLogFilters): UseTaskLogDownloadR
         throw new Error(`Failed to fetch tasks: ${tasksError.message}`);
       }
 
-      // Get cost information for all tasks
       const taskIds = tasksData?.map(task => task.id) || [];
-      let costsData: Array<{ task_id: string | null; amount: number; created_at: string }> = [];
-
-      if (taskIds.length > 0) {
-        const { data: costs } = await supabase().from('credits_ledger')
-          .select('task_id, amount, created_at')
-          .in('task_id', taskIds)
-          .eq('type', 'spend');
-
-        costsData = costs || [];
-      }
+      const costsData = await fetchTaskLogCosts(taskIds);
 
       // Combine tasks with cost information
       let tasks = (tasksData || []).map(task => {

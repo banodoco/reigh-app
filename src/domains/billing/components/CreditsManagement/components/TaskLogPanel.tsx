@@ -14,35 +14,17 @@ import {
 import { UpdatingTimeCell } from '@/shared/components/UpdatingTimeCell';
 import { getTaskDisplayName } from '@/shared/lib/taskConfig';
 import { TaskLogFilters } from './TaskLogFilters';
-import type { TaskLogFilters as TaskLogFiltersType } from '../types';
-
-interface TaskLogTask {
-  id: string;
-  createdAt: string;
-  taskType: string;
-  projectName?: string;
-  status: string;
-  duration?: number;
-  cost?: number;
-}
-
-interface Pagination {
-  currentPage: number;
-  totalPages: number;
-  total: number;
-  hasMore: boolean;
-}
-
-interface AvailableFilters {
-  statuses: string[];
-  taskTypes: string[];
-  projects: Array<{ id: string; name: string }>;
-}
+import type {
+  TaskLogAvailableFilters,
+  TaskLogFilters as TaskLogFiltersType,
+  TaskLogPagination,
+  TaskLogTask,
+} from '../types';
 
 interface TaskLogPanelProps {
   tasks: TaskLogTask[] | undefined;
-  pagination: Pagination | undefined;
-  availableFilters: AvailableFilters | undefined;
+  pagination: TaskLogPagination | undefined;
+  availableFilters: TaskLogAvailableFilters | undefined;
   isLoading: boolean;
   filters: TaskLogFiltersType;
   filterCount: number;

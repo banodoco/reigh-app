@@ -8,17 +8,11 @@ import {
   PopoverTrigger,
 } from '@/shared/components/ui/popover';
 import { getTaskDisplayName } from '@/shared/lib/taskConfig';
-import type { TaskLogFilters as TaskLogFiltersType } from '../types';
-
-interface AvailableFilters {
-  statuses: string[];
-  taskTypes: string[];
-  projects: Array<{ id: string; name: string }>;
-}
+import type { TaskLogAvailableFilters, TaskLogFilters as TaskLogFiltersType } from '../types';
 
 interface TaskLogFiltersProps {
   filters: TaskLogFiltersType;
-  availableFilters: AvailableFilters | undefined;
+  availableFilters: TaskLogAvailableFilters | undefined;
   filterCount: number;
   onUpdateFilter: <K extends keyof TaskLogFiltersType>(filterType: K, value: TaskLogFiltersType[K]) => void;
   onToggleArrayFilter: (filterType: 'status' | 'taskTypes' | 'projectIds', value: string) => void;

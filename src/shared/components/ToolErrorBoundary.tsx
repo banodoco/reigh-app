@@ -1,6 +1,8 @@
 import React from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
+import { ErrorDebugDetails } from '@/shared/components/error/ErrorDebugDetails';
+import { createRecoveredErrorBoundaryState } from '@/shared/components/error/errorBoundaryState';
 
 interface ToolErrorBoundaryState {
   hasError: boolean;
@@ -26,11 +28,7 @@ export class ToolErrorBoundary extends React.Component<
 > {
   constructor(props: ToolErrorBoundaryProps) {
     super(props);
-    this.state = {
-      hasError: false,
-      error: null,
-      errorInfo: null,
-    };
+    this.state = createRecoveredErrorBoundaryState();
   }
 
   static getDerivedStateFromError(error: Error): Partial<ToolErrorBoundaryState> {
@@ -49,11 +47,7 @@ export class ToolErrorBoundary extends React.Component<
   }
 
   handleRetry = (): void => {
-    this.setState({
-      hasError: false,
-      error: null,
-      errorInfo: null,
-    });
+    this.setState(createRecoveredErrorBoundaryState());
   };
 
   render(): React.ReactNode {
@@ -80,18 +74,7 @@ export class ToolErrorBoundary extends React.Component<
               </p>
             </div>
 
-            {isDev && error && (
-              <div className="bg-muted rounded-lg p-4 text-left">
-                <p className="text-sm font-mono text-destructive break-all">
-                  {error.name}: {error.message}
-                </p>
-                {error.stack && (
-                  <pre className="mt-2 text-xs text-muted-foreground overflow-x-auto max-h-32">
-                    {error.stack.split('\n').slice(1, 6).join('\n')}
-                  </pre>
-                )}
-              </div>
-            )}
+            <ErrorDebugDetails error={error} isDev={isDev} />
 
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button onClick={this.handleRetry} variant="default">

@@ -2,6 +2,8 @@ import React from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { reportErrorBoundaryCatch } from '@/shared/lib/errorHandling/recoverableError';
+import { ErrorDebugDetails } from '@/shared/components/error/ErrorDebugDetails';
+import { createRecoveredErrorBoundaryState } from '@/shared/components/error/errorBoundaryState';
 
 interface AppErrorBoundaryState {
   hasError: boolean;
@@ -26,11 +28,7 @@ export class AppErrorBoundary extends React.Component<
 > {
   constructor(props: AppErrorBoundaryProps) {
     super(props);
-    this.state = {
-      hasError: false,
-      error: null,
-      errorInfo: null,
-    };
+    this.state = createRecoveredErrorBoundaryState();
   }
 
   static getDerivedStateFromError(error: Error): Partial<AppErrorBoundaryState> {
@@ -56,11 +54,7 @@ export class AppErrorBoundary extends React.Component<
   };
 
   handleRetry = (): void => {
-    this.setState({
-      hasError: false,
-      error: null,
-      errorInfo: null,
-    });
+    this.setState(createRecoveredErrorBoundaryState());
   };
 
   render(): React.ReactNode {
@@ -88,19 +82,7 @@ export class AppErrorBoundary extends React.Component<
               </p>
             </div>
 
-            {/* Dev-only error details */}
-            {isDev && error && (
-              <div className="bg-muted rounded-lg p-4 text-left">
-                <p className="text-sm font-mono text-destructive break-all">
-                  {error.name}: {error.message}
-                </p>
-                {error.stack && (
-                  <pre className="mt-2 text-xs text-muted-foreground overflow-x-auto max-h-32">
-                    {error.stack.split('\n').slice(1, 6).join('\n')}
-                  </pre>
-                )}
-              </div>
-            )}
+            <ErrorDebugDetails error={error} isDev={isDev} />
 
             {/* Action buttons */}
             <div className="flex flex-col sm:flex-row gap-3 justify-center">

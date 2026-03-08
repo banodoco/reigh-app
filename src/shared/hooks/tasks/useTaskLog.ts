@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { getVisibleTaskTypes, getHiddenTaskTypes } from '@/shared/lib/taskConfig';
 import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
+import { fetchTaskLogCosts } from './taskLogCosts';
 
 interface TaskWithCost {
   id: string;
@@ -120,18 +121,8 @@ export function useTaskLog(
         throw new Error(`Failed to fetch tasks: ${tasksError.message}`);
       }
 
-      // Get cost information for these tasks
       const taskIds = tasksData?.map(task => task.id) || [];
-      let costsData: { task_id: string | null; amount: number; created_at: string }[] = [];
-      
-      if (taskIds.length > 0) {
-        const { data: costs } = await supabase().from('credits_ledger')
-          .select('task_id, amount, created_at')
-          .in('task_id', taskIds)
-          .eq('type', 'spend');
-
-        costsData = costs || [];
-      }
+      const costsData = await fetchTaskLogCosts(taskIds);
 
       // Combine tasks with cost information
       let tasks: TaskWithCost[] = (tasksData || []).map(task => {
