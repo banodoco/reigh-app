@@ -1,4 +1,8 @@
 import { useState, useEffect, useRef, type RefObject } from 'react';
+import {
+  attachRafStickyObserver,
+  getElementDocumentTop,
+} from '@/shared/lib/sticky/rafStickyObserver';
 
 interface UseStickyHeaderOptions {
   containerRef: RefObject<HTMLDivElement | null>;
@@ -23,53 +27,15 @@ export function useStickyHeader({ containerRef, isMobile, isFormExpanded }: UseS
     const containerEl = containerRef.current;
     if (!containerEl) return;
 
-    const stickyThresholdY = { current: 0 };
-    let rafId: number | null = null;
+    const headerHeight = isMobile ? 150 : 96;
+    const extra = isMobile ? 0 : -120;
 
-    const computeThreshold = () => {
-      const rect = containerEl.getBoundingClientRect();
-      const docTop = window.pageYOffset || document.documentElement.scrollTop || 0;
-      const containerDocTop = rect.top + docTop;
-      const headerHeight = isMobile ? 150 : 96;
-      const extra = isMobile ? 0 : -120;
-      stickyThresholdY.current = containerDocTop + headerHeight + extra;
-    };
-
-    const checkSticky = () => {
-      rafId = null;
-      const shouldBeSticky = (window.pageYOffset || document.documentElement.scrollTop || 0) > stickyThresholdY.current;
-      if (shouldBeSticky !== isStickyRef.current) {
-        isStickyRef.current = shouldBeSticky;
-        setIsSticky(shouldBeSticky);
-      }
-    };
-
-    const onScroll = () => {
-      if (rafId !== null) return;
-      rafId = requestAnimationFrame(checkSticky);
-    };
-
-    const onResize = () => {
-      computeThreshold();
-      if (rafId !== null) cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(checkSticky);
-    };
-
-    computeThreshold();
-    checkSticky();
-
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onResize);
-
-    const ro = new ResizeObserver(() => onResize());
-    ro.observe(containerEl);
-
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onResize);
-      if (rafId !== null) cancelAnimationFrame(rafId);
-      ro.disconnect();
-    };
+    return attachRafStickyObserver({
+      element: containerEl,
+      isStickyRef,
+      setSticky: setIsSticky,
+      computeThresholdY: () => getElementDocumentTop(containerEl) + headerHeight + extra,
+    });
   }, [containerRef, isFormExpanded, isMobile]);
 
   return isSticky;

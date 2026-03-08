@@ -1,4 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  attachRafStickyObserver,
+  getElementDocumentTop,
+} from '@/shared/lib/sticky/rafStickyObserver';
 
 interface UseStickyHeaderProps {
   headerRef: React.RefObject<HTMLDivElement>;
@@ -25,8 +29,13 @@ export const useStickyHeader = ({
   enabled = true
 }: UseStickyHeaderProps): UseStickyHeaderReturn => {
   const [isSticky, setIsSticky] = useState(false);
+  const isStickyRef = useRef(isSticky);
   const [headerBounds, setHeaderBounds] = useState({ left: 0, width: 0 });
   const [stableBounds, setStableBounds] = useState({ left: 0, width: 0 });
+
+  useEffect(() => {
+    isStickyRef.current = isSticky;
+  }, [isSticky]);
 
   const updateHeaderBounds = useCallback(() => {
     const containerEl = headerRef.current;
@@ -45,63 +54,18 @@ export const useStickyHeader = ({
     const containerEl = headerRef.current;
     if (!containerEl) return;
 
-    const stickyThresholdY = { current: 0 };
-    const isStickyRef = { current: isSticky };
-    let rafId: number | null = null;
+    const globalHeaderHeight = isMobile ? 60 : 96;
+    const buffer = isMobile ? 5 : 10;
 
-    const computeThreshold = () => {
-      const rect = containerEl.getBoundingClientRect();
-      const docTop = window.pageYOffset || document.documentElement.scrollTop || 0;
-      const containerDocTop = rect.top + docTop;
-
-      const globalHeaderHeight = isMobile ? 60 : 96;
-      const buffer = isMobile ? 5 : 10;
-
-      // Trigger when shot name would be hidden by global header
-      stickyThresholdY.current = containerDocTop - globalHeaderHeight - buffer;
-    };
-
-    const checkSticky = () => {
-      rafId = null;
-      const currentScroll = (window.pageYOffset || document.documentElement.scrollTop || 0);
-      const shouldBeSticky = currentScroll > stickyThresholdY.current;
-
-      if (shouldBeSticky !== isStickyRef.current) {
-        isStickyRef.current = shouldBeSticky;
-        setIsSticky(shouldBeSticky);
-      }
-    };
-
-    const onScroll = () => {
-      if (rafId !== null) return;
-      rafId = requestAnimationFrame(checkSticky);
-    };
-
-    const onResize = () => {
-      computeThreshold();
-      if (rafId !== null) cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(checkSticky);
-    };
-
-    computeThreshold();
-    // Avoid immediate sticky check while editing to prevent instant blur
-    if (!isEditingName) {
-      checkSticky();
-    }
-
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onResize);
-
-    const ro = new ResizeObserver(() => onResize());
-    ro.observe(containerEl);
-
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onResize);
-      if (rafId !== null) cancelAnimationFrame(rafId);
-      ro.disconnect();
-    };
-  }, [isMobile, isEditingName, isSticky, enabled, headerRef]);
+    return attachRafStickyObserver({
+      element: containerEl,
+      isStickyRef,
+      setSticky: setIsSticky,
+      computeThresholdY: () => getElementDocumentTop(containerEl) - globalHeaderHeight - buffer,
+      // Avoid immediate sticky check while editing to prevent instant blur
+      shouldRunInitialCheck: !isEditingName,
+    });
+  }, [isMobile, isEditingName, enabled, headerRef]);
 
   // Update header bounds during scroll and resize
   useEffect(() => {
