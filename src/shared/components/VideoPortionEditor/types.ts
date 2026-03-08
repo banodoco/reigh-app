@@ -3,6 +3,15 @@ import type { PortionSelection } from '@/shared/components/VideoPortionTimeline'
 import type { LoraModel, UseLoraManagerReturn } from '@/domains/lora/hooks/useLoraManager';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
 
+export type PortionSelectionSettingsUpdate = Partial<
+  Pick<PortionSelection, 'gapFrameCount' | 'prompt' | 'name'>
+>;
+
+export type UpdatePortionSelectionSettings = (
+  id: string,
+  updates: PortionSelectionSettingsUpdate
+) => void;
+
 interface VideoPortionEditorSettingsProps {
   gapFrames: number;
   setGapFrames: (val: number) => void;
@@ -17,10 +26,7 @@ interface VideoPortionEditorSettingsProps {
 
 interface VideoPortionEditorSelectionProps {
   selections?: PortionSelection[];
-  onUpdateSelectionSettings?: (
-    id: string,
-    updates: Partial<Pick<PortionSelection, 'gapFrameCount' | 'prompt' | 'name'>>
-  ) => void;
+  onUpdateSelectionSettings?: UpdatePortionSelectionSettings;
   onRemoveSelection?: (id: string) => void;
   onAddSelection?: () => void;
   videoUrl?: string;

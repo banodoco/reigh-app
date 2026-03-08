@@ -309,7 +309,6 @@ export const VariantSelector: React.FC<VariantSelectorProps> = ({
         {/* Grid with pagination */}
         <VariantGrid
           filteredVariants={filteredVariants}
-          allVariants={variants}
           activeVariantId={activeVariantId}
           currentPage={currentPage}
           onPageChange={setCurrentPage}

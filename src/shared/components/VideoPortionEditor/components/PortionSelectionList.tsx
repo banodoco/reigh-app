@@ -1,6 +1,7 @@
 import { Plus } from 'lucide-react';
 import type { PortionSelection } from '@/shared/components/VideoPortionTimeline';
 import { PortionSelectionCard } from '@/shared/components/VideoPortionEditor/components/PortionSelectionCard';
+import type { UpdatePortionSelectionSettings } from '@/shared/components/VideoPortionEditor/types';
 
 interface PortionSelectionListProps {
   selections: PortionSelection[];
@@ -8,10 +9,7 @@ interface PortionSelectionListProps {
   contextFrames: number;
   videoUrl?: string;
   fps?: number | null;
-  onUpdateSelectionSettings: (
-    id: string,
-    updates: Partial<Pick<PortionSelection, 'gapFrameCount' | 'prompt' | 'name'>>
-  ) => void;
+  onUpdateSelectionSettings: UpdatePortionSelectionSettings;
   onRemoveSelection?: (id: string) => void;
   onAddSelection?: () => void;
 }

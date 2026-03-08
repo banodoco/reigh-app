@@ -9,6 +9,7 @@ import {
   getMaxGapFrames,
 } from '@/shared/components/VideoPortionEditor/lib/videoPortionEditorUtils';
 import type { PortionSelection } from '@/shared/components/VideoPortionTimeline';
+import type { UpdatePortionSelectionSettings } from '@/shared/components/VideoPortionEditor/types';
 import { formatTime } from '@/shared/lib/timeFormatting';
 import { getQuantizedGap } from '@/shared/components/JoinClipsSettingsForm/utils';
 import { getSegmentFormColor } from '@/shared/lib/segmentColors';
@@ -21,10 +22,7 @@ interface PortionSelectionCardProps {
   contextFrames: number;
   videoUrl?: string;
   fps?: number | null;
-  onUpdateSelectionSettings: (
-    id: string,
-    updates: Partial<Pick<PortionSelection, 'gapFrameCount' | 'prompt' | 'name'>>
-  ) => void;
+  onUpdateSelectionSettings: UpdatePortionSelectionSettings;
   onRemoveSelection?: (id: string) => void;
 }
 

@@ -4,10 +4,18 @@ import { Checkbox } from '@/shared/components/ui/checkbox';
 import { useIsMobile } from '@/shared/hooks/mobile';
 import { ScrollArea } from '@/shared/components/ui/scroll-area';
 import { Task } from '@/types/tasks';
-import { AlertTriangle, CornerDownLeft, ImageIcon } from 'lucide-react';
+import { CornerDownLeft, ImageIcon } from 'lucide-react';
 import { usePublicLoras } from '@/shared/hooks/useResources';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import { TaskDetailsSummaryAndParams } from '@/shared/components/TaskDetails/components/TaskDetailsSummaryAndParams';
+import {
+  TaskDetailsEmptyState,
+  TaskDetailsErrorState,
+  TaskDetailsLoadingState,
+} from '@/shared/components/TaskDetails/components/TaskDetailsStatusStates';
+import {
+  TaskDetailsSummaryControls,
+  TaskDetailsSummarySection,
+} from '@/shared/components/TaskDetails/components/TaskDetailsSummarySection';
 import type { TaskDetailsStatus } from '@/domains/media-lightbox/types';
 
 interface TaskDetailsPanelProps {
@@ -77,18 +85,24 @@ const TaskDetailsPanel: React.FC<TaskDetailsPanelProps> = ({
       onApplySettingsFromTask(taskId, replaceImages, inputImages);
     }
   };
+  const summaryControls: TaskDetailsSummaryControls = {
+    showAllImages,
+    onShowAllImagesChange: setShowAllImages,
+    showFullPrompt,
+    onShowFullPromptChange: setShowFullPrompt,
+    showFullNegativePrompt,
+    onShowFullNegativePromptChange: setShowFullNegativePrompt,
+    showDetailedParams,
+    onShowDetailedParamsChange: setShowDetailedParams,
+    paramsCopied,
+    onCopyParams: () => {
+      void handleCopyParams();
+    },
+  };
 
   if (isLoading) {
     return (
-      <div className={`flex justify-center items-center h-64 ${className}`}>
-        <div className="flex flex-col items-center gap-y-3">
-          <svg className="animate-spin h-8 w-8 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <p className="text-sm text-muted-foreground">Loading task details...</p>
-        </div>
-      </div>
+      <TaskDetailsLoadingState containerClassName={`h-64 ${className}`} />
     );
   }
 
@@ -97,15 +111,12 @@ const TaskDetailsPanel: React.FC<TaskDetailsPanelProps> = ({
       <div className={`flex flex-col ${className}`}>
         {basedOnSection}
         {derivedSection}
-        <div className="flex justify-center items-center py-6">
-          <div className="text-center space-y-2 max-w-sm">
-            <div className="w-10 h-10 mx-auto bg-red-500/10 rounded-full flex items-center justify-center">
-              <AlertTriangle className="w-5 h-5 text-red-500" />
-            </div>
-            <p className="text-sm font-medium">Failed to load task details.</p>
-            <p className="text-xs text-muted-foreground">{error?.message ?? 'Please try again.'}</p>
-          </div>
-        </div>
+        <TaskDetailsErrorState
+          errorMessage={error?.message}
+          containerClassName="py-6"
+          iconWrapperClassName="w-10 h-10"
+          iconClassName="w-5 h-5"
+        />
       </div>
     );
   }
@@ -121,16 +132,11 @@ const TaskDetailsPanel: React.FC<TaskDetailsPanelProps> = ({
 
         {/* No task message - only show if there's also no based on or derived sections */}
         {!basedOnSection && !derivedSection && (
-          <div className="flex justify-center items-center py-6">
-            <div className="text-center space-y-2">
-              <div className="w-10 h-10 mx-auto bg-muted rounded-full flex items-center justify-center">
-                <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <p className="text-sm text-muted-foreground">No task details available for this generation.</p>
-            </div>
-          </div>
+          <TaskDetailsEmptyState
+            containerClassName="py-6"
+            iconWrapperClassName="w-10 h-10"
+            iconClassName="w-5 h-5"
+          />
         )}
       </div>
     );
@@ -174,27 +180,18 @@ const TaskDetailsPanel: React.FC<TaskDetailsPanelProps> = ({
       )}
 
       {contentWrapper(
-        <TaskDetailsSummaryAndParams
+        <TaskDetailsSummarySection
           task={task}
           inputImages={inputImages}
           detailsVariant="panel"
           isMobile={isMobile}
           availableLoras={availableLoras}
-          showAllImages={showAllImages}
-          onShowAllImagesChange={setShowAllImages}
-          showFullPrompt={showFullPrompt}
-          onShowFullPromptChange={setShowFullPrompt}
-          showFullNegativePrompt={showFullNegativePrompt}
-          onShowFullNegativePromptChange={setShowFullNegativePrompt}
-          showDetailedParams={showDetailedParams}
-          onShowDetailedParamsChange={setShowDetailedParams}
-          paramsCopied={paramsCopied}
-          onCopyParams={() => { void handleCopyParams(); }}
+          controls={summaryControls}
           showCopyButtons={true}
         >
           {basedOnSection}
           {derivedSection}
-        </TaskDetailsSummaryAndParams>
+        </TaskDetailsSummarySection>
       )}
 
       {/* Footer with controls - Sticky to bottom - only show when Apply Settings is available */}

@@ -15,48 +15,24 @@ import { cn } from '@/shared/components/ui/contracts/cn';
 import { Button } from '@/shared/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/shared/components/ui/hover-card';
-import type { LoraModel } from '@/domains/lora/types/lora';
 import type { GenerationVariant } from '@/shared/hooks/variants/useVariants';
 import { getVariantIcon, getVariantLabel, isNewVariant, getTimeAgo, hasLoadableSettings } from '../variantPresentation';
-import { hasDifferentSourceImages, type CurrentSegmentImagesData } from '../variantSourceImages';
+import { hasDifferentSourceImages } from '../variantSourceImages';
 import { VariantDetails } from './VariantDetails';
+import type { VariantCardSharedProps } from './variantCardSharedTypes';
 
 // --- VariantCard ---
 
-interface VariantCardProps {
+interface VariantCardProps extends VariantCardSharedProps {
   variant: GenerationVariant;
   isActive: boolean;
   isPrimary: boolean;
   isParent: boolean;
   isChild: boolean;
-  activeVariantId: string | null;
-  isMobile: boolean;
-  readOnly: boolean;
-  /** All variants in the list (for finding parent variant by source_variant_id) */
-  variants: GenerationVariant[];
-  availableLoras?: LoraModel[];
   /** Lineage depth for this variant (show GIF button when >= 5) */
   lineageDepth: number;
   /** Whether a delete operation is loading for this variant */
   isDeleteLoading: boolean;
-  /** Currently copied variant ID (for copy-id feedback) */
-  copiedVariantId: string | null;
-  /** Loaded settings variant ID (for load-settings feedback) */
-  loadedSettingsVariantId: string | null;
-  // Callbacks
-  onVariantSelect: (variantId: string) => void;
-  onMakePrimary?: (variantId: string) => Promise<void>;
-  onDeleteVariant?: (variantId: string) => void;
-  onLoadVariantSettings?: (variantParams: Record<string, unknown>) => void;
-  onToggleStar?: (variantId: string, starred: boolean) => void;
-  onMouseEnter: (variant: GenerationVariant) => void;
-  onShowMobileInfo: (variantId: string) => void;
-  onShowLineageGif: (variantId: string) => void;
-  onCopyId: (variantId: string) => void;
-  onLoadSettings: (variant: GenerationVariant) => void;
-  onLoadImages?: (variant: GenerationVariant) => void;
-  currentSegmentImages?: CurrentSegmentImagesData;
-  loadedImagesVariantId: string | null;
 }
 
 export const VariantCard: React.FC<VariantCardProps> = ({

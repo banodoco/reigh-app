@@ -9,45 +9,22 @@ import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import type { GenerationVariant } from '@/shared/hooks/variants/useVariants';
-import type { LoraModel } from '@/domains/lora/types/lora';
-import type { CurrentSegmentImagesData } from '../variantSourceImages';
 import { VariantCard } from './VariantCard';
+import type { VariantCardSharedProps } from './variantCardSharedTypes';
 
 const ITEMS_PER_PAGE = 20;
 
-interface VariantGridProps {
+interface VariantGridProps extends VariantCardSharedProps {
   filteredVariants: GenerationVariant[];
-  allVariants: GenerationVariant[];
-  activeVariantId: string | null;
   currentPage: number;
   onPageChange: (page: number) => void;
-  isMobile: boolean;
-  readOnly: boolean;
-  availableLoras?: LoraModel[];
   relationshipMap: Record<string, { isParent: boolean; isChild: boolean }>;
   variantLineageDepth: Record<string, number>;
-  copiedVariantId: string | null;
-  loadedSettingsVariantId: string | null;
-  // Callbacks
-  onVariantSelect: (variantId: string) => void;
-  onMakePrimary?: (variantId: string) => Promise<void>;
-  onDeleteVariant?: (variantId: string) => void;
-  onLoadVariantSettings?: (variantParams: Record<string, unknown>) => void;
-  onToggleStar?: (variantId: string, starred: boolean) => void;
-  onMouseEnter: (variant: GenerationVariant) => void;
-  onShowMobileInfo: (variantId: string) => void;
-  onShowLineageGif: (variantId: string) => void;
-  onCopyId: (variantId: string) => void;
-  onLoadSettings: (variant: GenerationVariant) => void;
-  onLoadImages?: (variant: GenerationVariant) => void;
-  currentSegmentImages?: CurrentSegmentImagesData;
-  loadedImagesVariantId: string | null;
   isDeleteLoading: (variantId: string) => boolean;
 }
 
 export const VariantGrid: React.FC<VariantGridProps> = ({
   filteredVariants,
-  allVariants,
   activeVariantId,
   currentPage,
   onPageChange,
@@ -80,7 +57,6 @@ export const VariantGrid: React.FC<VariantGridProps> = ({
     activeVariantId,
     isMobile,
     readOnly,
-    variants: allVariants,
     availableLoras,
     copiedVariantId,
     loadedSettingsVariantId,

@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { TaskDetailsProps, getVariantConfig } from '@/shared/types/taskDetailsTypes';
 import { parseTaskParams } from '@/shared/lib/taskParamsUtils';
 import { framesToSeconds } from '@/shared/lib/media/videoUtils';
+import { TaskDetailsLazyVideoPreview } from '@/shared/components/TaskDetails/components/TaskDetailsLazyVideoPreview';
 
 /** Shape of a clip entry in join clips task params */
 interface JoinClip {
@@ -63,43 +64,11 @@ export const JoinClipsDetails: React.FC<TaskDetailsProps> = ({
   const renderVideoPreview = (url: string, index: number, label: string) => (
     <div className="space-y-1">
       <p className={`${config.textSize} text-muted-foreground text-center`}>{label}</p>
-      <div className="relative group cursor-pointer">
-        {!videoLoadedStates[index] ? (
-          <div
-            className="w-full aspect-video bg-black rounded border shadow-sm flex items-center justify-center"
-            onClick={() => setClipVideoLoaded(index, true)}
-          >
-            <div className="bg-white/20 group-hover:bg-white/30 rounded-full p-2 transition-colors">
-              <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
-            </div>
-          </div>
-        ) : (
-          <>
-            <video
-              src={url}
-              className="w-full object-cover rounded border shadow-sm"
-              loop muted playsInline autoPlay
-              onClick={(e) => {
-                const video = e.currentTarget;
-                if (video.paused) {
-                  video.play();
-                } else {
-                  video.pause();
-                }
-              }}
-            />
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
-              <div className="bg-black/50 rounded-full p-1.5">
-                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z"/>
-                </svg>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
+      <TaskDetailsLazyVideoPreview
+        src={url}
+        isLoaded={Boolean(videoLoadedStates[index])}
+        onLoad={() => setClipVideoLoaded(index, true)}
+      />
     </div>
   );
 
