@@ -12,6 +12,22 @@ export class ProjectScopedCache<T> {
     return this.cache.get(projectId) ?? null;
   }
 
+  getProjectWithFallback(
+    projectId: string | null,
+    fallback: Map<string, T> | null | undefined,
+  ): Map<string, T> | null {
+    if (!projectId) {
+      return null;
+    }
+
+    const cached = this.getProject(projectId);
+    if (cached) {
+      return cached;
+    }
+
+    return fallback ?? null;
+  }
+
   getItem(projectId: string, itemId: string): T | null {
     const projectMap = this.cache.get(projectId);
     if (!projectMap) return null;

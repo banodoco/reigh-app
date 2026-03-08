@@ -1,7 +1,6 @@
 import React, { useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
-import type { Json } from '@/integrations/supabase/jsonTypes';
 import { useSmartPollingConfig } from '@/shared/hooks/useSmartPolling';
 import {
   resolveGenerationMode,
@@ -11,16 +10,10 @@ import {
 import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { settingsQueryKeys } from '@/shared/lib/queryKeys/settings';
 import { ProjectScopedCache } from '@/shared/lib/cache/ProjectScopedCache';
+import { toObjectRecord } from '@/shared/lib/jsonRecord';
 
 // Global cache instance that persists across component remounts
 const globalProjectGenerationModesCache = new ProjectScopedCache<GenerationModeNormalized>();
-
-function toSettingsRecord(value: Json | null | undefined): Record<string, unknown> | null {
-  if (value && typeof value === 'object' && !Array.isArray(value)) {
-    return value as Record<string, unknown>;
-  }
-  return null;
-}
 
 /**
  * Fetch all shot generation modes for a project
@@ -54,12 +47,12 @@ async function fetchProjectGenerationModesFromDB(projectId: string): Promise<Map
   }
 
   const toolId = TOOL_IDS.TRAVEL_BETWEEN_IMAGES;
-  const userToolSettings = extractToolSettings(toSettingsRecord(userResult.data?.settings), toolId);
-  const projectToolSettings = extractToolSettings(toSettingsRecord(projectResult.data?.settings), toolId);
+  const userToolSettings = extractToolSettings(toObjectRecord(userResult.data?.settings), toolId);
+  const projectToolSettings = extractToolSettings(toObjectRecord(projectResult.data?.settings), toolId);
 
   const modes = new Map<string, GenerationModeNormalized>();
   (shotsResult.data || []).forEach((shot) => {
-    const shotToolSettings = extractToolSettings(toSettingsRecord(shot.settings), toolId);
+    const shotToolSettings = extractToolSettings(toObjectRecord(shot.settings), toolId);
 
     // Use shared resolution logic (priority: shot → project → user → defaults)
     // defaults to 'timeline' via normalizeGenerationMode
@@ -133,16 +126,7 @@ export function useProjectGenerationModesCache(projectId: string | null, options
   }, [projectId]);
 
   const getAllShotModes = useCallback((): Map<string, GenerationModeNormalized> | null => {
-    if (!projectId) return null;
-
-    // First try cache
-    const cachedModes = cacheRef.current.getProject(projectId);
-    if (cachedModes) {
-      return cachedModes;
-    }
-
-    // Then try current query data
-    return projectModesRef.current || null;
+    return cacheRef.current.getProjectWithFallback(projectId, projectModesRef.current);
   }, [projectId]);
   
   const clearCache = useCallback((): void => {

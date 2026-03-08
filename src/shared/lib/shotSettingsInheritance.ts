@@ -3,7 +3,7 @@ import { STORAGE_KEYS } from '@/shared/lib/storageKeys';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 import { TOOL_IDS } from '@/shared/lib/toolIds';
-import type { Json } from '@/integrations/supabase/jsonTypes';
+import { toObjectRecord } from '@/shared/lib/jsonRecord';
 
 /**
  * Standardized settings inheritance for new shots
@@ -30,13 +30,6 @@ interface InheritedSettings {
   mainSettings: Record<string, unknown> | null;
   uiSettings: Record<string, unknown> | null;
   joinSegmentsSettings: Record<string, unknown> | null; // Join Segments mode settings
-}
-
-function toRecord(value: Json | null | undefined): Record<string, unknown> | null {
-  if (value && typeof value === 'object' && !Array.isArray(value)) {
-    return value as Record<string, unknown>;
-  }
-  return null;
 }
 
 /**
@@ -132,7 +125,7 @@ async function getInheritedSettings(
         .eq('id', projectId)
         .single();
       
-      const projectSettings = toRecord(projectData?.settings);
+      const projectSettings = toObjectRecord(projectData?.settings);
       if (!mainSettings && projectSettings?.[TOOL_IDS.TRAVEL_BETWEEN_IMAGES]) {
         mainSettings = projectSettings[TOOL_IDS.TRAVEL_BETWEEN_IMAGES] as Record<string, unknown>;
       }

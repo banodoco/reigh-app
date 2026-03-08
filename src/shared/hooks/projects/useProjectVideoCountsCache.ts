@@ -172,16 +172,7 @@ export function useProjectVideoCountsCache(projectId: string | null) {
   }, [projectId]);
 
   const getAllShotCounts = useCallback((): Map<string, ShotCounts> | null => {
-    if (!projectId) return null;
-
-    // First try cache
-    const cachedCounts = cacheRef.current.getProject(projectId);
-    if (cachedCounts) {
-      return cachedCounts;
-    }
-
-    // Then try current query data
-    return projectCountsRef.current || null;
+    return cacheRef.current.getProjectWithFallback(projectId, projectCountsRef.current);
   }, [projectId]);
 
   const clearCache = useCallback((): void => {
