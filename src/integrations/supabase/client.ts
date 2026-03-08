@@ -14,7 +14,7 @@ export interface SupabaseClientRegistry {
 }
 
 /** Runtime bootstrap entrypoint for app startup. */
-export function initializeSupabase() {
+function initializeSupabase() {
   return initializeSupabaseClientRuntime();
 }
 

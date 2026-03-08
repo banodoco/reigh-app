@@ -7,7 +7,7 @@ export {
   type PhaseConfig,
   DEFAULT_PHASE_CONFIG,
   DEFAULT_VACE_PHASE_CONFIG,
-  buildBasicModePhaseConfig,
+  
 } from '@/shared/types/phaseConfig';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
 

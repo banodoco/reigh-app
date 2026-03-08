@@ -4,7 +4,7 @@ import type { PhaseConfigMetadata } from '@/shared/hooks/useResources';
 import type { FormFields } from './presetFormReducer';
 import type { AddNewTabProps } from '../components/types';
 
-export interface SampleFilesState {
+interface SampleFilesState {
   sampleFiles: File[];
   deletedExistingSampleUrls: string[];
   mainGenerationIndex: number;

@@ -127,4 +127,4 @@ export interface CreateShotActionInput {
 }
 
 type ShotGenerationPreview = GenerationPreviewInput;
-export type ShotGenerationRow = GenerationRow;
+type ShotGenerationRow = GenerationRow;

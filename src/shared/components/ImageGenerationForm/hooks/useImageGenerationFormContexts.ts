@@ -4,7 +4,7 @@ import {
 } from '../ImageGenerationFormContext.token';
 import type { ImageGenerationFormContextValue } from '../ImageGenerationFormContext.types';
 
-export function useImageGenerationFormContext(): ImageGenerationFormContextValue {
+function useImageGenerationFormContext(): ImageGenerationFormContextValue {
   const context = useContext(ImageGenerationFormContext);
   if (!context) {
     throw new Error(

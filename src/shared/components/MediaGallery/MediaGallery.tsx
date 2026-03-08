@@ -33,8 +33,8 @@ import type {
   GalleryFilterState,
   GalleryConfig,
 } from './types';
-export type { GalleryFilterState };
-export { DEFAULT_GALLERY_FILTERS } from './types';
+;
+;
 import { DEFAULT_GALLERY_CONFIG } from './types';
 import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 const MediaGallery: React.FC<MediaGalleryProps> = React.memo((props) => {

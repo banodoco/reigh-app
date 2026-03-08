@@ -423,7 +423,7 @@ export function getRealtimeConnection(): RealtimeConnection {
   return realtimeConnectionInstance;
 }
 /** @internal For test isolation. */
-export async function _resetRealtimeConnectionForTesting(): Promise<void> {
+async function _resetRealtimeConnectionForTesting(): Promise<void> {
   if (realtimeConnectionInstance) {
     realtimeConnectionInstance.destroy();
   }

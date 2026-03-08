@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { resolveEditModeLoras } from '@/domains/lora/lib/loraUtils';
 
-export type LoraMode = 'none' | 'in-scene' | 'next-scene' | 'custom';
+type LoraMode = 'none' | 'in-scene' | 'next-scene' | 'custom';
 
 interface UseEditModeLorasReturn {
   // Mode selection for automatic LoRAs

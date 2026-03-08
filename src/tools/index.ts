@@ -32,7 +32,7 @@ export const toolsManifest = [
 ] as const;
 
 // UI-specific tool definitions that extend the settings with display properties
-export interface ToolUIDefinition {
+interface ToolUIDefinition {
   id: string;
   name: string;
   path: string;

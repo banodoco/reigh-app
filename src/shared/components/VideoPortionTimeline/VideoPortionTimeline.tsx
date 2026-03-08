@@ -6,8 +6,8 @@ import { SelectionOverlay } from './components/SelectionOverlay';
 import type { MultiPortionTimelineProps } from './types';
 
 // Re-export public types and interfaces for external consumers
-export type { PortionSelection, MultiPortionTimelineProps } from './types';
-export { formatTime } from '@/shared/lib/timeFormatting';
+;
+;
 
 // Helper to format time with milliseconds (1 digit) for this component's use
 const formatTimeWithMs = (seconds: number): string => {

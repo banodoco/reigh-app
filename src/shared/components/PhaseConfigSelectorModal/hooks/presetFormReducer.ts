@@ -30,7 +30,7 @@ export interface FormState {
   isSubmitting: boolean;
 }
 
-export type FormAction =
+type FormAction =
   | { type: 'SET_FORM_FIELD'; field: string; value: string | boolean | number }
   | { type: 'SET_FORM_FIELDS'; fields: Partial<FormFields> }
   | { type: 'SET_ALL_FORM_FIELDS'; fields: FormFields }

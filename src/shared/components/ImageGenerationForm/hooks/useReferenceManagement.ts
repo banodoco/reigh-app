@@ -12,10 +12,7 @@ import type {
 } from './referenceManagement/types';
 import { useReferenceUiState } from './referenceManagement/useReferenceUiState';
 
-export type {
-  ReferenceManagementInput,
-  ReferenceManagementOutput,
-} from './referenceManagement/types';
+;
 
 export function useReferenceManagement(
   input: ReferenceManagementInput

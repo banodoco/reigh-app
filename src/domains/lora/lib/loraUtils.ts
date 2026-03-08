@@ -25,8 +25,8 @@ export const EDIT_MODE_LORA_URLS = {
   "next-scene": "https://huggingface.co/lovis93/next-scene-qwen-image-lora-2509/resolve/main/next-scene_lora-v2-3000.safetensors",
 } as const;
 
-export type EditModeLoraMode = 'none' | 'in-scene' | 'next-scene' | 'custom';
-export type EditModeLoraSelection = Array<{ url: string; strength: number }>;
+type EditModeLoraMode = 'none' | 'in-scene' | 'next-scene' | 'custom';
+type EditModeLoraSelection = Array<{ url: string; strength: number }>;
 
 export function resolveEditModeLoras(
   loraMode: EditModeLoraMode,

@@ -100,7 +100,7 @@ export const isSegmentVideoTask = (task: Task): boolean => {
   return task.taskType === 'individual_travel_segment';
 };
 
-export type SegmentConnectionResult =
+type SegmentConnectionResult =
   | { ok: true; connected: boolean }
   | { ok: false; error: string };
 

@@ -18,7 +18,7 @@ export interface OperationFailure {
 
 export type OperationResult<T> = OperationSuccess<T> | OperationFailure;
 
-export class OperationResultError extends Error {
+class OperationResultError extends Error {
   errorCode: string;
   policy: OperationFailurePolicy;
   recoverable: boolean;

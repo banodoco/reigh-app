@@ -9,12 +9,12 @@
 export type {
   BaseTaskParams,
   HiresFixApiParams,
-  ProjectResolutionResult,
+  
   TaskCreationResult,
 } from './taskCreation/types';
 
 export {
-  DEFAULT_ASPECT_RATIO,
+  
   TaskValidationError,
 } from './taskCreation/types';
 
@@ -50,9 +50,9 @@ export {
 } from './taskCreation/batchResults';
 
 export {
-  generateSeed32Bit,
+  
   resolveSeed32Bit,
-  MAX_SEED_32_BIT,
+  
   validateLoraConfigs,
   validateNonEmptyString,
   validateNumericRange,

@@ -1,6 +1,6 @@
 import { getSupabaseClient } from '@/integrations/supabase/client';
 
-export interface PresetResourceRecord<TMetadata = unknown> {
+interface PresetResourceRecord<TMetadata = unknown> {
   id: string;
   metadata: TMetadata;
 }

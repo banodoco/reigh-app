@@ -14,10 +14,7 @@ import type {
 } from './promptManagement/types';
 import { getStoredPromptCount } from './promptManagement/storedPromptCount';
 
-export type {
-  PromptManagementInput,
-  PromptManagementOutput,
-} from './promptManagement/types';
+;
 
 export function usePromptManagement(
   input: PromptManagementInput

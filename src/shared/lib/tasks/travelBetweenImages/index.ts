@@ -5,12 +5,12 @@ export type {
   MotionConfig,
   ModelConfig,
   TravelBetweenImagesRequestPayload,
-  TravelBetweenImagesTaskInput,
+  
   StitchConfig,
 } from './types';
 export type {
   StructureVideoConfigWithMetadata,
-  TravelBetweenImagesUiState,
+  
 } from './uiTypes';
 
 // convertLegacyStructureType is internal - import from types.ts if needed externally
@@ -24,7 +24,7 @@ export {
   resolvePrimaryStructureVideo,
   type PrimaryStructureVideo,
 } from './primaryStructureVideo';
-export { extractSegmentImages, type SegmentImageInfo } from './segmentImages';
+;
 
 // buildTravelBetweenImagesPayload is internal - used by createTravelBetweenImagesTask
 

@@ -15,11 +15,7 @@ import type {
   UseFormSubmissionReturn,
 } from './formSubmission/types';
 
-export type {
-  FormStateSnapshot,
-  UseFormSubmissionProps,
-  UseFormSubmissionReturn,
-} from './formSubmission/types';
+;
 
 export function useFormSubmission(props: UseFormSubmissionProps): UseFormSubmissionReturn {
   const { formState, promptConfig, effects } = props;

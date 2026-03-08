@@ -39,7 +39,7 @@ export function selectionsToFrameRanges(
   });
 }
 
-export function getMinKeeperFrames(
+function getMinKeeperFrames(
   totalFrames: number,
   frameRanges: FrameRangeBoundary[],
 ): number {

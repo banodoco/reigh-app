@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
-export interface UseVideoFrameExtractionParams {
+interface UseVideoFrameExtractionParams {
   videoUrl: string;
   time: number;
   size?: 'small' | 'large';
 }
 
-export interface UseVideoFrameExtractionResult {
+interface UseVideoFrameExtractionResult {
   canvasRef: React.RefObject<HTMLCanvasElement>;
   loaded: boolean;
   error: boolean;

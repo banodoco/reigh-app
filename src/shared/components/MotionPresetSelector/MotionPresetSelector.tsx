@@ -12,7 +12,7 @@ import { useMotionPresets } from './useMotionPresets';
 import type { MotionPresetSelectorProps, Preset, MotionMode, PresetMetadata } from './types';
 
 // Re-export BuiltinPreset type (used externally for preset definitions)
-export type { BuiltinPreset } from './types';
+;
 
 /**
  * Shared component for Basic/Advanced motion settings with preset selection.

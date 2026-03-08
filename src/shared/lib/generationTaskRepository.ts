@@ -4,7 +4,7 @@ import {
 } from '@/integrations/supabase/client';
 import { parseGenerationTaskId } from '@/shared/lib/generationTaskIdParser';
 
-export type ScopedGenerationInput = string | { id: string; projectId?: string };
+type ScopedGenerationInput = string | { id: string; projectId?: string };
 
 const POSTGREST_NO_ROWS_CODE = 'PGRST116';
 

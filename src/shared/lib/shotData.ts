@@ -1,4 +1,4 @@
-export interface ShotAssociation {
+interface ShotAssociation {
   shot_id: string;
   timeline_frame: number | null;
 }

@@ -1,7 +1,7 @@
 import type React from 'react';
 import type { MutableRefObject } from 'react';
 
-export interface TouchPoint {
+interface TouchPoint {
   x: number;
   y: number;
 }

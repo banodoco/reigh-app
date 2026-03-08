@@ -1,6 +1,6 @@
 import { asRecord, asString, asStringArray } from '@/shared/lib/tasks/taskParamParsers';
 
-export interface SegmentImageInfo {
+interface SegmentImageInfo {
   startUrl: string | undefined;
   endUrl: string | undefined;
   startGenId: string | undefined;

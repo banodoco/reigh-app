@@ -3,7 +3,7 @@ import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 import { setTaskTypeConfigCache, type TaskTypeInfo } from '@/shared/lib/taskTypeCache';
 
-export type { TaskTypeInfo } from '@/shared/lib/taskTypeCache';
+;
 
 /**
  * Hook to fetch task type information including content_type

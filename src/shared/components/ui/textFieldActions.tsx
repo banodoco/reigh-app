@@ -36,7 +36,7 @@ interface UseTextFieldActionsParams extends ClearableVoiceFieldProps {
   disabled?: boolean
 }
 
-export function getTextFieldExistingValue(value: unknown, defaultValue: unknown): string {
+function getTextFieldExistingValue(value: unknown, defaultValue: unknown): string {
   if (value != null) {
     return String(value)
   }

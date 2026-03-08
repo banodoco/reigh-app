@@ -1,7 +1,7 @@
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 
-export type FreshnessQueryKey = readonly unknown[];
+type FreshnessQueryKey = readonly unknown[];
 
 export const freshnessQueryKeys = {
   tasksPaginated: (projectScope: string) => taskQueryKeys.paginated(projectScope),

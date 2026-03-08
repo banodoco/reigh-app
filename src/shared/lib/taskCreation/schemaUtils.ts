@@ -27,7 +27,7 @@ interface ResolveSeed32BitOptions {
   field?: string;
 }
 
-export const MAX_SEED_32_BIT = 0x7fffffff;
+const MAX_SEED_32_BIT = 0x7fffffff;
 
 export function validateNonEmptyString(
   value: string,
@@ -72,7 +72,7 @@ export function validateSeed32Bit(seed: number | undefined, field = 'seed'): voi
   });
 }
 
-export function generateSeed32Bit(): number {
+function generateSeed32Bit(): number {
   return Math.floor(Math.random() * MAX_SEED_32_BIT);
 }
 

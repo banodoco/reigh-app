@@ -18,6 +18,6 @@ export function getToastManager(): ToastManager {
   return runtimeToastManager;
 }
 
-export function resetToastManagerForTests(): void {
+function resetToastManagerForTests(): void {
   runtimeToastManager = null;
 }

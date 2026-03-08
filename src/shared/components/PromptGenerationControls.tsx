@@ -11,7 +11,7 @@ import { AdvancedOptionsPanel } from './PromptGenerationControls/components/Adva
 import { temperatureOptions, type GenerationControlValues } from './PromptGenerationControls/constants';
 
 export type { GenerationControlValues };
-export { temperatureOptions };
+;
 
 interface PromptGenerationControlsProps {
   onGenerate: (params: GeneratePromptsParams) => Promise<void>;

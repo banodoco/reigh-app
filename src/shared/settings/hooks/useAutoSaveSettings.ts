@@ -14,7 +14,7 @@ import {
 /**
  * Status states for the auto-save settings lifecycle.
  */
-export type AutoSaveStatus = 'idle' | 'loading' | 'ready' | 'saving' | 'error';
+type AutoSaveStatus = 'idle' | 'loading' | 'ready' | 'saving' | 'error';
 
 /**
  * Custom load/save functions for non-React-Query persistence.

@@ -15,7 +15,7 @@ interface TimelineWriteEventMeta {
   blockedByDurationMs?: number | null;
 }
 
-export type TimelineWriteEventHandler = (phase: TimelineWritePhase, meta: TimelineWriteEventMeta) => void;
+type TimelineWriteEventHandler = (phase: TimelineWritePhase, meta: TimelineWriteEventMeta) => void;
 
 interface TimelineWriteLoggerOptions {
   logPrefix: string;

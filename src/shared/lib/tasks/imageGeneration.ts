@@ -26,7 +26,7 @@ import type {
   ImageGenerationTaskParams,
 } from './imageGenerationTypes';
 
-export type { HiresFixApiParams } from '../taskCreation';
+;
 export type {
   BatchImageGenerationTaskParams,
   ReferenceApiParams,

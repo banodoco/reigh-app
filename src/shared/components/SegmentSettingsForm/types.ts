@@ -31,13 +31,13 @@ export interface SegmentShotDefaults {
   selectedPhasePresetId: string | null;
 }
 
-export interface StructureVideoDefaults {
+interface StructureVideoDefaults {
   motionStrength: number;
   treatment: 'adjust' | 'clip';
   uni3cEndPercent: number;
 }
 
-export interface StructureVideoFrameRange {
+interface StructureVideoFrameRange {
   segmentStart: number;
   segmentEnd: number;
   videoTotalFrames: number;
@@ -58,7 +58,7 @@ export interface SegmentDefaultFieldProps {
   savingField: string | null;
 }
 
-export interface SegmentShotDefaultFieldProps extends SegmentDefaultFieldProps {
+interface SegmentShotDefaultFieldProps extends SegmentDefaultFieldProps {
   shotDefaults?: SegmentShotDefaults;
   hasOverride?: SegmentOverrideFlags;
 }
@@ -80,7 +80,7 @@ export interface StructureVideoDragHandlers {
   onDrop: (event: React.DragEvent) => void;
 }
 
-export interface SegmentStructureVideoHandlers {
+interface SegmentStructureVideoHandlers {
   onAddSegmentStructureVideo?: (video: unknown) => void;
   onRemoveSegmentStructureVideo?: () => void;
 }

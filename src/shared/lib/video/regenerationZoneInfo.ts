@@ -1,6 +1,6 @@
 import type { PortionSelection } from '@/shared/components/VideoPortionTimeline';
 
-export interface RegenerationZoneInfo {
+interface RegenerationZoneInfo {
   inZone: boolean;
   segmentIndex: number;
   selection: PortionSelection | null;

@@ -1,6 +1,6 @@
 export {
   PLACEHOLDER_MEDIA,
-  type PhilosophyAutoAdvance,
+  
   type PhilosophyExampleStyle,
   type PhilosophyTravelExample,
 } from './philosophyTypes';

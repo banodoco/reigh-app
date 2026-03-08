@@ -1,6 +1,6 @@
 export const TASK_FAMILY_CONTRACT_VERSION = 1 as const;
 
-export type SegmentRegenerationMode = 'segment_regen_from_pair' | 'segment_regen_from_order';
+type SegmentRegenerationMode = 'segment_regen_from_pair' | 'segment_regen_from_order';
 type GenerationRoutingMode = 'variant_child' | 'child_generation';
 type JoinClipsMode = 'legacy_join' | 'multi_clip_join' | 'video_edit_join';
 

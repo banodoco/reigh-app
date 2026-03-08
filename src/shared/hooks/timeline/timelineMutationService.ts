@@ -121,7 +121,7 @@ export function buildCanonicalTimelineUpdates({
     .filter((update): update is CanonicalTimelineFrameUpdate => update !== null);
 }
 
-export interface TimelineFrameBatchUpdate {
+interface TimelineFrameBatchUpdate {
   shotGenerationId: string;
   timelineFrame: number;
 }

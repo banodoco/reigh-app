@@ -1,6 +1,6 @@
 import type React from 'react';
 
-export interface RecoverableErrorBoundaryState {
+interface RecoverableErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
   errorInfo: React.ErrorInfo | null;

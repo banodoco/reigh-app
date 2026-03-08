@@ -11,7 +11,7 @@ type GenerationRecord = Record<string, unknown> & {
   thumbnail_url?: string | null;
 };
 
-export interface VariantGenerationLookupResult {
+interface VariantGenerationLookupResult {
   generation: GenerationRecord;
   variantId: string;
   variantIsPrimary: boolean;

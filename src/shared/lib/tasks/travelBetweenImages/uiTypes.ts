@@ -28,7 +28,7 @@ export interface StructureVideoConfigWithMetadata extends StructureVideoConfig, 
 /**
  * UI-only state model for composing travel request payloads in the editor.
  */
-export interface TravelBetweenImagesUiState {
+interface TravelBetweenImagesUiState {
   promptConfig: PromptConfig;
   motionConfig: MotionConfig;
   modelConfig: ModelConfig;
