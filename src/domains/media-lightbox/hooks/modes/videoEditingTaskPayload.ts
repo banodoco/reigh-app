@@ -1,7 +1,8 @@
 import type { GenerationRow } from '@/domains/generation/types';
 import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import { generateRunId } from '@/shared/lib/taskCreation';
-import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
+import { capContextFrameCountForRanges } from '@/shared/lib/video/replaceFrameRanges';
+import { resolveAspectRatioResolutionTuple } from '@/shared/lib/video/resolveAspectRatioResolutionTuple';
 import { VACE_GENERATION_DEFAULTS } from '@/shared/lib/vaceDefaults';
 import { TOOL_IDS } from '@/shared/lib/toolIds';
 import type { PortionFrameRange } from './useVideoEditingSelections';
@@ -29,50 +30,6 @@ interface BuildVideoEditOrchestratorDetailsInput {
   numInferenceSteps: number;
   guidanceScale: number;
   lorasForTask: TaskLora[];
-}
-
-interface FrameRange {
-  start_frame: number;
-  end_frame: number;
-}
-
-function calculateMinKeeperFrames(totalFrames: number, sortedPortions: FrameRange[]): number {
-  let minKeeperFrames = totalFrames;
-
-  if (sortedPortions.length > 0) {
-    const firstKeeperLength = sortedPortions[0].start_frame;
-    if (firstKeeperLength > 0) {
-      minKeeperFrames = Math.min(minKeeperFrames, firstKeeperLength);
-    }
-  }
-
-  for (let i = 0; i < sortedPortions.length - 1; i++) {
-    const keeperLength = sortedPortions[i + 1].start_frame - sortedPortions[i].end_frame;
-    if (keeperLength > 0) {
-      minKeeperFrames = Math.min(minKeeperFrames, keeperLength);
-    }
-  }
-
-  if (sortedPortions.length > 0) {
-    const lastKeeperLength = totalFrames - sortedPortions[sortedPortions.length - 1].end_frame;
-    if (lastKeeperLength > 0) {
-      minKeeperFrames = Math.min(minKeeperFrames, lastKeeperLength);
-    }
-  }
-
-  return minKeeperFrames;
-}
-
-function resolveResolutionTuple(projectAspectRatio?: string): [number, number] | undefined {
-  if (!projectAspectRatio) return undefined;
-
-  const resolutionStr = ASPECT_RATIO_TO_RESOLUTION[projectAspectRatio];
-  if (!resolutionStr) return undefined;
-
-  const [width, height] = resolutionStr.split('x').map(Number);
-  if (!width || !height) return undefined;
-
-  return [width, height];
 }
 
 function buildPhaseConfig() {
@@ -131,11 +88,12 @@ export function buildVideoEditOrchestratorDetails({
   lorasForTask,
 }: BuildVideoEditOrchestratorDetailsInput): Record<string, unknown> {
   const totalFrames = Math.round(videoDuration * fps);
-  const sortedPortions = [...portionFrameRanges].sort((a, b) => a.start_frame - b.start_frame);
-  const minKeeperFrames = calculateMinKeeperFrames(totalFrames, sortedPortions);
-  const safeMaxContextFrames = Math.max(1, minKeeperFrames - 1);
-  const contextFrameCount = Math.min(requestedContextFrameCount, safeMaxContextFrames);
-  const resolutionTuple = resolveResolutionTuple(projectAspectRatio);
+  const contextFrameCount = capContextFrameCountForRanges({
+    contextFrameCount: requestedContextFrameCount,
+    totalFrames,
+    frameRanges: portionFrameRanges,
+  });
+  const resolutionTuple = resolveAspectRatioResolutionTuple(projectAspectRatio);
 
   const orchestratorDetails: Record<string, unknown> = {
     run_id: generateRunId(),

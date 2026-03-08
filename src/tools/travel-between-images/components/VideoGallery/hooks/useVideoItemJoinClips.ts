@@ -5,10 +5,10 @@ import { toast } from '@/shared/components/ui/runtime/sonner';
 import { createCanonicalJoinClipsTask } from '@/shared/lib/tasks/joinClips';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { VACE_GENERATION_DEFAULTS } from '@/shared/lib/vaceDefaults';
+import { resolveAspectRatioResolutionTuple } from '@/shared/lib/video/resolveAspectRatioResolutionTuple';
 import { useTaskPlaceholder, type RunTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
 
 export interface JoinSettings {
@@ -168,15 +168,7 @@ function buildJoinTooltipMessage(
 }
 
 function resolveResolutionTuple(projectAspectRatio: string | undefined): [number, number] | undefined {
-  if (!projectAspectRatio) return undefined;
-
-  const resolutionStr = ASPECT_RATIO_TO_RESOLUTION[projectAspectRatio];
-  if (!resolutionStr) return undefined;
-
-  const [width, height] = resolutionStr.split('x').map(Number);
-  if (!width || !height) return undefined;
-
-  return [width, height];
+  return resolveAspectRatioResolutionTuple(projectAspectRatio);
 }
 
 function getVideoShotId(video: GenerationRow): string | undefined {
