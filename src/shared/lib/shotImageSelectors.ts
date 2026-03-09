@@ -7,11 +7,11 @@ function hasValidImageLocation(generation: GenerationRow): boolean {
   return Boolean(location && location !== PLACEHOLDER_LOCATION);
 }
 
-export function isVideoOutputGeneration(generation: GenerationRow): boolean {
+function isVideoOutputGeneration(generation: GenerationRow): boolean {
   return Boolean(generation.type?.includes('video'));
 }
 
-export function isTimelineImageGeneration(generation: GenerationRow): boolean {
+function isTimelineImageGeneration(generation: GenerationRow): boolean {
   return (
     generation.timeline_frame != null &&
     generation.timeline_frame >= 0 &&
@@ -20,7 +20,7 @@ export function isTimelineImageGeneration(generation: GenerationRow): boolean {
   );
 }
 
-export function isUnpositionedImageGeneration(generation: GenerationRow): boolean {
+function isUnpositionedImageGeneration(generation: GenerationRow): boolean {
   return (
     generation.timeline_frame == null &&
     !isVideoOutputGeneration(generation) &&

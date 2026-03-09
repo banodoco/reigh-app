@@ -1,4 +1,4 @@
-export interface UploadXhrLifecycle {
+interface UploadXhrLifecycle {
   stallCheckInterval: ReturnType<typeof setInterval> | null;
   overallTimeout: ReturnType<typeof setTimeout> | null;
   cleanup: () => void;

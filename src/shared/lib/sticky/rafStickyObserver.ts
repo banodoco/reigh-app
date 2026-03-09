@@ -6,7 +6,7 @@ interface RafStickyObserverOptions {
   shouldRunInitialCheck?: boolean;
 }
 
-export function getDocumentScrollTop(): number {
+function getDocumentScrollTop(): number {
   return window.pageYOffset || document.documentElement.scrollTop || 0;
 }
 

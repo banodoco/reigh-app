@@ -1,4 +1,4 @@
-export interface VideoFrameCaptureElements {
+interface VideoFrameCaptureElements {
   video: HTMLVideoElement;
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;

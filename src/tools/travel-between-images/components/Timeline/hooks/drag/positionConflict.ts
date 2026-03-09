@@ -1,4 +1,4 @@
-export interface PositionConflictResolution {
+interface PositionConflictResolution {
   positions: Map<string, number>;
   hadConflict: boolean;
 }

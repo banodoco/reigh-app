@@ -1,6 +1,6 @@
 const IMAGE_FILE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/jpg']);
 
-export function getFirstFile(files: FileList | null | undefined): File | null {
+function getFirstFile(files: FileList | null | undefined): File | null {
   return files?.item(0) ?? null;
 }
 
