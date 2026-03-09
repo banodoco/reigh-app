@@ -20,9 +20,9 @@ import type { PortionSelection } from '@/shared/components/VideoPortionTimeline'
 import { parseRatio } from '@/shared/lib/media/aspectRatios';
 import { MediaSelectionPanel } from '@/shared/components/MediaSelectionPanel';
 import { useEditToolMediaPersistence } from '@/shared/hooks/media/useEditToolMediaPersistence';
-import { EditMediaSelectionLayout } from '@/tools/shared/editMedia/EditMediaSelectionLayout';
-import { navigateToGenerationById } from '@/tools/shared/editMedia/navigation';
-import { requireProjectAndUserId } from '@/tools/shared/editMedia/uploadGuards';
+import { EditMediaSelectionLayout } from '@/shared/editMedia/EditMediaSelectionLayout';
+import { navigateToGenerationById } from '@/shared/editMedia/navigation';
+import { requireProjectAndUserId } from '@/shared/editMedia/uploadGuards';
 
 // Preload video poster helper - warm up the browser cache
 const preloadedVideoRef = { current: null as string | null };

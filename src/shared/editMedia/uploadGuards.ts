@@ -1,4 +1,4 @@
-import { requireAuthenticatedUserId } from '@/shared/lib/media/requireAuthenticatedUserId';
+import { resolveAuthenticatedMediaUserId } from '@/shared/lib/media/videoThumbnailGenerator';
 
 interface ProjectAndUser {
   projectId: string;
@@ -14,6 +14,6 @@ export async function requireProjectAndUserId(
 
   return {
     projectId,
-    userId: await requireAuthenticatedUserId(),
+    userId: await resolveAuthenticatedMediaUserId(),
   };
 }
