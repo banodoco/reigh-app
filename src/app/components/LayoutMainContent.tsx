@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { Outlet } from 'react-router-dom';
-import { GlobalHeader } from '@/shared/components/GlobalHeader/GlobalHeader';
+import { GlobalHeader } from '@/shared/components/GlobalHeader';
 import { GlobalProcessingWarning } from '@/shared/components/ProcessingWarnings';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import { useHeaderState } from '@/shared/contexts/ToolPageHeaderContext';

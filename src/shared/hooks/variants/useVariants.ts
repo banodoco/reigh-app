@@ -11,6 +11,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { coerceVariantType, VARIANT_TYPE, type VariantType } from '@/shared/constants/variantTypes';
 import { enqueueVariantInvalidation } from '@/shared/hooks/invalidation/useGenerationInvalidation';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { generationQueryKeys } from '@/shared/lib/queryKeys/generations';
@@ -27,7 +28,7 @@ export interface GenerationVariant {
   params: Record<string, unknown> | null;
   is_primary: boolean;
   starred: boolean;
-  variant_type: string | null;
+  variant_type: VariantType | null;
   name: string | null;
   created_at: string;
   viewed_at: string | null;
@@ -86,7 +87,10 @@ export const useVariants = ({
         throw error;
       }
 
-      return (data || []) as GenerationVariant[];
+      return (data || []).map((variant) => ({
+        ...variant,
+        variant_type: coerceVariantType(variant.variant_type),
+      })) as GenerationVariant[];
     },
     enabled: enabled && !!generationId,
     staleTime: 30000, // 30 seconds
@@ -202,7 +206,7 @@ export const useVariants = ({
             location: promotedVariant.location,
             thumbnail_url: promotedVariant.thumbnail_url,
             is_primary: true, // DB trigger will unset old primary
-            variant_type: 'travel_segment',
+            variant_type: VARIANT_TYPE.TRAVEL_SEGMENT,
             params: {
               ...paramsToPropagate,
               propagated_from_child: generationId,

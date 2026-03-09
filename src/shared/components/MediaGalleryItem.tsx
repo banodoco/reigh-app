@@ -25,7 +25,7 @@ import { useShotNavigation } from "@/shared/hooks/shots/useShotNavigation";
 import { useLastAffectedShot } from "@/shared/hooks/shots/useLastAffectedShot";
 import { useQuickShotCreate } from "@/shared/hooks/useQuickShotCreate";
 import { usePrefetchTaskData } from "@/shared/hooks/tasks/useTaskPrefetch";
-import { useGenerationTaskMapping } from "@/shared/hooks/tasks/useGenerationTaskMapping";
+import { useGenerationTaskMapping } from "@/domains/generation/hooks/tasks/useGenerationTaskMapping";
 import { useTaskType } from "@/shared/hooks/tasks/useTaskType";
 import { useGetTask } from "@/shared/hooks/tasks/useTasks";
 import { useShareGeneration } from "@/shared/hooks/useShareGeneration";

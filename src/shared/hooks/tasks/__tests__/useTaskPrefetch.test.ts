@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act } from '@testing-library/react';
+import { act, waitFor } from '@testing-library/react';
 import { renderHookWithProviders } from '@/test/test-utils';
 
 const mockMaybeSingle = vi.fn();
@@ -22,7 +22,7 @@ vi.mock('../useTasks', () => ({
   mapDbTaskToTask: vi.fn((data: unknown) => ({ ...data as object, _mapped: true })),
 }));
 
-import { useGenerationTaskMapping } from '../useGenerationTaskMapping';
+import { useGenerationTaskMapping } from '@/domains/generation/hooks/tasks/useGenerationTaskMapping';
 import { usePrefetchTaskData, usePrefetchTaskById } from '../useTaskPrefetch';
 
 const GENERATION_ID = '11111111-1111-4111-8111-111111111111';
@@ -43,7 +43,7 @@ describe('useGenerationTaskMapping', () => {
   it('returns taskId from generation data', async () => {
     const { result } = renderHookWithProviders(() => useGenerationTaskMapping(GENERATION_ID));
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(result.current.data).toEqual({ taskId: 'task-1', status: 'ok' });
     });
   });
@@ -53,7 +53,7 @@ describe('useGenerationTaskMapping', () => {
 
     const { result } = renderHookWithProviders(() => useGenerationTaskMapping(GENERATION_ID));
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(result.current.data).toEqual({ taskId: null, status: 'ok' });
     });
   });
@@ -63,7 +63,7 @@ describe('useGenerationTaskMapping', () => {
 
     const { result } = renderHookWithProviders(() => useGenerationTaskMapping(MISSING_GENERATION_ID));
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(result.current.data).toEqual({ taskId: null, status: 'missing_generation' });
     });
   });

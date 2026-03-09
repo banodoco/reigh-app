@@ -1,7 +1,7 @@
 import * as React from "react"
 import { X } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip"
-import { AIInputButton } from "./ai-input-button"
+import { AIInputButton } from "@/shared/components/ai-input"
 import { useIsMobile } from "@/shared/hooks/mobile"
 import { useAIInputMode } from "@/shared/contexts/AIInputModeContext"
 import { cn } from "@/shared/components/ui/contracts/cn"

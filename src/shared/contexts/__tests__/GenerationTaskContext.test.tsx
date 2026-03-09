@@ -13,7 +13,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 const mockPreloadMappings = vi.fn().mockResolvedValue(undefined);
 const mockEnhanceGenerations = vi.fn().mockReturnValue([]);
 
-vi.mock('@/shared/hooks/tasks/generationTaskCache', () => ({
+vi.mock('@/domains/generation/hooks/tasks/generationTaskCache', () => ({
   preloadGenerationTaskMappings: (...args: unknown[]) => mockPreloadMappings(...args),
   mergeGenerationsWithTaskData: (...args: unknown[]) => mockEnhanceGenerations(...args),
 }));

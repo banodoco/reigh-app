@@ -187,7 +187,7 @@ vi.mock('@/domains/lora/components/LoraSelectorModal', () => ({
   ),
 }));
 
-vi.mock('@/shared/components/PhaseConfigSelectorModal/PhaseConfigSelectorModal', () => ({
+vi.mock('./PhaseConfigSelectorModal', () => ({
   PhaseConfigSelectorModal: () => <div data-testid="phase-config-selector-modal" />,
 }));
 

@@ -11,7 +11,7 @@ const mockPrimaryTaskLookup = {
   isPending: false,
 };
 
-vi.mock('@/shared/hooks/tasks/useGenerationTaskMapping', () => ({
+vi.mock('@/domains/generation/hooks/tasks/useGenerationTaskMapping', () => ({
   useGenerationTaskMapping: (...args: unknown[]) => mockUseGenerationTaskMapping(...args),
 }));
 
@@ -19,7 +19,7 @@ vi.mock('@/shared/hooks/tasks/useTasks', () => ({
   useGetTask: (...args: unknown[]) => mockUseGetTask(...args),
 }));
 
-vi.mock('@/shared/hooks/tasks/usePrimaryTaskMapping', () => ({
+vi.mock('@/domains/generation/hooks/tasks/usePrimaryTaskMapping', () => ({
   useResolveGenerationTaskMapping: () => mockPrimaryTaskLookup,
 }));
 

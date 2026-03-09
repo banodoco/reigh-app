@@ -1,9 +1,6 @@
 import React from 'react';
 import { cn } from '@/shared/components/ui/contracts/cn';
-import {
-  resolveJoinClipsSettingsFormProps,
-  type JoinClipsSettingsFormProps,
-} from './types';
+import { type JoinClipsSettingsFormProps } from './types';
 import { JOIN_CLIPS_FEATURED_PRESET_IDS } from './constants';
 import { useJoinClipsSettingsController } from './hooks/useJoinClipsSettingsController';
 import { JoinClipsGenerateButton } from './components/JoinClipsGenerateButton';
@@ -24,12 +21,6 @@ export const JoinClipsSettingsForm: React.FC<JoinClipsSettingsFormProps> = ({
   motionConfig,
   uiState,
 }) => {
-  const resolved = resolveJoinClipsSettingsFormProps({
-    clipSettings,
-    motionConfig,
-    uiState,
-  });
-
   const {
     gapFrames,
     setGapFrames,
@@ -56,20 +47,14 @@ export const JoinClipsSettingsForm: React.FC<JoinClipsSettingsFormProps> = ({
     showFpsToggle = false,
     noisedInputVideo = 0,
     setNoisedInputVideo,
+    shortestClipFrames,
+    clipPairs,
+  } = clipSettings;
+  const {
     availableLoras,
     projectId,
     loraPersistenceKey,
     loraManager,
-    onGenerate,
-    isGenerating,
-    generateSuccess,
-    generateButtonText,
-    isGenerateDisabled = false,
-    onRestoreDefaults,
-    className,
-    headerContent,
-    shortestClipFrames,
-    clipPairs,
     motionMode = 'basic',
     onMotionModeChange,
     phaseConfig,
@@ -80,8 +65,18 @@ export const JoinClipsSettingsForm: React.FC<JoinClipsSettingsFormProps> = ({
     onPhasePresetSelect,
     onPhasePresetRemove,
     featuredPresetIds = JOIN_CLIPS_FEATURED_PRESET_IDS,
+  } = motionConfig;
+  const {
+    onGenerate,
+    isGenerating,
+    generateSuccess,
+    generateButtonText,
+    isGenerateDisabled = false,
+    onRestoreDefaults,
+    className,
+    headerContent,
     showGenerateButton = true,
-  } = resolved;
+  } = uiState;
 
   const keepBridgingImagesValue = keepBridgingImages ?? false;
 

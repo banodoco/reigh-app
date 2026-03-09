@@ -8,3 +8,7 @@ export {
 export {
   calculateGalleryLayout,
 } from './mediaGallery-layout';
+
+export {
+  scrollToGalleryTop,
+} from './mediaGallery-scroll';

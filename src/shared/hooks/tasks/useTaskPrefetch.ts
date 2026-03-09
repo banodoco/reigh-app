@@ -1,8 +1,8 @@
 /**
  * Utilities for prefetching generation-linked task data.
  *
- * The canonical generation -> task mapping query lives in
- * `useGenerationTaskMapping.ts`; this module only handles best-effort prefetch.
+ * The canonical generation -> task mapping query lives in the generation
+ * domain; this module only handles best-effort prefetch.
  */
 
 import { useCallback } from 'react';
@@ -13,7 +13,7 @@ import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 import { isUuid } from '@/shared/lib/uuid';
 import type { GenerationTaskMappingCacheEntry } from '@/shared/lib/generationTaskRepository';
 import { resolveTaskProjectScope } from '@/shared/lib/tasks/resolveTaskProjectScope';
-import { prefetchGenerationTaskMapping } from './useGenerationTaskMapping';
+import { prefetchGenerationTaskMapping } from '@/domains/generation/hooks/tasks/useGenerationTaskMapping';
 
 /**
  * Hook to prefetch task data for a generation on hover.

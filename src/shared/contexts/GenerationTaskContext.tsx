@@ -5,7 +5,7 @@ import type { Task } from '@/types/tasks';
 import {
   preloadGenerationTaskMappings,
   mergeGenerationsWithTaskData,
-} from '@/shared/hooks/tasks/generationTaskCache';
+} from '@/domains/generation/hooks/tasks/generationTaskCache';
 import { getProjectSelectionFallbackId } from '@/shared/contexts/projectSelectionStore';
 
 // ================================================================

@@ -67,7 +67,7 @@
 | `/src/features` | Feature slices (tasks, shots, gallery, settings, etc.) | UI + hooks organized by product feature |
 | `/src/integrations` | Third-party integrations | Supabase client, auth, realtime, instrumentation |
 | `/src/types` | Shared TypeScript types | `database.ts`, `tasks.ts`, `ai.ts`, `env.ts` |
-| `/src/shared` | Shared code | `components/ui/` (shadcn), `hooks/`, `contexts/`, `lib/` |
+| `/src/shared` | Cross-domain primitives and neutral contracts | `components/ui/` (presentational primitives only), reusable contracts/types, shared infra that does not own product workflows |
 | `/supabase/functions` | Edge Functions | Task processing, payments, AI integration |
 | `/supabase/migrations` | DB migrations | Schema changes (use `db push --linked`) |
 | Root | Build configs | `vite.config.ts`, `tailwind.config.ts`, `railway.toml` |
@@ -86,6 +86,12 @@ Tools live in `/src/tools/{tool-name}/` following a consistent structure. See [a
 - **Shots** = containers that organize generations into a timeline
 - **`shot_generations`** = join table with position + metadata (pair prompts, timeline frame)
 - Data access: `useShotImages(shotId)` → see [data_fetching.md](docs/structure_detail/data_fetching.md)
+
+### Shared vs Domain Ownership
+- Put code in `/src/shared` only when it is a neutral primitive, contract, or infrastructure layer that can be used without importing feature-specific behavior.
+- Keep product workflows, Supabase-backed repositories, and stateful feature orchestration in `/src/domains`, `/src/features`, or the owning `/src/tools/*` module.
+- `src/shared/components/ui/` is reserved for low-level presentational primitives and wrappers; feature-aware controls such as AI prompt actions belong in a feature/shared-product folder, not the UI primitive root.
+- Cross-surface contracts should live in neutral shared type files instead of importing from a concrete widget folder just to reach a type.
 
 ### Settings Resolution
 Priority: **shot → project → user → defaults**. See [settings_system.md](docs/structure_detail/settings_system.md).

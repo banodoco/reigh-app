@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { useGenerationTaskMapping } from "@/shared/hooks/tasks/useGenerationTaskMapping";
+import { useGenerationTaskMapping } from "@/domains/generation/hooks/tasks/useGenerationTaskMapping";
 import { useGetTask } from "@/shared/hooks/tasks/useTasks";
 import { deriveInputImages, parseTaskParams } from "@/shared/lib/taskParamsUtils";
-import { useResolveGenerationTaskMapping } from "@/shared/hooks/tasks/usePrimaryTaskMapping";
+import { useResolveGenerationTaskMapping } from "@/domains/generation/hooks/tasks/usePrimaryTaskMapping";
 import { normalizeAndPresentError } from "@/shared/lib/errorHandling/runtimeError";
 import type { Task } from "@/types/tasks";
 import type { TaskDetailsData as LightboxTaskDetailsData } from "@/domains/media-lightbox/types";

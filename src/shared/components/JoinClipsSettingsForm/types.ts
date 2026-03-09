@@ -17,7 +17,7 @@ export interface ClipPairInfo {
   };
 }
 
-interface JoinClipsClipSettings {
+export interface JoinClipsClipSettings {
   gapFrames: number;
   setGapFrames: (val: number) => void;
   contextFrames: number;
@@ -54,7 +54,7 @@ interface JoinClipsClipSettings {
   clipPairs?: ClipPairInfo[];
 }
 
-interface JoinClipsMotionConfig {
+export interface JoinClipsMotionConfig {
   availableLoras: LoraModel[];
   projectId: string | null;
   loraPersistenceKey: string;
@@ -77,7 +77,7 @@ interface JoinClipsMotionConfig {
   featuredPresetIds?: string[];
 }
 
-interface JoinClipsUIState {
+export interface JoinClipsUIState {
   onGenerate: () => void;
   isGenerating: boolean;
   generateSuccess: boolean;
@@ -96,17 +96,4 @@ export interface JoinClipsSettingsFormProps {
   clipSettings: JoinClipsClipSettings;
   motionConfig: JoinClipsMotionConfig;
   uiState: JoinClipsUIState;
-}
-
-type JoinClipsSettingsFormResolvedProps =
-  & JoinClipsClipSettings
-  & JoinClipsMotionConfig
-  & JoinClipsUIState;
-
-export function resolveJoinClipsSettingsFormProps(props: JoinClipsSettingsFormProps): JoinClipsSettingsFormResolvedProps {
-  return {
-    ...props.clipSettings,
-    ...props.motionConfig,
-    ...props.uiState,
-  };
 }

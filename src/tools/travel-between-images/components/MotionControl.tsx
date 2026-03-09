@@ -1,8 +1,8 @@
 import React, { useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
 import { Label } from '@/shared/components/ui/primitives/label';
-import { PhaseConfigVertical } from '@/shared/components/PhaseConfigSelectorModal/PhaseConfigVertical';
-import { PhaseConfigSelectorModal } from '@/shared/components/PhaseConfigSelectorModal/PhaseConfigSelectorModal';
+import { PhaseConfigVertical } from '@/shared/components/PhaseConfigSelectorModal';
+import { PhaseConfigSelectorModal } from '@/shared/components/PhaseConfigSelectorModal';
 import { FEATURED_PRESET_IDS } from './MotionControl.constants';
 import { MotionControlBasicTab } from './MotionControlBasicTab';
 import { useMotionControlPresetState } from './hooks/useMotionControlPresetState';

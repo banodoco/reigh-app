@@ -12,7 +12,7 @@ vi.mock('react-router-dom', () => ({
   Outlet: () => <div data-testid="layout-outlet" />,
 }));
 
-vi.mock('@/shared/components/GlobalHeader/GlobalHeader', () => ({
+vi.mock('@/shared/components/GlobalHeader', () => ({
   GlobalHeader: (props: unknown) => {
     globalHeaderMock(props);
     return <div data-testid="global-header" />;

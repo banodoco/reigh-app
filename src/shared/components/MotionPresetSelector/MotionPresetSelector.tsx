@@ -3,8 +3,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui
 import { Label } from '@/shared/components/ui/primitives/label';
 import { Settings, Pencil } from 'lucide-react';
 import { HoverScrubVideo } from '@/shared/components/HoverScrubVideo';
-import { PhaseConfigVertical } from '@/shared/components/PhaseConfigSelectorModal/PhaseConfigVertical';
-import { PhaseConfigSelectorModal } from '@/shared/components/PhaseConfigSelectorModal/PhaseConfigSelectorModal';
+import { PhaseConfigVertical } from '@/shared/components/PhaseConfigSelectorModal';
+import { PhaseConfigSelectorModal } from '@/shared/components/PhaseConfigSelectorModal';
 import { PhaseConfig } from '@/shared/types/phaseConfig';
 import { MotionPresetSectionHeader } from './MotionPresetSectionHeader';
 import { SelectedPresetCard } from './SelectedPresetCard';

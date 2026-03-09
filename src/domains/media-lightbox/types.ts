@@ -1,10 +1,10 @@
 import type { GenerationRow, Shot, ShotOption } from '@/domains/generation/types';
 import type { Task } from '@/types/database';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
+import type { AsyncImageDeleteHandler } from '@/shared/types/imageHandlers';
 
 export type { ShotOption };
-type LightboxMaybePromise<T> = T | Promise<T>;
-export type LightboxDeleteHandler = (id: string) => LightboxMaybePromise<void>;
+export type LightboxDeleteHandler = AsyncImageDeleteHandler;
 export type TaskDetailsStatus = 'ok' | 'missing' | 'error';
 
 // ============================================================================

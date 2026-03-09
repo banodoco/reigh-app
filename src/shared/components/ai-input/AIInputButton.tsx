@@ -1,19 +1,19 @@
 import * as React from "react"
 import { Loader2, Send, X } from "lucide-react"
 import { cn } from "@/shared/components/ui/contracts/cn"
-import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip"
-import { TouchableTooltip } from "./touchableTooltip"
-import { TextAction } from "./text-action"
-import { Popover, PopoverContent, PopoverTrigger } from "./popover"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/components/ui/tooltip"
+import { TouchableTooltip } from "@/shared/components/ui/touchableTooltip"
+import { TextAction } from "@/shared/components/ui/text-action"
+import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover"
 import { useVoiceRecording } from "@/shared/hooks/useVoiceRecording"
 import { useIsMobile } from "@/shared/hooks/mobile"
 import { useAIInputMode } from "@/shared/contexts/AIInputModeContext"
-import { useAIInputTextPopover } from "@/shared/components/ui/hooks/useAIInputTextPopover"
+import { useAIInputTextPopover } from "@/shared/components/ai-input/useAIInputTextPopover"
 import {
   getButtonStyles,
   getMainIcon,
   getTooltipText,
-} from "@/shared/components/ui/ai-input-button.visuals"
+} from "@/shared/components/ai-input/aiInputButton.visuals"
 
 interface PopoverFormContentProps {
   inputRef: React.RefObject<HTMLTextAreaElement | null>

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { DisplayableMetadata } from '../MediaGallery/types';
+import type { DisplayableMetadata } from '@/shared/types/displayableMetadata';
 import { getDisplayNameFromUrl } from '@/domains/lora/lib/loraUtils';
 
 type Variant = 'hover' | 'modal' | 'panel';

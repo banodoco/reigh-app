@@ -1,6 +1,8 @@
 /** Shared handler contracts for shot image operations. */
 export type ImageDeleteHandler = (id: string) => void;
 
+export type AsyncImageDeleteHandler = (id: string) => void | Promise<void>;
+
 export type BatchImageDeleteHandler = (ids: string[]) => void;
 
 export type ImageDuplicateHandler = (id: string, atFrame: number) => void;

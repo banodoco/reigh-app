@@ -46,6 +46,15 @@ See `App.tsx` for the hierarchy. Providers that depend on others must be nested 
 
 ---
 
+## Ownership Boundaries
+
+- `shared/components/ui/` is for low-level presentational primitives and thin wrappers only. If a component depends on app contexts, feature hooks, or workflow-specific behavior, move it out of the UI primitive root.
+- `shared` can host neutral contracts and infrastructure, but feature orchestration, repository logic, and Supabase-backed workflows should live in the owning `domains`, `features`, or `tools` module.
+- When two areas need the same type, extract that type into a neutral shared contract file instead of importing from one concrete widget package into another.
+- Prefer folder entrypoints (`index.ts`) for reusable shared component packages so callers import the package boundary instead of deep implementation files.
+
+---
+
 ## Cross-Cutting Systems (details in dedicated docs)
 
 | System | Doc |

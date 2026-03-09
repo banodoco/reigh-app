@@ -14,7 +14,7 @@ import { VideoItemActions } from './VideoItemActions';
 import { videoItemPropsAreEqual } from './VideoItemMemo';
 import { determineVideoPhase, createLoadingSummary } from '../utils/video-loading-utils';
 import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';
-import { useGenerationTaskMapping } from '@/shared/hooks/tasks/useGenerationTaskMapping';
+import { useGenerationTaskMapping } from '@/domains/generation/hooks/tasks/useGenerationTaskMapping';
 import { useShareGeneration } from '@/shared/hooks/useShareGeneration';
 import { getProjectAspectRatioStyle } from '@/tools/travel-between-images/components/shared/aspectRatio';
 

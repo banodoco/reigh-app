@@ -10,6 +10,7 @@
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { VARIANT_TYPE } from '@/shared/constants/variantTypes';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { enqueueVariantInvalidation } from '@/shared/hooks/invalidation/useGenerationInvalidation';
 import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
@@ -85,7 +86,7 @@ export function useMakeMainVariant({
           location: media.location,
           thumbnail_url: media.thumbUrl || media.thumbnail_url || null,
           is_primary: true,
-          variant_type: 'child_promoted',
+          variant_type: VARIANT_TYPE.CHILD_PROMOTED,
           name: null,
           params: {
             // Use getGenerationId to get actual generations.id

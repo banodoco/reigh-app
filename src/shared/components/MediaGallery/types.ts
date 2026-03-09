@@ -1,6 +1,9 @@
 import type { Shot } from "@/domains/generation/types";
-import type { LightboxDeleteHandler } from '@/domains/media-lightbox/types';
 import type { AddToShotHandler } from '@/shared/types/imageHandlers';
+import type { AsyncImageDeleteHandler } from '@/shared/types/imageHandlers';
+import type { DisplayableMetadata } from '@/shared/types/displayableMetadata';
+
+export type { DisplayableMetadata } from '@/shared/types/displayableMetadata';
 
 /**
  * Columns per row can be:
@@ -8,82 +11,6 @@ import type { AddToShotHandler } from '@/shared/types/imageHandlers';
  * - number: Fixed number of columns
  */
 type ColumnsPerRow = 'auto' | number;
-
-interface MetadataLora {
-  id: string;
-  name: string;
-  path: string;
-  strength: number;
-  previewImageUrl?: string;
-}
-
-/** Orchestrator details nested within originalParams */
-interface OrchestratorDetails {
-  prompt?: string;
-  negative_prompt?: string;
-  model?: string;
-  seed?: number;
-  resolution?: string;
-  additional_loras?: Record<string, number>;
-}
-
-/** Original params from task creation, nested within metadata */
-interface OriginalParams {
-  orchestrator_details?: OrchestratorDetails;
-  model?: string;
-  steps?: number;
-  hires_scale?: number;
-  hires_steps?: number;
-  hires_denoise?: number;
-  lightning_lora_strength_phase_1?: number;
-  lightning_lora_strength_phase_2?: number;
-  qwen_endpoint?: string;
-  image?: string;
-  style_reference_image?: string;
-  style_reference_strength?: number;
-  subject_strength?: number;
-  scene_reference_strength?: number;
-  resolution?: string;
-}
-
-export interface DisplayableMetadata extends Record<string, unknown> {
-  generation_id?: string | null;
-  prompt?: string;
-  imagesPerPrompt?: number;
-  seed?: number;
-  width?: number;
-  height?: number;
-  content_type?: string;
-  activeLoras?: MetadataLora[];
-  depthStrength?: number;
-  softEdgeStrength?: number;
-  userProvidedImageUrl?: string | null;
-  num_inference_steps?: number;
-  guidance_scale?: number;
-  scheduler?: string;
-  tool_type?: string;
-  original_image_filename?: string;
-  original_frame_timestamp?: number;
-  source_frames?: number;
-  original_duration?: number;
-  // Properties accessed in SharedMetadataDetails
-  originalParams?: OriginalParams;
-  model?: string;
-  negative_prompt?: string;
-  resolution?: string;
-  steps?: number;
-  hires_scale?: number;
-  hires_steps?: number;
-  hires_denoise?: number;
-  lightning_lora_strength_phase_1?: number;
-  lightning_lora_strength_phase_2?: number;
-  qwen_endpoint?: string;
-  image?: string;
-  style_reference_image?: string;
-  style_reference_strength?: number;
-  subject_strength?: number;
-  scene_reference_strength?: number;
-}
 
 export interface GeneratedImageWithMetadata {
   id: string;
@@ -234,7 +161,7 @@ interface MediaGalleryDataProps {
 }
 
 interface MediaGalleryActionsProps {
-  onDelete?: LightboxDeleteHandler;
+  onDelete?: AsyncImageDeleteHandler;
   onApplySettings?: (metadata: DisplayableMetadata | undefined) => void;
   onAddToLastShot?: AddToShotHandler;
   onAddToLastShotWithoutPosition?: AddToShotHandler;

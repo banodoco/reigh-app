@@ -24,7 +24,7 @@ vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
   normalizeAndPresentError: (...args: unknown[]) => mockHandleError(...args),
 }));
 
-import { useResolveGenerationTaskMapping } from '../../hooks/tasks/usePrimaryTaskMapping';
+import { useResolveGenerationTaskMapping } from '@/domains/generation/hooks/tasks/usePrimaryTaskMapping';
 
 describe('generationTaskMapping resolver', () => {
   beforeEach(() => {

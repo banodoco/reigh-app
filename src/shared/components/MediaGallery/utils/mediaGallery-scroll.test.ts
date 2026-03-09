@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { scrollToGalleryTop } from './scrollToGalleryTop';
+import { scrollToGalleryTop } from './mediaGallery-scroll';
 
 describe('scrollToGalleryTop', () => {
   it('scrolls to computed desktop target offset', () => {

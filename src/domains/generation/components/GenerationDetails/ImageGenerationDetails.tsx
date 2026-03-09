@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { writeClipboardTextSafe } from '@/shared/lib/clipboard';
-import type { DisplayableMetadata } from '../MediaGallery/types';
+import type { DisplayableMetadata } from '@/shared/types/displayableMetadata';
 import { useImageGenerationDetailsViewModel } from './useImageGenerationDetailsViewModel';
 
 // Helper function to map model names to display names

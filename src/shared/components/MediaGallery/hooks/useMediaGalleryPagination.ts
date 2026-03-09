@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { GeneratedImageWithMetadata } from '../types';
-import { scrollToGalleryTop } from '../utils/scrollToGalleryTop';
+import { scrollToGalleryTop } from '../utils';
 
 /**
  * UNIFIED NAVIGATION STATE

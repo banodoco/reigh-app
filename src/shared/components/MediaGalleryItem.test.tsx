@@ -89,7 +89,7 @@ vi.mock('@/shared/hooks/shots/useLastAffectedShot', () => ({
 vi.mock('@/shared/hooks/useQuickShotCreate', () => ({
   useQuickShotCreate: (...args: unknown[]) => mocks.useQuickShotCreate(...args),
 }));
-vi.mock('@/shared/hooks/tasks/useGenerationTaskMapping', () => ({
+vi.mock('@/domains/generation/hooks/tasks/useGenerationTaskMapping', () => ({
   useGenerationTaskMapping: (...args: unknown[]) => mocks.useGenerationTaskMapping(...args),
 }));
 vi.mock('@/shared/hooks/tasks/useTaskPrefetch', () => ({

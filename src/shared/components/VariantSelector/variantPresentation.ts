@@ -1,14 +1,18 @@
 import { Film, Scissors, Sparkles } from 'lucide-react';
-import { VARIANT_TYPE } from '@/shared/constants/variantTypes';
+import { VARIANT_TYPE, type VariantType } from '@/shared/constants/variantTypes';
 import type { GenerationVariant } from '@/shared/hooks/variants/useVariants';
 
-const VARIANT_ICON_BY_TYPE: Record<string, typeof Film> = {
-  trimmed: Scissors,
-  upscaled: Sparkles,
-  magic_edit: Sparkles,
+const VARIANT_ICON_BY_TYPE: Partial<Record<VariantType, typeof Film>> = {
+  [VARIANT_TYPE.TRIMMED]: Scissors,
+  [VARIANT_TYPE.UPSCALED]: Sparkles,
+  [VARIANT_TYPE.MAGIC_EDIT]: Sparkles,
 };
 
-const NON_LOADABLE_VARIANT_TYPES = new Set(['trimmed', 'clip_join', 'join_final_stitch']);
+const NON_LOADABLE_VARIANT_TYPES = new Set<VariantType>([
+  VARIANT_TYPE.TRIMMED,
+  VARIANT_TYPE.CLIP_JOIN,
+  VARIANT_TYPE.JOIN_FINAL_STITCH,
+]);
 
 type VariantParams = Record<string, unknown>;
 
@@ -24,14 +28,14 @@ export const getVariantIcon = (variantType: string | null) => {
 };
 
 export const getVariantLabel = (variant: GenerationVariant): string => {
-  if (variant.variant_type === 'trimmed') {
+  if (variant.variant_type === VARIANT_TYPE.TRIMMED) {
     const rawParams = variant.params as VariantParams | null;
     const duration = getFiniteNumber(rawParams?.trimmed_duration);
     return duration !== undefined ? `Trimmed (${duration.toFixed(1)}s)` : 'Trimmed';
   }
 
-  if (variant.variant_type === 'upscaled') return 'Upscaled';
-  if (variant.variant_type === 'magic_edit') return 'Magic Edit';
+  if (variant.variant_type === VARIANT_TYPE.UPSCALED) return 'Upscaled';
+  if (variant.variant_type === VARIANT_TYPE.MAGIC_EDIT) return 'Magic Edit';
   if (variant.variant_type === VARIANT_TYPE.ORIGINAL) return 'Original';
   return variant.variant_type || 'Variant';
 };
