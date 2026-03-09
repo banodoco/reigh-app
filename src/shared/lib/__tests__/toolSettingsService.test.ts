@@ -42,6 +42,7 @@ vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
 }));
 
 import {
+  clearCachedUserId,
   readCachedUserId,
   resolveAndCacheUserId,
   fetchToolSettingsSupabase,
@@ -69,12 +70,26 @@ function setStoredSession(userId: string | null) {
   }
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
 describe('toolSettingsService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     localStorage.clear();
     _resetCachedUserForTesting();
+    mockMaybeSingle.mockResolvedValue({ data: null, error: null });
+    mockEq.mockImplementation(() => ({ maybeSingle: mockMaybeSingle }));
+    mockSelect.mockImplementation(() => ({ eq: mockEq }));
+    mockFrom.mockImplementation(() => ({ select: mockSelect }));
   });
 
   afterEach(() => {
@@ -177,6 +192,139 @@ describe('toolSettingsService', () => {
           setting2: 42,
         })
       );
+    });
+
+    it('applies defaults < user < project < shot precedence', async () => {
+      mockFrom.mockImplementation((table: string) => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            maybeSingle: () => {
+              if (table === 'users') {
+                return Promise.resolve({
+                  data: { settings: { 'test-tool': { setting1: 'user', userOnly: true } } },
+                  error: null,
+                });
+              }
+              if (table === 'projects') {
+                return Promise.resolve({
+                  data: { settings: { 'test-tool': { setting1: 'project', projectOnly: true } } },
+                  error: null,
+                });
+              }
+              if (table === 'shots') {
+                return Promise.resolve({
+                  data: { settings: { 'test-tool': { setting1: 'shot', shotOnly: true } } },
+                  error: null,
+                });
+              }
+              return Promise.resolve({ data: null, error: null });
+            },
+          })),
+        })),
+      }));
+
+      const result = expectSuccess(await fetchToolSettingsSupabase('test-tool', {
+        projectId: 'project-1',
+        shotId: 'shot-1',
+      }));
+
+      expect(result.settings).toEqual({
+        setting1: 'shot',
+        setting2: 42,
+        userOnly: true,
+        projectOnly: true,
+        shotOnly: true,
+      });
+      expect(result.hasShotSettings).toBe(true);
+    });
+
+    it('reuses the same in-flight fetch for concurrent identical requests', async () => {
+      const deferred = createDeferred<{ data: null; error: null }>();
+      mockFrom.mockImplementation((table: string) => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            maybeSingle: () => {
+              mockMaybeSingle(table);
+              return deferred.promise;
+            },
+          })),
+        })),
+      }));
+
+      const first = fetchToolSettingsSupabase('test-tool', {
+        projectId: 'project-1',
+        shotId: 'shot-1',
+      });
+      const second = fetchToolSettingsSupabase('test-tool', {
+        projectId: 'project-1',
+        shotId: 'shot-1',
+      });
+
+      await Promise.resolve();
+      expect(mockMaybeSingle).toHaveBeenCalledTimes(3);
+
+      deferred.resolve({ data: null, error: null });
+      const [firstResult, secondResult] = await Promise.all([first, second]);
+
+      expect(firstResult).toEqual(secondResult);
+      expect(mockMaybeSingle).toHaveBeenCalledTimes(3);
+    });
+
+    it('cancels the fetch when auth changes after scope reads start', async () => {
+      const deferred = createDeferred<{ data: null; error: null }>();
+      mockMaybeSingle.mockImplementation(() => deferred.promise);
+
+      const resultPromise = fetchToolSettingsSupabase('test-tool', {
+        projectId: 'project-1',
+      });
+
+      clearCachedUserId();
+      setStoredSession(null);
+      deferred.resolve({ data: null, error: null });
+
+      const result = await resultPromise;
+      expect(result.ok).toBe(false);
+      if (result.ok) {
+        throw new Error('Expected cancellation failure result');
+      }
+      expect(result.errorCode).toBe('cancelled');
+      expect(result.message).toContain('auth state change');
+    });
+
+    it('surfaces project scope fetch failures explicitly', async () => {
+      mockFrom.mockImplementation((table: string) => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            maybeSingle: () => {
+              if (table === 'projects') {
+                return Promise.resolve({
+                  data: null,
+                  error: { message: 'project exploded' },
+                });
+              }
+              if (table === 'users') {
+                return Promise.resolve({
+                  data: { settings: { 'test-tool': { setting1: 'user' } } },
+                  error: null,
+                });
+              }
+              return Promise.resolve({ data: null, error: null });
+            },
+          })),
+        })),
+      }));
+
+      const result = await fetchToolSettingsSupabase('test-tool', {
+        projectId: 'project-1',
+        shotId: 'shot-1',
+      });
+
+      expect(result.ok).toBe(false);
+      if (result.ok) {
+        throw new Error('Expected scope_fetch_failed result');
+      }
+      expect(result.errorCode).toBe('scope_fetch_failed');
+      expect(result.message).toContain('project settings');
     });
 
     it('throws on aborted signal', async () => {

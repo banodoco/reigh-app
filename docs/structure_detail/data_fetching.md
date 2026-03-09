@@ -2,7 +2,7 @@
 
 **Purpose**: Document which hooks own which data, how mutations invalidate caches, optimistic update patterns, and cache synchronization.
 
-**Source of Truth**: `src/shared/lib/queryKeys.ts` (all cache keys), `src/shared/hooks/invalidation/useGenerationInvalidation.ts` (invalidation patterns), `src/shared/lib/queryDefaults.ts` (query presets).
+**Source of Truth**: `src/shared/lib/queryKeys/` (all cache keys), `src/shared/hooks/invalidation/useGenerationInvalidation.ts` (invalidation patterns), `src/shared/lib/queryDefaults.ts` (query presets).
 
 ---
 

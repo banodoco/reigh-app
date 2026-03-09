@@ -2,15 +2,14 @@
 
 ## Purpose
 
-Maintain 60fps (16ms frame budget) with monitoring, time-slicing, and adaptive image loading.
+Keep gallery-heavy surfaces responsive through adaptive image-loading strategy, scoped invalidation, and runtime debug tooling.
 
 ## Source Files
 
 | File | Purpose |
 |------|---------|
-| `src/shared/lib/performanceUtils.ts` | Frame budget monitoring, `PerformanceBudget`, `processArrayTimeSliced`, `measureAsync` |
-| `src/shared/lib/imageLoadingPriority.ts` | Device-adaptive progressive loading, perf tracking |
-| `src/shared/lib/debugConfig.ts` | Performance debug categories (`reactProfiler`, `renderLogging`, `progressiveImage`, `imageLoading`) |
+| `src/shared/lib/media/imageLoadingPriority.ts` | Device-adaptive batch sizing and progressive image delays |
+| `src/shared/lib/debug/debugConfig.ts` | Runtime debug categories (`reactProfiler`, `renderLogging`, `progressiveImage`, `imageLoading`) |
 | `src/shared/lib/queryDefaults.ts` | `QUERY_PRESETS` (e.g. `realtimeBacked` = 30s staleTime) |
 | `src/shared/hooks/useGenerationInvalidation.ts` | Scoped React Query invalidation |
 
@@ -22,18 +21,17 @@ Maintain 60fps (16ms frame budget) with monitoring, time-slicing, and adaptive i
 | React reconciliation | 2-4ms | Diffing, commit |
 | **Your code** | **8-10ms** | Everything else must fit here |
 
-Use `PerformanceBudget` or `processArrayTimeSliced` when processing >50 items to stay within budget.
+## Adaptive Image Loading
 
-## Image Load Performance Auto-Adjustment
-
-`trackImageLoadTime()` records actual load times and auto-adjusts future stagger delays:
+`getImageLoadingStrategy()` and `getUnifiedBatchConfig()` in `imageLoadingPriority.ts` determine how many images load immediately and how aggressively later items are staggered:
 
 | Condition | Action |
 |-----------|--------|
-| Avg load time **>500ms** | Increase delays (up to 2.0x) |
-| Avg load time **<200ms** | Decrease delays (down to 0.5x) |
+| Very low-end mobile / slow connection | Initial batch of 2, conservative stagger/delay caps |
+| Low-end or mobile | Initial batch of 3, moderate stagger |
+| Desktop / high-end | Initial batch of 4, faster stagger |
 
-This is automatic -- no manual tuning needed. See `imageLoadingPriority.ts`.
+Preloaded items still bypass the stagger and render immediately.
 
 ## Key Invariants
 
@@ -78,10 +76,10 @@ onMutate: async () => {
 | Symptom | Likely cause | Fix |
 |---------|-------------|-----|
 | Scroll jank | Rendering in scroll handler | Debounce, use transforms, virtualize |
-| Slow mount | Heavy computation in render body | `processArrayTimeSliced` + skeleton |
+| Slow mount | Too much work before the first paint | Prefer progressive rendering and split heavy work out of render |
 | Callback cascade | Unstable deps from React Query | Ref pattern (see above) |
 | Memory leak | Missing effect cleanup | Return cleanup in `useEffect` |
 
 ## Debug
 
-Enable perf categories at runtime: `window.debugConfig.enable('imageLoading')`. Use `throttledLog` (from `debugConfig.ts`) to cap noisy logs to 1/sec.
+Enable perf categories at runtime with `window.debugConfig.enable('imageLoading')` or `window.debugConfig.enable('reactProfiler')`.

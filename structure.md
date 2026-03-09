@@ -32,7 +32,7 @@
 | **Adding Tools** | [adding_new_tool.md](docs/structure_detail/adding_new_tool.md) | Step-by-step new tool guide |
 | **Design Standards** | [design_motion_guidelines.md](docs/structure_detail/design_motion_guidelines.md) | UI/UX patterns, motion, modals, accessibility |
 | **Debugging** | [debugging.md](docs/structure_detail/debugging.md) | CLI, `system_logs`, frontend logging |
-| **Error Handling** | [error_handling.md](docs/structure_detail/error_handling.md) | Typed errors, `handleError()`, error boundary |
+| **Error Handling** | [error_handling.md](docs/structure_detail/error_handling.md) | Typed errors, `normalizeAndPresentError()`, error boundary |
 | **Refactoring** | [refactoring_patterns.md](docs/structure_detail/refactoring_patterns.md) | Splitting hooks/components, checklists |
 | **Tool: Video Travel** | [tool_video_travel.md](docs/structure_detail/tool_video_travel.md) | Timeline workflow, batch processing |
 | **Payments** | [auto_topup_system.md](docs/structure_detail/auto_topup_system.md) | Credits, auto-top-up, Stripe |
@@ -110,17 +110,16 @@ See [realtime_system.md](docs/structure_detail/realtime_system.md).
 
 | System | Location | Purpose |
 |--------|----------|---------|
-| **queryKeys** | `lib/queryKeys.ts` | Central registry for all React Query cache keys |
-| **errors** | `lib/errors.ts` | Typed error classes (`NetworkError`, `AuthError`, `ValidationError`, etc.) |
-| **errorHandler** | `lib/errorHandler.ts` | Centralized `handleError()` with logging + toast |
-| **AppErrorBoundary** | `components/AppErrorBoundary.tsx` | App-level crash recovery UI |
-| **ModalContainer** | `components/ModalContainer.tsx` | Unified responsive modal with header/footer/scroll |
-| **ConfirmDialog** | `components/ConfirmDialog.tsx` | Promise-based confirmation dialogs with presets |
-| **settingsResolution** | `lib/settingsResolution.ts` | Resolve settings across scopes |
-| **settingsWriteQueue** | `lib/settingsWriteQueue.ts` | Global queue for settings writes (prevents network flooding) |
-| **debugConfig** | `lib/debugConfig.ts` | Runtime debug logging (`window.debugConfig`) |
-| **taskConfig** | `lib/taskConfig.ts` | Task visibility & display names |
-| **performanceUtils** | `lib/performanceUtils.ts` | Frame budget monitoring |
+| **queryKeys** | `src/shared/lib/queryKeys/` | Central registry/entrypoint for React Query cache keys |
+| **errorHandling** | `src/shared/lib/errorHandling/` | Typed errors plus normalization/presentation helpers |
+| **AppErrorBoundary** | `src/app/components/error/AppErrorBoundary.tsx` | App-level crash recovery UI |
+| **ModalContainer** | `src/shared/components/ModalContainer.tsx` | Unified responsive modal with header/footer/scroll |
+| **ConfirmDialog** | `src/shared/components/dialogs/ConfirmDialog.tsx` | Declarative confirmation dialog used by shared wrappers |
+| **settingsResolution** | `src/shared/lib/settingsResolution.ts` | Resolve settings across scopes |
+| **settingsWriteQueue** | `src/shared/lib/settingsWriteQueue.ts` | Bootstrap-initialized queue for serialized settings writes |
+| **debugConfig** | `src/shared/lib/debug/debugConfig.ts` | Runtime debug logging (`window.debugConfig`) |
+| **taskConfig** | `src/shared/lib/taskConfig.ts` | Task visibility & display names |
+| **imageLoadingPriority** | `src/shared/lib/media/imageLoadingPriority.ts` | Adaptive gallery image loading strategy |
 
 Instrumentation lives in `src/integrations/supabase/instrumentation/` — see its [README](src/integrations/supabase/instrumentation/README.md).
 

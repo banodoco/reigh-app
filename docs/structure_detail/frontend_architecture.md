@@ -9,7 +9,7 @@ No Redux/Zustand. State flows through specific layers:
 | Layer | Tool | Purpose |
 |-------|------|---------|
 | **Server state** | React Query | Remote data (shots, generations, settings) |
-| **Query keys** | `queryKeys` registry (`shared/lib/queryKeys.ts`) | Single source of truth for all cache keys |
+| **Query keys** | `queryKeys` registry (`shared/lib/queryKeys/index.ts`) | Single source of truth for all cache keys |
 | **Global UI state** | React Context | Cross-component state (selected project, current shot) |
 | **Persisted UI state** | `useUserUIState` | Preferences saved to user settings |
 | **Local state** | `useState`/`useReducer` | Component-internal state |
@@ -60,12 +60,12 @@ See `App.tsx` for the hierarchy. Providers that depend on others must be nested 
 | System | Doc |
 |--------|-----|
 | Settings (scope cascade, persistence) | [settings_system.md](settings_system.md) |
-| Error handling (typed errors, `handleError()`) | [error_handling.md](error_handling.md) |
+| Error handling (typed errors, `normalizeAndPresentError()`) | [error_handling.md](error_handling.md) |
 | Realtime (subscriptions, batching, invalidation) | [realtime_system.md](realtime_system.md) |
 | Performance (memoization, preloading, debouncing) | [performance_system.md](performance_system.md) |
 | Task creation (validate, transform, insert) | [unified_task_creation.md](unified_task_creation.md) |
 | Image loading (progressive, lazy, preload) | [image_loading_system.md](image_loading_system.md) |
-| Tool module structure | [adding_new_tool.md](../adding_new_tool.md) |
+| Tool module structure | [adding_new_tool.md](adding_new_tool.md) |
 | Shared utilities (ModalContainer, ConfirmDialog) | [shared_utilities.md](shared_utilities.md) |
 
 ---
@@ -82,9 +82,9 @@ When building a new feature:
 
 - [ ] **Context needed?** Only if state is used by 3+ unrelated components.
 - [ ] **Hook extraction?** If logic is reused or complex (>20 lines)
-- [ ] **Query keys?** Add to `queryKeys` registry in `shared/lib/queryKeys.ts`
+- [ ] **Query keys?** Add to the `queryKeys` registry in `shared/lib/queryKeys/`
 - [ ] **Invalidation?** Use hooks from `shared/hooks/invalidation/`
-- [ ] **Error handling?** Use `handleError()` with typed errors
+- [ ] **Error handling?** Use `normalizeAndPresentError()` / `normalizeAndPresentAndRethrow()` from `shared/lib/errorHandling`
 - [ ] **Settings?** Use `useToolSettings` with scope cascade
 - [ ] **Types?** Add to `src/types/` if used across files
 - [ ] **Realtime?** Subscribe via `RealtimeProvider`

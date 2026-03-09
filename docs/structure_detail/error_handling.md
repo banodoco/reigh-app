@@ -4,31 +4,31 @@
 
 | Component | Location |
 |-----------|----------|
-| Error types (`AppError`, `NetworkError`, etc.) | `src/shared/lib/errors.ts` |
-| `handleError()`, `createErrorHandler()` | `src/shared/lib/errorHandler.ts` |
-| `isRetryableError()`, `shouldRedirectToLogin()` | `src/shared/lib/errorHandler.ts` |
-| App error boundary | `src/shared/components/AppErrorBoundary.tsx` |
+| Error types (`AppError`, `NetworkError`, `SilentError`, etc.) | `src/shared/lib/errorHandling/errors.ts` |
+| `normalizeAndPresentError()`, `normalizeAndPresentAndRethrow()` | `src/shared/lib/errorHandling/runtimeError.ts` |
+| Error classification helpers | `src/shared/lib/errorHandling/errorUtils.ts` |
+| App error boundary | `src/app/components/error/AppErrorBoundary.tsx` |
 
 ## Key Invariants
 
-- **`handleError`** is for caught exceptions. It categorizes, logs, and toasts in one call.
+- **`normalizeAndPresentError`** is the main caught-exception helper. It normalizes, logs, and presents toasts in one call.
 - **Validation toasts** are for user-input problems (missing file, empty prompt). These are not exceptions -- use `toast()` directly and `return`.
-- **`SilentError`** wraps expected failures (localStorage unavailable, optional features). Logs but never toasts (`showToast: false`).
+- **`SilentError`** and `reportRecoverableError()` cover expected failures (localStorage unavailable, autoplay blocked, optional features) that should be logged without a destructive toast.
 - Empty catches must have a `// Silent: reason` comment.
 
 ## When to Use What
 
 | Scenario | Approach |
 |----------|----------|
-| Catch block (event handler / async) | `handleError(error, { context: '...' })` |
+| Catch block (event handler / async) | `normalizeAndPresentError(error, { context: '...' })` |
 | Validation before API call | `toast()` directly + `return` (not an exception) |
 | API returns error response | Throw typed error (`AuthError`, `ServerError`, etc.) |
-| Expected failure (localStorage, optional) | `SilentError` or empty catch with `// Silent:` comment |
+| Expected failure (localStorage, optional) | `SilentError`, `reportRecoverableError()`, or empty catch with `// Silent:` comment |
 | React render error | Caught by `AppErrorBoundary` automatically |
 
 ## Auto-Categorization
 
-`handleError()` maps unknown errors to typed errors by pattern-matching the message:
+`normalizeAndPresentError()` maps unknown errors to typed `AppError` variants by normalizing the input first:
 
 | Pattern | Becomes | Flags |
 |---------|---------|-------|
@@ -41,13 +41,12 @@
 
 ## Helper Functions
 
-Both exported from `src/shared/lib/errorHandler.ts`:
-
-| Function | Returns `true` when |
-|----------|---------------------|
-| `isRetryableError(error)` | Timeouts, server errors (worth retrying) |
-| `shouldRedirectToLogin(error)` | `AuthError` with `needsLogin: true` |
+| Function | Location | Purpose |
+|----------|----------|---------|
+| `normalizeAndPresentAndRethrow(error, options)` | `src/shared/lib/errorHandling/runtimeError.ts` | Normalize, show/toast if needed, then throw |
+| `reportRecoverableError(error, options)` | `src/shared/lib/errorHandling/recoverableError.ts` | Log expected nonfatal failures without escalating UI |
+| `getErrorMessage(error)` | `src/shared/lib/errorHandling/errorUtils.ts` | Stable string extraction for unknown errors |
 
 ## Error Boundary
 
-Wraps the app in `main.tsx`. Shows recovery UI instead of white screen on uncaught render errors. Does **not** catch event handlers or async code (use `handleError` there).
+Wrapped around the app in `src/app/bootstrap.tsx`. Shows recovery UI instead of a white screen on uncaught render errors. Does **not** catch event handlers or async code (use `normalizeAndPresentError` there).
