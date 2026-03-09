@@ -18,6 +18,11 @@ interface ServiceGuardResult {
   ok: true;
 }
 
+interface StoragePathGuardResult {
+  ok: true;
+  storagePath: string;
+}
+
 interface GuardFailure {
   ok: false;
   response: Response;
@@ -70,4 +75,51 @@ export function normalizeTaskId(value: unknown): string {
     return String(value);
   }
   return "";
+}
+
+export function ensureOwnedStoragePath(
+  storagePath: unknown,
+  userId: string,
+  logger: GuardLogger,
+): GuardResult<StoragePathGuardResult> {
+  const normalizedPath =
+    typeof storagePath === "string"
+      ? storagePath.trim().replace(/^\/+/, "").replace(/\/+$/, "")
+      : "";
+
+  if (!normalizedPath) {
+    logger.error("Invalid storage path", { storagePath });
+    return {
+      ok: false,
+      response: jsonResponse({ error: "Invalid storage path" }, 400),
+    };
+  }
+
+  const segments = normalizedPath.split("/");
+  if (segments.some((segment) => segment.length === 0 || segment === "." || segment === "..")) {
+    logger.error("Invalid storage path segments", { storagePath: normalizedPath });
+    return {
+      ok: false,
+      response: jsonResponse({ error: "Invalid storage path" }, 400),
+    };
+  }
+
+  if (segments[0] !== userId) {
+    logger.error("Storage path ownership mismatch", {
+      storagePath: normalizedPath,
+      userId,
+    });
+    return {
+      ok: false,
+      response: jsonResponse(
+        { error: "Forbidden: storage path does not belong to authenticated user" },
+        403,
+      ),
+    };
+  }
+
+  return {
+    ok: true,
+    storagePath: normalizedPath,
+  };
 }

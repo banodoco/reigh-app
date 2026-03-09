@@ -2,7 +2,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { bootstrapEdgeHandler, NO_SESSION_RUNTIME_OPTIONS } from "../_shared/edgeHandler.ts";
 import { toErrorMessage } from "../_shared/errorMessage.ts";
-import { ensureUserAuth } from "../_shared/requestGuards.ts";
+import { ensureOwnedStoragePath, ensureUserAuth } from "../_shared/requestGuards.ts";
 
 interface HuggingFaceCredentials {
   accessToken: string;
@@ -20,6 +20,11 @@ interface HuggingFaceHubClient {
     file: File | { path: string; content: File };
     credentials: HuggingFaceCredentials;
   }): Promise<void>;
+}
+
+interface NormalizedSampleVideo {
+  storagePath: string;
+  originalFileName: string;
 }
 
 const huggingFaceHubPromise: Promise<HuggingFaceHubClient> = import(
@@ -41,6 +46,14 @@ function createResponse(body: object, status: number = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+function parseSampleVideos(raw: string | null): NormalizedSampleVideo[] {
+  if (!raw) {
+    return [];
+  }
+  const parsed = JSON.parse(raw);
+  return Array.isArray(parsed) ? parsed as NormalizedSampleVideo[] : [];
 }
 
 /**
@@ -220,28 +233,7 @@ serve(async (req) => {
     const userId = authResult.userId;
     logger.info('Authenticated request');
 
-    // 2. Get user's HuggingFace token (decrypted from Vault)
-    const { data: apiKeyData, error: apiKeyError } = await supabaseAdmin.rpc(
-      "get_external_api_key_decrypted",
-      { p_user_id: userId, p_service: "huggingface" }
-    );
-
-    if (apiKeyError || !apiKeyData || apiKeyData.length === 0) {
-      return createResponse({
-        error: "HuggingFace API key not found. Please set up your HuggingFace token first.",
-        code: "HF_TOKEN_NOT_FOUND"
-      }, 400);
-    }
-
-    const hfToken = apiKeyData[0].key_value;
-    if (!hfToken) {
-      return createResponse({
-        error: "HuggingFace API key is empty. Please re-enter your token.",
-        code: "HF_TOKEN_EMPTY"
-      }, 400);
-    }
-
-    // 3. Parse form data
+    // 2. Parse form data and validate ownership before touching privileged RPCs.
     const formData = await req.formData();
 
     // Support both new format (loraStoragePaths object) and legacy format (loraStoragePath string)
@@ -275,16 +267,67 @@ serve(async (req) => {
     }
 
     const loraDetails = JSON.parse(loraDetailsRaw);
-    const sampleVideos: { storagePath: string; originalFileName: string }[] =
-      sampleVideosRaw ? JSON.parse(sampleVideosRaw) : [];
+    const sampleVideos = parseSampleVideos(sampleVideosRaw);
+
+    const normalizedStoragePaths: { single?: string; highNoise?: string; lowNoise?: string } = {};
+    for (const [fileType, path] of Object.entries(storagePaths)) {
+      if (!path) {
+        continue;
+      }
+      const ownedPath = ensureOwnedStoragePath(path, userId, logger);
+      if (!ownedPath.ok) {
+        await logger.flush();
+        return ownedPath.response;
+      }
+      normalizedStoragePaths[fileType as keyof typeof normalizedStoragePaths] = ownedPath.storagePath;
+    }
+
+    const normalizedSampleVideos: NormalizedSampleVideo[] = [];
+    for (const video of sampleVideos) {
+      if (!video || typeof video.originalFileName !== "string") {
+        logger.error("Invalid sample video payload", { sampleVideo: video });
+        await logger.flush();
+        return createResponse({ error: "Invalid sample video payload" }, 400);
+      }
+      const ownedPath = ensureOwnedStoragePath(video.storagePath, userId, logger);
+      if (!ownedPath.ok) {
+        await logger.flush();
+        return ownedPath.response;
+      }
+      normalizedSampleVideos.push({
+        originalFileName: video.originalFileName,
+        storagePath: ownedPath.storagePath,
+      });
+    }
 
     logger.info('Processing LoRA', {
       name: loraDetails.name,
-      single: storagePaths.single || 'none',
-      highNoise: storagePaths.highNoise || 'none',
-      lowNoise: storagePaths.lowNoise || 'none',
-      sampleVideos: sampleVideos.length,
+      single: normalizedStoragePaths.single || 'none',
+      highNoise: normalizedStoragePaths.highNoise || 'none',
+      lowNoise: normalizedStoragePaths.lowNoise || 'none',
+      sampleVideos: normalizedSampleVideos.length,
     });
+
+    // 3. Get user's HuggingFace token (decrypted from Vault)
+    const { data: apiKeyData, error: apiKeyError } = await supabaseAdmin.rpc(
+      "get_external_api_key_decrypted",
+      { p_user_id: userId, p_service: "huggingface" }
+    );
+
+    if (apiKeyError || !apiKeyData || apiKeyData.length === 0) {
+      return createResponse({
+        error: "HuggingFace API key not found. Please set up your HuggingFace token first.",
+        code: "HF_TOKEN_NOT_FOUND"
+      }, 400);
+    }
+
+    const hfToken = apiKeyData[0].key_value;
+    if (!hfToken) {
+      return createResponse({
+        error: "HuggingFace API key is empty. Please re-enter your token.",
+        code: "HF_TOKEN_EMPTY"
+      }, 400);
+    }
 
     // 4. Get HF username and create repo first (before downloading files)
     const hfUser = await whoAmI({ credentials: { accessToken: hfToken } });
@@ -350,20 +393,20 @@ serve(async (req) => {
     }
 
     // Process each LoRA file type
-    if (storagePaths.single) {
-      const filename = await processLoraFile(storagePaths.single, 'single');
+    if (normalizedStoragePaths.single) {
+      const filename = await processLoraFile(normalizedStoragePaths.single, 'single');
       uploadedLoraFiles.single = filename;
       uploadedLoraUrls.loraUrl = `https://huggingface.co/${repoId}/resolve/main/${encodeURIComponent(filename)}`;
     }
 
-    if (storagePaths.highNoise) {
-      const filename = await processLoraFile(storagePaths.highNoise, 'highNoise');
+    if (normalizedStoragePaths.highNoise) {
+      const filename = await processLoraFile(normalizedStoragePaths.highNoise, 'highNoise');
       uploadedLoraFiles.highNoise = filename;
       uploadedLoraUrls.highNoiseUrl = `https://huggingface.co/${repoId}/resolve/main/${encodeURIComponent(filename)}`;
     }
 
-    if (storagePaths.lowNoise) {
-      const filename = await processLoraFile(storagePaths.lowNoise, 'lowNoise');
+    if (normalizedStoragePaths.lowNoise) {
+      const filename = await processLoraFile(normalizedStoragePaths.lowNoise, 'lowNoise');
       uploadedLoraFiles.lowNoise = filename;
       uploadedLoraUrls.lowNoiseUrl = `https://huggingface.co/${repoId}/resolve/main/${encodeURIComponent(filename)}`;
     }
@@ -371,7 +414,7 @@ serve(async (req) => {
     // 6. Upload sample videos
     const uploadedVideoPaths: string[] = [];
 
-    for (const video of sampleVideos) {
+    for (const video of normalizedSampleVideos) {
       try {
         logger.info('Downloading video', { storagePath: video.storagePath });
         const { data: videoBlob, error: videoError } = await supabaseAdmin.storage
