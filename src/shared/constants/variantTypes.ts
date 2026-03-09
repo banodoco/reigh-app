@@ -27,7 +27,7 @@ export const EDIT_VARIANT_TYPES = [
   VARIANT_TYPE.EDIT,
 ] as const;
 
-export type EditVariantType = typeof EDIT_VARIANT_TYPES[number];
+type EditVariantType = typeof EDIT_VARIANT_TYPES[number];
 
 const VARIANT_TYPE_VALUES = new Set<VariantType>(Object.values(VARIANT_TYPE));
 

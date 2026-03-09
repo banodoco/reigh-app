@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 
-import React from 'react';
 import { render, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { TrimTimelineDisplay } from './TrimTimelineDisplay';

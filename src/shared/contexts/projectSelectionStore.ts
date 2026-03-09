@@ -3,7 +3,7 @@
  *
  * This replaces ad-hoc window globals with an explicit typed access layer.
  */
-export const PROJECT_SELECTION_STORAGE_KEY = 'lastSelectedProjectId';
+const PROJECT_SELECTION_STORAGE_KEY = 'lastSelectedProjectId';
 
 interface ProjectSelectionSnapshot {
   selectedProjectId: string | null;
@@ -11,7 +11,7 @@ interface ProjectSelectionSnapshot {
 
 type ProjectSelectionListener = (snapshot: ProjectSelectionSnapshot) => void;
 
-export function readPersistedProjectSelection(): string | null {
+function readPersistedProjectSelection(): string | null {
   if (typeof window === 'undefined') {
     return null;
   }

@@ -10,7 +10,7 @@ const legacyStructurePolicy = getDeprecationPolicy('travel_structure_legacy');
  */
 
 /** Legacy read-shape for structure videos used only at adapter boundaries. */
-export interface LegacyStructureVideoConfig extends StructureVideoConfig {
+interface LegacyStructureVideoConfig extends StructureVideoConfig {
   /** @deprecated Use structure_guidance.strength instead */
   motion_strength?: number;
   /** @deprecated Use structure_guidance.target + preprocessing instead */

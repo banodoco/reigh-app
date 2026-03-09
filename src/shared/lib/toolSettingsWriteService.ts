@@ -15,7 +15,7 @@ import { ToolSettingsError } from '@/shared/lib/toolSettingsService';
 export type SettingsScope = 'user' | 'project' | 'shot';
 type SettingsWriteMode = 'debounced' | 'immediate';
 
-export interface UpdateToolSettingsParams {
+interface UpdateToolSettingsParams {
   scope: SettingsScope;
   id: string;
   toolId: string;

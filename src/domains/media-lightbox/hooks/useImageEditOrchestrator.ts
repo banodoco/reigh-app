@@ -9,7 +9,7 @@
  * Outputs: imageEditValue (for context), mode flags, and generation handlers.
  */
 
-import { useMemo, useCallback } from 'react';
+import { useMemo } from 'react';
 import type { GenerationRow } from '@/domains/generation/types';
 import type { ImageEditState } from '../contexts/ImageEditContext';
 import type { EditAdvancedSettings, EditMode, LoraMode, QwenEditModel } from '../model/editSettingsTypes';

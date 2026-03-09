@@ -17,7 +17,6 @@ vi.stubGlobal('document', {
 import {
   initializeSettingsWriteQueue,
   resetSettingsWriteQueueForTests,
-  setSettingsWriteFunction,
   enqueueSettingsWrite,
   type QueuedWrite,
 } from '../settingsWriteQueue';
@@ -38,7 +37,7 @@ describe('settingsWriteQueue', () => {
     vi.restoreAllMocks();
   });
 
-  describe('setSettingsWriteFunction', () => {
+  describe('initialized queue', () => {
     it('sets the write function used by the queue', async () => {
       const write: QueuedWrite = {
         scope: 'user',

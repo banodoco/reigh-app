@@ -200,7 +200,6 @@ vi.mock('@/shared/lib/toolSettingsService', async () => {
 
 vi.mock('@/shared/lib/settingsWriteQueue', () => ({
   enqueueSettingsWrite: vi.fn().mockResolvedValue({ prompt: 'saved' }),
-  setSettingsWriteFunction: vi.fn(),
 }));
 
 vi.mock('@/shared/lib/errorHandling/errorUtils', () => ({

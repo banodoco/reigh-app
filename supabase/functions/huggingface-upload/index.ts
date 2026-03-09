@@ -52,8 +52,12 @@ function parseSampleVideos(raw: string | null): NormalizedSampleVideo[] {
   if (!raw) {
     return [];
   }
-  const parsed = JSON.parse(raw);
-  return Array.isArray(parsed) ? parsed as NormalizedSampleVideo[] : [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed as NormalizedSampleVideo[] : [];
+  } catch {
+    return [];
+  }
 }
 
 /**

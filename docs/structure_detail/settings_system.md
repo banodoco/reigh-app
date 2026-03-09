@@ -11,11 +11,21 @@ Single system for persisting and resolving tool/UI settings across shots, projec
 | Priority resolution | `src/shared/lib/settingsResolution.ts` |
 | Write queue (network protection) | `src/shared/lib/settingsWriteQueue.ts` |
 | New-shot inheritance | `src/shared/lib/shotSettingsInheritance.ts` |
-| Low-level DB hook | `src/shared/hooks/useToolSettings.ts` |
-| Auto-save hook (recommended) | `src/shared/hooks/useAutoSaveSettings.ts` |
+| Low-level DB hook | `src/shared/hooks/settings/useToolSettings.ts` |
+| Auto-save hook (recommended) | `src/shared/settings/hooks/useAutoSaveSettings.ts` |
 | Bind-to-useState adapter | `src/shared/hooks/usePersistentToolState.ts` |
 | Generic persistent state | `src/shared/hooks/usePersistentState.ts` |
 | User UI preferences | `src/shared/hooks/useUserUIState.ts` |
+
+## Layering Policy
+
+These hooks are intentionally layered, not interchangeable peers:
+
+1. `useAutoSaveSettings` is the default feature-level API.
+2. `usePersistentToolState` is an adapter for legacy components that already own local `useState`.
+3. `useToolSettings` is the low-level read/write boundary for manual scope control and shared infrastructure.
+
+Feature code should only bypass `useAutoSaveSettings` when the adapter or low-level boundary is genuinely required. When multiple layers appear in one area, that should reflect these responsibilities rather than ad hoc drift.
 
 ## Which Hook Should I Use?
 
@@ -46,6 +56,7 @@ Need to persist settings?
 - New settings persistence should default to `useAutoSaveSettings`.
 - `usePersistentToolState` should be used only for legacy components that already own many local `useState` fields and need an interaction guard.
 - Tool-specific hooks should prefer `useAutoSaveSettings` operations (`updateField`, `updateFields`, `saveImmediate`) over direct low-level write helpers unless a boundary requires manual scope control.
+- `useToolSettings` should stay concentrated in shared infrastructure, thin wrapper hooks, or feature code that truly needs manual scope selection or one-off writes.
 
 ## Cascade Resolution
 

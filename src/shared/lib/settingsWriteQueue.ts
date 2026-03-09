@@ -83,13 +83,6 @@ export function initializeSettingsWriteQueue(fn: (write: QueuedWrite) => Promise
   registerLifecycleHooks();
 }
 
-/**
- * @deprecated Use initializeSettingsWriteQueue() so runtime setup stays explicit.
- */
-export function setSettingsWriteFunction(fn: (write: QueuedWrite) => Promise<unknown>) {
-  initializeSettingsWriteQueue(fn);
-}
-
 /** @internal Only for test isolation — do not call in production code. */
 export function resetSettingsWriteQueueForTests(): void {
   for (const pending of pendingByTarget.values()) {

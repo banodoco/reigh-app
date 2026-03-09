@@ -152,6 +152,11 @@ export function useToolSettings<T>(toolId: string, context?: { projectId?: strin
 /**
  * Low-level hook for reading and writing tool settings across all scopes.
  *
+ * This is the boundary layer under the settings hook family:
+ * - `useAutoSaveSettings` is the default choice for feature code.
+ * - `usePersistentToolState` adapts existing local `useState` to that model.
+ * - `useToolSettings` stays for manual scope control and shared infrastructure.
+ *
  * Performs cascade resolution (defaults -> user -> project -> shot) and returns
  * a merged settings object. Writes go through the global settings write queue.
  *

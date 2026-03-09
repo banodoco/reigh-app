@@ -26,7 +26,7 @@ export function stripLegacyStructureParams(target: Record<string, unknown>): voi
   }
 }
 
-export const DUPLICATE_STRUCTURE_DETAIL_KEYS = [
+const DUPLICATE_STRUCTURE_DETAIL_KEYS = [
   'structure_videos',
 ] as const;
 

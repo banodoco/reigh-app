@@ -116,27 +116,6 @@ function createDefaultParams() {
   };
 }
 
-function createMockVideoElement() {
-  const addEventListener = vi.fn();
-  const removeEventListener = vi.fn();
-  const pause = vi.fn();
-  const load = vi.fn();
-  const video = {
-    addEventListener,
-    removeEventListener,
-    pause,
-    load,
-    src: '',
-  } as unknown as HTMLVideoElement;
-
-  return {
-    video,
-    addEventListener,
-    removeEventListener,
-    pause,
-  };
-}
-
 describe('useClipManager', () => {
   beforeEach(() => {
     vi.clearAllMocks();
