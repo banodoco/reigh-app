@@ -1,15 +1,15 @@
 import { useState, useCallback } from 'react';
-import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
-import { toast } from '@/shared/components/ui/runtime/sonner';
-import { Project } from '@/types/project';
-import { UserPreferences } from '@/shared/settings/userPreferences';
-import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import { fetchInheritableProjectSettings, buildShotSettingsForNewProject } from '@/shared/lib/projectSettingsInheritance';
-import { toJsonObject } from '@/shared/lib/json/toJsonObject';
+import { getSupabaseClient as supabase } from '../../../integrations/supabase/client';
+import { toast } from '../../components/ui/runtime/sonner';
+import { Project } from '../../../types/project';
+import { UserPreferences } from '../../settings/userPreferences';
+import { normalizeAndPresentError } from '../../lib/errorHandling/runtimeError';
+import { fetchInheritableProjectSettings, buildShotSettingsForNewProject } from '../../lib/projectSettingsInheritance';
+import { toJsonObject } from '../../lib/json/toJsonObject';
 import {
   createDefaultShotWithRollback,
   ensureUserRecordExists,
-} from '@/shared/services/projects/projectSetupService';
+} from '../../services/projects/projectSetupService';
 
 // Type for updating projects
 interface ProjectUpdate {

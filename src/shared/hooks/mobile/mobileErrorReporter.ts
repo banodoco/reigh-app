@@ -1,4 +1,4 @@
-import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { normalizeAndPresentError } from '../../lib/errorHandling/runtimeError';
 
 const reportedNonFatalErrors = new Set<string>();
 

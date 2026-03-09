@@ -5,7 +5,7 @@ import {
   getSupabaseRuntimeClientResult,
   initializeSupabaseClientRuntime,
   normalizeSupabaseError,
-} from '@/integrations/supabase/runtime/supabaseRuntime';
+} from './runtime/supabaseRuntime';
 
 export type { SupabaseClientAccessResult };
 

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
-import { usePrefetchToolSettings } from '@/shared/hooks/settings/usePrefetchToolSettings';
-import { useMobileTimeoutFallback } from '@/shared/hooks/useMobileTimeoutFallback';
-import { Project } from '@/types/project';
+import { usePrefetchToolSettings } from '../settings/usePrefetchToolSettings';
+import { useMobileTimeoutFallback } from '../useMobileTimeoutFallback';
+import { Project } from '../../../types/project';
 
 interface UseProjectDefaultsOptions {
   userId: string | null;

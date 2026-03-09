@@ -5,8 +5,8 @@ import {
   computeIsTablet,
   computeIsTouchDevice,
   isMobileUA,
-} from '@/shared/hooks/mobile/deviceDetection';
-import { reportNonFatalMobileError } from '@/shared/hooks/mobile/mobileErrorReporter';
+} from './deviceDetection';
+import { reportNonFatalMobileError } from './mobileErrorReporter';
 
 export { isMobileUA };
 

@@ -8,8 +8,8 @@ import {
   AlertDialogDescription,
   AlertDialogAction,
   AlertDialogCancel,
-} from '@/shared/components/ui/alert-dialog';
-import { cn } from '@/shared/components/ui/contracts/cn';
+} from '../ui/alert-dialog';
+import { cn } from '../ui/contracts/cn';
 
 // ============================================================================
 // Types

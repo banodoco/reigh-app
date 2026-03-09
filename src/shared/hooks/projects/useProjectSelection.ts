@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Project } from '@/types/project';
-import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import { preloadingService } from '@/shared/lib/preloading';
-import { UserPreferences } from '@/shared/settings/userPreferences';
+import { Project } from '../../../types/project';
+import { normalizeAndPresentError } from '../../lib/errorHandling/runtimeError';
+import { preloadingService } from '../../lib/preloading';
+import { UserPreferences } from '../../settings/userPreferences';
 import { determineProjectIdToSelect } from './useProjectCRUD';
-import { setProjectSelectionSnapshot } from '@/shared/contexts/projectSelectionStore';
+import { setProjectSelectionSnapshot } from '../../contexts/projectSelectionStore';
 
 interface UseProjectSelectionOptions {
   userId: string | null;

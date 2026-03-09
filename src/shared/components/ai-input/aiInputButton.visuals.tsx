@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Check, Loader2, Mic, Square, Wand2 } from 'lucide-react';
-import type { TextProcessingState } from '@/shared/components/ai-input/useAIInputTextPopover';
+import type { TextProcessingState } from './useAIInputTextPopover';
 
 type AIInputMode = 'voice' | 'text';
 
