@@ -8,13 +8,13 @@ import {
   useCallback,
   useMemo
 } from 'react';
-import { getSupabaseClient as supabase } from '../../integrations/supabase/client';
-import { UserPreferences } from '../settings/userPreferences';
-import { updateToolSettingsSupabase } from '../hooks/settings/useToolSettings';
-import { useMobileTimeoutFallback } from '../hooks/useMobileTimeoutFallback';
-import { normalizeAndPresentError } from '../lib/errorHandling/runtimeError';
-import { SETTINGS_IDS } from '../lib/settingsIds';
-import { ToolSettingsError } from '../lib/toolSettingsService';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { UserPreferences } from '@/shared/settings/userPreferences';
+import { updateToolSettingsSupabase } from '@/shared/hooks/settings/useToolSettings';
+import { useMobileTimeoutFallback } from '@/shared/hooks/useMobileTimeoutFallback';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
+import { ToolSettingsError } from '@/shared/lib/toolSettingsService';
 import { useAuth } from './AuthContext';
 import { requireContextValue } from './contextGuard';
 

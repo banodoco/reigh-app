@@ -1,7 +1,7 @@
 import * as React from 'react';
-import { getSupabaseClient as supabase } from '../../../integrations/supabase/client';
-import { normalizeAndPresentError } from '../../lib/errorHandling/runtimeError';
-import { getErrorMessage } from '../../lib/errorHandling/errorUtils';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { getErrorMessage } from '@/shared/lib/errorHandling/errorUtils';
 
 export type TextProcessingState = 'idle' | 'open' | 'processing' | 'success';
 

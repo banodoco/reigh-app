@@ -54,6 +54,6 @@ export function isCancellationError(error: unknown): boolean {
 // Re-export from supabaseErrors.ts for convenience
 // ============================================================================
 
-export { SUPABASE_ERROR } from '../../constants/supabaseErrors';
+export { SUPABASE_ERROR } from '@/shared/constants/supabaseErrors';
 // Note: isErrorWithCode is defined above for Error instances.
 // For Supabase errors (plain objects), use functions from supabaseErrors.ts directly.

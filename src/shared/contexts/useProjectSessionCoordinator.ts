@@ -1,8 +1,8 @@
 import { useAuth } from './AuthContext';
 import { useUserSettings } from './UserSettingsContext';
-import { useProjectSelection } from '../hooks/projects/useProjectSelection';
-import { useProjectCRUD } from '../hooks/projects/useProjectCRUD';
-import { useProjectDefaults } from '../hooks/projects/useProjectDefaults';
+import { useProjectSelection } from '@/shared/hooks/projects/useProjectSelection';
+import { useProjectCRUD } from '@/shared/hooks/projects/useProjectCRUD';
+import { useProjectDefaults } from '@/shared/hooks/projects/useProjectDefaults';
 
 export function useProjectSessionCoordinator() {
   const { userId } = useAuth();

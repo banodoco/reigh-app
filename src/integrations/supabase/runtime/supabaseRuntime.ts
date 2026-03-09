@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '../databasePublicTypes';
-import { createSupabaseClient } from '../bootstrap/createSupabaseClient';
-import { initializeSupabaseRuntime } from '../bootstrap/initializeSupabaseRuntime';
+import type { Database } from '@/integrations/supabase/databasePublicTypes';
+import { createSupabaseClient } from '@/integrations/supabase/bootstrap/createSupabaseClient';
+import { initializeSupabaseRuntime } from '@/integrations/supabase/bootstrap/initializeSupabaseRuntime';
 
 type SupabaseClientInstance = SupabaseClient<Database>;
 const SUPABASE_RUNTIME_NOT_INITIALIZED_MESSAGE =

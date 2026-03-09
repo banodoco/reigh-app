@@ -6,9 +6,9 @@ import React, {
   useEffect,
   useMemo
 } from 'react';
-import { getSupabaseClient as supabase } from '../../integrations/supabase/client';
-import { getAuthStateManager } from '../../integrations/supabase/auth/AuthStateManager';
-import { clearCachedUserId, setCachedUserId } from '../lib/toolSettingsService';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { getAuthStateManager } from '@/integrations/supabase/auth/AuthStateManager';
+import { clearCachedUserId, setCachedUserId } from '@/shared/lib/toolSettingsService';
 import type { Session } from '@supabase/supabase-js';
 import { requireContextValue } from './contextGuard';
 
