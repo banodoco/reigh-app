@@ -338,7 +338,7 @@ async function checkFinalStitchStatus(
       contextLabel: 'OrchestratorComplete',
     });
   }
-  if (!finalStepTasks || finalStepTasks.length === 0) {
+  if (finalStepTasks.length === 0) {
     return 'not_found';
   }
   if (finalStepTasks.some((task) => isFailureStatus(task.status))) {

@@ -41,6 +41,78 @@ function asNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
+function parseStringNumberMap(value: unknown): Record<string, number> | undefined {
+  const record = asObjectRecord(value);
+  if (!record) {
+    return undefined;
+  }
+
+  const parsed: Record<string, number> = {};
+  for (const [key, rawValue] of Object.entries(record)) {
+    const numericValue = asNumber(rawValue);
+    if (numericValue !== undefined) {
+      parsed[key] = numericValue;
+    }
+  }
+
+  return Object.keys(parsed).length > 0 ? parsed : undefined;
+}
+
+function parseVideoEnhanceMetrics(value: unknown): VideoEnhanceMetrics | undefined {
+  const record = asObjectRecord(value);
+  if (!record) {
+    return undefined;
+  }
+
+  const parsed: VideoEnhanceMetrics = {};
+  const interpolationSeconds = asNumber(record.interpolation_compute_seconds);
+  if (interpolationSeconds !== undefined) {
+    parsed.interpolation_compute_seconds = interpolationSeconds;
+  }
+
+  const outputWidth = asNumber(record.output_width);
+  if (outputWidth !== undefined) {
+    parsed.output_width = outputWidth;
+  }
+
+  const outputHeight = asNumber(record.output_height);
+  if (outputHeight !== undefined) {
+    parsed.output_height = outputHeight;
+  }
+
+  const outputFrames = asNumber(record.output_frames);
+  if (outputFrames !== undefined) {
+    parsed.output_frames = outputFrames;
+  }
+
+  return Object.keys(parsed).length > 0 ? parsed : undefined;
+}
+
+function parseCostFactors(value: unknown): CostFactors | null {
+  const record = asObjectRecord(value);
+  if (!record) {
+    return null;
+  }
+
+  const parsed: CostFactors = {};
+  const resolution = parseStringNumberMap(record.resolution);
+  if (resolution) {
+    parsed.resolution = resolution;
+  }
+
+  const frameCount = asNumber(record.frameCount);
+  if (frameCount !== undefined) {
+    parsed.frameCount = frameCount;
+  }
+
+  const modelType = parseStringNumberMap(record.modelType);
+  if (modelType) {
+    parsed.modelType = modelType;
+  }
+
+  return Object.keys(parsed).length > 0 ? parsed : null;
+}
+
 export function parseTaskCostParams(value: unknown): TaskCostParams {
   const record = asObjectRecord(value) ?? {};
   const parsed: TaskCostParams = {};
@@ -60,9 +132,9 @@ export function parseTaskCostParams(value: unknown): TaskCostParams {
     parsed.model_type = modelType;
   }
 
-  const result = asObjectRecord(record.result);
+  const result = parseVideoEnhanceMetrics(record.result);
   if (result) {
-    parsed.result = result as VideoEnhanceMetrics;
+    parsed.result = result;
   }
 
   for (const [key, rawValue] of Object.entries(record)) {
@@ -140,7 +212,7 @@ export function parseTaskWithProject(value: unknown): TaskParseResult {
         billing_type: billingType,
         base_cost_per_second: typeof ttRaw.base_cost_per_second === 'number' ? ttRaw.base_cost_per_second : 0,
         unit_cost: typeof ttRaw.unit_cost === 'number' ? ttRaw.unit_cost : 0,
-        cost_factors: asObjectRecord(ttRaw.cost_factors) as CostFactors | null,
+        cost_factors: parseCostFactors(ttRaw.cost_factors),
         is_active: ttRaw.is_active === true,
       };
     }
