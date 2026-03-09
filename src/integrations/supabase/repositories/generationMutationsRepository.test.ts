@@ -2,10 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createGenerationPrimaryVariant,
   createGenerationRecord,
-  deleteGenerationByScope,
-  deleteGenerationVariantByScope,
-  updateGenerationLocationByScope,
-  updateGenerationStarByScope,
+  deleteGenerationInProject,
+  deleteVariantInGeneration,
+  updateGenerationLocationInProject,
+  updateGenerationStarInProject,
 } from './generationMutationsRepository';
 
 const mocks = vi.hoisted(() => ({
@@ -29,7 +29,7 @@ describe('generationMutationsRepository', () => {
     const from = vi.fn(() => ({ update }));
     mocks.getSupabaseClient.mockReturnValue({ from });
 
-    await updateGenerationLocationByScope({
+    await updateGenerationLocationInProject({
       id: 'g1',
       projectId: 'p1',
       location: 'https://cdn.example.com/new.png',
@@ -129,9 +129,9 @@ describe('generationMutationsRepository', () => {
     });
     mocks.getSupabaseClient.mockReturnValue({ from });
 
-    await updateGenerationStarByScope({ id: 'g3', projectId: 'p3', starred: true });
-    await deleteGenerationByScope({ id: 'g3', projectId: 'p3' });
-    await deleteGenerationVariantByScope({ id: 'v3', generationId: 'g3' });
+    await updateGenerationStarInProject({ id: 'g3', projectId: 'p3', starred: true });
+    await deleteGenerationInProject({ id: 'g3', projectId: 'p3' });
+    await deleteVariantInGeneration({ id: 'v3', generationId: 'g3' });
 
     expect(update).toHaveBeenCalledWith({ starred: true });
     expect(eqStarId).toHaveBeenCalledWith('id', 'g3');

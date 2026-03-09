@@ -1,14 +1,26 @@
 import { getSupabaseClient } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/jsonTypes';
+import type { PersistedGenerationParams } from '@/domains/generation/types/generationParams';
+import { VARIANT_TYPE } from '@/shared/constants/variantTypes';
 
-interface GenerationSettingsInput {
+interface ProjectScopedGenerationInput {
   id: string;
   projectId: string;
 }
 
-interface DeleteGenerationVariantInput {
+interface GenerationScopedVariantInput {
   id: string;
   generationId: string;
+}
+
+export interface ExternalUploadGenerationParams extends PersistedGenerationParams {
+  prompt: string;
+  extra: {
+    source: 'external_upload';
+    original_filename: string;
+    file_type: string;
+    file_size: number;
+  };
 }
 
 interface CreateGenerationRecordInput {
@@ -16,19 +28,19 @@ interface CreateGenerationRecordInput {
   thumbnailUrl: string;
   fileType: string;
   projectId: string;
-  generationParams: Record<string, Json | undefined>;
+  generationParams: ExternalUploadGenerationParams;
 }
 
 interface CreatePrimaryVariantInput {
   generationId: string;
   imageUrl: string;
   thumbnailUrl: string;
-  generationParams: Record<string, Json | undefined>;
-  variantType: string;
+  generationParams: ExternalUploadGenerationParams;
+  variantType: typeof VARIANT_TYPE[keyof typeof VARIANT_TYPE];
 }
 
-export function updateGenerationLocationByScope(
-  params: GenerationSettingsInput & { location: string; thumbnailUrl?: string },
+export function updateGenerationLocationInProject(
+  params: ProjectScopedGenerationInput & { location: string; thumbnailUrl?: string },
 ) {
   return getSupabaseClient()
     .from('generations')
@@ -49,7 +61,7 @@ export function createGenerationRecord(params: CreateGenerationRecordInput) {
       thumbnail_url: params.thumbnailUrl,
       type: params.fileType,
       project_id: params.projectId,
-      params: params.generationParams,
+      params: params.generationParams as unknown as Json,
     })
     .select()
     .single();
@@ -65,12 +77,12 @@ export function createGenerationPrimaryVariant(params: CreatePrimaryVariantInput
       is_primary: true,
       variant_type: params.variantType,
       name: 'Original',
-      params: params.generationParams,
+      params: params.generationParams as unknown as Json,
     });
 }
 
-export function updateGenerationStarByScope(
-  params: GenerationSettingsInput & { starred: boolean },
+export function updateGenerationStarInProject(
+  params: ProjectScopedGenerationInput & { starred: boolean },
 ) {
   return getSupabaseClient()
     .from('generations')
@@ -80,7 +92,7 @@ export function updateGenerationStarByScope(
     .select('id, starred');
 }
 
-export function deleteGenerationByScope(params: GenerationSettingsInput) {
+export function deleteGenerationInProject(params: ProjectScopedGenerationInput) {
   return getSupabaseClient()
     .from('generations')
     .delete()
@@ -89,7 +101,7 @@ export function deleteGenerationByScope(params: GenerationSettingsInput) {
     .select('id');
 }
 
-export function deleteGenerationVariantByScope(params: DeleteGenerationVariantInput) {
+export function deleteVariantInGeneration(params: GenerationScopedVariantInput) {
   return getSupabaseClient()
     .from('generation_variants')
     .delete()
