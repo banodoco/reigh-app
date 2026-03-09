@@ -7,6 +7,7 @@ import { STORAGE_KEYS } from '@/shared/lib/storageKeys';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { DEFAULT_STEERABLE_MOTION_SETTINGS } from '../../components/ShotEditor/state/types';
+import { useSessionInheritedDefaults } from './inheritedDefaults';
 
 export interface UseShotSettingsReturn {
   // State
@@ -50,45 +51,22 @@ export const useShotSettings = (
   shotId: string | null | undefined,
   projectId: string | null | undefined
 ): UseShotSettingsReturn => {
-  // Track if we've applied inherited settings for this shot
-  const appliedInheritanceRef = useRef<string | null>(null);
-  
-  // Check for session storage inheritance BEFORE useAutoSaveSettings loads from DB
-  // This is for newly created shots that should inherit settings
-  const inheritedSettings = useMemo(() => {
-    if (!shotId || typeof window === 'undefined') return null;
-    
-    // Only check once per shot
-    if (appliedInheritanceRef.current === shotId) return null;
-    
-    const storageKey = STORAGE_KEYS.APPLY_PROJECT_DEFAULTS(shotId);
-    const storedDefaults = sessionStorage.getItem(storageKey);
-    
-    if (storedDefaults) {
-      try {
-        const defaults = JSON.parse(storedDefaults);
-        // Remove sessionStorage immediately to prevent re-processing
-        sessionStorage.removeItem(storageKey);
-        appliedInheritanceRef.current = shotId;
-        
-        // Merge with defaults, ensuring proper nested object initialization
-        const { _uiSettings, ...validSettings } = defaults;
-        return {
-          ...videoTravelSettings.defaults,
-          ...validSettings,
-          steerableMotionSettings: {
-            ...DEFAULT_STEERABLE_MOTION_SETTINGS,
-            ...(validSettings.steerableMotionSettings || {}),
-          },
-        } as VideoTravelSettings;
-      } catch (e) {
-        normalizeAndPresentError(e, { context: 'useShotSettings', showToast: false });
-        sessionStorage.removeItem(storageKey);
-      }
-    }
-    
-    return null;
-  }, [shotId]);
+  const inheritedSettings = useSessionInheritedDefaults<VideoTravelSettings>({
+    shotId,
+    storageKeyForShot: STORAGE_KEYS.APPLY_PROJECT_DEFAULTS,
+    mergeDefaults: (defaults) => {
+      const { _uiSettings, ...validSettings } = defaults;
+      return {
+        ...videoTravelSettings.defaults,
+        ...validSettings,
+        steerableMotionSettings: {
+          ...DEFAULT_STEERABLE_MOTION_SETTINGS,
+          ...(validSettings.steerableMotionSettings || {}),
+        },
+      } as VideoTravelSettings;
+    },
+    context: 'useShotSettings',
+  });
   
   // Use the shared auto-save hook with inherited settings as initial defaults
   const autoSave = useAutoSaveSettings<VideoTravelSettings>({
@@ -107,6 +85,7 @@ export const useShotSettings = (
     isDirty,
     error,
     hasShotSettings,
+    updateField: autoSaveUpdateField,
     updateFields: autoSaveUpdateFields,
     saveImmediate,
     revert,
@@ -183,8 +162,8 @@ export const useShotSettings = (
       }
     }
 
-    autoSave.updateField(key, value);
-  }, [autoSave.updateField, autoSaveUpdateFields]);
+    autoSaveUpdateField(key, value);
+  }, [autoSaveUpdateField, autoSaveUpdateFields]);
   
   // Apply settings from another shot
   const applyShotSettings = useCallback(async (sourceShotId: string) => {

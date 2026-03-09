@@ -5,6 +5,7 @@ import { joinClipsSettings, JoinClipsSettings } from '@/shared/lib/joinClipsDefa
 import { ActiveLora } from '@/domains/lora/hooks/useLoraManager';
 import { STORAGE_KEYS } from '@/shared/lib/storageKeys';
 import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
+import { useSessionInheritedDefaults } from './inheritedDefaults';
 
 /**
  * Extended settings for Join Segments in travel-between-images
@@ -78,40 +79,15 @@ export function useJoinSegmentsSettings(
   shotId: string | null | undefined,
   projectId?: string | null
 ): UseJoinSegmentsSettingsReturn {
-  // Track if we've applied inherited settings for this shot
-  const appliedInheritanceRef = useRef<string | null>(null);
-  
-  // Check for session storage inheritance BEFORE useAutoSaveSettings loads from DB
-  // This is for newly created shots that should inherit settings
-  const inheritedSettings = useMemo(() => {
-    if (!shotId || typeof window === 'undefined') return null;
-    
-    // Only check once per shot
-    if (appliedInheritanceRef.current === shotId) return null;
-    
-    const storageKey = STORAGE_KEYS.APPLY_JOIN_SEGMENTS_DEFAULTS(shotId);
-    const storedDefaults = sessionStorage.getItem(storageKey);
-    
-    if (storedDefaults) {
-      try {
-        const defaults = JSON.parse(storedDefaults);
-        // Remove sessionStorage immediately to prevent re-processing
-        sessionStorage.removeItem(storageKey);
-        appliedInheritanceRef.current = shotId;
-        
-        // Merge with defaults
-        return {
-          ...DEFAULT_JOIN_SEGMENTS_SETTINGS,
-          ...defaults,
-        } as JoinSegmentsSettings;
-      } catch (e) {
-        normalizeAndPresentError(e, { context: 'useJoinSegmentsSettings', showToast: false });
-        sessionStorage.removeItem(storageKey);
-      }
-    }
-    
-    return null;
-  }, [shotId]);
+  const inheritedSettings = useSessionInheritedDefaults<JoinSegmentsSettings>({
+    shotId,
+    storageKeyForShot: STORAGE_KEYS.APPLY_JOIN_SEGMENTS_DEFAULTS,
+    mergeDefaults: (defaults) => ({
+      ...DEFAULT_JOIN_SEGMENTS_SETTINGS,
+      ...defaults,
+    } as JoinSegmentsSettings),
+    context: 'useJoinSegmentsSettings',
+  });
   
   // Use the shared auto-save hook with inherited settings as initial defaults
   const autoSave = useAutoSaveSettings<JoinSegmentsSettings>({
