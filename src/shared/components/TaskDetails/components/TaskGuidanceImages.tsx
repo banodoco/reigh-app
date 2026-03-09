@@ -1,6 +1,6 @@
 import React from 'react';
-import type { getVariantConfig } from '@/shared/types/taskDetailsTypes';
-import { asNumber, asRecord, asString, type UnknownRecord } from '@/shared/lib/tasks/taskParamParsers';
+import type { getVariantConfig } from '../../../types/taskDetailsTypes';
+import { asNumber, asRecord, asString, type UnknownRecord } from '../../../lib/tasks/taskParamParsers';
 
 interface TaskGuidanceImagesProps {
   config: ReturnType<typeof getVariantConfig>;

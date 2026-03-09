@@ -1,6 +1,6 @@
 import type { AppError } from './errors';
-import { normalizeAppError } from '@/shared/lib/errorHandling/errorNormalization';
-import { logAppError } from '@/shared/lib/errorHandling/errorPresentation';
+import { normalizeAppError } from './errorNormalization';
+import { logAppError } from './errorPresentation';
 
 export interface NormalizeAndLogOptions {
   context: string;

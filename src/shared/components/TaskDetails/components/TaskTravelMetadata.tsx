@@ -1,6 +1,6 @@
-import { asNumber, asString } from '@/shared/lib/tasks/taskParamParsers';
-import { formatTravelModelName } from '@/shared/components/TaskDetails/hooks/useVideoTravelTaskData';
-import { getVariantConfig } from '@/shared/types/taskDetailsTypes';
+import { asNumber, asString } from '../../../lib/tasks/taskParamParsers';
+import { formatTravelModelName } from '../hooks/useVideoTravelTaskData';
+import { getVariantConfig } from '../../../types/taskDetailsTypes';
 
 interface TaskTravelMetadataProps {
   config: ReturnType<typeof getVariantConfig>;

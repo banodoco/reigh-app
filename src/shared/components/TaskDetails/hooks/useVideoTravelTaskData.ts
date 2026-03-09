@@ -1,18 +1,18 @@
 import { useMemo } from 'react';
-import { parseTaskParams, deriveInputImages, derivePrompt } from '@/shared/lib/taskParamsUtils';
-import { pickFirstStructureGuidance } from '@/shared/lib/tasks/structureGuidance';
-import { buildTaskPayloadSnapshot } from '@/shared/lib/tasks/taskPayloadSnapshot';
+import { parseTaskParams, deriveInputImages, derivePrompt } from '../../../lib/taskParamsUtils';
+import { pickFirstStructureGuidance } from '../../../lib/tasks/structureGuidance';
+import { buildTaskPayloadSnapshot } from '../../../lib/tasks/taskPayloadSnapshot';
 import {
   readTravelContractData,
   readTravelStructureVideoFromGuidance,
-} from '@/shared/lib/tasks/travelContractData';
+} from '../../../lib/tasks/travelContractData';
 import {
   asRecord,
   asString,
   asNumber,
   asStringArray,
   type UnknownRecord,
-} from '@/shared/lib/tasks/taskParamParsers';
+} from '../../../lib/tasks/taskParamParsers';
 import type { TaskDetailsProps } from '@/shared/types/taskDetailsTypes';
 
 const BUILTIN_PRESET_NAMES: Record<string, string> = {

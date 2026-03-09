@@ -4,9 +4,9 @@ import {
   BASE_BUTTON_CLASSNAME,
   BASE_BUTTON_SIZES,
   BASE_BUTTON_VARIANTS,
-} from "@/shared/components/ui/baseButton";
-import { APP_BUTTON_SIZES, APP_BUTTON_VARIANTS } from "@/shared/components/ui/buttonThemeVariants";
-import { ButtonPrimitive } from "@/shared/components/ui/buttonPrimitive";
+} from "./baseButton";
+import { APP_BUTTON_SIZES, APP_BUTTON_VARIANTS } from "./buttonThemeVariants";
+import { ButtonPrimitive } from "./buttonPrimitive";
 
 /** App-facing themed button contract. */
 const buttonVariants = cva(

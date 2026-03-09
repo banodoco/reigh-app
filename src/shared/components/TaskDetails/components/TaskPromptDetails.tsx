@@ -1,7 +1,7 @@
 import React from 'react';
-import { Button } from '@/shared/components/ui/button';
+import { Button } from '../../ui/button';
 import { Check, Copy } from 'lucide-react';
-import type { getVariantConfig } from '@/shared/types/taskDetailsTypes';
+import type { getVariantConfig } from '../../../types/taskDetailsTypes';
 
 interface TaskPromptDetailsProps {
   config: ReturnType<typeof getVariantConfig>;

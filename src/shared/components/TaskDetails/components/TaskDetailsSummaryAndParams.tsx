@@ -1,9 +1,9 @@
 import React from 'react';
 import { Check, Copy } from 'lucide-react';
-import { Button } from '@/shared/components/ui/button';
-import { GenerationDetails } from '@/domains/generation/components/GenerationDetails';
-import type { LoraModel } from '@/domains/lora/types/lora';
-import { Task } from '@/types/tasks';
+import { Button } from '../../ui/button';
+import { GenerationDetails } from '../../../../domains/generation/components/GenerationDetails';
+import type { LoraModel } from '../../../../domains/lora/types/lora';
+import { Task } from '../../../../types/tasks';
 
 interface TaskDetailsSummaryAndParamsProps {
   task: Task;

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
-import { ButtonPrimitive } from "@/shared/components/ui/buttonPrimitive";
+import { ButtonPrimitive } from "./buttonPrimitive";
 
 /** @uiContract Theme-agnostic base button primitive. */
 export const BASE_BUTTON_CLASSNAME =

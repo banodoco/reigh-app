@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { normalizeAndPresentError } from '../../../lib/errorHandling/runtimeError';
 
 interface UseVideoPlayerStateParams {
   videoRef: React.RefObject<HTMLVideoElement>;

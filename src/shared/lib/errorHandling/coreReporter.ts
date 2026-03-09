@@ -1,5 +1,5 @@
 import { AppError } from './errors';
-import { normalizeAndLogError } from '@/shared/lib/errorHandling/normalizeAndLogError';
+import { normalizeAndLogError } from './normalizeAndLogError';
 
 /** @publicContract Runtime error normalization/logging facade. */
 export interface ErrorReportOptions {
