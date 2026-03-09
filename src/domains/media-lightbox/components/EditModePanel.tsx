@@ -345,7 +345,7 @@ export const EditModePanel: React.FC<EditModePanelProps> = ({
                 type="text"
                 value={customLoraUrl}
                 onChange={(e) => setCustomLoraUrl(e.target.value)}
-                placeholder="https://huggingface.co/.../lora.safetensors"
+                placeholder="Enter a Hugging Face LoRA URL"
                 className={cn(
                   "w-full mt-1.5 bg-background border border-input rounded-md preserve-case",
                   "focus:outline-none focus:ring-2 focus:ring-ring",
