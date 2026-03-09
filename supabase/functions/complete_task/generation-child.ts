@@ -128,7 +128,6 @@ export async function handleChildGeneration(ctx: HandlerContext): Promise<unknow
       );
 
       if (variantResult) return variantResult;
-      console.warn(`[GenHandler] Failed to create variant, falling through to new generation`);
     }
   }
 

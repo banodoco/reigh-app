@@ -114,7 +114,6 @@ export async function findSourceGenerationByImageUrl(supabase: SupabaseClient, i
       .maybeSingle();
 
     if (error) {
-      console.warn(`[BasedOn] Error finding source generation:`, error);
       return null;
     }
 
@@ -123,8 +122,7 @@ export async function findSourceGenerationByImageUrl(supabase: SupabaseClient, i
     }
 
     return null;
-  } catch (error) {
-    console.warn(`[BasedOn] Exception finding source generation:`, error);
+  } catch {
     return null;
   }
 }
@@ -209,10 +207,9 @@ export async function linkGenerationToShot(
     });
 
     if (error) {
-      console.warn(`[ShotLink] Failed to link generation ${generationId} to shot ${shotId}:`, error);
+      return;
     }
-  } catch (error) {
-    console.warn(`[ShotLink] Exception linking generation to shot:`, error);
+  } catch {
     return;
   }
 }
