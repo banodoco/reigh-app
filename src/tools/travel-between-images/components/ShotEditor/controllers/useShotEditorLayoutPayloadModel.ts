@@ -166,6 +166,7 @@ export function useShotEditorLayoutPayloadModel({
       videoOutputs: images.videoOutputs,
       simpleFilteredImages: images.simpleFilteredImages,
       structureVideo: {
+        structureGuidance: controllers.mediaEditing.structureGuidance,
         structureVideoPath: controllers.mediaEditing.structureVideoPath,
         structureVideoMetadata: controllers.mediaEditing.structureVideoMetadata,
         structureVideoTreatment: controllers.mediaEditing.structureVideoTreatment,

@@ -20,9 +20,13 @@ import { joinPromptParts } from '@/shared/lib/promptAssembly';
 import { buildTaskParams, type SegmentSettings } from '@/shared/components/SegmentSettingsForm/segmentSettingsUtils';
 import { createIndividualTravelSegmentTask } from '@/shared/lib/tasks/individualTravelSegment';
 import type { IndividualTravelSegmentParams } from '@/shared/lib/tasks/individualTravelSegment';
+import { buildStructureGuidanceFromControls } from '@/shared/lib/tasks/structureGuidance';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import type { LegacyStructureVideoConfig } from '@/shared/lib/tasks/travelBetweenImages/legacyStructureVideo';
+import type {
+  StructureGuidanceConfig,
+  StructureVideoConfig,
+} from '@/shared/lib/tasks/travelBetweenImages';
 import type { RunTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
 
 // ============================================================================
@@ -52,21 +56,36 @@ interface StructureVideoInputs {
 export function buildStructureVideoForTask(
   inputs: StructureVideoInputs,
   getSettingsForTaskCreation: () => Pick<SegmentSettings, 'structureTreatment' | 'structureMotionStrength' | 'structureUni3cEndPercent'>,
-): LegacyStructureVideoConfig | null {
+): { structureGuidance: StructureGuidanceConfig; structureVideos: StructureVideoConfig[] } | null {
   const { structureVideoUrl, structureVideoType, structureVideoFrameRange, structureVideoDefaults } = inputs;
   if (!structureVideoUrl || !structureVideoType || !structureVideoFrameRange) {
     return null;
   }
 
   const effectiveSettings = getSettingsForTaskCreation();
-  return {
+  const structureVideo: StructureVideoConfig = {
     path: structureVideoUrl,
     start_frame: structureVideoFrameRange.segmentStart,
     end_frame: structureVideoFrameRange.segmentEnd,
-    structure_type: structureVideoType,
     treatment: effectiveSettings.structureTreatment ?? structureVideoDefaults?.treatment ?? 'adjust',
-    motion_strength: effectiveSettings.structureMotionStrength ?? structureVideoDefaults?.motionStrength ?? 1.2,
-    uni3c_end_percent: effectiveSettings.structureUni3cEndPercent ?? structureVideoDefaults?.uni3cEndPercent ?? 0.1,
+  };
+  const structureGuidance = buildStructureGuidanceFromControls({
+    structureVideos: [structureVideo],
+    controls: {
+      structureType: structureVideoType,
+      motionStrength: effectiveSettings.structureMotionStrength ?? structureVideoDefaults?.motionStrength ?? 1.2,
+      uni3cStartPercent: 0,
+      uni3cEndPercent: effectiveSettings.structureUni3cEndPercent ?? structureVideoDefaults?.uni3cEndPercent ?? 0.1,
+    },
+    defaultVideoTreatment: structureVideo.treatment,
+    defaultUni3cEndPercent: effectiveSettings.structureUni3cEndPercent ?? structureVideoDefaults?.uni3cEndPercent ?? 0.1,
+  });
+  if (!structureGuidance) {
+    return null;
+  }
+  return {
+    structureGuidance,
+    structureVideos: [structureVideo],
   };
 }
 
@@ -93,7 +112,7 @@ interface SegmentTaskContext {
   segmentIndex: number;
   pairShotGenerationId?: string;
   projectResolution?: string;
-  structureVideo: LegacyStructureVideoConfig | null;
+  structureInput: { structureGuidance: StructureGuidanceConfig; structureVideos: StructureVideoConfig[] } | null;
 }
 
 /** Submission configuration */
@@ -169,7 +188,8 @@ function buildSubmitParamsBuilder(
         pairShotGenerationId: task.pairShotGenerationId,
         projectResolution: task.projectResolution,
         ...(enhancedPromptParam ? { enhancedPrompt: enhancedPromptParam } : {}),
-        structureVideo: task.structureVideo,
+        structureGuidance: task.structureInput?.structureGuidance,
+        structureVideos: task.structureInput?.structureVideos,
       },
     );
   };

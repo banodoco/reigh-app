@@ -50,6 +50,7 @@ export function useEditingController({
 }: UseEditingControllerParams) {
   // Structure video management
   const {
+    structureGuidance,
     structureVideoPath,
     structureVideoMetadata,
     structureVideoTreatment,
@@ -145,6 +146,7 @@ export function useEditingController({
 
   const mediaEditing = {
     // Structure video + handlers
+    structureGuidance,
     structureVideoPath,
     structureVideoMetadata,
     structureVideoTreatment,

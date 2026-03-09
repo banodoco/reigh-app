@@ -1,4 +1,7 @@
-import { stripLegacyStructureParams } from './legacyStructureParams';
+import {
+  stripDuplicateStructureDetailParams,
+  stripLegacyStructureParams,
+} from './legacyStructureParams';
 import { buildIndividualSegmentFamilyContract } from './taskFamilyContracts';
 import { composeTaskFamilyPayload } from './taskPayloadContract';
 import {
@@ -90,6 +93,7 @@ function buildOrchestratorDetails(
   delete orchestratorDetails.svi_strength_1;
   delete orchestratorDetails.svi_strength_2;
   stripLegacyStructureParams(orchestratorDetails);
+  stripDuplicateStructureDetailParams(orchestratorDetails);
 
   orchestratorDetails.phase_config = state.phaseConfig;
   Object.assign(
@@ -190,6 +194,11 @@ function buildTaskParamsPayload(
         key: 'structure_guidance',
         value: state.structureGuidance,
         include: (value) => Boolean(value),
+      },
+      {
+        key: 'structure_videos',
+        value: state.structureVideos,
+        include: (value) => Array.isArray(value) && value.length > 0,
       },
       {
         key: 'start_image_generation_id',

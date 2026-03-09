@@ -1,10 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_TRANSFORM, decodeImageTransform } from '../types';
+import { decodeImageTransform } from '../types';
 
 describe('types', () => {
-  it('exports expected members', () => {
-    expect(DEFAULT_TRANSFORM).toBeDefined();
-  });
 
   it('returns null for non-object transform payloads', () => {
     expect(decodeImageTransform(null)).toBeNull();

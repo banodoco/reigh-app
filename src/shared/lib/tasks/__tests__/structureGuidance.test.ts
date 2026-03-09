@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildStructureGuidanceFromControls,
   normalizeStructureGuidance,
   pickFirstStructureGuidance,
+  resolveStructureGuidanceControls,
 } from '../structureGuidance';
 
 describe('structureGuidance', () => {
@@ -78,5 +80,47 @@ describe('structureGuidance', () => {
       { target: 'vace' },
       { target: 'ignored' },
     )).toEqual({ target: 'vace' });
+  });
+
+  it('resolves editor controls from canonical guidance', () => {
+    expect(resolveStructureGuidanceControls({
+      target: 'uni3c',
+      strength: 0.75,
+      step_window: [0.2, 0.8],
+    })).toEqual({
+      structureType: 'uni3c',
+      motionStrength: 0.75,
+      uni3cStartPercent: 0.2,
+      uni3cEndPercent: 0.8,
+      cannyIntensity: undefined,
+      depthContrast: undefined,
+    });
+  });
+
+  it('builds canonical guidance from cleaned videos plus editor controls', () => {
+    expect(buildStructureGuidanceFromControls({
+      structureVideos: [{
+        path: 'video.mp4',
+        start_frame: 4,
+        end_frame: 16,
+        treatment: 'clip',
+      }],
+      controls: {
+        structureType: 'flow',
+        motionStrength: 1.4,
+        uni3cStartPercent: 0,
+        uni3cEndPercent: 0.1,
+      },
+    })).toEqual({
+      target: 'vace',
+      videos: [{
+        path: 'video.mp4',
+        start_frame: 4,
+        end_frame: 16,
+        treatment: 'clip',
+      }],
+      strength: 1.4,
+      preprocessing: 'flow',
+    });
   });
 });

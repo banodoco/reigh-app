@@ -1,3 +1,4 @@
+import type { StructureGuidanceConfig } from './travelBetweenImages';
 import { asNumber, asRecord, asString, type UnknownRecord } from './taskParamParsers';
 
 const STRUCTURE_PREPROCESSING_MAP: Record<string, string> = {
@@ -6,6 +7,15 @@ const STRUCTURE_PREPROCESSING_MAP: Record<string, string> = {
   depth: 'depth',
   raw: 'none',
 };
+
+export interface StructureGuidanceControls {
+  structureType: 'uni3c' | 'flow' | 'canny' | 'depth';
+  motionStrength: number;
+  uni3cStartPercent: number;
+  uni3cEndPercent: number;
+  cannyIntensity?: number;
+  depthContrast?: number;
+}
 
 function asRecordArray(value: unknown): UnknownRecord[] | undefined {
   if (!Array.isArray(value)) {
@@ -79,6 +89,22 @@ function buildGuidanceFromVideos(
   return guidance;
 }
 
+function toStructureType(
+  structureGuidance?: UnknownRecord,
+): 'uni3c' | 'flow' | 'canny' | 'depth' {
+  if (!structureGuidance) {
+    return 'flow';
+  }
+  if (asString(structureGuidance.target) === 'uni3c') {
+    return 'uni3c';
+  }
+  const preprocessing = asString(structureGuidance.preprocessing);
+  if (preprocessing === 'canny' || preprocessing === 'depth') {
+    return preprocessing;
+  }
+  return 'flow';
+}
+
 interface NormalizeStructureGuidanceInput {
   structureGuidance?: unknown;
   structureVideos?: unknown;
@@ -149,6 +175,78 @@ export function normalizeStructureGuidance(
     guidance.depth_contrast = depthContrast;
   }
   return guidance;
+}
+
+interface ResolveStructureGuidanceControlsOptions {
+  defaultStructureType?: 'uni3c' | 'flow' | 'canny' | 'depth';
+  defaultMotionStrength?: number;
+  defaultUni3cEndPercent?: number;
+}
+
+export function resolveStructureGuidanceControls(
+  structureGuidance: unknown,
+  options: ResolveStructureGuidanceControlsOptions = {},
+): StructureGuidanceControls {
+  const guidance = asRecord(structureGuidance);
+  const defaultStructureType = options.defaultStructureType ?? 'flow';
+  const structureType = guidance ? toStructureType(guidance) : defaultStructureType;
+  const stepWindow = Array.isArray(guidance?.step_window) ? guidance?.step_window : [];
+
+  return {
+    structureType,
+    motionStrength: asNumber(guidance?.strength) ?? options.defaultMotionStrength ?? 1,
+    uni3cStartPercent: typeof stepWindow[0] === 'number' ? stepWindow[0] : 0,
+    uni3cEndPercent: typeof stepWindow[1] === 'number'
+      ? stepWindow[1]
+      : (options.defaultUni3cEndPercent ?? 0.1),
+    cannyIntensity: structureType === 'canny' ? asNumber(guidance?.canny_intensity) : undefined,
+    depthContrast: structureType === 'depth' ? asNumber(guidance?.depth_contrast) : undefined,
+  };
+}
+
+interface BuildStructureGuidanceFromControlsInput {
+  structureVideos?: unknown;
+  controls: StructureGuidanceControls;
+  defaultVideoTreatment?: string;
+  defaultUni3cEndPercent?: number;
+}
+
+export function buildStructureGuidanceFromControls(
+  input: BuildStructureGuidanceFromControlsInput,
+): StructureGuidanceConfig | undefined {
+  const videos = asRecordArray(input.structureVideos);
+  if (!videos?.length) {
+    return undefined;
+  }
+
+  const normalized = normalizeStructureGuidance({
+    structureVideos: videos.map((video, index) => {
+      if (index !== 0) {
+        return video;
+      }
+      return {
+        ...video,
+        motion_strength: input.controls.motionStrength,
+        structure_type: input.controls.structureType,
+        ...(input.controls.structureType === 'uni3c'
+          ? {
+              uni3c_start_percent: input.controls.uni3cStartPercent,
+              uni3c_end_percent: input.controls.uni3cEndPercent,
+            }
+          : {}),
+        ...(input.controls.structureType === 'canny' && input.controls.cannyIntensity !== undefined
+          ? { canny_intensity: input.controls.cannyIntensity }
+          : {}),
+        ...(input.controls.structureType === 'depth' && input.controls.depthContrast !== undefined
+          ? { depth_contrast: input.controls.depthContrast }
+          : {}),
+      };
+    }),
+    defaultVideoTreatment: input.defaultVideoTreatment,
+    defaultUni3cEndPercent: input.defaultUni3cEndPercent,
+  });
+
+  return normalized as StructureGuidanceConfig | undefined;
 }
 
 export function pickFirstStructureGuidance(...candidates: unknown[]): UnknownRecord | undefined {

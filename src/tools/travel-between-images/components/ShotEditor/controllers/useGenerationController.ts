@@ -39,6 +39,7 @@ interface GenerationControllerMotionSettings {
   smoothContinuations: boolean;
   batchVideoFrames: number;
   selectedLoras: Array<{ id: string; path: string; strength: number }>;
+  structureGuidance: ReturnType<typeof import('../hooks/video/useStructureVideo').useStructureVideo>['structureGuidance'];
   structureVideos: ReturnType<typeof import('../hooks').useStructureVideo>['structureVideos'];
   selectedOutputId: string | null;
 }
@@ -147,6 +148,7 @@ function buildBatchGenerationRequest(
     },
     batchVideoFrames: motion.batchVideoFrames,
     selectedLoras: motion.selectedLoras,
+    structureGuidance: motion.structureGuidance,
     structureVideos: motion.structureVideos,
     selectedOutputId: motion.selectedOutputId,
     stitchAfterGenerate: buildStitchAfterGenerateConfig(join),

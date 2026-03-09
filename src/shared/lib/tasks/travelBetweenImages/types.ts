@@ -4,7 +4,7 @@ import type { PathLoraConfig } from '@/domains/lora/types/lora';
 /**
  * Unified structure guidance contract for vace/uni3c.
  */
-interface StructureGuidanceConfig {
+export interface StructureGuidanceConfig {
   /** Target system for guidance. */
   target: 'vace' | 'uni3c';
 

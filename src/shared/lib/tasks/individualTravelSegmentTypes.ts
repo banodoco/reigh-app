@@ -1,5 +1,9 @@
 import { PhaseConfig } from '@/shared/types/phaseConfig';
 import type { PathLoraConfig } from '@/domains/lora/types/lora';
+import type {
+  StructureGuidanceConfig,
+  StructureVideoConfig,
+} from './travelBetweenImages';
 import type { UnknownRecord } from './taskParamParsers';
 
 export interface IndividualTravelSegmentParams {
@@ -28,7 +32,8 @@ export interface IndividualTravelSegmentParams {
   motion_mode?: MotionMode;
   selected_phase_preset_id?: string | null;
   loras?: PathLoraConfig[];
-  structure_videos?: UnknownRecord[];
+  structure_guidance?: StructureGuidanceConfig;
+  structure_videos?: StructureVideoConfig[];
   generation_name?: string;
   parsed_resolution_wh?: string;
   make_primary_variant?: boolean;
@@ -66,6 +71,7 @@ export interface SegmentBuildState {
   segmentFramesExpanded: unknown;
   frameOverlapExpanded: unknown;
   structureGuidance?: UnknownRecord;
+  structureVideos?: StructureVideoConfig[];
 }
 
 export interface SegmentPostProcessValues {

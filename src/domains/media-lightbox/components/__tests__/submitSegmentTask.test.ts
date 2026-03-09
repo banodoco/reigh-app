@@ -63,6 +63,49 @@ describe('submitSegmentTask', () => {
     expect(result).toBeNull();
   });
 
+  it('builds canonical structure guidance alongside cleaned structure videos', () => {
+    const result = buildStructureVideoForTask(
+      {
+        structureVideoUrl: 'https://example.com/guide.mp4',
+        structureVideoType: 'uni3c',
+        structureVideoFrameRange: {
+          segmentStart: 8,
+          segmentEnd: 24,
+          videoTotalFrames: 48,
+          videoFps: 24,
+        },
+        structureVideoDefaults: {
+          motionStrength: 1.25,
+          treatment: 'clip',
+          uni3cEndPercent: 0.3,
+        },
+      },
+      () => getSettings(),
+    );
+
+    expect(result).toEqual({
+      structureVideos: [{
+        path: 'https://example.com/guide.mp4',
+        start_frame: 8,
+        end_frame: 24,
+        treatment: 'clip',
+      }],
+      structureGuidance: {
+        target: 'uni3c',
+        videos: [{
+          path: 'https://example.com/guide.mp4',
+          start_frame: 8,
+          end_frame: 24,
+          treatment: 'clip',
+        }],
+        strength: 1.25,
+        step_window: [0, 0.3],
+        frame_policy: 'fit',
+        zero_empty_frames: true,
+      },
+    });
+  });
+
   it('aborts task creation when settings persistence fails', async () => {
     const createTaskMock = vi.mocked(createIndividualTravelSegmentTask);
     createTaskMock.mockResolvedValue({ task_id: 'task-1' } as Awaited<ReturnType<typeof createIndividualTravelSegmentTask>>);
@@ -91,7 +134,7 @@ describe('submitSegmentTask', () => {
       task: {
         projectId: 'project-1',
         segmentIndex: 0,
-        structureVideo: null,
+        structureInput: null,
       },
       run,
       queryClient: new QueryClient(),
@@ -129,7 +172,7 @@ describe('submitSegmentTask', () => {
       task: {
         projectId: 'project-1',
         segmentIndex: 1,
-        structureVideo: null,
+        structureInput: null,
       },
       run,
       queryClient: new QueryClient(),

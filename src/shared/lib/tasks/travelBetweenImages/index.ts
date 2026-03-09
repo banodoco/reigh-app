@@ -1,5 +1,6 @@
 // Types
 export type {
+  StructureGuidanceConfig,
   StructureVideoConfig,
   PromptConfig,
   MotionConfig,

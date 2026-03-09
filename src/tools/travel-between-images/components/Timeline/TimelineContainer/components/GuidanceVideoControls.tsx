@@ -71,7 +71,7 @@ export const GuidanceVideoControls = React.memo<GuidanceVideoControlsProps>(func
       };
       await createResource.mutateAsync({ type: 'structure-video', metadata: resourceMetadata });
 
-      // Use multi-video interface if available, otherwise fall back to legacy
+      // Prefer the collection interface; otherwise use the singular bridge adapter.
       if (onAddStructureVideo) {
         const placement = calculateNewVideoPlacement(
           metadata.total_frames,
@@ -97,7 +97,6 @@ export const GuidanceVideoControls = React.memo<GuidanceVideoControlsProps>(func
           resource_id: null,
         });
       } else if (onPrimaryStructureVideoInputChange) {
-        // Legacy single-video interface
         onPrimaryStructureVideoInputChange(
           videoUrl,
           metadata,

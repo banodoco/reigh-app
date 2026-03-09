@@ -17,9 +17,46 @@ import type {
   IndividualTravelSegmentParams,
   SegmentBuildState,
 } from './individualTravelSegmentTypes';
+import type { StructureVideoConfig } from './travelBetweenImages';
 
 export const MAX_SEGMENT_FRAMES = 81;
 const DEFAULT_I2V_MODEL = 'wan_2_2_i2v_lightning_baseline_2_2_2';
+
+function sanitizeStructureVideosFromGuidance(
+  structureGuidance: UnknownRecord | undefined,
+): StructureVideoConfig[] | undefined {
+  if (!Array.isArray(structureGuidance?.videos)) {
+    return undefined;
+  }
+
+  const structureVideos = structureGuidance.videos
+    .map((video) => {
+      if (!video || typeof video !== 'object' || Array.isArray(video)) {
+        return null;
+      }
+
+      const record = video as Record<string, unknown>;
+      if (typeof record.path !== 'string') {
+        return null;
+      }
+
+      return {
+        path: record.path,
+        start_frame: typeof record.start_frame === 'number' ? record.start_frame : 0,
+        end_frame: typeof record.end_frame === 'number' ? record.end_frame : 0,
+        treatment: record.treatment === 'clip' ? 'clip' : 'adjust',
+        ...(typeof record.source_start_frame === 'number'
+          ? { source_start_frame: record.source_start_frame }
+          : {}),
+        ...(record.source_end_frame === null || typeof record.source_end_frame === 'number'
+          ? { source_end_frame: record.source_end_frame ?? null }
+          : {}),
+      } satisfies StructureVideoConfig;
+    })
+    .filter((video): video is StructureVideoConfig => video !== null);
+
+  return structureVideos.length > 0 ? structureVideos : undefined;
+}
 
 function buildInputImages(params: IndividualTravelSegmentParams): string[] {
   return params.end_image_url
@@ -89,7 +126,7 @@ function resolveStructureGuidance(
   contractStructureGuidance?: UnknownRecord,
 ): UnknownRecord | undefined {
   return normalizeStructureGuidance({
-    structureGuidance: contractStructureGuidance ?? orig.structure_guidance ?? orchDetails.structure_guidance,
+    structureGuidance: params.structure_guidance ?? contractStructureGuidance ?? orig.structure_guidance ?? orchDetails.structure_guidance,
     structureVideos: params.structure_videos ?? orchDetails.structure_videos ?? orig.structure_videos,
     defaultVideoTreatment: 'adjust',
     defaultUni3cEndPercent: 0.1,
@@ -196,6 +233,7 @@ export function buildSegmentState(params: IndividualTravelSegmentParams): Segmen
     orchDetails,
     contractData.structureGuidance,
   );
+  const structureVideos = sanitizeStructureVideosFromGuidance(structureGuidance);
 
   return {
     orig,
@@ -226,5 +264,6 @@ export function buildSegmentState(params: IndividualTravelSegmentParams): Segmen
     segmentFramesExpanded,
     frameOverlapExpanded,
     structureGuidance,
+    structureVideos,
   };
 }

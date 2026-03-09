@@ -1,6 +1,5 @@
 export const LEGACY_STRUCTURE_PARAM_KEYS = [
   'structure_type',
-  'structure_videos',
   'structure_video_path',
   'structure_video_treatment',
   'structure_video_motion_strength',
@@ -18,10 +17,25 @@ export const LEGACY_STRUCTURE_PARAM_KEYS = [
 ] as const;
 
 /**
- * Remove legacy structure guidance fields that are superseded by `structure_guidance`.
+ * Remove legacy scalar structure fields superseded by the canonical
+ * `structure_guidance` + `structure_videos` contract.
  */
 export function stripLegacyStructureParams(target: Record<string, unknown>): void {
   for (const key of LEGACY_STRUCTURE_PARAM_KEYS) {
+    delete target[key];
+  }
+}
+
+export const DUPLICATE_STRUCTURE_DETAIL_KEYS = [
+  'structure_videos',
+] as const;
+
+/**
+ * Remove canonical structure fields that should live only on the top-level task
+ * payload, not on nested `orchestrator_details` mirrors.
+ */
+export function stripDuplicateStructureDetailParams(target: Record<string, unknown>): void {
+  for (const key of DUPLICATE_STRUCTURE_DETAIL_KEYS) {
     delete target[key];
   }
 }

@@ -510,6 +510,42 @@ describe('createIndividualTravelSegmentTask', () => {
     expect(orchDetails.uni3c_guide_video).toBeUndefined();
   });
 
+  it('keeps canonical structure_videos on task params while stripping nested duplicates', async () => {
+    await createIndividualTravelSegmentTask({
+      project_id: 'proj-1',
+      parent_generation_id: 'parent-1',
+      segment_index: 0,
+      start_image_url: 'https://example.com/start.jpg',
+      end_image_url: 'https://example.com/end.jpg',
+      structure_videos: [{
+        path: 'https://example.com/guide.mp4',
+        start_frame: 0,
+        end_frame: 49,
+        treatment: 'adjust',
+      }],
+      structure_guidance: {
+        target: 'vace',
+        preprocessing: 'flow',
+        strength: 1,
+        videos: [{
+          path: 'https://example.com/guide.mp4',
+          start_frame: 0,
+          end_frame: 49,
+          treatment: 'adjust',
+        }],
+      },
+    });
+
+    const params = mockCreateTask.mock.calls[0][0].params;
+    expect(params.structure_videos).toEqual([{
+      path: 'https://example.com/guide.mp4',
+      start_frame: 0,
+      end_frame: 49,
+      treatment: 'adjust',
+    }]);
+    expect(params.orchestrator_details.structure_videos).toBeUndefined();
+  });
+
   it('includes variant IDs in individual_segment_params', async () => {
     await createIndividualTravelSegmentTask({
       project_id: 'proj-1',

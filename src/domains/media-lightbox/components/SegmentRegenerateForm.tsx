@@ -338,7 +338,7 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
         segmentIndex,
         pairShotGenerationId,
         projectResolution,
-        structureVideo: structureVideoForTask,
+        structureInput: structureVideoForTask,
       },
       run,
       queryClient,

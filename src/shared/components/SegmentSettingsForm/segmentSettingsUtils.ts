@@ -1,5 +1,8 @@
 import { PhaseConfig, DEFAULT_PHASE_CONFIG, DEFAULT_VACE_PHASE_CONFIG } from '@/shared/types/phaseConfig';
-import type { LegacyStructureVideoConfig } from '@/shared/lib/tasks/travelBetweenImages/legacyStructureVideo';
+import type {
+  StructureGuidanceConfig,
+  StructureVideoConfig,
+} from '@/shared/lib/tasks/travelBetweenImages';
 import type { IndividualTravelSegmentParams } from '@/shared/lib/tasks/individualTravelSegment';
 import type { SegmentSettings, LoraConfig } from '@/shared/types/segmentSettings';
 
@@ -139,8 +142,9 @@ export function buildTaskParams(
     projectResolution?: string;
     // Optional enhanced prompt (AI-enhanced version, kept separate from base_prompt)
     enhancedPrompt?: string;
-    // Structure video config for this segment (from shot timeline data)
-    structureVideo?: LegacyStructureVideoConfig | null;
+    // Canonical structure guidance inputs for this segment.
+    structureGuidance?: StructureGuidanceConfig;
+    structureVideos?: StructureVideoConfig[];
   }
 ): IndividualTravelSegmentParams {
   const motionFields = buildMotionTaskFields({
@@ -150,9 +154,6 @@ export function buildTaskParams(
     selectedPhasePresetId: settings.selectedPhasePresetId,
     omitBasicPhaseConfig: true,
   });
-
-  // Build structure_videos array if we have a structure video for this segment
-  const structureVideos = context.structureVideo ? [context.structureVideo] : undefined;
 
   // Detect trailing segment: no end image means single-image-to-video (last segment)
   const isTrailingSegment = !context.endImageUrl;
@@ -185,7 +186,7 @@ export function buildTaskParams(
     make_primary_variant: settings.makePrimaryVariant,
     // Resolution
     ...(context.projectResolution && { parsed_resolution_wh: context.projectResolution }),
-    // Structure video (from shot timeline data)
-    ...(structureVideos && { structure_videos: structureVideos }),
+    ...(context.structureGuidance && { structure_guidance: context.structureGuidance }),
+    ...(context.structureVideos && { structure_videos: context.structureVideos }),
   };
 }

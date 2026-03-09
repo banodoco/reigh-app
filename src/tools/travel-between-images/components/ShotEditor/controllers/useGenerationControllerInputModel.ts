@@ -77,7 +77,7 @@ interface UseGenerationControllerInputModelParams {
   loraManager: {
     selectedLoras: MotionSettings['selectedLoras'];
   };
-  mediaEditing: Pick<MediaEditing, 'structureVideos'>;
+  mediaEditing: Pick<MediaEditing, 'structureGuidance' | 'structureVideos'>;
   selectedOutputId: MotionSettings['selectedOutputId'];
   joinWorkflow: JoinSettings | JoinWorkflow;
   runtime: RuntimeSettingsSlice;
@@ -129,6 +129,7 @@ export function useGenerationControllerInputModel({
       smoothContinuations: motionSettings.smoothContinuations,
       batchVideoFrames: frameSettings.batchVideoFrames,
       selectedLoras: loraManager.selectedLoras,
+      structureGuidance: mediaEditing.structureGuidance,
       structureVideos: mediaEditing.structureVideos,
       selectedOutputId,
     },
@@ -169,6 +170,7 @@ export function useGenerationControllerInputModel({
     frameSettings.batchVideoFrames,
     frameSettings.setSteps,
     loraManager.selectedLoras,
+    mediaEditing.structureGuidance,
     mediaEditing.structureVideos,
     selectedOutputId,
     joinWorkflow,

@@ -1,22 +1,7 @@
-/**
- * useAdjustedTaskDetails - Fetches variant source task and computes adjusted task details
- *
- * For variants created by tasks, shows the variant's source task params
- * instead of the original generation's task. Preserves onApplySettingsFromTask.
- */
-
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
-import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
-import { VARIANT_TYPE } from '@/shared/constants/variantTypes';
-import {
-  getSourceTaskIdLegacyCompatible,
-  hasOrchestratorDetails,
-} from '@/shared/lib/taskIdHelpers';
-import { deriveInputImages } from '@/shared/lib/taskParamsUtils';
 import type { TaskDetailsData } from '../types';
-import type { Task } from '@/types/tasks';
+import { resolveAdjustedTaskDetails } from './taskDetails/resolveAdjustedTaskDetails';
+import { useVariantSourceTask } from './taskDetails/useVariantSourceTask';
 
 interface UseAdjustedTaskDetailsProps {
   projectId?: string | null;
@@ -44,124 +29,21 @@ export function useAdjustedTaskDetails({
   isLoadingVariants,
   initialVariantId,
 }: UseAdjustedTaskDetailsProps): UseAdjustedTaskDetailsReturn {
-  // Extract source_task_id and check if variant already has orchestrator_details
-  const { variantSourceTaskId, variantHasOrchestratorDetails } = useMemo(() => {
-    const variantParams = activeVariant?.params as Record<string, unknown> | undefined;
-    return {
-      variantSourceTaskId: getSourceTaskIdLegacyCompatible(variantParams),
-      variantHasOrchestratorDetails: hasOrchestratorDetails(variantParams),
-    };
-  }, [activeVariant?.params]);
-
-  // Fetch the variant's source task when it differs from taskDetailsData
-  // Skip fetch if variant already has orchestrator_details (e.g., clip_join variants)
-  // NOTE: Uses ['tasks', 'single', taskId] query key to share cache with usePrefetchTaskData
-  const { data: variantSourceTask, isLoading: isLoadingVariantTask } = useQuery({
-    queryKey: taskQueryKeys.single(variantSourceTaskId ?? '', projectId ?? null),
-    queryFn: async () => {
-      if (!variantSourceTaskId || !projectId) return null;
-      const { data, error } = await supabase().from('tasks')
-        .select('*')
-        .eq('id', variantSourceTaskId)
-        .eq('project_id', projectId)
-        .single();
-      if (error) {
-        console.error('[VariantTaskDetails] Error fetching source task:', error);
-        return null;
-      }
-      return data;
-    },
-    // Don't fetch if: no task ID, already have matching taskDetailsData, or variant has orchestrator_details
-    enabled: !!variantSourceTaskId
-      && !!projectId
-      && variantSourceTaskId !== taskDetailsData?.taskId
-      && !variantHasOrchestratorDetails,
-    staleTime: Infinity, // Task data is immutable - cache forever (matches prefetch)
+  const { variantSourceTask, isLoadingVariantTask } = useVariantSourceTask({
+    projectId,
+    activeVariant,
+    taskDetailsData,
   });
 
-  // For variants, show the variant's source task params instead of the original task
-  // But ALWAYS preserve onApplySettingsFromTask so the Apply button shows
   const adjustedTaskDetailsData = useMemo(() => {
-    // Check if we're viewing a variant that was created by a task (has source_task_id in params)
-    const variantParams = activeVariant?.params as Record<string, unknown> | undefined;
-    const isTaskCreatedVariant = activeVariant && variantParams && (
-      variantParams.source_task_id ||
-      variantParams.created_from ||
-      (activeVariant.variant_type && activeVariant.variant_type !== VARIANT_TYPE.ORIGINAL)
-    );
-
-    if (isTaskCreatedVariant && variantParams) {
-      // Check if taskDetailsData already has the correct task (e.g., when opened from TasksPane)
-      const sourceTaskId = typeof variantParams.source_task_id === 'string' ? variantParams.source_task_id : undefined;
-      const hasMatchingTaskData = taskDetailsData?.taskId === sourceTaskId && taskDetailsData?.task?.params;
-
-      // Determine the best source of task params:
-      // 1. If taskDetailsData matches, use its params (already have full data)
-      // 2. If we fetched the source task, use its params
-      // 3. Fall back to variant params (may be incomplete)
-      // IMPORTANT: Use variant_type for display (e.g., 'clip_join'), NOT tool_type
-      // tool_type is the tool that launched the task (e.g., 'travel-between-images'),
-      // which is different from what kind of variant this is
-      let effectiveParams = variantParams;
-      const effectiveTaskType = activeVariant.variant_type || 'variant';
-
-      if (hasMatchingTaskData) {
-        effectiveParams = (taskDetailsData.task?.params ?? variantParams) as Record<string, unknown>;
-      } else if (!variantParams.orchestrator_details && variantSourceTask?.params) {
-        // Only use fetched task params if variant doesn't already have orchestrator_details
-        // clip_join variants store orchestrator_details directly, so we don't want to overwrite
-        try {
-          effectiveParams = typeof variantSourceTask.params === 'string'
-            ? JSON.parse(variantSourceTask.params)
-            : variantSourceTask.params;
-        } catch {
-          // Keep variantParams as fallback on parse failure
-        }
-      }
-      // Otherwise keep variantParams which may already have orchestrator_details (e.g., clip_join)
-
-      // Extract input images using shared utility
-      // This handles segment tasks (only segment images) vs full timeline tasks
-      const variantInputImages = deriveInputImages(effectiveParams);
-
-      return {
-        task: {
-          id: activeVariant.id,
-          taskType: effectiveTaskType,
-          params: effectiveParams,
-          status: 'Complete' as Task['status'],
-          createdAt: activeVariant.created_at || new Date().toISOString(),
-          projectId: '',
-        } as Task,
-        isLoading: isLoadingVariantTask,
-        error: null,
-        inputImages: variantInputImages,
-        taskId: sourceTaskId ?? activeVariant.id,
-        // ALWAYS preserve onApplySettingsFromTask so Apply button shows for all variants
-        onApplySettingsFromTask: taskDetailsData?.onApplySettingsFromTask,
-      };
-    }
-
-    // If variants are still loading AND we don't have task data yet, show loading
-    // But if we already have task data cached, show it immediately rather than blocking on variants
-    // This provides better UX when task data is prefetched/cached
-    // ALSO check if we're waiting for initialVariantId to be applied (clicked a specific variant)
-    const waitingForInitialVariant = initialVariantId &&
-      (!activeVariant || activeVariant.id !== initialVariantId);
-
-    // Only override to loading if:
-    // 1. Waiting for a specific variant (user clicked a variant)
-    // 2. Variants loading AND no active variant AND task details still loading
-    //    (If task details finished - either has task or knows there's none - don't block on variants)
-    const shouldShowLoading = waitingForInitialVariant ||
-      (isLoadingVariants && !activeVariant && taskDetailsData?.isLoading);
-
-    if (shouldShowLoading) {
-      return taskDetailsData ? { ...taskDetailsData, isLoading: true } : taskDetailsData;
-    }
-
-    // For all other cases, use the generation's task details as-is
-    return taskDetailsData;
+    return resolveAdjustedTaskDetails({
+      activeVariant,
+      taskDetailsData,
+      variantSourceTask,
+      isLoadingVariantTask,
+      isLoadingVariants,
+      initialVariantId,
+    });
   }, [taskDetailsData, activeVariant, variantSourceTask, isLoadingVariantTask, isLoadingVariants, initialVariantId]);
 
   return {

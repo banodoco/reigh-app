@@ -15,16 +15,12 @@ import type { ImageEditState } from '../contexts/ImageEditContext';
 import type { EditAdvancedSettings, EditMode, LoraMode, QwenEditModel } from '../model/editSettingsTypes';
 import type { UseLoraManagerReturn } from '@/domains/lora/hooks/useLoraManager';
 import type { LoraModel } from '@/domains/lora/types/lora';
-import type { EditMode as InpaintingEditMode } from './inpainting/types';
 
-import {
-  useInpainting,
-} from './useInpainting';
-import { useEditSettingsSync } from './persistence/useEditSettingsSync';
 import { useMagicEditMode } from './useMagicEditMode';
 import { useRepositionMode } from './useRepositionMode';
 import { useImg2ImgMode } from './useImg2ImgMode';
 import { buildImageEditStateValue } from '../model/buildImageEditStateValue';
+import { useManagedInpaintingState } from './imageEditing/useManagedInpaintingState';
 
 // ============================================================================
 // Props
@@ -181,70 +177,45 @@ export function useImageEditOrchestrator({
     hasPersistedSettings,
   } = settingsContext;
 
-  const toInpaintingEditMode = useCallback((mode: EditMode): InpaintingEditMode => {
-    if (mode === 'inpaint' || mode === 'annotate' || mode === 'text') {
-      return mode;
-    }
-    return 'text';
-  }, []);
-
-  // ========================================
-  // INPAINTING HOOK
-  // ========================================
-
-  const inpaintingHook = useInpainting({
+  const {
+    inpaintingHook,
+    isInpaintMode,
+    editMode,
+    setIsInpaintMode,
+    setEditMode,
+    brushStrokes,
+    inpaintPrompt,
+    inpaintNumGenerations,
+    setInpaintPrompt,
+    setInpaintNumGenerations,
+    handleEnterInpaintMode,
+    handleGenerateInpaint,
+    handleGenerateAnnotatedEdit,
+    handleExitInpaintMode,
+  } = useManagedInpaintingState({
     media,
     selectedProjectId,
+    actualGenerationId,
     shotId,
     toolTypeOverride,
-    isVideo: false,
     imageContainerRef,
     imageDimensions,
-    handleExitInpaintMode: () => {},
-    loras: effectiveEditModeLoras,
-    activeVariantId: activeVariant?.id,
-    activeVariantLocation: activeVariant?.location,
+    effectiveEditModeLoras,
+    activeVariant,
+    effectiveImageUrl,
+    thumbnailUrl: thumbnailUrl || media.thumbUrl,
     createAsGeneration,
     advancedSettings,
     qwenEditModel,
-    imageUrl: activeVariant?.location || effectiveImageUrl,
-    thumbnailUrl: thumbnailUrl || media.thumbUrl,
-    initialEditMode: toInpaintingEditMode(persistedEditMode),
-  });
-
-  // Destructure only what's needed for inter-hook wiring, settings sync, and return value
-  const {
-    isInpaintMode, editMode, setIsInpaintMode, setEditMode,
-    brushStrokes, inpaintPrompt, inpaintNumGenerations,
-    setInpaintPrompt, setInpaintNumGenerations,
-    handleEnterInpaintMode, handleGenerateInpaint, handleGenerateAnnotatedEdit,
-  } = inpaintingHook;
-
-  // ========================================
-  // EDIT SETTINGS SYNC
-  // ========================================
-
-  useEditSettingsSync({
-    actualGenerationId: actualGenerationId ?? undefined,
-    isEditSettingsReady,
-    hasPersistedSettings,
     persistedEditMode,
     persistedNumGenerations,
     persistedPrompt,
-    editMode,
-    inpaintNumGenerations,
-    inpaintPrompt,
-    setEditMode: (mode) => setEditMode(toInpaintingEditMode(mode)),
-    setInpaintNumGenerations,
-    setInpaintPrompt,
-    setPersistedEditMode: (mode) => setPersistedEditMode(mode),
+    isEditSettingsReady,
+    hasPersistedSettings,
+    setPersistedEditMode,
     setPersistedNumGenerations,
     setPersistedPrompt,
   });
-
-  const handleExitInpaintMode = useCallback(() => {
-    setIsInpaintMode(false);
-  }, [setIsInpaintMode]);
 
   // ========================================
   // MAGIC EDIT MODE HOOK

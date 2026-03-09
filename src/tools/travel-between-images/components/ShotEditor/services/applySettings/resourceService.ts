@@ -1,5 +1,6 @@
 import { extractVideoMetadataFromUrl } from '@/shared/lib/media/videoUploader';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
+import { resolvePrimaryStructureVideo } from '@/shared/lib/tasks/travelBetweenImages';
 import type { ApplyContext, ApplyResult, ExtractedSettings, TaskData } from './types';
 
 export const applyLoRAs = (
@@ -67,8 +68,8 @@ export const applyStructureVideo = async (
     return { success: true, settingName: 'structureVideo', details: 'skipped - not in task' };
   }
 
-  const firstStructureVideo = settings.structureVideos?.[0];
-  const structureVideoPath = firstStructureVideo?.path ?? settings.structureVideoPath;
+  const primaryStructureVideo = resolvePrimaryStructureVideo(settings.structureVideos);
+  const structureVideoPath = primaryStructureVideo.path;
 
   if (!structureVideoPath) {
     if (context.onStructureVideoInputChange) {
@@ -88,7 +89,7 @@ export const applyStructureVideo = async (
   try {
     let metadata = null;
     try {
-      metadata = firstStructureVideo?.metadata ?? await extractVideoMetadataFromUrl(structureVideoPath);
+      metadata = primaryStructureVideo.metadata ?? await extractVideoMetadataFromUrl(structureVideoPath);
     } catch {
       // Metadata extraction is optional for restore flow.
     }
@@ -96,9 +97,9 @@ export const applyStructureVideo = async (
     context.onStructureVideoInputChange(
       structureVideoPath,
       metadata,
-      firstStructureVideo?.treatment ?? (settings.structureVideoTreatment || 'adjust'),
-      firstStructureVideo?.motion_strength ?? settings.structureVideoMotionStrength ?? 1.0,
-      firstStructureVideo?.structure_type ?? (settings.structureVideoType || 'uni3c'),
+      primaryStructureVideo.treatment,
+      primaryStructureVideo.motionStrength,
+      primaryStructureVideo.structureType,
     );
 
     return { success: true, settingName: 'structureVideo' };

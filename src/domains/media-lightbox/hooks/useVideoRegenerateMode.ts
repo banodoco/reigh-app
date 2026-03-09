@@ -2,11 +2,11 @@
  * useVideoRegenerateMode - Manages video segment regeneration
  *
  * Handles:
- * - Fetching shot data (aspect ratio, structure videos)
+ * - Fetching shot data (aspect ratio, canonical structure settings)
  * - Computing effective resolution for regeneration
  * - Determining if regeneration is available
  * - Extracting segment images
- * - Building structure guidance from shot settings
+ * - Reapplying canonical shot-level structure defaults onto regenerated tasks
  * - Computing all props for SegmentRegenerateForm
  */
 
@@ -14,6 +14,11 @@ import { useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
+import {
+  buildStructureGuidanceFromControls,
+  normalizeStructureGuidance,
+  resolveStructureGuidanceControls,
+} from '@/shared/lib/tasks/structureGuidance';
 import { extractSegmentImages } from '@/shared/lib/tasks/travelBetweenImages/segmentImages';
 import { updateToolSettingsSupabase } from '@/shared/hooks/settings/useToolSettings';
 import { queryKeys } from '@/shared/lib/queryKeys';
@@ -23,6 +28,10 @@ import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 import { TOOL_IDS } from '@/shared/lib/toolIds';
 import type { GenerationRow } from '@/domains/generation/types';
 import type { TaskDetailsData } from '../types';
+import {
+  stripDuplicateStructureDetailParams,
+  stripLegacyStructureParams,
+} from '@/shared/lib/tasks/legacyStructureParams';
 
 interface CurrentSegmentImages {
   startUrl?: string;
@@ -64,6 +73,21 @@ interface UseVideoRegenerateModeReturn {
   regenerateFormProps: SegmentRegenerateFormProps | null;
   /** Whether shot data is still loading */
   isLoadingShotData: boolean;
+}
+
+function sanitizeStoredStructureVideos(
+  structureVideos: Array<Record<string, unknown>> | null | undefined,
+): Array<Record<string, unknown>> {
+  return (structureVideos ?? [])
+    .filter((video): video is Record<string, unknown> => typeof video?.path === 'string' && video.path.length > 0)
+    .map((video) => ({
+      path: video.path,
+      start_frame: typeof video.start_frame === 'number' ? video.start_frame : 0,
+      end_frame: typeof video.end_frame === 'number' ? video.end_frame : null,
+      treatment: video.treatment === 'clip' ? 'clip' : 'adjust',
+      ...(video.metadata ? { metadata: video.metadata } : {}),
+      ...(typeof video.resource_id === 'string' ? { resource_id: video.resource_id } : {}),
+    }));
 }
 
 export function useVideoRegenerateMode({
@@ -118,23 +142,43 @@ export function useVideoRegenerateMode({
   }): Promise<void> => {
     if (!shotId) return;
 
-    const shotStructureVideos = shotDataForRegen?.structure_videos as Array<Record<string, unknown>> | null;
+    const shotStructureVideos = sanitizeStoredStructureVideos(
+      shotDataForRegen?.structure_videos as Array<Record<string, unknown>> | null,
+    );
     if (!shotStructureVideos || shotStructureVideos.length === 0) {
       return;
     }
 
-    // Update the first structure video (or all if needed)
+    const currentGuidance = normalizeStructureGuidance({
+      structureGuidance: shotDataForRegen?.structure_guidance ?? undefined,
+      structureVideos: shotDataForRegen?.structure_videos ?? undefined,
+      defaultVideoTreatment: 'adjust',
+      defaultUni3cEndPercent: 0.1,
+    });
+    const currentControls = resolveStructureGuidanceControls(currentGuidance, {
+      defaultStructureType: 'flow',
+      defaultMotionStrength: 1.2,
+      defaultUni3cEndPercent: 0.1,
+    });
+
     const updatedVideos = shotStructureVideos.map((video, index) => {
-      // Only update the first video for now (most common case)
       if (index === 0) {
         return {
           ...video,
-          ...(updates.motionStrength !== undefined && { motion_strength: updates.motionStrength }),
           ...(updates.treatment !== undefined && { treatment: updates.treatment }),
-          ...(updates.uni3cEndPercent !== undefined && { uni3c_end_percent: updates.uni3cEndPercent }),
         };
       }
       return video;
+    });
+    const updatedGuidance = buildStructureGuidanceFromControls({
+      structureVideos: updatedVideos,
+      controls: {
+        ...currentControls,
+        ...(updates.motionStrength !== undefined ? { motionStrength: updates.motionStrength } : {}),
+        ...(updates.uni3cEndPercent !== undefined ? { uni3cEndPercent: updates.uni3cEndPercent } : {}),
+      },
+      defaultVideoTreatment: updatedVideos[0]?.treatment === 'clip' ? 'clip' : 'adjust',
+      defaultUni3cEndPercent: updates.uni3cEndPercent ?? currentControls.uni3cEndPercent,
     });
 
     // Update structure video settings and await completion
@@ -144,6 +188,7 @@ export function useVideoRegenerateMode({
       toolId: SETTINGS_IDS.TRAVEL_STRUCTURE_VIDEO,
       patch: {
         structure_videos: updatedVideos,
+        structure_guidance: updatedGuidance ?? null,
       },
     }, 'immediate');
 
@@ -153,7 +198,7 @@ export function useVideoRegenerateMode({
       queryClient.refetchQueries({ queryKey: queryKeys.settings.byTool(SETTINGS_IDS.TRAVEL_STRUCTURE_VIDEO) }),
     ]);
 
-  }, [shotId, shotDataForRegen?.structure_videos, queryClient]);
+  }, [shotId, shotDataForRegen?.structure_guidance, shotDataForRegen?.structure_videos, queryClient]);
 
   // Compute effective resolution for regeneration
   const effectiveRegenerateResolution = useMemo(() => {
@@ -211,62 +256,29 @@ export function useVideoRegenerateMode({
 
     if (!taskParams) return null;
 
-    // Inject shot's structure videos/guidance
-    const shotStructureVideos = shotDataForRegen?.structure_videos as Array<Record<string, unknown>> | null;
-    let shotStructureGuidance: Record<string, unknown> | null = null;
+    // Inject the shot-level canonical structure contract back onto the task.
+    const shotStructureVideos = sanitizeStoredStructureVideos(
+      shotDataForRegen?.structure_videos as Array<Record<string, unknown>> | null,
+    );
+    const shotStructureGuidance = normalizeStructureGuidance({
+      structureGuidance: shotDataForRegen?.structure_guidance ?? undefined,
+      structureVideos: shotDataForRegen?.structure_videos ?? undefined,
+      defaultVideoTreatment: 'adjust',
+      defaultUni3cEndPercent: 0.1,
+    });
 
-    if (shotStructureVideos && shotStructureVideos.length > 0) {
-      const firstVideo = shotStructureVideos[0];
-      const isUni3cTarget = firstVideo.structure_type === 'uni3c';
-
-      const cleanedVideos = shotStructureVideos.map((v) => ({
-        path: v.path,
-        start_frame: v.start_frame ?? 0,
-        end_frame: v.end_frame ?? null,
-        treatment: v.treatment ?? 'adjust',
-        ...(v.metadata ? { metadata: v.metadata } : {}),
-        ...(v.resource_id ? { resource_id: v.resource_id } : {}),
-      }));
-
-      shotStructureGuidance = {
-        target: isUni3cTarget ? 'uni3c' : 'vace',
-        videos: cleanedVideos,
-        strength: (firstVideo.motion_strength as number) ?? 1.0,
+    if (shotStructureGuidance) {
+      const cleanedTaskParams = { ...taskParams };
+      stripLegacyStructureParams(cleanedTaskParams);
+      const cleanedOrchestratorDetails = {
+        ...((cleanedTaskParams.orchestrator_details as Record<string, unknown>) || {}),
       };
-
-      if (isUni3cTarget) {
-        shotStructureGuidance.step_window = [
-          (firstVideo.uni3c_start_percent as number) ?? 0,
-          (firstVideo.uni3c_end_percent as number) ?? 1.0,
-        ];
-        shotStructureGuidance.frame_policy = 'fit';
-        shotStructureGuidance.zero_empty_frames = true;
-      } else {
-        const preprocessingMap: Record<string, string> = {
-          'flow': 'flow',
-          'canny': 'canny',
-          'depth': 'depth',
-          'raw': 'none',
-        };
-        shotStructureGuidance.preprocessing = preprocessingMap[(firstVideo.structure_type as string) ?? 'flow'] ?? 'flow';
-      }
-
-      // Inject structure guidance into params
-      const cleanedOrchestratorDetails = { ...((taskParams.orchestrator_details as Record<string, unknown>) || {}) };
-      const legacyStructureParams = [
-        'structure_type', 'structure_videos', 'structure_video_path', 'structure_video_treatment',
-        'structure_video_motion_strength', 'structure_video_type', 'structure_canny_intensity',
-        'structure_depth_contrast', 'structure_guidance_video_url', 'structure_guidance_frame_offset',
-        'use_uni3c', 'uni3c_guide_video', 'uni3c_strength', 'uni3c_start_percent',
-        'uni3c_end_percent', 'uni3c_guidance_frame_offset',
-      ];
-      for (const param of legacyStructureParams) {
-        delete cleanedOrchestratorDetails[param];
-      }
-
+      stripLegacyStructureParams(cleanedOrchestratorDetails);
+      stripDuplicateStructureDetailParams(cleanedOrchestratorDetails);
       taskParams = {
-        ...taskParams,
+        ...cleanedTaskParams,
         structure_guidance: shotStructureGuidance,
+        ...(shotStructureVideos.length > 0 ? { structure_videos: shotStructureVideos } : {}),
         orchestrator_details: {
           ...cleanedOrchestratorDetails,
           structure_guidance: shotStructureGuidance,
@@ -363,11 +375,16 @@ export function useVideoRegenerateMode({
     // In Timeline Mode with segmentSlotMode, prefer segment-level structure video data
     // over shot-level defaults (since segmentSlotMode has per-segment coverage info)
     const firstStructureVideo = shotStructureVideos?.[0];
-    const shotStructureVideoType = firstStructureVideo?.structure_type as 'uni3c' | 'flow' | 'canny' | 'depth' | undefined;
+    const shotStructureControls = resolveStructureGuidanceControls(shotStructureGuidance, {
+      defaultStructureType: 'flow',
+      defaultMotionStrength: 1.2,
+      defaultUni3cEndPercent: 0.1,
+    });
+    const shotStructureVideoType = shotStructureControls.structureType;
     const shotStructureVideoDefaults = firstStructureVideo ? {
-      motionStrength: (firstStructureVideo.motion_strength as number) ?? 1.2,
+      motionStrength: shotStructureControls.motionStrength,
       treatment: ((firstStructureVideo.treatment as string) ?? 'adjust') as 'adjust' | 'clip',
-      uni3cEndPercent: (firstStructureVideo.uni3c_end_percent as number) ?? 0.1,
+      uni3cEndPercent: shotStructureControls.uni3cEndPercent,
     } : undefined;
     const shotStructureVideoUrl = firstStructureVideo?.path as string | undefined;
 

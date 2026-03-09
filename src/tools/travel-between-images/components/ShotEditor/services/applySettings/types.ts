@@ -47,7 +47,7 @@ export interface ExtractedSettings {
   // LoRAs
   loras?: Array<{ path: string; strength: number }>;
 
-  // Structure video
+  // Canonical structure contract plus derived primary-editor convenience values.
   structureVideos?: StructureVideoConfigWithMetadata[];
   structureVideoPath?: string | null;
   structureVideoTreatment?: 'adjust' | 'clip';

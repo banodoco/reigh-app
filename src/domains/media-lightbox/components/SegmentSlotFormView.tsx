@@ -159,7 +159,7 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
         segmentIndex: segmentSlotMode.currentIndex,
         pairShotGenerationId,
         projectResolution: segmentSlotMode.projectResolution,
-        structureVideo: structureVideoForTask,
+        structureInput: structureVideoForTask,
       },
       run,
       queryClient,

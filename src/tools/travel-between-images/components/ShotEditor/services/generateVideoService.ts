@@ -50,8 +50,19 @@ export type { StitchConfig };
  * Delegates to the canonical task-layer adapter so UI and task builders share one mapping contract.
  */
 function buildStructureGuidance(
-  structureVideos: StructureVideoConfigWithMetadata[] | undefined,
+  structureGuidanceOrVideos: Record<string, unknown> | StructureVideoConfigWithMetadata[] | undefined,
+  structureVideosArg?: StructureVideoConfigWithMetadata[] | undefined,
 ): Record<string, unknown> | null {
+  const structureGuidance = Array.isArray(structureGuidanceOrVideos)
+    ? undefined
+    : structureGuidanceOrVideos;
+  const structureVideos = Array.isArray(structureGuidanceOrVideos)
+    ? structureGuidanceOrVideos
+    : structureVideosArg;
+
+  if (structureGuidance) {
+    return structureGuidance;
+  }
   const normalized = normalizeStructureGuidance({
     structureVideos,
     defaultVideoTreatment: DEFAULT_VIDEO_STRUCTURE_PARAMS.structure_video_treatment,
@@ -165,6 +176,7 @@ export async function generateVideo(params: GenerateVideoParams): Promise<Genera
     clearAllEnhancedPrompts,
     parentGenerationId,
     stitchConfig,
+    structureGuidance,
     structureVideos,
   } = params;
 
@@ -260,8 +272,11 @@ export async function generateVideo(params: GenerateVideoParams): Promise<Genera
   requestBody.resolution = resolution;
   if (stitchConfig) requestBody.stitch_config = stitchConfig;
 
-  const structureGuidance = buildStructureGuidance(structureVideos);
-  if (structureGuidance) requestBody.structure_guidance = structureGuidance;
+  const normalizedStructureGuidance = buildStructureGuidance(
+    structureGuidance as Record<string, unknown> | undefined,
+    structureVideos,
+  );
+  if (normalizedStructureGuidance) requestBody.structure_guidance = normalizedStructureGuidance;
 
   try {
     validateTravelBetweenImagesParams(requestBody);

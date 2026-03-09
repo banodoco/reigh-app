@@ -168,6 +168,7 @@ export function useShotSettingsValue({
   // Build structure video domain for context
   const structureVideoForContext = useMemo(
     (): ShotSettingsContextValue['structureVideo'] => ({
+      structureGuidance: structureVideo.structureGuidance,
       structureVideos: structureVideo.structureVideos,
       addStructureVideo: structureVideo.addStructureVideo,
       updateStructureVideo: structureVideo.updateStructureVideo,

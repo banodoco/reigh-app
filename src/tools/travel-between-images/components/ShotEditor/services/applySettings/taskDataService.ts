@@ -1,6 +1,10 @@
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 import {
+  normalizeStructureGuidance,
+  resolveStructureGuidanceControls,
+} from '@/shared/lib/tasks/structureGuidance';
+import {
   collectTravelStructureLegacyUsage,
   enforceTravelStructureLegacyPolicy,
 } from '@/shared/lib/tasks/travelBetweenImages/legacyStructureVideo';
@@ -44,17 +48,6 @@ export const extractSettings = (taskData: TaskData): ExtractedSettings => {
   const orchestrator = taskData.orchestrator as Record<string, unknown>;
 
   const structureGuidance = (orchestrator.structure_guidance ?? params.structure_guidance) as Record<string, unknown> | undefined;
-  const guidanceTarget = structureGuidance?.target as string | undefined;
-  const guidancePreprocessing = structureGuidance?.preprocessing as string | undefined;
-  const inferredStructureType: 'uni3c' | 'flow' | 'canny' | 'depth' =
-    guidanceTarget === 'uni3c'
-      ? 'uni3c'
-      : guidancePreprocessing === 'canny'
-        ? 'canny'
-        : guidancePreprocessing === 'depth'
-          ? 'depth'
-          : 'flow';
-
   const rawStructureVideos = (
     orchestrator.structure_videos ??
     params.structure_videos ??
@@ -73,22 +66,57 @@ export const extractSettings = (taskData: TaskData): ExtractedSettings => {
     },
   );
 
-  const structureVideos = Array.isArray(rawStructureVideos)
-    ? rawStructureVideos
-        .filter(video => typeof video.path === 'string' && video.path.length > 0)
-        .map((video): StructureVideoConfigWithMetadata => ({
-          path: video.path as string,
-          start_frame: typeof video.start_frame === 'number' ? video.start_frame : 0,
-          end_frame: typeof video.end_frame === 'number' ? video.end_frame : 0,
-          treatment: video.treatment === 'clip' ? 'clip' : 'adjust',
-          motion_strength: typeof video.motion_strength === 'number' ? video.motion_strength : 1.0,
-          structure_type: (video.structure_type as 'uni3c' | 'flow' | 'canny' | 'depth' | undefined) ?? inferredStructureType,
-          ...(typeof video.uni3c_end_percent === 'number' ? { uni3c_end_percent: video.uni3c_end_percent } : {}),
-          ...(video.metadata ? { metadata: video.metadata as VideoMetadata } : {}),
-        }))
-    : undefined;
+  const normalizedStructureGuidance = normalizeStructureGuidance({
+    structureGuidance,
+    structureVideos: rawStructureVideos,
+    structureVideoPath: orchestrator.structure_video_path ?? params.structure_video_path,
+    structureVideoTreatment: orchestrator.structure_video_treatment ?? params.structure_video_treatment,
+    structureVideoType: orchestrator.structure_video_type
+      ?? orchestrator.structure_type
+      ?? params.structure_video_type
+      ?? params.structure_type,
+    structureVideoMotionStrength: orchestrator.structure_video_motion_strength ?? params.structure_video_motion_strength,
+    structureVideoCannyIntensity: orchestrator.structure_canny_intensity ?? params.structure_canny_intensity,
+    structureVideoDepthContrast: orchestrator.structure_depth_contrast ?? params.structure_depth_contrast,
+    uni3cStartPercent: orchestrator.uni3c_start_percent ?? params.uni3c_start_percent,
+    uni3cEndPercent: orchestrator.uni3c_end_percent ?? params.uni3c_end_percent,
+    useUni3c: orchestrator.use_uni3c ?? params.use_uni3c,
+    defaultVideoTreatment: 'adjust',
+    defaultUni3cEndPercent: 0.1,
+  });
+  const structureControls = resolveStructureGuidanceControls(normalizedStructureGuidance, {
+    defaultStructureType: 'flow',
+    defaultMotionStrength: 1,
+    defaultUni3cEndPercent: 0.1,
+  });
+  const guidanceVideos = Array.isArray(normalizedStructureGuidance?.videos)
+    ? normalizedStructureGuidance.videos
+    : [];
+  const structureVideos = (guidanceVideos.length > 0 ? guidanceVideos : (rawStructureVideos ?? []))
+    .filter((video): video is Record<string, unknown> => typeof video?.path === 'string' && video.path.length > 0)
+    .map((video, index): StructureVideoConfigWithMetadata => {
+      const rawVideo = rawStructureVideos?.[index];
+      return {
+        path: video.path as string,
+        start_frame: typeof video.start_frame === 'number' ? video.start_frame : 0,
+        end_frame: typeof video.end_frame === 'number' ? video.end_frame : 0,
+        treatment: video.treatment === 'clip' ? 'clip' : 'adjust',
+        ...(rawVideo?.metadata ? { metadata: rawVideo.metadata as VideoMetadata } : {}),
+        ...(typeof rawVideo?.resource_id === 'string' ? { resource_id: rawVideo.resource_id } : {}),
+      };
+    });
 
-  const firstStructureVideo = structureVideos?.[0];
+  if (structureVideos[0]) {
+    structureVideos[0] = {
+      ...structureVideos[0],
+      motion_strength: structureControls.motionStrength,
+      structure_type: structureControls.structureType,
+      uni3c_start_percent: structureControls.uni3cStartPercent,
+      uni3c_end_percent: structureControls.uni3cEndPercent,
+    };
+  }
+
+  const firstStructureVideo = structureVideos[0];
 
   // Extract all settings with fallbacks
   return {
@@ -158,17 +186,11 @@ export const extractSettings = (taskData: TaskData): ExtractedSettings => {
     })(),
 
     // Structure video
-    structureVideos,
-    structureVideoPath: firstStructureVideo?.path ?? (orchestrator.structure_video_path as string | undefined) ?? (params.structure_video_path as string | undefined),
-    structureVideoTreatment: firstStructureVideo?.treatment ?? (orchestrator.structure_video_treatment as 'adjust' | 'clip' | undefined) ?? (params.structure_video_treatment as 'adjust' | 'clip' | undefined),
-    structureVideoMotionStrength: firstStructureVideo?.motion_strength ?? (orchestrator.structure_video_motion_strength as number | undefined) ?? (params.structure_video_motion_strength as number | undefined),
-    // Note: Backend uses both "structure_type" and "structure_video_type" - check both
-    structureVideoType: firstStructureVideo?.structure_type
-      ?? (orchestrator.structure_video_type as 'uni3c' | 'flow' | 'canny' | 'depth' | undefined)
-      ?? (orchestrator.structure_type as 'uni3c' | 'flow' | 'canny' | 'depth' | undefined)
-      ?? (params.structure_video_type as 'uni3c' | 'flow' | 'canny' | 'depth' | undefined)
-      ?? (params.structure_type as 'uni3c' | 'flow' | 'canny' | 'depth' | undefined)
-      ?? inferredStructureType,
+    structureVideos: structureVideos.length > 0 ? structureVideos : undefined,
+    structureVideoPath: firstStructureVideo?.path,
+    structureVideoTreatment: firstStructureVideo?.treatment,
+    structureVideoMotionStrength: structureControls.motionStrength,
+    structureVideoType: structureControls.structureType,
 
     // Input images - extract from multiple possible locations
     inputImages: (() => {

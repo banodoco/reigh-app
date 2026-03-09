@@ -13,7 +13,10 @@ import { generateVideo } from '../../services/generateVideoService';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
 import type { Shot, GenerationRow } from '@/domains/generation/types';
-import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
+import type {
+  StructureGuidanceConfig,
+  StructureVideoConfigWithMetadata,
+} from '@/shared/lib/tasks/travelBetweenImages';
 
 export interface SelectedLora {
   id: string;
@@ -81,6 +84,7 @@ export interface BatchGenerationRequest {
   };
   batchVideoFrames: number;
   selectedLoras: SelectedLora[];
+  structureGuidance?: StructureGuidanceConfig;
   structureVideos: StructureVideoConfigWithMetadata[];
   selectedOutputId?: string | null;
   stitchAfterGenerate?: StitchAfterGenerateConfig;
@@ -120,6 +124,7 @@ export function useGenerateBatch({
     model,
     batchVideoFrames,
     selectedLoras,
+    structureGuidance,
     structureVideos,
     selectedOutputId,
     stitchAfterGenerate,
@@ -199,6 +204,7 @@ export function useGenerateBatch({
             debug: model.steerableMotionSettings?.debug || false,
             generation_type_mode: model.generationTypeMode ?? 'i2v',
           },
+          structureGuidance,
           structureVideos,
           batchVideoFrames,
           selectedLoras: selectedLoras.map(lora => ({

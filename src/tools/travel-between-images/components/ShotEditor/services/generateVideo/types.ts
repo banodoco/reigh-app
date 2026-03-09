@@ -4,6 +4,7 @@ import type {
   MotionConfig,
   ModelConfig,
   PromptConfig,
+  StructureGuidanceConfig,
   StitchConfig,
   StructureVideoConfigWithMetadata,
 } from '@/shared/lib/tasks/travelBetweenImages';
@@ -21,6 +22,7 @@ export interface GenerateVideoParams {
   promptConfig: PromptConfig;
   motionConfig: MotionConfig;
   modelConfig: ModelConfig;
+  structureGuidance?: StructureGuidanceConfig;
   structureVideos?: StructureVideoConfigWithMetadata[];
   batchVideoFrames: number;
   selectedLoras: Array<{ id: string; path: string; strength: number; name: string }>;

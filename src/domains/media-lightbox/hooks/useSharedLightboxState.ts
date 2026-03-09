@@ -4,16 +4,11 @@
  * Shared state orchestrator for ImageLightbox and VideoLightbox.
  */
 
-import { useRef, useEffect, useCallback, useMemo } from 'react';
-import { useVariants } from '@/shared/hooks/variants/useVariants';
-import { useVariantSelection } from './useVariantSelection';
-import { useVariantPromotion } from './useVariantPromotion';
+import { useCallback, useMemo } from 'react';
 import { useStarToggle } from './useStarToggle';
 import { useReferences } from './useReferences';
 import { useJoinClips } from './useJoinClips';
 import { useGenerationLineage } from './useGenerationLineage';
-import { useShotPositioning } from './useShotPositioning';
-import { useShotCreation } from './useShotCreation';
 import { useSourceGeneration } from './useSourceGeneration';
 import { useMakeMainVariant } from './useMakeMainVariant';
 import { useLightboxNavigation } from './useLightboxNavigation';
@@ -21,6 +16,8 @@ import { useSwipeNavigation } from './useSwipeNavigation';
 import { useEffectiveMedia } from './useEffectiveMedia';
 import { useLayoutMode } from './useLayoutMode';
 import { invokeLightboxDelete } from '../utils/lightboxDelete';
+import { useSharedLightboxShotState } from './sharedLightbox/useSharedLightboxShotState';
+import { useSharedLightboxVariantState } from './sharedLightbox/useSharedLightboxVariantState';
 import type {
   LightboxButtonGroupProps,
   UseSharedLightboxStateInput,
@@ -36,47 +33,13 @@ export function useSharedLightboxState(input: UseSharedLightboxStateInput): UseS
 
   // --- Variants ---
 
-  const {
-    variants,
-    primaryVariant,
-    activeVariant,
-    isLoading: isLoadingVariants,
-    setActiveVariantId: rawSetActiveVariantId,
-    refetch: refetchVariants,
-    setPrimaryVariant,
-    deleteVariant,
-  } = useVariants({
-    generationId: core.variantFetchGenerationId,
-    enabled: !isFormOnlyMode,
-  });
-
-  const { setActiveVariantId: baseSetActiveVariantId, isViewingNonPrimaryVariant } = useVariantSelection({
+  const variantState = useSharedLightboxVariantState({
     media,
-    viewedGenerationId: core.variantFetchGenerationId,
-    rawSetActiveVariantId,
-    activeVariant,
-    variants,
+    variantFetchGenerationId: core.variantFetchGenerationId,
     initialVariantId: core.initialVariantId,
+    isFormOnlyMode,
+    selectedProjectId,
   });
-
-  const intendedActiveVariantIdRef = useRef<string | null>(activeVariant?.id || null);
-
-  const { promoteSuccess, isPromoting, handlePromoteToGeneration, handleAddVariantAsNewGenerationToShot } =
-    useVariantPromotion({ selectedProjectId });
-
-  useEffect(() => {
-    if (activeVariant?.id && activeVariant.id !== intendedActiveVariantIdRef.current) {
-      intendedActiveVariantIdRef.current = activeVariant.id;
-    }
-  }, [activeVariant?.id]);
-
-  const setActiveVariantId = useCallback(
-    (variantId: string) => {
-      intendedActiveVariantIdRef.current = variantId;
-      baseSetActiveVariantId(variantId);
-    },
-    [baseSetActiveVariantId],
-  );
 
   // --- Star, references, join clips ---
 
@@ -97,58 +60,11 @@ export function useSharedLightboxState(input: UseSharedLightboxStateInput): UseS
 
   // --- Shots ---
 
-  const {
-    allShots,
-    onNavigateToShot,
-    onShotChange,
-    selectedShotId,
-    positionedInSelectedShot,
-    associatedWithoutPositionInSelectedShot,
-    optimisticPositionedIds,
-    optimisticUnpositionedIds,
-    onAddToShot,
-    onAddToShotWithoutPosition,
-    onShowTick,
-    onShowSecondaryTick,
-    onOptimisticPositioned,
-    onOptimisticUnpositioned,
-  } = shotWorkflow ?? {};
-
-  const { isCreatingShot, quickCreateSuccess, handleQuickCreateAndAdd, handleQuickCreateSuccess } = useShotCreation({
+  const shotState = useSharedLightboxShotState({
     media,
     selectedProjectId,
-    allShots: allShots || [],
-    onNavigateToShot,
+    shotWorkflow,
     onClose,
-    onShotChange,
-  });
-
-  const computedPositionedInSelectedShot = useMemo(
-    () => (typeof positionedInSelectedShot === 'boolean' ? positionedInSelectedShot : undefined),
-    [positionedInSelectedShot],
-  );
-
-  const {
-    isAlreadyPositionedInSelectedShot,
-    isAlreadyAssociatedWithoutPosition,
-    handleAddToShot,
-    handleAddToShotWithoutPosition,
-  } = useShotPositioning({
-    media,
-    selectedShotId,
-    allShots: allShots || [],
-    positionedInSelectedShot: computedPositionedInSelectedShot,
-    associatedWithoutPositionInSelectedShot,
-    optimisticPositionedIds,
-    optimisticUnpositionedIds,
-    onNavigateToShot,
-    onClose,
-    onAddToShot,
-    onAddToShotWithoutPosition,
-    onShowTick,
-    onShowSecondaryTick,
-    onOptimisticPositioned,
-    onOptimisticUnpositioned,
   });
 
   // --- Source generation & make-main-variant ---
@@ -159,7 +75,7 @@ export function useSharedLightboxState(input: UseSharedLightboxStateInput): UseS
   });
 
   const canMakeMainVariantFromChild = !!sourceGenerationData && !!media.location;
-  const canMakeMainVariantFromVariant = isViewingNonPrimaryVariant && !!activeVariant?.location;
+  const canMakeMainVariantFromVariant = variantState.isViewingNonPrimaryVariant && !!variantState.activeVariant?.location;
   const canMakeMainVariant = canMakeMainVariantFromChild || canMakeMainVariantFromVariant;
 
   const { isMakingMainVariant, handleMakeMainVariant } = useMakeMainVariant({
@@ -167,9 +83,9 @@ export function useSharedLightboxState(input: UseSharedLightboxStateInput): UseS
     sourceGenerationData,
     canMakeMainVariantFromChild,
     canMakeMainVariantFromVariant,
-    activeVariant,
-    setPrimaryVariant,
-    refetchVariants,
+    activeVariant: variantState.activeVariant,
+    setPrimaryVariant: variantState.setPrimaryVariant,
+    refetchVariants: variantState.refetchVariants,
     shotId: shotsInput.shotId,
     selectedShotId: shotWorkflow?.selectedShotId,
     onClose,
@@ -203,7 +119,7 @@ export function useSharedLightboxState(input: UseSharedLightboxStateInput): UseS
 
   const { effectiveVideoUrl, effectiveMediaUrl, effectiveImageDimensions } = useEffectiveMedia({
     isVideo,
-    activeVariant,
+    activeVariant: variantState.activeVariant,
     effectiveImageUrl: mediaInput.effectiveImageUrl,
     imageDimensions: mediaInput.imageDimensions,
     projectAspectRatio: mediaInput.projectAspectRatio,
@@ -280,21 +196,21 @@ export function useSharedLightboxState(input: UseSharedLightboxStateInput): UseS
 
   return {
     variants: {
-      list: variants || [],
-      primaryVariant,
-      activeVariant,
-      isLoading: isLoadingVariants,
-      setActiveVariantId,
-      refetch: refetchVariants,
-      setPrimaryVariant,
-      deleteVariant,
-      isViewingNonPrimaryVariant,
-      promoteSuccess,
-      isPromoting,
-      handlePromoteToGeneration,
-      handleAddVariantAsNewGenerationToShot,
+      list: variantState.variants || [],
+      primaryVariant: variantState.primaryVariant,
+      activeVariant: variantState.activeVariant,
+      isLoading: variantState.isLoadingVariants,
+      setActiveVariantId: variantState.setActiveVariantId,
+      refetch: variantState.refetchVariants,
+      setPrimaryVariant: variantState.setPrimaryVariant,
+      deleteVariant: variantState.deleteVariant,
+      isViewingNonPrimaryVariant: variantState.isViewingNonPrimaryVariant,
+      promoteSuccess: variantState.promoteSuccess,
+      isPromoting: variantState.isPromoting,
+      handlePromoteToGeneration: variantState.handlePromoteToGeneration,
+      handleAddVariantAsNewGenerationToShot: variantState.handleAddVariantAsNewGenerationToShot,
     },
-    intendedActiveVariantIdRef,
+    intendedActiveVariantIdRef: variantState.intendedActiveVariantIdRef,
     navigation: {
       safeClose,
       activateClickShield,
@@ -324,14 +240,14 @@ export function useSharedLightboxState(input: UseSharedLightboxStateInput): UseS
       setDerivedPage: lineageState.setDerivedPage,
     },
     shots: {
-      isAlreadyPositionedInSelectedShot,
-      isAlreadyAssociatedWithoutPosition,
-      handleAddToShot,
-      handleAddToShotWithoutPosition,
-      isCreatingShot,
-      quickCreateSuccess,
-      handleQuickCreateAndAdd,
-      handleQuickCreateSuccess,
+      isAlreadyPositionedInSelectedShot: shotState.isAlreadyPositionedInSelectedShot,
+      isAlreadyAssociatedWithoutPosition: shotState.isAlreadyAssociatedWithoutPosition,
+      handleAddToShot: shotState.handleAddToShot,
+      handleAddToShotWithoutPosition: shotState.handleAddToShotWithoutPosition,
+      isCreatingShot: shotState.isCreatingShot,
+      quickCreateSuccess: shotState.quickCreateSuccess,
+      handleQuickCreateAndAdd: shotState.handleQuickCreateAndAdd,
+      handleQuickCreateSuccess: shotState.handleQuickCreateSuccess,
     },
     sourceGeneration: {
       data: sourceGenerationData,

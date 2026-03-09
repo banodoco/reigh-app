@@ -17,7 +17,8 @@ interface StructureVideoGuidanceUiFields {
 }
 
 /**
- * Editor-facing structure-video model with local metadata and legacy UI knobs.
+ * Editor-facing structure-video model with local metadata and UI-only control
+ * fields derived from the canonical guidance contract.
  * This type is for UI state only and is not the canonical API payload contract.
  */
 export interface StructureVideoConfigWithMetadata extends StructureVideoConfig, StructureVideoGuidanceUiFields {
