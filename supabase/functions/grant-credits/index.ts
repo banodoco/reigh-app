@@ -1,6 +1,7 @@
 import { toErrorMessage } from "../_shared/errorMessage.ts";
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { bootstrapEdgeHandler, NO_SESSION_RUNTIME_OPTIONS } from "../_shared/edgeHandler.ts";
+import { JWT_AUTH_REQUIRED } from "../_shared/requestGuards.ts";
 
 /**
  * Edge function: grant-credits
@@ -40,10 +41,7 @@ serve(async (req) => {
     method: "POST",
     parseBody: "strict",
     corsPreflight: false,
-    auth: {
-      required: true,
-      options: { allowJwtUserAuth: true },
-    },
+    auth: JWT_AUTH_REQUIRED,
     ...NO_SESSION_RUNTIME_OPTIONS,
   });
   if (!bootstrap.ok) {
@@ -223,12 +221,18 @@ serve(async (req) => {
     });
 
   } catch (error: unknown) {
-    const message = toErrorMessage(error);
-    logger.error("Unexpected error", { error: message });
+    const errorMessage = toErrorMessage(error);
+    logger.error("Grant credits failed", { error: errorMessage });
     await logger.flush();
-    return new Response(`Internal server error: ${message}`, {
+    return new Response(JSON.stringify({
+      error: "Internal server error",
+      details: errorMessage,
+    }), {
       status: 500,
-      headers: corsHeaders,
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders,
+      },
     });
   }
 }); 

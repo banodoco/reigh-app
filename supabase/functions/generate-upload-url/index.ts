@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { withEdgeRequest } from "../_shared/edgeHandler.ts";
 import { jsonResponse } from "../_shared/http.ts";
+import { ensureTaskActor, normalizeTaskId } from "../_shared/requestGuards.ts";
 import { MEDIA_BUCKET, storagePaths } from "../_shared/storagePaths.ts";
 import { resolveTaskStorageActor } from "../_shared/taskActorPolicy.ts";
 
@@ -39,14 +40,10 @@ serve((req) => {
     },
   },
 }, async ({ supabaseAdmin, logger, body, auth }) => {
-  if (!auth || (!auth.userId && !auth.isServiceRole)) {
-    logger.error("Authentication failed");
-    return jsonResponse({ error: "Authentication failed" }, 401);
-  }
+  const authResult = ensureTaskActor(auth, logger);
+  if (!authResult.ok) return authResult.response;
 
-  const taskIdString = (
-    typeof body.task_id === 'string' || typeof body.task_id === 'number'
-  ) ? String(body.task_id) : '';
+  const taskIdString = normalizeTaskId(body.task_id);
   const filename = typeof body.filename === 'string' ? body.filename : '';
   const contentType = typeof body.content_type === 'string' ? body.content_type : '';
   const generateThumbnailUrl = body.generate_thumbnail_url === true;

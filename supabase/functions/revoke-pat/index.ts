@@ -2,27 +2,26 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { jsonResponse } from "../_shared/http.ts";
 import { bootstrapEdgeHandler, NO_SESSION_RUNTIME_OPTIONS } from "../_shared/edgeHandler.ts";
+import { ensureUserAuth, JWT_AUTH_REQUIRED } from "../_shared/requestGuards.ts";
 
 serve(async (req) => {
   const bootstrap = await bootstrapEdgeHandler(req, {
     functionName: "revoke-pat",
     logPrefix: "[REVOKE-PAT]",
     parseBody: "strict",
-    auth: {
-      required: true,
-      options: { allowJwtUserAuth: true },
-    },
+    auth: JWT_AUTH_REQUIRED,
     ...NO_SESSION_RUNTIME_OPTIONS,
   });
   if (!bootstrap.ok) {
     return bootstrap.response;
   }
   const { supabaseAdmin, logger, auth, body } = bootstrap.value;
-  if (!auth?.userId) {
-    logger.error('Authentication failed');
+  const authResult = ensureUserAuth(auth, logger);
+  if (!authResult.ok) {
     await logger.flush();
-    return jsonResponse({ error: 'Authentication failed' }, 401);
+    return authResult.response;
   }
+  const userId = authResult.userId;
 
   try {
     const tokenId = typeof body.tokenId === 'string' ? body.tokenId : null;
@@ -38,7 +37,7 @@ serve(async (req) => {
       .from('user_api_tokens')
       .delete()
       .eq('id', tokenId)
-      .eq('user_id', auth.userId); // Extra safety check
+      .eq('user_id', userId); // Extra safety check
 
     if (deleteError) {
       logger.error('Failed to revoke API credential', { error: deleteError.message });
@@ -46,7 +45,7 @@ serve(async (req) => {
       return jsonResponse({ error: 'Failed to revoke token' }, 500);
     }
 
-    logger.info('Revoked API credential', { user_id: auth.userId });
+    logger.info('Revoked API credential', { user_id: userId });
     await logger.flush();
     return jsonResponse({ success: true });
   } catch (error: unknown) {

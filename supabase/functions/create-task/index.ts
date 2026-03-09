@@ -5,6 +5,7 @@ import {
   RATE_LIMITS,
 } from "../_shared/rateLimit.ts";
 import { buildTaskInsertObject, getErrorMessage, parseCreateTaskBody } from "./request.ts";
+import { JWT_AUTH_REQUIRED } from "../_shared/requestGuards.ts";
 
 function createCorsResponse(body: string, status: number = 200) {
   return new Response(body, {
@@ -33,10 +34,7 @@ serve(async (req) => {
     method: "POST",
     parseBody: "strict",
     corsPreflight: false,
-    auth: {
-      required: true,
-      options: { allowJwtUserAuth: true },
-    },
+    auth: JWT_AUTH_REQUIRED,
     ...NO_SESSION_RUNTIME_OPTIONS,
   });
   if (!bootstrap.ok) {

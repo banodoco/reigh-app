@@ -2,8 +2,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { bootstrapEdgeHandler, NO_SESSION_RUNTIME_OPTIONS } from "../_shared/edgeHandler.ts";
 import { toErrorMessage } from "../_shared/errorMessage.ts";
-
-declare const Deno: { env: { get: (key: string) => string | undefined } };
+import { ensureUserAuth } from "../_shared/requestGuards.ts";
 
 interface HuggingFaceCredentials {
   accessToken: string;
@@ -213,11 +212,12 @@ serve(async (req) => {
     const { whoAmI, createRepo, uploadFile } = await huggingFaceHubPromise;
 
     // 1. Authenticate user
-    if (!auth?.userId) {
+    const authResult = ensureUserAuth(auth, logger);
+    if (!authResult.ok) {
       return createResponse({ error: "Unauthorized" }, 401);
     }
 
-    const userId = auth.userId;
+    const userId = authResult.userId;
     logger.info('Authenticated request');
 
     // 2. Get user's HuggingFace token (decrypted from Vault)

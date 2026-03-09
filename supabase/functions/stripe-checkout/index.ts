@@ -7,12 +7,12 @@ import {
 import { bootstrapEdgeHandler } from "../_shared/edgeHandler.ts";
 import { jsonResponse } from "../_shared/http.ts";
 import {
-  createStripeClient,
   dollarsToCents,
   requireFrontendUrl,
   validateAutoTopupConfig,
   validateCreditPurchaseAmount,
 } from "../_shared/autoTopupDomain.ts";
+import { ensureStripeClient } from "../_shared/autoTopupRequest.ts";
 
 /**
  * Edge function: stripe-checkout
@@ -111,14 +111,12 @@ serve(async (req) => {
       await logger.flush();
       return jsonResponse({ error: frontendUrlResult.error.message }, 500);
     }
-    const stripeResult = createStripeClient();
+    const stripeResult = await ensureStripeClient(logger);
     if (!stripeResult.ok) {
-      logger.error(stripeResult.error.logMessage);
-      await logger.flush();
-      return jsonResponse({ error: stripeResult.error.message }, 500);
+      return stripeResult.response;
     }
     const frontendUrl = frontendUrlResult.value;
-    const stripe = stripeResult.value;
+    const stripe = stripeResult.stripe;
 
     // Look up user email for Stripe checkout pre-fill
     const { data: userData } = await supabaseAdmin.from('users').select('email').eq('id', auth.userId).single();

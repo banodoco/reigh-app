@@ -2,10 +2,9 @@ import { toErrorMessage } from "../_shared/errorMessage.ts";
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { bootstrapEdgeHandler, NO_SESSION_RUNTIME_OPTIONS } from "../_shared/edgeHandler.ts";
 import { jsonResponse } from "../_shared/http.ts";
-import {
-  createStripeClient,
-  validatePersistedAutoTopupConfig,
-} from "../_shared/autoTopupDomain.ts";
+import { validatePersistedAutoTopupConfig } from "../_shared/autoTopupDomain.ts";
+import { ensureStripeClient } from "../_shared/autoTopupRequest.ts";
+import { ensureServiceRoleAuth } from "../_shared/requestGuards.ts";
 
 /**
  * Edge function: process-auto-topup
@@ -37,10 +36,10 @@ serve(async (req) => {
   }
 
   const { supabaseAdmin, logger, body, auth } = bootstrap.value;
-  if (!auth?.isServiceRole) {
-    logger.error('Authentication failed');
+  const authResult = ensureServiceRoleAuth(auth, logger);
+  if (!authResult.ok) {
     await logger.flush();
-    return jsonResponse({ error: 'Authentication failed' }, 401);
+    return authResult.response;
   }
 
   const userId = typeof body.userId === "string" ? body.userId : null;
@@ -126,13 +125,11 @@ serve(async (req) => {
     }
 
     // ─── 6. Initialize Stripe and create Payment Intent ─────────────
-    const stripeResult = createStripeClient();
+    const stripeResult = await ensureStripeClient(logger);
     if (!stripeResult.ok) {
-      logger.error(stripeResult.error.logMessage);
-      await logger.flush();
-      return jsonResponse({ error: stripeResult.error.message }, 500);
+      return stripeResult.response;
     }
-    const stripe = stripeResult.value;
+    const stripe = stripeResult.stripe;
 
     // Create off-session payment intent
     const paymentIntent = await stripe.paymentIntents.create({

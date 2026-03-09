@@ -2,7 +2,8 @@ import { toErrorMessage } from "../_shared/errorMessage.ts";
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { jsonResponse } from "../_shared/http.ts";
 import { bootstrapEdgeHandler, NO_SESSION_RUNTIME_OPTIONS } from "../_shared/edgeHandler.ts";
-import { createStripeClient } from "../_shared/autoTopupDomain.ts";
+import { ensureStripeClient } from "../_shared/autoTopupRequest.ts";
+import { ensureServiceRoleAuth } from "../_shared/requestGuards.ts";
 
 /**
  * Edge function: complete-auto-topup-setup
@@ -35,10 +36,10 @@ serve(async (req) => {
   }
 
   const { supabaseAdmin, logger, body, auth } = bootstrap.value;
-  if (!auth?.isServiceRole) {
-    logger.error("Authentication failed");
+  const authResult = ensureServiceRoleAuth(auth, logger);
+  if (!authResult.ok) {
     await logger.flush();
-    return jsonResponse({ error: "Authentication failed" }, 401);
+    return authResult.response;
   }
   
   const { sessionId, userId } = body;
@@ -49,13 +50,11 @@ serve(async (req) => {
 
   try {
     // ─── 4. Initialize Stripe ───────────────────────────────────────
-    const stripeResult = createStripeClient();
+    const stripeResult = await ensureStripeClient(logger);
     if (!stripeResult.ok) {
-      logger.error(stripeResult.error.logMessage);
-      await logger.flush();
-      return jsonResponse({ error: stripeResult.error.message }, 500);
+      return stripeResult.response;
     }
-    const stripe = stripeResult.value;
+    const stripe = stripeResult.stripe;
 
     // ─── 5. Retrieve checkout session and payment intent ────────────
     const session = await stripe.checkout.sessions.retrieve(sessionId, {

@@ -7,6 +7,7 @@ import {
 import { bootstrapEdgeHandler, NO_SESSION_RUNTIME_OPTIONS } from "../_shared/edgeHandler.ts";
 import { toErrorMessage } from "../_shared/errorMessage.ts";
 import { resolveTaskStorageActor } from "../_shared/taskActorPolicy.ts";
+import { ensureTaskActor } from "../_shared/requestGuards.ts";
 
 // Import from refactored modules
 import { parseCompleteTaskRequest, validateStoragePathSecurity } from './request.ts';
@@ -43,8 +44,8 @@ export async function completeTaskHandler(req: Request): Promise<Response> {
   }
 
   const { supabaseAdmin, logger, auth } = bootstrap.value;
-  if (!auth || (!auth.userId && !auth.isServiceRole)) {
-    logger.error("Authentication failed");
+  const authResult = ensureTaskActor(auth, logger);
+  if (!authResult.ok) {
     await logger.flush();
     return completeTaskErrorResponse("Authentication failed", 401);
   }

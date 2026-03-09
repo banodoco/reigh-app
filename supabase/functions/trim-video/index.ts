@@ -26,6 +26,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { storagePaths, MEDIA_BUCKET } from '../_shared/storagePaths.ts';
 import { bootstrapEdgeHandler, NO_SESSION_RUNTIME_OPTIONS } from "../_shared/edgeHandler.ts";
+import { JWT_AUTH_REQUIRED } from "../_shared/requestGuards.ts";
 
 declare const Deno: {
   env: {
@@ -252,10 +253,7 @@ serve(async (req) => {
     method: "POST",
     parseBody: "strict",
     corsPreflight: false,
-    auth: {
-      required: true,
-      options: { allowJwtUserAuth: true },
-    },
+    auth: JWT_AUTH_REQUIRED,
     ...NO_SESSION_RUNTIME_OPTIONS,
   });
   if (!bootstrap.ok) {

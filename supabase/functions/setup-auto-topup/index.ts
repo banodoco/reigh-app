@@ -2,6 +2,7 @@ import { toErrorMessage } from "../_shared/errorMessage.ts";
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { jsonResponse } from "../_shared/http.ts";
 import { bootstrapEdgeHandler, NO_SESSION_RUNTIME_OPTIONS } from "../_shared/edgeHandler.ts";
+import { ensureUserAuth, JWT_AUTH_REQUIRED } from "../_shared/requestGuards.ts";
 import { dollarsToCents, validateAutoTopupConfig } from "../_shared/autoTopupDomain.ts";
 
 /**
@@ -30,10 +31,7 @@ serve(async (req) => {
     functionName: "setup-auto-topup",
     logPrefix: "[SETUP-AUTO-TOPUP]",
     parseBody: "strict",
-    auth: {
-      required: true,
-      options: { allowJwtUserAuth: true },
-    },
+    auth: JWT_AUTH_REQUIRED,
     ...NO_SESSION_RUNTIME_OPTIONS,
   });
   if (!bootstrap.ok) {
@@ -65,9 +63,11 @@ serve(async (req) => {
   }
 
   // ─── 2. Authenticate request ────────────────────────────────────
-  if (!auth?.userId) {
-    return jsonResponse({ error: "Authentication failed" }, 401);
+  const authResult = ensureUserAuth(auth, logger);
+  if (!authResult.ok) {
+    return authResult.response;
   }
+  const userId = authResult.userId;
 
   try {
     // ─── 3. Update user auto-top-up preferences ─────────────────────
@@ -97,16 +97,16 @@ serve(async (req) => {
     const { error: updateError } = await supabaseAdmin
       .from('users')
       .update(updateData)
-      .eq('id', auth.userId);
+      .eq('id', userId);
 
     if (updateError) {
-      logger.error('Error updating user auto-top-up preferences', { error: updateError.message, user_id: auth.userId });
+      logger.error('Error updating user auto-top-up preferences', { error: updateError.message, user_id: userId });
       await logger.flush();
       return jsonResponse({ error: 'Failed to update preferences' }, 500);
     }
 
     logger.info('Auto-top-up preferences updated', {
-      user_id: auth.userId,
+      user_id: userId,
       enabled: autoTopupEnabled,
       amount: autoTopupEnabled ? autoTopupAmount : null,
       threshold: autoTopupEnabled ? autoTopupThreshold : null,

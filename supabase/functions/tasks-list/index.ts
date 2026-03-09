@@ -2,16 +2,14 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { bootstrapEdgeHandler, NO_SESSION_RUNTIME_OPTIONS } from "../_shared/edgeHandler.ts";
 import { jsonResponse } from "../_shared/http.ts";
+import { ensureUserAuth, JWT_AUTH_REQUIRED } from "../_shared/requestGuards.ts";
 
 serve(async (req) => {
   const bootstrap = await bootstrapEdgeHandler(req, {
     functionName: "tasks-list",
     logPrefix: "[TASKS-LIST]",
     parseBody: "strict",
-    auth: {
-      required: true,
-      options: { allowJwtUserAuth: true },
-    },
+    auth: JWT_AUTH_REQUIRED,
     ...NO_SESSION_RUNTIME_OPTIONS,
   });
   if (!bootstrap.ok) {
@@ -28,8 +26,14 @@ serve(async (req) => {
     return jsonResponse({ error: "projectId is required" }, 400);
   }
 
+  const userGuard = auth?.isServiceRole ? null : ensureUserAuth(auth, logger);
+  if (userGuard && !userGuard.ok) {
+    return userGuard.response;
+  }
+  const userId = userGuard?.ok ? userGuard.userId : null;
+
   // For non-service-role requests, verify the user owns the project
-  if (!auth?.isServiceRole && auth?.userId) {
+  if (!auth?.isServiceRole && userId) {
     const { data: project, error: projectError } = await supabaseAdmin
       .from("projects")
       .select("user_id")
@@ -40,7 +44,7 @@ serve(async (req) => {
       return jsonResponse({ error: "Project not found" }, 404);
     }
 
-    if (project.user_id !== auth.userId) {
+    if (project.user_id !== userId) {
       return jsonResponse({ error: "Forbidden: You do not own this project" }, 403);
     }
   }
@@ -73,4 +77,4 @@ serve(async (req) => {
     await logger.flush();
     return jsonResponse({ error: "Internal server error", details: message }, 500);
   }
-}); 
+});

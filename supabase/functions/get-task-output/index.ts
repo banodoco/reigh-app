@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { withEdgeRequest } from "../_shared/edgeHandler.ts";
 import { jsonResponse } from "../_shared/http.ts";
+import { ensureTaskActor, normalizeTaskId } from "../_shared/requestGuards.ts";
 import { authorizeTaskActor } from "../_shared/taskActorPolicy.ts";
 
 /**
@@ -34,14 +35,10 @@ serve((req) => {
     required: true,
   },
 }, async ({ supabaseAdmin, logger, body, auth }) => {
-  if (!auth || (!auth.userId && !auth.isServiceRole)) {
-    logger.error("Authentication failed");
-    return jsonResponse({ error: "Authentication failed" }, 401);
-  }
+  const authResult = ensureTaskActor(auth, logger);
+  if (!authResult.ok) return authResult.response;
 
-  const taskId = typeof body.task_id === 'string' || typeof body.task_id === 'number'
-    ? String(body.task_id)
-    : '';
+  const taskId = normalizeTaskId(body.task_id);
   if (!taskId) {
     logger.error("Missing task_id");
     return jsonResponse({ error: "task_id is required" }, 400);

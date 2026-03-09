@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { enforceRateLimit } from "../_shared/rateLimit.ts";
 import { jsonResponse } from "../_shared/http.ts";
 import { bootstrapEdgeHandler, NO_SESSION_RUNTIME_OPTIONS } from "../_shared/edgeHandler.ts";
+import { ensureUserAuth, JWT_AUTH_REQUIRED } from "../_shared/requestGuards.ts";
 
 // Generate a cryptographically secure random 32-character token
 function generateToken(): string {
@@ -19,10 +20,7 @@ serve(async (req) => {
     functionName: "generate-pat",
     logPrefix: "[GENERATE-PAT]",
     parseBody: "strict",
-    auth: {
-      required: true,
-      options: { allowJwtUserAuth: true },
-    },
+    auth: JWT_AUTH_REQUIRED,
     ...NO_SESSION_RUNTIME_OPTIONS,
   });
   if (!bootstrap.ok) {
@@ -30,18 +28,19 @@ serve(async (req) => {
   }
 
   const { supabaseAdmin, logger, body, auth } = bootstrap.value;
-  if (!auth?.userId) {
-    logger.error('Authentication failed');
+  const authResult = ensureUserAuth(auth, logger);
+  if (!authResult.ok) {
     await logger.flush();
-    return jsonResponse({ error: 'Authentication failed' }, 401);
+    return authResult.response;
   }
+  const userId = authResult.userId;
 
   try {
     // Rate limit: max 10 PAT generations per minute per user
     const rateLimitDenied = await enforceRateLimit({
       supabaseAdmin,
       functionName: 'generate-pat',
-      userId: auth.userId,
+      userId: userId,
       config: GENERATE_PAT_RATE_LIMIT,
       logger,
       logPrefix: '[GENERATE-PAT]',
@@ -62,7 +61,7 @@ serve(async (req) => {
     const { error: insertError } = await supabaseAdmin
       .from('user_api_tokens')
       .insert({
-        user_id: auth.userId,
+        user_id: userId,
         token: apiToken,
         label,
       });
@@ -73,7 +72,7 @@ serve(async (req) => {
       return jsonResponse({ error: 'Failed to store token metadata', details: insertError.message }, 500);
     }
 
-    logger.info('Created API credential metadata entry', { user_id: auth.userId, label });
+    logger.info('Created API credential metadata entry', { user_id: userId, label });
     await logger.flush();
     return jsonResponse({ 
       token: apiToken,
