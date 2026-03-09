@@ -1,8 +1,10 @@
 // deno-lint-ignore-file
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { bootstrapEdgeHandler } from "../_shared/edgeHandler.ts";
+import { withEdgeRequest } from "../_shared/edgeHandler.ts";
+import { verifyProjectOwnership } from "../_shared/auth.ts";
 import { jsonResponse } from "../_shared/http.ts";
 import { toErrorMessage } from "../_shared/errorMessage.ts";
+import { ensureUserAuth } from "../_shared/requestGuards.ts";
 
 /**
  * Edge Function: get-completed-segments
@@ -20,71 +22,58 @@ import { toErrorMessage } from "../_shared/errorMessage.ts";
  *
  * Returns 200 with: [{ segment_index, output_location }]
  */
-serve(async (req) => {
-  const bootstrap = await bootstrapEdgeHandler(req, {
+serve((req) => {
+  return withEdgeRequest(req, {
     functionName: "get-completed-segments",
     logPrefix: "[GET-COMPLETED-SEGMENTS]",
     parseBody: "strict",
     auth: {
       required: true,
     },
-  });
-  if (!bootstrap.ok) {
-    return bootstrap.response;
-  }
+  }, async ({ supabaseAdmin, logger, body: requestBody, auth }) => {
+    const run_id = typeof requestBody.run_id === "string" ? requestBody.run_id : null;
+    const project_id = typeof requestBody.project_id === "string" ? requestBody.project_id : null;
 
-  const { supabaseAdmin, logger, body: requestBody, auth } = bootstrap.value;
-  if (!auth || (!auth.userId && !auth.isServiceRole)) {
-    logger.error("Authentication failed");
-    await logger.flush();
-    return jsonResponse({ error: "Authentication failed" }, 401);
-  }
+    if (!run_id) {
+      logger.error("Missing run_id");
+      return jsonResponse({ error: "run_id is required" }, 400);
+    }
 
-  const run_id = typeof requestBody.run_id === "string" ? requestBody.run_id : null;
-  const project_id = typeof requestBody.project_id === "string" ? requestBody.project_id : null;
+    logger.info("Processing request", { run_id, project_id: project_id || "(none)" });
 
-  if (!run_id) {
-    logger.error("Missing run_id");
-    await logger.flush();
-    return jsonResponse({ error: "run_id is required" }, 400);
-  }
+    const isServiceRole = auth?.isServiceRole ?? false;
+    const userGuard = isServiceRole ? null : ensureUserAuth(auth, logger);
+    if (userGuard && !userGuard.ok) {
+      return userGuard.response;
+    }
+    const callerId = userGuard?.ok ? userGuard.userId : null;
 
-  logger.info("Processing request", { run_id, project_id: project_id || "(none)" });
-
-  const isServiceRole = auth!.isServiceRole;
-  const callerId = auth!.userId;
-
-  try {
+    try {
     // Authorization for non-service callers
     const effectiveProjectId = project_id;
 
     if (!isServiceRole) {
       if (!effectiveProjectId) {
         logger.error("Missing project_id for authenticated user");
-        await logger.flush();
         return jsonResponse({ error: "project_id required for user tokens" }, 400);
       }
 
-      // Ensure caller owns the project
-      const { data: proj, error: projErr } = await supabaseAdmin
-        .from("projects")
-        .select("user_id")
-        .eq("id", effectiveProjectId)
-        .single();
-
-      if (projErr || !proj) {
-        logger.error("Project not found", { project_id: effectiveProjectId, error: projErr?.message });
-        await logger.flush();
-        return jsonResponse({ error: "Project not found" }, 404);
-      }
-
-      if (proj.user_id !== callerId) {
-        logger.error("Access denied - user doesn't own project", {
+      const ownership = await verifyProjectOwnership(
+        supabaseAdmin,
+        effectiveProjectId,
+        callerId!,
+        "[GET-COMPLETED-SEGMENTS]",
+      );
+      if (!ownership.success) {
+        logger.error("Project ownership verification failed", {
+          project_id: effectiveProjectId,
           user_id: callerId,
-          project_owner: proj.user_id
+          error: ownership.error,
         });
-        await logger.flush();
-        return jsonResponse({ error: "Forbidden: You don't own this project" }, 403);
+        return jsonResponse(
+          { error: ownership.error || "Forbidden: You don't own this project" },
+          ownership.statusCode || 403,
+        );
       }
 
       logger.debug("Project ownership verified");
@@ -110,7 +99,6 @@ serve(async (req) => {
 
     if (qErr) {
       logger.error("Database query error", { error: qErr.message });
-      await logger.flush();
       return jsonResponse({ error: "Database query error" }, 500);
     }
 
@@ -134,14 +122,12 @@ serve(async (req) => {
       total_found: rows?.length || 0,
       valid_results: results.length
     });
-    await logger.flush();
 
     return jsonResponse(results, 200);
 
   } catch (e: unknown) {
     const message = toErrorMessage(e);
     logger.critical("Unexpected error", { error: message });
-    await logger.flush();
     return jsonResponse({ error: message }, 500);
-  }
+  }});
 });

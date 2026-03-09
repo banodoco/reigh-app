@@ -30,6 +30,23 @@ export interface AuthOptions {
   allowJwtUserAuth?: boolean;
 }
 
+export interface OwnershipVerificationResult {
+  success: boolean;
+  error?: string;
+  statusCode?: number;
+  projectId?: string;
+}
+
+interface ProjectOwnershipLogContext {
+  resourceLabel?: string;
+  resourceId?: string;
+  forbiddenMessage?: string;
+}
+
+type ProjectOwnerLookupResult =
+  | { ok: true; ownerUserId: string }
+  | { ok: false; error: string; statusCode: number };
+
 /**
  * Authenticates a request using Bearer token (Service Role Key, JWT, or PAT)
  *
@@ -143,6 +160,73 @@ export async function authenticateRequest(
   };
 }
 
+async function lookupProjectOwnerUserId(
+  supabaseAdmin: SupabaseClient,
+  projectId: string,
+  logPrefix: string,
+): Promise<ProjectOwnerLookupResult> {
+  const { data: projectData, error: projectError } = await supabaseAdmin
+    .from("projects")
+    .select("user_id")
+    .eq("id", projectId)
+    .single();
+
+  if (projectError || !projectData) {
+    console.error(`${logPrefix} Project lookup error:`, projectError);
+    return {
+      ok: false,
+      error: "Project not found",
+      statusCode: 404,
+    };
+  }
+
+  return {
+    ok: true,
+    ownerUserId: projectData.user_id,
+  };
+}
+
+export async function verifyProjectOwnership(
+  supabaseAdmin: SupabaseClient,
+  projectId: string,
+  userId: string,
+  logPrefix: string = "[AUTH]",
+  context: ProjectOwnershipLogContext = {},
+): Promise<OwnershipVerificationResult> {
+  const ownerLookup = await lookupProjectOwnerUserId(supabaseAdmin, projectId, logPrefix);
+  if (!ownerLookup.ok) {
+    return {
+      success: false,
+      error: ownerLookup.error,
+      statusCode: ownerLookup.statusCode,
+    };
+  }
+
+  if (ownerLookup.ownerUserId !== userId) {
+    const resourceLabel = context.resourceLabel ?? "Project";
+    const resourceId = context.resourceId?.trim();
+    if (resourceId && resourceLabel !== "Project") {
+      console.error(
+        `${logPrefix} ${resourceLabel} ${resourceId} belongs to project ${projectId} owned by ${ownerLookup.ownerUserId}, not user ${userId}`,
+      );
+    } else {
+      console.error(
+        `${logPrefix} Project ${projectId} is owned by ${ownerLookup.ownerUserId}, not user ${userId}`,
+      );
+    }
+    return {
+      success: false,
+      error: context.forbiddenMessage ?? "Forbidden: Project does not belong to user",
+      statusCode: 403,
+    };
+  }
+
+  return {
+    success: true,
+    projectId,
+  };
+}
+
 /**
  * Verifies that a user owns a specific task
  * 
@@ -157,7 +241,7 @@ export async function verifyTaskOwnership(
   taskId: string,
   userId: string,
   logPrefix: string = "[AUTH]"
-): Promise<{ success: boolean; error?: string; statusCode?: number; projectId?: string }> {
+): Promise<OwnershipVerificationResult> {
 
   // Get task and its project
   const { data: taskData, error: taskError } = await supabaseAdmin
@@ -175,35 +259,17 @@ export async function verifyTaskOwnership(
     };
   }
 
-  // Check if user owns the project that this task belongs to
-  const { data: projectData, error: projectError } = await supabaseAdmin
-    .from("projects")
-    .select("user_id")
-    .eq("id", taskData.project_id)
-    .single();
-
-  if (projectError || !projectData) {
-    console.error(`${logPrefix} Project lookup error:`, projectError);
-    return {
-      success: false,
-      error: "Project not found",
-      statusCode: 404
-    };
-  }
-
-  if (projectData.user_id !== userId) {
-    console.error(`${logPrefix} Task ${taskId} belongs to project ${taskData.project_id} owned by ${projectData.user_id}, not user ${userId}`);
-    return {
-      success: false,
-      error: "Forbidden: Task does not belong to user",
-      statusCode: 403
-    };
-  }
-
-  return {
-    success: true,
-    projectId: taskData.project_id
-  };
+  return verifyProjectOwnership(
+    supabaseAdmin,
+    taskData.project_id,
+    userId,
+    logPrefix,
+    {
+      resourceLabel: "Task",
+      resourceId: taskId,
+      forbiddenMessage: "Forbidden: Task does not belong to user",
+    },
+  );
 }
 
 /**
@@ -220,7 +286,7 @@ export async function verifyShotOwnership(
   shotId: string,
   userId: string,
   logPrefix: string = "[AUTH]"
-): Promise<{ success: boolean; error?: string; statusCode?: number; projectId?: string }> {
+): Promise<OwnershipVerificationResult> {
 
   // Get shot and its project
   const { data: shotData, error: shotError } = await supabaseAdmin
@@ -238,35 +304,17 @@ export async function verifyShotOwnership(
     };
   }
 
-  // Check if user owns the project that this shot belongs to
-  const { data: projectData, error: projectError } = await supabaseAdmin
-    .from("projects")
-    .select("user_id")
-    .eq("id", shotData.project_id)
-    .single();
-
-  if (projectError || !projectData) {
-    console.error(`${logPrefix} Project lookup error:`, projectError);
-    return {
-      success: false,
-      error: "Project not found",
-      statusCode: 404
-    };
-  }
-
-  if (projectData.user_id !== userId) {
-    console.error(`${logPrefix} Shot ${shotId} belongs to project ${shotData.project_id} owned by ${projectData.user_id}, not user ${userId}`);
-    return {
-      success: false,
-      error: "Forbidden: Shot does not belong to user",
-      statusCode: 403
-    };
-  }
-
-  return {
-    success: true,
-    projectId: shotData.project_id
-  };
+  return verifyProjectOwnership(
+    supabaseAdmin,
+    shotData.project_id,
+    userId,
+    logPrefix,
+    {
+      resourceLabel: "Shot",
+      resourceId: shotId,
+      forbiddenMessage: "Forbidden: Shot does not belong to user",
+    },
+  );
 }
 
 /**
@@ -298,14 +346,12 @@ export async function getTaskUserId(
     };
   }
 
-  const { data: projectData, error: projectError } = await supabaseAdmin
-    .from("projects")
-    .select("user_id")
-    .eq("id", taskData.project_id)
-    .single();
-
-  if (projectError || !projectData) {
-    console.error(`${logPrefix} Project lookup error:`, projectError);
+  const ownerLookup = await lookupProjectOwnerUserId(
+    supabaseAdmin,
+    taskData.project_id,
+    logPrefix,
+  );
+  if (!ownerLookup.ok) {
     // Fallback to system folder — files are stored under SYSTEM_USER_ID
     // so the task can still complete even if the project was deleted
     return {
@@ -314,6 +360,6 @@ export async function getTaskUserId(
   }
 
   return {
-    userId: projectData.user_id
+    userId: ownerLookup.ownerUserId
   };
 }

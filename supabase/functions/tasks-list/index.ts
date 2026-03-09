@@ -1,55 +1,49 @@
 // deno-lint-ignore-file
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { bootstrapEdgeHandler, NO_SESSION_RUNTIME_OPTIONS } from "../_shared/edgeHandler.ts";
+import { NO_SESSION_RUNTIME_OPTIONS, withEdgeRequest } from "../_shared/edgeHandler.ts";
+import { verifyProjectOwnership } from "../_shared/auth.ts";
 import { jsonResponse } from "../_shared/http.ts";
 import { ensureUserAuth, JWT_AUTH_REQUIRED } from "../_shared/requestGuards.ts";
 
-serve(async (req) => {
-  const bootstrap = await bootstrapEdgeHandler(req, {
+serve((req) => {
+  return withEdgeRequest(req, {
     functionName: "tasks-list",
     logPrefix: "[TASKS-LIST]",
     parseBody: "strict",
     auth: JWT_AUTH_REQUIRED,
     ...NO_SESSION_RUNTIME_OPTIONS,
-  });
-  if (!bootstrap.ok) {
-    return bootstrap.response;
-  }
+  }, async ({ supabaseAdmin, logger, auth, body }) => {
+    const projectId = typeof body.projectId === "string" ? body.projectId : "";
+    const statusFilter = Array.isArray(body.status)
+      ? body.status.filter((value): value is string => typeof value === "string")
+      : [];
 
-  const { supabaseAdmin, logger, auth, body } = bootstrap.value;
-  const projectId = typeof body.projectId === "string" ? body.projectId : "";
-  const statusFilter = Array.isArray(body.status)
-    ? body.status.filter((value): value is string => typeof value === "string")
-    : [];
-
-  if (!projectId) {
-    return jsonResponse({ error: "projectId is required" }, 400);
-  }
-
-  const userGuard = auth?.isServiceRole ? null : ensureUserAuth(auth, logger);
-  if (userGuard && !userGuard.ok) {
-    return userGuard.response;
-  }
-  const userId = userGuard?.ok ? userGuard.userId : null;
-
-  // For non-service-role requests, verify the user owns the project
-  if (!auth?.isServiceRole && userId) {
-    const { data: project, error: projectError } = await supabaseAdmin
-      .from("projects")
-      .select("user_id")
-      .eq("id", projectId)
-      .single();
-
-    if (projectError || !project) {
-      return jsonResponse({ error: "Project not found" }, 404);
+    if (!projectId) {
+      return jsonResponse({ error: "projectId is required" }, 400);
     }
 
-    if (project.user_id !== userId) {
-      return jsonResponse({ error: "Forbidden: You do not own this project" }, 403);
+    const userGuard = auth?.isServiceRole ? null : ensureUserAuth(auth, logger);
+    if (userGuard && !userGuard.ok) {
+      return userGuard.response;
     }
-  }
+    const userId = userGuard?.ok ? userGuard.userId : null;
 
-  try {
+    if (!auth?.isServiceRole && userId) {
+      const ownership = await verifyProjectOwnership(
+        supabaseAdmin,
+        projectId,
+        userId,
+        "[TASKS-LIST]",
+      );
+      if (!ownership.success) {
+        return jsonResponse(
+          { error: ownership.error || "Forbidden: You do not own this project" },
+          ownership.statusCode || 403,
+        );
+      }
+    }
+
+    try {
     // Build query
     let query = supabaseAdmin
       .from("tasks")
@@ -66,7 +60,6 @@ serve(async (req) => {
 
     if (error) {
       logger.error("Query error", { error: error.message });
-      await logger.flush();
       return jsonResponse({ error: "Failed to fetch tasks", details: error.message }, 500);
     }
 
@@ -74,7 +67,6 @@ serve(async (req) => {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     logger.error("Unexpected error", { error: message });
-    await logger.flush();
     return jsonResponse({ error: "Internal server error", details: message }, 500);
-  }
+  }});
 });

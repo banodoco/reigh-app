@@ -3,20 +3,17 @@ import { __getServeHandler, __resetServeHandler } from '../_tests/mocks/denoHttp
 import * as GetCompletedSegmentsEntrypoint from './index.ts';
 
 const mocks = vi.hoisted(() => ({
-  bootstrapEdgeHandler: vi.fn(),
+  withEdgeRequest: vi.fn(),
+  verifyProjectOwnership: vi.fn(),
   toErrorMessage: vi.fn((error: unknown) => (error instanceof Error ? error.message : String(error))),
 }));
 
 vi.mock('../_shared/edgeHandler.ts', () => ({
-  bootstrapEdgeHandler: (...args: unknown[]) => mocks.bootstrapEdgeHandler(...args),
+  withEdgeRequest: (...args: unknown[]) => mocks.withEdgeRequest(...args),
 }));
 
-vi.mock('../_shared/http.ts', () => ({
-  jsonResponse: (body: unknown, status = 200) =>
-    new Response(JSON.stringify(body), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    }),
+vi.mock('../_shared/auth.ts', () => ({
+  verifyProjectOwnership: (...args: unknown[]) => mocks.verifyProjectOwnership(...args),
 }));
 
 vi.mock('../_shared/errorMessage.ts', () => ({
@@ -29,7 +26,6 @@ function createLogger() {
     debug: vi.fn(),
     error: vi.fn(),
     critical: vi.fn(),
-    flush: vi.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -41,6 +37,20 @@ function createServiceRoleTasksSupabase(rows: Array<{ params: unknown; output_lo
   const select = vi.fn().mockReturnValue({ eq: eqTaskType });
   const from = vi.fn().mockReturnValue({ select });
   return { from };
+}
+
+function createContext(overrides?: {
+  supabaseAdmin?: ReturnType<typeof createServiceRoleTasksSupabase>;
+  logger?: ReturnType<typeof createLogger>;
+  body?: Record<string, unknown>;
+  auth?: { isServiceRole?: boolean; userId?: string | null };
+}) {
+  return {
+    supabaseAdmin: overrides?.supabaseAdmin ?? createServiceRoleTasksSupabase([]),
+    logger: overrides?.logger ?? createLogger(),
+    body: overrides?.body ?? { run_id: 'run-1' },
+    auth: overrides?.auth ?? { isServiceRole: true, userId: null },
+  };
 }
 
 async function loadHandler() {
@@ -58,22 +68,16 @@ describe('get-completed-segments edge entrypoint', () => {
     vi.clearAllMocks();
     __resetServeHandler();
 
-    mocks.bootstrapEdgeHandler.mockResolvedValue({
-      ok: true,
-      value: {
-        supabaseAdmin: createServiceRoleTasksSupabase([]),
-        logger: createLogger(),
-        body: { run_id: 'run-1' },
-        auth: { isServiceRole: true, userId: null },
+    mocks.verifyProjectOwnership.mockResolvedValue({ success: true, projectId: 'project-1' });
+    mocks.withEdgeRequest.mockImplementation(
+      async (_req: Request, _opts: unknown, handler: (ctx: unknown) => Promise<Response>) => {
+        return handler(createContext());
       },
-    });
+    );
   });
 
-  it('returns bootstrap failure response untouched', async () => {
-    mocks.bootstrapEdgeHandler.mockResolvedValue({
-      ok: false,
-      response: new Response('blocked', { status: 401 }),
-    });
+  it('returns the shared lifecycle response untouched', async () => {
+    mocks.withEdgeRequest.mockResolvedValue(new Response('blocked', { status: 401 }));
 
     const handler = await loadHandler();
     const response = await handler(new Request('https://edge.test/get-completed-segments', { method: 'POST' }));
@@ -84,42 +88,61 @@ describe('get-completed-segments edge entrypoint', () => {
 
   it('returns 400 when run_id is missing', async () => {
     const logger = createLogger();
-    mocks.bootstrapEdgeHandler.mockResolvedValue({
-      ok: true,
-      value: {
-        supabaseAdmin: createServiceRoleTasksSupabase([]),
-        logger,
-        body: {},
-        auth: { isServiceRole: true, userId: null },
+    mocks.withEdgeRequest.mockImplementation(
+      async (_req: Request, _opts: unknown, handler: (ctx: unknown) => Promise<Response>) => {
+        return handler(createContext({ logger, body: {} }));
       },
-    });
+    );
 
     const handler = await loadHandler();
     const response = await handler(new Request('https://edge.test/get-completed-segments', { method: 'POST' }));
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: 'run_id is required' });
-    expect(logger.flush).toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalled();
   });
 
   it('requires project_id for non-service user tokens', async () => {
-    const logger = createLogger();
-    mocks.bootstrapEdgeHandler.mockResolvedValue({
-      ok: true,
-      value: {
-        supabaseAdmin: createServiceRoleTasksSupabase([]),
-        logger,
-        body: { run_id: 'run-1' },
-        auth: { isServiceRole: false, userId: 'user-1' },
+    mocks.withEdgeRequest.mockImplementation(
+      async (_req: Request, _opts: unknown, handler: (ctx: unknown) => Promise<Response>) => {
+        return handler(
+          createContext({
+            body: { run_id: 'run-1' },
+            auth: { isServiceRole: false, userId: 'user-1' },
+          }),
+        );
       },
-    });
+    );
 
     const handler = await loadHandler();
     const response = await handler(new Request('https://edge.test/get-completed-segments', { method: 'POST' }));
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: 'project_id required for user tokens' });
-    expect(logger.flush).toHaveBeenCalled();
+  });
+
+  it('returns 403 when project ownership verification fails', async () => {
+    mocks.verifyProjectOwnership.mockResolvedValue({
+      success: false,
+      error: "Forbidden: You don't own this project",
+      statusCode: 403,
+    });
+    mocks.withEdgeRequest.mockImplementation(
+      async (_req: Request, _opts: unknown, handler: (ctx: unknown) => Promise<Response>) => {
+        return handler(
+          createContext({
+            body: { run_id: 'run-1', project_id: 'project-1' },
+            auth: { isServiceRole: false, userId: 'user-1' },
+          }),
+        );
+      },
+    );
+
+    const handler = await loadHandler();
+    const response = await handler(new Request('https://edge.test/get-completed-segments', { method: 'POST' }));
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ error: "Forbidden: You don't own this project" });
   });
 
   it('returns sorted completed segment list for service role', async () => {
@@ -139,15 +162,18 @@ describe('get-completed-segments edge entrypoint', () => {
     ];
 
     const logger = createLogger();
-    mocks.bootstrapEdgeHandler.mockResolvedValue({
-      ok: true,
-      value: {
-        supabaseAdmin: createServiceRoleTasksSupabase(rows),
-        logger,
-        body: { run_id: 'run-abc' },
-        auth: { isServiceRole: true, userId: null },
+    mocks.withEdgeRequest.mockImplementation(
+      async (_req: Request, _opts: unknown, handler: (ctx: unknown) => Promise<Response>) => {
+        return handler(
+          createContext({
+            supabaseAdmin: createServiceRoleTasksSupabase(rows),
+            logger,
+            body: { run_id: 'run-abc' },
+            auth: { isServiceRole: true, userId: null },
+          }),
+        );
       },
-    });
+    );
 
     const handler = await loadHandler();
     const response = await handler(new Request('https://edge.test/get-completed-segments', { method: 'POST' }));
@@ -158,6 +184,6 @@ describe('get-completed-segments edge entrypoint', () => {
       { segment_index: 1, output_location: 'https://cdn.example.com/seg1.mp4' },
       { segment_index: 2, output_location: 'https://cdn.example.com/seg2.mp4' },
     ]);
-    expect(logger.flush).toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalled();
   });
 });

@@ -1,7 +1,8 @@
 // deno-lint-ignore-file
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { bootstrapEdgeHandler } from "../_shared/edgeHandler.ts";
-import { toErrorMessage } from "../_shared/errorMessage.ts";
+import { withEdgeRequest } from "../_shared/edgeHandler.ts";
+import { jsonResponse } from "../_shared/http.ts";
+import { ensureTaskActor, normalizeTaskId } from "../_shared/requestGuards.ts";
 import { authorizeTaskActor } from "../_shared/taskActorPolicy.ts";
 
 /**
@@ -25,59 +26,43 @@ import { authorizeTaskActor } from "../_shared/taskActorPolicy.ts";
  * - 404 Not Found if task not found
  * - 500 Internal Server Error
  */
-serve(async (req) => {
-  const bootstrap = await bootstrapEdgeHandler(req, {
+serve((req) => {
+  return withEdgeRequest(req, {
     functionName: "get-predecessor-output",
     logPrefix: "[GET-PREDECESSOR-OUTPUT]",
     parseBody: "strict",
     auth: {
       required: true,
     },
-  });
-  if (!bootstrap.ok) {
-    return bootstrap.response;
-  }
+  }, async ({ supabaseAdmin, logger, auth, body }) => {
+    const authResult = ensureTaskActor(auth, logger);
+    if (!authResult.ok) {
+      return authResult.response;
+    }
 
-  const { supabaseAdmin, logger, auth, body } = bootstrap.value;
+    const taskId = normalizeTaskId(body.task_id);
+    if (!taskId) {
+      logger.error("Missing task_id");
+      return jsonResponse({ error: "task_id is required" }, 400);
+    }
 
-  const taskId = typeof body.task_id === "string" || typeof body.task_id === "number"
-    ? String(body.task_id)
-    : "";
-  if (!taskId) {
-    logger.error("Missing task_id");
-    await logger.flush();
-    return new Response("task_id is required", { status: 400 });
-  }
+    logger.setDefaultTaskId(taskId);
 
-  // Set task_id for all subsequent logs
-  logger.setDefaultTaskId(taskId);
-
-  if (!auth) {
-    logger.error("Authentication failed");
-    await logger.flush();
-    return new Response("Authentication failed", { status: 401 });
-  }
-
-  const actor = await authorizeTaskActor({
-    supabaseAdmin,
-    taskId,
-    auth,
-    logPrefix: "[GET-PREDECESSOR-OUTPUT]",
-  });
-  if (!actor.ok) {
-    logger.error("Task access denied", {
-      task_id: taskId,
-      error: actor.error,
-      status_code: actor.statusCode,
+    const actor = await authorizeTaskActor({
+      supabaseAdmin,
+      taskId,
+      auth: auth!,
+      logPrefix: "[GET-PREDECESSOR-OUTPUT]",
     });
-    await logger.flush();
-    return new Response(actor.error, { status: actor.statusCode });
-  }
+    if (!actor.ok) {
+      logger.error("Task access denied", {
+        task_id: taskId,
+        error: actor.error,
+        status_code: actor.statusCode,
+      });
+      return jsonResponse({ error: actor.error }, actor.statusCode);
+    }
 
-  const isServiceRole = actor.value.isServiceRole;
-
-  try {
-    // Get the task info first
     const { data: taskData, error: taskError } = await supabaseAdmin
       .from("tasks")
       .select("id, dependant_on")
@@ -86,27 +71,19 @@ serve(async (req) => {
 
     if (taskError) {
       logger.error("Task lookup error", { error: taskError.message });
-      await logger.flush();
-      return new Response("Task not found", { status: 404 });
+      return jsonResponse({ error: "Task not found" }, 404);
     }
 
-    // Return the dependency info
     const dependantOnArray: string[] = taskData.dependant_on || [];
-
     if (dependantOnArray.length === 0) {
       logger.info("No dependencies found");
-      await logger.flush();
-      return new Response(JSON.stringify({
+      return jsonResponse({
         predecessor_id: null,
         output_location: null,
-        predecessors: []
-      }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" }
+        predecessors: [],
       });
     }
 
-    // Fetch all predecessor tasks
     const { data: predecessorsData, error: predecessorError } = await supabaseAdmin
       .from("tasks")
       .select("id, status, output_location")
@@ -114,63 +91,50 @@ serve(async (req) => {
 
     if (predecessorError) {
       logger.error("Predecessors lookup error", { error: predecessorError.message });
-      await logger.flush();
-      return new Response(JSON.stringify({
+      return jsonResponse({
         predecessor_id: dependantOnArray[0],
         output_location: null,
         status: "error",
-        predecessors: dependantOnArray.map(id => ({
+        predecessors: dependantOnArray.map((id) => ({
           predecessor_id: id,
           output_location: null,
-          status: "error"
-        }))
-      }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" }
+          status: "error",
+        })),
       });
     }
 
-    // Build predecessors array with status info
-    const predecessors = dependantOnArray.map(depId => {
-      const pred = predecessorsData?.find(p => p.id === depId);
+    const predecessors = dependantOnArray.map((depId) => {
+      const pred = predecessorsData?.find((candidate) => candidate.id === depId);
       if (!pred) {
         return {
           predecessor_id: depId,
           output_location: null,
-          status: "not_found"
+          status: "not_found",
         };
       }
       return {
         predecessor_id: pred.id,
         output_location: pred.status === "Complete" ? pred.output_location : null,
-        status: pred.status
+        status: pred.status,
       };
     });
 
-    const allComplete = predecessors.every(p => p.status === "Complete" && p.output_location);
+    const allComplete = predecessors.every(
+      (predecessor) => predecessor.status === "Complete" && predecessor.output_location,
+    );
     const firstPred = predecessors[0];
 
     logger.info("Returning predecessor info", {
       predecessor_count: predecessors.length,
-      all_complete: allComplete
+      all_complete: allComplete,
     });
-    await logger.flush();
 
-    return new Response(JSON.stringify({
+    return jsonResponse({
       predecessor_id: firstPred?.predecessor_id || null,
       output_location: allComplete ? firstPred?.output_location : null,
       status: allComplete ? "Complete" : (firstPred?.status || null),
       predecessors,
-      all_complete: allComplete
-    }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" }
+      all_complete: allComplete,
     });
-
-  } catch (error: unknown) {
-    const message = toErrorMessage(error);
-    logger.critical("Unexpected error", { error: message });
-    await logger.flush();
-    return new Response(`Internal error: ${message}`, { status: 500 });
-  }
+  });
 });

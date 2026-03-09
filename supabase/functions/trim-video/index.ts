@@ -25,18 +25,16 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { storagePaths, MEDIA_BUCKET } from '../_shared/storagePaths.ts';
-import { bootstrapEdgeHandler, NO_SESSION_RUNTIME_OPTIONS } from "../_shared/edgeHandler.ts";
+import { NO_SESSION_RUNTIME_OPTIONS, withEdgeRequest } from "../_shared/edgeHandler.ts";
+import { verifyProjectOwnership } from "../_shared/auth.ts";
+import { jsonResponse } from "../_shared/http.ts";
 import { JWT_AUTH_REQUIRED } from "../_shared/requestGuards.ts";
+import { ensureUserAuth } from "../_shared/requestGuards.ts";
 
 declare const Deno: {
   env: {
     get(key: string): string | undefined;
   };
-};
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
 const REPLICATE_TRIM_MODEL = "lucataco/trim-video:a58ed80215326cba0a80c77a11dd0d0968c567388228891b3c5c67de2a8d10cb";
@@ -242,28 +240,22 @@ async function updateVariantRecord(
  * Main handler
  */
 serve(async (req) => {
-  // Handle CORS
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
-
-  const bootstrap = await bootstrapEdgeHandler(req, {
+  return withEdgeRequest(req, {
     functionName: "trim-video",
     logPrefix: "[TRIM-VIDEO]",
     method: "POST",
     parseBody: "strict",
-    corsPreflight: false,
     auth: JWT_AUTH_REQUIRED,
     ...NO_SESSION_RUNTIME_OPTIONS,
-  });
-  if (!bootstrap.ok) {
-    return bootstrap.response;
-  }
+  }, async ({ supabaseAdmin: supabase, logger, auth, body }) => {
+    const startProcessTime = Date.now();
+    const isServiceRole = auth?.isServiceRole ?? false;
+    const userGuard = isServiceRole ? null : ensureUserAuth(auth, logger);
+    if (userGuard && !userGuard.ok) {
+      return userGuard.response;
+    }
 
-  const startProcessTime = Date.now();
-  const { supabaseAdmin: supabase, logger, auth, body } = bootstrap.value;
-
-  try {
+    try {
     // Parse request
     const requestBody = body as Partial<TrimRequest>;
     const {
@@ -275,6 +267,8 @@ serve(async (req) => {
       variant_id,
       test_mode = false,
     } = requestBody;
+    const callerUserId = userGuard?.ok ? userGuard.userId : null;
+    const effectiveUserId = isServiceRole ? user_id : callerUserId;
 
     logger.info('Starting video trim request', {
       video_url: video_url?.substring(0, 80),
@@ -282,81 +276,83 @@ serve(async (req) => {
       end_time,
       duration: end_time - start_time,
       project_id: project_id?.substring(0, 8),
-      user_id: user_id?.substring(0, 8),
+      user_id: effectiveUserId?.substring(0, 8),
     });
 
     // Validate required fields
     if (!video_url) {
-      return new Response(
-        JSON.stringify({ error: 'video_url is required', success: false }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ error: 'video_url is required', success: false }, 400);
     }
 
     if (typeof start_time !== 'number' || typeof end_time !== 'number') {
-      return new Response(
-        JSON.stringify({ error: 'start_time and end_time must be numbers', success: false }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ error: 'start_time and end_time must be numbers', success: false }, 400);
     }
 
     if (start_time >= end_time) {
       logger.error('Invalid times', { start_time, end_time });
-      return new Response(
-        JSON.stringify({ 
-          error: `start_time (${start_time}) must be less than end_time (${end_time})`, 
-          success: false 
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      return jsonResponse(
+        {
+          error: `start_time (${start_time}) must be less than end_time (${end_time})`,
+          success: false,
+        },
+        400,
       );
     }
 
     // Ensure minimum duration of 0.1 seconds
     if (end_time - start_time < 0.1) {
-      return new Response(
-        JSON.stringify({ 
-          error: `Trimmed video must be at least 0.1 seconds (got ${(end_time - start_time).toFixed(2)}s)`, 
-          success: false 
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      return jsonResponse(
+        {
+          error: `Trimmed video must be at least 0.1 seconds (got ${(end_time - start_time).toFixed(2)}s)`,
+          success: false,
+        },
+        400,
       );
     }
 
-    if (!project_id || !user_id) {
-      return new Response(
-        JSON.stringify({ error: 'project_id and user_id are required', success: false }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (!project_id) {
+      return jsonResponse({ error: 'project_id is required', success: false }, 400);
     }
 
-    if (!auth?.isServiceRole && auth?.userId !== user_id) {
-      return new Response(
-        JSON.stringify({ error: 'Forbidden: user_id mismatch', success: false }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    if (!effectiveUserId) {
+      return jsonResponse({ error: 'user_id is required', success: false }, 400);
+    }
+
+    if (!isServiceRole) {
+      const ownership = await verifyProjectOwnership(
+        supabase,
+        project_id,
+        effectiveUserId,
+        "[TRIM-VIDEO]",
       );
+      if (!ownership.success) {
+        logger.error("Project ownership verification failed", {
+          project_id,
+          user_id: effectiveUserId,
+          error: ownership.error,
+        });
+        return jsonResponse(
+          { error: ownership.error || 'Forbidden: Project does not belong to user', success: false },
+          ownership.statusCode || 403,
+        );
+      }
     }
 
     // Get API tokens
     const replicateToken = Deno.env.get('REPLICATE_API_TOKEN');
     if (!replicateToken) {
-      return new Response(
-        JSON.stringify({ error: 'REPLICATE_API_TOKEN not configured', success: false }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ error: 'REPLICATE_API_TOKEN not configured', success: false }, 500);
     }
 
     // Test mode - validate and return mock response
     if (test_mode) {
       logger.info('Test mode - returning mock response');
-      return new Response(
-        JSON.stringify({
+      return jsonResponse({
           success: true,
           test_mode: true,
           message: 'Test mode - validation passed, no processing performed',
-          input: { video_url, start_time, end_time, project_id, user_id },
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+          input: { video_url, start_time, end_time, project_id, user_id: effectiveUserId },
+        });
     }
 
     // Step 1: Call Replicate to trim the video
@@ -377,7 +373,7 @@ serve(async (req) => {
     const finalVideoUrl = await uploadToStorage(
       supabase,
       videoBuffer,
-      user_id,
+      effectiveUserId,
       project_id,
       'video/mp4'
     );
@@ -390,10 +386,7 @@ serve(async (req) => {
 
     const processingTime = Date.now() - startProcessTime;
     logger.info('Completed', { processingTime, output: finalVideoUrl });
-
-    await logger.flush();
-    return new Response(
-      JSON.stringify({
+    return jsonResponse({
         success: true,
         video_url: finalVideoUrl,
         thumbnail_url: null, // Thumbnail extracted client-side
@@ -402,26 +395,19 @@ serve(async (req) => {
         file_size: videoBuffer.byteLength,
         processing_time_ms: processingTime,
         replicate_output_url: replicateOutputUrl,
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+      });
 
   } catch (error: unknown) {
     const processingTime = Date.now() - startProcessTime;
     const message = error instanceof Error ? error.message : 'Unknown error';
     logger.error('Error during video trim', { processingTime, error: message });
-    await logger.flush();
-
-    return new Response(
-      JSON.stringify({ 
+    return jsonResponse(
+      {
         error: message || 'Internal server error',
         success: false,
         processing_time_ms: processingTime,
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      },
+      500,
     );
-  }
+  }});
 });

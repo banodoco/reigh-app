@@ -1,6 +1,6 @@
 // deno-lint-ignore-file
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { bootstrapEdgeHandler, NO_SESSION_RUNTIME_OPTIONS } from "../_shared/edgeHandler.ts";
+import { NO_SESSION_RUNTIME_OPTIONS, withEdgeRequest } from "../_shared/edgeHandler.ts";
 import { toErrorMessage } from "../_shared/errorMessage.ts";
 import {
   getSubTaskOrchestratorId,
@@ -8,7 +8,8 @@ import {
   SubTaskLookupError,
   type CompletedSubTaskRow,
 } from "../_shared/billing.ts";
-import { verifyTaskOwnership } from "../_shared/auth.ts";
+import { ensureTaskActor } from "../_shared/requestGuards.ts";
+import { authorizeTaskActor } from "../_shared/taskActorPolicy.ts";
 import {
   calculateTaskCost,
   errorResponse,
@@ -20,8 +21,8 @@ export const __internal = {
   parseTaskCostParams,
 };
 
-serve(async (req) => {
-  const bootstrap = await bootstrapEdgeHandler(req, {
+serve((req) => {
+  return withEdgeRequest(req, {
     functionName: "calculate-task-cost",
     logPrefix: "[CALCULATE-TASK-COST]",
     parseBody: "strict",
@@ -29,47 +30,37 @@ serve(async (req) => {
       required: true,
     },
     ...NO_SESSION_RUNTIME_OPTIONS,
-  });
-  if (!bootstrap.ok) {
-    return bootstrap.response;
-  }
+  }, async ({ supabaseAdmin, logger, auth, body: requestBody }) => {
+    const authResult = ensureTaskActor(auth, logger);
+    if (!authResult.ok) {
+      return authResult.response;
+    }
 
-  const { supabaseAdmin, logger, auth, body: requestBody } = bootstrap.value;
-
-  try {
+    try {
     const task_id = typeof requestBody.task_id === 'string' ? requestBody.task_id : undefined;
 
     if (!task_id) {
       logger.error("Missing task_id in request");
-      await logger.flush();
       return errorResponse('missing_task_id', 'task_id is required', 400);
     }
 
-    if (!auth?.isServiceRole) {
-      if (!auth?.userId) {
-        logger.warn("Missing authenticated user id for non-service request");
-        await logger.flush();
-        return errorResponse('authentication_failed', 'Authentication failed', 401);
-      }
-      const ownership = await verifyTaskOwnership(
-        supabaseAdmin,
+    const actor = await authorizeTaskActor({
+      supabaseAdmin,
+      taskId: task_id,
+      auth: auth!,
+      logPrefix: "[CALCULATE-TASK-COST]",
+    });
+    if (!actor.ok) {
+      logger.warn("Task ownership verification failed", {
         task_id,
-        auth.userId,
-        "[CALCULATE-TASK-COST]",
+        user_id: auth?.userId,
+        reason: actor.error,
+      });
+      return errorResponse(
+        actor.statusCode === 404 ? 'task_not_found' : actor.statusCode === 401 ? 'authentication_failed' : 'forbidden',
+        actor.error || "Forbidden",
+        actor.statusCode || 403,
       );
-      if (!ownership.success) {
-        logger.warn("Task ownership verification failed", {
-          task_id,
-          user_id: auth.userId,
-          reason: ownership.error,
-        });
-        await logger.flush();
-        return errorResponse(
-          ownership.statusCode === 404 ? 'task_not_found' : 'forbidden',
-          ownership.error || "Forbidden",
-          ownership.statusCode || 403,
-        );
-      }
     }
 
     // Set task_id for all subsequent logs
@@ -95,7 +86,6 @@ serve(async (req) => {
 
     if (taskError) {
       logger.error("Task not found", { error: taskError?.message });
-      await logger.flush();
       return errorResponse('task_not_found', 'Task not found', 404);
     }
 
@@ -105,7 +95,6 @@ serve(async (req) => {
         failure: typedTaskResult.failure,
         task_id,
       });
-      await logger.flush();
       return errorResponse(
         typedTaskResult.failure.errorCode,
         typedTaskResult.failure.message,
@@ -126,7 +115,6 @@ serve(async (req) => {
         has_started_at: !!typedTask.generation_started_at,
         has_processed_at: !!typedTask.generation_processed_at
       });
-      await logger.flush();
       return errorResponse(
         'missing_generation_timestamps',
         'Task must have both generation_started_at and generation_processed_at timestamps',
@@ -142,7 +130,6 @@ serve(async (req) => {
       logger.info("Skipping cost calculation (sub-task)", {
         orchestrator_task_id: subTaskOrchestratorId
       });
-      await logger.flush();
       return jsonResponse({
         success: true,
         skipped: true,
@@ -171,7 +158,6 @@ serve(async (req) => {
           : String(subTaskLookupError),
         stage,
       });
-      await logger.flush();
       return errorResponse(errorCode, 'Failed to query sub-task references', 500, true);
     }
 
@@ -214,7 +200,6 @@ serve(async (req) => {
 
     if (existingSpendError) {
       logger.error("Failed to check existing credit ledger entries", { error: existingSpendError.message });
-      await logger.flush();
       return errorResponse('cost_record_check_failed', 'Failed to check existing cost records', 500, true);
     }
 
@@ -224,7 +209,6 @@ serve(async (req) => {
         ledger_id: existing.id,
         existing_amount: existing.amount
       });
-      await logger.flush();
       return jsonResponse({
         success: true,
         skipped: true,
@@ -263,7 +247,6 @@ serve(async (req) => {
 
       if (ledgerError) {
         logger.error("Failed to insert into credit ledger (default)", { error: ledgerError.message });
-        await logger.flush();
         return errorResponse('ledger_write_failed', 'Failed to record cost in ledger', 500, true);
       }
 
@@ -272,7 +255,6 @@ serve(async (req) => {
         duration_seconds: durationSeconds,
         billing_type: 'per_second'
       });
-      await logger.flush();
 
       return jsonResponse({
         success: true,
@@ -307,7 +289,6 @@ serve(async (req) => {
         duration: durationSeconds,
         breakdown: costBreakdown
       });
-      await logger.flush();
       return errorResponse('invalid_cost_calculation', 'Invalid cost calculation', 500);
     }
 
@@ -323,7 +304,6 @@ serve(async (req) => {
         user_id: typedTask.projects.user_id, 
         error: userError?.message 
       });
-      await logger.flush();
       return errorResponse('billing_user_not_found', 'User not found for credit calculation', 400);
     }
 
@@ -354,7 +334,6 @@ serve(async (req) => {
         user_id: typedTask.projects.user_id,
         cost
       });
-      await logger.flush();
       return errorResponse('ledger_write_failed', 'Failed to record cost in ledger', 500, true);
     }
 
@@ -365,7 +344,6 @@ serve(async (req) => {
       user_id: typedTask.projects.user_id,
       ...(costBreakdown ? { breakdown: costBreakdown } : {})
     });
-    await logger.flush();
 
     return jsonResponse({
       success: true,
@@ -385,7 +363,6 @@ serve(async (req) => {
     const errorMessage = toErrorMessage(error);
     const errorStack = error instanceof Error ? error.stack?.substring(0, 500) : undefined;
     logger.critical("Unexpected error", { error: errorMessage, stack: errorStack });
-    await logger.flush();
     return errorResponse('internal_server_error', 'Internal server error', 500, false);
-  }
+  }});
 });

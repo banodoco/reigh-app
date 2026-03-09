@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { authenticateRequest } from './auth.ts';
+import { authenticateRequest, verifyProjectOwnership } from './auth.ts';
 
 interface PatLookupResult {
   data: { user_id: string } | null;
@@ -64,6 +64,28 @@ function createSupabaseAdminMock(options?: {
     supabaseAdmin,
     mocks: {
       getUserMock,
+      fromMock,
+      selectMock,
+      eqMock,
+      singleMock,
+    },
+  };
+}
+
+function createProjectOwnershipSupabaseMock(result: {
+  data: { user_id: string } | null;
+  error: { message: string } | null;
+}) {
+  const singleMock = vi.fn().mockResolvedValue(result);
+  const eqMock = vi.fn().mockReturnValue({ single: singleMock });
+  const selectMock = vi.fn().mockReturnValue({ eq: eqMock });
+  const fromMock = vi.fn().mockReturnValue({ select: selectMock });
+
+  return {
+    supabaseAdmin: {
+      from: fromMock,
+    },
+    mocks: {
       fromMock,
       selectMock,
       eqMock,
@@ -166,5 +188,68 @@ describe('authenticateRequest', () => {
     });
     expect(mocks.getUserMock).toHaveBeenCalledWith('pat-token');
     expect(mocks.fromMock).toHaveBeenCalledWith('user_api_tokens');
+  });
+});
+
+describe('verifyProjectOwnership', () => {
+  it('returns success when the project belongs to the user', async () => {
+    const { supabaseAdmin, mocks } = createProjectOwnershipSupabaseMock({
+      data: { user_id: 'user-1' },
+      error: null,
+    });
+
+    const result = await verifyProjectOwnership(
+      supabaseAdmin as never,
+      'project-1',
+      'user-1',
+      '[AUTH]',
+    );
+
+    expect(result).toEqual({
+      success: true,
+      projectId: 'project-1',
+    });
+    expect(mocks.fromMock).toHaveBeenCalledWith('projects');
+  });
+
+  it('returns not found when the project lookup fails', async () => {
+    const { supabaseAdmin } = createProjectOwnershipSupabaseMock({
+      data: null,
+      error: { message: 'not found' },
+    });
+
+    const result = await verifyProjectOwnership(
+      supabaseAdmin as never,
+      'project-1',
+      'user-1',
+      '[AUTH]',
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Project not found',
+      statusCode: 404,
+    });
+  });
+
+  it('returns forbidden when the project belongs to another user', async () => {
+    const { supabaseAdmin } = createProjectOwnershipSupabaseMock({
+      data: { user_id: 'owner-2' },
+      error: null,
+    });
+
+    const result = await verifyProjectOwnership(
+      supabaseAdmin as never,
+      'project-1',
+      'user-1',
+      '[AUTH]',
+      { forbiddenMessage: 'Forbidden: You do not own this project' },
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Forbidden: You do not own this project',
+      statusCode: 403,
+    });
   });
 });
