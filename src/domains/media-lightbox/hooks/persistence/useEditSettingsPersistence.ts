@@ -19,7 +19,6 @@ import {
   DEFAULT_ENHANCE_SETTINGS,
 } from '../../model/editSettingsTypes';
 import { resolveEditModeLoras } from '@/domains/lora/lib/loraUtils';
-import type { LastUsedEditSettingsPersistenceIssue } from '../useLastUsedEditSettings';
 
 interface UseEditSettingsPersistenceProps {
   generationId: string | null;
@@ -65,7 +64,6 @@ interface UseEditSettingsPersistenceReturn extends EditSettingsSetterMethods {
   isLoading: boolean;
   isReady: boolean; // True when initialization is complete
   hasPersistedSettings: boolean;
-  lastUsedPersistenceIssue: LastUsedEditSettingsPersistenceIssue | null;
 }
 
 /**
@@ -348,7 +346,6 @@ export function useEditSettingsPersistence({
     isLoading: generationSettings.isLoading,
     isReady,
     hasPersistedSettings: generationSettings.hasPersistedSettings,
-    lastUsedPersistenceIssue: lastUsedSettings.persistenceIssue,
   };
 }
 

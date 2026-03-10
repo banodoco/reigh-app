@@ -1,6 +1,6 @@
-import { cn } from '../../ui/contracts/cn';
-import { formatTime } from '../../../lib/timeFormatting';
-import type { TrimControlsPanelProps } from '../types';
+import { cn } from '@/shared/components/ui/contracts/cn';
+import { formatTime } from '@/shared/lib/timeFormatting';
+import type { TrimControlsPanelProps } from '@/shared/components/VideoTrimEditor/types';
 
 interface TrimFramePreviewsProps {
   startFrame: string | null;

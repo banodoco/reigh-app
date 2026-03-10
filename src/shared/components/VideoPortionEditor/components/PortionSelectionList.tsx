@@ -1,7 +1,7 @@
 import { Plus } from 'lucide-react';
-import type { PortionSelection } from '../../VideoPortionTimeline';
-import { PortionSelectionCard } from './PortionSelectionCard';
-import type { UpdatePortionSelectionSettings } from '../types';
+import type { PortionSelection } from '@/shared/components/VideoPortionTimeline';
+import { PortionSelectionCard } from '@/shared/components/VideoPortionEditor/components/PortionSelectionCard';
+import type { UpdatePortionSelectionSettings } from '@/shared/components/VideoPortionEditor/types';
 
 interface PortionSelectionListProps {
   selections: PortionSelection[];

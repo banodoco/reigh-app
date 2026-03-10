@@ -1,5 +1,5 @@
-import { cn } from '../../ui/contracts/cn';
-import { useVideoPortionFrameExtraction } from '../hooks/useVideoFrameExtraction';
+import { cn } from '@/shared/components/ui/contracts/cn';
+import { useVideoPortionFrameExtraction } from '@/shared/components/VideoPortionEditor/hooks/useVideoFrameExtraction';
 
 interface SegmentThumbnailProps {
   videoUrl: string;

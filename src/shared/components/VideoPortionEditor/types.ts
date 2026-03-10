@@ -1,7 +1,7 @@
-import type { PresetMetadata } from '../MotionPresetSelector/types';
-import type { PortionSelection } from '../VideoPortionTimeline';
-import type { LoraModel, UseLoraManagerReturn } from '../../../domains/lora/hooks/useLoraManager';
-import type { PhaseConfig } from '../../types/phaseConfig';
+import type { PresetMetadata } from '@/shared/components/MotionPresetSelector/types';
+import type { PortionSelection } from '@/shared/components/VideoPortionTimeline';
+import type { LoraModel, UseLoraManagerReturn } from '@/domains/lora/hooks/useLoraManager';
+import type { PhaseConfig } from '@/shared/types/phaseConfig';
 
 export type PortionSelectionSettingsUpdate = Partial<
   Pick<PortionSelection, 'gapFrameCount' | 'prompt' | 'name'>

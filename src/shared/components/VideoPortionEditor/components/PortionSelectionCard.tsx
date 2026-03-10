@@ -1,18 +1,18 @@
 import { Trash2 } from 'lucide-react';
-import { Input } from '../../ui/input';
-import { Slider } from '../../ui/slider';
-import { Textarea } from '../../ui/textarea';
-import { cn } from '../../ui/contracts/cn';
-import { SegmentThumbnail } from './SegmentThumbnail';
+import { Input } from '@/shared/components/ui/input';
+import { Slider } from '@/shared/components/ui/slider';
+import { Textarea } from '@/shared/components/ui/textarea';
+import { cn } from '@/shared/components/ui/contracts/cn';
+import { SegmentThumbnail } from '@/shared/components/VideoPortionEditor/components/SegmentThumbnail';
 import {
   formatDuration,
   getMaxGapFrames,
-} from '../lib/videoPortionEditorUtils';
-import type { PortionSelection } from '../../VideoPortionTimeline';
-import type { UpdatePortionSelectionSettings } from '../types';
-import { formatTime } from '../../../lib/timeFormatting';
-import { getQuantizedGap } from '../../JoinClipsSettingsForm/utils';
-import { getSegmentFormColor } from '../../../lib/segmentColors';
+} from '@/shared/components/VideoPortionEditor/lib/videoPortionEditorUtils';
+import type { PortionSelection } from '@/shared/components/VideoPortionTimeline';
+import type { UpdatePortionSelectionSettings } from '@/shared/components/VideoPortionEditor/types';
+import { formatTime } from '@/shared/lib/timeFormatting';
+import { getQuantizedGap } from '@/shared/components/JoinClipsSettingsForm/utils';
+import { getSegmentFormColor } from '@/shared/lib/segmentColors';
 
 interface PortionSelectionCardProps {
   selection: PortionSelection;
