@@ -169,7 +169,7 @@ vi.mock('@/shared/components/ui/dropdown-menu', () => ({
   DropdownMenuSeparator: () => <hr />,
 }));
 
-vi.mock('@/domains/lora/components/LoraSelectorModal', () => ({
+vi.mock('@/domains/lora/components', () => ({
   LoraSelectorModal: ({
     isOpen,
     onAddLora,

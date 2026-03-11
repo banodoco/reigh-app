@@ -2,8 +2,9 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { GenerationRow } from '@/domains/generation/types';
 import { createBatchZImageTurboImageToImageTasks } from '@/shared/lib/tasks/zImageTurboI2I';
-import type { FalLoraConfig } from '@/domains/lora/types/lora';
-import { useLoraManager, UseLoraManagerReturn, ActiveLora, LoraModel } from '@/domains/lora/hooks/useLoraManager';
+import type { ActiveLora, FalLoraConfig, LoraModel } from '@/domains/lora/types/lora';
+import type { LoraManagerState } from '@/domains/lora/types/loraManager';
+import { useLoraManager } from '@/domains/lora/hooks/useLoraManager';
 import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
 
@@ -54,7 +55,7 @@ interface UseImg2ImgModeReturn {
   setEnablePromptExpansion: (enabled: boolean) => void;
 
   // LoRA Manager (full access)
-  loraManager: UseLoraManagerReturn;
+  loraManager: LoraManagerState;
 
   // Actions
   handleGenerateImg2Img: () => Promise<void>;

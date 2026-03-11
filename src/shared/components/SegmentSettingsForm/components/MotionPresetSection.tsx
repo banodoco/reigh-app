@@ -1,5 +1,5 @@
 import { MotionPresetSelector } from '@/shared/components/MotionPresetSelector';
-import { ActiveLoRAsDisplay } from '@/shared/components/lora/ActiveLoRAsDisplay';
+import { ActiveLoRAsDisplay } from '@/domains/lora/components';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
 import type { SegmentSettings, SegmentSettingsFormProps } from '@/shared/components/SegmentSettingsForm/types';
 import type { LoraModel } from '@/domains/lora/types/lora';

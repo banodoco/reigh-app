@@ -1,54 +1,23 @@
-import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import type { ActiveLora, LoraModel } from '@/domains/lora/types/lora';
+import type { LoraManagerOptions, LoraManagerState } from '@/domains/lora/types/loraManager';
 import { dedupeActiveLoras, shouldApplyLoraDefaults } from './loraStateHelpers';
 import { useLoraPersistence } from './loraPersistence';
 
 // Re-export types
 export type { ActiveLora } from '@/domains/lora/types/lora';
 export type { LoraModel } from '@/domains/lora/types/lora';
-
-export interface UseLoraManagerOptions {
-  projectId?: string;
-  shotId?: string;
-  selectedLoras?: ActiveLora[];
-  onSelectedLorasChange?: (loras: ActiveLora[]) => void;
-  persistenceScope?: 'project' | 'shot' | 'none';
-  enableProjectPersistence?: boolean;
-  persistenceKey?: string;
-  disableAutoLoad?: boolean;
-  enableTriggerWords?: boolean;
-  onPromptUpdate?: (newPrompt: string) => void;
-  currentPrompt?: string;
-}
-
-export interface UseLoraManagerReturn {
-  selectedLoras: ActiveLora[];
-  setSelectedLoras: (loras: ActiveLora[]) => void;
-  isLoraModalOpen: boolean;
-  setIsLoraModalOpen: (open: boolean) => void;
-  handleAddLora: (lora: LoraModel, isManualAction?: boolean, initialStrength?: number) => void;
-  handleRemoveLora: (loraId: string) => void;
-  handleLoraStrengthChange: (loraId: string, strength: number) => void;
-  hasEverSetLoras: boolean;
-  shouldApplyDefaults: boolean;
-  markAsUserSet: () => void;
-  handleAddTriggerWord?: (triggerWord: string) => void;
-  handleSaveProjectLoras?: () => Promise<void>;
-  handleLoadProjectLoras?: () => Promise<void>;
-  hasSavedLoras?: boolean;
-  isSavingLoras?: boolean;
-  saveSuccess?: boolean;
-  saveFlash?: boolean;
-  renderHeaderActions?: () => React.ReactNode;
-}
+export type { LoraManagerOptions, LoraManagerState } from '@/domains/lora/types/loraManager';
+export type UseLoraManagerOptions = LoraManagerOptions;
+export type UseLoraManagerReturn = LoraManagerState;
 
 const EMPTY_ACTIVE_LORAS: ActiveLora[] = [];
 
 export const useLoraManager = (
   availableLoras: LoraModel[] = [],
-  options: UseLoraManagerOptions = {},
-): UseLoraManagerReturn => {
+  options: LoraManagerOptions = {},
+): LoraManagerState => {
   const {
     projectId,
     shotId,

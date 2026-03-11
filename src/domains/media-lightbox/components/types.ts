@@ -1,5 +1,5 @@
 import type { LoraModel } from '@/domains/lora/types/lora';
-import type { UseLoraManagerReturn } from '@/domains/lora/hooks/useLoraManager';
+import type { LoraManagerState } from '@/domains/lora/types/loraManager';
 import type { EditAdvancedSettings as EditAdvancedSettingsType } from '../hooks/useGenerationEditSettings';
 import type { LightboxCoreState, LightboxVariantState } from '../contexts/LightboxStateContext';
 import type { ImageEditState } from '../contexts/ImageEditContext';
@@ -20,8 +20,8 @@ interface EditModePanelUpscaleControls {
 }
 
 interface EditModePanelLoraControls {
-  img2imgLoraManager?: UseLoraManagerReturn;
-  editLoraManager?: UseLoraManagerReturn;
+  img2imgLoraManager?: LoraManagerState;
+  editLoraManager?: LoraManagerState;
   availableLoras?: LoraModel[];
 }
 

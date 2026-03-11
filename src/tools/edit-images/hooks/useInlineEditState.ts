@@ -15,7 +15,6 @@ import { usePublicLoras } from '@/shared/hooks/useResources';
 import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { useUpscale } from '@/domains/media-lightbox/hooks/useUpscale';
 import { useInpainting } from '@/domains/media-lightbox/hooks/useInpainting';
-import { useEditModeLoras } from '@/domains/media-lightbox/hooks/useEditModeLoras';
 import { useSourceGeneration } from '@/domains/media-lightbox/hooks/useSourceGeneration';
 import { useMagicEditMode } from '@/domains/media-lightbox/hooks/useMagicEditMode';
 import { useStarToggle } from '@/domains/media-lightbox/hooks/useStarToggle';
@@ -147,7 +146,6 @@ export function useInlineEditState(
     selectedProjectId,
     isVideo,
   });
-  const loraState = useEditModeLoras();
 
   // --- Persistence ---
   const editSettings = useEditSettingsPersistence({
@@ -177,7 +175,7 @@ export function useInlineEditState(
     imageDimensions,
     imageContainerRef,
     handleExitInpaintMode: () => handleExitInpaintModeRef.current(),
-    loras: loraState.editModeLoras,
+    loras: editSettings.editModeLoras,
     toolTypeOverride: TOOL_IDS.EDIT_IMAGES,
     activeVariantId: activeVariant?.id,
     activeVariantLocation: activeVariant?.location,
@@ -199,11 +197,11 @@ export function useInlineEditState(
     setInpaintPrompt: inpainting.setInpaintPrompt,
     inpaintNumGenerations: inpainting.inpaintNumGenerations,
     setInpaintNumGenerations: inpainting.setInpaintNumGenerations,
-    editModeLoras: loraState.editModeLoras,
+    editModeLoras: editSettings.editModeLoras,
+    loraMode: editSettings.loraMode,
+    setLoraMode: editSettings.setLoraMode,
     sourceUrlForTasks: effectiveImageUrl,
     imageDimensions,
-    isInSceneBoostEnabled: loraState.isInSceneBoostEnabled,
-    setIsInSceneBoostEnabled: loraState.setIsInSceneBoostEnabled,
     toolTypeOverride: TOOL_IDS.EDIT_IMAGES,
     activeVariantLocation: activeVariant?.location,
     createAsGeneration,
@@ -223,7 +221,7 @@ export function useInlineEditState(
     selectedProjectId,
     imageDimensions,
     imageContainerRef,
-    loras: loraState.editModeLoras,
+    loras: editSettings.editModeLoras,
     inpaintPrompt: inpainting.inpaintPrompt,
     inpaintNumGenerations: inpainting.inpaintNumGenerations,
     toolTypeOverride: TOOL_IDS.EDIT_IMAGES,
@@ -300,10 +298,10 @@ export function useInlineEditState(
     imageContainerRef,
     handleExitInpaintMode: () => inpainting.setIsInpaintMode(false),
     setEditMode: (mode: ImageEditMode) => inpainting.setEditMode(toInpaintingEditMode(mode)),
-    loraMode: loraState.loraMode,
-    setLoraMode: loraState.setLoraMode,
-    customLoraUrl: loraState.customLoraUrl,
-    setCustomLoraUrl: loraState.setCustomLoraUrl,
+    loraMode: editSettings.loraMode,
+    setLoraMode: editSettings.setLoraMode,
+    customLoraUrl: editSettings.customLoraUrl,
+    setCustomLoraUrl: editSettings.setCustomLoraUrl,
     createAsGeneration,
     setCreateAsGeneration,
     qwenEditModel: editSettings.qwenEditModel,

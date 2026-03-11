@@ -10,11 +10,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/
 import { CheckCircle, Loader2, Plus, Wand2 } from 'lucide-react';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { cn } from '@/shared/components/ui/contracts/cn';
-import { ActiveLoRAsDisplay } from '@/shared/components/lora/ActiveLoRAsDisplay';
+import { ActiveLoRAsDisplay } from '@/domains/lora/components';
 import { mapSelectedLorasForModal } from '@/shared/components/lora/mapSelectedLorasForModal';
-import { LoraSelectorModal } from '@/domains/lora/components/LoraSelectorModal';
+import { LoraSelectorModal } from '@/domains/lora/components';
 import type { LoraModel } from '@/domains/lora/types/lora';
-import type { UseLoraManagerReturn } from '@/domains/lora/hooks/useLoraManager';
+import type { LoraManagerState } from '@/domains/lora/types/loraManager';
 
 interface Img2ImgControlsProps {
   isMobile: boolean;
@@ -28,7 +28,7 @@ interface Img2ImgControlsProps {
   img2imgGenerateSuccess: boolean;
   handleGenerateImg2Img: () => void;
   // LoRA
-  img2imgLoraManager?: UseLoraManagerReturn;
+  img2imgLoraManager?: LoraManagerState;
   availableLoras: LoraModel[];
   // Responsive config
   SectionLabel: React.FC<{ children: React.ReactNode }>;

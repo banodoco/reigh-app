@@ -5,7 +5,7 @@ import { AdvancedSettingsLoraModal } from '../AdvancedSettingsLoraModal';
 
 const mockLoraSelectorModal = vi.fn();
 
-vi.mock('@/domains/lora/components/LoraSelectorModal', () => ({
+vi.mock('@/domains/lora/components', () => ({
   LoraSelectorModal: (props: Record<string, unknown>) => {
     mockLoraSelectorModal(props);
     return <div data-testid="lora-selector-modal" />;

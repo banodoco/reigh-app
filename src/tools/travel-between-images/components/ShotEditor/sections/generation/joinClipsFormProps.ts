@@ -1,6 +1,6 @@
 import type React from 'react';
 import type { LoraModel } from '@/domains/lora/types/lora';
-import type { UseLoraManagerReturn } from '@/domains/lora/hooks/useLoraManager';
+import type { LoraManagerState } from '@/domains/lora/types/loraManager';
 import type { JoinSegmentsSettings } from '@/tools/travel-between-images/hooks/settings/useJoinSegmentsSettings';
 import {
   JoinClipsSettingsForm,
@@ -16,7 +16,7 @@ interface JoinFormSettingsState {
 
 interface JoinFormJoinState {
   joinSettings: JoinFormSettingsState;
-  joinLoraManager: UseLoraManagerReturn;
+  joinLoraManager: LoraManagerState;
   joinValidationData: {
     shortestClipFrames?: number;
   };

@@ -14,7 +14,7 @@ import {
 import { DEFAULT_VACE_PHASE_CONFIG, BUILTIN_VACE_DEFAULT_ID, VACE_GENERATION_DEFAULTS } from '@/shared/lib/vaceDefaults';
 import type { VideoClip, TransitionPrompt } from '../types';
 import type { useJoinClipsSettings } from './useJoinClipsSettings';
-import type { UseLoraManagerReturn } from '@/domains/lora/hooks/useLoraManager';
+import type { LoraManagerState } from '@/domains/lora/types/loraManager';
 import type { ValidationResult } from '../utils/validation';
 
 interface UseJoinClipsGenerateParams {
@@ -22,7 +22,7 @@ interface UseJoinClipsGenerateParams {
   clips: VideoClip[];
   transitionPrompts: TransitionPrompt[];
   joinSettings: ReturnType<typeof useJoinClipsSettings>;
-  loraManager: UseLoraManagerReturn;
+  loraManager: LoraManagerState;
   projectAspectRatio: string | undefined;
   validationResult: ValidationResult | null;
 }

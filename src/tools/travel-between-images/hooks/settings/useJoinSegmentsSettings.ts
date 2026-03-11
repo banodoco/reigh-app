@@ -2,7 +2,7 @@ import { useRef, useMemo, useEffect } from 'react';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { useAutoSaveSettings } from '@/shared/settings/hooks/useAutoSaveSettings';
 import { joinClipsSettings, JoinClipsSettings } from '@/shared/lib/joinClipsDefaults';
-import { ActiveLora } from '@/domains/lora/hooks/useLoraManager';
+import type { ActiveLora } from '@/domains/lora/types/lora';
 import { STORAGE_KEYS } from '@/shared/lib/storageKeys';
 import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 import { useSessionInheritedDefaults } from './inheritedDefaults';

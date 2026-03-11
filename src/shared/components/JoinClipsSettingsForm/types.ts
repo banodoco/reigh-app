@@ -1,5 +1,6 @@
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
-import type { LoraModel, UseLoraManagerReturn } from '@/domains/lora/hooks/useLoraManager';
+import type { LoraModel } from '@/domains/lora/types/lora';
+import type { LoraManagerState } from '@/domains/lora/types/loraManager';
 import type { PresetMetadata } from '@/shared/components/MotionPresetSelector/types';
 
 /** Info about a clip pair for visualization */
@@ -59,7 +60,7 @@ export interface JoinClipsMotionConfig {
   projectId: string | null;
   loraPersistenceKey: string;
   /** Optional external loraManager. If provided, uses this instead of creating a new one. */
-  loraManager?: UseLoraManagerReturn;
+  loraManager?: LoraManagerState;
 
   motionMode?: 'basic' | 'advanced';
   onMotionModeChange?: (mode: 'basic' | 'advanced') => void;

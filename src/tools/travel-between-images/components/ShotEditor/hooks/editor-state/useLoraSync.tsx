@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
-import { useLoraManager, type UseLoraManagerReturn } from '@/domains/lora/hooks/useLoraManager';
+import { useLoraManager } from '@/domains/lora/hooks/useLoraManager';
+import type { LoraManagerState } from '@/domains/lora/types/loraManager';
 import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 import type { ActiveLora, LoraModel } from '@/domains/lora/types/lora';
 import { ShotLora } from '@/tools/travel-between-images/settings';
@@ -20,7 +21,7 @@ interface UseLoRASyncProps {
   onBatchVideoPromptChange: (prompt: string) => void;
 }
 
-export type LoraManagerReturn = UseLoraManagerReturn;
+export type LoraManagerReturn = LoraManagerState;
 
 function toActiveLora(lora: ShotLora): ActiveLora {
   return {

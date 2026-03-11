@@ -6,6 +6,7 @@ import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
 import { useShotGenerationMetadata } from '@/shared/hooks/shots/useShotGenerationMetadata';
 import { createBatchMagicEditTasks } from '@/shared/lib/tasks/magicEdit';
 import type { EditAdvancedSettings, QwenEditModel } from './useGenerationEditSettings';
+import type { LoraMode } from '../model/editSettingsTypes';
 import { convertToHiresFixApiParams } from './useGenerationEditSettings';
 import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import type { BrushStroke } from './inpainting/types';
@@ -24,11 +25,11 @@ interface UseMagicEditModeParams {
   inpaintNumGenerations: number;
   setInpaintNumGenerations: (value: number) => void;
   editModeLoras: Array<{ url: string; strength: number }> | undefined;
+  loraMode: LoraMode;
+  setLoraMode: (mode: LoraMode) => void;
   sourceUrlForTasks: string;
   imageDimensions: { width: number; height: number } | null;
   toolTypeOverride?: string;
-  isInSceneBoostEnabled: boolean;
-  setIsInSceneBoostEnabled: (enabled: boolean) => void;
   // Variant tracking - when editing from a non-primary variant
   activeVariantId?: string | null;
   activeVariantLocation?: string | null;
@@ -78,11 +79,11 @@ export const useMagicEditMode = ({
   inpaintNumGenerations,
   setInpaintNumGenerations,
   editModeLoras,
+  loraMode,
+  setLoraMode,
   sourceUrlForTasks,
   imageDimensions,
   toolTypeOverride,
-  isInSceneBoostEnabled,
-  setIsInSceneBoostEnabled,
   activeVariantId,
   activeVariantLocation,
   createAsGeneration,
@@ -118,6 +119,7 @@ export const useMagicEditMode = ({
   const isEnteringEditModeRef = useRef(false);
   // Track if we've already restored the prompt for this mode entry (prevents re-restore on clear)
   const hasRestoredPromptRef = useRef(false);
+  const isInSceneLoraMode = loraMode === 'in-scene';
 
   // Reset flags when media changes
   useEffect(() => {
@@ -156,10 +158,10 @@ export const useMagicEditMode = ({
       if (lastPrompt && !inpaintPrompt) {
         setInpaintPrompt(lastPrompt);
         setInpaintNumGenerations(lastSettings.numImages);
-        setIsInSceneBoostEnabled(lastSettings.isInSceneBoostEnabled);
+        setLoraMode(lastSettings.isInSceneBoostEnabled ? 'in-scene' : 'none');
       }
     }
-  }, [isMagicEditMode, isLoadingMetadata, currentShotId, brushStrokes.length, getLastMagicEditPrompt, getLastSettings, inpaintPrompt, setInpaintPrompt, setInpaintNumGenerations, setIsInSceneBoostEnabled]);
+  }, [isMagicEditMode, isLoadingMetadata, currentShotId, brushStrokes.length, getLastMagicEditPrompt, getLastSettings, inpaintPrompt, setInpaintPrompt, setInpaintNumGenerations, setLoraMode]);
 
   // Unified edit mode - merging inpaint and magic edit
   const isSpecialEditMode = isInpaintMode || isMagicEditMode;
@@ -226,7 +228,7 @@ export const useMagicEditMode = ({
                   prompt,
                   inpaintNumGenerations,
                   false, // Legacy parameter
-                  isInSceneBoostEnabled
+                  isInSceneLoraMode
                 );
               } catch (error) {
                 normalizeAndPresentError(error, { context: 'useMagicEditMode', showToast: false });
@@ -247,7 +249,7 @@ export const useMagicEditMode = ({
     inpaintPrompt,
     brushStrokes.length,
     handleGenerateInpaint,
-    isInSceneBoostEnabled,
+    isInSceneLoraMode,
     sourceUrlForTasks,
     inpaintNumGenerations,
     imageDimensions,

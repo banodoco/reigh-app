@@ -56,10 +56,6 @@ interface UseEditSettingsPersistenceReturn extends EditSettingsSetterMethods {
   // Computed LoRAs for task creation
   editModeLoras: Array<{ url: string; strength: number }> | undefined;
 
-  // Legacy compatibility
-  isInSceneBoostEnabled: boolean;
-  setIsInSceneBoostEnabled: (enabled: boolean) => void;
-
   // State
   isLoading: boolean;
   isReady: boolean; // True when initialization is complete
@@ -284,12 +280,6 @@ export function useEditSettingsPersistence({
     [loraMode, customLoraUrl],
   );
 
-  // Legacy compatibility: this boolean mirrors only the in-scene preset.
-  const isInSceneBoostEnabled = effectiveSettings.loraMode === 'in-scene';
-  const setIsInSceneBoostEnabled = (enabled: boolean) => {
-    setLoraMode(enabled ? 'in-scene' : 'none');
-  };
-
   return {
     // Current values (using effective settings to avoid race condition)
     editMode: effectiveSettings.editMode,
@@ -337,10 +327,6 @@ export function useEditSettingsPersistence({
 
     // Computed
     editModeLoras,
-
-    // Legacy
-    isInSceneBoostEnabled,
-    setIsInSceneBoostEnabled,
 
     // State
     isLoading: generationSettings.isLoading,

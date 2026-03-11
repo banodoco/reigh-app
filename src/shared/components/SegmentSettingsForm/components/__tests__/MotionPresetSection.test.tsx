@@ -19,23 +19,27 @@ vi.mock('@/shared/components/MotionPresetSelector', () => ({
   },
 }));
 
-vi.mock('@/shared/components/lora/ActiveLoRAsDisplay', () => ({
-  ActiveLoRAsDisplay: ({
-    selectedLoras,
-    onRemoveLora,
-    onLoraStrengthChange,
-  }: {
-    selectedLoras: Array<{ id: string }>;
-    onRemoveLora: (id: string) => void;
-    onLoraStrengthChange: (id: string, strength: number) => void;
-  }) => (
-    <div data-testid="active-loras-display">
-      <span>loras:{selectedLoras.length}</span>
-      <button type="button" onClick={() => onRemoveLora('lora-a')}>remove-lora-a</button>
-      <button type="button" onClick={() => onLoraStrengthChange('lora-a', 0.77)}>update-lora-a</button>
-    </div>
-  ),
-}));
+vi.mock('@/domains/lora/components', async () => {
+  const actual = await vi.importActual<typeof import('@/domains/lora/components')>('@/domains/lora/components');
+  return {
+    ...actual,
+    ActiveLoRAsDisplay: ({
+      selectedLoras,
+      onRemoveLora,
+      onLoraStrengthChange,
+    }: {
+      selectedLoras: Array<{ id: string }>;
+      onRemoveLora: (id: string) => void;
+      onLoraStrengthChange: (id: string, strength: number) => void;
+    }) => (
+      <div data-testid="active-loras-display">
+        <span>loras:{selectedLoras.length}</span>
+        <button type="button" onClick={() => onRemoveLora('lora-a')}>remove-lora-a</button>
+        <button type="button" onClick={() => onLoraStrengthChange('lora-a', 0.77)}>update-lora-a</button>
+      </div>
+    ),
+  };
+});
 
 vi.mock('@/shared/components/SegmentSettingsForm/components/FieldDefaultControls', () => ({
   FieldDefaultControls: ({

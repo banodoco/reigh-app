@@ -133,18 +133,6 @@ vi.mock('@/domains/media-lightbox/hooks/useInpainting', () => ({
   useInpainting: (...args: unknown[]) => mockUseInpainting(...args),
 }));
 
-vi.mock('@/domains/media-lightbox/hooks/useEditModeLoras', () => ({
-  useEditModeLoras: () => ({
-    isInSceneBoostEnabled: false,
-    setIsInSceneBoostEnabled: vi.fn(),
-    loraMode: 'none',
-    setLoraMode: vi.fn(),
-    customLoraUrl: '',
-    setCustomLoraUrl: vi.fn(),
-    editModeLoras: [],
-  }),
-}));
-
 vi.mock('@/domains/media-lightbox/hooks/useSourceGeneration', () => ({
   useSourceGeneration: () => ({
     sourceGenerationData: null,
@@ -175,6 +163,11 @@ vi.mock('@/domains/media-lightbox/hooks/persistence/useEditSettingsPersistence',
   useEditSettingsPersistence: () => ({
     editMode: null,
     setEditMode: vi.fn(),
+    loraMode: 'none',
+    setLoraMode: vi.fn(),
+    customLoraUrl: '',
+    setCustomLoraUrl: vi.fn(),
+    editModeLoras: [],
     img2imgStrength: 0.6,
     img2imgEnablePromptExpansion: false,
     img2imgPrompt: '',
@@ -186,6 +179,12 @@ vi.mock('@/domains/media-lightbox/hooks/persistence/useEditSettingsPersistence',
     setPrompt: vi.fn(),
     numGenerations: 1,
     setNumGenerations: vi.fn(),
+    advancedSettings: { enabled: false },
+    setAdvancedSettings: vi.fn(),
+    qwenEditModel: 'qwen-edit-2511',
+    setQwenEditModel: vi.fn(),
+    createAsGeneration: false,
+    setCreateAsGeneration: vi.fn(),
     isReady: true,
     hasPersistedSettings: false,
   }),

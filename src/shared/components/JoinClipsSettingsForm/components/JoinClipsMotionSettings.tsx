@@ -2,7 +2,8 @@ import { LoraManager } from '@/shared/components/LoraManager';
 import { MotionPresetSelector } from '@/shared/components/MotionPresetSelector';
 import type { PresetMetadata } from '@/shared/components/MotionPresetSelector/types';
 import { SectionHeader } from '@/shared/components/ImageGenerationForm/components/SectionHeader';
-import type { LoraModel, UseLoraManagerReturn } from '@/domains/lora/hooks/useLoraManager';
+import type { LoraModel } from '@/domains/lora/types/lora';
+import type { LoraManagerState } from '@/domains/lora/types/loraManager';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
 import { BUILTIN_JOIN_CLIPS_PRESET } from '../constants';
 
@@ -10,7 +11,7 @@ interface JoinClipsMotionSettingsProps {
   availableLoras: LoraModel[];
   projectId: string | null;
   loraPersistenceKey: string;
-  loraManager?: UseLoraManagerReturn;
+  loraManager?: LoraManagerState;
   motionMode: 'basic' | 'advanced';
   onMotionModeChange?: (mode: 'basic' | 'advanced') => void;
   phaseConfig?: PhaseConfig;

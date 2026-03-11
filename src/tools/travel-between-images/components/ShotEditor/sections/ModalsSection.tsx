@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { LoraSelectorModal } from '@/domains/lora/components/LoraSelectorModal';
+import { LoraSelectorModal } from '@/domains/lora/components';
 import type { LoraModel } from '@/domains/lora/types/lora';
 import { mapSelectedLorasForModal } from '@/shared/components/lora/mapSelectedLorasForModal';
 import { SettingsModal } from '@/shared/components/SettingsModal/SettingsModal';

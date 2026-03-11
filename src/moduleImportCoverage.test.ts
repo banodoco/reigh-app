@@ -315,7 +315,6 @@ const moduleLoaders = [
   () => import('@/domains/media-lightbox/hooks/reposition/useRepositionTaskCreation'),
   () => import('@/domains/media-lightbox/hooks/reposition/useRepositionVariantSave'),
   () => import('@/domains/media-lightbox/hooks/useAdjustedTaskDetails'),
-  () => import('@/domains/media-lightbox/hooks/useEditModeLoras'),
   () => import('@/domains/media-lightbox/hooks/useEditModePanelState'),
   () => import('@/domains/media-lightbox/hooks/persistence/useEditSettingsPersistence'),
   () => import('@/domains/media-lightbox/hooks/persistence/useEditSettingsSync'),

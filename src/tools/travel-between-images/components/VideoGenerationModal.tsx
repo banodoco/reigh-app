@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader } from '@/shared/components/ui/dial
 import { Button } from '@/shared/components/ui/button';
 import { Skeleton } from '@/shared/components/ui/skeleton';
 import { useExtraLargeModal } from '@/shared/hooks/useModal';
-import { LoraSelectorModal } from '@/domains/lora/components/LoraSelectorModal';
+import { LoraSelectorModal } from '@/domains/lora/components';
 import {
   VideoGenerationModalFormContent,
   VideoGenerationModalHeader,

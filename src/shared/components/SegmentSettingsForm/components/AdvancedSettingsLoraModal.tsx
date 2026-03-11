@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { LoraSelectorModal } from '@/domains/lora/components/LoraSelectorModal';
+import { LoraSelectorModal } from '@/domains/lora/components';
 import type { LoraModel } from '@/domains/lora/types/lora';
 import type { SegmentSettings } from '../types';
 

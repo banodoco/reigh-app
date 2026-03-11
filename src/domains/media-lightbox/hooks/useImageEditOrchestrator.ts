@@ -11,10 +11,10 @@
 
 import { useMemo } from 'react';
 import type { GenerationRow } from '@/domains/generation/types';
+import type { LoraModel } from '@/domains/lora/types/lora';
+import type { LoraManagerState } from '@/domains/lora/types/loraManager';
 import type { ImageEditState } from '../contexts/ImageEditContext';
 import type { EditAdvancedSettings, EditMode, LoraMode, QwenEditModel } from '../model/editSettingsTypes';
-import type { UseLoraManagerReturn } from '@/domains/lora/hooks/useLoraManager';
-import type { LoraModel } from '@/domains/lora/types/lora';
 
 import { useMagicEditMode } from './useMagicEditMode';
 import { useRepositionMode } from './useRepositionMode';
@@ -120,7 +120,7 @@ interface UseImageEditOrchestratorReturn {
   handleGenerateImg2Img: () => Promise<void>;
 
   // Img2Img LoRA manager (passed to EditModePanel)
-  img2imgLoraManager: UseLoraManagerReturn;
+  img2imgLoraManager: LoraManagerState;
 
 }
 
@@ -234,11 +234,11 @@ export function useImageEditOrchestrator({
     inpaintNumGenerations,
     setInpaintNumGenerations,
     editModeLoras: effectiveEditModeLoras,
+    loraMode,
+    setLoraMode,
     sourceUrlForTasks: effectiveImageUrl,
     imageDimensions,
     toolTypeOverride,
-    isInSceneBoostEnabled: false,
-    setIsInSceneBoostEnabled: () => {},
     activeVariantId: activeVariant?.id,
     activeVariantLocation: activeVariant?.location,
     createAsGeneration,
@@ -331,7 +331,6 @@ export function useImageEditOrchestrator({
       qwenEditModel, setQwenEditModel,
       advancedSettings, setAdvancedSettings,
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- hook results are objects; deps track leaf values
     [
       inpaintingHook, magicEditHook, repositionHook, img2imgHook,
       imageContainerRef, handleExitInpaintMode, setEditMode,

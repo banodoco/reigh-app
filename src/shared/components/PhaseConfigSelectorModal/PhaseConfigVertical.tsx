@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { LoraSelectorModal } from '@/domains/lora/components/LoraSelectorModal';
+import { LoraSelectorModal } from '@/domains/lora/components';
 import { PhaseConfigSelectorModal } from './PhaseConfigSelectorModal';
 import { DEFAULT_PHASE_CONFIG } from '@/shared/types/phaseConfig';
 import type { PresetMetadata } from '@/shared/types/presetMetadata';

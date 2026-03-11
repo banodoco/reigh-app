@@ -8,7 +8,7 @@ import { ShotEditorActions } from './state/useShotEditorState';
 import { LoraManagerReturn } from './hooks/editor-state/useLoraSync';
 import type { UseStructureVideoReturn } from './hooks/video/useStructureVideo';
 import type { UseAudioReturn } from './hooks/video/useAudio';
-import type { UseLoraManagerReturn } from '@/domains/lora/hooks/useLoraManager';
+import type { LoraManagerState } from '@/domains/lora/types/loraManager';
 import type { JoinSegmentsSettings } from '@/tools/travel-between-images/hooks/settings/useJoinSegmentsSettings';
 import type {
   ImageDeleteHandler,
@@ -114,7 +114,7 @@ export interface JoinState {
     updateField: <K extends keyof JoinSegmentsSettings>(field: K, value: JoinSegmentsSettings[K]) => void;
     updateFields: (fields: Partial<JoinSegmentsSettings>) => void;
   };
-  joinLoraManager: UseLoraManagerReturn;
+  joinLoraManager: LoraManagerState;
   joinValidationData: {
     videoCount: number;
     shortestClipFrames?: number;

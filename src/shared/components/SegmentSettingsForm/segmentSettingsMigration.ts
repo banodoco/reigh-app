@@ -13,7 +13,7 @@
  */
 
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
-import type { ActiveLora } from '@/domains/lora/hooks/useLoraManager';
+import type { ActiveLora } from '@/domains/lora/types/lora';
 import { writeSegmentOverrides, type SegmentOverrides, type LoraConfig } from '@/shared/lib/settingsMigration';
 import type { SegmentSettings } from './segmentSettingsUtils';
 import { stripModeFromPhaseConfig } from './segmentSettingsUtils';

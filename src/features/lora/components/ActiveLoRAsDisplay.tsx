@@ -1,1 +1,1 @@
-export { ActiveLoRAsDisplay } from '@/shared/components/lora/ActiveLoRAsDisplay';
+export { ActiveLoRAsDisplay } from '@/domains/lora/components';
