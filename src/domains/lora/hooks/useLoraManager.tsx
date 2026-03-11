@@ -5,12 +5,6 @@ import type { LoraManagerOptions, LoraManagerState } from '@/domains/lora/types/
 import { dedupeActiveLoras, shouldApplyLoraDefaults } from './loraStateHelpers';
 import { useLoraPersistence } from './loraPersistence';
 
-// Re-export types
-export type { ActiveLora } from '@/domains/lora/types/lora';
-export type { LoraModel } from '@/domains/lora/types/lora';
-export type { LoraManagerOptions, LoraManagerState } from '@/domains/lora/types/loraManager';
-export type UseLoraManagerOptions = LoraManagerOptions;
-export type UseLoraManagerReturn = LoraManagerState;
 
 const EMPTY_ACTIVE_LORAS: ActiveLora[] = [];
 

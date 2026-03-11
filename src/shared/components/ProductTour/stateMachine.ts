@@ -6,14 +6,14 @@ export const LONG_DELAY_MS = 1500;
 export const WAIT_FOR_TARGET_DELAY_MS = 800;
 export const WAIT_FOR_TARGET_RESUME_DELAY_MS = 100;
 
-export type TourEventName = 'openGenerationModal' | 'closeGenerationModal';
+type TourEventName = 'openGenerationModal' | 'closeGenerationModal';
 
-export interface SpotlightAdvanceBehavior {
+interface SpotlightAdvanceBehavior {
   delayMs?: number;
   lockTasksPane?: boolean;
 }
 
-export type JoyrideAdvanceBehavior =
+type JoyrideAdvanceBehavior =
   | { type: 'advance' }
   | {
       type: 'pause';
