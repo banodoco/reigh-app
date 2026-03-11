@@ -1,28 +1,45 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
-// Mock supabase
-vi.mock('@/integrations/supabase/client', () => ({
-  getSupabaseClient: () => ({
-    auth: {
-      getSession: vi.fn().mockResolvedValue({
-        data: {
-          session: {
-            [['access', 'token'].join('_')]: 'test-token',
-            user: { id: 'test-user-id' },
-          },
-        },
-      }),
-    },
-    from: vi.fn(() => {
+const supabaseMocks = vi.hoisted(() => {
+  const tableConfigs = new Map<string, {
+    single?: unknown;
+    maybeSingle?: unknown;
+  }>();
+
+  return {
+    getSession: vi.fn(),
+    from: vi.fn((table: string) => {
       const chain: Record<string, ReturnType<typeof vi.fn>> = {};
       chain.select = vi.fn().mockReturnValue(chain);
       chain.eq = vi.fn().mockReturnValue(chain);
       chain.insert = vi.fn().mockReturnValue(chain);
-      chain.single = vi.fn().mockResolvedValue({ data: null, error: null });
-      chain.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+      chain.order = vi.fn().mockReturnValue(chain);
+      chain.single = vi.fn().mockImplementation(async () => (
+        tableConfigs.get(table)?.single ?? { data: null, error: null }
+      ));
+      chain.maybeSingle = vi.fn().mockImplementation(async () => (
+        tableConfigs.get(table)?.maybeSingle ?? { data: null, error: null }
+      ));
       return chain;
     }),
+    normalizeAndPresentError: vi.fn(),
+    setTableConfig: (table: string, config: { single?: unknown; maybeSingle?: unknown }) => {
+      tableConfigs.set(table, config);
+    },
+    resetTableConfigs: () => {
+      tableConfigs.clear();
+    },
+  };
+});
+
+// Mock supabase
+vi.mock('@/integrations/supabase/client', () => ({
+  getSupabaseClient: () => ({
+    auth: {
+      getSession: (...args: unknown[]) => supabaseMocks.getSession(...args),
+    },
+    from: (...args: unknown[]) => supabaseMocks.from(...args),
   }),
 }));
 
@@ -40,11 +57,24 @@ vi.mock('@/shared/constants/supabaseErrors', () => ({
   isUniqueViolationError: vi.fn(() => false),
 }));
 
+vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
+  normalizeAndPresentError: (...args: unknown[]) => supabaseMocks.normalizeAndPresentError(...args),
+}));
+
 import { useShareGeneration } from '../useShareGeneration';
 
 describe('useShareGeneration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    supabaseMocks.resetTableConfigs();
+    supabaseMocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          [['access', 'token'].join('_')]: 'test-token',
+          user: { id: 'test-user-id' },
+        },
+      },
+    });
 
     // Mock clipboard
     Object.assign(navigator, {
@@ -156,5 +186,33 @@ describe('useShareGeneration', () => {
 
     expect(mockEvent.stopPropagation).toHaveBeenCalled();
     expect(mockEvent.preventDefault).toHaveBeenCalled();
+  });
+
+  it('normalizes share-creation failures when generation data cannot be loaded', async () => {
+    const generationError = new Error('Failed to load generation data');
+    supabaseMocks.setTableConfig('generations', {
+      single: { data: null, error: generationError },
+    });
+
+    const { result } = renderHook(() =>
+      useShareGeneration('gen-1', 'task-1')
+    );
+
+    const mockEvent = {
+      stopPropagation: vi.fn(),
+      preventDefault: vi.fn(),
+    } as unknown as React.MouseEvent;
+
+    await act(async () => {
+      await result.current.handleShare(mockEvent);
+    });
+
+    expect(supabaseMocks.normalizeAndPresentError).toHaveBeenCalledWith(generationError, {
+      context: 'useShareGeneration',
+      toastTitle: 'Share failed',
+      logData: { message: 'Please try again' },
+    });
+    expect(result.current.isCreatingShare).toBe(false);
+    expect(result.current.shareSlug).toBeNull();
   });
 });
