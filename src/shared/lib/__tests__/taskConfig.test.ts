@@ -12,7 +12,7 @@ import {
   getVisibleTaskTypes,
   getHiddenTaskTypes,
   filterVisibleTasks,
-} from '../taskConfig';
+} from '../tasks/taskConfig';
 
 import {
   isTaskTypeConfigCacheInitialized,

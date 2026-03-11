@@ -47,7 +47,7 @@ import {
   resolveGenerationTaskMappings,
   resolveGenerationProjectScope,
   resolveVariantProjectScope,
-} from '../generationTaskRepository';
+} from '../tasks/generationTaskRepository';
 
 describe('generationTaskRepository', () => {
   beforeEach(() => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { STORAGE_KEYS } from '../storageKeys';
+import { STORAGE_KEYS } from '../storage/storageKeys';
 
 describe('STORAGE_KEYS', () => {
   describe('LAST_ACTIVE_SHOT_SETTINGS', () => {

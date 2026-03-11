@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { joinPromptParts } from '../promptAssembly';
+import { joinPromptParts } from '../tasks/promptAssembly';
 
 describe('joinPromptParts', () => {
   it('normalizes and joins with comma policy', () => {

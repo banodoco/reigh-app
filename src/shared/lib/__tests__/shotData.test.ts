@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { expandShotData } from '../shotData';
+import { expandShotData } from '../shots/shotData';
 
 describe('expandShotData', () => {
   it('returns empty list for nullish input', () => {

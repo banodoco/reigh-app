@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { QUERY_PRESETS, STANDARD_RETRY, STANDARD_RETRY_DELAY } from '../queryDefaults';
+import { QUERY_PRESETS, STANDARD_RETRY, STANDARD_RETRY_DELAY } from '../query/queryDefaults';
 
 describe('QUERY_PRESETS', () => {
   describe('realtimeBacked', () => {
