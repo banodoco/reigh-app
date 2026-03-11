@@ -3,6 +3,7 @@ import type { PairData } from '../../Timeline/TimelineContainer/types';
 import type { GenerationRow } from '@/domains/generation/types';
 import type { SegmentSlot } from '@/shared/hooks/segments';
 import type { SegmentSlotModeData } from '@/domains/media-lightbox/types';
+import type { StructureGuidanceConfig } from '@/shared/lib/tasks/travelBetweenImages';
 import type { StructureVideoCollectionHandlers } from '@/tools/travel-between-images/types/mediaHandlers';
 
 export type SegmentSlotGenerationMode = 'batch' | 'timeline' | 'by-pair';
@@ -18,6 +19,7 @@ export interface UseSegmentSlotModeResolvedProps {
   defaultPrompt: string;
   defaultNegativePrompt: string;
   resolvedProjectResolution?: string;
+  structureGuidance?: StructureGuidanceConfig;
   structureVideos?: StructureVideoCollectionHandlers['structureVideos'];
   onAddStructureVideo?: StructureVideoCollectionHandlers['onAddStructureVideo'];
   onUpdateStructureVideo?: StructureVideoCollectionHandlers['onUpdateStructureVideo'];

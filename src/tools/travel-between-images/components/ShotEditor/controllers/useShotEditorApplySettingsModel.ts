@@ -6,7 +6,7 @@ import type { PresetMetadata } from '@/shared/types/presetMetadata';
 import type { SteerableMotionSettings } from '@/shared/types/steerableMotion';
 import type { VideoMetadata } from '@/shared/lib/media/videoUploader';
 
-type ApplySettingsHandlerState = Parameters<typeof useApplySettingsHandler>[0];
+type ApplySettingsHandlerInput = Parameters<typeof useApplySettingsHandler>[0];
 
 interface PromptSettingsSlice {
   prompt: string;
@@ -55,12 +55,6 @@ interface SteerableMotionSettingsSlice {
   setSteerableMotionSettings: (settings: Partial<SteerableMotionSettings>) => void;
 }
 
-interface DimensionCallbacks {
-  onDimensionSourceChange?: (source: 'project' | 'firstImage' | 'custom') => void;
-  onCustomWidthChange?: (width?: number) => void;
-  onCustomHeightChange?: (height?: number) => void;
-}
-
 interface StructureVideoSettingsSlice {
   handleStructureVideoInputChange: (
     videoPath: string | null,
@@ -73,8 +67,8 @@ interface StructureVideoSettingsSlice {
 }
 
 interface GenerationControllerActionsSlice {
-  updatePairPromptsByIndex: ApplySettingsHandlerState['updatePairPromptsByIndex'];
-  loadPositions: ApplySettingsHandlerState['loadPositions'];
+  updatePairPromptsByIndex: ApplySettingsHandlerInput['restore']['updatePairPromptsByIndex'];
+  loadPositions: ApplySettingsHandlerInput['mutations']['loadPositions'];
 }
 
 interface UseShotEditorApplySettingsModelParams {
@@ -82,8 +76,8 @@ interface UseShotEditorApplySettingsModelParams {
     projectId: string;
     selectedShot: Shot | undefined;
     simpleFilteredImages: GenerationRow[];
-    availableLoras: ApplySettingsHandlerState['availableLoras'];
-    loraManager: ApplySettingsHandlerState['loraManager'];
+    availableLoras: ApplySettingsHandlerInput['restore']['availableLoras'];
+    loraManager: ApplySettingsHandlerInput['restore']['loraManager'];
   };
   settings: {
     promptSettings: PromptSettingsSlice;
@@ -93,7 +87,6 @@ interface UseShotEditorApplySettingsModelParams {
     generationModeSettings: GenerationModeSettingsSlice;
     steerableMotionSettings: SteerableMotionSettingsSlice;
   };
-  dimensions: DimensionCallbacks;
   structureVideo: StructureVideoSettingsSlice;
   generationController: GenerationControllerActionsSlice;
 }
@@ -101,7 +94,6 @@ interface UseShotEditorApplySettingsModelParams {
 export function useShotEditorApplySettingsModel({
   core,
   settings,
-  dimensions,
   structureVideo,
   generationController,
 }: UseShotEditorApplySettingsModelParams): ReturnType<typeof useApplySettingsHandler> {
@@ -109,47 +101,38 @@ export function useShotEditorApplySettingsModel({
   const removeImageFromShotMutation = useRemoveImageFromShot();
 
   return useApplySettingsHandler({
-    projectId: core.projectId,
-    selectedShotId: core.selectedShot?.id ?? '',
-    simpleFilteredImages: core.simpleFilteredImages,
-    selectedShot: core.selectedShot,
-    availableLoras: core.availableLoras,
-    onBatchVideoPromptChange: settings.promptSettings.setPrompt,
-    onSteerableMotionSettingsChange: settings.steerableMotionSettings.setSteerableMotionSettings,
-    onBatchVideoFramesChange: settings.frameSettings.setFrames,
-    onBatchVideoStepsChange: settings.frameSettings.setSteps,
-    onDimensionSourceChange: dimensions.onDimensionSourceChange,
-    onCustomWidthChange: dimensions.onCustomWidthChange,
-    onCustomHeightChange: dimensions.onCustomHeightChange,
-    onGenerationModeChange: settings.generationModeSettings.setGenerationMode,
-    onAdvancedModeChange: (advanced: boolean) => settings.motionSettings.setMotionMode(advanced ? 'advanced' : 'basic'),
-    onMotionModeChange: settings.motionSettings.setMotionMode,
-    onGenerationTypeModeChange: settings.phaseConfigSettings.setGenerationTypeMode,
-    onPhaseConfigChange: settings.phaseConfigSettings.setPhaseConfig,
-    onPhasePresetSelect: settings.phaseConfigSettings.selectPreset,
-    onPhasePresetRemove: settings.phaseConfigSettings.removePreset,
-    onTurboModeChange: settings.motionSettings.setTurboMode,
-    onEnhancePromptChange: settings.promptSettings.setEnhancePrompt,
-    onAmountOfMotionChange: settings.motionSettings.setAmountOfMotion,
-    onTextBeforePromptsChange: settings.promptSettings.setTextBeforePrompts,
-    onTextAfterPromptsChange: settings.promptSettings.setTextAfterPrompts,
-    onStructureVideoInputChange: structureVideo.handleStructureVideoInputChange,
-    generationMode: settings.generationModeSettings.generationMode,
-    generationTypeMode: settings.phaseConfigSettings.generationTypeMode,
-    advancedMode: settings.phaseConfigSettings.advancedMode,
-    motionMode: settings.motionSettings.motionMode,
-    turboMode: settings.motionSettings.turboMode,
-    enhancePrompt: settings.promptSettings.enhancePrompt,
-    amountOfMotion: settings.motionSettings.amountOfMotion,
-    textBeforePrompts: settings.promptSettings.textBeforePrompts,
-    textAfterPrompts: settings.promptSettings.textAfterPrompts,
-    batchVideoSteps: settings.frameSettings.batchVideoSteps,
-    batchVideoFrames: settings.frameSettings.batchVideoFrames,
-    steerableMotionSettings: settings.steerableMotionSettings.steerableMotionSettings,
-    loraManager: core.loraManager,
-    addImageToShotMutation,
-    removeImageFromShotMutation,
-    updatePairPromptsByIndex: generationController.updatePairPromptsByIndex,
-    loadPositions: generationController.loadPositions,
+    core: {
+      projectId: core.projectId,
+      selectedShot: core.selectedShot,
+      simpleFilteredImages: core.simpleFilteredImages,
+    },
+    restore: {
+      availableLoras: core.availableLoras,
+      loraManager: core.loraManager,
+      steerableMotionSettings: settings.steerableMotionSettings.steerableMotionSettings,
+      onSteerableMotionSettingsChange: settings.steerableMotionSettings.setSteerableMotionSettings,
+      onBatchVideoPromptChange: settings.promptSettings.setPrompt,
+      onBatchVideoFramesChange: settings.frameSettings.setFrames,
+      onBatchVideoStepsChange: settings.frameSettings.setSteps,
+      onGenerationModeChange: settings.generationModeSettings.setGenerationMode,
+      onAdvancedModeChange: (advanced: boolean) => settings.motionSettings.setMotionMode(advanced ? 'advanced' : 'basic'),
+      onMotionModeChange: settings.motionSettings.setMotionMode,
+      onGenerationTypeModeChange: settings.phaseConfigSettings.setGenerationTypeMode,
+      onPhaseConfigChange: settings.phaseConfigSettings.setPhaseConfig,
+      onPhasePresetSelect: settings.phaseConfigSettings.selectPreset,
+      onPhasePresetRemove: settings.phaseConfigSettings.removePreset,
+      onTurboModeChange: settings.motionSettings.setTurboMode,
+      onEnhancePromptChange: settings.promptSettings.setEnhancePrompt,
+      onAmountOfMotionChange: settings.motionSettings.setAmountOfMotion,
+      onTextBeforePromptsChange: settings.promptSettings.setTextBeforePrompts,
+      onTextAfterPromptsChange: settings.promptSettings.setTextAfterPrompts,
+      onStructureVideoInputChange: structureVideo.handleStructureVideoInputChange,
+      updatePairPromptsByIndex: generationController.updatePairPromptsByIndex,
+    },
+    mutations: {
+      addImageToShotMutation,
+      removeImageFromShotMutation,
+      loadPositions: generationController.loadPositions,
+    },
   });
 }

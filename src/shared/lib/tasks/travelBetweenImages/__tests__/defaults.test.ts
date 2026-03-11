@@ -1,26 +1,26 @@
 import { describe, it, expect } from 'vitest';
 import {
-  DEFAULT_VIDEO_STRUCTURE_PARAMS,
+  DEFAULT_STRUCTURE_VIDEO,
   DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES,
 } from '../defaults';
 
-describe('DEFAULT_VIDEO_STRUCTURE_PARAMS', () => {
+describe('DEFAULT_STRUCTURE_VIDEO', () => {
   it('has correct default treatment', () => {
-    expect(DEFAULT_VIDEO_STRUCTURE_PARAMS.structure_video_treatment).toBe('adjust');
+    expect(DEFAULT_STRUCTURE_VIDEO.treatment).toBe('adjust');
   });
 
   it('has correct default motion strength', () => {
-    expect(DEFAULT_VIDEO_STRUCTURE_PARAMS.structure_video_motion_strength).toBe(1.2);
+    expect(DEFAULT_STRUCTURE_VIDEO.motion_strength).toBe(1.2);
   });
 
   it('has uni3c as default video type', () => {
-    expect(DEFAULT_VIDEO_STRUCTURE_PARAMS.structure_video_type).toBe('uni3c');
+    expect(DEFAULT_STRUCTURE_VIDEO.structure_type).toBe('uni3c');
   });
 
   it('has all required keys', () => {
-    expect(DEFAULT_VIDEO_STRUCTURE_PARAMS).toHaveProperty('structure_video_treatment');
-    expect(DEFAULT_VIDEO_STRUCTURE_PARAMS).toHaveProperty('structure_video_motion_strength');
-    expect(DEFAULT_VIDEO_STRUCTURE_PARAMS).toHaveProperty('structure_video_type');
+    expect(DEFAULT_STRUCTURE_VIDEO).toHaveProperty('treatment');
+    expect(DEFAULT_STRUCTURE_VIDEO).toHaveProperty('motion_strength');
+    expect(DEFAULT_STRUCTURE_VIDEO).toHaveProperty('structure_type');
   });
 });
 

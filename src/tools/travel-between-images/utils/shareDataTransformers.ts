@@ -9,7 +9,7 @@
 
 import type { GenerationRow } from '@/domains/generation/types';
 import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
-import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
+import type { StructureVideoConfigWithLegacyGuidance } from '@/shared/lib/tasks/travelBetweenImages';
 import type { VideoMetadata } from '@/shared/lib/media/videoUploader';
 
 type SharedStructureType = 'uni3c' | 'flow' | 'canny' | 'depth';
@@ -94,7 +94,7 @@ export function calculateColumnsForDevice(
  */
 export function extractStructureVideos(
   settings: Record<string, unknown> | null | undefined
-): Array<StructureVideoConfigWithMetadata & { uni3c_end_percent?: number }> {
+): StructureVideoConfigWithLegacyGuidance[] {
   if (!settings) return [];
 
   const structureVideo = settings.structureVideo as Record<string, unknown> | undefined;
@@ -102,7 +102,7 @@ export function extractStructureVideos(
 
   // Prefer the array format if present
   if (structureVideos && Array.isArray(structureVideos) && structureVideos.length > 0) {
-    const parsedVideos: Array<StructureVideoConfigWithMetadata & { uni3c_end_percent?: number }> = [];
+    const parsedVideos: StructureVideoConfigWithLegacyGuidance[] = [];
     structureVideos.forEach((video) => {
       const raw = (video && typeof video === 'object') ? video as Record<string, unknown> : null;
       if (!raw || typeof raw.path !== 'string') return;

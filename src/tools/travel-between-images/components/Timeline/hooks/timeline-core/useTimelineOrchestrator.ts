@@ -372,8 +372,6 @@ export function useTimelineOrchestrator({
         start_frame: placement.start_frame,
         end_frame: placement.end_frame,
         treatment: 'adjust',
-        motion_strength: 1.0,
-        structure_type: primaryStructureVideo?.structureType ?? 'flow',
         metadata: metadata.videoMetadata,
         resource_id: resource.id,
       });

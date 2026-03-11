@@ -5,7 +5,7 @@ import { ValidationError } from '@/shared/lib/errorHandling/errors';
 import {
   createTravelBetweenImagesTask,
   validateTravelBetweenImagesParams,
-  DEFAULT_VIDEO_STRUCTURE_PARAMS,
+  DEFAULT_STRUCTURE_VIDEO,
 } from '@/shared/lib/tasks/travelBetweenImages';
 import { normalizeStructureGuidance } from '@/shared/lib/tasks/structureGuidance';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
@@ -65,8 +65,8 @@ function buildStructureGuidance(
   }
   const normalized = normalizeStructureGuidance({
     structureVideos,
-    defaultVideoTreatment: DEFAULT_VIDEO_STRUCTURE_PARAMS.structure_video_treatment,
-    defaultUni3cEndPercent: 0.1,
+    defaultVideoTreatment: DEFAULT_STRUCTURE_VIDEO.treatment,
+    defaultUni3cEndPercent: DEFAULT_STRUCTURE_VIDEO.uni3c_end_percent,
   });
   return normalized ?? null;
 }

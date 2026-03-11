@@ -260,10 +260,10 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <Label className="text-sm">End:</Label>
-                            <span className="text-sm font-medium">{((structureVideos[0]?.uni3c_end_percent ?? 0.1) * 100).toFixed(0)}%</span>
+                            <span className="text-sm font-medium">{(primaryStructureVideo.uni3cEndPercent * 100).toFixed(0)}%</span>
                           </div>
                           <Slider
-                            value={structureVideos[0]?.uni3c_end_percent ?? 0.1}
+                            value={primaryStructureVideo.uni3cEndPercent}
                             disabled
                             min={0}
                             max={1}

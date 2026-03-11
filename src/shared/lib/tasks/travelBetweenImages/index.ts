@@ -11,7 +11,7 @@ export type {
 } from './types';
 export type {
   StructureVideoConfigWithMetadata,
-  
+  StructureVideoConfigWithLegacyGuidance,
 } from './uiTypes';
 
 // convertLegacyStructureType is internal - import from types.ts if needed externally
@@ -19,7 +19,6 @@ export type {
 // Defaults - used internally, only export what's needed externally
 export {
   DEFAULT_STRUCTURE_VIDEO,
-  DEFAULT_VIDEO_STRUCTURE_PARAMS,
 } from './defaults';
 export {
   resolvePrimaryStructureVideo,

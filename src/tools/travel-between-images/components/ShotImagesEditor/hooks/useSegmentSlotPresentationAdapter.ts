@@ -3,6 +3,7 @@ import { readSegmentOverrides } from '@/shared/lib/settingsMigration';
 import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';
 import { isVideoAny } from '@/shared/lib/typeGuards';
 import { asNumber, asRecord, asString } from '@/shared/lib/tasks/taskParamParsers';
+import { resolvePrimaryStructureVideo } from '@/shared/lib/tasks/travelBetweenImages';
 import type { PairData } from '../../Timeline/TimelineContainer/types';
 import type { SegmentSlot } from '@/shared/hooks/segments';
 import type { SegmentSlotModeData } from '@/domains/media-lightbox/types';
@@ -185,6 +186,10 @@ export function useSegmentSlotPresentationAdapter({
       pairEndFrame,
       props.effectiveGenerationMode,
     );
+    const primaryStructureVideo = resolvePrimaryStructureVideo(
+      props.structureVideos,
+      props.structureGuidance,
+    );
 
     const shotGen = props.shotGenerations.find((generation) => generation.id === pairData.startImage?.id);
     const overrides = readSegmentOverrides(asRecord(shotGen?.metadata) ?? null);
@@ -237,11 +242,11 @@ export function useSegmentSlotPresentationAdapter({
       defaultNegativePrompt: props.defaultNegativePrompt,
       enhancedPrompt: getEnhancedPrompt(shotGen?.metadata),
       projectResolution: props.resolvedProjectResolution,
-      structureVideoType: coveringVideo?.structure_type ?? null,
+      structureVideoType: coveringVideo ? primaryStructureVideo.structureType : null,
       structureVideoDefaults: coveringVideo ? {
-        motionStrength: coveringVideo.motion_strength ?? 1.2,
-        treatment: coveringVideo.treatment ?? 'adjust',
-        uni3cEndPercent: coveringVideo.uni3c_end_percent ?? 0.1,
+        motionStrength: primaryStructureVideo.motionStrength,
+        treatment: coveringVideo.treatment ?? primaryStructureVideo.treatment,
+        uni3cEndPercent: primaryStructureVideo.uni3cEndPercent,
       } : undefined,
       structureVideoUrl: coveringVideo?.path,
       structureVideoFrameRange: (props.effectiveGenerationMode === 'timeline' || coveringVideo) ? {

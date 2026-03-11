@@ -91,8 +91,6 @@ export const GuidanceVideoControls = React.memo<GuidanceVideoControlsProps>(func
           start_frame: placement.start_frame,
           end_frame: placement.end_frame,
           treatment: 'adjust',
-          motion_strength: 1.0,
-          structure_type: primaryStructureVideo.structureType,
           metadata,
           resource_id: null,
         });

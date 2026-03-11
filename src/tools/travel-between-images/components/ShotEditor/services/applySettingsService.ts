@@ -7,8 +7,16 @@
  */
 
 export type {
-  ApplyContext,
+  ApplyAdvancedContext,
+  ApplyGenerationContext,
+  ApplyLoraContext,
+  ApplyModeContext,
+  ApplyModelContext,
   ApplyResult,
+  ApplyMotionContext,
+  ApplyPromptContext,
+  ApplyStructureVideoContext,
+  ApplyTextAddonContext,
   ExtractedSettings,
   TaskData,
 } from './applySettings/types';

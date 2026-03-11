@@ -16,7 +16,11 @@ import { useShotImages } from '@/shared/hooks/shots/useShotImages';
 import { isPositioned, isVideoGeneration } from '@/shared/lib/typeGuards';
 import { findClosestAspectRatio } from '@/shared/lib/media/aspectRatios';
 import { useEnqueueGenerationsInvalidation } from '@/shared/hooks/invalidation/useGenerationInvalidation';
-import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
+import {
+  DEFAULT_STRUCTURE_VIDEO,
+  type StructureVideoConfigWithMetadata,
+} from '@/shared/lib/tasks/travelBetweenImages';
+import { buildStructureGuidanceFromControls } from '@/shared/lib/tasks/structureGuidance';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { buildBasicModeGenerationRequest as buildBasicModePhaseConfig } from '../ShotEditor/services/generateVideo/modelPhase';
 import { generateVideo } from '../ShotEditor/services/generateVideoService';
@@ -314,12 +318,21 @@ export function useVideoGenerationModalController({ isOpen, onClose, shot }: {
               start_frame: 0,
               end_frame: settings.batchVideoFrames || 61,
               treatment: settings.structureVideo.treatment || 'adjust',
-              motion_strength: settings.structureVideo.motionStrength ?? 1,
-              structure_type: settings.structureVideo.structureType || 'uni3c',
               metadata: settings.structureVideo.metadata ?? null,
             },
           ]
         : [];
+      const structureGuidance = buildStructureGuidanceFromControls({
+        structureVideos,
+        controls: {
+          structureType: settings.structureVideo?.structureType || DEFAULT_STRUCTURE_VIDEO.structure_type,
+          motionStrength: settings.structureVideo?.motionStrength ?? DEFAULT_STRUCTURE_VIDEO.motion_strength,
+          uni3cStartPercent: 0,
+          uni3cEndPercent: settings.structureVideo?.uni3cEndPercent ?? DEFAULT_STRUCTURE_VIDEO.uni3c_end_percent,
+        },
+        defaultVideoTreatment: DEFAULT_STRUCTURE_VIDEO.treatment,
+        defaultUni3cEndPercent: DEFAULT_STRUCTURE_VIDEO.uni3c_end_percent,
+      });
 
       const mergedSteerableSettings = {
         ...DEFAULT_STEERABLE_MOTION_SETTINGS,
@@ -354,6 +367,7 @@ export function useVideoGenerationModalController({ isOpen, onClose, shot }: {
           debug: mergedSteerableSettings.debug || false,
           generation_type_mode: settings.generationTypeMode || 'i2v',
         },
+        structureGuidance,
         structureVideos,
         batchVideoFrames: settings.batchVideoFrames || 61,
         selectedLoras: selectedLoras.map((lora) => ({

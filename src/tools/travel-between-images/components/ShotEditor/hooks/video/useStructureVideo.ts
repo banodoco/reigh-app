@@ -43,6 +43,8 @@ export interface UseStructureVideoReturn {
   clearAllStructureVideos: () => void;
   /** Set the entire array of structure videos */
   setStructureVideos: (videos: StructureVideoConfigWithMetadata[]) => void;
+  /** Update canonical guidance controls without mutating structure_videos entries. */
+  updateStructureGuidanceControls: (updates: Partial<StructureGuidanceControls>) => void;
   /** Loading state */
   isLoading: boolean;
 
@@ -112,7 +114,6 @@ function sanitizeEditableStructureVideos(
 function mergeStoredStructureVideos(
   rawVideos: StructureVideoConfigWithMetadata[],
   structureGuidance: Record<string, unknown> | undefined,
-  controls: StructureGuidanceControls,
   defaultEndFrame: number,
 ): StructureVideoConfigWithMetadata[] {
   const guidanceVideos = Array.isArray(structureGuidance?.videos)
@@ -143,15 +144,7 @@ function mergeStoredStructureVideos(
         resource_id: rawVideo?.resource_id ?? null,
       } satisfies StructureVideoConfigWithMetadata;
 
-      return index === 0
-        ? {
-            ...mergedVideo,
-            motion_strength: controls.motionStrength,
-            structure_type: controls.structureType,
-            uni3c_start_percent: controls.uni3cStartPercent,
-            uni3c_end_percent: controls.uni3cEndPercent,
-          }
-        : mergedVideo;
+      return mergedVideo;
     })
     .filter((video): video is StructureVideoConfigWithMetadata => video !== null);
 }
@@ -210,38 +203,41 @@ export function useStructureVideo({
     () => mergeStoredStructureVideos(
       migratedStructureVideos,
       asRecord(structureGuidance),
-      structureControls,
       timelineEndFrame,
     ),
-    [migratedStructureVideos, structureControls, structureGuidance, timelineEndFrame],
+    [migratedStructureVideos, structureGuidance, timelineEndFrame],
   );
 
   const setStructureVideos = useCallback((videos: StructureVideoConfigWithMetadata[]) => {
     const sanitizedVideos = sanitizeEditableStructureVideos(videos, timelineEndFrame);
-    const currentControls = resolveStructureGuidanceControls(structureGuidance, {
-      defaultStructureType: DEFAULT_STRUCTURE_VIDEO.structure_type,
-      defaultMotionStrength: DEFAULT_STRUCTURE_VIDEO.motion_strength,
-      defaultUni3cEndPercent: DEFAULT_STRUCTURE_VIDEO.uni3c_end_percent,
-    });
-    const primaryInput = videos[0];
-    const nextControls = {
-      ...currentControls,
-      ...(primaryInput?.structure_type ? { structureType: primaryInput.structure_type } : {}),
-      ...(primaryInput?.motion_strength !== undefined ? { motionStrength: primaryInput.motion_strength } : {}),
-      ...(primaryInput?.uni3c_start_percent !== undefined ? { uni3cStartPercent: primaryInput.uni3c_start_percent } : {}),
-      ...(primaryInput?.uni3c_end_percent !== undefined ? { uni3cEndPercent: primaryInput.uni3c_end_percent } : {}),
-    };
 
     settings.updateFields({
       structure_videos: sanitizedVideos,
       structure_guidance: buildStructureGuidanceFromControls({
         structureVideos: sanitizedVideos,
-        controls: nextControls,
+        controls: structureControls,
         defaultVideoTreatment: DEFAULT_STRUCTURE_VIDEO.treatment,
         defaultUni3cEndPercent: DEFAULT_STRUCTURE_VIDEO.uni3c_end_percent,
       }),
     });
-  }, [settings, structureGuidance, timelineEndFrame]);
+  }, [settings, structureControls, timelineEndFrame]);
+
+  const updateStructureGuidanceControls = useCallback((updates: Partial<StructureGuidanceControls>) => {
+    const sanitizedVideos = sanitizeEditableStructureVideos(structureVideos, timelineEndFrame);
+
+    settings.updateFields({
+      structure_videos: sanitizedVideos,
+      structure_guidance: buildStructureGuidanceFromControls({
+        structureVideos: sanitizedVideos,
+        controls: {
+          ...structureControls,
+          ...updates,
+        },
+        defaultVideoTreatment: DEFAULT_STRUCTURE_VIDEO.treatment,
+        defaultUni3cEndPercent: DEFAULT_STRUCTURE_VIDEO.uni3c_end_percent,
+      }),
+    });
+  }, [settings, structureControls, structureVideos, timelineEndFrame]);
 
   const addStructureVideo = useCallback((video: StructureVideoConfigWithMetadata) => {
     setStructureVideos([...structureVideos, video]);
@@ -273,8 +269,8 @@ export function useStructureVideo({
   }, [settings]);
 
   const primaryStructureVideo = useMemo(
-    () => resolvePrimaryStructureVideo(structureVideos),
-    [structureVideos],
+    () => resolvePrimaryStructureVideo(structureVideos, structureGuidance),
+    [structureGuidance, structureVideos],
   );
 
   return {
@@ -285,6 +281,7 @@ export function useStructureVideo({
     removeStructureVideo,
     clearAllStructureVideos,
     setStructureVideos,
+    updateStructureGuidanceControls,
     isLoading: !!shotId && settings.status === 'loading',
     structureVideoPath: primaryStructureVideo.path,
     structureVideoMetadata: primaryStructureVideo.metadata,

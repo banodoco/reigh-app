@@ -1,8 +1,14 @@
-import type { ApplyContext, ApplyResult, ExtractedSettings } from './types';
+import type {
+  ApplyMotionContext,
+  ApplyResult,
+  ApplyTextAddonContext,
+  ExtractedMotionSettings,
+  ExtractedTextAddonSettings,
+} from './types';
 
 export const applyTextPromptAddons = (
-  settings: ExtractedSettings,
-  context: ApplyContext,
+  settings: ExtractedTextAddonSettings,
+  context: ApplyTextAddonContext,
 ): ApplyResult => {
   // Apply text before prompts
   if (settings.textBeforePrompts !== undefined && context.onTextBeforePromptsChange) {
@@ -18,8 +24,8 @@ export const applyTextPromptAddons = (
 };
 
 export const applyMotionSettings = (
-  settings: ExtractedSettings,
-  context: ApplyContext,
+  settings: ExtractedMotionSettings & { advancedMode?: boolean },
+  context: ApplyMotionContext,
 ): ApplyResult => {
   // Only apply if NOT in advanced mode
   if (settings.amountOfMotion !== undefined && !settings.advancedMode && context.onAmountOfMotionChange) {

@@ -13,9 +13,10 @@ import type { UseStructureVideoReturn } from './useStructureVideo';
 interface UseStructureVideoHandlersOptions {
   structureVideos: StructureVideoConfigWithMetadata[];
   setStructureVideos: UseStructureVideoReturn['setStructureVideos'];
-  updateStructureVideo: UseStructureVideoReturn['updateStructureVideo'];
+  updateStructureGuidanceControls: UseStructureVideoReturn['updateStructureGuidanceControls'];
   structureVideoPath: UseStructureVideoReturn['structureVideoPath'];
   structureVideoType: UseStructureVideoReturn['structureVideoType'];
+  structureVideoUni3cEndPercent: UseStructureVideoReturn['structureVideoUni3cEndPercent'];
   generationTypeMode: 'i2v' | 'vace';
   setGenerationTypeMode: (mode: 'i2v' | 'vace') => void;
 }
@@ -37,9 +38,10 @@ interface UseStructureVideoHandlersReturn {
 export function useStructureVideoHandlers({
   structureVideos,
   setStructureVideos,
-  updateStructureVideo,
+  updateStructureGuidanceControls,
   structureVideoPath,
   structureVideoType,
+  structureVideoUni3cEndPercent,
   generationTypeMode,
   setGenerationTypeMode,
 }: UseStructureVideoHandlersOptions): UseStructureVideoHandlersReturn {
@@ -52,22 +54,20 @@ export function useStructureVideoHandlers({
 
   const handleUni3cEndPercentChange = useCallback((value: number) => {
     if (structureVideos.length === 0) return;
-    updateStructureVideo(0, { uni3c_end_percent: value });
-  }, [structureVideos.length, updateStructureVideo]);
+    updateStructureGuidanceControls({ uni3cEndPercent: value });
+  }, [structureVideos.length, updateStructureGuidanceControls]);
 
   const handleStructureVideoMotionStrengthChange = useCallback((strength: number) => {
     if (structureVideos.length === 0) return;
-    updateStructureVideo(0, { motion_strength: strength });
-  }, [structureVideos.length, updateStructureVideo]);
+    updateStructureGuidanceControls({ motionStrength: strength });
+  }, [structureVideos.length, updateStructureGuidanceControls]);
 
   const handleStructureTypeChangeFromMotionControl = useCallback((type: 'uni3c' | 'flow' | 'canny' | 'depth') => {
     if (structureVideos.length > 0) {
-      structureVideos.forEach((_, index) => {
-        updateStructureVideo(index, { structure_type: type });
-      });
+      updateStructureGuidanceControls({ structureType: type });
     }
     switchModeForStructureType(type);
-  }, [structureVideos, updateStructureVideo, switchModeForStructureType]);
+  }, [structureVideos.length, switchModeForStructureType, updateStructureGuidanceControls]);
 
   const handleStructureVideoInputChange = useCallback((
     videoPath: string | null,
@@ -91,9 +91,6 @@ export function useStructureVideoHandlers({
       start_frame: existing?.start_frame ?? 0,
       end_frame: existing?.end_frame ?? 81,
       treatment,
-      motion_strength: motionStrength,
-      structure_type: structureType,
-      uni3c_end_percent: existing?.uni3c_end_percent ?? 0.1,
       metadata: metadata ?? null,
       resource_id: resourceId ?? null,
     };
@@ -104,13 +101,20 @@ export function useStructureVideoHandlers({
       setStructureVideos([nextPrimary]);
     }
 
+    updateStructureGuidanceControls({
+      motionStrength,
+      structureType,
+      ...(structureType === 'uni3c' ? { uni3cEndPercent: structureVideoUni3cEndPercent } : {}),
+    });
     switchModeForStructureType(structureType);
   }, [
     generationTypeMode,
     setGenerationTypeMode,
     setStructureVideos,
     structureVideos,
+    structureVideoUni3cEndPercent,
     switchModeForStructureType,
+    updateStructureGuidanceControls,
   ]);
 
   const prevStructureVideoPath = useRef<string | null | undefined>(undefined);

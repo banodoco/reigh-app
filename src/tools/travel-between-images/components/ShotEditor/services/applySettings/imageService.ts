@@ -3,14 +3,18 @@ import type { AddImageToShotVariables } from '@/shared/hooks/shots/addImageToSho
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { GenerationRow } from '@/domains/generation/types';
 import type { Shot } from '@/domains/generation/types';
-import type { ApplyResult, ExtractedSettings } from './types';
+import type {
+  ApplyResult,
+  ExtractedGenerationSettings,
+  ExtractedImageSettings,
+} from './types';
 
 /**
  * Apply frame positions from segment_frames_expanded to existing images.
  * This is used when settings are applied WITHOUT replacing images.
  */
 export const applyFramePositionsToExistingImages = async (
-  settings: ExtractedSettings,
+  settings: ExtractedGenerationSettings,
   selectedShot: Shot | null,
   simpleFilteredImages: GenerationRow[],
 ): Promise<ApplyResult> => {
@@ -83,7 +87,8 @@ export const applyFramePositionsToExistingImages = async (
 };
 
 export const replaceImagesIfRequested = async (
-  settings: ExtractedSettings,
+  generationSettings: ExtractedGenerationSettings,
+  imageSettings: ExtractedImageSettings,
   replaceImages: boolean,
   inputImages: string[],
   selectedShot: Shot | null,
@@ -101,7 +106,7 @@ export const replaceImagesIfRequested = async (
 ): Promise<ApplyResult> => {
   if (!replaceImages) {
     // Apply frame positions to existing images even when not replacing.
-    return await applyFramePositionsToExistingImages(settings, selectedShot, simpleFilteredImages);
+    return await applyFramePositionsToExistingImages(generationSettings, selectedShot, simpleFilteredImages);
   }
 
   if (!selectedShot?.id || !projectId) {
@@ -111,7 +116,7 @@ export const replaceImagesIfRequested = async (
   // Use inputImages from params if passed array is empty but settings has them
   const effectiveInputImages = (inputImages && inputImages.length > 0)
     ? inputImages
-    : (settings.inputImages || []);
+    : (imageSettings.inputImages || []);
 
   if (effectiveInputImages.length === 0) {
     return { success: false, settingName: 'images', error: 'No input images available' };
@@ -133,7 +138,7 @@ export const replaceImagesIfRequested = async (
 
     // Calculate timeline positions from segment_frames_expanded array
     // segment_frames_expanded contains gaps between successive frames.
-    const segmentGaps = settings.segmentFramesExpanded;
+    const segmentGaps = generationSettings.segmentFramesExpanded;
     const hasSegmentGaps = Array.isArray(segmentGaps) && segmentGaps.length > 0;
 
     // Calculate cumulative positions from gaps
@@ -147,7 +152,7 @@ export const replaceImagesIfRequested = async (
     }
 
     // Fallback to uniform spacing if no segment_frames_expanded
-    const uniformSpacing = settings.frames || 60;
+    const uniformSpacing = generationSettings.frames || 60;
 
     // Look up generation IDs for all input image URLs
     const { data: generationLookup, error: lookupError } = await supabase().from('generations')

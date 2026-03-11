@@ -1,9 +1,20 @@
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import type { ApplyContext, ApplyResult, ExtractedSettings } from './types';
+import type {
+  ApplyAdvancedContext,
+  ApplyGenerationContext,
+  ApplyModeContext,
+  ApplyModelContext,
+  ApplyPromptContext,
+  ApplyResult,
+  ExtractedAdvancedSettings,
+  ExtractedGenerationSettings,
+  ExtractedModeSettings,
+  ExtractedPromptSettings,
+} from './types';
 
 export const applyModelSettings = (
-  settings: ExtractedSettings,
-  context: ApplyContext,
+  settings: ExtractedGenerationSettings,
+  context: ApplyModelContext,
 ): ApplyResult => {
   if (!settings.model || settings.model === context.steerableMotionSettings.model_name) {
     return { success: true, settingName: 'model', details: 'skipped - no change' };
@@ -15,8 +26,8 @@ export const applyModelSettings = (
 };
 
 export const applyPromptSettings = async (
-  settings: ExtractedSettings,
-  context: ApplyContext,
+  settings: ExtractedPromptSettings,
+  context: ApplyPromptContext,
 ): Promise<ApplyResult> => {
   // Apply main prompt
   if (typeof settings.prompt === 'string' && settings.prompt.trim()) {
@@ -59,8 +70,8 @@ export const applyPromptSettings = async (
 };
 
 export const applyGenerationSettings = (
-  settings: ExtractedSettings,
-  context: ApplyContext,
+  settings: ExtractedGenerationSettings,
+  context: ApplyGenerationContext,
 ): ApplyResult => {
   // Apply frames
   if (typeof settings.frames === 'number' && !Number.isNaN(settings.frames)) {
@@ -78,8 +89,8 @@ export const applyGenerationSettings = (
 };
 
 export const applyModeSettings = (
-  settings: ExtractedSettings,
-  context: ApplyContext,
+  settings: ExtractedModeSettings,
+  context: ApplyModeContext,
 ): ApplyResult => {
   // Apply generation mode
   if (settings.generationMode && (settings.generationMode === 'batch' || settings.generationMode === 'timeline' || settings.generationMode === 'by-pair')) {
@@ -92,7 +103,11 @@ export const applyModeSettings = (
   }
 
   // Apply motion mode
-  if (settings.motionMode !== undefined && context.onMotionModeChange) {
+  if (
+    settings.motionMode !== undefined
+    && settings.motionMode !== 'presets'
+    && context.onMotionModeChange
+  ) {
     context.onMotionModeChange(settings.motionMode);
   }
 
@@ -104,7 +119,7 @@ export const applyModeSettings = (
   return { success: true, settingName: 'modes' };
 };
 
-const deepClonePhaseConfig = (config: ExtractedSettings['phaseConfig']) => {
+const deepClonePhaseConfig = (config: ExtractedAdvancedSettings['phaseConfig']) => {
   if (!config) return undefined;
   return {
     ...config,
@@ -117,8 +132,8 @@ const deepClonePhaseConfig = (config: ExtractedSettings['phaseConfig']) => {
 };
 
 export const applyAdvancedModeSettings = (
-  settings: ExtractedSettings,
-  context: ApplyContext,
+  settings: ExtractedAdvancedSettings,
+  context: ApplyAdvancedContext,
 ): ApplyResult => {
   // Apply phase config
   if (settings.phaseConfig) {

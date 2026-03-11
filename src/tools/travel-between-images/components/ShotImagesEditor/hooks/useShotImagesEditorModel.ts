@@ -266,8 +266,8 @@ function useTimelineMediaValue(props: ShotImagesEditorResolvedProps) {
   } = props;
 
   const primaryStructureVideo = useMemo(
-    () => resolvePrimaryStructureVideo(structureVideos),
-    [structureVideos],
+    () => resolvePrimaryStructureVideo(structureVideos, props.structureGuidance),
+    [props.structureGuidance, structureVideos],
   );
 
   return useMemo<TimelineMediaContextValue>(() => ({

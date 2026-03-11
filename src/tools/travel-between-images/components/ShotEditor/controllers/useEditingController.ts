@@ -65,6 +65,7 @@ export function useEditingController({
     removeStructureVideo,
     clearAllStructureVideos,
     setStructureVideos,
+    updateStructureGuidanceControls,
   } = useStructureVideo({
     projectId: core.projectId,
     shotId: core.selectedShot?.id,
@@ -78,9 +79,10 @@ export function useEditingController({
   } = useStructureVideoHandlers({
     structureVideos,
     setStructureVideos,
-    updateStructureVideo,
+    updateStructureGuidanceControls,
     structureVideoPath,
     structureVideoType,
+    structureVideoUni3cEndPercent,
     generationTypeMode: generationType.generationTypeMode,
     setGenerationTypeMode: generationType.setGenerationTypeMode,
   });

@@ -7,7 +7,7 @@ import {
 } from "../../taskCreation";
 import type { TravelBetweenImagesTaskInput } from './types';
 import {
-  DEFAULT_VIDEO_STRUCTURE_PARAMS,
+  DEFAULT_STRUCTURE_VIDEO,
   DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES,
 } from './defaults';
 import { normalizeStructureGuidance } from '@/shared/lib/tasks/structureGuidance';
@@ -296,8 +296,8 @@ export function buildTravelBetweenImagesPayload(
   const normalizedStructureGuidance = normalizeStructureGuidance({
     structureGuidance: params.structure_guidance,
     structureVideos: params.structure_videos,
-    defaultVideoTreatment: DEFAULT_VIDEO_STRUCTURE_PARAMS.structure_video_treatment,
-    defaultUni3cEndPercent: 0.1,
+    defaultVideoTreatment: DEFAULT_STRUCTURE_VIDEO.treatment,
+    defaultUni3cEndPercent: DEFAULT_STRUCTURE_VIDEO.uni3c_end_percent,
   });
   if (normalizedStructureGuidance) {
     orchestratorPayload.structure_guidance = normalizedStructureGuidance;

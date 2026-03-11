@@ -1,4 +1,7 @@
-import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
+import type {
+  StructureGuidanceConfig,
+  StructureVideoConfigWithMetadata,
+} from '@/shared/lib/tasks/travelBetweenImages';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
 import type { LoraModel } from '@/domains/lora/types/lora';
 import type { VideoMetadata } from '@/shared/lib/media/videoUploader';
@@ -8,51 +11,68 @@ export interface TaskData {
   orchestrator: Record<string, unknown>;
 }
 
-export interface ExtractedSettings {
-  // Prompts
+export interface ExtractedPromptSettings {
   prompt?: string;
   prompts?: string[];
   negativePrompt?: string;
   negativePrompts?: string[];
+}
 
-  // Generation settings
+export interface ExtractedGenerationSettings {
   steps?: number;
-  frames?: number; // Legacy: single value for uniform spacing
-  segmentFramesExpanded?: number[]; // NEW: array of gaps between successive frames
+  frames?: number;
+  segmentFramesExpanded?: number[];
   context?: number;
   model?: string;
+}
 
-  // Input images (for image replacement)
+export interface ExtractedImageSettings {
   inputImages?: string[];
+}
 
-  // Modes
+export interface ExtractedModeSettings {
   generationMode?: 'batch' | 'timeline' | 'by-pair';
-  generationTypeMode?: 'i2v' | 'vace'; // I2V vs VACE mode
+  generationTypeMode?: 'i2v' | 'vace';
   advancedMode?: boolean;
-  motionMode?: 'basic' | 'advanced';
+  motionMode?: 'basic' | 'presets' | 'advanced';
+}
 
-  // Advanced mode settings
+export interface ExtractedAdvancedSettings {
   phaseConfig?: PhaseConfig;
   selectedPhasePresetId?: string | null;
   turboMode?: boolean;
   enhancePrompt?: boolean;
+}
 
-  // Text addons
+export interface ExtractedTextAddonSettings {
   textBeforePrompts?: string;
   textAfterPrompts?: string;
+}
 
-  // Motion
+export interface ExtractedMotionSettings {
   amountOfMotion?: number;
+}
 
-  // LoRAs
+export interface ExtractedLoraSettings {
   loras?: Array<{ path: string; strength: number }>;
+}
 
-  // Canonical structure contract plus derived primary-editor convenience values.
+export interface ExtractedStructureVideoSettings {
+  presentInTask: boolean;
+  structureGuidance?: StructureGuidanceConfig;
   structureVideos?: StructureVideoConfigWithMetadata[];
-  structureVideoPath?: string | null;
-  structureVideoTreatment?: 'adjust' | 'clip';
-  structureVideoMotionStrength?: number;
-  structureVideoType?: 'uni3c' | 'flow' | 'canny' | 'depth';
+}
+
+export interface ExtractedSettings {
+  prompts: ExtractedPromptSettings;
+  generation: ExtractedGenerationSettings;
+  images: ExtractedImageSettings;
+  modes: ExtractedModeSettings;
+  advanced: ExtractedAdvancedSettings;
+  textAddons: ExtractedTextAddonSettings;
+  motion: ExtractedMotionSettings;
+  loras: ExtractedLoraSettings;
+  structure: ExtractedStructureVideoSettings;
 }
 
 export interface ApplyResult {
@@ -62,68 +82,67 @@ export interface ApplyResult {
   details?: Record<string, unknown> | string;
 }
 
-interface ApplyContextCurrentState {
-  currentGenerationMode: 'batch' | 'timeline' | 'by-pair';
-  currentAdvancedMode: boolean;
+export interface ApplyModelContext {
+  steerableMotionSettings: { model_name: string };
+  onSteerableMotionSettingsChange: (settings: { model_name?: string; negative_prompt?: string }) => void;
 }
 
-interface ApplyContextCallbacks {
+export interface ApplyPromptContext {
   onBatchVideoPromptChange: (prompt: string) => void;
   onSteerableMotionSettingsChange: (settings: { model_name?: string; negative_prompt?: string }) => void;
+  updatePairPromptsByIndex?: (index: number, prompt: string, negativePrompt: string) => Promise<void>;
+}
+
+export interface ApplyGenerationContext {
   onBatchVideoFramesChange: (frames: number) => void;
   onBatchVideoStepsChange: (steps: number) => void;
+}
+
+export interface ApplyModeContext {
   onGenerationModeChange: (mode: 'batch' | 'timeline' | 'by-pair') => void;
   onAdvancedModeChange: (advanced: boolean) => void;
   onMotionModeChange?: (mode: 'basic' | 'advanced') => void;
   onGenerationTypeModeChange?: (mode: 'i2v' | 'vace') => void;
+}
+
+export interface ApplyAdvancedContext {
   onPhaseConfigChange: (config: PhaseConfig) => void;
-  onPhasePresetSelect?: (presetId: string, config: PhaseConfig) => void;
+  onPhasePresetSelect?: (presetId: string, config: PhaseConfig, presetMetadata?: unknown) => void;
   onPhasePresetRemove?: () => void;
   onTurboModeChange?: (turbo: boolean) => void;
   onEnhancePromptChange?: (enhance: boolean) => void;
+}
+
+export interface ApplyTextAddonContext {
   onTextBeforePromptsChange?: (text: string) => void;
   onTextAfterPromptsChange?: (text: string) => void;
+}
+
+export interface ApplyMotionContext {
   onAmountOfMotionChange?: (motion: number) => void;
 }
 
-interface ApplyContextStructureVideo {
+export interface ApplyStructureVideoContext {
   onStructureVideoInputChange: (
     videoPath: string | null,
     metadata: VideoMetadata | null,
     treatment: 'adjust' | 'clip',
     motionStrength: number,
     structureType: 'uni3c' | 'flow' | 'canny' | 'depth',
+    resourceId?: string,
   ) => void;
 }
 
-interface ApplyContextLoraState {
+export interface ApplyLoraContext {
   loraManager: {
-    setSelectedLoras?: (loras: Array<{ id: string; name: string; path: string; strength: number; [key: string]: unknown }>) => void;
+    setSelectedLoras?: (loras: Array<{
+      id: string;
+      name: string;
+      path: string;
+      strength: number;
+      [key: string]: unknown;
+    }>) => void;
     handleAddLora: (lora: LoraModel, showToast: boolean, strength: number) => void;
   };
   availableLoras: LoraModel[];
 }
-
-interface ApplyContextPairPromptState {
-  updatePairPromptsByIndex?: (index: number, prompt: string, negativePrompt: string) => Promise<void>;
-}
-
-interface ApplyContextComparisonValues {
-  steerableMotionSettings: { model_name: string };
-  batchVideoFrames: number;
-  batchVideoSteps: number;
-  textBeforePrompts?: string;
-  textAfterPrompts?: string;
-  turboMode?: boolean;
-  enhancePrompt?: boolean;
-  amountOfMotion?: number;
-  motionMode?: 'basic' | 'advanced';
-  generationTypeMode?: 'i2v' | 'vace';
-}
-
-export type ApplyContext = ApplyContextCurrentState &
-  ApplyContextCallbacks &
-  ApplyContextStructureVideo &
-  ApplyContextLoraState &
-  ApplyContextPairPromptState &
-  ApplyContextComparisonValues;

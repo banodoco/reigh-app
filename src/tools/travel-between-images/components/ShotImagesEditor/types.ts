@@ -3,7 +3,10 @@
  */
 
 import type { GenerationRow, Shot } from '@/domains/generation/types';
-import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
+import type {
+  StructureGuidanceConfig,
+  StructureVideoConfigWithMetadata,
+} from '@/shared/lib/tasks/travelBetweenImages';
 import type { OnPrimaryStructureVideoInputChange } from '@/tools/travel-between-images/types/mediaHandlers';
 
 // =============================================================================
@@ -46,6 +49,7 @@ interface ShotImagesEditorImageState {
   onDefaultNegativePromptChange?: (prompt: string) => void;
 
   // Canonical structure video contract
+  structureGuidance?: StructureGuidanceConfig;
   structureVideos?: StructureVideoConfigWithMetadata[];
   isStructureVideoLoading?: boolean;
   audioUrl?: string | null;

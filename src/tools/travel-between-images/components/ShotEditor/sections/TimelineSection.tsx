@@ -144,6 +144,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
           onDefaultPromptChange,
           defaultNegativePrompt,
           onDefaultNegativePromptChange,
+          structureGuidance: structureVideo.structureGuidance,
           structureVideos: structureVideo.structureVideos,
           isStructureVideoLoading: structureVideo.isLoading,
           audioUrl: audio.audioUrl,

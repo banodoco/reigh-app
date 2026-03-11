@@ -13,20 +13,6 @@ export const DEFAULT_STRUCTURE_VIDEO = {
 };
 
 /**
- * Default values for video structure API params (legacy single-video format).
- * Keep this for compatibility while migrating callers to DEFAULT_STRUCTURE_VIDEO.
- */
-export const DEFAULT_VIDEO_STRUCTURE_PARAMS: {
-  structure_video_treatment: 'adjust' | 'clip';
-  structure_video_motion_strength: number;
-  structure_video_type: 'uni3c' | 'flow' | 'canny' | 'depth';
-} = {
-  structure_video_treatment: DEFAULT_STRUCTURE_VIDEO.treatment,
-  structure_video_motion_strength: DEFAULT_STRUCTURE_VIDEO.motion_strength,
-  structure_video_type: DEFAULT_STRUCTURE_VIDEO.structure_type,
-};
-
-/**
  * Default values for travel between images task settings
  */
 export const DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES = {
@@ -38,7 +24,7 @@ export const DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES = {
   debug: DEFAULT_STEERABLE_MOTION_SETTINGS.debug,
   enhance_prompt: false,
   show_input_images: DEFAULT_STEERABLE_MOTION_SETTINGS.show_input_images,
-  generation_mode: "batch" as const,
-  dimension_source: "project" as const,
+  generation_mode: 'batch' as const,
+  dimension_source: 'project' as const,
   amount_of_motion: 0.5, // Default to 0.5 (equivalent to UI value of 50)
 };

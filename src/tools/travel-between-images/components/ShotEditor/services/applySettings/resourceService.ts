@@ -1,11 +1,17 @@
 import { extractVideoMetadataFromUrl } from '@/shared/lib/media/videoUploader';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { resolvePrimaryStructureVideo } from '@/shared/lib/tasks/travelBetweenImages';
-import type { ApplyContext, ApplyResult, ExtractedSettings, TaskData } from './types';
+import type {
+  ApplyLoraContext,
+  ApplyResult,
+  ApplyStructureVideoContext,
+  ExtractedLoraSettings,
+  ExtractedStructureVideoSettings,
+} from './types';
 
 export const applyLoRAs = (
-  settings: ExtractedSettings,
-  context: ApplyContext,
+  settings: ExtractedLoraSettings & { advancedMode?: boolean },
+  context: ApplyLoraContext,
 ): Promise<ApplyResult> => {
   const loras = settings.loras;
 
@@ -52,23 +58,17 @@ export const applyLoRAs = (
 };
 
 export const applyStructureVideo = async (
-  settings: ExtractedSettings,
-  context: ApplyContext,
-  taskData: TaskData,
+  settings: ExtractedStructureVideoSettings,
+  context: ApplyStructureVideoContext,
 ): Promise<ApplyResult> => {
-  const hasStructureVideos = Array.isArray((taskData.orchestrator as Record<string, unknown>).structure_videos)
-    || Array.isArray((taskData.params as Record<string, unknown>).structure_videos);
-  const hasLegacyStructureVideo = 'structure_video_path' in taskData.orchestrator || 'structure_video_path' in taskData.params;
-  const hasGuidanceVideos =
-    Array.isArray(((taskData.orchestrator as Record<string, unknown>).structure_guidance as Record<string, unknown> | undefined)?.videos) ||
-    Array.isArray(((taskData.params as Record<string, unknown>).structure_guidance as Record<string, unknown> | undefined)?.videos);
-  const hasStructureVideoInTask = hasStructureVideos || hasLegacyStructureVideo || hasGuidanceVideos;
-
-  if (!hasStructureVideoInTask) {
+  if (!settings.presentInTask) {
     return { success: true, settingName: 'structureVideo', details: 'skipped - not in task' };
   }
 
-  const primaryStructureVideo = resolvePrimaryStructureVideo(settings.structureVideos);
+  const primaryStructureVideo = resolvePrimaryStructureVideo(
+    settings.structureVideos,
+    settings.structureGuidance,
+  );
   const structureVideoPath = primaryStructureVideo.path;
 
   if (!structureVideoPath) {

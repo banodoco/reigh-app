@@ -320,11 +320,6 @@ export function useShotEditorController({
       generationModeSettings,
       steerableMotionSettings: steerableMotionSettingsFromContext,
     },
-    dimensions: {
-      onDimensionSourceChange,
-      onCustomWidthChange,
-      onCustomHeightChange,
-    },
     structureVideo: {
       handleStructureVideoInputChange: mediaEditing.handleStructureVideoInputChange,
     },

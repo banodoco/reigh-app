@@ -231,7 +231,10 @@ function BatchModeEditorContent(props: {
     onOpenUnpositionedPane,
   } = componentProps;
 
-  const primaryStructureVideo = resolvePrimaryStructureVideo(structureVideos);
+  const primaryStructureVideo = resolvePrimaryStructureVideo(
+    structureVideos,
+    componentProps.structureGuidance,
+  );
 
   const onAddToShotLegacy = onAddToShot
     ? adaptShotSelectionOperation(callbacks.runAddToShotOperation)
