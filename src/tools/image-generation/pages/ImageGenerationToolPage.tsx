@@ -3,7 +3,7 @@ import { TOOL_IDS } from '@/shared/lib/toolIds';
 import { useSearchParams } from 'react-router-dom';
 
 import { ImageGenerationForm } from "@/shared/components/ImageGenerationForm";
-import { MediaGallery } from "@/shared/components/MediaGallery";
+import { MediaGallery } from "@/features/gallery/components/MediaGallery";
 import { Button } from "@/shared/components/ui/button";
 import { useProject } from "@/shared/contexts/ProjectContext";
 import { usePublicLoras, usePublicStyleReferences, useMyStyleReferences } from '@/shared/hooks/useResources';

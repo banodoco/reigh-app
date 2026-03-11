@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import { useLocation, Navigate } from 'react-router-dom';
 import { TasksPane } from '@/features/tasks/components/TasksPane/TasksPane';
+import { GenerationsPane } from '@/features/gallery/components/GenerationsPane/GenerationsPane';
 import { ToolsPane } from '@/shared/components/ToolsPane/ToolsPane';
-import { GenerationsPane } from '@/shared/components/GenerationsPane/GenerationsPane';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import { ReighLoading } from '@/shared/components/ReighLoading';
 import { SettingsModal } from '@/shared/components/SettingsModal/SettingsModal';
@@ -154,4 +154,3 @@ export const Layout: React.FC = () => {
     </AIInputModeProvider>
   );
 };
-

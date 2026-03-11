@@ -1,5 +1,5 @@
 import { TOOL_IDS } from '@/shared/lib/toolIds';
-import { MediaGallery } from '@/shared/components/MediaGallery';
+import { MediaGallery } from '@/features/gallery/components/MediaGallery';
 import { SkeletonGallery } from '@/shared/components/ui/skeleton-gallery';
 import { SKELETON_COLUMNS } from '@/shared/components/MediaGallery/utils';
 import {

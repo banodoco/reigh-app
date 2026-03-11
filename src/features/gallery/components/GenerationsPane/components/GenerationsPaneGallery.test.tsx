@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   SkeletonGallery: vi.fn(() => <div data-testid="skeleton-gallery" />),
 }));
 
-vi.mock('@/shared/components/MediaGallery', () => ({
+vi.mock('@/features/gallery/components/MediaGallery', () => ({
   MediaGallery: (props: unknown) => mocks.MediaGallery(props),
 }));
 

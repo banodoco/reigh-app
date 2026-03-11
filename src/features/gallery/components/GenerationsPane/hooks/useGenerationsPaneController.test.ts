@@ -60,7 +60,7 @@ vi.mock('@/shared/contexts/PanesContext', () => ({
   usePanes: (...args: unknown[]) => mocks.usePanes(...args),
 }));
 
-vi.mock('@/shared/hooks/gallery/useGalleryPageState', () => ({
+vi.mock('@/features/gallery/hooks/useGalleryPageState', () => ({
   useGalleryPageState: (...args: unknown[]) => mocks.useGalleryPageState(...args),
 }));
 

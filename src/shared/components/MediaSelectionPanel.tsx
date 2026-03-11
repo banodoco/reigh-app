@@ -11,7 +11,7 @@ import { GenerationRow } from '@/domains/generation/types';
 import { ReighLoading } from '@/shared/components/ReighLoading';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useProjectGenerations, type GenerationsPaginatedResponse } from '@/shared/hooks/projects/useProjectGenerations';
-import { MediaGallery, DEFAULT_GALLERY_FILTERS, type GalleryFilterState } from '@/shared/components/MediaGallery';
+import { MediaGallery, DEFAULT_GALLERY_FILTERS, type GalleryFilterState } from '@/features/gallery/components/MediaGallery';
 import { useListShots } from '@/shared/hooks/shots';
 
 interface MediaSelectionPanelProps {

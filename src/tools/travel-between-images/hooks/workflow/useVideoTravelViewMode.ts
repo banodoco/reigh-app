@@ -16,7 +16,7 @@
 
 import { useState, useCallback, useEffect, useRef, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import { useLocation } from 'react-router-dom';
-import { DEFAULT_GALLERY_FILTERS, type GalleryFilterState } from '@/shared/components/MediaGallery';
+import { DEFAULT_GALLERY_FILTERS, type GalleryFilterState } from '@/features/gallery/components/MediaGallery';
 
 const VIDEO_DEFAULT_FILTERS: GalleryFilterState = {
   ...DEFAULT_GALLERY_FILTERS,

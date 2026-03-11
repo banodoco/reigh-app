@@ -1,5 +1,5 @@
 
-import { MediaGallery } from '@/shared/components/MediaGallery';
+import { MediaGallery } from '@/features/gallery/components/MediaGallery';
 import { SKELETON_COLUMNS } from '@/shared/components/MediaGallery/utils';
 import {
   buildVideoResultsGalleryConfig,

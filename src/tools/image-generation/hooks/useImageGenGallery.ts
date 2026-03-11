@@ -5,7 +5,7 @@ import { calculateGalleryLayout } from '@/shared/components/MediaGallery/utils';
 import { useProjectGenerations } from '@/shared/hooks/projects/useProjectGenerations';
 import { useAutoSaveSettings } from '@/shared/settings/hooks/useAutoSaveSettings';
 import { useStableObject } from '@/shared/hooks/useStableObject';
-import { DEFAULT_GALLERY_FILTERS, type GalleryFilterState } from '@/shared/components/MediaGallery';
+import { DEFAULT_GALLERY_FILTERS, type GalleryFilterState } from '@/features/gallery/components/MediaGallery';
 import { useStickyHeader } from './useStickyHeader';
 import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 
