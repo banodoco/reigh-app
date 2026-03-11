@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Progress as ProgressPrimitive } from "@base-ui-components/react/progress"
+import { Progress as ProgressPrimitive } from "@base-ui/react/progress"
 
 import { cn } from "@/shared/components/ui/contracts/cn"
 

@@ -1,6 +1,6 @@
 import * as React from "react"
-import { Menu as MenuPrimitive } from "@base-ui-components/react/menu"
-import { Separator as SeparatorPrimitive } from "@base-ui-components/react/separator"
+import { Menu as MenuPrimitive } from "@base-ui/react/menu"
+import { Separator as SeparatorPrimitive } from "@base-ui/react/separator"
 import { Check, ChevronRight, Circle } from "lucide-react"
 import { cva, type VariantProps } from "class-variance-authority"
 

@@ -1,4 +1,4 @@
-import { NumberField } from "@base-ui-components/react/number-field";
+import { NumberField } from "@base-ui/react/number-field";
 import { Slider } from "./slider";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./tooltip";
 import { ChevronUp, ChevronDown } from "lucide-react";

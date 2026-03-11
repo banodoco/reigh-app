@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Switch as SwitchPrimitive } from "@base-ui-components/react/switch"
+import { Switch as SwitchPrimitive } from "@base-ui/react/switch"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/shared/components/ui/contracts/cn"
 

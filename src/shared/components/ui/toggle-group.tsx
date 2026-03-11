@@ -1,6 +1,6 @@
 import * as React from "react"
-import { ToggleGroup as ToggleGroupPrimitive } from "@base-ui-components/react/toggle-group"
-import { Toggle as TogglePrimitive } from "@base-ui-components/react/toggle"
+import { ToggleGroup as ToggleGroupPrimitive } from "@base-ui/react/toggle-group"
+import { Toggle as TogglePrimitive } from "@base-ui/react/toggle"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/shared/components/ui/contracts/cn"

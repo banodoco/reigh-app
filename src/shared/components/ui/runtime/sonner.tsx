@@ -1,4 +1,4 @@
-import { Toast } from "@base-ui-components/react/toast";
+import { Toast } from "@base-ui/react/toast";
 import { ToastItem, toast } from "@/shared/components/ui/toast";
 import { getToastManager } from '@/shared/runtime/toastRuntime';
 import { UI_Z_LAYERS } from '@/shared/lib/uiLayers';

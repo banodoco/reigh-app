@@ -11,7 +11,7 @@ import {
 const providerSpy = vi.fn();
 const positionerSpy = vi.fn();
 
-vi.mock('@base-ui-components/react/tooltip', () => {
+vi.mock('@base-ui/react/tooltip', () => {
   const Provider = ({ delay, children }: { delay?: number; children: React.ReactNode }) => {
     providerSpy(delay);
     return <div data-testid="tooltip-provider">{children}</div>;

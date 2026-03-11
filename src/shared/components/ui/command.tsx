@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Dialog as DialogPrimitiveForProps } from "@base-ui-components/react/dialog"
+import { Dialog as DialogPrimitiveForProps } from "@base-ui/react/dialog"
 import { Command as CommandPrimitive } from "cmdk"
 import { Search } from "lucide-react"
 import { cva, type VariantProps } from "class-variance-authority"

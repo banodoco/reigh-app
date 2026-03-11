@@ -1,6 +1,6 @@
 import * as React from "react"
-import { Toast } from "@base-ui-components/react/toast"
-import type { ToastRootToastObject } from "@base-ui-components/react/toast"
+import { Toast } from "@base-ui/react/toast"
+import type { ToastRootToastObject } from "@base-ui/react/toast"
 import { cva } from "class-variance-authority"
 import { X } from "lucide-react"
 import { cn } from "@/shared/components/ui/contracts/cn"

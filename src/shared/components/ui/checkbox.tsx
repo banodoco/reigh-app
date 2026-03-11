@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Checkbox as CheckboxPrimitive } from "@base-ui-components/react/checkbox"
+import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox"
 import { Check } from "lucide-react"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/shared/components/ui/contracts/cn"
