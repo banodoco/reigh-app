@@ -14,66 +14,54 @@ import { useVideoRegenerateMode } from './useVideoRegenerateMode';
 import type { VideoLightboxEnvironment, VideoLightboxModeModel } from './useVideoLightboxEnvironment';
 import type { VideoLightboxPropsWithMedia } from '../types';
 
-export function useVideoLightboxSharedState(
-  props: VideoLightboxPropsWithMedia,
-  modeModel: VideoLightboxModeModel,
-  env: VideoLightboxEnvironment,
-) {
-  const input = buildVideoSharedLightboxInput({ props, modeModel, env });
-  return useSharedLightboxState(input);
-}
-
-export function useVideoLightboxEditing(
-  props: VideoLightboxPropsWithMedia,
-  modeModel: VideoLightboxModeModel,
-  env: VideoLightboxEnvironment,
+function useAdjustedVideoTaskDetails(
+  props: Pick<VideoLightboxPropsWithMedia, 'initialVariantId' | 'taskDetailsData'>,
+  env: Pick<VideoLightboxEnvironment, 'selectedProjectId'>,
   sharedState: ReturnType<typeof useVideoLightboxSharedState>,
 ) {
-  const {
-    media,
-    taskDetailsData,
-    initialVariantId,
-    shotId,
-    segmentSlotMode,
-  } = props;
+  return useAdjustedTaskDetails({
+    projectId: env.selectedProjectId ?? null,
+    activeVariant: sharedState.variants.activeVariant,
+    taskDetailsData: props.taskDetailsData,
+    isLoadingVariants: sharedState.variants.isLoading,
+    initialVariantId: props.initialVariantId,
+  });
+}
 
+function useVideoRegenerateAndMode(
+  props: Pick<VideoLightboxPropsWithMedia, 'media' | 'segmentSlotMode' | 'shotId' | 'videoProps'>,
+  env: VideoLightboxEnvironment,
+  sharedState: ReturnType<typeof useVideoLightboxSharedState>,
+  adjustedTaskDetailsData: ReturnType<typeof useAdjustedTaskDetails>['adjustedTaskDetailsData'],
+) {
   const currentSegmentImages = props.videoProps?.currentSegmentImages;
   const onSegmentFrameCountChange = props.videoProps?.onSegmentFrameCountChange;
   const currentFrameCount = props.videoProps?.currentFrameCount;
   const onTrimModeChange = props.videoProps?.onTrimModeChange;
-  const initialVideoTrimMode = props.videoProps?.initialVideoTrimMode;
-
-  const { adjustedTaskDetailsData } = useAdjustedTaskDetails({
-    projectId: env.selectedProjectId ?? null,
-    activeVariant: sharedState.variants.activeVariant,
-    taskDetailsData,
-    isLoadingVariants: sharedState.variants.isLoading,
-    initialVariantId,
-  });
 
   const { canRegenerate, regenerateFormProps } = useVideoRegenerateMode({
     isVideo: true,
-    media,
-    shotId,
+    media: props.media,
+    shotId: props.shotId,
     selectedProjectId: env.selectedProjectId,
     actualGenerationId: env.actualGenerationId,
     adjustedTaskDetailsData,
     primaryVariant: sharedState.variants.primaryVariant,
     currentSegmentImages,
-    segmentSlotMode,
+    segmentSlotMode: props.segmentSlotMode,
     variantParamsToLoad: env.variantParamsToLoad,
     setVariantParamsToLoad: env.setVariantParamsToLoad,
-    onSegmentFrameCountChange: segmentSlotMode?.onFrameCountChange ?? onSegmentFrameCountChange,
+    onSegmentFrameCountChange: props.segmentSlotMode?.onFrameCountChange ?? onSegmentFrameCountChange,
     currentFrameCount,
   });
 
   const videoMode = useLightboxVideoMode({
     core: {
-      media,
+      media: props.media,
       isVideo: true,
       selectedProjectId: env.selectedProjectId,
       projectAspectRatio: env.projectAspectRatio,
-      shotId,
+      shotId: props.shotId,
       actualGenerationId: env.actualGenerationId,
       effectiveVideoUrl: sharedState.effectiveMedia.videoUrl ?? env.effectiveImageUrl,
     },
@@ -96,6 +84,69 @@ export function useVideoLightboxEditing(
     onTrimModeChange,
   });
 
+  return {
+    currentSegmentImages,
+    regenerateFormProps,
+    videoMode,
+  };
+}
+
+function useVideoVariantMedia(
+  props: Pick<VideoLightboxPropsWithMedia, 'segmentSlotMode'>,
+  env: Pick<VideoLightboxEnvironment, 'actualGenerationId' | 'selectedProjectId' | 'variantFetchGenerationId'>,
+  sharedState: ReturnType<typeof useVideoLightboxSharedState>,
+  currentSegmentImages: NonNullable<VideoLightboxPropsWithMedia['videoProps']>['currentSegmentImages'],
+  regenerateFormProps: ReturnType<typeof useVideoRegenerateMode>['regenerateFormProps'],
+) {
+  const variantBadges = useLightboxVariantBadges({
+    pendingTaskGenerationId: regenerateFormProps?.pairShotGenerationId || env.actualGenerationId,
+    selectedProjectId: env.selectedProjectId,
+    variants: sharedState.variants.list,
+    variantFetchGenerationId: env.variantFetchGenerationId,
+  });
+
+  const variantSegmentImages = useMemo(() => {
+    return buildVariantSegmentImages(props.segmentSlotMode, currentSegmentImages);
+  }, [props.segmentSlotMode, currentSegmentImages]);
+
+  const { loadVariantImages } = useLoadVariantImages({
+    currentSegmentImages: variantSegmentImages,
+  });
+
+  return {
+    loadVariantImages,
+    variantBadges,
+    variantSegmentImages,
+  };
+}
+
+export function useVideoLightboxSharedState(
+  props: VideoLightboxPropsWithMedia,
+  modeModel: VideoLightboxModeModel,
+  env: VideoLightboxEnvironment,
+) {
+  const input = buildVideoSharedLightboxInput({ props, modeModel, env });
+  return useSharedLightboxState(input);
+}
+
+export function useVideoLightboxEditing(
+  props: VideoLightboxPropsWithMedia,
+  modeModel: VideoLightboxModeModel,
+  env: VideoLightboxEnvironment,
+  sharedState: ReturnType<typeof useVideoLightboxSharedState>,
+) {
+  const {
+    media,
+  } = props;
+  const initialVideoTrimMode = props.videoProps?.initialVideoTrimMode;
+
+  const { adjustedTaskDetailsData } = useAdjustedVideoTaskDetails(props, env, sharedState);
+  const {
+    currentSegmentImages,
+    regenerateFormProps,
+    videoMode,
+  } = useVideoRegenerateAndMode(props, env, sharedState, adjustedTaskDetailsData);
+
   usePanelModeRestore({
     mediaId: media?.id || '',
     persistedPanelMode: env.persistedPanelMode,
@@ -117,20 +168,11 @@ export function useVideoLightboxEditing(
     setEnhanceSettings: env.setEnhanceSettings,
   });
 
-  const variantBadges = useLightboxVariantBadges({
-    pendingTaskGenerationId: regenerateFormProps?.pairShotGenerationId || env.actualGenerationId,
-    selectedProjectId: env.selectedProjectId,
-    variants: sharedState.variants.list,
-    variantFetchGenerationId: env.variantFetchGenerationId,
-  });
-
-  const variantSegmentImages = useMemo(() => {
-    return buildVariantSegmentImages(segmentSlotMode, currentSegmentImages);
-  }, [segmentSlotMode, currentSegmentImages]);
-
-  const { loadVariantImages } = useLoadVariantImages({
-    currentSegmentImages: variantSegmentImages,
-  });
+  const {
+    loadVariantImages,
+    variantBadges,
+    variantSegmentImages,
+  } = useVideoVariantMedia(props, env, sharedState, currentSegmentImages, regenerateFormProps);
 
   return {
     adjustedTaskDetailsData,

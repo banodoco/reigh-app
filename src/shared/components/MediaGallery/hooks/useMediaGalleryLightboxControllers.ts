@@ -223,13 +223,13 @@ export function useGenerationNavigationController({
         row.shot_data as Record<string, unknown> | null | undefined,
       );
 
-      const imageUrl = (row.location as string) || (row.thumbnail_url as string);
-      const thumbUrl = (row.thumbnail_url as string) || (row.location as string);
+      const mediaUrl = (row.location as string) || (row.thumbnail_url as string);
+      const posterUrl = (row.thumbnail_url as string) || (row.location as string);
 
       const transformedData: GeneratedImageWithMetadata = {
         id: data.id,
-        url: imageUrl,
-        thumbUrl,
+        url: mediaUrl,
+        thumbUrl: posterUrl,
         prompt: (params?.prompt as string) || "",
         metadata: params as GeneratedImageWithMetadata["metadata"],
         createdAt: data.created_at,
