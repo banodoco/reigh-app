@@ -6,6 +6,7 @@ import type {
   LightboxShotWorkflowProps,
   SegmentSlotModeData,
   VideoLightboxProps,
+  VideoLightboxPropsWithMedia,
 } from '../types';
 import type { ImageLightboxEnvironment } from './useImageLightboxEnvironment';
 import type { VideoLightboxEnvironment, VideoLightboxModeModel } from './useVideoLightboxEnvironment';
@@ -92,7 +93,7 @@ export function buildImageSharedLightboxInput({
 }
 
 export function buildVideoSharedLightboxInput(params: {
-  props: VideoLightboxProps;
+  props: VideoLightboxPropsWithMedia;
   modeModel: VideoLightboxModeModel;
   env: VideoLightboxEnvironment;
 }): SharedLightboxInput {
@@ -102,11 +103,10 @@ export function buildVideoSharedLightboxInput(params: {
   const feat = props.features;
   const act = props.actions;
   const readOnly = props.readOnly ?? false;
-  const fallbackMedia = props.media || ({} as GenerationRow);
 
   return {
     core: {
-      media: fallbackMedia,
+      media: props.media,
       isVideo: true,
       selectedProjectId: env.selectedProjectId,
       isMobile: env.isMobile,

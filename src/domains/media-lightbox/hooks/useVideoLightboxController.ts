@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import type { GenerationRow } from '@/domains/generation/types';
 import { useLoadVariantImages } from '@/shared/hooks/variants/useLoadVariantImages';
 import { useAdjustedTaskDetails } from './useAdjustedTaskDetails';
 import { useLightboxVariantBadges } from './useLightboxVariantBadges';
@@ -13,10 +12,10 @@ import { useSharedLightboxState } from './useSharedLightboxState';
 import { useVideoEditContextValue } from './useVideoEditContextValue';
 import { useVideoRegenerateMode } from './useVideoRegenerateMode';
 import type { VideoLightboxEnvironment, VideoLightboxModeModel } from './useVideoLightboxEnvironment';
-import type { VideoLightboxProps } from '../types';
+import type { VideoLightboxPropsWithMedia } from '../types';
 
 export function useVideoLightboxSharedState(
-  props: VideoLightboxProps,
+  props: VideoLightboxPropsWithMedia,
   modeModel: VideoLightboxModeModel,
   env: VideoLightboxEnvironment,
 ) {
@@ -25,7 +24,7 @@ export function useVideoLightboxSharedState(
 }
 
 export function useVideoLightboxEditing(
-  props: VideoLightboxProps,
+  props: VideoLightboxPropsWithMedia,
   modeModel: VideoLightboxModeModel,
   env: VideoLightboxEnvironment,
   sharedState: ReturnType<typeof useVideoLightboxSharedState>,
@@ -44,8 +43,6 @@ export function useVideoLightboxEditing(
   const onTrimModeChange = props.videoProps?.onTrimModeChange;
   const initialVideoTrimMode = props.videoProps?.initialVideoTrimMode;
 
-  const fallbackMedia = media || ({} as GenerationRow);
-
   const { adjustedTaskDetailsData } = useAdjustedTaskDetails({
     projectId: env.selectedProjectId ?? null,
     activeVariant: sharedState.variants.activeVariant,
@@ -56,7 +53,7 @@ export function useVideoLightboxEditing(
 
   const { canRegenerate, regenerateFormProps } = useVideoRegenerateMode({
     isVideo: true,
-    media: fallbackMedia,
+    media,
     shotId,
     selectedProjectId: env.selectedProjectId,
     actualGenerationId: env.actualGenerationId,
@@ -72,7 +69,7 @@ export function useVideoLightboxEditing(
 
   const videoMode = useLightboxVideoMode({
     core: {
-      media: fallbackMedia,
+      media,
       isVideo: true,
       selectedProjectId: env.selectedProjectId,
       projectAspectRatio: env.projectAspectRatio,

@@ -1,15 +1,16 @@
 import React, { useMemo } from "react";
 import { MediaLightbox } from "@/domains/media-lightbox/MediaLightbox";
 import { TaskDetailsModal } from '@/shared/components/TaskDetails/TaskDetailsModal';
-import { GenerationRow, Shot } from "@/domains/generation/types";
+import { Shot } from "@/domains/generation/types";
 import { Task } from "@/types/tasks";
 import type { GeneratedImageWithMetadata } from '../types';
 import type { LightboxActionHandlers } from '@/domains/media-lightbox/types';
 import type { TaskDetailsData } from '@/shared/lib/taskDetails/taskDetailsContract';
+import type { MediaGalleryLightboxMedia } from '../utils/lightboxMedia';
 
 export interface MediaGalleryLightboxSession {
   activeLightboxMedia: GeneratedImageWithMetadata | null;
-  lightboxMedia: GenerationRow | null;
+  lightboxMedia: MediaGalleryLightboxMedia | null;
   autoEnterEditMode?: boolean;
   onClose: () => void;
   filteredImages: GeneratedImageWithMetadata[];

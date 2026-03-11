@@ -154,8 +154,9 @@ describe('useMediaGalleryLightboxSession', () => {
     }));
     expect(result.current.lightboxMedia).toEqual(expect.objectContaining({
       id: 'img-1',
+      generation_id: 'img-1',
       starred: true,
-      location: undefined,
+      location: null,
       metadata: { source: 'filtered' },
     }));
   });

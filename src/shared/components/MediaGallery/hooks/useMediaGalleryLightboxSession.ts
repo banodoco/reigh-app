@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
-import type { GenerationRow } from '@/domains/generation/types';
 import type { TaskDetailsData } from '@/shared/lib/taskDetails/taskDetailsContract';
 import type { MediaGalleryLightboxSession } from '../components/MediaGalleryLightbox';
+import { buildMediaGalleryLightboxMedia } from '../utils/lightboxMedia';
 import {
   buildTaskDetailsPayload,
   useGenerationNavigationController,
@@ -135,24 +135,17 @@ export function useMediaGalleryLightboxSession(params: UseMediaGalleryLightboxSe
     setActiveLightboxIndex: handleSetActiveLightboxIndex,
   });
 
-  const lightboxMedia = useMemo<GenerationRow | null>(() => {
+  const lightboxMedia = useMemo(() => {
     const activeMedia = stateHook.state.activeLightboxMedia;
     if (!activeMedia) {
       return null;
     }
 
     const sourceMedia = filtersHook.filteredImages.find((img) => img.id === activeMedia.id) ?? activeMedia;
-    const sourceMetadata = sourceMedia.metadata ?? activeMedia.metadata ?? {};
-    const { __autoEnterEditMode, ...cleanMetadata } = sourceMetadata;
-
-    return {
-      ...(activeMedia as unknown as GenerationRow),
-      ...(sourceMedia as unknown as GenerationRow),
-      starred: sourceMedia.starred ?? activeMedia.starred ?? false,
-      location: sourceMedia.location ?? sourceMedia.url ?? activeMedia.location ?? activeMedia.url,
-      timeline_frame: sourceMedia.timeline_frame ?? activeMedia.timeline_frame ?? undefined,
-      metadata: cleanMetadata,
-    };
+    return buildMediaGalleryLightboxMedia({
+      activeMedia,
+      sourceMedia,
+    });
   }, [filtersHook.filteredImages, stateHook.state.activeLightboxMedia]);
 
   const handleLightboxClose = useCallback(() => {
