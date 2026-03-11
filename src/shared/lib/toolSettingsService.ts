@@ -445,7 +445,6 @@ export async function fetchToolSettingsSupabase(
     }
     const promise = (async (): Promise<SettingsFetchResult> => {
       throwIfAborted(signal);
-      throwIfAborted(signal);
       const supabaseClient = getSupabaseClient();
       const [userResult, projectResult, shotResult] = await fetchAllScopes(supabaseClient, userId, ctx, signal);
       throwIfAborted(signal);

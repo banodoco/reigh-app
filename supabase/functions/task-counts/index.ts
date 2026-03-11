@@ -498,7 +498,7 @@ serve(async (req) => {
         debug_summary: {
           at_capacity: active_only >= 5,
           capacity_used_pct: Math.round((active_only / 5) * 100),
-          can_claim_more: queued_only > 0
+          can_claim_more: queued_only > 0 && active_only < 5
         },
         elapsed_ms: debug ? elapsed : undefined
       }), {
