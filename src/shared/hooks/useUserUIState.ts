@@ -81,6 +81,175 @@ function toRecord(value: unknown): Record<string, unknown> | undefined {
   return undefined;
 }
 
+function readBoolean(value: unknown, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback;
+}
+
+function readString(value: unknown, fallback: string): string {
+  return typeof value === 'string' ? value : fallback;
+}
+
+function decodePaneLocks(
+  value: unknown,
+  fallback: UISettings['paneLocks'],
+): UISettings['paneLocks'] {
+  const record = toRecord(value);
+  return {
+    shots: readBoolean(record?.shots, fallback.shots),
+    tasks: readBoolean(record?.tasks, fallback.tasks),
+    gens: readBoolean(record?.gens, fallback.gens),
+  };
+}
+
+function decodeSettingsModal(
+  value: unknown,
+  fallback: UISettings['settingsModal'],
+): UISettings['settingsModal'] {
+  const record = toRecord(value);
+  return {
+    activeTab: readString(record?.activeTab, fallback.activeTab),
+  };
+}
+
+function decodeVideoTravelWidescreen(
+  value: unknown,
+  fallback: UISettings['videoTravelWidescreen'],
+): UISettings['videoTravelWidescreen'] {
+  const record = toRecord(value);
+  return {
+    enabled: readBoolean(record?.enabled, fallback.enabled),
+  };
+}
+
+function decodeImageDeletion(
+  value: unknown,
+  fallback: NonNullable<UISettings['imageDeletion']>,
+): NonNullable<UISettings['imageDeletion']> {
+  const record = toRecord(value);
+  return {
+    skipConfirmation: readBoolean(record?.skipConfirmation, fallback.skipConfirmation),
+  };
+}
+
+function decodeGenerationMethods(
+  value: unknown,
+  fallback: UISettings['generationMethods'],
+): UISettings['generationMethods'] {
+  const record = toRecord(value);
+  const normalized = {
+    inCloud: readBoolean(record?.inCloud, fallback.inCloud),
+    onComputer: readBoolean(record?.onComputer, fallback.onComputer),
+  };
+
+  if (normalized.inCloud && normalized.onComputer) {
+    return {
+      inCloud: true,
+      onComputer: false,
+    };
+  }
+
+  return normalized;
+}
+
+function decodeAIInputMode(
+  value: unknown,
+  fallback: UISettings['aiInputMode'],
+): UISettings['aiInputMode'] {
+  const record = toRecord(value);
+  const mode = record?.mode === 'voice' || record?.mode === 'text'
+    ? record.mode
+    : fallback.mode;
+
+  return { mode };
+}
+
+function decodePrivacyDefaults(
+  value: unknown,
+  fallback: UISettings['privacyDefaults'],
+): UISettings['privacyDefaults'] {
+  const record = toRecord(value);
+  return {
+    resourcesPublic: readBoolean(record?.resourcesPublic, fallback.resourcesPublic),
+    generationsPublic: readBoolean(record?.generationsPublic, fallback.generationsPublic),
+  };
+}
+
+function decodeTheme(
+  value: unknown,
+  fallback: UISettings['theme'],
+): UISettings['theme'] {
+  const record = toRecord(value);
+  return {
+    darkMode: readBoolean(record?.darkMode, fallback.darkMode),
+  };
+}
+
+function decodeProductTour(
+  value: unknown,
+  fallback: NonNullable<UISettings['productTour']>,
+): NonNullable<UISettings['productTour']> {
+  const record = toRecord(value);
+  return {
+    completed: readBoolean(record?.completed, fallback.completed),
+    skipped: readBoolean(record?.skipped, fallback.skipped),
+  };
+}
+
+function normalizeUserUISetting<K extends keyof UISettings>(
+  key: K,
+  value: unknown,
+  fallback: UISettings[K],
+): UISettings[K] {
+  switch (key) {
+    case 'paneLocks':
+      return decodePaneLocks(value, fallback as UISettings['paneLocks']) as UISettings[K];
+    case 'settingsModal':
+      return decodeSettingsModal(value, fallback as UISettings['settingsModal']) as UISettings[K];
+    case 'videoTravelWidescreen':
+      return decodeVideoTravelWidescreen(
+        value,
+        fallback as UISettings['videoTravelWidescreen'],
+      ) as UISettings[K];
+    case 'imageDeletion':
+      return decodeImageDeletion(
+        value,
+        fallback as NonNullable<UISettings['imageDeletion']>,
+      ) as UISettings[K];
+    case 'generationMethods':
+      return decodeGenerationMethods(
+        value,
+        fallback as UISettings['generationMethods'],
+      ) as UISettings[K];
+    case 'aiInputMode':
+      return decodeAIInputMode(value, fallback as UISettings['aiInputMode']) as UISettings[K];
+    case 'privacyDefaults':
+      return decodePrivacyDefaults(
+        value,
+        fallback as UISettings['privacyDefaults'],
+      ) as UISettings[K];
+    case 'theme':
+      return decodeTheme(value, fallback as UISettings['theme']) as UISettings[K];
+    case 'productTour':
+      return decodeProductTour(
+        value,
+        fallback as NonNullable<UISettings['productTour']>,
+      ) as UISettings[K];
+    default:
+      return fallback;
+  }
+}
+
+function mergeSettingRecords(currentValue: unknown, patch: unknown): Record<string, unknown> {
+  return {
+    ...(toRecord(currentValue) ?? {}),
+    ...(toRecord(patch) ?? {}),
+  };
+}
+
+function hasPersistedValueDrift(value: unknown, normalizedValue: unknown): boolean {
+  return JSON.stringify(value) !== JSON.stringify(normalizedValue);
+}
+
 // Cached settings loader to prevent duplicate database calls  
 const loadUserSettingsCached = async (userId: string) => {
   const cacheKey = `user_settings_${userId}`;
@@ -103,7 +272,10 @@ const loadUserSettingsCached = async (userId: string) => {
         .select('settings')
         .eq('id', userId)
         .single();
-      const typedResult = result as unknown as CachedSettingsResult;
+      const typedResult: CachedSettingsResult = {
+        data: result.data ? { settings: result.data.settings } : null,
+        error: result.error,
+      };
       settingsCache.set(cacheKey, {
         data: typedResult,
         timestamp: Date.now(),
@@ -141,25 +313,6 @@ export function useUserUIState<K extends keyof UISettings>(
   key: K,
   fallback: UISettings[K]
 ) {
-  // Normalize logic specific to generationMethods to avoid ambiguous "both true" state.
-  // Allowed states:
-  // - inCloud: true, onComputer: false
-  // - inCloud: false, onComputer: true
-  // - inCloud: false, onComputer: false (explicitly disabled, used for warnings)
-  // Not allowed:
-  // - inCloud: true, onComputer: true → normalize to cloud by default
-  const normalizeIfGenerationMethods = useCallback((val: UISettings[K]): UISettings[K] => {
-    if ((key as string) !== 'generationMethods') return val;
-    if (!val || typeof val !== 'object') return val;
-    const valObj = val as unknown as Record<string, unknown>;
-    const inCloud = Boolean(valObj.inCloud);
-    const onComputer = Boolean(valObj.onComputer);
-    if (inCloud && onComputer) {
-      return { inCloud: true, onComputer: false } as UISettings[K];
-    }
-    return { inCloud, onComputer } as UISettings[K];
-  }, [key]);
-
   // Stabilize fallback using a ref so callers can pass inline objects without causing
   // infinite render loops. The load effect reads fallbackRef.current instead of depending
   // on fallback directly, preventing re-runs when the reference changes but values don't.
@@ -180,9 +333,9 @@ export function useUserUIState<K extends keyof UISettings>(
   // This automatically backfills existing users with default values when they first load the app
   // IMPORTANT: Only runs when the key is completely missing from database (undefined)
   // Does NOT override explicit user choices (including both options set to false)
-  const saveFallbackToDatabase = useCallback(async (userId: string, _currentSettings: Record<string, unknown>) => {
+  const saveFallbackToDatabase = useCallback(async (userId: string) => {
     try {
-      const fallbackToSave = normalizeIfGenerationMethods(fallbackRef.current);
+      const fallbackToSave = normalizeUserUISetting(key, fallbackRef.current, fallbackRef.current);
 
       // Use the global queue to save - it handles merging
       await updateToolSettingsSupabase({
@@ -199,7 +352,7 @@ export function useUserUIState<K extends keyof UISettings>(
     } catch (error) {
       normalizeAndPresentError(error, { context: 'useUserUIState.saveFallbackToDatabase', showToast: false });
     }
-  }, [key, normalizeIfGenerationMethods]);
+  }, [key]);
 
   // Load initial value from database
   useEffect(() => {
@@ -227,25 +380,14 @@ export function useUserUIState<K extends keyof UISettings>(
         const settingsRecord = toRecord(data?.settings);
         const uiSettings = toRecord(settingsRecord?.ui);
         const keyValue = uiSettings?.[key];
-        
-        if (keyValue !== undefined) {
-          // Key exists in database - merge with fallback to backfill any missing fields
-          const currentFallback = fallbackRef.current;
-          const mergedValue = (typeof currentFallback === 'object' && currentFallback !== null)
-            ? ({ ...currentFallback, ...(keyValue as object) } as UISettings[K])
-            : (keyValue as UISettings[K]);
 
-          const normalizedValue = normalizeIfGenerationMethods(mergedValue);
+        if (keyValue !== undefined) {
+          const normalizedValue = normalizeUserUISetting(key, keyValue, fallbackRef.current);
           setValue(normalizedValue);
 
           // If any fields from the fallback are missing in the stored value OR
           // normalization changed the value, backfill them in DB
-          if (
-            (typeof keyValue === 'object' && keyValue !== null &&
-            typeof currentFallback === 'object' && currentFallback !== null &&
-            Object.keys(currentFallback as object).some((k) => (keyValue as Record<string, unknown>)[k] === undefined)) ||
-            JSON.stringify(normalizedValue) !== JSON.stringify(keyValue)
-          ) {
+          if (hasPersistedValueDrift(keyValue, normalizedValue)) {
             // Use the global queue to save - it handles merging
             updateToolSettingsSupabase({
               scope: 'user',
@@ -262,11 +404,11 @@ export function useUserUIState<K extends keyof UISettings>(
         } else {
           // Key doesn't exist in database - this is an existing user who hasn't set preferences yet
           // Save fallback values to backfill them (only runs when completely empty)
-          const normalizedFallback = normalizeIfGenerationMethods(fallbackRef.current);
+          const normalizedFallback = normalizeUserUISetting(key, fallbackRef.current, fallbackRef.current);
           setValue(normalizedFallback); // Set normalized fallback immediately for responsive UI
 
           // Save to database in background (don't block loading)
-          saveFallbackToDatabase(user.id, settingsRecord || {}).catch(error => {
+          saveFallbackToDatabase(user.id).catch(error => {
             normalizeAndPresentError(error, { context: 'useUserUIState.saveFallback', showToast: false });
           });
         }
@@ -279,7 +421,7 @@ export function useUserUIState<K extends keyof UISettings>(
     };
 
     loadUserSettings();
-  }, [key, normalizeIfGenerationMethods, saveFallbackToDatabase]);
+  }, [key, saveFallbackToDatabase]);
 
   // Debounced update function
   // Uses the global settings write queue (via updateToolSettingsSupabase) to prevent
@@ -287,10 +429,11 @@ export function useUserUIState<K extends keyof UISettings>(
   // writing user-preferences). The write queue serializes writes and uses an atomic RPC.
   const update = useCallback((patch: Partial<UISettings[K]>) => {
     // Immediately update local state for responsive UI (with normalization)
-    const normalizedPatch = normalizeIfGenerationMethods({
-      ...(valueRef.current as object),
-      ...(patch as object)
-    } as UISettings[K]);
+    const normalizedPatch = normalizeUserUISetting(
+      key,
+      mergeSettingRecords(valueRef.current, patch),
+      fallbackRef.current,
+    );
     setValue(normalizedPatch);
 
     // Clear existing timeout
@@ -320,7 +463,7 @@ export function useUserUIState<K extends keyof UISettings>(
         normalizeAndPresentError(error, { context: 'useUserUIState.update', showToast: false });
       }
     }, 200);
-  }, [key, normalizeIfGenerationMethods]);
+  }, [key]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -336,4 +479,9 @@ export function useUserUIState<K extends keyof UISettings>(
     update,
     isLoading
   }), [value, update, isLoading]);
-} 
+}
+
+/** @internal Only for test isolation — do not call in production code. */
+export function _resetUserUIStateCacheForTesting(): void {
+  settingsCache.clear();
+}

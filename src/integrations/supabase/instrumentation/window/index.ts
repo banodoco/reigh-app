@@ -1,4 +1,7 @@
-import { __WS_INSTRUMENTATION_ENABLED__, __CORRUPTION_TRACE_ENABLED__ } from '@/integrations/supabase/config/env';
+import {
+  isCorruptionTraceEnabled,
+  isWsInstrumentationEnabled,
+} from '@/integrations/supabase/config/env';
 import { captureRealtimeSnapshot } from '@/integrations/supabase/utils/snapshot';
 import { __CORRUPTION_TIMELINE__, addCorruptionEvent } from '@/integrations/supabase/utils/timeline';
 import { normalizeAndLogError } from '@/shared/lib/errorHandling/runtimeErrorReporting';
@@ -79,11 +82,11 @@ export function installWindowOnlyInstrumentation() {
 
   const instrumentedWindow = window as InstrumentedWindow;
 
-  if (__CORRUPTION_TRACE_ENABLED__) {
+  if (isCorruptionTraceEnabled()) {
     installCorruptionTracePatchers(instrumentedWindow);
   }
 
-  if (__WS_INSTRUMENTATION_ENABLED__) {
+  if (isWsInstrumentationEnabled()) {
     installWebSocketInstrumentation(instrumentedWindow);
   }
 }

@@ -14,6 +14,7 @@ import { notifyError } from '@/shared/lib/errorHandling/notifyError';
 import { installRuntimeErrorPresenter } from '@/shared/lib/errorHandling/runtimeErrorPresenter';
 import { initializeViewportLockRuntime } from '@/shared/runtime/viewportLockRuntime';
 import { initializeProjectSelectionStore } from '@/shared/contexts/projectSelectionStore';
+import { initializePreloadingService } from '@/shared/lib/preloading';
 import { initializeToolSettingsWriteRuntime } from '@/shared/lib/toolSettingsWriteService';
 import { initializeNetworkStatusManager } from '@/shared/services/network/networkStatusManager';
 import '@/index.css';
@@ -68,6 +69,7 @@ export function initializeAppEnvironment(): void {
   initializeViewportLockRuntime();
   initializeProjectSelectionStore();
   initializeToolSettingsWriteRuntime();
+  initializePreloadingService();
   if (typeof window !== 'undefined') {
     initializeNetworkStatusManager();
   }

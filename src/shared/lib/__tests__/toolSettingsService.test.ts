@@ -47,6 +47,7 @@ import {
   resolveAndCacheUserId,
   fetchToolSettingsSupabase,
   fetchToolSettingsSupabaseOrThrow,
+  initializeToolSettingsAuthCache,
   ToolSettingsError,
   setCachedUserId,
   _resetCachedUserForTesting,
@@ -148,6 +149,62 @@ describe('toolSettingsService', () => {
       localStorage.clear();
       const result = await resolveAndCacheUserId();
       expect(result.data.user?.id).toBe('storage-user');
+    });
+  });
+
+  describe('initializeToolSettingsAuthCache', () => {
+    it('seeds from storage immediately before async session reconciliation', async () => {
+      setStoredSession('storage-user');
+      const sessionLookup = createDeferred<{
+        data: { session: { user: { id: string } } | null };
+      }>();
+      const getSession = vi.fn().mockReturnValue(sessionLookup.promise);
+      const subscribe = vi.fn(() => {
+        return () => {};
+      });
+
+      initializeToolSettingsAuthCache(
+        { auth: { getSession } } as never,
+        { subscribe },
+      );
+
+      expect((await resolveAndCacheUserId()).data.user?.id).toBe('storage-user');
+
+      sessionLookup.resolve({
+        data: {
+          session: null,
+        },
+      });
+      await Promise.resolve();
+      expect((await resolveAndCacheUserId()).data.user).toBeNull();
+      expect(subscribe).toHaveBeenCalledWith('toolSettingsService', expect.any(Function));
+    });
+
+    it('reconciles the cache from auth bootstrap and subsequent auth manager events', async () => {
+      const getSession = vi.fn().mockResolvedValue({
+        data: {
+          session: { user: { id: 'session-user' } },
+        },
+      });
+      let authCallback: ((event: string, session: { user?: { id?: string } } | null) => void) | undefined;
+      const subscribe = vi.fn((_: string, callback) => {
+        authCallback = callback;
+        return () => {};
+      });
+
+      initializeToolSettingsAuthCache(
+        { auth: { getSession } } as never,
+        { subscribe },
+      );
+
+      await Promise.resolve();
+      expect((await resolveAndCacheUserId()).data.user?.id).toBe('session-user');
+
+      authCallback?.('SIGNED_IN', { user: { id: 'next-user' } });
+      expect((await resolveAndCacheUserId()).data.user?.id).toBe('next-user');
+
+      authCallback?.('SIGNED_OUT', null);
+      expect((await resolveAndCacheUserId()).data.user).toBeNull();
     });
   });
 

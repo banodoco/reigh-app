@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock the env module to avoid import.meta.env errors
 vi.mock('@/integrations/supabase/config/env', () => ({
-  __CORRUPTION_TRACE_ENABLED__: true,
+  isCorruptionTraceEnabled: () => true,
 }));
 
 import { addCorruptionEvent, __CORRUPTION_TIMELINE__ } from '../timeline';

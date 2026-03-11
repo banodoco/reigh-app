@@ -1,17 +1,27 @@
 import { normalizeAndLogError } from '@/shared/lib/errorHandling/runtimeErrorReporting';
-import { getReconnectScheduler } from '@/integrations/supabase/support/reconnect/ReconnectScheduler';
+import { initializeReconnectScheduler } from '@/integrations/supabase/support/reconnect/ReconnectScheduler';
 import type { SupabaseClient, Session } from '@supabase/supabase-js';
 
 type AuthCallback = (event: string, session: Session | null) => void;
+type ReconnectRequester = {
+  requestReconnect: (intent: {
+    source: string;
+    reason: string;
+    priority: 'low' | 'medium' | 'high';
+  }) => void;
+};
 
 const AUTH_HEAL_DEBOUNCE_MS = 5000;
 
 export class AuthStateManager {
-  private listeners: Array<{id: string, callback: AuthCallback}> = [];
+  private listeners: Array<{ id: string; callback: AuthCallback }> = [];
   private isInitialized = false;
   private __LAST_AUTH_HEAL_AT__ = 0;
 
-  constructor(private supabase: SupabaseClient) {}
+  constructor(
+    private supabase: SupabaseClient,
+    private reconnectScheduler: ReconnectRequester,
+  ) {}
 
   subscribe(id: string, callback: AuthCallback) {
     this.listeners.push({ id, callback });
@@ -33,20 +43,21 @@ export class AuthStateManager {
   private handleCoreAuth(event: string, session: Session | null) {
     try {
       this.supabase?.realtime?.setAuth?.(session?.access_token ?? null);
-      
+
       if (event === 'SIGNED_IN' && typeof window !== 'undefined') {
         setTimeout(async () => {
           try {
             const now = Date.now();
-            if (now - this.__LAST_AUTH_HEAL_AT__ > AUTH_HEAL_DEBOUNCE_MS) {
+            if (
+              this.__LAST_AUTH_HEAL_AT__ === 0 ||
+              now - this.__LAST_AUTH_HEAL_AT__ > AUTH_HEAL_DEBOUNCE_MS
+            ) {
               this.__LAST_AUTH_HEAL_AT__ = now;
-              
-              // Use ReconnectScheduler instead of direct event dispatch
-              const scheduler = getReconnectScheduler();
-              scheduler.requestReconnect({
+
+              this.reconnectScheduler.requestReconnect({
                 source: 'AuthManager',
                 reason: `SIGNED_IN event (${event})`,
-                priority: 'high'
+                priority: 'high',
               });
             }
           } catch (healError) {
@@ -78,9 +89,12 @@ export class AuthStateManager {
 
 let authStateManager: AuthStateManager | null = null;
 
-export function initAuthStateManager(supabase: SupabaseClient): AuthStateManager {
+export function initAuthStateManager(
+  supabase: SupabaseClient,
+  reconnectScheduler: ReconnectRequester = initializeReconnectScheduler(),
+): AuthStateManager {
   if (!authStateManager) {
-    authStateManager = new AuthStateManager(supabase);
+    authStateManager = new AuthStateManager(supabase, reconnectScheduler);
     authStateManager.init();
   }
   return authStateManager;

@@ -7,10 +7,10 @@ import {
   resetAuthStateManagerForTests,
 } from './AuthStateManager';
 
-const { handleErrorMock, requestReconnectMock, getReconnectSchedulerMock } = vi.hoisted(() => ({
+const { handleErrorMock, requestReconnectMock, initializeReconnectSchedulerMock } = vi.hoisted(() => ({
   handleErrorMock: vi.fn(),
   requestReconnectMock: vi.fn(),
-  getReconnectSchedulerMock: vi.fn(),
+  initializeReconnectSchedulerMock: vi.fn(),
 }));
 
 vi.mock('@/shared/lib/errorHandling/runtimeErrorReporting', () => ({
@@ -18,14 +18,14 @@ vi.mock('@/shared/lib/errorHandling/runtimeErrorReporting', () => ({
 }));
 
 vi.mock('@/integrations/supabase/support/reconnect/ReconnectScheduler', () => ({
-  getReconnectScheduler: getReconnectSchedulerMock,
+  initializeReconnectScheduler: initializeReconnectSchedulerMock,
 }));
 
 describe('AuthStateManager', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetAuthStateManagerForTests();
-    getReconnectSchedulerMock.mockReturnValue({
+    initializeReconnectSchedulerMock.mockReturnValue({
       requestReconnect: requestReconnectMock,
     });
   });
@@ -49,7 +49,9 @@ describe('AuthStateManager', () => {
       },
     };
 
-    const manager = new AuthStateManager(supabase as never);
+    const manager = new AuthStateManager(supabase as never, {
+      requestReconnect: requestReconnectMock,
+    });
     const listener = vi.fn();
     const unsubscribe = manager.subscribe('layout', listener);
     manager.init();
@@ -79,15 +81,19 @@ describe('AuthStateManager', () => {
       },
     };
 
-    const manager = new AuthStateManager(supabase as never);
+    const manager = new AuthStateManager(supabase as never, {
+      requestReconnect: requestReconnectMock,
+    });
     manager.init();
 
     authCallback?.('SIGNED_IN', { access_token: 'token-1' } as Session);
     await vi.advanceTimersByTimeAsync(1000);
     expect(setAuthMock).toHaveBeenCalledWith('token-1');
+    expect(requestReconnectMock).toHaveBeenCalledTimes(1);
 
     authCallback?.('SIGNED_IN', { access_token: 'token-2' } as Session);
     await vi.advanceTimersByTimeAsync(1000);
+    expect(requestReconnectMock).toHaveBeenCalledTimes(1);
     expect(handleErrorMock).not.toHaveBeenCalled();
   });
 
@@ -106,5 +112,6 @@ describe('AuthStateManager', () => {
     const manager = getAuthStateManager();
     expect(manager).toBeDefined();
     expect(typeof manager?.subscribe).toBe('function');
+    expect(initializeReconnectSchedulerMock).toHaveBeenCalledTimes(1);
   });
 });

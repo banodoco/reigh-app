@@ -7,9 +7,7 @@ const { isDevEnvState, handleErrorMock } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/integrations/supabase/config/env', () => ({
-  get __IS_DEV_ENV__() {
-    return isDevEnvState.value;
-  },
+  isDevEnv: () => isDevEnvState.value,
   getSupabaseUrl: () => 'https://testproject.supabase.co',
 }));
 

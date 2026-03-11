@@ -15,8 +15,8 @@ describe('supabase env config', () => {
 
     expect(mod.getSupabaseUrl()).toBe('https://example.supabase.co');
     expect(mod.getSupabasePublishableKey()).toBe('anon-key');
-    expect(mod.__IS_DEV_ENV__).toBe(true);
-    expect(mod.__REALTIME_DOWN_FIX_ENABLED__).toBe(true);
+    expect(mod.isDevEnv()).toBe(true);
+    expect(mod.isRealtimeDownFixEnabled()).toBe(true);
   });
 
   it('throws when required supabase URL is missing on first access', async () => {
@@ -52,5 +52,19 @@ describe('supabase env config', () => {
     const second = mod.getSupabaseUrl();
     expect(first).toBe(second);
     expect(first).toBe('https://example.supabase.co');
+  });
+
+  it('reads debug flags lazily on each call instead of snapshotting at import time', async () => {
+    vi.stubEnv('VITE_SUPABASE_URL', 'https://example.supabase.co');
+    vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'anon-key');
+    vi.stubEnv('VITE_APP_ENV', 'production');
+    vi.stubEnv('VITE_DEBUG_CORRUPTION_TRACE', 'false');
+
+    const mod = await import('./env');
+
+    expect(mod.isCorruptionTraceEnabled()).toBe(false);
+
+    vi.stubEnv('VITE_DEBUG_CORRUPTION_TRACE', 'true');
+    expect(mod.isCorruptionTraceEnabled()).toBe(true);
   });
 });

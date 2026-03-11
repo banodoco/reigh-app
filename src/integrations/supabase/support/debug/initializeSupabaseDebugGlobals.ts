@@ -1,8 +1,8 @@
 import { getSupabaseClient } from '@/integrations/supabase/client';
 import {
-  __CORRUPTION_TRACE_ENABLED__,
-  __REALTIME_DOWN_FIX_ENABLED__,
-  __WS_INSTRUMENTATION_ENABLED__,
+  isCorruptionTraceEnabled,
+  isRealtimeDownFixEnabled,
+  isWsInstrumentationEnabled,
 } from '@/integrations/supabase/config/env';
 import { installRealtimeInstrumentation } from '@/integrations/supabase/instrumentation/realtime';
 import { installWindowOnlyInstrumentation } from '@/integrations/supabase/instrumentation/window';
@@ -21,9 +21,9 @@ export function initializeSupabaseDebugGlobals(): void {
 
   const client = getSupabaseClient();
   if (
-    __CORRUPTION_TRACE_ENABLED__ ||
-    __REALTIME_DOWN_FIX_ENABLED__ ||
-    __WS_INSTRUMENTATION_ENABLED__
+    isCorruptionTraceEnabled() ||
+    isRealtimeDownFixEnabled() ||
+    isWsInstrumentationEnabled()
   ) {
     installWindowOnlyInstrumentation();
     installRealtimeInstrumentation(client);

@@ -14,11 +14,16 @@ vi.mock('@/shared/lib/logger', () => ({
 }));
 
 const initializeProjectSelectionStoreMock = vi.fn();
+const initializePreloadingServiceMock = vi.fn();
 const initializeToolSettingsWriteRuntimeMock = vi.fn();
 const initializeNetworkStatusManagerMock = vi.fn();
 
 vi.mock('@/shared/contexts/projectSelectionStore', () => ({
   initializeProjectSelectionStore: initializeProjectSelectionStoreMock,
+}));
+
+vi.mock('@/shared/lib/preloading', () => ({
+  initializePreloadingService: initializePreloadingServiceMock,
 }));
 
 vi.mock('@/shared/lib/toolSettingsWriteService', () => ({
@@ -43,6 +48,7 @@ describe('bootstrap.renderApp', () => {
     mockCreateRoot.mockClear();
     mockRender.mockClear();
     initializeProjectSelectionStoreMock.mockClear();
+    initializePreloadingServiceMock.mockClear();
     initializeToolSettingsWriteRuntimeMock.mockClear();
     initializeNetworkStatusManagerMock.mockClear();
     localStorage.clear();
@@ -66,6 +72,7 @@ describe('bootstrap.renderApp', () => {
 
     expect(document.documentElement.classList.contains('dark')).toBe(true);
     expect(initializeProjectSelectionStoreMock).toHaveBeenCalledTimes(1);
+    expect(initializePreloadingServiceMock).toHaveBeenCalledTimes(1);
     expect(initializeToolSettingsWriteRuntimeMock).toHaveBeenCalledTimes(1);
     expect(initializeNetworkStatusManagerMock).toHaveBeenCalledTimes(1);
   });

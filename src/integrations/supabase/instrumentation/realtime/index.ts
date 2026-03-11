@@ -1,4 +1,7 @@
-import { __CORRUPTION_TRACE_ENABLED__, __REALTIME_DOWN_FIX_ENABLED__ } from '@/integrations/supabase/config/env';
+import {
+  isCorruptionTraceEnabled,
+  isRealtimeDownFixEnabled,
+} from '@/integrations/supabase/config/env';
 import { captureRealtimeSnapshot } from '@/integrations/supabase/utils/snapshot';
 import { normalizeAndLogError } from '@/shared/lib/errorHandling/runtimeErrorReporting';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -16,7 +19,7 @@ interface RealtimeClientWithInstrumentation {
 }
 
 export function installRealtimeInstrumentation(supabase: SupabaseClient) {
-  if (!__CORRUPTION_TRACE_ENABLED__ && !__REALTIME_DOWN_FIX_ENABLED__) {
+  if (!isCorruptionTraceEnabled() && !isRealtimeDownFixEnabled()) {
     return;
   }
 

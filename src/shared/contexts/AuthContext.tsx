@@ -8,7 +8,6 @@ import React, {
 } from 'react';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { getAuthStateManager } from '@/integrations/supabase/auth/AuthStateManager';
-import { clearCachedUserId, setCachedUserId } from '@/shared/lib/toolSettingsService';
 import type { Session } from '@supabase/supabase-js';
 import { requireContextValue } from './contextGuard';
 
@@ -54,14 +53,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // Keep toolSettingsService user cache in sync so it never needs to
-      // acquire navigator.locks when called from within AuthGate
-      if (currentUserId) {
-        setCachedUserId(currentUserId);
-      } else {
-        clearCachedUserId();
-      }
-
       // Update user ID
       setUserId(currentUserId);
 
@@ -70,15 +61,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const handleAuthStateChange = (event: string, session: Session | null) => {
-      // Seed the toolSettingsService user cache IMMEDIATELY — before the 150ms debounce.
-      // Without this, there's a race: setIsLoading(false) can open AuthGate while
-      // cachedUser is still null (debounce hasn't fired processAuthChange yet).
-      if (session?.user?.id) {
-        setCachedUserId(session.user.id);
-      } else {
-        clearCachedUserId();
-      }
-
       // Store the latest auth state
       pendingAuthState = { event, session };
 
@@ -101,14 +83,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     supabase().auth.getSession().then(({ data: { session } }) => {
-      // Seed toolSettingsService cache BEFORE opening AuthGate (setIsLoading(false)).
-      // This guarantees resolveAndCacheUserId() returns from cache (no navigator.locks)
-      // for all components that mount after the gate opens.
-      if (session?.user?.id) {
-        setCachedUserId(session.user.id);
-      } else {
-        clearCachedUserId();
-      }
       setUserId(session?.user?.id);
       setIsLoading(false);
       lastProcessedState = { event: 'INITIAL_SESSION', userId: session?.user?.id };

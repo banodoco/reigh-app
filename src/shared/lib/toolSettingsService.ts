@@ -6,6 +6,7 @@
  *
  * Contains:
  * - Auth caching logic (resolveAndCacheUserId / readCachedUserId)
+ * - Bootstrap auth cache synchronization
  * - Auth transition cache invalidation helpers
  * - Settings fetch with single-flight deduplication (fetchToolSettingsSupabase)
  * - Module-level state for caching and deduplication
@@ -16,6 +17,7 @@ import { isCancellationError, getErrorMessage } from '@/shared/lib/errorHandling
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { readUserIdFromStorage } from '@/shared/lib/supabaseSession';
 import { isKnownSettingsId } from '@/shared/lib/settingsIds';
+import type { Session } from '@supabase/supabase-js';
 import {
   operationFailure,
   operationSuccess,
@@ -23,15 +25,44 @@ import {
   type OperationResult,
 } from '@/shared/lib/operationResult';
 import { toolDefaultsRegistry } from '@/tooling/toolDefaultsRegistry';
+
 const inflightSettingsFetches = new Map<string, Promise<unknown>>();
 let cachedUser: { id: string } | null = null;
+let hasCachedUserSnapshot = false;
 let cachedUserAt: number = 0;
+let cleanupAuthCacheSync: (() => void) | null = null;
 const USER_CACHE_MS = 10_000; // 10 seconds
 
 type UserLookupResult = Promise<{ data: { user: { id: string } | null }; error: null }>;
+type AuthStateCallback = (event: string, session: Session | null) => void;
+interface AuthCacheSyncSource {
+  subscribe: (id: string, callback: AuthStateCallback) => () => void;
+}
 
 function invalidateAuthDependentState(): void {
   inflightSettingsFetches.clear();
+}
+
+function updateCachedUserId(userId: string | null, invalidateState: boolean): void {
+  if (invalidateState) {
+    invalidateAuthDependentState();
+  }
+
+  cachedUser = userId ? { id: userId } : null;
+  hasCachedUserSnapshot = true;
+  cachedUserAt = Date.now();
+}
+
+function syncCachedUserId(userId: string | null): void {
+  if (userId) {
+    setCachedUserId(userId);
+    return;
+  }
+  clearCachedUserId();
+}
+
+function syncCachedUserFromSession(session: Session | null): void {
+  syncCachedUserId(session?.user?.id ?? null);
 }
 const unknownSettingsIdsReported = new Set<string>();
 function reportUnknownSettingsId(toolId: string): void {
@@ -49,27 +80,46 @@ function reportUnknownSettingsId(toolId: string): void {
     );
   }
 }
-/**
- * Seed the user cache from an external source (e.g. AuthContext).
- *
- * Call this as early as possible — ideally in AuthContext right after getSession()
- * resolves, before AuthGate opens. This lets resolveAndCacheUserId() return
- * immediately from cache without acquiring any navigator.locks, avoiding stalls
- * during token refresh.
- */
+/** Seed the user cache from an external source. */
 export function setCachedUserId(userId: string) {
-  invalidateAuthDependentState();
-  cachedUser = { id: userId };
-  cachedUserAt = Date.now();
+  updateCachedUserId(userId, true);
 }
 export function clearCachedUserId() {
-  invalidateAuthDependentState();
-  cachedUser = null;
-  cachedUserAt = 0;
+  updateCachedUserId(null, true);
 }
+export function initializeToolSettingsAuthCache(
+  supabaseClient: ReturnType<typeof getSupabaseClient>,
+  authManager: AuthCacheSyncSource,
+): void {
+  if (cleanupAuthCacheSync) {
+    return;
+  }
+
+  syncCachedUserId(readUserIdFromStorage());
+
+  supabaseClient.auth
+    .getSession()
+    .then(({ data: { session } }) => {
+      syncCachedUserFromSession(session);
+    })
+    .catch((error) => {
+      normalizeAndPresentError(error, {
+        context: 'toolSettingsService.initializeToolSettingsAuthCache',
+        showToast: false,
+      });
+    });
+
+  cleanupAuthCacheSync = authManager.subscribe('toolSettingsService', (_event, session) => {
+    syncCachedUserFromSession(session);
+  });
+}
+
 /** @internal Only for test isolation — do not call in production code. */
 export function _resetCachedUserForTesting() {
+  cleanupAuthCacheSync?.();
+  cleanupAuthCacheSync = null;
   cachedUser = null;
+  hasCachedUserSnapshot = false;
   cachedUserAt = 0;
   inflightSettingsFetches.clear();
 }
@@ -176,7 +226,7 @@ export interface SettingsFetchResult<T = unknown> {
  * Get authenticated user ID without acquiring navigator.locks.
  *
  * Resolution order (all synchronous / lock-free):
- *   1. In-memory cache (set by AuthContext via setCachedUserId)
+ *   1. In-memory cache (seeded during runtime bootstrap auth sync)
  *   2. localStorage session (same key Supabase uses; contains full user object)
  *   3. null — user is genuinely signed out
  *
@@ -193,30 +243,31 @@ function buildUserLookupResult(userId: string | null): UserLookupResult {
   });
 }
 
-function readFreshCachedUserId(): string | null {
-  if (!cachedUser || (Date.now() - cachedUserAt) >= USER_CACHE_MS) {
-    return null;
+function readFreshCachedUserId(): string | null | undefined {
+  if (!hasCachedUserSnapshot || (Date.now() - cachedUserAt) >= USER_CACHE_MS) {
+    return undefined;
   }
-  return cachedUser.id;
+  return cachedUser?.id ?? null;
 }
 
 export function readCachedUserId(): UserLookupResult {
-  return buildUserLookupResult(readFreshCachedUserId());
+  const cachedUserId = readFreshCachedUserId();
+  return buildUserLookupResult(cachedUserId ?? null);
 }
 
 export function resolveAndCacheUserId(): UserLookupResult {
   const cachedUserId = readFreshCachedUserId();
-  if (cachedUserId) {
+  if (cachedUserId !== undefined) {
     return buildUserLookupResult(cachedUserId);
   }
 
   const localUserId = readUserIdFromStorage();
   if (localUserId) {
-    cachedUser = { id: localUserId };
-    cachedUserAt = Date.now();
+    updateCachedUserId(localUserId, false);
     return buildUserLookupResult(localUserId);
   }
 
+  updateCachedUserId(null, false);
   return buildUserLookupResult(null);
 }
 type SettingsRow = { data: { settings: unknown } | null; error: unknown };

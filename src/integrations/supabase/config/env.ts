@@ -34,20 +34,22 @@ export function getSupabasePublishableKey(): string {
   return (_supabaseKey ??= requireEnv('VITE_SUPABASE_ANON_KEY'));
 }
 
-export const __IS_DEV_ENV__ =
-  import.meta.env.VITE_APP_ENV === 'dev' ||
-  (typeof window !== 'undefined' && window.location?.hostname === 'localhost');
+export function isDevEnv(): boolean {
+  return (
+    import.meta.env.VITE_APP_ENV === 'dev' ||
+    (typeof window !== 'undefined' && window.location?.hostname === 'localhost')
+  );
+}
 
 // Heavy instrumentation should default off outside debug/dev flows.
-export const __WS_INSTRUMENTATION_ENABLED__ = getBooleanEnv(
-  'VITE_DEBUG_WS_INSTRUMENTATION',
-  __IS_DEV_ENV__
-);
-export const __REALTIME_DOWN_FIX_ENABLED__ = getBooleanEnv(
-  'VITE_DEBUG_REALTIME_DOWN_FIX',
-  __IS_DEV_ENV__
-);
-export const __CORRUPTION_TRACE_ENABLED__ = getBooleanEnv(
-  'VITE_DEBUG_CORRUPTION_TRACE',
-  __IS_DEV_ENV__
-);
+export function isWsInstrumentationEnabled(): boolean {
+  return getBooleanEnv('VITE_DEBUG_WS_INSTRUMENTATION', isDevEnv());
+}
+
+export function isRealtimeDownFixEnabled(): boolean {
+  return getBooleanEnv('VITE_DEBUG_REALTIME_DOWN_FIX', isDevEnv());
+}
+
+export function isCorruptionTraceEnabled(): boolean {
+  return getBooleanEnv('VITE_DEBUG_CORRUPTION_TRACE', isDevEnv());
+}

@@ -42,6 +42,7 @@ class PreloadingService {
   private queue: PreloadQueue;
   private config: PreloadConfig;
   private subscribers = new Set<PreloadingSubscriber>();
+  private connectionTrackingInitialized = false;
 
   // Singleton
   private static instance: PreloadingService | null = null;
@@ -56,16 +57,17 @@ class PreloadingService {
   private constructor() {
     this.config = getPreloadConfig();
     this.queue = new PreloadQueue(this.config.maxConcurrent);
-
-    // Subscribe to connection status changes from DataFreshnessManager
-    this.subscribeToConnectionStatus();
-
   }
 
   /**
    * Subscribe to DataFreshnessManager to track connection status.
    */
-  private subscribeToConnectionStatus(): void {
+  initializeConnectionTracking(): void {
+    if (this.connectionTrackingInitialized) {
+      return;
+    }
+    this.connectionTrackingInitialized = true;
+
     // Get initial status
     const initialDiagnostics = dataFreshnessManager.getDiagnostics();
     this.state.isConnected = initialDiagnostics.realtimeStatus === 'connected';
@@ -238,8 +240,13 @@ class PreloadingService {
 
 export const preloadingService = PreloadingService.getInstance();
 
-// Expose for debugging in browser console (dev only)
-if (import.meta.env.DEV && typeof window !== 'undefined') {
-  (window as unknown as { __PRELOADING_SERVICE__: PreloadingService }).__PRELOADING_SERVICE__ =
-    preloadingService;
+export function initializePreloadingService(): PreloadingService {
+  preloadingService.initializeConnectionTracking();
+
+  if (import.meta.env.DEV && typeof window !== 'undefined') {
+    (window as unknown as { __PRELOADING_SERVICE__?: PreloadingService }).__PRELOADING_SERVICE__ =
+      preloadingService;
+  }
+
+  return preloadingService;
 }

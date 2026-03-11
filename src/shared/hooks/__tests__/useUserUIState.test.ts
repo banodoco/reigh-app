@@ -25,12 +25,16 @@ vi.mock('@/shared/hooks/settings/useToolSettings', () => ({
   updateToolSettingsSupabase: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { useUserUIState } from '../useUserUIState';
+import {
+  _resetUserUIStateCacheForTesting,
+  useUserUIState,
+} from '../useUserUIState';
 
 describe('useUserUIState', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    _resetUserUIStateCacheForTesting();
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
     mockSingle.mockResolvedValue({
       data: {
@@ -139,5 +143,30 @@ describe('useUserUIState', () => {
     // Should normalize: both true → inCloud: true, onComputer: false
     expect(result.current.value.inCloud).toBe(true);
     expect(result.current.value.onComputer).toBe(false);
+  });
+
+  it('falls back when persisted aiInputMode JSON is invalid', async () => {
+    mockSingle.mockResolvedValue({
+      data: {
+        settings: {
+          ui: {
+            aiInputMode: { mode: 'none' },
+          },
+        },
+      },
+      error: null,
+    });
+
+    const fallback = { mode: 'voice' as const };
+    const { result } = renderHook(() =>
+      useUserUIState('aiInputMode', fallback)
+    );
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.value.mode).toBe('voice');
   });
 });

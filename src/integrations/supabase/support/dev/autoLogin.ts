@@ -1,4 +1,4 @@
-import { __IS_DEV_ENV__, getSupabaseUrl } from '@/integrations/supabase/config/env';
+import { getSupabaseUrl, isDevEnv } from '@/integrations/supabase/config/env';
 import { normalizeAndLogError } from '@/shared/lib/errorHandling/runtimeErrorReporting';
 import type { SupabaseClient, AuthError } from '@supabase/supabase-js';
 
@@ -24,7 +24,7 @@ function hasStoredSession(): boolean {
 }
 
 export function maybeAutoLogin(supabase: SupabaseClient) {
-  if (!__IS_DEV_ENV__) return;
+  if (!isDevEnv()) return;
   // Skip if the user already has a stored session. signInWithPassword() acquires
   // navigator.locks for its entire network round-trip — calling it unnecessarily
   // queues AuthContext.getSession() and stalls the initial render.

@@ -3,12 +3,14 @@ import type { Database } from '@/integrations/supabase/databasePublicTypes';
 import { initAuthStateManager } from '@/integrations/supabase/auth/AuthStateManager';
 import { initializeReconnectScheduler } from '@/integrations/supabase/support/reconnect/ReconnectScheduler';
 import { maybeAutoLogin } from '@/integrations/supabase/support/dev/autoLogin';
+import { initializeToolSettingsAuthCache } from '@/shared/lib/toolSettingsService';
 
 export function initializeSupabaseRuntime(
   client: ReturnType<typeof createClient<Database>>,
 ): void {
   // Shared runtime wiring after client construction.
-  initializeReconnectScheduler();
-  initAuthStateManager(client);
+  const reconnectScheduler = initializeReconnectScheduler();
+  const authStateManager = initAuthStateManager(client, reconnectScheduler);
+  initializeToolSettingsAuthCache(client, authStateManager);
   maybeAutoLogin(client);
 }

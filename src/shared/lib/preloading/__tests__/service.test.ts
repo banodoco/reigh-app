@@ -1,10 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+const { getDiagnosticsMock, subscribeMock } = vi.hoisted(() => ({
+  getDiagnosticsMock: vi.fn().mockReturnValue({ realtimeStatus: 'connected' }),
+  subscribeMock: vi.fn(() => vi.fn()),
+}));
+
 // Mock all dependencies before importing
 vi.mock('@/shared/realtime/DataFreshnessManager', () => ({
   dataFreshnessManager: {
-    getDiagnostics: vi.fn().mockReturnValue({ realtimeStatus: 'connected' }),
-    subscribe: vi.fn(),
+    getDiagnostics: getDiagnosticsMock,
+    subscribe: subscribeMock,
   },
 }));
 
@@ -43,12 +48,26 @@ vi.mock('../tracker', () => ({
 // Reset module cache to get fresh singleton
 beforeEach(() => {
   vi.resetModules();
+  getDiagnosticsMock.mockClear();
+  subscribeMock.mockClear();
+  getDiagnosticsMock.mockReturnValue({ realtimeStatus: 'connected' });
 });
 
 describe('PreloadingService', () => {
-  it('exports a singleton service', async () => {
+  it('exports a singleton service without subscribing on import', async () => {
     const { preloadingService } = await import('../service');
     expect(preloadingService).toBeDefined();
+    expect(getDiagnosticsMock).not.toHaveBeenCalled();
+    expect(subscribeMock).not.toHaveBeenCalled();
+  });
+
+  it('subscribes to connection tracking only after explicit initialization', async () => {
+    const { initializePreloadingService } = await import('../service');
+
+    initializePreloadingService();
+
+    expect(getDiagnosticsMock).toHaveBeenCalledTimes(1);
+    expect(subscribeMock).toHaveBeenCalledTimes(1);
   });
 
   it('tracks current project ID', async () => {
