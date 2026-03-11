@@ -1,10 +1,10 @@
 import type { GenerationRow, Shot, ShotOption } from '@/domains/generation/types';
-import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
-import type { AsyncImageDeleteHandler } from '@/shared/types/imageHandlers';
 import type {
   TaskDetailsData,
   TaskDetailsStatus,
-} from '@/shared/components/TaskDetails/types';
+} from '@/shared/lib/taskDetails/taskDetailsContract';
+import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
+import type { AsyncImageDeleteHandler } from '@/shared/types/imageHandlers';
 
 export type { ShotOption };
 export type { TaskDetailsData, TaskDetailsStatus };

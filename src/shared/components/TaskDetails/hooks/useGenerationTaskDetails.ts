@@ -5,7 +5,7 @@ import {
   buildTaskDetailsData,
   type TaskDetailsData,
   type TaskDetailsStatus,
-} from "@/shared/components/TaskDetails/types";
+} from "@/shared/lib/taskDetails/taskDetailsContract";
 import { deriveInputImages, parseTaskParams } from "@/shared/lib/taskParamsUtils";
 import { useResolveGenerationTaskMapping } from "@/domains/generation/hooks/tasks/useResolveGenerationTaskMapping";
 import { normalizeAndPresentError } from "@/shared/lib/errorHandling/runtimeError";

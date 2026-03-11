@@ -1,6 +1,11 @@
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import type { GenVariantInfo, SourceSlotData, StartGenToNextInfo } from './sourceMismatchAnalysis';
+import type {
+  GenVariantInfo,
+  SourceSlotData,
+  SourceSlotLookupError,
+  StartGenToNextInfo,
+} from './sourceMismatchAnalysis';
 
 function buildStartGenToNextMap(
   startSlots: Array<{ generation_id: string }>,
@@ -37,10 +42,18 @@ function buildGenerationVariantMap(
   return genToVariant;
 }
 
-async function fetchVariantLocations(variantIds: string[]): Promise<Record<string, { location: string }>> {
+interface VariantLocationLookupResult {
+  locations: Record<string, { location: string }>;
+  lookupError: SourceSlotLookupError | null;
+}
+
+async function fetchVariantLocations(variantIds: string[]): Promise<VariantLocationLookupResult> {
   const variantLocations: Record<string, { location: string }> = {};
   if (variantIds.length === 0) {
-    return variantLocations;
+    return {
+      locations: variantLocations,
+      lookupError: null,
+    };
   }
 
   const { data: variantData, error: variantError } = await supabase().from('generation_variants')
@@ -49,14 +62,23 @@ async function fetchVariantLocations(variantIds: string[]): Promise<Record<strin
 
   if (variantError) {
     normalizeAndPresentError(variantError, { context: 'useSourceImageChanges:variantLookup', showToast: false });
-    return variantLocations;
+    return {
+      locations: variantLocations,
+      lookupError: {
+        kind: 'variant_lookup_failed',
+        message: variantError.message,
+      },
+    };
   }
 
   (variantData || []).forEach((variant) => {
     variantLocations[variant.id] = { location: variant.location };
   });
 
-  return variantLocations;
+  return {
+    locations: variantLocations,
+    lookupError: null,
+  };
 }
 
 export async function fetchSourceSlotData(startGenIds: string[]): Promise<SourceSlotData | null> {
@@ -110,10 +132,11 @@ export async function fetchSourceSlotData(startGenIds: string[]): Promise<Source
   const variantsToFetch = (genData || [])
     .map((generation) => generation.primary_variant_id)
     .filter((variantId): variantId is string => Boolean(variantId));
-  const variantLocations = await fetchVariantLocations(variantsToFetch);
+  const { locations: variantLocations, lookupError } = await fetchVariantLocations(variantsToFetch);
 
   return {
     genToVariant: buildGenerationVariantMap(genData || [], variantLocations),
     startGenToNext,
+    lookupError,
   };
 }

@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { GenerationRow } from '@/domains/generation/types';
 import { fetchGenerationRecordById } from '@/integrations/supabase/repositories/generationRepository';
 import { Task } from '@/types/tasks';
-import { buildTaskDetailsData } from '@/shared/components/TaskDetails/types';
+import { buildTaskDetailsData } from '@/shared/lib/taskDetails/taskDetailsContract';
 import { deriveTaskInputImages } from '../utils/task-utils';
 import { usePrefetchTaskData } from '@/shared/hooks/tasks/useTaskPrefetch';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';

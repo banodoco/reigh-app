@@ -1,5 +1,5 @@
 import { VARIANT_TYPE } from '@/shared/constants/variantTypes';
-import { buildTaskDetailsData } from '@/shared/components/TaskDetails/types';
+import { buildTaskDetailsData } from '@/shared/lib/taskDetails/taskDetailsContract';
 import { deriveInputImages } from '@/shared/lib/taskParamsUtils';
 import type { TaskDetailsData } from '../../types';
 import type { Task } from '@/types/tasks';

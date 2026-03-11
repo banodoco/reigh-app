@@ -31,9 +31,11 @@ export function useSourceImageChanges(
     refetchInterval: 60000,
   });
 
+  const lookupError = slotData?.lookupError ?? null;
+
   const mismatchMap = useMemo<Map<string, SourceMismatchInfo>>(
-    () => buildMismatchMap(segments, slotData ?? null),
-    [segments, slotData],
+    () => (lookupError ? new Map() : buildMismatchMap(segments, slotData ?? null)),
+    [lookupError, segments, slotData],
   );
 
   const hasRecentMismatch = useMemo(
@@ -46,5 +48,7 @@ export function useSourceImageChanges(
     hasRecentMismatch,
     isLoading,
     hasAnyMismatches: mismatchMap.size > 0,
+    hasLookupError: lookupError !== null,
+    lookupError,
   };
 }

@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { GenerationRow } from '@/domains/generation/types';
-import type { TaskDetailsData } from '@/shared/components/TaskDetails/types';
+import type { TaskDetailsData } from '@/shared/lib/taskDetails/taskDetailsContract';
 import type { MediaGalleryLightboxSession } from '../components/MediaGalleryLightbox';
 import {
   buildTaskDetailsPayload,

@@ -16,7 +16,7 @@ import {
   TaskDetailsSummaryControls,
   TaskDetailsSummarySection,
 } from '@/shared/components/TaskDetails/components/TaskDetailsSummarySection';
-import type { TaskDetailsStatus } from '@/shared/components/TaskDetails/types';
+import type { TaskDetailsStatus } from '@/shared/lib/taskDetails/taskDetailsContract';
 
 interface TaskDetailsPanelProps {
   task: Task | null;

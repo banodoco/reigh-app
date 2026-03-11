@@ -29,9 +29,15 @@ export interface GenVariantInfo {
   updated_at: Date;
 }
 
+export interface SourceSlotLookupError {
+  kind: 'variant_lookup_failed';
+  message: string;
+}
+
 export interface SourceSlotData {
   genToVariant: Record<string, GenVariantInfo>;
   startGenToNext: Record<string, StartGenToNextInfo>;
+  lookupError: SourceSlotLookupError | null;
 }
 
 export function collectStartGenerationIds(segments: SegmentSourceInfo[]): string[] {

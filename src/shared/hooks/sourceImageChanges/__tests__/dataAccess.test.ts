@@ -127,6 +127,7 @@ describe('fetchSourceSlotData', () => {
       nextGenId: 'gen-2',
       nextSlotUpdatedAt: new Date('2026-01-01T11:00:00.000Z'),
     });
+    expect(result?.lookupError).toBeNull();
     expect(result?.genToVariant['gen-1']).toEqual({
       location: 'https://cdn.example.com/variant-1.png',
       updated_at: new Date('2026-01-01T10:00:00.000Z'),
@@ -162,6 +163,10 @@ describe('fetchSourceSlotData', () => {
         showToast: false,
       }),
     );
+    expect(result?.lookupError).toEqual({
+      kind: 'variant_lookup_failed',
+      message: 'variant lookup failed',
+    });
     expect(result?.genToVariant['gen-3'].location).toBeNull();
   });
 });

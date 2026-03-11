@@ -131,7 +131,7 @@ export interface UseSharedLightboxStateReturn {
   star: {
     localStarred: boolean;
     setLocalStarred: (v: boolean) => void;
-    toggleStarMutation: UseMutationResult<void, Error, { id: string; starred: boolean; shotId?: string }>;
+    toggleStarMutation: UseMutationResult<void, Error, { id: string; starred: boolean; projectId: string; shotId?: string }>;
     handleToggleStar: () => void;
   };
   references: {
@@ -186,4 +186,3 @@ export interface UseSharedLightboxStateReturn {
   };
   buttonGroupProps: LightboxButtonGroupProps;
 }
-

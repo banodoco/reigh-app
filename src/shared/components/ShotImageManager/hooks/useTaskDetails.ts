@@ -1,5 +1,5 @@
 import type { Task } from '@/types/tasks';
-import type { TaskDetailsData } from '@/shared/components/TaskDetails/types';
+import type { TaskDetailsData } from '@/shared/lib/taskDetails/taskDetailsContract';
 import { useGenerationTaskDetails } from '@/shared/components/TaskDetails/hooks/useGenerationTaskDetails';
 
 interface UseTaskDetailsProps {

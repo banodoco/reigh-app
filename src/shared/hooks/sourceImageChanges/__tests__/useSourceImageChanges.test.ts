@@ -84,6 +84,16 @@ describe('useSourceImageChanges', () => {
     expect(result.current.hasRecentMismatch('any-segment')).toBe(false);
   });
 
+  it('exposes lookup-error state', () => {
+    const { result } = renderHook(
+      () => useSourceImageChanges([]),
+      { wrapper: createWrapper() }
+    );
+
+    expect(result.current.hasLookupError).toBe(false);
+    expect(result.current.lookupError).toBeNull();
+  });
+
   it('exposes isLoading state', () => {
     const { result } = renderHook(
       () => useSourceImageChanges([]),

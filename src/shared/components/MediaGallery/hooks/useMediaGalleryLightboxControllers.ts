@@ -8,7 +8,7 @@ import { expandShotData } from "@/shared/lib/shotData";
 import {
   buildTaskDetailsData,
   type TaskDetailsStatus,
-} from "@/shared/components/TaskDetails/types";
+} from "@/shared/lib/taskDetails/taskDetailsContract";
 import type { GeneratedImageWithMetadata } from "../types";
 import type { Task } from "@/types/tasks";
 

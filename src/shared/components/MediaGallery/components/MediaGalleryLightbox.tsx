@@ -5,7 +5,7 @@ import { GenerationRow, Shot } from "@/domains/generation/types";
 import { Task } from "@/types/tasks";
 import type { GeneratedImageWithMetadata } from '../types';
 import type { LightboxActionHandlers } from '@/domains/media-lightbox/types';
-import type { TaskDetailsData } from '@/shared/components/TaskDetails/types';
+import type { TaskDetailsData } from '@/shared/lib/taskDetails/taskDetailsContract';
 
 export interface MediaGalleryLightboxSession {
   activeLightboxMedia: GeneratedImageWithMetadata | null;
