@@ -25,6 +25,7 @@
     "test:contracts": "vitest run --config config/testing/vitest.config.ts src/**/**/*.contract.test.ts src/**/**/clientContracts.test.ts src/shared/lib/__tests__/qualityCheck.contract.test.ts",
     "test:arch": "npm run check:shots-shim-usage && npm run check:core-shim-usage && npm run check:legacy-supabase-usage && npm run check:error-runtime-alias-usage && npm run check:contracts && npm run check:contract-surface-map",
     "test:edge": "npm run test:edge:unit && npm run test:edge:smoke",
+    "test:smoke:app": "vitest run --config config/testing/vitest.app-smoke.config.ts",
     "test:edge:unit": "vitest run --config config/testing/vitest.edge.config.ts",
     "test:edge:smoke": "vitest run --config config/testing/vitest.edge.smoke.config.ts --testNamePattern=\"Smoke\"",
     "test:watch": "npm run check:no-smoke-tests && vitest --config config/testing/vitest.config.ts",
