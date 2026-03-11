@@ -15,6 +15,107 @@ import {
   updateAllShotsCaches,
 } from './cacheUtils';
 
+interface UpdateShotNameVariables {
+  shotId: string;
+  name?: string;
+  newName?: string;
+  projectId: string;
+}
+
+interface UpdateShotNameResult {
+  shotId: string;
+  name: string;
+  projectId: string;
+}
+
+interface UpdateShotNameContext {
+  previousShots: ReturnType<typeof findShotsCache>;
+  previousDetail: Shot | undefined;
+  projectId: string;
+  shotId: string;
+}
+
+function resolveShotName({ name, newName }: Pick<UpdateShotNameVariables, 'name' | 'newName'>): string {
+  const shotName = newName || name;
+  if (!shotName) {
+    throw new Error('Shot name is required');
+  }
+  return shotName;
+}
+
+async function persistShotName({
+  shotId,
+  name,
+  newName,
+  projectId,
+}: UpdateShotNameVariables): Promise<UpdateShotNameResult> {
+  const shotName = resolveShotName({ name, newName });
+
+  const { error } = await supabase().from('shots')
+    .update({ name: shotName })
+    .eq('id', shotId);
+
+  if (error) throw error;
+  return { shotId, name: shotName, projectId };
+}
+
+async function applyOptimisticShotNameUpdate(
+  queryClient: ReturnType<typeof useQueryClient>,
+  { shotId, name, newName, projectId }: UpdateShotNameVariables,
+): Promise<UpdateShotNameContext | undefined> {
+  const shotName = newName || name;
+  if (!shotName) {
+    return undefined;
+  }
+
+  await cancelShotsQueries(queryClient, projectId);
+
+  const previousShots = findShotsCache(queryClient, projectId);
+  const previousDetail = queryClient.getQueryData<Shot>(shotQueryKeys.detail(shotId));
+
+  updateAllShotsCaches(queryClient, projectId, (old = []) =>
+    old.map((shot) => (shot.id === shotId ? { ...shot, name: shotName } : shot)),
+    true,
+  );
+
+  if (previousDetail) {
+    queryClient.setQueryData(shotQueryKeys.detail(shotId), {
+      ...previousDetail,
+      name: shotName,
+    });
+  }
+
+  return { previousShots, previousDetail, projectId, shotId };
+}
+
+function applySuccessfulShotNameUpdate(
+  queryClient: ReturnType<typeof useQueryClient>,
+  { projectId, shotId, name }: UpdateShotNameResult,
+): void {
+  queryClient.setQueryData<Shot>(shotQueryKeys.detail(shotId), (old) =>
+    old ? { ...old, name } : old,
+  );
+  invalidateShotsQueries(queryClient, projectId);
+}
+
+function rollbackFailedShotNameUpdate(
+  queryClient: ReturnType<typeof useQueryClient>,
+  error: Error,
+  context: UpdateShotNameContext | undefined,
+): void {
+  if (context?.previousShots && context.projectId) {
+    rollbackShotsCaches(queryClient, context.projectId, context.previousShots);
+  }
+  if (context?.previousDetail && context.shotId) {
+    queryClient.setQueryData(shotQueryKeys.detail(context.shotId), context.previousDetail);
+  }
+
+  normalizeAndPresentError(error, {
+    context: 'useUpdateShotName',
+    toastTitle: 'Failed to update shot name',
+  });
+}
+
 /**
  * Update shot name.
  * Supports both 'name' and 'newName' parameters for backwards compatibility.
@@ -23,70 +124,10 @@ export const useUpdateShotName = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      shotId,
-      name,
-      newName,
-      projectId,
-    }: {
-      shotId: string;
-      name?: string;
-      newName?: string;
-      projectId: string;
-    }) => {
-      const shotName = newName || name;
-      if (!shotName) {
-        throw new Error('Shot name is required');
-      }
-
-      const { error } = await supabase().from('shots')
-        .update({ name: shotName })
-        .eq('id', shotId);
-
-      if (error) throw error;
-      return { shotId, name: shotName, projectId };
-    },
-
-    onMutate: async ({ shotId, name, newName, projectId }) => {
-      const shotName = newName || name;
-      if (!shotName) return;
-
-      await cancelShotsQueries(queryClient, projectId);
-
-      const previousShots = findShotsCache(queryClient, projectId);
-      const previousDetail = queryClient.getQueryData<Shot>(shotQueryKeys.detail(shotId));
-
-      updateAllShotsCaches(queryClient, projectId, (old = []) =>
-        old.map((shot) => (shot.id === shotId ? { ...shot, name: shotName } : shot)),
-        true,
-      );
-
-      if (previousDetail) {
-        queryClient.setQueryData(shotQueryKeys.detail(shotId), {
-          ...previousDetail,
-          name: shotName,
-        });
-      }
-
-      return { previousShots, previousDetail, projectId, shotId };
-    },
-
-    onSuccess: ({ projectId, shotId, name }) => {
-      queryClient.setQueryData<Shot>(shotQueryKeys.detail(shotId), (old) =>
-        old ? { ...old, name } : old
-      );
-      invalidateShotsQueries(queryClient, projectId);
-    },
-
-    onError: (error: Error, _variables, context) => {
-      if (context?.previousShots && context.projectId) {
-        rollbackShotsCaches(queryClient, context.projectId, context.previousShots);
-      }
-      if (context?.previousDetail && context.shotId) {
-        queryClient.setQueryData(shotQueryKeys.detail(context.shotId), context.previousDetail);
-      }
-
-      normalizeAndPresentError(error, { context: 'useUpdateShotName', toastTitle: 'Failed to update shot name' });
-    },
+    mutationFn: persistShotName,
+    onMutate: (variables) => applyOptimisticShotNameUpdate(queryClient, variables),
+    onSuccess: (result) => applySuccessfulShotNameUpdate(queryClient, result),
+    onError: (error: Error, _variables, context) =>
+      rollbackFailedShotNameUpdate(queryClient, error, context),
   });
 };
