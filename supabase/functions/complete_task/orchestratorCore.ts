@@ -1,12 +1,13 @@
 import { toErrorMessage } from "../_shared/errorMessage.ts";
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
-import { extractOrchestratorTaskId, extractOrchestratorRunId } from './params.ts';
+import { extractOrchestratorRef } from '../_shared/billing.ts';
 import { triggerCostCalculation } from './billing.ts';
 import { SEGMENT_TYPE_CONFIG } from './constants.ts';
 import { CompletionError, toCompletionError } from './errors.ts';
 import { lookupTasksByOrchestratorIdWithFallback, lookupTasksByRunIdWithFallback } from '../_shared/orchestratorReferenceLookup.ts';
 import { asObjectOrEmpty } from '../_shared/payloadNormalization.ts';
 import { isFailureStatus } from '../_shared/taskStatusSemantics.ts';
+import { extractRunIdParam } from '../../../src/shared/lib/tasks/taskParamContract.ts';
 import { assertCompletionAuthContext, type CompletionAuthContext } from './authContext.ts';
 import type { CompletionLogger } from './types.ts';
 import { buildBillingOutcome, buildBillingReconciliation, classifyBillingOutcome, evaluateSegmentCompletionGate, resolveExpectedSegmentCount, summarizeSegmentCompletion, type BillingPolicyDecision } from './orchestratorPolicy.ts';
@@ -124,8 +125,8 @@ export async function checkOrchestratorCompletion(
     if (!config) {
       return; // Not a segment task
     }
-    const orchestratorTaskId = extractOrchestratorTaskId(completedTask.params, 'OrchestratorComplete');
-    const orchestratorRunId = extractOrchestratorRunId(completedTask.params, 'OrchestratorComplete');
+    const orchestratorTaskId = extractOrchestratorRef(completedTask.params);
+    const orchestratorRunId = extractRunIdParam(completedTask.params);
     if (!orchestratorTaskId) {
       return;
     }

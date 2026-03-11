@@ -1,24 +1,24 @@
 import { describe, expect, it } from 'vitest';
+import { extractOrchestratorRef } from '../_shared/billing.ts';
 import {
   buildGenerationParams,
   extractBasedOn,
-  extractOrchestratorRunId,
-  extractOrchestratorTaskId,
   extractShotAndPosition,
   getContentType,
   setThumbnailInParams,
 } from './params.ts';
+import { extractRunIdParam } from '../../../src/shared/lib/tasks/taskParamContract.ts';
 
 describe('complete_task params helpers', () => {
   it('extracts orchestrator identifiers from nested params', () => {
     expect(
-      extractOrchestratorTaskId({
+      extractOrchestratorRef({
         orchestrator_details: { orchestrator_task_id: 'orch-1' },
       })
     ).toBe('orch-1');
 
     expect(
-      extractOrchestratorRunId({
+      extractRunIdParam({
         originalParams: { orchestrator_details: { run_id: 'run-9' } },
       })
     ).toBe('run-9');

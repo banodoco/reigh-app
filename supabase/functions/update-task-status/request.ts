@@ -14,6 +14,17 @@ function jsonResponse(body: Record<string, unknown>, status: number): Response {
   });
 }
 
+async function rejectValidation(
+  logger: SystemLogger,
+  logMessage: string,
+  response: Response,
+  context?: Record<string, unknown>,
+): Promise<ParseResult> {
+  logger.error(logMessage, context);
+  await logger.flush();
+  return { ok: false, response };
+}
+
 export async function parseAndValidateRequest(
   req: Request,
   logger: SystemLogger,
@@ -29,43 +40,45 @@ export async function parseAndValidateRequest(
       }
     }
   } catch {
-    logger.error('Invalid JSON body');
-    await logger.flush();
-    return { ok: false, response: new Response('Invalid JSON body', { status: 400 }) };
+    return rejectValidation(
+      logger,
+      'Invalid JSON body',
+      new Response('Invalid JSON body', { status: 400 }),
+    );
   }
 
   const taskId = requestBody.task_id;
   const status = requestBody.status;
 
   if (!taskId || !status || typeof taskId !== 'string') {
-    logger.error('Missing required fields', { has_task_id: !!taskId, has_status: !!status });
-    await logger.flush();
-    return {
-      ok: false,
-      response: new Response('Missing required fields: task_id and status', { status: 400 }),
-    };
+    return rejectValidation(
+      logger,
+      'Missing required fields',
+      new Response('Missing required fields: task_id and status', { status: 400 }),
+      { has_task_id: !!taskId, has_status: !!status },
+    );
   }
 
   if (!isTaskStatus(status)) {
-    logger.error('Invalid status value', { status, valid_statuses: VALID_TASK_STATUSES });
-    await logger.flush();
-    return {
-      ok: false,
-      response: new Response(
+    return rejectValidation(
+      logger,
+      'Invalid status value',
+      new Response(
         `Invalid status. Must be one of: ${VALID_TASK_STATUSES.join(', ')}`,
         { status: 400 },
       ),
-    };
+      { status, valid_statuses: VALID_TASK_STATUSES },
+    );
   }
 
   const attempts = requestBody.attempts;
   if (attempts !== undefined && typeof attempts !== 'number') {
-    logger.error('Invalid attempts value', { attempts });
-    await logger.flush();
-    return {
-      ok: false,
-      response: jsonResponse({ success: false, message: 'attempts must be a number' }, 400),
-    };
+    return rejectValidation(
+      logger,
+      'Invalid attempts value',
+      jsonResponse({ success: false, message: 'attempts must be a number' }, 400),
+      { attempts },
+    );
   }
 
   const outputLocation = requestBody.output_location;
@@ -74,39 +87,39 @@ export async function parseAndValidateRequest(
   const resetGenerationStartedAt = requestBody.reset_generation_started_at;
 
   if (outputLocation !== undefined && typeof outputLocation !== 'string') {
-    logger.error('Invalid output_location value', { output_location: outputLocation });
-    await logger.flush();
-    return {
-      ok: false,
-      response: jsonResponse({ success: false, message: 'output_location must be a string' }, 400),
-    };
+    return rejectValidation(
+      logger,
+      'Invalid output_location value',
+      jsonResponse({ success: false, message: 'output_location must be a string' }, 400),
+      { output_location: outputLocation },
+    );
   }
 
   if (errorDetails !== undefined && typeof errorDetails !== 'string') {
-    logger.error('Invalid error_details value', { error_details: errorDetails });
-    await logger.flush();
-    return {
-      ok: false,
-      response: jsonResponse({ success: false, message: 'error_details must be a string' }, 400),
-    };
+    return rejectValidation(
+      logger,
+      'Invalid error_details value',
+      jsonResponse({ success: false, message: 'error_details must be a string' }, 400),
+      { error_details: errorDetails },
+    );
   }
 
   if (clearWorker !== undefined && typeof clearWorker !== 'boolean') {
-    logger.error('Invalid clear_worker value', { clear_worker: clearWorker });
-    await logger.flush();
-    return {
-      ok: false,
-      response: jsonResponse({ success: false, message: 'clear_worker must be a boolean' }, 400),
-    };
+    return rejectValidation(
+      logger,
+      'Invalid clear_worker value',
+      jsonResponse({ success: false, message: 'clear_worker must be a boolean' }, 400),
+      { clear_worker: clearWorker },
+    );
   }
 
   if (resetGenerationStartedAt !== undefined && typeof resetGenerationStartedAt !== 'boolean') {
-    logger.error('Invalid reset_generation_started_at value', { reset_generation_started_at: resetGenerationStartedAt });
-    await logger.flush();
-    return {
-      ok: false,
-      response: jsonResponse({ success: false, message: 'reset_generation_started_at must be a boolean' }, 400),
-    };
+    return rejectValidation(
+      logger,
+      'Invalid reset_generation_started_at value',
+      jsonResponse({ success: false, message: 'reset_generation_started_at must be a boolean' }, 400),
+      { reset_generation_started_at: resetGenerationStartedAt },
+    );
   }
 
   return {

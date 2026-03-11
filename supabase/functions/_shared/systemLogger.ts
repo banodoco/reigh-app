@@ -55,6 +55,81 @@ export class SystemLogger {
     this.defaultTaskId = taskId;
   }
 
+  private consoleDebugEnabled(): boolean {
+    return Deno?.env?.get?.('EDGE_LOG_DEBUG') === 'true';
+  }
+
+  private summarizeConsoleContext(context?: LogContext): Record<string, unknown> | undefined {
+    if (!context) {
+      return undefined;
+    }
+
+    const allowedKeys = [
+      'task_id',
+      'shot_id',
+      'user_id',
+      'error',
+      'status',
+      'status_code',
+      'method',
+      'repoId',
+      'count',
+    ] as const;
+
+    const summaryEntries = allowedKeys
+      .filter((key) => context[key] !== undefined)
+      .map((key) => [key, context[key]] as const);
+
+    if (summaryEntries.length === 0) {
+      return undefined;
+    }
+
+    return Object.fromEntries(summaryEntries);
+  }
+
+  private writeConsole(
+    level: LogLevel,
+    message: string,
+    context?: LogContext,
+  ): void {
+    const summary = this.summarizeConsoleContext(context);
+    const prefix =
+      level === 'WARNING'
+        ? `${this.logPrefix} WARN ${message}`
+        : level === 'ERROR'
+          ? `${this.logPrefix} ERROR ${message}`
+          : level === 'CRITICAL'
+            ? `${this.logPrefix} CRITICAL ${message}`
+            : `${this.logPrefix} ${message}`;
+
+    if (level === 'DEBUG' || level === 'INFO') {
+      if (!this.consoleDebugEnabled()) {
+        return;
+      }
+      if (summary) {
+        console.log(prefix, summary);
+        return;
+      }
+      console.log(prefix);
+      return;
+    }
+
+    if (level === 'WARNING') {
+      if (summary) {
+        console.warn(prefix, summary);
+        return;
+      }
+      console.warn(prefix);
+      return;
+    }
+
+    if (summary) {
+      console.error(prefix, summary);
+      return;
+    }
+    console.error(prefix);
+  }
+
   private addToBuffer(level: LogLevel, message: string, context?: LogContext) {
     const { task_id, ...metadata } = context || {};
     
@@ -70,27 +145,27 @@ export class SystemLogger {
   }
 
   debug(message: string, context?: LogContext) {
-    console.log(`${this.logPrefix} ${message}`, context ? JSON.stringify(context) : '');
+    this.writeConsole('DEBUG', message, context);
     this.addToBuffer('DEBUG', message, context);
   }
 
   info(message: string, context?: LogContext) {
-    console.log(`${this.logPrefix} ${message}`, context ? JSON.stringify(context) : '');
+    this.writeConsole('INFO', message, context);
     this.addToBuffer('INFO', message, context);
   }
 
   warn(message: string, context?: LogContext) {
-    console.warn(`${this.logPrefix} ⚠️ ${message}`, context ? JSON.stringify(context) : '');
+    this.writeConsole('WARNING', message, context);
     this.addToBuffer('WARNING', message, context);
   }
 
   error(message: string, context?: LogContext) {
-    console.error(`${this.logPrefix} ❌ ${message}`, context ? JSON.stringify(context) : '');
+    this.writeConsole('ERROR', message, context);
     this.addToBuffer('ERROR', message, context);
   }
 
   critical(message: string, context?: LogContext) {
-    console.error(`${this.logPrefix} 🔥 CRITICAL: ${message}`, context ? JSON.stringify(context) : '');
+    this.writeConsole('CRITICAL', message, context);
     this.addToBuffer('CRITICAL', message, context);
   }
 
@@ -116,8 +191,6 @@ export class SystemLogger {
       const result = data || { inserted: this.logBuffer.length, errors: 0 };
       const bufferSize = this.logBuffer.length;
       this.logBuffer = []; // Clear buffer after successful flush
-      
-      console.log(`${this.logPrefix} Flushed ${bufferSize} logs to database`);
       return { inserted: result.inserted || bufferSize, errors: result.errors || 0 };
     } catch (e: unknown) {
       console.error(`${this.logPrefix} Exception flushing logs:`, e?.message || e);

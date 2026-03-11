@@ -3,6 +3,8 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { bootstrapEdgeHandler, NO_SESSION_RUNTIME_OPTIONS } from "../_shared/edgeHandler.ts";
 import { toErrorMessage } from "../_shared/errorMessage.ts";
 import { ensureOwnedStoragePath, ensureUserAuth } from "../_shared/requestGuards.ts";
+import type { SupabaseClient } from "../_shared/supabaseClient.ts";
+import type { SystemLogger } from "../_shared/systemLogger.ts";
 
 interface HuggingFaceCredentials {
   accessToken: string;
@@ -27,6 +29,63 @@ interface NormalizedSampleVideo {
   originalFileName: string;
 }
 
+interface LoraStoragePaths {
+  single?: string;
+  highNoise?: string;
+  lowNoise?: string;
+}
+
+interface LoraDetails {
+  name: string;
+  description?: string;
+  baseModel: string;
+  triggerWord?: string;
+  creatorName?: string;
+}
+
+interface ParsedUploadRequest {
+  storagePaths: LoraStoragePaths;
+  loraDetails: LoraDetails;
+  sampleVideos: NormalizedSampleVideo[];
+  repoNameOverride: string | null;
+  isPrivate: boolean;
+}
+
+interface NormalizedUploadRequest extends ParsedUploadRequest {
+  storagePaths: LoraStoragePaths;
+  sampleVideos: NormalizedSampleVideo[];
+}
+
+interface HuggingFaceRepoContext {
+  hfToken: string;
+  repoId: string;
+}
+
+interface UploadedLoraFiles {
+  single?: string;
+  highNoise?: string;
+  lowNoise?: string;
+}
+
+interface UploadedLoraUrls {
+  loraUrl?: string;
+  highNoiseUrl?: string;
+  lowNoiseUrl?: string;
+}
+
+interface UploadWorkflowContext {
+  supabaseAdmin: SupabaseClient;
+  logger: SystemLogger;
+  uploadFile: HuggingFaceHubClient["uploadFile"];
+  repoId: string;
+  hfToken: string;
+  pathsToClean: string[];
+}
+
+type ResponseResult<T> =
+  | { ok: true; value: T }
+  | { ok: false; response: Response };
+
 const huggingFaceHubPromise: Promise<HuggingFaceHubClient> = import(
   "https://esm.sh/@huggingface/hub@0.18.2"
 ).then((module) => ({
@@ -48,6 +107,21 @@ function createResponse(body: object, status: number = 200) {
   });
 }
 
+function invalidUploadRequest(message: string): ResponseResult<never> {
+  return { ok: false, response: createResponse({ error: message }, 400) };
+}
+
+function parseJsonField<T>(
+  raw: string,
+  fieldName: string,
+): ResponseResult<T> {
+  try {
+    return { ok: true, value: JSON.parse(raw) as T };
+  } catch {
+    return invalidUploadRequest(`${fieldName} must be valid JSON`);
+  }
+}
+
 function parseSampleVideos(raw: string | null): NormalizedSampleVideo[] {
   if (!raw) {
     return [];
@@ -58,6 +132,193 @@ function parseSampleVideos(raw: string | null): NormalizedSampleVideo[] {
   } catch {
     return [];
   }
+}
+
+function parseStoragePaths(
+  loraStoragePathsRaw: string | null,
+  legacyLoraStoragePath: string | null,
+): ResponseResult<LoraStoragePaths> {
+  if (loraStoragePathsRaw) {
+    const parsed = parseJsonField<LoraStoragePaths>(loraStoragePathsRaw, "loraStoragePaths");
+    if (!parsed.ok) {
+      return parsed;
+    }
+    if (!parsed.value || typeof parsed.value !== "object" || Array.isArray(parsed.value)) {
+      return invalidUploadRequest("loraStoragePaths must be a JSON object");
+    }
+    return parsed;
+  }
+
+  if (legacyLoraStoragePath) {
+    return { ok: true, value: { single: legacyLoraStoragePath } };
+  }
+
+  return invalidUploadRequest("loraStoragePaths or loraStoragePath is required");
+}
+
+async function parseUploadRequest(req: Request): Promise<ResponseResult<ParsedUploadRequest>> {
+  const formData = await req.formData();
+  const storagePathsResult = parseStoragePaths(
+    formData.get("loraStoragePaths") as string | null,
+    formData.get("loraStoragePath") as string | null,
+  );
+  if (!storagePathsResult.ok) {
+    return storagePathsResult;
+  }
+
+  const storagePaths = storagePathsResult.value;
+  if (!storagePaths.single && !storagePaths.highNoise && !storagePaths.lowNoise) {
+    return invalidUploadRequest("At least one LoRA file path is required");
+  }
+
+  const loraDetailsRaw = formData.get("loraDetails") as string | null;
+  if (!loraDetailsRaw) {
+    return invalidUploadRequest("loraDetails is required");
+  }
+
+  const loraDetailsResult = parseJsonField<LoraDetails>(loraDetailsRaw, "loraDetails");
+  if (!loraDetailsResult.ok) {
+    return loraDetailsResult;
+  }
+
+  return {
+    ok: true,
+    value: {
+      storagePaths,
+      loraDetails: loraDetailsResult.value,
+      sampleVideos: parseSampleVideos(formData.get("sampleVideos") as string | null),
+      repoNameOverride: formData.get("repoName") as string | null,
+      isPrivate: formData.get("isPrivate") === "true",
+    },
+  };
+}
+
+async function normalizeOwnedInputs(
+  parsedRequest: ParsedUploadRequest,
+  userId: string,
+  logger: SystemLogger,
+): Promise<ResponseResult<NormalizedUploadRequest>> {
+  const normalizedStoragePaths: LoraStoragePaths = {};
+  for (const [fileType, path] of Object.entries(parsedRequest.storagePaths)) {
+    if (!path) {
+      continue;
+    }
+    const ownedPath = ensureOwnedStoragePath(path, userId, logger);
+    if (!ownedPath.ok) {
+      await logger.flush();
+      return ownedPath;
+    }
+    normalizedStoragePaths[fileType as keyof LoraStoragePaths] = ownedPath.storagePath;
+  }
+
+  const normalizedSampleVideos: NormalizedSampleVideo[] = [];
+  for (const video of parsedRequest.sampleVideos) {
+    if (!video || typeof video.originalFileName !== "string") {
+      logger.error("Invalid sample video payload", { sampleVideo: video });
+      await logger.flush();
+      return invalidUploadRequest("Invalid sample video payload");
+    }
+
+    const ownedPath = ensureOwnedStoragePath(video.storagePath, userId, logger);
+    if (!ownedPath.ok) {
+      await logger.flush();
+      return ownedPath;
+    }
+
+    normalizedSampleVideos.push({
+      originalFileName: video.originalFileName,
+      storagePath: ownedPath.storagePath,
+    });
+  }
+
+  return {
+    ok: true,
+    value: {
+      ...parsedRequest,
+      storagePaths: normalizedStoragePaths,
+      sampleVideos: normalizedSampleVideos,
+    },
+  };
+}
+
+function logNormalizedUploadRequest(
+  logger: SystemLogger,
+  request: NormalizedUploadRequest,
+): void {
+  logger.info("Processing LoRA", {
+    name: request.loraDetails.name,
+    single: request.storagePaths.single || "none",
+    highNoise: request.storagePaths.highNoise || "none",
+    lowNoise: request.storagePaths.lowNoise || "none",
+    sampleVideos: request.sampleVideos.length,
+  });
+}
+
+async function fetchHuggingFaceToken(
+  supabaseAdmin: SupabaseClient,
+  userId: string,
+): Promise<ResponseResult<string>> {
+  const { data: apiKeyData, error: apiKeyError } = await supabaseAdmin.rpc(
+    "get_external_api_key_decrypted",
+    { p_user_id: userId, p_service: "huggingface" },
+  );
+
+  if (apiKeyError || !apiKeyData || apiKeyData.length === 0) {
+    return {
+      ok: false,
+      response: createResponse({
+        error: "HuggingFace API key not found. Please set up your HuggingFace token first.",
+        code: "HF_TOKEN_NOT_FOUND",
+      }, 400),
+    };
+  }
+
+  const hfToken = apiKeyData[0]?.key_value;
+  if (!hfToken) {
+    return {
+      ok: false,
+      response: createResponse({
+        error: "HuggingFace API key is empty. Please re-enter your token.",
+        code: "HF_TOKEN_EMPTY",
+      }, 400),
+    };
+  }
+
+  return { ok: true, value: hfToken };
+}
+
+async function ensureHfRepo(
+  huggingFaceHub: HuggingFaceHubClient,
+  request: NormalizedUploadRequest,
+  hfToken: string,
+  logger: SystemLogger,
+): Promise<ResponseResult<{ repoId: string }>> {
+  const hfUser = await huggingFaceHub.whoAmI({ credentials: { accessToken: hfToken } });
+  if (!hfUser.name) {
+    return invalidUploadRequest("Could not determine HuggingFace username");
+  }
+
+  const repoName = request.repoNameOverride || sanitizeRepoName(request.loraDetails.name);
+  const repoId = `${hfUser.name}/${repoName}`;
+
+  logger.info("Creating repo", { repoId, isPrivate: request.isPrivate });
+  try {
+    await huggingFaceHub.createRepo({
+      repo: repoId,
+      private: request.isPrivate,
+      credentials: { accessToken: hfToken },
+    });
+    logger.info("Repository created", { repoId });
+  } catch (repoError: unknown) {
+    const repoErrorMessage = toErrorMessage(repoError);
+    if (!repoErrorMessage.toLowerCase().includes("already exists")) {
+      logger.error("Repo creation error", { error: repoErrorMessage });
+      throw repoError;
+    }
+    logger.info("Repository already exists", { repoId });
+  }
+
+  return { ok: true, value: { repoId } };
 }
 
 /**
@@ -83,6 +344,181 @@ function extractOriginalFilename(storagePath: string): string {
   return fileNameWithUuid.includes("-")
     ? fileNameWithUuid.substring(fileNameWithUuid.indexOf("-") + 1)
     : fileNameWithUuid;
+}
+
+function buildWorkflowContext(
+  supabaseAdmin: SupabaseClient,
+  logger: SystemLogger,
+  uploadFile: HuggingFaceHubClient["uploadFile"],
+  repo: HuggingFaceRepoContext,
+): UploadWorkflowContext {
+  return {
+    supabaseAdmin,
+    logger,
+    uploadFile,
+    repoId: repo.repoId,
+    hfToken: repo.hfToken,
+    pathsToClean: [],
+  };
+}
+
+function buildHuggingFaceAssetUrl(repoId: string, path: string): string {
+  return `https://huggingface.co/${repoId}/resolve/main/${encodeURIComponent(path)}`;
+}
+
+async function uploadLoraFile(
+  workflow: UploadWorkflowContext,
+  storagePath: string,
+  fileType: keyof UploadedLoraFiles,
+): Promise<string> {
+  workflow.logger.info(`Downloading ${fileType} LoRA`, { storagePath });
+  const { data: loraBlob, error: loraDownloadError } = await workflow.supabaseAdmin.storage
+    .from("temporary")
+    .download(storagePath);
+
+  if (loraDownloadError || !loraBlob) {
+    workflow.logger.error(`${fileType} LoRA download error`, { error: loraDownloadError?.message });
+    throw new Error(`Failed to download ${fileType} LoRA from temporary storage`);
+  }
+
+  workflow.pathsToClean.push(storagePath);
+
+  const originalName = extractOriginalFilename(storagePath);
+  const loraFile = new File([loraBlob], originalName, { type: "application/octet-stream" });
+  workflow.logger.info(`${fileType} LoRA file prepared`, { name: loraFile.name, size: loraFile.size });
+
+  await workflow.uploadFile({
+    repo: workflow.repoId,
+    file: loraFile,
+    credentials: { accessToken: workflow.hfToken },
+  });
+  workflow.logger.info(`${fileType} LoRA file uploaded successfully`);
+
+  return originalName;
+}
+
+async function uploadLoraAssets(
+  workflow: UploadWorkflowContext,
+  storagePaths: LoraStoragePaths,
+): Promise<{ files: UploadedLoraFiles; urls: UploadedLoraUrls }> {
+  const files: UploadedLoraFiles = {};
+  const urls: UploadedLoraUrls = {};
+
+  if (storagePaths.single) {
+    const filename = await uploadLoraFile(workflow, storagePaths.single, "single");
+    files.single = filename;
+    urls.loraUrl = buildHuggingFaceAssetUrl(workflow.repoId, filename);
+  }
+
+  if (storagePaths.highNoise) {
+    const filename = await uploadLoraFile(workflow, storagePaths.highNoise, "highNoise");
+    files.highNoise = filename;
+    urls.highNoiseUrl = buildHuggingFaceAssetUrl(workflow.repoId, filename);
+  }
+
+  if (storagePaths.lowNoise) {
+    const filename = await uploadLoraFile(workflow, storagePaths.lowNoise, "lowNoise");
+    files.lowNoise = filename;
+    urls.lowNoiseUrl = buildHuggingFaceAssetUrl(workflow.repoId, filename);
+  }
+
+  return { files, urls };
+}
+
+async function uploadSampleVideos(
+  workflow: UploadWorkflowContext,
+  sampleVideos: NormalizedSampleVideo[],
+): Promise<string[]> {
+  const uploadedVideoPaths: string[] = [];
+
+  for (const video of sampleVideos) {
+    try {
+      workflow.logger.info("Downloading video", { storagePath: video.storagePath });
+      const { data: videoBlob, error: videoError } = await workflow.supabaseAdmin.storage
+        .from("temporary")
+        .download(video.storagePath);
+
+      if (videoError || !videoBlob) {
+        workflow.logger.error("Video download error", { error: videoError?.message });
+        continue;
+      }
+
+      workflow.pathsToClean.push(video.storagePath);
+
+      const videoFile = new File([videoBlob], video.originalFileName, { type: videoBlob.type });
+      const targetPath = `media/${sanitizeRepoName(video.originalFileName)}`;
+
+      workflow.logger.info("Uploading video", { targetPath });
+      await workflow.uploadFile({
+        repo: workflow.repoId,
+        file: { path: targetPath, content: videoFile },
+        credentials: { accessToken: workflow.hfToken },
+      });
+
+      uploadedVideoPaths.push(targetPath);
+      workflow.logger.info("Video uploaded", { targetPath });
+    } catch (videoUploadError: unknown) {
+      workflow.logger.error("Video upload error", { error: toErrorMessage(videoUploadError) });
+    }
+  }
+
+  return uploadedVideoPaths;
+}
+
+async function uploadReadme(
+  workflow: UploadWorkflowContext,
+  loraDetails: LoraDetails,
+  loraFiles: UploadedLoraFiles,
+  sampleVideoPaths: string[],
+): Promise<void> {
+  workflow.logger.info("Generating README...");
+  const readmeContent = generateReadmeContent(
+    loraDetails,
+    loraFiles,
+    workflow.repoId,
+    sampleVideoPaths,
+  );
+  const readmeBlob = new Blob([readmeContent], { type: "text/markdown" });
+  const readmeFile = new File([readmeBlob], "README.md", { type: "text/markdown" });
+
+  await workflow.uploadFile({
+    repo: workflow.repoId,
+    file: readmeFile,
+    credentials: { accessToken: workflow.hfToken },
+  });
+  workflow.logger.info("README uploaded");
+}
+
+async function cleanupTemporaryAssets(workflow: UploadWorkflowContext): Promise<void> {
+  workflow.logger.info("Cleaning up temporary files", { count: workflow.pathsToClean.length });
+  if (workflow.pathsToClean.length === 0) {
+    return;
+  }
+
+  const { error: cleanupError } = await workflow.supabaseAdmin.storage
+    .from("temporary")
+    .remove(workflow.pathsToClean);
+
+  if (cleanupError) {
+    workflow.logger.error("Cleanup error", { error: cleanupError.message });
+    return;
+  }
+
+  workflow.logger.info("Cleanup successful");
+}
+
+function buildUploadResponse(
+  repoId: string,
+  uploadedLoraUrls: UploadedLoraUrls,
+  uploadedVideoPaths: string[],
+) {
+  return {
+    success: true,
+    repoId,
+    repoUrl: `https://huggingface.co/${repoId}`,
+    ...uploadedLoraUrls,
+    videoUrls: uploadedVideoPaths.map((path) => buildHuggingFaceAssetUrl(repoId, path)),
+  };
 }
 
 /**
@@ -198,7 +634,14 @@ function generateReadmeContent(
  * 6. Clean up temporary files
  * 7. Return HuggingFace URLs
  */
-serve(async (req) => {
+export const __internal = {
+  buildUploadResponse,
+  normalizeOwnedInputs,
+  parseUploadRequest,
+  sanitizeRepoName,
+};
+
+async function handleHuggingFaceUpload(req: Request): Promise<Response> {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -226,7 +669,7 @@ serve(async (req) => {
   const { supabaseAdmin, logger, auth } = bootstrap.value;
 
   try {
-    const { whoAmI, createRepo, uploadFile } = await huggingFaceHubPromise;
+    const huggingFaceHub = await huggingFaceHubPromise;
 
     // 1. Authenticate user
     const authResult = ensureUserAuth(auth, logger);
@@ -235,277 +678,67 @@ serve(async (req) => {
     }
 
     const userId = authResult.userId;
-    logger.info('Authenticated request');
+    logger.info("Authenticated request");
 
-    // 2. Parse form data and validate ownership before touching privileged RPCs.
-    const formData = await req.formData();
-
-    // Support both new format (loraStoragePaths object) and legacy format (loraStoragePath string)
-    const loraStoragePathsRaw = formData.get("loraStoragePaths") as string | null;
-    const legacyLoraStoragePath = formData.get("loraStoragePath") as string | null;
-
-    const loraDetailsRaw = formData.get("loraDetails") as string | null;
-    const sampleVideosRaw = formData.get("sampleVideos") as string | null;
-    const repoNameOverride = formData.get("repoName") as string | null;
-    const isPrivate = formData.get("isPrivate") === "true";
-
-    // Parse storage paths - support both formats
-    let storagePaths: { single?: string; highNoise?: string; lowNoise?: string };
-    if (loraStoragePathsRaw) {
-      // New format: JSON object with single/highNoise/lowNoise
-      storagePaths = JSON.parse(loraStoragePathsRaw);
-    } else if (legacyLoraStoragePath) {
-      // Legacy format: single path string
-      storagePaths = { single: legacyLoraStoragePath };
-    } else {
-      return createResponse({ error: "loraStoragePaths or loraStoragePath is required" }, 400);
+    const parsedRequest = await parseUploadRequest(req);
+    if (!parsedRequest.ok) {
+      return parsedRequest.response;
     }
 
-    // Validate at least one file path is provided
-    if (!storagePaths.single && !storagePaths.highNoise && !storagePaths.lowNoise) {
-      return createResponse({ error: "At least one LoRA file path is required" }, 400);
+    const normalizedRequest = await normalizeOwnedInputs(parsedRequest.value, userId, logger);
+    if (!normalizedRequest.ok) {
+      return normalizedRequest.response;
     }
 
-    if (!loraDetailsRaw) {
-      return createResponse({ error: "loraDetails is required" }, 400);
+    logNormalizedUploadRequest(logger, normalizedRequest.value);
+
+    const tokenResult = await fetchHuggingFaceToken(supabaseAdmin, userId);
+    if (!tokenResult.ok) {
+      return tokenResult.response;
     }
 
-    const loraDetails = JSON.parse(loraDetailsRaw);
-    const sampleVideos = parseSampleVideos(sampleVideosRaw);
-
-    const normalizedStoragePaths: { single?: string; highNoise?: string; lowNoise?: string } = {};
-    for (const [fileType, path] of Object.entries(storagePaths)) {
-      if (!path) {
-        continue;
-      }
-      const ownedPath = ensureOwnedStoragePath(path, userId, logger);
-      if (!ownedPath.ok) {
-        await logger.flush();
-        return ownedPath.response;
-      }
-      normalizedStoragePaths[fileType as keyof typeof normalizedStoragePaths] = ownedPath.storagePath;
+    const repoResult = await ensureHfRepo(
+      huggingFaceHub,
+      normalizedRequest.value,
+      tokenResult.value,
+      logger,
+    );
+    if (!repoResult.ok) {
+      return repoResult.response;
     }
 
-    const normalizedSampleVideos: NormalizedSampleVideo[] = [];
-    for (const video of sampleVideos) {
-      if (!video || typeof video.originalFileName !== "string") {
-        logger.error("Invalid sample video payload", { sampleVideo: video });
-        await logger.flush();
-        return createResponse({ error: "Invalid sample video payload" }, 400);
-      }
-      const ownedPath = ensureOwnedStoragePath(video.storagePath, userId, logger);
-      if (!ownedPath.ok) {
-        await logger.flush();
-        return ownedPath.response;
-      }
-      normalizedSampleVideos.push({
-        originalFileName: video.originalFileName,
-        storagePath: ownedPath.storagePath,
-      });
-    }
-
-    logger.info('Processing LoRA', {
-      name: loraDetails.name,
-      single: normalizedStoragePaths.single || 'none',
-      highNoise: normalizedStoragePaths.highNoise || 'none',
-      lowNoise: normalizedStoragePaths.lowNoise || 'none',
-      sampleVideos: normalizedSampleVideos.length,
-    });
-
-    // 3. Get user's HuggingFace token (decrypted from Vault)
-    const { data: apiKeyData, error: apiKeyError } = await supabaseAdmin.rpc(
-      "get_external_api_key_decrypted",
-      { p_user_id: userId, p_service: "huggingface" }
+    const workflow = buildWorkflowContext(
+      supabaseAdmin,
+      logger,
+      huggingFaceHub.uploadFile,
+      { hfToken: tokenResult.value, repoId: repoResult.value.repoId },
     );
 
-    if (apiKeyError || !apiKeyData || apiKeyData.length === 0) {
-      return createResponse({
-        error: "HuggingFace API key not found. Please set up your HuggingFace token first.",
-        code: "HF_TOKEN_NOT_FOUND"
-      }, 400);
-    }
-
-    const hfToken = apiKeyData[0].key_value;
-    if (!hfToken) {
-      return createResponse({
-        error: "HuggingFace API key is empty. Please re-enter your token.",
-        code: "HF_TOKEN_EMPTY"
-      }, 400);
-    }
-
-    // 4. Get HF username and create repo first (before downloading files)
-    const hfUser = await whoAmI({ credentials: { accessToken: hfToken } });
-    if (!hfUser.name) {
-      return createResponse({ error: "Could not determine HuggingFace username" }, 400);
-    }
-
-    const username = hfUser.name;
-    const repoName = repoNameOverride || sanitizeRepoName(loraDetails.name);
-    const repoId = `${username}/${repoName}`;
-
-    logger.info('Creating repo', { repoId, isPrivate });
-
-    try {
-      await createRepo({
-        repo: repoId,
-        private: isPrivate,
-        credentials: { accessToken: hfToken },
-      });
-      logger.info('Repository created', { repoId });
-    } catch (repoError: unknown) {
-      const repoErrorMessage = toErrorMessage(repoError);
-      if (!repoErrorMessage.toLowerCase().includes("already exists")) {
-        logger.error('Repo creation error', { error: repoErrorMessage });
-        throw repoError;
-      }
-      logger.info('Repository already exists', { repoId });
-    }
-
-    // 5. Download and upload LoRA file(s)
-    const uploadedLoraFiles: { single?: string; highNoise?: string; lowNoise?: string } = {};
-    const uploadedLoraUrls: { loraUrl?: string; highNoiseUrl?: string; lowNoiseUrl?: string } = {};
-    const pathsToClean: string[] = [];
-
-    // Helper function to download and upload a LoRA file
-    async function processLoraFile(storagePath: string, fileType: 'single' | 'highNoise' | 'lowNoise'): Promise<string> {
-      logger.info(`Downloading ${fileType} LoRA`, { storagePath });
-      const { data: loraBlob, error: loraDownloadError } = await supabaseAdmin.storage
-        .from("temporary")
-        .download(storagePath);
-
-      if (loraDownloadError || !loraBlob) {
-        logger.error(`${fileType} LoRA download error`, { error: loraDownloadError?.message });
-        throw new Error(`Failed to download ${fileType} LoRA from temporary storage`);
-      }
-
-      pathsToClean.push(storagePath);
-
-      const originalName = extractOriginalFilename(storagePath);
-      const loraFile = new File([loraBlob], originalName, { type: "application/octet-stream" });
-      logger.info(`${fileType} LoRA file prepared`, { name: loraFile.name, size: loraFile.size });
-
-      // Upload to HuggingFace
-      logger.info(`Uploading ${fileType} LoRA file...`);
-      await uploadFile({
-        repo: repoId,
-        file: loraFile,
-        credentials: { accessToken: hfToken },
-      });
-      logger.info(`${fileType} LoRA file uploaded successfully`);
-
-      return originalName;
-    }
-
-    // Process each LoRA file type
-    if (normalizedStoragePaths.single) {
-      const filename = await processLoraFile(normalizedStoragePaths.single, 'single');
-      uploadedLoraFiles.single = filename;
-      uploadedLoraUrls.loraUrl = `https://huggingface.co/${repoId}/resolve/main/${encodeURIComponent(filename)}`;
-    }
-
-    if (normalizedStoragePaths.highNoise) {
-      const filename = await processLoraFile(normalizedStoragePaths.highNoise, 'highNoise');
-      uploadedLoraFiles.highNoise = filename;
-      uploadedLoraUrls.highNoiseUrl = `https://huggingface.co/${repoId}/resolve/main/${encodeURIComponent(filename)}`;
-    }
-
-    if (normalizedStoragePaths.lowNoise) {
-      const filename = await processLoraFile(normalizedStoragePaths.lowNoise, 'lowNoise');
-      uploadedLoraFiles.lowNoise = filename;
-      uploadedLoraUrls.lowNoiseUrl = `https://huggingface.co/${repoId}/resolve/main/${encodeURIComponent(filename)}`;
-    }
-
-    // 6. Upload sample videos
-    const uploadedVideoPaths: string[] = [];
-
-    for (const video of normalizedSampleVideos) {
-      try {
-        logger.info('Downloading video', { storagePath: video.storagePath });
-        const { data: videoBlob, error: videoError } = await supabaseAdmin.storage
-          .from("temporary")
-          .download(video.storagePath);
-
-        if (videoError || !videoBlob) {
-          logger.error('Video download error', { error: videoError?.message });
-          continue;
-        }
-
-        pathsToClean.push(video.storagePath);
-
-        const videoFile = new File([videoBlob], video.originalFileName, { type: videoBlob.type });
-        const sanitizedFileName = sanitizeRepoName(video.originalFileName);
-        const targetPath = `media/${sanitizedFileName}`;
-
-        logger.info('Uploading video', { targetPath });
-        await uploadFile({
-          repo: repoId,
-          file: { path: targetPath, content: videoFile },
-          credentials: { accessToken: hfToken },
-        });
-
-        uploadedVideoPaths.push(targetPath);
-        logger.info('Video uploaded', { targetPath });
-      } catch (videoUploadError: unknown) {
-        const message = toErrorMessage(videoUploadError);
-        logger.error('Video upload error', { error: message });
-        // Continue with other videos
-      }
-    }
-
-    // 7. Generate and upload README
-    logger.info('Generating README...');
-    const readmeContent = generateReadmeContent(
-      loraDetails,
-      uploadedLoraFiles,
-      repoId,
-      uploadedVideoPaths
+    const uploadedLoraAssets = await uploadLoraAssets(workflow, normalizedRequest.value.storagePaths);
+    const uploadedVideoPaths = await uploadSampleVideos(workflow, normalizedRequest.value.sampleVideos);
+    await uploadReadme(
+      workflow,
+      normalizedRequest.value.loraDetails,
+      uploadedLoraAssets.files,
+      uploadedVideoPaths,
     );
-    const readmeBlob = new Blob([readmeContent], { type: "text/markdown" });
-    const readmeFile = new File([readmeBlob], "README.md", { type: "text/markdown" });
+    await cleanupTemporaryAssets(workflow);
 
-    await uploadFile({
-      repo: repoId,
-      file: readmeFile,
-      credentials: { accessToken: hfToken },
-    });
-    logger.info('README uploaded');
-
-    // 8. Construct video URLs
-    const videoUrls = uploadedVideoPaths.map(
-      (path) => `https://huggingface.co/${repoId}/resolve/main/${encodeURIComponent(path)}`
-    );
-
-    // 9. Clean up temporary files
-    logger.info('Cleaning up temporary files', { count: pathsToClean.length });
-
-    const { error: cleanupError } = await supabaseAdmin.storage
-      .from("temporary")
-      .remove(pathsToClean);
-
-    if (cleanupError) {
-      logger.error('Cleanup error', { error: cleanupError.message });
-      // Don't fail the request for cleanup errors
-    } else {
-      logger.info('Cleanup successful');
-    }
-
-    logger.info('Upload complete', { repoId });
+    logger.info("Upload complete", { repoId: workflow.repoId });
     await logger.flush();
 
-    return createResponse({
-      success: true,
-      repoId,
-      repoUrl: `https://huggingface.co/${repoId}`,
-      ...uploadedLoraUrls,  // loraUrl for single-stage, or highNoiseUrl/lowNoiseUrl for multi-stage
-      videoUrls,
-    });
+    return createResponse(
+      buildUploadResponse(workflow.repoId, uploadedLoraAssets.urls, uploadedVideoPaths),
+    );
 
   } catch (error: unknown) {
     const message = toErrorMessage(error);
-    logger.error('Unexpected error', { error: message });
+    logger.error("Unexpected error", { error: message });
     await logger.flush();
     return createResponse({
       error: message || "An unexpected error occurred",
     }, 500);
   }
-});
+}
+
+serve(handleHuggingFaceUpload);
