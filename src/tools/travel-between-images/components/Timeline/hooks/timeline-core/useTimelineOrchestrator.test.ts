@@ -4,7 +4,7 @@ import {
   handleTimelineStructureVideoSelect,
   runDuplicateInterceptor,
   runGenerationDropInterceptor,
-} from './useTimelineOrchestrator';
+} from './useTimelineOrchestratorActions';
 
 describe('useTimelineOrchestrator helpers', () => {
   it('wraps generation drops with pending-frame bookkeeping and cleanup', async () => {

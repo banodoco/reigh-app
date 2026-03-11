@@ -21,7 +21,7 @@ export interface DerivedItem {
   all_shot_associations?: Array<{ shot_id: string; timeline_frame: number | null; position: number | null }>;
 }
 
-function normalizePosition(timelineFrame: number | null | undefined): number | null {
+function timelineFrameToPositionBucket(timelineFrame: number | null | undefined): number | null {
   if (timelineFrame === null || timelineFrame === undefined) {
     return null;
   }
@@ -112,7 +112,7 @@ export async function fetchDerivedItemsFromRepository(
       ? shotGenerations.map((sg) => ({
           shot_id: sg.shot_id,
           timeline_frame: sg.timeline_frame,
-          position: normalizePosition(sg.timeline_frame),
+          position: timelineFrameToPositionBucket(sg.timeline_frame),
         }))
       : undefined;
 

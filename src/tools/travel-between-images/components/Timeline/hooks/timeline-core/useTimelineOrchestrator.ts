@@ -1,22 +1,18 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import type { DragEvent, MouseEvent as ReactMouseEvent, RefObject } from 'react';
 import { useIsMobile, useIsTablet } from '@/shared/hooks/mobile';
 import { usePrefetchTaskData } from '@/shared/hooks/tasks/useTaskPrefetch';
 import {
-  calculateNewVideoPlacement,
   getTrailingEffectiveEnd,
   getPairInfo,
   getTimelineDimensions,
-  TRAILING_ENDPOINT_KEY,
 } from '../../utils/timeline-utils';
-import { calculateDuplicateFrame } from '@/shared/lib/timelinePositionCalculator';
 import { useTimelineDrag } from '../drag/useTimelineDrag';
 import { useTimelineSelection } from '../useTimelineSelection';
 import { usePendingFrames } from '../segment/usePendingFrames';
 import { useComputedTimelineData } from './useComputedTimelineData';
 import { useTimelineUiState } from './useTimelineUiState';
 import { useEndpointDrag } from '../drag/useEndpointDrag';
-import { useTapToMove } from '../drag/useTapToMove';
 import {
   useTimelineViewportController,
   type TimelineViewportControllerResult,
@@ -24,10 +20,17 @@ import {
 import { useUnifiedDrop } from '../drag/useUnifiedDrop';
 import type { GenerationRow } from '@/domains/generation/types';
 import type { PairData } from '../../TimelineContainer/types';
-import type { Resource, StructureVideoMetadata } from '@/shared/hooks/useResources';
+import type { Resource } from '@/shared/hooks/useResources';
 import type { PrimaryStructureVideo, StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 import type { VideoMetadata } from '@/shared/lib/media/videoUploader';
 import type { DragType } from '@/shared/lib/dnd/dragDrop';
+import {
+  handleTimelineStructureVideoSelect,
+  runDuplicateInterceptor,
+  runGenerationDropInterceptor,
+  runImageDropInterceptor,
+  useTimelineOrchestratorActions,
+} from './useTimelineOrchestratorActions';
 
 interface TimelineOrchestratorCoreProps {
   shotId: string;
@@ -160,43 +163,6 @@ interface UseTimelineOrchestratorReturn {
   };
 }
 
-interface ImageDropInterceptorArgs {
-  files: File[];
-  targetFrame?: number;
-  onFileDrop?: TimelineOrchestratorDropHandlers['onFileDrop'];
-  setPendingDropFrame: (frame: number | null) => void;
-}
-
-interface GenerationDropInterceptorArgs {
-  generationId: string;
-  imageUrl: string;
-  thumbUrl: string | undefined;
-  targetFrame?: number;
-  onGenerationDrop?: TimelineOrchestratorDropHandlers['onGenerationDrop'];
-  setPendingDropFrame: (frame: number | null) => void;
-  setIsInternalDropProcessing: (value: boolean) => void;
-}
-
-interface DuplicateInterceptorArgs {
-  imageId: string;
-  timelineFrame: number;
-  images: GenerationRow[];
-  framePositions: Map<string, number>;
-  onImageDuplicate: (imageId: string, timeline_frame: number) => void;
-  setPendingDuplicateFrame: (frame: number | null) => void;
-}
-
-interface StructureVideoSelectionArgs {
-  resource: Resource;
-  structureVideos?: StructureVideoConfigWithMetadata[];
-  primaryStructureVideo?: PrimaryStructureVideo;
-  onAddStructureVideo?: (video: StructureVideoConfigWithMetadata) => void;
-  onUpdateStructureVideo?: (index: number, updates: Partial<StructureVideoConfigWithMetadata>) => void;
-  onPrimaryStructureVideoInputChange?: TimelineOrchestratorStructureVideoConfig['onPrimaryStructureVideoInputChange'];
-  fullMax: number;
-  setShowVideoBrowser: (value: boolean) => void;
-}
-
 interface TimelineOrchestratorResultArgs {
   refs: UseTimelineOrchestratorReturn['refs'];
   viewport: UseTimelineOrchestratorReturn['viewport'];
@@ -209,121 +175,6 @@ interface TimelineOrchestratorResultArgs {
   endpoint: UseTimelineOrchestratorReturn['endpoint'];
   uiState: UseTimelineOrchestratorReturn['uiState'];
   device: UseTimelineOrchestratorReturn['device'];
-}
-
-export async function runImageDropInterceptor({
-  files,
-  targetFrame,
-  onFileDrop,
-  setPendingDropFrame,
-}: ImageDropInterceptorArgs): Promise<void> {
-  if (targetFrame !== undefined) {
-    setPendingDropFrame(targetFrame);
-  }
-  if (onFileDrop) {
-    await onFileDrop(files, targetFrame);
-  }
-}
-
-export async function runGenerationDropInterceptor({
-  generationId,
-  imageUrl,
-  thumbUrl,
-  targetFrame,
-  onGenerationDrop,
-  setPendingDropFrame,
-  setIsInternalDropProcessing,
-}: GenerationDropInterceptorArgs): Promise<void> {
-  if (targetFrame !== undefined) {
-    setPendingDropFrame(targetFrame);
-    setIsInternalDropProcessing(true);
-  }
-  try {
-    if (onGenerationDrop) {
-      await onGenerationDrop(generationId, imageUrl, thumbUrl, targetFrame);
-    }
-  } finally {
-    setIsInternalDropProcessing(false);
-    setPendingDropFrame(null);
-  }
-}
-
-export function runDuplicateInterceptor({
-  imageId,
-  timelineFrame,
-  images,
-  framePositions,
-  onImageDuplicate,
-  setPendingDuplicateFrame,
-}: DuplicateInterceptorArgs): void {
-  const sortedImages = [...images]
-    .filter((img) => img.timeline_frame !== undefined && img.timeline_frame !== null)
-    .sort((a, b) => (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0));
-
-  const currentIndex = sortedImages.findIndex((img) => img.timeline_frame === timelineFrame);
-  const nextImage = currentIndex >= 0 && currentIndex < sortedImages.length - 1
-    ? sortedImages[currentIndex + 1]
-    : null;
-
-  const existingFrames = images
-    .map((img) => img.timeline_frame)
-    .filter((frame): frame is number => frame !== null && frame !== undefined);
-  const nextFrame = nextImage?.timeline_frame;
-  const finalFrame = calculateDuplicateFrame({
-    currentFrame: timelineFrame,
-    nextFrame: nextFrame ?? null,
-    existingFrames,
-    singleItemTrailingFrame: framePositions.get(TRAILING_ENDPOINT_KEY) ?? null,
-    isSingleItem: images.length === 1,
-  });
-
-  setPendingDuplicateFrame(finalFrame);
-  onImageDuplicate(imageId, finalFrame);
-}
-
-export function handleTimelineStructureVideoSelect({
-  resource,
-  structureVideos,
-  primaryStructureVideo,
-  onAddStructureVideo,
-  onUpdateStructureVideo,
-  onPrimaryStructureVideoInputChange,
-  fullMax,
-  setShowVideoBrowser,
-}: StructureVideoSelectionArgs): void {
-  const metadata = resource.metadata as StructureVideoMetadata;
-  if (onAddStructureVideo && metadata.videoMetadata) {
-    const placement = calculateNewVideoPlacement(
-      metadata.videoMetadata.total_frames,
-      structureVideos,
-      fullMax,
-    );
-
-    if (placement.lastVideoUpdate && onUpdateStructureVideo) {
-      onUpdateStructureVideo(placement.lastVideoUpdate.index, {
-        end_frame: placement.lastVideoUpdate.newEndFrame,
-      });
-    }
-
-    onAddStructureVideo({
-      path: metadata.videoUrl,
-      start_frame: placement.start_frame,
-      end_frame: placement.end_frame,
-      treatment: 'adjust',
-      metadata: metadata.videoMetadata,
-      resource_id: resource.id,
-    });
-  } else if (onPrimaryStructureVideoInputChange) {
-    onPrimaryStructureVideoInputChange(
-      metadata.videoUrl,
-      metadata.videoMetadata,
-      primaryStructureVideo?.treatment ?? 'adjust',
-      primaryStructureVideo?.motionStrength ?? 1.0,
-      primaryStructureVideo?.structureType ?? 'flow',
-    );
-  }
-
-  setShowVideoBrowser(false);
 }
 
 function buildTimelineOrchestratorResult({
@@ -475,55 +326,15 @@ export function useTimelineOrchestrator({
     }
   }, [uiState]);
 
-  const handleImageDropInterceptor = useCallback(async (files: File[], targetFrame?: number) => {
-    await runImageDropInterceptor({
-      files,
-      targetFrame,
-      onFileDrop,
-      setPendingDropFrame,
-    });
-  }, [onFileDrop, setPendingDropFrame]);
-
-  const handleGenerationDropInterceptor = useCallback(async (
-    generationId: string,
-    imageUrl: string,
-    thumbUrl: string | undefined,
-    targetFrame?: number,
-  ) => {
-    await runGenerationDropInterceptor({
-      generationId,
-      imageUrl,
-      thumbUrl,
-      targetFrame,
-      onGenerationDrop,
-      setPendingDropFrame,
-      setIsInternalDropProcessing,
-    });
-  }, [onGenerationDrop, setIsInternalDropProcessing, setPendingDropFrame]);
-
-  const drop = useUnifiedDrop({
-    onFileDrop: handleImageDropInterceptor,
-    onGenerationDrop: handleGenerationDropInterceptor,
-    fullMin: viewport.fullMin,
-    fullRange: viewport.fullRange,
-  });
-
-  const handleDuplicateInterceptor = useCallback((imageId: string, timelineFrame: number) => {
-    runDuplicateInterceptor({
-      imageId,
-      timelineFrame,
-      images,
-      framePositions,
-      onImageDuplicate,
-      setPendingDuplicateFrame,
-    });
-  }, [framePositions, images, onImageDuplicate, setPendingDuplicateFrame]);
-
   const {
+    handleImageDropInterceptor,
+    handleGenerationDropInterceptor,
+    handleDuplicateInterceptor,
     handleTapToMoveAction,
     handleTapToMoveMultiAction,
     handleTimelineTapToMove,
-  } = useTapToMove({
+    handleVideoBrowserSelect,
+  } = useTimelineOrchestratorActions({
     enableTapToMove,
     framePositions,
     setFramePositions,
@@ -534,28 +345,27 @@ export function useTimelineOrchestrator({
     selectedIds,
     clearSelection,
     containerRef,
+    images,
+    onImageDuplicate,
+    setPendingDuplicateFrame,
+    onFileDrop,
+    setPendingDropFrame,
+    onGenerationDrop,
+    setIsInternalDropProcessing,
+    structureVideos,
+    primaryStructureVideo,
+    onAddStructureVideo,
+    onUpdateStructureVideo,
+    onPrimaryStructureVideoInputChange,
+    setShowVideoBrowser: uiState.setShowVideoBrowser,
   });
 
-  const handleVideoBrowserSelect = useCallback((resource: Resource) => {
-    handleTimelineStructureVideoSelect({
-      resource,
-      structureVideos,
-      primaryStructureVideo,
-      onAddStructureVideo,
-      onUpdateStructureVideo,
-      onPrimaryStructureVideoInputChange,
-      fullMax: viewport.fullMax,
-      setShowVideoBrowser: uiState.setShowVideoBrowser,
-    });
-  }, [
-    onAddStructureVideo,
-    onPrimaryStructureVideoInputChange,
-    onUpdateStructureVideo,
-    primaryStructureVideo,
-    structureVideos,
-    uiState,
-    viewport.fullMax,
-  ]);
+  const drop = useUnifiedDrop({
+    onFileDrop: handleImageDropInterceptor,
+    onGenerationDrop: handleGenerationDropInterceptor,
+    fullMin: viewport.fullMin,
+    fullRange: viewport.fullRange,
+  });
 
   const {
     endpointDragFrame,

@@ -244,9 +244,9 @@ function extractThumbnailUrl(item: RawGeneration, mainUrl: string): string {
 }
 
 /**
- * Normalize timeline_frame to position (divide by 50)
+ * Convert a timeline frame into the legacy 50-frame position bucket.
  */
-function normalizePosition(timelineFrame: number | null | undefined): number | null {
+function timelineFrameToPositionBucket(timelineFrame: number | null | undefined): number | null {
   if (timelineFrame === null || timelineFrame === undefined) return null;
   return Math.floor(timelineFrame / 50);
 }
@@ -330,7 +330,7 @@ export function transformGeneration(
       ...baseItem,
       shotImageEntryId: options.shotImageEntryId,
       timeline_frame: options.timeline_frame ?? null,
-      position: normalizePosition(options.timeline_frame),
+      position: timelineFrameToPositionBucket(options.timeline_frame),
     };
   }
 
@@ -342,7 +342,7 @@ export function transformGeneration(
       return {
         ...baseItem,
         shot_id: singleShot.shot_id,
-        position: normalizePosition(singleShot.timeline_frame),
+        position: timelineFrameToPositionBucket(singleShot.timeline_frame),
         timeline_frame: singleShot.timeline_frame,
       };
     }
@@ -351,7 +351,7 @@ export function transformGeneration(
     const allAssociations = shotGenerations.map(shotGen => ({
       shot_id: shotGen.shot_id,
       timeline_frame: shotGen.timeline_frame,
-      position: normalizePosition(shotGen.timeline_frame),
+      position: timelineFrameToPositionBucket(shotGen.timeline_frame),
     }));
     
     // When filtering by specific shot, use that shot as primary
@@ -366,7 +366,7 @@ export function transformGeneration(
     return {
       ...baseItem,
       shot_id: primaryShot.shot_id,
-      position: normalizePosition(primaryShot.timeline_frame),
+      position: timelineFrameToPositionBucket(primaryShot.timeline_frame),
       timeline_frame: primaryShot.timeline_frame,
       all_shot_associations: allAssociations,
     };
