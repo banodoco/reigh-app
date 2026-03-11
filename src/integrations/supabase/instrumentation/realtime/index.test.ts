@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   isCorruptionTraceEnabled: vi.fn(() => false),
@@ -37,6 +37,22 @@ vi.mock('./referencePatchers', () => ({
 import { installRealtimeInstrumentation } from './index';
 
 describe('installRealtimeInstrumentation', () => {
+  const originalWindow = globalThis.window;
+
+  beforeAll(() => {
+    // The production code gates on `typeof window !== 'undefined'`.
+    // Provide a minimal stub so the guard passes in Node.
+    if (typeof globalThis.window === 'undefined') {
+      (globalThis as Record<string, unknown>).window = {};
+    }
+  });
+
+  afterAll(() => {
+    if (originalWindow === undefined) {
+      delete (globalThis as Record<string, unknown>).window;
+    }
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.isCorruptionTraceEnabled.mockReturnValue(false);
