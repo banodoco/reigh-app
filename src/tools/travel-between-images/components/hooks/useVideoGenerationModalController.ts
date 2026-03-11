@@ -18,9 +18,8 @@ import { findClosestAspectRatio } from '@/shared/lib/media/aspectRatios';
 import { useEnqueueGenerationsInvalidation } from '@/shared/hooks/invalidation/useGenerationInvalidation';
 import {
   DEFAULT_STRUCTURE_VIDEO,
-  type StructureVideoConfigWithMetadata,
+  resolveTravelStructureState,
 } from '@/shared/lib/tasks/travelBetweenImages';
-import { buildStructureGuidanceFromControls } from '@/shared/lib/tasks/structureGuidance';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { buildBasicModeGenerationRequest as buildBasicModePhaseConfig } from '../ShotEditor/services/generateVideo/modelPhase';
 import { generateVideo } from '../ShotEditor/services/generateVideoService';
@@ -252,6 +251,17 @@ export function useVideoGenerationModalController({ isOpen, onClose, shot }: {
     () => mapSelectedLorasToActiveLoras(settings.loras),
     [settings.loras],
   );
+  const structureState = useMemo(
+    () => resolveTravelStructureState(settings, {
+      defaultEndFrame: settings.batchVideoFrames || 61,
+      defaultVideoTreatment: DEFAULT_STRUCTURE_VIDEO.treatment,
+      defaultMotionStrength: DEFAULT_STRUCTURE_VIDEO.motion_strength,
+      defaultStructureType: DEFAULT_STRUCTURE_VIDEO.structure_type,
+      defaultUni3cEndPercent: DEFAULT_STRUCTURE_VIDEO.uni3c_end_percent,
+    }),
+    [settings],
+  );
+  const hasStructureVideo = structureState.structureVideos.length > 0;
 
   const validPresetId = useMemo(() => {
     const presetId = settings.selectedPhasePresetId;
@@ -311,29 +321,6 @@ export function useVideoGenerationModalController({ isOpen, onClose, shot }: {
         ? settings.phaseConfig || DEFAULT_PHASE_CONFIG
         : basicPhaseConfig;
 
-      const structureVideos: StructureVideoConfigWithMetadata[] = settings.structureVideo?.path
-        ? [
-            {
-              path: settings.structureVideo.path,
-              start_frame: 0,
-              end_frame: settings.batchVideoFrames || 61,
-              treatment: settings.structureVideo.treatment || 'adjust',
-              metadata: settings.structureVideo.metadata ?? null,
-            },
-          ]
-        : [];
-      const structureGuidance = buildStructureGuidanceFromControls({
-        structureVideos,
-        controls: {
-          structureType: settings.structureVideo?.structureType || DEFAULT_STRUCTURE_VIDEO.structure_type,
-          motionStrength: settings.structureVideo?.motionStrength ?? DEFAULT_STRUCTURE_VIDEO.motion_strength,
-          uni3cStartPercent: 0,
-          uni3cEndPercent: settings.structureVideo?.uni3cEndPercent ?? DEFAULT_STRUCTURE_VIDEO.uni3c_end_percent,
-        },
-        defaultVideoTreatment: DEFAULT_STRUCTURE_VIDEO.treatment,
-        defaultUni3cEndPercent: DEFAULT_STRUCTURE_VIDEO.uni3c_end_percent,
-      });
-
       const mergedSteerableSettings = {
         ...DEFAULT_STEERABLE_MOTION_SETTINGS,
         ...(settings.steerableMotionSettings || {}),
@@ -367,8 +354,8 @@ export function useVideoGenerationModalController({ isOpen, onClose, shot }: {
           debug: mergedSteerableSettings.debug || false,
           generation_type_mode: settings.generationTypeMode || 'i2v',
         },
-        structureGuidance,
-        structureVideos,
+        structureGuidance: structureState.structureGuidance,
+        structureVideos: structureState.structureVideos,
         batchVideoFrames: settings.batchVideoFrames || 61,
         selectedLoras: selectedLoras.map((lora) => ({
           id: lora.id,
@@ -415,6 +402,7 @@ export function useVideoGenerationModalController({ isOpen, onClose, shot }: {
     updateField,
     selectedLoras,
     settings,
+    structureState,
     queryClient,
     effectiveAspectRatio,
     uiSettings.randomSeed,
@@ -434,6 +422,7 @@ export function useVideoGenerationModalController({ isOpen, onClose, shot }: {
     isGenerating,
     justQueued,
     isDisabled: isGenerating || isLoading || positionedImages.length < 1,
+    hasStructureVideo,
     ...uiSettings,
     validPresetId,
     selectedLoras,

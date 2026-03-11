@@ -16,7 +16,7 @@ import { FinalVideoSection } from './FinalVideoSection';
 import {
   transformGenerationToParentRow,
   calculateColumnsForDevice,
-  extractStructureVideos,
+  extractStructureState,
 } from '../utils/shareDataTransformers';
 import { useShareActions } from '../hooks/useShareActions';
 import { resolvePrimaryStructureVideo } from '@/shared/lib/tasks/travelBetweenImages';
@@ -87,9 +87,12 @@ export const SharedGenerationView: React.FC<SharedGenerationViewProps> = ({
   const loras = settings?.loras || [];
   const textBeforePrompts = settings?.textBeforePrompts || '';
   const textAfterPrompts = settings?.textAfterPrompts || '';
-  // Multi-video array support - uses utility to handle both single and array formats
-  const structureVideos = extractStructureVideos(settings);
-  const primaryStructureVideo = resolvePrimaryStructureVideo(structureVideos);
+  const structureState = useMemo(() => extractStructureState(settings), [settings]);
+  const structureVideos = structureState.structureVideos;
+  const primaryStructureVideo = resolvePrimaryStructureVideo(
+    structureVideos,
+    structureState.structureGuidance,
+  );
 
   // Calculate columns to match actual page behavior using utility function
   const columns = calculateColumnsForDevice(mobileColumns);

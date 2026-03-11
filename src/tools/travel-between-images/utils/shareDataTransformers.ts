@@ -11,17 +11,12 @@ import type { GenerationRow } from '@/domains/generation/types';
 import type { GenerationRowDto } from '@/domains/generation/types/generationRowDto';
 import { mapGenerationRowDtoToRow } from '@/domains/generation/mappers/generationRowMapper';
 import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
-import type { StructureVideoConfigWithLegacyGuidance } from '@/shared/lib/tasks/travelBetweenImages';
-import type { VideoMetadata } from '@/shared/lib/media/videoUploader';
-
-type SharedStructureType = 'uni3c' | 'flow' | 'canny' | 'depth';
-
-function parseStructureType(value: unknown): SharedStructureType {
-  if (value === 'flow' || value === 'canny' || value === 'depth' || value === 'uni3c') {
-    return value;
-  }
-  return 'uni3c';
-}
+import {
+  DEFAULT_STRUCTURE_VIDEO,
+  resolveTravelStructureState,
+  type ResolvedTravelStructureState,
+  type StructureVideoConfigWithMetadata,
+} from '@/shared/lib/tasks/travelBetweenImages';
 
 /**
  * Transform a shared generation (video) to the GenerationRow format expected by FinalVideoSection.
@@ -84,61 +79,31 @@ export function calculateColumnsForDevice(
 }
 
 /**
- * Extract structure video configuration from settings.
- *
- * Handles both single structure video (legacy) and multi-video array formats.
+ * Extract canonical structure guidance state from share settings.
  *
  * @param settings - The travel settings object
- * @returns Array of structure video configurations
+ * @returns Canonical structure state
+ */
+export function extractStructureState(
+  settings: Record<string, unknown> | null | undefined
+): ResolvedTravelStructureState {
+  return resolveTravelStructureState(settings, {
+    defaultEndFrame: 300,
+    defaultVideoTreatment: DEFAULT_STRUCTURE_VIDEO.treatment,
+    defaultMotionStrength: DEFAULT_STRUCTURE_VIDEO.motion_strength,
+    defaultStructureType: DEFAULT_STRUCTURE_VIDEO.structure_type,
+    defaultUni3cEndPercent: DEFAULT_STRUCTURE_VIDEO.uni3c_end_percent,
+  });
+}
+
+/**
+ * Extract structure video configuration from settings.
+ *
+ * @param settings - The travel settings object
+ * @returns Canonical structure video configurations
  */
 export function extractStructureVideos(
   settings: Record<string, unknown> | null | undefined
-): StructureVideoConfigWithLegacyGuidance[] {
-  if (!settings) return [];
-
-  const structureVideo = settings.structureVideo as Record<string, unknown> | undefined;
-  const structureVideos = settings.structureVideos;
-
-  // Prefer the array format if present
-  if (structureVideos && Array.isArray(structureVideos) && structureVideos.length > 0) {
-    const parsedVideos: StructureVideoConfigWithLegacyGuidance[] = [];
-    structureVideos.forEach((video) => {
-      const raw = (video && typeof video === 'object') ? video as Record<string, unknown> : null;
-      if (!raw || typeof raw.path !== 'string') return;
-
-      const metadata = (raw.metadata && typeof raw.metadata === 'object')
-        ? raw.metadata as VideoMetadata
-        : null;
-
-      parsedVideos.push({
-        path: raw.path,
-        start_frame: typeof raw.start_frame === 'number' ? raw.start_frame : 0,
-        end_frame: typeof raw.end_frame === 'number' ? raw.end_frame : 300,
-        treatment: raw.treatment === 'clip' ? 'clip' : 'adjust',
-        motion_strength: typeof raw.motion_strength === 'number' ? raw.motion_strength : 1.0,
-        structure_type: parseStructureType(raw.structure_type),
-        metadata,
-        uni3c_end_percent: typeof raw.uni3c_end_percent === 'number' ? raw.uni3c_end_percent : undefined,
-      });
-    });
-    return parsedVideos;
-  }
-
-  // Fall back to single video format
-  if (structureVideo && structureVideo.path) {
-    return [{
-      path: structureVideo.path as string,
-      start_frame: (structureVideo.startFrame as number) ?? 0,
-      end_frame: (structureVideo.endFrame as number) ?? 300,
-      treatment: (structureVideo.treatment as 'adjust' | 'clip') || 'adjust',
-      motion_strength: (structureVideo.motionStrength as number) ?? 1.0,
-      structure_type: parseStructureType(structureVideo.structureType),
-      metadata: (structureVideo.metadata as VideoMetadata) || null,
-      uni3c_end_percent: typeof structureVideo.uni3cEndPercent === 'number'
-        ? structureVideo.uni3cEndPercent
-        : undefined,
-    }];
-  }
-
-  return [];
+): StructureVideoConfigWithMetadata[] {
+  return extractStructureState(settings).structureVideos;
 }

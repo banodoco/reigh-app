@@ -125,6 +125,7 @@ interface VideoGenerationModalFormContentProps {
   randomSeed: boolean;
   onRandomSeedChange: (value: boolean) => void;
   imageCount: number;
+  hasStructureVideo: boolean;
   validPresetId: string | undefined;
   status: 'idle' | 'loading' | 'ready' | 'saving' | 'error';
   onOpenLoraModal: () => void;
@@ -145,6 +146,7 @@ export function VideoGenerationModalFormContent({
   randomSeed,
   onRandomSeedChange,
   imageCount,
+  hasStructureVideo,
   validPresetId,
   status,
   onOpenLoraModal,
@@ -216,7 +218,7 @@ export function VideoGenerationModalFormContent({
               },
               generationTypeMode: settings.generationTypeMode || 'i2v',
               onGenerationTypeModeChange: (v) => updateField('generationTypeMode', v),
-              hasStructureVideo: !!settings.structureVideo?.path,
+              hasStructureVideo,
             }}
             lora={{
               selectedLoras,

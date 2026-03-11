@@ -131,6 +131,7 @@ describe('VideoGenerationModalSections', () => {
         randomSeed={false}
         onRandomSeedChange={vi.fn()}
         imageCount={2}
+        hasStructureVideo={false}
         validPresetId={undefined}
         status="ready"
         onOpenLoraModal={vi.fn()}

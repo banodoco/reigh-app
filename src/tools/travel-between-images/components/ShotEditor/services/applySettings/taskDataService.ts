@@ -1,17 +1,12 @@
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import {
   DEFAULT_STRUCTURE_VIDEO,
-  type StructureGuidanceConfig,
-  type StructureVideoConfigWithMetadata,
+  resolveTravelStructureState,
 } from '@/shared/lib/tasks/travelBetweenImages';
-import {
-  normalizeStructureGuidance,
-} from '@/shared/lib/tasks/structureGuidance';
 import {
   collectTravelStructureLegacyUsage,
   enforceTravelStructureLegacyPolicy,
 } from '@/shared/lib/tasks/travelBetweenImages/legacyStructureVideo';
-import type { VideoMetadata } from '@/shared/lib/media/videoUploader';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type {
   ExtractedSettings,
@@ -52,70 +47,62 @@ export const fetchTask = async (taskId: string): Promise<TaskData | null> => {
 function extractStructureSettings(taskData: TaskData): ExtractedStructureVideoSettings {
   const params = taskData.params as Record<string, unknown>;
   const orchestrator = taskData.orchestrator as Record<string, unknown>;
-  const structureGuidance = (orchestrator.structure_guidance ?? params.structure_guidance) as Record<string, unknown> | undefined;
-  const rawStructureVideos = (
-    orchestrator.structure_videos ??
-    params.structure_videos ??
-    structureGuidance?.videos
-  ) as Array<Record<string, unknown>> | undefined;
+  const structureSource = {
+    structure_guidance: orchestrator.structure_guidance ?? params.structure_guidance,
+    structure_videos: (
+      orchestrator.structure_videos ??
+      params.structure_videos ??
+      ((orchestrator.structure_guidance ?? params.structure_guidance) as Record<string, unknown> | undefined)?.videos
+    ),
+    structure_video_path: orchestrator.structure_video_path ?? params.structure_video_path,
+    structure_video_treatment: orchestrator.structure_video_treatment ?? params.structure_video_treatment,
+    structure_video_type: orchestrator.structure_video_type
+      ?? orchestrator.structure_type
+      ?? params.structure_video_type
+      ?? params.structure_type,
+    structure_video_motion_strength: orchestrator.structure_video_motion_strength ?? params.structure_video_motion_strength,
+    structure_canny_intensity: orchestrator.structure_canny_intensity ?? params.structure_canny_intensity,
+    structure_depth_contrast: orchestrator.structure_depth_contrast ?? params.structure_depth_contrast,
+    uni3c_start_percent: orchestrator.uni3c_start_percent ?? params.uni3c_start_percent,
+    uni3c_end_percent: orchestrator.uni3c_end_percent ?? params.uni3c_end_percent,
+    use_uni3c: orchestrator.use_uni3c ?? params.use_uni3c,
+  };
+  const legacyUsage = collectTravelStructureLegacyUsage(structureSource);
   const presentInTask =
-    Boolean(structureGuidance)
-    || Array.isArray(rawStructureVideos)
-    || 'structure_video_path' in orchestrator
-    || 'structure_video_path' in params;
+    Boolean(structureSource.structure_guidance)
+    || Array.isArray(structureSource.structure_videos)
+    || structureSource.structure_video_path !== undefined
+    || structureSource.structure_video_treatment !== undefined
+    || structureSource.structure_video_type !== undefined
+    || structureSource.structure_video_motion_strength !== undefined
+    || structureSource.structure_canny_intensity !== undefined
+    || structureSource.structure_depth_contrast !== undefined
+    || structureSource.uni3c_start_percent !== undefined
+    || structureSource.uni3c_end_percent !== undefined
+    || structureSource.use_uni3c !== undefined
+    || legacyUsage.topLevelFields.length > 0
+    || legacyUsage.structureVideoFields.length > 0;
 
   enforceTravelStructureLegacyPolicy(
-    collectTravelStructureLegacyUsage({
-      ...params,
-      ...orchestrator,
-      structure_videos: rawStructureVideos,
-    }),
+    legacyUsage,
     {
       context: 'applySettings.extractSettings',
       enforcement: 'warn',
     },
   );
 
-  const normalizedStructureGuidance = normalizeStructureGuidance({
-    structureGuidance,
-    structureVideos: rawStructureVideos,
-    structureVideoPath: orchestrator.structure_video_path ?? params.structure_video_path,
-    structureVideoTreatment: orchestrator.structure_video_treatment ?? params.structure_video_treatment,
-    structureVideoType: orchestrator.structure_video_type
-      ?? orchestrator.structure_type
-      ?? params.structure_video_type
-      ?? params.structure_type,
-    structureVideoMotionStrength: orchestrator.structure_video_motion_strength ?? params.structure_video_motion_strength,
-    structureVideoCannyIntensity: orchestrator.structure_canny_intensity ?? params.structure_canny_intensity,
-    structureVideoDepthContrast: orchestrator.structure_depth_contrast ?? params.structure_depth_contrast,
-    uni3cStartPercent: orchestrator.uni3c_start_percent ?? params.uni3c_start_percent,
-    uni3cEndPercent: orchestrator.uni3c_end_percent ?? params.uni3c_end_percent,
-    useUni3c: orchestrator.use_uni3c ?? params.use_uni3c,
+  const resolvedStructure = resolveTravelStructureState(structureSource, {
+    defaultEndFrame: 0,
     defaultVideoTreatment: DEFAULT_STRUCTURE_VIDEO.treatment,
+    defaultMotionStrength: DEFAULT_STRUCTURE_VIDEO.motion_strength,
+    defaultStructureType: DEFAULT_STRUCTURE_VIDEO.structure_type,
     defaultUni3cEndPercent: DEFAULT_STRUCTURE_VIDEO.uni3c_end_percent,
-  }) as StructureGuidanceConfig | undefined;
-
-  const guidanceVideos = Array.isArray(normalizedStructureGuidance?.videos)
-    ? normalizedStructureGuidance.videos
-    : [];
-  const structureVideos = (guidanceVideos.length > 0 ? guidanceVideos : (rawStructureVideos ?? []))
-    .filter((video): video is Record<string, unknown> => typeof video?.path === 'string' && video.path.length > 0)
-    .map((video, index): StructureVideoConfigWithMetadata => {
-      const rawVideo = rawStructureVideos?.[index];
-      return {
-        path: video.path as string,
-        start_frame: typeof video.start_frame === 'number' ? video.start_frame : 0,
-        end_frame: typeof video.end_frame === 'number' ? video.end_frame : 0,
-        treatment: video.treatment === 'clip' ? 'clip' : 'adjust',
-        ...(rawVideo?.metadata ? { metadata: rawVideo.metadata as VideoMetadata } : {}),
-        ...(typeof rawVideo?.resource_id === 'string' ? { resource_id: rawVideo.resource_id } : {}),
-      };
-    });
+  });
 
   return {
     presentInTask,
-    ...(normalizedStructureGuidance ? { structureGuidance: normalizedStructureGuidance } : {}),
-    ...(structureVideos.length > 0 ? { structureVideos } : {}),
+    ...(resolvedStructure.structureGuidance ? { structureGuidance: resolvedStructure.structureGuidance } : {}),
+    ...(resolvedStructure.structureVideos.length > 0 ? { structureVideos: resolvedStructure.structureVideos } : {}),
   };
 }
 

@@ -1,12 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/shared/lib/tasks/travelBetweenImages/legacyStructureVideo', () => ({
-  collectTravelStructureLegacyUsage: vi.fn(() => ({
-    topLevelFields: [],
-    structureVideoFields: [],
-  })),
-  enforceTravelStructureLegacyPolicy: vi.fn(() => false),
-}));
+vi.mock('@/shared/lib/tasks/travelBetweenImages/legacyStructureVideo', async () => {
+  const actual = await vi.importActual<typeof import('@/shared/lib/tasks/travelBetweenImages/legacyStructureVideo')>(
+    '@/shared/lib/tasks/travelBetweenImages/legacyStructureVideo',
+  );
+  return {
+    ...actual,
+    collectTravelStructureLegacyUsage: vi.fn(() => ({
+      topLevelFields: [],
+      structureVideoFields: [],
+    })),
+    enforceTravelStructureLegacyPolicy: vi.fn(() => false),
+  };
+});
 
 import { extractSettings } from './taskDataService';
 

@@ -24,6 +24,11 @@ export {
   resolvePrimaryStructureVideo,
   type PrimaryStructureVideo,
 } from './primaryStructureVideo';
+export {
+  resolveTravelStructureState,
+  type ResolveTravelStructureStateOptions,
+  type ResolvedTravelStructureState,
+} from './structureState';
 ;
 
 // buildTravelBetweenImagesPayload is internal - used by createTravelBetweenImagesTask

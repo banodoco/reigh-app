@@ -5,13 +5,12 @@ import {
   DEFAULT_STRUCTURE_VIDEO,
   type StructureGuidanceConfig,
   resolvePrimaryStructureVideo,
+  resolveTravelStructureState,
   StructureVideoConfig,
   StructureVideoConfigWithMetadata,
 } from '@/shared/lib/tasks/travelBetweenImages';
-import { migrateLegacyStructureVideos } from '@/shared/lib/tasks/travelBetweenImages/legacyStructureVideo';
 import {
   buildStructureGuidanceFromControls,
-  normalizeStructureGuidance,
   type StructureGuidanceControls,
   resolveStructureGuidanceControls,
 } from '@/shared/lib/tasks/structureGuidance';
@@ -64,12 +63,6 @@ interface StructureVideoSettings {
   structure_guidance?: StructureGuidanceConfig;
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : null;
-}
-
 function parseString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
@@ -111,44 +104,6 @@ function sanitizeEditableStructureVideos(
     .filter((video): video is StructureVideoConfigWithMetadata => video !== null);
 }
 
-function mergeStoredStructureVideos(
-  rawVideos: StructureVideoConfigWithMetadata[],
-  structureGuidance: Record<string, unknown> | undefined,
-  defaultEndFrame: number,
-): StructureVideoConfigWithMetadata[] {
-  const guidanceVideos = Array.isArray(structureGuidance?.videos)
-    ? structureGuidance.videos.map((video) => asRecord(video)).filter((video): video is Record<string, unknown> => !!video)
-    : [];
-  const sourceVideos = guidanceVideos.length > 0 ? guidanceVideos : rawVideos;
-
-  return sourceVideos
-    .map((video, index) => {
-      const path = parseString(video.path);
-      if (!path) {
-        return null;
-      }
-
-      const rawVideo = rawVideos[index];
-      const mergedVideo = {
-        path,
-        start_frame: parseNumber(video.start_frame) ?? 0,
-        end_frame: parseNumber(video.end_frame) ?? defaultEndFrame,
-        treatment: parseTreatment(video.treatment) ?? DEFAULT_STRUCTURE_VIDEO.treatment,
-        ...(parseNumber(video.source_start_frame) !== undefined
-          ? { source_start_frame: parseNumber(video.source_start_frame) }
-          : {}),
-        ...(video.source_end_frame === null || parseNumber(video.source_end_frame) !== undefined
-          ? { source_end_frame: video.source_end_frame ?? null }
-          : {}),
-        metadata: rawVideo?.metadata ?? null,
-        resource_id: rawVideo?.resource_id ?? null,
-      } satisfies StructureVideoConfigWithMetadata;
-
-      return mergedVideo;
-    })
-    .filter((video): video is StructureVideoConfigWithMetadata => video !== null);
-}
-
 /**
  * Hook to manage structure video state with database persistence.
  * Loads the canonical `structure_videos` + `structure_guidance` pair and
@@ -169,8 +124,8 @@ export function useStructureVideo({
     debounceMs: 100,
   });
 
-  const migratedStructureVideos = useMemo(
-    () => migrateLegacyStructureVideos(settings.settings ?? null, {
+  const resolvedStructureState = useMemo(
+    () => resolveTravelStructureState(settings.settings ?? null, {
       defaultEndFrame: timelineEndFrame,
       defaultVideoTreatment: DEFAULT_STRUCTURE_VIDEO.treatment,
       defaultMotionStrength: DEFAULT_STRUCTURE_VIDEO.motion_strength,
@@ -180,15 +135,7 @@ export function useStructureVideo({
     [settings.settings, timelineEndFrame],
   );
 
-  const structureGuidance = useMemo(
-    () => normalizeStructureGuidance({
-      structureGuidance: settings.settings?.structure_guidance,
-      structureVideos: migratedStructureVideos,
-      defaultVideoTreatment: DEFAULT_STRUCTURE_VIDEO.treatment,
-      defaultUni3cEndPercent: DEFAULT_STRUCTURE_VIDEO.uni3c_end_percent,
-    }) as StructureGuidanceConfig | undefined,
-    [migratedStructureVideos, settings.settings?.structure_guidance],
-  );
+  const structureGuidance = resolvedStructureState.structureGuidance as StructureGuidanceConfig | undefined;
 
   const structureControls = useMemo(
     () => resolveStructureGuidanceControls(structureGuidance, {
@@ -199,14 +146,7 @@ export function useStructureVideo({
     [structureGuidance],
   );
 
-  const structureVideos = useMemo(
-    () => mergeStoredStructureVideos(
-      migratedStructureVideos,
-      asRecord(structureGuidance),
-      timelineEndFrame,
-    ),
-    [migratedStructureVideos, structureGuidance, timelineEndFrame],
-  );
+  const structureVideos = resolvedStructureState.structureVideos;
 
   const setStructureVideos = useCallback((videos: StructureVideoConfigWithMetadata[]) => {
     const sanitizedVideos = sanitizeEditableStructureVideos(videos, timelineEndFrame);

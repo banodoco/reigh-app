@@ -13,6 +13,7 @@ vi.mock('@/shared/lib/mediaTypeHelpers', () => ({
 import {
   transformGenerationToParentRow,
   calculateColumnsForDevice,
+  extractStructureState,
   extractStructureVideos,
 } from '../shareDataTransformers';
 
@@ -98,7 +99,7 @@ describe('extractStructureVideos', () => {
   it('prefers array format (structureVideos) when present', () => {
     const settings = {
       structureVideos: [
-        { path: '/v1.mp4', start_frame: 0, end_frame: 100, treatment: 'adjust', motion_strength: 1.0, structure_type: 'uni3c', metadata: null },
+        { path: '/v1.mp4', startFrame: 0, endFrame: 100, treatment: 'adjust', motionStrength: 1.0, structureType: 'uni3c', metadata: null },
       ],
       structureVideo: { path: '/legacy.mp4' },
     };
@@ -127,8 +128,6 @@ describe('extractStructureVideos', () => {
     expect(result[0].start_frame).toBe(10);
     expect(result[0].end_frame).toBe(200);
     expect(result[0].treatment).toBe('clip');
-    expect(result[0].motion_strength).toBe(0.8);
-    expect(result[0].structure_type).toBe('flow');
   });
 
   it('uses defaults for missing single video fields', () => {
@@ -140,8 +139,6 @@ describe('extractStructureVideos', () => {
     expect(result[0].start_frame).toBe(0);
     expect(result[0].end_frame).toBe(300);
     expect(result[0].treatment).toBe('adjust');
-    expect(result[0].motion_strength).toBe(1.0);
-    expect(result[0].structure_type).toBe('uni3c');
   });
 
   it('returns empty array when structureVideo has no path', () => {
@@ -152,5 +149,26 @@ describe('extractStructureVideos', () => {
   it('returns empty array when structureVideos is empty array', () => {
     const settings = { structureVideos: [] };
     expect(extractStructureVideos(settings)).toEqual([]);
+  });
+});
+
+describe('extractStructureState', () => {
+  it('keeps canonical guidance alongside normalized share videos', () => {
+    const result = extractStructureState({
+      structureVideo: {
+        path: '/legacy.mp4',
+        motionStrength: 0.75,
+        structureType: 'depth',
+      },
+    });
+
+    expect(result.structureGuidance).toEqual(expect.objectContaining({
+      target: 'vace',
+      preprocessing: 'depth',
+      strength: 0.75,
+    }));
+    expect(result.structureVideos[0]).toEqual(expect.objectContaining({
+      path: '/legacy.mp4',
+    }));
   });
 });

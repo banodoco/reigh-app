@@ -42,6 +42,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
     isGenerating,
     justQueued,
     isDisabled,
+    hasStructureVideo,
     accelerated,
     setAccelerated,
     randomSeed,
@@ -93,6 +94,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
                 randomSeed={randomSeed}
                 onRandomSeedChange={setRandomSeed}
                 imageCount={positionedImages.length}
+                hasStructureVideo={hasStructureVideo}
                 validPresetId={validPresetId}
                 status={status}
                 onOpenLoraModal={openLoraModal}

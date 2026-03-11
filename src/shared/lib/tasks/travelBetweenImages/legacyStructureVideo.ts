@@ -15,6 +15,10 @@ interface LegacyStructureVideoConfig extends StructureVideoConfig {
   motion_strength?: number;
   /** @deprecated Use structure_guidance.target + preprocessing instead */
   structure_type?: 'uni3c' | 'flow' | 'canny' | 'depth';
+  /** @deprecated Use structure_guidance.canny_intensity instead */
+  canny_intensity?: number;
+  /** @deprecated Use structure_guidance.depth_contrast instead */
+  depth_contrast?: number;
   /** @deprecated Use structure_guidance.step_window[0] instead */
   uni3c_start_percent?: number;
   /** @deprecated Use structure_guidance.step_window[1] instead */
@@ -164,7 +168,18 @@ export function migrateLegacyStructureVideos(
   const topLevelMotionStrength = parseNumber(
     settings.structure_video_motion_strength ?? settings.motionStrength,
   );
-  const topLevelUni3cEndPercent = parseNumber(settings.uni3c_end_percent);
+  const topLevelCannyIntensity = parseNumber(
+    settings.structure_canny_intensity ?? settings.cannyIntensity,
+  );
+  const topLevelDepthContrast = parseNumber(
+    settings.structure_depth_contrast ?? settings.depthContrast,
+  );
+  const topLevelUni3cStartPercent = parseNumber(
+    settings.uni3c_start_percent ?? settings.uni3cStartPercent,
+  );
+  const topLevelUni3cEndPercent = parseNumber(
+    settings.uni3c_end_percent ?? settings.uni3cEndPercent,
+  );
 
   const rawStructureVideos = Array.isArray(settings.structure_videos)
     ? settings.structure_videos
@@ -183,15 +198,30 @@ export function migrateLegacyStructureVideos(
         }
 
         const metadata = asRecord(record.metadata);
-        const resourceId = parseString(record.resource_id);
+        const resourceId = parseString(record.resource_id ?? record.resourceId);
         return {
           path,
-          start_frame: parseNumber(record.start_frame) ?? 0,
-          end_frame: parseNumber(record.end_frame) ?? options.defaultEndFrame,
+          start_frame: parseNumber(record.start_frame ?? record.startFrame) ?? 0,
+          end_frame: parseNumber(record.end_frame ?? record.endFrame) ?? options.defaultEndFrame,
           treatment: parseTreatment(record.treatment) ?? topLevelTreatment ?? options.defaultVideoTreatment,
-          motion_strength: parseNumber(record.motion_strength) ?? topLevelMotionStrength ?? options.defaultMotionStrength,
-          structure_type: parseStructureType(record.structure_type) ?? topLevelStructureType ?? options.defaultStructureType,
-          uni3c_end_percent: parseNumber(record.uni3c_end_percent) ?? topLevelUni3cEndPercent ?? options.defaultUni3cEndPercent,
+          motion_strength: parseNumber(record.motion_strength ?? record.motionStrength) ?? topLevelMotionStrength ?? options.defaultMotionStrength,
+          structure_type: parseStructureType(record.structure_type ?? record.structureType) ?? topLevelStructureType ?? options.defaultStructureType,
+          ...(parseNumber(record.canny_intensity ?? record.cannyIntensity) !== undefined || topLevelCannyIntensity !== undefined
+            ? { canny_intensity: parseNumber(record.canny_intensity ?? record.cannyIntensity) ?? topLevelCannyIntensity }
+            : {}),
+          ...(parseNumber(record.depth_contrast ?? record.depthContrast) !== undefined || topLevelDepthContrast !== undefined
+            ? { depth_contrast: parseNumber(record.depth_contrast ?? record.depthContrast) ?? topLevelDepthContrast }
+            : {}),
+          ...(parseNumber(record.uni3c_start_percent ?? record.uni3cStartPercent) !== undefined || topLevelUni3cStartPercent !== undefined
+            ? { uni3c_start_percent: parseNumber(record.uni3c_start_percent ?? record.uni3cStartPercent) ?? topLevelUni3cStartPercent }
+            : {}),
+          uni3c_end_percent: parseNumber(record.uni3c_end_percent ?? record.uni3cEndPercent) ?? topLevelUni3cEndPercent ?? options.defaultUni3cEndPercent,
+          ...(parseNumber(record.source_start_frame ?? record.sourceStartFrame) !== undefined
+            ? { source_start_frame: parseNumber(record.source_start_frame ?? record.sourceStartFrame) }
+            : {}),
+          ...(record.source_end_frame === null || record.sourceEndFrame === null || parseNumber(record.source_end_frame ?? record.sourceEndFrame) !== undefined
+            ? { source_end_frame: parseNumber(record.source_end_frame ?? record.sourceEndFrame) ?? null }
+            : {}),
           metadata: metadata as VideoMetadata | null ?? null,
           resource_id: resourceId ?? null,
         } satisfies MigratedLegacyStructureVideo;
@@ -208,12 +238,21 @@ export function migrateLegacyStructureVideos(
   const resourceId = parseString(settings.resource_id ?? settings.resourceId);
   return [{
     path: singlePath,
-    start_frame: 0,
-    end_frame: options.defaultEndFrame,
+    start_frame: parseNumber(settings.start_frame ?? settings.startFrame) ?? 0,
+    end_frame: parseNumber(settings.end_frame ?? settings.endFrame) ?? options.defaultEndFrame,
     treatment: topLevelTreatment ?? options.defaultVideoTreatment,
     motion_strength: topLevelMotionStrength ?? options.defaultMotionStrength,
     structure_type: topLevelStructureType ?? options.defaultStructureType,
+    ...(topLevelCannyIntensity !== undefined ? { canny_intensity: topLevelCannyIntensity } : {}),
+    ...(topLevelDepthContrast !== undefined ? { depth_contrast: topLevelDepthContrast } : {}),
+    ...(topLevelUni3cStartPercent !== undefined ? { uni3c_start_percent: topLevelUni3cStartPercent } : {}),
     uni3c_end_percent: topLevelUni3cEndPercent ?? options.defaultUni3cEndPercent,
+    ...(parseNumber(settings.source_start_frame ?? settings.sourceStartFrame) !== undefined
+      ? { source_start_frame: parseNumber(settings.source_start_frame ?? settings.sourceStartFrame) }
+      : {}),
+    ...(settings.source_end_frame === null || settings.sourceEndFrame === null || parseNumber(settings.source_end_frame ?? settings.sourceEndFrame) !== undefined
+      ? { source_end_frame: parseNumber(settings.source_end_frame ?? settings.sourceEndFrame) ?? null }
+      : {}),
     metadata: metadata as VideoMetadata | null ?? null,
     resource_id: resourceId ?? null,
   }];
