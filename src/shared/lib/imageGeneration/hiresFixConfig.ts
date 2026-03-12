@@ -1,19 +1,39 @@
+/**
+ * Per-LoRA phase strength override for two-pass hires fix generation.
+ * Allows different LoRA strengths for the initial pass vs the upscaling pass.
+ */
 export interface PhaseLoraStrength {
+  /** References ActiveLora.id for syncing with base LoRA selection */
   loraId: string;
+  /** LoRA file URL for task payload */
   loraPath: string;
   loraName: string;
+  /** Strength for initial pass (0-2) */
   pass1Strength: number;
+  /** Strength for upscaling/hires pass (0-2) */
   pass2Strength: number;
 }
 
+/** Resolution mode for image generation */
 export type ResolutionMode = 'project' | 'custom';
 
+/**
+ * Configuration for two-pass hires fix image generation.
+ * When enabled, generates at base resolution then upscales with refinement.
+ * Uses snake_case to match API params directly - no conversion needed.
+ */
 export interface HiresFixConfig {
+  /** Whether hires fix is enabled (UI only) */
   enabled: boolean;
+  /** 'project' uses project dimensions, 'custom' allows selecting aspect ratio */
   resolution_mode: ResolutionMode;
+  /** Custom aspect ratio when resolution_mode is 'custom' (e.g., "16:9") */
   custom_aspect_ratio?: string;
+  /** Scale factor for initial resolution vs base resolution (1.0-2.5x) */
   resolution_scale: number;
+  /** Number of inference steps for base pass (maps to `steps` in API) */
   base_steps: number;
+  /** Upscale factor for hires pass (e.g., 2.0 = 2x resolution) */
   hires_scale: number;
   hires_steps: number;
   hires_denoise: number;

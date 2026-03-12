@@ -1,3 +1,17 @@
+/**
+ * Tool settings auth cache.
+ *
+ * Reads user ID without acquiring navigator.locks. Resolution order (all
+ * synchronous / lock-free):
+ *   1. In-memory cache (seeded during runtime bootstrap auth sync)
+ *   2. localStorage session (same key Supabase uses; contains full user object)
+ *   3. null — user is genuinely signed out
+ *
+ * Previously this called getSession() / getUser() which both acquire a shared
+ * navigator.lock. During token refresh Supabase holds an EXCLUSIVE lock, so
+ * ALL shared-lock requests queue behind it — blocking for 600ms-16s. By reading
+ * the user ID from localStorage instead we avoid locks entirely.
+ */
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { readUserIdFromStorage } from '@/shared/lib/supabaseSession';
 import type { Session } from '@supabase/supabase-js';
