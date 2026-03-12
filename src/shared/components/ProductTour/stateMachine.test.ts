@@ -4,6 +4,7 @@ import {
   LONG_DELAY_MS,
   SHORT_DELAY_MS,
   WAIT_FOR_TARGET_DELAY_MS,
+  WAIT_FOR_TARGET_MAX_RETRIES,
   WAIT_FOR_TARGET_RESUME_DELAY_MS,
   getJoyrideAdvanceBehavior,
   getSpotlightAdvanceBehavior,
@@ -35,6 +36,7 @@ describe('product tour state machine', () => {
     expect(getJoyrideAdvanceBehavior(TOUR_STEPS.HOW_IT_WORKS, ACTIONS.NEXT)).toEqual({
       type: 'waitForTarget',
       delayMs: WAIT_FOR_TARGET_DELAY_MS,
+      maxRetries: WAIT_FOR_TARGET_MAX_RETRIES,
       selector: '[data-tour="first-shot"]',
       dispatchEvent: 'closeGenerationModal',
       releaseGenerationsPane: true,

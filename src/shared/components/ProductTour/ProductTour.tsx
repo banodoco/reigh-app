@@ -16,6 +16,7 @@ import { TOOL_ROUTES } from '@/shared/lib/tooling/toolRoutes';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import { dispatchAppEvent } from '@/shared/lib/typedEvents';
 import { CustomTooltip } from './CustomTooltip';
+import { scheduleBoundedTargetWait } from './waitForTarget';
 type ScheduleTimeout = (callback: () => void, delayMs: number) => ReturnType<typeof setTimeout>;
 
 function useManagedTimeouts() {
@@ -185,18 +186,18 @@ function useJoyrideCallback(input: {
           setIsGenerationsPaneLocked(false);
         }
         setIsPaused(true);
-        scheduleTimeout(() => {
-          const waitForTarget = () => {
-            const target = document.querySelector(behavior.selector);
-            if (target) {
-              setStepIndex(nextIndex);
-              scheduleTimeout(() => setIsPaused(false), behavior.resumeDelayMs);
-            } else {
-              scheduleTimeout(waitForTarget, behavior.resumeDelayMs);
-            }
-          };
-          waitForTarget();
-        }, behavior.delayMs);
+        scheduleBoundedTargetWait({
+          delayMs: behavior.delayMs,
+          fallbackIndex: nextIndex + 1,
+          maxRetries: behavior.maxRetries,
+          nextIndex,
+          queryTarget: (selector) => document.querySelector(selector),
+          resumeDelayMs: behavior.resumeDelayMs,
+          scheduleTimeout,
+          selector: behavior.selector,
+          setIsPaused,
+          setStepIndex,
+        });
       } else {
         const target = document.querySelector(behavior.selector) as HTMLElement | null;
         target?.click();

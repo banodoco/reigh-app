@@ -5,6 +5,7 @@ export const SHORT_DELAY_MS = 400;
 export const LONG_DELAY_MS = 1500;
 export const WAIT_FOR_TARGET_DELAY_MS = 800;
 export const WAIT_FOR_TARGET_RESUME_DELAY_MS = 100;
+export const WAIT_FOR_TARGET_MAX_RETRIES = 20;
 
 type TourEventName = 'openGenerationModal' | 'closeGenerationModal';
 
@@ -25,6 +26,7 @@ type JoyrideAdvanceBehavior =
   | {
       type: 'waitForTarget';
       delayMs: number;
+      maxRetries: number;
       selector: string;
       dispatchEvent?: TourEventName;
       releaseGenerationsPane?: boolean;
@@ -61,6 +63,7 @@ const JOYRIDE_ADVANCE_BEHAVIORS: Partial<Record<number, JoyrideAdvanceBehavior>>
     selector: '[data-tour="first-shot"]',
     dispatchEvent: 'closeGenerationModal',
     releaseGenerationsPane: true,
+    maxRetries: WAIT_FOR_TARGET_MAX_RETRIES,
     resumeDelayMs: WAIT_FOR_TARGET_RESUME_DELAY_MS,
   },
   [TOUR_STEPS.OPEN_FIRST_SHOT]: {
