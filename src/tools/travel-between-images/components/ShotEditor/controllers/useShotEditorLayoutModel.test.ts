@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { __internal } from './useShotEditorLayoutModel';
+import { __internal, buildShotEditorContextInput } from './useShotEditorLayoutModel';
 
 function createLayoutArgs() {
   const noop = vi.fn();
@@ -186,7 +186,7 @@ describe('useShotEditorLayoutModel builders', () => {
   it('builds the shot settings context input from grouped controller slices', () => {
     const args = createLayoutArgs();
 
-    const result = __internal.buildShotEditorContextInput({
+    const result = buildShotEditorContextInput({
       core: args.core as never,
       images: args.images as never,
       controllers: args.controllers as never,

@@ -37,7 +37,11 @@ import { useImageManagementController } from './controllers/useImageManagementCo
 import { useGenerationControllerInputModel } from './controllers/useGenerationControllerInputModel';
 import { useShotEditorApplySettingsModel } from './controllers/useShotEditorApplySettingsModel';
 import { useShotEditorMediaAndOutputControllers } from './controllers/useShotEditorMediaAndOutputControllers';
-import { useShotEditorLayoutModel } from './controllers/useShotEditorLayoutModel';
+import {
+  buildShotEditorContextInput,
+  useShotEditorLayoutModel,
+} from './controllers/useShotEditorLayoutModel';
+import { useShotSettingsValue } from './hooks/editor-state/useShotSettingsValue';
 import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 
 interface ShotEditorControllerResult {
@@ -372,6 +376,86 @@ export function useShotEditorController({
     lastVideoGeneration,
   });
 
+  const contextValue = useShotSettingsValue(
+    buildShotEditorContextInput({
+      core: {
+        selectedShot,
+        selectedShotId,
+        projectId,
+        selectedProjectId,
+        effectiveAspectRatio,
+        projects,
+        state,
+        actions,
+        queryClient,
+      },
+      images: {
+        allShotImages,
+        timelineImages,
+        unpositionedImages,
+        contextImages,
+        videoOutputs,
+        simpleFilteredImages,
+      },
+      controllers: {
+        mediaEditing,
+        joinWorkflow,
+        output: {
+          selectedOutputId: output.selectedOutputId,
+          setSelectedOutputId: output.setSelectedOutputId,
+          parentGenerations: output.parentGenerations,
+          segmentProgress: output.segmentProgress,
+          isSegmentOutputsLoading: output.isSegmentOutputsLoading,
+        },
+        generationActions,
+        shotActions,
+        generationController: {
+          isGenerationDisabled,
+          isSteerableMotionEnqueuing,
+          steerableMotionJustQueued,
+          currentMotionSettings,
+          handleAcceleratedChange,
+          handleRandomSeedChange,
+          handleGenerateBatch,
+          handleBatchVideoPromptChangeWithClear,
+          handleStepsChange,
+          clearAllEnhancedPrompts,
+        },
+        imageManagement: {
+          handleReorderImagesInShot,
+          handleImageUpload,
+          handlePendingPositionApplied,
+          handleDeleteFinalVideo,
+          isClearingFinalVideo,
+        },
+        bridge: {
+          handleSelectionChangeLocal,
+        },
+        loraManager,
+        availableLoras: loraSettingsFromContext.availableLoras,
+        shots,
+      },
+      settings: {
+        promptSettings,
+        motionSettings,
+        frameSettings,
+        generationModeSettings,
+        isPhone,
+        aspectAdjustedColumns,
+        accelerated,
+        randomSeed,
+      },
+      dimensions: {
+        dimensionSource,
+        onDimensionSourceChange,
+        customWidth,
+        onCustomWidthChange,
+        customHeight,
+        onCustomHeightChange,
+      },
+    }),
+  );
+
   const layoutProps: ShotEditorLayoutProps = useShotEditorLayoutModel({
     core: {
       selectedShot,
@@ -383,14 +467,6 @@ export function useShotEditorController({
       state,
       actions,
       queryClient,
-    },
-    images: {
-      allShotImages,
-      timelineImages,
-      unpositionedImages,
-      contextImages,
-      videoOutputs,
-      simpleFilteredImages,
     },
     controllers: {
       mediaEditing,
@@ -440,14 +516,7 @@ export function useShotEditorController({
       accelerated,
       randomSeed,
     },
-    dimensions: {
-      dimensionSource,
-      onDimensionSourceChange,
-      customWidth,
-      onCustomWidthChange,
-      customHeight,
-      onCustomHeightChange,
-    },
+    contextValue,
     sections: {
       onBack,
       onPreviousShot,

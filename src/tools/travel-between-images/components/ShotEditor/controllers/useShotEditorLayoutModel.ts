@@ -1,12 +1,12 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import type { GenerationRow, Shot } from '@/domains/generation/types';
 import type { Project } from '@/types/project';
+import type { ShotSettingsContextValue } from '../ShotSettingsContext';
 import type { ShotEditorLayoutProps } from '../ShotEditorLayout';
 import type { ShotEditorProps, ShotEditorState } from '../state/types';
 import type { ShotEditorActions } from '../state/useShotEditorState';
 import {
-  useShotSettingsValue,
   type UseShotSettingsValueProps,
 } from '../hooks/editor-state/useShotSettingsValue';
 import type { useShotEditorMediaAndOutputControllers } from './useShotEditorMediaAndOutputControllers';
@@ -51,14 +51,6 @@ interface UseShotEditorLayoutModelParams {
     state: ShotEditorState;
     actions: ShotEditorActions;
     queryClient: QueryClient;
-  };
-  images: {
-    allShotImages: GenerationRow[];
-    timelineImages: GenerationRow[];
-    unpositionedImages: GenerationRow[];
-    contextImages: GenerationRow[];
-    videoOutputs: GenerationRow[];
-    simpleFilteredImages: GenerationRow[];
   };
   controllers: {
     mediaEditing: MediaEditingState;
@@ -109,7 +101,7 @@ interface UseShotEditorLayoutModelParams {
     accelerated: boolean;
     randomSeed: boolean;
   };
-  dimensions: UseShotSettingsValueProps['dimensions'];
+  contextValue: ShotSettingsContextValue;
   sections: {
     onBack: ShotEditorProps['onBack'];
     onPreviousShot: ShotEditorProps['onPreviousShot'];
@@ -140,12 +132,19 @@ interface UseShotEditorLayoutModelParams {
   };
 }
 
-interface ShotEditorContextInputArgs {
+export interface BuildShotEditorContextInputArgs {
   core: UseShotEditorLayoutModelParams['core'];
-  images: UseShotEditorLayoutModelParams['images'];
+  images: {
+    allShotImages: GenerationRow[];
+    timelineImages: GenerationRow[];
+    unpositionedImages: GenerationRow[];
+    contextImages: GenerationRow[];
+    videoOutputs: GenerationRow[];
+    simpleFilteredImages: GenerationRow[];
+  };
   controllers: UseShotEditorLayoutModelParams['controllers'];
   settings: UseShotEditorLayoutModelParams['settings'];
-  dimensions: UseShotEditorLayoutModelParams['dimensions'];
+  dimensions: UseShotSettingsValueProps['dimensions'];
 }
 
 interface ShotEditorLayoutSectionsArgs {
@@ -153,17 +152,17 @@ interface ShotEditorLayoutSectionsArgs {
   controllers: UseShotEditorLayoutModelParams['controllers'];
   settings: UseShotEditorLayoutModelParams['settings'];
   sections: UseShotEditorLayoutModelParams['sections'];
-  contextValue: ReturnType<typeof useShotSettingsValue>;
+  contextValue: ShotSettingsContextValue;
   handleJoinSegmentsClick: () => void;
 }
 
-function buildShotEditorContextInput({
+export function buildShotEditorContextInput({
   core,
   images,
   controllers,
   settings,
   dimensions,
-}: ShotEditorContextInputArgs): UseShotSettingsValueProps {
+}: BuildShotEditorContextInputArgs): UseShotSettingsValueProps {
   return {
     selectedShot: core.selectedShot!,
     selectedShotId: core.selectedShotId,
@@ -364,25 +363,11 @@ export const __internal = {
 
 export function useShotEditorLayoutModel({
   core,
-  images,
   controllers,
   settings,
-  dimensions,
+  contextValue,
   sections,
 }: UseShotEditorLayoutModelParams): ShotEditorLayoutProps {
-  const contextInput = useMemo<UseShotSettingsValueProps>(
-    () => buildShotEditorContextInput({
-      core,
-      images,
-      controllers,
-      settings,
-      dimensions,
-    }),
-    [core, images, controllers, settings, dimensions],
-  );
-
-  const contextValue = useShotSettingsValue(contextInput);
-
   const handleJoinSegmentsClick = useCallback(() => {
     controllers.joinWorkflow.setGenerateMode('join');
     requestAnimationFrame(() => {
