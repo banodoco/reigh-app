@@ -106,27 +106,6 @@ const moduleLoaders = [
   },
   {
     expectedExports: [
-      'useDimensions',
-      'useGenerationHandlers',
-      'useGenerationMode',
-      'useJoinState',
-      'useShotAudio',
-      'useShotCore',
-      'useShotImageHandlers',
-      'useShotImages',
-      'useShotLoras',
-      'useShotManagement',
-      'useShotStructureVideo',
-      'useShotUI',
-      'useStructureVideoHandlers',
-    ],
-    loadModule: () =>
-      import(
-        '@/tools/travel-between-images/components/ShotEditor/ShotSettingsContext.selectors'
-      ),
-  },
-  {
-    expectedExports: [
       'applyAdvancedModeSettings',
       'applyGenerationSettings',
       'applyModelSettings',

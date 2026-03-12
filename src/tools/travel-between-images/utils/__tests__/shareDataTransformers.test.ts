@@ -14,7 +14,6 @@ import {
   transformGenerationToParentRow,
   calculateColumnsForDevice,
   extractStructureState,
-  extractStructureVideos,
 } from '../shareDataTransformers';
 
 describe('transformGenerationToParentRow', () => {
@@ -83,17 +82,17 @@ describe('calculateColumnsForDevice', () => {
   });
 });
 
-describe('extractStructureVideos', () => {
+describe('extractStructureState().structureVideos', () => {
   it('returns empty array for null settings', () => {
-    expect(extractStructureVideos(null)).toEqual([]);
+    expect(extractStructureState(null).structureVideos).toEqual([]);
   });
 
   it('returns empty array for undefined settings', () => {
-    expect(extractStructureVideos(undefined)).toEqual([]);
+    expect(extractStructureState(undefined).structureVideos).toEqual([]);
   });
 
   it('returns empty array for settings with no structure video data', () => {
-    expect(extractStructureVideos({})).toEqual([]);
+    expect(extractStructureState({}).structureVideos).toEqual([]);
   });
 
   it('prefers array format (structureVideos) when present', () => {
@@ -104,7 +103,7 @@ describe('extractStructureVideos', () => {
       structureVideo: { path: '/legacy.mp4' },
     };
 
-    const result = extractStructureVideos(settings);
+    const result = extractStructureState(settings).structureVideos;
     expect(result).toHaveLength(1);
     expect(result[0].path).toBe('/v1.mp4');
   });
@@ -122,7 +121,7 @@ describe('extractStructureVideos', () => {
       },
     };
 
-    const result = extractStructureVideos(settings);
+    const result = extractStructureState(settings).structureVideos;
     expect(result).toHaveLength(1);
     expect(result[0].path).toBe('/legacy.mp4');
     expect(result[0].start_frame).toBe(10);
@@ -135,7 +134,7 @@ describe('extractStructureVideos', () => {
       structureVideo: { path: '/v.mp4' },
     };
 
-    const result = extractStructureVideos(settings);
+    const result = extractStructureState(settings).structureVideos;
     expect(result[0].start_frame).toBe(0);
     expect(result[0].end_frame).toBe(300);
     expect(result[0].treatment).toBe('adjust');
@@ -143,12 +142,12 @@ describe('extractStructureVideos', () => {
 
   it('returns empty array when structureVideo has no path', () => {
     const settings = { structureVideo: { motionStrength: 1.0 } };
-    expect(extractStructureVideos(settings)).toEqual([]);
+    expect(extractStructureState(settings).structureVideos).toEqual([]);
   });
 
   it('returns empty array when structureVideos is empty array', () => {
     const settings = { structureVideos: [] };
-    expect(extractStructureVideos(settings)).toEqual([]);
+    expect(extractStructureState(settings).structureVideos).toEqual([]);
   });
 });
 

@@ -1,13 +1,3 @@
-/**
- * BatchModeContent - Batch Generation mode UI
- *
- * Renders the two-column layout with BatchSettingsForm, MotionControl,
- * and GenerateVideoCTA with stitch options.
- *
- * Pulls most data from ShotSettingsContext and VideoTravelSettingsProvider.
- * Only receives refs, parent CTA state, and dimension settings as props.
- */
-
 import React from 'react';
 import { ArrowLeftRight, Settings, ChevronDown } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/components/ui/collapsible';
@@ -26,18 +16,7 @@ import {
   useVideoTravelSettings,
 } from '@/tools/travel-between-images/providers';
 
-import {
-  useShotCore,
-  useShotImages,
-  useShotLoras,
-  useShotStructureVideo,
-  useStructureVideoHandlers,
-  useShotUI,
-  useGenerationMode,
-  useGenerationHandlers,
-  useJoinState,
-  useDimensions,
-} from '../../ShotSettingsContext';
+import { useShotSettingsContext } from '../../ShotSettingsContext';
 
 import { BatchSettingsForm } from '../../../BatchSettingsForm';
 import { MotionControl } from '../../../MotionControl';
@@ -49,11 +28,8 @@ import {
 import { buildJoinClipsFormProps } from './joinClipsFormProps';
 
 interface BatchModeContentProps {
-  // Refs - must be passed from parent for DOM positioning
   ctaContainerRef?: (node: HTMLDivElement | null) => void;
   swapButtonRef: React.RefObject<HTMLButtonElement>;
-
-  // Parent CTA state - controlled by page-level component
   parentVariantName?: string;
   parentOnVariantNameChange?: (name: string) => void;
   parentIsGeneratingVideo?: boolean;
@@ -68,19 +44,22 @@ export const BatchModeContent: React.FC<BatchModeContentProps> = ({
   parentIsGeneratingVideo,
   parentVideoJustQueued,
 }) => {
-  // Pull from ShotSettingsContext
-  const { projectId, selectedProjectId, projects } = useShotCore();
-  const { simpleFilteredImages } = useShotImages();
-  const { loraManager, availableLoras } = useShotLoras();
-  const structureVideo = useShotStructureVideo();
-  const structureVideoHandlers = useStructureVideoHandlers();
-  const { state } = useShotUI();
-  const generationMode = useGenerationMode();
-  const generationHandlers = useGenerationHandlers();
-  const joinState = useJoinState();
-  const dimensions = useDimensions();
+  const {
+    projectId,
+    selectedProjectId,
+    projects,
+    simpleFilteredImages,
+    loraManager,
+    availableLoras,
+    structureVideo,
+    structureVideoHandlers,
+    state,
+    generationMode,
+    generationHandlers,
+    joinState,
+    dimensions,
+  } = useShotSettingsContext();
 
-  // Pull from VideoTravelSettingsProvider
   const promptSettings = usePromptSettings();
   const motionSettings = useMotionSettings();
   const frameSettings = useFrameSettings();
@@ -90,7 +69,6 @@ export const BatchModeContent: React.FC<BatchModeContentProps> = ({
   const { isLoading: settingsLoadingFromContext } = useVideoTravelSettings();
   const { onBlurSave: blurSaveHandler } = useSettingsSave();
 
-  // Derive values
   const advancedMode = motionSettings.motionMode === 'advanced';
   const stitchAfterGenerate = joinState.joinSettings.settings.stitchAfterGenerate ?? false;
   const effectiveGenerationMode = generationModeSettings.generationMode;

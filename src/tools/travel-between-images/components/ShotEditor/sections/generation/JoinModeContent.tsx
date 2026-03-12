@@ -1,25 +1,12 @@
-/**
- * JoinModeContent - Join Segments mode UI
- *
- * Renders the JoinClipsSettingsForm and swap button for Join Segments mode.
- * Pulls data from ShotSettingsContext - only receives refs as props.
- */
-
 import React from 'react';
 import { ArrowLeftRight } from 'lucide-react';
 import {
   JoinClipsSettingsForm,
 } from '@/shared/components/JoinClipsSettingsForm/JoinClipsSettingsForm';
-import {
-  useShotCore,
-  useShotLoras,
-  useGenerationMode,
-  useJoinState,
-} from '../../ShotSettingsContext';
+import { useShotSettingsContext } from '../../ShotSettingsContext';
 import { buildJoinClipsFormProps } from './joinClipsFormProps';
 
 interface JoinModeContentProps {
-  // Refs - must be passed from parent for DOM positioning
   joinSegmentsSectionRef: React.RefObject<HTMLDivElement>;
   swapButtonRef: React.RefObject<HTMLButtonElement>;
 }
@@ -28,11 +15,7 @@ export const JoinModeContent: React.FC<JoinModeContentProps> = ({
   joinSegmentsSectionRef,
   swapButtonRef,
 }) => {
-  // Pull from ShotSettingsContext
-  const { projectId } = useShotCore();
-  const { availableLoras } = useShotLoras();
-  const generationMode = useGenerationMode();
-  const joinState = useJoinState();
+  const { projectId, availableLoras, generationMode, joinState } = useShotSettingsContext();
 
   const joinFormProps = buildJoinClipsFormProps({
     joinState,
@@ -56,7 +39,6 @@ export const JoinModeContent: React.FC<JoinModeContentProps> = ({
         }}
       />
 
-      {/* Swap to Batch Generate */}
       <button
         ref={swapButtonRef}
         onClick={() => generationMode.toggleGenerateModePreserveScroll('batch')}

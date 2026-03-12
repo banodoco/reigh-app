@@ -1,68 +1,31 @@
-/**
- * TimelineSection - Timeline and image editor section
- *
- * Wraps ShotImagesEditor with context-provided values.
- * Most data comes from ShotSettingsContext, only behavior/config props needed.
- */
-
 import React from 'react';
 import { ShotImagesEditor } from '../../ShotImagesEditor';
 import { ImageManagerSkeleton } from '../ui/Skeleton';
-import {
-  useShotCore,
-  useShotUI,
-  useShotImages,
-  useShotStructureVideo,
-  useStructureVideoHandlers,
-  useShotAudio,
-  useShotImageHandlers,
-  useShotManagement,
-} from '../ShotSettingsContext';
+import { useShotSettingsContext } from '../ShotSettingsContext';
 import { usePanes } from '@/shared/contexts/PanesContext';
 
 interface TimelineSectionProps {
-  // Ref
   timelineSectionRef?: (node: HTMLDivElement | null) => void;
-
-  // Mode state (controlled by parent)
   isModeReady: boolean;
   settingsError: string | null;
   isMobile: boolean;
   generationMode?: 'batch' | 'timeline' | 'by-pair';
   onGenerationModeChange?: (mode: 'batch' | 'timeline' | 'by-pair') => void;
-
-  // Frame settings (from VideoTravelSettingsProvider)
   batchVideoFrames: number;
   onBatchVideoFramesChange: (frames: number) => void;
-
-  // Layout
   columns: 2 | 3 | 4 | 6;
-
-  // Pending positions (specialized state)
   pendingPositions: Map<string, number>;
   onPendingPositionApplied: (generationId: string) => void;
-
-  // Selection callback
   onSelectionChange?: (hasSelection: boolean) => void;
-
-  // Prompts (from VideoTravelSettingsProvider)
   defaultPrompt?: string;
   onDefaultPromptChange?: (prompt: string) => void;
   defaultNegativePrompt?: string;
   onDefaultNegativePromptChange?: (prompt: string) => void;
-
-  // Frame constraints (from settings)
   maxFrameLimit?: number;
   smoothContinuations?: boolean;
-
-  // Output selection (controlled by parent)
   selectedOutputId?: string | null;
   onSelectedOutputChange?: (id: string | null) => void;
-
-  // Drag state callback
   onDragStateChange?: (isDragging: boolean) => void;
-
-  // Project-level cache: whether this shot has structure videos (for skeleton)
   cachedHasStructureVideo?: boolean;
 }
 
@@ -90,15 +53,20 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
   onDragStateChange,
   cachedHasStructureVideo,
 }) => {
-  // Get data from context
-  const { selectedShot, projectId, effectiveAspectRatio } = useShotCore();
-  const { state } = useShotUI();
-  const { allShotImages, unpositionedImages, contextImages } = useShotImages();
-  const structureVideo = useShotStructureVideo();
-  const structureVideoHandlers = useStructureVideoHandlers();
-  const audio = useShotAudio();
-  const imageHandlers = useShotImageHandlers();
-  const shotManagement = useShotManagement();
+  const {
+    selectedShot,
+    projectId,
+    effectiveAspectRatio,
+    state,
+    allShotImages,
+    unpositionedImages,
+    contextImages,
+    structureVideo,
+    structureVideoHandlers,
+    audio,
+    imageHandlers,
+    shotManagement,
+  } = useShotSettingsContext();
   const { isGenerationsPaneLocked } = usePanes();
 
   return (

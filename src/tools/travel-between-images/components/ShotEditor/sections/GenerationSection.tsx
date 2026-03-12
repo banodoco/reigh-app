@@ -1,15 +1,3 @@
-/**
- * GenerationSection - Video generation settings card
- *
- * Orchestrates Batch Generate and Join Segments modes.
- * Uses sub-components for each mode:
- * - BatchModeContent: Settings form, motion control, and generate CTA
- * - JoinModeContent: Join clips settings and join button
- *
- * Pulls most data from ShotSettingsContext and VideoTravelSettingsProvider.
- * Only receives refs and parent CTA state as props.
- */
-
 import React from 'react';
 import { ArrowLeftRight } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/shared/components/ui/card';
@@ -17,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/
 
 import { BatchModeContent } from './generation/BatchModeContent';
 import { JoinModeContent } from './generation/JoinModeContent';
-import { useShotImages, useGenerationMode, useJoinState } from '../ShotSettingsContext';
+import { useShotSettingsContext } from '../ShotSettingsContext';
 
 export interface GenerationSectionProps {
   refs: {
@@ -38,14 +26,7 @@ export const GenerationSection: React.FC<GenerationSectionProps> = ({
   refs,
   cta,
 }) => {
-  // Pull from ShotSettingsContext
-  const { simpleFilteredImages } = useShotImages();
-  const generationMode = useGenerationMode();
-  const joinState = useJoinState();
-
-  // Derive values
-
-  // Determine header display mode
+  const { simpleFilteredImages, generationMode, joinState } = useShotSettingsContext();
   const showSimpleHeader = simpleFilteredImages.length <= 2;
   const canSwitchToJoin = joinState.joinValidationData.videoCount >= 2;
 
@@ -54,7 +35,6 @@ export const GenerationSection: React.FC<GenerationSectionProps> = ({
       <Card>
         <CardHeader className="pb-2">
           {showSimpleHeader ? (
-            // Simple header when stitch enabled or <= 2 images
             <div className="flex items-center justify-between w-full">
               <span className="text-base sm:text-lg font-light text-foreground">
                 {simpleFilteredImages.length <= 1 ? 'Generate' : 'Batch Generate'}
@@ -71,7 +51,6 @@ export const GenerationSection: React.FC<GenerationSectionProps> = ({
               </Tooltip>
             </div>
           ) : (
-            // Full header with mode toggle
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center gap-2">
                 <span className="text-base sm:text-lg font-light text-foreground">

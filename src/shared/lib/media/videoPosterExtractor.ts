@@ -1,14 +1,5 @@
-/**
- * Utility for extracting poster images (first frame) from video files
- */
-
 import { captureVideoFrameBlob } from './captureVideoFrameBlob';
 
-/**
- * Extract the first frame of a video as a Blob
- * @param videoFile The video file to extract from
- * @returns Promise that resolves to a Blob of the poster image (JPEG)
- */
 export function extractVideoPosterFrame(videoFile: File): Promise<Blob> {
   return captureVideoFrameBlob({
     source: videoFile,
@@ -17,11 +8,6 @@ export function extractVideoPosterFrame(videoFile: File): Promise<Blob> {
   });
 }
 
-/**
- * Extract the final frame of a video as a Blob
- * @param videoFile The video file to extract from
- * @returns Promise that resolves to a Blob of the final frame image (JPEG)
- */
 export function extractVideoFinalFrame(videoFile: File): Promise<Blob> {
   return captureVideoFrameBlob({
     source: videoFile,

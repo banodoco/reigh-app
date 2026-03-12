@@ -110,15 +110,11 @@ vi.mock('@/shared/components/JoinClipsSettingsForm/JoinClipsSettingsForm', () =>
 }));
 
 vi.mock('../../ShotSettingsContext', () => ({
-  useShotCore: () => ({
+  useShotSettingsContext: () => ({
     projectId: 'project-1',
     selectedProjectId: 'project-1',
     projects: [{ id: 'project-1', name: 'Project 1' }],
-  }),
-  useShotImages: () => ({
     simpleFilteredImages: simpleFilteredImagesMock,
-  }),
-  useShotLoras: () => ({
     loraManager: {
       selectedLoras: [],
       setIsLoraModalOpen: vi.fn(),
@@ -128,70 +124,70 @@ vi.mock('../../ShotSettingsContext', () => ({
       renderHeaderActions: vi.fn(),
     },
     availableLoras: [{ id: 'lora-1' }],
-  }),
-  useShotStructureVideo: () => ({
-    structureVideoPath: structureVideoPathMock,
-    structureVideoMotionStrength: structureVideoMotionStrengthMock,
-    structureVideoType: structureVideoTypeMock,
-    structureVideoUni3cEndPercent: structureVideoUni3cEndPercentMock,
-  }),
-  useStructureVideoHandlers: () => ({
-    handleStructureVideoMotionStrengthChange: handleStructureVideoMotionStrengthChangeMock,
-    handleUni3cEndPercentChange: handleUni3cEndPercentChangeMock,
-    handleStructureTypeChangeFromMotionControl: vi.fn(),
-  }),
-  useShotUI: () => ({ state: { showStepsNotification: false } }),
-  useGenerationMode: () => ({
-    accelerated: false,
-    onAcceleratedChange: vi.fn(),
-    randomSeed: null,
-    onRandomSeedChange: vi.fn(),
-    currentMotionSettings: {},
-    isSteerableMotionEnqueuing: false,
-    steerableMotionJustQueued: false,
-    isGenerationDisabled: false,
-    toggleGenerateModePreserveScroll: toggleGenerateModePreserveScrollMock,
-  }),
-  useGenerationHandlers: () => ({
-    handleBatchVideoPromptChangeWithClear: vi.fn(),
-    handleStepsChange: vi.fn(),
-    clearAllEnhancedPrompts: vi.fn(),
-    handleGenerateBatch: handleGenerateBatchMock,
-  }),
-  useJoinState: () => ({
-    joinSettings: {
-      settings: {
-        stitchAfterGenerate: stitchAfterGenerateMock,
-        prompt: 'join prompt',
-        negativePrompt: 'join negative',
-        contextFrameCount: 8,
-        gapFrameCount: 12,
-        replaceMode: false,
-        keepBridgingImages: true,
-        enhancePrompt: false,
-        motionMode: 'basic',
-        phaseConfig: null,
-        selectedPhasePresetId: null,
-        randomSeed: null,
+    structureVideo: {
+      structureVideoPath: structureVideoPathMock,
+      structureVideoMotionStrength: structureVideoMotionStrengthMock,
+      structureVideoType: structureVideoTypeMock,
+      structureVideoUni3cEndPercent: structureVideoUni3cEndPercentMock,
+    },
+    structureVideoHandlers: {
+      handleStructureVideoMotionStrengthChange: handleStructureVideoMotionStrengthChangeMock,
+      handleUni3cEndPercentChange: handleUni3cEndPercentChangeMock,
+      handleStructureTypeChangeFromMotionControl: vi.fn(),
+    },
+    state: { showStepsNotification: false },
+    generationMode: {
+      accelerated: false,
+      onAcceleratedChange: vi.fn(),
+      randomSeed: null,
+      onRandomSeedChange: vi.fn(),
+      currentMotionSettings: {},
+      isSteerableMotionEnqueuing: false,
+      steerableMotionJustQueued: false,
+      isGenerationDisabled: false,
+      toggleGenerateModePreserveScroll: toggleGenerateModePreserveScrollMock,
+    },
+    generationHandlers: {
+      handleBatchVideoPromptChangeWithClear: vi.fn(),
+      handleStepsChange: vi.fn(),
+      clearAllEnhancedPrompts: vi.fn(),
+      handleGenerateBatch: handleGenerateBatchMock,
+    },
+    joinState: {
+      joinSettings: {
+        settings: {
+          stitchAfterGenerate: stitchAfterGenerateMock,
+          prompt: 'join prompt',
+          negativePrompt: 'join negative',
+          contextFrameCount: 8,
+          gapFrameCount: 12,
+          replaceMode: false,
+          keepBridgingImages: true,
+          enhancePrompt: false,
+          motionMode: 'basic',
+          phaseConfig: null,
+          selectedPhasePresetId: null,
+          randomSeed: null,
+        },
+        updateField: joinUpdateFieldMock,
+        updateFields: vi.fn(),
       },
-      updateField: joinUpdateFieldMock,
-      updateFields: vi.fn(),
+      joinValidationData: {
+        shortestClipFrames: 24,
+      },
+      joinLoraManager: {
+        selectedLoras: [],
+      },
+      handleRestoreJoinDefaults: vi.fn(),
     },
-    joinValidationData: {
-      shortestClipFrames: 24,
+    dimensions: {
+      dimensionSource: 'project',
+      onDimensionSourceChange: vi.fn(),
+      customWidth: 1280,
+      onCustomWidthChange: vi.fn(),
+      customHeight: 720,
+      onCustomHeightChange: vi.fn(),
     },
-    joinLoraManager: {
-      selectedLoras: [],
-    },
-    handleRestoreJoinDefaults: vi.fn(),
-  }),
-  useDimensions: () => ({
-    dimensionSource: 'project',
-    onDimensionSourceChange: vi.fn(),
-    customWidth: 1280,
-    onCustomWidthChange: vi.fn(),
-    customHeight: 720,
-    onCustomHeightChange: vi.fn(),
   }),
 }));
 
