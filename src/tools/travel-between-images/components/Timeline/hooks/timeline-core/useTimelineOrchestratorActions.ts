@@ -91,7 +91,7 @@ interface UseTimelineOrchestratorActionsInput {
   setShowVideoBrowser: (value: boolean) => void;
 }
 
-export interface TimelineOrchestratorActionsResult {
+interface TimelineOrchestratorActionsResult {
   handleImageDropInterceptor: (files: File[], targetFrame?: number) => Promise<void>;
   handleGenerationDropInterceptor: (
     generationId: string,

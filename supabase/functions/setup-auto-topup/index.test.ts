@@ -72,8 +72,6 @@ describe('setup-auto-topup edge entrypoint', () => {
           autoTopupEnabled: true,
           autoTopupAmount: 5,
           autoTopupThreshold: 2,
-          stripeCustomerId: 'cus_1',
-          stripePaymentMethodId: 'pm_1',
         },
         auth: { userId: 'user-1' },
       },
@@ -137,8 +135,6 @@ describe('setup-auto-topup edge entrypoint', () => {
           autoTopupEnabled: true,
           autoTopupAmount: 5,
           autoTopupThreshold: 2,
-          stripeCustomerId: 'cus_1',
-          stripePaymentMethodId: 'pm_1',
         },
         auth: { userId: 'user-1' },
       },
@@ -157,11 +153,38 @@ describe('setup-auto-topup edge entrypoint', () => {
       auto_topup_enabled: true,
       auto_topup_amount: 500,
       auto_topup_threshold: 200,
-      stripe_customer_id: 'cus_1',
-      stripe_payment_method_id: 'pm_1',
     });
     expect(supabaseAdmin.eq).toHaveBeenCalledWith('id', 'user-1');
     expect(logger.flush).toHaveBeenCalled();
+  });
+
+  it('ignores client-supplied Stripe identifiers when enabling auto-topup', async () => {
+    const supabaseAdmin = createSupabaseAdmin();
+
+    mocks.bootstrapEdgeHandler.mockResolvedValue({
+      ok: true,
+      value: {
+        supabaseAdmin,
+        logger: createLogger(),
+        body: {
+          autoTopupEnabled: true,
+          autoTopupAmount: 5,
+          autoTopupThreshold: 2,
+          stripeCustomerId: 'cus_1',
+          stripePaymentMethodId: 'pm_1',
+        },
+        auth: { userId: 'user-1' },
+      },
+    });
+
+    const handler = await loadHandler();
+    await handler(new Request('https://edge.test/setup-auto-topup', { method: 'POST' }));
+
+    expect(supabaseAdmin.update).toHaveBeenCalledWith({
+      auto_topup_enabled: true,
+      auto_topup_amount: 500,
+      auto_topup_threshold: 200,
+    });
   });
 
   it('clears thresholds when disabling auto-topup', async () => {

@@ -7,19 +7,18 @@ import { dollarsToCents, validateAutoTopupConfig } from "../_shared/autoTopupDom
 
 /**
  * Edge function: setup-auto-topup
- * 
- * Creates/updates auto-top-up preferences and saves payment method
- * 
+ *
+ * Creates/updates auto-top-up preferences. Stripe identifiers are persisted
+ * only from verified server-side Stripe artifacts.
+ *
  * POST /functions/v1/setup-auto-topup
  * Headers: Authorization: Bearer <JWT>
- * Body: { 
+ * Body: {
  *   autoTopupEnabled: boolean,
  *   autoTopupAmount: number, // in dollars
- *   autoTopupThreshold: number, // in dollars
- *   stripeCustomerId?: string,
- *   stripePaymentMethodId?: string
+ *   autoTopupThreshold: number // in dollars
  * }
- * 
+ *
  * Returns:
  * - 200 OK with success message
  * - 400 Bad Request if invalid parameters
@@ -40,12 +39,10 @@ serve(async (req) => {
 
   const { supabaseAdmin, logger, body, auth } = bootstrap.value;
   
-  const { 
-    autoTopupEnabled, 
-    autoTopupAmount, 
+  const {
+    autoTopupEnabled,
+    autoTopupAmount,
     autoTopupThreshold,
-    stripeCustomerId,
-    stripePaymentMethodId 
   } = body;
 
   // Validate required fields
@@ -80,14 +77,6 @@ serve(async (req) => {
       const normalizedAutoTopupThreshold = autoTopupThreshold as number;
       updateData.auto_topup_amount = dollarsToCents(normalizedAutoTopupAmount);
       updateData.auto_topup_threshold = dollarsToCents(normalizedAutoTopupThreshold);
-      
-      // If Stripe data provided, save it
-      if (stripeCustomerId) {
-        updateData.stripe_customer_id = stripeCustomerId;
-      }
-      if (stripePaymentMethodId) {
-        updateData.stripe_payment_method_id = stripePaymentMethodId;
-      }
     } else {
       // When disabling, clear the amounts but keep Stripe data for potential re-enable
       updateData.auto_topup_amount = null;

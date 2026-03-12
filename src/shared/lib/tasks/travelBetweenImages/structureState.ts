@@ -8,7 +8,7 @@ import { migrateLegacyStructureVideos } from './legacyStructureVideo';
 
 type StructureType = 'uni3c' | 'flow' | 'canny' | 'depth';
 
-export interface ResolveTravelStructureStateOptions {
+interface ResolveTravelStructureStateOptions {
   defaultEndFrame: number;
   defaultVideoTreatment: 'adjust' | 'clip';
   defaultMotionStrength: number;

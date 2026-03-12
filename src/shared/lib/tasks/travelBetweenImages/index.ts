@@ -21,10 +21,8 @@ export {
 } from './primaryStructureVideo';
 export {
   resolveTravelStructureState,
-  type ResolveTravelStructureStateOptions,
   type ResolvedTravelStructureState,
 } from './structureState';
 
-export { createTravelBetweenImagesTask } from './createTravelBetweenImagesTask';
 export { createTravelBetweenImagesTaskWithParentGeneration } from './createTravelBetweenImagesTask';
 export { validateTravelBetweenImagesParams } from './payloadBuilder';

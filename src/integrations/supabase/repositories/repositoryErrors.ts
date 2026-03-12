@@ -1,6 +1,6 @@
 import { ServerError } from '@/shared/lib/errorHandling/errors';
 
-export type RepositoryErrorCode = 'query_failed' | 'invalid_row_shape';
+type RepositoryErrorCode = 'query_failed' | 'invalid_row_shape';
 
 interface RepositoryErrorOptions {
   cause?: unknown;

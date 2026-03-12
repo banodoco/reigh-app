@@ -1,13 +1,12 @@
 import type { GenerationRow, Shot, ShotOption } from '@/domains/generation/types';
 import type {
   TaskDetailsData,
-  TaskDetailsStatus,
 } from '@/shared/lib/taskDetails/taskDetailsContract';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 import type { AsyncImageDeleteHandler } from '@/shared/types/imageHandlers';
 
 export type { ShotOption };
-export type { TaskDetailsData, TaskDetailsStatus };
+export type { TaskDetailsData };
 export type LightboxDeleteHandler = AsyncImageDeleteHandler;
 
 // ============================================================================

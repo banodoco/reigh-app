@@ -3,6 +3,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { crypto } from "https://deno.land/std@0.224.0/crypto/mod.ts";
 import { bootstrapEdgeHandler, NO_SESSION_RUNTIME_OPTIONS } from "../_shared/edgeHandler.ts";
+import { ensureStripeClient } from "../_shared/autoTopupRequest.ts";
 
 /** Stripe event shape (minimal — covers what this webhook uses) */
 interface StripeEvent {
@@ -27,6 +28,98 @@ interface PaymentIntentMetadata {
   userId?: string;
   originalBalance?: string;
   topupAmount?: string;
+}
+
+interface StripeLogger {
+  info: (message: string, context?: Record<string, unknown>) => void;
+  warn: (message: string, context?: Record<string, unknown>) => void;
+  error: (message: string, context?: Record<string, unknown>) => void;
+  flush: () => Promise<void>;
+}
+
+interface SupabaseAdminLike {
+  from: (table: string) => {
+    update: (values: Record<string, unknown>) => { eq: (column: string, value: string) => Promise<{ error: { message: string } | null }> };
+  };
+}
+
+async function applyVerifiedAutoTopupSetup({
+  supabaseAdmin,
+  logger,
+  session,
+  userId,
+  autoTopupAmount,
+  autoTopupThreshold,
+}: {
+  supabaseAdmin: SupabaseAdminLike;
+  logger: StripeLogger;
+  session: Record<string, unknown>;
+  userId: string;
+  autoTopupAmount: string;
+  autoTopupThreshold: string;
+}): Promise<void> {
+  const stripeResult = await ensureStripeClient(logger);
+  if (!stripeResult.ok) {
+    return;
+  }
+
+  const stripe = stripeResult.stripe;
+  const checkoutSessionId = typeof session.id === "string" ? session.id : "";
+  const checkoutSession = await stripe.checkout.sessions.retrieve(checkoutSessionId, {
+    expand: ["payment_intent.payment_method"],
+  });
+
+  if (!checkoutSession.payment_intent || typeof checkoutSession.payment_intent === "string") {
+    logger.error("Checkout session missing expanded payment intent", {
+      sessionId: checkoutSessionId,
+      userId,
+    });
+    return;
+  }
+
+  const paymentIntent = checkoutSession.payment_intent;
+  const paymentMethod = paymentIntent.payment_method;
+  const customerId =
+    typeof paymentIntent.customer === "string"
+      ? paymentIntent.customer
+      : typeof checkoutSession.customer === "string"
+        ? checkoutSession.customer
+        : "";
+
+  if (!paymentMethod || typeof paymentMethod === "string" || !customerId) {
+    logger.error("Verified auto-topup setup missing Stripe payment identifiers", {
+      sessionId: checkoutSessionId,
+      userId,
+      hasPaymentMethod: Boolean(paymentMethod),
+      hasCustomerId: Boolean(customerId),
+    });
+    return;
+  }
+
+  const { error: autoTopupError } = await supabaseAdmin
+    .from('users')
+    .update({
+      auto_topup_enabled: true,
+      auto_topup_setup_completed: true,
+      auto_topup_amount: Math.round(parseFloat(autoTopupAmount) * 100),
+      auto_topup_threshold: Math.round(parseFloat(autoTopupThreshold) * 100),
+      stripe_customer_id: customerId,
+      stripe_payment_method_id: paymentMethod.id,
+    })
+    .eq('id', userId);
+
+  if (autoTopupError) {
+    logger.error('Error setting up auto-top-up', { error: autoTopupError.message, user_id: userId });
+    return;
+  }
+
+  logger.info('Auto-top-up enabled for user', {
+    user_id: userId,
+    autoTopupAmount: parseFloat(autoTopupAmount),
+    autoTopupThreshold: parseFloat(autoTopupThreshold),
+    customerId,
+    paymentMethodId: paymentMethod.id,
+  });
 }
 
 // Helper for standard JSON responses with CORS headers
@@ -153,41 +246,17 @@ serve(async (req) => {
 
         // Handle auto-top-up setup if enabled
         if (autoTopupEnabled === 'true' && autoTopupAmount && autoTopupThreshold) {
-          // Get payment intent to extract customer and payment method
-          const paymentIntentId = session.payment_intent as string | undefined;
-          if (paymentIntentId) {
-            try {
-              // This requires importing Stripe in webhook - let's use a simple approach
-              // We'll fetch the payment intent details using Stripe API
-              const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
-              if (stripeSecretKey) {
-                // For now, we'll store the session data and let a background job handle Stripe API calls
-                // This avoids complex Stripe SDK imports in the webhook
-                const { error: autoTopupError } = await supabaseAdmin
-                  .from('users')
-                  .update({
-                    auto_topup_enabled: true,
-                    auto_topup_setup_completed: true, // Mark as setup completed when Stripe setup finishes
-                    auto_topup_amount: Math.round(parseFloat(autoTopupAmount) * 100), // Convert to cents
-                    auto_topup_threshold: Math.round(parseFloat(autoTopupThreshold) * 100), // Convert to cents
-                    stripe_customer_id: session.customer, // Customer ID from session
-                  })
-                  .eq('id', userId);
-
-                if (autoTopupError) {
-                  logger.error('Error setting up auto-top-up', { error: autoTopupError.message, user_id: userId });
-                } else {
-                  logger.info('Auto-top-up enabled for user', {
-                    user_id: userId,
-                    autoTopupAmount: parseFloat(autoTopupAmount),
-                    autoTopupThreshold: parseFloat(autoTopupThreshold),
-                    customerId: session.customer as string
-                  });
-                }
-              }
-            } catch (error: unknown) {
-              logger.error('Error processing auto-top-up setup', { error: error instanceof Error ? error.message : String(error) });
-            }
+          try {
+            await applyVerifiedAutoTopupSetup({
+              supabaseAdmin,
+              logger,
+              session,
+              userId,
+              autoTopupAmount,
+              autoTopupThreshold,
+            });
+          } catch (error: unknown) {
+            logger.error('Error processing auto-top-up setup', { error: error instanceof Error ? error.message : String(error) });
           }
         }
 

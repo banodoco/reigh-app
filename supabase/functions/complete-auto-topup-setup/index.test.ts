@@ -4,7 +4,7 @@ import * as CompleteAutoTopupSetupEntrypoint from './index.ts';
 
 const mocks = vi.hoisted(() => ({
   bootstrapEdgeHandler: vi.fn(),
-  createStripeClient: vi.fn(),
+  ensureStripeClient: vi.fn(),
 }));
 
 vi.mock('../_shared/edgeHandler.ts', () => ({
@@ -12,8 +12,8 @@ vi.mock('../_shared/edgeHandler.ts', () => ({
   NO_SESSION_RUNTIME_OPTIONS: {},
 }));
 
-vi.mock('../_shared/autoTopupDomain.ts', () => ({
-  createStripeClient: (...args: unknown[]) => mocks.createStripeClient(...args),
+vi.mock('../_shared/autoTopupRequest.ts', () => ({
+  ensureStripeClient: (...args: unknown[]) => mocks.ensureStripeClient(...args),
 }));
 
 vi.mock('../_shared/http.ts', () => ({
@@ -47,7 +47,16 @@ function createStripeMock() {
   return {
     checkout: {
       sessions: {
-        retrieve: vi.fn().mockResolvedValue({ payment_intent: 'pi_123' }),
+        retrieve: vi.fn().mockResolvedValue({
+          payment_intent: 'pi_123',
+          customer: 'cus_123',
+          metadata: {
+            userId: 'user_123',
+            autoTopupEnabled: 'true',
+            autoTopupAmount: '5',
+            autoTopupThreshold: '2',
+          },
+        }),
       },
     },
     paymentIntents: {
@@ -84,9 +93,9 @@ describe('complete-auto-topup-setup edge entrypoint', () => {
       },
     });
 
-    mocks.createStripeClient.mockReturnValue({
+    mocks.ensureStripeClient.mockResolvedValue({
       ok: true,
-      value: createStripeMock(),
+      stripe: createStripeMock(),
     });
   });
 
@@ -110,7 +119,7 @@ describe('complete-auto-topup-setup edge entrypoint', () => {
       value: {
         supabaseAdmin: createSupabaseAdmin(),
         logger,
-        body: { sessionId: 'cs_123', userId: 'user_123' },
+        body: { sessionId: 'cs_123', expectedUserId: 'user_123' },
         auth: { isServiceRole: false },
       },
     });
@@ -129,7 +138,7 @@ describe('complete-auto-topup-setup edge entrypoint', () => {
       value: {
         supabaseAdmin: createSupabaseAdmin(),
         logger: createLogger(),
-        body: { sessionId: '' },
+        body: { expectedUserId: 'user_123' },
         auth: { isServiceRole: true },
       },
     });
@@ -139,7 +148,7 @@ describe('complete-auto-topup-setup edge entrypoint', () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: 'sessionId and userId are required',
+      error: 'sessionId is required',
     });
   });
 
@@ -150,17 +159,17 @@ describe('complete-auto-topup-setup edge entrypoint', () => {
       value: {
         supabaseAdmin: createSupabaseAdmin(),
         logger,
-        body: { sessionId: 'cs_123', userId: 'user_123' },
+        body: { sessionId: 'cs_123', expectedUserId: 'user_123' },
         auth: { isServiceRole: true },
       },
     });
 
-    mocks.createStripeClient.mockReturnValue({
+    mocks.ensureStripeClient.mockResolvedValue({
       ok: false,
-      error: {
-        message: 'Missing Stripe secret key',
-        logMessage: 'Stripe key missing',
-      },
+      response: new Response(JSON.stringify({ error: 'Missing Stripe secret key' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }),
     });
 
     const handler = await loadHandler();
@@ -168,7 +177,6 @@ describe('complete-auto-topup-setup edge entrypoint', () => {
 
     expect(response.status).toBe(500);
     await expect(response.json()).resolves.toEqual({ error: 'Missing Stripe secret key' });
-    expect(logger.flush).toHaveBeenCalled();
   });
 
   it('completes setup and persists payment method details', async () => {
@@ -181,12 +189,12 @@ describe('complete-auto-topup-setup edge entrypoint', () => {
       value: {
         supabaseAdmin,
         logger,
-        body: { sessionId: 'cs_123', userId: 'user_123' },
+        body: { sessionId: 'cs_123', expectedUserId: 'user_123' },
         auth: { isServiceRole: true },
       },
     });
 
-    mocks.createStripeClient.mockReturnValue({ ok: true, value: stripe });
+    mocks.ensureStripeClient.mockResolvedValue({ ok: true, stripe });
 
     const handler = await loadHandler();
     const response = await handler(new Request('https://edge.test/complete-auto-topup-setup', { method: 'POST' }));
@@ -194,6 +202,7 @@ describe('complete-auto-topup-setup edge entrypoint', () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
       success: true,
+      userId: 'user_123',
       customerId: 'cus_123',
       paymentMethodId: 'pm_123',
       paymentMethodType: 'card',
@@ -202,10 +211,45 @@ describe('complete-auto-topup-setup edge entrypoint', () => {
 
     expect(supabaseAdmin.from).toHaveBeenCalledWith('users');
     expect(supabaseAdmin.update).toHaveBeenCalledWith({
+      auto_topup_amount: 500,
+      auto_topup_enabled: true,
+      auto_topup_setup_completed: true,
+      auto_topup_threshold: 200,
       stripe_customer_id: 'cus_123',
       stripe_payment_method_id: 'pm_123',
     });
     expect(supabaseAdmin.eq).toHaveBeenCalledWith('id', 'user_123');
+    expect(logger.flush).toHaveBeenCalled();
+  });
+
+  it('rejects checkout sessions whose metadata user does not match the expected user', async () => {
+    const logger = createLogger();
+    const stripe = createStripeMock();
+
+    mocks.bootstrapEdgeHandler.mockResolvedValue({
+      ok: true,
+      value: {
+        supabaseAdmin: createSupabaseAdmin(),
+        logger,
+        body: { sessionId: 'cs_123', expectedUserId: 'user_other' },
+        auth: { isServiceRole: true },
+      },
+    });
+
+    mocks.ensureStripeClient.mockResolvedValue({ ok: true, stripe });
+
+    const handler = await loadHandler();
+    const response = await handler(new Request('https://edge.test/complete-auto-topup-setup', { method: 'POST' }));
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: 'Checkout session does not belong to the expected user',
+    });
+    expect(logger.error).toHaveBeenCalledWith('Checkout session user mismatch', {
+      sessionId: 'cs_123',
+      expectedUserId: 'user_other',
+      metadataUserId: 'user_123',
+    });
     expect(logger.flush).toHaveBeenCalled();
   });
 });

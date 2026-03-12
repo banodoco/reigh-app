@@ -28,7 +28,7 @@ function buildHuggingFaceUrl(repo: string, path: string): string {
 }
 
 // Preset edit-mode LoRA URLs used in media lightbox edit hooks.
-export const EDIT_MODE_LORA_URLS = {
+const EDIT_MODE_LORA_URLS = {
   "in-scene": buildHuggingFaceUrl(
     'peteromallet/random_junk',
     'in_scene_different_object_000010500.safetensors',

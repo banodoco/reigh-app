@@ -19,6 +19,78 @@ interface ResolveAdjustedTaskDetailsInput {
   initialVariantId: string | undefined;
 }
 
+function isTaskCreatedVariant(
+  activeVariant: ResolveAdjustedTaskDetailsInput['activeVariant'],
+  variantParams: Record<string, unknown> | undefined,
+): activeVariant is NonNullable<ResolveAdjustedTaskDetailsInput['activeVariant']> {
+  return Boolean(
+    activeVariant
+    && variantParams
+    && (
+      variantParams.source_task_id
+      || variantParams.created_from
+      || (activeVariant.variant_type && activeVariant.variant_type !== VARIANT_TYPE.ORIGINAL)
+    ),
+  );
+}
+
+function resolveEffectiveVariantParams(
+  variantParams: Record<string, unknown>,
+  taskDetailsData: TaskDetailsData | undefined,
+  variantSourceTask: { params?: unknown } | null,
+): Record<string, unknown> {
+  const sourceTaskId = typeof variantParams.source_task_id === 'string' ? variantParams.source_task_id : undefined;
+  const hasMatchingTaskData = taskDetailsData?.taskId === sourceTaskId && taskDetailsData?.task?.params;
+
+  if (hasMatchingTaskData) {
+    return (taskDetailsData.task?.params ?? variantParams) as Record<string, unknown>;
+  }
+
+  if (!variantParams.orchestrator_details && variantSourceTask?.params) {
+    try {
+      return typeof variantSourceTask.params === 'string'
+        ? JSON.parse(variantSourceTask.params)
+        : (variantSourceTask.params as Record<string, unknown>);
+    } catch {
+      return variantParams;
+    }
+  }
+
+  return variantParams;
+}
+
+function buildAdjustedVariantTaskDetails(
+  activeVariant: NonNullable<ResolveAdjustedTaskDetailsInput['activeVariant']>,
+  variantParams: Record<string, unknown>,
+  taskDetailsData: TaskDetailsData | undefined,
+  variantSourceTask: { params?: unknown } | null,
+  variantSourceTaskError: Error | null,
+  isLoadingVariantTask: boolean,
+): TaskDetailsData {
+  const sourceTaskId = typeof variantParams.source_task_id === 'string' ? variantParams.source_task_id : undefined;
+  const hasMatchingTaskData = taskDetailsData?.taskId === sourceTaskId && taskDetailsData?.task?.params;
+  const shouldSurfaceVariantSourceTaskError = !hasMatchingTaskData && !!variantSourceTaskError;
+  const effectiveParams = resolveEffectiveVariantParams(variantParams, taskDetailsData, variantSourceTask);
+
+  return buildTaskDetailsData({
+    task: {
+      id: activeVariant.id,
+      taskType: activeVariant.variant_type || 'variant',
+      params: effectiveParams,
+      status: 'Complete' as Task['status'],
+      createdAt: activeVariant.created_at || new Date().toISOString(),
+      projectId: '',
+    } as Task,
+    isLoading: isLoadingVariantTask,
+    error: shouldSurfaceVariantSourceTaskError ? variantSourceTaskError : null,
+    inputImages: deriveInputImages(effectiveParams),
+    taskId: sourceTaskId ?? activeVariant.id,
+    onApplySettingsFromTask: taskDetailsData?.onApplySettingsFromTask,
+    onClose: taskDetailsData?.onClose,
+    status: shouldSurfaceVariantSourceTaskError ? 'error' : undefined,
+  });
+}
+
 export function resolveAdjustedTaskDetails(
   input: ResolveAdjustedTaskDetailsInput,
 ): TaskDetailsData | undefined {
@@ -33,49 +105,15 @@ export function resolveAdjustedTaskDetails(
   } = input;
 
   const variantParams = activeVariant?.params as Record<string, unknown> | undefined;
-  const isTaskCreatedVariant = activeVariant && variantParams && (
-    variantParams.source_task_id ||
-    variantParams.created_from ||
-    (activeVariant.variant_type && activeVariant.variant_type !== VARIANT_TYPE.ORIGINAL)
-  );
-
-  if (isTaskCreatedVariant && variantParams) {
-    const sourceTaskId = typeof variantParams.source_task_id === 'string' ? variantParams.source_task_id : undefined;
-    const hasMatchingTaskData = taskDetailsData?.taskId === sourceTaskId && taskDetailsData?.task?.params;
-    const shouldSurfaceVariantSourceTaskError = !hasMatchingTaskData && !!variantSourceTaskError;
-
-    let effectiveParams = variantParams;
-    const effectiveTaskType = activeVariant.variant_type || 'variant';
-
-    if (hasMatchingTaskData) {
-      effectiveParams = (taskDetailsData.task?.params ?? variantParams) as Record<string, unknown>;
-    } else if (!variantParams.orchestrator_details && variantSourceTask?.params) {
-      try {
-        effectiveParams = typeof variantSourceTask.params === 'string'
-          ? JSON.parse(variantSourceTask.params)
-          : (variantSourceTask.params as Record<string, unknown>);
-      } catch {
-        // Keep variant params as the fallback on parse failure.
-      }
-    }
-
-    return buildTaskDetailsData({
-      task: {
-        id: activeVariant.id,
-        taskType: effectiveTaskType,
-        params: effectiveParams,
-        status: 'Complete' as Task['status'],
-        createdAt: activeVariant.created_at || new Date().toISOString(),
-        projectId: '',
-      } as Task,
-      isLoading: isLoadingVariantTask,
-      error: shouldSurfaceVariantSourceTaskError ? variantSourceTaskError : null,
-      inputImages: deriveInputImages(effectiveParams),
-      taskId: sourceTaskId ?? activeVariant.id,
-      onApplySettingsFromTask: taskDetailsData?.onApplySettingsFromTask,
-      onClose: taskDetailsData?.onClose,
-      status: shouldSurfaceVariantSourceTaskError ? 'error' : undefined,
-    });
+  if (isTaskCreatedVariant(activeVariant, variantParams) && variantParams) {
+    return buildAdjustedVariantTaskDetails(
+      activeVariant,
+      variantParams,
+      taskDetailsData,
+      variantSourceTask,
+      variantSourceTaskError,
+      isLoadingVariantTask,
+    );
   }
 
   const waitingForInitialVariant = initialVariantId &&

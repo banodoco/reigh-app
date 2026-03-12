@@ -36,7 +36,7 @@ export type TaskLogFilterDescriptor =
   | TaskLogRadioFilterDescriptor
   | TaskLogMultiFilterDescriptor;
 
-export const TASK_LOG_FILTER_DESCRIPTORS: TaskLogFilterDescriptor[] = [
+const TASK_LOG_FILTER_DESCRIPTORS: TaskLogFilterDescriptor[] = [
   {
     key: 'costFilter',
     kind: 'radio',

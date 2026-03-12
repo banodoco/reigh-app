@@ -7,7 +7,7 @@ import {
   type GenerationTaskMappingCacheEntry,
 } from '@/shared/lib/tasks/generationTaskRepository';
 
-export async function fetchGenerationTaskMapping(
+async function fetchGenerationTaskMapping(
   generationId: string,
 ): Promise<GenerationTaskMappingCacheEntry> {
   if (!isUuid(generationId)) {

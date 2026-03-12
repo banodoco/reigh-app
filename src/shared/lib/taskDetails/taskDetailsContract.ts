@@ -24,7 +24,7 @@ interface BuildTaskDetailsDataInput {
   onClose?: TaskDetailsData['onClose'];
 }
 
-export function resolveTaskDetailsStatus(
+function resolveTaskDetailsStatus(
   task: Task | null,
   error: Error | null,
   explicitStatus?: TaskDetailsStatus,
