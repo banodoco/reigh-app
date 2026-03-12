@@ -67,9 +67,6 @@ export const setImageLoadStatus = (
   // Update tracker
   loadedImagesById.set(imageId, isLoaded);
 
-  // Keep legacy field in sync while older call sites are still present.
-  image.__memoryCached = isLoaded;
-
   // Enforce limits in coarse batches to avoid per-write overhead.
   if (isLoaded && loadedImagesById.size % 50 === 0) {
     enforceLoadTrackerLimits();
@@ -120,13 +117,7 @@ export const hasLoadedImage = (urlOrImage: string | TrackableImage): boolean => 
     return false;
   }
 
-  const isLoaded = loadedImagesById.get(imageId) === true;
-
-  if (isLoaded && urlOrImage.__memoryCached !== true) {
-    urlOrImage.__memoryCached = true;
-  }
-
-  return isLoaded;
+  return loadedImagesById.get(imageId) === true;
 };
 
 export const markImageLoaded = (

@@ -27,8 +27,6 @@ export const PRIORITY = {
 
 export interface TrackableImage {
   id: string;
-  // Legacy field retained until all consumers migrate to tracker APIs.
-  __memoryCached?: boolean;
 }
 
 export interface PreloadingServiceState {
