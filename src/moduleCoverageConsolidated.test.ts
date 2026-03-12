@@ -560,7 +560,6 @@ const moduleLoaders = [
   () => import('@/tools/travel-between-images/components/ShotEditor/controllers/useGenerationControllerInputModel'),
   () => import('@/tools/travel-between-images/components/ShotEditor/controllers/useImageManagementController'),
   () => import('@/tools/travel-between-images/components/ShotEditor/controllers/useOutputController'),
-  () => import('@/tools/travel-between-images/components/ShotEditor/controllers/useShotEditorApplySettingsModel'),
   () => import('@/tools/travel-between-images/components/ShotEditor/controllers/useShotEditorLayoutModel'),
   () => import('@/tools/travel-between-images/components/ShotEditor/controllers/useShotEditorMediaAndOutputControllers'),
   () => import('@/tools/travel-between-images/components/ShotEditor/services/generateVideo/pairPayload'),

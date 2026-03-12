@@ -13,20 +13,6 @@ const moduleLoaders = [
     loadModule: () => import('@/domains/generation/mappers/generationRowMapper'),
   },
   {
-    expectedExports: ['useVideoInfoPanelModel'],
-    loadModule: () =>
-      import(
-        '@/domains/media-lightbox/hooks/videoLightbox/useVideoInfoPanelModel'
-      ),
-  },
-  {
-    expectedExports: ['useVideoWorkflowBarModel'],
-    loadModule: () =>
-      import(
-        '@/domains/media-lightbox/hooks/videoLightbox/useVideoWorkflowBarModel'
-      ),
-  },
-  {
     expectedExports: ['GenerationsPane'],
     loadModule: () => import('@/features/gallery/components/GenerationsPane/GenerationsPane'),
   },

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
-import { useUpdateShotImageOrder, useAddImageToShot } from "@/shared/hooks/shots";
+import { useUpdateShotImageOrder, useAddImageToShot, useRemoveImageFromShot } from "@/shared/hooks/shots";
 import { useShotCreation } from "@/shared/hooks/shotCreation/useShotCreation";
 import { useIsMobile } from "@/shared/hooks/mobile";
 import { Shot } from '@/domains/generation/types';
@@ -35,12 +35,12 @@ import { ShotEditorLayoutProps } from './ShotEditorLayout';
 import { useGenerationController } from './controllers/useGenerationController';
 import { useImageManagementController } from './controllers/useImageManagementController';
 import { useGenerationControllerInputModel } from './controllers/useGenerationControllerInputModel';
-import { useShotEditorApplySettingsModel } from './controllers/useShotEditorApplySettingsModel';
 import { useShotEditorMediaAndOutputControllers } from './controllers/useShotEditorMediaAndOutputControllers';
 import {
   buildShotEditorContextInput,
   useShotEditorLayoutModel,
 } from './controllers/useShotEditorLayoutModel';
+import { useApplySettingsHandler } from './hooks/actions/useApplySettingsHandler';
 import { useShotSettingsValue } from './hooks/editor-state/useShotSettingsValue';
 import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 
@@ -116,6 +116,7 @@ export function useShotEditorController({
   const { navigateToShot } = useShotNavigation();
   const { createShot } = useShotCreation();
   const addImageToShotMutation = useAddImageToShot();
+  const removeImageFromShotMutation = useRemoveImageFromShot();
   const { mutateAsync: addToShotMutation, mutateAsyncWithoutPosition: addToShotWithoutPositionMutation } = addImageToShotMutation;
 
   const createShotRef = useRef(createShot);
@@ -308,27 +309,57 @@ export function useShotEditorController({
     isGenerationDisabled,
   } = useGenerationController(generationControllerInput);
 
-  const applySettingsFromTask = useShotEditorApplySettingsModel({
+  const applySettingsFromTask = useApplySettingsHandler({
     core: {
       projectId,
       selectedShot: selectedShot ?? undefined,
       simpleFilteredImages,
-      availableLoras: loraSettingsFromContext.availableLoras,
-      loraManager,
     },
-    settings: {
-      promptSettings,
-      motionSettings,
-      frameSettings,
-      phaseConfigSettings,
-      generationModeSettings,
-      steerableMotionSettings: steerableMotionSettingsFromContext,
+    contexts: {
+      model: {
+        steerableMotionSettings: steerableMotionSettingsFromContext.steerableMotionSettings,
+        onSteerableMotionSettingsChange: steerableMotionSettingsFromContext.setSteerableMotionSettings,
+      },
+      prompts: {
+        onBatchVideoPromptChange: promptSettings.setPrompt,
+        onSteerableMotionSettingsChange: steerableMotionSettingsFromContext.setSteerableMotionSettings,
+        updatePairPromptsByIndex,
+      },
+      generation: {
+        onBatchVideoFramesChange: frameSettings.setFrames,
+        onBatchVideoStepsChange: frameSettings.setSteps,
+      },
+      modes: {
+        onGenerationModeChange: generationModeSettings.setGenerationMode,
+        onAdvancedModeChange: (advanced: boolean) => motionSettings.setMotionMode(advanced ? 'advanced' : 'basic'),
+        onMotionModeChange: motionSettings.setMotionMode,
+        onGenerationTypeModeChange: phaseConfigSettings.setGenerationTypeMode,
+      },
+      advanced: {
+        onPhaseConfigChange: phaseConfigSettings.setPhaseConfig,
+        onPhasePresetSelect: phaseConfigSettings.selectPreset,
+        onPhasePresetRemove: phaseConfigSettings.removePreset,
+        onTurboModeChange: motionSettings.setTurboMode,
+        onEnhancePromptChange: promptSettings.setEnhancePrompt,
+      },
+      textAddons: {
+        onTextBeforePromptsChange: promptSettings.setTextBeforePrompts,
+        onTextAfterPromptsChange: promptSettings.setTextAfterPrompts,
+      },
+      motion: {
+        onAmountOfMotionChange: motionSettings.setAmountOfMotion,
+      },
+      loras: {
+        availableLoras: loraSettingsFromContext.availableLoras,
+        loraManager,
+      },
+      structureVideo: {
+        onStructureVideoInputChange: mediaEditing.handleStructureVideoInputChange,
+      },
     },
-    structureVideo: {
-      handleStructureVideoInputChange: mediaEditing.handleStructureVideoInputChange,
-    },
-    generationController: {
-      updatePairPromptsByIndex,
+    mutations: {
+      addImageToShotMutation,
+      removeImageFromShotMutation,
       loadPositions,
     },
   });
