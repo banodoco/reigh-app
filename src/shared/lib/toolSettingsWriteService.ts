@@ -165,5 +165,5 @@ export function updateToolSettingsSupabase(
     toolId,
     patch: patch as Record<string, unknown>,
     ...(signal ? { signal } : {}),
-  }, mode) as Promise<Record<string, unknown>>;
+  }, mode, rawUpdateToolSettings) as Promise<Record<string, unknown>>;
 }

@@ -131,6 +131,7 @@ describe('updateToolSettingsSupabase', () => {
         patch: { foo: 'bar' },
       }),
       'immediate',
+      expect.any(Function),
     );
   });
 
@@ -157,6 +158,7 @@ describe('updateToolSettingsSupabase', () => {
         signal: controller.signal,
       }),
       'immediate',
+      expect.any(Function),
     );
   });
 });

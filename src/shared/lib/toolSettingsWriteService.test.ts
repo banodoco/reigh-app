@@ -171,13 +171,13 @@ describe('toolSettingsWriteService', () => {
       entityId: 'user-1',
       toolId: 'timeline',
       patch: { showGrid: true },
-    }, 'immediate');
+    }, 'immediate', expect.any(Function));
     expect(mocks.enqueueSettingsWrite).toHaveBeenNthCalledWith(2, {
       scope: 'shot',
       entityId: 'shot-1',
       toolId: 'timeline',
       patch: { showGrid: false },
       signal: controller.signal,
-    }, 'debounced');
+    }, 'debounced', expect.any(Function));
   });
 });

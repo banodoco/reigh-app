@@ -236,7 +236,6 @@ describe('settingsWriteQueue', () => {
     });
 
     it('throws when write function is not initialized', async () => {
-      // Reset the write function to null
       const write: QueuedWrite = {
         scope: 'user',
         entityId: 'user-2',
@@ -247,7 +246,30 @@ describe('settingsWriteQueue', () => {
       resetSettingsWriteQueueForTests();
 
       await expect(() => enqueueSettingsWrite(write, 'immediate')).toThrow(
-        'initializeSettingsWriteQueue',
+        'registered or explicit write executor',
+      );
+    });
+
+    it('accepts an explicit write executor without bootstrap initialization', async () => {
+      resetSettingsWriteQueueForTests();
+      const write: QueuedWrite = {
+        scope: 'user',
+        entityId: 'user-3',
+        toolId: 'tool-3',
+        patch: { test: true },
+      };
+
+      const resultPromise = enqueueSettingsWrite(write, 'immediate', mockWriteFn);
+      await vi.advanceTimersByTimeAsync(0);
+
+      await expect(resultPromise).resolves.toEqual({ ok: true });
+      expect(mockWriteFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scope: 'user',
+          entityId: 'user-3',
+          toolId: 'tool-3',
+          patch: { test: true },
+        }),
       );
     });
 

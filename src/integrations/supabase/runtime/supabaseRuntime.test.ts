@@ -84,4 +84,35 @@ describe('supabaseRuntime', () => {
       expect(result.error.message).toContain('Supabase runtime is not initialized');
     }
   });
+
+  it('lazily initializes the runtime when the safe accessor is used before bootstrap', async () => {
+    const mockClient = { id: 'lazy-client' };
+    const { module, createSupabaseClient, initializeSupabaseRuntime } = await loadRuntimeModule({
+      createImpl: () => mockClient,
+    });
+
+    const result = module.getOrInitializeSupabaseRuntimeClientResult();
+
+    expect(result).toEqual({ ok: true, client: mockClient });
+    expect(createSupabaseClient).toHaveBeenCalledTimes(1);
+    expect(initializeSupabaseRuntime).toHaveBeenCalledTimes(1);
+    expect(module.getSupabaseRuntimeClientResult()).toEqual({ ok: true, client: mockClient });
+  });
+
+  it('surfaces lazy initialization failures through the safe accessor', async () => {
+    const thrown = new Error('lazy bootstrap failed');
+    const { module, createSupabaseClient } = await loadRuntimeModule({
+      createImpl: () => {
+        throw thrown;
+      },
+    });
+
+    const result = module.getOrInitializeSupabaseRuntimeClientResult();
+
+    expect(createSupabaseClient).toHaveBeenCalledTimes(1);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBe(thrown);
+    }
+  });
 });

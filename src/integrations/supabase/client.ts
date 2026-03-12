@@ -2,7 +2,7 @@
 
 import {
   type SupabaseClientAccessResult,
-  getSupabaseRuntimeClientResult,
+  getOrInitializeSupabaseRuntimeClientResult,
   initializeSupabaseClientRuntime,
   normalizeSupabaseError,
 } from '@/integrations/supabase/runtime/supabaseRuntime';
@@ -26,7 +26,7 @@ export function initializeSupabaseResult(): SupabaseClientAccessResult {
 
 /** Runtime accessor that never throws; callers can branch on initialization state. */
 export function getSupabaseClientResult(): SupabaseClientAccessResult {
-  const result = getSupabaseRuntimeClientResult();
+  const result = getOrInitializeSupabaseRuntimeClientResult();
   return result.ok ? result : { ok: false, error: normalizeSupabaseError(result.error) };
 }
 

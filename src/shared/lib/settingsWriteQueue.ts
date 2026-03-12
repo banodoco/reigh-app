@@ -23,7 +23,10 @@ export interface QueuedWrite {
   signal?: AbortSignal;
 }
 
+export type SettingsWriteExecutor = (write: QueuedWrite) => Promise<unknown>;
+
 interface PendingWrite {
+  execute: SettingsWriteExecutor;
   write: QueuedWrite;
   resolvers: Array<{ resolve: (value: unknown) => void; reject: (error: unknown) => void }>;
   timerId: NodeJS.Timeout | null;
@@ -39,8 +42,7 @@ const pendingByTarget = new Map<string, PendingWrite>();
 let inFlightCount = 0;
 const flushQueue: Array<{ targetKey: string; pending: PendingWrite }> = [];
 
-// The actual write function - injected to avoid circular imports
-let writeFunction: ((write: QueuedWrite) => Promise<unknown>) | null = null;
+let defaultWriteFunction: SettingsWriteExecutor | null = null;
 let lifecycleHooksRegistered = false;
 
 function createAbortError(): Error {
@@ -79,7 +81,7 @@ function registerLifecycleHooks(): void {
  * Must be called during app bootstrap before any settings write is enqueued.
  */
 export function initializeSettingsWriteQueue(fn: (write: QueuedWrite) => Promise<unknown>) {
-  writeFunction = fn;
+  defaultWriteFunction = fn;
   registerLifecycleHooks();
 }
 
@@ -93,7 +95,7 @@ export function resetSettingsWriteQueueForTests(): void {
   pendingByTarget.clear();
   flushQueue.length = 0;
   inFlightCount = 0;
-  writeFunction = null;
+  defaultWriteFunction = null;
   lifecycleHooksRegistered = false;
 }
 
@@ -130,12 +132,8 @@ async function processQueue() {
   inFlightCount++;
   
   try {
-    if (!writeFunction) {
-      throw new Error('[SettingsWriteQueue] Write function not initialized');
-    }
-
     throwIfAborted(pending.write.signal);
-    const result = await writeFunction(pending.write);
+    const result = await pending.execute(pending.write);
     
     // Resolve all waiters
     for (const { resolve } of pending.resolvers) {
@@ -182,14 +180,16 @@ function scheduleFlush(key: string, pending: PendingWrite) {
  */
 export function enqueueSettingsWrite(
   write: QueuedWrite,
-  mode: 'debounced' | 'immediate' = 'debounced'
+  mode: 'debounced' | 'immediate' = 'debounced',
+  execute: SettingsWriteExecutor | null = null,
 ): Promise<unknown> {
-  if (!writeFunction) {
+  const resolvedExecute = execute ?? defaultWriteFunction;
+  if (!resolvedExecute) {
     throw new Error(
-      '[SettingsWriteQueue] enqueueSettingsWrite called before initializeSettingsWriteQueue. ' +
-      'Ensure app bootstrap initializes the queue before settings writes run.'
+      '[SettingsWriteQueue] enqueueSettingsWrite requires a registered or explicit write executor.'
     );
   }
+  registerLifecycleHooks();
 
   const key = targetKey(write);
 
@@ -203,6 +203,7 @@ export function enqueueSettingsWrite(
 
     if (existing) {
       // Merge with existing pending write
+      existing.execute = resolvedExecute;
       existing.write.patch = shallowMergePatch(existing.write.patch, write.patch);
       if (write.signal) {
         existing.write.signal = write.signal;
@@ -218,6 +219,7 @@ export function enqueueSettingsWrite(
     } else {
       // Create new pending write
       const pending: PendingWrite = {
+        execute: resolvedExecute,
         write: { ...write, patch: { ...write.patch } },
         resolvers: [{ resolve, reject }],
         timerId: null,
