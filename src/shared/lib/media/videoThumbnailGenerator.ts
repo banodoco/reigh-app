@@ -9,10 +9,7 @@ import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';
 import { storagePaths, MEDIA_BUCKET } from '@/shared/lib/storagePaths';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import {
-  configureVideoForFrameCapture,
-  createVideoFrameCaptureElements,
-} from './videoFrameCapturePrimitives';
+import { captureVideoFrameBlob } from './captureVideoFrameBlob';
 
 interface ThumbnailGenerationResult {
   success: boolean;
@@ -43,61 +40,19 @@ function extractThumbnailFromVideo(
   videoUrl: string,
   timeInSeconds: number = 0.001
 ): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const captureElements = createVideoFrameCaptureElements();
-    if (!captureElements) {
-      reject(new Error('Failed to get canvas context'));
-      return;
-    }
-    const { video, canvas, ctx } = captureElements;
-
-    configureVideoForFrameCapture(video, 'anonymous');
-
-    // Handle video loaded
-    video.addEventListener('loadedmetadata', () => {
-      // Set canvas size to video dimensions (or max 1280px width)
+  return captureVideoFrameBlob({
+    source: getDisplayUrl(videoUrl),
+    crossOrigin: 'anonymous',
+    resolveSeekTime: (video) => Math.max(0, Math.min(timeInSeconds, video.duration - 0.1)),
+    configureCanvas: (video, canvas) => {
       const maxWidth = 1280;
       const scale = Math.min(1, maxWidth / video.videoWidth);
       canvas.width = video.videoWidth * scale;
       canvas.height = video.videoHeight * scale;
-
-      // Seek to the desired time (or start if video is shorter)
-      video.currentTime = Math.min(timeInSeconds, video.duration - 0.1);
-    });
-
-    // Handle seeked event
-    video.addEventListener('seeked', () => {
-      try {
-        // Draw video frame to canvas
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        // Convert to blob (JPEG, 85% quality)
-        canvas.toBlob(
-          (blob) => {
-            video.remove();
-            if (blob) {
-              resolve(blob);
-            } else {
-              reject(new Error('Failed to create blob from canvas'));
-            }
-          },
-          'image/jpeg',
-          0.85
-        );
-      } catch (error) {
-        video.remove();
-        reject(error);
-      }
-    });
-
-    // Handle errors
-    video.addEventListener('error', () => {
-      video.remove();
-      reject(new Error(`Video loading failed: ${video.error?.message || 'Unknown error'}`));
-    });
-
-    // Start loading
-    video.src = getDisplayUrl(videoUrl);
+    },
+    onVideoError: (video) => (
+      new Error(`Video loading failed: ${video.error?.message || 'Unknown error'}`)
+    ),
   });
 }
 

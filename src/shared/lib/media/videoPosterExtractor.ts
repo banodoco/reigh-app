@@ -2,10 +2,7 @@
  * Utility for extracting poster images (first frame) from video files
  */
 
-import {
-  configureVideoForFrameCapture,
-  createVideoFrameCaptureElements,
-} from './videoFrameCapturePrimitives';
+import { captureVideoFrameBlob } from './captureVideoFrameBlob';
 
 /**
  * Extract the first frame of a video as a Blob
@@ -13,58 +10,10 @@ import {
  * @returns Promise that resolves to a Blob of the poster image (JPEG)
  */
 export function extractVideoPosterFrame(videoFile: File): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const captureElements = createVideoFrameCaptureElements();
-    if (!captureElements) {
-      reject(new Error('Failed to get canvas context'));
-      return;
-    }
-    const { video, canvas, ctx } = captureElements;
-
-    configureVideoForFrameCapture(video);
-
-    // When metadata is loaded, we can get dimensions
-    video.addEventListener('loadedmetadata', () => {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      
-      // Seek to a small time to avoid black frames at the start
-      video.currentTime = 0.1;
-    });
-
-    // When we've seeked to the right time, capture the frame
-    video.addEventListener('seeked', () => {
-      try {
-        // Draw the video frame to canvas
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        // Convert canvas to blob
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              resolve(blob);
-            } else {
-              reject(new Error('Failed to create blob from canvas'));
-            }
-            
-            // Cleanup
-            video.src = '';
-            URL.revokeObjectURL(video.src);
-          },
-          'image/jpeg',
-          0.85 // Quality
-        );
-      } catch (error) {
-        reject(error);
-      }
-    });
-
-    video.addEventListener('error', () => {
-      reject(new Error('Failed to load video'));
-    });
-
-    // Load the video
-    video.src = URL.createObjectURL(videoFile);
+  return captureVideoFrameBlob({
+    source: videoFile,
+    resolveSeekTime: () => 0.1,
+    onVideoError: () => new Error('Failed to load video'),
   });
 }
 
@@ -74,57 +23,9 @@ export function extractVideoPosterFrame(videoFile: File): Promise<Blob> {
  * @returns Promise that resolves to a Blob of the final frame image (JPEG)
  */
 export function extractVideoFinalFrame(videoFile: File): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const captureElements = createVideoFrameCaptureElements();
-    if (!captureElements) {
-      reject(new Error('Failed to get canvas context'));
-      return;
-    }
-    const { video, canvas, ctx } = captureElements;
-
-    configureVideoForFrameCapture(video);
-
-    // When metadata is loaded, we can get dimensions and duration
-    video.addEventListener('loadedmetadata', () => {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      
-      // Seek to near the end (0.1 seconds before) to avoid potential issues
-      video.currentTime = Math.max(0, video.duration - 0.1);
-    });
-
-    // When we've seeked to the right time, capture the frame
-    video.addEventListener('seeked', () => {
-      try {
-        // Draw the video frame to canvas
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        // Convert canvas to blob
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              resolve(blob);
-            } else {
-              reject(new Error('Failed to create blob from canvas'));
-            }
-            
-            // Cleanup
-            video.src = '';
-            URL.revokeObjectURL(video.src);
-          },
-          'image/jpeg',
-          0.85 // Quality
-        );
-      } catch (error) {
-        reject(error);
-      }
-    });
-
-    video.addEventListener('error', () => {
-      reject(new Error('Failed to load video'));
-    });
-
-    // Load the video
-    video.src = URL.createObjectURL(videoFile);
+  return captureVideoFrameBlob({
+    source: videoFile,
+    resolveSeekTime: (video) => Math.max(0, video.duration - 0.1),
+    onVideoError: () => new Error('Failed to load video'),
   });
 }
