@@ -16,7 +16,7 @@ export interface ActiveLora {
 
 export type PromptMode = 'managed' | 'automated';
 
-import type { HiresFixConfig } from '@/shared/components/ImageGenerationForm/types';
+import type { HiresFixConfig } from '@/shared/lib/imageGeneration/hiresFixConfig';
 
 export type { HiresFixConfig };
 
