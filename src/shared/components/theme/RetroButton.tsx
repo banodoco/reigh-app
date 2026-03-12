@@ -49,7 +49,4 @@ const RetroButton = React.forwardRef<HTMLButtonElement, RetroButtonProps>(
 );
 RetroButton.displayName = 'RetroButton';
 
-// Backwards-compatible alias for files that import { Button }.
-const Button = RetroButton;
-
-export { RetroButton,  };
+export { RetroButton };
