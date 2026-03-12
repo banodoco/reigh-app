@@ -2,14 +2,19 @@
 import { DEFAULT_STEERABLE_MOTION_SETTINGS } from '@/shared/types/steerableMotion';
 
 /**
- * Canonical defaults for structure video configuration.
- * Legacy field names are derived from this object at boundary adapters.
+ * Canonical defaults for structure guidance controls.
+ */
+export const DEFAULT_STRUCTURE_GUIDANCE_CONTROLS = {
+  motionStrength: 1.2,
+  structureType: 'uni3c' as const,
+  uni3cEndPercent: 0.1,
+};
+
+/**
+ * Canonical defaults for structure video entries.
  */
 export const DEFAULT_STRUCTURE_VIDEO = {
   treatment: 'adjust' as const,
-  motion_strength: 1.2,
-  structure_type: 'uni3c' as const,
-  uni3c_end_percent: 0.1,
 };
 
 /**

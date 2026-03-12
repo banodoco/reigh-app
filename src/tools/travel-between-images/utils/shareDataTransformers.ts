@@ -4,6 +4,7 @@ import type { GenerationRowDto } from '@/domains/generation/types/generationRowD
 import { mapGenerationRowDtoToRow } from '@/domains/generation/mappers/generationRowMapper';
 import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import {
+  DEFAULT_STRUCTURE_GUIDANCE_CONTROLS,
   DEFAULT_STRUCTURE_VIDEO,
   resolveTravelStructureState,
   type ResolvedTravelStructureState,
@@ -60,8 +61,8 @@ export function extractStructureState(
   return resolveTravelStructureState(settings, {
     defaultEndFrame: 300,
     defaultVideoTreatment: DEFAULT_STRUCTURE_VIDEO.treatment,
-    defaultMotionStrength: DEFAULT_STRUCTURE_VIDEO.motion_strength,
-    defaultStructureType: DEFAULT_STRUCTURE_VIDEO.structure_type,
-    defaultUni3cEndPercent: DEFAULT_STRUCTURE_VIDEO.uni3c_end_percent,
+    defaultMotionStrength: DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.motionStrength,
+    defaultStructureType: DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.structureType,
+    defaultUni3cEndPercent: DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.uni3cEndPercent,
   });
 }

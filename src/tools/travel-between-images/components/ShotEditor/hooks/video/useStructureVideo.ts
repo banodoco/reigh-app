@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { useAutoSaveSettings } from '@/shared/settings/hooks/useAutoSaveSettings';
 import type { VideoMetadata } from '@/shared/lib/media/videoUploader';
 import {
+  DEFAULT_STRUCTURE_GUIDANCE_CONTROLS,
   DEFAULT_STRUCTURE_VIDEO,
   type StructureGuidanceConfig,
   resolvePrimaryStructureVideo,
@@ -128,9 +129,9 @@ export function useStructureVideo({
     () => resolveTravelStructureState(settings.settings ?? null, {
       defaultEndFrame: timelineEndFrame,
       defaultVideoTreatment: DEFAULT_STRUCTURE_VIDEO.treatment,
-      defaultMotionStrength: DEFAULT_STRUCTURE_VIDEO.motion_strength,
-      defaultStructureType: DEFAULT_STRUCTURE_VIDEO.structure_type,
-      defaultUni3cEndPercent: DEFAULT_STRUCTURE_VIDEO.uni3c_end_percent,
+      defaultMotionStrength: DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.motionStrength,
+      defaultStructureType: DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.structureType,
+      defaultUni3cEndPercent: DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.uni3cEndPercent,
     }),
     [settings.settings, timelineEndFrame],
   );
@@ -139,9 +140,9 @@ export function useStructureVideo({
 
   const structureControls = useMemo(
     () => resolveStructureGuidanceControls(structureGuidance, {
-      defaultStructureType: DEFAULT_STRUCTURE_VIDEO.structure_type,
-      defaultMotionStrength: DEFAULT_STRUCTURE_VIDEO.motion_strength,
-      defaultUni3cEndPercent: DEFAULT_STRUCTURE_VIDEO.uni3c_end_percent,
+      defaultStructureType: DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.structureType,
+      defaultMotionStrength: DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.motionStrength,
+      defaultUni3cEndPercent: DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.uni3cEndPercent,
     }),
     [structureGuidance],
   );
@@ -157,7 +158,7 @@ export function useStructureVideo({
         structureVideos: sanitizedVideos,
         controls: structureControls,
         defaultVideoTreatment: DEFAULT_STRUCTURE_VIDEO.treatment,
-        defaultUni3cEndPercent: DEFAULT_STRUCTURE_VIDEO.uni3c_end_percent,
+        defaultUni3cEndPercent: DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.uni3cEndPercent,
       }),
     });
   }, [settings, structureControls, timelineEndFrame]);
@@ -174,7 +175,7 @@ export function useStructureVideo({
           ...updates,
         },
         defaultVideoTreatment: DEFAULT_STRUCTURE_VIDEO.treatment,
-        defaultUni3cEndPercent: DEFAULT_STRUCTURE_VIDEO.uni3c_end_percent,
+        defaultUni3cEndPercent: DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.uni3cEndPercent,
       }),
     });
   }, [settings, structureControls, structureVideos, timelineEndFrame]);

@@ -9,10 +9,10 @@ export type {
 } from './taskTypes';
 export type {
   StructureVideoConfigWithMetadata,
-  StructureVideoConfigWithLegacyGuidance,
 } from './uiTypes';
 
 export {
+  DEFAULT_STRUCTURE_GUIDANCE_CONTROLS,
   DEFAULT_STRUCTURE_VIDEO,
 } from './defaults';
 export {

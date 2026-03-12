@@ -200,6 +200,24 @@ describe('useShotEditorLayoutModel builders', () => {
     expect(result.dimensions).toBe(args.dimensions);
   });
 
+  it('builds one screen model that feeds both context and layout consumers', () => {
+    const args = createLayoutArgs();
+
+    const result = __internal.buildShotEditorScreenModel({
+      core: args.core as never,
+      images: args.images as never,
+      controllers: args.controllers as never,
+      settings: args.settings as never,
+      dimensions: args.dimensions as never,
+      sections: args.sections as never,
+    });
+
+    expect(result.contextInput.selectedShotId).toBe(args.core.selectedShotId);
+    expect(result.contextInput.structureVideo.structureVideoPath).toBe('video.mp4');
+    expect(result.layoutParams.controllers.output.selectedOutputId).toBe('output-1');
+    expect(result.layoutParams.sections.applySettingsFromTask).toBe(args.sections.applySettingsFromTask);
+  });
+
   it('builds section props without forcing the top-level hook to hand-wire every subsection inline', () => {
     const args = createLayoutArgs();
     const contextValue = { test: true };

@@ -27,14 +27,11 @@ function asRecordArray(value: unknown): UnknownRecord[] | undefined {
   return records.length > 0 ? records : undefined;
 }
 
-function buildGuidanceFromVideos(
+function sanitizeStructureVideos(
   videos: UnknownRecord[],
-  options: {
-    defaultVideoTreatment: string;
-    defaultUni3cEndPercent: number;
-  },
-): UnknownRecord | undefined {
-  const cleanedVideos = videos
+  defaultVideoTreatment: string,
+): UnknownRecord[] {
+  return videos
     .map((video) => {
       const path = asString(video.path);
       if (!path) {
@@ -46,12 +43,25 @@ function buildGuidanceFromVideos(
         path,
         start_frame: asNumber(video.start_frame) ?? 0,
         end_frame: asNumber(video.end_frame) ?? null,
-        treatment: asString(video.treatment) ?? options.defaultVideoTreatment,
+        treatment: asString(video.treatment) ?? defaultVideoTreatment,
         ...(metadata ? { metadata } : {}),
         ...(resourceId ? { resource_id: resourceId } : {}),
       };
     })
     .filter((video): video is { path: string; start_frame: number; end_frame: number | null; treatment: string } => !!video);
+}
+
+function buildGuidanceFromVideos(
+  videos: UnknownRecord[],
+  options: {
+    defaultVideoTreatment: string;
+    defaultUni3cEndPercent: number;
+  },
+): UnknownRecord | undefined {
+  const cleanedVideos = sanitizeStructureVideos(
+    videos,
+    options.defaultVideoTreatment,
+  );
 
   if (cleanedVideos.length === 0) {
     return undefined;
@@ -219,34 +229,39 @@ export function buildStructureGuidanceFromControls(
     return undefined;
   }
 
-  const normalized = normalizeStructureGuidance({
-    structureVideos: videos.map((video, index) => {
-      if (index !== 0) {
-        return video;
-      }
-      return {
-        ...video,
-        motion_strength: input.controls.motionStrength,
-        structure_type: input.controls.structureType,
-        ...(input.controls.structureType === 'uni3c'
-          ? {
-              uni3c_start_percent: input.controls.uni3cStartPercent,
-              uni3c_end_percent: input.controls.uni3cEndPercent,
-            }
-          : {}),
-        ...(input.controls.structureType === 'canny' && input.controls.cannyIntensity !== undefined
-          ? { canny_intensity: input.controls.cannyIntensity }
-          : {}),
-        ...(input.controls.structureType === 'depth' && input.controls.depthContrast !== undefined
-          ? { depth_contrast: input.controls.depthContrast }
-          : {}),
-      };
-    }),
-    defaultVideoTreatment: input.defaultVideoTreatment,
-    defaultUni3cEndPercent: input.defaultUni3cEndPercent,
-  });
+  const cleanedVideos = sanitizeStructureVideos(
+    videos,
+    input.defaultVideoTreatment ?? 'adjust',
+  );
+  if (cleanedVideos.length === 0) {
+    return undefined;
+  }
 
-  return normalized as StructureGuidanceConfig | undefined;
+  const guidance: UnknownRecord = {
+    target: input.controls.structureType === 'uni3c' ? 'uni3c' : 'vace',
+    videos: cleanedVideos,
+    strength: input.controls.motionStrength,
+  };
+
+  if (input.controls.structureType === 'uni3c') {
+    guidance.step_window = [
+      input.controls.uni3cStartPercent,
+      input.controls.uni3cEndPercent,
+    ];
+    guidance.frame_policy = 'fit';
+    guidance.zero_empty_frames = true;
+    return guidance as StructureGuidanceConfig;
+  }
+
+  guidance.preprocessing = STRUCTURE_PREPROCESSING_MAP[input.controls.structureType] ?? 'flow';
+  if (input.controls.structureType === 'canny' && input.controls.cannyIntensity !== undefined) {
+    guidance.canny_intensity = input.controls.cannyIntensity;
+  }
+  if (input.controls.structureType === 'depth' && input.controls.depthContrast !== undefined) {
+    guidance.depth_contrast = input.controls.depthContrast;
+  }
+
+  return guidance as StructureGuidanceConfig;
 }
 
 export function pickFirstStructureGuidance(...candidates: unknown[]): UnknownRecord | undefined {

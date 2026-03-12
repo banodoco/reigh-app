@@ -28,20 +28,17 @@ describe('resolvePrimaryStructureVideo', () => {
     });
   });
 
-  it('falls back to legacy inline video controls when guidance is absent', () => {
+  it('falls back to canonical defaults when guidance is absent', () => {
     const result = resolvePrimaryStructureVideo([{
-      path: '/videos/legacy.mp4',
+      path: '/videos/defaults.mp4',
       start_frame: 0,
       end_frame: 100,
       treatment: 'adjust',
-      motion_strength: 0.9,
-      structure_type: 'depth',
-      uni3c_end_percent: 0.4,
       metadata: null,
     }]);
 
-    expect(result.motionStrength).toBe(0.9);
-    expect(result.structureType).toBe('depth');
-    expect(result.uni3cEndPercent).toBe(0.4);
+    expect(result.motionStrength).toBe(1.2);
+    expect(result.structureType).toBe('uni3c');
+    expect(result.uni3cEndPercent).toBe(0.1);
   });
 });

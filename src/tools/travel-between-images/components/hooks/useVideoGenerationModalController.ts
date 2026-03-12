@@ -17,6 +17,7 @@ import { isPositioned, isVideoGeneration } from '@/shared/lib/typeGuards';
 import { findClosestAspectRatio } from '@/shared/lib/media/aspectRatios';
 import { useEnqueueGenerationsInvalidation } from '@/shared/hooks/invalidation/useGenerationInvalidation';
 import {
+  DEFAULT_STRUCTURE_GUIDANCE_CONTROLS,
   DEFAULT_STRUCTURE_VIDEO,
   resolveTravelStructureState,
 } from '@/shared/lib/tasks/travelBetweenImages';
@@ -255,9 +256,9 @@ export function useVideoGenerationModalController({ isOpen, onClose, shot }: {
     () => resolveTravelStructureState(settings, {
       defaultEndFrame: settings.batchVideoFrames || 61,
       defaultVideoTreatment: DEFAULT_STRUCTURE_VIDEO.treatment,
-      defaultMotionStrength: DEFAULT_STRUCTURE_VIDEO.motion_strength,
-      defaultStructureType: DEFAULT_STRUCTURE_VIDEO.structure_type,
-      defaultUni3cEndPercent: DEFAULT_STRUCTURE_VIDEO.uni3c_end_percent,
+      defaultMotionStrength: DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.motionStrength,
+      defaultStructureType: DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.structureType,
+      defaultUni3cEndPercent: DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.uni3cEndPercent,
     }),
     [settings],
   );

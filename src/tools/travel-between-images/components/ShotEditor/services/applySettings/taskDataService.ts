@@ -1,8 +1,6 @@
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
-import {
-  DEFAULT_STRUCTURE_VIDEO,
-  resolveTravelStructureState,
-} from '@/shared/lib/tasks/travelBetweenImages';
+import { buildTaskPayloadSnapshot } from '@/shared/lib/tasks/taskPayloadSnapshot';
+import { buildTravelStructureSource, readResolvedTravelStructure } from '@/shared/lib/tasks/travelContractData';
 import {
   collectTravelStructureLegacyUsage,
   enforceTravelStructureLegacyPolicy,
@@ -50,43 +48,9 @@ export const fetchTask = async (taskId: string): Promise<FetchTaskResult> => {
 };
 
 function extractStructureSettings(taskData: TaskData): ExtractedStructureVideoSettings {
-  const params = taskData.params as Record<string, unknown>;
-  const orchestrator = taskData.orchestrator as Record<string, unknown>;
-  const structureSource = {
-    structure_guidance: orchestrator.structure_guidance ?? params.structure_guidance,
-    structure_videos: (
-      orchestrator.structure_videos ??
-      params.structure_videos ??
-      ((orchestrator.structure_guidance ?? params.structure_guidance) as Record<string, unknown> | undefined)?.videos
-    ),
-    structure_video_path: orchestrator.structure_video_path ?? params.structure_video_path,
-    structure_video_treatment: orchestrator.structure_video_treatment ?? params.structure_video_treatment,
-    structure_video_type: orchestrator.structure_video_type
-      ?? orchestrator.structure_type
-      ?? params.structure_video_type
-      ?? params.structure_type,
-    structure_video_motion_strength: orchestrator.structure_video_motion_strength ?? params.structure_video_motion_strength,
-    structure_canny_intensity: orchestrator.structure_canny_intensity ?? params.structure_canny_intensity,
-    structure_depth_contrast: orchestrator.structure_depth_contrast ?? params.structure_depth_contrast,
-    uni3c_start_percent: orchestrator.uni3c_start_percent ?? params.uni3c_start_percent,
-    uni3c_end_percent: orchestrator.uni3c_end_percent ?? params.uni3c_end_percent,
-    use_uni3c: orchestrator.use_uni3c ?? params.use_uni3c,
-  };
+  const snapshot = buildTaskPayloadSnapshot(taskData.params);
+  const structureSource = buildTravelStructureSource(snapshot);
   const legacyUsage = collectTravelStructureLegacyUsage(structureSource);
-  const presentInTask =
-    Boolean(structureSource.structure_guidance)
-    || Array.isArray(structureSource.structure_videos)
-    || structureSource.structure_video_path !== undefined
-    || structureSource.structure_video_treatment !== undefined
-    || structureSource.structure_video_type !== undefined
-    || structureSource.structure_video_motion_strength !== undefined
-    || structureSource.structure_canny_intensity !== undefined
-    || structureSource.structure_depth_contrast !== undefined
-    || structureSource.uni3c_start_percent !== undefined
-    || structureSource.uni3c_end_percent !== undefined
-    || structureSource.use_uni3c !== undefined
-    || legacyUsage.topLevelFields.length > 0
-    || legacyUsage.structureVideoFields.length > 0;
 
   enforceTravelStructureLegacyPolicy(
     legacyUsage,
@@ -96,18 +60,19 @@ function extractStructureSettings(taskData: TaskData): ExtractedStructureVideoSe
     },
   );
 
-  const resolvedStructure = resolveTravelStructureState(structureSource, {
-    defaultEndFrame: 0,
-    defaultVideoTreatment: DEFAULT_STRUCTURE_VIDEO.treatment,
-    defaultMotionStrength: DEFAULT_STRUCTURE_VIDEO.motion_strength,
-    defaultStructureType: DEFAULT_STRUCTURE_VIDEO.structure_type,
-    defaultUni3cEndPercent: DEFAULT_STRUCTURE_VIDEO.uni3c_end_percent,
-  });
+  const resolvedStructure = readResolvedTravelStructure(snapshot);
 
   return {
-    presentInTask,
-    ...(resolvedStructure.structureGuidance ? { structureGuidance: resolvedStructure.structureGuidance } : {}),
-    ...(resolvedStructure.structureVideos.length > 0 ? { structureVideos: resolvedStructure.structureVideos } : {}),
+    presentInTask:
+      resolvedStructure.present
+      || legacyUsage.topLevelFields.length > 0
+      || legacyUsage.structureVideoFields.length > 0,
+    ...(resolvedStructure.structureGuidance
+      ? { structureGuidance: resolvedStructure.structureGuidance }
+      : {}),
+    ...(resolvedStructure.structureVideos.length > 0
+      ? { structureVideos: resolvedStructure.structureVideos }
+      : {}),
   };
 }
 

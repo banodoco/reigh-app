@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { readTravelContractData, readTravelStructureVideoFromGuidance } from './travelContractData';
+import {
+  buildTravelStructureSource,
+  readResolvedTravelStructure,
+  readTravelContractData,
+} from './travelContractData';
 import type { TaskPayloadSnapshot } from './taskPayloadSnapshot';
 
 function buildSnapshot(overrides: Partial<TaskPayloadSnapshot> = {}): TaskPayloadSnapshot {
@@ -61,14 +65,72 @@ describe('travelContractData', () => {
     expect(result.negativePrompt).toBe('legacy negative');
   });
 
-  it('reads first structure guidance video as record when present', () => {
-    expect(readTravelStructureVideoFromGuidance(undefined)).toBeUndefined();
-    expect(readTravelStructureVideoFromGuidance({ videos: [] })).toBeUndefined();
-    expect(readTravelStructureVideoFromGuidance({ videos: ['bad-shape'] })).toBeUndefined();
-    expect(
-      readTravelStructureVideoFromGuidance({
-        videos: [{ video_path: '/path/video.mp4', treatment: 'clip' }],
-      }),
-    ).toEqual({ video_path: '/path/video.mp4', treatment: 'clip' });
+  it('builds one shared structure source from contract and legacy payload paths', () => {
+    const snapshot = buildSnapshot({
+      taskViewContract: {
+        structure_guidance: {
+          target: 'uni3c',
+          strength: 0.7,
+          step_window: [0.2, 0.6],
+          videos: [{ path: '/contract-guide.mp4', treatment: 'clip' }],
+        },
+      },
+      rawParams: {
+        structure_video_path: '/legacy-guide.mp4',
+      },
+    });
+
+    expect(buildTravelStructureSource(snapshot)).toEqual({
+      structure_guidance: {
+        target: 'uni3c',
+        strength: 0.7,
+        step_window: [0.2, 0.6],
+        videos: [{ path: '/contract-guide.mp4', treatment: 'clip' }],
+      },
+      structure_videos: [{ path: '/contract-guide.mp4', treatment: 'clip' }],
+      structure_video_path: '/legacy-guide.mp4',
+    });
+  });
+
+  it('resolves canonical structure state and primary video from one payload reader', () => {
+    const snapshot = buildSnapshot({
+      rawParams: {
+        structure_video_path: '/legacy-guide.mp4',
+        structure_video_treatment: 'adjust',
+        structure_video_motion_strength: 0.8,
+        structure_type: 'depth',
+      },
+    });
+
+    expect(readResolvedTravelStructure(snapshot)).toEqual({
+      present: true,
+      structureGuidance: {
+        target: 'vace',
+        videos: [{
+          path: '/legacy-guide.mp4',
+          start_frame: 0,
+          end_frame: 0,
+          treatment: 'adjust',
+        }],
+        strength: 0.8,
+        preprocessing: 'depth',
+      },
+      structureVideos: [{
+        path: '/legacy-guide.mp4',
+        start_frame: 0,
+        end_frame: 0,
+        treatment: 'adjust',
+        metadata: null,
+        resource_id: null,
+      }],
+      primaryStructureVideo: {
+        path: '/legacy-guide.mp4',
+        metadata: null,
+        treatment: 'adjust',
+        motionStrength: 0.8,
+        structureType: 'depth',
+        uni3cEndPercent: 0.1,
+      },
+    });
   });
 });

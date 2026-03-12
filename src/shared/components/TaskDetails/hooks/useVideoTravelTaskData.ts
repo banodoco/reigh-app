@@ -1,10 +1,9 @@
 import { useMemo } from 'react';
 import { parseTaskParams, deriveInputImages, derivePrompt } from '@/shared/lib/taskParamsUtils';
-import { pickFirstStructureGuidance } from '@/shared/lib/tasks/structureGuidance';
 import { buildTaskPayloadSnapshot } from '@/shared/lib/tasks/taskPayloadSnapshot';
 import {
   readTravelContractData,
-  readTravelStructureVideoFromGuidance,
+  readResolvedTravelStructure,
 } from '@/shared/lib/tasks/travelContractData';
 import {
   asRecord,
@@ -105,6 +104,7 @@ export function useVideoTravelTaskData({
   return useMemo(() => {
     const payloadSnapshot = buildTaskPayloadSnapshot(parsedParams);
     const travelContractData = readTravelContractData(payloadSnapshot);
+    const structureData = readResolvedTravelStructure(payloadSnapshot);
     const rawParams = payloadSnapshot.rawParams;
     const individualSegmentParams = payloadSnapshot.individualSegmentParams;
     const derivedImages = deriveInputImages(rawParams);
@@ -153,25 +153,15 @@ export function useVideoTravelTaskData({
       asString(rawParams.enhanced_prompt),
     );
 
-    const structureGuidance = pickFirstStructureGuidance(
-      individualSegmentParams.structure_guidance,
-      travelContractData.structureGuidance,
-      asRecord(rawParams.structure_guidance),
-    );
-    const structureVideo = readTravelStructureVideoFromGuidance(structureGuidance);
-    const videoPath = pickString(
-      structureVideo?.path,
-      asString(payloadSnapshot.orchestratorDetails.structure_video_path),
-      asString(rawParams.structure_video_path),
-    );
-    const videoTreatment = pickString(
-      structureVideo?.treatment,
-      asString(payloadSnapshot.orchestratorDetails.structure_video_treatment),
-      asString(rawParams.structure_video_treatment),
-    );
-    const motionStrength = asNumber(structureGuidance?.strength)
-      ?? asNumber(payloadSnapshot.orchestratorDetails.structure_video_motion_strength)
-      ?? asNumber(rawParams.structure_video_motion_strength);
+    const structureGuidance = structureData.structureGuidance;
+    const hasStructureVideo = Boolean(structureData.primaryStructureVideo.path);
+    const videoPath = structureData.primaryStructureVideo.path ?? undefined;
+    const videoTreatment = hasStructureVideo
+      ? structureData.primaryStructureVideo.treatment
+      : undefined;
+    const motionStrength = hasStructureVideo
+      ? structureData.primaryStructureVideo.motionStrength
+      : undefined;
 
     const styleImage = pickString(
       asString(rawParams.style_reference_image),

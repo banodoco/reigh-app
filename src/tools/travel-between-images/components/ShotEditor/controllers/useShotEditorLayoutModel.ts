@@ -147,6 +147,16 @@ export interface BuildShotEditorContextInputArgs {
   dimensions: UseShotSettingsValueProps['dimensions'];
 }
 
+export interface BuildShotEditorScreenModelArgs
+  extends BuildShotEditorContextInputArgs {
+  sections: UseShotEditorLayoutModelParams['sections'];
+}
+
+interface ShotEditorScreenModel {
+  contextInput: UseShotSettingsValueProps;
+  layoutParams: Omit<UseShotEditorLayoutModelParams, 'contextValue'>;
+}
+
 interface ShotEditorLayoutSectionsArgs {
   core: UseShotEditorLayoutModelParams['core'];
   controllers: UseShotEditorLayoutModelParams['controllers'];
@@ -266,6 +276,31 @@ export function buildShotEditorContextInput({
   };
 }
 
+function buildShotEditorScreenModel({
+  core,
+  images,
+  controllers,
+  settings,
+  dimensions,
+  sections,
+}: BuildShotEditorScreenModelArgs): ShotEditorScreenModel {
+  return {
+    contextInput: buildShotEditorContextInput({
+      core,
+      images,
+      controllers,
+      settings,
+      dimensions,
+    }),
+    layoutParams: {
+      core,
+      controllers,
+      settings,
+      sections,
+    },
+  };
+}
+
 function buildShotEditorLayoutSections({
   core,
   controllers,
@@ -357,6 +392,7 @@ function buildShotEditorLayoutSections({
 }
 
 export const __internal = {
+  buildShotEditorScreenModel,
   buildShotEditorContextInput,
   buildShotEditorLayoutSections,
 };

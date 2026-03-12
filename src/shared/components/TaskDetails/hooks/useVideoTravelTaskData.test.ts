@@ -12,21 +12,15 @@ const mocks = vi.hoisted(() => ({
   parseTaskParams: vi.fn(),
   deriveInputImages: vi.fn(),
   derivePrompt: vi.fn(),
-  pickFirstStructureGuidance: vi.fn(),
   buildTaskPayloadSnapshot: vi.fn(),
   readTravelContractData: vi.fn(),
-  readTravelStructureVideoFromGuidance: vi.fn(),
+  readResolvedTravelStructure: vi.fn(),
 }));
 
 vi.mock('@/shared/lib/taskParamsUtils', () => ({
   parseTaskParams: (...args: unknown[]) => mocks.parseTaskParams(...args),
   deriveInputImages: (...args: unknown[]) => mocks.deriveInputImages(...args),
   derivePrompt: (...args: unknown[]) => mocks.derivePrompt(...args),
-}));
-
-vi.mock('@/shared/lib/tasks/structureGuidance', () => ({
-  pickFirstStructureGuidance: (...args: unknown[]) =>
-    mocks.pickFirstStructureGuidance(...args),
 }));
 
 vi.mock('@/shared/lib/tasks/taskPayloadSnapshot', () => ({
@@ -37,8 +31,8 @@ vi.mock('@/shared/lib/tasks/taskPayloadSnapshot', () => ({
 vi.mock('@/shared/lib/tasks/travelContractData', () => ({
   readTravelContractData: (...args: unknown[]) =>
     mocks.readTravelContractData(...args),
-  readTravelStructureVideoFromGuidance: (...args: unknown[]) =>
-    mocks.readTravelStructureVideoFromGuidance(...args),
+  readResolvedTravelStructure: (...args: unknown[]) =>
+    mocks.readResolvedTravelStructure(...args),
 }));
 
 describe('useVideoTravelTaskData', () => {
@@ -95,14 +89,16 @@ describe('useVideoTravelTaskData', () => {
       structureGuidance: taskParams.task_view_contract.structure_guidance,
       segmentFramesExpanded: taskParams.task_view_contract.segment_frames_expanded,
     });
+    mocks.readResolvedTravelStructure.mockReturnValue({
+      structureGuidance: taskParams.task_view_contract.structure_guidance,
+      primaryStructureVideo: {
+        path: 'https://cdn.example.com/guide.mp4',
+        treatment: 'clip',
+        motionStrength: 0.42,
+      },
+    });
     mocks.deriveInputImages.mockReturnValue(['derived.png']);
     mocks.derivePrompt.mockReturnValue('derived prompt');
-    mocks.pickFirstStructureGuidance.mockImplementation(
-      (...candidates: unknown[]) => candidates.find(Boolean),
-    );
-    mocks.readTravelStructureVideoFromGuidance.mockReturnValue(
-      taskParams.task_view_contract.structure_guidance.videos[0],
-    );
 
     const { result } = renderHook(() =>
       useVideoTravelTaskData({
@@ -154,14 +150,16 @@ describe('useVideoTravelTaskData', () => {
       individualSegmentParams: taskParams.individual_segment_params,
     });
     mocks.readTravelContractData.mockReturnValue({});
+    mocks.readResolvedTravelStructure.mockReturnValue({
+      structureGuidance: taskParams.structure_guidance,
+      primaryStructureVideo: {
+        path: 'legacy-guide.mp4',
+        treatment: 'adjust',
+        motionStrength: 0.33,
+      },
+    });
     mocks.deriveInputImages.mockReturnValue(['segment-start.png', 'segment-end.png']);
     mocks.derivePrompt.mockReturnValue('derived prompt');
-    mocks.pickFirstStructureGuidance.mockImplementation(
-      (...candidates: unknown[]) => candidates.find(Boolean),
-    );
-    mocks.readTravelStructureVideoFromGuidance.mockReturnValue(
-      taskParams.structure_guidance.videos[0],
-    );
 
     const { result } = renderHook(() =>
       useVideoTravelTaskData({

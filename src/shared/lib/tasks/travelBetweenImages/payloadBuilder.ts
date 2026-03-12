@@ -7,6 +7,7 @@ import {
 } from "../../taskCreation";
 import type { TravelBetweenImagesTaskInput } from './taskTypes';
 import {
+  DEFAULT_STRUCTURE_GUIDANCE_CONTROLS,
   DEFAULT_STRUCTURE_VIDEO,
   DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES,
 } from './defaults';
@@ -297,7 +298,7 @@ export function buildTravelBetweenImagesPayload(
     structureGuidance: params.structure_guidance,
     structureVideos: params.structure_videos,
     defaultVideoTreatment: DEFAULT_STRUCTURE_VIDEO.treatment,
-    defaultUni3cEndPercent: DEFAULT_STRUCTURE_VIDEO.uni3c_end_percent,
+    defaultUni3cEndPercent: DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.uni3cEndPercent,
   });
   if (normalizedStructureGuidance) {
     orchestratorPayload.structure_guidance = normalizedStructureGuidance;

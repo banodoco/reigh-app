@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, type RefObject } from "react";
 import { useUpdateShotImageOrder, useAddImageToShot, useRemoveImageFromShot } from "@/shared/hooks/shots";
 import { useShotCreation } from "@/shared/hooks/shotCreation/useShotCreation";
 import { useIsMobile } from "@/shared/hooks/mobile";
@@ -37,7 +37,7 @@ import { useImageManagementController } from './controllers/useImageManagementCo
 import { useGenerationControllerInputModel } from './controllers/useGenerationControllerInputModel';
 import { useShotEditorMediaAndOutputControllers } from './controllers/useShotEditorMediaAndOutputControllers';
 import {
-  buildShotEditorContextInput,
+  __internal as shotEditorLayoutInternal,
   useShotEditorLayoutModel,
 } from './controllers/useShotEditorLayoutModel';
 import { useApplySettingsHandler } from './hooks/actions/useApplySettingsHandler';
@@ -47,6 +47,172 @@ import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 interface ShotEditorControllerResult {
   hasSelectedShot: boolean;
   layoutProps: ShotEditorLayoutProps;
+}
+
+type ShotEditorScreenModelArgs = Parameters<
+  typeof shotEditorLayoutInternal.buildShotEditorScreenModel
+>[0];
+
+interface BuildShotEditorControllerSlicesArgs {
+  mediaEditing: ReturnType<
+    typeof useShotEditorMediaAndOutputControllers
+  >['editing']['mediaEditing'];
+  joinWorkflow: ReturnType<
+    typeof useShotEditorMediaAndOutputControllers
+  >['editing']['joinWorkflow'];
+  output: ReturnType<
+    typeof useShotEditorMediaAndOutputControllers
+  >['output'];
+  generationActions: ReturnType<typeof useGenerationActions>;
+  shotActions: ReturnType<typeof useShotActions>;
+  generationController: {
+    isGenerationDisabled: boolean;
+    isSteerableMotionEnqueuing: boolean;
+    steerableMotionJustQueued: boolean;
+    currentMotionSettings: ReturnType<
+      typeof useShotEditorBridge
+    >['currentMotionSettings'];
+    handleAcceleratedChange: ReturnType<
+      typeof useGenerationController
+    >['handleAcceleratedChange'];
+    handleRandomSeedChange: ReturnType<
+      typeof useGenerationController
+    >['handleRandomSeedChange'];
+    handleGenerateBatch: ReturnType<
+      typeof useGenerationController
+    >['handleGenerateBatch'];
+    handleBatchVideoPromptChangeWithClear: ReturnType<
+      typeof useGenerationController
+    >['handleBatchVideoPromptChangeWithClear'];
+    handleStepsChange: ReturnType<typeof useGenerationController>['handleStepsChange'];
+    clearAllEnhancedPrompts: ReturnType<
+      typeof useGenerationController
+    >['clearAllEnhancedPrompts'];
+  };
+  imageManagement: {
+    handleReorderImagesInShot: ReturnType<
+      typeof useImageManagementController
+    >['handleReorderImagesInShot'];
+    handleImageUpload: ReturnType<
+      typeof useImageManagementController
+    >['handleImageUpload'];
+    handlePendingPositionApplied: ReturnType<
+      typeof useImageManagementController
+    >['handlePendingPositionApplied'];
+    handleDeleteFinalVideo: ReturnType<
+      typeof useImageManagementController
+    >['handleDeleteFinalVideo'];
+    isClearingFinalVideo: ReturnType<
+      typeof useImageManagementController
+    >['isClearingFinalVideo'];
+  };
+  bridge: {
+    handleSelectionChangeLocal: ReturnType<
+      typeof useShotEditorBridge
+    >['handleSelectionChangeLocal'];
+  };
+  loraManager: ReturnType<typeof useLoraSync>['loraManager'];
+  availableLoras: ReturnType<typeof useLoraSettings>['availableLoras'];
+  shots: ReturnType<typeof useShotEditorSetup>['shots'];
+}
+
+interface BuildShotEditorSectionsArgs {
+  props: Pick<
+    ShotEditorProps,
+    | 'onBack'
+    | 'onPreviousShot'
+    | 'onNextShot'
+    | 'hasPrevious'
+    | 'hasNext'
+    | 'onUpdateShotName'
+    | 'headerContainerRef'
+    | 'timelineSectionRef'
+    | 'ctaContainerRef'
+    | 'isSticky'
+    | 'variantName'
+    | 'onVariantNameChange'
+    | 'isGeneratingVideo'
+    | 'videoJustQueued'
+    | 'getFinalVideoCount'
+    | 'getHasStructureVideo'
+  >;
+  handleDragStateChange: (isDragging: boolean) => void;
+  refs: {
+    centerSectionRef: RefObject<HTMLDivElement>;
+    videoGalleryRef: RefObject<HTMLDivElement>;
+    generateVideosCardRef: RefObject<HTMLDivElement>;
+    joinSegmentsSectionRef: RefObject<HTMLDivElement>;
+    swapButtonRef: RefObject<HTMLButtonElement>;
+  };
+  initialParentGenerations: ReturnType<
+    typeof useShotEditorSetup
+  >['initialParentGenerations'];
+  applySettingsFromTask: ReturnType<typeof useApplySettingsHandler>;
+}
+
+function buildShotEditorControllerSlices({
+  mediaEditing,
+  joinWorkflow,
+  output,
+  generationActions,
+  shotActions,
+  generationController,
+  imageManagement,
+  bridge,
+  loraManager,
+  availableLoras,
+  shots,
+}: BuildShotEditorControllerSlicesArgs): ShotEditorScreenModelArgs['controllers'] {
+  return {
+    mediaEditing,
+    joinWorkflow,
+    output: {
+      selectedOutputId: output.selectedOutputId,
+      setSelectedOutputId: output.setSelectedOutputId,
+      parentGenerations: output.parentGenerations,
+      segmentProgress: output.segmentProgress,
+      isSegmentOutputsLoading: output.isSegmentOutputsLoading,
+    },
+    generationActions,
+    shotActions,
+    generationController,
+    imageManagement,
+    bridge,
+    loraManager,
+    availableLoras,
+    shots,
+  };
+}
+
+function buildShotEditorSections({
+  props,
+  handleDragStateChange,
+  refs,
+  initialParentGenerations,
+  applySettingsFromTask,
+}: BuildShotEditorSectionsArgs): ShotEditorScreenModelArgs['sections'] {
+  return {
+    onBack: props.onBack,
+    onPreviousShot: props.onPreviousShot,
+    onNextShot: props.onNextShot,
+    hasPrevious: props.hasPrevious,
+    hasNext: props.hasNext,
+    onUpdateShotName: props.onUpdateShotName,
+    headerContainerRef: props.headerContainerRef,
+    timelineSectionRef: props.timelineSectionRef,
+    ctaContainerRef: props.ctaContainerRef,
+    isSticky: props.isSticky,
+    parentVariantName: props.variantName,
+    parentOnVariantNameChange: props.onVariantNameChange,
+    parentIsGeneratingVideo: props.isGeneratingVideo,
+    parentVideoJustQueued: props.videoJustQueued,
+    getFinalVideoCount: props.getFinalVideoCount,
+    getHasStructureVideo: props.getHasStructureVideo,
+    onDragStateChange: handleDragStateChange,
+    refs,
+    initialParentGenerations,
+    applySettingsFromTask,
+  };
 }
 
 export function useShotEditorController({
@@ -407,7 +573,7 @@ export function useShotEditorController({
     lastVideoGeneration,
   });
 
-  const sharedModelArgs = {
+  const screenModel = shotEditorLayoutInternal.buildShotEditorScreenModel({
     core: {
       selectedShot,
       selectedShotId,
@@ -419,16 +585,10 @@ export function useShotEditorController({
       actions,
       queryClient,
     },
-    controllers: {
+    controllers: buildShotEditorControllerSlices({
       mediaEditing,
       joinWorkflow,
-      output: {
-        selectedOutputId: output.selectedOutputId,
-        setSelectedOutputId: output.setSelectedOutputId,
-        parentGenerations: output.parentGenerations,
-        segmentProgress: output.segmentProgress,
-        isSegmentOutputsLoading: output.isSegmentOutputsLoading,
-      },
+      output,
       generationActions,
       shotActions,
       generationController: {
@@ -456,7 +616,7 @@ export function useShotEditorController({
       loraManager,
       availableLoras: loraSettingsFromContext.availableLoras,
       shots,
-    },
+    }),
     settings: {
       promptSettings,
       motionSettings,
@@ -467,10 +627,6 @@ export function useShotEditorController({
       accelerated,
       randomSeed,
     },
-  };
-
-  const contextInput = buildShotEditorContextInput({
-    ...sharedModelArgs,
     images: {
       allShotImages,
       timelineImages,
@@ -487,31 +643,26 @@ export function useShotEditorController({
       customHeight,
       onCustomHeightChange,
     },
-  });
-
-  const contextValue = useShotSettingsValue(contextInput);
-
-  const layoutProps: ShotEditorLayoutProps = useShotEditorLayoutModel({
-    ...sharedModelArgs,
-    contextValue,
-    sections: {
-      onBack,
-      onPreviousShot,
-      onNextShot,
-      hasPrevious,
-      hasNext,
-      onUpdateShotName,
-      headerContainerRef: parentHeaderRef,
-      timelineSectionRef: parentTimelineRef,
-      ctaContainerRef: parentCtaRef,
-      isSticky,
-      parentVariantName,
-      parentOnVariantNameChange,
-      parentIsGeneratingVideo,
-      parentVideoJustQueued,
-      getFinalVideoCount,
-      getHasStructureVideo,
-      onDragStateChange: handleDragStateChange,
+    sections: buildShotEditorSections({
+      props: {
+        onBack,
+        onPreviousShot,
+        onNextShot,
+        hasPrevious,
+        hasNext,
+        onUpdateShotName,
+        headerContainerRef: parentHeaderRef,
+        timelineSectionRef: parentTimelineRef,
+        ctaContainerRef: parentCtaRef,
+        isSticky,
+        variantName: parentVariantName,
+        onVariantNameChange: parentOnVariantNameChange,
+        isGeneratingVideo: parentIsGeneratingVideo,
+        videoJustQueued: parentVideoJustQueued,
+        getFinalVideoCount,
+        getHasStructureVideo,
+      },
+      handleDragStateChange,
       refs: {
         centerSectionRef,
         videoGalleryRef,
@@ -521,7 +672,14 @@ export function useShotEditorController({
       },
       initialParentGenerations,
       applySettingsFromTask,
-    },
+    }),
+  });
+
+  const contextValue = useShotSettingsValue(screenModel.contextInput);
+
+  const layoutProps: ShotEditorLayoutProps = useShotEditorLayoutModel({
+    ...screenModel.layoutParams,
+    contextValue,
   });
 
   return {

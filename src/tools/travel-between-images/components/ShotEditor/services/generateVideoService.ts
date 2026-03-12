@@ -5,6 +5,7 @@ import { ValidationError } from '@/shared/lib/errorHandling/errors';
 import {
   createTravelBetweenImagesTaskWithParentGeneration,
   validateTravelBetweenImagesParams,
+  DEFAULT_STRUCTURE_GUIDANCE_CONTROLS,
   DEFAULT_STRUCTURE_VIDEO,
 } from '@/shared/lib/tasks/travelBetweenImages';
 import { normalizeStructureGuidance } from '@/shared/lib/tasks/structureGuidance';
@@ -66,7 +67,7 @@ function buildStructureGuidance(
   const normalized = normalizeStructureGuidance({
     structureVideos,
     defaultVideoTreatment: DEFAULT_STRUCTURE_VIDEO.treatment,
-    defaultUni3cEndPercent: DEFAULT_STRUCTURE_VIDEO.uni3c_end_percent,
+    defaultUni3cEndPercent: DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.uni3cEndPercent,
   });
   return normalized ?? null;
 }
