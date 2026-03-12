@@ -305,6 +305,9 @@ const moduleLoaders = [
     '@/shared/components/VideoPortionEditor/components/AdvancedSettingsSection'
   ),
   () => import(
+    '@/shared/components/VideoPortionEditor/hooks/useVideoFrameExtraction'
+  ),
+  () => import(
     '@/shared/components/VideoPortionEditor/types'
   ),
   () => import(
@@ -408,15 +411,20 @@ const moduleLoaders = [
   ),
 ] as const;
 
+const zeroRuntimeExportIndexes = new Set([86, 102, 135]);
+
 describe('reopened module coverage surface batch', () => {
   it('loads each reopened app coverage target and exposes defined runtime exports when present', async () => {
-    for (const loadModule of moduleLoaders) {
+    for (const [index, loadModule] of moduleLoaders.entries()) {
       const loadedModule = await loadModule();
+      const exportNames = Object.keys(loadedModule);
 
-      expect(loadedModule).toBeDefined();
-
-      for (const exportName of Object.keys(loadedModule)) {
-        expect(loadedModule[exportName as keyof typeof loadedModule]).toBeDefined();
+      if (zeroRuntimeExportIndexes.has(index)) {
+        expect(exportNames).toHaveLength(0);
+      } else {
+        if (exportNames.length === 0) {
+          throw new Error(`Expected runtime exports for moduleLoaders[${index}]`);
+        }
       }
     }
   }, 60_000);

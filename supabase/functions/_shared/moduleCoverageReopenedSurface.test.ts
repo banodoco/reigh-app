@@ -39,15 +39,18 @@ const moduleLoaders = [
   ),
 ] as const;
 
+const zeroRuntimeExportIndexes = new Set<number>();
+
 describe('reopened config and edge module coverage surface batch', () => {
   it('loads each reopened config or edge coverage target and exposes defined runtime exports when present', async () => {
-    for (const loadModule of moduleLoaders) {
+    for (const [index, loadModule] of moduleLoaders.entries()) {
       const loadedModule = await loadModule();
+      const exportNames = Object.keys(loadedModule);
 
-      expect(loadedModule).toBeDefined();
-
-      for (const exportName of Object.keys(loadedModule)) {
-        expect(loadedModule[exportName as keyof typeof loadedModule]).toBeDefined();
+      if (zeroRuntimeExportIndexes.has(index)) {
+        expect(exportNames).toHaveLength(0);
+      } else {
+        expect(exportNames.length).toBeGreaterThan(0);
       }
     }
   }, 30_000);
