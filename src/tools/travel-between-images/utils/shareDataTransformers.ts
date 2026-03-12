@@ -1,3 +1,4 @@
+// IMPORTANT: If hook return shapes change, update these transformers.
 import type { GenerationRow } from '@/domains/generation/types';
 import type { GenerationRowDto } from '@/domains/generation/types/generationRowDto';
 import { mapGenerationRowDtoToRow } from '@/domains/generation/mappers/generationRowMapper';

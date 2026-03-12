@@ -1,5 +1,4 @@
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
-import { isNotFoundError } from '@/shared/constants/supabaseErrors';
 import {
   DEFAULT_STRUCTURE_VIDEO,
   resolveTravelStructureState,
@@ -23,10 +22,9 @@ export const fetchTask = async (taskId: string): Promise<FetchTaskResult> => {
       .eq('id', taskId)
       .maybeSingle();
 
+    // .maybeSingle() returns {data: null, error: null} for missing rows,
+    // so only genuine DB errors reach here.
     if (error) {
-      if (isNotFoundError(error)) {
-        return { status: 'missing' };
-      }
       throw error;
     }
 
