@@ -103,20 +103,38 @@ describe('useShotEditorApplySettingsModel', () => {
           selectedShot: args.core.selectedShot,
           simpleFilteredImages: args.core.simpleFilteredImages,
         },
-        restore: expect.objectContaining({
-          availableLoras: args.core.availableLoras,
-          loraManager: args.core.loraManager,
-          onBatchVideoPromptChange: args.settings.promptSettings.setPrompt,
-          onBatchVideoFramesChange: args.settings.frameSettings.setFrames,
-          onBatchVideoStepsChange: args.settings.frameSettings.setSteps,
-          onMotionModeChange: args.settings.motionSettings.setMotionMode,
-          onGenerationTypeModeChange: args.settings.phaseConfigSettings.setGenerationTypeMode,
-          onPhasePresetSelect: args.settings.phaseConfigSettings.selectPreset,
-          onPhasePresetRemove: args.settings.phaseConfigSettings.removePreset,
-          onTurboModeChange: args.settings.motionSettings.setTurboMode,
-          onAmountOfMotionChange: args.settings.motionSettings.setAmountOfMotion,
-          onStructureVideoInputChange: args.structureVideo.handleStructureVideoInputChange,
-          updatePairPromptsByIndex: args.generationController.updatePairPromptsByIndex,
+        contexts: expect.objectContaining({
+          model: expect.objectContaining({
+            steerableMotionSettings: args.settings.steerableMotionSettings.steerableMotionSettings,
+            onSteerableMotionSettingsChange: args.settings.steerableMotionSettings.setSteerableMotionSettings,
+          }),
+          prompts: expect.objectContaining({
+            onBatchVideoPromptChange: args.settings.promptSettings.setPrompt,
+            updatePairPromptsByIndex: args.generationController.updatePairPromptsByIndex,
+          }),
+          generation: expect.objectContaining({
+            onBatchVideoFramesChange: args.settings.frameSettings.setFrames,
+            onBatchVideoStepsChange: args.settings.frameSettings.setSteps,
+          }),
+          modes: expect.objectContaining({
+            onMotionModeChange: args.settings.motionSettings.setMotionMode,
+            onGenerationTypeModeChange: args.settings.phaseConfigSettings.setGenerationTypeMode,
+          }),
+          advanced: expect.objectContaining({
+            onPhasePresetSelect: args.settings.phaseConfigSettings.selectPreset,
+            onPhasePresetRemove: args.settings.phaseConfigSettings.removePreset,
+            onTurboModeChange: args.settings.motionSettings.setTurboMode,
+          }),
+          motion: expect.objectContaining({
+            onAmountOfMotionChange: args.settings.motionSettings.setAmountOfMotion,
+          }),
+          structureVideo: expect.objectContaining({
+            onStructureVideoInputChange: args.structureVideo.handleStructureVideoInputChange,
+          }),
+          loras: expect.objectContaining({
+            availableLoras: args.core.availableLoras,
+            loraManager: args.core.loraManager,
+          }),
         }),
         mutations: expect.objectContaining({
           addImageToShotMutation: mocks.useAddImageToShot.mock.results[0].value,
@@ -126,9 +144,9 @@ describe('useShotEditorApplySettingsModel', () => {
       }),
     );
 
-    const restore = mocks.useApplySettingsHandler.mock.calls[0][0].restore;
-    restore.onAdvancedModeChange(true);
-    restore.onAdvancedModeChange(false);
+    const modes = mocks.useApplySettingsHandler.mock.calls[0][0].contexts.modes;
+    modes.onAdvancedModeChange(true);
+    modes.onAdvancedModeChange(false);
 
     expect(args.settings.motionSettings.setMotionMode).toHaveBeenNthCalledWith(1, 'advanced');
     expect(args.settings.motionSettings.setMotionMode).toHaveBeenNthCalledWith(2, 'basic');

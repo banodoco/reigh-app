@@ -5,6 +5,7 @@ import type { PhaseConfig } from '@/shared/types/phaseConfig';
 import type { PresetMetadata } from '@/shared/types/presetMetadata';
 import type { SteerableMotionSettings } from '@/shared/types/steerableMotion';
 import type { VideoMetadata } from '@/shared/lib/media/videoUploader';
+import type { ApplySettingsHandlerContexts } from '../hooks/actions/useApplySettingsHandler';
 
 type ApplySettingsHandlerInput = Parameters<typeof useApplySettingsHandler>[0];
 
@@ -99,6 +100,48 @@ export function useShotEditorApplySettingsModel({
 }: UseShotEditorApplySettingsModelParams): ReturnType<typeof useApplySettingsHandler> {
   const addImageToShotMutation = useAddImageToShot();
   const removeImageFromShotMutation = useRemoveImageFromShot();
+  const contexts: ApplySettingsHandlerContexts = {
+    model: {
+      steerableMotionSettings: settings.steerableMotionSettings.steerableMotionSettings,
+      onSteerableMotionSettingsChange: settings.steerableMotionSettings.setSteerableMotionSettings,
+    },
+    prompts: {
+      onBatchVideoPromptChange: settings.promptSettings.setPrompt,
+      onSteerableMotionSettingsChange: settings.steerableMotionSettings.setSteerableMotionSettings,
+      updatePairPromptsByIndex: generationController.updatePairPromptsByIndex,
+    },
+    generation: {
+      onBatchVideoFramesChange: settings.frameSettings.setFrames,
+      onBatchVideoStepsChange: settings.frameSettings.setSteps,
+    },
+    modes: {
+      onGenerationModeChange: settings.generationModeSettings.setGenerationMode,
+      onAdvancedModeChange: (advanced: boolean) => settings.motionSettings.setMotionMode(advanced ? 'advanced' : 'basic'),
+      onMotionModeChange: settings.motionSettings.setMotionMode,
+      onGenerationTypeModeChange: settings.phaseConfigSettings.setGenerationTypeMode,
+    },
+    advanced: {
+      onPhaseConfigChange: settings.phaseConfigSettings.setPhaseConfig,
+      onPhasePresetSelect: settings.phaseConfigSettings.selectPreset,
+      onPhasePresetRemove: settings.phaseConfigSettings.removePreset,
+      onTurboModeChange: settings.motionSettings.setTurboMode,
+      onEnhancePromptChange: settings.promptSettings.setEnhancePrompt,
+    },
+    textAddons: {
+      onTextBeforePromptsChange: settings.promptSettings.setTextBeforePrompts,
+      onTextAfterPromptsChange: settings.promptSettings.setTextAfterPrompts,
+    },
+    motion: {
+      onAmountOfMotionChange: settings.motionSettings.setAmountOfMotion,
+    },
+    loras: {
+      availableLoras: core.availableLoras,
+      loraManager: core.loraManager,
+    },
+    structureVideo: {
+      onStructureVideoInputChange: structureVideo.handleStructureVideoInputChange,
+    },
+  };
 
   return useApplySettingsHandler({
     core: {
@@ -106,29 +149,7 @@ export function useShotEditorApplySettingsModel({
       selectedShot: core.selectedShot,
       simpleFilteredImages: core.simpleFilteredImages,
     },
-    restore: {
-      availableLoras: core.availableLoras,
-      loraManager: core.loraManager,
-      steerableMotionSettings: settings.steerableMotionSettings.steerableMotionSettings,
-      onSteerableMotionSettingsChange: settings.steerableMotionSettings.setSteerableMotionSettings,
-      onBatchVideoPromptChange: settings.promptSettings.setPrompt,
-      onBatchVideoFramesChange: settings.frameSettings.setFrames,
-      onBatchVideoStepsChange: settings.frameSettings.setSteps,
-      onGenerationModeChange: settings.generationModeSettings.setGenerationMode,
-      onAdvancedModeChange: (advanced: boolean) => settings.motionSettings.setMotionMode(advanced ? 'advanced' : 'basic'),
-      onMotionModeChange: settings.motionSettings.setMotionMode,
-      onGenerationTypeModeChange: settings.phaseConfigSettings.setGenerationTypeMode,
-      onPhaseConfigChange: settings.phaseConfigSettings.setPhaseConfig,
-      onPhasePresetSelect: settings.phaseConfigSettings.selectPreset,
-      onPhasePresetRemove: settings.phaseConfigSettings.removePreset,
-      onTurboModeChange: settings.motionSettings.setTurboMode,
-      onEnhancePromptChange: settings.promptSettings.setEnhancePrompt,
-      onAmountOfMotionChange: settings.motionSettings.setAmountOfMotion,
-      onTextBeforePromptsChange: settings.promptSettings.setTextBeforePrompts,
-      onTextAfterPromptsChange: settings.promptSettings.setTextAfterPrompts,
-      onStructureVideoInputChange: structureVideo.handleStructureVideoInputChange,
-      updatePairPromptsByIndex: generationController.updatePairPromptsByIndex,
-    },
+    contexts,
     mutations: {
       addImageToShotMutation,
       removeImageFromShotMutation,

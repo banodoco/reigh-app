@@ -376,87 +376,7 @@ export function useShotEditorController({
     lastVideoGeneration,
   });
 
-  const contextValue = useShotSettingsValue(
-    buildShotEditorContextInput({
-      core: {
-        selectedShot,
-        selectedShotId,
-        projectId,
-        selectedProjectId,
-        effectiveAspectRatio,
-        projects,
-        state,
-        actions,
-        queryClient,
-      },
-      images: {
-        allShotImages,
-        timelineImages,
-        unpositionedImages,
-        contextImages,
-        videoOutputs,
-        simpleFilteredImages,
-      },
-      controllers: {
-        mediaEditing,
-        joinWorkflow,
-        output: {
-          selectedOutputId: output.selectedOutputId,
-          setSelectedOutputId: output.setSelectedOutputId,
-          parentGenerations: output.parentGenerations,
-          segmentProgress: output.segmentProgress,
-          isSegmentOutputsLoading: output.isSegmentOutputsLoading,
-        },
-        generationActions,
-        shotActions,
-        generationController: {
-          isGenerationDisabled,
-          isSteerableMotionEnqueuing,
-          steerableMotionJustQueued,
-          currentMotionSettings,
-          handleAcceleratedChange,
-          handleRandomSeedChange,
-          handleGenerateBatch,
-          handleBatchVideoPromptChangeWithClear,
-          handleStepsChange,
-          clearAllEnhancedPrompts,
-        },
-        imageManagement: {
-          handleReorderImagesInShot,
-          handleImageUpload,
-          handlePendingPositionApplied,
-          handleDeleteFinalVideo,
-          isClearingFinalVideo,
-        },
-        bridge: {
-          handleSelectionChangeLocal,
-        },
-        loraManager,
-        availableLoras: loraSettingsFromContext.availableLoras,
-        shots,
-      },
-      settings: {
-        promptSettings,
-        motionSettings,
-        frameSettings,
-        generationModeSettings,
-        isPhone,
-        aspectAdjustedColumns,
-        accelerated,
-        randomSeed,
-      },
-      dimensions: {
-        dimensionSource,
-        onDimensionSourceChange,
-        customWidth,
-        onCustomWidthChange,
-        customHeight,
-        onCustomHeightChange,
-      },
-    }),
-  );
-
-  const layoutProps: ShotEditorLayoutProps = useShotEditorLayoutModel({
+  const sharedModelArgs = {
     core: {
       selectedShot,
       selectedShotId,
@@ -516,6 +436,32 @@ export function useShotEditorController({
       accelerated,
       randomSeed,
     },
+  };
+
+  const contextInput = buildShotEditorContextInput({
+    ...sharedModelArgs,
+    images: {
+      allShotImages,
+      timelineImages,
+      unpositionedImages,
+      contextImages,
+      videoOutputs,
+      simpleFilteredImages,
+    },
+    dimensions: {
+      dimensionSource,
+      onDimensionSourceChange,
+      customWidth,
+      onCustomWidthChange,
+      customHeight,
+      onCustomHeightChange,
+    },
+  });
+
+  const contextValue = useShotSettingsValue(contextInput);
+
+  const layoutProps: ShotEditorLayoutProps = useShotEditorLayoutModel({
+    ...sharedModelArgs,
     contextValue,
     sections: {
       onBack,

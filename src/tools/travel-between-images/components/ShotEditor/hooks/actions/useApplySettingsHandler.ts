@@ -20,28 +20,16 @@ interface ApplySettingsHandlerCore {
   simpleFilteredImages: GenerationRow[];
 }
 
-interface ApplySettingsHandlerRestore {
-  availableLoras: LoraModel[];
-  loraManager: ApplySettingsService.ApplyLoraContext['loraManager'];
-  steerableMotionSettings: ApplySettingsService.ApplyModelContext['steerableMotionSettings'];
-  onSteerableMotionSettingsChange: ApplySettingsService.ApplyModelContext['onSteerableMotionSettingsChange'];
-  onBatchVideoPromptChange: ApplySettingsService.ApplyPromptContext['onBatchVideoPromptChange'];
-  onBatchVideoFramesChange: ApplySettingsService.ApplyGenerationContext['onBatchVideoFramesChange'];
-  onBatchVideoStepsChange: ApplySettingsService.ApplyGenerationContext['onBatchVideoStepsChange'];
-  onGenerationModeChange: ApplySettingsService.ApplyModeContext['onGenerationModeChange'];
-  onAdvancedModeChange: ApplySettingsService.ApplyModeContext['onAdvancedModeChange'];
-  onMotionModeChange?: ApplySettingsService.ApplyModeContext['onMotionModeChange'];
-  onGenerationTypeModeChange?: ApplySettingsService.ApplyModeContext['onGenerationTypeModeChange'];
-  onPhaseConfigChange: ApplySettingsService.ApplyAdvancedContext['onPhaseConfigChange'];
-  onPhasePresetSelect?: ApplySettingsService.ApplyAdvancedContext['onPhasePresetSelect'];
-  onPhasePresetRemove?: ApplySettingsService.ApplyAdvancedContext['onPhasePresetRemove'];
-  onTurboModeChange?: ApplySettingsService.ApplyAdvancedContext['onTurboModeChange'];
-  onEnhancePromptChange?: ApplySettingsService.ApplyAdvancedContext['onEnhancePromptChange'];
-  onTextBeforePromptsChange?: ApplySettingsService.ApplyTextAddonContext['onTextBeforePromptsChange'];
-  onTextAfterPromptsChange?: ApplySettingsService.ApplyTextAddonContext['onTextAfterPromptsChange'];
-  onAmountOfMotionChange?: ApplySettingsService.ApplyMotionContext['onAmountOfMotionChange'];
-  onStructureVideoInputChange: ApplySettingsService.ApplyStructureVideoContext['onStructureVideoInputChange'];
-  updatePairPromptsByIndex?: ApplySettingsService.ApplyPromptContext['updatePairPromptsByIndex'];
+export interface ApplySettingsHandlerContexts {
+  model: ApplySettingsService.ApplyModelContext;
+  prompts: ApplySettingsService.ApplyPromptContext;
+  generation: ApplySettingsService.ApplyGenerationContext;
+  modes: ApplySettingsService.ApplyModeContext;
+  advanced: ApplySettingsService.ApplyAdvancedContext;
+  textAddons: ApplySettingsService.ApplyTextAddonContext;
+  motion: ApplySettingsService.ApplyMotionContext;
+  loras: ApplySettingsService.ApplyLoraContext;
+  structureVideo: ApplySettingsService.ApplyStructureVideoContext;
 }
 
 interface ApplySettingsHandlerMutations {
@@ -61,53 +49,8 @@ interface ApplySettingsHandlerMutations {
 
 interface ApplySettingsHandlerInput {
   core: ApplySettingsHandlerCore;
-  restore: ApplySettingsHandlerRestore;
+  contexts: ApplySettingsHandlerContexts;
   mutations: ApplySettingsHandlerMutations;
-}
-
-function buildApplyContexts(handlerState: ApplySettingsHandlerInput) {
-  return {
-    model: {
-      steerableMotionSettings: handlerState.restore.steerableMotionSettings,
-      onSteerableMotionSettingsChange: handlerState.restore.onSteerableMotionSettingsChange,
-    } satisfies ApplySettingsService.ApplyModelContext,
-    prompts: {
-      onBatchVideoPromptChange: handlerState.restore.onBatchVideoPromptChange,
-      onSteerableMotionSettingsChange: handlerState.restore.onSteerableMotionSettingsChange,
-      updatePairPromptsByIndex: handlerState.restore.updatePairPromptsByIndex,
-    } satisfies ApplySettingsService.ApplyPromptContext,
-    generation: {
-      onBatchVideoFramesChange: handlerState.restore.onBatchVideoFramesChange,
-      onBatchVideoStepsChange: handlerState.restore.onBatchVideoStepsChange,
-    } satisfies ApplySettingsService.ApplyGenerationContext,
-    modes: {
-      onGenerationModeChange: handlerState.restore.onGenerationModeChange,
-      onAdvancedModeChange: handlerState.restore.onAdvancedModeChange,
-      onMotionModeChange: handlerState.restore.onMotionModeChange,
-      onGenerationTypeModeChange: handlerState.restore.onGenerationTypeModeChange,
-    } satisfies ApplySettingsService.ApplyModeContext,
-    advanced: {
-      onPhaseConfigChange: handlerState.restore.onPhaseConfigChange,
-      onPhasePresetSelect: handlerState.restore.onPhasePresetSelect,
-      onPhasePresetRemove: handlerState.restore.onPhasePresetRemove,
-      onTurboModeChange: handlerState.restore.onTurboModeChange,
-      onEnhancePromptChange: handlerState.restore.onEnhancePromptChange,
-    } satisfies ApplySettingsService.ApplyAdvancedContext,
-    textAddons: {
-      onTextBeforePromptsChange: handlerState.restore.onTextBeforePromptsChange,
-      onTextAfterPromptsChange: handlerState.restore.onTextAfterPromptsChange,
-    } satisfies ApplySettingsService.ApplyTextAddonContext,
-    motion: {
-      onAmountOfMotionChange: handlerState.restore.onAmountOfMotionChange,
-    } satisfies ApplySettingsService.ApplyMotionContext,
-    loras: {
-      loraManager: handlerState.restore.loraManager,
-      availableLoras: handlerState.restore.availableLoras,
-    } satisfies ApplySettingsService.ApplyLoraContext,
-    structureVideo: {
-      onStructureVideoInputChange: handlerState.restore.onStructureVideoInputChange,
-    } satisfies ApplySettingsService.ApplyStructureVideoContext,
-  };
 }
 
 async function fetchTaskData(taskId: string) {
@@ -133,7 +76,6 @@ async function applySettingsFromTask(
   }
 
   const settings = ApplySettingsService.extractSettings(taskData);
-  const applyContexts = buildApplyContexts(handlerState);
 
   await ApplySettingsService.replaceImagesIfRequested(
     settings.generation,
@@ -147,21 +89,21 @@ async function applySettingsFromTask(
     handlerState.mutations.removeImageFromShotMutation,
   );
 
-  await ApplySettingsService.applyModelSettings(settings.generation, applyContexts.model);
-  await ApplySettingsService.applyPromptSettings(settings.prompts, applyContexts.prompts);
-  await ApplySettingsService.applyGenerationSettings(settings.generation, applyContexts.generation);
-  await ApplySettingsService.applyModeSettings(settings.modes, applyContexts.modes);
-  await ApplySettingsService.applyAdvancedModeSettings(settings.advanced, applyContexts.advanced);
-  await ApplySettingsService.applyTextPromptAddons(settings.textAddons, applyContexts.textAddons);
+  await ApplySettingsService.applyModelSettings(settings.generation, handlerState.contexts.model);
+  await ApplySettingsService.applyPromptSettings(settings.prompts, handlerState.contexts.prompts);
+  await ApplySettingsService.applyGenerationSettings(settings.generation, handlerState.contexts.generation);
+  await ApplySettingsService.applyModeSettings(settings.modes, handlerState.contexts.modes);
+  await ApplySettingsService.applyAdvancedModeSettings(settings.advanced, handlerState.contexts.advanced);
+  await ApplySettingsService.applyTextPromptAddons(settings.textAddons, handlerState.contexts.textAddons);
   await ApplySettingsService.applyMotionSettings(
     { ...settings.motion, advancedMode: settings.modes.advancedMode },
-    applyContexts.motion,
+    handlerState.contexts.motion,
   );
   await ApplySettingsService.applyLoRAs(
     { ...settings.loras, advancedMode: settings.modes.advancedMode },
-    applyContexts.loras,
+    handlerState.contexts.loras,
   );
-  await ApplySettingsService.applyStructureVideo(settings.structure, applyContexts.structureVideo);
+  await ApplySettingsService.applyStructureVideo(settings.structure, handlerState.contexts.structureVideo);
 
   if (handlerState.core.selectedShot?.id) {
     enqueueGenerationsInvalidation(queryClient, handlerState.core.selectedShot.id, {

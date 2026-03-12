@@ -14,20 +14,6 @@ import { useVideoRegenerateMode } from '../useVideoRegenerateMode';
 import type { VideoLightboxEnvironment, VideoLightboxModeModel } from './useVideoLightboxEnvironment';
 import type { VideoLightboxPropsWithMedia } from '../../types';
 
-function useAdjustedVideoTaskDetails(
-  props: Pick<VideoLightboxPropsWithMedia, 'initialVariantId' | 'taskDetailsData'>,
-  env: Pick<VideoLightboxEnvironment, 'selectedProjectId'>,
-  sharedState: ReturnType<typeof useVideoLightboxSharedState>,
-) {
-  return useAdjustedTaskDetails({
-    projectId: env.selectedProjectId ?? null,
-    activeVariant: sharedState.variants.activeVariant,
-    taskDetailsData: props.taskDetailsData,
-    isLoadingVariants: sharedState.variants.isLoading,
-    initialVariantId: props.initialVariantId,
-  });
-}
-
 function useVideoRegenerateAndMode(
   props: Pick<VideoLightboxPropsWithMedia, 'media' | 'segmentSlotMode' | 'shotId' | 'videoProps'>,
   env: VideoLightboxEnvironment,
@@ -140,7 +126,13 @@ export function useVideoLightboxEditing(
   } = props;
   const initialVideoTrimMode = props.videoProps?.initialVideoTrimMode;
 
-  const { adjustedTaskDetailsData } = useAdjustedVideoTaskDetails(props, env, sharedState);
+  const { adjustedTaskDetailsData } = useAdjustedTaskDetails({
+    projectId: env.selectedProjectId ?? null,
+    activeVariant: sharedState.variants.activeVariant,
+    taskDetailsData: props.taskDetailsData,
+    isLoadingVariants: sharedState.variants.isLoading,
+    initialVariantId: props.initialVariantId,
+  });
   const {
     currentSegmentImages,
     regenerateFormProps,
