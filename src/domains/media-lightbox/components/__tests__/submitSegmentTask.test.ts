@@ -1,10 +1,10 @@
 import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RunTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
-import { createIndividualTravelSegmentTask } from '@/shared/lib/tasks/individualTravelSegment';
+import { createIndividualTravelSegmentTask } from '@/shared/lib/tasks/families/individualTravelSegment';
 import { buildStructureVideoForTask, submitSegmentTask } from '../submitSegmentTask';
 
-vi.mock('@/shared/lib/tasks/individualTravelSegment', () => ({
+vi.mock('@/shared/lib/tasks/families/individualTravelSegment', () => ({
   createIndividualTravelSegmentTask: vi.fn(),
 }));
 

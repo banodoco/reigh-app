@@ -1,4 +1,4 @@
-import { ReferenceMode, ReferenceSettingsInput } from './imageGenerationTypes';
+import { ReferenceMode, ReferenceSettingsInput } from './families/imageGeneration/types';
 
 /**
  * Filter reference settings based on the selected reference mode.

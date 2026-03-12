@@ -8,8 +8,8 @@ import type {
   ReferenceApiParams,
   ReferenceMode,
   ReferenceSettingsInput,
-} from './imageGenerationTypes';
-import * as imageGenerationTypesModule from './imageGenerationTypes';
+} from './types';
+import * as imageGenerationTypesModule from './types';
 
 describe('imageGenerationTypes', () => {
   it('loads as a type-only module', () => {

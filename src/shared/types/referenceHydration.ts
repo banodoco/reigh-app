@@ -1,4 +1,4 @@
-import type { ReferenceMode } from '@/shared/lib/tasks/imageGeneration';
+import type { ReferenceMode } from '@/shared/lib/tasks/families/imageGeneration';
 
 /**
  * Hydrated reference pointer resolved against the resources table.

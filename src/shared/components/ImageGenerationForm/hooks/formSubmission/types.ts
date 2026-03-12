@@ -1,5 +1,5 @@
 import type { FormEvent, MutableRefObject } from 'react';
-import type { BatchImageGenerationTaskParams } from '@/shared/lib/tasks/imageGeneration';
+import type { BatchImageGenerationTaskParams } from '@/shared/lib/tasks/families/imageGeneration';
 import type { AIPromptItem, GeneratePromptsParams } from '@/types/ai';
 import type {
   GenerationSource,

@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createIndividualTravelSegmentTask } from '../individualTravelSegment';
+import { createIndividualTravelSegmentTask } from './index';
 
 const mockCreateTask = vi.fn();
 const mockResolveProjectResolution = vi.fn();
 
-vi.mock('../../taskCreation', () => ({
+vi.mock('../../../taskCreation', () => ({
   createTask: (...args: unknown[]) => mockCreateTask(...args),
   resolveProjectResolution: (...args: unknown[]) => mockResolveProjectResolution(...args),
   resolveSeed32Bit: ({

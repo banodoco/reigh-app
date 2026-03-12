@@ -1,12 +1,12 @@
-import { mapPathLorasToStrengthRecord } from '../taskCreation';
-import { composeOptionalFields, isNonEmptyString } from './core/taskFieldPolicy';
-import { resolveByPrecedence } from './taskParamContract';
-import { filterReferenceSettingsByMode } from './referenceImageFiltering';
+import { mapPathLorasToStrengthRecord } from '../../../taskCreation';
+import { composeOptionalFields, isNonEmptyString } from '../../core/taskFieldPolicy';
+import { resolveByPrecedence } from '../../taskParamContract';
+import { filterReferenceSettingsByMode } from '../../referenceImageFiltering';
 import type {
   BuildReferenceParamsInput,
   ImageGenerationTaskParams,
   ReferenceMode,
-} from './imageGenerationTypes';
+} from './types';
 
 export function buildLorasParam(
   loras: ImageGenerationTaskParams['loras'],

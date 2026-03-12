@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import {
   createVideoEnhanceTask,
   type VideoEnhanceTaskParams,
-} from '@/shared/lib/tasks/videoEnhance';
+} from '@/shared/lib/tasks/families/videoEnhance';
 import type { VideoEnhanceSettings } from './useGenerationEditSettings';
 import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
 

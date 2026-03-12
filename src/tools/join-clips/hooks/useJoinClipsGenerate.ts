@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { useQueryClient } from '@tanstack/react-query';
-import { createCanonicalJoinClipsTask } from '@/shared/lib/tasks/joinClips';
+import { createCanonicalJoinClipsTask } from '@/shared/lib/tasks/families/joinClips';
 import { resolveAspectRatioResolutionTuple } from '@/shared/lib/video/resolveAspectRatioResolutionTuple';
 import { TOOL_IDS } from '@/shared/lib/tooling/toolIds';
 import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';

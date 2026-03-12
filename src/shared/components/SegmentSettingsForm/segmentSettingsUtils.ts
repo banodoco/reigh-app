@@ -3,7 +3,7 @@ import type {
   StructureGuidanceConfig,
   StructureVideoConfig,
 } from '@/shared/lib/tasks/travelBetweenImages';
-import type { IndividualTravelSegmentParams } from '@/shared/lib/tasks/individualTravelSegment';
+import type { IndividualTravelSegmentParams } from '@/shared/lib/tasks/families/individualTravelSegment';
 import type { SegmentSettings, LoraConfig } from '@/shared/types/segmentSettings';
 
 export type { SegmentSettings };

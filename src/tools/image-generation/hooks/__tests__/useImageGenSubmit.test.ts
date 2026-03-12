@@ -8,7 +8,7 @@ const mockGetApiKey = vi.fn();
 const mockHandleError = vi.fn();
 const mockToastError = vi.fn();
 
-vi.mock('@/shared/lib/tasks/imageGeneration', () => ({
+vi.mock('@/shared/lib/tasks/families/imageGeneration', () => ({
   createBatchImageGenerationTasks: (...args: unknown[]) => mockCreateBatchImageGenerationTasks(...args),
 }));
 

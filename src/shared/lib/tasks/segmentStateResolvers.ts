@@ -16,7 +16,7 @@ import { asMotionMode, asPhaseConfig } from './segmentTypeCoercers';
 import type {
   IndividualTravelSegmentParams,
   SegmentBuildState,
-} from './individualTravelSegmentTypes';
+} from './families/individualTravelSegment/types';
 import type { StructureVideoConfig } from './travelBetweenImages/taskTypes';
 
 export const MAX_SEGMENT_FRAMES = 81;

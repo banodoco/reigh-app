@@ -5,8 +5,8 @@ import type {
   JoinClipDescriptor,
   JoinClipsClipSource,
   JoinClipsVideoEditConfig,
-} from '../../joinClips';
-import { createCanonicalJoinClipsTask } from '../../joinClips';
+} from '../../families/joinClips';
+import { createCanonicalJoinClipsTask } from '../../families/joinClips';
 import {
   getDeprecationPolicy,
   isPastRemovalTarget,

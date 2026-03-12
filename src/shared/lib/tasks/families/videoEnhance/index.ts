@@ -1,10 +1,10 @@
 import {
   validateRequiredFields,
   TaskValidationError,
-} from "../taskCreation";
-import type { TaskCreationResult } from "../taskCreation";
-import { composeTaskRequest } from './core/taskRequestComposer';
-import { runTaskCreationPipeline } from './core/taskCreatorPipeline';
+} from "../../../taskCreation";
+import type { TaskCreationResult } from "../../../taskCreation";
+import { composeTaskRequest } from '../../core/taskRequestComposer';
+import { runTaskCreationPipeline } from '../../core/taskCreatorPipeline';
 
 // ============================================================================
 // Video Enhancement API Param Interfaces (Single Source of Truth)

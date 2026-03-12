@@ -4,7 +4,7 @@ import {
   buildImageGenerationBaseParams,
   buildLorasParam,
   buildReferenceParams,
-} from './imageGenerationBuilders';
+} from './builders';
 
 describe('imageGenerationBuilders', () => {
   it('builds additional lora params and merges in-scene loras', () => {

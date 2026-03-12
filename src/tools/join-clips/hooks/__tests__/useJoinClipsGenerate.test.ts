@@ -15,7 +15,7 @@ const {
   mockToast: vi.fn(),
 }));
 
-vi.mock('@/shared/lib/tasks/joinClips', () => ({
+vi.mock('@/shared/lib/tasks/families/joinClips', () => ({
   createCanonicalJoinClipsTask: (...args: unknown[]) => mockCreateJoinClipsTask(...args),
 }));
 

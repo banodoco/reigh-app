@@ -24,7 +24,7 @@ import type {
   IndividualTravelSegmentParams,
   SegmentBuildState,
   SegmentPostProcessValues,
-} from './individualTravelSegmentTypes';
+} from './families/individualTravelSegment/types';
 import { asMotionMode } from './segmentTypeCoercers';
 import { buildSegmentState } from './segmentStateResolvers';
 

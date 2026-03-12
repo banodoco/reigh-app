@@ -1,5 +1,5 @@
 import type { PathLoraConfig } from '@/domains/lora/types/lora';
-import type { HiresFixApiParams } from '../taskCreation';
+import type { HiresFixApiParams } from '../../../taskCreation';
 
 export type ReferenceMode = 'style' | 'subject' | 'style-character' | 'scene' | 'custom';
 

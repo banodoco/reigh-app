@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { TaskValidationError } from '../taskCreation';
+import { TaskValidationError } from '../../../taskCreation';
 import {
   validateBatchImageGenerationParams,
   validateImageGenerationParams,
-} from './imageGenerationValidators';
+} from './validators';
 
 describe('imageGenerationValidators', () => {
   it('accepts valid single-image generation params', () => {

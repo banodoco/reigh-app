@@ -1,5 +1,5 @@
 import { PhaseConfig } from '@/shared/types/phaseConfig';
-import type { MotionMode } from './individualTravelSegmentTypes';
+import type { MotionMode } from './families/individualTravelSegment/types';
 
 export function asMotionMode(value: unknown): MotionMode | undefined {
   return value === 'basic' || value === 'presets' || value === 'advanced'

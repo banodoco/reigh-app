@@ -2,36 +2,36 @@ import {
   generateTaskId,
   resolveProjectResolution,
   type HiresFixApiParams,
-} from '../taskCreation';
-import type { TaskCreationResult } from '../taskCreation';
+} from '../../../taskCreation';
+import type { TaskCreationResult } from '../../../taskCreation';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
-import { runBatchTaskPipeline } from './core/batchTaskPipeline';
-import { rethrowTaskCreationError } from './core/taskCreationError';
-import { composeTaskParams, composeTaskRequest } from './core/taskRequestComposer';
-import { composeOptionalFields } from './core/taskFieldPolicy';
-import { runTaskCreationPipeline } from './core/taskCreatorPipeline';
+import { runBatchTaskPipeline } from '../../core/batchTaskPipeline';
+import { rethrowTaskCreationError } from '../../core/taskCreationError';
+import { composeTaskParams, composeTaskRequest } from '../../core/taskRequestComposer';
+import { composeOptionalFields } from '../../core/taskFieldPolicy';
+import { runTaskCreationPipeline } from '../../core/taskCreatorPipeline';
 import {
   buildHiresOverride,
   buildImageGenerationBaseParams,
   buildLorasParam,
   buildReferenceParams,
-} from './imageGenerationBuilders';
+} from './builders';
 import {
   validateBatchImageGenerationParams,
   validateImageGenerationParams,
-} from './imageGenerationValidators';
+} from './validators';
 import type {
   BatchImageGenerationTaskParams,
   CalculateTaskResolutionOptions,
   ImageGenerationTaskParams,
-} from './imageGenerationTypes';
+} from './types';
 
 ;
 export type {
   BatchImageGenerationTaskParams,
   ReferenceApiParams,
   ReferenceMode,
-} from './imageGenerationTypes';
+} from './types';
 
 /**
  * Calculates the final resolution for image generation tasks.

@@ -1,17 +1,17 @@
 import {
   TaskValidationError,
   resolveProjectResolution,
-} from '../taskCreation';
-import type { TaskCreationResult } from '../taskCreation';
-import { composeTaskRequest } from './core/taskRequestComposer';
-import { runTaskCreationPipeline } from './core/taskCreatorPipeline';
-import { asString, toRecordOrEmpty } from './taskParamParsers';
-import { buildIndividualTravelSegmentParams } from './segmentTaskPayload';
-import { MAX_SEGMENT_FRAMES } from './segmentStateResolvers';
-import type { IndividualTravelSegmentParams } from './individualTravelSegmentTypes';
-import { resolveSegmentGenerationRoute } from './segmentGenerationPersistence';
+} from '../../../taskCreation';
+import type { TaskCreationResult } from '../../../taskCreation';
+import { composeTaskRequest } from '../../core/taskRequestComposer';
+import { runTaskCreationPipeline } from '../../core/taskCreatorPipeline';
+import { asString, toRecordOrEmpty } from '../../taskParamParsers';
+import { buildIndividualTravelSegmentParams } from '../../segmentTaskPayload';
+import { MAX_SEGMENT_FRAMES } from '../../segmentStateResolvers';
+import type { IndividualTravelSegmentParams } from './types';
+import { resolveSegmentGenerationRoute } from '../../segmentGenerationPersistence';
 
-export type { IndividualTravelSegmentParams } from './individualTravelSegmentTypes';
+export type { IndividualTravelSegmentParams } from './types';
 
 /**
  * Validates individual travel segment parameters

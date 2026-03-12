@@ -4,11 +4,11 @@ import {
   validateNonEmptyString,
   validateSeed32Bit,
   validateLoraConfigs,
-} from '../taskCreation';
+} from '../../../taskCreation';
 import type {
   BatchImageGenerationTaskParams,
   ImageGenerationTaskParams,
-} from './imageGenerationTypes';
+} from './types';
 import type { PathLoraConfig } from '@/domains/lora/types/lora';
 
 /**

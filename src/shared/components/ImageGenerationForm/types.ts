@@ -1,5 +1,5 @@
 // Import API types from shared (used in interfaces below, re-exported at bottom)
-import { ReferenceMode } from '@/shared/lib/tasks/imageGeneration';
+import { ReferenceMode } from '@/shared/lib/tasks/families/imageGeneration';
 import type { ActiveLora } from '@/domains/lora/types/lora';
 import type { ReferenceImage } from '@/shared/types/referenceImage';
 import type { HydratedReferenceImage as SharedHydratedReferenceImage } from '@/shared/types/referenceHydration';
@@ -121,7 +121,7 @@ export type { ActiveLora } from "@/domains/lora/types/lora";
 // ============================================================================
 // Re-export API types from shared (single source of truth)
 // ============================================================================
-export type { ReferenceApiParams, ReferenceMode } from '@/shared/lib/tasks/imageGeneration';
+export type { ReferenceApiParams, ReferenceMode } from '@/shared/lib/tasks/families/imageGeneration';
 
 
 // ============================================================================

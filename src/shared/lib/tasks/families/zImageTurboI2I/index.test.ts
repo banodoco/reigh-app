@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createBatchZImageTurboImageToImageTasks } from '../zImageTurboI2I';
+import { createBatchZImageTurboImageToImageTasks } from './index';
 
 const mockCreateTask = vi.fn();
 const mockProcessBatchResults = vi.fn();
 
-vi.mock('../../taskCreation', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../taskCreation')>();
+vi.mock('../../../taskCreation', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../taskCreation')>();
   return {
     ...actual,
     createTask: (...args: unknown[]) => mockCreateTask(...args),

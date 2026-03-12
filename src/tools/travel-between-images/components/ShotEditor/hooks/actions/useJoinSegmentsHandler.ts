@@ -9,7 +9,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
-import { createCanonicalJoinClipsTask } from '@/shared/lib/tasks/joinClips';
+import { createCanonicalJoinClipsTask } from '@/shared/lib/tasks/families/joinClips';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { TOOL_IDS } from '@/shared/lib/tooling/toolIds';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';

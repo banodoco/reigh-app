@@ -1,15 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   createCanonicalJoinClipsTask,
-} from '../joinClips';
-import { createJoinClipsTaskCompat } from './helpers/joinClipsCompatAdapter';
+} from './index';
+import { createJoinClipsTaskCompat } from '../../__tests__/helpers/joinClipsCompatAdapter';
 
 const mockCreateTask = vi.fn();
 const mockGenerateTaskId = vi.fn();
 const mockGenerateRunId = vi.fn();
 
-vi.mock('../../taskCreation', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../taskCreation')>();
+vi.mock('../../../taskCreation', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../taskCreation')>();
   return {
     ...actual,
     createTask: (...args: unknown[]) => mockCreateTask(...args),

@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createImageUpscaleTask } from '../imageUpscale';
+import { createImageUpscaleTask } from './index';
 
 // Mock taskCreation
 const mockCreateTask = vi.fn();
-vi.mock('../../taskCreation', () => ({
+vi.mock('../../../taskCreation', () => ({
   createTask: (...args: unknown[]) => mockCreateTask(...args),
   validateRequiredFields: (params: Record<string, unknown>, fields: string[]) => {
     for (const field of fields) {
