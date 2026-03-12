@@ -12,8 +12,8 @@ vi.mock('@/integrations/supabase/auth/ensureAuthenticatedSession', () => ({
   }),
 }));
 
-vi.mock('@/shared/lib/invokeWithTimeout', () => ({
-  invokeWithTimeout: vi.fn(),
+vi.mock('@/integrations/supabase/functions/invokeSupabaseEdgeFunction', () => ({
+  invokeSupabaseEdgeFunction: vi.fn(),
 }));
 
 vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
@@ -21,7 +21,7 @@ vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
 }));
 
 import { useAIInteractionService } from '../useAIInteractionService';
-import { invokeWithTimeout } from '@/shared/lib/invokeWithTimeout';
+import { invokeSupabaseEdgeFunction } from '@/integrations/supabase/functions/invokeSupabaseEdgeFunction';
 
 describe('useAIInteractionService', () => {
   const mockGeneratePromptId = vi.fn(() => 'new-id');
@@ -44,7 +44,7 @@ describe('useAIInteractionService', () => {
   });
 
   it('generates prompts via edge function', async () => {
-    vi.mocked(invokeWithTimeout).mockResolvedValue({ prompts: ['prompt 1', 'prompt 2'] });
+    vi.mocked(invokeSupabaseEdgeFunction).mockResolvedValue({ prompts: ['prompt 1', 'prompt 2'] });
 
     const { result } = renderHook(() =>
       useAIInteractionService({ generatePromptId: mockGeneratePromptId })
@@ -60,13 +60,13 @@ describe('useAIInteractionService', () => {
 
     expect(prompts!).toHaveLength(2);
     expect(prompts![0]).toHaveProperty('text', 'prompt 1');
-    expect(invokeWithTimeout).toHaveBeenCalledWith('ai-prompt', expect.objectContaining({
+    expect(invokeSupabaseEdgeFunction).toHaveBeenCalledWith('ai-prompt', expect.objectContaining({
       headers: { Authorization: 'Bearer session-token' },
     }));
   });
 
   it('handles generate prompts error with fallback when throwOnError is false', async () => {
-    vi.mocked(invokeWithTimeout).mockRejectedValue(new Error('fail'));
+    vi.mocked(invokeSupabaseEdgeFunction).mockRejectedValue(new Error('fail'));
 
     const { result } = renderHook(() =>
       useAIInteractionService({ generatePromptId: mockGeneratePromptId })
@@ -84,7 +84,7 @@ describe('useAIInteractionService', () => {
   });
 
   it('throws on generate prompts error when throwOnError is enabled', async () => {
-    vi.mocked(invokeWithTimeout).mockRejectedValue(new Error('fail'));
+    vi.mocked(invokeSupabaseEdgeFunction).mockRejectedValue(new Error('fail'));
 
     const { result } = renderHook(() =>
       useAIInteractionService({ generatePromptId: mockGeneratePromptId })
@@ -104,7 +104,7 @@ describe('useAIInteractionService', () => {
   });
 
   it('edits prompt with AI', async () => {
-    vi.mocked(invokeWithTimeout).mockResolvedValue({ newText: 'edited prompt' });
+    vi.mocked(invokeSupabaseEdgeFunction).mockResolvedValue({ newText: 'edited prompt' });
 
     const { result } = renderHook(() =>
       useAIInteractionService({ generatePromptId: mockGeneratePromptId })
@@ -123,7 +123,7 @@ describe('useAIInteractionService', () => {
   });
 
   it('returns original text on edit error when throwOnError is false', async () => {
-    vi.mocked(invokeWithTimeout).mockRejectedValue(new Error('fail'));
+    vi.mocked(invokeSupabaseEdgeFunction).mockRejectedValue(new Error('fail'));
 
     const { result } = renderHook(() =>
       useAIInteractionService({ generatePromptId: mockGeneratePromptId })
@@ -142,7 +142,7 @@ describe('useAIInteractionService', () => {
   });
 
   it('generates summary', async () => {
-    vi.mocked(invokeWithTimeout).mockResolvedValue({ summary: 'short summary' });
+    vi.mocked(invokeSupabaseEdgeFunction).mockResolvedValue({ summary: 'short summary' });
 
     const { result } = renderHook(() =>
       useAIInteractionService({ generatePromptId: mockGeneratePromptId })

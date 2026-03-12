@@ -26,8 +26,8 @@ vi.mock('@/integrations/supabase/auth/ensureAuthenticatedSession', () => ({
   requireSession: (...args: unknown[]) => mockRequireSession(...args),
 }));
 
-vi.mock('@/shared/lib/invokeWithTimeout', () => ({
-  invokeWithTimeout: (...args: unknown[]) => mockInvokeWithTimeout(...args),
+vi.mock('@/integrations/supabase/functions/invokeSupabaseEdgeFunction', () => ({
+  invokeSupabaseEdgeFunction: (...args: unknown[]) => mockInvokeWithTimeout(...args),
 }));
 
 vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({

@@ -1,7 +1,7 @@
 import { getSupabaseClient } from '@/integrations/supabase/client';
+import { invokeSupabaseEdgeFunction } from '@/integrations/supabase/functions/invokeSupabaseEdgeFunction';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/shared/components/ui/runtime/sonner';
-import { invokeWithTimeout } from '@/shared/lib/invokeWithTimeout';
 import { QUERY_PRESETS } from '@/shared/lib/query/queryDefaults';
 import { normalizeAndPresentAndRethrow, normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { creditQueryKeys } from '@/shared/lib/queryKeys/credits';
@@ -153,7 +153,7 @@ export function useCredits() {
         const session = await requireSession(getSupabaseClient(), 'useCredits.createCheckout');
 
         // Call Supabase Edge Function for Stripe checkout
-        const data = await invokeWithTimeout<CheckoutResponse>('stripe-checkout', {
+        const data = await invokeSupabaseEdgeFunction<CheckoutResponse>('stripe-checkout', {
           body: {
             amount: params.amount,
             autoTopupEnabled: params.autoTopupEnabled,
@@ -210,7 +210,7 @@ export function useCredits() {
         const session = await requireSession(getSupabaseClient(), 'useCredits.grantCredits');
 
         // Call Supabase Edge Function for granting credits
-        return await invokeWithTimeout('grant-credits', {
+        return await invokeSupabaseEdgeFunction('grant-credits', {
           body: { userId, amount, description },
           headers: {
             Authorization: `Bearer ${session.access_token}`,

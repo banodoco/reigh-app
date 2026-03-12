@@ -2,7 +2,7 @@ import {
   stripDuplicateStructureDetailParams,
   stripLegacyStructureParams,
 } from './legacyStructureParams';
-import { buildIndividualSegmentFamilyContract } from './taskFamilyContracts';
+import { buildIndividualSegmentFamilyContract } from './core/taskFamilyContracts';
 import { composeTaskFamilyPayload } from './taskPayloadContract';
 import {
   buildTaskPayloadSnapshot,
@@ -19,7 +19,7 @@ import {
   extractOrchestratorTaskIdParam,
   extractRunIdParam,
 } from './taskParamContract';
-import { composeOptionalFields, resolveByPrecedence } from './taskFieldPolicy';
+import { composeOptionalFields, resolveByPrecedence } from './core/taskFieldPolicy';
 import type {
   IndividualTravelSegmentParams,
   SegmentBuildState,

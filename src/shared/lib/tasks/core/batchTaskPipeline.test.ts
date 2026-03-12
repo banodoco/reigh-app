@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { runBatchTaskPipeline } from './batchTaskPipeline';
-import type { TaskCreationResult } from '../taskCreation';
+import type { TaskCreationResult } from '../../taskCreation';
 
 function createResult(taskId: string): TaskCreationResult {
   return {

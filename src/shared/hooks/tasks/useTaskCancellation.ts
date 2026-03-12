@@ -1,12 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { requireSession } from '@/integrations/supabase/auth/ensureAuthenticatedSession';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { invokeSupabaseEdgeFunction } from '@/integrations/supabase/functions/invokeSupabaseEdgeFunction';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import { invokeWithTimeout } from '@/shared/lib/invokeWithTimeout';
 import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 
 async function updateTaskStatusToCancelled(taskId: string, accessToken: string): Promise<void> {
-  await invokeWithTimeout('update-task-status', {
+  await invokeSupabaseEdgeFunction('update-task-status', {
     body: {
       task_id: taskId,
       status: 'Cancelled',

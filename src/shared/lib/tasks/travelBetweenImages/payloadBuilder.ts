@@ -15,7 +15,7 @@ import {
   buildTravelBetweenImagesFamilyContract,
   TASK_FAMILY_CONTRACT_VERSION,
   type TravelBetweenImagesReadContract,
-} from '../taskFamilyContracts';
+} from '../core/taskFamilyContracts';
 import { composeTaskFamilyPayload } from '../taskPayloadContract';
 import { toRecordOrEmpty, asNumber } from '../taskParamParsers';
 import {

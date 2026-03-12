@@ -29,8 +29,8 @@ vi.mock('@/integrations/supabase/client', () => ({
   getSupabaseClient: () => mockSupabase,
 }));
 
-vi.mock('@/shared/lib/invokeWithTimeout', () => ({
-  invokeWithTimeout: vi.fn().mockResolvedValue({ checkoutUrl: 'https://checkout.stripe.com/test' }),
+vi.mock('@/integrations/supabase/functions/invokeSupabaseEdgeFunction', () => ({
+  invokeSupabaseEdgeFunction: vi.fn().mockResolvedValue({ checkoutUrl: 'https://checkout.stripe.com/test' }),
 }));
 
 vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({

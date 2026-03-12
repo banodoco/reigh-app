@@ -13,9 +13,9 @@ import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { requireSession } from '@/integrations/supabase/auth/ensureAuthenticatedSession';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { invokeSupabaseEdgeFunction } from '@/integrations/supabase/functions/invokeSupabaseEdgeFunction';
 import { useIncomingTasks } from '@/shared/contexts/IncomingTasksContext';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import { invokeWithTimeout } from '@/shared/lib/invokeWithTimeout';
 import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 
 interface TaskPlaceholderOptions {
@@ -70,7 +70,7 @@ async function cancelTasksByIds(taskIds: string[]): Promise<void> {
 
   const session = await requireSession(supabase(), 'useTaskPlaceholder.cancelTasksByIds');
   const results = await Promise.allSettled(taskIds.map((taskId) => (
-    invokeWithTimeout('update-task-status', {
+    invokeSupabaseEdgeFunction('update-task-status', {
       body: {
         task_id: taskId,
         status: 'Cancelled',

@@ -4,7 +4,7 @@ import { toast } from '@/shared/components/ui/runtime/sonner';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
 import { useShotGenerationMetadata } from '@/shared/hooks/shots/useShotGenerationMetadata';
-import { createBatchMagicEditTasks } from '@/shared/lib/tasks/magicEdit';
+import { createBatchMagicEditTasks } from '@/shared/lib/tasks/imageEditing/magicEdit';
 import type { EditAdvancedSettings, QwenEditModel } from './useGenerationEditSettings';
 import type { LoraMode } from '../model/editSettingsTypes';
 import { convertToHiresFixApiParams } from './useGenerationEditSettings';

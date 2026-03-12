@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { uploadImageToStorage } from '@/shared/lib/media/imageUploader';
-import { createImageInpaintTask } from '@/shared/lib/tasks/imageInpaint';
-import { buildMaskedEditTaskParams } from '@/shared/lib/tasks/buildMaskedEditTaskParams';
+import { createImageInpaintTask } from '@/shared/lib/tasks/imageEditing/imageInpaint';
+import { buildMaskedEditTaskParams } from '@/shared/lib/tasks/imageEditing/buildMaskedEditTaskParams';
 import { generateMaskFromCanvas, createCanvasWithBackground } from '@/shared/lib/media/maskGeneration';
 import type { ImageTransform } from './types';
 import type { GenerationRow } from '@/domains/generation/types';

@@ -7,7 +7,7 @@
  * During token refresh Supabase holds an EXCLUSIVE lock, so all shared-lock
  * requests queue behind it (600ms-16s). These helpers avoid that entirely.
  *
- * Used by: taskCreation.ts, invokeWithTimeout.ts, toolSettingsService.ts,
+ * Used by: taskCreation.ts, invokeSupabaseEdgeFunction.ts, toolSettingsService.ts,
  *          createSupabaseClient.ts.
  */
 

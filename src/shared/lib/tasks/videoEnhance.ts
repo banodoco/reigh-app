@@ -3,8 +3,8 @@ import {
   TaskValidationError,
 } from "../taskCreation";
 import type { TaskCreationResult } from "../taskCreation";
-import { composeTaskRequest } from './taskRequestComposer';
-import { runTaskCreationPipeline } from './taskCreatorPipeline';
+import { composeTaskRequest } from './core/taskRequestComposer';
+import { runTaskCreationPipeline } from './core/taskCreatorPipeline';
 
 // ============================================================================
 // Video Enhancement API Param Interfaces (Single Source of Truth)

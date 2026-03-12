@@ -5,7 +5,7 @@ const mockCreateTask = vi.fn();
 const mockBuildHiresFixParams = vi.fn();
 const mockProcessBatchResults = vi.fn();
 
-vi.mock('../../taskCreation', () => ({
+vi.mock('../../../taskCreation', () => ({
   createTask: (...args: unknown[]) => mockCreateTask(...args),
   buildHiresFixParams: (...args: unknown[]) => mockBuildHiresFixParams(...args),
   processBatchResults: (...args: unknown[]) => mockProcessBatchResults(...args),

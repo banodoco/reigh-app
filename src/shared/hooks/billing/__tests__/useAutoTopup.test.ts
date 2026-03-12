@@ -32,8 +32,8 @@ vi.mock('@/integrations/supabase/client', () => ({
   }),
 }));
 
-vi.mock('@/shared/lib/invokeWithTimeout', () => ({
-  invokeWithTimeout: vi.fn().mockResolvedValue({}),
+vi.mock('@/integrations/supabase/functions/invokeSupabaseEdgeFunction', () => ({
+  invokeSupabaseEdgeFunction: vi.fn().mockResolvedValue({}),
 }));
 
 vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({

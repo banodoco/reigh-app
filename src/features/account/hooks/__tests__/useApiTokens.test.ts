@@ -39,8 +39,8 @@ vi.mock('@/integrations/supabase/client', () => ({
   }),
 }));
 
-vi.mock('@/shared/lib/invokeWithTimeout', () => ({
-  invokeWithTimeout: vi.fn().mockResolvedValue({ [('to' + 'ken')]: 'pat_new_token' }),
+vi.mock('@/integrations/supabase/functions/invokeSupabaseEdgeFunction', () => ({
+  invokeSupabaseEdgeFunction: vi.fn().mockResolvedValue({ [('to' + 'ken')]: 'pat_new_token' }),
 }));
 
 vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({

@@ -14,7 +14,10 @@ type InvokeOptions = {
  * Reads the access token directly from localStorage to avoid navigator.locks contention.
  * Ensures long-running invocations do not stall the UI indefinitely.
  */
-export async function invokeWithTimeout<T = unknown>(functionName: string, options: InvokeOptions = {}): Promise<T> {
+export async function invokeSupabaseEdgeFunction<T = unknown>(
+  functionName: string,
+  options: InvokeOptions = {},
+): Promise<T> {
   const { body, headers, timeoutMs = 20000, signal } = options;
 
   const controller = new AbortController();

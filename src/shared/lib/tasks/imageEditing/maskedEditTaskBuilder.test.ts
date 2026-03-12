@@ -9,16 +9,16 @@ const mocks = vi.hoisted(() => ({
   composeTaskRequest: vi.fn(),
 }));
 
-vi.mock('../taskCreation', () => ({
+vi.mock('../../taskCreation', () => ({
   buildHiresFixParams: (...args: unknown[]) => mocks.buildHiresFixParams(...args),
   processBatchResults: (...args: unknown[]) => mocks.processBatchResults(...args),
 }));
 
-vi.mock('./taskCreatorPipeline', () => ({
+vi.mock('../core/taskCreatorPipeline', () => ({
   runTaskCreationPipeline: (...args: unknown[]) => mocks.runTaskCreationPipeline(...args),
 }));
 
-vi.mock('./taskRequestComposer', () => ({
+vi.mock('../core/taskRequestComposer', () => ({
   composeTaskParams: (...args: unknown[]) => mocks.composeTaskParams(...args),
   composeTaskRequest: (...args: unknown[]) => mocks.composeTaskRequest(...args),
 }));

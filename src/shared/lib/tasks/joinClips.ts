@@ -12,11 +12,11 @@ import { joinClipsSettings } from '@/shared/lib/joinClips/defaults';
 import { camelToSnakeKeys } from '@/shared/lib/utils/caseConversion';
 import type { PathLoraConfig } from '@/domains/lora/types/lora';
 import { buildPhaseConfigWithLoras } from '@/shared/lib/vaceDefaults';
-import { buildJoinClipsFamilyContract } from './taskFamilyContracts';
+import { buildJoinClipsFamilyContract } from './core/taskFamilyContracts';
 import { composeTaskFamilyPayload } from './taskPayloadContract';
 import { assignMappedPayloadFields } from '../taskCreation/payloadMapping';
-import { composeTaskRequest } from './taskRequestComposer';
-import { runTaskCreationPipeline } from './taskCreatorPipeline';
+import { composeTaskRequest } from './core/taskRequestComposer';
+import { runTaskCreationPipeline } from './core/taskCreatorPipeline';
 
 // ============================================================================
 

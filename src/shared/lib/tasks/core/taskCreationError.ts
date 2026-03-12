@@ -1,4 +1,4 @@
-import { TaskValidationError } from '../taskCreation';
+import { TaskValidationError } from '../../taskCreation';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
 interface TaskErrorHandlingOptions {

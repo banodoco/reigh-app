@@ -1,8 +1,8 @@
-import type { BaseTaskParams } from '../taskCreation';
+import type { BaseTaskParams } from '../../taskCreation';
 import {
   assignMappedPayloadFields,
   type PayloadFieldMapping,
-} from '../taskCreation/payloadMapping';
+} from '../../taskCreation/payloadMapping';
 
 type PayloadSegment = Record<string, unknown> | null | undefined;
 

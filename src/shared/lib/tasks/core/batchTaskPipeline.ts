@@ -1,4 +1,4 @@
-import { processBatchResults, type TaskCreationResult } from '../taskCreation';
+import { processBatchResults, type TaskCreationResult } from '../../taskCreation';
 
 interface BatchTaskPipelineConfig<TBatchParams, TSingleTaskParams> {
   batchParams: TBatchParams;

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { getSupabaseClient } from '@/integrations/supabase/client';
 import { requireSession } from '@/integrations/supabase/auth/ensureAuthenticatedSession';
-import { invokeWithTimeout } from '@/shared/lib/invokeWithTimeout';
+import { invokeSupabaseEdgeFunction } from '@/integrations/supabase/functions/invokeSupabaseEdgeFunction';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import {
   AIPromptItem,
@@ -24,7 +24,7 @@ async function invokeAuthenticatedAIPrompt<T>(
 ): Promise<T> {
   const session = await requireSession(getSupabaseClient(), context);
 
-  return invokeWithTimeout<T>('ai-prompt', {
+  return invokeSupabaseEdgeFunction<T>('ai-prompt', {
     body,
     headers: {
       Authorization: `Bearer ${session.access_token}`,

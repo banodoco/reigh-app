@@ -11,9 +11,9 @@ import {
 import type { TaskCreationResult } from '../taskCreation';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { FalLoraConfig } from '@/domains/lora/types/lora';
-import { runBatchTaskPipeline } from './batchTaskPipeline';
-import { runTaskCreationPipeline } from './taskCreatorPipeline';
-import { composeTaskRequest } from './taskRequestComposer';
+import { runBatchTaskPipeline } from './core/batchTaskPipeline';
+import { runTaskCreationPipeline } from './core/taskCreatorPipeline';
+import { composeTaskRequest } from './core/taskRequestComposer';
 
 /**
  * Parameters for creating a Z Image Turbo image-to-image task

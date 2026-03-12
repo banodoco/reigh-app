@@ -5,11 +5,11 @@ import {
 } from '../taskCreation';
 import type { TaskCreationResult } from '../taskCreation';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
-import { runBatchTaskPipeline } from './batchTaskPipeline';
-import { rethrowTaskCreationError } from './taskCreationError';
-import { composeTaskParams, composeTaskRequest } from './taskRequestComposer';
-import { composeOptionalFields } from './taskFieldPolicy';
-import { runTaskCreationPipeline } from './taskCreatorPipeline';
+import { runBatchTaskPipeline } from './core/batchTaskPipeline';
+import { rethrowTaskCreationError } from './core/taskCreationError';
+import { composeTaskParams, composeTaskRequest } from './core/taskRequestComposer';
+import { composeOptionalFields } from './core/taskFieldPolicy';
+import { runTaskCreationPipeline } from './core/taskCreatorPipeline';
 import {
   buildHiresOverride,
   buildImageGenerationBaseParams,

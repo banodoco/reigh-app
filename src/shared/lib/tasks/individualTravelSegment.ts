@@ -3,8 +3,8 @@ import {
   resolveProjectResolution,
 } from '../taskCreation';
 import type { TaskCreationResult } from '../taskCreation';
-import { composeTaskRequest } from './taskRequestComposer';
-import { runTaskCreationPipeline } from './taskCreatorPipeline';
+import { composeTaskRequest } from './core/taskRequestComposer';
+import { runTaskCreationPipeline } from './core/taskCreatorPipeline';
 import { asString, toRecordOrEmpty } from './taskParamParsers';
 import { buildIndividualTravelSegmentParams } from './segmentTaskPayload';
 import { MAX_SEGMENT_FRAMES } from './segmentStateResolvers';

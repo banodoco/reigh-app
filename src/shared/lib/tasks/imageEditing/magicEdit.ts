@@ -8,14 +8,14 @@ import {
   validateNonEmptyString,
   validateUrlString,
   setTaskLineageFields,
-} from '../taskCreation';
-import type { TaskCreationResult } from '../taskCreation';
-import type { HiresFixApiParams } from '../taskCreation';
+} from '../../taskCreation';
+import type { TaskCreationResult } from '../../taskCreation';
+import type { HiresFixApiParams } from '../../taskCreation';
 import type { ComfyLoraConfig } from '@/domains/lora/types/lora';
-import { runBatchTaskPipeline } from './batchTaskPipeline';
-import { rethrowTaskCreationError } from './taskCreationError';
-import { composeTaskRequest } from './taskRequestComposer';
-import { runTaskCreationPipeline } from './taskCreatorPipeline';
+import { runBatchTaskPipeline } from '../core/batchTaskPipeline';
+import { rethrowTaskCreationError } from '../core/taskCreationError';
+import { composeTaskRequest } from '../core/taskRequestComposer';
+import { runTaskCreationPipeline } from '../core/taskCreatorPipeline';
 
 /**
  * Parameters for creating a magic edit task

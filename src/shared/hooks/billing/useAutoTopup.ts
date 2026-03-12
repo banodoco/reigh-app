@@ -1,7 +1,7 @@
 import { getSupabaseClient } from '@/integrations/supabase/client';
+import { invokeSupabaseEdgeFunction } from '@/integrations/supabase/functions/invokeSupabaseEdgeFunction';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import { invokeWithTimeout } from '@/shared/lib/invokeWithTimeout';
 import { creditQueryKeys } from '@/shared/lib/queryKeys/credits';
 
 const getSupabase = () => getSupabaseClient();
@@ -80,7 +80,7 @@ async function updateAutoTopupPreferences(params: UpdateAutoTopupParams): Promis
   };
   
   // Call the setup-auto-topup edge function
-  const data = await invokeWithTimeout('setup-auto-topup', {
+  const data = await invokeSupabaseEdgeFunction('setup-auto-topup', {
     body: requestBody,
     headers: {
       Authorization: `Bearer ${session.access_token}`,

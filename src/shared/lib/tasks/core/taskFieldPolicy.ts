@@ -1,4 +1,4 @@
-export { resolveByPrecedence } from './taskParamContract';
+export { resolveByPrecedence } from '../taskParamContract';
 
 interface ComposeOptionalFieldsEntry {
   key: string;

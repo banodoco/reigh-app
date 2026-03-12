@@ -1,5 +1,5 @@
 import { mapPathLorasToStrengthRecord } from '../taskCreation';
-import { composeOptionalFields, isNonEmptyString } from './taskFieldPolicy';
+import { composeOptionalFields, isNonEmptyString } from './core/taskFieldPolicy';
 import { resolveByPrecedence } from './taskParamContract';
 import { filterReferenceSettingsByMode } from './referenceImageFiltering';
 import type {

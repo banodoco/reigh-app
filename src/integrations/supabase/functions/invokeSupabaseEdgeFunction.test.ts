@@ -11,7 +11,7 @@ vi.mock('@/integrations/supabase/config/env', () => ({
   getSupabasePublishableKey: () => 'anon-key',
 }));
 
-import { invokeWithTimeout } from '../invokeWithTimeout';
+import { invokeSupabaseEdgeFunction } from './invokeSupabaseEdgeFunction';
 
 // Helper to create a mock Response
 function mockResponse(body: unknown, { ok = true, status = 200 } = {}) {
@@ -23,7 +23,7 @@ function mockResponse(body: unknown, { ok = true, status = 200 } = {}) {
   } as unknown as Response;
 }
 
-describe('invokeWithTimeout', () => {
+describe('invokeSupabaseEdgeFunction', () => {
   const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
@@ -42,7 +42,7 @@ describe('invokeWithTimeout', () => {
       mockResponse({ result: 'ok' })
     );
 
-    const result = await invokeWithTimeout('my-function', { body: { key: 'value' } });
+    const result = await invokeSupabaseEdgeFunction('my-function', { body: { key: 'value' } });
 
     expect(result).toEqual({ result: 'ok' });
     expect(globalThis.fetch).toHaveBeenCalledWith(
@@ -59,7 +59,7 @@ describe('invokeWithTimeout', () => {
       mockResponse('Function crashed', { ok: false, status: 500 })
     );
 
-    await expect(invokeWithTimeout('failing-function')).rejects.toThrow('Function crashed');
+    await expect(invokeSupabaseEdgeFunction('failing-function')).rejects.toThrow('Function crashed');
   });
 
   it('uses default 20s timeout', async () => {
@@ -75,7 +75,7 @@ describe('invokeWithTimeout', () => {
       }
     );
 
-    const promise = invokeWithTimeout('slow-function').catch((e) => e);
+    const promise = invokeSupabaseEdgeFunction('slow-function').catch((e) => e);
 
     await vi.advanceTimersByTimeAsync(20001);
 
@@ -97,7 +97,7 @@ describe('invokeWithTimeout', () => {
       }
     );
 
-    const promise = invokeWithTimeout('slow-function', { timeoutMs: 5000 }).catch((e) => e);
+    const promise = invokeSupabaseEdgeFunction('slow-function', { timeoutMs: 5000 }).catch((e) => e);
 
     await vi.advanceTimersByTimeAsync(5001);
 
@@ -111,7 +111,7 @@ describe('invokeWithTimeout', () => {
       mockResponse('ok')
     );
 
-    await invokeWithTimeout('my-function', {
+    await invokeSupabaseEdgeFunction('my-function', {
       headers: { 'X-Custom': 'header-value' },
     });
 
@@ -125,7 +125,7 @@ describe('invokeWithTimeout', () => {
       mockResponse('ok')
     );
 
-    await invokeWithTimeout('my-function');
+    await invokeSupabaseEdgeFunction('my-function');
 
     const callArgs = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(callArgs[1].signal).toBeInstanceOf(AbortSignal);
@@ -136,7 +136,7 @@ describe('invokeWithTimeout', () => {
       new Error('Some random error')
     );
 
-    await expect(invokeWithTimeout('bad-function')).rejects.toThrow('Some random error');
+    await expect(invokeSupabaseEdgeFunction('bad-function')).rejects.toThrow('Some random error');
   });
 
   it('throws timeout message including function name', async () => {
@@ -152,7 +152,7 @@ describe('invokeWithTimeout', () => {
       }
     );
 
-    const promise = invokeWithTimeout('my-func', { timeoutMs: 3000 }).catch((e) => e);
+    const promise = invokeSupabaseEdgeFunction('my-func', { timeoutMs: 3000 }).catch((e) => e);
     await vi.advanceTimersByTimeAsync(3001);
 
     const result = await promise;
@@ -165,7 +165,7 @@ describe('invokeWithTimeout', () => {
       mockResponse('done')
     );
 
-    await invokeWithTimeout('fast-function', { timeoutMs: 10000 });
+    await invokeSupabaseEdgeFunction('fast-function', { timeoutMs: 10000 });
 
     // The timeout should be cleared, so advancing past it should not cause issues
     await vi.advanceTimersByTimeAsync(15000);
@@ -176,7 +176,7 @@ describe('invokeWithTimeout', () => {
       mockResponse('', { ok: false, status: 500 })
     );
 
-    await expect(invokeWithTimeout('empty-error-function')).rejects.toThrow(
+    await expect(invokeSupabaseEdgeFunction('empty-error-function')).rejects.toThrow(
       'Function empty-error-function failed with status 500'
     );
   });
@@ -196,7 +196,7 @@ describe('invokeWithTimeout', () => {
       }
     );
 
-    const promise = invokeWithTimeout('my-function', {
+    const promise = invokeSupabaseEdgeFunction('my-function', {
       signal: externalController.signal,
       timeoutMs: 60000,
     }).catch((e) => e);

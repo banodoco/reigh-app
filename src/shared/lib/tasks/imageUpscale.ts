@@ -1,7 +1,7 @@
 import { validateRequiredFields, TaskValidationError } from '../taskCreation';
 import type { TaskCreationResult } from '../taskCreation';
-import { runTaskCreationPipeline } from './taskCreatorPipeline';
-import { composeTaskRequest } from './taskRequestComposer';
+import { runTaskCreationPipeline } from './core/taskCreatorPipeline';
+import { composeTaskRequest } from './core/taskRequestComposer';
 
 /**
  * Parameters for creating an image upscale task

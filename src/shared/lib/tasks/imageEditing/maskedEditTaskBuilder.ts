@@ -1,11 +1,11 @@
-import { buildHiresFixParams, processBatchResults } from '../taskCreation';
+import { buildHiresFixParams, processBatchResults } from '../../taskCreation';
 import type {
   HiresFixApiParams,
   TaskCreationResult,
-} from '../taskCreation';
+} from '../../taskCreation';
 import type { ComfyLoraConfig } from '@/domains/lora/types/lora';
-import { runTaskCreationPipeline } from './taskCreatorPipeline';
-import { composeTaskParams, composeTaskRequest } from './taskRequestComposer';
+import { runTaskCreationPipeline } from '../core/taskCreatorPipeline';
+import { composeTaskParams, composeTaskRequest } from '../core/taskRequestComposer';
 
 export interface MaskedEditTaskParams {
   project_id: string;

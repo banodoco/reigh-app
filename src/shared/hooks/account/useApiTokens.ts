@@ -1,7 +1,7 @@
 import { getSupabaseClient } from '@/integrations/supabase/client';
+import { invokeSupabaseEdgeFunction } from '@/integrations/supabase/functions/invokeSupabaseEdgeFunction';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { invokeWithTimeout } from '@/shared/lib/invokeWithTimeout';
 import { apiQueryKeys } from '@/shared/lib/queryKeys/api';
 import { normalizeAndPresentAndRethrow } from '@/shared/lib/errorHandling/runtimeError';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
@@ -53,7 +53,7 @@ const generateApiToken = async (params: { label: string }): Promise<GenerateToke
     const supabase = getSupabaseClient();
     await requireSession(supabase, 'useApiTokens.generateApiToken');
 
-    return await invokeWithTimeout<GenerateTokenResponse>('generate-pat', {
+    return await invokeSupabaseEdgeFunction<GenerateTokenResponse>('generate-pat', {
       body: params,
       timeoutMs: 20000,
     });
@@ -71,7 +71,7 @@ const revokeApiToken = async (tokenId: string): Promise<void> => {
     const supabase = getSupabaseClient();
     await requireSession(supabase, 'useApiTokens.revokeApiToken');
 
-    await invokeWithTimeout('revoke-pat', {
+    await invokeSupabaseEdgeFunction('revoke-pat', {
       body: { tokenId },
       timeoutMs: 20000,
     });

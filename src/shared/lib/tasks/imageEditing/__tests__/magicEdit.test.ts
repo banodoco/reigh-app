@@ -6,8 +6,8 @@ const mockResolveProjectResolution = vi.fn();
 const mockProcessBatchResults = vi.fn();
 const mockBuildHiresFixParams = vi.fn();
 
-vi.mock('../../taskCreation', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../taskCreation')>();
+vi.mock('../../../taskCreation', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../taskCreation')>();
   return {
     ...actual,
     createTask: (...args: unknown[]) => mockCreateTask(...args),

@@ -7,9 +7,9 @@ import { useCallback } from 'react';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import type { GenerationRow } from '@/domains/generation/types';
 import { uploadImageToStorage } from '@/shared/lib/media/imageUploader';
-import { createImageInpaintTask } from '@/shared/lib/tasks/imageInpaint';
-import { createAnnotatedImageEditTask } from '@/shared/lib/tasks/annotatedImageEdit';
-import { buildMaskedEditTaskParams } from '@/shared/lib/tasks/buildMaskedEditTaskParams';
+import { createImageInpaintTask } from '@/shared/lib/tasks/imageEditing/imageInpaint';
+import { createAnnotatedImageEditTask } from '@/shared/lib/tasks/imageEditing/annotatedImageEdit';
+import { buildMaskedEditTaskParams } from '@/shared/lib/tasks/imageEditing/buildMaskedEditTaskParams';
 import type { StrokeOverlayHandle } from '../../components/StrokeOverlay';
 import type { BrushStroke, EditAdvancedSettings, QwenEditModel } from './types';
 

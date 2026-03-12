@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   buildSegmentState: vi.fn(),
 }));
 
-vi.mock('./taskFamilyContracts', () => ({
+vi.mock('./core/taskFamilyContracts', () => ({
   buildIndividualSegmentFamilyContract: (...args: unknown[]) => mocks.buildIndividualSegmentFamilyContract(...args),
 }));
 
