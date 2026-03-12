@@ -89,5 +89,41 @@ describe('useProjectSessionCoordinator', () => {
       selection,
       crud,
     });
+    expect(mocks.useAuth).toHaveBeenCalledTimes(1);
+    expect(mocks.useUserSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes null user ids through the coordinator boundary for signed-out state', () => {
+    mocks.useAuth.mockReturnValue({ userId: null });
+    mocks.useUserSettings.mockReturnValue({
+      userSettings: null,
+      isLoadingSettings: true,
+      updateUserSettings: vi.fn(),
+    });
+    mocks.useProjectSelection.mockReturnValue({
+      selectedProjectId: null,
+      handleProjectsLoaded: vi.fn(),
+      handleProjectCreated: vi.fn(),
+      handleProjectDeleted: vi.fn(),
+      applyCrossDeviceSync: vi.fn(),
+    });
+    mocks.useProjectCRUD.mockReturnValue({
+      projects: [],
+      isLoadingProjects: true,
+      fetchProjects: vi.fn(),
+    });
+
+    const { result } = renderHook(() => useProjectSessionCoordinator());
+
+    expect(mocks.useProjectSelection).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: null, isLoadingPreferences: true }),
+    );
+    expect(mocks.useProjectCRUD).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: null, selectedProjectId: null }),
+    );
+    expect(mocks.useProjectDefaults).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: null, selectedProjectId: null }),
+    );
+    expect(result.current.userId).toBeNull();
   });
 });

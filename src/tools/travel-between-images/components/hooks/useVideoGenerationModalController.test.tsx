@@ -177,8 +177,36 @@ describe('useVideoGenerationModalController', () => {
     expect(result.current.positionedImages).toEqual([
       expect.objectContaining({ id: 'img-1' }),
     ]);
+    expect(result.current.projects).toEqual([{ id: 'project-1', aspectRatio: '16:9' }]);
+    expect(result.current.selectedProjectId).toBe('project-1');
+    expect(result.current.settings.prompt).toBe('Base prompt');
+    expect(result.current.status).toBe('ready');
     expect(result.current.isDisabled).toBe(false);
+    expect(result.current.hasStructureVideo).toBe(false);
+    expect(result.current.accelerated).toBe(false);
+    expect(result.current.randomSeed).toBe(true);
     expect(result.current.validPresetId).toBe(BUILTIN_DEFAULT_I2V_ID);
+    expect(result.current.selectedLoras).toEqual([
+      expect.objectContaining({ id: 'lora-1', strength: 0.8 }),
+    ]);
+    expect(result.current.selectedLorasForModal).toEqual([
+      expect.objectContaining({ 'Model ID': 'lora-1', strength: 0.8 }),
+    ]);
+
+    act(() => {
+      result.current.openLoraModal();
+    });
+    expect(result.current.isLoraModalOpen).toBe(true);
+
+    act(() => {
+      result.current.handleDialogOpenChange(false);
+    });
+    expect(onClose).toHaveBeenCalledTimes(0);
+
+    act(() => {
+      result.current.closeLoraModal();
+    });
+    expect(result.current.isLoraModalOpen).toBe(false);
 
     act(() => {
       result.current.handleNavigateToShot();
@@ -210,13 +238,29 @@ describe('useVideoGenerationModalController', () => {
       'generationMode',
       'batch',
     );
+    expect(mocks.buildBasicModePhaseConfig).toHaveBeenCalledWith(70, [
+      { path: '/lora-1', strength: 0.8 },
+    ]);
     expect(mocks.generateVideo).toHaveBeenCalledWith(expect.objectContaining({
       projectId: 'project-1',
       selectedShotId: 'shot-1',
       effectiveAspectRatio: '16:9',
       generationMode: 'batch',
     }));
+    expect(mocks.generateVideo).toHaveBeenCalledWith(expect.objectContaining({
+      structureGuidance: { mode: 'none' },
+      structureVideos: [],
+      selectedLoras: [
+        expect.objectContaining({
+          id: 'lora-1',
+          name: 'Lora One',
+          path: '/lora-1',
+          strength: 0.8,
+        }),
+      ],
+    }));
     expect(result.current.justQueued).toBe(true);
+    expect(result.current.isGenerating).toBe(false);
     expect(invalidateGenerations).toHaveBeenCalledWith('shot-1', {
       reason: 'video-generation-modal-success',
       scope: 'all',
@@ -230,5 +274,31 @@ describe('useVideoGenerationModalController', () => {
 
     expect(result.current.justQueued).toBe(false);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a toast instead of generating when no positioned images are available', async () => {
+    mocks.useShotImages.mockReturnValue({
+      data: [
+        {
+          id: 'vid-1',
+          type: 'video',
+          timeline_frame: 5,
+        },
+      ],
+      isLoading: false,
+    });
+
+    const { result } = renderHook(() => useVideoGenerationModalController({
+      isOpen: true,
+      onClose: vi.fn(),
+      shot: { id: 'shot-1' } as never,
+    }));
+
+    await act(async () => {
+      await result.current.handleGenerate();
+    });
+
+    expect(mocks.toastError).toHaveBeenCalledWith('At least 1 positioned image is required.');
+    expect(mocks.generateVideo).not.toHaveBeenCalled();
   });
 });
