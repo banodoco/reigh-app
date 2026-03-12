@@ -69,6 +69,8 @@ describe('useShareActions', () => {
   });
 
   it('copies a share into a selected project and navigates after the success delay', async () => {
+    vi.useFakeTimers();
+
     mocks.getSession.mockResolvedValueOnce({
       data: { session: { user: { id: 'user-1' } } },
       error: null,
@@ -91,7 +93,7 @@ describe('useShareActions', () => {
     });
 
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1600));
+      vi.advanceTimersByTime(1600);
     });
 
     expect(mocks.navigate).toHaveBeenCalledWith('/tools/travel-between-images');
