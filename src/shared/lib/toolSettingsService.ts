@@ -5,19 +5,14 @@
  * Extracted from useToolSettings.ts to reduce hook file complexity.
  *
  * Contains:
- * - Auth caching logic (resolveAndCacheUserId / readCachedUserId)
- * - Bootstrap auth cache synchronization
- * - Auth transition cache invalidation helpers
  * - Settings fetch with single-flight deduplication (fetchToolSettingsSupabase)
- * - Module-level state for caching and deduplication
+ * - Scope fetch/merge helpers
+ * - Tool settings error classification and normalization
  */
-import { getSupabaseClient } from '@/integrations/supabase/client';
 import { deepMerge } from '@/shared/lib/utils/deepEqual';
 import { isCancellationError, getErrorMessage } from '@/shared/lib/errorHandling/errorUtils';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import { readUserIdFromStorage } from '@/shared/lib/supabaseSession';
 import { isKnownSettingsId } from '@/shared/lib/settingsIds';
-import type { Session } from '@supabase/supabase-js';
 import {
   operationFailure,
   operationSuccess,
@@ -25,63 +20,24 @@ import {
   type OperationResult,
 } from '@/shared/lib/operationResult';
 import { toolDefaultsRegistry } from '@/tooling/toolDefaultsRegistry';
+import {
+  clearCachedUserId,
+  ensureToolSettingsAuthCacheInitialized,
+  getToolSettingsRuntimeClient,
+  initializeToolSettingsAuthCache,
+  readCachedUserId,
+  resolveAndCacheUserId,
+  setCachedUserId,
+  setToolSettingsAuthCacheInvalidationHandler,
+  type ToolSettingsSupabaseClient,
+  _resetToolSettingsAuthCacheForTesting,
+} from './toolSettingsAuthCache';
 
 const inflightSettingsFetches = new Map<string, Promise<unknown>>();
-let cachedUser: { id: string } | null = null;
-let hasCachedUserSnapshot = false;
-let cachedUserAt: number = 0;
-let cleanupAuthCacheSync: (() => void) | null = null;
-let authCacheInitializationPromise: Promise<void> | null = null;
-const USER_CACHE_MS = 10_000; // 10 seconds
-
-type UserLookupResult = Promise<{ data: { user: { id: string } | null }; error: null }>;
-type AuthStateCallback = (event: string, session: Session | null) => void;
-interface AuthCacheSyncSource {
-  subscribe: (id: string, callback: AuthStateCallback) => () => void;
-}
-
-function createDirectAuthCacheSyncSource(
-  supabaseClient: ReturnType<typeof getSupabaseClient>,
-): AuthCacheSyncSource {
-  return {
-    subscribe: (_id, callback) => {
-      if (typeof supabaseClient.auth.onAuthStateChange !== 'function') {
-        return () => {};
-      }
-      const authSubscription = supabaseClient.auth.onAuthStateChange((event, session) => {
-        callback(event, session);
-      });
-      const unsubscribe = authSubscription.data?.subscription?.unsubscribe;
-      return typeof unsubscribe === 'function' ? () => unsubscribe() : () => {};
-    },
-  };
-}
-
-function invalidateAuthDependentState(): void {
+setToolSettingsAuthCacheInvalidationHandler(() => {
   inflightSettingsFetches.clear();
-}
+});
 
-function updateCachedUserId(userId: string | null, invalidateState: boolean): void {
-  if (invalidateState) {
-    invalidateAuthDependentState();
-  }
-
-  cachedUser = userId ? { id: userId } : null;
-  hasCachedUserSnapshot = true;
-  cachedUserAt = Date.now();
-}
-
-function syncCachedUserId(userId: string | null): void {
-  if (userId) {
-    setCachedUserId(userId);
-    return;
-  }
-  clearCachedUserId();
-}
-
-function syncCachedUserFromSession(session: Session | null): void {
-  syncCachedUserId(session?.user?.id ?? null);
-}
 const unknownSettingsIdsReported = new Set<string>();
 function reportUnknownSettingsId(toolId: string): void {
   if (isKnownSettingsId(toolId) || unknownSettingsIdsReported.has(toolId)) {
@@ -97,72 +53,6 @@ function reportUnknownSettingsId(toolId: string): void {
       'Add this key to SETTINGS_IDS if it should be persisted via useToolSettings.',
     );
   }
-}
-/** Seed the user cache from an external source. */
-export function setCachedUserId(userId: string) {
-  updateCachedUserId(userId, true);
-}
-export function clearCachedUserId() {
-  updateCachedUserId(null, true);
-}
-function startToolSettingsAuthCacheInitialization(
-  supabaseClient: ReturnType<typeof getSupabaseClient>,
-  authManager: AuthCacheSyncSource,
-): Promise<void> {
-  if (authCacheInitializationPromise) {
-    return authCacheInitializationPromise;
-  }
-
-  syncCachedUserId(readUserIdFromStorage());
-
-  if (!cleanupAuthCacheSync) {
-    cleanupAuthCacheSync = authManager.subscribe('toolSettingsService', (_event, session) => {
-      syncCachedUserFromSession(session);
-    });
-  }
-
-  authCacheInitializationPromise = supabaseClient.auth
-    .getSession()
-    .then(({ data: { session } }) => {
-      syncCachedUserFromSession(session);
-    })
-    .catch((error) => {
-      normalizeAndPresentError(error, {
-        context: 'toolSettingsService.initializeToolSettingsAuthCache',
-        showToast: false,
-      });
-    });
-
-  return authCacheInitializationPromise;
-}
-export function initializeToolSettingsAuthCache(
-  supabaseClient: ReturnType<typeof getSupabaseClient>,
-  authManager: AuthCacheSyncSource,
-): void {
-  void startToolSettingsAuthCacheInitialization(supabaseClient, authManager);
-}
-
-export function ensureToolSettingsAuthCacheInitialized(): Promise<void> {
-  if (authCacheInitializationPromise) {
-    return authCacheInitializationPromise;
-  }
-
-  const supabaseClient = getSupabaseClient();
-  return startToolSettingsAuthCacheInitialization(
-    supabaseClient,
-    createDirectAuthCacheSyncSource(supabaseClient),
-  );
-}
-
-/** @internal Only for test isolation — do not call in production code. */
-export function _resetCachedUserForTesting() {
-  cleanupAuthCacheSync?.();
-  cleanupAuthCacheSync = null;
-  authCacheInitializationPromise = null;
-  cachedUser = null;
-  hasCachedUserSnapshot = false;
-  cachedUserAt = 0;
-  inflightSettingsFetches.clear();
 }
 interface ToolSettingsContext {
   projectId?: string;
@@ -263,55 +153,6 @@ export interface SettingsFetchResult<T = unknown> {
   settings: T;
   hasShotSettings: boolean;
 }
-/**
- * Get authenticated user ID without acquiring navigator.locks.
- *
- * Resolution order (all synchronous / lock-free):
- *   1. In-memory cache (seeded during runtime bootstrap auth sync)
- *   2. localStorage session (same key Supabase uses; contains full user object)
- *   3. null — user is genuinely signed out
- *
- * Previously this called getSession() / getUser() which both acquire a shared
- * navigator.lock. During token refresh Supabase holds an EXCLUSIVE lock, so
- * ALL shared-lock requests queue behind it — blocking for 600ms-16s. By reading
- * the user ID from localStorage instead we avoid locks entirely. Token validity
- * for actual data requests is handled by createSupabaseClient's cached token.
- */
-function buildUserLookupResult(userId: string | null): UserLookupResult {
-  return Promise.resolve({
-    data: { user: userId ? { id: userId } : null },
-    error: null,
-  });
-}
-
-function readFreshCachedUserId(): string | null | undefined {
-  if (!hasCachedUserSnapshot) {
-    return undefined;
-  }
-  if (cleanupAuthCacheSync) {
-    return cachedUser?.id ?? null;
-  }
-  if ((Date.now() - cachedUserAt) >= USER_CACHE_MS) {
-    return undefined;
-  }
-  return cachedUser?.id ?? null;
-}
-
-export function readCachedUserId(): UserLookupResult {
-  const cachedUserId = readFreshCachedUserId();
-  return buildUserLookupResult(cachedUserId ?? null);
-}
-
-export function resolveAndCacheUserId(): UserLookupResult {
-  const cachedUserId = readFreshCachedUserId();
-  if (cachedUserId !== undefined) {
-    return buildUserLookupResult(cachedUserId);
-  }
-
-  return ensureToolSettingsAuthCacheInitialized().then(() => {
-    return buildUserLookupResult(readFreshCachedUserId() ?? null);
-  });
-}
 type SettingsRow = { data: { settings: unknown } | null; error: unknown };
 function throwIfAborted(signal?: AbortSignal): void {
   if (!signal?.aborted) {
@@ -364,7 +205,7 @@ async function raceWithAbort<T>(promise: Promise<T>, signal?: AbortSignal): Prom
 }
 /** Fetch settings from all three scopes (user, project, shot) in parallel. */
 function fetchAllScopes(
-  supabaseClient: ReturnType<typeof getSupabaseClient>,
+  supabaseClient: ToolSettingsSupabaseClient,
   userId: string,
   ctx: ToolSettingsContext,
   signal?: AbortSignal,
@@ -460,7 +301,8 @@ function extractAndMergeSettings(
 export async function fetchToolSettingsSupabase(
   toolId: string,
   ctx: ToolSettingsContext,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  supabaseClient?: ToolSettingsSupabaseClient,
 ): Promise<OperationResult<SettingsFetchResult>> {
   try {
     reportUnknownSettingsId(toolId);
@@ -469,7 +311,14 @@ export async function fetchToolSettingsSupabase(
         recoverable: true,
       }));
     }
-    const { data: { user } } = await resolveAndCacheUserId();
+    const runtimeClient = getToolSettingsRuntimeClient(supabaseClient);
+    if (!runtimeClient) {
+      return toOperationFailure(new ToolSettingsError(
+        'unknown',
+        'Tool settings runtime is not initialized',
+      ));
+    }
+    const { data: { user } } = await resolveAndCacheUserId(runtimeClient);
     if (!user) {
       return toOperationFailure(new ToolSettingsError('auth_required', 'Authentication required'));
     }
@@ -487,10 +336,9 @@ export async function fetchToolSettingsSupabase(
     }
     const promise = (async (): Promise<SettingsFetchResult> => {
       throwIfAborted(signal);
-      const supabaseClient = getSupabaseClient();
-      const [userResult, projectResult, shotResult] = await fetchAllScopes(supabaseClient, userId, ctx, signal);
+      const [userResult, projectResult, shotResult] = await fetchAllScopes(runtimeClient, userId, ctx, signal);
       throwIfAborted(signal);
-      const { data: { user: latestUser } } = await resolveAndCacheUserId();
+      const { data: { user: latestUser } } = await resolveAndCacheUserId(runtimeClient);
       if (!latestUser || latestUser.id !== userId) {
         throw new ToolSettingsError('cancelled', 'Request was cancelled due to auth state change', {
           recoverable: true,
@@ -564,10 +412,26 @@ export async function fetchToolSettingsSupabaseOrThrow(
   toolId: string,
   ctx: ToolSettingsContext,
   signal?: AbortSignal,
+  supabaseClient?: ToolSettingsSupabaseClient,
 ): Promise<SettingsFetchResult> {
-  const result = await fetchToolSettingsSupabase(toolId, ctx, signal);
+  const result = await fetchToolSettingsSupabase(toolId, ctx, signal, supabaseClient);
   if (!result.ok) {
     throw toToolSettingsErrorFromOperationFailure(result);
   }
   return result.value;
+}
+
+export {
+  clearCachedUserId,
+  ensureToolSettingsAuthCacheInitialized,
+  initializeToolSettingsAuthCache,
+  readCachedUserId,
+  resolveAndCacheUserId,
+  setCachedUserId,
+};
+
+/** @internal Only for test isolation — do not call in production code. */
+export function _resetCachedUserForTesting() {
+  _resetToolSettingsAuthCacheForTesting();
+  inflightSettingsFetches.clear();
 }

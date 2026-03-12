@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { getSupabaseClient } from '@/integrations/supabase/client';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { settingsQueryKeys } from '@/shared/lib/queryKeys/settings';
 import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
@@ -23,7 +24,7 @@ function fetchSettingsForPrefetch(
   toolId: string,
   ctx: { projectId?: string; shotId?: string },
 ): Promise<SettingsFetchResult> {
-  return fetchToolSettingsSupabaseOrThrow(toolId, ctx);
+  return fetchToolSettingsSupabaseOrThrow(toolId, ctx, undefined, getSupabaseClient());
 }
 
 /**

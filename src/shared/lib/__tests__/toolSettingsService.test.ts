@@ -15,16 +15,6 @@ const mockOnAuthStateChange = vi.fn(() => ({
   },
 }));
 
-vi.mock('@/integrations/supabase/client', () => ({
-  getSupabaseClient: () => ({
-    from: (...args: unknown[]) => mockFrom(...args),
-    auth: {
-      getSession: (...args: unknown[]) => mockGetSession(...args),
-      onAuthStateChange: (...args: unknown[]) => mockOnAuthStateChange(...args),
-    },
-  }),
-}));
-
 vi.mock('@/integrations/supabase/config/env', () => ({
   getSupabaseUrl: () => 'https://testproject.supabase.co',
 }));
@@ -106,6 +96,16 @@ function createDeferred<T>() {
   return { promise, resolve, reject };
 }
 
+function createTestSupabaseClient() {
+  return {
+    from: (...args: unknown[]) => mockFrom(...args),
+    auth: {
+      getSession: (...args: unknown[]) => mockGetSession(...args),
+      onAuthStateChange: (...args: unknown[]) => mockOnAuthStateChange(...args),
+    },
+  };
+}
+
 describe('toolSettingsService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -142,7 +142,7 @@ describe('toolSettingsService', () => {
     it('initializes auth cache on demand when bootstrap has not run', async () => {
       setStoredSession('session-user');
 
-      const result = await resolveAndCacheUserId();
+      const result = await resolveAndCacheUserId(createTestSupabaseClient() as never);
 
       expect(result.data.user?.id).toBe('session-user');
       expect(mockGetSession).toHaveBeenCalledTimes(1);
@@ -176,7 +176,7 @@ describe('toolSettingsService', () => {
       // Update storage with new user (e.g. after re-login)
       setStoredSession('fresh-user');
 
-      const result = await resolveAndCacheUserId();
+      const result = await resolveAndCacheUserId(createTestSupabaseClient() as never);
       expect(result.data.user?.id).toBe('fresh-user');
     });
 
@@ -185,7 +185,7 @@ describe('toolSettingsService', () => {
       await vi.advanceTimersByTimeAsync(11_000);
       // No session in localStorage
 
-      const result = await resolveAndCacheUserId();
+      const result = await resolveAndCacheUserId(createTestSupabaseClient() as never);
       expect(result.data.user).toBeNull();
     });
 
@@ -193,11 +193,11 @@ describe('toolSettingsService', () => {
       setStoredSession('storage-user');
       await vi.advanceTimersByTimeAsync(11_000); // ensure cache is cold
 
-      await resolveAndCacheUserId(); // first call — reads from localStorage
+      await resolveAndCacheUserId(createTestSupabaseClient() as never); // first call — reads from localStorage
 
       // Second call — cache should be warm (localStorage not needed)
       localStorage.clear();
-      const result = await resolveAndCacheUserId();
+      const result = await resolveAndCacheUserId(createTestSupabaseClient() as never);
       expect(result.data.user?.id).toBe('storage-user');
     });
   });
@@ -275,7 +275,7 @@ describe('toolSettingsService', () => {
     it('returns defaults when no settings exist', async () => {
       mockMaybeSingle.mockResolvedValue({ data: null, error: null });
 
-      const result = expectSuccess(await fetchToolSettingsSupabase('test-tool', {}));
+      const result = expectSuccess(await fetchToolSettingsSupabase('test-tool', {}, undefined, createTestSupabaseClient() as never));
 
       expect(result.settings).toEqual({
         setting1: 'default1',
@@ -291,7 +291,7 @@ describe('toolSettingsService', () => {
       });
       mockMaybeSingle.mockResolvedValueOnce({ data: null, error: null });
 
-      const result = expectSuccess(await fetchToolSettingsSupabase('test-tool', {}));
+      const result = expectSuccess(await fetchToolSettingsSupabase('test-tool', {}, undefined, createTestSupabaseClient() as never));
 
       expect(result.settings).toEqual(
         expect.objectContaining({
@@ -333,7 +333,7 @@ describe('toolSettingsService', () => {
       const result = expectSuccess(await fetchToolSettingsSupabase('test-tool', {
         projectId: 'project-1',
         shotId: 'shot-1',
-      }));
+      }, undefined, createTestSupabaseClient() as never));
 
       expect(result.settings).toEqual({
         setting1: 'shot',
@@ -362,11 +362,11 @@ describe('toolSettingsService', () => {
       const first = fetchToolSettingsSupabase('test-tool', {
         projectId: 'project-1',
         shotId: 'shot-1',
-      });
+      }, undefined, createTestSupabaseClient() as never);
       const second = fetchToolSettingsSupabase('test-tool', {
         projectId: 'project-1',
         shotId: 'shot-1',
-      });
+      }, undefined, createTestSupabaseClient() as never);
 
       await Promise.resolve();
       expect(mockMaybeSingle).toHaveBeenCalledTimes(3);
@@ -385,7 +385,7 @@ describe('toolSettingsService', () => {
 
       const resultPromise = fetchToolSettingsSupabase('test-tool', {
         projectId: 'project-1',
-      });
+      }, undefined, createTestSupabaseClient() as never);
 
       clearCachedUserId();
       setStoredSession(null);
@@ -426,7 +426,7 @@ describe('toolSettingsService', () => {
       const result = await fetchToolSettingsSupabase('test-tool', {
         projectId: 'project-1',
         shotId: 'shot-1',
-      });
+      }, undefined, createTestSupabaseClient() as never);
 
       expect(result.ok).toBe(false);
       if (result.ok) {
@@ -440,7 +440,7 @@ describe('toolSettingsService', () => {
       const controller = new AbortController();
       controller.abort();
 
-      const result = await fetchToolSettingsSupabase('test-tool', {}, controller.signal);
+      const result = await fetchToolSettingsSupabase('test-tool', {}, controller.signal, createTestSupabaseClient() as never);
       expect(result.ok).toBe(false);
       if (result.ok) {
         throw new Error('Expected cancellation failure result');
@@ -452,7 +452,7 @@ describe('toolSettingsService', () => {
     it('skips project query when no projectId provided', async () => {
       mockMaybeSingle.mockResolvedValue({ data: null, error: null });
 
-      await fetchToolSettingsSupabase('test-tool', {});
+      await fetchToolSettingsSupabase('test-tool', {}, undefined, createTestSupabaseClient() as never);
 
       const fromCalls = mockFrom.mock.calls.map((c: unknown) => c[0]);
       expect(fromCalls).toContain('users');
@@ -461,7 +461,7 @@ describe('toolSettingsService', () => {
     it('throws Authentication required when not logged in', async () => {
       setStoredSession(null); // no session in storage, cache already cleared by beforeEach
 
-      const result = await fetchToolSettingsSupabase('test-tool', {});
+      const result = await fetchToolSettingsSupabase('test-tool', {}, undefined, createTestSupabaseClient() as never);
       expect(result.ok).toBe(false);
       if (result.ok) {
         throw new Error('Expected auth_required failure result');
@@ -479,7 +479,7 @@ describe('toolSettingsService', () => {
     it('returns settings when the structured result is ok', async () => {
       mockMaybeSingle.mockResolvedValue({ data: null, error: null });
 
-      const result = await fetchToolSettingsSupabaseOrThrow('test-tool', {});
+      const result = await fetchToolSettingsSupabaseOrThrow('test-tool', {}, undefined, createTestSupabaseClient() as never);
 
       expect(result.settings).toEqual({
         setting1: 'default1',
@@ -491,7 +491,7 @@ describe('toolSettingsService', () => {
     it('throws ToolSettingsError when the structured result is a failure', async () => {
       setStoredSession(null);
 
-      await expect(fetchToolSettingsSupabaseOrThrow('test-tool', {})).rejects.toMatchObject({
+      await expect(fetchToolSettingsSupabaseOrThrow('test-tool', {}, undefined, createTestSupabaseClient() as never)).rejects.toMatchObject({
         name: 'ToolSettingsError',
         code: 'auth_required',
       } satisfies Partial<ToolSettingsError>);

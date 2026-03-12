@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRef, useCallback, useMemo } from 'react';
+import { getSupabaseClient } from '@/integrations/supabase/client';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { QUERY_PRESETS, STANDARD_RETRY_DELAY } from '@/shared/lib/query/queryDefaults';
@@ -190,8 +191,9 @@ export function useToolSettings<T>(
   const { data: queryResult, isLoading, error } = useQuery({
     queryKey: queryKeys.settings.tool(toolId, projectId, shotId),
     queryFn: async ({ signal }): Promise<SettingsFetchResult> => {
-      await ensureToolSettingsAuthCacheInitialized();
-      return fetchToolSettingsSupabaseOrThrow(toolId, { projectId, shotId }, signal);
+      const supabaseClient = getSupabaseClient();
+      await ensureToolSettingsAuthCacheInitialized(supabaseClient);
+      return fetchToolSettingsSupabaseOrThrow(toolId, { projectId, shotId }, signal, supabaseClient);
     },
     enabled: !!toolId && fetchEnabled,
     ...QUERY_PRESETS.static,
@@ -222,8 +224,9 @@ export function useToolSettings<T>(
 
       if (!idForScope) {
         if (scope === 'user') {
-          await ensureToolSettingsAuthCacheInitialized();
-          const { data: { user } } = await resolveAndCacheUserId();
+          const supabaseClient = getSupabaseClient();
+          await ensureToolSettingsAuthCacheInitialized(supabaseClient);
+          const { data: { user } } = await resolveAndCacheUserId(supabaseClient);
           idForScope = user?.id;
           if (!idForScope) {
             throw new ToolSettingsError(
