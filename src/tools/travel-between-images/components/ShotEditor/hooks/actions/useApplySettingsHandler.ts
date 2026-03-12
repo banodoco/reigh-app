@@ -64,8 +64,8 @@ async function applySettingsFromTask(
   handlerState: ApplySettingsHandlerInput,
   queryClient: ReturnType<typeof useQueryClient>,
 ) {
-  const taskData = await fetchTaskData(taskId);
-  if (!taskData) {
+  const taskLookup = await fetchTaskData(taskId);
+  if (taskLookup.status === 'missing') {
     normalizeAndPresentError(new Error('Task not found'), {
       context: 'useApplySettingsHandler',
       toastTitle: 'Failed to apply settings from task',
@@ -75,7 +75,7 @@ async function applySettingsFromTask(
     return;
   }
 
-  const settings = ApplySettingsService.extractSettings(taskData);
+  const settings = ApplySettingsService.extractSettings(taskLookup.taskData);
 
   await ApplySettingsService.replaceImagesIfRequested(
     settings.generation,

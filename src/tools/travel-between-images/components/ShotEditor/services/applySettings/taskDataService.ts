@@ -1,4 +1,5 @@
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { isNotFoundError } from '@/shared/constants/supabaseErrors';
 import {
   DEFAULT_STRUCTURE_VIDEO,
   resolveTravelStructureState,
@@ -11,36 +12,42 @@ import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeErro
 import type {
   ExtractedSettings,
   ExtractedStructureVideoSettings,
+  FetchTaskResult,
   TaskData,
 } from './types';
 
-export const fetchTask = async (taskId: string): Promise<TaskData | null> => {
+export const fetchTask = async (taskId: string): Promise<FetchTaskResult> => {
   try {
     const { data, error } = await supabase().from('tasks')
       .select('*')
       .eq('id', taskId)
-      .single();
+      .maybeSingle();
 
-    if (error || !data) {
-      normalizeAndPresentError(error ?? new Error('No task data returned'), {
-        context: 'ApplySettings.fetchTask',
-        showToast: false,
-        logData: { taskId },
-      });
-      return null;
+    if (error) {
+      if (isNotFoundError(error)) {
+        return { status: 'missing' };
+      }
+      throw error;
+    }
+
+    if (!data) {
+      return { status: 'missing' };
     }
 
     const params = (data.params || {}) as Record<string, unknown>;
     const orchestrator = (params.orchestrator_details || params.full_orchestrator_payload || {}) as Record<string, unknown>;
 
-    return { params, orchestrator };
+    return {
+      status: 'found',
+      taskData: { params, orchestrator },
+    };
   } catch (queryError) {
     normalizeAndPresentError(queryError, {
       context: 'ApplySettings.fetchTask',
       showToast: false,
       logData: { taskId },
     });
-    return null;
+    throw queryError;
   }
 };
 

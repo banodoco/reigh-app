@@ -262,8 +262,9 @@ describe('task type guards', () => {
   });
 
   describe('isImageEnhanceTaskType', () => {
-    it('returns true for image-upscale', () => {
+    it('returns true for supported image upscale task types', () => {
       expect(isImageEnhanceTaskType('image-upscale')).toBe(true);
+      expect(isImageEnhanceTaskType('image_upscale')).toBe(true);
     });
 
     it('returns false for other types', () => {

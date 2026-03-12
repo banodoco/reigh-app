@@ -1,5 +1,21 @@
 import { describe, expect, it, vi } from 'vitest';
 
+const mocks = vi.hoisted(() => ({
+  maybeSingle: vi.fn(),
+}));
+
+vi.mock('@/integrations/supabase/client', () => ({
+  getSupabaseClient: () => ({
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: (...args: unknown[]) => mocks.maybeSingle(...args),
+        }),
+      }),
+    }),
+  }),
+}));
+
 vi.mock('@/shared/lib/tasks/travelBetweenImages/legacyStructureVideo', async () => {
   const actual = await vi.importActual<typeof import('@/shared/lib/tasks/travelBetweenImages/legacyStructureVideo')>(
     '@/shared/lib/tasks/travelBetweenImages/legacyStructureVideo',
@@ -14,7 +30,51 @@ vi.mock('@/shared/lib/tasks/travelBetweenImages/legacyStructureVideo', async () 
   };
 });
 
-import { extractSettings } from './taskDataService';
+import { extractSettings, fetchTask } from './taskDataService';
+
+describe('fetchTask', () => {
+  it('returns a missing result when no task row exists', async () => {
+    mocks.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
+
+    await expect(fetchTask('task-1')).resolves.toEqual({ status: 'missing' });
+  });
+
+  it('returns found task data when the row exists', async () => {
+    mocks.maybeSingle.mockResolvedValueOnce({
+      data: {
+        params: {
+          prompt: 'hello',
+          orchestrator_details: {
+            base_prompt: 'from-orchestrator',
+          },
+        },
+      },
+      error: null,
+    });
+
+    await expect(fetchTask('task-2')).resolves.toEqual({
+      status: 'found',
+      taskData: {
+        params: {
+          prompt: 'hello',
+          orchestrator_details: {
+            base_prompt: 'from-orchestrator',
+          },
+        },
+        orchestrator: {
+          base_prompt: 'from-orchestrator',
+        },
+      },
+    });
+  });
+
+  it('throws operational query errors instead of collapsing them into missing', async () => {
+    const error = new Error('database unavailable');
+    mocks.maybeSingle.mockResolvedValueOnce({ data: null, error });
+
+    await expect(fetchTask('task-3')).rejects.toThrow('database unavailable');
+  });
+});
 
 describe('extractSettings', () => {
   it('returns grouped canonical restore settings', () => {

@@ -11,6 +11,10 @@ export interface TaskData {
   orchestrator: Record<string, unknown>;
 }
 
+export type FetchTaskResult =
+  | { status: 'found'; taskData: TaskData }
+  | { status: 'missing' };
+
 export interface ExtractedPromptSettings {
   prompt?: string;
   prompts?: string[];

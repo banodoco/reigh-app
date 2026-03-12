@@ -18,6 +18,7 @@ export type {
   ApplyStructureVideoContext,
   ApplyTextAddonContext,
   ExtractedSettings,
+  FetchTaskResult,
   TaskData,
 } from './applySettings/types';
 

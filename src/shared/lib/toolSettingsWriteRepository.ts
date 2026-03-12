@@ -3,15 +3,14 @@ import { getSupabaseClient } from '@/integrations/supabase/client';
 type SettingsScopeIdentifier = 'user' | 'project' | 'shot';
 type SettingsScopeTableName = 'users' | 'projects' | 'shots';
 
+const SETTINGS_SCOPE_TABLES: Record<SettingsScopeIdentifier, SettingsScopeTableName> = {
+  user: 'users',
+  project: 'projects',
+  shot: 'shots',
+};
+
 export function resolveSettingsScopeTable(scope: SettingsScopeIdentifier): SettingsScopeTableName {
-  switch (scope) {
-    case 'user':
-      return 'users';
-    case 'project':
-      return 'projects';
-    case 'shot':
-      return 'shots';
-  }
+  return SETTINGS_SCOPE_TABLES[scope];
 }
 
 export function selectSettingsForScope(scope: SettingsScopeIdentifier, id: string) {
