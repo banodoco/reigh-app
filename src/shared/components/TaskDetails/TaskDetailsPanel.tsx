@@ -5,7 +5,7 @@ import { useIsMobile } from '@/shared/hooks/mobile';
 import { ScrollArea } from '@/shared/components/ui/scroll-area';
 import { Task } from '@/types/tasks';
 import { CornerDownLeft, ImageIcon } from 'lucide-react';
-import { usePublicLoras } from '@/shared/hooks/useResources';
+import { usePublicLoras } from '@/features/resources/hooks/useResources';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import {
   TaskDetailsEmptyState,

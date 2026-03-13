@@ -9,7 +9,7 @@ import {
   useListPublicResources,
   useListResources,
   useUpdateResource,
-} from '@/shared/hooks/useResources';
+} from '@/features/resources/hooks/useResources';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 
 export type ResourceType = 'style-reference' | 'structure-video';

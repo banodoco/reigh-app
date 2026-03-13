@@ -8,7 +8,7 @@ import type {
   PhaseConfigMetadata,
   Resource,
   useCreateResource,
-} from '@/shared/hooks/useResources';
+} from '@/features/resources/hooks/useResources';
 import { CopyIdButton } from './CopyIdButton';
 import { MediaPreview } from './MediaPreview';
 import type { BrowsePresetItem } from './types';

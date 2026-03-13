@@ -9,6 +9,7 @@ import {
   findExistingGeneration,
   createVariant,
 } from './generation-core.ts';
+import { CompletionError, toCompletionError } from './errors.ts';
 
 // ===== PARENT GENERATION =====
 
@@ -59,6 +60,18 @@ export async function getOrCreateParentGeneration(
       if (existingParent && !parentError) {
         return existingParent;
       }
+
+      throw new CompletionError({
+        code: 'parent_generation_lookup_failed',
+        context: 'getOrCreateParentGeneration',
+        recoverable: false,
+        message: `Parent generation ${String(parentGenId)} could not be loaded`,
+        metadata: {
+          orchestrator_task_id: orchestratorTaskId,
+          parent_generation_id: String(parentGenId),
+        },
+        cause: parentError,
+      });
     }
 
     // Try to find existing generation for this orchestrator task
@@ -79,8 +92,18 @@ export async function getOrCreateParentGeneration(
           });
 
         if (ensureError || !ensuredParentId) {
-          console.error(`[GenMigration] Error ensuring canonical shot parent for shot ${shotId}:`, ensureError);
-          return null;
+          throw new CompletionError({
+            code: 'parent_generation_ensure_failed',
+            context: 'getOrCreateParentGeneration',
+            recoverable: true,
+            message: `Failed to ensure canonical parent generation for shot ${shotId}`,
+            metadata: {
+              orchestrator_task_id: orchestratorTaskId,
+              shot_id: shotId,
+              project_id: projectId,
+            },
+            cause: ensureError,
+          });
         }
 
         const { data: ensuredParent, error: parentFetchError } = await supabase
@@ -90,8 +113,17 @@ export async function getOrCreateParentGeneration(
           .single();
 
         if (parentFetchError || !ensuredParent) {
-          console.error(`[GenMigration] Error fetching ensured parent generation ${ensuredParentId}:`, parentFetchError);
-          return null;
+          throw new CompletionError({
+            code: 'parent_generation_lookup_failed',
+            context: 'getOrCreateParentGeneration',
+            recoverable: false,
+            message: `Canonical parent generation ${String(ensuredParentId)} could not be loaded`,
+            metadata: {
+              orchestrator_task_id: orchestratorTaskId,
+              parent_generation_id: String(ensuredParentId),
+            },
+            cause: parentFetchError,
+          });
         }
 
         return ensuredParent;
@@ -101,8 +133,16 @@ export async function getOrCreateParentGeneration(
     return null;
 
   } catch (error) {
-    console.error(`[GenMigration] Exception in getOrCreateParentGeneration:`, error);
-    return null;
+    throw toCompletionError(error, {
+      code: 'parent_generation_resolution_failed',
+      context: 'getOrCreateParentGeneration',
+      recoverable: true,
+      message: `Failed to resolve parent generation for orchestrator task ${orchestratorTaskId}`,
+      metadata: {
+        orchestrator_task_id: orchestratorTaskId,
+        project_id: projectId,
+      },
+    });
   }
 }
 
@@ -131,8 +171,17 @@ export async function createVariantOnParent(
     .single();
 
   if (fetchError || !parentGen) {
-    console.error(`[GenMigration] Error fetching parent generation ${parentGenId}:`, fetchError);
-    return null;
+    throw new CompletionError({
+      code: 'parent_generation_lookup_failed',
+      context: 'createVariantOnParent',
+      recoverable: false,
+      message: `Parent generation ${parentGenId} was not available for task ${taskId}`,
+      metadata: {
+        task_id: taskId,
+        parent_generation_id: parentGenId,
+      },
+      cause: fetchError,
+    });
   }
 
   try {
@@ -163,8 +212,17 @@ export async function createVariantOnParent(
     return parentGen;
 
   } catch (variantErr) {
-    console.error(`[GenMigration] Exception creating variant for ${taskData.task_type}:`, variantErr);
-    return null;
+    throw toCompletionError(variantErr, {
+      code: 'parent_variant_creation_failed',
+      context: 'createVariantOnParent',
+      recoverable: true,
+      message: `Failed to create parent variant for task ${taskId}`,
+      metadata: {
+        task_id: taskId,
+        parent_generation_id: parentGenId,
+        task_type: taskData.task_type,
+      },
+    });
   }
 }
 

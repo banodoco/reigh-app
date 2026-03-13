@@ -25,7 +25,7 @@ import { Label } from '@/shared/components/ui/primitives/label';
 import { normalizeTaskDetailsPayload } from '@/shared/components/TaskDetails/hooks/normalizeTaskDetailsPayload';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useGenerationTaskDetails } from '@/shared/components/TaskDetails/hooks/useGenerationTaskDetails';
-import { usePublicLoras } from '@/shared/hooks/useResources';
+import { usePublicLoras } from '@/features/resources/hooks/useResources';
 import {
   TaskDetailsEmptyState,
   TaskDetailsErrorState,

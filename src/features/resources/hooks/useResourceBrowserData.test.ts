@@ -11,8 +11,8 @@ const mocks = vi.hoisted(() => ({
   getSupabaseClient: vi.fn(),
 }));
 
-vi.mock('@/shared/hooks/useResources', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/shared/hooks/useResources')>();
+vi.mock('@/features/resources/hooks/useResources', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/features/resources/hooks/useResources')>();
   return {
     ...actual,
     useListPublicResources: (...args: unknown[]) => mocks.useListPublicResources(...args),

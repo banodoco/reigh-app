@@ -3,7 +3,7 @@ import type { GenerationRow } from '@/domains/generation/types';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
-import { usePublicLoras } from '@/shared/hooks/useResources';
+import { usePublicLoras } from '@/features/resources/hooks/useResources';
 import { useLoraManager } from '@/domains/lora/hooks/useLoraManager';
 import { useIsMobile } from '@/shared/hooks/mobile';
 import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';

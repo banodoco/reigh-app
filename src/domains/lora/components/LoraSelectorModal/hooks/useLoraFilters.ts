@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { Resource } from '@/shared/hooks/useResources';
+import type { Resource } from '@/features/resources/hooks/useResources';
 import type { LoraModel, ModelFilterCategory } from '@/domains/lora/components/LoraSelectorModal/types';
 import {
   getDefaultSubFilter,

@@ -14,7 +14,7 @@ import { updateToolSettingsSupabase } from '@/shared/hooks/settings/useToolSetti
 import { useMobileTimeoutFallback } from '@/shared/hooks/useMobileTimeoutFallback';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
-import { ToolSettingsError } from '@/shared/lib/toolSettingsService';
+import { ToolSettingsError } from '@/shared/settings';
 import { useAuth } from './AuthContext';
 import { requireContextValue } from './contextGuard';
 

@@ -10,7 +10,7 @@ import {
   useCreateResource,
   useUpdateResource,
   useDeleteResource,
-} from '@/shared/hooks/useResources';
+} from '@/features/resources/hooks/useResources';
 import { Checkbox } from '@/shared/components/ui/checkbox';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { SelectorModalFooterFrame } from '@/shared/components/modal/SelectorModalFooterFrame';

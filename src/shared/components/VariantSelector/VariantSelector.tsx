@@ -14,7 +14,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Skeleton } from '@/shared/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/shared/components/ui/tooltip';
 import { useIsMobile } from '@/shared/hooks/mobile';
-import { usePublicLoras } from '@/shared/hooks/useResources';
+import { usePublicLoras } from '@/features/resources/hooks/useResources';
 import { ChunkLoadErrorBoundary } from '@/shared/runtime/ChunkLoadErrorBoundary';
 // Lazy load LineageGifModal since it's only opened on demand
 const LazyLineageGifModal = React.lazy(() =>

@@ -9,7 +9,7 @@ import { DeleteGenerationConfirmDialog } from '@/shared/components/dialogs/Delet
 import { MediaLightbox } from '@/domains/media-lightbox/MediaLightbox';
 import { useIsMobile } from '@/shared/hooks/mobile';
 import { useLoraManager } from '@/domains/lora/hooks/useLoraManager';
-import { usePublicLoras } from '@/shared/hooks/useResources';
+import { usePublicLoras } from '@/features/resources/hooks/useResources';
 import { Card } from '@/shared/components/ui/card';
 import { PageFadeIn } from '@/shared/components/transitions/PageFadeIn';
 import {

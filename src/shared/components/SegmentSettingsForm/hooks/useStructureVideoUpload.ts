@@ -14,7 +14,7 @@ import { toast } from '@/shared/components/ui/runtime/sonner';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { extractVideoMetadata, uploadVideoToStorage } from '@/shared/lib/media/videoUploader';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
-import { useCreateResource, type Resource, type StructureVideoMetadata } from '@/shared/hooks/useResources';
+import { useCreateResource, type Resource, type StructureVideoMetadata } from '@/features/resources/hooks/useResources';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 import type { SegmentSettings } from '../segmentSettingsUtils';

@@ -19,7 +19,7 @@ import { authorizeTaskActor } from "../_shared/taskActorPolicy.ts";
  * Body: { "task_id": "uuid" }
  *
  * Returns:
- * - 200 OK with { status, output_location }
+ * - 200 OK with { status, output_location, params, dependant_on }
  * - 400 Bad Request if task_id missing
  * - 401 Unauthorized if no valid token
  * - 403 Forbidden if user doesn't own the task's project
@@ -64,7 +64,7 @@ serve((req) => {
   // Fetch the task with all needed fields
   const { data: task, error: taskError } = await supabaseAdmin
     .from("tasks")
-    .select("id, status, output_location, project_id, params, dependant_on")
+    .select("id, status, output_location, params, dependant_on")
     .eq("id", taskId)
     .single();
 

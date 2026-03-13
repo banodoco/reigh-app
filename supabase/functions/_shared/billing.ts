@@ -171,10 +171,8 @@ export async function fetchCompletedSubTasksForOrchestrator(
     return canonicalTasks;
   }
 
-  console.warn('[Billing] Canonical sub-task lookup returned no rows; falling back to legacy reference paths', {
-    orchestratorTaskId,
-  });
-
+  // Keep the legacy lookup as a compatibility fallback until all callers are
+  // guaranteed to populate the canonical orchestrator references.
   const legacyResult = await supabaseAdmin
     .from('tasks')
     .select(`

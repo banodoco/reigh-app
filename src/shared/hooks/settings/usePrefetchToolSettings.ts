@@ -7,7 +7,7 @@ import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 import {
   fetchToolSettingsSupabase,
   type SettingsFetchResult,
-} from '@/shared/lib/toolSettingsService';
+} from '@/shared/settings';
 
 // Central list of tool IDs we want to preload. Update when you add more tools.
 const PREFETCH_TOOL_IDS = [

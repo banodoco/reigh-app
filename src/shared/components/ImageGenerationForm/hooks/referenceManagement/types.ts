@@ -1,6 +1,6 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
-import type { Resource } from '@/shared/hooks/useResources';
+import type { Resource } from '@/features/resources/hooks/useResources';
 import type {
   HydratedReferenceImage,
   HiresFixConfig,

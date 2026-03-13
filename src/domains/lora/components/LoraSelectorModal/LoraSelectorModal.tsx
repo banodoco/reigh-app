@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui
 
 import { useExtraLargeModal } from '@/shared/hooks/useModal';
 import { useScrollFade } from '@/shared/hooks/useScrollFade';
-import { useListResources, useCreateResource, useUpdateResource, useDeleteResource } from '@/shared/hooks/useResources';
+import { useListResources, useCreateResource, useUpdateResource, useDeleteResource } from '@/features/resources/hooks/useResources';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 
 import { LoraSelectorModalProps } from './types';

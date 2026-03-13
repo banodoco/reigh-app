@@ -1,15 +1,5 @@
 /**
- * Child Generation Handlers
- *
- * Handles creating child generations under a parent:
- * - handleChildGeneration: Main entry point for segment tasks
- * - createSingleItemVariant: Creates variant on parent for single-item cases
- * - findExistingGenerationAtPosition: Finds existing child at position for variant creation
- * - createChildGenerationRecord: Creates the actual child generation record
- *
- * Also includes segment-specific helpers (merged from generation-segments.ts):
- * - logSegmentMasterState: Debug logging for segment creation
- * - extractSegmentSpecificParams: Extract per-segment params from orchestrator arrays
+ * Child-generation helpers for segment-style complete_task routes.
  */
 
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
@@ -44,22 +34,13 @@ function asString(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null;
 }
 
-// ===== HANDLER: CHILD GENERATION =====
-
-/**
- * Creates a child generation under a parent (for segment tasks)
- * All behavior is params-driven via ctx.isSingleItem
- * Used by: travel_segment, join_clips_segment, individual_travel_segment (fallback)
- */
 export async function handleChildGeneration(ctx: HandlerContext): Promise<unknown | null> {
   const { supabase, taskId, taskData, publicUrl, thumbnailUrl, logger, parentGenerationId, childOrder, isSingleItem } = ctx;
 
-  // Must have parent generation to create child
   if (!parentGenerationId) {
     return null;
   }
 
-  // Use childOrder from context (already extracted from params)
   const finalChildOrder = childOrder ?? null;
 
   logger?.info("Creating child generation", {
@@ -80,8 +61,6 @@ export async function handleChildGeneration(ctx: HandlerContext): Promise<unknow
     taskData: normalized.taskData,
   };
 
-  // Handle single-item case: create variant on parent AND child generation
-  // (Travel sends is_single_item for n=1; Join doesn't use single-item handling)
   if (isSingleItem) {
     logger?.info("Single-item detected", {
       task_id: taskId,
@@ -93,7 +72,6 @@ export async function handleChildGeneration(ctx: HandlerContext): Promise<unknow
 
   const pairShotGenId = normalized.pairShotGenerationId;
 
-  // Check for existing generation at same position (always check for segment tasks)
   if (finalChildOrder !== null && !isNaN(finalChildOrder)) {
     const existingGenId = await findExistingGenerationAtPosition(
       supabase, parentGenerationId, finalChildOrder, pairShotGenId
@@ -132,7 +110,6 @@ export async function handleChildGeneration(ctx: HandlerContext): Promise<unknow
     }
   }
 
-  // Create the child generation
   return createChildGenerationRecord(
     normalizedCtx,
     parentGenerationId,
@@ -142,11 +119,6 @@ export async function handleChildGeneration(ctx: HandlerContext): Promise<unknow
   );
 }
 
-// ===== SINGLE-ITEM VARIANT CREATION =====
-
-/**
- * Create variant on parent for single-item cases
- */
 export async function createSingleItemVariant(
   ctx: HandlerContext,
   parentGenerationId: string
@@ -181,9 +153,6 @@ export async function createSingleItemVariant(
   return result;
 }
 
-/**
- * Find existing generation at a position (for variant creation)
- */
 export async function findExistingGenerationAtPosition(
   supabase: SupabaseClient,
   parentGenerationId: string,
@@ -191,9 +160,7 @@ export async function findExistingGenerationAtPosition(
   pairShotGenId?: string
 ): Promise<string | null> {
 
-  // Strategy 1: Try to find by pair_shot_generation_id column
   if (pairShotGenId) {
-    // Match by the FK column (source of truth with referential integrity)
     const { data: matchByColumn, error: matchByColumnError } = await supabase
       .from('generations')
       .select('id')
@@ -206,16 +173,8 @@ export async function findExistingGenerationAtPosition(
       return matchByColumn.id;
     }
 
-    // NOTE: We intentionally DON'T fall back to params JSONB here.
-    // Pre-migration generations have already been migrated to the column.
-    // Any generation with NULL column but non-NULL params is orphaned
-    // (FK cascade set column to NULL when shot_generation was deleted).
   }
 
-  // Strategy 2: Fallback to child_order match
-  // IMPORTANT: Only use this fallback when NO pair_shot_generation_id was provided
-  // If pairShotGenId was provided but no match found, DON'T fall back to child_order
-  // because the existing child at that index may be for a different timeline layout
   if (!pairShotGenId) {
     const { data: matchByChildOrder, error: matchByChildOrderError } = await supabase
       .from('generations')
@@ -235,9 +194,6 @@ export async function findExistingGenerationAtPosition(
   return null;
 }
 
-/**
- * Create the child generation record and its initial variant
- */
 export async function createChildGenerationRecord(
   ctx: HandlerContext,
   parentGenerationId: string,
@@ -255,7 +211,6 @@ export async function createChildGenerationRecord(
     params, toolType, generationType, shotId, thumbnailUrl || undefined, taskId
   );
 
-  // Ensure pair_shot_generation_id is at top level of params (for slot matching)
   if (pairShotGenerationId && !generationParams.pair_shot_generation_id) {
     generationParams = { ...generationParams, pair_shot_generation_id: pairShotGenerationId };
   }

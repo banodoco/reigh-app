@@ -19,7 +19,7 @@ import type {
   ProjectImageSettings,
   ReferenceImage,
 } from '../../types';
-import type { Resource } from '@/shared/hooks/useResources';
+import type { Resource } from '@/features/resources/hooks/useResources';
 
 interface CreateStyleReferenceMutation {
   mutateAsync: (input: { type: 'style-reference'; metadata: StyleReferenceMetadata }) => Promise<Resource>;

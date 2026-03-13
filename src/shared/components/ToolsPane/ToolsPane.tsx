@@ -10,88 +10,16 @@ import { useDarkMode } from '@/shared/hooks/core/useDarkMode';
 import { useClickRipple } from '@/shared/hooks/interaction/useClickRipple';
 import { PaneBackdrop } from '@/shared/components/panes/PaneBackdrop';
 import {
-  Paintbrush,
-  Video,
-  Edit,
-  Clapperboard,
-  Link2,
-  Users,
   LayoutGrid
 } from 'lucide-react';
 import { AppEnv, type AppEnvValue } from '@/types/env';
 import { TOOL_IDS } from '@/shared/lib/tooling/toolIds';
-import { TOOL_ROUTES } from '@/shared/lib/tooling/toolRoutes';
+import { toolsUIManifest, type ToolUIDefinition } from '@/shared/lib/tooling/toolManifest';
 
-const SHARED_TOOL_ENVS: AppEnvValue[] = [AppEnv.LOCAL, AppEnv.WEB];
+const processTools = toolsUIManifest.filter((tool) => tool.paneSection === 'main');
+const assistantTools = toolsUIManifest.filter((tool) => tool.paneSection === 'assistant');
 
-// Tool definitions matching ToolSelectorPage
-const processTools = [
-  {
-    id: TOOL_IDS.IMAGE_GENERATION,
-    name: 'Generate Images',
-    description: 'Create images using AI',
-    path: TOOL_ROUTES.IMAGE_GENERATION,
-    environments: SHARED_TOOL_ENVS,
-    icon: Paintbrush,
-    gradient: 'from-wes-vintage-gold via-wes-mustard to-wes-yellow',
-    darkIconColor: '#a67d2a',
-  },
-  {
-    id: TOOL_IDS.TRAVEL_BETWEEN_IMAGES,
-    name: 'Travel Between Images',
-    description: 'Transform images to video',
-    path: TOOL_ROUTES.TRAVEL_BETWEEN_IMAGES,
-    environments: SHARED_TOOL_ENVS,
-    icon: Video,
-    gradient: 'from-wes-mint via-wes-sage to-wes-dusty-blue',
-    darkIconColor: '#3d8a62',
-  },
-];
-
-const assistantTools = [
-  {
-    id: TOOL_IDS.EDIT_IMAGES,
-    name: 'Edit Images',
-    description: 'Transform images',
-    path: TOOL_ROUTES.EDIT_IMAGES,
-    environments: SHARED_TOOL_ENVS,
-    icon: Edit,
-    gradient: 'from-wes-mustard via-wes-vintage-gold to-wes-coral',
-    darkIconColor: '#a68018',
-  },
-  {
-    id: TOOL_IDS.EDIT_VIDEO,
-    name: 'Edit Videos',
-    description: 'Regenerate portions',
-    path: TOOL_ROUTES.EDIT_VIDEO,
-    environments: SHARED_TOOL_ENVS,
-    icon: Clapperboard,
-    gradient: 'from-wes-dusty-blue via-wes-lavender to-wes-mint',
-    darkIconColor: '#4a7099',
-  },
-  {
-    id: TOOL_IDS.JOIN_CLIPS,
-    name: 'Join Clips',
-    description: 'Connect video clips',
-    path: TOOL_ROUTES.JOIN_CLIPS,
-    environments: SHARED_TOOL_ENVS,
-    icon: Link2,
-    gradient: 'from-wes-pink via-wes-salmon to-wes-coral',
-    darkIconColor: '#e07070',
-  },
-  {
-    id: TOOL_IDS.CHARACTER_ANIMATE,
-    name: 'Characters',
-    description: 'Bring to life',
-    path: TOOL_ROUTES.CHARACTER_ANIMATE,
-    environments: SHARED_TOOL_ENVS,
-    icon: Users,
-    gradient: 'from-wes-mint via-wes-sage to-wes-dusty-blue',
-    darkIconColor: '#3d8a62',
-  },
-];
-
-type ToolItem = (typeof processTools)[number] | (typeof assistantTools)[number];
+type ToolItem = ToolUIDefinition;
 
 interface ToolCardProps {
   item: ToolItem;

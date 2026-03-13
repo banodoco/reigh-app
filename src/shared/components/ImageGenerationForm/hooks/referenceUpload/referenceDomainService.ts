@@ -23,7 +23,7 @@ import type {
   ReferenceMode,
 } from '../../types';
 import { getReferenceModeDefaults } from '../../types';
-import type { StyleReferenceMetadata } from '@/shared/hooks/useResources';
+import type { StyleReferenceMetadata } from '@/features/resources/hooks/useResources';
 
 interface UploadAndProcessReferenceInput {
   file: File;

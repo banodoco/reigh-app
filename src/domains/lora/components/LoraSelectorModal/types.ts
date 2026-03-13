@@ -1,5 +1,5 @@
 import { UseQueryResult, UseMutationResult } from '@tanstack/react-query';
-import { Resource, ResourceType, CreateResourceArgs, UpdateResourceArgs } from '@/shared/hooks/useResources';
+import { Resource, ResourceType, CreateResourceArgs, UpdateResourceArgs } from '@/features/resources/hooks/useResources';
 import type { LoraModel as SharedLoraModel } from '@/domains/lora/types/lora';
 import type { OpenStateContract } from '@/shared/components/dialogs/contracts';
 

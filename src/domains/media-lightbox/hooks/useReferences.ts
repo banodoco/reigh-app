@@ -8,7 +8,7 @@ import { uploadImageToStorage } from '@/shared/lib/media/imageUploader';
 import { uploadReferenceThumbnail } from '@/shared/lib/media/uploadReferenceThumbnail';
 import { processStyleReferenceForAspectRatioString } from '@/shared/lib/media/styleReferenceProcessor';
 import { resolveProjectResolution } from '@/shared/lib/taskCreation';
-import { useCreateResource, type StyleReferenceMetadata } from '@/shared/hooks/useResources';
+import { useCreateResource, type StyleReferenceMetadata } from '@/features/resources/hooks/useResources';
 import { useToolSettings } from '@/shared/hooks/settings/useToolSettings';
 import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 import type { ReferenceImage } from '@/shared/types/referenceImage';

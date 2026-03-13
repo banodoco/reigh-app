@@ -9,11 +9,11 @@
 
 import { useQueryClient } from '@tanstack/react-query';
 import type { Dispatch, SetStateAction } from 'react';
-import type { Resource } from '@/shared/hooks/useResources';
+import type { Resource } from '@/features/resources/hooks/useResources';
 import {
   useCreateResource,
   type StyleReferenceMetadata,
-} from '@/shared/hooks/useResources';
+} from '@/features/resources/hooks/useResources';
 import type {
   HydratedReferenceImage,
   ProjectImageSettings,

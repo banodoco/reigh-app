@@ -56,7 +56,7 @@ vi.mock('@/shared/hooks/settings/useToolSettings', () => ({
   useToolSettings: (...args: unknown[]) => mocks.useToolSettings(...args),
 }));
 
-vi.mock('@/shared/hooks/useResources', () => ({
+vi.mock('@/features/resources/hooks/useResources', () => ({
   usePublicLoras: (...args: unknown[]) => mocks.usePublicLoras(...args),
 }));
 
@@ -79,6 +79,11 @@ vi.mock('@/shared/lib/tasks/travelBetweenImages', () => ({
     motion_strength: 1,
     structure_type: 'flow',
     uni3c_end_percent: 0.1,
+  },
+  DEFAULT_STRUCTURE_GUIDANCE_CONTROLS: {
+    motionStrength: 1,
+    structureType: 'flow',
+    uni3cEndPercent: 0.1,
   },
   resolveTravelStructureState: (...args: unknown[]) => mocks.resolveTravelStructureState(...args),
 }));

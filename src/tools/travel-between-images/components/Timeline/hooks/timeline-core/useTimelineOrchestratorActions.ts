@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import type { RefObject } from 'react';
 import { calculateDuplicateFrame } from '@/shared/lib/timelinePositionCalculator';
 import type { GenerationRow } from '@/domains/generation/types';
-import type { Resource, StructureVideoMetadata } from '@/shared/hooks/useResources';
+import type { Resource, StructureVideoMetadata } from '@/features/resources/hooks/useResources';
 import type { PrimaryStructureVideo, StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 import type { OnPrimaryStructureVideoInputChange } from '@/tools/travel-between-images/types/mediaHandlers';
 import {

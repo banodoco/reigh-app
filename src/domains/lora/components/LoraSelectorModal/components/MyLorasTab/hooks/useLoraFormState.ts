@@ -4,7 +4,7 @@ import { useHuggingFaceToken } from '@/shared/services/externalApiKeys/hooks/use
 import { useHuggingFaceUpload, LoraFiles } from '@/domains/lora/hooks/useHuggingFaceUpload';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 
-import type { Resource } from '@/shared/hooks/useResources';
+import type { Resource } from '@/features/resources/hooks/useResources';
 import { LoraModel, LoraFormState } from '../../../types';
 import { DEFAULT_FORM_STATE } from '../../../constants';
 

@@ -46,6 +46,20 @@ function createTasksInsertChain(taskId = 'task-1') {
   return { insert, select, single };
 }
 
+function createTasksIdempotentLookupChain(task: { id: string; status: string; project_id: string }) {
+  const single = vi.fn().mockResolvedValue({ data: task, error: null });
+  const eq = vi.fn().mockReturnValue({ single });
+  const select = vi.fn().mockReturnValue({ eq });
+  return { select, eq, single };
+}
+
+function createProjectsLookupChain(userId: string) {
+  const single = vi.fn().mockResolvedValue({ data: { user_id: userId }, error: null });
+  const eq = vi.fn().mockReturnValue({ single });
+  const select = vi.fn().mockReturnValue({ eq });
+  return { select, eq, single };
+}
+
 async function loadHandler() {
   await import('./index.ts');
   return __getServeHandler();
@@ -226,6 +240,142 @@ describe('create-task edge entrypoint', () => {
     });
     expect(mocks.enforceRateLimit).not.toHaveBeenCalled();
     expect(logger.setDefaultTaskId).toHaveBeenCalledWith('task-created-1');
+    expect(logger.flush).toHaveBeenCalled();
+  });
+
+  it('returns the existing task when idempotent recovery stays within the authorized project', async () => {
+    const logger = createLogger();
+    const duplicateError = {
+      code: '23505',
+      message: 'duplicate key value violates unique constraint on idempotency_key',
+    };
+    const insertSingle = vi.fn().mockResolvedValue({ data: null, error: duplicateError });
+    const insertSelect = vi.fn().mockReturnValue({ single: insertSingle });
+    const insert = vi.fn().mockReturnValue({ select: insertSelect });
+    const projects = createProjectsLookupChain('user-1');
+    const existingTask = createTasksIdempotentLookupChain({
+      id: 'task-existing-1',
+      status: 'Queued',
+      project_id: 'project-1',
+    });
+    const supabaseAdmin = {
+      from: vi.fn().mockImplementation((table: string) => {
+        if (table === 'projects') return { select: projects.select };
+        if (table === 'tasks') {
+          return {
+            insert,
+            select: existingTask.select,
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    };
+
+    mocks.bootstrapEdgeHandler.mockResolvedValue({
+      ok: true,
+      value: {
+        supabaseAdmin,
+        logger,
+        auth: { isServiceRole: false, userId: 'user-1', isJwtAuth: true },
+        body: {
+          task_type: 'image_generation',
+          params: { prompt: 'hello' },
+          project_id: 'project-1',
+          idempotency_key: 'idem-1',
+        },
+      },
+    });
+    mocks.parseCreateTaskBody.mockReturnValue({
+      ok: true,
+      value: {
+        task_id: null,
+        params: { prompt: 'hello' },
+        task_type: 'image_generation',
+        project_id: 'project-1',
+        normalizedDependantOn: null,
+        idempotency_key: 'idem-1',
+      },
+    });
+    mocks.buildTaskInsertObject.mockReturnValue({ project_id: 'project-1', idempotency_key: 'idem-1' });
+
+    const handler = await loadHandler();
+    const response = await handler(new Request('https://edge.test/create-task', { method: 'POST' }));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      task_id: 'task-existing-1',
+      status: 'Task queued',
+      deduplicated: true,
+    });
+    expect(projects.eq).toHaveBeenCalledWith('id', 'project-1');
+    expect(existingTask.eq).toHaveBeenCalledWith('idempotency_key', 'idem-1');
+  });
+
+  it('rejects idempotent recovery when the existing task belongs to another project', async () => {
+    const logger = createLogger();
+    const duplicateError = {
+      code: '23505',
+      message: 'duplicate key value violates unique constraint on idempotency_key',
+    };
+    const insertSingle = vi.fn().mockResolvedValue({ data: null, error: duplicateError });
+    const insertSelect = vi.fn().mockReturnValue({ single: insertSingle });
+    const insert = vi.fn().mockReturnValue({ select: insertSelect });
+    const projects = createProjectsLookupChain('user-1');
+    const existingTask = createTasksIdempotentLookupChain({
+      id: 'task-existing-1',
+      status: 'Queued',
+      project_id: 'project-other',
+    });
+    const supabaseAdmin = {
+      from: vi.fn().mockImplementation((table: string) => {
+        if (table === 'projects') return { select: projects.select };
+        if (table === 'tasks') {
+          return {
+            insert,
+            select: existingTask.select,
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    };
+
+    mocks.bootstrapEdgeHandler.mockResolvedValue({
+      ok: true,
+      value: {
+        supabaseAdmin,
+        logger,
+        auth: { isServiceRole: false, userId: 'user-1', isJwtAuth: true },
+        body: {
+          task_type: 'image_generation',
+          params: { prompt: 'hello' },
+          project_id: 'project-1',
+          idempotency_key: 'idem-1',
+        },
+      },
+    });
+    mocks.parseCreateTaskBody.mockReturnValue({
+      ok: true,
+      value: {
+        task_id: null,
+        params: { prompt: 'hello' },
+        task_type: 'image_generation',
+        project_id: 'project-1',
+        normalizedDependantOn: null,
+        idempotency_key: 'idem-1',
+      },
+    });
+    mocks.buildTaskInsertObject.mockReturnValue({ project_id: 'project-1', idempotency_key: 'idem-1' });
+
+    const handler = await loadHandler();
+    const response = await handler(new Request('https://edge.test/create-task', { method: 'POST' }));
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      errorCode: 'project_forbidden',
+      message: 'Forbidden: duplicate task belongs to a different project',
+      recoverable: false,
+    });
+    expect(logger.setDefaultTaskId).not.toHaveBeenCalled();
     expect(logger.flush).toHaveBeenCalled();
   });
 });

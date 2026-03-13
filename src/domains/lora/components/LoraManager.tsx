@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { mapSelectedLorasForModal } from '@/shared/components/lora/mapSelectedLorasForModal';
-import { LoraSelectorModal } from '@/domains/lora/components/LoraSelectorModal';
+import { LoraSelectorModal } from '@/domains/lora/components/LoraSelectorModal/LoraSelectorModal';
 import { ActiveLoRAsDisplay } from '@/domains/lora/components/ActiveLoRAsDisplay';
 import { useLoraManager } from '@/domains/lora/hooks/useLoraManager';
 import type { LoraModel } from '@/domains/lora/types/lora';

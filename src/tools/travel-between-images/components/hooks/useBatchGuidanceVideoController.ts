@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { uploadVideoToStorage, extractVideoMetadata, type VideoMetadata } from '@/shared/lib/media/videoUploader';
-import { useCreateResource, type Resource, type StructureVideoMetadata } from '@/shared/hooks/useResources';
+import { useCreateResource, type Resource, type StructureVideoMetadata } from '@/features/resources/hooks/useResources';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 

@@ -79,7 +79,11 @@
 ### Tools
 Tools live in `/src/tools/{tool-name}/` following a consistent structure. See [adding_new_tool.md](docs/structure_detail/adding_new_tool.md).
 
-**Active tools:** Image Generation, Video Travel, Animate Characters, Edit Images, Edit Video, Join Clips, Training Data Helper
+The routable tool registry lives in `src/shared/lib/tooling/toolManifest.ts`. `toolRuntimeManifest`
+is the canonical runtime surface for tool identity, routes, and pane visibility, while
+`toolsUIManifest` is the visible-tools projection used by the Tools pane. The Training Data
+Helper stays in the runtime registry but is hidden from the pane because `visibleInToolsPane`
+is `false`.
 
 ### Shots & Generations
 - **Generations** = gallery items (images/videos produced by AI tasks)

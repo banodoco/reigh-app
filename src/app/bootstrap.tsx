@@ -15,7 +15,7 @@ import { installRuntimeErrorPresenter } from '@/shared/lib/errorHandling/runtime
 import { initializeViewportLockRuntime } from '@/shared/runtime/viewportLockRuntime';
 import { initializeProjectSelectionStore } from '@/shared/contexts/projectSelectionStore';
 import { initializePreloadingService } from '@/shared/lib/preloading';
-import { initializeToolSettingsWriteRuntime } from '@/shared/lib/toolSettingsWriteService';
+import { initializeToolSettingsWriteRuntime } from '@/shared/settings';
 import { initializeNetworkStatusManager } from '@/shared/services/network/networkStatusManager';
 import '@/index.css';
 

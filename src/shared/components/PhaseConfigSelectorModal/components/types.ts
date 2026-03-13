@@ -5,7 +5,7 @@ import type {
   useCreateResource,
   useDeleteResource,
   useUpdateResource,
-} from '@/shared/hooks/useResources';
+} from '@/features/resources/hooks/useResources';
 import type { LoraModel } from '@/domains/lora/types/lora';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
 import type { CurrentSettings, ModelTypeFilter } from '../types';

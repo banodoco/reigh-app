@@ -6,7 +6,7 @@ import {
 } from '@/shared/lib/settingsWriteQueue';
 import { deepMerge } from '@/shared/lib/utils/deepEqual';
 import { isCancellationError } from '@/shared/lib/errorHandling/errorUtils';
-import { ToolSettingsError } from '@/shared/lib/toolSettingsService';
+import { ToolSettingsError } from './toolSettingsService';
 
 export type SettingsScope = 'user' | 'project' | 'shot';
 type SettingsScopeTableName = 'users' | 'projects' | 'shots';

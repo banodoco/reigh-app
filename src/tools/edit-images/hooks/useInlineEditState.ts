@@ -11,7 +11,7 @@ import { isVideoAny } from '@/shared/lib/typeGuards';
 import { useIsMobile } from '@/shared/hooks/mobile';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
-import { usePublicLoras } from '@/shared/hooks/useResources';
+import { usePublicLoras } from '@/features/resources/hooks/useResources';
 import { TOOL_IDS } from '@/shared/lib/tooling/toolIds';
 import { useUpscale } from '@/domains/media-lightbox/hooks/useUpscale';
 import { useInpainting } from '@/domains/media-lightbox/hooks/useInpainting';

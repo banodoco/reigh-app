@@ -31,6 +31,7 @@ interface PendingWrite {
   resolvers: Array<{ resolve: (value: unknown) => void; reject: (error: unknown) => void }>;
   timerId: NodeJS.Timeout | null;
   enqueuedAt: number;
+  isScheduled: boolean;
 }
 
 // Configuration
@@ -125,6 +126,7 @@ async function processQueue() {
   if (!next) return;
 
   const { targetKey: key, pending } = next;
+  pending.isScheduled = false;
   
   // Remove from pending map (we're about to process it)
   pendingByTarget.delete(key);
@@ -163,10 +165,15 @@ function scheduleFlush(key: string, pending: PendingWrite) {
     clearTimeout(pending.timerId);
     pending.timerId = null;
   }
+
+  if (pending.isScheduled) {
+    return;
+  }
   
   // Add to flush queue and process
+  pending.isScheduled = true;
   flushQueue.push({ targetKey: key, pending });
-  processQueue();
+  void processQueue();
 }
 
 /**
@@ -224,6 +231,7 @@ export function enqueueSettingsWrite(
         resolvers: [{ resolve, reject }],
         timerId: null,
         enqueuedAt: Date.now(),
+        isScheduled: false,
       };
 
       pendingByTarget.set(key, pending);
@@ -251,8 +259,11 @@ function flushAll(): void {
       clearTimeout(pending.timerId);
       pending.timerId = null;
     }
-    flushQueue.push({ targetKey: key, pending });
+    if (!pending.isScheduled) {
+      pending.isScheduled = true;
+      flushQueue.push({ targetKey: key, pending });
+    }
   }
   pendingByTarget.clear();
-  processQueue();
+  void processQueue();
 }

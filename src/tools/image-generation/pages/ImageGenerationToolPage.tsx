@@ -6,7 +6,7 @@ import { ImageGenerationForm } from "@/shared/components/ImageGenerationForm";
 import { MediaGallery } from "@/shared/components/MediaGallery";
 import { Button } from "@/shared/components/ui/button";
 import { useProject } from "@/shared/contexts/ProjectContext";
-import { usePublicLoras, usePublicStyleReferences, useMyStyleReferences } from '@/shared/hooks/useResources';
+import { usePublicLoras, usePublicStyleReferences, useMyStyleReferences } from '@/features/resources/hooks/useResources';
 import { PageFadeIn } from '@/shared/components/transitions/PageFadeIn';
 import { useIsMobile, useIsTablet } from "@/shared/hooks/mobile";
 import { SkeletonGallery } from '@/shared/components/ui/composed/skeleton-gallery';

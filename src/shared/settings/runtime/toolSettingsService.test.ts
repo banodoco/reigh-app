@@ -19,12 +19,17 @@ vi.mock('@/integrations/supabase/config/env', () => ({
   getSupabaseUrl: () => 'https://testproject.supabase.co',
 }));
 
-vi.mock('@/tooling/toolDefaultsRegistry', () => ({
-  toolDefaultsRegistry: {
+vi.mock('@/tooling/toolDefaultsRegistry', () => {
+  const toolDefaultsRegistry = {
     'test-tool': { setting1: 'default1', setting2: 42 },
     'other-tool': { enabled: true },
-  },
-}));
+  };
+  return {
+    toolDefaultsRegistry,
+    getToolDefaults: (toolId: string) =>
+      toolDefaultsRegistry[toolId as keyof typeof toolDefaultsRegistry],
+  };
+});
 
 vi.mock('@/shared/lib/utils/deepEqual', () => ({
   deepMerge: (...objects: Record<string, unknown>[]) => {
@@ -53,7 +58,7 @@ import {
   ToolSettingsError,
   setCachedUserId,
   _resetCachedUserForTesting,
-} from '../toolSettingsService';
+} from './toolSettingsService';
 
 function expectSuccess<T>(result: { ok: true; value: T } | { ok: false; errorCode: string; message: string }): T {
   expect(result.ok).toBe(true);

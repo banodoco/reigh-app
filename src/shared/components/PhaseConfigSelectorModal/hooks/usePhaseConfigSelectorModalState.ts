@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer } from 'react';
-import type { Resource, PhaseConfigMetadata } from '@/shared/hooks/useResources';
+import type { Resource, PhaseConfigMetadata } from '@/features/resources/hooks/useResources';
 
 type PresetResource = Resource & { metadata: PhaseConfigMetadata };
 

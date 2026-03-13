@@ -13,7 +13,7 @@
 
 import { useShots } from '@/shared/contexts/ShotsContext';
 import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
-import { usePublicLoras } from '@/shared/hooks/useResources';
+import { usePublicLoras } from '@/features/resources/hooks/useResources';
 import { useToolSettings } from '@/shared/hooks/settings/useToolSettings';
 import { normalizeVideoTravelSettings, VideoTravelSettings } from '../../settings';
 import { Shot } from '@/domains/generation/types';

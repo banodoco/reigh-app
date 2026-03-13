@@ -26,7 +26,7 @@ vi.mock('@/shared/lib/preloading', () => ({
   initializePreloadingService: initializePreloadingServiceMock,
 }));
 
-vi.mock('@/shared/lib/toolSettingsWriteService', () => ({
+vi.mock('@/shared/settings', () => ({
   initializeToolSettingsWriteRuntime: initializeToolSettingsWriteRuntimeMock,
 }));
 

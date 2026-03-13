@@ -10,7 +10,7 @@ import {
   createReferencePointer,
 } from './referenceDomainService';
 import { persistOptimisticReferenceSelection } from './persistOptimisticReferenceSelection';
-import type { Resource } from '@/shared/hooks/useResources';
+import type { Resource } from '@/features/resources/hooks/useResources';
 import type {
   ProjectImageSettings,
   ReferenceImage,

@@ -1,9 +1,9 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
-import { SettingsScope } from '@/shared/hooks/settings/useToolSettings';
+import type { SettingsScope } from '@/shared/settings';
 import { useRenderLogger } from '@/shared/lib/debug/debugRendering';
 import { useAutoSaveSettings } from '@/shared/settings/hooks/useAutoSaveSettings';
 import { deepEqual, sanitizeSettings } from '@/shared/lib/utils/deepEqual';
-import { toolDefaultsRegistry } from '@/tooling/toolDefaultsRegistry';
+import { getToolDefaults } from '@/tooling/toolDefaultsRegistry';
 
 /**
  * Infer an appropriate "empty" value for a given value based on its type.
@@ -33,7 +33,7 @@ type StateMapping<T extends object> = {
   [K in keyof T]: [T[K], StateSetter<T[K]>];
 };
 
-interface UsePersistentToolStateOptions {
+interface UsePersistentToolStateOptions<T extends Record<string, unknown>> {
   debounceMs?: number;
   scope?: SettingsScope;
   /**
@@ -46,7 +46,7 @@ interface UsePersistentToolStateOptions {
    * Use this for non-tool callers (e.g. PromptEditorModal) to avoid
    * the "no default value" warning and ensure correct reset behavior.
    */
-  defaults?: Record<string, unknown>;
+  defaults?: Partial<T>;
 }
 
 interface UsePersistentToolStateResult {
@@ -90,11 +90,11 @@ interface UsePersistentToolStateResult {
  * );
  * // Call markAsInteracted() in onChange handlers to enable persistence
  */
-export function usePersistentToolState<T extends object>(
+export function usePersistentToolState<T extends Record<string, unknown>>(
   toolId: string,
   context: { projectId?: string; shotId?: string },
   stateMapping: StateMapping<T>,
-  options: UsePersistentToolStateOptions = {}
+  options: UsePersistentToolStateOptions<T> = {}
 ): UsePersistentToolStateResult {
   const { debounceMs = 500, scope = 'project', enabled = true, defaults: explicitDefaults } = options;
   const warnedMissingDefaultsRef = useRef<Set<string>>(new Set());
@@ -118,8 +118,8 @@ export function usePersistentToolState<T extends object>(
   useRenderLogger(`PersistentToolState:${toolId}`, { entityKey, enabled });
 
   const resolvedDefaults = useMemo(() => {
-    const fromRegistry = explicitDefaults || toolDefaultsRegistry[toolId] || {};
-    const merged: Record<string, unknown> = { ...fromRegistry };
+    const fromRegistry = explicitDefaults ?? getToolDefaults(toolId);
+    const merged: Record<string, unknown> = { ...(fromRegistry ?? {}) };
 
     Object.entries(stateMapping).forEach(([key, mapping]) => {
       const [currentValue] = mapping as [T[keyof T], React.Dispatch<React.SetStateAction<T[keyof T]>>];
@@ -143,12 +143,12 @@ export function usePersistentToolState<T extends object>(
     return merged as T;
   }, [explicitDefaults, stateMapping, toolId]);
 
-  const autoSave = useAutoSaveSettings<Record<string, unknown>>({
+  const autoSave = useAutoSaveSettings<T>({
     toolId,
     shotId: normalizedShotId,
     projectId: normalizedProjectId,
     scope: persistenceScope,
-    defaults: resolvedDefaults as unknown as Record<string, unknown>,
+    defaults: resolvedDefaults,
     enabled: enabled && !!entityKey,
     // Preserve existing behavior: this adapter intentionally keeps a short debounce.
     debounceMs: Math.min(debounceMs, 100),

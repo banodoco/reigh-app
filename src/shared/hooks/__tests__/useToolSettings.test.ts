@@ -185,9 +185,9 @@ vi.mock('@/integrations/supabase/client', () => ({
   }),
 }));
 
-vi.mock('@/shared/lib/toolSettingsService', async () => {
-  const actual = await vi.importActual<typeof import('@/shared/lib/toolSettingsService')>(
-    '@/shared/lib/toolSettingsService',
+vi.mock('@/shared/settings', async () => {
+  const actual = await vi.importActual<typeof import('@/shared/settings')>(
+    '@/shared/settings',
   );
   return {
     ...actual,
@@ -277,7 +277,7 @@ describe('useToolSettings hook', () => {
   });
 
   it('throws auth_required for user-scope updates without an authenticated user', async () => {
-    const toolSettingsService = await import('@/shared/lib/toolSettingsService');
+    const toolSettingsService = await import('@/shared/settings');
     vi.mocked(toolSettingsService.resolveAndCacheUserId).mockResolvedValueOnce({
       data: { user: null },
       error: null,

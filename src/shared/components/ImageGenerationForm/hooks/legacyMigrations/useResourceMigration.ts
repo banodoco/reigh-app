@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import { useCreateResource } from '@/shared/hooks/useResources';
+import { useCreateResource } from '@/features/resources/hooks/useResources';
 import type { ReferenceImage } from '../../types';
 import type { LegacyMigrationsInput } from './types';
 import { buildLegacyReferenceMetadata } from '../referenceManagement/legacyReferenceMapping';

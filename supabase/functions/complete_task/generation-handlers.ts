@@ -1,14 +1,5 @@
 /**
- * Task Completion Handlers - ALL handlers in one place
- *
- * PARAMS-DRIVEN (no config needed):
- * - handleVariantCreation: Has based_on → variant on source generation
- * - handleVariantOnChild: Has child_generation_id → variant on existing child
- * - handleVariantOnParent: Stitch task → variant on parent generation
- * - handleChildGeneration: Has parent_generation_id → child under parent (in generation-child.ts)
- * - handleStandaloneGeneration: Neither → independent generation
- *
- * All routing is determined by params extracted in createGenerationFromTask
+ * Task completion generation handlers keyed by routing inputs from createGenerationFromTask.
  */
 
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
@@ -31,6 +22,7 @@ import {
   createVariantOnParent,
   getChildVariantViewedAt,
 } from './generation-parent.ts';
+import { CompletionError, toCompletionError } from './errors.ts';
 
 // Re-export child generation handlers and shared types for backward compatibility
 export {
@@ -66,8 +58,17 @@ export async function handleVariantCreation(
       .single();
 
     if (fetchError || !sourceGen) {
-      console.error(`[Variant] Source generation ${basedOnGenerationId} not found:`, fetchError);
-      return false;
+      throw new CompletionError({
+        code: 'variant_source_generation_not_found',
+        context: 'handleVariantCreation',
+        recoverable: false,
+        message: `Source generation ${basedOnGenerationId} was not available for task ${taskId}`,
+        metadata: {
+          task_id: taskId,
+          source_generation_id: basedOnGenerationId,
+        },
+        cause: fetchError,
+      });
     }
 
     const variantParams = {
@@ -90,12 +91,35 @@ export async function handleVariantCreation(
       null
     );
 
-    await supabase.from('tasks').update({ generation_created: true }).eq('id', taskId);
+    const { error: markError } = await supabase
+      .from('tasks')
+      .update({ generation_created: true })
+      .eq('id', taskId);
+    if (markError) {
+      throw new CompletionError({
+        code: 'variant_generation_created_update_failed',
+        context: 'handleVariantCreation',
+        recoverable: true,
+        message: `Failed to persist generation_created marker for task ${taskId}`,
+        metadata: {
+          task_id: taskId,
+          source_generation_id: basedOnGenerationId,
+        },
+        cause: markError,
+      });
+    }
     return true;
-
   } catch (variantErr) {
-    console.error(`[Variant] Error creating variant for task ${taskId}:`, variantErr);
-    return false;
+    throw toCompletionError(variantErr, {
+      code: 'variant_creation_failed',
+      context: 'handleVariantCreation',
+      recoverable: true,
+      message: `Failed to create variant for task ${taskId}`,
+      metadata: {
+        task_id: taskId,
+        source_generation_id: basedOnGenerationId,
+      },
+    });
   }
 }
 
@@ -125,7 +149,16 @@ export async function handleVariantOnParent(ctx: HandlerContext): Promise<unknow
   const parentGen = await getOrCreateParentGeneration(supabase, orchTaskId, taskData.project_id, taskData.params);
 
   if (!parentGen?.id) {
-    return null;
+    throw new CompletionError({
+      code: 'parent_generation_resolution_failed',
+      context: 'handleVariantOnParent',
+      recoverable: false,
+      message: `No parent generation could be resolved for task ${taskId}`,
+      metadata: {
+        task_id: taskId,
+        orchestrator_task_id: String(orchTaskId),
+      },
+    });
   }
 
   logger?.info(`${taskData.task_type}: creating variant on parent`, {
@@ -186,6 +219,18 @@ export async function handleVariantOnParent(ctx: HandlerContext): Promise<unknow
         'clip_join', // variant_type
         null
       );
+    } else if (sourceError) {
+      throw new CompletionError({
+        code: 'loop_variant_source_lookup_failed',
+        context: 'handleVariantOnParent',
+        recoverable: true,
+        message: `Failed to resolve loop source generation ${String(basedOnId)} for task ${taskId}`,
+        metadata: {
+          task_id: taskId,
+          source_generation_id: String(basedOnId),
+        },
+        cause: sourceError,
+      });
     }
   }
 
@@ -220,8 +265,17 @@ export async function handleVariantOnChild(ctx: HandlerContext): Promise<unknown
     .single();
 
   if (fetchError || !childGen) {
-    console.error(`[GenHandler] Error fetching child generation ${childGenId}:`, fetchError);
-    return null;
+    throw new CompletionError({
+      code: 'child_generation_lookup_failed',
+      context: 'handleVariantOnChild',
+      recoverable: false,
+      message: `Child generation ${childGenId} was not available for task ${taskId}`,
+      metadata: {
+        task_id: taskId,
+        child_generation_id: childGenId,
+      },
+      cause: fetchError,
+    });
   }
 
   // Extract pair_shot_generation_id from nested locations if not at top level

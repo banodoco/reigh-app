@@ -4,7 +4,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Progress } from '@/shared/components/ui/progress';
 import { X, Upload } from 'lucide-react';
 
-import { HuggingFaceTokenSetup } from '@/domains/lora/components';
+import { HuggingFaceTokenSetup } from '@/domains/lora/components/HuggingFaceTokenSetup';
 import type { LoraFiles } from '@/domains/lora/hooks/useHuggingFaceUpload';
 import { FileDropZone } from './FileDropZone';
 

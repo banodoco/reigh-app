@@ -28,7 +28,7 @@ vi.mock('@/shared/hooks/useUserUIState', () => ({
   useUserUIState: (...args: unknown[]) => mocks.useUserUIState(...args),
 }));
 
-vi.mock('@/shared/hooks/useResources', () => ({
+vi.mock('@/features/resources/hooks/useResources', () => ({
   usePublicLoras: (...args: unknown[]) => mocks.usePublicLoras(...args),
 }));
 

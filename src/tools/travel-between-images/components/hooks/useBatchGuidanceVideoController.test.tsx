@@ -27,7 +27,7 @@ vi.mock('@/shared/lib/media/videoUploader', () => ({
   extractVideoMetadata: (...args: unknown[]) => mocks.extractVideoMetadata(...args),
 }));
 
-vi.mock('@/shared/hooks/useResources', () => ({
+vi.mock('@/features/resources/hooks/useResources', () => ({
   useCreateResource: () => ({
     mutateAsync: mocks.mutateAsync,
   }),

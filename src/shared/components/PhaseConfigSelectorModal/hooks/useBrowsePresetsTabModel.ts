@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { PhaseConfigMetadata, Resource } from '@/shared/hooks/useResources';
+import type { PhaseConfigMetadata, Resource } from '@/features/resources/hooks/useResources';
 import type { ModelTypeFilter, SortOption } from '../types';
 import type {
   BrowsePresetItem,

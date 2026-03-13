@@ -19,7 +19,7 @@ vi.mock('@/shared/hooks/useUserUIState', () => ({
   }),
 }));
 
-vi.mock('@/shared/hooks/useResources', () => ({
+vi.mock('@/features/resources/hooks/useResources', () => ({
   usePublicLoras: () => ({ data: [] }),
 }));
 

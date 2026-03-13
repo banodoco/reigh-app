@@ -1,4 +1,4 @@
-import type { StyleReferenceMetadata } from '@/shared/hooks/useResources';
+import type { StyleReferenceMetadata } from '@/features/resources/hooks/useResources';
 import type { HydratedReferenceImage } from '@/shared/types/referenceHydration';
 import type { ReferenceImage } from '@/shared/types/referenceImage';
 

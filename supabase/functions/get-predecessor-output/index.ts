@@ -65,12 +65,17 @@ serve((req) => {
 
     const { data: taskData, error: taskError } = await supabaseAdmin
       .from("tasks")
-      .select("id, dependant_on")
+      .select("id, project_id, dependant_on")
       .eq("id", taskId)
       .single();
 
     if (taskError) {
       logger.error("Task lookup error", { error: taskError.message });
+      return jsonResponse({ error: "Task not found" }, 404);
+    }
+
+    if (typeof taskData?.project_id !== "string" || taskData.project_id.length === 0) {
+      logger.error("Task project scope missing", { task_id: taskId });
       return jsonResponse({ error: "Task not found" }, 404);
     }
 
@@ -87,6 +92,7 @@ serve((req) => {
     const { data: predecessorsData, error: predecessorError } = await supabaseAdmin
       .from("tasks")
       .select("id, status, output_location")
+      .eq("project_id", taskData.project_id)
       .in("id", dependantOnArray);
 
     if (predecessorError) {
@@ -126,6 +132,7 @@ serve((req) => {
 
     logger.info("Returning predecessor info", {
       predecessor_count: predecessors.length,
+      scoped_predecessor_count: predecessorsData?.length ?? 0,
       all_complete: allComplete,
     });
 

@@ -12,15 +12,16 @@ import {
   resolveAndCacheUserId,
   ToolSettingsError,
   type SettingsFetchResult,
-} from '@/shared/lib/toolSettingsService';
+} from '@/shared/settings';
 import { getProjectSelectionFallbackId } from '@/shared/contexts/projectSelectionStore';
 import {
   updateToolSettingsSupabase,
   type SettingsScope,
-} from '@/shared/lib/toolSettingsWriteService';
+} from '@/shared/settings';
+import type { ToolDefaultsById, ToolDefaultsId } from '@/tooling/toolDefaultsRegistry';
 
-export { updateToolSettingsSupabase } from '@/shared/lib/toolSettingsWriteService';
-export type { SettingsScope } from '@/shared/lib/toolSettingsWriteService';
+export { updateToolSettingsSupabase } from '@/shared/settings';
+export type { SettingsScope } from '@/shared/settings';
 
 // ============================================================================
 // Cache format helpers
@@ -141,7 +142,15 @@ function handleMutationError(
 }
 
 // Type overloads
-export function useToolSettings<T>(toolId: string, context?: { projectId?: string; shotId?: string; enabled?: boolean }): {
+export function useToolSettings<TToolId extends ToolDefaultsId>(toolId: TToolId, context?: { projectId?: string; shotId?: string; enabled?: boolean }): {
+  settings: ToolDefaultsById[TToolId] | undefined;
+  isLoading: boolean;
+  error: Error | null;
+  update: (scope: SettingsScope, settings: Partial<ToolDefaultsById[TToolId]>) => Promise<void>;
+  isUpdating: boolean;
+  hasShotSettings: boolean;
+};
+export function useToolSettings<T extends Record<string, unknown>>(toolId: string, context?: { projectId?: string; shotId?: string; enabled?: boolean }): {
   settings: T | undefined;
   isLoading: boolean;
   error: Error | null;
@@ -169,7 +178,7 @@ export function useToolSettings<T>(toolId: string, context?: { projectId?: strin
  *
  * @see docs/structure_detail/settings_system.md for the full settings hook decision tree
  */
-export function useToolSettings<T>(
+export function useToolSettings<T extends Record<string, unknown>>(
   toolId: string,
   context?: { projectId?: string; shotId?: string; enabled?: boolean }
 ) {
@@ -190,10 +199,10 @@ export function useToolSettings<T>(
   // Fetch merged settings using Supabase with mobile optimizations
   const { data: queryResult, isLoading, error } = useQuery({
     queryKey: queryKeys.settings.tool(toolId, projectId, shotId),
-    queryFn: async ({ signal }): Promise<SettingsFetchResult> => {
+    queryFn: async ({ signal }): Promise<SettingsFetchResult<T>> => {
       const supabaseClient = getSupabaseClient();
       await ensureToolSettingsAuthCacheInitialized(supabaseClient);
-      return fetchToolSettingsSupabase(toolId, { projectId, shotId }, signal, supabaseClient);
+      return fetchToolSettingsSupabase<T>(toolId, { projectId, shotId }, signal, supabaseClient);
     },
     enabled: !!toolId && fetchEnabled,
     ...QUERY_PRESETS.static,
@@ -205,8 +214,8 @@ export function useToolSettings<T>(
 
   // Extract settings and hasShotSettings from the query result
   const wrapper = isSettingsWrapper(queryResult);
-  const settings = wrapper ? (queryResult as SettingsFetchResult).settings : queryResult;
-  const hasShotSettings = wrapper ? ((queryResult as SettingsFetchResult).hasShotSettings ?? false) : false;
+  const settings = wrapper ? (queryResult as SettingsFetchResult<T>).settings : queryResult;
+  const hasShotSettings = wrapper ? ((queryResult as SettingsFetchResult<T>).hasShotSettings ?? false) : false;
 
   // Log errors for debugging (except expected cancellations)
   if (error && classifyToolSettingsError(error).code !== 'cancelled') {

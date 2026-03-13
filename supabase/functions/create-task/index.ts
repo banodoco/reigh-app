@@ -18,6 +18,13 @@ function createErrorResponse(
   return edgeErrorResponse({ errorCode, message, recoverable }, status);
 }
 
+function isAuthorizedIdempotentRecoveryProject(
+  existingProjectId: unknown,
+  requestedProjectId: string,
+): boolean {
+  return typeof existingProjectId === "string" && existingProjectId === requestedProjectId;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return jsonResponse({ ok: true });
@@ -166,7 +173,7 @@ serve(async (req) => {
 
         const { data: existingTask, error: fetchError } = await supabaseAdmin
           .from("tasks")
-          .select("id, status")
+          .select("id, status, project_id")
           .eq("idempotency_key", requestBody.idempotency_key)
           .single();
 
@@ -180,6 +187,24 @@ serve(async (req) => {
             "Duplicate task detected but could not retrieve it",
             500,
             "duplicate_task_lookup_failed",
+          );
+        }
+
+        if (
+          !isServiceRole &&
+          !isAuthorizedIdempotentRecoveryProject(existingTask.project_id, finalProjectId)
+        ) {
+          logger.error("Idempotent duplicate belongs to a different project", {
+            idempotency_key: requestBody.idempotency_key,
+            requested_project_id: finalProjectId,
+            existing_project_id: existingTask.project_id,
+          });
+          await logger.flush();
+          return createErrorResponse(
+            "Forbidden: duplicate task belongs to a different project",
+            403,
+            "project_forbidden",
+            false,
           );
         }
 

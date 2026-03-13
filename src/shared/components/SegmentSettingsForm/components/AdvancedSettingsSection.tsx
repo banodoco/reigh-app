@@ -16,7 +16,7 @@ import { useSaveFieldAsDefault } from '../hooks/useSaveFieldAsDefault';
 import { Button } from '@/shared/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/components/ui/collapsible';
 import { ChevronLeft } from 'lucide-react';
-import { usePublicLoras } from '@/shared/hooks/useResources';
+import { usePublicLoras } from '@/features/resources/hooks/useResources';
 import { MotionPresetSection } from './MotionPresetSection';
 import { StructureVideoSection } from './StructureVideoSection';
 import { PromptFieldsSection } from './PromptFieldsSection';

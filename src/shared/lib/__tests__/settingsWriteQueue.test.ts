@@ -4,12 +4,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // The module uses top-level event listeners, so we need to set up DOM mocks first
 const addEventListenerSpy = vi.fn();
 const removeEventListenerSpy = vi.fn();
+const documentAddEventListenerSpy = vi.fn();
 vi.stubGlobal('window', {
   addEventListener: addEventListenerSpy,
   removeEventListener: removeEventListenerSpy,
 });
 vi.stubGlobal('document', {
-  addEventListener: vi.fn(),
+  addEventListener: documentAddEventListenerSpy,
   visibilityState: 'visible',
 });
 
@@ -301,6 +302,63 @@ describe('settingsWriteQueue', () => {
         expect.objectContaining({
           patch: { a: 1, b: 2 },
         })
+      );
+    });
+
+    it('flushes one pending write only once when lifecycle callbacks fire repeatedly', async () => {
+      const beforeUnload = addEventListenerSpy.mock.calls.find(([event]) => event === 'beforeunload')?.[1];
+      const visibilityChange = documentAddEventListenerSpy.mock.calls.find(
+        ([event]) => event === 'visibilitychange',
+      )?.[1];
+
+      expect(typeof beforeUnload).toBe('function');
+      expect(typeof visibilityChange).toBe('function');
+
+      const write: QueuedWrite = {
+        scope: 'project',
+        entityId: 'project-1',
+        toolId: 'tool-1',
+        patch: { a: 1 },
+      };
+
+      enqueueSettingsWrite(write);
+      (beforeUnload as () => void)();
+      (beforeUnload as () => void)();
+      (document as { visibilityState: string }).visibilityState = 'hidden';
+      (visibilityChange as () => void)();
+      (visibilityChange as () => void)();
+
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(mockWriteFn).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not double-run when an immediate upgrade is followed by the original debounce timer', async () => {
+      const write1: QueuedWrite = {
+        scope: 'shot',
+        entityId: 'shot-1',
+        toolId: 'tool-1',
+        patch: { a: 1 },
+      };
+      const write2: QueuedWrite = {
+        scope: 'shot',
+        entityId: 'shot-1',
+        toolId: 'tool-1',
+        patch: { b: 2 },
+      };
+
+      enqueueSettingsWrite(write1, 'debounced');
+      const promise = enqueueSettingsWrite(write2, 'immediate');
+
+      await vi.advanceTimersByTimeAsync(0);
+      await promise;
+      await vi.advanceTimersByTimeAsync(300);
+
+      expect(mockWriteFn).toHaveBeenCalledTimes(1);
+      expect(mockWriteFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          patch: { a: 1, b: 2 },
+        }),
       );
     });
   });

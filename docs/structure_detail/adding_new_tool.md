@@ -1,6 +1,8 @@
 # Adding a New Tool
 
-Follow these steps and your tool will be auto-wired into the system (routing, persistence, UI visibility).
+Follow these steps and your tool will be registered cleanly in the system. Settings
+and tool metadata are manifest-backed, but route page loading is still an explicit
+app-router step.
 
 ---
 
@@ -44,9 +46,12 @@ export const myNewToolSettings = {
 export type MyNewToolSettings = typeof myNewToolSettings.defaults;
 ```
 
-### 3. Register in Tool Manifest
+### 3. Register in Tool Metadata
 
-Register the same settings object in the runtime manifests:
+Register the same settings object in `src/tools/index.ts`, then add the runtime
+tool metadata in `src/shared/lib/tooling/toolManifest.ts`. That shared tooling
+manifest is the canonical source for tool identity, path, environment availability,
+and Tools-pane visibility metadata:
 
 ```typescript
 // src/tools/index.ts
@@ -54,19 +59,27 @@ Register the same settings object in the runtime manifests:
 // 1. Import the canonical settings object
 import { myNewToolSettings } from './my-new-tool/settings';
 
-// 2. Add it to the manifest array
+// 2. Add it to the settings manifest
 toolsManifest.push(myNewToolSettings);
+```
 
-// 3. Add UI metadata
-toolsUIManifest.push({
+```typescript
+// src/shared/lib/tooling/toolManifest.ts
+
+// 3. Add runtime/UI metadata
+toolRuntimeManifest.push({
   id: myNewToolSettings.id,
   name: 'My New Tool',               // Display name
   path: '/tools/my-new-tool',        // Route path
   icon: SomeIcon,                    // Lucide icon component
   description: 'Tool description',   // Optional
-  category: 'generation',            // Optional categorization
+  paneSection: 'main',               // or 'assistant'
+  visibleInToolsPane: true,          // false for hidden/internal tools
 });
 ```
+
+`toolsUIManifest` is derived from `toolRuntimeManifest`, so visible tools should
+not be added in two places.
 
 Also add the defaults to `src/tooling/toolDefaultsRegistry.ts` so the tool can
 participate in the shared defaults/bootstrap flow:

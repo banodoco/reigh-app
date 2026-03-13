@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { Label } from '@/shared/components/ui/primitives/label';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
-import { useCreateResource, StructureVideoMetadata } from '@/shared/hooks/useResources';
+import { useCreateResource, StructureVideoMetadata } from '@/features/resources/hooks/useResources';
 import { useUserUIState } from '@/shared/hooks/useUserUIState';
 import { calculateNewVideoPlacement } from '../../utils/timeline-utils';
 import type { PrimaryStructureVideo, StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';

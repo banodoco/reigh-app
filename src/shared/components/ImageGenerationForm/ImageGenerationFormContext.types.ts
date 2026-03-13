@@ -3,7 +3,7 @@ import type { PromptEntry, PromptMode, HydratedReferenceImage, ReferenceMode } f
 import type { PromptHandlersContract } from './hooks/promptManagement/types';
 import type { ActiveLora } from '@/domains/lora/types/lora';
 import type { LoraModel } from '@/domains/lora/types/lora';
-import type { Resource } from '@/shared/hooks/useResources';
+import type { Resource } from '@/features/resources/hooks/useResources';
 
 /** Core form state */
 export interface FormCoreState {

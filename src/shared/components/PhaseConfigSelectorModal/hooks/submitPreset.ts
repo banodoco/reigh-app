@@ -1,6 +1,6 @@
 import { uploadImageToStorage } from '@/shared/lib/media/imageUploader';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
-import type { PhaseConfigMetadata } from '@/shared/hooks/useResources';
+import type { PhaseConfigMetadata } from '@/features/resources/hooks/useResources';
 import type { FormFields } from './presetFormReducer';
 import type { AddNewTabProps } from '../components/types';
 

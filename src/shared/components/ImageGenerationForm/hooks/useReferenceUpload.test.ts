@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => ({
   persistOptimisticReferenceSelection: vi.fn(),
 }));
 
-vi.mock('@/shared/hooks/useResources', () => ({
+vi.mock('@/features/resources/hooks/useResources', () => ({
   useCreateResource: () => ({ mutateAsync: mocks.createResourceMutateAsync }),
   useUpdateResource: () => ({ mutateAsync: mocks.updateResourceMutateAsync }),
   useDeleteResource: () => ({ mutateAsync: mocks.deleteResourceMutateAsync }),

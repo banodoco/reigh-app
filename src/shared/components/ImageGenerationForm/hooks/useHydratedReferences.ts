@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useSpecificResources } from '@/shared/hooks/useSpecificResources';
-import { StyleReferenceMetadata } from '@/shared/hooks/useResources';
+import { StyleReferenceMetadata } from '@/features/resources/hooks/useResources';
 import type { HydratedReferenceImage } from '@/shared/types/referenceHydration';
 import type { ReferenceImage } from '@/shared/types/referenceImage';
 import { useProjectIdentityContext } from '@/shared/contexts/ProjectContext';
