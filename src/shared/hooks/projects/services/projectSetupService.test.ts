@@ -19,7 +19,7 @@ vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
   normalizeAndPresentError: (...args: unknown[]) => mocks.normalizeAndPresentError(...args),
 }));
 
-vi.mock('@/shared/services/projects/projectSetupRepository', () => ({
+vi.mock('@/shared/hooks/projects/services/projectSetupRepository', () => ({
   copyOnboardingTemplateToProject: (...args: unknown[]) => mocks.copyOnboardingTemplateToProject(...args),
   createDefaultShotRecord: (...args: unknown[]) => mocks.createDefaultShotRecord(...args),
   createUserRecordIfMissing: (...args: unknown[]) => mocks.createUserRecordIfMissing(...args),

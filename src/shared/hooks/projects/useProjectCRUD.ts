@@ -9,7 +9,7 @@ import { toJsonObject } from '@/shared/lib/json/toJsonObject';
 import {
   createDefaultShotWithRollback,
   ensureUserRecordExists,
-} from '@/shared/services/projects/projectSetupService';
+} from '@/shared/hooks/projects/services/projectSetupService';
 
 // Type for updating projects
 interface ProjectUpdate {

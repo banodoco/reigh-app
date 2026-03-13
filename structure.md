@@ -92,6 +92,7 @@ Tools live in `/src/tools/{tool-name}/` following a consistent structure. See [a
 - Keep product workflows, Supabase-backed repositories, and stateful feature orchestration in `/src/domains`, `/src/features`, or the owning `/src/tools/*` module.
 - `src/shared/components/ui/` is reserved for low-level presentational primitives and wrappers; feature-aware controls such as AI prompt actions belong in a feature/shared-product folder, not the UI primitive root.
 - Cross-surface contracts should live in neutral shared type files instead of importing from a concrete widget folder just to reach a type.
+- Feature-owned entrypoints such as `features/resources/*` or `features/shots/*` should host the real implementation. If an old `shared/*` path must stay alive for compatibility, keep it as a thin shim with an explicit comment instead of a second implementation home.
 
 ### Settings Resolution
 Priority: **shot → project → user → defaults**. See [settings_system.md](docs/structure_detail/settings_system.md).

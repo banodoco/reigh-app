@@ -52,6 +52,7 @@ See `App.tsx` for the hierarchy. Providers that depend on others must be nested 
 - `shared` can host neutral contracts and infrastructure, but feature orchestration, repository logic, and Supabase-backed workflows should live in the owning `domains`, `features`, or `tools` module.
 - When two areas need the same type, extract that type into a neutral shared contract file instead of importing from one concrete widget package into another.
 - Prefer folder entrypoints (`index.ts`) for reusable shared component packages so callers import the package boundary instead of deep implementation files.
+- When a feature or domain owns a surface, keep the implementation in that owner and leave any legacy `shared/*` path as a documented compatibility shim only. Do not maintain parallel implementations behind both paths.
 
 ---
 

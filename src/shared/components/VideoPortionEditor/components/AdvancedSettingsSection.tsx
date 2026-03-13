@@ -2,7 +2,7 @@ import { Label } from '@/shared/components/ui/primitives/label';
 import { Slider } from '@/shared/components/ui/slider';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { MotionPresetSelector } from '@/shared/components/MotionPresetSelector';
-import { LoraManager } from '@/shared/components/LoraManager';
+import { LoraManager } from '@/domains/lora/components';
 import { TOOL_IDS } from '@/shared/lib/tooling/toolIds';
 import type {
   VideoPortionEditorLoraProps,

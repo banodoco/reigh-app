@@ -1,9 +1,13 @@
 import type { Shot } from "@/domains/generation/types";
+import type { GalleryFilterState } from '@/shared/contracts/galleryFilters';
 import type { AddToShotHandler } from '@/shared/types/imageHandlers';
 import type { AsyncImageDeleteHandler } from '@/shared/types/imageHandlers';
 import type { DisplayableMetadata } from '@/shared/types/displayableMetadata';
+import { DEFAULT_GALLERY_FILTERS } from '@/shared/contracts/galleryFilters';
 
 export type { DisplayableMetadata } from '@/shared/types/displayableMetadata';
+export type { GalleryFilterState } from '@/shared/contracts/galleryFilters';
+export { DEFAULT_GALLERY_FILTERS } from '@/shared/contracts/galleryFilters';
 
 /**
  * Columns per row can be:
@@ -74,24 +78,6 @@ export interface NavigableShot {
   id: string;
   name?: string;
 }
-
-export interface GalleryFilterState {
-  mediaType: 'all' | 'image' | 'video';
-  shotFilter: string;
-  excludePositioned: boolean;
-  searchTerm: string;
-  starredOnly: boolean;
-  toolTypeFilter: boolean;
-}
-
-export const DEFAULT_GALLERY_FILTERS: GalleryFilterState = {
-  mediaType: 'all',
-  shotFilter: 'all',
-  excludePositioned: true,
-  searchTerm: '',
-  starredOnly: false,
-  toolTypeFilter: true,
-};
 
 /**
  * Boolean config flags for MediaGallery appearance and behavior.

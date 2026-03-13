@@ -54,7 +54,7 @@ vi.mock('./MediaGalleryItem/components/ItemShotBadges', () => ({
 vi.mock('./MediaGalleryItem/components/ItemMetadataBar', () => ({
   ItemMetadataBar: () => <div data-testid="item-metadata-bar" />,
 }));
-vi.mock('@/shared/components/shots/CreateShotModal', () => ({
+vi.mock('@/features/shots/components/CreateShotModal', () => ({
   CreateShotModal: () => <div data-testid="create-shot-modal" />,
 }));
 

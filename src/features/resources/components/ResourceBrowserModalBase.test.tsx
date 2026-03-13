@@ -22,7 +22,7 @@ vi.mock('@/shared/hooks/resources/useResourceBrowserData', () => ({
   useResourceBrowserData: (...args: unknown[]) => mocks.useResourceBrowserData(...args),
 }));
 
-vi.mock('@/shared/components/resources/ResourceBrowserGrid', () => ({
+vi.mock('@/features/resources/components/ResourceBrowserGrid', () => ({
   ResourceBrowserGrid: (props: unknown) => mocks.ResourceBrowserGrid(props),
 }));
 

@@ -12,7 +12,7 @@ vi.mock('@/shared/components/MotionPresetSelector', () => ({
   MotionPresetSelector: (...args: unknown[]) => mocks.MotionPresetSelector(...args),
 }));
 
-vi.mock('@/shared/components/LoraManager', () => ({
+vi.mock('@/domains/lora/components', () => ({
   LoraManager: (...args: unknown[]) => mocks.LoraManager(...args),
 }));
 

@@ -1,4 +1,4 @@
-import { LoraManager } from '@/shared/components/LoraManager';
+import { LoraManager } from '@/domains/lora/components';
 import { MotionPresetSelector } from '@/shared/components/MotionPresetSelector';
 import type { PresetMetadata } from '@/shared/components/MotionPresetSelector/types';
 import { SectionHeader } from '@/shared/components/ImageGenerationForm/components/SectionHeader';
