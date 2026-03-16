@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useCredits, useCreditLedger } from '@/shared/hooks/billing/useCredits';
 import { useTaskLog } from '@/shared/hooks/tasks/useTaskLog';
+import { Tabs, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
 import { useAutoTopupState } from './hooks/useAutoTopupState';
 import { useTaskLogFilters } from './hooks/useTaskLogFilters';
 import { useTaskLogDownload } from './hooks/useTaskLogDownload';
@@ -92,28 +93,22 @@ export const CreditsManagement: React.FC<CreditsManagementProps> = ({
       {/* Transaction History Section */}
       {(mode === 'all' || mode === 'transactions') && (
         <div className={`px-1 ${mode === 'all' ? 'mt-6' : ''}`}>
-          <div className="flex border-b border-border mb-3">
-            <button
-              onClick={() => setActiveTab('history')}
-              className={`flex-1 pb-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                activeTab === 'history'
-                  ? 'border-primary text-foreground'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Transactions
-            </button>
-            <button
-              onClick={() => setActiveTab('task-log')}
-              className={`flex-1 pb-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                activeTab === 'task-log'
-                  ? 'border-primary text-foreground'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Task Log
-            </button>
-          </div>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 mb-3 h-9 p-1">
+              <TabsTrigger
+                value="history"
+                className="data-[active]:bg-card data-[active]:dark:bg-gray-700 data-[active]:shadow-sm data-[active]:text-foreground text-sm py-0 h-full leading-none"
+              >
+                Credits
+              </TabsTrigger>
+              <TabsTrigger
+                value="task-log"
+                className="data-[active]:bg-card data-[active]:dark:bg-gray-700 data-[active]:shadow-sm data-[active]:text-foreground text-sm py-0 h-full leading-none"
+              >
+                Task Log
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
 
           {activeTab === 'history' && (
             <TransactionsTable
