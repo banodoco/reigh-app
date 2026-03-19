@@ -182,8 +182,7 @@ describe('createIndividualTravelSegmentTask', () => {
     expect(params.seed_to_use).toBeLessThan(0x7fffffff);
   });
 
-  it('clamps num_frames to MAX_SEGMENT_FRAMES (81)', async () => {
-    // This should fail validation for frames > 81
+  it('rejects num_frames exceeding model max (81 for WAN default)', async () => {
     await expect(
       createIndividualTravelSegmentTask({
         project_id: 'proj-1',
@@ -194,6 +193,21 @@ describe('createIndividualTravelSegmentTask', () => {
         num_frames: 100,
       })
     ).rejects.toThrow('num_frames (100) exceeds maximum of 81');
+  });
+
+  it('allows higher num_frames for LTX models (max 241)', async () => {
+    // LTX models support up to 241 frames — should not throw
+    await expect(
+      createIndividualTravelSegmentTask({
+        project_id: 'proj-1',
+        parent_generation_id: 'parent-1',
+        segment_index: 0,
+        start_image_url: 'https://example.com/start.jpg',
+        end_image_url: 'https://example.com/end.jpg',
+        num_frames: 105,
+        model_name: 'ltx2_22B_distilled',
+      })
+    ).resolves.toBeDefined();
   });
 
   it('includes enhanced_prompt when provided', async () => {
@@ -510,7 +524,7 @@ describe('createIndividualTravelSegmentTask', () => {
     expect(orchDetails.uni3c_guide_video).toBeUndefined();
   });
 
-  it('keeps canonical structure_videos on task params while stripping nested duplicates', async () => {
+  it('writes canonical travel_guidance on task params while stripping nested legacy duplicates', async () => {
     await createIndividualTravelSegmentTask({
       project_id: 'proj-1',
       parent_generation_id: 'parent-1',
@@ -537,13 +551,21 @@ describe('createIndividualTravelSegmentTask', () => {
     });
 
     const params = mockCreateTask.mock.calls[0][0].params;
-    expect(params.structure_videos).toEqual([{
-      path: 'https://example.com/guide.mp4',
-      start_frame: 0,
-      end_frame: 49,
-      treatment: 'adjust',
-    }]);
+    expect(params.travel_guidance).toEqual({
+      kind: 'vace',
+      mode: 'flow',
+      videos: [{
+        path: 'https://example.com/guide.mp4',
+        start_frame: 0,
+        end_frame: 49,
+        treatment: 'adjust',
+      }],
+      strength: 1,
+    });
+    expect(params.structure_videos).toBeUndefined();
+    expect(params.structure_guidance).toBeUndefined();
     expect(params.orchestrator_details.structure_videos).toBeUndefined();
+    expect(params.orchestrator_details.structure_guidance).toBeUndefined();
   });
 
   it('includes variant IDs in individual_segment_params', async () => {

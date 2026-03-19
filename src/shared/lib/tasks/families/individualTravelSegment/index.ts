@@ -10,6 +10,7 @@ import { buildIndividualTravelSegmentParams } from '../../segmentTaskPayload';
 import { MAX_SEGMENT_FRAMES } from '../../segmentStateResolvers';
 import type { IndividualTravelSegmentParams } from './types';
 import { resolveSegmentGenerationRoute } from '../../segmentGenerationPersistence';
+import { resolveSelectedModelFromModelName, getModelSpec } from '@/tools/travel-between-images/modelCapabilities';
 
 export type { IndividualTravelSegmentParams } from './types';
 
@@ -41,8 +42,12 @@ function validateIndividualTravelSegmentParams(params: IndividualTravelSegmentPa
       : (typeof params.originalParams?.num_frames === 'number' ? params.originalParams.num_frames : undefined)
   ) ?? 49;
 
-  if (numFrames > MAX_SEGMENT_FRAMES) {
-    errors.push(`num_frames (${numFrames}) exceeds maximum of ${MAX_SEGMENT_FRAMES} frames per segment`);
+  const modelMaxFrames = getModelSpec(
+    resolveSelectedModelFromModelName(params.model_name)
+  ).maxFrames ?? MAX_SEGMENT_FRAMES;
+
+  if (numFrames > modelMaxFrames) {
+    errors.push(`num_frames (${numFrames}) exceeds maximum of ${modelMaxFrames} frames per segment`);
   }
 
   if (errors.length > 0) {
