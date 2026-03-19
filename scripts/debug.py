@@ -47,7 +47,7 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 from debug.client import DebugClient
-from debug.commands import task, tasks, logs, sql, query
+from debug.commands import task, tasks, logs, sql, query, pipeline, workers, queue
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -90,6 +90,22 @@ def create_parser() -> argparse.ArgumentParser:
     sql_parser.add_argument('query', help='SQL query to execute')
     sql_parser.add_argument('--json', action='store_true', help='Output as JSON')
     sql_parser.add_argument('--debug', action='store_true', help='Show debug info on errors')
+
+    # Pipeline command
+    pipeline_parser = subparsers.add_parser('pipeline', help='Trace orchestrator → children → stitch pipeline')
+    pipeline_parser.add_argument('task_id', help='Any task ID in the pipeline (parent or child)')
+    pipeline_parser.add_argument('--json', action='store_true', help='Output as JSON')
+    pipeline_parser.add_argument('--debug', action='store_true', help='Show debug info on errors')
+
+    # Workers command
+    workers_parser = subparsers.add_parser('workers', help='Show active workers, health, failure counts')
+    workers_parser.add_argument('--json', action='store_true', help='Output as JSON')
+    workers_parser.add_argument('--debug', action='store_true', help='Show debug info on errors')
+
+    # Queue command
+    queue_parser = subparsers.add_parser('queue', help='Show current queue depth, stuck tasks, worker capacity')
+    queue_parser.add_argument('--json', action='store_true', help='Output as JSON')
+    queue_parser.add_argument('--debug', action='store_true', help='Show debug info on errors')
 
     # Logs command
     logs_parser = subparsers.add_parser('logs', help='View system logs')
@@ -168,6 +184,12 @@ def main():
             task.run(client, args.task_id, options)
         elif args.command == 'tasks':
             tasks.run(client, options)
+        elif args.command == 'pipeline':
+            pipeline.run(client, args.task_id, options)
+        elif args.command == 'workers':
+            workers.run(client, options)
+        elif args.command == 'queue':
+            queue.run(client, options)
         elif args.command == 'logs':
             logs.run(client, options)
         else:
