@@ -264,9 +264,12 @@ export async function completeTaskHandler(req: Request): Promise<Response> {
     }
 
     // 12) Update task to Complete
+    // Use output_location override if provided (e.g., JSON metadata from transition_only mode),
+    // otherwise fall back to the storage public URL
+    const finalOutputLocation = parsedRequest.outputLocationOverride || publicUrl;
     const { error: dbError } = await supabaseAdmin.from("tasks").update({
       status: "Complete",
-      output_location: publicUrl,
+      output_location: finalOutputLocation,
       generation_processed_at: new Date().toISOString()
     }).eq("id", taskIdString).eq("status", "In Progress");
 

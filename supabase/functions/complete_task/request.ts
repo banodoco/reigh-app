@@ -36,6 +36,8 @@ interface ParsedRequest {
   // For MODE 3 validation (set during parsing)
   storagePathTaskId?: string; // The task_id extracted from storage_path
   requiresOrchestratorCheck?: boolean; // True if path task_id != request task_id
+  // Optional override for output_location (e.g., JSON metadata from transition_only mode)
+  outputLocationOverride?: string;
 }
 
 /**
@@ -53,6 +55,7 @@ interface CompleteTaskRequestBody {
   first_frame_filename?: unknown;
   storage_path?: unknown;
   thumbnail_storage_path?: unknown;
+  output_location?: unknown;
 }
 
 // ===== REQUEST PARSING =====
@@ -125,6 +128,7 @@ function parseStoragePathRequest(body: CompleteTaskRequestBody): ParseResult {
       thumbnailStoragePath,
       storagePathTaskId,
       requiresOrchestratorCheck,
+      outputLocationOverride: asString(body.output_location),
     },
   };
 }
