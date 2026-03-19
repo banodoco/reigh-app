@@ -79,8 +79,68 @@ serve((req) => {
       return jsonResponse({ error: "Task not found" }, 404);
     }
 
+    // --- Path 1: dependant_on chain (orchestrator-created tasks) ---
     const dependantOnArray: string[] = taskData.dependant_on || [];
-    if (dependantOnArray.length === 0) {
+    if (dependantOnArray.length > 0) {
+      const { data: predecessorsData, error: predecessorError } = await supabaseAdmin
+        .from("tasks")
+        .select("id, status, output_location")
+        .eq("project_id", taskData.project_id)
+        .in("id", dependantOnArray);
+
+      if (predecessorError) {
+        logger.error("Predecessors lookup error", { error: predecessorError.message });
+        return jsonResponse({
+          predecessor_id: dependantOnArray[0],
+          output_location: null,
+          status: "error",
+          predecessors: dependantOnArray.map((id) => ({
+            predecessor_id: id,
+            output_location: null,
+            status: "error",
+          })),
+        });
+      }
+
+      const predecessors = dependantOnArray.map((depId) => {
+        const pred = predecessorsData?.find((candidate) => candidate.id === depId);
+        if (!pred) {
+          return { predecessor_id: depId, output_location: null, status: "not_found" };
+        }
+        return {
+          predecessor_id: pred.id,
+          output_location: pred.status === "Complete" ? pred.output_location : null,
+          status: pred.status,
+        };
+      });
+
+      const allComplete = predecessors.every(
+        (predecessor) => predecessor.status === "Complete" && predecessor.output_location,
+      );
+      const firstPred = predecessors[0];
+
+      logger.info("Returning predecessor info (dependant_on)", {
+        predecessor_count: predecessors.length,
+        all_complete: allComplete,
+      });
+
+      return jsonResponse({
+        predecessor_id: firstPred?.predecessor_id || null,
+        output_location: allComplete ? firstPred?.output_location : null,
+        status: allComplete ? "Complete" : (firstPred?.status || null),
+        predecessors,
+        all_complete: allComplete,
+      });
+    }
+
+    // --- Path 2: generation-based sibling lookup (individual segment regens) ---
+    // When there's no dependant_on chain, find the previous segment by
+    // parent_generation_id + child_order (the segment before this one).
+    const parentGenerationId = typeof body.parent_generation_id === "string" ? body.parent_generation_id : null;
+    const childOrder = typeof body.child_order === "number" ? body.child_order : null;
+    const predecessorOrder = childOrder !== null ? childOrder - 1 : null;
+
+    if (!parentGenerationId || predecessorOrder === null || predecessorOrder < 0) {
       logger.info("No dependencies found");
       return jsonResponse({
         predecessor_id: null,
@@ -89,59 +149,40 @@ serve((req) => {
       });
     }
 
-    const { data: predecessorsData, error: predecessorError } = await supabaseAdmin
-      .from("tasks")
-      .select("id, status, output_location")
-      .eq("project_id", taskData.project_id)
-      .in("id", dependantOnArray);
+    // Find the generation at the predecessor child_order under the same parent
+    const { data: predGenData } = await supabaseAdmin
+      .from("generations")
+      .select("id, output_location, child_order")
+      .eq("parent_id", parentGenerationId)
+      .eq("child_order", predecessorOrder)
+      .order("created_at", { ascending: false })
+      .limit(1);
 
-    if (predecessorError) {
-      logger.error("Predecessors lookup error", { error: predecessorError.message });
+    const predGen = predGenData?.[0];
+    if (predGen && predGen.output_location) {
+      logger.info("Found predecessor via generation sibling", {
+        predecessor_generation_id: predGen.id,
+        predecessor_order: predecessorOrder,
+      });
       return jsonResponse({
-        predecessor_id: dependantOnArray[0],
-        output_location: null,
-        status: "error",
-        predecessors: dependantOnArray.map((id) => ({
-          predecessor_id: id,
-          output_location: null,
-          status: "error",
-        })),
+        predecessor_id: predGen.id,
+        output_location: predGen.output_location,
+        status: "Complete",
+        predecessors: [{
+          predecessor_id: predGen.id,
+          output_location: predGen.output_location,
+          status: "Complete",
+        }],
+        all_complete: true,
+        lookup_method: "generation_sibling",
       });
     }
 
-    const predecessors = dependantOnArray.map((depId) => {
-      const pred = predecessorsData?.find((candidate) => candidate.id === depId);
-      if (!pred) {
-        return {
-          predecessor_id: depId,
-          output_location: null,
-          status: "not_found",
-        };
-      }
-      return {
-        predecessor_id: pred.id,
-        output_location: pred.status === "Complete" ? pred.output_location : null,
-        status: pred.status,
-      };
-    });
-
-    const allComplete = predecessors.every(
-      (predecessor) => predecessor.status === "Complete" && predecessor.output_location,
-    );
-    const firstPred = predecessors[0];
-
-    logger.info("Returning predecessor info", {
-      predecessor_count: predecessors.length,
-      scoped_predecessor_count: predecessorsData?.length ?? 0,
-      all_complete: allComplete,
-    });
-
+    logger.info("No predecessor found (no dependant_on, no generation sibling)");
     return jsonResponse({
-      predecessor_id: firstPred?.predecessor_id || null,
-      output_location: allComplete ? firstPred?.output_location : null,
-      status: allComplete ? "Complete" : (firstPred?.status || null),
-      predecessors,
-      all_complete: allComplete,
+      predecessor_id: null,
+      output_location: null,
+      predecessors: [],
     });
   });
 });
