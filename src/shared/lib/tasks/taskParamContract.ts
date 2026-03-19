@@ -1,7 +1,12 @@
-import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import { toObjectRecord } from '@/shared/lib/jsonRecord';
-
 type TaskParamPath = readonly string[];
+
+/** Inline to avoid @/ alias imports that break Deno edge function bundling. */
+function toObjectRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
 
 const TASK_PARAM_CONTRACT_PATHS = {
   orchestratorTaskId: [
@@ -146,13 +151,9 @@ export function extractAddInPositionParam(params: unknown): boolean {
   }
 
   if (rawValue !== undefined && rawValue !== null) {
-    normalizeAndPresentError(new Error('Invalid add_in_position param encoding'), {
-      context: 'TaskParamContract.addInPosition.invalid',
-      showToast: false,
-      logData: {
-        rawType: typeof rawValue,
-        rawValue: summarizeTaskParamValue(rawValue),
-      },
+    console.warn('[TaskParamContract] Invalid add_in_position param encoding', {
+      rawType: typeof rawValue,
+      rawValue: summarizeTaskParamValue(rawValue),
     });
   }
 
