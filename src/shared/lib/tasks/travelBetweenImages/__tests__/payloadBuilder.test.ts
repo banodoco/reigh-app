@@ -200,6 +200,24 @@ describe('buildTravelBetweenImagesPayload', () => {
     expect(payload.enhanced_prompts_expanded).toEqual(['enhanced version of the prompt']);
   });
 
+  it('preserves ltx inference settings without backfilling wan steps', () => {
+    const payload = buildTravelBetweenImagesPayload(
+      {
+        ...baseParams,
+        model_name: 'ltx2_22B',
+        num_inference_steps: 30,
+        guidance_scale: 3,
+      },
+      '1280x720',
+      'tid',
+      'rid',
+    );
+
+    expect(payload.num_inference_steps).toBe(30);
+    expect(payload.guidance_scale).toBe(3);
+    expect(payload.steps).toBeUndefined();
+  });
+
   it('creates empty enhanced_prompts when enhance_prompt is true', () => {
     const params = {
       ...baseParams,
@@ -389,7 +407,7 @@ describe('buildTravelBetweenImagesPayload', () => {
   });
 
   // Structure guidance tests
-  it('passes through structure_guidance directly', () => {
+  it('normalizes legacy structure_guidance into canonical travel_guidance', () => {
     const guidance = {
       target: 'uni3c' as const,
       strength: 0.8,
@@ -398,9 +416,31 @@ describe('buildTravelBetweenImagesPayload', () => {
       zero_empty_frames: true,
     };
 
-    const params = { ...baseParams, structure_guidance: guidance };
+    const params = {
+      ...baseParams,
+      structure_guidance: guidance,
+      structure_videos: [{
+        path: 'https://example.com/structure.mp4',
+        start_frame: 0,
+        end_frame: 49,
+        treatment: 'adjust' as const,
+      }],
+    };
     const payload = buildTravelBetweenImagesPayload(params, '1280x720', 'tid', 'rid');
-    expect(payload.structure_guidance).toEqual(guidance);
+    expect(payload.travel_guidance).toEqual({
+      kind: 'uni3c',
+      videos: [{
+        path: 'https://example.com/structure.mp4',
+        start_frame: 0,
+        end_frame: 49,
+        treatment: 'adjust',
+      }],
+      strength: 0.8,
+      step_window: [0.1, 0.9],
+      frame_policy: 'fit',
+      zero_empty_frames: true,
+    });
+    expect(payload.structure_guidance).toBeUndefined();
   });
 
   it('rejects legacy structure_videos fields (vace)', () => {

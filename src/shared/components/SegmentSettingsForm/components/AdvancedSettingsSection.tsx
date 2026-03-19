@@ -195,6 +195,8 @@ export const AdvancedSettingsSection: React.FC<AdvancedSettingsSectionProps> = (
             structureVideoDefaults={structureVideoDefaults}
             settings={settings}
             onChange={onChange}
+            shotDefaults={shotDefaults}
+            hasOverride={hasOverride}
             isTimelineMode={isTimelineMode}
             onAddSegmentStructureVideo={onAddSegmentStructureVideo as ((video: unknown) => void) | undefined}
             onRemoveSegmentStructureVideo={onRemoveSegmentStructureVideo}

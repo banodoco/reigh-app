@@ -87,11 +87,46 @@ cp .env.example .env
 python main.py
 ```
 
-**Cloud Deployment**
-- Deploy to GPU-enabled cloud instances (AWS, Google Cloud, etc.)
-- Requires CUDA-compatible GPU for video generation
-- Configure with production Supabase credentials
-- Multiple workers can run simultaneously for parallel processing
+**Cloud Deployment (RunPod)**
+
+Workers run on RunPod GPU pods (RTX 4090). Code lives on a persistent network volume at `/workspace/`.
+
+| Path | Contents |
+|------|----------|
+| `/workspace/Headless-Wan2GP/` | Worker source code (git clone of `banodoco/Reigh-Worker`) |
+| `/workspace/Reigh-Worker/` | Orchestrator / wrapper scripts |
+
+**Accessing pods:**
+- **SSH**: Pod IP + port from RunPod dashboard or API (`ssh root@<ip> -p <port>`)
+- **Jupyter**: `https://<pod_id>-8888.proxy.runpod.net/?token=<token>` (port 8888)
+- **RunPod API**: Query `myself { pods { ... } }` GraphQL endpoint with API key from Arnold `.env`
+
+**Worker process lifecycle:**
+```bash
+# Logs go to /tmp/worker_startup_<worker_id>.log
+# Guardian heartbeat log: /tmp/guardian_<worker_id>.log
+# Worker ID format: gpu-YYYYMMDD_HHMMSS-<hash>
+
+# Start (nohup so it survives SSH disconnect)
+cd /workspace/Headless-Wan2GP && nohup python main.py > /tmp/worker.log 2>&1 &
+
+# Restart after code change
+pkill -f 'python main' && cd /workspace/Headless-Wan2GP && git pull && nohup python main.py > /tmp/worker.log 2>&1 &
+
+# Check status
+ps aux | grep python
+tail -50 /tmp/worker_startup_*.log
+nvidia-smi
+```
+
+**Code change workflow:**
+1. Edit locally at `~/Documents/Reigh-Worker` (same repo: `banodoco/Reigh-Worker`)
+2. `git add . && git commit -m "fix: ..." && git push`
+3. SSH to pod: `cd /workspace/Headless-Wan2GP && git pull`
+4. Kill + restart worker process (see above)
+
+**Multiple pods** share the same `/workspace/` volume, so `git pull` on one updates all.
+Pods can be queried programmatically via RunPod GraphQL API (credentials in `~/Documents/Arnold/.env`).
 
 #### Worker Configuration
 The worker polls the same task queue but specializes in video generation:

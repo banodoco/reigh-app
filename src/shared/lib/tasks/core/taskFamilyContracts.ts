@@ -47,6 +47,8 @@ export interface TravelBetweenImagesReadContract {
   additional_loras?: Record<string, number>;
   segment_frames_expanded?: number[];
   frame_overlap_expanded?: number[];
+  continuation_config?: unknown;
+  travel_guidance?: unknown;
   structure_guidance?: unknown;
 }
 

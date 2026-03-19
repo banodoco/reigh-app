@@ -83,9 +83,14 @@ export function useSegmentMutations({
             randomSeed: settings.randomSeed,
             seed: settings.seed,
             selectedPhasePresetId: settings.selectedPhasePresetId,
-            structureMotionStrength: settings.structureMotionStrength,
-            structureTreatment: settings.structureTreatment,
-            structureUni3cEndPercent: settings.structureUni3cEndPercent,
+            selectedModel: settings.selectedModel,
+            guidanceScale: settings.guidanceScale,
+            guidanceMode: settings.guidanceMode,
+            guidanceStrength: settings.guidanceStrength,
+            guidanceTreatment: settings.guidanceTreatment,
+            guidanceUni3cEndPercent: settings.guidanceUni3cEndPercent,
+            guidanceCannyIntensity: settings.guidanceCannyIntensity,
+            guidanceDepthContrast: settings.guidanceDepthContrast,
           }
         );
 
@@ -141,6 +146,8 @@ export function useSegmentMutations({
           textAfterPrompts: settings.textAfterPrompts ?? shotDefaults.textAfterPrompts ?? '',
           randomSeed: settings.randomSeed ?? true,
           seed: settings.seed,
+          selectedModel: settings.selectedModel ?? shotDefaults.selectedModel ?? 'wan-2.2',
+          guidanceScale: settings.guidanceScale ?? shotDefaults.guidanceScale,
         };
 
         await updateToolSettingsSupabase(

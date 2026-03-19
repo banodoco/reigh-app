@@ -15,17 +15,26 @@
  */
 
 import { QueryClient } from '@tanstack/react-query';
+import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { joinPromptParts } from '@/shared/lib/tasks/promptAssembly';
 import { buildTaskParams, type SegmentSettings } from '@/shared/components/SegmentSettingsForm/segmentSettingsUtils';
 import { createIndividualTravelSegmentTask } from '@/shared/lib/tasks/families/individualTravelSegment';
 import type { IndividualTravelSegmentParams } from '@/shared/lib/tasks/families/individualTravelSegment';
 import { persistSegmentEnhancedPrompt } from '@/shared/lib/tasks/segmentGenerationPersistence';
-import { buildStructureGuidanceFromControls } from '@/shared/lib/tasks/structureGuidance';
+import {
+  buildTravelGuidanceFromControls,
+  type TravelGuidanceMode,
+} from '@/shared/lib/tasks/travelGuidance';
 import { queryKeys } from '@/shared/lib/queryKeys';
+import {
+  getModelSpec,
+  resolveGenerationPolicy,
+  resolveSelectedModelFromModelName,
+} from '@/tools/travel-between-images/settings';
 import type {
-  StructureGuidanceConfig,
   StructureVideoConfig,
+  TravelGuidance,
 } from '@/shared/lib/tasks/travelBetweenImages';
 import type { RunTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
 
@@ -35,7 +44,8 @@ import type { RunTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder
 
 interface StructureVideoInputs {
   structureVideoUrl?: string;
-  structureVideoType?: 'uni3c' | 'flow' | 'canny' | 'depth' | null;
+  structureVideoType?: TravelGuidanceMode | null;
+  modelName?: string;
   structureVideoFrameRange?: {
     segmentStart: number;
     segmentEnd: number;
@@ -55,9 +65,17 @@ interface StructureVideoInputs {
  */
 export function buildStructureVideoForTask(
   inputs: StructureVideoInputs,
-  getSettingsForTaskCreation: () => Pick<SegmentSettings, 'structureTreatment' | 'structureMotionStrength' | 'structureUni3cEndPercent'>,
-): { structureGuidance: StructureGuidanceConfig; structureVideos: StructureVideoConfig[] } | null {
-  const { structureVideoUrl, structureVideoType, structureVideoFrameRange, structureVideoDefaults } = inputs;
+  getSettingsForTaskCreation: () => Pick<
+    SegmentSettings,
+    | 'guidanceTreatment'
+    | 'guidanceMode'
+    | 'guidanceStrength'
+    | 'guidanceUni3cEndPercent'
+    | 'guidanceCannyIntensity'
+    | 'guidanceDepthContrast'
+  >,
+): { travelGuidance: TravelGuidance; structureVideos: StructureVideoConfig[] } | null {
+  const { structureVideoUrl, structureVideoType, structureVideoFrameRange, structureVideoDefaults, modelName } = inputs;
   if (!structureVideoUrl || !structureVideoType || !structureVideoFrameRange) {
     return null;
   }
@@ -67,24 +85,25 @@ export function buildStructureVideoForTask(
     path: structureVideoUrl,
     start_frame: structureVideoFrameRange.segmentStart,
     end_frame: structureVideoFrameRange.segmentEnd,
-    treatment: effectiveSettings.structureTreatment ?? structureVideoDefaults?.treatment ?? 'adjust',
+    treatment: effectiveSettings.guidanceTreatment ?? structureVideoDefaults?.treatment ?? 'adjust',
   };
-  const structureGuidance = buildStructureGuidanceFromControls({
+  const travelGuidance = buildTravelGuidanceFromControls({
+    modelName,
     structureVideos: [structureVideo],
     controls: {
-      structureType: structureVideoType,
-      motionStrength: effectiveSettings.structureMotionStrength ?? structureVideoDefaults?.motionStrength ?? 1.2,
-      uni3cStartPercent: 0,
-      uni3cEndPercent: effectiveSettings.structureUni3cEndPercent ?? structureVideoDefaults?.uni3cEndPercent ?? 0.1,
+      mode: effectiveSettings.guidanceMode ?? structureVideoType,
+      strength: effectiveSettings.guidanceStrength ?? structureVideoDefaults?.motionStrength ?? 1.2,
+      uni3cEndPercent: effectiveSettings.guidanceUni3cEndPercent ?? structureVideoDefaults?.uni3cEndPercent ?? 0.1,
+      cannyIntensity: effectiveSettings.guidanceCannyIntensity ?? structureVideoDefaults?.cannyIntensity,
+      depthContrast: effectiveSettings.guidanceDepthContrast ?? structureVideoDefaults?.depthContrast,
     },
     defaultVideoTreatment: structureVideo.treatment,
-    defaultUni3cEndPercent: effectiveSettings.structureUni3cEndPercent ?? structureVideoDefaults?.uni3cEndPercent ?? 0.1,
   });
-  if (!structureGuidance) {
+  if (!travelGuidance) {
     return null;
   }
   return {
-    structureGuidance,
+    travelGuidance,
     structureVideos: [structureVideo],
   };
 }
@@ -112,7 +131,9 @@ interface SegmentTaskContext {
   segmentIndex: number;
   pairShotGenerationId?: string;
   projectResolution?: string;
-  structureInput: { structureGuidance: StructureGuidanceConfig; structureVideos: StructureVideoConfig[] } | null;
+  modelName?: string;
+  generationTypeMode?: 'i2v' | 'vace';
+  structureInput: { travelGuidance: TravelGuidance; structureVideos: StructureVideoConfig[] } | null;
 }
 
 /** Submission configuration */
@@ -170,6 +191,26 @@ function buildSubmitParamsBuilder(
   task: SegmentTaskContext,
   images: SegmentTaskImageContext,
 ): BuildTaskParams {
+  const selectedModel = effectiveSettings.selectedModel
+    ?? resolveSelectedModelFromModelName(task.modelName);
+  const policy = resolveGenerationPolicy(getModelSpec(selectedModel), {
+    smoothContinuations: effectiveSettings.smoothContinuations ?? false,
+    requestedExecutionMode: task.generationTypeMode ?? 'i2v',
+    guidanceKind: (() => {
+      const guidance = task.structureInput?.travelGuidance;
+      if (!guidance || guidance.kind === 'none') {
+        return effectiveSettings.guidanceMode;
+      }
+      if (guidance.kind === 'uni3c') {
+        return 'uni3c';
+      }
+      return guidance.mode;
+    })(),
+  });
+  const continuationEnabled = task.segmentIndex > 0
+    && policy.continuation.enabled
+    && policy.continuation.strategy !== undefined;
+
   return (prompt: string, enhancedPromptParam?: string) => {
     return buildTaskParams(
       { ...effectiveSettings, prompt },
@@ -187,9 +228,21 @@ function buildSubmitParamsBuilder(
         endImageVariantId: images.endImageVariantId,
         pairShotGenerationId: task.pairShotGenerationId,
         projectResolution: task.projectResolution,
+        modelName: task.modelName,
+        modelType: policy.travelMode,
+        ...(continuationEnabled
+          ? {
+            continuationConfig: {
+              strategy: policy.continuation.strategy!,
+              overlap_frames: policy.continuation.overlapFrames,
+            },
+            frameOverlapFromPrevious: policy.continuation.overlapFrames,
+          }
+          : {
+            frameOverlapFromPrevious: 0,
+          }),
         ...(enhancedPromptParam ? { enhancedPrompt: enhancedPromptParam } : {}),
-        structureGuidance: task.structureInput?.structureGuidance,
-        structureVideos: task.structureInput?.structureVideos,
+        ...(task.structureInput?.travelGuidance ? { travelGuidance: task.structureInput.travelGuidance } : {}),
       },
     );
   };

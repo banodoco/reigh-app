@@ -1,7 +1,7 @@
 import { PhaseConfig, DEFAULT_PHASE_CONFIG, DEFAULT_VACE_PHASE_CONFIG } from '@/shared/types/phaseConfig';
 import type {
-  StructureGuidanceConfig,
-  StructureVideoConfig,
+  ContinuationConfig,
+  TravelGuidance,
 } from '@/shared/lib/tasks/travelBetweenImages';
 import type { IndividualTravelSegmentParams } from '@/shared/lib/tasks/families/individualTravelSegment';
 import type { SegmentSettings, LoraConfig } from '@/shared/types/segmentSettings';
@@ -102,7 +102,7 @@ export function stripModeFromPhaseConfig(config: PhaseConfig): PhaseConfigReques
 interface MotionTaskFieldsInput {
   amountOfMotion: number;
   motionMode: string;
-  phaseConfig: PhaseConfig;
+  phaseConfig?: PhaseConfig;
   selectedPhasePresetId?: string | null;
   omitBasicPhaseConfig?: boolean;
 }
@@ -115,6 +115,10 @@ export function buildMotionTaskFields({
   omitBasicPhaseConfig = false,
 }: MotionTaskFieldsInput): Record<string, unknown> {
   const shouldIncludePhaseConfig = !omitBasicPhaseConfig || motionMode !== 'basic' || !!selectedPhasePresetId;
+
+  if (!phaseConfig) {
+    return {};
+  }
 
   return {
     amount_of_motion: amountOfMotion / 100,
@@ -140,11 +144,14 @@ export function buildTaskParams(
     startImageVariantId?: string;
     endImageVariantId?: string;
     projectResolution?: string;
+    modelName?: string;
+    modelType?: 'i2v' | 'vace';
+    continuationConfig?: ContinuationConfig;
+    frameOverlapFromPrevious?: number;
     // Optional enhanced prompt (AI-enhanced version, kept separate from base_prompt)
     enhancedPrompt?: string;
-    // Canonical structure guidance inputs for this segment.
-    structureGuidance?: StructureGuidanceConfig;
-    structureVideos?: StructureVideoConfig[];
+    // Canonical travel guidance input for this segment.
+    travelGuidance?: TravelGuidance;
   }
 ): IndividualTravelSegmentParams {
   const motionFields = buildMotionTaskFields({
@@ -183,10 +190,15 @@ export function buildTaskParams(
     seed: settings.seed,
     ...motionFields,
     loras: settings.loras.map(l => ({ path: l.path, strength: l.strength })),
+    ...(settings.inferenceSteps !== undefined && { num_inference_steps: settings.inferenceSteps }),
+    ...(settings.guidanceScale !== undefined && { guidance_scale: settings.guidanceScale }),
     make_primary_variant: settings.makePrimaryVariant,
     // Resolution
     ...(context.projectResolution && { parsed_resolution_wh: context.projectResolution }),
-    ...(context.structureGuidance && { structure_guidance: context.structureGuidance }),
-    ...(context.structureVideos && { structure_videos: context.structureVideos }),
+    ...(context.modelName && { model_name: context.modelName }),
+    ...(context.modelType && { model_type: context.modelType }),
+    ...(context.continuationConfig && { continuation_config: context.continuationConfig }),
+    ...(context.frameOverlapFromPrevious !== undefined ? { frame_overlap_from_previous: context.frameOverlapFromPrevious } : {}),
+    ...(context.travelGuidance && { travel_guidance: context.travelGuidance }),
   };
 }

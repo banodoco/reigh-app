@@ -134,9 +134,9 @@ describe('readSegmentOverrides', () => {
         structureUni3cEndPercent: 50,
       },
     });
-    expect(result.structureMotionStrength).toBe(0.8);
-    expect(result.structureTreatment).toBe('adjust');
-    expect(result.structureUni3cEndPercent).toBe(50);
+    expect(result.guidanceStrength).toBe(0.8);
+    expect(result.guidanceTreatment).toBe('adjust');
+    expect(result.guidanceUni3cEndPercent).toBe(50);
   });
 });
 

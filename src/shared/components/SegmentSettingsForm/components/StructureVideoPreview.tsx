@@ -133,9 +133,10 @@ export const StructureVideoPreview: React.FC<StructureVideoPreviewProps> = ({
 
     let cancelled = false;
 
-    // Only clear frames immediately if URL changed (completely different video)
-    // For treatment/position changes, keep showing old frames until new ones are ready
-    const urlChanged = prevUrlRef.current !== null && prevUrlRef.current !== videoUrl;
+    // Clear frames when URL changed (completely different video).
+    // For treatment/position changes, keep showing old frames until new ones are ready.
+    const isFirstMount = prevUrlRef.current === null;
+    const urlChanged = !isFirstMount && prevUrlRef.current !== videoUrl;
     if (urlChanged) {
       setCapturedCount(0);
       setCapturedForUrl(null);
@@ -183,7 +184,7 @@ export const StructureVideoPreview: React.FC<StructureVideoPreviewProps> = ({
         setCapturedForUrl(videoUrl);
         setCapturedCount(3);
         setIsExtracting(false);
-        if (urlChanged) {
+        if (isFirstMount || urlChanged) {
           onLoadComplete?.();
         }
       }

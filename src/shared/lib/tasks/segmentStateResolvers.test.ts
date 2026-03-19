@@ -4,7 +4,6 @@ import { buildSegmentState, MAX_SEGMENT_FRAMES } from './segmentStateResolvers';
 const mocks = vi.hoisted(() => ({
   resolveSeed32Bit: vi.fn(),
   buildBasicModePhaseConfig: vi.fn(),
-  normalizeStructureGuidance: vi.fn(),
   buildTaskPayloadSnapshot: vi.fn(),
   readTravelContractData: vi.fn(),
 }));
@@ -20,10 +19,6 @@ vi.mock('@/shared/types/phaseConfig', async (importOriginal) => {
     buildBasicModePhaseConfig: (...args: unknown[]) => mocks.buildBasicModePhaseConfig(...args),
   };
 });
-
-vi.mock('@/shared/lib/tasks/structureGuidance', () => ({
-  normalizeStructureGuidance: (...args: unknown[]) => mocks.normalizeStructureGuidance(...args),
-}));
 
 vi.mock('./taskPayloadSnapshot', () => ({
   buildTaskPayloadSnapshot: (...args: unknown[]) => mocks.buildTaskPayloadSnapshot(...args),
@@ -77,7 +72,6 @@ describe('segmentStateResolvers', () => {
   beforeEach(() => {
     mocks.resolveSeed32Bit.mockReset();
     mocks.buildBasicModePhaseConfig.mockReset();
-    mocks.normalizeStructureGuidance.mockReset();
     mocks.buildTaskPayloadSnapshot.mockReset();
     mocks.readTravelContractData.mockReset();
   });
@@ -112,30 +106,26 @@ describe('segmentStateResolvers', () => {
       amountOfMotion: 0.7,
       phaseConfig: explicitPhaseConfig,
       advancedMode: false,
-      modelName: 'contract-model',
+      modelName: 'ltx2_22B_distilled',
       prompt: 'contract prompt',
       negativePrompt: 'contract negative',
       enhancedPrompt: 'contract enhanced',
       segmentFramesExpanded: [24, 24],
       frameOverlapExpanded: [6],
-      structureGuidance: { videos: [{ path: 'contract-video.mp4' }] },
+      travelGuidance: {
+        kind: 'vace',
+        mode: 'raw',
+        videos: [
+          {
+            path: 'contract-video.mp4',
+            start_frame: 1,
+            end_frame: 8,
+            treatment: 'clip',
+          },
+        ],
+      },
     });
     mocks.resolveSeed32Bit.mockReturnValue(999);
-    mocks.normalizeStructureGuidance.mockReturnValue({
-      videos: [
-        {
-          path: 'segment-video.mp4',
-          start_frame: 2,
-          end_frame: 7,
-          treatment: 'clip',
-          source_start_frame: 1,
-          source_end_frame: null,
-        },
-        {
-          path: 42,
-        },
-      ],
-    });
 
     const state = buildSegmentState({
       project_id: 'project-1',
@@ -152,6 +142,21 @@ describe('segmentStateResolvers', () => {
       enhanced_prompt: 'param enhanced',
       num_frames: 200,
       loras: [{ path: 'user-lora.safetensors', strength: 0.4 }],
+      travel_guidance: {
+        kind: 'ltx_control',
+        mode: 'video',
+        strength: 0.6,
+        videos: [
+          {
+            path: 'segment-video.mp4',
+            start_frame: 2,
+            end_frame: 7,
+            treatment: 'clip',
+            source_start_frame: 1,
+            source_end_frame: null,
+          },
+        ],
+      },
     });
 
     expect(mocks.resolveSeed32Bit).toHaveBeenCalledWith({
@@ -173,7 +178,7 @@ describe('segmentStateResolvers', () => {
       { url: 'phase-1.safetensors', multiplier: 0.5 },
       { url: 'phase-2.safetensors', multiplier: 0.75 },
     ]);
-    expect(state.modelName).toBe('contract-model');
+    expect(state.modelName).toBe('ltx2_22B_distilled');
     expect(state.numFrames).toBe(MAX_SEGMENT_FRAMES);
     expect(state.basePrompt).toBe('param prompt');
     expect(state.negativePrompt).toBe('param negative');
@@ -190,6 +195,28 @@ describe('segmentStateResolvers', () => {
         source_end_frame: null,
       },
     ]);
+  });
+
+  it('prefers an explicit segment model_name override over the contract model', () => {
+    mocks.buildTaskPayloadSnapshot.mockReturnValue({
+      rawParams: {},
+      orchestratorDetails: {},
+    });
+    mocks.readTravelContractData.mockReturnValue({
+      modelName: 'wan_2_2_i2v_lightning_baseline_2_2_2',
+    });
+    mocks.resolveSeed32Bit.mockReturnValue(432);
+    mocks.buildBasicModePhaseConfig.mockReturnValue(fallbackPhaseConfig);
+
+    const state = buildSegmentState({
+      project_id: 'project-1',
+      segment_index: 0,
+      start_image_url: 'start.png',
+      originalParams: { legacy: true },
+      model_name: 'ltx2_22B_distilled',
+    });
+
+    expect(state.modelName).toBe('ltx2_22B_distilled');
   });
 
   it('falls back to the generated basic phase config and raw snapshot loras when no explicit overrides exist', () => {
@@ -226,7 +253,6 @@ describe('segmentStateResolvers', () => {
     });
     mocks.resolveSeed32Bit.mockReturnValue(432);
     mocks.buildBasicModePhaseConfig.mockReturnValue(fallbackPhaseConfig);
-    mocks.normalizeStructureGuidance.mockReturnValue(undefined);
 
     const state = buildSegmentState({
       project_id: 'project-1',

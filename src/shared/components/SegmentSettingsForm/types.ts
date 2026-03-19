@@ -2,6 +2,8 @@ import type React from 'react';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
 import type { LoraConfig } from '@/shared/types/segmentSettings';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
+import type { TravelGuidanceMode } from '@/shared/lib/tasks/travelGuidance';
+import type { SelectedModel } from '@/tools/travel-between-images/settings';
 import type { SegmentSettings } from './segmentSettingsUtils';
 
 export interface SegmentOverrideFlags {
@@ -14,9 +16,16 @@ export interface SegmentOverrideFlags {
   phaseConfig: boolean;
   loras: boolean;
   selectedPhasePresetId: boolean;
-  structureMotionStrength: boolean;
-  structureTreatment: boolean;
-  structureUni3cEndPercent: boolean;
+  selectedModel: boolean;
+  inferenceSteps: boolean;
+  guidanceScale: boolean;
+  guidanceMode: boolean;
+  guidanceStrength: boolean;
+  guidanceTreatment: boolean;
+  guidanceUni3cEndPercent: boolean;
+  guidanceCannyIntensity: boolean;
+  guidanceDepthContrast: boolean;
+  smoothContinuations?: boolean;
 }
 
 export interface SegmentShotDefaults {
@@ -29,12 +38,26 @@ export interface SegmentShotDefaults {
   phaseConfig?: PhaseConfig;
   loras: LoraConfig[];
   selectedPhasePresetId: string | null;
+  selectedModel: SelectedModel;
+  inferenceSteps?: number;
+  guidanceScale?: number;
+  guidanceMode?: TravelGuidanceMode;
+  guidanceStrength?: number;
+  guidanceTreatment?: 'adjust' | 'clip';
+  guidanceUni3cEndPercent?: number;
+  guidanceCannyIntensity?: number;
+  guidanceDepthContrast?: number;
+  smoothContinuations?: boolean;
+  generationTypeMode?: 'i2v' | 'vace';
 }
 
 interface StructureVideoDefaults {
+  mode?: TravelGuidanceMode;
   motionStrength: number;
   treatment: 'adjust' | 'clip';
   uni3cEndPercent: number;
+  cannyIntensity?: number;
+  depthContrast?: number;
 }
 
 interface StructureVideoFrameRange {
@@ -124,7 +147,7 @@ interface SegmentSettingsFormDefaultsProps {
 }
 
 interface SegmentSettingsFormStructureVideoProps {
-  structureVideoType?: 'uni3c' | 'flow' | 'canny' | 'depth' | null;
+  structureVideoType?: TravelGuidanceMode | null;
   structureVideoDefaults?: StructureVideoDefaults;
   structureVideoUrl?: string;
   structureVideoFrameRange?: StructureVideoFrameRange;

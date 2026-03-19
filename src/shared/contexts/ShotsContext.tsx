@@ -1,4 +1,4 @@
-import React, { createContext, useContext, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { useListShots, useProjectImageStats } from '@/shared/hooks/shots';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { Shot } from '@/domains/generation/types';
@@ -22,17 +22,8 @@ interface ShotsProviderProps {
 export const ShotsProvider: React.FC<ShotsProviderProps> = ({ children }) => {
   const { selectedProjectId } = useProject();
 
-  // Track previous project ID to detect project switches
+  const [isProjectTransitioning, setIsProjectTransitioning] = useState(false);
   const prevProjectIdRef = React.useRef<string | null>(null);
-  const [isProjectTransitioning, setIsProjectTransitioning] = React.useState(false);
-
-  // Detect project switch and set transitioning state
-  React.useEffect(() => {
-    if (prevProjectIdRef.current !== null && prevProjectIdRef.current !== selectedProjectId) {
-      setIsProjectTransitioning(true);
-    }
-    prevProjectIdRef.current = selectedProjectId;
-  }, [selectedProjectId]);
 
   // Load all images per shot (0 = unlimited)
   // Previously limited to 2 on mobile for performance, but this broke expand/collapse UI
@@ -43,9 +34,16 @@ export const ShotsProvider: React.FC<ShotsProviderProps> = ({ children }) => {
   // Load project-wide image stats
   const { data: projectStats, isLoading: isStatsLoading } = useProjectImageStats(selectedProjectId);
 
-  // Clear transitioning state when new shots data arrives
-  // Use isFetching (not isLoading) because placeholderData keeps isLoading false during refetches
-  React.useEffect(() => {
+  // Set transitioning flag when project changes
+  useEffect(() => {
+    if (prevProjectIdRef.current !== null && prevProjectIdRef.current !== selectedProjectId) {
+      setIsProjectTransitioning(true);
+    }
+    prevProjectIdRef.current = selectedProjectId;
+  }, [selectedProjectId]);
+
+  // Clear transitioning flag when new data arrives
+  useEffect(() => {
     if (isProjectTransitioning && !isShotsFetching && shots !== undefined) {
       setIsProjectTransitioning(false);
     }

@@ -3,7 +3,9 @@ import type {
   TaskDetailsData,
 } from '@/shared/lib/taskDetails/taskDetailsContract';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
+import type { TravelGuidanceMode } from '@/shared/lib/tasks/travelGuidance';
 import type { AsyncImageDeleteHandler } from '@/shared/types/imageHandlers';
+import type { SelectedModel } from '@/tools/travel-between-images/settings';
 
 export type { ShotOption };
 export type { TaskDetailsData };
@@ -153,12 +155,23 @@ export interface SegmentSlotModeData {
   projectResolution?: string;
 
   /** Structure video config for this segment (if applicable) */
-  structureVideoType?: 'uni3c' | 'flow' | 'canny' | 'depth' | null;
+  structureVideoType?: TravelGuidanceMode | null;
   structureVideoDefaults?: {
+    mode?: TravelGuidanceMode;
     motionStrength: number;
     treatment: 'adjust' | 'clip';
     uni3cEndPercent: number;
+    cannyIntensity?: number;
+    depthContrast?: number;
   };
+  structureVideoDefaultsByModel?: Partial<Record<SelectedModel, {
+    mode?: TravelGuidanceMode;
+    motionStrength: number;
+    treatment: 'adjust' | 'clip';
+    uni3cEndPercent: number;
+    cannyIntensity?: number;
+    depthContrast?: number;
+  }>>;
   structureVideoUrl?: string;
   structureVideoFrameRange?: {
     segmentStart: number;

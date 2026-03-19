@@ -23,43 +23,47 @@ interface PreparedTravelBetweenImagesTaskRequest {
 async function prepareTravelBetweenImagesTaskRequest(
   params: TravelBetweenImagesTaskInput,
 ): Promise<PreparedTravelBetweenImagesTaskRequest> {
-  validateTravelBetweenImagesParams(params);
+  const normalizedParams = params.model_name?.includes('ltx2')
+    ? { ...params, turbo_mode: false }
+    : params;
+
+  validateTravelBetweenImagesParams(normalizedParams);
 
   const { resolution: finalResolution } = await resolveProjectResolution(
-    params.project_id,
-    params.resolution
+    normalizedParams.project_id,
+    normalizedParams.resolution
   );
 
   const orchestratorTaskId = generateTaskId("sm_travel_orchestrator");
   const runId = generateRunId();
 
   const effectiveParentGenerationId = await ensureShotParentGenerationId({
-    projectId: params.project_id,
-    shotId: params.shot_id,
-    parentGenerationId: params.parent_generation_id,
+    projectId: normalizedParams.project_id,
+    shotId: normalizedParams.shot_id,
+    parentGenerationId: normalizedParams.parent_generation_id,
     context: 'TravelBetweenImages',
   });
 
   const orchestratorPayload = buildTravelBetweenImagesPayload(
-    params,
+    normalizedParams,
     finalResolution,
     orchestratorTaskId,
     runId,
     effectiveParentGenerationId
   );
 
-  const isTurboMode = params.turbo_mode === true;
+  const isTurboMode = normalizedParams.turbo_mode === true;
   const taskType = isTurboMode ? 'wan_2_2_i2v' : 'travel_orchestrator';
 
   return {
     taskRequest: {
-      project_id: params.project_id,
+      project_id: normalizedParams.project_id,
       task_type: taskType,
       params: {
         tool_type: TOOL_IDS.TRAVEL_BETWEEN_IMAGES,
         orchestrator_details: orchestratorPayload,
         ...(effectiveParentGenerationId ? { parent_generation_id: effectiveParentGenerationId } : {}),
-        ...(params.generation_name ? { generation_name: params.generation_name } : {}),
+        ...(normalizedParams.generation_name ? { generation_name: normalizedParams.generation_name } : {}),
       },
     },
     parentGenerationId: effectiveParentGenerationId,

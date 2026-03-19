@@ -2,7 +2,7 @@ import type { StructureVideoConfig } from './taskTypes';
 
 /**
  * Editor-facing structure-video model with local metadata and UI-only control
- * metadata. Guidance controls are modeled separately through structure_guidance.
+ * metadata. Guidance controls are modeled separately through canonical `travel_guidance`.
  */
 export interface StructureVideoConfigWithMetadata extends StructureVideoConfig {
   metadata?: import('@/shared/lib/videoUploader').VideoMetadata | null;

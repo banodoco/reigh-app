@@ -33,9 +33,9 @@ async function cancelTask(taskId: string): Promise<void> {
     throw new Error(`Failed to fetch task: ${fetchError.message}`);
   }
 
-  // Check if task can be cancelled (only Queued tasks can be cancelled from UI)
+  // Already in a terminal state — treat as a no-op success
   if (task.status !== 'Queued' && task.status !== 'In Progress') {
-    throw new Error(`Task is already ${task.status}`);
+    return;
   }
 
   const session = await requireSession(supabase(), 'useCancelTask.cancelTask');
@@ -81,6 +81,7 @@ export const useCancelTask = (_projectId: string | null) => {
       });
     },
     onError: (error: Error) => {
+      console.error('[useCancelTask] Raw error from server:', error.message, error);
       normalizeAndPresentError(error, { context: 'useCancelTask', toastTitle: 'Failed to cancel task' });
     },
   });

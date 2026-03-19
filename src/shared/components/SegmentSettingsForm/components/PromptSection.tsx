@@ -27,6 +27,13 @@ interface PromptSectionProps extends SegmentDefaultFieldProps, SegmentSettingsCh
   basePromptForEnhancement?: string;
   enhancePromptEnabled?: boolean;
   onEnhancePromptChange?: (enabled: boolean) => void;
+
+  // Smooth continuations (shown inline next to Make Primary when available)
+  smoothContinuations?: {
+    enabled: boolean;
+    onChange: (enabled: boolean) => void;
+    maxOutputFrames: number;
+  };
 }
 
 export const PromptSection: React.FC<PromptSectionProps> = ({
@@ -40,6 +47,7 @@ export const PromptSection: React.FC<PromptSectionProps> = ({
   onSaveFieldAsDefault,
   handleSaveFieldAsDefault,
   savingField,
+  smoothContinuations,
 }) => {
   return (
     <div className="space-y-2" data-regeneration={isRegeneration ? 'true' : 'false'}>
@@ -105,6 +113,18 @@ export const PromptSection: React.FC<PromptSectionProps> = ({
             Make Primary
           </Label>
         </div>
+        {smoothContinuations && (
+          <div className="flex items-center gap-x-2 p-2 bg-cyan-500/10 rounded-lg border border-cyan-500/20 flex-1">
+            <Switch
+              id="smooth-continuations-segment"
+              checked={smoothContinuations.enabled}
+              onCheckedChange={smoothContinuations.onChange}
+            />
+            <Label htmlFor="smooth-continuations-segment" className="text-sm font-medium cursor-pointer flex-1">
+              Smooth
+            </Label>
+          </div>
+        )}
       </div>
     </div>
   );

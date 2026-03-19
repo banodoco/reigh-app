@@ -24,13 +24,17 @@ async function invokeAuthenticatedAIPrompt<T>(
 ): Promise<T> {
   const session = await requireSession(getSupabaseClient(), context);
 
-  return invokeSupabaseEdgeFunction<T>('ai-prompt', {
+  const start = Date.now();
+  console.log(`[ai-prompt] ${context} starting, task=${body.task}`);
+  const result = await invokeSupabaseEdgeFunction<T>('ai-prompt', {
     body,
     headers: {
       Authorization: `Bearer ${session.access_token}`,
     },
-    timeoutMs: 20000,
+    timeoutMs: 60000,
   });
+  console.log(`[ai-prompt] ${context} completed in ${Date.now() - start}ms`);
+  return result;
 }
 
 export const useAIInteractionService = ({
@@ -98,25 +102,24 @@ export const useAIInteractionService = ({
       );
 
       const generatedTexts: string[] = data?.prompts ?? [];
-      const newPrompts: AIPromptItem[] = [];
 
-      for (const text of generatedTexts) {
-        const newId = generatePromptId();
-        let shortText = '';
-        if (params.addSummaryForNewPrompts) {
-          const summary = await requestSummary(text);
-          shortText = summary || '';
-        }
+      // Generate IDs synchronously so order is deterministic
+      const promptsWithIds = generatedTexts.map(text => ({
+        id: generatePromptId(),
+        text: text.trim(),
+      }));
 
-        newPrompts.push({
-          id: newId,
-          text: text.trim(),
-          shortText,
-          hidden: false,
-        });
-      }
+      // Fetch summaries in parallel instead of sequentially
+      const summaries = params.addSummaryForNewPrompts
+        ? await Promise.all(promptsWithIds.map(p => requestSummary(p.text).catch(() => '')))
+        : promptsWithIds.map(() => '');
 
-      return newPrompts;
+      return promptsWithIds.map((p, i) => ({
+        id: p.id,
+        text: p.text,
+        shortText: summaries[i] || '',
+        hidden: false,
+      }));
       } catch (err) {
         if (options.throwOnError) {
           throw err;

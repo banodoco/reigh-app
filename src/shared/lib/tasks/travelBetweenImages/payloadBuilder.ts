@@ -11,7 +11,7 @@ import {
   DEFAULT_STRUCTURE_VIDEO,
   DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES,
 } from './defaults';
-import { normalizeStructureGuidance } from '@/shared/lib/tasks/structureGuidance';
+import { normalizeTravelGuidance } from '@/shared/lib/tasks/travelGuidance';
 import {
   buildTravelBetweenImagesFamilyContract,
   TASK_FAMILY_CONTRACT_VERSION,
@@ -104,7 +104,7 @@ function assertNoImplicitLegacyStructureFields(params: TravelBetweenImagesTaskIn
   }
   throw new TaskValidationError(
     `Legacy structure-video fields are not accepted in canonical mode (${usedLegacyFields.join(', ')}). ` +
-      'Use structure_guidance + structure_videos, or pass explicit legacyStructureCompatibility for temporary migration paths.',
+      'Use travel_guidance for new requests.',
     usedLegacyFields[0],
   );
 }
@@ -208,7 +208,7 @@ export function buildTravelBetweenImagesPayload(
   // Extract steps parameter - only needed if NOT in Advanced Mode
   // In Advanced Mode, steps come from steps_per_phase in phase_config
   let stepsValue = params.steps;
-  if (!params.advanced_mode) {
+  if (!params.advanced_mode && params.num_inference_steps === undefined) {
     if (stepsValue === undefined && params.params_json_str) {
       const parsedParams = toRecordOrEmpty(safeParseJson(params.params_json_str, {}));
       const parsedSteps = asNumber(parsedParams.steps);
@@ -260,12 +260,15 @@ export function buildTravelBetweenImagesPayload(
     ...(params.pair_motion_settings?.some(x => x !== null) ? { motion_settings_expanded: params.pair_motion_settings.slice(0, numSegments) } : {}),
     segment_frames_expanded: segmentFramesExpanded,
     frame_overlap_expanded: frameOverlapExpanded,
+    ...(params.continuation_config ? { continuation_config: params.continuation_config } : {}),
     parsed_resolution_wh: finalResolution,
     model_name: params.model_name ?? DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES.model_name,
     model_type: params.model_type,
     seed_base: finalSeed,
     // Only include steps if NOT in Advanced Mode (Advanced Mode uses steps_per_phase)
-    ...(params.advanced_mode ? {} : { steps: stepsValue }),
+    ...(params.advanced_mode || stepsValue === undefined ? {} : { steps: stepsValue }),
+    ...(params.num_inference_steps !== undefined ? { num_inference_steps: params.num_inference_steps } : {}),
+    ...(params.guidance_scale !== undefined ? { guidance_scale: params.guidance_scale } : {}),
     after_first_post_generation_saturation: params.after_first_post_generation_saturation ?? DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES.after_first_post_generation_saturation,
     after_first_post_generation_brightness: params.after_first_post_generation_brightness ?? DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES.after_first_post_generation_brightness,
     debug_mode_enabled: params.debug ?? DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES.debug,
@@ -294,14 +297,16 @@ export function buildTravelBetweenImagesPayload(
     ...(params.motion_mode ? { motion_mode: params.motion_mode } : {}),
   };
 
-  const normalizedStructureGuidance = normalizeStructureGuidance({
+  const normalizedTravelGuidance = normalizeTravelGuidance({
+    modelName: params.model_name ?? DEFAULT_TRAVEL_BETWEEN_IMAGES_VALUES.model_name,
+    travelGuidance: params.travel_guidance,
     structureGuidance: params.structure_guidance,
     structureVideos: params.structure_videos,
     defaultVideoTreatment: DEFAULT_STRUCTURE_VIDEO.treatment,
     defaultUni3cEndPercent: DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.uni3cEndPercent,
   });
-  if (normalizedStructureGuidance) {
-    orchestratorPayload.structure_guidance = normalizedStructureGuidance;
+  if (normalizedTravelGuidance) {
+    orchestratorPayload.travel_guidance = normalizedTravelGuidance;
   }
 
   const additionalLoras = buildAdditionalLorasRecord(params);
@@ -340,7 +345,8 @@ export function buildTravelBetweenImagesPayload(
     additional_loras: additionalLoras,
     segment_frames_expanded: segmentFramesExpanded,
     frame_overlap_expanded: frameOverlapExpanded,
-    structure_guidance: normalizedStructureGuidance,
+    continuation_config: params.continuation_config,
+    travel_guidance: normalizedTravelGuidance,
   };
 
   const familyContract = buildTravelBetweenImagesFamilyContract({

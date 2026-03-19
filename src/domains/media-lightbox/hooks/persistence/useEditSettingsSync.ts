@@ -69,22 +69,17 @@ export function useEditSettingsSync({
   setPersistedNumGenerations,
   setPersistedPrompt,
 }: UseEditSettingsSyncProps): UseEditSettingsSyncReturn {
-  // Track if we've synced initial values from persistence to inpainting
   const hasInitializedFromPersistenceRef = useRef(false);
   const lastSyncedGenerationIdRef = useRef<string | null>(null);
-  // Track the last known good prompt to detect race-condition resets
   const lastUserPromptRef = useRef<string>('');
-  // Debounce timer for prompt race-condition restoration
   const promptSyncTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Reset sync tracking when generation changes
-  useEffect(() => {
-    if (actualGenerationId !== lastSyncedGenerationIdRef.current) {
-      hasInitializedFromPersistenceRef.current = false;
-      lastSyncedGenerationIdRef.current = actualGenerationId ?? null;
-      lastUserPromptRef.current = '';
-    }
-  }, [actualGenerationId]);
+  // Reset sync tracking when generation changes (computed during render)
+  if (actualGenerationId !== lastSyncedGenerationIdRef.current) {
+    hasInitializedFromPersistenceRef.current = false;
+    lastSyncedGenerationIdRef.current = actualGenerationId ?? null;
+    lastUserPromptRef.current = '';
+  }
 
   // Cleanup prompt restore timer on unmount
   useEffect(() => {
@@ -94,7 +89,6 @@ export function useEditSettingsSync({
   }, []);
 
   // Initialize inpainting state from persisted/lastUsed settings (once per generation)
-  // IMPORTANT: Wait for isEditSettingsReady to ensure effective values are computed correctly
   useEffect(() => {
     if (
       isEditSettingsReady &&
@@ -103,17 +97,12 @@ export function useEditSettingsSync({
     ) {
       hasInitializedFromPersistenceRef.current = true;
 
-      // Sync edit mode
       if (persistedEditMode && persistedEditMode !== editMode) {
         setEditMode(persistedEditMode);
       }
-
-      // Sync numGenerations
       if (persistedNumGenerations && persistedNumGenerations !== inpaintNumGenerations) {
         setInpaintNumGenerations(persistedNumGenerations);
       }
-
-      // Sync prompt (only if has persisted settings - otherwise leave empty)
       if (hasPersistedSettings && persistedPrompt && persistedPrompt !== inpaintPrompt) {
         setInpaintPrompt(persistedPrompt);
         lastUserPromptRef.current = persistedPrompt;
@@ -134,33 +123,23 @@ export function useEditSettingsSync({
     setInpaintPrompt,
   ]);
 
-  // Sync changes FROM inpainting TO persistence (debounced via the persistence hook)
+  // Sync all non-prompt changes FROM UI TO persistence (single effect)
   useEffect(() => {
     if (!hasInitializedFromPersistenceRef.current || !isEditSettingsReady) return;
 
-    // Sync editMode changes
     if (editMode !== persistedEditMode) {
       setPersistedEditMode(editMode);
     }
-  }, [editMode, persistedEditMode, setPersistedEditMode, isEditSettingsReady]);
-
-  useEffect(() => {
-    if (!hasInitializedFromPersistenceRef.current || !isEditSettingsReady) return;
-
-    // Sync numGenerations changes
     if (inpaintNumGenerations !== persistedNumGenerations) {
       setPersistedNumGenerations(inpaintNumGenerations);
     }
-  }, [inpaintNumGenerations, persistedNumGenerations, setPersistedNumGenerations, isEditSettingsReady]);
+  }, [editMode, persistedEditMode, setPersistedEditMode, inpaintNumGenerations, persistedNumGenerations, setPersistedNumGenerations, isEditSettingsReady]);
 
-  // Sync prompt changes with race-condition protection:
-  // If inpaintPrompt is reset to empty but we had a user prompt, it's likely
-  // a race condition from hook re-initialization — restore from persistence.
+  // Sync prompt changes with race-condition protection
   useEffect(() => {
     if (!hasInitializedFromPersistenceRef.current || !isEditSettingsReady) return;
 
     if (inpaintPrompt === '' && lastUserPromptRef.current !== '' && persistedPrompt !== '') {
-      // Restore the prompt from persistence after a short delay
       if (promptSyncTimerRef.current) clearTimeout(promptSyncTimerRef.current);
       promptSyncTimerRef.current = setTimeout(() => {
         if (persistedPrompt) {

@@ -28,6 +28,16 @@ import { useMemo, useRef, useCallback, useState } from 'react';
 import { useSegmentSettings, UseSegmentSettingsOptions } from './segments';
 import type { SegmentSettingsFormProps } from '@/shared/components/SegmentSettingsForm/types';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
+import type { TravelGuidanceMode } from '@/shared/lib/tasks/travelGuidance';
+
+interface StructureVideoDefaultsValue {
+  mode?: TravelGuidanceMode;
+  motionStrength: number;
+  treatment: 'adjust' | 'clip';
+  uni3cEndPercent: number;
+  cannyIntensity?: number;
+  depthContrast?: number;
+}
 
 interface UseSegmentSettingsFormOptions extends UseSegmentSettingsOptions {
   // These are passed through to the form
@@ -42,7 +52,7 @@ interface UseSegmentSettingsFormOptions extends UseSegmentSettingsOptions {
   queryKeyPrefix?: string;
   maxFrames?: number;
   // Structure video context
-  structureVideoType?: 'uni3c' | 'flow' | 'canny' | 'depth' | null;
+  structureVideoType?: TravelGuidanceMode | null;
   structureVideoUrl?: string;
   structureVideoFrameRange?: {
     segmentStart: number;
@@ -56,10 +66,15 @@ interface UseSegmentSettingsFormOptions extends UseSegmentSettingsOptions {
    * Returns a Promise so we can await it before showing success.
    */
   onUpdateStructureVideoDefaults?: (updates: {
+    selectedModel?: SelectedModel;
     motionStrength?: number;
     treatment?: 'adjust' | 'clip';
     uni3cEndPercent?: number;
+    mode?: TravelGuidanceMode;
+    cannyIntensity?: number;
+    depthContrast?: number;
   }) => Promise<void>;
+  structureVideoDefaultsByModel?: Partial<Record<SelectedModel, StructureVideoDefaultsValue>>;
 
   // Per-segment structure video management (Timeline Mode only)
   /** Whether in timeline mode (shows structure video upload) vs batch mode (preview only) */
@@ -313,6 +328,7 @@ export function useSegmentSettingsForm(
     shotId,
     defaults,
     structureVideoDefaults,
+    structureVideoDefaultsByModel,
     onUpdateStructureVideoDefaults,
   } = options;
 
@@ -339,6 +355,7 @@ export function useSegmentSettingsForm(
     shotId,
     defaults,
     structureVideoDefaults,
+    structureVideoDefaultsByModel,
     onUpdateStructureVideoDefaults,
   });
 

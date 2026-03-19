@@ -14,6 +14,7 @@ export const DEFAULT_FORM_STATE = {
 } as const;
 
 export const BASE_MODEL_OPTIONS = [
+  { value: 'LTX 2.3', label: 'LTX 2.3' },
   { value: 'Wan 2.2 I2V', label: 'Wan 2.2 I2V' },
   { value: 'Wan 2.2 T2V', label: 'Wan 2.2 T2V' },
   { value: 'Wan 2.1 I2V', label: 'Wan 2.1 I2V' },

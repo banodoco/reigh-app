@@ -21,6 +21,7 @@ serve(async (req) => {
     parseBody: 'none',
     auth: {
       required: true,
+      options: { allowJwtUserAuth: true },
     },
   });
   if (!bootstrap.ok) {

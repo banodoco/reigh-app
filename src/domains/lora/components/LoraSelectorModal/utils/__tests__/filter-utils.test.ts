@@ -17,6 +17,10 @@ describe('getFilterCategory', () => {
     expect(getFilterCategory('Wan 2.2 I2V')).toBe('wan');
   });
 
+  it('returns "ltx" for ltx-containing types', () => {
+    expect(getFilterCategory('LTX 2.3')).toBe('ltx');
+  });
+
   it('returns "z-image" for z-image types', () => {
     expect(getFilterCategory('Z-Image')).toBe('z-image');
     expect(getFilterCategory('z-image')).toBe('z-image');
@@ -25,6 +29,7 @@ describe('getFilterCategory', () => {
   it('returns "all" for unrecognized types', () => {
     expect(getFilterCategory('SomeOtherModel')).toBe('all');
     expect(getFilterCategory('')).toBe('all');
+    expect(getFilterCategory({ type: 'wan' })).toBe('all');
   });
 
   it('is case insensitive', () => {
@@ -49,6 +54,14 @@ describe('getSubFilterOptions', () => {
     expect(options.some(o => o.value === 'Wan 2.1 T2V 14B')).toBe(true);
   });
 
+  it('returns ltx options for "ltx" category', () => {
+    const options = getSubFilterOptions('ltx');
+    expect(options).toEqual([
+      { value: 'all', label: 'All' },
+      { value: 'LTX 2.3', label: 'LTX 2.3' },
+    ]);
+  });
+
   it('returns z-image options for "z-image" category', () => {
     const options = getSubFilterOptions('z-image');
     expect(options.length).toBeGreaterThan(0);
@@ -63,11 +76,13 @@ describe('getSubFilterOptions', () => {
 describe('getDefaultSubFilter', () => {
   it('returns "all" for undefined loraType', () => {
     expect(getDefaultSubFilter(undefined)).toBe('all');
+    expect(getDefaultSubFilter({ type: 'LTX 2.3' })).toBe('all');
   });
 
   it('returns the loraType if it matches a sub-filter option', () => {
     expect(getDefaultSubFilter('Qwen Image')).toBe('Qwen Image');
     expect(getDefaultSubFilter('Wan 2.1 T2V 14B')).toBe('Wan 2.1 T2V 14B');
+    expect(getDefaultSubFilter('LTX 2.3')).toBe('LTX 2.3');
     expect(getDefaultSubFilter('Z-Image')).toBe('Z-Image');
   });
 
@@ -102,6 +117,12 @@ describe('matchesFilters', () => {
     expect(matchesFilters('Wan 2.1 T2V 14B', 'wan', 'all')).toBe(true);
     expect(matchesFilters('Wan 2.1 T2V 14B', 'wan', 'Wan 2.1 T2V 14B')).toBe(true);
     expect(matchesFilters('Wan 2.1 T2V 14B', 'wan', 'Wan 2.2 T2V')).toBe(false);
+  });
+
+  it('matches ltx types correctly', () => {
+    expect(matchesFilters('LTX 2.3', 'ltx', 'all')).toBe(true);
+    expect(matchesFilters('LTX 2.3', 'ltx', 'LTX 2.3')).toBe(true);
+    expect(matchesFilters('LTX 2.3', 'ltx', 'Wan 2.2 I2V')).toBe(false);
   });
 
   it('matches z-image types correctly', () => {

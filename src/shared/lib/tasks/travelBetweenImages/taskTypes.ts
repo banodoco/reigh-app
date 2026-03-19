@@ -33,6 +33,56 @@ export interface StructureGuidanceConfig {
   zero_empty_frames?: boolean;
 }
 
+export interface TravelGuidanceVideoConfig {
+  path: string;
+  start_frame?: number;
+  end_frame?: number | null;
+  treatment?: 'adjust' | 'clip';
+  source_start_frame?: number;
+  source_end_frame?: number | null;
+}
+
+export interface TravelGuidanceNone {
+  kind: 'none';
+}
+
+export interface TravelGuidanceVace {
+  kind: 'vace';
+  mode: 'flow' | 'canny' | 'depth' | 'raw';
+  videos: TravelGuidanceVideoConfig[];
+  strength?: number;
+  canny_intensity?: number;
+  depth_contrast?: number;
+}
+
+export interface TravelGuidanceLtxControl {
+  kind: 'ltx_control';
+  mode: 'pose' | 'depth' | 'canny' | 'video';
+  videos: TravelGuidanceVideoConfig[];
+  strength?: number;
+}
+
+export interface TravelGuidanceUni3c {
+  kind: 'uni3c';
+  videos: TravelGuidanceVideoConfig[];
+  strength?: number;
+  step_window?: [number, number];
+  frame_policy?: 'fit' | 'clip';
+  zero_empty_frames?: boolean;
+  keep_on_gpu?: boolean;
+}
+
+export type TravelGuidance =
+  | TravelGuidanceNone
+  | TravelGuidanceVace
+  | TravelGuidanceLtxControl
+  | TravelGuidanceUni3c;
+
+export interface ContinuationConfig {
+  strategy: 'guide_overlap_masked' | 'prefix_video_source' | 'svi_latent_chaining';
+  overlap_frames: number;
+}
+
 /**
  * Single structure video mapping entry.
  * Frame ranges are half-open: `start_frame` inclusive, `end_frame` exclusive.
@@ -85,8 +135,8 @@ export interface ModelConfig {
 }
 
 /**
- * Strict API request payload for travel-between-images task creation.
- * This contract intentionally excludes UI-only fields and migration-only aliases.
+ * Canonical API request payload for new travel-between-images task creation.
+ * This contract intentionally excludes legacy structure-guidance write aliases.
  */
 export interface TravelBetweenImagesRequestPayload {
   project_id: string;
@@ -94,6 +144,7 @@ export interface TravelBetweenImagesRequestPayload {
   base_prompts: string[];
   segment_frames: number[];
   frame_overlap: number[];
+  continuation_config?: ContinuationConfig;
 
   base_prompt?: string;
   negative_prompts?: string[];
@@ -112,6 +163,8 @@ export interface TravelBetweenImagesRequestPayload {
   model_type?: 'i2v' | 'vace';
   seed?: number;
   steps?: number;
+  num_inference_steps?: number;
+  guidance_scale?: number;
   random_seed?: boolean;
   turbo_mode?: boolean;
   debug?: boolean;
@@ -141,18 +194,31 @@ export interface TravelBetweenImagesRequestPayload {
   loras?: PathLoraConfig[];
   pair_motion_settings?: (Record<string, unknown> | null)[];
 
-  structure_guidance?: StructureGuidanceConfig;
-  structure_videos?: StructureVideoConfig[];
+  travel_guidance?: TravelGuidance;
 
   // Optional join config for automatic stitch-after-generation.
   stitch_config?: StitchConfig;
 }
 
 /**
- * Canonical create-task input for travel-between-images.
- * Legacy structure aliases should be translated in adapters before reaching this type.
+ * Internal compatibility input accepted by task builders while older call-sites
+ * are still being normalized at the boundary.
  */
-export type TravelBetweenImagesTaskInput = TravelBetweenImagesRequestPayload;
+interface TravelBetweenImagesLegacyCompatInput {
+  /** @deprecated New writes should use `travel_guidance`. */
+  structure_guidance?: StructureGuidanceConfig;
+  /** @deprecated New writes should use `travel_guidance.videos`. */
+  structure_videos?: StructureVideoConfig[];
+}
+
+/**
+ * Canonical create-task input for travel-between-images.
+ * Internal builders still accept legacy structure aliases for normalization, but
+ * exported write APIs should prefer `TravelBetweenImagesRequestPayload`.
+ */
+export type TravelBetweenImagesTaskInput =
+  TravelBetweenImagesRequestPayload
+  & TravelBetweenImagesLegacyCompatInput;
 
 export interface StitchConfig {
   context_frame_count: number;

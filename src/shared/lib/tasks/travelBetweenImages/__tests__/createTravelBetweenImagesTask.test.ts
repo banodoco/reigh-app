@@ -38,7 +38,7 @@ import {
   createTravelBetweenImagesTask,
   createTravelBetweenImagesTaskWithParentGeneration,
 } from '../createTravelBetweenImagesTask';
-import { validateTravelBetweenImagesParams } from '../payloadBuilder';
+import { buildTravelBetweenImagesPayload, validateTravelBetweenImagesParams } from '../payloadBuilder';
 
 describe('createTravelBetweenImagesTask', () => {
   beforeEach(() => {
@@ -93,6 +93,36 @@ describe('createTravelBetweenImagesTask', () => {
       expect.objectContaining({
         task_type: 'wan_2_2_i2v',
       })
+    );
+  });
+
+  it('forces turbo off for ltx2 model payloads', async () => {
+    await createTravelBetweenImagesTask({
+      ...baseParams,
+      model_name: 'ltx2_22B',
+      turbo_mode: true,
+    });
+
+    expect(validateTravelBetweenImagesParams).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model_name: 'ltx2_22B',
+        turbo_mode: false,
+      }),
+    );
+    expect(buildTravelBetweenImagesPayload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model_name: 'ltx2_22B',
+        turbo_mode: false,
+      }),
+      expect.any(String),
+      expect.any(String),
+      expect.any(String),
+      expect.any(String),
+    );
+    expect(mockCreateTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        task_type: 'travel_orchestrator',
+      }),
     );
   });
 

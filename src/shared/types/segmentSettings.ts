@@ -1,6 +1,8 @@
 /** Canonical travel-between-images settings contracts (camelCase, UI motion scale is 0-100). */
 
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
+import type { TravelGuidanceMode } from '@/shared/lib/tasks/travelGuidance';
+import type { SelectedModel } from '@/tools/travel-between-images/settings';
 
 /** LoRA settings shared by shot defaults and segment overrides. */
 export interface LoraConfig {
@@ -43,9 +45,16 @@ export interface SegmentSettings {
 
   makePrimaryVariant: boolean;
 
-  structureMotionStrength?: number;
-  structureTreatment?: 'adjust' | 'clip';
-  structureUni3cEndPercent?: number;
+  selectedModel?: SelectedModel;
+  inferenceSteps?: number;
+  guidanceScale?: number;
+  guidanceMode?: TravelGuidanceMode;
+  guidanceStrength?: number;
+  guidanceTreatment?: 'adjust' | 'clip';
+  guidanceUni3cEndPercent?: number;
+  guidanceCannyIntensity?: number;
+  guidanceDepthContrast?: number;
+  smoothContinuations?: boolean;
 }
 
 /**
@@ -79,6 +88,9 @@ export const DEFAULT_SEGMENT_SETTINGS: SegmentSettings = {
   randomSeed: true,
   seed: undefined,
   makePrimaryVariant: false,
+  selectedModel: 'wan-2.2',
+  guidanceScale: undefined,
+  smoothContinuations: undefined,
 };
 
 export const DEFAULT_SHOT_VIDEO_SETTINGS: ShotVideoSettings = {
@@ -88,4 +100,5 @@ export const DEFAULT_SHOT_VIDEO_SETTINGS: ShotVideoSettings = {
   textAfterPrompts: '',
   enhancePrompt: false,
   generationTypeMode: 'i2v',
+  smoothContinuations: false,
 };

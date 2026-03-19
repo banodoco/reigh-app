@@ -9,7 +9,7 @@ import {
 
 type EditableLora = Resource & { metadata: LoraModel };
 
-export function useLoraFilters(loraType: string) {
+export function useLoraFilters(loraType: unknown) {
   const [showMyLorasOnly, setShowMyLorasOnly] = useState(false);
   const [showAddedLorasOnly, setShowAddedLorasOnly] = useState(false);
   const [filteredLoraCount, setFilteredLoraCount] = useState(0);

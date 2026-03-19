@@ -15,10 +15,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
 import {
-  buildStructureGuidanceFromControls,
-  normalizeStructureGuidance,
-  resolveStructureGuidanceControls,
-} from '@/shared/lib/tasks/structureGuidance';
+  buildTravelGuidanceFromControls,
+  getDefaultTravelGuidanceMode,
+  getDefaultTravelGuidanceStrength,
+  normalizeTravelGuidance,
+  resolveTravelGuidanceControls,
+} from '@/shared/lib/tasks/travelGuidance';
 import { extractSegmentImages } from '@/shared/lib/tasks/travelBetweenImages/segmentImages';
 import { updateToolSettingsSupabase } from '@/shared/hooks/settings/useToolSettings';
 import { queryKeys } from '@/shared/lib/queryKeys';
@@ -28,6 +30,10 @@ import { SETTINGS_IDS } from '@/shared/lib/settingsIds';
 import { TOOL_IDS } from '@/shared/lib/tooling/toolIds';
 import type { GenerationRow } from '@/domains/generation/types';
 import type { TaskDetailsData } from '../types';
+import {
+  MODEL_DEFAULTS,
+  type SelectedModel,
+} from '@/tools/travel-between-images/settings';
 import {
   stripDuplicateStructureDetailParams,
   stripLegacyStructureParams,
@@ -90,6 +96,53 @@ function sanitizeStoredStructureVideos(
     }));
 }
 
+const SELECTED_MODELS: SelectedModel[] = ['wan-2.2', 'ltx-2.3', 'ltx-2.3-fast'];
+
+type StructureVideoDefaultsValue = NonNullable<
+  NonNullable<SegmentRegenerateFormProps['structure']>['structureVideoDefaults']
+>;
+
+function resolveStructureVideoDefaultsForModel(input: {
+  selectedModel: SelectedModel;
+  structureVideos: Array<Record<string, unknown>> | null | undefined;
+  travelGuidance?: unknown;
+  structureGuidance?: unknown;
+}): StructureVideoDefaultsValue | undefined {
+  const modelName = MODEL_DEFAULTS[input.selectedModel].modelName;
+  const shotStructureVideos = sanitizeStoredStructureVideos(input.structureVideos);
+  const firstStructureVideo = shotStructureVideos[0];
+  if (!firstStructureVideo) {
+    return undefined;
+  }
+
+  const travelGuidance = normalizeTravelGuidance({
+    modelName,
+    travelGuidance: input.travelGuidance,
+    structureGuidance: input.structureGuidance,
+    structureVideos: input.structureVideos,
+    defaultVideoTreatment: 'adjust',
+    defaultUni3cEndPercent: 0.1,
+  });
+
+  const controls = resolveTravelGuidanceControls(travelGuidance, {
+    defaultMode: getDefaultTravelGuidanceMode(modelName),
+    defaultStrength: getDefaultTravelGuidanceStrength(
+      modelName,
+      getDefaultTravelGuidanceMode(modelName),
+    ),
+    defaultUni3cEndPercent: 0.1,
+  }, modelName);
+
+  return {
+    mode: controls.mode,
+    motionStrength: controls.strength,
+    treatment: ((firstStructureVideo.treatment as string) ?? 'adjust') as 'adjust' | 'clip',
+    uni3cEndPercent: controls.uni3cEndPercent,
+    cannyIntensity: controls.cannyIntensity,
+    depthContrast: controls.depthContrast,
+  };
+}
+
 export function useVideoRegenerateMode({
   isVideo,
   media,
@@ -106,6 +159,23 @@ export function useVideoRegenerateMode({
   currentFrameCount,
 }: UseVideoRegenerateModeProps): UseVideoRegenerateModeReturn {
   const queryClient = useQueryClient();
+  const currentModelName = useMemo(() => {
+    const primaryParams = primaryVariant?.params as Record<string, unknown> | undefined;
+    const primaryOrchestrator = primaryParams?.orchestrator_details as Record<string, unknown> | undefined;
+    const taskParams = adjustedTaskDetailsData?.task?.params as Record<string, unknown> | undefined;
+    const taskOrchestrator = taskParams?.orchestrator_details as Record<string, unknown> | undefined;
+    const mediaParams = media.params as Record<string, unknown> | undefined;
+    const mediaOrchestrator = mediaParams?.orchestrator_details as Record<string, unknown> | undefined;
+
+    return [
+      primaryParams?.model_name,
+      primaryOrchestrator?.model_name,
+      taskParams?.model_name,
+      taskOrchestrator?.model_name,
+      mediaParams?.model_name,
+      mediaOrchestrator?.model_name,
+    ].find((value): value is string => typeof value === 'string');
+  }, [adjustedTaskDetailsData?.task?.params, media.params, primaryVariant?.params]);
 
   // Fetch shot's aspect ratio AND structure videos for regeneration
   const { data: shotDataForRegen, isLoading: isLoadingShotData } = useQuery({
@@ -126,7 +196,10 @@ export function useVideoRegenerateMode({
 
       return {
         aspect_ratio: data?.aspect_ratio,
+        selected_model: ((allSettings?.[TOOL_IDS.TRAVEL_BETWEEN_IMAGES] ?? {}) as Record<string, unknown>).selectedModel ?? null,
         structure_videos: (structureVideoSettings.structure_videos as unknown[]) ?? null,
+        travel_guidance: structureVideoSettings.travel_guidance ?? null,
+        travel_guidance_by_model: structureVideoSettings.travel_guidance_by_model ?? null,
         structure_guidance: structureVideoSettings.structure_guidance ?? null,
       };
     },
@@ -136,12 +209,18 @@ export function useVideoRegenerateMode({
 
   // Callback to update structure video defaults when "Set as Shot Defaults" is clicked
   const handleUpdateStructureVideoDefaults = useCallback(async (updates: {
+    selectedModel?: SelectedModel;
     motionStrength?: number;
     treatment?: 'adjust' | 'clip';
     uni3cEndPercent?: number;
+    mode?: ReturnType<typeof getDefaultTravelGuidanceMode>;
+    cannyIntensity?: number;
+    depthContrast?: number;
   }): Promise<void> => {
     if (!shotId) return;
 
+    const targetSelectedModel = updates.selectedModel ?? 'wan-2.2';
+    const targetModelName = MODEL_DEFAULTS[targetSelectedModel].modelName;
     const shotStructureVideos = sanitizeStoredStructureVideos(
       shotDataForRegen?.structure_videos as Array<Record<string, unknown>> | null,
     );
@@ -149,17 +228,24 @@ export function useVideoRegenerateMode({
       return;
     }
 
-    const currentGuidance = normalizeStructureGuidance({
+    const currentGuidance = normalizeTravelGuidance({
+      modelName: targetModelName,
+      travelGuidance: (
+        shotDataForRegen?.travel_guidance_by_model as Partial<Record<SelectedModel, unknown>> | undefined
+      )?.[targetSelectedModel] ?? shotDataForRegen?.travel_guidance ?? undefined,
       structureGuidance: shotDataForRegen?.structure_guidance ?? undefined,
       structureVideos: shotDataForRegen?.structure_videos ?? undefined,
       defaultVideoTreatment: 'adjust',
       defaultUni3cEndPercent: 0.1,
     });
-    const currentControls = resolveStructureGuidanceControls(currentGuidance, {
-      defaultStructureType: 'flow',
-      defaultMotionStrength: 1.2,
+    const currentControls = resolveTravelGuidanceControls(currentGuidance, {
+      defaultMode: getDefaultTravelGuidanceMode(targetModelName),
+      defaultStrength: getDefaultTravelGuidanceStrength(
+        targetModelName,
+        getDefaultTravelGuidanceMode(targetModelName),
+      ),
       defaultUni3cEndPercent: 0.1,
-    });
+    }, targetModelName);
 
     const updatedVideos = shotStructureVideos.map((video, index) => {
       if (index === 0) {
@@ -170,16 +256,25 @@ export function useVideoRegenerateMode({
       }
       return video;
     });
-    const updatedGuidance = buildStructureGuidanceFromControls({
+    const updatedGuidance = buildTravelGuidanceFromControls({
+      modelName: targetModelName,
       structureVideos: updatedVideos,
       controls: {
         ...currentControls,
-        ...(updates.motionStrength !== undefined ? { motionStrength: updates.motionStrength } : {}),
+        ...(updates.mode !== undefined ? { mode: updates.mode } : {}),
+        ...(updates.motionStrength !== undefined ? { strength: updates.motionStrength } : {}),
         ...(updates.uni3cEndPercent !== undefined ? { uni3cEndPercent: updates.uni3cEndPercent } : {}),
+        ...(updates.cannyIntensity !== undefined ? { cannyIntensity: updates.cannyIntensity } : {}),
+        ...(updates.depthContrast !== undefined ? { depthContrast: updates.depthContrast } : {}),
       },
       defaultVideoTreatment: updatedVideos[0]?.treatment === 'clip' ? 'clip' : 'adjust',
-      defaultUni3cEndPercent: updates.uni3cEndPercent ?? currentControls.uni3cEndPercent,
     });
+
+    const shotSelectedModel = (shotDataForRegen?.selected_model === 'wan-2.2'
+      || shotDataForRegen?.selected_model === 'ltx-2.3'
+      || shotDataForRegen?.selected_model === 'ltx-2.3-fast'
+      ? shotDataForRegen.selected_model
+      : 'wan-2.2') as SelectedModel;
 
     // Update structure video settings and await completion
     await updateToolSettingsSupabase({
@@ -188,7 +283,12 @@ export function useVideoRegenerateMode({
       toolId: SETTINGS_IDS.TRAVEL_STRUCTURE_VIDEO,
       patch: {
         structure_videos: updatedVideos,
-        structure_guidance: updatedGuidance ?? null,
+        travel_guidance: targetSelectedModel === shotSelectedModel ? updatedGuidance ?? null : shotDataForRegen?.travel_guidance ?? null,
+        travel_guidance_by_model: {
+          ...((shotDataForRegen?.travel_guidance_by_model as Record<string, unknown> | null) ?? {}),
+          [targetSelectedModel]: updatedGuidance ?? null,
+        },
+        structure_guidance: null,
       },
     }, 'immediate');
 
@@ -198,7 +298,15 @@ export function useVideoRegenerateMode({
       queryClient.refetchQueries({ queryKey: queryKeys.settings.byTool(SETTINGS_IDS.TRAVEL_STRUCTURE_VIDEO) }),
     ]);
 
-  }, [shotId, shotDataForRegen?.structure_guidance, shotDataForRegen?.structure_videos, queryClient]);
+  }, [
+    queryClient,
+    shotDataForRegen?.selected_model,
+    shotDataForRegen?.structure_guidance,
+    shotDataForRegen?.structure_videos,
+    shotDataForRegen?.travel_guidance,
+    shotDataForRegen?.travel_guidance_by_model,
+    shotId,
+  ]);
 
   // Compute effective resolution for regeneration
   const effectiveRegenerateResolution = useMemo(() => {
@@ -260,14 +368,40 @@ export function useVideoRegenerateMode({
     const shotStructureVideos = sanitizeStoredStructureVideos(
       shotDataForRegen?.structure_videos as Array<Record<string, unknown>> | null,
     );
-    const shotStructureGuidance = normalizeStructureGuidance({
+    const shotSelectedModel = (
+      shotDataForRegen?.selected_model === 'wan-2.2'
+      || shotDataForRegen?.selected_model === 'ltx-2.3'
+      || shotDataForRegen?.selected_model === 'ltx-2.3-fast'
+        ? shotDataForRegen.selected_model
+        : 'wan-2.2'
+    ) as SelectedModel;
+    const shotTravelGuidance = normalizeTravelGuidance({
+      modelName: MODEL_DEFAULTS[shotSelectedModel].modelName,
+      travelGuidance: (
+        shotDataForRegen?.travel_guidance_by_model as Partial<Record<SelectedModel, unknown>> | undefined
+      )?.[shotSelectedModel] ?? shotDataForRegen?.travel_guidance ?? undefined,
       structureGuidance: shotDataForRegen?.structure_guidance ?? undefined,
       structureVideos: shotDataForRegen?.structure_videos ?? undefined,
       defaultVideoTreatment: 'adjust',
       defaultUni3cEndPercent: 0.1,
     });
 
-    if (shotStructureGuidance) {
+    const structureVideoDefaultsByModel = SELECTED_MODELS.reduce((acc, model) => {
+      const defaultsForModel = resolveStructureVideoDefaultsForModel({
+        selectedModel: model,
+        structureVideos: shotDataForRegen?.structure_videos as Array<Record<string, unknown>> | null | undefined,
+        travelGuidance: (
+          shotDataForRegen?.travel_guidance_by_model as Partial<Record<SelectedModel, unknown>> | undefined
+        )?.[model] ?? (model === shotSelectedModel ? shotDataForRegen?.travel_guidance : undefined),
+        structureGuidance: shotDataForRegen?.structure_guidance,
+      });
+      if (defaultsForModel) {
+        acc[model] = defaultsForModel;
+      }
+      return acc;
+    }, {} as Partial<Record<SelectedModel, StructureVideoDefaultsValue>>);
+
+    if (shotTravelGuidance) {
       const cleanedTaskParams = { ...taskParams };
       stripLegacyStructureParams(cleanedTaskParams);
       const cleanedOrchestratorDetails = {
@@ -277,11 +411,10 @@ export function useVideoRegenerateMode({
       stripDuplicateStructureDetailParams(cleanedOrchestratorDetails);
       taskParams = {
         ...cleanedTaskParams,
-        structure_guidance: shotStructureGuidance,
-        ...(shotStructureVideos.length > 0 ? { structure_videos: shotStructureVideos } : {}),
+        travel_guidance: shotTravelGuidance,
         orchestrator_details: {
           ...cleanedOrchestratorDetails,
-          structure_guidance: shotStructureGuidance,
+          travel_guidance: shotTravelGuidance,
         },
       };
     }
@@ -375,16 +508,22 @@ export function useVideoRegenerateMode({
     // In Timeline Mode with segmentSlotMode, prefer segment-level structure video data
     // over shot-level defaults (since segmentSlotMode has per-segment coverage info)
     const firstStructureVideo = shotStructureVideos?.[0];
-    const shotStructureControls = resolveStructureGuidanceControls(shotStructureGuidance, {
-      defaultStructureType: 'flow',
-      defaultMotionStrength: 1.2,
+    const shotStructureControls = resolveTravelGuidanceControls(shotTravelGuidance, {
+      defaultMode: getDefaultTravelGuidanceMode(MODEL_DEFAULTS[shotSelectedModel].modelName),
+      defaultStrength: getDefaultTravelGuidanceStrength(
+        MODEL_DEFAULTS[shotSelectedModel].modelName,
+        getDefaultTravelGuidanceMode(MODEL_DEFAULTS[shotSelectedModel].modelName),
+      ),
       defaultUni3cEndPercent: 0.1,
-    });
-    const shotStructureVideoType = shotStructureControls.structureType;
+    }, MODEL_DEFAULTS[shotSelectedModel].modelName);
+    const shotStructureVideoType = shotStructureControls.mode;
     const shotStructureVideoDefaults = firstStructureVideo ? {
-      motionStrength: shotStructureControls.motionStrength,
+      mode: shotStructureControls.mode,
+      motionStrength: shotStructureControls.strength,
       treatment: ((firstStructureVideo.treatment as string) ?? 'adjust') as 'adjust' | 'clip',
       uni3cEndPercent: shotStructureControls.uni3cEndPercent,
+      cannyIntensity: shotStructureControls.cannyIntensity,
+      depthContrast: shotStructureControls.depthContrast,
     } : undefined;
     const shotStructureVideoUrl = firstStructureVideo?.path as string | undefined;
 
@@ -439,6 +578,7 @@ export function useVideoRegenerateMode({
       structure: {
         structureVideoType,
         structureVideoDefaults,
+        structureVideoDefaultsByModel,
         structureVideoUrl,
         structureVideoFrameRange: segmentSlotMode?.structureVideoFrameRange,
         onUpdateStructureVideoDefaults: handleUpdateStructureVideoDefaults,

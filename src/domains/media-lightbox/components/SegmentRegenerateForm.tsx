@@ -14,6 +14,12 @@ import { extractSettingsFromParams } from '@/shared/components/SegmentSettingsFo
 import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
 import { submitSegmentTask, buildStructureVideoForTask } from './submitSegmentTask';
 import type { StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
+import type { TravelGuidanceMode } from '@/shared/lib/tasks/travelGuidance';
+import {
+  MODEL_DEFAULTS,
+  resolveSelectedModelFromModelName,
+  type SelectedModel,
+} from '@/tools/travel-between-images/settings';
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
@@ -79,13 +85,24 @@ interface SegmentRegenerateVariantImportProps {
 
 interface SegmentRegenerateStructureDefaultsProps {
   /** Structure video type for this segment (null = no structure video coverage) */
-  structureVideoType?: 'uni3c' | 'flow' | 'canny' | 'depth' | null;
+  structureVideoType?: TravelGuidanceMode | null;
   /** Shot-level structure video defaults */
   structureVideoDefaults?: {
+    mode?: TravelGuidanceMode;
     motionStrength: number;
     treatment: 'adjust' | 'clip';
     uni3cEndPercent: number;
+    cannyIntensity?: number;
+    depthContrast?: number;
   };
+  structureVideoDefaultsByModel?: Partial<Record<SelectedModel, {
+    mode?: TravelGuidanceMode;
+    motionStrength: number;
+    treatment: 'adjust' | 'clip';
+    uni3cEndPercent: number;
+    cannyIntensity?: number;
+    depthContrast?: number;
+  }>>;
   /** Structure video URL for preview */
   structureVideoUrl?: string;
   /** Frame range info for this segment's structure video usage */
@@ -171,6 +188,7 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
   const {
     structureVideoType,
     structureVideoDefaults,
+    structureVideoDefaultsByModel,
     structureVideoUrl,
     structureVideoFrameRange,
     onUpdateStructureVideoDefaults,
@@ -217,7 +235,6 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
     segmentIndex,
     startImageUrl,
     endImageUrl,
-    modelName: initialModelName,
     resolution: projectResolution ?? initialResolution,
     isRegeneration: true,
     buttonLabel: "Regenerate Video",
@@ -225,6 +242,7 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
     queryKeyPrefix: "lightbox-segment-presets",
     // Structure video
     structureVideoDefaults: structureVideoDefaults ?? null,
+    structureVideoDefaultsByModel,
     structureVideoType,
     structureVideoUrl,
     structureVideoFrameRange,
@@ -242,6 +260,14 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
     maxFrames,
   });
 
+  const effectiveSelectedModel = settings.selectedModel
+    ?? formProps.shotDefaults?.selectedModel
+    ?? resolveSelectedModelFromModelName(initialModelName);
+  const selectedModelName = MODEL_DEFAULTS[effectiveSelectedModel].modelName;
+  const effectiveStructureVideoDefaults = structureVideoDefaultsByModel?.[effectiveSelectedModel]
+    ?? structureVideoDefaults
+    ?? null;
+
   // Extract enhanced prompt from form props (enhancePromptEnabled and onEnhancePromptChange are now included in formProps)
   const { enhancedPrompt } = formProps;
 
@@ -255,10 +281,23 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
   // Build structure video config from props (for task creation)
   const structureVideoForTask = useMemo(
     () => buildStructureVideoForTask(
-      { structureVideoUrl, structureVideoType, structureVideoFrameRange, structureVideoDefaults },
+      {
+        structureVideoUrl,
+        structureVideoType,
+        structureVideoFrameRange,
+        structureVideoDefaults: effectiveStructureVideoDefaults,
+        modelName: selectedModelName,
+      },
       getSettingsForTaskCreation,
     ),
-    [structureVideoUrl, structureVideoType, structureVideoFrameRange, structureVideoDefaults, getSettingsForTaskCreation],
+    [
+      effectiveStructureVideoDefaults,
+      getSettingsForTaskCreation,
+      selectedModelName,
+      structureVideoFrameRange,
+      structureVideoType,
+      structureVideoUrl,
+    ],
   );
 
   // Effect to load variant settings when triggered from outside (e.g., VariantSelector hover button)
@@ -338,6 +377,8 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
         segmentIndex,
         pairShotGenerationId,
         projectResolution,
+        modelName: selectedModelName,
+        generationTypeMode: formProps.shotDefaults?.generationTypeMode,
         structureInput: structureVideoForTask,
       },
       run,
@@ -359,6 +400,7 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
     endImageVariantId,
     pairShotGenerationId,
     projectResolution,
+    selectedModelName,
     enhancePromptRef,
     run,
     queryClient,
@@ -370,6 +412,8 @@ export const SegmentRegenerateForm: React.FC<SegmentRegenerateFormProps> = ({
   return (
     <SegmentSettingsForm
       {...formProps}
+      modelName={selectedModelName}
+      structureVideoDefaults={effectiveStructureVideoDefaults ?? undefined}
       onSubmit={handleSubmit}
       onFrameCountChange={handleFrameCountChange}
       edgeExtendAmount={6}

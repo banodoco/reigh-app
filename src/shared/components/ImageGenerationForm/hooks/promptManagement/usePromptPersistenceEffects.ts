@@ -25,12 +25,11 @@ export function usePromptPersistenceEffects(input: PromptPersistenceInput): void
     effectivePromptMode,
   } = input;
 
-  useEffect(() => {
-    setLastKnownPromptCount(getStoredPromptCount(effectiveShotId));
-  }, [effectiveShotId, setLastKnownPromptCount]);
-
+  // Sync prompt count with sessionStorage: read on shot change, write when prompts change
   useEffect(() => {
     if (!ready || promptsLength <= 0) {
+      // Not ready yet — read the last known count from storage
+      setLastKnownPromptCount(getStoredPromptCount(effectiveShotId));
       return;
     }
 

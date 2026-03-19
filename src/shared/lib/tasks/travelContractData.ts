@@ -38,6 +38,8 @@ interface TravelContractData {
   amountOfMotion?: number;
   phaseConfig?: UnknownRecord;
   additionalLoras?: UnknownRecord;
+  continuationConfig?: UnknownRecord;
+  travelGuidance?: UnknownRecord;
   structureGuidance?: UnknownRecord;
   segmentFramesExpanded?: number[];
   frameOverlapExpanded?: number[];
@@ -75,6 +77,7 @@ function pickRecord(reader: ReturnType<typeof createTravelPayloadReader>, key: s
 
 /** Field descriptors for structure source: [outputKey, lookupKeys, sources] */
 const STRUCTURE_FIELDS: [string, string[], TravelPayloadSource[]][] = [
+  ['travel_guidance', ['travel_guidance', 'travelGuidance'], CONTRACT_THEN_LEGACY],
   ['structure_guidance', ['structure_guidance', 'structureGuidance'], CONTRACT_THEN_LEGACY],
   ['structure_videos', ['structure_videos', 'structureVideos'], CONTRACT_THEN_LEGACY],
   ['structure_video_path', ['structure_video_path', 'structureVideoPath'], LEGACY_SOURCES],
@@ -101,9 +104,10 @@ export function buildTravelStructureSource(
     }
   }
 
-  // Fallback: if structure_videos wasn't found, check for videos array inside structure_guidance
-  if (result.structure_videos === undefined && result.structure_guidance !== undefined) {
-    const guidanceVideos = asRecord(result.structure_guidance)?.videos;
+  // Fallback: if structure_videos wasn't found, check for videos array inside the canonical or legacy guidance object
+  if (result.structure_videos === undefined) {
+    const guidanceVideos = asRecord(result.travel_guidance)?.videos
+      ?? asRecord(result.structure_guidance)?.videos;
     if (Array.isArray(guidanceVideos)) {
       result.structure_videos = guidanceVideos;
     }
@@ -137,8 +141,10 @@ export function readResolvedTravelStructure(
 
 export function readTravelContractData(snapshot: TaskPayloadSnapshot): TravelContractData {
   const reader = createTravelPayloadReader(snapshot);
+  const travelGuidance = pickRecord(reader, 'travel_guidance');
   const structureGuidance = pickRecord(reader, 'structure_guidance');
   const phaseConfig = pickRecord(reader, 'phase_config');
+  const continuationConfig = pickRecord(reader, 'continuation_config');
 
   return {
     inputImages: reader.pickStringArray('input_images', CONTRACT_THEN_LEGACY)
@@ -156,6 +162,8 @@ export function readTravelContractData(snapshot: TaskPayloadSnapshot): TravelCon
     amountOfMotion: reader.pickNumber('amount_of_motion', CONTRACT_THEN_LEGACY),
     phaseConfig,
     additionalLoras: pickRecord(reader, 'additional_loras'),
+    continuationConfig,
+    travelGuidance,
     structureGuidance,
     segmentFramesExpanded: reader.pickNumberArray('segment_frames_expanded', CONTRACT_THEN_LEGACY),
     frameOverlapExpanded: reader.pickNumberArray('frame_overlap_expanded', CONTRACT_THEN_LEGACY),

@@ -1,4 +1,5 @@
 import { normalizeStructureGuidance } from '@/shared/lib/tasks/structureGuidance';
+import { resolveTravelGuidanceState } from '@/shared/lib/tasks/travelGuidance';
 import type { StructureGuidanceConfig } from './taskTypes';
 import type {
   StructureVideoConfigWithLegacyGuidance,
@@ -101,6 +102,39 @@ export function resolveTravelStructureState(
   const settings = asRecord(value);
   if (!settings) {
     return { structureVideos: [] };
+  }
+
+  // structure_videos: [] is an explicit removal — don't reconstruct from stale guidance
+  if (Array.isArray(settings.structure_videos) && settings.structure_videos.length === 0) {
+    return { structureVideos: [] };
+  }
+
+  const modelName = parseString(settings.model_name) ?? parseString(settings.modelName);
+  const directTravelState = resolveTravelGuidanceState({
+    modelName,
+    travelGuidance: settings.travel_guidance ?? settings.travelGuidance,
+    defaultVideoTreatment: options.defaultVideoTreatment,
+    defaultUni3cEndPercent: options.defaultUni3cEndPercent,
+  });
+  if (directTravelState.travelGuidance) {
+    // Merge metadata/resource_id from the raw structure_videos array back onto
+    // the travel-guidance-derived videos (travel_guidance strips these fields).
+    const rawStructureVideos = Array.isArray(settings.structure_videos)
+      ? settings.structure_videos as StructureVideoConfigWithMetadata[]
+      : [];
+    const enrichedVideos: StructureVideoConfigWithMetadata[] = directTravelState.structureVideos.map((video) => {
+      const rawMatch = rawStructureVideos.find((raw) => raw.path === video.path);
+      return {
+        ...video,
+        metadata: rawMatch?.metadata ?? null,
+        resource_id: rawMatch?.resource_id ?? null,
+      };
+    });
+
+    return {
+      structureVideos: enrichedVideos,
+      ...(directTravelState.structureGuidance ? { structureGuidance: directTravelState.structureGuidance } : {}),
+    };
   }
 
   const migratedStructureVideos = migrateLegacyStructureVideos(

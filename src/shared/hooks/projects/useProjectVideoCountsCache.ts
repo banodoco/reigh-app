@@ -29,6 +29,11 @@ function shotSettingsHaveStructureVideo(settings: Record<string, unknown> | null
   const videos = svSettings.structure_videos as unknown[] | undefined;
   if (Array.isArray(videos)) return videos.length > 0;
 
+  const travelGuidance = svSettings.travel_guidance as Record<string, unknown> | undefined;
+  if (travelGuidance && Array.isArray(travelGuidance.videos)) {
+    return travelGuidance.videos.length > 0;
+  }
+
   // Legacy single-video format
   const path = svSettings.structure_video_path;
   if (path && path !== null) return true;

@@ -21,6 +21,8 @@ import type {
   SegmentOverrides,
   LoraConfig,
 } from '@/shared/types/segmentSettings';
+import { coerceSelectedModel, isSelectedModel } from '@/tools/travel-between-images/settings';
+import type { TravelGuidanceMode } from '@/shared/lib/tasks/travelGuidance';
 import type {
   PhaseConfig,
   PhaseLoraConfig,
@@ -119,8 +121,24 @@ function toGenerationTypeMode(
   return value === 'i2v' || value === 'vace' ? value : fallback;
 }
 
-function toStructureTreatment(value: unknown): SegmentSettings['structureTreatment'] | undefined {
+function toGuidanceTreatment(value: unknown): SegmentSettings['guidanceTreatment'] | undefined {
   return value === 'adjust' || value === 'clip' ? value : undefined;
+}
+
+function toSelectedModel(value: unknown): SegmentSettings['selectedModel'] | undefined {
+  return isSelectedModel(value) ? value : undefined;
+}
+
+function toTravelGuidanceMode(value: unknown): TravelGuidanceMode | undefined {
+  return value === 'uni3c'
+    || value === 'flow'
+    || value === 'canny'
+    || value === 'depth'
+    || value === 'raw'
+    || value === 'pose'
+    || value === 'video'
+    ? value
+    : undefined;
 }
 
 function toNumberArray(value: unknown): number[] | undefined {
@@ -259,6 +277,8 @@ export function readShotSettings(raw: Record<string, unknown> | null | undefined
     // Seed
     randomSeed: toBoolean(raw.randomSeed, DEFAULT_SHOT_VIDEO_SETTINGS.randomSeed),
     seed: toOptionalNumber(raw.seed),
+    selectedModel: toSelectedModel(raw.selectedModel) ?? DEFAULT_SHOT_VIDEO_SETTINGS.selectedModel,
+    guidanceScale: toOptionalNumber(raw.guidanceScale),
 
     // Variant behavior
     makePrimaryVariant: toBoolean(raw.makePrimaryVariant, DEFAULT_SHOT_VIDEO_SETTINGS.makePrimaryVariant),
@@ -355,24 +375,68 @@ export function readSegmentOverrides(metadata: Record<string, unknown> | null | 
     }
   }
 
-  // Structure video overrides
-  if (segmentOverrides.structureMotionStrength !== undefined) {
-    const structureMotionStrength = toOptionalNumber(segmentOverrides.structureMotionStrength);
-    if (structureMotionStrength !== undefined) {
-      overrides.structureMotionStrength = structureMotionStrength;
+  if (segmentOverrides.selectedModel !== undefined) {
+    const selectedModel = toSelectedModel(segmentOverrides.selectedModel);
+    if (selectedModel) {
+      overrides.selectedModel = selectedModel;
     }
   }
-  if (segmentOverrides.structureTreatment !== undefined) {
-    const structureTreatment = toStructureTreatment(segmentOverrides.structureTreatment);
-    if (structureTreatment) {
-      overrides.structureTreatment = structureTreatment;
+  if (segmentOverrides.guidanceScale !== undefined) {
+    const guidanceScale = toOptionalNumber(segmentOverrides.guidanceScale);
+    if (guidanceScale !== undefined) {
+      overrides.guidanceScale = guidanceScale;
     }
   }
-  if (segmentOverrides.structureUni3cEndPercent !== undefined) {
-    const uni3cEndPercent = toOptionalNumber(segmentOverrides.structureUni3cEndPercent);
+  if (segmentOverrides.inferenceSteps !== undefined) {
+    const inferenceSteps = toOptionalNumber(segmentOverrides.inferenceSteps);
+    if (inferenceSteps !== undefined) {
+      overrides.inferenceSteps = inferenceSteps;
+    }
+  }
+  if (segmentOverrides.guidanceMode !== undefined) {
+    const guidanceMode = toTravelGuidanceMode(segmentOverrides.guidanceMode);
+    if (guidanceMode) {
+      overrides.guidanceMode = guidanceMode;
+    }
+  }
+  if (segmentOverrides.guidanceStrength !== undefined || segmentOverrides.structureMotionStrength !== undefined) {
+    const guidanceStrength = toOptionalNumber(
+      segmentOverrides.guidanceStrength ?? segmentOverrides.structureMotionStrength,
+    );
+    if (guidanceStrength !== undefined) {
+      overrides.guidanceStrength = guidanceStrength;
+    }
+  }
+  if (segmentOverrides.guidanceTreatment !== undefined || segmentOverrides.structureTreatment !== undefined) {
+    const guidanceTreatment = toGuidanceTreatment(
+      segmentOverrides.guidanceTreatment ?? segmentOverrides.structureTreatment,
+    );
+    if (guidanceTreatment) {
+      overrides.guidanceTreatment = guidanceTreatment;
+    }
+  }
+  if (segmentOverrides.guidanceUni3cEndPercent !== undefined || segmentOverrides.structureUni3cEndPercent !== undefined) {
+    const uni3cEndPercent = toOptionalNumber(
+      segmentOverrides.guidanceUni3cEndPercent ?? segmentOverrides.structureUni3cEndPercent,
+    );
     if (uni3cEndPercent !== undefined) {
-      overrides.structureUni3cEndPercent = uni3cEndPercent;
+      overrides.guidanceUni3cEndPercent = uni3cEndPercent;
     }
+  }
+  if (segmentOverrides.guidanceCannyIntensity !== undefined) {
+    const guidanceCannyIntensity = toOptionalNumber(segmentOverrides.guidanceCannyIntensity);
+    if (guidanceCannyIntensity !== undefined) {
+      overrides.guidanceCannyIntensity = guidanceCannyIntensity;
+    }
+  }
+  if (segmentOverrides.guidanceDepthContrast !== undefined) {
+    const guidanceDepthContrast = toOptionalNumber(segmentOverrides.guidanceDepthContrast);
+    if (guidanceDepthContrast !== undefined) {
+      overrides.guidanceDepthContrast = guidanceDepthContrast;
+    }
+  }
+  if (segmentOverrides.smoothContinuations !== undefined) {
+    overrides.smoothContinuations = toBoolean(segmentOverrides.smoothContinuations, false);
   }
 
   // Text before/after prompts
@@ -434,18 +498,38 @@ export function writeSegmentOverrides(
   if (overrides.randomSeed !== undefined) {
     newOverrides.randomSeed = overrides.randomSeed;
   }
+  if (overrides.selectedModel !== undefined) {
+    newOverrides.selectedModel = overrides.selectedModel;
+  }
+  if (overrides.guidanceScale !== undefined) {
+    newOverrides.guidanceScale = overrides.guidanceScale;
+  }
+  if (overrides.inferenceSteps !== undefined) {
+    newOverrides.inferenceSteps = overrides.inferenceSteps;
+  }
+  if (overrides.guidanceMode !== undefined) {
+    newOverrides.guidanceMode = overrides.guidanceMode;
+  }
+  if (overrides.guidanceStrength !== undefined) {
+    newOverrides.guidanceStrength = overrides.guidanceStrength;
+  }
+  if (overrides.guidanceTreatment !== undefined) {
+    newOverrides.guidanceTreatment = overrides.guidanceTreatment;
+  }
+  if (overrides.guidanceUni3cEndPercent !== undefined) {
+    newOverrides.guidanceUni3cEndPercent = overrides.guidanceUni3cEndPercent;
+  }
+  if (overrides.guidanceCannyIntensity !== undefined) {
+    newOverrides.guidanceCannyIntensity = overrides.guidanceCannyIntensity;
+  }
+  if (overrides.guidanceDepthContrast !== undefined) {
+    newOverrides.guidanceDepthContrast = overrides.guidanceDepthContrast;
+  }
+  if (overrides.smoothContinuations !== undefined) {
+    newOverrides.smoothContinuations = overrides.smoothContinuations;
+  }
   if (overrides.seed !== undefined) {
     newOverrides.seed = overrides.seed;
-  }
-  // Structure video overrides
-  if (overrides.structureMotionStrength !== undefined) {
-    newOverrides.structureMotionStrength = overrides.structureMotionStrength;
-  }
-  if (overrides.structureTreatment !== undefined) {
-    newOverrides.structureTreatment = overrides.structureTreatment;
-  }
-  if (overrides.structureUni3cEndPercent !== undefined) {
-    newOverrides.structureUni3cEndPercent = overrides.structureUni3cEndPercent;
   }
   // Text before/after prompts
   if (overrides.textBeforePrompts !== undefined) {

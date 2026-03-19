@@ -157,11 +157,9 @@ export const useFileInputController = ({
     }
 
     if (multiple) {
-      setInternalFiles((previousFiles) => {
-        const newFiles = [...previousFiles, ...validFiles];
-        onFileChange(newFiles);
-        return newFiles;
-      });
+      const newFiles = [...internalFiles, ...validFiles];
+      setInternalFiles(newFiles);
+      onFileChange(newFiles);
     } else {
       setInternalFiles(validFiles);
       onFileChange(validFiles);
@@ -170,6 +168,7 @@ export const useFileInputController = ({
   }, [
     acceptTypes,
     clearNativeInput,
+    internalFiles,
     multiple,
     onFileChange,
     scheduleSelectionLoaderReset,
@@ -195,19 +194,17 @@ export const useFileInputController = ({
   }, [clearNativeInput, clearSelectionLoading, onFileChange, onFileRemove]);
 
   const handleRemoveFile = useCallback((indexToRemove: number) => {
-    setInternalFiles((previousFiles) => {
-      const nextFiles = previousFiles.filter((_, index) => index !== indexToRemove);
-      onFileChange(nextFiles);
-      if (nextFiles.length === 0) {
-        if (onFileRemove) {
-          onFileRemove();
-        }
-        clearNativeInput();
+    const nextFiles = internalFiles.filter((_, index) => index !== indexToRemove);
+    setInternalFiles(nextFiles);
+    onFileChange(nextFiles);
+    if (nextFiles.length === 0) {
+      if (onFileRemove) {
+        onFileRemove();
       }
-      return nextFiles;
-    });
+      clearNativeInput();
+    }
     clearSelectionLoading();
-  }, [clearNativeInput, clearSelectionLoading, onFileChange, onFileRemove]);
+  }, [clearNativeInput, clearSelectionLoading, internalFiles, onFileChange, onFileRemove]);
 
   const handleInputChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     handleFilesSelect(event.target.files);

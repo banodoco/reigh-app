@@ -17,6 +17,12 @@ import type { ActiveLora } from '@/domains/lora/types/lora';
 import { writeSegmentOverrides, type SegmentOverrides, type LoraConfig } from '@/shared/lib/settingsMigration';
 import type { SegmentSettings } from './segmentSettingsUtils';
 import { stripModeFromPhaseConfig } from './segmentSettingsUtils';
+import {
+  normalizeTravelGuidance,
+  resolveTravelGuidanceControls,
+  type TravelGuidanceMode,
+} from '@/shared/lib/tasks/travelGuidance';
+import { resolveSelectedModelFromModelName } from '@/tools/travel-between-images/settings';
 
 // =============================================================================
 // PAIR METADATA TYPE
@@ -41,6 +47,15 @@ export interface PairMetadata {
     numFrames?: number;
     randomSeed?: boolean;
     seed?: number;
+    selectedModel?: SegmentSettings['selectedModel'];
+    inferenceSteps?: number;
+    guidanceScale?: number;
+    guidanceMode?: TravelGuidanceMode;
+    guidanceStrength?: number;
+    guidanceTreatment?: 'adjust' | 'clip';
+    guidanceUni3cEndPercent?: number;
+    guidanceCannyIntensity?: number;
+    guidanceDepthContrast?: number;
   };
   enhanced_prompt?: string;
   base_prompt_for_enhancement?: string;
@@ -176,11 +191,45 @@ export function extractSettingsFromParams(
 
   // Extract selected preset ID
   const selectedPhasePresetId = (params.selected_phase_preset_id ?? orchDetails.selected_phase_preset_id ?? defaults?.selectedPhasePresetId ?? null) as string | null;
+  const modelName = (params.model_name ?? orchDetails.model_name) as string | undefined;
+  const selectedModel = defaults?.selectedModel ?? resolveSelectedModelFromModelName(modelName);
+  const inferenceSteps = (params.num_inference_steps ?? orchDetails.num_inference_steps ?? defaults?.inferenceSteps) as number | undefined;
+  const guidanceScale = (params.guidance_scale ?? orchDetails.guidance_scale ?? defaults?.guidanceScale) as number | undefined;
+  const smoothContinuations = (
+    params.continuation_config !== undefined
+    || (
+      params.chain_segments === true
+      && ((params.frame_overlap_from_previous as number | undefined) ?? 0) > 0
+    )
+  )
+    ? true
+    : defaults?.smoothContinuations;
 
   const normalizedLoraParams = normalizeLoraParams(params, orchDetails);
   const loras = normalizedLoraParams
     ? pairLorasToArray(normalizedLoraParams)
     : (defaults?.loras ?? []);
+
+  const normalizedTravelGuidance = normalizeTravelGuidance({
+    modelName,
+    travelGuidance: params.travel_guidance ?? orchDetails.travel_guidance,
+    structureGuidance: params.structure_guidance ?? orchDetails.structure_guidance,
+    structureVideos: params.structure_videos ?? orchDetails.structure_videos,
+    defaultVideoTreatment: defaults?.guidanceTreatment ?? 'adjust',
+    defaultUni3cEndPercent: defaults?.guidanceUni3cEndPercent ?? 0.1,
+  });
+  const guidanceControls = resolveTravelGuidanceControls(
+    normalizedTravelGuidance,
+    {
+      defaultMode: defaults?.guidanceMode,
+      defaultStrength: defaults?.guidanceStrength,
+      defaultUni3cEndPercent: defaults?.guidanceUni3cEndPercent,
+    },
+    modelName,
+  );
+  const guidanceTreatment = normalizedTravelGuidance?.kind !== 'none'
+    ? normalizedTravelGuidance?.videos?.[0]?.treatment
+    : undefined;
 
   const result = {
     prompt,
@@ -194,6 +243,16 @@ export function extractSettingsFromParams(
     randomSeed,
     seed,
     makePrimaryVariant: defaults?.makePrimaryVariant ?? false,
+    selectedModel,
+    inferenceSteps,
+    guidanceScale,
+    guidanceMode: guidanceControls.mode,
+    guidanceStrength: guidanceControls.strength,
+    guidanceTreatment: guidanceTreatment ?? defaults?.guidanceTreatment,
+    guidanceUni3cEndPercent: guidanceControls.uni3cEndPercent,
+    guidanceCannyIntensity: guidanceControls.cannyIntensity,
+    guidanceDepthContrast: guidanceControls.depthContrast,
+    smoothContinuations,
   };
 
   return result;
@@ -226,10 +285,16 @@ interface PairSettingsToSave {
   seed?: number;
   // UI state
   selectedPhasePresetId?: string | null;
-  // Structure video overrides
-  structureMotionStrength?: number;
-  structureTreatment?: 'adjust' | 'clip';
-  structureUni3cEndPercent?: number;
+  selectedModel?: SegmentSettings['selectedModel'];
+  inferenceSteps?: number;
+  guidanceScale?: number;
+  guidanceMode?: TravelGuidanceMode;
+  guidanceStrength?: number;
+  guidanceTreatment?: 'adjust' | 'clip';
+  guidanceUni3cEndPercent?: number;
+  guidanceCannyIntensity?: number;
+  guidanceDepthContrast?: number;
+  smoothContinuations?: boolean;
 }
 
 type TextOverrideKey = 'prompt' | 'negativePrompt' | 'textBeforePrompts' | 'textAfterPrompts';
@@ -304,9 +369,16 @@ function applyPairSettingsToOverrides(
   }
 
   setNullableOverride(overrides, fieldsToClear, 'selectedPhasePresetId', settings.selectedPhasePresetId);
-  setNullableOverride(overrides, fieldsToClear, 'structureMotionStrength', settings.structureMotionStrength);
-  setNullableOverride(overrides, fieldsToClear, 'structureTreatment', settings.structureTreatment);
-  setNullableOverride(overrides, fieldsToClear, 'structureUni3cEndPercent', settings.structureUni3cEndPercent);
+  setNullableOverride(overrides, fieldsToClear, 'selectedModel', settings.selectedModel);
+  setNullableOverride(overrides, fieldsToClear, 'inferenceSteps', settings.inferenceSteps);
+  setNullableOverride(overrides, fieldsToClear, 'guidanceScale', settings.guidanceScale);
+  setNullableOverride(overrides, fieldsToClear, 'guidanceMode', settings.guidanceMode);
+  setNullableOverride(overrides, fieldsToClear, 'guidanceStrength', settings.guidanceStrength);
+  setNullableOverride(overrides, fieldsToClear, 'guidanceTreatment', settings.guidanceTreatment);
+  setNullableOverride(overrides, fieldsToClear, 'guidanceUni3cEndPercent', settings.guidanceUni3cEndPercent);
+  setNullableOverride(overrides, fieldsToClear, 'guidanceCannyIntensity', settings.guidanceCannyIntensity);
+  setNullableOverride(overrides, fieldsToClear, 'guidanceDepthContrast', settings.guidanceDepthContrast);
+  setNullableOverride(overrides, fieldsToClear, 'smoothContinuations', settings.smoothContinuations);
 }
 
 function clearFields(

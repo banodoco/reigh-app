@@ -57,46 +57,44 @@ export function TaskTravelMetadata({
         </div>
       )}
 
-      {isAdvancedMode && (
-        <div className="grid grid-cols-2 gap-3">
-          {modelName && (
-            <div className="space-y-1">
-              <p className={`${config.textSize} font-medium text-muted-foreground`}>Model</p>
-              <p className={`${config.textSize} ${config.fontWeight}`}>
-                {formatTravelModelName(modelName)}
-              </p>
-            </div>
-          )}
+      <div className="grid grid-cols-2 gap-3">
+        {modelName && (
           <div className="space-y-1">
-            <p className={`${config.textSize} font-medium text-muted-foreground`}>
-              Resolution
+            <p className={`${config.textSize} font-medium text-muted-foreground`}>Model</p>
+            <p className={`${config.textSize} ${config.fontWeight}`}>
+              {formatTravelModelName(modelName)}
             </p>
-            <p className={`${config.textSize} ${config.fontWeight}`}>{resolution || 'N/A'}</p>
           </div>
-          <div className="space-y-1">
-            <p className={`${config.textSize} font-medium text-muted-foreground`}>
-              {isSegmentTask ? 'Frames' : 'Frames / Segment'}
-            </p>
-            <p className={`${config.textSize} ${config.fontWeight}`}>{frames || 'N/A'}</p>
-          </div>
-          {phaseFlowShift !== undefined && (
-            <div className="space-y-1">
-              <p className={`${config.textSize} font-medium text-muted-foreground`}>
-                Flow Shift
-              </p>
-              <p className={`${config.textSize} ${config.fontWeight}`}>{phaseFlowShift}</p>
-            </div>
-          )}
-          {phaseSolver && (
-            <div className="space-y-1">
-              <p className={`${config.textSize} font-medium text-muted-foreground`}>Solver</p>
-              <p className={`${config.textSize} ${config.fontWeight} capitalize`}>
-                {phaseSolver}
-              </p>
-            </div>
-          )}
+        )}
+        <div className="space-y-1">
+          <p className={`${config.textSize} font-medium text-muted-foreground`}>
+            Resolution
+          </p>
+          <p className={`${config.textSize} ${config.fontWeight}`}>{resolution || 'N/A'}</p>
         </div>
-      )}
+        <div className="space-y-1">
+          <p className={`${config.textSize} font-medium text-muted-foreground`}>
+            {isSegmentTask ? 'Frames' : 'Frames / Segment'}
+          </p>
+          <p className={`${config.textSize} ${config.fontWeight}`}>{frames || 'N/A'}</p>
+        </div>
+        {isAdvancedMode && phaseFlowShift !== undefined && (
+          <div className="space-y-1">
+            <p className={`${config.textSize} font-medium text-muted-foreground`}>
+              Flow Shift
+            </p>
+            <p className={`${config.textSize} ${config.fontWeight}`}>{phaseFlowShift}</p>
+          </div>
+        )}
+        {isAdvancedMode && phaseSolver && (
+          <div className="space-y-1">
+            <p className={`${config.textSize} font-medium text-muted-foreground`}>Solver</p>
+            <p className={`${config.textSize} ${config.fontWeight} capitalize`}>
+              {phaseSolver}
+            </p>
+          </div>
+        )}
+      </div>
     </>
   );
 }

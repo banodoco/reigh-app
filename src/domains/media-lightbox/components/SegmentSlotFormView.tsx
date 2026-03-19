@@ -16,6 +16,10 @@ import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
 import { submitSegmentTask, buildStructureVideoForTask } from './submitSegmentTask';
 import type { SegmentSlotModeData } from '../types';
 import { NavigationArrows } from './NavigationArrows';
+import {
+  MODEL_DEFAULTS,
+  resolveSelectedModelFromModelName,
+} from '@/tools/travel-between-images/settings';
 
 interface SegmentSlotFormViewProps {
   segmentSlotMode: SegmentSlotModeData;
@@ -39,13 +43,26 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
 }) => {
   const queryClient = useQueryClient();
   const run = useTaskPlaceholder();
+  const segmentVideoParams = segmentSlotMode.segmentVideo?.params as Record<string, unknown> | undefined;
+  const segmentVideoOrchestratorDetails = segmentVideoParams?.orchestrator_details as Record<string, unknown> | undefined;
+  const modelName = typeof segmentVideoParams?.model_name === 'string'
+    ? segmentVideoParams.model_name
+    : (typeof segmentVideoOrchestratorDetails?.model_name === 'string'
+      ? segmentVideoOrchestratorDetails.model_name
+      : undefined);
 
   const pairShotGenerationId = segmentSlotMode.pairData.startImage?.id;
   const startImageUrl = segmentSlotMode.pairData.startImage?.url ?? segmentSlotMode.pairData.startImage?.thumbUrl;
   const endImageUrl = segmentSlotMode.pairData.endImage?.url ?? segmentSlotMode.pairData.endImage?.thumbUrl;
 
   // Use the combined hook for form props
-  const { formProps, getSettingsForTaskCreation, saveSettings, enhancePromptRef } = useSegmentSettingsForm({
+  const {
+    formProps,
+    getSettingsForTaskCreation,
+    saveSettings,
+    settings,
+    enhancePromptRef,
+  } = useSegmentSettingsForm({
     pairShotGenerationId,
     shotId: segmentSlotMode.shotId,
     defaults: {
@@ -83,10 +100,21 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
   // Extract enhanced prompt from form props (enhancePromptEnabled and onEnhancePromptChange are now included in formProps)
   const { enhancedPrompt } = formProps;
 
+  const effectiveSelectedModel = settings.selectedModel
+    ?? formProps.shotDefaults?.selectedModel
+    ?? resolveSelectedModelFromModelName(modelName);
+  const selectedModelName = MODEL_DEFAULTS[effectiveSelectedModel].modelName;
+  const effectiveStructureVideoDefaults = segmentSlotMode.structureVideoDefaultsByModel?.[effectiveSelectedModel]
+    ?? segmentSlotMode.structureVideoDefaults
+    ?? null;
+
   // Build structure video config from props (for task creation)
   const structureVideoForTask = useMemo(
-    () => buildStructureVideoForTask(segmentSlotMode, getSettingsForTaskCreation),
-    [segmentSlotMode, getSettingsForTaskCreation],
+    () => buildStructureVideoForTask(
+      { ...segmentSlotMode, structureVideoDefaults: effectiveStructureVideoDefaults, modelName: selectedModelName },
+      getSettingsForTaskCreation,
+    ),
+    [effectiveStructureVideoDefaults, getSettingsForTaskCreation, segmentSlotMode, selectedModelName],
   );
 
   // Handle frame count change
@@ -159,6 +187,8 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
         segmentIndex: segmentSlotMode.currentIndex,
         pairShotGenerationId,
         projectResolution: segmentSlotMode.projectResolution,
+        modelName: selectedModelName,
+        generationTypeMode: formProps.shotDefaults?.generationTypeMode,
         structureInput: structureVideoForTask,
       },
       run,
@@ -177,6 +207,7 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
     run,
     queryClient,
     structureVideoForTask,
+    selectedModelName,
     enhancedPrompt,
   ]);
 
@@ -245,6 +276,8 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
             <>
               <SegmentSettingsForm
                 {...formProps}
+                modelName={selectedModelName}
+                structureVideoDefaults={effectiveStructureVideoDefaults ?? undefined}
                 onSubmit={handleSubmit}
                 onFrameCountChange={handleFrameCountChange}
               />

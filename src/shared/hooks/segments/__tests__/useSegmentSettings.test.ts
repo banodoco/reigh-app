@@ -61,6 +61,9 @@ vi.mock('@/shared/lib/settingsMigration', () => ({
 }));
 
 import { useSegmentSettings } from '../useSegmentSettings';
+import { usePairMetadata } from '../usePairMetadata';
+import { useShotVideoSettings } from '../useShotVideoSettings';
+import { readSegmentOverrides } from '@/shared/lib/settingsMigration';
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -76,6 +79,15 @@ function createWrapper() {
 describe('useSegmentSettings', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (usePairMetadata as unknown as { mockReturnValue: (value: unknown) => void }).mockReturnValue({
+      data: null,
+      isLoading: false,
+    });
+    (useShotVideoSettings as unknown as { mockReturnValue: (value: unknown) => void }).mockReturnValue({
+      data: null,
+      isLoading: false,
+    });
+    (readSegmentOverrides as unknown as { mockReturnValue: (value: unknown) => void }).mockReturnValue({});
   });
 
   it('returns the correct shape', () => {
@@ -136,7 +148,66 @@ describe('useSegmentSettings', () => {
       selectedPhasePresetId: null,
       textBeforePrompts: '',
       textAfterPrompts: '',
+      selectedModel: 'wan-2.2',
+      guidanceScale: undefined,
+      guidanceMode: undefined,
+      guidanceStrength: undefined,
+      guidanceTreatment: undefined,
+      guidanceUni3cEndPercent: undefined,
+      guidanceCannyIntensity: undefined,
+      guidanceDepthContrast: undefined,
     });
+  });
+
+  it('resolves structure defaults from the effective selected model', async () => {
+    const { usePairMetadata } = await import('../usePairMetadata');
+    const { useShotVideoSettings } = await import('../useShotVideoSettings');
+    (usePairMetadata as unknown as { mockReturnValue: (value: unknown) => void }).mockReturnValue({
+      data: { segmentOverrides: { selectedModel: 'ltx-2.3-fast' } },
+      isLoading: false,
+    });
+    (useShotVideoSettings as unknown as { mockReturnValue: (value: unknown) => void }).mockReturnValue({
+      data: {
+        selectedModel: 'wan-2.2',
+      },
+      isLoading: false,
+    });
+    (readSegmentOverrides as unknown as { mockReturnValue: (value: unknown) => void }).mockReturnValue({
+      selectedModel: 'ltx-2.3-fast',
+    });
+
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(
+      () =>
+        useSegmentSettings({
+          pairShotGenerationId: 'pair-1',
+          shotId: 'shot-1',
+          defaults: {
+            prompt: '',
+            negativePrompt: '',
+          },
+          structureVideoDefaultsByModel: {
+            'wan-2.2': {
+              mode: 'flow',
+              motionStrength: 1.2,
+              treatment: 'adjust',
+              uni3cEndPercent: 0.1,
+            },
+            'ltx-2.3-fast': {
+              mode: 'video',
+              motionStrength: 0.6,
+              treatment: 'clip',
+              uni3cEndPercent: 0.25,
+            },
+          },
+        }),
+      { wrapper }
+    );
+
+    expect(result.current.shotDefaults.selectedModel).toBe('wan-2.2');
+    expect(result.current.shotDefaults.guidanceMode).toBe('video');
+    expect(result.current.shotDefaults.guidanceStrength).toBe(0.6);
+    expect(result.current.shotDefaults.guidanceTreatment).toBe('clip');
   });
 
   it('builds shot defaults from shot video settings', async () => {

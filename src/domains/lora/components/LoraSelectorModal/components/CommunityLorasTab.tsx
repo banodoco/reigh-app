@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Input } from "@/shared/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog";
@@ -6,10 +6,11 @@ import { Search } from 'lucide-react';
 import { useIsMobile } from '@/shared/hooks/mobile';
 
 import { CommunityLorasTabProps, LoraModel, ModelFilterCategory, SortOption } from '../types';
-import { useLoraFilters } from '../hooks/useLoraFilters';
-import { getSubFilterOptions } from '../utils/filter-utils';
+import { getSubFilterOptions, matchesFilters } from '../utils/filter-utils';
 import { LoraCard } from './LoraCard';
 import { DescriptionModal } from './DescriptionModal';
+
+const PAGE_SIZE = 20;
 
 export const CommunityLorasTab: React.FC<CommunityLorasTabProps> = ({
   loras,
@@ -31,31 +32,115 @@ export const CommunityLorasTab: React.FC<CommunityLorasTabProps> = ({
   setSelectedSubFilter,
 }) => {
   const isMobile = useIsMobile();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortOption, setSortOption] = useState<SortOption>('default');
+  const [page, setPage] = useState(0);
+  const selectedLoraIds = useMemo(
+    () => new Set(selectedLoras.map((lora) => lora['Model ID'])),
+    [selectedLoras],
+  );
+  const selectedStrengthById = useMemo(
+    () => new Map(selectedLoras.map((lora) => [lora['Model ID'], lora.strength])),
+    [selectedLoras],
+  );
+  const savedResourcesByModelId = useMemo(() => {
+    const entries = (myLorasResource.data ?? []).flatMap((resource) => {
+      const metadata = resource.metadata as Partial<LoraModel>;
+      const modelId = typeof metadata?.['Model ID'] === 'string'
+        ? metadata['Model ID']
+        : typeof metadata?.filename === 'string'
+          ? metadata.filename
+          : undefined;
 
-  // Use the extracted filter hook
-  const {
-    searchTerm,
-    setSearchTerm,
-    sortOption,
-    setSortOption,
-    page,
-    setPage,
-    totalPages,
-    paginatedLoras,
-    processedLoras,
-    isLoraSelected,
-    getLoraStrength,
-    isMyLora,
-    isInSavedLoras,
-  } = useLoraFilters({
+      return modelId ? [[modelId, resource] as const] : [];
+    });
+
+    return new Map(entries);
+  }, [myLorasResource.data]);
+  const processedLoras = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
+    const filtered = loras.filter((lora) => {
+      const modelId = lora['Model ID'];
+      const matchingResource = savedResourcesByModelId.get(modelId);
+      const isMine = Boolean(
+        lora.created_by?.is_you
+        || (matchingResource?.metadata as Partial<LoraModel> | undefined)?.created_by?.is_you
+        || lora.Author === 'You'
+        || lora.Author === 'You (Local)'
+      );
+
+      if (showMyLorasOnly && !isMine) {
+        return false;
+      }
+
+      if (showAddedLorasOnly && !selectedLoraIds.has(modelId)) {
+        return false;
+      }
+
+      if (!matchesFilters(lora.lora_type, selectedModelFilter, selectedSubFilter)) {
+        return false;
+      }
+
+      if (!normalizedSearch) {
+        return true;
+      }
+
+      const haystack = [
+        modelId,
+        lora.Name,
+        lora.Author,
+        lora.Description,
+        lora.lora_type,
+        lora.base_model,
+        ...(lora.Tags ?? []),
+      ]
+        .filter((value): value is string => typeof value === 'string' && value.length > 0)
+        .join(' ')
+        .toLowerCase();
+
+      return haystack.includes(normalizedSearch);
+    });
+
+    const sorted = [...filtered];
+    switch (sortOption) {
+      case 'downloads':
+        sorted.sort((a, b) => (b.Downloads ?? 0) - (a.Downloads ?? 0));
+        break;
+      case 'likes':
+        sorted.sort((a, b) => (b.Likes ?? 0) - (a.Likes ?? 0));
+        break;
+      case 'lastModified':
+        sorted.sort((a, b) => {
+          const aTime = Date.parse(a['Last Modified'] ?? '') || 0;
+          const bTime = Date.parse(b['Last Modified'] ?? '') || 0;
+          return bTime - aTime;
+        });
+        break;
+      case 'name':
+        sorted.sort((a, b) => a.Name.localeCompare(b.Name));
+        break;
+      default:
+        break;
+    }
+
+    return sorted;
+  }, [
     loras,
-    myLorasData: myLorasResource.data,
-    selectedLoras,
+    savedResourcesByModelId,
+    searchTerm,
+    selectedLoraIds,
     selectedModelFilter,
     selectedSubFilter,
-    showMyLorasOnly,
     showAddedLorasOnly,
-  });
+    showMyLorasOnly,
+    sortOption,
+  ]);
+  const totalPages = Math.max(1, Math.ceil(processedLoras.length / PAGE_SIZE));
+  const paginatedLoras = useMemo(
+    () => processedLoras.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
+    [page, processedLoras],
+  );
 
   // Description modal state
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
@@ -87,6 +172,16 @@ export const CommunityLorasTab: React.FC<CommunityLorasTabProps> = ({
   useEffect(() => {
     onProcessedLorasLengthChange(processedLoras.length);
   }, [processedLoras.length, onProcessedLorasLengthChange]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [searchTerm, selectedModelFilter, selectedSubFilter, showAddedLorasOnly, showMyLorasOnly, sortOption]);
+
+  useEffect(() => {
+    if (page >= totalPages) {
+      setPage(totalPages - 1);
+    }
+  }, [page, totalPages]);
 
   // Notify parent about pagination state
   useEffect(() => {
@@ -132,6 +227,7 @@ export const CommunityLorasTab: React.FC<CommunityLorasTabProps> = ({
             <SelectItem variant="retro" value="all">All Models</SelectItem>
             <SelectItem variant="retro" value="qwen">Qwen</SelectItem>
             <SelectItem variant="retro" value="wan">Wan</SelectItem>
+            <SelectItem variant="retro" value="ltx">LTX</SelectItem>
             <SelectItem variant="retro" value="z-image">Z-Image</SelectItem>
           </SelectContent>
         </Select>
@@ -155,16 +251,23 @@ export const CommunityLorasTab: React.FC<CommunityLorasTabProps> = ({
         <div className={`grid grid-cols-1 lg:grid-cols-2 gap-2 ${isMobile ? 'pb-2' : 'pb-4'}`}>
           {paginatedLoras.length > 0 ? (
             paginatedLoras.map((lora) => {
-              const isSelectedOnGenerator = isLoraSelected(lora["Model ID"]);
-              const strength = getLoraStrength(lora["Model ID"]);
-              const loraIsMyLora = isMyLora(lora);
-              const loraIsInSavedLoras = isInSavedLoras(lora["Model ID"]);
+              const modelId = lora['Model ID'];
+              const matchingResource = savedResourcesByModelId.get(modelId);
+              const isSelectedOnGenerator = selectedLoraIds.has(modelId);
+              const strength = selectedStrengthById.get(modelId);
+              const loraIsMyLora = Boolean(
+                lora.created_by?.is_you
+                || (matchingResource?.metadata as Partial<LoraModel> | undefined)?.created_by?.is_you
+                || lora.Author === 'You'
+                || lora.Author === 'You (Local)'
+              );
+              const loraIsInSavedLoras = Boolean(matchingResource);
               const isLocalLora = lora.Author === 'You (Local)';
-              const resourceId = (lora as LoraModel & { _resourceId?: string })._resourceId;
+              const resourceId = matchingResource?.id ?? (lora as LoraModel & { _resourceId?: string })._resourceId;
 
               return (
                 <LoraCard
-                  key={lora["Model ID"]}
+                  key={modelId}
                   lora={lora}
                   isSelectedOnGenerator={isSelectedOnGenerator}
                   strength={strength}

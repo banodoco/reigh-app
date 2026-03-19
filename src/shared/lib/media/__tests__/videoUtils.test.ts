@@ -57,6 +57,11 @@ describe('quantizeFrameCount', () => {
     expect(isValidFrameCount(quantizeFrameCount(50))).toBe(true);
     expect(isValidFrameCount(quantizeFrameCount(100))).toBe(true);
   });
+
+  it('supports ltx 8N+1 quantization', () => {
+    expect(quantizeFrameCount(95, 9, 8)).toBe(97);
+    expect(isValidFrameCount(97, 8)).toBe(true);
+  });
 });
 
 describe('getValidFrameCounts', () => {
@@ -113,6 +118,10 @@ describe('framesToSeconds', () => {
   it('handles large frame numbers', () => {
     expect(framesToSeconds(160)).toBe('10.00s');
   });
+
+  it('supports custom fps values', () => {
+    expect(framesToSeconds(96, 24)).toBe('4.00s');
+  });
 });
 
 describe('framesToSecondsValue', () => {
@@ -126,5 +135,9 @@ describe('framesToSecondsValue', () => {
 
   it('converts frame 8 to 0.5', () => {
     expect(framesToSecondsValue(8)).toBe(0.5);
+  });
+
+  it('supports custom fps numeric conversion', () => {
+    expect(framesToSecondsValue(96, 24)).toBe(4);
   });
 });

@@ -4,7 +4,7 @@ import type { LoraModel as SharedLoraModel } from '@/domains/lora/types/lora';
 import type { OpenStateContract } from '@/shared/components/dialogs/contracts';
 
 // Model filter categories - broad matching
-export type ModelFilterCategory = 'all' | 'qwen' | 'wan' | 'z-image';
+export type ModelFilterCategory = 'all' | 'qwen' | 'wan' | 'ltx' | 'z-image';
 
 export type SortOption = 'default' | 'downloads' | 'likes' | 'lastModified' | 'name';
 

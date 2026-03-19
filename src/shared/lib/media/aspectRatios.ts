@@ -14,6 +14,22 @@ export const ASPECT_RATIO_TO_RESOLUTION: { [key: string]: string } = {
   'Square': '670x670',
 };
 
+// LTX models produce significantly better results at higher resolutions.
+// Community consensus: 1080p minimum for good quality, 720p absolute minimum.
+// These are ~2x the base resolutions, targeting ~720p–1080p range.
+export const LTX_ASPECT_RATIO_TO_RESOLUTION: { [key: string]: string } = {
+  '21:9': '1792x768',
+  '16:9': '1280x720',
+  '4:3': '1024x768',
+  '3:2': '1152x768',
+  '1:1': '1024x1024',
+  '2:3': '768x1152',
+  '3:4': '768x1024',
+  '9:16': '720x1280',
+  '9:21': '768x1792',
+  'Square': '1024x1024',
+};
+
 /**
  * Parses a "W:H" string into a numerical ratio (W / H).
  * @param ratioStr The aspect ratio string (e.g., "16:9").

@@ -1,10 +1,14 @@
 import type { VideoMetadata } from '@/shared/lib/media/videoUploader';
 import { resolveStructureGuidanceControls } from '@/shared/lib/tasks/structureGuidance';
 import {
+  resolveTravelGuidanceControls,
+  type TravelGuidanceMode,
+} from '@/shared/lib/tasks/travelGuidance';
+import {
   DEFAULT_STRUCTURE_GUIDANCE_CONTROLS,
   DEFAULT_STRUCTURE_VIDEO,
 } from './defaults';
-import type { StructureGuidanceConfig } from './taskTypes';
+import type { StructureGuidanceConfig, TravelGuidance } from './taskTypes';
 import type { StructureVideoConfigWithLegacyGuidance, StructureVideoConfigWithMetadata as StructureVideoWithMetadata } from './uiTypes';
 
 export interface PrimaryStructureVideo {
@@ -12,7 +16,7 @@ export interface PrimaryStructureVideo {
   metadata: VideoMetadata | null;
   treatment: 'adjust' | 'clip';
   motionStrength: number;
-  structureType: 'uni3c' | 'flow' | 'canny' | 'depth';
+  structureType: TravelGuidanceMode;
   uni3cEndPercent: number;
 }
 
@@ -22,11 +26,18 @@ export interface PrimaryStructureVideo {
  */
 export function resolvePrimaryStructureVideo(
   structureVideos?: StructureVideoWithMetadata[] | null,
-  structureGuidance?: StructureGuidanceConfig | null,
+  guidance?: StructureGuidanceConfig | TravelGuidance | null,
 ): PrimaryStructureVideo {
   const primary = structureVideos?.[0] as StructureVideoConfigWithLegacyGuidance | undefined;
-  const controls = structureGuidance
-    ? resolveStructureGuidanceControls(structureGuidance, {
+  const travelControls = guidance && 'kind' in guidance
+    ? resolveTravelGuidanceControls(guidance, {
+        defaultMode: DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.structureType,
+        defaultStrength: DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.motionStrength,
+        defaultUni3cEndPercent: DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.uni3cEndPercent,
+      })
+    : null;
+  const structureControls = guidance && !('kind' in guidance)
+    ? resolveStructureGuidanceControls(guidance, {
         defaultStructureType: DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.structureType,
         defaultMotionStrength: DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.motionStrength,
         defaultUni3cEndPercent: DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.uni3cEndPercent,
@@ -37,8 +48,17 @@ export function resolvePrimaryStructureVideo(
     path: primary?.path ?? null,
     metadata: primary?.metadata ?? null,
     treatment: primary?.treatment ?? DEFAULT_STRUCTURE_VIDEO.treatment,
-    motionStrength: controls?.motionStrength ?? primary?.motion_strength ?? DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.motionStrength,
-    structureType: controls?.structureType ?? primary?.structure_type ?? DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.structureType,
-    uni3cEndPercent: controls?.uni3cEndPercent ?? primary?.uni3c_end_percent ?? DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.uni3cEndPercent,
+    motionStrength: travelControls?.strength
+      ?? structureControls?.motionStrength
+      ?? primary?.motion_strength
+      ?? DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.motionStrength,
+    structureType: travelControls?.mode
+      ?? structureControls?.structureType
+      ?? primary?.structure_type
+      ?? DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.structureType,
+    uni3cEndPercent: travelControls?.uni3cEndPercent
+      ?? structureControls?.uni3cEndPercent
+      ?? primary?.uni3c_end_percent
+      ?? DEFAULT_STRUCTURE_GUIDANCE_CONTROLS.uni3cEndPercent,
   };
 }

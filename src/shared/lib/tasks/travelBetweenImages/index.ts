@@ -1,6 +1,9 @@
 export type {
   StructureGuidanceConfig,
   StructureVideoConfig,
+  ContinuationConfig,
+  TravelGuidance,
+  TravelGuidanceVideoConfig,
   PromptConfig,
   MotionConfig,
   ModelConfig,

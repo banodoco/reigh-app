@@ -23,13 +23,23 @@ import React, { useState, useCallback } from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { Label } from '@/shared/components/ui/primitives/label';
 import { Slider } from '@/shared/components/ui/slider';
+import { Switch } from '@/shared/components/ui/switch';
 import { Loader2, RotateCcw, Save } from 'lucide-react';
 import { quantizeFrameCount, framesToSeconds } from '@/shared/lib/media/videoUtils';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { usePromptFieldState } from '@/shared/hooks/usePromptFieldState';
+import {
+  MODEL_DEFAULTS,
+  coerceSelectedModel,
+  getModelSpec,
+  resolveSelectedModelFromModelName,
+  getInferenceStepRange,
+  resolveGenerationPolicy,
+} from '@/tools/travel-between-images/settings';
 
 // Extracted components
 import { AdvancedSettingsSection } from './components/AdvancedSettingsSection';
+import { FieldDefaultControls } from './components/FieldDefaultControls';
 import { PromptSection } from './components/PromptSection';
 
 // Extracted hooks
@@ -56,6 +66,7 @@ export const SegmentSettingsForm: React.FC<SegmentSettingsFormProps> = ({
   showHeader = true,
   headerTitle = 'Regenerate Segment',
   maxFrames = 81,
+  segmentIndex,
   queryKeyPrefix = 'segment-settings',
   onFrameCountChange,
   onRestoreDefaults,
@@ -82,6 +93,28 @@ export const SegmentSettingsForm: React.FC<SegmentSettingsFormProps> = ({
   endImageShotGenerationId,
   onNavigateToImage,
 }) => {
+  // Model detection for LTX-specific controls
+  const effectiveSelectedModel = coerceSelectedModel(
+    settings.selectedModel ?? (modelName ? resolveSelectedModelFromModelName(modelName) : undefined)
+  );
+  const spec = getModelSpec(effectiveSelectedModel);
+  const isLtxSelected = spec.modelFamily === 'ltx';
+  const modelDefaults = MODEL_DEFAULTS[effectiveSelectedModel];
+  const frameStep = modelDefaults.frameStep;
+  const stepRange = getInferenceStepRange(effectiveSelectedModel);
+  const effectiveSmoothContinuations = settings.smoothContinuations ?? shotDefaults?.smoothContinuations ?? false;
+  const continuationPolicy = resolveGenerationPolicy(spec, {
+    smoothContinuations: effectiveSmoothContinuations,
+    requestedExecutionMode: shotDefaults?.generationTypeMode ?? 'i2v',
+    guidanceKind: settings.guidanceMode ?? shotDefaults?.guidanceMode ?? structureVideoType ?? undefined,
+  });
+  const canToggleSmoothContinuations = segmentIndex !== undefined
+    && segmentIndex > 0
+    && Boolean(spec.continuationByExecutionMode[continuationPolicy.travelMode]);
+  const resolvedMaxFrames = continuationPolicy.continuation.enabled
+    ? continuationPolicy.continuation.maxOutputFrames
+    : maxFrames;
+
   // UI state
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [isSavingDefaults, setIsSavingDefaults] = useState(false);
@@ -128,10 +161,10 @@ export const SegmentSettingsForm: React.FC<SegmentSettingsFormProps> = ({
   }, [onSubmit]);
 
   const handleFrameCountChange = useCallback((value: number) => {
-    const quantized = quantizeFrameCount(value, 9);
+    const quantized = quantizeFrameCount(value, 9, frameStep);
     onChange({ numFrames: quantized });
     onFrameCountChange?.(quantized);
-  }, [onChange, onFrameCountChange]);
+  }, [frameStep, onChange, onFrameCountChange]);
 
   const handleSaveAsShotDefaults = useCallback(async () => {
     if (!onSaveAsShotDefaults) return;
@@ -234,16 +267,16 @@ export const SegmentSettingsForm: React.FC<SegmentSettingsFormProps> = ({
                   </span>
                 </div>
                 <Slider
-                  value={quantizeFrameCount(settings.numFrames, 9)}
+                  value={quantizeFrameCount(settings.numFrames, 9, frameStep)}
                   onValueChange={(value) => {
                     const nextValue = Array.isArray(value)
-                      ? (value[0] ?? quantizeFrameCount(settings.numFrames, 9))
+                      ? (value[0] ?? quantizeFrameCount(settings.numFrames, 9, frameStep))
                       : value;
                     handleFrameCountChange(nextValue);
                   }}
                   min={9}
-                  max={maxFrames}
-                  step={4}
+                  max={resolvedMaxFrames}
+                  step={frameStep}
                   className="w-full"
                 />
               </div>
@@ -272,6 +305,22 @@ export const SegmentSettingsForm: React.FC<SegmentSettingsFormProps> = ({
         </div>
       )}
 
+      {/* Inference Steps (LTX models only) — Guidance scale is in Advanced Settings */}
+      {isLtxSelected && (
+        <div>
+          <Label className="text-sm font-light block mb-1">
+            Inference steps: {settings.inferenceSteps ?? modelDefaults.steps}
+          </Label>
+          <Slider
+            min={stepRange.min}
+            max={stepRange.max}
+            step={1}
+            value={settings.inferenceSteps ?? modelDefaults.steps}
+            onValueChange={(value) => onChange({ inferenceSteps: Array.isArray(value) ? value[0] : value })}
+          />
+        </div>
+      )}
+
       {/* Prompt */}
       <PromptSection
         promptField={promptField}
@@ -284,6 +333,11 @@ export const SegmentSettingsForm: React.FC<SegmentSettingsFormProps> = ({
         onSaveFieldAsDefault={onSaveFieldAsDefault}
         handleSaveFieldAsDefault={handleSaveFieldAsDefault}
         savingField={savingField}
+        smoothContinuations={canToggleSmoothContinuations ? {
+          enabled: effectiveSmoothContinuations,
+          onChange: (checked: boolean) => onChange({ smoothContinuations: checked }),
+          maxOutputFrames: continuationPolicy.continuation.maxOutputFrames,
+        } : undefined}
       />
 
       {/* Advanced Settings */}

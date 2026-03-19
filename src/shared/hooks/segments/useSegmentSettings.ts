@@ -37,6 +37,8 @@ import type {
 } from '@/shared/components/SegmentSettingsForm/types';
 import type { PairMetadata } from '@/shared/components/SegmentSettingsForm/segmentSettingsMigration';
 import type { ShotVideoSettings } from '@/shared/lib/settingsMigration';
+import type { TravelGuidanceMode } from '@/shared/lib/tasks/travelGuidance';
+import type { SelectedModel } from '@/tools/travel-between-images/settings';
 
 // =============================================================================
 // TYPES
@@ -71,15 +73,23 @@ export interface UseSegmentSettingsOptions {
   };
   /** Structure video defaults for this segment */
   structureVideoDefaults?: {
+    mode?: TravelGuidanceMode;
     motionStrength: number;
     treatment: 'adjust' | 'clip';
     uni3cEndPercent: number;
+    cannyIntensity?: number;
+    depthContrast?: number;
   } | null;
+  structureVideoDefaultsByModel?: Partial<Record<SelectedModel, NonNullable<UseSegmentSettingsOptions['structureVideoDefaults']>>>;
   /** Callback to update structure video defaults */
   onUpdateStructureVideoDefaults?: (updates: {
+    selectedModel?: SegmentSettings['selectedModel'];
     motionStrength?: number;
     treatment?: 'adjust' | 'clip';
     uni3cEndPercent?: number;
+    mode?: TravelGuidanceMode;
+    cannyIntensity?: number;
+    depthContrast?: number;
   }) => Promise<void>;
 }
 
@@ -163,9 +173,16 @@ function detectOverrides(
     phaseConfig: hasFieldOverride('phaseConfig'),
     loras: hasFieldOverride('loras'),
     selectedPhasePresetId: hasFieldOverride('selectedPhasePresetId'),
-    structureMotionStrength: hasFieldOverride('structureMotionStrength'),
-    structureTreatment: hasFieldOverride('structureTreatment'),
-    structureUni3cEndPercent: hasFieldOverride('structureUni3cEndPercent'),
+    selectedModel: hasFieldOverride('selectedModel'),
+    guidanceScale: hasFieldOverride('guidanceScale'),
+    inferenceSteps: hasFieldOverride('inferenceSteps'),
+    guidanceMode: hasFieldOverride('guidanceMode'),
+    guidanceStrength: hasFieldOverride('guidanceStrength'),
+    guidanceTreatment: hasFieldOverride('guidanceTreatment'),
+    guidanceUni3cEndPercent: hasFieldOverride('guidanceUni3cEndPercent'),
+    guidanceCannyIntensity: hasFieldOverride('guidanceCannyIntensity'),
+    guidanceDepthContrast: hasFieldOverride('guidanceDepthContrast'),
+    smoothContinuations: hasFieldOverride('smoothContinuations'),
   };
 }
 
@@ -193,16 +210,26 @@ function buildMergedSettings(
     randomSeed: pairOverrides.randomSeed ?? true,
     seed: pairOverrides.seed,
     makePrimaryVariant: defaults.makePrimaryVariant ?? true,
-    structureMotionStrength: pairOverrides.structureMotionStrength,
-    structureTreatment: pairOverrides.structureTreatment,
-    structureUni3cEndPercent: pairOverrides.structureUni3cEndPercent,
+    selectedModel: pairOverrides.selectedModel,
+    guidanceScale: pairOverrides.guidanceScale,
+    inferenceSteps: pairOverrides.inferenceSteps,
+    guidanceMode: pairOverrides.guidanceMode,
+    guidanceStrength: pairOverrides.guidanceStrength,
+    guidanceTreatment: pairOverrides.guidanceTreatment,
+    guidanceUni3cEndPercent: pairOverrides.guidanceUni3cEndPercent,
+    guidanceCannyIntensity: pairOverrides.guidanceCannyIntensity,
+    guidanceDepthContrast: pairOverrides.guidanceDepthContrast,
+    smoothContinuations: pairOverrides.smoothContinuations,
   } as SegmentSettings;
 }
 
 /**
  * Build shot defaults object for display.
  */
-function buildShotDefaults(shotSettings: ShotVideoSettings | null | undefined): ShotDefaults {
+function buildShotDefaults(
+  shotSettings: ShotVideoSettings | null | undefined,
+  structureVideoDefaults?: UseSegmentSettingsOptions['structureVideoDefaults'],
+): ShotDefaults {
   return {
     prompt: shotSettings?.prompt || '',
     negativePrompt: shotSettings?.negativePrompt || '',
@@ -213,6 +240,17 @@ function buildShotDefaults(shotSettings: ShotVideoSettings | null | undefined): 
     selectedPhasePresetId: shotSettings?.selectedPhasePresetId ?? null,
     textBeforePrompts: shotSettings?.textBeforePrompts || '',
     textAfterPrompts: shotSettings?.textAfterPrompts || '',
+    selectedModel: shotSettings?.selectedModel ?? 'wan-2.2',
+    guidanceScale: shotSettings?.guidanceScale,
+    inferenceSteps: undefined, // No shot-level default for inference steps
+    guidanceMode: structureVideoDefaults?.mode,
+    guidanceStrength: structureVideoDefaults?.motionStrength,
+    guidanceTreatment: structureVideoDefaults?.treatment,
+    guidanceUni3cEndPercent: structureVideoDefaults?.uni3cEndPercent,
+    guidanceCannyIntensity: structureVideoDefaults?.cannyIntensity,
+    guidanceDepthContrast: structureVideoDefaults?.depthContrast,
+    smoothContinuations: shotSettings?.smoothContinuations ?? false,
+    generationTypeMode: shotSettings?.generationTypeMode ?? 'i2v',
   };
 }
 
@@ -241,9 +279,16 @@ function createClearedSettings(
     randomSeed: true,
     seed: null,
     makePrimaryVariant,
-    structureMotionStrength: null,
-    structureTreatment: null,
-    structureUni3cEndPercent: null,
+    selectedModel: null,
+    inferenceSteps: null,
+    guidanceScale: null,
+    guidanceMode: null,
+    guidanceStrength: null,
+    guidanceTreatment: null,
+    guidanceUni3cEndPercent: null,
+    guidanceCannyIntensity: null,
+    guidanceDepthContrast: null,
+    smoothContinuations: null,
   };
 }
 
@@ -256,6 +301,7 @@ export function useSegmentSettings({
   shotId,
   defaults,
   structureVideoDefaults,
+  structureVideoDefaultsByModel,
   onUpdateStructureVideoDefaults,
 }: UseSegmentSettingsOptions): UseSegmentSettingsReturn {
   // 1. Fetch server data
@@ -271,10 +317,22 @@ export function useSegmentSettings({
     [pairMetadata, defaults]
   );
 
+  const effectiveSelectedModelForGuidance = useMemo(
+    () => mergedSettings.selectedModel
+      ?? shotVideoSettings?.selectedModel
+      ?? 'wan-2.2',
+    [mergedSettings.selectedModel, shotVideoSettings?.selectedModel],
+  );
+
+  const effectiveStructureVideoDefaults = useMemo(
+    () => structureVideoDefaultsByModel?.[effectiveSelectedModelForGuidance] ?? structureVideoDefaults,
+    [effectiveSelectedModelForGuidance, structureVideoDefaults, structureVideoDefaultsByModel],
+  );
+
   // 4. Shot defaults for placeholders
   const shotDefaults = useMemo(
-    () => buildShotDefaults(shotVideoSettings),
-    [shotVideoSettings]
+    () => buildShotDefaults(shotVideoSettings, effectiveStructureVideoDefaults),
+    [effectiveStructureVideoDefaults, shotVideoSettings]
   );
 
   // 5. Use server form pattern for local edits + auto-save
@@ -336,9 +394,16 @@ export function useSegmentSettings({
       randomSeed: currentSettings.randomSeed,
       seed: currentSettings.seed,
       makePrimaryVariant: currentSettings.makePrimaryVariant,
-      structureMotionStrength: currentSettings.structureMotionStrength,
-      structureTreatment: currentSettings.structureTreatment,
-      structureUni3cEndPercent: currentSettings.structureUni3cEndPercent,
+      selectedModel: currentSettings.selectedModel ?? shotDefaults.selectedModel,
+      guidanceScale: currentSettings.guidanceScale ?? shotDefaults.guidanceScale,
+      inferenceSteps: currentSettings.inferenceSteps ?? shotDefaults.inferenceSteps,
+      guidanceMode: currentSettings.guidanceMode ?? shotDefaults.guidanceMode,
+      guidanceStrength: currentSettings.guidanceStrength ?? shotDefaults.guidanceStrength,
+      guidanceTreatment: currentSettings.guidanceTreatment ?? shotDefaults.guidanceTreatment,
+      guidanceUni3cEndPercent: currentSettings.guidanceUni3cEndPercent ?? shotDefaults.guidanceUni3cEndPercent,
+      guidanceCannyIntensity: currentSettings.guidanceCannyIntensity ?? shotDefaults.guidanceCannyIntensity,
+      guidanceDepthContrast: currentSettings.guidanceDepthContrast ?? shotDefaults.guidanceDepthContrast,
+      smoothContinuations: currentSettings.smoothContinuations ?? shotDefaults.smoothContinuations,
     };
   }, [form.data, shotDefaults]);
 
@@ -348,30 +413,73 @@ export function useSegmentSettings({
 
     if (result && onUpdateStructureVideoDefaults) {
       const hasStructureOverrides =
-        form.data.structureMotionStrength !== undefined ||
-        form.data.structureTreatment !== undefined ||
-        form.data.structureUni3cEndPercent !== undefined;
+        form.data.guidanceMode !== undefined ||
+        form.data.guidanceStrength !== undefined ||
+        form.data.guidanceTreatment !== undefined ||
+        form.data.guidanceUni3cEndPercent !== undefined ||
+        form.data.guidanceCannyIntensity !== undefined ||
+        form.data.guidanceDepthContrast !== undefined;
 
       if (hasStructureOverrides) {
         await onUpdateStructureVideoDefaults({
+          selectedModel: form.data.selectedModel ?? shotDefaults.selectedModel,
+          mode: form.data.guidanceMode ?? effectiveStructureVideoDefaults?.mode,
           motionStrength:
-            form.data.structureMotionStrength ?? structureVideoDefaults?.motionStrength,
-          treatment: form.data.structureTreatment ?? structureVideoDefaults?.treatment,
+            form.data.guidanceStrength ?? effectiveStructureVideoDefaults?.motionStrength,
+          treatment: form.data.guidanceTreatment ?? effectiveStructureVideoDefaults?.treatment,
           uni3cEndPercent:
-            form.data.structureUni3cEndPercent ?? structureVideoDefaults?.uni3cEndPercent,
+            form.data.guidanceUni3cEndPercent ?? effectiveStructureVideoDefaults?.uni3cEndPercent,
+          cannyIntensity:
+            form.data.guidanceCannyIntensity ?? effectiveStructureVideoDefaults?.cannyIntensity,
+          depthContrast:
+            form.data.guidanceDepthContrast ?? effectiveStructureVideoDefaults?.depthContrast,
         });
 
         // Clear structure overrides from segment
         form.update({
-          structureMotionStrength: undefined,
-          structureTreatment: undefined,
-          structureUni3cEndPercent: undefined,
+          guidanceMode: undefined,
+          guidanceStrength: undefined,
+          guidanceTreatment: undefined,
+          guidanceUni3cEndPercent: undefined,
+          guidanceCannyIntensity: undefined,
+          guidanceDepthContrast: undefined,
         });
       }
     }
 
     return result;
-  }, [form, mutations, shotDefaults, onUpdateStructureVideoDefaults, structureVideoDefaults]);
+  }, [effectiveStructureVideoDefaults, form, mutations, onUpdateStructureVideoDefaults, shotDefaults]);
+
+  const saveFieldAsDefault = useCallback(async (
+    field: keyof SegmentSettings,
+    value: unknown,
+  ): Promise<boolean> => {
+    if (
+      field === 'guidanceMode'
+      || field === 'guidanceStrength'
+      || field === 'guidanceTreatment'
+      || field === 'guidanceUni3cEndPercent'
+      || field === 'guidanceCannyIntensity'
+      || field === 'guidanceDepthContrast'
+    ) {
+      if (!onUpdateStructureVideoDefaults) {
+        return false;
+      }
+
+      await onUpdateStructureVideoDefaults({
+        selectedModel: form.data.selectedModel ?? shotDefaults.selectedModel,
+        ...(field === 'guidanceMode' ? { mode: value as TravelGuidanceMode } : {}),
+        ...(field === 'guidanceStrength' ? { motionStrength: value as number } : {}),
+        ...(field === 'guidanceTreatment' ? { treatment: value as 'adjust' | 'clip' } : {}),
+        ...(field === 'guidanceUni3cEndPercent' ? { uni3cEndPercent: value as number } : {}),
+        ...(field === 'guidanceCannyIntensity' ? { cannyIntensity: value as number } : {}),
+        ...(field === 'guidanceDepthContrast' ? { depthContrast: value as number } : {}),
+      });
+      return true;
+    }
+
+    return mutations.saveFieldAsDefault(field, value);
+  }, [form.data.selectedModel, mutations, onUpdateStructureVideoDefaults, shotDefaults.selectedModel]);
 
   // 9. Extract enhanced prompt from metadata
   const enhancedPrompt = pairMetadata?.enhanced_prompt?.trim() || undefined;
@@ -406,7 +514,7 @@ export function useSegmentSettings({
 
     // Shot-level operations
     saveAsShotDefaults,
-    saveFieldAsDefault: mutations.saveFieldAsDefault,
+    saveFieldAsDefault,
 
     // Task creation
     getSettingsForTaskCreation,

@@ -1,12 +1,13 @@
 import { resolveSeed32Bit } from '../taskCreation';
 import { buildBasicModePhaseConfig } from '@/shared/types/phaseConfig';
-import { normalizeStructureGuidance } from '@/shared/lib/tasks/structureGuidance';
+import { resolveTravelGuidanceState } from './travelGuidance';
 import {
   buildTaskPayloadSnapshot,
 } from './taskPayloadSnapshot';
 import { readTravelContractData } from './travelContractData';
 import {
   asNumber,
+  asString,
   resolveNumberCandidate,
   resolveStringCandidate,
   toRecordOrEmpty,
@@ -123,14 +124,30 @@ function resolveStructureGuidance(
   params: IndividualTravelSegmentParams,
   orig: UnknownRecord,
   orchDetails: UnknownRecord,
+  contractModelName?: string,
+  contractTravelGuidance?: UnknownRecord,
   contractStructureGuidance?: UnknownRecord,
-): UnknownRecord | undefined {
-  return normalizeStructureGuidance({
+): { travelGuidance?: import('./travelBetweenImages/taskTypes').TravelGuidance; structureGuidance?: UnknownRecord; structureVideos?: StructureVideoConfig[] } {
+  const modelName = resolveStringCandidate(
+    contractModelName,
+    asString(params.originalParams && (params.originalParams as Record<string, unknown>).model_name),
+    asString(orig.model_name),
+    asString(orchDetails.model_name),
+  );
+  const resolved = resolveTravelGuidanceState({
+    modelName,
+    travelGuidance: params.travel_guidance ?? contractTravelGuidance ?? orig.travel_guidance ?? orchDetails.travel_guidance,
     structureGuidance: params.structure_guidance ?? contractStructureGuidance ?? orig.structure_guidance ?? orchDetails.structure_guidance,
     structureVideos: params.structure_videos ?? orchDetails.structure_videos ?? orig.structure_videos,
     defaultVideoTreatment: 'adjust',
     defaultUni3cEndPercent: 0.1,
   });
+
+  return {
+    travelGuidance: resolved.travelGuidance,
+    structureGuidance: resolved.structureGuidance,
+    structureVideos: resolved.structureVideos.length > 0 ? resolved.structureVideos : undefined,
+  };
 }
 
 export function buildSegmentState(params: IndividualTravelSegmentParams): SegmentBuildState {
@@ -169,7 +186,8 @@ export function buildSegmentState(params: IndividualTravelSegmentParams): Segmen
       multiplier: typeof lora.multiplier === 'number' ? lora.multiplier : Number(lora.multiplier) || 0,
     })),
   );
-  const modelName = contractData.modelName
+  const modelName = asString(params.model_name)
+    ?? contractData.modelName
     ?? DEFAULT_I2V_MODEL;
   const flowShift = resolveNumberCandidate(
     phaseConfig.flow_shift,
@@ -182,6 +200,7 @@ export function buildSegmentState(params: IndividualTravelSegmentParams): Segmen
     orchDetails.sample_solver,
   ) ?? 'euler';
   const guidanceScale = resolveNumberCandidate(
+    params.guidance_scale,
     phaseConfig.phases?.[0]?.guidance_scale,
     orig.guidance_scale,
     orchDetails.guidance_scale,
@@ -196,12 +215,13 @@ export function buildSegmentState(params: IndividualTravelSegmentParams): Segmen
     orig.guidance_phases,
     orchDetails.guidance_phases,
   ) ?? 2;
-  const numInferenceSteps = phaseConfig.steps_per_phase
-    ? phaseConfig.steps_per_phase.reduce((sum: number, steps: number) => sum + steps, 0)
-    : (
-      resolveNumberCandidate(orig.num_inference_steps, orchDetails.num_inference_steps)
-      ?? 6
-    );
+  const numInferenceSteps = params.num_inference_steps
+    ?? (phaseConfig.steps_per_phase
+      ? phaseConfig.steps_per_phase.reduce((sum: number, steps: number) => sum + steps, 0)
+      : (
+        resolveNumberCandidate(orig.num_inference_steps, orchDetails.num_inference_steps)
+        ?? 6
+      ));
   const modelSwitchPhase = resolveNumberCandidate(
     phaseConfig.model_switch_phase,
     orig.model_switch_phase,
@@ -227,13 +247,21 @@ export function buildSegmentState(params: IndividualTravelSegmentParams): Segmen
   const fpsHelpers = resolveNumberCandidate(orig.fps_helpers, orchDetails.fps_helpers) ?? 16;
   const segmentFramesExpanded = contractData.segmentFramesExpanded;
   const frameOverlapExpanded = contractData.frameOverlapExpanded;
-  const structureGuidance = resolveStructureGuidance(
+  const continuationConfig = (
+    params.continuation_config
+    ?? (contractData.continuationConfig as import('./travelBetweenImages/taskTypes').ContinuationConfig | undefined)
+  );
+  const structureState = resolveStructureGuidance(
     params,
     orig,
     orchDetails,
+    contractData.modelName,
+    contractData.travelGuidance,
     contractData.structureGuidance,
   );
-  const structureVideos = sanitizeStructureVideosFromGuidance(structureGuidance);
+  const structureGuidance = structureState.structureGuidance;
+  const structureVideos = structureState.structureVideos
+    ?? sanitizeStructureVideosFromGuidance(structureGuidance);
 
   return {
     orig,
@@ -263,6 +291,8 @@ export function buildSegmentState(params: IndividualTravelSegmentParams): Segmen
     fpsHelpers,
     segmentFramesExpanded,
     frameOverlapExpanded,
+    continuationConfig,
+    travelGuidance: structureState.travelGuidance,
     structureGuidance,
     structureVideos,
   };

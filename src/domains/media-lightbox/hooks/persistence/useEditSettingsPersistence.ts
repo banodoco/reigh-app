@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
+import { useRef, useEffect, useMemo, useState, useCallback } from 'react';
 import { useGenerationEditSettings } from '../useGenerationEditSettings';
 import { useLastUsedEditSettings } from '../useLastUsedEditSettings';
 
@@ -99,29 +99,33 @@ export function useEditSettingsPersistence({
   const lastGenerationIdRef = useRef<string | null>(null);
   const [isReady, setIsReady] = useState(false);
 
-  // Reset initialization on generation change
-  useEffect(() => {
-    if (generationId !== lastGenerationIdRef.current) {
-      hasInitializedRef.current = false;
-      lastGenerationIdRef.current = generationId;
-      setIsReady(false);
-    }
-  }, [generationId]);
-
-  // Extract stable references for the initialization effect
+  // Extract stable references
   const { isLoading: genIsLoading, hasPersistedSettings, initializeFromLastUsed } = generationSettings;
   const { lastUsed } = lastUsedSettings;
 
-  // Initialize from "last used" when generation loads without persisted settings
+  // Render-time reset: sanctioned React pattern for "adjust state during render based on
+  // changed props". Safe because it only mutates refs + calls own setState (which React
+  // batches). This must NOT be an effect — an effect would leave a render with stale
+  // hasInitializedRef causing a flash of wrong settings.
+  if (generationId !== lastGenerationIdRef.current) {
+    hasInitializedRef.current = false;
+    lastGenerationIdRef.current = generationId;
+    if (isReady) setIsReady(false);
+  }
+
+  // Effect-based init: must be an effect (not render-time) because initializeFromLastUsed
+  // calls setState on another hook (useGenerationEditSettings), which React forbids during
+  // a parent's render phase.
   useEffect(() => {
-    if (!genIsLoading && !hasInitializedRef.current && !hasPersistedSettings && generationId) {
-      hasInitializedRef.current = true;
-      // Apply "last used" settings (without prompt)
-      initializeFromLastUsed(lastUsed);
-      setIsReady(true);
-    } else if (!genIsLoading && !hasInitializedRef.current && hasPersistedSettings) {
-      hasInitializedRef.current = true;
-      setIsReady(true);
+    if (!genIsLoading && !hasInitializedRef.current) {
+      if (!hasPersistedSettings && generationId) {
+        hasInitializedRef.current = true;
+        initializeFromLastUsed(lastUsed);
+        setIsReady(true);
+      } else if (hasPersistedSettings) {
+        hasInitializedRef.current = true;
+        setIsReady(true);
+      }
     }
   }, [generationId, genIsLoading, hasPersistedSettings, initializeFromLastUsed, lastUsed]);
 

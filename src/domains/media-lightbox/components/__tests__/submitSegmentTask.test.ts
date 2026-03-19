@@ -63,7 +63,7 @@ describe('submitSegmentTask', () => {
     expect(result).toBeNull();
   });
 
-  it('builds canonical structure guidance alongside cleaned structure videos', () => {
+  it('builds canonical travel guidance alongside cleaned structure videos', () => {
     const result = buildStructureVideoForTask(
       {
         structureVideoUrl: 'https://example.com/guide.mp4',
@@ -90,8 +90,8 @@ describe('submitSegmentTask', () => {
         end_frame: 24,
         treatment: 'clip',
       }],
-      structureGuidance: {
-        target: 'uni3c',
+      travelGuidance: {
+        kind: 'uni3c',
         videos: [{
           path: 'https://example.com/guide.mp4',
           start_frame: 8,
@@ -172,6 +172,7 @@ describe('submitSegmentTask', () => {
       task: {
         projectId: 'project-1',
         segmentIndex: 1,
+        modelName: 'ltx2_22B_distilled',
         structureInput: null,
       },
       run,
@@ -182,6 +183,9 @@ describe('submitSegmentTask', () => {
 
     expect(saveSettings).toHaveBeenCalledTimes(1);
     expect(createTaskMock).toHaveBeenCalledTimes(1);
+    expect(createTaskMock).toHaveBeenCalledWith(expect.objectContaining({
+      model_name: 'ltx2_22B_distilled',
+    }));
     expect(createdTaskId).toBe('task-2');
   });
 });
