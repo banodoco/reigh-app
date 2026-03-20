@@ -71,6 +71,7 @@ interface UseShotEditorLayoutModelParams {
       | 'parentGenerations'
       | 'segmentProgress'
       | 'isSegmentOutputsLoading'
+      | 'joinSegmentSlots'
     >;
     generationActions: UseShotSettingsValueProps['generationActions'];
     shotActions: UseShotSettingsValueProps['shotActions'];
@@ -283,6 +284,7 @@ export function buildShotEditorContextInput({
       joinClipsSuccess: controllers.joinWorkflow.joinClipsSuccess,
       handleRestoreJoinDefaults:
         controllers.joinWorkflow.handleRestoreJoinDefaults,
+      joinSegmentSlots: controllers.output.joinSegmentSlots,
     },
     dimensions,
     queryClient: core.queryClient,

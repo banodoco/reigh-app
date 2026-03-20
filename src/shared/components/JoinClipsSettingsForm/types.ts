@@ -78,6 +78,12 @@ export interface JoinClipsMotionConfig {
   featuredPresetIds?: string[];
 }
 
+/** Per-boundary crossfade status for the join form to display */
+export interface BoundaryCrossfadeStatus {
+  canCrossfade: boolean;
+  overlapFrames: number;
+}
+
 export interface JoinClipsUIState {
   onGenerate: () => void;
   isGenerating: boolean;
@@ -91,6 +97,13 @@ export interface JoinClipsUIState {
 
   /** Whether to show the generate button (default: true). Set to false when embedding in another form. */
   showGenerateButton?: boolean;
+
+  /**
+   * Per-boundary crossfade status. When provided, the form shows a summary banner.
+   * If all boundaries canCrossfade, the full settings form is hidden (only banner + generate shown).
+   * Length should be clipCount - 1.
+   */
+  boundarySummary?: BoundaryCrossfadeStatus[];
 }
 
 export interface JoinClipsSettingsFormProps {

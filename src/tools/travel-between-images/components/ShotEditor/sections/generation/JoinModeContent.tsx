@@ -5,6 +5,7 @@ import {
 } from '@/shared/components/JoinClipsSettingsForm/JoinClipsSettingsForm';
 import { useShotSettingsContext } from '../../ShotSettingsContext';
 import { buildJoinClipsFormProps } from './joinClipsFormProps';
+import { useBoundarySummary } from '../../hooks/actions/useBoundarySummary';
 
 interface JoinModeContentProps {
   joinSegmentsSectionRef: React.RefObject<HTMLDivElement>;
@@ -16,6 +17,8 @@ export const JoinModeContent: React.FC<JoinModeContentProps> = ({
   swapButtonRef,
 }) => {
   const { projectId, availableLoras, generationMode, joinState } = useShotSettingsContext();
+
+  const boundarySummary = useBoundarySummary((joinState.joinSegmentSlots ?? []) as import('@/shared/hooks/segments/useSegmentOutputsForShot').SegmentSlot[]);
 
   const joinFormProps = buildJoinClipsFormProps({
     joinState,
@@ -33,9 +36,12 @@ export const JoinModeContent: React.FC<JoinModeContentProps> = ({
           onGenerate: joinState.handleJoinSegments,
           isGenerating: joinState.isJoiningClips,
           generateSuccess: joinState.joinClipsSuccess,
-          generateButtonText: 'Join Segments',
+          generateButtonText: boundarySummary?.every(b => b.canCrossfade)
+            ? 'Stitch Segments'
+            : 'Join Segments',
           isGenerateDisabled: joinState.joinValidationData.videoCount < 2,
           onRestoreDefaults: joinState.handleRestoreJoinDefaults,
+          boundarySummary,
         }}
       />
 

@@ -354,7 +354,7 @@ export const BatchSettingsForm: React.FC<BatchSettingsFormProps> = ({
                         onCheckedChange={onSmoothContinuationsChange}
                       />
                       <Label htmlFor="batch-smooth-continuations" className="text-xs cursor-pointer">
-                        Smooth Continuations
+                        Continue
                       </Label>
                     </div>
                   </TooltipTrigger>

@@ -124,6 +124,8 @@ export interface JoinState {
   isJoiningClips: boolean;
   joinClipsSuccess: boolean;
   handleRestoreJoinDefaults: () => void;
+  /** Segment slots for boundary freshness computation */
+  joinSegmentSlots?: unknown[];
 }
 
 export type DimensionState = ShotEditorDimensionProps;

@@ -11,6 +11,7 @@ import React from 'react';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { Label } from '@/shared/components/ui/primitives/label';
 import { Switch } from '@/shared/components/ui/switch';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 import { FieldDefaultControls } from './FieldDefaultControls';
 import { EnhancedPromptBadge } from './EnhancedPromptBadge';
 import type { usePromptFieldState } from '@/shared/hooks/usePromptFieldState';
@@ -92,38 +93,59 @@ export const PromptSection: React.FC<PromptSectionProps> = ({
       {/* Enhance Prompt Toggle & Make Primary Variant */}
       <div className="flex gap-2">
         {onEnhancePromptChange && (
-          <div className="flex items-center gap-x-2 p-2 bg-muted/30 rounded-lg border flex-1">
-            <Switch
-              id="enhance-prompt-segment"
-              checked={enhancePromptEnabled ?? false}
-              onCheckedChange={onEnhancePromptChange}
-            />
-            <Label htmlFor="enhance-prompt-segment" className="text-sm font-medium cursor-pointer flex-1">
-              Enhance Prompt
-            </Label>
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-x-2 p-2 bg-muted/30 rounded-lg border flex-1">
+                <Switch
+                  id="enhance-prompt-segment"
+                  checked={enhancePromptEnabled ?? false}
+                  onCheckedChange={onEnhancePromptChange}
+                />
+                <Label htmlFor="enhance-prompt-segment" className="text-xs cursor-pointer flex-1">
+                  Enhance Prompt
+                </Label>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>AI will generate a prompt for this segment based on the images</p>
+            </TooltipContent>
+          </Tooltip>
         )}
-        <div className="flex items-center gap-x-2 p-2 bg-muted/30 rounded-lg border flex-1">
-          <Switch
-            id="make-primary-segment"
-            checked={settings.makePrimaryVariant}
-            onCheckedChange={(value) => onChange({ makePrimaryVariant: value })}
-          />
-          <Label htmlFor="make-primary-segment" className="text-sm font-medium cursor-pointer flex-1">
-            Make Primary
-          </Label>
-        </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center gap-x-2 p-2 bg-muted/30 rounded-lg border flex-1">
+              <Switch
+                id="make-primary-segment"
+                checked={settings.makePrimaryVariant}
+                onCheckedChange={(value) => onChange({ makePrimaryVariant: value })}
+              />
+              <Label htmlFor="make-primary-segment" className="text-xs cursor-pointer flex-1">
+                Make Primary
+              </Label>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Make this the primary variant for this segment</p>
+          </TooltipContent>
+        </Tooltip>
         {smoothContinuations && (
-          <div className="flex items-center gap-x-2 p-2 bg-cyan-500/10 rounded-lg border border-cyan-500/20 flex-1">
-            <Switch
-              id="smooth-continuations-segment"
-              checked={smoothContinuations.enabled}
-              onCheckedChange={smoothContinuations.onChange}
-            />
-            <Label htmlFor="smooth-continuations-segment" className="text-sm font-medium cursor-pointer flex-1">
-              Smooth
-            </Label>
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-x-2 p-2 bg-muted/30 rounded-lg border flex-1">
+                <Switch
+                  id="smooth-continuations-segment"
+                  checked={smoothContinuations.enabled}
+                  onCheckedChange={smoothContinuations.onChange}
+                />
+                <Label htmlFor="smooth-continuations-segment" className="text-xs cursor-pointer flex-1">
+                  Continue
+                </Label>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Continue from the previous variant for smoother transitions</p>
+            </TooltipContent>
+          </Tooltip>
         )}
       </div>
     </div>
