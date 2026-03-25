@@ -106,6 +106,24 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
         spaceKeyToPlayOrPause={false}
         showVolumeControls={false}
         acknowledgeRemotionLicense
+        bufferStateDelayInMilliseconds={1000}
+        renderLoading={() => (
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'black',
+              color: 'rgba(255,255,255,0.5)',
+              fontSize: 13,
+              fontFamily: 'monospace',
+            }}
+          >
+            Loading preview…
+          </div>
+        )}
         style={{ width: '100%', height: '100%' }}
       />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-center justify-center gap-2 bg-gradient-to-t from-black/60 to-transparent px-3 py-3">

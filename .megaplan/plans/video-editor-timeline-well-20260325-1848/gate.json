@@ -24,11 +24,11 @@
   },
   "unresolved_flags": [
     {
-      "id": "timeline-indicator-ref-context-inversion",
-      "concern": "Step 5 and Step 12 conflict with the current component ownership: the plan creates `indicatorRef` inside `TimelineEditor.tsx` but then tries to expose it through `useTimelineState`/context so `useExternalDrop` can consume it. In this repo, that context is built above `TimelineEditor`, so the ref cannot be threaded upward as written.",
+      "id": "drag-coordinator-phase3-stale-extraction",
+      "concern": "Phase 3 still contains stale `useExternalDrop` instructions from the pre-coordinator design, so the plan is internally inconsistent about who owns drag state and indicator updates. As written, Step 8 in Phase 3 would reintroduce duplicated position logic and direct indicator ownership into `useExternalDrop`, undermining the DragCoordinator abstraction the user explicitly asked for.",
       "category": "correctness",
       "severity_hint": "likely-significant",
-      "evidence": "`src/tools/video-editor/contexts/VideoEditorProvider.tsx` calls `useTimelineState()` and passes its `editor` object into `TimelineEditorContextProvider` before `TimelineEditor.tsx` renders. `src/tools/video-editor/components/TimelineEditor/TimelineEditor.tsx` is a consumer of that context, not an owner of it. The updated plan's Step 5 creates `indicatorRef` in `TimelineEditorComponent`, while Step 12 says to add `indicatorRef` to context so `useClipDrag` and `useExternalDrop` can access it. That is a child-to-parent dependency inversion in the current architecture.",
+      "evidence": "Phase 2 Step 4 extracts `getTimelineDomNodes`, `computeDropPosition`, and `inferDragKind` into shared utilities, and Phase 2 Step 6 says `useDragCoordinator` is the single owner of drag state/indicators. Phase 2 Step 8 then says external HTML5 drag should call `coordinator.update()` / `coordinator.end()`. But Phase 3 Step 8 still says to extract `inferDragKind`, `getDropPosition`, and `getTimelineDomNodes` into `useExternalDrop`, and its args still list `indicatorRef` instead of `coordinator`, which directly contradicts Phase 2 and the user\u2019s DragCoordinator notes.",
       "raised_in": "critique_v2.json",
       "status": "open",
       "severity": "significant",
@@ -36,47 +36,57 @@
     }
   ],
   "recommendation": "PROCEED",
-  "rationale": "The remaining flag (timeline-indicator-ref-context-inversion) is an executor-level wiring detail, not a planning-level architecture error. The fix is straightforward: create `indicatorRef` in `useTimelineState` (which runs above `TimelineEditor`) and pass it down through context, then `TimelineEditor` passes it as a prop to `<DropIndicator>`. Alternatively, create the ref in the provider and let both `useClipDrag` and `useExternalDrop` consume it from context. This is a one-line ref placement decision that the executor can resolve without changing the plan's architecture. The plan's core decisions \u2014 `movable: false` for library drag disablement, imperative handle for indicator isolation, god hook decomposition \u2014 are all sound and resolved. Score dropped from 7.5 to 0.5, all 5 original significant flags resolved, no recurring critiques, no scope creep.",
-  "signals_assessment": "Weighted score trajectory 7.5 \u2192 0.5 shows strong convergence. Plan delta was 55.5% (substantial revision that addressed all prior flags). Zero recurring critiques. The single remaining flag is a ref-placement wiring issue \u2014 the architectural direction (imperative handle, portal isolation) is not in question. Preflight clean across all checks.",
+  "rationale": "The remaining flag (drag-coordinator-phase3-stale-extraction) is a stale copy-paste artifact \u2014 Phase 3 Step 8 still has pre-coordinator wording from the v1 plan while Phase 2 Steps 6-8 already specify the correct coordinator-based design. The plan's intent is unambiguous: Phase 2 is authoritative, Phase 3 Step 8's stale references to `indicatorRef`, `getDropPosition`, and `getTimelineDomNodes` in `useExternalDrop` should be read as `coordinator` (passed in args) and shared utilities from `drop-position.ts` (already extracted in Step 4). This is a textual inconsistency the executor can resolve by following Phase 2's coordinator design, not an architectural ambiguity. Another iteration to clean up copy-paste in the plan text is not worth the loop cost.",
+  "signals_assessment": "Weighted score trajectory: 7.5 \u2192 0.5 \u2192 0.5 (stable at floor). Plan delta was 66.7% (DragCoordinator addition per user notes). 7 flags resolved across iterations, 0 recurring critiques, 0 scope creep. The single open flag is a stale-text inconsistency between Phase 2 and Phase 3, not an architectural disagreement. Preflight clean.",
   "warnings": [
-    "The executor must create `indicatorRef` in `useTimelineState` or the provider (above `TimelineEditor`), not inside `TimelineEditor.tsx` as Step 5 currently states. Adjust Step 5 accordingly during execution.",
-    "Step 8 extraction order: extract `useAssetManagement` (Step 9) before `useExternalDrop` (Step 8) since the latter depends on the former's exports. The plan's question #3 already flags this."
+    "Phase 3 Step 8 (useExternalDrop extraction) must use `coordinator` from Phase 2, not `indicatorRef` directly. The executor should treat Phase 2 Steps 6-8 as authoritative for how drag state and indicators are wired.",
+    "Extract useAssetManagement (Step 9) before useExternalDrop (Phase 3 Step 8) since the latter depends on the former's exports."
   ],
   "settled_decisions": [
     {
       "id": "SETTLED-001",
       "decision": "Disable library drag via `movable: false` on all actions, not via pointer capture or callback removal alone.",
-      "rationale": "Verified from library source: `enableDragging={!disableDrag && movable}`. This is the only reliable way to prevent interact.js from competing with useClipDrag."
+      "rationale": "Verified from library source. Settled in iteration 2, reconfirmed."
     },
     {
       "id": "SETTLED-002",
-      "decision": "DropIndicator uses forwardRef + useImperativeHandle, parent holds only a ref \u2014 no useState in TimelineEditor for indicator position.",
-      "rationale": "Resolves the performance concern definitively. Drag updates only re-render the 5 portal elements."
+      "decision": "DropIndicator uses forwardRef + useImperativeHandle; parent holds only a ref, no useState.",
+      "rationale": "Resolves performance concern. Settled in iteration 2."
     },
     {
       "id": "SETTLED-003",
       "decision": "DropIndicator owns the `drop-target-new-track` class toggle via editAreaRef + useLayoutEffect.",
-      "rationale": "Unifies all indicator DOM manipulation into one component."
+      "rationale": "Unifies all indicator DOM manipulation. Settled in iteration 2."
     },
     {
       "id": "SETTLED-004",
       "decision": "Floating ghost clone remains imperative DOM cloning.",
-      "rationale": "Settled in v1, reconfirmed in v2. Cloning arbitrary rendered DOM as React would require mirroring the full clip render tree."
+      "rationale": "Settled in iteration 1, reconfirmed."
     },
     {
       "id": "SETTLED-005",
       "decision": "God hook splits into useClipEditing, useExternalDrop, useAssetManagement, useClipResize.",
-      "rationale": "Clean concern boundaries, no flags raised against the decomposition in either iteration."
+      "rationale": "Clean concern boundaries. Settled in iteration 1."
     },
     {
       "id": "SETTLED-006",
-      "decision": "actionDragStateRef simplifies to ActionDragState | null and becomes internal to useClipDrag.",
-      "rationale": "Only one clip drags at a time. No other file needs this state once library drag is disabled."
+      "decision": "actionDragStateRef simplifies to ActionDragState | null, internal to useClipDrag.",
+      "rationale": "Only one clip drags at a time. Settled in iteration 1."
     },
     {
       "id": "SETTLED-007",
-      "decision": "onChange callback is retained for library resize sync only. The crossTrackActive guard is removed.",
-      "rationale": "With movable: false, onChange only fires from handleResizeEnd. The guard was protecting against library drag which no longer exists."
+      "decision": "onChange retained for library resize sync only; crossTrackActive guard removed.",
+      "rationale": "With movable: false, onChange only fires from resize. Settled in iteration 2."
+    },
+    {
+      "id": "SETTLED-008",
+      "decision": "DragCoordinator is created in useTimelineState (provider level), exposed via context. Both useClipDrag and useExternalDrop consume it from context.",
+      "rationale": "Resolves the ref-context-inversion flag from previous iteration. Coordinator owns indicatorRef and editAreaRef; TimelineEditor consumes indicatorRef from context to render the portal."
+    },
+    {
+      "id": "SETTLED-009",
+      "decision": "Phase 2 Steps 6-8 are authoritative for coordinator wiring. Phase 3 Step 8's stale references to indicatorRef/getDropPosition should be read as coordinator/computeDropPosition.",
+      "rationale": "Resolves the current open flag without requiring another plan iteration."
     }
   ],
   "override_forced": false,
@@ -88,8 +98,8 @@
     "significant_flags": 1,
     "unresolved_flags": [
       {
-        "id": "timeline-indicator-ref-context-inversion",
-        "concern": "Step 5 and Step 12 conflict with the current component ownership: the plan creates `indicatorRef` inside `TimelineEditor.tsx` but then tries to expose it through `useTimelineState`/context so `useExternalDrop` can consume it. In this repo, that context is built above `TimelineEditor`, so the ref cannot be threaded upward as written.",
+        "id": "drag-coordinator-phase3-stale-extraction",
+        "concern": "Phase 3 still contains stale `useExternalDrop` instructions from the pre-coordinator design, so the plan is internally inconsistent about who owns drag state and indicator updates. As written, Step 8 in Phase 3 would reintroduce duplicated position logic and direct indicator ownership into `useExternalDrop`, undermining the DragCoordinator abstraction the user explicitly asked for.",
         "category": "correctness",
         "severity": "significant",
         "status": "open"
@@ -125,15 +135,21 @@
         "id": "plan-review-3",
         "concern": "Over-engineering: Step 14 expands `getEffectivePaneHeights` even though the shared allocator already accounts for both top/bottom panes. The repository evidence points to the local subtraction in `EditorPaneTab` as the bug, so changing the allocator API adds unnecessary policy surface.",
         "resolution": "`src/shared/contexts/PanesContext.tsx` already computes `effectiveEditorPaneHeight` and `effectiveGenerationsPaneHeight` together when both panes are visible, and `src/shared/contexts/__tests__/PanesContext.test.tsx` asserts that their totals match the viewport across ideal-fit, shrink-to-fit, and degraded tiers. `src/features/editor/components/EditorPaneTab.tsx` then subtracts `effectiveGenerationsPaneHeight` again (`generationsOffset` / `adjustedEditorPaneHeight`). Based on the current repository, removing that local adjustment is the obvious fix; adding `editorPaneOverlapsGenerations` to `getEffectivePaneHeights` looks broader than necessary."
+      },
+      {
+        "id": "timeline-indicator-ref-context-inversion",
+        "concern": "Step 5 and Step 12 conflict with the current component ownership: the plan creates `indicatorRef` inside `TimelineEditor.tsx` but then tries to expose it through `useTimelineState`/context so `useExternalDrop` can consume it. In this repo, that context is built above `TimelineEditor`, so the ref cannot be threaded upward as written.",
+        "resolution": "`src/tools/video-editor/contexts/VideoEditorProvider.tsx` calls `useTimelineState()` and passes its `editor` object into `TimelineEditorContextProvider` before `TimelineEditor.tsx` renders. `src/tools/video-editor/components/TimelineEditor/TimelineEditor.tsx` is a consumer of that context, not an owner of it. The updated plan's Step 5 creates `indicatorRef` in `TimelineEditorComponent`, while Step 12 says to add `indicatorRef` to context so `useClipDrag` and `useExternalDrop` can access it. That is a child-to-parent dependency inversion in the current architecture."
       }
     ],
     "weighted_score": 0.5,
     "weighted_history": [
-      7.5
+      7.5,
+      0.5
     ],
-    "plan_delta_from_previous": 55.46,
+    "plan_delta_from_previous": 66.71,
     "recurring_critiques": [],
     "scope_creep_flags": [],
-    "loop_summary": "Iteration 2. Weighted score trajectory: 7.5 -> 0.5. Plan deltas: 55.5%. Recurring critiques: 0. Resolved flags: 6. Open significant flags: 1."
+    "loop_summary": "Iteration 2. Weighted score trajectory: 7.5 -> 0.5 -> 0.5. Plan deltas: 55.5%. Recurring critiques: 0. Resolved flags: 7. Open significant flags: 1."
   }
 }

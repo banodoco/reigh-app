@@ -1,0 +1,150 @@
+{
+  "name": "split-usetimelinedata-ts-678-20260325-2047",
+  "idea": "Split useTimelineData.ts (678 LOC) \u2014 the last god hook in the video editor. It mixes 6 concerns: (1) Data fetching/queries (timelineQuery, assetRegistryQuery, saveMutation) ~60 lines. (2) Save/sync lifecycle (saveTimeline, scheduleSave, commitData, applyTimelineEdit, applyResolvedConfigEdit, patchRegistry, editSeqRef, savedSeqRef, saveTimer, lastSavedSignature) ~200 lines. (3) Render state (renderStatus, renderProgress, renderLog, renderDirty, renderResult*, useClientRender wiring) ~60 lines. (4) UI preferences (scaleWidth, activeClipTab, assetPanel state, setters) ~50 lines. (5) Derived/memoized data (resolvedConfig, selectedClip, selectedTrack, compositionSize, renderMetadata, trackScaleMap) ~100 lines. (6) Asset operations (uploadAsset, registerAsset, uploadFiles, invalidateAssetRegistry, resolveAssetUrl, reloadFromServer) ~50 lines. Goal: each concern in its own hook under 200 LOC, useTimelineData becomes a thin orchestrator under 150 LOC that composes them. No behavioral changes \u2014 pure extraction.",
+  "current_state": "critiqued",
+  "iteration": 2,
+  "created_at": "2026-03-25T19:47:08Z",
+  "config": {
+    "project_dir": "/Users/peteromalley/Documents/reigh-workspace/reigh-app",
+    "auto_approve": false,
+    "robustness": "standard"
+  },
+  "sessions": {
+    "claude_planner": {
+      "id": "7259a64d-b299-4c22-8854-a1e9f855a149",
+      "mode": "persistent",
+      "created_at": "2026-03-25T19:50:09Z",
+      "last_used_at": "2026-03-25T19:56:06Z",
+      "refreshed": false
+    },
+    "codex_critic": {
+      "id": "019d268c-351d-75d2-983d-d40c6f5be7e1",
+      "mode": "persistent",
+      "created_at": "2026-03-25T19:52:57Z",
+      "last_used_at": "2026-03-25T19:58:01Z",
+      "refreshed": false
+    },
+    "claude_gatekeeper": {
+      "id": "9f68d0cb-021d-4553-9e29-a635865c6855",
+      "mode": "persistent",
+      "created_at": "2026-03-25T19:54:00Z",
+      "last_used_at": "2026-03-25T19:54:00Z",
+      "refreshed": false
+    }
+  },
+  "plan_versions": [
+    {
+      "version": 1,
+      "file": "plan_v1.md",
+      "hash": "sha256:42d150fee7910dd4544d238c8b74e4073b7a57fe7ab4f6064b6d19cccdca99c2",
+      "timestamp": "2026-03-25T19:50:09Z"
+    },
+    {
+      "version": 2,
+      "file": "plan_v2.md",
+      "hash": "sha256:3a31ba98f4edacb8a1eaf1f185715d022618e78106cba1d91ab0e0cd3ab6851f",
+      "timestamp": "2026-03-25T19:56:06Z"
+    }
+  ],
+  "history": [
+    {
+      "step": "init",
+      "timestamp": "2026-03-25T19:47:08Z",
+      "duration_ms": 0,
+      "cost_usd": 0.0,
+      "result": "success",
+      "environment": {
+        "claude": true,
+        "codex": true
+      }
+    },
+    {
+      "step": "plan",
+      "timestamp": "2026-03-25T19:50:09Z",
+      "duration_ms": 169074,
+      "cost_usd": 0.45083249999999997,
+      "result": "success",
+      "session_mode": "persistent",
+      "session_id": "7259a64d-b299-4c22-8854-a1e9f855a149",
+      "agent": "claude",
+      "output_file": "plan_v1.md",
+      "artifact_hash": "sha256:42d150fee7910dd4544d238c8b74e4073b7a57fe7ab4f6064b6d19cccdca99c2"
+    },
+    {
+      "step": "critique",
+      "timestamp": "2026-03-25T19:52:57Z",
+      "duration_ms": 161240,
+      "cost_usd": 0.0,
+      "result": "success",
+      "session_mode": "persistent",
+      "session_id": "019d268c-351d-75d2-983d-d40c6f5be7e1",
+      "agent": "codex",
+      "output_file": "critique_v1.json",
+      "artifact_hash": "sha256:faf05db1b9a6782b11b0710246cc10cc4af59449ca2cdfbae4c3ad129590f762",
+      "flags_count": 3
+    },
+    {
+      "step": "gate",
+      "timestamp": "2026-03-25T19:54:00Z",
+      "duration_ms": 54916,
+      "cost_usd": 0.12837474999999998,
+      "result": "success",
+      "session_mode": "persistent",
+      "session_id": "9f68d0cb-021d-4553-9e29-a635865c6855",
+      "agent": "claude",
+      "output_file": "gate.json",
+      "artifact_hash": "sha256:bec72e9f15e1c637efb6daf81b665dc9a3c99157a27fb3d2f7a6f903a66fe369",
+      "recommendation": "ITERATE"
+    },
+    {
+      "step": "revise",
+      "timestamp": "2026-03-25T19:56:06Z",
+      "duration_ms": 119469,
+      "cost_usd": 0.43442175,
+      "result": "success",
+      "session_mode": "persistent",
+      "session_id": "7259a64d-b299-4c22-8854-a1e9f855a149",
+      "agent": "claude",
+      "output_file": "plan_v2.md",
+      "artifact_hash": "sha256:3a31ba98f4edacb8a1eaf1f185715d022618e78106cba1d91ab0e0cd3ab6851f",
+      "flags_addressed": [
+        "missing-resolved-config-stability",
+        "missing-render-dirty-wiring",
+        "reload-misowned-in-asset-hook"
+      ]
+    },
+    {
+      "step": "critique",
+      "timestamp": "2026-03-25T19:58:01Z",
+      "duration_ms": 100613,
+      "cost_usd": 0.0,
+      "result": "success",
+      "session_mode": "persistent",
+      "session_id": "019d268c-351d-75d2-983d-d40c6f5be7e1",
+      "agent": "codex",
+      "output_file": "critique_v2.json",
+      "artifact_hash": "sha256:9cb4c08336caa2d9d8f17a24e3fabfe6c6ee7eb82d8337fe89dd04d980514d52",
+      "flags_count": 1
+    }
+  ],
+  "meta": {
+    "significant_counts": [
+      3,
+      1
+    ],
+    "weighted_scores": [
+      4.75
+    ],
+    "plan_deltas": [
+      51.3
+    ],
+    "recurring_critiques": [
+      [],
+      []
+    ],
+    "total_cost_usd": 1.013629,
+    "overrides": [],
+    "notes": []
+  },
+  "last_gate": {}
+}

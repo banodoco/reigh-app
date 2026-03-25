@@ -84,6 +84,18 @@
       "severity_hint": "likely-significant",
       "evidence": "`src/tools/video-editor/contexts/VideoEditorProvider.tsx` calls `useTimelineState()` and passes its `editor` object into `TimelineEditorContextProvider` before `TimelineEditor.tsx` renders. `src/tools/video-editor/components/TimelineEditor/TimelineEditor.tsx` is a consumer of that context, not an owner of it. The updated plan's Step 5 creates `indicatorRef` in `TimelineEditorComponent`, while Step 12 says to add `indicatorRef` to context so `useClipDrag` and `useExternalDrop` can access it. That is a child-to-parent dependency inversion in the current architecture.",
       "raised_in": "critique_v2.json",
+      "status": "verified",
+      "severity": "significant",
+      "verified": true,
+      "verified_in": "critique_v2.json"
+    },
+    {
+      "id": "drag-coordinator-phase3-stale-extraction",
+      "concern": "Phase 3 still contains stale `useExternalDrop` instructions from the pre-coordinator design, so the plan is internally inconsistent about who owns drag state and indicator updates. As written, Step 8 in Phase 3 would reintroduce duplicated position logic and direct indicator ownership into `useExternalDrop`, undermining the DragCoordinator abstraction the user explicitly asked for.",
+      "category": "correctness",
+      "severity_hint": "likely-significant",
+      "evidence": "Phase 2 Step 4 extracts `getTimelineDomNodes`, `computeDropPosition`, and `inferDragKind` into shared utilities, and Phase 2 Step 6 says `useDragCoordinator` is the single owner of drag state/indicators. Phase 2 Step 8 then says external HTML5 drag should call `coordinator.update()` / `coordinator.end()`. But Phase 3 Step 8 still says to extract `inferDragKind`, `getDropPosition`, and `getTimelineDomNodes` into `useExternalDrop`, and its args still list `indicatorRef` instead of `coordinator`, which directly contradicts Phase 2 and the user\u2019s DragCoordinator notes.",
+      "raised_in": "critique_v2.json",
       "status": "open",
       "severity": "significant",
       "verified": false

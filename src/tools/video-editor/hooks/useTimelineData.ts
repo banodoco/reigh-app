@@ -59,14 +59,6 @@ export function shouldAcceptPolledData(
   return polledSig !== lastSavedSig;
 }
 
-export interface ActionDragState {
-  rowId: string;
-  initialStart: number;
-  initialEnd: number;
-  latestStart: number;
-  latestEnd: number;
-}
-
 export interface UseTimelineDataResult {
   data: TimelineData | null;
   resolvedConfig: TimelineData['resolvedConfig'] | null;
@@ -88,9 +80,6 @@ export interface UseTimelineDataResult {
   scaleWidth: number;
   isLoading: boolean;
   dataRef: React.MutableRefObject<TimelineData | null>;
-  crossTrackActive: React.MutableRefObject<boolean>;
-  actionDragStateRef: React.MutableRefObject<Record<string, ActionDragState>>;
-  resizeStartRef: React.MutableRefObject<Record<string, { start: number; from: number }>>;
   preferences: EditorPreferences;
   setSelectedClipId: React.Dispatch<React.SetStateAction<string | null>>;
   setSelectedTrackId: React.Dispatch<React.SetStateAction<string | null>>;
@@ -161,9 +150,6 @@ export function useTimelineData(): UseTimelineDataResult {
   const editSeqRef = useRef(0);
   const savedSeqRef = useRef(0);
   const dataRef = useRef<TimelineData | null>(null);
-  const resizeStartRef = useRef<Record<string, { start: number; from: number }>>({});
-  const crossTrackActive = useRef(false);
-  const actionDragStateRef = useRef<Record<string, ActionDragState>>({});
   const configSignatureRef = useRef<string | null>(null);
   const stableResolvedConfigRef = useRef<TimelineData['resolvedConfig'] | null>(null);
   const lastRegistryDataRef = useRef<Awaited<ReturnType<typeof provider.loadAssetRegistry>> | null>(null);
@@ -669,9 +655,6 @@ export function useTimelineData(): UseTimelineDataResult {
     scaleWidth,
     isLoading: timelineQuery.isLoading && !data,
     dataRef,
-    crossTrackActive,
-    actionDragStateRef,
-    resizeStartRef,
     preferences,
     setSelectedClipId,
     setSelectedTrackId,

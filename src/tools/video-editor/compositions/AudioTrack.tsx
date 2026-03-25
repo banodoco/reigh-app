@@ -1,5 +1,6 @@
 import type { FC } from 'react';
-import { Audio, Sequence } from 'remotion';
+import { Sequence } from 'remotion';
+import { Audio } from '@remotion/media';
 import { getClipDurationInFrames, secondsToFrames } from '@/tools/video-editor/lib/config-utils';
 import type { ResolvedTimelineClip } from '@/tools/video-editor/types';
 

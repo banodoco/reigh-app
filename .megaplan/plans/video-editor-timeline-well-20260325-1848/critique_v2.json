@@ -1,20 +1,15 @@
 {
   "flags": [
     {
-      "id": "timeline-indicator-ref-context-inversion",
-      "concern": "Step 5 and Step 12 conflict with the current component ownership: the plan creates `indicatorRef` inside `TimelineEditor.tsx` but then tries to expose it through `useTimelineState`/context so `useExternalDrop` can consume it. In this repo, that context is built above `TimelineEditor`, so the ref cannot be threaded upward as written.",
+      "id": "drag-coordinator-phase3-stale-extraction",
+      "concern": "Phase 3 still contains stale `useExternalDrop` instructions from the pre-coordinator design, so the plan is internally inconsistent about who owns drag state and indicator updates. As written, Step 8 in Phase 3 would reintroduce duplicated position logic and direct indicator ownership into `useExternalDrop`, undermining the DragCoordinator abstraction the user explicitly asked for.",
       "category": "correctness",
       "severity_hint": "likely-significant",
-      "evidence": "`src/tools/video-editor/contexts/VideoEditorProvider.tsx` calls `useTimelineState()` and passes its `editor` object into `TimelineEditorContextProvider` before `TimelineEditor.tsx` renders. `src/tools/video-editor/components/TimelineEditor/TimelineEditor.tsx` is a consumer of that context, not an owner of it. The updated plan's Step 5 creates `indicatorRef` in `TimelineEditorComponent`, while Step 12 says to add `indicatorRef` to context so `useClipDrag` and `useExternalDrop` can access it. That is a child-to-parent dependency inversion in the current architecture."
+      "evidence": "Phase 2 Step 4 extracts `getTimelineDomNodes`, `computeDropPosition`, and `inferDragKind` into shared utilities, and Phase 2 Step 6 says `useDragCoordinator` is the single owner of drag state/indicators. Phase 2 Step 8 then says external HTML5 drag should call `coordinator.update()` / `coordinator.end()`. But Phase 3 Step 8 still says to extract `inferDragKind`, `getDropPosition`, and `getTimelineDomNodes` into `useExternalDrop`, and its args still list `indicatorRef` instead of `coordinator`, which directly contradicts Phase 2 and the user\u2019s DragCoordinator notes."
     }
   ],
   "verified_flag_ids": [
-    "timeline-indicator-rerender-loop",
-    "timeline-new-track-affordance-still-split",
-    "timeline-onchange-ownership-misread",
-    "plan-review-1",
-    "plan-review-2",
-    "plan-review-3"
+    "timeline-indicator-ref-context-inversion"
   ],
   "disputed_flag_ids": []
 }

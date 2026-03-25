@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { TimelineEditorContextValue } from '@/tools/video-editor/hooks/useTimelineState';
+import type { TimelineEditorContextValue } from '@/tools/video-editor/hooks/useTimelineState.types';
 
 const TimelineEditorContext = createContext<TimelineEditorContextValue | null>(null);
 

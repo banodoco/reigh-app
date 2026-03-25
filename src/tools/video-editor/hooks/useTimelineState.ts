@@ -1,126 +1,84 @@
 import { useMemo } from 'react';
+import { useProjectSelectionContext } from '@/shared/contexts/ProjectContext';
 import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/DataProviderContext';
+import { ROW_HEIGHT, TIMELINE_START_LEFT } from '@/tools/video-editor/lib/coordinate-utils';
+import { useAssetManagement } from '@/tools/video-editor/hooks/useAssetManagement';
+import { useClipEditing } from '@/tools/video-editor/hooks/useClipEditing';
+import { useClipResize } from '@/tools/video-editor/hooks/useClipResize';
 import { useTimelineData } from '@/tools/video-editor/hooks/useTimelineData';
-import { useTimelineEditing } from '@/tools/video-editor/hooks/useTimelineEditing';
+import { useDragCoordinator } from '@/tools/video-editor/hooks/useDragCoordinator';
+import { useExternalDrop } from '@/tools/video-editor/hooks/useExternalDrop';
 import { useTimelinePlayback } from '@/tools/video-editor/hooks/useTimelinePlayback';
+import type {
+  TimelineChromeContextValue,
+  TimelineEditorContextValue,
+  TimelinePlaybackContextValue,
+  UseTimelineStateResult,
+} from '@/tools/video-editor/hooks/useTimelineState.types';
 import { useTimelineTrackManagement } from '@/tools/video-editor/hooks/useTimelineTrackManagement';
 
-export type { SaveStatus, RenderStatus, EditorPreferences, ActionDragState } from '@/tools/video-editor/hooks/useTimelineData';
-
-export interface TimelineEditorContextValue {
-  data: ReturnType<typeof useTimelineData>['data'];
-  resolvedConfig: ReturnType<typeof useTimelineData>['resolvedConfig'];
-  selectedClipId: ReturnType<typeof useTimelineData>['selectedClipId'];
-  selectedTrackId: ReturnType<typeof useTimelineData>['selectedTrackId'];
-  selectedClip: ReturnType<typeof useTimelineData>['selectedClip'];
-  selectedTrack: ReturnType<typeof useTimelineData>['selectedTrack'];
-  selectedClipHasPredecessor: boolean;
-  compositionSize: ReturnType<typeof useTimelineData>['compositionSize'];
-  trackScaleMap: ReturnType<typeof useTimelineData>['trackScaleMap'];
-  scale: number;
-  scaleWidth: number;
-  isLoading: boolean;
-  dataRef: ReturnType<typeof useTimelineData>['dataRef'];
-  crossTrackActive: ReturnType<typeof useTimelineData>['crossTrackActive'];
-  actionDragStateRef: ReturnType<typeof useTimelineData>['actionDragStateRef'];
-  preferences: ReturnType<typeof useTimelineData>['preferences'];
-  timelineRef: ReturnType<typeof useTimelinePlayback>['timelineRef'];
-  timelineWrapperRef: ReturnType<typeof useTimelinePlayback>['timelineWrapperRef'];
-  setSelectedClipId: ReturnType<typeof useTimelineData>['setSelectedClipId'];
-  setSelectedTrackId: ReturnType<typeof useTimelineData>['setSelectedTrackId'];
-  setActiveClipTab: ReturnType<typeof useTimelineData>['setActiveClipTab'];
-  setAssetPanelState: ReturnType<typeof useTimelineData>['setAssetPanelState'];
-  registerGenerationAsset: ReturnType<typeof useTimelineEditing>['registerGenerationAsset'];
-  onCursorDrag: ReturnType<typeof useTimelinePlayback>['onCursorDrag'];
-  onClickTimeArea: ReturnType<typeof useTimelinePlayback>['onClickTimeArea'];
-  onActionMoveStart: ReturnType<typeof useTimelineEditing>['onActionMoveStart'];
-  onActionMoving: ReturnType<typeof useTimelineEditing>['onActionMoving'];
-  onActionMoveEnd: ReturnType<typeof useTimelineEditing>['onActionMoveEnd'];
-  onActionResizeStart: ReturnType<typeof useTimelineEditing>['onActionResizeStart'];
-  onActionResizeEnd: ReturnType<typeof useTimelineEditing>['onActionResizeEnd'];
-  onChange: ReturnType<typeof useTimelineEditing>['onChange'];
-  onOverlayChange: ReturnType<typeof useTimelineEditing>['onOverlayChange'];
-  onTimelineDragOver: ReturnType<typeof useTimelineEditing>['onTimelineDragOver'];
-  onTimelineDragLeave: ReturnType<typeof useTimelineEditing>['onTimelineDragLeave'];
-  onTimelineDrop: ReturnType<typeof useTimelineEditing>['onTimelineDrop'];
-  handleAssetDrop: ReturnType<typeof useTimelineEditing>['handleAssetDrop'];
-  handleDeleteClip: ReturnType<typeof useTimelineEditing>['handleDeleteClip'];
-  handleSelectedClipChange: ReturnType<typeof useTimelineEditing>['handleSelectedClipChange'];
-  handleResetClipPosition: ReturnType<typeof useTimelineEditing>['handleResetClipPosition'];
-  handleSplitSelectedClip: ReturnType<typeof useTimelineEditing>['handleSplitSelectedClip'];
-  handleSplitClipAtTime: ReturnType<typeof useTimelineEditing>['handleSplitClipAtTime'];
-  handleToggleMute: ReturnType<typeof useTimelineEditing>['handleToggleMute'];
-  handleTrackPopoverChange: ReturnType<typeof useTimelineTrackManagement>['handleTrackPopoverChange'];
-  handleReorderTrack: ReturnType<typeof useTimelineTrackManagement>['handleReorderTrack'];
-  handleRemoveTrack: ReturnType<typeof useTimelineTrackManagement>['handleRemoveTrack'];
-  moveSelectedClipToTrack: ReturnType<typeof useTimelineTrackManagement>['moveSelectedClipToTrack'];
-  moveClipToRow: ReturnType<typeof useTimelineTrackManagement>['moveClipToRow'];
-  createTrackAndMoveClip: ReturnType<typeof useTimelineTrackManagement>['createTrackAndMoveClip'];
-  clearActionDragState: ReturnType<typeof useTimelineEditing>['clearActionDragState'];
-  uploadFiles: ReturnType<typeof useTimelineData>['uploadFiles'];
-  onDoubleClickAsset?: (assetKey: string) => void;
-  registerLightboxHandler?: (handler: ((assetKey: string) => void) | null) => void;
-}
-
-export interface TimelineChromeContextValue {
-  timelineName: string | null;
-  saveStatus: ReturnType<typeof useTimelineData>['saveStatus'];
-  renderStatus: ReturnType<typeof useTimelineData>['renderStatus'];
-  renderLog: ReturnType<typeof useTimelineData>['renderLog'];
-  renderDirty: ReturnType<typeof useTimelineData>['renderDirty'];
-  renderProgress: ReturnType<typeof useTimelineData>['renderProgress'];
-  renderResultUrl: ReturnType<typeof useTimelineData>['renderResultUrl'];
-  renderResultFilename: ReturnType<typeof useTimelineData>['renderResultFilename'];
-  setScaleWidth: ReturnType<typeof useTimelineData>['setScaleWidth'];
-  handleAddTrack: ReturnType<typeof useTimelineTrackManagement>['handleAddTrack'];
-  handleClearUnusedTracks: ReturnType<typeof useTimelineTrackManagement>['handleClearUnusedTracks'];
-  unusedTrackCount: ReturnType<typeof useTimelineTrackManagement>['unusedTrackCount'];
-  handleAddText: ReturnType<typeof useTimelineEditing>['handleAddText'];
-  reloadFromServer: ReturnType<typeof useTimelineData>['reloadFromServer'];
-  startRender: ReturnType<typeof useTimelineData>['startRender'];
-}
-
-export interface TimelinePlaybackContextValue {
-  currentTime: number;
-  previewRef: ReturnType<typeof useTimelinePlayback>['previewRef'];
-  playerContainerRef: ReturnType<typeof useTimelinePlayback>['playerContainerRef'];
-  onPreviewTimeUpdate: ReturnType<typeof useTimelinePlayback>['onPreviewTimeUpdate'];
-  formatTime: ReturnType<typeof useTimelinePlayback>['formatTime'];
-}
-
-export interface UseTimelineStateResult {
-  editor: TimelineEditorContextValue;
-  chrome: TimelineChromeContextValue;
-  playback: TimelinePlaybackContextValue;
-}
+export type { SaveStatus, RenderStatus, EditorPreferences } from '@/tools/video-editor/hooks/useTimelineData';
 
 export function useTimelineState(): UseTimelineStateResult {
   const runtime = useVideoEditorRuntime();
   const playback = useTimelinePlayback();
   const dataHook = useTimelineData();
+  const { selectedProjectId } = useProjectSelectionContext();
 
-  const editing = useTimelineEditing({
+  const dragCoordinator = useDragCoordinator({
     dataRef: dataHook.dataRef,
-    resolvedConfig: dataHook.resolvedConfig,
-    data: dataHook.data,
-    selectedClipId: dataHook.selectedClipId,
-    selectedTrackId: dataHook.selectedTrackId,
-    selectedTrack: dataHook.selectedTrack,
-    currentTime: playback.currentTime,
     scale: dataHook.scale,
     scaleWidth: dataHook.scaleWidth,
-    crossTrackActive: dataHook.crossTrackActive,
-    actionDragStateRef: dataHook.actionDragStateRef,
-    resizeStartRef: dataHook.resizeStartRef,
+    startLeft: TIMELINE_START_LEFT,
+    rowHeight: ROW_HEIGHT,
+  });
+
+  const assetManagement = useAssetManagement({
+    dataRef: dataHook.dataRef,
+    selectedTrackId: dataHook.selectedTrackId,
+    selectedProjectId,
     setSelectedClipId: dataHook.setSelectedClipId,
     setSelectedTrackId: dataHook.setSelectedTrackId,
     applyTimelineEdit: dataHook.applyTimelineEdit,
-    applyResolvedConfigEdit: dataHook.applyResolvedConfigEdit,
     patchRegistry: dataHook.patchRegistry,
     registerAsset: dataHook.registerAsset,
     uploadAsset: dataHook.uploadAsset,
     invalidateAssetRegistry: dataHook.invalidateAssetRegistry,
     resolveAssetUrl: runtime.provider.resolveAssetUrl.bind(runtime.provider),
+  });
+
+  const externalDrop = useExternalDrop({
+    dataRef: dataHook.dataRef,
+    scale: dataHook.scale,
+    scaleWidth: dataHook.scaleWidth,
+    selectedTrackId: dataHook.selectedTrackId,
+    applyTimelineEdit: dataHook.applyTimelineEdit,
+    patchRegistry: dataHook.patchRegistry,
+    registerAsset: dataHook.registerAsset,
+    uploadAsset: dataHook.uploadAsset,
+    invalidateAssetRegistry: dataHook.invalidateAssetRegistry,
+    resolveAssetUrl: runtime.provider.resolveAssetUrl.bind(runtime.provider),
+    coordinator: dragCoordinator.coordinator,
+    registerGenerationAsset: assetManagement.registerGenerationAsset,
+    uploadImageGeneration: assetManagement.uploadImageGeneration,
+    handleAssetDrop: assetManagement.handleAssetDrop,
+  });
+
+  const clipResize = useClipResize({
+    dataRef: dataHook.dataRef,
+    applyTimelineEdit: dataHook.applyTimelineEdit,
+  });
+
+  const clipEditing = useClipEditing({
+    dataRef: dataHook.dataRef,
+    resolvedConfig: dataHook.resolvedConfig,
+    selectedClipId: dataHook.selectedClipId,
+    selectedTrack: dataHook.selectedTrack,
+    currentTime: playback.currentTime,
+    setSelectedClipId: dataHook.setSelectedClipId,
+    setSelectedTrackId: dataHook.setSelectedTrackId,
+    applyTimelineEdit: dataHook.applyTimelineEdit,
+    applyResolvedConfigEdit: dataHook.applyResolvedConfigEdit,
   });
 
   const trackManagement = useTimelineTrackManagement({
@@ -146,8 +104,9 @@ export function useTimelineState(): UseTimelineStateResult {
     scaleWidth: dataHook.scaleWidth,
     isLoading: dataHook.isLoading,
     dataRef: dataHook.dataRef,
-    crossTrackActive: dataHook.crossTrackActive,
-    actionDragStateRef: dataHook.actionDragStateRef,
+    coordinator: dragCoordinator.coordinator,
+    indicatorRef: dragCoordinator.indicatorRef,
+    editAreaRef: dragCoordinator.editAreaRef,
     preferences: dataHook.preferences,
     timelineRef: playback.timelineRef,
     timelineWrapperRef: playback.timelineWrapperRef,
@@ -155,38 +114,32 @@ export function useTimelineState(): UseTimelineStateResult {
     setSelectedTrackId: dataHook.setSelectedTrackId,
     setActiveClipTab: dataHook.setActiveClipTab,
     setAssetPanelState: dataHook.setAssetPanelState,
-    registerGenerationAsset: editing.registerGenerationAsset,
+    registerGenerationAsset: assetManagement.registerGenerationAsset,
     onCursorDrag: playback.onCursorDrag,
     onClickTimeArea: playback.onClickTimeArea,
-    onActionMoveStart: editing.onActionMoveStart,
-    onActionMoving: editing.onActionMoving,
-    onActionMoveEnd: editing.onActionMoveEnd,
-    onActionResizeStart: editing.onActionResizeStart,
-    onActionResizeEnd: editing.onActionResizeEnd,
-    onChange: editing.onChange,
-    onOverlayChange: editing.onOverlayChange,
-    onTimelineDragOver: editing.onTimelineDragOver,
-    onTimelineDragLeave: editing.onTimelineDragLeave,
-    onTimelineDrop: editing.onTimelineDrop,
-    handleAssetDrop: editing.handleAssetDrop,
-    handleDeleteClip: editing.handleDeleteClip,
-    handleSelectedClipChange: editing.handleSelectedClipChange,
-    handleResetClipPosition: editing.handleResetClipPosition,
-    handleSplitSelectedClip: editing.handleSplitSelectedClip,
-    handleSplitClipAtTime: editing.handleSplitClipAtTime,
-    handleToggleMute: editing.handleToggleMute,
+    onActionResizeStart: clipResize.onActionResizeStart,
+    onActionResizeEnd: clipResize.onActionResizeEnd,
+    onChange: clipEditing.onChange,
+    onOverlayChange: clipEditing.onOverlayChange,
+    onTimelineDragOver: externalDrop.onTimelineDragOver,
+    onTimelineDragLeave: externalDrop.onTimelineDragLeave,
+    onTimelineDrop: externalDrop.onTimelineDrop,
+    handleAssetDrop: assetManagement.handleAssetDrop,
+    handleDeleteClip: clipEditing.handleDeleteClip,
+    handleSelectedClipChange: clipEditing.handleSelectedClipChange,
+    handleResetClipPosition: clipEditing.handleResetClipPosition,
+    handleSplitSelectedClip: clipEditing.handleSplitSelectedClip,
+    handleSplitClipAtTime: clipEditing.handleSplitClipAtTime,
+    handleToggleMute: clipEditing.handleToggleMute,
     handleTrackPopoverChange: trackManagement.handleTrackPopoverChange,
     handleReorderTrack: trackManagement.handleReorderTrack,
     handleRemoveTrack: trackManagement.handleRemoveTrack,
     moveSelectedClipToTrack: trackManagement.moveSelectedClipToTrack,
     moveClipToRow: trackManagement.moveClipToRow,
     createTrackAndMoveClip: trackManagement.createTrackAndMoveClip,
-    clearActionDragState: editing.clearActionDragState,
     uploadFiles: dataHook.uploadFiles,
   }), [
-    dataHook.actionDragStateRef,
     dataHook.compositionSize,
-    dataHook.crossTrackActive,
     dataHook.data,
     dataHook.dataRef,
     dataHook.isLoading,
@@ -205,25 +158,24 @@ export function useTimelineState(): UseTimelineStateResult {
     dataHook.setSelectedTrackId,
     dataHook.trackScaleMap,
     dataHook.uploadFiles,
-    editing.clearActionDragState,
-    editing.handleAssetDrop,
-    editing.handleDeleteClip,
-    editing.handleResetClipPosition,
-    editing.handleSelectedClipChange,
-    editing.handleSplitSelectedClip,
-    editing.handleSplitClipAtTime,
-    editing.handleToggleMute,
-    editing.onActionMoveEnd,
-    editing.onActionMoveStart,
-    editing.onActionMoving,
-    editing.onActionResizeEnd,
-    editing.onActionResizeStart,
-    editing.onChange,
-    editing.onOverlayChange,
-    editing.onTimelineDragLeave,
-    editing.onTimelineDragOver,
-    editing.onTimelineDrop,
-    editing.registerGenerationAsset,
+    assetManagement.handleAssetDrop,
+    assetManagement.registerGenerationAsset,
+    clipEditing.handleDeleteClip,
+    clipEditing.handleResetClipPosition,
+    clipEditing.handleSelectedClipChange,
+    clipEditing.handleSplitSelectedClip,
+    clipEditing.handleSplitClipAtTime,
+    clipEditing.handleToggleMute,
+    clipEditing.onChange,
+    clipEditing.onOverlayChange,
+    clipResize.onActionResizeEnd,
+    clipResize.onActionResizeStart,
+    dragCoordinator.coordinator,
+    dragCoordinator.editAreaRef,
+    dragCoordinator.indicatorRef,
+    externalDrop.onTimelineDragLeave,
+    externalDrop.onTimelineDragOver,
+    externalDrop.onTimelineDrop,
     playback.onClickTimeArea,
     playback.onCursorDrag,
     playback.timelineRef,
@@ -249,7 +201,7 @@ export function useTimelineState(): UseTimelineStateResult {
     handleAddTrack: trackManagement.handleAddTrack,
     handleClearUnusedTracks: trackManagement.handleClearUnusedTracks,
     unusedTrackCount: trackManagement.unusedTrackCount,
-    handleAddText: editing.handleAddText,
+    handleAddText: clipEditing.handleAddText,
     reloadFromServer: dataHook.reloadFromServer,
     startRender: dataHook.startRender,
   }), [
@@ -264,7 +216,7 @@ export function useTimelineState(): UseTimelineStateResult {
     dataHook.saveStatus,
     dataHook.setScaleWidth,
     dataHook.startRender,
-    editing.handleAddText,
+    clipEditing.handleAddText,
     trackManagement.handleAddTrack,
     trackManagement.handleClearUnusedTracks,
     trackManagement.unusedTrackCount,

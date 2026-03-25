@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { TimelineChromeContextValue } from '@/tools/video-editor/hooks/useTimelineState';
+import type { TimelineChromeContextValue } from '@/tools/video-editor/hooks/useTimelineState.types';
 
 const TimelineChromeContext = createContext<TimelineChromeContextValue | null>(null);
 

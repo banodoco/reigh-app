@@ -35,6 +35,10 @@ const renderVisualTrack = (
           || clip.y !== undefined
           || clip.width !== undefined
           || clip.height !== undefined
+          || clip.cropTop !== undefined
+          || clip.cropBottom !== undefined
+          || clip.cropLeft !== undefined
+          || clip.cropRight !== undefined
         );
         if (hasPositionOverride) {
           return (

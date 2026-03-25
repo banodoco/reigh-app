@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { TimelinePlaybackContextValue } from '@/tools/video-editor/hooks/useTimelineState';
+import type { TimelinePlaybackContextValue } from '@/tools/video-editor/hooks/useTimelineState.types';
 
 const TimelinePlaybackContext = createContext<TimelinePlaybackContextValue | null>(null);
 

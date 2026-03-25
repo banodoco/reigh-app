@@ -74,9 +74,7 @@ const getFileExtension = (videoCodec: string | undefined) => {
   return 'mp4';
 };
 
-const getMimeType = (extension: string) => {
-  return extension === 'webm' ? 'video/webm' : 'video/mp4';
-};
+const getMimeType = (extension: string) => extension === 'webm' ? 'video/webm' : 'video/mp4';
 
 const getBlobFromResult = async (
   result: unknown,
@@ -149,6 +147,19 @@ const getProgressUpdate = (
   }
 
   const record = value as Record<string, unknown>;
+
+  // @remotion/web-renderer passes { progress: 0..1, renderedFrames, encodedFrames, ... }
+  if (typeof record.progress === 'number' && record.progress >= 0 && record.progress <= 1) {
+    const percent = Math.round(record.progress * 100);
+    const current = typeof record.renderedFrames === 'number' ? record.renderedFrames : Math.round(record.progress * fallbackTotal);
+    return {
+      current,
+      total: fallbackTotal,
+      percent,
+      phase: 'rendering',
+    };
+  }
+
   const total = typeof record.total === 'number'
     ? record.total
     : typeof record.totalFrames === 'number'
@@ -204,7 +215,6 @@ export function useClientRender({
     });
     setRenderResult({ url: null, filename: null });
     setRenderLog('');
-
     try {
       const { canRenderMediaOnWeb, renderMediaOnWeb } = await getWebRendererModule();
 
@@ -260,14 +270,6 @@ export function useClientRender({
 
       const filename = `timeline-render-${new Date().toISOString().replace(/[:.]/g, '-')}.${extension}`;
       const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = filename;
-      anchor.rel = 'noopener';
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-
       setRenderProgress({
         current: metadata.durationInFrames,
         total: metadata.durationInFrames,

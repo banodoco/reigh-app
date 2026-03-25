@@ -1,9 +1,10 @@
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useLayoutEffect, useMemo } from 'react';
 import { Timeline } from '@xzdarcy/react-timeline-editor';
 import type { TimelineAction } from '@xzdarcy/timeline-engine';
 import '@xzdarcy/react-timeline-editor/dist/react-timeline-editor.css';
 import '@/tools/video-editor/components/TimelineEditor/timeline-overrides.css';
 import { ClipAction } from '@/tools/video-editor/components/TimelineEditor/ClipAction';
+import { DropIndicator } from '@/tools/video-editor/components/TimelineEditor/DropIndicator';
 import { TrackLabel } from '@/tools/video-editor/components/TimelineEditor/TrackLabel';
 import { ROW_HEIGHT, TIMELINE_START_LEFT } from '@/tools/video-editor/lib/coordinate-utils';
 import { useTimelineEditorContext } from '@/tools/video-editor/contexts/TimelineEditorContext';
@@ -20,11 +21,11 @@ function TimelineEditorComponent() {
     createTrackAndMoveClip,
     setSelectedClipId,
     setSelectedTrackId,
-    crossTrackActive,
     scale,
     scaleWidth,
-    actionDragStateRef,
-    clearActionDragState,
+    coordinator,
+    indicatorRef,
+    editAreaRef,
     selectedClipId,
     selectedTrackId,
     handleTrackPopoverChange,
@@ -35,9 +36,6 @@ function TimelineEditorComponent() {
     onChange,
     onCursorDrag,
     onClickTimeArea,
-    onActionMoveStart,
-    onActionMoving,
-    onActionMoveEnd,
     onActionResizeStart,
     onActionResizeEnd,
     onTimelineDragOver,
@@ -56,14 +54,24 @@ function TimelineEditorComponent() {
     createTrackAndMoveClip,
     setSelectedClipId,
     setSelectedTrackId,
-    crossTrackActive,
+    coordinator,
     rowHeight: ROW_HEIGHT,
     scale,
     scaleWidth,
     startLeft: TIMELINE_START_LEFT,
-    actionDragStateRef,
-    clearActionDragState,
   });
+
+  useLayoutEffect(() => {
+    const wrapper = timelineWrapperRef.current;
+    const nextEditArea = wrapper?.querySelector<HTMLElement>('.timeline-editor-edit-area') ?? null;
+    editAreaRef.current = nextEditArea;
+
+    return () => {
+      if (editAreaRef.current === nextEditArea) {
+        editAreaRef.current = null;
+      }
+    };
+  }, [data, editAreaRef, timelineWrapperRef]);
 
   const scaleCount = useMemo(() => {
     if (!data) {
@@ -152,6 +160,16 @@ function TimelineEditorComponent() {
     }, {});
   }, [data]);
 
+  const immovableRows = useMemo(() => {
+    return data?.rows.map((row) => ({
+      ...row,
+      actions: row.actions.map((action) => ({
+        ...action,
+        movable: false,
+      })),
+    })) ?? [];
+  }, [data?.rows]);
+
   if (!data) {
     return null;
   }
@@ -184,7 +202,7 @@ function TimelineEditorComponent() {
         <Timeline
           ref={timelineRef}
           style={{ width: '100%', height: '100%' }}
-          editorData={data.rows}
+          editorData={immovableRows}
           effects={data.effects}
           onChange={onChange}
           scale={scale}
@@ -199,12 +217,10 @@ function TimelineEditorComponent() {
           getActionRender={getActionRender}
           onCursorDrag={onCursorDrag}
           onClickTimeArea={onClickTimeArea}
-          onActionMoveStart={onActionMoveStart}
-          onActionMoving={onActionMoving}
-          onActionMoveEnd={onActionMoveEnd}
           onActionResizeStart={onActionResizeStart}
           onActionResizeEnd={onActionResizeEnd}
         />
+        <DropIndicator ref={indicatorRef} editAreaRef={editAreaRef} />
       </div>
     </div>
   );

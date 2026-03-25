@@ -1,5 +1,6 @@
 import { useEffect, useRef, type FC } from 'react';
-import { AbsoluteFill, Video, useCurrentFrame, useVideoConfig } from 'remotion';
+import { AbsoluteFill, useCurrentFrame, useVideoConfig } from 'remotion';
+import { Video } from '@remotion/media';
 
 export const DebugTrack: FC<{ src: string }> = ({ src }) => {
   const frame = useCurrentFrame();
@@ -30,9 +31,7 @@ export const DebugTrack: FC<{ src: string }> = ({ src }) => {
       <Video
         src={src}
         style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-        onError={(event) => {
-          console.error('[DebugTrack] Video error:', event);
-        }}
+        crossOrigin="anonymous"
       />
       <div style={{
         position: 'absolute',

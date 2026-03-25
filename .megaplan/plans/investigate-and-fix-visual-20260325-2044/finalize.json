@@ -1,0 +1,115 @@
+{
+  "tasks": [
+    {
+      "id": "T1",
+      "description": "Characterize Remotion Player scaling: Inspect the DOM output of the `<Player>` component in `RemotionPreview.tsx:95-128`. Log computed styles and bounding rects of (a) Player root div, (b) the nested `<AbsoluteFill>` wrappers in `TimelineRenderer.tsx:90-98`, (c) the `<AbsoluteFill style={{ overflow: 'hidden' }}>` in `VisualClip.tsx:107`, and (d) the `<Img>` element for a large clip (e.g., 2256\u00d71692 on 1920\u00d71080 comp). Determine the exact CSS scaling method (likely `transform: scale(...)` on a wrapper). Verify whether `overflow: hidden` on the AbsoluteFill actually clips the oversized `<Img>` \u2014 transforms create new stacking contexts that can affect overflow behavior.",
+      "depends_on": [],
+      "status": "pending",
+      "executor_notes": "",
+      "files_changed": [],
+      "commands_run": [],
+      "evidence_files": [],
+      "reviewer_verdict": ""
+    },
+    {
+      "id": "T2",
+      "description": "Test object-cover + clip-path interaction on oversized elements: Create a minimal standalone HTML file that replicates the rendering pipeline \u2014 a 1920\u00d71080 container (CSS-scaled down via `transform: scale(0.4)`) containing an `<img>` at `position: absolute; left: 658px; width: 2256px; height: 1692px; object-fit: cover; clip-path: inset(0% 53% 53% 0%)`. Compare rendered results at different container scales. Key hypothesis: `object-cover` computes fill/centering based on the full element box (2256\u00d71692), but `clip-path: inset()` percentages are relative to that same box \u2014 when the element extends beyond the composition boundary, the visible portion after both `overflow: hidden` AND `clip-path` may not match what OverlayEditor's coordinate math predicts. Reference: `VisualClip.tsx:33-55` for the style construction.",
+      "depends_on": [],
+      "status": "pending",
+      "executor_notes": "",
+      "files_changed": [],
+      "commands_run": [],
+      "evidence_files": [],
+      "reviewer_verdict": ""
+    },
+    {
+      "id": "T3",
+      "description": "Pinpoint the exact rendering discrepancy: Using findings from T1 and T2, screenshot the Remotion-rendered image alongside the OverlayEditor's expected bounds rectangle (`OverlayEditor.tsx:530-534` display bounds calculation). Identify the exact pixel offset or scaling error. Test in devtools: (a) constrain the `<Img>` to composition bounds (cap width at 1920, height at 1080, adjust position) \u2014 does it fix the visual error? (b) Replace `object-cover` with explicit `object-position` + `object-fit: none` \u2014 does that fix it? Document the confirmed root cause and which fix strategy (A: viewport-intersection, B: replace object-cover, or C: clamp dimensions) to pursue.",
+      "depends_on": [
+        "T1",
+        "T2"
+      ],
+      "status": "pending",
+      "executor_notes": "",
+      "files_changed": [],
+      "commands_run": [],
+      "evidence_files": [],
+      "reviewer_verdict": ""
+    },
+    {
+      "id": "T4",
+      "description": "Implement the render-time fix atomically in both VisualClip and OverlayEditor. Based on T3 findings, choose one strategy:\n\n**Strategy A (viewport-intersection):** In `getClipBoxStyle()` (`VisualClip.tsx:16-59`), compute intersection of element rect with composition rect. Render `<Img>` at intersected size with `object-position` to offset. In OverlayEditor, apply same intersection for overlay handle positioning.\n\n**Strategy B (replace object-cover):** Remove `object-fit: cover` from the manual/position-override branch (`VisualClip.tsx:40`). Compute explicit `object-position` + `object-fit: none`/`fill` to place image exactly per the position/crop model.\n\n**Strategy C (clamp render dimensions):** Cap width/height to composition dimensions in `getClipBoxStyle()`, adjust x/y to keep visible content stable.\n\n**Regardless of strategy:**\n- Extract shared math into a pure utility function (e.g., `computeRenderBounds(clipBounds, compositionW, compositionH)`) importable by both files.\n- `VisualClip.tsx` calls it in `getClipBoxStyle()` (line 16).\n- **CRITICAL (DECISION-006):** Do NOT apply render transforms inside `getClipBounds()` (`OverlayEditor.tsx:152-186`) \u2014 that function feeds `fullBounds`, crop math (`startFullBounds` at lines 334-374), and `onOverlayChange()` (lines 417-429). Instead, apply transforms downstream: either in a separate `getRenderBounds()` wrapper used only for display coordinate calculation (lines 530-534), or directly in the JSX that positions overlay handles.\n- Stored clip state (x/y/width/height/crop) must NEVER be modified by the fix \u2014 render-only transforms.\n- Both files must ship in the same commit.",
+      "depends_on": [
+        "T3"
+      ],
+      "status": "pending",
+      "executor_notes": "",
+      "files_changed": [],
+      "commands_run": [],
+      "evidence_files": [],
+      "reviewer_verdict": ""
+    },
+    {
+      "id": "T5",
+      "description": "Validate the fix against all success criteria:\n1. Large image with crop (2256\u00d71692 on 1920\u00d71080 comp, cropped) \u2014 visible content matches overlay box position exactly.\n2. Drag large cropped image around \u2014 Remotion renders live, no visual shift or artifacts.\n3. Corner resize with aspect-ratio lock still works.\n4. Normal clips (\u2264 composition size) \u2014 no visual change whatsoever.\n5. Crop expand/contract \u2014 live Remotion update during crop drag works correctly.\n6. Round-trip \u2014 modify a large image, save, reload \u2014 stored values unchanged, rendering matches.\n7. OverlayEditor handles align pixel-perfectly with Remotion-rendered image for oversized clips.",
+      "depends_on": [
+        "T4"
+      ],
+      "status": "pending",
+      "executor_notes": "",
+      "files_changed": [],
+      "commands_run": [],
+      "evidence_files": [],
+      "reviewer_verdict": ""
+    }
+  ],
+  "watch_items": [
+    "DECISION-006: Render transforms must NOT be applied inside `getClipBounds()` (OverlayEditor.tsx:152-186). That function feeds edit state: `fullBounds`, crop math via `startFullBounds` (lines 334-374), and `onOverlayChange()` (lines 417-429). Apply transforms only in downstream display/positioning code.",
+    "Render-only constraint: Never persist clamped/adjusted values back to clip state. The fullBounds/visibleBounds crop model (getVisibleBoundsFromCrop at line 74, getFullBoundsFromVisibleBounds at line 87) must be preserved exactly.",
+    "Atomic sync: Any render-time transform in `getClipBoxStyle()` (VisualClip.tsx:16) must also appear in the OverlayEditor display coordinate path (lines 530-534). These must ship together in one commit.",
+    "The preview pipeline is DOM-based (<Img>/<Video> with CSS), NOT canvas-based. Browser canvas size limits (16384px) are unlikely to be relevant. Focus investigation on CSS interactions: object-cover + clip-path + overflow + transform.",
+    "object-fit: cover (VisualClip.tsx:40) auto-scales and auto-centers the image within the element box. This may conflict with the manual positioning model when the element extends beyond composition bounds.",
+    "Position (x, y) remains unconstrained \u2014 partial off-screen positioning is intentional. Do not clamp x/y to composition bounds.",
+    "ClipPanel is out of scope \u2014 it already caps width/height to composition dimensions.",
+    "The Remotion Player CSS-scales a 1920\u00d71080 composition to fit the preview container \u2014 the transform may affect how overflow: hidden interacts with child elements (VisualClip.tsx:107, TimelineRenderer.tsx:90-92).",
+    "Investigation (T1-T3) must complete before committing to a fix strategy. Do not pre-commit to Strategy A, B, or C."
+  ],
+  "sense_checks": [
+    {
+      "id": "SC1",
+      "task_id": "T1",
+      "question": "Did the investigation identify the exact CSS scaling method the Remotion Player uses, and was overflow: hidden behavior on the AbsoluteFill verified against an oversized child element?",
+      "executor_note": "",
+      "verdict": ""
+    },
+    {
+      "id": "SC2",
+      "task_id": "T2",
+      "question": "Was a standalone reproduction created, and does it isolate the bug to a specific CSS interaction (object-cover + clip-path + overflow + transform), ruling out Remotion-specific behavior?",
+      "executor_note": "",
+      "verdict": ""
+    },
+    {
+      "id": "SC3",
+      "task_id": "T3",
+      "question": "Was the root cause conclusively identified with evidence (screenshots, computed styles), and was the chosen fix strategy validated in devtools before writing any code?",
+      "executor_note": "",
+      "verdict": ""
+    },
+    {
+      "id": "SC4",
+      "task_id": "T4",
+      "question": "Does the implementation keep render transforms entirely out of `getClipBounds()`? Verify that crop math (startFullBounds, lines 334-374) and onOverlayChange (lines 417-429) still receive raw, unmodified clip bounds. Check that the shared utility function is called from both VisualClip and OverlayEditor display paths.",
+      "executor_note": "",
+      "verdict": ""
+    },
+    {
+      "id": "SC5",
+      "task_id": "T5",
+      "question": "Were ALL 7 validation checks performed? Specifically: (1) did a round-trip save/reload confirm stored values are unchanged, and (2) did normal-sized clips (\u2264 composition) show zero regression?",
+      "executor_note": "",
+      "verdict": ""
+    }
+  ],
+  "meta_commentary": "**Execution guidance:**\n\nThis is an investigation-first plan. T1-T3 are pure research \u2014 no code changes. The fix strategy for T4 is deliberately open until T3 completes. Do not skip investigation or pre-commit to a strategy.\n\n**The single most important gotcha (flagged as open/significant in the gate):** `getClipBounds()` in OverlayEditor.tsx:152-186 is NOT a display-only helper. It feeds into `fullBounds` (line 218), which flows into `startFullBounds` in drag state (line 472), crop math (lines 334-374), and `onOverlayChange()` (lines 417-429). If you apply render-time transforms inside `getClipBounds()`, the editor will start editing synthetic render bounds instead of real clip state. The fix MUST be applied downstream \u2014 either in a separate `getRenderBounds()` wrapper used only for the display coordinate calculations at lines 530-534, or directly in the JSX positioning math.\n\n**T1 and T2 can run in parallel.** T3 depends on both. T4 depends on T3. T5 depends on T4.\n\n**Key code paths to trace:**\n- Render path: `TimelineRenderer` \u2192 `VisualClipSequence` \u2192 `VisualClip` \u2192 `VisualAsset` \u2192 `getClipBoxStyle()` \u2192 `<Img style={...} />`\n- Overlay path: `OverlayEditor` \u2192 `getClipBounds()` \u2192 `fullBounds` \u2192 `getVisibleBoundsFromCrop()` \u2192 `bounds` \u2192 display coordinates at lines 530-534\n- Edit path: `startDrag()` \u2192 `dragState.current.startFullBounds` \u2192 mousemove handler \u2192 `onOverlayChange()` \u2192 clip meta update \u2192 Remotion re-render\n\nThe render path and overlay path must agree on where the image appears. The edit path must continue using raw clip bounds, not render-adjusted bounds.\n\n**If investigation reveals the bug is NOT CSS-related** (e.g., it's a Remotion Player compositing issue), the fix strategies in the plan may not apply. In that case, document findings and propose an alternative approach before proceeding."
+}

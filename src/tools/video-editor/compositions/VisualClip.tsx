@@ -1,5 +1,6 @@
 import type { CSSProperties, FC, ReactNode } from 'react';
-import { AbsoluteFill, Img, OffthreadVideo, Sequence, Video, getRemotionEnvironment, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Img, Sequence, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
+import { Video } from '@remotion/media';
 import { getClipDurationInFrames, secondsToFrames } from '@/tools/video-editor/lib/config-utils';
 import { wrapWithClipEffects } from '@/tools/video-editor/effects';
 import { transitions } from '@/tools/video-editor/effects/transitions';
@@ -23,6 +24,10 @@ const getClipBoxStyle = (
     || clip.y !== undefined
     || clip.width !== undefined
     || clip.height !== undefined
+    || clip.cropTop !== undefined
+    || clip.cropBottom !== undefined
+    || clip.cropLeft !== undefined
+    || clip.cropRight !== undefined
   );
   const fit = track.fit ?? 'contain';
   const style: CSSProperties = fit === 'manual' || hasPositionOverride
@@ -66,25 +71,8 @@ const VisualAsset: FC<VisualClipProps> = ({ clip, track, fps }) => {
   };
   const clipVolume = clip.volume ?? 1;
   const isImage = clip.assetEntry.type?.startsWith('image');
-  const isRendering = getRemotionEnvironment().isRendering;
-
   if (isImage) {
     return <Img src={clip.assetEntry.src} style={sharedStyle} crossOrigin="anonymous" />;
-  }
-
-  if (isRendering) {
-    return (
-      <OffthreadVideo
-        src={clip.assetEntry.src}
-        startFrom={secondsToFrames(clip.from ?? 0, fps)}
-        playbackRate={clip.speed ?? 1}
-        volume={clipVolume}
-        muted={clipVolume <= 0}
-        style={sharedStyle}
-        transparent
-        crossOrigin="anonymous"
-      />
-    );
   }
 
   return (

@@ -20,7 +20,7 @@ function loadImageMetadata(file: File): Promise<{ width: number; height: number 
 function loadAudioMetadata(file: File): Promise<{ duration: number }> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
-    const audio = document.createElement('audio');
+    const audio = new Audio();
     audio.preload = 'metadata';
     audio.onloadedmetadata = () => {
       resolve({ duration: audio.duration });
