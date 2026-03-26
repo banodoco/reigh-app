@@ -1,6 +1,6 @@
 import { memo, useCallback, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { Download, Eye, GripHorizontal, Maximize2, Minimize2, Settings, SlidersHorizontal, Type, Video, Volume2, ZoomIn, ZoomOut } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/shared/components/ui/alert-dialog';
 import { Badge } from '@/shared/components/ui/badge';
 import { Button } from '@/shared/components/ui/button';
@@ -39,8 +39,10 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
   const editor = useTimelineEditorContext();
   const chrome = useTimelineChromeContext();
   const playback = useTimelinePlaybackContext();
-  const { isGenerationsPaneLocked } = usePanes();
+  const { isGenerationsPaneLocked, setIsGenerationsPaneLocked } = usePanes();
+  const location = useLocation();
   const navigate = useNavigate();
+  const isOnEditorPage = location.pathname.startsWith('/tools/video-editor');
   const containerRef = useRef<HTMLDivElement>(null);
   const dividerRef = useRef<HTMLDivElement>(null);
   const [timelineHeight, setTimelineHeight] = useState<number | null>(null);
@@ -180,6 +182,24 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
     <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between px-3 py-3">
       <span className="pointer-events-auto rounded bg-background/70 px-1.5 py-0.5 font-mono text-[11px] tracking-[0.08em] text-muted-foreground backdrop-blur-sm">{playback.formatTime(playback.currentTime)}</span>
       <div className="pointer-events-auto flex items-center gap-1">
+        {condensed && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1.5 px-3 text-[11px]"
+            onClick={() => {
+              if (isOnEditorPage && isGenerationsPaneLocked) {
+                setIsGenerationsPaneLocked(false);
+              } else {
+                navigate(`/tools/video-editor?timeline=${timelineId}`);
+              }
+            }}
+          >
+            <Maximize2 className="h-3 w-3" />
+            Editor
+          </Button>
+        )}
         <Button
           type="button"
           size="sm"

@@ -229,11 +229,15 @@ export function useExternalDrop({
       return;
     }
 
+    // When dropping in the "new track" zone, pass undefined trackId to force
+    // handleAssetDrop to create a new track instead of reusing an existing one.
+    const resolvedDropTrackId = dropPosition.isNewTrack ? undefined : dropPosition.trackId;
+
     const generationData = getGenerationDropData(event);
     if (generationData && dataRef.current) {
       const assetId = registerGenerationAsset(generationData);
       if (assetId) {
-        handleAssetDrop(assetId, dropPosition.trackId, dropPosition.time);
+        handleAssetDrop(assetId, resolvedDropTrackId, dropPosition.time, dropPosition.isNewTrack);
       }
       return;
     }
@@ -241,6 +245,11 @@ export function useExternalDrop({
     const assetKey = event.dataTransfer.getData('asset-key');
     const assetKind = event.dataTransfer.getData('asset-kind') as TrackKind;
     if (!assetKey || !dataRef.current) {
+      return;
+    }
+
+    if (dropPosition.isNewTrack) {
+      handleAssetDrop(assetKey, undefined, dropPosition.time, true);
       return;
     }
 

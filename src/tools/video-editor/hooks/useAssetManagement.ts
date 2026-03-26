@@ -43,7 +43,7 @@ export interface UseAssetManagementResult {
       original_filename: string;
     };
   }>;
-  handleAssetDrop: (assetKey: string, trackId: string | undefined, time: number) => void;
+  handleAssetDrop: (assetKey: string, trackId: string | undefined, time: number, forceNewTrack?: boolean) => void;
 }
 
 export function useAssetManagement({
@@ -140,7 +140,7 @@ export function useAssetManagement({
     };
   }, [selectedProjectId]);
 
-  const handleAssetDrop = useCallback((assetKey: string, trackId: string | undefined, time: number) => {
+  const handleAssetDrop = useCallback((assetKey: string, trackId: string | undefined, time: number, forceNewTrack = false) => {
     const current = dataRef.current;
     if (!current) {
       return;
@@ -148,9 +148,11 @@ export function useAssetManagement({
 
     const assetEntry = current.registry.assets[assetKey];
     const assetKind = inferTrackType(assetEntry?.file ?? assetKey);
-    let resolvedTrackId = getCompatibleTrackId(current.tracks, trackId, assetKind, selectedTrackId);
+    let resolvedTrackId = forceNewTrack
+      ? null
+      : getCompatibleTrackId(current.tracks, trackId, assetKind, selectedTrackId);
 
-    // If no compatible track exists, create one
+    // If no compatible track exists (or forced new track), create one
     if (!resolvedTrackId) {
       const existingCount = current.tracks.filter((t) => t.kind === assetKind).length;
       resolvedTrackId = `${assetKind === 'audio' ? 'A' : 'V'}${existingCount + 1}`;
