@@ -36,8 +36,7 @@ import {
   getLoraTypeForModel,
   BY_REFERENCE_LORA_TYPE,
 } from '../types';
-
-import { BatchImageGenerationTaskParams } from '@/shared/lib/tasks/families/imageGeneration';
+import type { BatchImageGenerationTaskParams } from '@/shared/types/imageGeneration';
 
 interface UseImageGenFormProps {
   onGenerate: (params: BatchImageGenerationTaskParams) => Promise<string[] | void> | string[] | void;

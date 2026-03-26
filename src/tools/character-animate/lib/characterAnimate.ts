@@ -1,6 +1,4 @@
 import {
-  generateTaskId,
-  generateRunId,
   createTask,
   validateRequiredFields,
   TaskValidationError
@@ -67,39 +65,6 @@ function validateCharacterAnimateParams(params: CharacterAnimateTaskParams): voi
 }
 
 /**
- * Builds the orchestrator payload for character animation
- * 
- * @param params - Raw character animate parameters
- * @param taskId - Generated task ID
- * @param runId - Generated run ID
- * @returns Processed orchestrator payload
- */
-function buildCharacterAnimatePayload(
-  params: CharacterAnimateTaskParams, 
-  taskId: string,
-  runId: string
-): Record<string, unknown> {
-  // Handle random seed generation
-  const finalSeed = params.random_seed 
-    ? Math.floor(Math.random() * 1000000) 
-    : (params.seed ?? DEFAULT_CHARACTER_ANIMATE_VALUES.seed);
-  
-  // Build orchestrator payload
-  const orchestratorPayload: Record<string, unknown> = {
-    orchestrator_task_id: taskId,
-    run_id: runId,
-    character_image_url: params.character_image_url,
-    motion_video_url: params.motion_video_url,
-    prompt: params.prompt ?? DEFAULT_CHARACTER_ANIMATE_VALUES.prompt,
-    mode: params.mode ?? DEFAULT_CHARACTER_ANIMATE_VALUES.mode,
-    resolution: params.resolution ?? DEFAULT_CHARACTER_ANIMATE_VALUES.resolution,
-    seed: finalSeed,
-  };
-
-  return orchestratorPayload;
-}
-
-/**
  * Creates a character animate task using the unified approach
  * 
  * @param params - Character animate task parameters
@@ -111,23 +76,18 @@ export async function createCharacterAnimateTask(params: CharacterAnimateTaskPar
     // 1. Validate parameters
     validateCharacterAnimateParams(params);
 
-    // 2. Generate IDs for orchestrator payload
-    const orchestratorTaskId = generateTaskId("character_animate");
-    const runId = generateRunId();
-
-    // 3. Build orchestrator payload
-    const orchestratorPayload = buildCharacterAnimatePayload(
-      params, 
-      orchestratorTaskId, 
-      runId
-    );
-
-    // 4. Create task using unified create-task function
-    // For API-based tasks, put params at top level for direct processing
     const result = await createTask({
       project_id: params.project_id,
-      task_type: 'animate_character',
-      params: orchestratorPayload
+      family: 'character_animate',
+      input: {
+        character_image_url: params.character_image_url,
+        motion_video_url: params.motion_video_url,
+        prompt: params.prompt ?? DEFAULT_CHARACTER_ANIMATE_VALUES.prompt,
+        mode: params.mode ?? DEFAULT_CHARACTER_ANIMATE_VALUES.mode,
+        resolution: params.resolution ?? DEFAULT_CHARACTER_ANIMATE_VALUES.resolution,
+        seed: params.seed,
+        random_seed: params.random_seed,
+      }
     });
 
     return result;

@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { useQueryClient } from '@tanstack/react-query';
-import { createCanonicalJoinClipsTask } from '@/shared/lib/tasks/families/joinClips';
+import { createTask } from '@/shared/lib/taskCreation';
 import { resolveAspectRatioResolutionTuple } from '@/shared/lib/video/resolveAspectRatioResolutionTuple';
 import { TOOL_IDS } from '@/shared/lib/tooling/toolIds';
 import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
@@ -15,6 +15,7 @@ import { DEFAULT_VACE_PHASE_CONFIG, BUILTIN_VACE_DEFAULT_ID, VACE_GENERATION_DEF
 import type { VideoClip, TransitionPrompt } from '../clipTypes';
 import type { useJoinClipsSettings } from './useJoinClipsSettings';
 import type { LoraManagerState } from '@/domains/lora/types/loraManager';
+import type { CanonicalJoinClipsTaskInput, JoinClipDescriptor } from '@/shared/types/joinClips';
 import type { ValidationResult } from '../utils/validation';
 
 interface UseJoinClipsGenerateParams {
@@ -83,7 +84,7 @@ export function useJoinClipsGenerate({
         context: 'JoinClipsPage',
         toastTitle: 'Failed to create task',
         create: () => {
-          const clipsForTask = isLooping
+          const clipsForTask: JoinClipDescriptor[] = isLooping
             ? [{ url: validClips[0].url }, { url: validClips[0].url }]
             : validClips.map(clip => ({ url: clip.url }));
 
@@ -112,11 +113,11 @@ export function useJoinClipsGenerate({
           }));
           const resolutionTuple = resolveAspectRatioResolutionTuple(projectAspectRatio);
 
-          const taskParams = {
+          const taskParams: CanonicalJoinClipsTaskInput = {
             project_id: selectedProjectId,
-            mode: 'multi_clip' as const,
+            mode: 'multi_clip',
             clip_source: {
-              kind: 'clips' as const,
+              kind: 'clips',
               clips: clipsForTask,
             },
             per_join_settings: perJoinSettings,
@@ -148,7 +149,12 @@ export function useJoinClipsGenerate({
             tool_type: TOOL_IDS.JOIN_CLIPS,
           };
 
-          return createCanonicalJoinClipsTask(taskParams);
+          const { project_id, ...input } = taskParams;
+          return createTask({
+            project_id,
+            family: 'join_clips',
+            input,
+          });
         },
         onSuccess: () => {
           flashSuccessForDuration(setShowSuccessState, 1500);

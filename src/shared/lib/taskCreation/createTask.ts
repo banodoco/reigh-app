@@ -21,9 +21,10 @@ export async function createTask(taskParams: BaseTaskParams): Promise<TaskCreati
 
   const startTime = Date.now();
   const requestId = `${startTime}-${Math.random().toString(36).slice(2, 8)}`;
+  const taskIdentifier = taskParams.family;
   const requestContext = {
     requestId,
-    taskType: taskParams.task_type,
+    taskType: taskIdentifier,
     projectId: taskParams.project_id,
   };
   const timeoutMs = 20000; // 20s safety timeout to avoid indefinite UI stall
@@ -46,10 +47,9 @@ export async function createTask(taskParams: BaseTaskParams): Promise<TaskCreati
         apikey: getSupabasePublishableKey(),
       },
       body: JSON.stringify({
-        params: taskParams.params,
-        task_type: taskParams.task_type,
+        family: taskParams.family,
         project_id: taskParams.project_id,
-        dependant_on: null,
+        input: taskParams.input,
         idempotency_key,
       }),
       signal: controller.signal,
@@ -67,7 +67,7 @@ export async function createTask(taskParams: BaseTaskParams): Promise<TaskCreati
   } catch (err: unknown) {
     const context = {
       requestId,
-      taskType: taskParams.task_type,
+      taskType: taskIdentifier,
       projectId: taskParams.project_id,
       durationMs: Date.now() - startTime,
     };

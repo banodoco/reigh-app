@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { GenerationRow } from '@/domains/generation/types';
 import { toast } from '@/shared/components/ui/runtime/sonner';
+import { createTask } from '@/shared/lib/taskCreation';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { useCurrentShot } from '@/shared/contexts/CurrentShotContext';
 import { useShotGenerationMetadata } from '@/shared/hooks/shots/useShotGenerationMetadata';
-import { createBatchMagicEditTasks } from '@/shared/lib/tasks/imageEditing/magicEdit';
 import type { EditAdvancedSettings, QwenEditModel } from './useGenerationEditSettings';
 import type { LoraMode } from '../model/editSettingsTypes';
 import { convertToHiresFixApiParams } from './useGenerationEditSettings';
@@ -202,22 +202,25 @@ export const useMagicEditMode = ({
             // For ShotImageManager/Timeline images, id is shot_generations.id but generation_id is the actual generation ID
             const actualGenerationId = getGenerationId(media);
 
-            return createBatchMagicEditTasks({
+            return createTask({
               project_id: selectedProjectId,
-              prompt,
-              image_url: effectiveImageUrl,
-              numImages: inpaintNumGenerations,
-              negative_prompt: "",
-              resolution: imageDimensions ? `${imageDimensions.width}x${imageDimensions.height}` : undefined,
-              seed: 11111,
-              shot_id: currentShotId || undefined,
-              tool_type: toolTypeOverride,
-              loras: editModeLoras,
-              based_on: actualGenerationId ?? undefined,
-              source_variant_id: activeVariantId || undefined,
-              create_as_generation: createAsGeneration,
-              hires_fix: convertToHiresFixApiParams(advancedSettings),
-              qwen_edit_model: qwenEditModel,
+              family: 'magic_edit',
+              input: {
+                prompt,
+                image_url: effectiveImageUrl,
+                numImages: inpaintNumGenerations,
+                negative_prompt: "",
+                resolution: imageDimensions ? `${imageDimensions.width}x${imageDimensions.height}` : undefined,
+                seed: 11111,
+                shot_id: currentShotId || undefined,
+                tool_type: toolTypeOverride,
+                loras: editModeLoras,
+                based_on: actualGenerationId ?? undefined,
+                source_variant_id: activeVariantId || undefined,
+                create_as_generation: createAsGeneration,
+                hires_fix: convertToHiresFixApiParams(advancedSettings),
+                qwen_edit_model: qwenEditModel,
+              },
             });
           },
           onSuccess: async () => {

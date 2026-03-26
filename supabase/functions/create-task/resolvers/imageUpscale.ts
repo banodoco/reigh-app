@@ -1,0 +1,83 @@
+import type { ResolverResult, TaskFamilyResolver, TaskInsertObject } from "./types.ts";
+import {
+  TaskValidationError,
+  validateNumericRange,
+  validateNonEmptyString,
+  validateRequiredFields,
+  validateUrlString,
+} from "./shared/validation.ts";
+
+interface ImageUpscaleTaskInput {
+  image_url: string;
+  generation_id?: string | null;
+  source_variant_id?: string;
+  scale_factor?: number;
+  noise_scale?: number;
+  output_format?: string;
+  shot_id?: string;
+}
+
+function buildQueuedTask(
+  projectId: string,
+  taskType: string,
+  params: Record<string, unknown>,
+): TaskInsertObject {
+  return {
+    project_id: projectId,
+    task_type: taskType,
+    params,
+    status: "Queued",
+    created_at: new Date().toISOString(),
+    dependant_on: null,
+  };
+}
+
+function validateImageUpscaleInput(input: ImageUpscaleTaskInput): void {
+  validateRequiredFields(input, ["image_url"]);
+  validateNonEmptyString(input.image_url, "image_url", "Image URL");
+  validateUrlString(input.image_url, "image_url", "Image URL");
+  validateNumericRange(input.scale_factor, {
+    field: "scale_factor",
+    label: "Scale factor",
+    min: 1,
+    max: 8,
+  });
+}
+
+function buildImageUpscaleTaskParams(input: ImageUpscaleTaskInput): Record<string, unknown> {
+  const params: Record<string, unknown> = {
+    image: input.image_url,
+    scale_factor: input.scale_factor ?? 2,
+    noise_scale: input.noise_scale ?? 0.1,
+    output_format: input.output_format ?? "jpeg",
+  };
+
+  if (input.generation_id) {
+    params.generation_id = input.generation_id;
+    params.based_on = input.generation_id;
+    params.is_primary = true;
+  }
+  if (input.source_variant_id) {
+    params.source_variant_id = input.source_variant_id;
+  }
+  if (input.shot_id) {
+    params.shot_id = input.shot_id;
+  }
+
+  return params;
+}
+
+export const imageUpscaleResolver: TaskFamilyResolver = (request, context): ResolverResult => {
+  const input = request.input as unknown as ImageUpscaleTaskInput;
+  validateImageUpscaleInput(input);
+
+  return {
+    tasks: [
+      buildQueuedTask(
+        context.projectId,
+        "image-upscale",
+        buildImageUpscaleTaskParams(input),
+      ),
+    ],
+  };
+};

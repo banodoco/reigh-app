@@ -1,11 +1,11 @@
 import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createTask } from '@/shared/lib/taskCreation';
 import type { RunTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
-import { createIndividualTravelSegmentTask } from '@/shared/lib/tasks/families/individualTravelSegment';
 import { buildStructureVideoForTask, submitSegmentTask } from '../submitSegmentTask';
 
-vi.mock('@/shared/lib/tasks/families/individualTravelSegment', () => ({
-  createIndividualTravelSegmentTask: vi.fn(),
+vi.mock('@/shared/lib/taskCreation', () => ({
+  createTask: vi.fn(),
 }));
 
 vi.mock('@/integrations/supabase/client', () => ({
@@ -107,8 +107,8 @@ describe('submitSegmentTask', () => {
   });
 
   it('aborts task creation when settings persistence fails', async () => {
-    const createTaskMock = vi.mocked(createIndividualTravelSegmentTask);
-    createTaskMock.mockResolvedValue({ task_id: 'task-1' } as Awaited<ReturnType<typeof createIndividualTravelSegmentTask>>);
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue({ task_id: 'task-1', status: 'queued' });
     const saveSettings = vi.fn().mockResolvedValue(false);
 
     let createError: unknown;
@@ -149,8 +149,8 @@ describe('submitSegmentTask', () => {
   });
 
   it('creates a task when settings persistence succeeds', async () => {
-    const createTaskMock = vi.mocked(createIndividualTravelSegmentTask);
-    createTaskMock.mockResolvedValue({ task_id: 'task-2' } as Awaited<ReturnType<typeof createIndividualTravelSegmentTask>>);
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue({ task_id: 'task-2', status: 'queued' });
     const saveSettings = vi.fn().mockResolvedValue(true);
 
     let createdTaskId: string | undefined;
@@ -184,7 +184,10 @@ describe('submitSegmentTask', () => {
     expect(saveSettings).toHaveBeenCalledTimes(1);
     expect(createTaskMock).toHaveBeenCalledTimes(1);
     expect(createTaskMock).toHaveBeenCalledWith(expect.objectContaining({
-      model_name: 'ltx2_22B_distilled',
+      family: 'individual_travel_segment',
+      input: expect.objectContaining({
+        model_name: 'ltx2_22B_distilled',
+      }),
     }));
     expect(createdTaskId).toBe('task-2');
   });

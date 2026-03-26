@@ -2,9 +2,8 @@ import { QueryClient } from '@tanstack/react-query';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { normalizeAndPresentError, type RuntimeErrorOptions } from '@/shared/lib/errorHandling/runtimeError';
 import { ValidationError } from '@/shared/lib/errorHandling/errors';
+import { createTask } from '@/shared/lib/taskCreation';
 import {
-  createTravelBetweenImagesTaskWithParentGeneration,
-  validateTravelBetweenImagesParams,
   DEFAULT_STRUCTURE_GUIDANCE_CONTROLS,
   DEFAULT_STRUCTURE_VIDEO,
 } from '@/shared/lib/tasks/travelBetweenImages';
@@ -329,8 +328,6 @@ export async function generateVideo(params: GenerateVideoParams): Promise<Genera
   if (normalizedTravelGuidance) requestBody.travel_guidance = normalizedTravelGuidance;
 
   try {
-    validateTravelBetweenImagesParams(requestBody);
-
     if (!promptConfig.enhance_prompt) {
       try {
         await clearAllEnhancedPrompts();
@@ -339,9 +336,21 @@ export async function generateVideo(params: GenerateVideoParams): Promise<Genera
       }
     }
 
-    const result = await createTravelBetweenImagesTaskWithParentGeneration(requestBody);
+    const normalizedRequestBody = requestBody.model_name?.includes('ltx2')
+      ? { ...requestBody, turbo_mode: false }
+      : requestBody;
+    const { project_id, ...input } = normalizedRequestBody;
+    const result = await createTask({
+      project_id,
+      family: 'travel_between_images',
+      input,
+    });
     return operationSuccess(
-      { parentGenerationId: result.parentGenerationId },
+      {
+        parentGenerationId: typeof result.meta?.parentGenerationId === 'string'
+          ? result.meta.parentGenerationId
+          : normalizedRequestBody.parent_generation_id,
+      },
       { policy: 'best_effort' },
     );
   } catch (error) {

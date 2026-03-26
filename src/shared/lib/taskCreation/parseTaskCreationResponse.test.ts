@@ -33,6 +33,24 @@ describe('parseTaskCreationResponse', () => {
     });
   });
 
+  it('parses batch payloads and preserves meta', () => {
+    const result = parseTaskCreationResponse(
+      {
+        task_ids: [' task-1 ', 'task-2'],
+        status: ' queued ',
+        meta: { parentGenerationId: 'gen-1' },
+      },
+      context,
+    );
+
+    expect(result).toEqual({
+      task_id: 'task-1',
+      task_ids: ['task-1', 'task-2'],
+      status: 'queued',
+      meta: { parentGenerationId: 'gen-1' },
+    });
+  });
+
   it('throws ServerError for non-record payloads', () => {
     expect(() => parseTaskCreationResponse(null, context)).toThrow(ServerError);
     expect(() => parseTaskCreationResponse([], context)).toThrow(ServerError);

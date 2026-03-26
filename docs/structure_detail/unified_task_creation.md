@@ -2,31 +2,112 @@
 
 ## Purpose
 
-Single `create-task` edge function replaces per-tool edge functions. Parameter processing happens client-side; the edge function only authenticates and inserts into `tasks`.
+Single `create-task` edge function handles all task creation. Clients send minimal intent (family + input); the edge function resolves defaults, validates, formats params, and inserts into `tasks`.
 
 ## Source of Truth
 
 | What | Where |
 |------|-------|
-| Shared utilities (`createTask`, `generateTaskId`, etc.) | `src/shared/lib/taskCreation.ts` |
-| Task-specific helpers | `src/shared/lib/tasks/*.ts` |
-| Edge function | `supabase/functions/create-task/` |
+| Client helper (`createTask`) | `src/shared/lib/taskCreation/createTask.ts` |
+| Shared utilities (`generateTaskId`, etc.) | `src/shared/lib/taskCreation/` |
+| Edge function + resolvers | `supabase/functions/create-task/` |
+| Family resolvers | `supabase/functions/create-task/resolvers/` |
 | Task type routing | `task_types` table (DB) |
 
 ## Architecture
 
 ```
 UI Component
-  → Task Helper (src/shared/lib/tasks/*.ts) — validates, builds payload
-    → createTask() (src/shared/lib/taskCreation.ts)
-      → create-task Edge Function — authenticates, inserts row
+  → createTask({ family, project_id, input })
+    → create-task Edge Function
+      → Auth (JWT/PAT/service-role)
+      → Resolver dispatch (family → resolver function)
+        → Resolver: validates, fills defaults, formats params, generates IDs
+      → INSERT into tasks table (batch: N inserts in a loop)
+      → Response: { task_id } or { task_ids } for batch
         → DB Trigger: on_task_created — looks up task_types, sets run_type
           → Worker picks up task (see task_worker_lifecycle.md)
 ```
 
-## Authentication Flow
+## Request Format
 
-The `create-task` edge function supports three auth methods, checked in order:
+```json
+{
+  "family": "image_generation",
+  "project_id": "...",
+  "input": {
+    "prompt": "a sunset over mountains",
+    "model_name": "wan_2_2_t2i",
+    "count": 4
+  },
+  "idempotency_key": "..."
+}
+```
+
+## Response Format
+
+Single task:
+```json
+{ "task_id": "...", "status": "Task queued" }
+```
+
+Batch (count > 1):
+```json
+{ "task_ids": ["...", "..."], "status": "Task queued" }
+```
+
+With metadata (e.g., travel):
+```json
+{ "task_id": "...", "status": "Task queued", "meta": { "parentGenerationId": "..." } }
+```
+
+## Task Families
+
+| Family | Resolver | Batch | Notes |
+|--------|----------|-------|-------|
+| `image_generation` | `imageGeneration.ts` | Yes (prompts × count) | Resolution scaling, LoRA formatting, references, hires fix |
+| `image_upscale` | `imageUpscale.ts` | No | Lineage tracking |
+| `video_enhance` | `videoEnhance.ts` | No | Interpolation + upscale modes |
+| `z_image_turbo_i2i` | `zImageTurboI2I.ts` | Yes (numImages) | Different LoRA format ({path, scale}) |
+| `magic_edit` | `magicEdit.ts` | Yes (numImages) | Resolution from project settings |
+| `masked_edit` | `maskedEdit.ts` | Yes (num_generations) | Inpaint + annotated edit |
+| `join_clips` | `joinClips.ts` | No | Phase config, VACE, per-join overrides |
+| `individual_travel_segment` | `individualTravelSegment.ts` | No | DB queries for generation routing |
+| `travel_between_images` | `travelBetweenImages.ts` | No | Returns parentGenerationId in meta |
+| `crossfade_join` | `crossfadeJoin.ts` | No | Simple crossfade |
+| `edit_video_orchestrator` | `editVideoOrchestrator.ts` | No | Video editing orchestration |
+| `character_animate` | `characterAnimate.ts` | No | Character animation |
+
+## Adding a New Task Family
+
+1. Create `supabase/functions/create-task/resolvers/myFamily.ts`
+2. Implement the `TaskFamilyResolver` interface: `(request, context) => Promise<ResolverResult>`
+3. Register in `resolvers/registry.ts`
+4. Ensure a matching `task_types.name` row exists in DB
+
+## Resolver Interface
+
+```typescript
+interface ResolveRequest {
+  family: string;
+  project_id: string;
+  input: Record<string, unknown>;
+}
+
+interface ResolverContext {
+  supabaseAdmin: SupabaseClient;
+  projectId: string;
+  aspectRatio: string | null;
+  logger: Logger;
+}
+
+interface ResolverResult {
+  tasks: TaskInsertObject[];
+  meta?: Record<string, unknown>;
+}
+```
+
+## Authentication Flow
 
 | Method | When Used | How It Works |
 |--------|-----------|--------------|
@@ -34,82 +115,36 @@ The `create-task` edge function supports three auth methods, checked in order:
 | JWT | Frontend (Supabase auth) | Decodes JWT, extracts `payload.sub` as user ID |
 | PAT | External API integrations | Looks up token in `user_api_tokens` table |
 
+## Batch Idempotency
+
+- Client sends a stable `idempotency_key` with each request
+- For batch (count > 1), server derives per-task keys: `SHA-256(clientKey + ":" + taskIndex)`
+- Retries produce identical keys → duplicates recovered via existing 23505 handler
+
 ## The `task_type` to `task_types` Contract
 
-When `createTask({ task_type: 'travel_orchestrator', ... })` is called:
+When a resolver produces `{ task_type: 'travel_orchestrator', ... }`:
 
 1. `task_type` string is stored in `tasks.task_type` column
 2. DB trigger `on_task_created` looks up this string in `task_types.name`
 3. The matching row's `run_type` (`'gpu'` or `'api'`) determines which worker pool claims it
 4. **If no matching `task_types` row exists, defaults to `run_type='gpu'`**
 
-The `task_types` table also carries `category`, `base_cost_per_second`, and `cost_factors` for billing. See the table definition in migrations.
-
-## Full Task Lifecycle
-
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                   TASK CREATION (this doc)                        │
-├──────────────────────────────────────────────────────────────────┤
-│  UI → Task Helper → createTask() → create-task EF               │
-│       │  Validates params, builds payload    │  Auth + INSERT    │
-│       │                                      ▼                   │
-│       │                          tasks row (status='Queued')    │
-│       │                                      │                   │
-│       ▼                                      ▼                   │
-│                      DB Trigger: on_task_created                 │
-│                      Looks up task_types → sets run_type         │
-└──────────────────────────────────────────────────────────────────┘
-                                │
-                                ▼
-┌──────────────────────────────────────────────────────────────────┐
-│              TASK EXECUTION (task_worker_lifecycle.md)            │
-├──────────────────────────────────────────────────────────────────┤
-│  Worker polls for tasks matching its run_type                    │
-│       → Claims task (status → 'In Progress')                      │
-│       → Executes (GPU inference / API call)                      │
-│       → Calls complete-task EF                                   │
-│            → status → 'Complete' or 'Failed'                     │
-│            → Creates generation records                          │
-│            → Triggers realtime updates                           │
-└──────────────────────────────────────────────────────────────────┘
-```
-
-## API Param Naming Conventions
-
-| Context | Convention | Example |
-|---------|------------|---------|
-| API params (to backend) | `snake_case` | `structure_video_path` |
-| React props (UI-only) | `camelCase` | `onStructureVideoChange` |
-| Config objects (API-bound) | `snake_case` fields | `structureVideoConfig.structure_video_path` |
-| Hook return values | `camelCase` wrapper | `structureVideoConfig` (contains snake_case fields) |
-
-**Why:** API-bound config objects use `snake_case` so they can be spread directly into the request payload without field-name conversion.
-
-### Adding a new API param
-
-| Step | Location |
-|------|----------|
-| 1. Add to API interface | `src/shared/lib/tasks/*.ts` (e.g., add field to `VideoStructureApiParams`) |
-| 2. Add default (if needed) | Same file, in the `DEFAULT_*` constant |
-| 3. Add to UI config | Hook file — TypeScript enforces via `extends` |
-| 4. Done | Param flows through automatically via spread |
-
 ## Key Invariants
 
-- Every `task_type` string passed to `createTask()` should have a matching `task_types.name` row. Missing rows silently default to `run_type='gpu'`.
-- Task helpers in `src/shared/lib/tasks/` own all validation and payload construction. The edge function is intentionally thin.
-- The `create-task` edge function never transforms params — it stores them as-is in `tasks.params`.
+- All param building, validation, defaults, and formatting happens in server-side resolvers, not client-side.
+- Resolvers must produce params blobs that match what workers expect — workers are not changed.
+- The `family` field is required on every request. There is no raw `{ params, task_type }` path.
 - Authentication order matters: Service Role > JWT > PAT. First match wins.
 - `generateTaskId()` creates a prefixed UUID stored in `tasks.params`, not as the DB primary key.
+- Resolution is resolved server-side from project's `aspect_ratio` setting.
 
 ## Error Handling
 
-Errors follow the patterns in `error_handling.md`. Common categories:
-
 | Error Type | Cause |
 |------------|-------|
-| Validation | Missing/invalid params (caught client-side in task helper) |
-| Authentication | Missing or invalid token in edge function |
+| Validation | Missing/invalid params (caught in resolver, returned as 400) |
+| Authentication | Missing or invalid token |
 | Authorization | User doesn't own the target project |
+| Unknown family | `family` value not in resolver registry |
 | Database | Constraint violations on INSERT |

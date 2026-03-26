@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { GenerationRow } from '@/domains/generation/types';
-import { createBatchZImageTurboImageToImageTasks } from '@/shared/lib/tasks/families/zImageTurboI2I';
+import { createTask } from '@/shared/lib/taskCreation';
 import type { ActiveLora, FalLoraConfig, LoraModel } from '@/domains/lora/types/lora';
 import type { LoraManagerState } from '@/domains/lora/types/loraManager';
 import { useLoraManager } from '@/domains/lora/hooks/useLoraManager';
@@ -169,19 +169,22 @@ export const useImg2ImgMode = ({
           // Get actual generation ID (handle shot_generations case)
           const actualGenerationId = getGenerationId(media);
 
-          return createBatchZImageTurboImageToImageTasks({
+          return createTask({
             project_id: selectedProjectId,
-            image_url: effectiveImageUrl,
-            prompt: img2imgPrompt.trim() || undefined,
-            strength: img2imgStrength,
-            enable_prompt_expansion: enablePromptExpansion,
-            numImages: numGenerations,
-            loras: loras.length > 0 ? loras : undefined,
-            based_on: actualGenerationId ?? undefined,
-            source_variant_id: activeVariantId || undefined,
-            create_as_generation: createAsGeneration,
-            tool_type: toolTypeOverride,
-            shot_id: shotId,
+            family: 'z_image_turbo_i2i',
+            input: {
+              image_url: effectiveImageUrl,
+              prompt: img2imgPrompt.trim() || undefined,
+              strength: img2imgStrength,
+              enable_prompt_expansion: enablePromptExpansion,
+              numImages: numGenerations,
+              loras: loras.length > 0 ? loras : undefined,
+              based_on: actualGenerationId ?? undefined,
+              source_variant_id: activeVariantId || undefined,
+              create_as_generation: createAsGeneration,
+              tool_type: toolTypeOverride,
+              shot_id: shotId,
+            },
           });
         },
         onSuccess: () => {

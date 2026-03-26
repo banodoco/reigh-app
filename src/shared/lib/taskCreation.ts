@@ -23,21 +23,9 @@ export {
 } from './taskCreation/createTask';
 
 export {
-  expandArrayToCount,
-} from './taskCreation/arrayUtils';
-
-export {
   validateRequiredFields,
   safeParseJson,
 } from './taskCreation/validation';
-
-export {
-  buildHiresFixParams,
-} from './taskCreation/hiresFix';
-
-export {
-  processBatchResults,
-} from './taskCreation/batchResults';
 
 export {
   resolveSeed32Bit,
@@ -48,7 +36,3 @@ export {
   validateUrlString,
   mapPathLorasToStrengthRecord,
 } from './taskCreation/schemaUtils';
-
-export {
-  setTaskLineageFields,
-} from './taskCreation/payloadFields';

@@ -1,5 +1,5 @@
 // Import API types from shared (used in interfaces below, re-exported at bottom)
-import { ReferenceMode } from '@/shared/lib/tasks/families/imageGeneration';
+import type { ReferenceMode } from '@/shared/types/imageGeneration';
 import {
   DEFAULT_HIRES_FIX_CONFIG,
   getHiresFixDefaultsForModel,
@@ -135,7 +135,7 @@ export type {
 // ============================================================================
 // Re-export API types from shared (single source of truth)
 // ============================================================================
-export type { ReferenceApiParams, ReferenceMode } from '@/shared/lib/tasks/families/imageGeneration';
+export type { ReferenceApiParams, ReferenceMode } from '@/shared/types/imageGeneration';
 
 
 // ============================================================================

@@ -336,8 +336,8 @@ export function useReplaceMode({
 
           return createTask({
             project_id: selectedProjectId!,
-            task_type: 'edit_video_orchestrator',
-            params: {
+            family: 'edit_video_orchestrator',
+            input: {
               orchestrator_details: orchestratorDetails,
               tool_type: TOOL_IDS.EDIT_VIDEO,
               parent_generation_id: getGenerationId(media),

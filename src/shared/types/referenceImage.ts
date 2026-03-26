@@ -1,4 +1,4 @@
-import type { ReferenceMode } from '@/shared/lib/tasks/families/imageGeneration';
+import type { ReferenceMode } from '@/shared/types/imageGeneration';
 
 export interface ReferenceImage {
   id: string;

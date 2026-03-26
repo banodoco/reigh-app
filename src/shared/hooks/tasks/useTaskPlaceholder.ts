@@ -36,10 +36,25 @@ interface TaskPlaceholderOptions {
  *  - string                        → raw task_id
  *  - string[]                      → array of raw task_ids
  *  - { task_id: string }           → single TaskCreationResult
+ *  - { task_ids: string[] }        → batched TaskCreationResult
  *  - Array<{ task_id: string }>    → batch results
  *  - mixed arrays of strings and objects
  *  - void/null/undefined           → [] (graceful degradation)
  */
+function extractTaskIdsFromRecord(result: Record<string, unknown>): string[] {
+  if (Array.isArray(result.task_ids)) {
+    return result.task_ids
+      .map((item) => typeof item === 'string' ? item.trim() : '')
+      .filter((item): item is string => item.length > 0);
+  }
+
+  if (typeof result.task_id === 'string' && result.task_id.trim().length > 0) {
+    return [result.task_id.trim()];
+  }
+
+  return [];
+}
+
 export function extractTaskIds(result: unknown): string[] {
   if (result == null) return [];
 
@@ -48,17 +63,15 @@ export function extractTaskIds(result: unknown): string[] {
   if (Array.isArray(result)) {
     return result.flatMap(item => {
       if (typeof item === 'string') return [item];
-      if (item != null && typeof item === 'object' && 'task_id' in item) {
-        const id = (item as { task_id: unknown }).task_id;
-        if (typeof id === 'string') return [id];
+      if (item != null && typeof item === 'object') {
+        return extractTaskIdsFromRecord(item as Record<string, unknown>);
       }
       return [];
     });
   }
 
-  if (typeof result === 'object' && 'task_id' in result) {
-    const id = (result as { task_id: unknown }).task_id;
-    if (typeof id === 'string') return [id];
+  if (typeof result === 'object') {
+    return extractTaskIdsFromRecord(result as Record<string, unknown>);
   }
 
   return [];

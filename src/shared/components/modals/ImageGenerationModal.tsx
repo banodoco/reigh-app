@@ -7,7 +7,7 @@ import {
 } from '@/shared/components/ui/dialog';
 import { useExtraLargeModal } from '@/shared/hooks/useModal';
 import { ImageGenerationForm } from '@/shared/components/ImageGenerationForm';
-import { createBatchImageGenerationTasks, BatchImageGenerationTaskParams } from '@/shared/lib/tasks/families/imageGeneration';
+import { createTask } from '@/shared/lib/taskCreation';
 import { useApiKeys } from '@/shared/hooks/settings/useApiKeys';
 import { useProject } from '@/shared/contexts/ProjectContext';
 import { useQueryClient } from '@tanstack/react-query';
@@ -18,6 +18,7 @@ import { Skeleton } from '@/shared/components/ui/skeleton';
 import { ExternalLinkTooltipButton } from '@/shared/components/ui/composed/ExternalLinkTooltipButton';
 import { useNavigate } from 'react-router-dom';
 import { TOOL_ROUTES } from '@/shared/lib/tooling/toolRoutes';
+import type { BatchImageGenerationTaskParams } from '@/shared/types/imageGeneration';
 
 interface ImageGenerationModalProps {
   isOpen: boolean;
@@ -53,7 +54,14 @@ export const ImageGenerationModal: React.FC<ImageGenerationModalProps> = ({
       label: taskParams.prompts?.[0]?.fullPrompt?.substring(0, 50) || 'Generating images...',
       context: 'ImageGenerationModal',
       toastTitle: 'Failed to create tasks',
-      create: () => createBatchImageGenerationTasks(taskParams),
+      create: () => {
+        const { project_id, ...input } = taskParams;
+        return createTask({
+          project_id,
+          family: 'image_generation',
+          input,
+        });
+      },
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: queryKeys.unified.projectPrefix(selectedProjectId) });
       },

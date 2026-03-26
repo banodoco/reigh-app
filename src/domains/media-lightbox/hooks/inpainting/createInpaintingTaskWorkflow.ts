@@ -1,9 +1,8 @@
 import type { GenerationRow } from '@/domains/generation/types';
 import { uploadImageToStorage } from '@/shared/lib/media/imageUploader';
+import { createTask } from '@/shared/lib/taskCreation';
 import { createImageInpaintTask } from '@/shared/lib/tasks/imageEditing/imageInpaint';
-import { createMaskedEditTask } from '@/shared/lib/tasks/imageEditing/maskedEditTaskBuilder';
-import type { MaskedEditTaskParams } from '@/shared/lib/tasks/imageEditing/maskedEditTaskBuilder';
-import { buildMaskedEditTaskParams } from '@/shared/lib/tasks/imageEditing/buildMaskedEditTaskParams';
+import { buildMaskedEditTaskParams, type MaskedEditTaskParams } from '@/shared/lib/tasks/imageEditing/buildMaskedEditTaskParams';
 import { convertToHiresFixApiParams } from '../useGenerationEditSettings';
 import { getMediaUrl } from '@/shared/lib/media/mediaTypeHelpers';
 import type { StrokeOverlayHandle } from '../../components/StrokeOverlay';
@@ -46,11 +45,25 @@ interface CreateInpaintingTaskWorkflowParams {
 }
 
 function createAnnotatedImageEditTask(params: MaskedEditTaskParams): Promise<string> {
-  return createMaskedEditTask({
-    taskType: 'annotated_image_edit',
-    context: 'createAnnotatedImageEditTask',
-    batchOperationName: 'AnnotatedImageEdit',
-  }, params);
+  return createTask({
+    project_id: params.project_id,
+    family: 'masked_edit',
+    input: {
+      task_type: 'annotated_image_edit',
+      image_url: params.image_url,
+      mask_url: params.mask_url,
+      prompt: params.prompt,
+      num_generations: params.num_generations,
+      generation_id: params.generation_id,
+      shot_id: params.shot_id,
+      tool_type: params.tool_type,
+      loras: params.loras,
+      create_as_generation: params.create_as_generation,
+      source_variant_id: params.source_variant_id,
+      hires_fix: params.hires_fix,
+      qwen_edit_model: params.qwen_edit_model,
+    },
+  }).then((result) => result.task_id);
 }
 
 export async function createInpaintingTaskWorkflow({

@@ -16,11 +16,11 @@
 
 import { QueryClient } from '@tanstack/react-query';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { createTask as createTaskRequest } from '@/shared/lib/taskCreation';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { joinPromptParts } from '@/shared/lib/tasks/promptAssembly';
 import { buildTaskParams, type SegmentSettings } from '@/shared/components/SegmentSettingsForm/segmentSettingsUtils';
-import { createIndividualTravelSegmentTask } from '@/shared/lib/tasks/families/individualTravelSegment';
-import type { IndividualTravelSegmentParams } from '@/shared/lib/tasks/families/individualTravelSegment';
+import type { IndividualTravelSegmentParams } from '@/shared/types/individualTravelSegment';
 import { persistSegmentEnhancedPrompt } from '@/shared/lib/tasks/segmentGenerationPersistence';
 import {
   buildTravelGuidanceFromControls,
@@ -256,7 +256,12 @@ function applyPromptAffixes(settings: SegmentSettings, prompt: string): string {
 }
 
 async function createTask(taskParams: ReturnType<BuildTaskParams>): Promise<string> {
-  const result = await createIndividualTravelSegmentTask(taskParams);
+  const { project_id, ...input } = taskParams;
+  const result = await createTaskRequest({
+    project_id,
+    family: 'individual_travel_segment',
+    input,
+  });
   if (!result.task_id) {
     throw new Error('Failed to create task');
   }

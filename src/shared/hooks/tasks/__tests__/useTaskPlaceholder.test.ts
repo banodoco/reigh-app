@@ -20,6 +20,10 @@ describe('extractTaskIds', () => {
     expect(extractTaskIds({ task_id: 'task-1' })).toEqual(['task-1']);
   });
 
+  it('extracts { task_ids } from a batch object', () => {
+    expect(extractTaskIds({ task_ids: ['task-1', ' task-2 '] })).toEqual(['task-1', 'task-2']);
+  });
+
   it('extracts task_ids from an array of objects', () => {
     const batch = [
       { task_id: 'a' },
@@ -32,11 +36,12 @@ describe('extractTaskIds', () => {
   it('filters out array items without task_id', () => {
     const mixed = [
       { task_id: 'ok' },
+      { task_ids: ['batch-1', 'batch-2'] },
       { other: 'no' },
       null,
       { task_id: 'also-ok' },
     ];
-    expect(extractTaskIds(mixed)).toEqual(['ok', 'also-ok']);
+    expect(extractTaskIds(mixed)).toEqual(['ok', 'batch-1', 'batch-2', 'also-ok']);
   });
 
   it('extracts IDs from a plain string array', () => {

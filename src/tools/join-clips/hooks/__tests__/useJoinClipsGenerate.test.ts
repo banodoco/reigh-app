@@ -4,19 +4,19 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 
 const {
-  mockCreateJoinClipsTask,
+  mockCreateTask,
   mockAddIncomingTask,
   mockRemoveIncomingTask,
   mockToast,
 } = vi.hoisted(() => ({
-  mockCreateJoinClipsTask: vi.fn(),
+  mockCreateTask: vi.fn(),
   mockAddIncomingTask: vi.fn().mockReturnValue('incoming-1'),
   mockRemoveIncomingTask: vi.fn(),
   mockToast: vi.fn(),
 }));
 
-vi.mock('@/shared/lib/tasks/families/joinClips', () => ({
-  createCanonicalJoinClipsTask: (...args: unknown[]) => mockCreateJoinClipsTask(...args),
+vi.mock('@/shared/lib/taskCreation', () => ({
+  createTask: (...args: unknown[]) => mockCreateTask(...args),
 }));
 
 vi.mock('@/shared/components/ui/runtime/sonner', () => ({
@@ -152,7 +152,7 @@ describe('useJoinClipsGenerate', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockCreateJoinClipsTask.mockResolvedValue({ task_id: 'task-1' });
+    mockCreateTask.mockResolvedValue({ task_id: 'task-1', status: 'queued' });
   });
 
   it('returns initial state', () => {
@@ -301,7 +301,7 @@ describe('useJoinClipsGenerate', () => {
         variant: 'destructive',
       }),
     );
-    expect(mockCreateJoinClipsTask).not.toHaveBeenCalled();
+    expect(mockCreateTask).not.toHaveBeenCalled();
   });
 
   it('creates join clips task with correct params', async () => {
@@ -324,21 +324,24 @@ describe('useJoinClipsGenerate', () => {
     });
 
     await waitFor(() => {
-      expect(mockCreateJoinClipsTask).toHaveBeenCalledWith(
+      expect(mockCreateTask).toHaveBeenCalledWith(
         expect.objectContaining({
           project_id: 'proj-1',
-          mode: 'multi_clip',
-          clip_source: expect.objectContaining({
-            kind: 'clips',
-            clips: expect.arrayContaining([
-              { url: expect.any(String) },
-              { url: expect.any(String) },
-            ]),
+          family: 'join_clips',
+          input: expect.objectContaining({
+            mode: 'multi_clip',
+            clip_source: expect.objectContaining({
+              kind: 'clips',
+              clips: expect.arrayContaining([
+                { url: expect.any(String) },
+                { url: expect.any(String) },
+              ]),
+            }),
+            context_frame_count: 15,
+            gap_frame_count: 23,
+            replace_mode: true,
+            tool_type: 'join_clips',
           }),
-          context_frame_count: 15,
-          gap_frame_count: 23,
-          replace_mode: true,
-          tool_type: 'join_clips',
         }),
       );
     });
@@ -368,7 +371,7 @@ describe('useJoinClipsGenerate', () => {
     });
 
     await waitFor(() => {
-      const callArgs = mockCreateJoinClipsTask.mock.calls[0][0];
+      const callArgs = mockCreateTask.mock.calls[0][0].input;
       // Individual prompt + global prompt should be combined
       expect(callArgs.per_join_settings[0].prompt).toBe(
         'smooth transition. global transition prompt',
@@ -396,7 +399,7 @@ describe('useJoinClipsGenerate', () => {
     });
 
     await waitFor(() => {
-      const callArgs = mockCreateJoinClipsTask.mock.calls[0][0];
+      const callArgs = mockCreateTask.mock.calls[0][0].input;
       expect(callArgs.resolution).toEqual([1280, 720]);
     });
   });
@@ -429,7 +432,7 @@ describe('useJoinClipsGenerate', () => {
     });
 
     await waitFor(() => {
-      const callArgs = mockCreateJoinClipsTask.mock.calls[0][0];
+      const callArgs = mockCreateTask.mock.calls[0][0].input;
       expect(callArgs.loras).toEqual([
         { path: 'lora/path1', strength: 0.8 },
         { path: 'lora/path2', strength: 0.5 },

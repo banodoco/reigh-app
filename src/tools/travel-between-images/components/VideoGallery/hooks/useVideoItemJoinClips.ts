@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { GenerationRow, GenerationParams } from '@/domains/generation/types';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { toast } from '@/shared/components/ui/runtime/sonner';
-import { createCanonicalJoinClipsTask } from '@/shared/lib/tasks/families/joinClips';
+import { createTask } from '@/shared/lib/taskCreation';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/lib/queryKeys';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
@@ -10,6 +10,7 @@ import { TOOL_IDS } from '@/shared/lib/tooling/toolIds';
 import { VACE_GENERATION_DEFAULTS } from '@/shared/lib/vaceDefaults';
 import { resolveAspectRatioResolutionTuple } from '@/shared/lib/video/resolveAspectRatioResolutionTuple';
 import { useTaskPlaceholder, type RunTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
+import type { CanonicalJoinClipsTaskInput } from '@/shared/types/joinClips';
 
 export interface JoinSettings {
   joinPrompt: string;
@@ -227,7 +228,7 @@ function useConfirmJoinHandler(params: UseConfirmJoinHandlerParams) {
           const resolutionTuple = resolveResolutionTuple(projectAspectRatio);
           const videoShotId = getVideoShotId(video);
 
-          return createCanonicalJoinClipsTask({
+          const taskInput: CanonicalJoinClipsTaskInput = {
             project_id: projectId,
             ...(videoShotId && { shot_id: videoShotId }),
             mode: 'multi_clip',
@@ -248,6 +249,13 @@ function useConfirmJoinHandler(params: UseConfirmJoinHandlerParams) {
             parent_generation_id: video.id,
             tool_type: TOOL_IDS.TRAVEL_BETWEEN_IMAGES,
             ...(resolutionTuple && { resolution: resolutionTuple }),
+          };
+
+          const { project_id, ...input } = taskInput;
+          return createTask({
+            project_id,
+            family: 'join_clips',
+            input,
           });
         },
         onSuccess: () => {

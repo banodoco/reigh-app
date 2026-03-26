@@ -8,9 +8,8 @@ import { useState, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/shared/components/ui/runtime/sonner';
 import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { createTask } from '@/shared/lib/taskCreation';
 import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
-import { createCanonicalJoinClipsTask } from '@/shared/lib/tasks/families/joinClips';
-import { createCrossfadeJoinTask } from '@/shared/lib/tasks/createCrossfadeJoinTask';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { TOOL_IDS } from '@/shared/lib/tooling/toolIds';
 import { ASPECT_RATIO_TO_RESOLUTION } from '@/shared/lib/media/aspectRatios';
@@ -19,6 +18,7 @@ import { joinClipsSettings } from '@/shared/lib/joinClips/defaults';
 import { scaleJoinFrameCountsToShortestClip } from '@/shared/lib/joinClips/frameScaling';
 import { DEFAULT_VACE_PHASE_CONFIG, BUILTIN_VACE_DEFAULT_ID } from '@/shared/lib/vaceDefaults';
 import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
+import type { CanonicalJoinClipsTaskInput } from '@/shared/types/joinClips';
 import type { SegmentSlot } from '@/shared/hooks/segments/useSegmentOutputsForShot';
 import type { JoinLoraManagerForTask, JoinSettingsForTask } from './joinSegments.types';
 import { checkBoundaryFreshness } from './joinSegmentFreshness';
@@ -215,18 +215,21 @@ export function useJoinSegmentsHandler({
           }
 
           if (allCrossfade) {
-            return createCrossfadeJoinTask({
+            return createTask({
               project_id: projectId,
-              shot_id: selectedShotId,
-              parent_generation_id: joinSelectedParent?.id,
-              clip_urls: clips.map((clip) => clip.url),
-              frame_overlap_settings_expanded: boundaries.map((boundary) => boundary.overlapFrames),
-              ...(audioUrl && { audio_url: audioUrl }),
-              tool_type: TOOL_IDS.TRAVEL_BETWEEN_IMAGES,
+              family: 'crossfade_join',
+              input: {
+                shot_id: selectedShotId,
+                parent_generation_id: joinSelectedParent?.id,
+                clip_urls: clips.map((clip) => clip.url),
+                frame_overlap_settings_expanded: boundaries.map((boundary) => boundary.overlapFrames),
+                ...(audioUrl && { audio_url: audioUrl }),
+                tool_type: TOOL_IDS.TRAVEL_BETWEEN_IMAGES,
+              },
             });
           }
 
-          return createCanonicalJoinClipsTask({
+          const taskInput: CanonicalJoinClipsTaskInput = {
             project_id: projectId,
             shot_id: selectedShotId,
             mode: 'multi_clip',
@@ -255,6 +258,13 @@ export function useJoinSegmentsHandler({
             ...(resolutionTuple && { resolution: resolutionTuple }),
             ...(audioUrl && { audio_url: audioUrl }),
             ...(joinPhaseConfig && { phase_config: joinPhaseConfig }),
+          };
+
+          const { project_id, ...input } = taskInput;
+          return createTask({
+            project_id,
+            family: 'join_clips',
+            input,
           });
         },
         onSuccess: () => {

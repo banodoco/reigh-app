@@ -1,5 +1,4 @@
 import { ValidationError } from '@/shared/lib/errorHandling/errors';
-import type { TaskParams, TaskType } from '@/types/database';
 
 export const DEFAULT_ASPECT_RATIO = '1:1';
 
@@ -8,19 +7,24 @@ export interface ProjectResolutionResult {
   aspectRatio: string;
 }
 
-export interface BaseTaskParams {
+export interface TaskCreationRequest {
   project_id: string;
-  task_type: TaskType;
-  params: TaskParams;
+  family: string;
+  input: Record<string, unknown>;
 }
+
+export type BaseTaskParams = TaskCreationRequest;
 
 /**
  * Successful task-creation response shape.
- * Errors are surfaced via thrown AppError instances, not inline response fields.
+ * `task_ids` is present for batched responses. `task_id` remains populated
+ * with the first id so existing single-task call sites keep working.
  */
 export interface TaskCreationResult {
   task_id: string;
+  task_ids?: string[];
   status: string;
+  meta?: Record<string, unknown>;
 }
 
 export class TaskValidationError extends ValidationError {

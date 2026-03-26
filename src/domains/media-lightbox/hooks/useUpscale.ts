@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { GenerationRow } from '@/domains/generation/types';
-import { createImageUpscaleTask } from '@/shared/lib/tasks/families/imageUpscale';
+import { createTask } from '@/shared/lib/taskCreation';
 import { getGenerationId, getMediaUrl } from '@/shared/lib/media/mediaTypeHelpers';
 import type { ImageUpscaleSettings } from '../components/ImageUpscaleForm';
 import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
@@ -81,14 +81,17 @@ export const useUpscale = ({
 
           const actualGenerationId = getGenerationId(media);
 
-          return createImageUpscaleTask({
+          return createTask({
             project_id: selectedProjectId,
-            image_url: effectiveImageUrl,
-            generation_id: actualGenerationId,
-            source_variant_id: activeVariantId || undefined,
-            scale_factor: settings.scaleFactor,
-            noise_scale: settings.noiseScale,
-            shot_id: shotId,
+            family: 'image_upscale',
+            input: {
+              image_url: effectiveImageUrl,
+              generation_id: actualGenerationId,
+              source_variant_id: activeVariantId || undefined,
+              scale_factor: settings.scaleFactor,
+              noise_scale: settings.noiseScale,
+              shot_id: shotId,
+            },
           });
         },
         onSuccess: () => {

@@ -26,6 +26,3 @@ export {
   resolveTravelStructureState,
   type ResolvedTravelStructureState,
 } from './structureState';
-
-export { createTravelBetweenImagesTaskWithParentGeneration } from './createTravelBetweenImagesTask';
-export { validateTravelBetweenImagesParams } from './payloadBuilder';

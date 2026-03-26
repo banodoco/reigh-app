@@ -1,10 +1,40 @@
 import { useState, useCallback } from 'react';
-import {
-  createVideoEnhanceTask,
-  type VideoEnhanceTaskParams,
-} from '@/shared/lib/tasks/families/videoEnhance';
+import { createTask } from '@/shared/lib/taskCreation';
 import type { VideoEnhanceSettings } from './useGenerationEditSettings';
 import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
+
+interface FilmInterpolationApiParams {
+  num_frames?: number;
+  use_calculated_fps?: boolean;
+  fps?: number;
+  use_scene_detection?: boolean;
+  loop?: boolean;
+  video_quality?: 'low' | 'medium' | 'high' | 'maximum';
+  video_write_mode?: 'fast' | 'balanced' | 'small';
+}
+
+interface FlashVsrUpscaleApiParams {
+  upscale_factor?: number;
+  acceleration?: 'regular' | 'high' | 'full';
+  quality?: number;
+  color_fix?: boolean;
+  output_format?: 'X264 (.mp4)' | 'VP9 (.webm)' | 'PRORES4444 (.mov)' | 'GIF';
+  output_quality?: 'low' | 'medium' | 'high' | 'maximum';
+  output_write_mode?: 'fast' | 'balanced' | 'small';
+  preserve_audio?: boolean;
+}
+
+interface VideoEnhanceTaskParams {
+  project_id: string;
+  video_url: string;
+  enable_interpolation: boolean;
+  enable_upscale: boolean;
+  interpolation?: FilmInterpolationApiParams;
+  upscale?: FlashVsrUpscaleApiParams;
+  shot_id?: string;
+  based_on?: string;
+  source_variant_id?: string;
+}
 
 export type { VideoEnhanceSettings } from './useGenerationEditSettings';
 
@@ -123,7 +153,12 @@ export function useVideoEnhance({
             };
           }
 
-          return createVideoEnhanceTask(params);
+          const { project_id, ...input } = params;
+          return createTask({
+            project_id,
+            family: 'video_enhance',
+            input,
+          });
         },
         onSuccess: () => {
           setGenerateSuccess(true);

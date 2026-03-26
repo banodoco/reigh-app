@@ -3,13 +3,13 @@ import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 
-const mockCreateBatchImageGenerationTasks = vi.fn();
+const mockCreateTask = vi.fn();
 const mockGetApiKey = vi.fn();
 const mockHandleError = vi.fn();
 const mockToastError = vi.fn();
 
-vi.mock('@/shared/lib/tasks/families/imageGeneration', () => ({
-  createBatchImageGenerationTasks: (...args: unknown[]) => mockCreateBatchImageGenerationTasks(...args),
+vi.mock('@/shared/lib/taskCreation', () => ({
+  createTask: (...args: unknown[]) => mockCreateTask(...args),
 }));
 
 vi.mock('@/features/settings/hooks/useApiKeys', () => ({
@@ -56,10 +56,11 @@ describe('useImageGenSubmit', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetApiKey.mockReturnValue('test-api-key');
-    mockCreateBatchImageGenerationTasks.mockResolvedValue([
-      { task_id: 'task-1' },
-      { task_id: 'task-2' },
-    ]);
+    mockCreateTask.mockResolvedValue({
+      task_id: 'task-1',
+      task_ids: ['task-1', 'task-2'],
+      status: 'queued',
+    });
   });
 
   it('returns handleNewGenerate and openaiApiKey', () => {
@@ -98,7 +99,13 @@ describe('useImageGenSubmit', () => {
     });
 
     expect(taskIds).toEqual(['task-1', 'task-2']);
-    expect(mockCreateBatchImageGenerationTasks).toHaveBeenCalledWith(taskParams);
+    expect(mockCreateTask).toHaveBeenCalledWith({
+      project_id: 'proj-1',
+      family: 'image_generation',
+      input: {
+        prompts: [{ fullPrompt: 'a beautiful landscape' }],
+      },
+    });
   });
 
   it('does not manage incoming task placeholders (caller handles this)', async () => {
@@ -132,8 +139,8 @@ describe('useImageGenSubmit', () => {
     );
   });
 
-  it('handles createBatchImageGenerationTasks error', async () => {
-    mockCreateBatchImageGenerationTasks.mockRejectedValue(new Error('API error'));
+  it('handles createTask error', async () => {
+    mockCreateTask.mockRejectedValue(new Error('API error'));
 
     const { result } = renderHook(
       () => useImageGenSubmit({ projectId: 'proj-1', effectiveProjectId: 'proj-1' }),
@@ -155,7 +162,7 @@ describe('useImageGenSubmit', () => {
   });
 
   it('does not throw on error — returns empty array', async () => {
-    mockCreateBatchImageGenerationTasks.mockRejectedValue(new Error('fail'));
+    mockCreateTask.mockRejectedValue(new Error('fail'));
 
     const { result } = renderHook(
       () => useImageGenSubmit({ projectId: 'proj-1', effectiveProjectId: 'proj-1' }),

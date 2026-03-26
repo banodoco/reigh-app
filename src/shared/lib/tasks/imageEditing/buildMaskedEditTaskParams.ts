@@ -1,4 +1,21 @@
-import type { MaskedEditTaskParams } from './maskedEditTaskBuilder';
+import type { HiresFixApiParams } from '@/shared/lib/taskCreation';
+import type { ComfyLoraConfig } from '@/domains/lora/types/lora';
+
+export interface MaskedEditTaskParams {
+  project_id: string;
+  image_url: string;
+  mask_url: string;
+  prompt: string;
+  num_generations: number;
+  generation_id?: string;
+  shot_id?: string;
+  tool_type?: string;
+  loras?: ComfyLoraConfig[];
+  create_as_generation?: boolean;
+  source_variant_id?: string;
+  hires_fix?: HiresFixApiParams;
+  qwen_edit_model?: string;
+}
 
 interface BuildMaskedEditTaskParamsInput {
   projectId: string;

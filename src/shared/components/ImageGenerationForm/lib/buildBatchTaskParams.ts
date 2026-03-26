@@ -5,8 +5,8 @@
  * Single source of truth for building task parameters.
  */
 
-import { BatchImageGenerationTaskParams } from '@/shared/lib/tasks/families/imageGeneration';
 import { joinPromptParts } from '@/shared/lib/tasks/promptAssembly';
+import type { BatchImageGenerationTaskParams } from '@/shared/types/imageGeneration';
 import { PromptEntry, HiresFixConfig, ReferenceApiParams } from '../types';
 import { toShortPrompt } from './promptUtils';
 
