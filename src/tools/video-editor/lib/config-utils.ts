@@ -1,4 +1,3 @@
-import { migrateToFlatTracks } from './migrate';
 import type {
   AssetRegistry,
   ResolvedAssetRegistryEntry,
@@ -79,7 +78,6 @@ export const resolveTimelineConfig = async (
   registry: AssetRegistry,
   resolveUrl: UrlResolver,
 ): Promise<ResolvedTimelineConfig> => {
-  const migratedConfig = migrateToFlatTracks(config);
   const resolvedRegistry: Record<string, ResolvedAssetRegistryEntry> = {};
 
   await Promise.all(
@@ -91,7 +89,7 @@ export const resolveTimelineConfig = async (
     }),
   );
 
-  const clips = migratedConfig.clips.map((clip) => {
+  const clips = config.clips.map((clip) => {
     if (!clip.asset) {
       return {
         ...clip,
@@ -115,8 +113,8 @@ export const resolveTimelineConfig = async (
   });
 
   return {
-    output: { ...migratedConfig.output },
-    tracks: migratedConfig.tracks ?? [],
+    output: { ...config.output },
+    tracks: config.tracks ?? [],
     clips,
     registry: resolvedRegistry,
   };

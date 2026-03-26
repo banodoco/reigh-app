@@ -160,20 +160,19 @@ export const resolveTimelineConfig = async (
 export const configToRows = (
   config: TimelineConfig,
 ): Pick<TimelineData, 'rows' | 'meta' | 'effects' | 'clipOrder' | 'tracks'> => {
-  const migratedConfig = migrateToFlatTracks(config);
   const clipOrder: ClipOrderMap = Object.fromEntries(
-    (migratedConfig.tracks ?? []).map((track) => [track.id, []]),
+    (config.tracks ?? []).map((track) => [track.id, []]),
   );
   const effects: Record<string, EditorTimelineEffect> = {};
   const meta: Record<string, ClipMeta> = {};
   const rowsByTrack = new Map<string, TimelineAction[]>();
   const usedClipIds = new Set<string>();
 
-  for (const track of migratedConfig.tracks ?? []) {
+  for (const track of config.tracks ?? []) {
     rowsByTrack.set(track.id, []);
   }
 
-  for (const clip of migratedConfig.clips) {
+  for (const clip of config.clips) {
     const clipId = getUniqueClipId(clip.id, usedClipIds);
     if (clipId !== clip.id) {
       console.warn(`[timeline] Duplicate clip id "${clip.id}" on track "${clip.track}" detected; using "${clipId}" in editor state.`);
@@ -196,14 +195,14 @@ export const configToRows = (
   }
 
   return {
-    rows: (migratedConfig.tracks ?? []).map((track) => ({
+    rows: (config.tracks ?? []).map((track) => ({
       id: track.id,
       actions: rowsByTrack.get(track.id) ?? [],
     })),
     meta,
     effects,
     clipOrder,
-    tracks: migratedConfig.tracks ?? [],
+    tracks: config.tracks ?? [],
   };
 };
 
@@ -327,6 +326,45 @@ const sortTracksByKind = (tracks: TrackDefinition[]): TrackDefinition[] => {
   return [...visual, ...audio];
 };
 
+interface AssembleTimelineDataParams {
+  config: TimelineConfig;
+  configVersion: number;
+  registry: AssetRegistry;
+  resolvedConfig: ResolvedTimelineConfig;
+  output: TimelineOutput;
+  assetMap: Record<string, string>;
+}
+
+/**
+ * Assembles TimelineData from already-derived inputs.
+ * The provided config must already be migrated to the canonical flat-track shape.
+ */
+export const assembleTimelineData = ({
+  config,
+  configVersion,
+  registry,
+  resolvedConfig,
+  output,
+  assetMap,
+}: AssembleTimelineDataParams): TimelineData => {
+  const rowData = configToRows(config);
+
+  return {
+    config,
+    configVersion,
+    registry,
+    resolvedConfig,
+    rows: rowData.rows,
+    meta: rowData.meta,
+    effects: rowData.effects,
+    assetMap,
+    output,
+    tracks: rowData.tracks,
+    clipOrder: rowData.clipOrder,
+    signature: getConfigSignature(resolvedConfig),
+  };
+};
+
 export const buildTimelineData = async (
   config: TimelineConfig,
   registry: AssetRegistry,
@@ -337,22 +375,15 @@ export const buildTimelineData = async (
   // Preserve user's track order — no longer forcing visual-before-audio.
   migratedConfig.tracks = migratedConfig.tracks ?? [];
   const resolvedConfig = await resolveTimelineConfig(migratedConfig, registry, urlResolver);
-  const rowData = configToRows(migratedConfig);
 
-  return {
+  return assembleTimelineData({
     config: migratedConfig,
     configVersion,
     registry,
     resolvedConfig,
-    rows: rowData.rows,
-    meta: rowData.meta,
-    effects: rowData.effects,
-    assetMap: buildAssetMap(registry),
     output: { ...migratedConfig.output },
-    tracks: migratedConfig.tracks ?? [],
-    clipOrder: rowData.clipOrder,
-    signature: getConfigSignature(resolvedConfig),
-  };
+    assetMap: buildAssetMap(registry),
+  });
 };
 
 export const loadTimelineJsonFromProvider = async (

@@ -13,15 +13,15 @@ import {
   type DataProvider,
 } from '@/tools/video-editor/data/DataProvider';
 import { buildTrackClipOrder } from '@/tools/video-editor/lib/coordinate-utils';
-import { getConfigSignature } from '@/tools/video-editor/lib/config-utils';
+import { migrateToFlatTracks } from '@/tools/video-editor/lib/migrate';
 import { serializeForDisk } from '@/tools/video-editor/lib/serialize';
 import {
   buildDataFromCurrentRegistry,
   shouldAcceptPolledData,
 } from '@/tools/video-editor/lib/timeline-save-utils';
 import {
+  assembleTimelineData,
   buildTimelineData,
-  configToRows,
   preserveUploadingClips,
   rowsToConfig,
   type ClipMeta,
@@ -326,30 +326,28 @@ export function useTimelineSave(
         ? { ...current.config.customEffects }
         : undefined,
     };
-    const rowData = configToRows(nextConfig);
+    const migratedConfig = migrateToFlatTracks(nextConfig);
+    migratedConfig.tracks = migratedConfig.tracks ?? [];
 
-    const nextData: TimelineData = {
-      ...current,
-      config: nextConfig,
+    const nextData = assembleTimelineData({
+      config: migratedConfig,
+      configVersion: current.configVersion,
       registry: nextRegistry,
       resolvedConfig: {
-        ...current.resolvedConfig,
-        registry: nextResolvedRegistry,
-        clips: current.resolvedConfig.clips.map((clip) => ({
+        output: { ...migratedConfig.output },
+        tracks: migratedConfig.tracks,
+        clips: migratedConfig.clips.map((clip) => ({
           ...clip,
           assetEntry: clip.asset ? nextResolvedRegistry[clip.asset] : undefined,
         })),
+        // Reuse resolved entries for unchanged assets and patch the current asset in-place.
+        registry: nextResolvedRegistry,
       },
-      rows: rowData.rows,
-      meta: rowData.meta,
-      effects: rowData.effects,
       assetMap: Object.fromEntries(
         Object.entries(nextRegistry.assets ?? {}).map(([nextAssetId, nextEntry]) => [nextAssetId, nextEntry.file]),
       ),
-      clipOrder: rowData.clipOrder,
-      signature: current.signature,
-    };
-    nextData.signature = getConfigSignature(nextData.resolvedConfig);
+      output: { ...migratedConfig.output },
+    });
 
     commitData(nextData, {
       save: false,
