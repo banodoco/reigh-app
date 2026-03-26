@@ -223,7 +223,7 @@ export function EffectCreatorPanel({
       if (controller.signal.aborted) return;
 
       setCode(response.code);
-      setShowCode(true);
+      setPrompt('');
 
       // Auto-compile
       await compileCode(response.code);
@@ -286,58 +286,100 @@ export function EffectCreatorPanel({
   // Preview composition memoized on the component ref
   const PreviewComposition = useMemo(() => makePreviewComposition(previewComponent), [previewComponent]);
 
+  const hasGeneratedCode = Boolean(code.trim());
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEditing ? 'Edit Custom Effect' : 'Create Custom Effect'}</DialogTitle>
+          <DialogTitle>
+            {hasGeneratedCode
+              ? (name.trim() || 'Custom Effect')
+              : isEditing ? 'Edit Custom Effect' : 'Create Custom Effect'}
+          </DialogTitle>
           <DialogDescription>
-            {isEditing
-              ? 'Modify the effect prompt or code, preview, and save.'
-              : 'Describe the effect you want, generate code with AI, preview it, and save.'}
+            {hasGeneratedCode
+              ? 'How would you like to edit this animation?'
+              : isEditing
+                ? 'Describe how you want to change this effect.'
+                : 'Describe the effect you want, and AI will generate it for you.'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Name + Category */}
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Name</label>
-              <Input
-                value={name}
-                placeholder="My effect"
-                onChange={(e) => setName(e.target.value)}
+          {/* Name + Category — shown before first generation */}
+          {!hasGeneratedCode && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Name</label>
+                <Input
+                  value={name}
+                  placeholder="My effect"
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Category</label>
+                <Select value={category} onValueChange={(v) => setCategory(v as EffectCategory)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="entrance">Entrance</SelectItem>
+                    <SelectItem value="exit">Exit</SelectItem>
+                    <SelectItem value="continuous">Continuous</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
+          {/* Preview — shown above prompt when code exists */}
+          {hasGeneratedCode && (compileStatus === 'success' || previewComponent) && (
+            <div className="overflow-hidden rounded-lg border border-border bg-black">
+              <Player
+                component={PreviewComposition}
+                compositionWidth={PREVIEW_SIZE}
+                compositionHeight={PREVIEW_SIZE}
+                durationInFrames={PREVIEW_DURATION_FRAMES}
+                fps={PREVIEW_FPS}
+                style={{ width: '100%', aspectRatio: '1' }}
+                loop
+                autoPlay
+                controls
               />
             </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Category</label>
-              <Select value={category} onValueChange={(v) => setCategory(v as EffectCategory)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="entrance">Entrance</SelectItem>
-                  <SelectItem value="exit">Exit</SelectItem>
-                  <SelectItem value="continuous">Continuous</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          )}
 
-          {/* Prompt */}
+          {/* Compile error */}
+          {compileStatus === 'error' && compileError && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              Compile error: {compileError}
+            </div>
+          )}
+
+          {/* Prompt / edit instructions */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Prompt</label>
+            <label className="text-xs font-medium text-muted-foreground">
+              {hasGeneratedCode ? 'Edit instructions' : 'Describe your effect'}
+            </label>
             <Textarea
               value={prompt}
-              placeholder="Describe the visual effect... e.g. 'A glowing neon border that pulses in and out'"
+              placeholder={hasGeneratedCode
+                ? "e.g. 'Make it slower and add a slight rotation'"
+                : "e.g. 'A glowing neon border that pulses in and out'"
+              }
               onChange={(e) => setPrompt(e.target.value)}
-              rows={3}
+              rows={2}
               voiceInput
               onVoiceResult={(result) => setPrompt(result.transcription)}
-              voiceContext="The user is describing a visual animation effect for a video editor. They are specifying how a clip should animate (entrance, exit, or continuous effect). Transcribe their description accurately."
+              voiceContext={hasGeneratedCode
+                ? "The user is describing changes they want to make to an existing visual animation effect in a video editor. Transcribe their edit instructions accurately."
+                : "The user is describing a visual animation effect for a video editor. They are specifying how a clip should animate (entrance, exit, or continuous effect). Transcribe their description accurately."
+              }
               voiceTask="transcribe_only"
             />
           </div>
 
-          {/* Generate button */}
+          {/* Generate / update button */}
           <div className="flex items-center gap-2">
             <Button
               type="button"
@@ -348,30 +390,30 @@ export function EffectCreatorPanel({
               {isGenerating ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Generating...
+                  {hasGeneratedCode ? 'Updating...' : 'Generating...'}
                 </>
               ) : (
                 <>
                   <Sparkles className="h-4 w-4" />
-                  {code ? 'Regenerate' : 'Generate'}
+                  {hasGeneratedCode ? 'Update effect' : 'Generate'}
                 </>
               )}
             </Button>
-            {code && (
+            {hasGeneratedCode && (
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                className="gap-1"
+                className="gap-1 text-xs text-muted-foreground"
                 onClick={() => setShowCode((v) => !v)}
               >
-                <Pencil className="h-3.5 w-3.5" />
-                {showCode ? 'Hide Code' : 'Show Code'}
+                <Pencil className="h-3 w-3" />
+                {showCode ? 'Hide code' : 'View code'}
               </Button>
             )}
           </div>
 
-          {/* Code editor */}
+          {/* Code editor — hidden by default */}
           {showCode && (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
@@ -402,35 +444,20 @@ export function EffectCreatorPanel({
             </div>
           )}
 
-          {/* Compile status */}
-          {compileStatus === 'error' && compileError && (
-            <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-              Compile error: {compileError}
-            </div>
-          )}
-          {compileStatus === 'success' && (
-            <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-400">
-              Compiled successfully
-            </div>
-          )}
-
-          {/* Inline preview */}
-          {(compileStatus === 'success' || previewComponent) && (
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Preview</label>
-              <div className="overflow-hidden rounded-lg border border-border bg-black">
-                <Player
-                  component={PreviewComposition}
-                  compositionWidth={PREVIEW_SIZE}
-                  compositionHeight={PREVIEW_SIZE}
-                  durationInFrames={PREVIEW_DURATION_FRAMES}
-                  fps={PREVIEW_FPS}
-                  style={{ width: '100%', aspectRatio: '1' }}
-                  loop
-                  autoPlay
-                  controls
-                />
-              </div>
+          {/* Preview — shown below prompt for first-time generation */}
+          {!hasGeneratedCode && (compileStatus === 'success' || previewComponent) && (
+            <div className="overflow-hidden rounded-lg border border-border bg-black">
+              <Player
+                component={PreviewComposition}
+                compositionWidth={PREVIEW_SIZE}
+                compositionHeight={PREVIEW_SIZE}
+                durationInFrames={PREVIEW_DURATION_FRAMES}
+                fps={PREVIEW_FPS}
+                style={{ width: '100%', aspectRatio: '1' }}
+                loop
+                autoPlay
+                controls
+              />
             </div>
           )}
 

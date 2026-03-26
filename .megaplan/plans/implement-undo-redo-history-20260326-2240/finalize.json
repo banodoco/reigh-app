@@ -356,7 +356,7 @@
       "id": "SC14",
       "task_id": "T14",
       "question": "Does `npx supabase db push --linked` succeed? Can you verify the timeline_checkpoints table exists with correct columns, index, and RLS policies?",
-      "executor_note": "",
+      "executor_note": "Could not confirm success of `npx supabase db push --linked` or verify the remote table/index/RLS state from this environment because the linked Supabase push hung without completion output.",
       "verdict": ""
     }
   ],
