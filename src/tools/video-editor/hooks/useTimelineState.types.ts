@@ -72,7 +72,7 @@ export interface TimelineEditorContextValue {
   handleToggleMuteClips: ClipEditingHook['handleToggleMuteClips'];
   handleToggleMute: ClipEditingHook['handleToggleMute'];
   handleTrackPopoverChange: TimelineTrackManagementHook['handleTrackPopoverChange'];
-  handleReorderTrack: TimelineTrackManagementHook['handleReorderTrack'];
+  handleMoveTrack: TimelineTrackManagementHook['handleMoveTrack'];
   handleRemoveTrack: TimelineTrackManagementHook['handleRemoveTrack'];
   moveSelectedClipToTrack: TimelineTrackManagementHook['moveSelectedClipToTrack'];
   moveSelectedClipsToTrack: TimelineTrackManagementHook['moveSelectedClipsToTrack'];

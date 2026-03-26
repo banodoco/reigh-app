@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, Check, Settings, Trash2, Video, Volume2 } from 'lucide-react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { Check, GripVertical, Settings, Trash2, Video, Volume2 } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/shared/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
@@ -8,15 +10,12 @@ import { cn } from '@/shared/components/ui/contracts/cn';
 import type { TrackBlendMode, TrackDefinition, TrackFit } from '@/tools/video-editor/types';
 
 interface TrackLabelProps {
+  id: string;
   track: TrackDefinition;
   isSelected: boolean;
-  trackCount: number;
-  trackIndex: number;
-  sameKindCount: number;
   hasClips: boolean;
   onSelect: (trackId: string) => void;
   onChange: (trackId: string, patch: Partial<TrackDefinition>) => void;
-  onReorder: (trackId: string, direction: -1 | 1) => void;
   onRemove: (trackId: string) => void;
 }
 
@@ -44,19 +43,30 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 }
 
 export function TrackLabel({
+  id,
   track,
   isSelected,
-  trackCount,
-  trackIndex,
-  sameKindCount,
   hasClips,
   onSelect,
   onChange,
-  onReorder,
   onRemove,
 }: TrackLabelProps) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
 
   useEffect(() => {
     if (!confirmingDelete) return;
@@ -80,6 +90,8 @@ export function TrackLabel({
 
   return (
     <div
+      ref={setNodeRef}
+      style={style}
       className={cn(
         'group relative flex h-9 items-center gap-1 border-b border-border px-2 text-xs text-foreground',
         isSelected ? 'bg-accent/70' : 'bg-card/60 hover:bg-accent/50',
@@ -105,6 +117,19 @@ export function TrackLabel({
           onClick={(event) => event.stopPropagation()}
         />
         <div className="flex shrink-0 items-center">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 cursor-grab touch-none text-muted-foreground active:cursor-grabbing"
+            title="Reorder track"
+            aria-label="Reorder track"
+            onClick={(event) => event.stopPropagation()}
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="h-3.5 w-3.5" />
+          </Button>
           <Dialog>
             <DialogTrigger asChild>
               <Button
@@ -193,32 +218,6 @@ export function TrackLabel({
               </div>
             </DialogContent>
           </Dialog>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 text-muted-foreground"
-            disabled={trackIndex === 0 || sameKindCount <= 1}
-            onClick={(event) => {
-              event.stopPropagation();
-              onReorder(track.id, -1);
-            }}
-          >
-            <ArrowUp className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 text-muted-foreground"
-            disabled={trackIndex >= trackCount - 1 || sameKindCount <= 1}
-            onClick={(event) => {
-              event.stopPropagation();
-              onReorder(track.id, 1);
-            }}
-          >
-            <ArrowDown className="h-3.5 w-3.5" />
-          </Button>
           <Button
             type="button"
             variant="ghost"

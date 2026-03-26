@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import { arrayMove } from '@dnd-kit/sortable';
 import { addTrack } from '@/tools/video-editor/lib/editor-utils';
 import { DEFAULT_VIDEO_TRACKS } from '@/tools/video-editor/lib/defaults';
 import type { TrackDefinition, TrackKind } from '@/tools/video-editor/types';
@@ -19,7 +20,7 @@ export interface UseTimelineTrackManagementArgs {
 export interface UseTimelineTrackManagementResult {
   handleAddTrack: (kind: TrackKind) => void;
   handleTrackPopoverChange: (trackId: string, patch: Partial<TrackDefinition>) => void;
-  handleReorderTrack: (trackId: string, direction: -1 | 1) => void;
+  handleMoveTrack: (activeId: string, overId: string) => void;
   handleRemoveTrack: (trackId: string) => void;
   handleClearUnusedTracks: () => void;
   unusedTrackCount: number;
@@ -27,6 +28,53 @@ export interface UseTimelineTrackManagementResult {
   createTrackAndMoveClip: (clipId: string, kind: TrackKind, newStartTime?: number) => void;
   moveSelectedClipToTrack: (direction: 'up' | 'down') => void;
   moveSelectedClipsToTrack: (direction: 'up' | 'down', selectedClipIds: ReadonlySet<string>) => void;
+}
+
+export function reorderTracksByDirection(
+  tracks: TrackDefinition[],
+  trackId: string,
+  direction: -1 | 1,
+): TrackDefinition[] {
+  const index = tracks.findIndex((track) => track.id === trackId);
+  if (index < 0) {
+    return tracks;
+  }
+
+  const trackKind = tracks[index]?.kind;
+  let targetIndex = index + direction;
+  while (
+    targetIndex >= 0 &&
+    targetIndex < tracks.length &&
+    tracks[targetIndex]?.kind !== trackKind
+  ) {
+    targetIndex += direction;
+  }
+
+  if (targetIndex < 0 || targetIndex >= tracks.length) {
+    return tracks;
+  }
+
+  const nextTracks = [...tracks];
+  [nextTracks[index], nextTracks[targetIndex]] = [nextTracks[targetIndex], nextTracks[index]];
+  return nextTracks;
+}
+
+export function moveTrackWithinKind(
+  tracks: TrackDefinition[],
+  activeId: string,
+  overId: string,
+): TrackDefinition[] {
+  const activeIndex = tracks.findIndex((track) => track.id === activeId);
+  const overIndex = tracks.findIndex((track) => track.id === overId);
+  if (activeIndex < 0 || overIndex < 0 || activeIndex === overIndex) {
+    return tracks;
+  }
+
+  if (tracks[activeIndex]?.kind !== tracks[overIndex]?.kind) {
+    return tracks;
+  }
+
+  return arrayMove(tracks, activeIndex, overIndex);
 }
 
 export function useTimelineTrackManagement({
@@ -59,7 +107,7 @@ export function useTimelineTrackManagement({
     const duration = action.end - action.start;
     const nextStart = typeof newStartTime === 'number' ? Math.max(0, newStartTime) : action.start;
     const nextAction = { ...action, start: nextStart, end: nextStart + duration };
-    let placedRows = current.rows.map((row) => {
+    const placedRows = current.rows.map((row) => {
       if (sourceRow.id === targetRow.id && row.id === sourceRow.id) {
         return {
           ...row,
@@ -283,28 +331,17 @@ export function useTimelineTrackManagement({
     applyResolvedConfigEdit(nextConfig, { selectedTrackId: trackId });
   }, [applyResolvedConfigEdit, resolvedConfig]);
 
-  const handleReorderTrack = useCallback((trackId: string, direction: -1 | 1) => {
+  const handleMoveTrack = useCallback((activeId: string, overId: string) => {
     if (!resolvedConfig) {
       return;
     }
 
-    const index = resolvedConfig.tracks.findIndex((track) => track.id === trackId);
-    if (index < 0) {
+    const nextTracks = moveTrackWithinKind(resolvedConfig.tracks, activeId, overId);
+    if (nextTracks === resolvedConfig.tracks) {
       return;
     }
 
-    const targetIndex = index + direction;
-    if (targetIndex < 0 || targetIndex >= resolvedConfig.tracks.length) {
-      return;
-    }
-
-    if (resolvedConfig.tracks[index].kind !== resolvedConfig.tracks[targetIndex].kind) {
-      return;
-    }
-
-    const nextTracks = [...resolvedConfig.tracks];
-    [nextTracks[index], nextTracks[targetIndex]] = [nextTracks[targetIndex], nextTracks[index]];
-    applyResolvedConfigEdit({ ...resolvedConfig, tracks: nextTracks }, { selectedTrackId: trackId });
+    applyResolvedConfigEdit({ ...resolvedConfig, tracks: nextTracks }, { selectedTrackId: activeId });
   }, [applyResolvedConfigEdit, resolvedConfig]);
 
   const handleRemoveTrack = useCallback((trackId: string) => {
@@ -409,7 +446,7 @@ export function useTimelineTrackManagement({
   return {
     handleAddTrack,
     handleTrackPopoverChange,
-    handleReorderTrack,
+    handleMoveTrack,
     handleRemoveTrack,
     handleClearUnusedTracks,
     unusedTrackCount,

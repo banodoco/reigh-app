@@ -133,12 +133,6 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
     <div className="flex h-7 items-center justify-between gap-2 rounded-lg border border-border/70 bg-card/80 px-2 text-muted-foreground">
       <div className="flex items-center gap-1">
         {saveBadge}
-        <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => chrome.handleAddTrack('visual')}>
-          <Video className="h-3.5 w-3.5" />
-        </Button>
-        <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => chrome.handleAddTrack('audio')}>
-          <Volume2 className="h-3.5 w-3.5" />
-        </Button>
         {chrome.unusedTrackCount > 0 && (
           <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-[11px]" onClick={chrome.handleClearUnusedTracks}>
             Clear {chrome.unusedTrackCount} unused
@@ -225,15 +219,6 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
     </div>
   );
 
-  // ── Add text button overlay (bottom-right of timeline) ─────────────
-
-  const addTextOverlay = (
-    <div className="pointer-events-none absolute bottom-2 right-2 z-20">
-      <Button type="button" size="icon" variant="secondary" className="pointer-events-auto h-7 w-7 shadow-sm" onClick={chrome.handleAddText}>
-        <Type className="h-3.5 w-3.5" />
-      </Button>
-    </div>
-  );
 
   return (
     <>
@@ -321,7 +306,7 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
 
             <div className="relative col-span-1 min-h-0 overflow-hidden">
               <TimelineEditor />
-              {addTextOverlay}
+
             </div>
 
             <AgentChat timelineId={timelineId} />
@@ -348,7 +333,7 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
 
             <div className="relative col-span-2 min-h-0 overflow-hidden">
               <TimelineEditor />
-              {addTextOverlay}
+
             </div>
 
             <AgentChat timelineId={timelineId} />

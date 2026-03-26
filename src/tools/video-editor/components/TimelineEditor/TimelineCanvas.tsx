@@ -57,6 +57,7 @@ export interface TimelineCanvasProps {
   trackLabelRef?: RefObject<HTMLElement | null>;
   marqueeRect?: MarqueeRect | null;
   onEditAreaPointerDown?: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  onAddText?: () => void;
 }
 
 const ACTION_VERTICAL_MARGIN = 4;
@@ -97,6 +98,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   trackLabelRef,
   marqueeRect,
   onEditAreaPointerDown,
+  onAddText,
 }: TimelineCanvasProps, ref) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);

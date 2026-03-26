@@ -8,6 +8,7 @@ import {
 import {
   updateClipOrder,
 } from '@/tools/video-editor/lib/coordinate-utils';
+import { resolveOverlaps } from '@/tools/video-editor/lib/resolve-overlaps';
 import {
   getNextClipId,
   type ClipMeta,
@@ -367,19 +368,25 @@ export function useClipEditing({
     }
 
     const clipId = getNextClipId(current.meta);
+    const textDuration = 5;
     const action: TimelineAction = {
       id: clipId,
       start: currentTimeRef.current,
-      end: currentTimeRef.current + 5,
+      end: currentTimeRef.current + textDuration,
       effectId: `effect-${clipId}`,
     };
-    const nextRows = current.rows.map((row) => (
+    const rowsWithClip = current.rows.map((row) => (
       row.id === visualTrack.id
         ? { ...row, actions: [...row.actions, action] }
         : row
     ));
+    // Resolve overlaps so the text clip doesn't land on top of existing clips
+    const { rows: nextRows, metaPatches } = resolveOverlaps(
+      rowsWithClip, visualTrack.id, clipId, current.meta,
+    );
     const nextClipOrder = updateClipOrder(current.clipOrder, visualTrack.id, (ids) => [...ids, clipId]);
     applyTimelineEdit(nextRows, {
+      ...metaPatches,
       [clipId]: {
         track: visualTrack.id,
         clipType: 'text',
