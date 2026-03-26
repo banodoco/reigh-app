@@ -10,8 +10,33 @@ import {
   type UploadAssetOptions,
 } from '@/tools/video-editor/data/DataProvider';
 import type { AssetRegistry, AssetRegistryEntry, TimelineConfig } from '@/tools/video-editor/types';
+import type { Checkpoint } from '@/tools/video-editor/types/history';
 
 const TIMELINE_ASSETS_BUCKET = 'timeline-assets';
+const TIMELINE_CHECKPOINT_LIMIT = 30;
+const TIMELINE_CHECKPOINT_RETENTION_MS = 24 * 60 * 60 * 1000;
+
+type TimelineCheckpointRow = {
+  id: string;
+  timeline_id: string;
+  config: TimelineConfig;
+  created_at: string;
+  trigger_type: Checkpoint['triggerType'];
+  label: string;
+  edits_since_last_checkpoint: number;
+};
+
+function mapCheckpointRow(row: TimelineCheckpointRow): Checkpoint {
+  return {
+    id: row.id,
+    timelineId: row.timeline_id,
+    config: row.config,
+    createdAt: row.created_at,
+    triggerType: row.trigger_type,
+    label: row.label,
+    editsSinceLastCheckpoint: row.edits_since_last_checkpoint,
+  };
+}
 
 export class SupabaseDataProvider implements DataProvider {
   constructor(
@@ -66,6 +91,87 @@ export class SupabaseDataProvider implements DataProvider {
     }
 
     return nextVersion;
+  }
+
+  async saveCheckpoint(timelineId: string, checkpoint: Omit<Checkpoint, 'id'>): Promise<string> {
+    validateSerializedConfig(checkpoint.config);
+
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('timeline_checkpoints')
+      .insert({
+        timeline_id: timelineId,
+        user_id: this.options.userId,
+        config: checkpoint.config,
+        trigger_type: checkpoint.triggerType,
+        label: checkpoint.label,
+        edits_since_last_checkpoint: checkpoint.editsSinceLastCheckpoint,
+        created_at: checkpoint.createdAt,
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    const { data: checkpointRows, error: checkpointRowsError } = await supabase
+      .from('timeline_checkpoints')
+      .select('id')
+      .eq('timeline_id', timelineId)
+      .eq('user_id', this.options.userId)
+      .order('created_at', { ascending: false });
+
+    if (checkpointRowsError) {
+      throw checkpointRowsError;
+    }
+
+    const extraCheckpointIds = (checkpointRows ?? [])
+      .slice(TIMELINE_CHECKPOINT_LIMIT)
+      .map((row) => row.id)
+      .filter((id): id is string => typeof id === 'string');
+
+    if (extraCheckpointIds.length > 0) {
+      const { error: deleteError } = await supabase
+        .from('timeline_checkpoints')
+        .delete()
+        .in('id', extraCheckpointIds);
+
+      if (deleteError) {
+        throw deleteError;
+      }
+    }
+
+    return data.id;
+  }
+
+  async loadCheckpoints(timelineId: string): Promise<Checkpoint[]> {
+    const supabase = getSupabaseClient();
+    const retentionCutoff = new Date(Date.now() - TIMELINE_CHECKPOINT_RETENTION_MS).toISOString();
+
+    const { error: cleanupError } = await supabase
+      .from('timeline_checkpoints')
+      .delete()
+      .eq('timeline_id', timelineId)
+      .eq('user_id', this.options.userId)
+      .lt('created_at', retentionCutoff);
+
+    if (cleanupError) {
+      throw cleanupError;
+    }
+
+    const { data, error } = await supabase
+      .from('timeline_checkpoints')
+      .select('id, timeline_id, config, created_at, trigger_type, label, edits_since_last_checkpoint')
+      .eq('timeline_id', timelineId)
+      .eq('user_id', this.options.userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? []).map((row) => mapCheckpointRow(row as TimelineCheckpointRow));
   }
 
   async loadAssetRegistry(timelineId: string): Promise<AssetRegistry> {

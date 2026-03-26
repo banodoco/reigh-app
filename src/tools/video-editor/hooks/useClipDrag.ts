@@ -32,7 +32,7 @@ export interface ActionDragState {
 interface UseCrossTrackDragOptions {
   timelineWrapperRef: RefObject<HTMLDivElement | null>;
   dataRef: MutableRefObject<TimelineData | null>;
-  moveClipToRow: (clipId: string, targetRowId: string, newStartTime?: number) => void;
+  moveClipToRow: (clipId: string, targetRowId: string, newStartTime?: number, transactionId?: string) => void;
   createTrackAndMoveClip: (clipId: string, kind: TrackKind, newStartTime?: number) => void;
   selectClip: (clipId: string, opts?: SelectClipOptions) => void;
   selectClips: (clipIds: Iterable<string>) => void;
@@ -42,7 +42,7 @@ interface UseCrossTrackDragOptions {
     metaUpdates?: Record<string, Partial<ClipMeta>>,
     metaDeletes?: string[],
     clipOrderOverride?: ClipOrderMap,
-    options?: { save?: boolean },
+    options?: { save?: boolean; transactionId?: string; semantic?: boolean },
   ) => void;
   coordinator: DragCoordinator;
   rowHeight: number;
@@ -75,6 +75,7 @@ export interface DragSession {
   floatingGhostEl: HTMLElement | null;
   countBadgeEl: HTMLSpanElement | null;
   hasMoved: boolean;
+  transactionId: string;
 }
 
 export interface UseClipDragResult {
@@ -369,9 +370,9 @@ export const useClipDrag = ({
           if (dropPosition?.isNewTrack) {
             createTrackAndMoveClipRef.current(session.clipId, session.sourceKind, nextStart);
           } else if (dropPosition?.trackId && !dropPosition.isReject) {
-            moveClipToRowRef.current(session.clipId, dropPosition.trackId, nextStart);
+            moveClipToRowRef.current(session.clipId, dropPosition.trackId, nextStart, session.transactionId);
           } else {
-            moveClipToRowRef.current(session.clipId, session.sourceRowId, nextStart);
+            moveClipToRowRef.current(session.clipId, session.sourceRowId, nextStart, session.transactionId);
           }
           selectClipRef.current(session.clipId);
           clearSession(session, true);
@@ -399,7 +400,9 @@ export const useClipDrag = ({
 
             if (canMove && moves.length > 0) {
               const { nextRows, metaUpdates, nextClipOrder } = applyMultiDragMoves(current, moves);
-              applyTimelineEditRef.current(nextRows, metaUpdates, undefined, nextClipOrder);
+              applyTimelineEditRef.current(nextRows, metaUpdates, undefined, nextClipOrder, {
+                transactionId: session.transactionId,
+              });
             }
           }
           selectClipsRef.current(session.draggedClipIds);
@@ -409,7 +412,7 @@ export const useClipDrag = ({
 
         // Single-clip same-track drag
         if (session.hasMoved) {
-          moveClipToRowRef.current(session.clipId, session.sourceRowId, nextStart);
+          moveClipToRowRef.current(session.clipId, session.sourceRowId, nextStart, session.transactionId);
           selectClipRef.current(session.clipId);
         } else if (session.metaKey || session.ctrlKey) {
           selectClipRef.current(session.clipId, { toggle: true });
@@ -448,6 +451,7 @@ export const useClipDrag = ({
         floatingGhostEl: null,
         countBadgeEl: null,
         hasMoved: false,
+        transactionId: crypto.randomUUID(),
       };
 
       window.addEventListener('pointermove', handlePointerMove);

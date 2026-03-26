@@ -20,6 +20,7 @@ export function useClipResize({
   applyTimelineEdit,
 }: UseClipResizeArgs): UseClipResizeResult {
   const resizeStartRef = useRef<Record<string, { start: number; from: number }>>({});
+  const resizeTransactionIdRef = useRef<Record<string, string>>({});
 
   const onActionResizeStart = useCallback(({ action }: { action: TimelineAction }) => {
     if (action.id.startsWith('uploading-')) return;
@@ -32,6 +33,7 @@ export function useClipResize({
       start: action.start,
       from: clipMeta.from ?? 0,
     };
+    resizeTransactionIdRef.current[action.id] = crypto.randomUUID();
   }, [dataRef]);
 
   const onActionResizeEnd = useCallback(({ action, row }: { action: TimelineAction; row: TimelineRow; dir: string }) => {
@@ -91,8 +93,15 @@ export function useClipResize({
       nextRows, row.id, action.id, current.meta,
     );
 
-    applyTimelineEdit(resolvedRows, { ...metaUpdates, ...overlapPatches });
+    applyTimelineEdit(
+      resolvedRows,
+      { ...metaUpdates, ...overlapPatches },
+      undefined,
+      undefined,
+      { transactionId: resizeTransactionIdRef.current[action.id] },
+    );
     delete resizeStartRef.current[action.id];
+    delete resizeTransactionIdRef.current[action.id];
   }, [applyTimelineEdit, dataRef]);
 
   return {

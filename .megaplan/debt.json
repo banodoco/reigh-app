@@ -254,6 +254,57 @@
       "resolved": false,
       "resolved_by": null,
       "resolved_at": null
+    },
+    {
+      "id": "DEBT-016",
+      "subsystem": "bulk-properties-panel",
+      "concern": "bulkclippanel still imports customeffecteditor; removing it without updating bulk mode would break the build.",
+      "flag_ids": [
+        "FLAG-properties-panel-coverage"
+      ],
+      "plan_ids": [
+        "build-an-llm-powered-custom-20260326-2230"
+      ],
+      "occurrence_count": 1,
+      "created_at": "2026-03-26T21:45:45Z",
+      "updated_at": "2026-03-26T21:45:45Z",
+      "resolved": false,
+      "resolved_by": null,
+      "resolved_at": null
+    },
+    {
+      "id": "DEBT-017",
+      "subsystem": "legacy-effect-lifecycle",
+      "concern": "removing customeffecteditor makes effects-table entries read-only \u2014 users can no longer edit legacy custom effects.",
+      "flag_ids": [
+        "FLAG-legacy-effect-edit-path"
+      ],
+      "plan_ids": [
+        "build-an-llm-powered-custom-20260326-2230"
+      ],
+      "occurrence_count": 1,
+      "created_at": "2026-03-26T21:45:45Z",
+      "updated_at": "2026-03-26T21:45:45Z",
+      "resolved": false,
+      "resolved_by": null,
+      "resolved_at": null
+    },
+    {
+      "id": "DEBT-018",
+      "subsystem": "agent-chat-undo-integration",
+      "concern": "agent chat edits arrive via query invalidation/realtime polling and will bypass the undo stack because those paths are marked skiphistory.",
+      "flag_ids": [
+        "new-agent-chat-undo-path-mismatch"
+      ],
+      "plan_ids": [
+        "implement-undo-redo-history-20260326-2240"
+      ],
+      "occurrence_count": 1,
+      "created_at": "2026-03-26T21:57:51Z",
+      "updated_at": "2026-03-26T21:57:51Z",
+      "resolved": false,
+      "resolved_by": null,
+      "resolved_at": null
     }
   ]
 }

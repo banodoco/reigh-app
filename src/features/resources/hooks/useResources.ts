@@ -75,8 +75,21 @@ export interface StructureVideoMetadata {
     createdAt: string;
 }
 
-export type ResourceType = 'lora' | 'phase-config' | 'style-reference' | 'structure-video';
-export type ResourceMetadata = LoraModel | PhaseConfigMetadata | StyleReferenceMetadata | StructureVideoMetadata;
+export interface EffectMetadata {
+    name: string;
+    slug: string;
+    code: string;
+    category: 'entrance' | 'exit' | 'continuous';
+    description: string;
+    created_by: {
+        is_you: boolean;
+        username?: string;
+    };
+    is_public: boolean;
+}
+
+export type ResourceType = 'lora' | 'phase-config' | 'style-reference' | 'structure-video' | 'effect';
+export type ResourceMetadata = LoraModel | PhaseConfigMetadata | StyleReferenceMetadata | StructureVideoMetadata | EffectMetadata;
 type ResourceRow = Database['public']['Tables']['resources']['Row'];
 
 export interface Resource {
@@ -92,7 +105,7 @@ export interface Resource {
 }
 
 function isResourceType(type: string): type is ResourceType {
-    return type === 'lora' || type === 'phase-config' || type === 'style-reference' || type === 'structure-video';
+    return type === 'lora' || type === 'phase-config' || type === 'style-reference' || type === 'structure-video' || type === 'effect';
 }
 
 function mapResourceRow(row: ResourceRow, fallbackType?: ResourceType): Resource {

@@ -34,6 +34,21 @@ import type { AssetRegistryEntry, TimelineConfig } from '@/tools/video-editor/ty
 export type SaveStatus = 'saved' | 'saving' | 'dirty' | 'error';
 export { shouldAcceptPolledData } from '@/tools/video-editor/lib/timeline-save-utils';
 
+type CommitHistoryOptions = {
+  transactionId?: string;
+  semantic?: boolean;
+};
+
+type CommitDataOptions = {
+  save?: boolean;
+  selectedClipId?: string | null;
+  selectedTrackId?: string | null;
+  updateLastSavedSignature?: boolean;
+  transactionId?: string;
+  semantic?: boolean;
+  skipHistory?: boolean;
+};
+
 interface UseTimelineSaveQueries {
   timelineQuery: {
     data: TimelineData | undefined;
@@ -60,6 +75,7 @@ export function useTimelineSave(
   const lastRegistryDataRef = useRef<Awaited<ReturnType<typeof provider.loadAssetRegistry>> | null>(null);
   const selectedClipIdRef = useRef<string | null>(null);
   const selectedTrackIdRef = useRef<string | null>(null);
+  const onBeforeCommitRef = useRef<((currentData: TimelineData, options: CommitHistoryOptions) => void) | null>(null);
 
   const [data, setData] = useState<TimelineData | null>(null);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
@@ -175,13 +191,18 @@ export function useTimelineSave(
 
   const commitData = useCallback((
     nextData: TimelineData,
-    options?: {
-      save?: boolean;
-      selectedClipId?: string | null;
-      selectedTrackId?: string | null;
-      updateLastSavedSignature?: boolean;
-    },
+    options?: CommitDataOptions,
   ) => {
+    const shouldSave = options?.save ?? true;
+    const currentData = dataRef.current;
+
+    if (shouldSave && !options?.skipHistory && currentData) {
+      onBeforeCommitRef.current?.(currentData, {
+        transactionId: options?.transactionId,
+        semantic: options?.semantic,
+      });
+    }
+
     dataRef.current = nextData;
     setData(nextData);
 
@@ -211,7 +232,7 @@ export function useTimelineSave(
       lastSavedSignature.current = nextData.signature;
     }
 
-    if (options?.save ?? true) {
+    if (shouldSave) {
       editSeqRef.current += 1;
       scheduleSave(nextData);
     }
@@ -222,7 +243,7 @@ export function useTimelineSave(
     metaUpdates?: Record<string, Partial<ClipMeta>>,
     metaDeletes?: string[],
     clipOrderOverride?: ClipOrderMap,
-    options?: { save?: boolean },
+    options?: { save?: boolean; transactionId?: string; semantic?: boolean },
   ) => {
     const current = dataRef.current;
     if (!current) {
@@ -252,13 +273,17 @@ export function useTimelineSave(
         nextMeta,
         clipOrderOverride ?? buildTrackClipOrder(current.tracks, current.clipOrder, metaDeletes),
       ),
-      { save: options?.save },
+      {
+        save: options?.save,
+        transactionId: options?.transactionId,
+        semantic: options?.semantic,
+      },
     );
   }, [commitData, materializeData]);
 
   const applyResolvedConfigEdit = useCallback((
     nextResolvedConfig: TimelineData['resolvedConfig'],
-    options?: { selectedClipId?: string | null; selectedTrackId?: string | null },
+    options?: { selectedClipId?: string | null; selectedTrackId?: string | null; semantic?: boolean },
   ) => {
     const current = dataRef.current;
     if (!current) {
@@ -270,6 +295,7 @@ export function useTimelineSave(
       {
         selectedClipId: options?.selectedClipId,
         selectedTrackId: options?.selectedTrackId,
+        semantic: options?.semantic,
       },
     );
   }, [commitData]);
@@ -366,7 +392,7 @@ export function useTimelineSave(
       configVersionRef.current = polledData.configVersion;
       commitDataRef.current(
         dataRef.current ? preserveUploadingClips(dataRef.current, polledData) : polledData,
-        { save: false, updateLastSavedSignature: true },
+        { save: false, skipHistory: true, updateLastSavedSignature: true },
       );
     }, 0);
 
@@ -407,6 +433,7 @@ export function useTimelineSave(
 
         commitDataRef.current(nextData, {
           save: false,
+          skipHistory: true,
           selectedClipId: selectedClipIdRef.current,
           selectedTrackId: selectedTrackIdRef.current,
         });
@@ -442,6 +469,7 @@ export function useTimelineSave(
       ),
       {
         save: false,
+        skipHistory: true,
         updateLastSavedSignature: true,
         selectedClipId: selectedClipIdRef.current,
         selectedTrackId: selectedTrackIdRef.current,
@@ -462,6 +490,7 @@ export function useTimelineSave(
     applyResolvedConfigEdit,
     patchRegistry,
     commitData,
+    onBeforeCommitRef,
     reloadFromServer,
     editSeqRef,
     savedSeqRef,

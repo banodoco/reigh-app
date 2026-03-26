@@ -24,7 +24,7 @@ export interface UseTimelineTrackManagementResult {
   handleRemoveTrack: (trackId: string) => void;
   handleClearUnusedTracks: () => void;
   unusedTrackCount: number;
-  moveClipToRow: (clipId: string, targetRowId: string, newStartTime?: number) => void;
+  moveClipToRow: (clipId: string, targetRowId: string, newStartTime?: number, transactionId?: string) => void;
   createTrackAndMoveClip: (clipId: string, kind: TrackKind, newStartTime?: number) => void;
   moveSelectedClipToTrack: (direction: 'up' | 'down') => void;
   moveSelectedClipsToTrack: (direction: 'up' | 'down', selectedClipIds: ReadonlySet<string>) => void;
@@ -81,7 +81,12 @@ export function useTimelineTrackManagement({
   applyTimelineEdit,
   applyResolvedConfigEdit,
 }: UseTimelineTrackManagementArgs): UseTimelineTrackManagementResult {
-  const moveClipToRow = useCallback((clipId: string, targetRowId: string, newStartTime?: number) => {
+  const moveClipToRow = useCallback((
+    clipId: string,
+    targetRowId: string,
+    newStartTime?: number,
+    transactionId?: string,
+  ) => {
     const current = dataRef.current;
     if (!current) {
       return;
@@ -133,6 +138,7 @@ export function useTimelineTrackManagement({
       { [clipId]: { track: targetRow.id }, ...metaPatches },
       undefined,
       nextClipOrder,
+      { transactionId },
     );
   }, [applyTimelineEdit, dataRef]);
 
@@ -293,8 +299,10 @@ export function useTimelineTrackManagement({
       return;
     }
 
+    const transactionId = crypto.randomUUID();
+
     for (const move of plannedMoves) {
-      moveClipToRow(move.clipId, move.targetRowId);
+      moveClipToRow(move.clipId, move.targetRowId, undefined, transactionId);
     }
 
     const primaryMove = selectedClipId
@@ -360,7 +368,7 @@ export function useTimelineTrackManagement({
       tracks: resolvedConfig.tracks.filter((entry) => entry.id !== trackId),
       clips: resolvedConfig.clips.filter((clip) => clip.track !== trackId),
     };
-    applyResolvedConfigEdit(nextConfig, { selectedTrackId: null });
+    applyResolvedConfigEdit(nextConfig, { selectedTrackId: null, semantic: true });
   }, [applyResolvedConfigEdit, resolvedConfig]);
 
   const unusedTrackCount = useMemo(() => {
@@ -436,7 +444,7 @@ export function useTimelineTrackManagement({
       return false;
     });
 
-    applyResolvedConfigEdit({ ...resolvedConfig, tracks: nextTracks }, { selectedTrackId: null });
+    applyResolvedConfigEdit({ ...resolvedConfig, tracks: nextTracks }, { selectedTrackId: null, semantic: true });
   }, [applyResolvedConfigEdit, resolvedConfig, unusedTrackCount]);
 
   return {

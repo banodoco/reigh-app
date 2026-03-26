@@ -1,18 +1,19 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Volume2, Wand2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Volume2 } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { Input } from '@/shared/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
 import { Slider } from '@/shared/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
-import { CustomEffectEditor } from '@/tools/video-editor/components/CustomEffectEditor';
 import {
   FieldLabel,
   NO_EFFECT,
   TAB_COLUMNS_CLASS,
 } from '@/tools/video-editor/components/PropertiesPanel/ClipPanel';
 import { continuousEffectTypes, entranceEffectTypes, exitEffectTypes } from '@/tools/video-editor/effects';
+import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/DataProviderContext';
+import { useEffectResources } from '@/tools/video-editor/hooks/useEffectResources';
 import type { ClipTab } from '@/tools/video-editor/hooks/useTimelineData';
 import type { ClipMeta } from '@/tools/video-editor/lib/timeline-data';
 import type { ResolvedTimelineClip } from '@/tools/video-editor/types';
@@ -92,27 +93,9 @@ export function BulkClipPanel(props: BulkClipPanelProps) {
     activeTab,
     setActiveTab,
   } = props;
-  const [showCustomEditor, setShowCustomEditor] = useState(false);
+  const { userId } = useVideoEditorRuntime();
+  const effectResources = useEffectResources(userId);
   const [drafts, setDrafts] = useState<BulkDrafts>(() => buildDrafts(props));
-
-  const sharedCustomEffect = useMemo(() => {
-    const candidates = [
-      { category: 'continuous' as const, value: sharedContinuous?.type },
-      { category: 'entrance' as const, value: sharedEntrance?.type },
-      { category: 'exit' as const, value: sharedExit?.type },
-    ];
-
-    for (const candidate of candidates) {
-      if (candidate.value?.startsWith('custom:')) {
-        return {
-          category: candidate.category,
-          slug: candidate.value.replace(/^custom:/, ''),
-        };
-      }
-    }
-
-    return null;
-  }, [sharedContinuous, sharedEntrance, sharedExit]);
 
   useEffect(() => {
     setDrafts(buildDrafts(props));
@@ -136,12 +119,6 @@ export function BulkClipPanel(props: BulkClipPanelProps) {
       setActiveTab('effects');
     }
   }, [activeTab, setActiveTab, visibleTabs]);
-
-  useEffect(() => {
-    if (!sharedCustomEffect) {
-      setShowCustomEditor(false);
-    }
-  }, [sharedCustomEffect]);
 
   const setDraft = (field: BulkDraftField, value: string) => {
     setDrafts((current) => ({ ...current, [field]: value }));
@@ -284,6 +261,16 @@ export function BulkClipPanel(props: BulkClipPanelProps) {
                     <SelectItem value={MIXED_SELECT_VALUE} disabled>Mixed</SelectItem>
                     <SelectItem value={NO_EFFECT}>None</SelectItem>
                     {entranceEffectTypes.map((effect) => <SelectItem key={effect} value={effect}>{effect}</SelectItem>)}
+                    {effectResources.entrance.length > 0 && (
+                      <>
+                        <div className="my-1 h-px bg-border" />
+                        {effectResources.entrance.map((effect) => (
+                          <SelectItem key={`custom:${effect.id}`} value={`custom:${effect.id}`}>
+                            {effect.name}
+                          </SelectItem>
+                        ))}
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -302,6 +289,16 @@ export function BulkClipPanel(props: BulkClipPanelProps) {
                     <SelectItem value={MIXED_SELECT_VALUE} disabled>Mixed</SelectItem>
                     <SelectItem value={NO_EFFECT}>None</SelectItem>
                     {exitEffectTypes.map((effect) => <SelectItem key={effect} value={effect}>{effect}</SelectItem>)}
+                    {effectResources.exit.length > 0 && (
+                      <>
+                        <div className="my-1 h-px bg-border" />
+                        {effectResources.exit.map((effect) => (
+                          <SelectItem key={`custom:${effect.id}`} value={`custom:${effect.id}`}>
+                            {effect.name}
+                          </SelectItem>
+                        ))}
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -320,45 +317,20 @@ export function BulkClipPanel(props: BulkClipPanelProps) {
                     <SelectItem value={MIXED_SELECT_VALUE} disabled>Mixed</SelectItem>
                     <SelectItem value={NO_EFFECT}>None</SelectItem>
                     {continuousEffectTypes.map((effect) => <SelectItem key={effect} value={effect}>{effect}</SelectItem>)}
+                    {effectResources.continuous.length > 0 && (
+                      <>
+                        <div className="my-1 h-px bg-border" />
+                        {effectResources.continuous.map((effect) => (
+                          <SelectItem key={`custom:${effect.id}`} value={`custom:${effect.id}`}>
+                            {effect.name}
+                          </SelectItem>
+                        ))}
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
             </div>
-
-            {sharedCustomEffect && (
-              <div className="rounded-lg border border-border bg-card/70 p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <div className="text-xs font-medium text-foreground">Custom effects</div>
-                  <Button type="button" size="sm" variant="secondary" className="gap-1" onClick={() => setShowCustomEditor((value) => !value)}>
-                    <Wand2 className="h-3.5 w-3.5" />
-                    {showCustomEditor ? 'Hide' : 'Edit'}
-                  </Button>
-                </div>
-                {showCustomEditor && (
-                  <CustomEffectEditor
-                    category={sharedCustomEffect.category}
-                    initialSlug={sharedCustomEffect.slug}
-                    onApply={(slug, category) => {
-                      if (category === 'entrance') {
-                        onChangeDeep((meta) => ({
-                          entrance: { type: `custom:${slug}`, duration: meta.entrance?.duration ?? 0.4 },
-                        }));
-                        return;
-                      }
-                      if (category === 'exit') {
-                        onChangeDeep((meta) => ({
-                          exit: { type: `custom:${slug}`, duration: meta.exit?.duration ?? 0.4 },
-                        }));
-                        return;
-                      }
-                      onChangeDeep((meta) => ({
-                        continuous: { type: `custom:${slug}`, intensity: meta.continuous?.intensity ?? 0.5 },
-                      }));
-                    }}
-                  />
-                )}
-              </div>
-            )}
           </TabsContent>
         )}
 

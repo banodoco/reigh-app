@@ -20,10 +20,11 @@ interface RemotionPreviewProps {
   onTimeUpdate: (time: number) => void;
   playerContainerRef: RefObject<HTMLDivElement | null>;
   compact?: boolean;
+  initialTime?: number;
 }
 
 const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>(function RemotionPreview(
-  { config, onTimeUpdate, playerContainerRef, compact = false },
+  { config, onTimeUpdate, playerContainerRef, compact = false, initialTime = 0 },
   ref,
 ) {
   const playerRef = useRef<PlayerRef>(null);
@@ -100,6 +101,7 @@ const RemotionPreviewComponent = forwardRef<PreviewHandle, RemotionPreviewProps>
         fps={metadata.fps}
         compositionWidth={metadata.compositionWidth}
         compositionHeight={metadata.compositionHeight}
+        initialFrame={Math.max(0, Math.round(initialTime * metadata.fps))}
         controls={false}
         clickToPlay={false}
         doubleClickToFullscreen={false}

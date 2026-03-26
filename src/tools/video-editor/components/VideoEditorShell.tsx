@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { Download, Eye, GripHorizontal, Maximize2, Minimize2, Settings, SlidersHorizontal, Video, Volume2, ZoomIn, ZoomOut } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/shared/components/ui/alert-dialog';
@@ -108,7 +108,23 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
     window.addEventListener('mouseup', onMouseUp);
   }, []);
 
-  const condensed = forceCondensed || isGenerationsPaneLocked;
+  // Switch to condensed when there isn't enough vertical space for preview + timeline
+  const MIN_STANDARD_HEIGHT = MIN_PREVIEW_HEIGHT + MIN_TIMELINE_HEIGHT + 40 + 28 + 24; // preview + timeline + header + divider + padding
+  const [tooSmall, setTooSmall] = useState(false);
+  const outerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = outerRef.current;
+    if (!el || forceCondensed || isGenerationsPaneLocked) return;
+
+    const observer = new ResizeObserver(([entry]) => {
+      setTooSmall(entry.contentRect.height < MIN_STANDARD_HEIGHT);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [forceCondensed, isGenerationsPaneLocked, MIN_STANDARD_HEIGHT]);
+
+  const condensed = forceCondensed || isGenerationsPaneLocked || tooSmall;
 
   const gridTemplateRows = isTimelineMaximized
     ? `${MIN_PREVIEW_HEIGHT}px auto 1fr`
@@ -132,6 +148,15 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
   const toolbar = (
     <div className="flex h-7 items-center justify-between gap-2 rounded-lg border border-border/70 bg-card/80 px-2 text-muted-foreground">
       <div className="flex items-center gap-1">
+        {condensed && !forceCondensed && (
+          <button
+            type="button"
+            className="mr-2 shrink-0 text-[11px] transition-colors hover:text-foreground"
+            onClick={() => navigate('/')}
+          >
+            ← Back
+          </button>
+        )}
         {saveBadge}
       </div>
       {!condensed && (
@@ -217,7 +242,7 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
 
   return (
     <>
-      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground">
+      <div ref={outerRef} className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground">
         {!condensed && (
           <div className="flex h-10 items-center gap-3 border-b border-border bg-background px-3 text-sm text-muted-foreground">
             <button
@@ -277,6 +302,7 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
                         ref={playback.previewRef}
                         config={editor.resolvedConfig}
                         compact
+                        initialTime={playback.currentTime}
                         onTimeUpdate={playback.onPreviewTimeUpdate}
                         playerContainerRef={playback.playerContainerRef}
                       />

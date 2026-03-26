@@ -93,6 +93,13 @@ export interface TimelineChromeContextValue {
   renderProgress: TimelineDataHook['renderProgress'];
   renderResultUrl: TimelineDataHook['renderResultUrl'];
   renderResultFilename: TimelineDataHook['renderResultFilename'];
+  undo: TimelineDataHook['undo'];
+  redo: TimelineDataHook['redo'];
+  canUndo: TimelineDataHook['canUndo'];
+  canRedo: TimelineDataHook['canRedo'];
+  checkpoints: TimelineDataHook['checkpoints'];
+  jumpToCheckpoint: TimelineDataHook['jumpToCheckpoint'];
+  createManualCheckpoint: TimelineDataHook['createManualCheckpoint'];
   setScaleWidth: TimelineDataHook['setScaleWidth'];
   handleAddTrack: TimelineTrackManagementHook['handleAddTrack'];
   handleClearUnusedTracks: TimelineTrackManagementHook['handleClearUnusedTracks'];

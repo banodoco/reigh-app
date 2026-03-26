@@ -1,4 +1,5 @@
 import type { AssetRegistry, AssetRegistryEntry, TimelineConfig } from '@/tools/video-editor/types';
+import type { Checkpoint } from '@/tools/video-editor/types/history';
 
 export interface SilenceRegion {
   start: number;
@@ -38,6 +39,8 @@ export function isTimelineVersionConflictError(error: unknown): error is Timelin
 export interface DataProvider {
   loadTimeline(timelineId: string): Promise<LoadedTimeline>;
   saveTimeline(timelineId: string, config: TimelineConfig, expectedVersion: number): Promise<number>;
+  saveCheckpoint?(timelineId: string, checkpoint: Omit<Checkpoint, 'id'>): Promise<string>;
+  loadCheckpoints?(timelineId: string): Promise<Checkpoint[]>;
   loadAssetRegistry(timelineId: string): Promise<AssetRegistry>;
   resolveAssetUrl(file: string): Promise<string>;
   registerAsset?(timelineId: string, assetId: string, entry: AssetRegistryEntry): Promise<void>;

@@ -156,7 +156,7 @@ export function useClipEditing({
       ...row,
       actions: row.actions.filter((action) => !clipIdSet.has(action.id)),
     }));
-    applyTimelineEdit(nextRows, undefined, [...clipIdSet]);
+    applyTimelineEdit(nextRows, undefined, [...clipIdSet], undefined, { semantic: true });
   }, [applyTimelineEdit, dataRef, getValidClipIds]);
 
   const handleDeleteClip = useCallback((clipId: string) => {

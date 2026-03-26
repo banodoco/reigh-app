@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Trash2, Volume2, Wand2 } from 'lucide-react';
+import { Pencil, Plus, Trash2, Volume2 } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { Input } from '@/shared/components/ui/input';
@@ -8,7 +8,9 @@ import { Slider } from '@/shared/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
 import { Textarea } from '@/shared/components/ui/textarea';
 import { continuousEffectTypes, entranceEffectTypes, exitEffectTypes } from '@/tools/video-editor/effects';
-import { CustomEffectEditor } from '@/tools/video-editor/components/CustomEffectEditor';
+import { EffectCreatorPanel } from '@/tools/video-editor/components/EffectCreatorPanel';
+import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/DataProviderContext';
+import { useEffectResources, type EffectCategory, type EffectResource } from '@/tools/video-editor/hooks/useEffectResources';
 import type { ClipTab } from '@/tools/video-editor/hooks/useTimelineData';
 import type { ClipMeta } from '@/tools/video-editor/lib/timeline-data';
 import type { ResolvedTimelineClip, TrackDefinition } from '@/tools/video-editor/types';
@@ -53,6 +55,16 @@ export function FieldLabel({ children }: { children: React.ReactNode }) {
   return <div className="text-xs font-medium text-muted-foreground">{children}</div>;
 }
 
+/** Find a resource-based effect by its `custom:{id}` type string */
+function findEffectResourceByType(
+  type: string | undefined,
+  effects: EffectResource[],
+): EffectResource | undefined {
+  if (!type?.startsWith('custom:')) return undefined;
+  const id = type.slice(7);
+  return effects.find((e) => e.id === id);
+}
+
 export function ClipPanel({
   clip,
   track,
@@ -67,14 +79,11 @@ export function ClipPanel({
   activeTab,
   setActiveTab,
 }: ClipPanelProps) {
-  const [showCustomEditor, setShowCustomEditor] = useState(false);
+  const { userId } = useVideoEditorRuntime();
+  const effectResources = useEffectResources(userId);
+  const [creatorOpen, setCreatorOpen] = useState(false);
+  const [editingEffect, setEditingEffect] = useState<EffectResource | null>(null);
   const visibleTabs = useMemo(() => getVisibleClipTabs(clip, track), [clip, track]);
-  const customEffectCategory = useMemo(() => {
-    if (activeTab !== 'effects') {
-      return 'continuous' as const;
-    }
-    return (clip?.continuous?.type?.startsWith('custom:') ? 'continuous' : clip?.entrance?.type?.startsWith('custom:') ? 'entrance' : clip?.exit?.type?.startsWith('custom:') ? 'exit' : 'continuous') as const;
-  }, [activeTab, clip]);
 
   if (!clip) {
     return (
@@ -129,8 +138,32 @@ export function ClipPanel({
                   <SelectContent>
                     <SelectItem value={NO_EFFECT}>None</SelectItem>
                     {entranceEffectTypes.map((effect) => <SelectItem key={effect} value={effect}>{effect}</SelectItem>)}
+                    {effectResources.entrance.length > 0 && (
+                      <>
+                        <div className="my-1 h-px bg-border" />
+                        {effectResources.entrance.map((effect) => (
+                          <SelectItem key={`custom:${effect.id}`} value={`custom:${effect.id}`}>
+                            {effect.name}
+                          </SelectItem>
+                        ))}
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
+                {findEffectResourceByType(clip.entrance?.type, effectResources.effects) && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 gap-1 text-xs"
+                    onClick={() => {
+                      setEditingEffect(findEffectResourceByType(clip.entrance?.type, effectResources.effects) ?? null);
+                      setCreatorOpen(true);
+                    }}
+                  >
+                    <Pencil className="h-3 w-3" /> Edit
+                  </Button>
+                )}
               </div>
               <div className="space-y-2">
                 <FieldLabel>Exit</FieldLabel>
@@ -142,8 +175,32 @@ export function ClipPanel({
                   <SelectContent>
                     <SelectItem value={NO_EFFECT}>None</SelectItem>
                     {exitEffectTypes.map((effect) => <SelectItem key={effect} value={effect}>{effect}</SelectItem>)}
+                    {effectResources.exit.length > 0 && (
+                      <>
+                        <div className="my-1 h-px bg-border" />
+                        {effectResources.exit.map((effect) => (
+                          <SelectItem key={`custom:${effect.id}`} value={`custom:${effect.id}`}>
+                            {effect.name}
+                          </SelectItem>
+                        ))}
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
+                {findEffectResourceByType(clip.exit?.type, effectResources.effects) && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 gap-1 text-xs"
+                    onClick={() => {
+                      setEditingEffect(findEffectResourceByType(clip.exit?.type, effectResources.effects) ?? null);
+                      setCreatorOpen(true);
+                    }}
+                  >
+                    <Pencil className="h-3 w-3" /> Edit
+                  </Button>
+                )}
               </div>
               <div className="space-y-2 md:col-span-2">
                 <FieldLabel>Continuous</FieldLabel>
@@ -155,36 +212,62 @@ export function ClipPanel({
                   <SelectContent>
                     <SelectItem value={NO_EFFECT}>None</SelectItem>
                     {continuousEffectTypes.map((effect) => <SelectItem key={effect} value={effect}>{effect}</SelectItem>)}
+                    {effectResources.continuous.length > 0 && (
+                      <>
+                        <div className="my-1 h-px bg-border" />
+                        {effectResources.continuous.map((effect) => (
+                          <SelectItem key={`custom:${effect.id}`} value={`custom:${effect.id}`}>
+                            {effect.name}
+                          </SelectItem>
+                        ))}
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
+                {findEffectResourceByType(clip.continuous?.type, effectResources.effects) && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 gap-1 text-xs"
+                    onClick={() => {
+                      setEditingEffect(findEffectResourceByType(clip.continuous?.type, effectResources.effects) ?? null);
+                      setCreatorOpen(true);
+                    }}
+                  >
+                    <Pencil className="h-3 w-3" /> Edit
+                  </Button>
+                )}
               </div>
             </div>
-            <div className="rounded-lg border border-border bg-card/70 p-3">
-              <div className="mb-2 flex items-center justify-between">
-                <div className="text-xs font-medium text-foreground">Custom effects</div>
-                <Button type="button" size="sm" variant="secondary" className="gap-1" onClick={() => setShowCustomEditor((value) => !value)}>
-                  <Wand2 className="h-3.5 w-3.5" />
-                  {showCustomEditor ? 'Hide' : 'Edit'}
-                </Button>
-              </div>
-              {showCustomEditor && (
-                <CustomEffectEditor
-                  category={customEffectCategory}
-                  initialSlug={clip.continuous?.type?.replace(/^custom:/, '')}
-                  onApply={(slug, category) => {
-                    if (category === 'entrance') {
-                      onChange({ entrance: { type: `custom:${slug}`, duration: clip.entrance?.duration ?? 0.4 } });
-                      return;
-                    }
-                    if (category === 'exit') {
-                      onChange({ exit: { type: `custom:${slug}`, duration: clip.exit?.duration ?? 0.4 } });
-                      return;
-                    }
-                    onChange({ continuous: { type: `custom:${slug}`, intensity: clip.continuous?.intensity ?? 0.5 } });
-                  }}
-                />
-              )}
-            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              className="gap-1.5"
+              onClick={() => {
+                setEditingEffect(null);
+                setCreatorOpen(true);
+              }}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Create Effect
+            </Button>
+            <EffectCreatorPanel
+              open={creatorOpen}
+              onOpenChange={setCreatorOpen}
+              editingEffect={editingEffect}
+              onSaved={(resourceId, savedCategory) => {
+                const effectType = `custom:${resourceId}`;
+                if (savedCategory === 'entrance') {
+                  onChange({ entrance: { type: effectType, duration: clip.entrance?.duration ?? 0.4 } });
+                } else if (savedCategory === 'exit') {
+                  onChange({ exit: { type: effectType, duration: clip.exit?.duration ?? 0.4 } });
+                } else {
+                  onChange({ continuous: { type: effectType, intensity: clip.continuous?.intensity ?? 0.5 } });
+                }
+              }}
+            />
           </TabsContent>
         )}
 

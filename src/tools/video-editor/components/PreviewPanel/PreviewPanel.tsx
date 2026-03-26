@@ -78,6 +78,7 @@ function PreviewPanelComponent() {
           <RemotionPreview
             ref={previewRef}
             config={resolvedConfig}
+            initialTime={currentTime}
             onTimeUpdate={onPreviewTimeUpdate}
             playerContainerRef={playerContainerRef}
           />

@@ -6,6 +6,7 @@ import { TimelineEditorContextProvider } from '@/tools/video-editor/contexts/Tim
 import { TimelinePlaybackContextProvider } from '@/tools/video-editor/contexts/TimelinePlaybackContext';
 import { useEffects } from '@/tools/video-editor/hooks/useEffects';
 import { useEffectRegistry } from '@/tools/video-editor/hooks/useEffectRegistry';
+import { useEffectResources } from '@/tools/video-editor/hooks/useEffectResources';
 import { useTimelineState } from '@/tools/video-editor/hooks/useTimelineState';
 
 function InnerProvider({
@@ -16,10 +17,14 @@ function InnerProvider({
   userId: string;
 }) {
   const effectsQuery = useEffects(userId);
-  useEffectRegistry(effectsQuery.data?.map((effect) => ({
-    slug: effect.slug,
-    code: effect.code,
-  })));
+  const effectResources = useEffectResources(userId);
+  useEffectRegistry(
+    effectsQuery.data?.map((effect) => ({
+      slug: effect.slug,
+      code: effect.code,
+    })),
+    effectResources.effects,
+  );
   const { editor, chrome, playback } = useTimelineState();
 
   // Shared lightbox callback — PreviewPanel registers its handler, timeline clips call it
