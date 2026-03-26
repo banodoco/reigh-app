@@ -159,7 +159,7 @@ export const resolveTimelineConfig = async (
 
 export const configToRows = (
   config: TimelineConfig,
-): Pick<TimelineData, 'rows' | 'meta' | 'effects' | 'clipOrder'> => {
+): Pick<TimelineData, 'rows' | 'meta' | 'effects' | 'clipOrder' | 'tracks'> => {
   const migratedConfig = migrateToFlatTracks(config);
   const clipOrder: ClipOrderMap = Object.fromEntries(
     (migratedConfig.tracks ?? []).map((track) => [track.id, []]),
@@ -203,6 +203,7 @@ export const configToRows = (
     meta,
     effects,
     clipOrder,
+    tracks: migratedConfig.tracks ?? [],
   };
 };
 

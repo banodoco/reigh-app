@@ -20,9 +20,13 @@ export function buildDataFromCurrentRegistry(
   current: TimelineData,
 ): TimelineData {
   const rowData = configToRows(config);
+  // Use tracks from configToRows — they've been through migrateToFlatTracks
+  // which deduplicates by id, preventing corrupted server configs from
+  // propagating duplicate track entries.
+  const tracks = rowData.tracks;
   const resolvedConfig = {
     output: { ...config.output },
-    tracks: config.tracks ?? [],
+    tracks,
     clips: config.clips.map((clip) => ({
       ...clip,
       assetEntry: clip.asset ? current.resolvedConfig.registry[clip.asset] : undefined,
@@ -42,7 +46,7 @@ export function buildDataFromCurrentRegistry(
       Object.entries(current.registry.assets ?? {}).map(([assetId, entry]) => [assetId, entry.file]),
     ),
     output: { ...config.output },
-    tracks: config.tracks ?? [],
+    tracks,
     clipOrder: rowData.clipOrder,
     signature: getConfigSignature(resolvedConfig),
   };
