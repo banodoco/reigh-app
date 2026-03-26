@@ -106,6 +106,17 @@ export function useTimelineSave(
       setSaveStatus('error');
 
       if (isTimelineVersionConflictError(error)) {
+        // Version conflict: another writer updated the config since our last
+        // save. Fetch the current version from the server so the next save
+        // attempt uses the right expected_version.
+        void provider.loadTimeline(timelineId).then((loaded) => {
+          configVersionRef.current = loaded.configVersion;
+          if (dataRef.current) {
+            scheduleSaveRef.current(dataRef.current, { preserveStatus: true });
+          }
+        }).catch(() => {
+          // If the version refresh fails, the next poll (30s) will update it.
+        });
         return;
       }
 
