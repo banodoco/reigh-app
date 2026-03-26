@@ -60,7 +60,7 @@ const OUTPUT_RULES = `Output requirements:
 - Do not wrap the answer in markdown fences
 - Do not include import statements
 - Do not include export statements
-- Begin with a single metadata line: // NAME: <short catchy effect name, 2-4 words>
+- Begin with a single metadata line: // NAME: <fun, playful, creative effect name — be witty and memorable, like naming a cocktail or a wrestling move, 2-4 words>
 - Follow with: // DESCRIPTION: <one concise effect description>
 - Follow with: // PARAMS: <JSON array of parameter definitions>
 - Use [] for // PARAMS when the effect does not need user-adjustable controls
