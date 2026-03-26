@@ -1,5 +1,6 @@
 import { getConfigSignature } from '@/tools/video-editor/lib/config-utils';
 import { configToRows, type TimelineData } from '@/tools/video-editor/lib/timeline-data';
+import { migrateToFlatTracks } from '@/tools/video-editor/lib/migrate';
 import type { TimelineConfig } from '@/tools/video-editor/types';
 
 export function shouldAcceptPolledData(
@@ -19,15 +20,17 @@ export function buildDataFromCurrentRegistry(
   config: TimelineConfig,
   current: TimelineData,
 ): TimelineData {
-  const rowData = configToRows(config);
-  // Use tracks from configToRows — they've been through migrateToFlatTracks
-  // which deduplicates by id, preventing corrupted server configs from
-  // propagating duplicate track entries.
+  // Run migration first — this deduplicates tracks and clip IDs so that
+  // data.config (which is what gets saved and snapshotted for undo) is
+  // always clean.  configToRows calls migrateToFlatTracks internally but
+  // we need the migrated config itself, not just the row output.
+  const migrated = migrateToFlatTracks(config);
+  const rowData = configToRows(migrated);
   const tracks = rowData.tracks;
   const resolvedConfig = {
-    output: { ...config.output },
+    output: { ...migrated.output },
     tracks,
-    clips: config.clips.map((clip) => ({
+    clips: migrated.clips.map((clip) => ({
       ...clip,
       assetEntry: clip.asset ? current.resolvedConfig.registry[clip.asset] : undefined,
     })),
@@ -35,7 +38,7 @@ export function buildDataFromCurrentRegistry(
   };
 
   return {
-    config,
+    config: migrated,
     configVersion: current.configVersion,
     registry: { ...current.registry },
     resolvedConfig,
@@ -45,7 +48,7 @@ export function buildDataFromCurrentRegistry(
     assetMap: Object.fromEntries(
       Object.entries(current.registry.assets ?? {}).map(([assetId, entry]) => [assetId, entry.file]),
     ),
-    output: { ...config.output },
+    output: { ...migrated.output },
     tracks,
     clipOrder: rowData.clipOrder,
     signature: getConfigSignature(resolvedConfig),
