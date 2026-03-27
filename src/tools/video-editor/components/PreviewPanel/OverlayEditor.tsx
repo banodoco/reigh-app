@@ -216,6 +216,9 @@ function OverlayEditorComponent({
         if (!clipMeta || clipMeta.track !== row.id) {
           continue;
         }
+        if (clipMeta.clipType === 'effect-layer') {
+          continue;
+        }
 
         const hasPositionOverride = clipMeta.clipType === 'text'
           || clipMeta.x !== undefined

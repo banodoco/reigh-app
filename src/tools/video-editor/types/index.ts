@@ -35,7 +35,7 @@ export type TrackBlendMode =
   | 'lighten'
   | 'soft-light'
   | 'hard-light';
-export type ClipType = 'media' | 'hold' | 'text';
+export type ClipType = 'media' | 'hold' | 'text' | 'effect-layer';
 
 export type TrackDefinition = {
   id: string;

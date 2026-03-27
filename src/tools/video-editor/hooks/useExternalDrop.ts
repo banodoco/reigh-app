@@ -4,12 +4,18 @@ import { inferDragKind } from '@/tools/video-editor/lib/drop-position';
 import type { DragCoordinator } from '@/tools/video-editor/hooks/useDragCoordinator';
 import type { UseAssetManagementResult } from '@/tools/video-editor/hooks/useAssetManagement';
 import type { UseTimelineDataResult } from '@/tools/video-editor/hooks/useTimelineData';
-import type { ClipMeta, TimelineData } from '@/tools/video-editor/lib/timeline-data';
+import {
+  createEffectLayerClipMeta,
+  getNextClipId,
+  type ClipMeta,
+  type TimelineData,
+} from '@/tools/video-editor/lib/timeline-data';
 import type { TimelineAction } from '@/tools/video-editor/types/timeline-canvas';
 import type { TrackKind } from '@/tools/video-editor/types';
-import { getCompatibleTrackId } from '@/tools/video-editor/lib/coordinate-utils';
+import { getCompatibleTrackId, updateClipOrder } from '@/tools/video-editor/lib/coordinate-utils';
 import { getTrackIndex } from '@/tools/video-editor/lib/editor-utils';
 import { createAutoScroller } from '@/tools/video-editor/lib/auto-scroll';
+import { resolveOverlaps } from '@/tools/video-editor/lib/resolve-overlaps';
 
 export interface UseExternalDropArgs {
   dataRef: React.MutableRefObject<TimelineData | null>;
@@ -79,7 +85,7 @@ export function useExternalDrop({
   const onTimelineDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     const dragType = getDragType(event);
     const types = Array.from(event.dataTransfer.types);
-    if (!types.includes('asset-key') && !types.includes('text-tool') && dragType !== 'file' && dragType !== 'generation') {
+    if (!types.includes('asset-key') && !types.includes('text-tool') && !types.includes('effect-layer') && dragType !== 'file' && dragType !== 'generation') {
       return;
     }
     event.preventDefault();
@@ -176,6 +182,58 @@ export function useExternalDrop({
         };
       }
       handleAddTextAt(targetTrackId, dropPosition.time);
+      return;
+    }
+
+    const isEffectLayerDrop = event.dataTransfer.types.includes('effect-layer');
+    if (isEffectLayerDrop && dataRef.current) {
+      let current = dataRef.current;
+      let targetTrackId = dropPosition.isNewTrack
+        ? null
+        : getCompatibleTrackId(current.tracks, dropPosition.trackId, 'visual', selectedTrackId);
+
+      if (!targetTrackId) {
+        const nextNumber = getTrackIndex(current.tracks, 'V') + 1;
+        targetTrackId = `V${nextNumber}`;
+        current = {
+          ...current,
+          tracks: [...current.tracks, { id: targetTrackId, kind: 'visual', label: `V${nextNumber}` }],
+          rows: [...current.rows, { id: targetTrackId, actions: [] }],
+        };
+        dataRef.current = current;
+      }
+
+      const clipId = getNextClipId(current.meta);
+      const clipMeta = createEffectLayerClipMeta(targetTrackId);
+      const duration = clipMeta.hold ?? 5;
+      const action: TimelineAction = {
+        id: clipId,
+        start: Math.max(0, dropPosition.time),
+        end: Math.max(0, dropPosition.time) + duration,
+        effectId: `effect-${clipId}`,
+      };
+      const rowsWithClip = current.rows.map((row) => (
+        row.id === targetTrackId
+          ? { ...row, actions: [...row.actions, action] }
+          : row
+      ));
+      const { rows: nextRows, metaPatches } = resolveOverlaps(
+        rowsWithClip,
+        targetTrackId,
+        clipId,
+        current.meta,
+      );
+      const resolvedAction = nextRows
+        .find((row) => row.id === targetTrackId)
+        ?.actions.find((candidate) => candidate.id === clipId);
+      const nextClipOrder = updateClipOrder(current.clipOrder, targetTrackId, (ids) => [...ids, clipId]);
+      applyTimelineEdit(nextRows, {
+        ...metaPatches,
+        [clipId]: {
+          ...clipMeta,
+          hold: resolvedAction ? Math.max(0.05, resolvedAction.end - resolvedAction.start) : clipMeta.hold,
+        },
+      }, undefined, nextClipOrder);
       return;
     }
 

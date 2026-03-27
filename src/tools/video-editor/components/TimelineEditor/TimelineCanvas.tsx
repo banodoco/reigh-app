@@ -13,6 +13,7 @@ import React, {
 import { DndContext, closestCenter, type DragEndEvent, useSensors } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { Layers } from 'lucide-react';
 import { TrackLabelContent } from '@/tools/video-editor/components/TimelineEditor/TrackLabel';
 import { TimeRuler } from '@/tools/video-editor/components/TimelineEditor/TimeRuler';
 import { LABEL_WIDTH } from '@/tools/video-editor/lib/coordinate-utils';
@@ -583,21 +584,34 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
               </>
             )}
           </div>
-          <div className="flex flex-1 items-center px-2" style={{ position: 'sticky', left: LABEL_WIDTH }}>
+          <div className="flex flex-1 items-center gap-2 px-2" style={{ position: 'sticky', left: LABEL_WIDTH }}>
             {newTrackDropLabel ? (
               <div className="flex-1 rounded-md border border-dashed border-sky-400/40 bg-sky-950/45 py-3 pointer-events-none" />
             ) : onAddTextAt ? (
-              <div
-                draggable
-                onDragStart={(event) => {
-                  event.dataTransfer.setData('text-tool', 'true');
-                  event.dataTransfer.effectAllowed = 'copy';
-                }}
-                className="flex h-6 w-6 cursor-grab items-center justify-center rounded-full bg-sky-500/15 text-sky-400 ring-1 ring-sky-400/30 transition-all hover:bg-sky-500/25 hover:ring-sky-400/50 active:cursor-grabbing"
-                title="Drag onto timeline to add text"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
-              </div>
+              <>
+                <div
+                  draggable
+                  onDragStart={(event) => {
+                    event.dataTransfer.setData('text-tool', 'true');
+                    event.dataTransfer.effectAllowed = 'copy';
+                  }}
+                  className="flex h-6 w-6 cursor-grab items-center justify-center rounded-full bg-sky-500/15 text-sky-400 ring-1 ring-sky-400/30 transition-all hover:bg-sky-500/25 hover:ring-sky-400/50 active:cursor-grabbing"
+                  title="Drag onto timeline to add text"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+                </div>
+                <div
+                  draggable
+                  onDragStart={(event) => {
+                    event.dataTransfer.setData('effect-layer', 'true');
+                    event.dataTransfer.effectAllowed = 'copy';
+                  }}
+                  className="flex h-6 w-6 cursor-grab items-center justify-center rounded-full bg-violet-500/15 text-violet-400 ring-1 ring-violet-400/30 transition-all hover:bg-violet-500/25 hover:ring-violet-400/50 active:cursor-grabbing"
+                  title="Drag onto timeline to add an effect layer"
+                >
+                  <Layers className="h-3 w-3" />
+                </div>
+              </>
             ) : null}
           </div>
         </div>

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ImageIcon, Music2, Scissors, Trash2, Type } from 'lucide-react';
+import { ImageIcon, Layers, Music2, Scissors, Trash2, Type } from 'lucide-react';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import type { ClipMeta } from '@/tools/video-editor/lib/timeline-data';
 import type { TimelineAction } from '@/tools/video-editor/types/timeline-canvas';
@@ -73,7 +73,10 @@ export function ClipAction({
     }
     setContextMenu({ x: e.clientX, y: e.clientY, clientX: e.clientX });
   }, [action.id, clipMeta.track, isSelected, onSelect]);
-  const icon = clipMeta.clipType === 'text'
+  const isEffectLayer = clipMeta.clipType === 'effect-layer';
+  const icon = isEffectLayer
+    ? <Layers className="h-3 w-3" />
+    : clipMeta.clipType === 'text'
     ? <Type className="h-3 w-3" />
     : clipMeta.track.startsWith('A')
       ? <Music2 className="h-3 w-3" />
@@ -91,7 +94,11 @@ export function ClipAction({
         type="button"
         className={cn(
           'clip-action group relative flex h-full w-full overflow-hidden rounded-md border text-left',
-          isSelected
+          isEffectLayer && isSelected
+            ? 'border-violet-400 bg-violet-500/20 text-violet-50'
+            : isEffectLayer
+              ? 'border-violet-500/30 bg-violet-500/10 text-violet-300 hover:border-violet-400/60'
+            : isSelected
             ? 'border-sky-400 bg-sky-500/20 text-sky-50'
             : 'border-border bg-card/90 text-foreground hover:border-accent',
         )}
@@ -100,7 +107,7 @@ export function ClipAction({
         onPointerDown={(event) => event.stopPropagation()}
         onDoubleClick={(event) => {
           event.stopPropagation();
-          if (clipMeta.clipType !== 'text' && clipMeta.asset) {
+          if (!isEffectLayer && clipMeta.clipType !== 'text' && clipMeta.asset) {
             onDoubleClickAsset?.(clipMeta.asset);
           }
         }}
@@ -120,7 +127,9 @@ export function ClipAction({
         )}
         <div className="min-w-0 flex-1 px-2 py-1">
           <div className="truncate text-[11px] font-medium">
-            {clipMeta.text?.content || clipMeta.asset || action.id}
+            {isEffectLayer
+              ? (clipMeta.continuous?.type || 'Effect Layer')
+              : (clipMeta.text?.content || clipMeta.asset || action.id)}
           </div>
           {effectBadges.length > 0 && (
             <div className="mt-1 flex gap-1 overflow-hidden">

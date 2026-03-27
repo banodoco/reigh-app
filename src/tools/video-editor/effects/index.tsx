@@ -94,7 +94,7 @@ const resolveEffectName = (type: string): string => {
   return type.startsWith('custom:') ? type.slice(7) : type;
 };
 
-const lookupEffect = (
+export const lookupEffect = (
   builtInMap: Record<string, ClipEffectComponent>,
   type: string,
 ): ClipEffectComponent | null => {

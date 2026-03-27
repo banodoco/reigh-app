@@ -1,0 +1,42 @@
+{
+  "type": "object",
+  "properties": {
+    "considerations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "point": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "important",
+              "minor"
+            ]
+          },
+          "detail": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "severity"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "summary": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "considerations",
+    "summary"
+  ],
+  "additionalProperties": false
+}

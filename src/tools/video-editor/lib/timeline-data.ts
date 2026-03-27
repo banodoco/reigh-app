@@ -448,3 +448,11 @@ export function getNextClipId(meta: Record<string, ClipMeta>): string {
   }
   return `clip-${max + 1}`;
 }
+
+export function createEffectLayerClipMeta(trackId: string): ClipMeta {
+  return {
+    track: trackId,
+    clipType: 'effect-layer',
+    hold: 5,
+  };
+}

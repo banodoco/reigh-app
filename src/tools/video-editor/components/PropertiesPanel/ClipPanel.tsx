@@ -41,6 +41,10 @@ export function getVisibleClipTabs(
   clip: ResolvedTimelineClip | null,
   track: TrackDefinition | null,
 ): ClipTab[] {
+  if (clip?.clipType === 'effect-layer') {
+    return ['effects', 'timing'];
+  }
+
   if (clip?.clipType === 'text') {
     return ['effects', 'timing', 'position', 'text'];
   }
@@ -129,6 +133,7 @@ export function ClipPanel({
   const [creatorOpen, setCreatorOpen] = useState(false);
   const [editingEffect, setEditingEffect] = useState<EffectResource | null>(null);
   const visibleTabs = useMemo(() => getVisibleClipTabs(clip, track), [clip, track]);
+  const isEffectLayer = clip?.clipType === 'effect-layer';
   const entranceEffect = findEffectResourceByType(clip?.entrance?.type, effectResources.effects);
   const exitEffect = findEffectResourceByType(clip?.exit?.type, effectResources.effects);
   const continuousEffect = findEffectResourceByType(clip?.continuous?.type, effectResources.effects);
@@ -146,7 +151,9 @@ export function ClipPanel({
       <div className="flex items-start justify-between gap-3 rounded-xl border border-border bg-card/70 p-3">
         <div className="min-w-0">
           <div className="truncate text-sm font-medium text-foreground">
-            {clip.text?.content || clip.asset || clip.id}
+            {isEffectLayer
+              ? (getEffectDisplayLabel(clip.continuous?.type, effectResources.effects) ?? 'Effect Layer')
+              : (clip.text?.content || clip.asset || clip.id)}
           </div>
           <div className="mt-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
             {clip.clipType ?? 'media'} · {track?.label ?? clip.track}
@@ -176,7 +183,8 @@ export function ClipPanel({
         {visibleTabs.includes('effects') && (
           <TabsContent value="effects" className="space-y-3">
             <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-2">
+              {!isEffectLayer && (
+                <div className="space-y-2">
                 <FieldLabel>Entrance</FieldLabel>
                 <Select
                   value={clip.entrance?.type ?? NO_EFFECT}
@@ -199,7 +207,7 @@ export function ClipPanel({
                         <div className="my-1 h-px bg-border" />
                         {!isCustomEffectInList(clip.entrance?.type, effectResources.entrance) && clip.entrance?.type && (
                           <SelectItem value={clip.entrance.type}>
-                            {getCustomEffectLabel(clip.entrance.type, effectResources.effects)}
+                            {getEffectDisplayLabel(clip.entrance.type, effectResources.effects) ?? clip.entrance.type}
                           </SelectItem>
                         )}
                         {effectResources.entrance.map((effect) => (
@@ -242,7 +250,9 @@ export function ClipPanel({
                   />
                 )}
               </div>
-              <div className="space-y-2">
+              )}
+              {!isEffectLayer && (
+                <div className="space-y-2">
                 <FieldLabel>Exit</FieldLabel>
                 <Select
                   value={clip.exit?.type ?? NO_EFFECT}
@@ -265,7 +275,7 @@ export function ClipPanel({
                         <div className="my-1 h-px bg-border" />
                         {!isCustomEffectInList(clip.exit?.type, effectResources.exit) && clip.exit?.type && (
                           <SelectItem value={clip.exit.type}>
-                            {getCustomEffectLabel(clip.exit.type, effectResources.effects)}
+                            {getEffectDisplayLabel(clip.exit.type, effectResources.effects) ?? clip.exit.type}
                           </SelectItem>
                         )}
                         {effectResources.exit.map((effect) => (
@@ -308,6 +318,7 @@ export function ClipPanel({
                   />
                 )}
               </div>
+              )}
               <div className="space-y-2 md:col-span-2">
                 <FieldLabel>Continuous</FieldLabel>
                 <Select
@@ -331,7 +342,7 @@ export function ClipPanel({
                         <div className="my-1 h-px bg-border" />
                         {!isCustomEffectInList(clip.continuous?.type, effectResources.continuous) && clip.continuous?.type && (
                           <SelectItem value={clip.continuous.type}>
-                            {getCustomEffectLabel(clip.continuous.type, effectResources.effects)}
+                            {getEffectDisplayLabel(clip.continuous.type, effectResources.effects) ?? clip.continuous.type}
                           </SelectItem>
                         )}
                         {effectResources.continuous.map((effect) => (
@@ -375,6 +386,11 @@ export function ClipPanel({
                 )}
               </div>
             </div>
+            {isEffectLayer && !clip.continuous && (
+              <div className="rounded-lg border border-dashed border-violet-400/40 bg-violet-500/10 p-3 text-sm text-violet-100">
+                Select a continuous effect to turn this layer into an active adjustment clip.
+              </div>
+            )}
             <Button
               type="button"
               size="sm"
@@ -396,9 +412,16 @@ export function ClipPanel({
               onSaved={(resourceId, savedCategory, defaultParams) => {
                 const effectType = `custom:${resourceId}`;
                 const params = Object.keys(defaultParams).length > 0 ? defaultParams : undefined;
-                if (savedCategory === 'entrance') {
+                if (isEffectLayer) {
+                  if (savedCategory !== 'continuous') {
+                    return;
+                  }
+                  onChange({ continuous: { type: effectType, intensity: clip.continuous?.intensity ?? 0.5, params } });
+                  return;
+                }
+                if (!isEffectLayer && savedCategory === 'entrance') {
                   onChange({ entrance: { type: effectType, duration: clip.entrance?.duration ?? 0.4, params } });
-                } else if (savedCategory === 'exit') {
+                } else if (!isEffectLayer && savedCategory === 'exit') {
                   onChange({ exit: { type: effectType, duration: clip.exit?.duration ?? 0.4, params } });
                 } else {
                   onChange({ continuous: { type: effectType, intensity: clip.continuous?.intensity ?? 0.5, params } });
@@ -415,18 +438,27 @@ export function ClipPanel({
                 <FieldLabel>Start (seconds)</FieldLabel>
                 <Input type="number" value={clip.at} onChange={(event) => onChange({ at: Number(event.target.value) })} />
               </div>
-              <div className="space-y-2">
-                <FieldLabel>Speed</FieldLabel>
-                <Input type="number" value={clip.speed ?? 1} step="0.1" onChange={(event) => onChange({ speed: Number(event.target.value) })} />
-              </div>
-              <div className="space-y-2">
-                <FieldLabel>Source In</FieldLabel>
-                <Input type="number" value={clip.from ?? 0} step="0.1" onChange={(event) => onChange({ from: Number(event.target.value) })} />
-              </div>
-              <div className="space-y-2">
-                <FieldLabel>Source Out</FieldLabel>
-                <Input type="number" value={clip.to ?? clip.assetEntry?.duration ?? 5} step="0.1" onChange={(event) => onChange({ to: Number(event.target.value) })} />
-              </div>
+              {isEffectLayer ? (
+                <div className="space-y-2">
+                  <FieldLabel>Duration (seconds)</FieldLabel>
+                  <Input type="number" value={clip.hold ?? 5} step="0.1" min="0.1" onChange={(event) => onChange({ hold: Number(event.target.value) })} />
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <FieldLabel>Speed</FieldLabel>
+                    <Input type="number" value={clip.speed ?? 1} step="0.1" onChange={(event) => onChange({ speed: Number(event.target.value) })} />
+                  </div>
+                  <div className="space-y-2">
+                    <FieldLabel>Source In</FieldLabel>
+                    <Input type="number" value={clip.from ?? 0} step="0.1" onChange={(event) => onChange({ from: Number(event.target.value) })} />
+                  </div>
+                  <div className="space-y-2">
+                    <FieldLabel>Source Out</FieldLabel>
+                    <Input type="number" value={clip.to ?? clip.assetEntry?.duration ?? 5} step="0.1" onChange={(event) => onChange({ to: Number(event.target.value) })} />
+                  </div>
+                </>
+              )}
             </div>
           </TabsContent>
         )}

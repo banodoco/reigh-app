@@ -197,6 +197,10 @@ const VisualAsset: FC<VisualClipProps> = ({ clip, track, fps }) => {
 };
 
 export const VisualClip: FC<VisualClipProps> = ({ clip, track, fps }) => {
+  if (clip.clipType === 'effect-layer') {
+    return null;
+  }
+
   const durationInFrames = getClipDurationInFrames(clip, fps);
   const frame = useCurrentFrame();
   const transitionRenderer = clip.transition ? transitions[clip.transition.type] : undefined;
