@@ -25,7 +25,7 @@ const OPENROUTER_COMPLEX_MODEL = "moonshotai/kimi-k2.5";
 const EDIT_MODEL = "qwen/qwen3.5-27b";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const OPENROUTER_TIMEOUT_MS = 120_000;
+const OPENROUTER_TIMEOUT_MS = 100_000;
 const GROQ_GENERATE_TIMEOUT_MS = 45_000;
 
 const EFFECT_CATEGORIES: EffectCategory[] = ["entrance", "exit", "continuous"];
@@ -270,18 +270,20 @@ serve(async (req) => {
     let llmResponse: LLMResponse;
 
     if (isEditMode) {
-      // Edits always go to Qwen 3.5 via OpenRouter
       logger.info(`[AI-GENERATE-EFFECT] edit mode → ${EDIT_MODEL}`);
+      await logger.flush(); // flush before long call
       llmResponse = await callOpenRouter(EDIT_MODEL, messages, logger);
     } else {
-      // Triage: simple → Groq (fast), complex → OpenRouter K2.5 (reasoning)
       const complexity = await triagePrompt(prompt, category as EffectCategory, logger);
+      await logger.flush(); // flush triage result before long call
 
       if (complexity === "complex") {
         logger.info(`[AI-GENERATE-EFFECT] complex → ${OPENROUTER_COMPLEX_MODEL}`);
+        await logger.flush();
         llmResponse = await callOpenRouter(OPENROUTER_COMPLEX_MODEL, messages, logger);
       } else {
         logger.info(`[AI-GENERATE-EFFECT] simple → ${GROQ_GENERATE_MODEL} (Groq)`);
+        await logger.flush();
         llmResponse = await callGroq(messages, logger);
       }
     }
