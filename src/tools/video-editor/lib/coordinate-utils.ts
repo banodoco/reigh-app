@@ -109,7 +109,8 @@ export const rawRowIndexFromY = (
   rowHeight: number,
 ): number => {
   const relativeY = clientY - containerTop + scrollTop;
-  return Math.floor(Math.max(0, relativeY) / rowHeight);
+  // Allow negative values so callers can detect "above all rows"
+  return Math.floor(relativeY / rowHeight);
 };
 
 export interface DropTargetResult {

@@ -166,19 +166,22 @@ export function useExternalDrop({
     latestExternalPositionRef.current = null;
     coordinator.end();
 
+    const insertAtTop = Boolean(dropPosition.isNewTrackTop);
+
     // Handle text-tool drop
     const isTextTool = event.dataTransfer.types.includes('text-tool');
     if (isTextTool && handleAddTextAt && dataRef.current) {
       let targetTrackId = dropPosition.isNewTrack ? undefined : dropPosition.trackId;
       if (!targetTrackId) {
-        // Create a new visual track immutably
         const current = dataRef.current;
         const nextNumber = getTrackIndex(current.tracks, 'V') + 1;
         targetTrackId = `V${nextNumber}`;
+        const newTrack = { id: targetTrackId, kind: 'visual' as const, label: `V${nextNumber}` };
+        const newRow = { id: targetTrackId, actions: [] };
         dataRef.current = {
           ...current,
-          tracks: [...current.tracks, { id: targetTrackId, kind: 'visual' as const, label: `V${nextNumber}` }],
-          rows: [...current.rows, { id: targetTrackId, actions: [] }],
+          tracks: insertAtTop ? [newTrack, ...current.tracks] : [...current.tracks, newTrack],
+          rows: insertAtTop ? [newRow, ...current.rows] : [...current.rows, newRow],
         };
       }
       handleAddTextAt(targetTrackId, dropPosition.time);
@@ -195,10 +198,12 @@ export function useExternalDrop({
       if (!targetTrackId) {
         const nextNumber = getTrackIndex(current.tracks, 'V') + 1;
         targetTrackId = `V${nextNumber}`;
+        const newTrack = { id: targetTrackId, kind: 'visual' as const, label: `V${nextNumber}` };
+        const newRow = { id: targetTrackId, actions: [] };
         current = {
           ...current,
-          tracks: [...current.tracks, { id: targetTrackId, kind: 'visual', label: `V${nextNumber}` }],
-          rows: [...current.rows, { id: targetTrackId, actions: [] }],
+          tracks: insertAtTop ? [newTrack, ...current.tracks] : [...current.tracks, newTrack],
+          rows: insertAtTop ? [newRow, ...current.rows] : [...current.rows, newRow],
         };
         dataRef.current = current;
       }
@@ -257,10 +262,12 @@ export function useExternalDrop({
           const prefix = kind === 'audio' ? 'A' : 'V';
           const nextNumber = getTrackIndex(dataRef.current.tracks, prefix) + 1;
           compatibleTrackId = `${prefix}${nextNumber}`;
+          const newTrack = { id: compatibleTrackId, kind, label: `${prefix}${nextNumber}` };
+          const newRow = { id: compatibleTrackId, actions: [] };
           dataRef.current = {
             ...dataRef.current,
-            tracks: [...dataRef.current.tracks, { id: compatibleTrackId, kind, label: `${prefix}${nextNumber}` }],
-            rows: [...dataRef.current.rows, { id: compatibleTrackId, actions: [] }],
+            tracks: insertAtTop ? [newTrack, ...dataRef.current.tracks] : [...dataRef.current.tracks, newTrack],
+            rows: insertAtTop ? [newRow, ...dataRef.current.rows] : [...dataRef.current.rows, newRow],
           };
         }
 
@@ -340,7 +347,7 @@ export function useExternalDrop({
     if (generationData && dataRef.current) {
       const assetId = registerGenerationAsset(generationData);
       if (assetId) {
-        handleAssetDrop(assetId, resolvedDropTrackId, dropPosition.time, dropPosition.isNewTrack);
+        handleAssetDrop(assetId, resolvedDropTrackId, dropPosition.time, dropPosition.isNewTrack, insertAtTop);
       }
       return;
     }
@@ -352,7 +359,7 @@ export function useExternalDrop({
     }
 
     if (dropPosition.isNewTrack) {
-      handleAssetDrop(assetKey, undefined, dropPosition.time, true);
+      handleAssetDrop(assetKey, undefined, dropPosition.time, true, insertAtTop);
       return;
     }
 

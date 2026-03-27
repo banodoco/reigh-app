@@ -33,8 +33,10 @@ interface ClipPanelProps {
 
 export const NO_EFFECT = '__none__';
 export const TAB_COLUMNS_CLASS = {
+  2: 'grid-cols-2',
   3: 'grid-cols-3',
   4: 'grid-cols-4',
+  5: 'grid-cols-5',
 } as const;
 
 export function getVisibleClipTabs(

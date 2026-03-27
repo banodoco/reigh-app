@@ -68,7 +68,13 @@ export const DropIndicator = forwardRef<DropIndicatorHandle, DropIndicatorProps>
     const showNewTrack = position?.isNewTrack === true && position?.trackId === undefined;
     editArea.classList.toggle('drop-target-new-track', showNewTrack);
 
-    onNewTrackLabel?.(showNewTrack ? 'new-track' : null);
+    if (showNewTrack) {
+      const kind = position?.newTrackKind ?? 'visual';
+      const where = position?.isNewTrackTop ? 'top' : 'bottom';
+      onNewTrackLabel?.(`Drop to create new ${kind} track at ${where}`);
+    } else {
+      onNewTrackLabel?.(null);
+    }
 
     return () => {
       editArea.classList.remove('drop-target-new-track');

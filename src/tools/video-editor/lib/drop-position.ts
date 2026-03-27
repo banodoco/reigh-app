@@ -27,6 +27,8 @@ export interface DropPosition {
   trackKind: TrackKind | null;
   trackName: string;
   isNewTrack: boolean;
+  /** Whether the new track should be inserted at the top (true) or bottom (false/undefined). */
+  isNewTrackTop?: boolean;
   isReject: boolean;
   /** When non-null, dropping here will create a new track of this kind. */
   newTrackKind: TrackKind | null;
@@ -96,12 +98,16 @@ export const computeDropPosition = ({
 
   const rowCount = current?.rows.length ?? 0;
   const rawRowIndex = rawRowIndexFromY(clientY, editRect.top, scrollTop, rowHeight);
-  const isNewTrack = rowCount === 0 || rawRowIndex >= rowCount;
+  const isNewTrackBottom = rowCount === 0 || rawRowIndex >= rowCount;
+  const isNewTrackTop = rawRowIndex < 0 && rowCount > 0;
+  const isNewTrack = isNewTrackBottom || isNewTrackTop;
   const rowIndex = rowCount === 0
     ? 0
-    : isNewTrack
+    : isNewTrackBottom
       ? rowCount
-      : Math.min(Math.max(rawRowIndex, 0), rowCount - 1);
+      : isNewTrackTop
+        ? 0
+        : Math.min(Math.max(rawRowIndex, 0), rowCount - 1);
   const visualRowIndex = rowCount > 0 ? Math.min(rowIndex, rowCount - 1) : -1;
   const targetRow = visualRowIndex >= 0 ? current?.rows[visualRowIndex] : undefined;
   const targetTrack = visualRowIndex >= 0 ? current?.tracks[visualRowIndex] : undefined;
@@ -174,6 +180,7 @@ export const computeDropPosition = ({
     trackKind: needsNewTrack ? sourceKind : resolvedTrackKind,
     trackName: resolvedTrackName,
     isNewTrack: needsNewTrack,
+    isNewTrackTop: needsNewTrack && isNewTrackTop,
     isReject: false,
     newTrackKind,
     screenCoords: {

@@ -44,7 +44,7 @@ export interface UseAssetManagementResult {
       original_filename: string;
     };
   }>;
-  handleAssetDrop: (assetKey: string, trackId: string | undefined, time: number, forceNewTrack?: boolean) => void;
+  handleAssetDrop: (assetKey: string, trackId: string | undefined, time: number, forceNewTrack?: boolean, insertAtTop?: boolean) => void;
 }
 
 export function useAssetManagement({
@@ -141,7 +141,7 @@ export function useAssetManagement({
     };
   }, [selectedProjectId]);
 
-  const handleAssetDrop = useCallback((assetKey: string, trackId: string | undefined, time: number, forceNewTrack = false) => {
+  const handleAssetDrop = useCallback((assetKey: string, trackId: string | undefined, time: number, forceNewTrack = false, insertAtTop = false) => {
     let current = dataRef.current;
     if (!current) {
       return;
@@ -165,8 +165,8 @@ export function useAssetManagement({
       };
       current = {
         ...current,
-        tracks: [...current.tracks, newTrack],
-        rows: [...current.rows, { id: resolvedTrackId, actions: [] }],
+        tracks: insertAtTop ? [newTrack, ...current.tracks] : [...current.tracks, newTrack],
+        rows: insertAtTop ? [{ id: resolvedTrackId, actions: [] }, ...current.rows] : [...current.rows, { id: resolvedTrackId, actions: [] }],
       };
       dataRef.current = current;
     }
