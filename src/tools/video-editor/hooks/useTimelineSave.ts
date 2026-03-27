@@ -127,6 +127,7 @@ export function useTimelineSave(
     meta: Record<string, ClipMeta>,
     clipOrder: ClipOrderMap,
   ) => {
+    const t0 = performance.now();
     const config = rowsToConfig(
       rows,
       meta,
@@ -135,11 +136,15 @@ export function useTimelineSave(
       current.tracks,
       current.config.customEffects,
     );
+    const t1 = performance.now();
 
-    return preserveUploadingClips(
+    const result = preserveUploadingClips(
       { ...current, rows, meta } as TimelineData,
       buildDataFromCurrentRegistry(config, current),
     );
+    const t2 = performance.now();
+    if (t2 - t0 > 5) console.log('[TimelineSave] materializeData took', (t2 - t0).toFixed(1), 'ms (rowsToConfig:', (t1 - t0).toFixed(1), ', buildData:', (t2 - t1).toFixed(1), ')');
+    return result;
   }, []);
 
   const saveTimeline = useCallback(async (
@@ -151,6 +156,7 @@ export function useTimelineSave(
     },
   ) => {
     if (isSavingRef.current && !options?.bypassQueue) {
+      console.log('[TimelineSave] queuing save (already in flight), seq:', seq);
       pendingSaveRef.current = { data: nextData, seq };
       return;
     }
@@ -160,6 +166,7 @@ export function useTimelineSave(
     if (!options?.bypassQueue) {
       isSavingRef.current = true;
     }
+    console.log('[TimelineSave] saving, seq:', seq, 'version:', configVersionRef.current, 'bypass:', !!options?.bypassQueue);
     setSaveStatus('saving');
     try {
       const expectedVersion = configVersionRef.current;
@@ -299,14 +306,18 @@ export function useTimelineSave(
     nextData: TimelineData,
     options?: CommitDataOptions,
   ) => {
+    const t0 = performance.now();
     const shouldSave = options?.save ?? true;
     const currentData = dataRef.current;
 
     if (shouldSave && !options?.skipHistory && currentData) {
+      const t1 = performance.now();
       onBeforeCommitRef.current?.(currentData, {
         transactionId: options?.transactionId,
         semantic: options?.semantic,
       });
+      const dt = performance.now() - t1;
+      if (dt > 5) console.log('[TimelineSave] onBeforeCommit took', dt.toFixed(1), 'ms');
     }
 
     dataRef.current = nextData;
@@ -342,6 +353,8 @@ export function useTimelineSave(
       editSeqRef.current += 1;
       scheduleSave(nextData);
     }
+    const totalDt = performance.now() - t0;
+    if (totalDt > 10) console.log('[TimelineSave] commitData total took', totalDt.toFixed(1), 'ms, clips:', nextData.config.clips.length, 'tracks:', nextData.tracks.length);
   }, [pruneSelectionRef, scheduleSave]);
 
   const applyTimelineEdit = useCallback((

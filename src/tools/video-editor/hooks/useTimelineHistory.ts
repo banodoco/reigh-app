@@ -54,10 +54,11 @@ function cloneConfig(config: TimelineConfig): TimelineConfig {
 }
 
 function buildSnapshot(currentData: TimelineData): UndoSnapshot {
-  return {
-    config: cloneConfig(currentData.config),
-    signature: currentData.signature,
-  };
+  const t0 = performance.now();
+  const config = cloneConfig(currentData.config);
+  const dt = performance.now() - t0;
+  if (dt > 5) console.log('[TimelineHistory] structuredClone took', dt.toFixed(1), 'ms, clips:', config.clips.length);
+  return { config, signature: currentData.signature };
 }
 
 function isCheckpointFresh(checkpoint: Checkpoint, now: number): boolean {

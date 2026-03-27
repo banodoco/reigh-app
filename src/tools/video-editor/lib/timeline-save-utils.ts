@@ -19,9 +19,12 @@ export function buildDataFromCurrentRegistry(
   config: TimelineConfig,
   current: TimelineData,
 ): TimelineData {
+  const t0 = performance.now();
   // Run migration first so the saved/snapshotted config stays canonical.
   const migratedConfig = migrateToFlatTracks(config);
   migratedConfig.tracks = migratedConfig.tracks ?? [];
+  const t1 = performance.now();
+
   const resolvedConfig = {
     output: { ...migratedConfig.output },
     tracks: migratedConfig.tracks,
@@ -32,7 +35,7 @@ export function buildDataFromCurrentRegistry(
     registry: current.resolvedConfig.registry,
   };
 
-  return assembleTimelineData({
+  const result = assembleTimelineData({
     config: migratedConfig,
     configVersion: current.configVersion,
     registry: current.registry,
@@ -42,4 +45,7 @@ export function buildDataFromCurrentRegistry(
     ),
     output: { ...migratedConfig.output },
   });
+  const t2 = performance.now();
+  if (t2 - t0 > 5) console.log('[TimelineSave] buildDataFromCurrentRegistry took', (t2 - t0).toFixed(1), 'ms (migrate:', (t1 - t0).toFixed(1), ', assemble:', (t2 - t1).toFixed(1), ')');
+  return result;
 }
