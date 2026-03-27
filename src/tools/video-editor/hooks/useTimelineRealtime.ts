@@ -6,23 +6,27 @@ import { timelineListQueryKey } from '@/tools/video-editor/hooks/useTimelinesLis
 
 interface UseTimelineRealtimeOptions {
   timelineId: string;
+  conflictExhausted: boolean;
   saveStatus: 'saved' | 'saving' | 'dirty' | 'error';
+  onKeepLocalChanges: () => Promise<void>;
   onDiscardRemoteChanges: () => Promise<void>;
 }
 
 export function useTimelineRealtime({
   timelineId,
+  conflictExhausted,
   saveStatus,
+  onKeepLocalChanges,
   onDiscardRemoteChanges,
 }: UseTimelineRealtimeOptions) {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    if (saveStatus === 'error') {
+    if (conflictExhausted) {
       setIsOpen(true);
     }
-  }, [saveStatus]);
+  }, [conflictExhausted]);
 
   useEffect(() => {
     return realtimeEventProcessor.onEvent((event) => {
@@ -46,7 +50,12 @@ export function useTimelineRealtime({
     });
   }, [queryClient, saveStatus, timelineId]);
 
-  const keepLocalChanges = useCallback(() => setIsOpen(false), []);
+  const keepLocalChanges = useCallback(async () => {
+    setIsOpen(false);
+    if (conflictExhausted) {
+      await onKeepLocalChanges();
+    }
+  }, [conflictExhausted, onKeepLocalChanges]);
 
   const discardAndReload = useCallback(async () => {
     setIsOpen(false);

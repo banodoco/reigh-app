@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { Download, Eye, GripHorizontal, History, Maximize2, Minimize2, Redo2, Settings, SlidersHorizontal, Undo2, Video, Volume2, ZoomIn, ZoomOut } from 'lucide-react';
+import { Download, Eye, GripHorizontal, History, Maximize2, Minimize2, Redo2, Settings, SlidersHorizontal, Undo2, ZoomIn, ZoomOut } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/shared/components/ui/alert-dialog';
 import { Badge } from '@/shared/components/ui/badge';
@@ -65,7 +65,9 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
   const [condensedRightPanel, setCondensedRightPanel] = useState<'preview' | 'properties'>('preview');
   const conflict = useTimelineRealtime({
     timelineId,
+    conflictExhausted: chrome.isConflictExhausted,
     saveStatus: chrome.saveStatus,
+    onKeepLocalChanges: chrome.retrySaveAfterConflict,
     onDiscardRemoteChanges: chrome.reloadFromServer,
   });
 
@@ -457,7 +459,7 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={conflict.keepLocalChanges}>Keep local draft</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => void conflict.keepLocalChanges()}>Keep local draft</AlertDialogCancel>
             <AlertDialogAction onClick={() => void conflict.discardAndReload()}>Discard and reload</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

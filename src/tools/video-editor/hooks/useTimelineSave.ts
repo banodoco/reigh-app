@@ -34,6 +34,8 @@ import type { AssetRegistryEntry, TimelineConfig } from '@/tools/video-editor/ty
 export type SaveStatus = 'saved' | 'saving' | 'dirty' | 'error';
 export { shouldAcceptPolledData } from '@/tools/video-editor/lib/timeline-save-utils';
 
+const MAX_CONFLICT_RETRIES = 3;
+
 type CommitHistoryOptions = {
   transactionId?: string;
   semantic?: boolean;
@@ -71,6 +73,9 @@ export function useTimelineSave(
   const editSeqRef = useRef(0);
   const savedSeqRef = useRef(0);
   const configVersionRef = useRef(1);
+  const conflictRetryRef = useRef(0);
+  const isSavingRef = useRef(false);
+  const pendingSaveRef = useRef<{ data: TimelineData; seq: number } | null>(null);
   const dataRef = useRef<TimelineData | null>(null);
   const lastRegistryDataRef = useRef<Awaited<ReturnType<typeof provider.loadAssetRegistry>> | null>(null);
   const selectedClipIdRef = useRef<string | null>(null);
@@ -81,6 +86,7 @@ export function useTimelineSave(
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
+  const [isConflictExhausted, setIsConflictExhausted] = useState(false);
 
   useLayoutEffect(() => {
     dataRef.current = data;
@@ -98,31 +104,20 @@ export function useTimelineSave(
     () => undefined,
   );
 
+  const handleConflictExhausted = useCallback((details: {
+    expectedVersion: number;
+    actualVersion?: number;
+    retries: number;
+    reason: 'load_failed' | 'max_retries' | 'missing_local_data';
+  }) => {
+    console.log('[TimelineSave] conflict retries exhausted', details);
+    setIsConflictExhausted(true);
+    setSaveStatus('error');
+  }, []);
+
   const saveMutation = useMutation({
     mutationFn: ({ config, expectedVersion }: { config: TimelineConfig; expectedVersion: number }) => {
       return provider.saveTimeline(timelineId, config, expectedVersion);
-    },
-    onError: (error: unknown) => {
-      setSaveStatus('error');
-
-      if (isTimelineVersionConflictError(error)) {
-        // Version conflict: another writer updated the config since our last
-        // save. Fetch the current version from the server so the next save
-        // attempt uses the right expected_version.
-        void provider.loadTimeline(timelineId).then((loaded) => {
-          configVersionRef.current = loaded.configVersion;
-          if (dataRef.current) {
-            scheduleSaveRef.current(dataRef.current, { preserveStatus: true });
-          }
-        }).catch(() => {
-          // If the version refresh fails, the next poll (30s) will update it.
-        });
-        return;
-      }
-
-      if (dataRef.current) {
-        scheduleSaveRef.current(dataRef.current, { preserveStatus: true });
-      }
     },
   });
 
@@ -147,39 +142,138 @@ export function useTimelineSave(
     );
   }, []);
 
-  const saveTimeline = useCallback(async (nextData: TimelineData, seq: number) => {
+  const saveTimeline = useCallback(async (
+    nextData: TimelineData,
+    seq: number,
+    options?: {
+      bypassQueue?: boolean;
+      completedSeqRef?: { current: number | null };
+    },
+  ) => {
+    if (isSavingRef.current && !options?.bypassQueue) {
+      pendingSaveRef.current = { data: nextData, seq };
+      return;
+    }
+
+    const completedSeqRef = options?.completedSeqRef ?? { current: null };
+
+    if (!options?.bypassQueue) {
+      isSavingRef.current = true;
+    }
     setSaveStatus('saving');
-
-    const expectedVersion = configVersionRef.current;
-    await saveMutation.mutateAsync(
-      {
-        config: nextData.config,
-        expectedVersion,
-      },
-      {
-        onSuccess: (nextVersion) => {
-          configVersionRef.current = nextVersion;
-
-          if (dataRef.current?.signature === nextData.signature) {
-            const persistedData = {
-              ...dataRef.current,
-              configVersion: nextVersion,
-            };
-            dataRef.current = persistedData;
-            setData(persistedData);
-          }
-
-          if (seq > savedSeqRef.current) {
-            savedSeqRef.current = seq;
-            lastSavedSignature.current = nextData.signature;
-          }
-
-          setSaveStatus(seq >= editSeqRef.current ? 'saved' : 'dirty');
-          onSaveSuccessRef.current?.();
+    try {
+      const expectedVersion = configVersionRef.current;
+      await saveMutation.mutateAsync(
+        {
+          config: nextData.config,
+          expectedVersion,
         },
-      },
-    );
-  }, [onSaveSuccessRef, saveMutation]);
+        {
+          onSuccess: (nextVersion) => {
+            configVersionRef.current = nextVersion;
+            completedSeqRef.current = seq;
+
+            if (conflictRetryRef.current > 0) {
+              console.log('[TimelineSave] conflict retry succeeded', {
+                attempts: conflictRetryRef.current,
+                finalVersion: nextVersion,
+              });
+            }
+
+            conflictRetryRef.current = 0;
+            setIsConflictExhausted(false);
+
+            if (dataRef.current?.signature === nextData.signature) {
+              const persistedData = {
+                ...dataRef.current,
+                configVersion: nextVersion,
+              };
+              dataRef.current = persistedData;
+              setData(persistedData);
+            }
+
+            if (seq > savedSeqRef.current) {
+              savedSeqRef.current = seq;
+              lastSavedSignature.current = nextData.signature;
+            }
+
+            setSaveStatus(seq >= editSeqRef.current ? 'saved' : 'dirty');
+            onSaveSuccessRef.current?.();
+          },
+        },
+      );
+    } catch (error) {
+      if (isTimelineVersionConflictError(error)) {
+        const expectedVersion = configVersionRef.current;
+        let actualVersion: number | undefined;
+
+        try {
+          const loaded = await provider.loadTimeline(timelineId);
+          actualVersion = loaded.configVersion;
+          configVersionRef.current = loaded.configVersion;
+          console.log('[TimelineSave] conflict detected', {
+            expectedVersion,
+            actualVersion,
+          });
+        } catch {
+          handleConflictExhausted({
+            expectedVersion,
+            retries: conflictRetryRef.current,
+            reason: 'load_failed',
+          });
+          return;
+        }
+
+        if (!dataRef.current) {
+          handleConflictExhausted({
+            expectedVersion,
+            actualVersion,
+            retries: conflictRetryRef.current,
+            reason: 'missing_local_data',
+          });
+          return;
+        }
+
+        if (conflictRetryRef.current >= MAX_CONFLICT_RETRIES) {
+          handleConflictExhausted({
+            expectedVersion,
+            actualVersion,
+            retries: conflictRetryRef.current,
+            reason: 'max_retries',
+          });
+          return;
+        }
+
+        conflictRetryRef.current += 1;
+        console.log('[TimelineSave] retrying save after conflict', {
+          attempt: conflictRetryRef.current,
+          expectedVersion,
+          actualVersion,
+        });
+        return await saveTimeline(dataRef.current, editSeqRef.current, {
+          bypassQueue: true,
+          completedSeqRef,
+        });
+      }
+
+      setSaveStatus('error');
+      if (dataRef.current) {
+        scheduleSaveRef.current(dataRef.current, { preserveStatus: true });
+      }
+    } finally {
+      if (!options?.bypassQueue) {
+        isSavingRef.current = false;
+
+        const pendingSave = pendingSaveRef.current;
+        if (pendingSave) {
+          pendingSaveRef.current = null;
+          if (completedSeqRef.current === null || pendingSave.seq > completedSeqRef.current) {
+            void saveTimeline(pendingSave.data, pendingSave.seq);
+          }
+        }
+      }
+    }
+  }, [handleConflictExhausted, onSaveSuccessRef, provider, saveMutation, timelineId]);
 
   const scheduleSave = useCallback((nextData: TimelineData, options?: { preserveStatus?: boolean }) => {
     if (!options?.preserveStatus) {
@@ -192,6 +286,7 @@ export function useTimelineSave(
 
     saveTimer.current = setTimeout(() => {
       saveTimer.current = null;
+      conflictRetryRef.current = 0;
       void saveTimeline(nextData, editSeqRef.current);
     }, 500);
   }, [saveTimeline]);
@@ -466,6 +561,9 @@ export function useTimelineSave(
       provider.loadAssetRegistry(timelineId),
     ]);
 
+    conflictRetryRef.current = 0;
+    pendingSaveRef.current = null;
+    setIsConflictExhausted(false);
     editSeqRef.current = savedSeqRef.current;
     configVersionRef.current = loadedTimeline.configVersion;
 
@@ -487,9 +585,34 @@ export function useTimelineSave(
     setSaveStatus('saved');
   }, [commitData, provider, timelineId]);
 
+  const retrySaveAfterConflict = useCallback(async () => {
+    if (!dataRef.current) {
+      return;
+    }
+
+    setIsConflictExhausted(false);
+    setSaveStatus('saving');
+    conflictRetryRef.current = 0;
+
+    try {
+      const loaded = await provider.loadTimeline(timelineId);
+      configVersionRef.current = loaded.configVersion;
+      if (dataRef.current) {
+        void saveTimeline(dataRef.current, editSeqRef.current);
+      }
+    } catch {
+      handleConflictExhausted({
+        expectedVersion: configVersionRef.current,
+        retries: conflictRetryRef.current,
+        reason: 'load_failed',
+      });
+    }
+  }, [handleConflictExhausted, provider, saveTimeline, timelineId]);
+
   return {
     data,
     dataRef,
+    isConflictExhausted,
     selectedClipId,
     selectedTrackId,
     saveStatus,
@@ -501,6 +624,7 @@ export function useTimelineSave(
     commitData,
     onBeforeCommitRef,
     reloadFromServer,
+    retrySaveAfterConflict,
     editSeqRef,
     savedSeqRef,
     selectedClipIdRef,

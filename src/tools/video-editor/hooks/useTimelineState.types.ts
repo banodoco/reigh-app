@@ -87,6 +87,7 @@ export interface TimelineEditorContextValue {
 export interface TimelineChromeContextValue {
   timelineName: string | null;
   saveStatus: TimelineDataHook['saveStatus'];
+  isConflictExhausted: TimelineDataHook['isConflictExhausted'];
   renderStatus: TimelineDataHook['renderStatus'];
   renderLog: TimelineDataHook['renderLog'];
   renderDirty: TimelineDataHook['renderDirty'];
@@ -107,6 +108,7 @@ export interface TimelineChromeContextValue {
   handleAddText: ClipEditingHook['handleAddText'];
   handleAddTextAt: ClipEditingHook['handleAddTextAt'];
   reloadFromServer: TimelineDataHook['reloadFromServer'];
+  retrySaveAfterConflict: TimelineDataHook['retrySaveAfterConflict'];
   startRender: TimelineDataHook['startRender'];
 }
 

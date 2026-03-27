@@ -335,6 +335,7 @@ export function useTimelineState(): UseTimelineStateResult {
   const chrome = useMemo<TimelineChromeContextValue>(() => ({
     timelineName: runtime.timelineName ?? null,
     saveStatus: dataHook.saveStatus,
+    isConflictExhausted: dataHook.isConflictExhausted,
     renderStatus: dataHook.renderStatus,
     renderLog: dataHook.renderLog,
     renderDirty: dataHook.renderDirty,
@@ -355,10 +356,13 @@ export function useTimelineState(): UseTimelineStateResult {
     handleAddText: clipEditing.handleAddText,
     handleAddTextAt: clipEditing.handleAddTextAt,
     reloadFromServer: dataHook.reloadFromServer,
+    retrySaveAfterConflict: dataHook.retrySaveAfterConflict,
     startRender: dataHook.startRender,
   }), [
     runtime.timelineName,
+    dataHook.isConflictExhausted,
     dataHook.reloadFromServer,
+    dataHook.retrySaveAfterConflict,
     dataHook.renderDirty,
     dataHook.renderLog,
     dataHook.renderProgress,

@@ -32,6 +32,7 @@ export interface UseTimelineDataResult {
   compositionSize: { width: number; height: number };
   trackScaleMap: Record<string, number>;
   saveStatus: SaveStatus;
+  isConflictExhausted: boolean;
   renderStatus: RenderStatus;
   renderLog: string;
   renderDirty: boolean;
@@ -73,6 +74,7 @@ export interface UseTimelineDataResult {
   uploadFiles: (files: File[]) => Promise<void>;
   invalidateAssetRegistry: () => Promise<void>;
   reloadFromServer: () => Promise<void>;
+  retrySaveAfterConflict: () => Promise<void>;
   startRender: () => Promise<void>;
   undo: () => void;
   redo: () => void;
@@ -118,6 +120,7 @@ export function useTimelineData(): UseTimelineDataResult {
     compositionSize: derived.compositionSize,
     trackScaleMap: derived.trackScaleMap,
     saveStatus: save.saveStatus,
+    isConflictExhausted: save.isConflictExhausted,
     renderStatus: render.renderStatus,
     renderLog: render.renderLog,
     renderDirty: render.renderDirty,
@@ -150,6 +153,7 @@ export function useTimelineData(): UseTimelineDataResult {
     uploadFiles: assets.uploadFiles,
     invalidateAssetRegistry: assets.invalidateAssetRegistry,
     reloadFromServer: save.reloadFromServer,
+    retrySaveAfterConflict: save.retrySaveAfterConflict,
     startRender: render.startRender,
     undo: history.undo,
     redo: history.redo,
