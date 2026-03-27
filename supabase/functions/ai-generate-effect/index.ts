@@ -271,21 +271,12 @@ serve(async (req) => {
 
     if (isEditMode) {
       logger.info(`[AI-GENERATE-EFFECT] edit mode → ${EDIT_MODEL}`);
-      await logger.flush(); // flush before long call
+      await logger.flush();
       llmResponse = await callOpenRouter(EDIT_MODEL, messages, logger);
     } else {
-      const complexity = await triagePrompt(prompt, category as EffectCategory, logger);
-      await logger.flush(); // flush triage result before long call
-
-      if (complexity === "complex") {
-        logger.info(`[AI-GENERATE-EFFECT] complex → ${OPENROUTER_COMPLEX_MODEL}`);
-        await logger.flush();
-        llmResponse = await callOpenRouter(OPENROUTER_COMPLEX_MODEL, messages, logger);
-      } else {
-        logger.info(`[AI-GENERATE-EFFECT] simple → ${GROQ_GENERATE_MODEL} (Groq)`);
-        await logger.flush();
-        llmResponse = await callGroq(messages, logger);
-      }
+      logger.info(`[AI-GENERATE-EFFECT] create mode → ${GROQ_GENERATE_MODEL} (Groq)`);
+      await logger.flush();
+      llmResponse = await callGroq(messages, logger);
     }
 
     logger.info(`[AI-GENERATE-EFFECT] raw output length=${llmResponse.content.length}, first 200 chars: ${llmResponse.content.slice(0, 200)}`);
