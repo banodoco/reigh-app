@@ -1,5 +1,6 @@
 // deno-lint-ignore-file
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import Groq from "npm:groq-sdk@0.26.0";
 import {
   enforceRateLimit,
   RATE_LIMITS,
@@ -13,42 +14,131 @@ import {
   type EffectCategory,
 } from "./templates.ts";
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const CREATE_MODEL = "moonshotai/kimi-k2.5";
+// ── Models ───────────────────────────────────────────────────────────
+// Triage: fast Groq call to classify complexity
+const GROQ_TRIAGE_MODEL = "moonshotai/kimi-k2-instruct-0905";
+const GROQ_TIMEOUT_MS = 15_000;
+
+// Generation: simple → Groq (fast), complex → OpenRouter Kimi K2.5 (reasoning)
+const GROQ_GENERATE_MODEL = "moonshotai/kimi-k2-instruct-0905";
+const OPENROUTER_COMPLEX_MODEL = "moonshotai/kimi-k2.5";
 const EDIT_MODEL = "qwen/qwen3.5-27b";
-const TIMEOUT_MS = 120_000;
+
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const OPENROUTER_TIMEOUT_MS = 120_000;
+const GROQ_GENERATE_TIMEOUT_MS = 45_000;
+
 const EFFECT_CATEGORIES: EffectCategory[] = ["entrance", "exit", "continuous"];
 
 function isEffectCategory(value: unknown): value is EffectCategory {
   return typeof value === "string" && EFFECT_CATEGORIES.includes(value as EffectCategory);
 }
 
-interface OpenRouterResponse {
-  choices: Array<{
-    message: {
-      content?: string;
-      role: string;
-    };
-  }>;
-  model?: string;
-  usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+// ── Groq client ──────────────────────────────────────────────────────
+
+let groqClient: Groq | null = null;
+function getGroqClient(): Groq {
+  if (groqClient) return groqClient;
+  const apiKey = Deno.env.get("GROQ_API_KEY");
+  if (!apiKey) throw new Error("[ai-generate-effect] Missing GROQ_API_KEY");
+  groqClient = new Groq({ apiKey, timeout: GROQ_GENERATE_TIMEOUT_MS });
+  return groqClient;
+}
+
+// ── Response types ───────────────────────────────────────────────────
+
+interface LLMResponse {
+  content: string;
+  model: string;
+}
+
+// ── Triage: classify prompt as simple or complex ─────────────────────
+
+async function triagePrompt(
+  prompt: string,
+  category: EffectCategory,
+  logger: { info: (msg: string) => void },
+): Promise<'simple' | 'complex'> {
+  const groq = getGroqClient();
+
+  const triageSystemMsg = `You are classifying visual animation effect requests for a video editor.
+Reply with EXACTLY one word: "simple" or "complex".
+
+simple = standard animations: fades, slides, zooms, rotations, bounces, pulses, scale changes, opacity changes, basic color shifts, flips
+complex = anything involving: particle systems, physics simulations, multiple independent animated elements, procedural patterns, 3D transforms, shaders, fractals, generative art, complex math, custom easing curves with many keyframes, interactive/reactive elements
+
+If unsure, say "simple".`;
+
+  const triageUserMsg = `Category: ${category}\nRequest: "${prompt}"`;
+
+  try {
+    const startedAt = Date.now();
+    const response = await groq.chat.completions.create({
+      model: GROQ_TRIAGE_MODEL,
+      messages: [
+        { role: "system", content: triageSystemMsg },
+        { role: "user", content: triageUserMsg },
+      ],
+      temperature: 0,
+      max_tokens: 10,
+    } as Parameters<typeof groq.chat.completions.create>[0]);
+
+    const result = (response.choices[0]?.message?.content ?? "").trim().toLowerCase();
+    const classification = result.includes("complex") ? "complex" : "simple";
+    logger.info(`[AI-GENERATE-EFFECT] triage: "${result}" → ${classification} (${Date.now() - startedAt}ms)`);
+    return classification;
+  } catch (err: unknown) {
+    logger.info(`[AI-GENERATE-EFFECT] triage failed, defaulting to simple: ${toErrorMessage(err)}`);
+    return "simple";
+  }
+}
+
+// ── Groq generation (simple) ─────────────────────────────────────────
+
+async function callGroq(
+  messages: Array<{ role: string; content: string }>,
+  logger: { info: (msg: string) => void },
+): Promise<LLMResponse> {
+  const groq = getGroqClient();
+  const startedAt = Date.now();
+  logger.info(`[AI-GENERATE-EFFECT] Groq request: model=${GROQ_GENERATE_MODEL}`);
+
+  const response = await groq.chat.completions.create({
+    model: GROQ_GENERATE_MODEL,
+    messages: messages as Parameters<typeof groq.chat.completions.create>[0]["messages"],
+    temperature: 0.4,
+    max_tokens: 8192,
+    top_p: 1,
+  } as Parameters<typeof groq.chat.completions.create>[0]);
+
+  const content = response.choices[0]?.message?.content?.trim() ?? "";
+  logger.info(`[AI-GENERATE-EFFECT] Groq response in ${Date.now() - startedAt}ms, model=${response.model}, length=${content.length}`);
+  return { content, model: response.model || GROQ_GENERATE_MODEL };
+}
+
+// ── OpenRouter generation (complex + edits) ──────────────────────────
+
+interface OpenRouterMessage {
+  content?: string;
+  reasoning_content?: string;
+  reasoning?: string;
+  role: string;
 }
 
 async function callOpenRouter(
   model: string,
   messages: Array<{ role: string; content: string }>,
   logger: { info: (msg: string) => void },
-): Promise<OpenRouterResponse> {
+): Promise<LLMResponse> {
   const apiKey = Deno.env.get("OPENROUTER_API_KEY");
-  if (!apiKey) {
-    throw new Error("[ai-generate-effect] Missing OPENROUTER_API_KEY");
-  }
+  if (!apiKey) throw new Error("[ai-generate-effect] Missing OPENROUTER_API_KEY");
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), OPENROUTER_TIMEOUT_MS);
 
   try {
     logger.info(`[AI-GENERATE-EFFECT] OpenRouter request: model=${model}`);
+    const startedAt = Date.now();
     const response = await fetch(OPENROUTER_URL, {
       method: "POST",
       headers: {
@@ -61,7 +151,7 @@ async function callOpenRouter(
         model,
         messages,
         temperature: 0.4,
-        max_tokens: 4096,
+        max_tokens: 65536,
         top_p: 1,
       }),
       signal: controller.signal,
@@ -72,13 +162,22 @@ async function callOpenRouter(
       throw new Error(`OpenRouter ${response.status}: ${text.slice(0, 500)}`);
     }
 
-    const data = await response.json() as OpenRouterResponse;
-    logger.info(`[AI-GENERATE-EFFECT] OpenRouter response: model=${data.model ?? model} usage=${JSON.stringify(data.usage ?? {})}`);
-    return data;
+    const data = await response.json() as {
+      choices: Array<{ message: OpenRouterMessage }>;
+      model?: string;
+      usage?: Record<string, unknown>;
+    };
+
+    const msg = data.choices[0]?.message;
+    const content = (msg?.content || msg?.reasoning_content || msg?.reasoning || "").trim();
+    logger.info(`[AI-GENERATE-EFFECT] OpenRouter response in ${Date.now() - startedAt}ms, model=${data.model ?? model}, content=${Boolean(msg?.content)}, reasoning=${Boolean(msg?.reasoning_content)}, length=${content.length}`);
+    return { content, model: data.model || model };
   } finally {
     clearTimeout(timeout);
   }
 }
+
+// ── Main handler ─────────────────────────────────────────────────────
 
 serve(async (req) => {
   const bootstrap = await bootstrapEdgeHandler(req, {
@@ -131,7 +230,6 @@ serve(async (req) => {
   }
 
   const isEditMode = Boolean(existingCode);
-  const model = isEditMode ? EDIT_MODEL : CREATE_MODEL;
 
   try {
     const { systemMsg, userMsg } = buildGenerateEffectMessages({
@@ -140,27 +238,41 @@ serve(async (req) => {
       category,
       existingCode,
     });
-
-    logger.info(`[AI-GENERATE-EFFECT] starting call, model=${model}, category=${category}, editMode=${isEditMode}`);
-    const startedAt = Date.now();
-    const response = await callOpenRouter(model, [
+    const messages = [
       { role: "system", content: systemMsg },
       { role: "user", content: userMsg },
-    ], logger);
-    logger.info(`[AI-GENERATE-EFFECT] call completed in ${Date.now() - startedAt}ms`);
+    ];
 
-    const outputText = response.choices[0]?.message?.content?.trim() || "";
-    logger.info(`[AI-GENERATE-EFFECT] raw output length=${outputText.length}, first 200 chars: ${outputText.slice(0, 200)}`);
+    let llmResponse: LLMResponse;
+
+    if (isEditMode) {
+      // Edits always go to Qwen 3.5 via OpenRouter
+      logger.info(`[AI-GENERATE-EFFECT] edit mode → ${EDIT_MODEL}`);
+      llmResponse = await callOpenRouter(EDIT_MODEL, messages, logger);
+    } else {
+      // Triage: simple → Groq (fast), complex → OpenRouter K2.5 (reasoning)
+      const complexity = await triagePrompt(prompt, category as EffectCategory, logger);
+
+      if (complexity === "complex") {
+        logger.info(`[AI-GENERATE-EFFECT] complex → ${OPENROUTER_COMPLEX_MODEL}`);
+        llmResponse = await callOpenRouter(OPENROUTER_COMPLEX_MODEL, messages, logger);
+      } else {
+        logger.info(`[AI-GENERATE-EFFECT] simple → ${GROQ_GENERATE_MODEL} (Groq)`);
+        llmResponse = await callGroq(messages, logger);
+      }
+    }
+
+    logger.info(`[AI-GENERATE-EFFECT] raw output length=${llmResponse.content.length}, first 200 chars: ${llmResponse.content.slice(0, 200)}`);
 
     let extracted;
     try {
-      extracted = extractEffectCodeAndMeta(outputText);
+      extracted = extractEffectCodeAndMeta(llmResponse.content);
     } catch (parseErr: unknown) {
       const parseMsg = parseErr instanceof Error ? parseErr.message : String(parseErr);
       logger.info(`[AI-GENERATE-EFFECT] extraction/validation failed: ${parseMsg}`);
-      logger.info(`[AI-GENERATE-EFFECT] full output: ${outputText.slice(0, 1000)}`);
+      logger.info(`[AI-GENERATE-EFFECT] full output: ${llmResponse.content.slice(0, 1000)}`);
       await logger.flush();
-      return jsonResponse({ error: parseMsg, rawOutput: outputText.slice(0, 500) }, 422);
+      return jsonResponse({ error: parseMsg, rawOutput: llmResponse.content.slice(0, 500) }, 422);
     }
     const { code, name: generatedName, description, parameterSchema } = extracted;
 
@@ -170,7 +282,7 @@ serve(async (req) => {
       name: generatedName,
       description,
       parameterSchema,
-      model: response.model || model,
+      model: llmResponse.model,
     });
   } catch (err: unknown) {
     const message = toErrorMessage(err);
