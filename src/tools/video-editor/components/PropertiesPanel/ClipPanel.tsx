@@ -84,12 +84,12 @@ function getMergedEffectParams(
   };
 }
 
-/** Returns a display label for a custom effect type, falling back to a short ID if not found */
-function getCustomEffectLabel(type: string | undefined, effects: EffectResource[]): string | null {
-  if (!type?.startsWith('custom:')) return null;
+/** Returns a display label for an effect type — handles both built-in and custom */
+function getEffectDisplayLabel(type: string | undefined, effects: EffectResource[]): string | null {
+  if (!type || type === NO_EFFECT) return null;
+  if (!type.startsWith('custom:')) return type; // built-in: just use the name
   const effect = findEffectResourceByType(type, effects);
   if (effect) return effect.name;
-  // Not loaded yet — show a truncated ID
   const id = type.slice(7);
   return `Effect ${id.slice(0, 8)}…`;
 }
@@ -99,6 +99,11 @@ function isCustomEffectInList(type: string | undefined, categoryEffects: EffectR
   if (!type?.startsWith('custom:')) return true;
   const id = type.slice(7);
   return categoryEffects.some((e) => e.id === id);
+}
+
+function EffectSelectValue({ type, effects }: { type: string | undefined; effects: EffectResource[] }) {
+  const label = getEffectDisplayLabel(type, effects);
+  return <SelectValue placeholder="None">{label ?? 'None'}</SelectValue>;
 }
 
 function hasParameterSchema(effect: EffectResource | undefined): effect is EffectResource & { parameterSchema: NonNullable<EffectResource['parameterSchema']> } {
@@ -185,7 +190,7 @@ export function ClipPanel({
                         },
                   })}
                 >
-                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectTrigger><EffectSelectValue type={clip.entrance?.type} effects={effectResources.effects} /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NO_EFFECT}>None</SelectItem>
                     {entranceEffectTypes.map((effect) => <SelectItem key={effect} value={effect}>{effect}</SelectItem>)}
@@ -251,7 +256,7 @@ export function ClipPanel({
                         },
                   })}
                 >
-                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectTrigger><EffectSelectValue type={clip.exit?.type} effects={effectResources.effects} /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NO_EFFECT}>None</SelectItem>
                     {exitEffectTypes.map((effect) => <SelectItem key={effect} value={effect}>{effect}</SelectItem>)}
@@ -317,7 +322,7 @@ export function ClipPanel({
                         },
                   })}
                 >
-                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectTrigger><EffectSelectValue type={clip.continuous?.type} effects={effectResources.effects} /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NO_EFFECT}>None</SelectItem>
                     {continuousEffectTypes.map((effect) => <SelectItem key={effect} value={effect}>{effect}</SelectItem>)}
