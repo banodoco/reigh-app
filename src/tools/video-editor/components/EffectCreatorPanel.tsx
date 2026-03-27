@@ -283,7 +283,7 @@ export function EffectCreatorPanel({
             category,
             existingCode: code || undefined,
           },
-          timeoutMs: 45_000,
+          timeoutMs: 120_000,
           signal: controller.signal,
         },
       );

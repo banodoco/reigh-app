@@ -16,7 +16,7 @@ import {
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const CREATE_MODEL = "moonshotai/kimi-k2.5";
 const EDIT_MODEL = "qwen/qwen3.5-27b";
-const TIMEOUT_MS = 45_000;
+const TIMEOUT_MS = 120_000;
 const EFFECT_CATEGORIES: EffectCategory[] = ["entrance", "exit", "continuous"];
 
 function isEffectCategory(value: unknown): value is EffectCategory {
@@ -150,8 +150,21 @@ serve(async (req) => {
     logger.info(`[AI-GENERATE-EFFECT] call completed in ${Date.now() - startedAt}ms`);
 
     const outputText = response.choices[0]?.message?.content?.trim() || "";
-    const { code, name: generatedName, description, parameterSchema } = extractEffectCodeAndMeta(outputText);
+    logger.info(`[AI-GENERATE-EFFECT] raw output length=${outputText.length}, first 200 chars: ${outputText.slice(0, 200)}`);
 
+    let extracted;
+    try {
+      extracted = extractEffectCodeAndMeta(outputText);
+    } catch (parseErr: unknown) {
+      const parseMsg = parseErr instanceof Error ? parseErr.message : String(parseErr);
+      logger.info(`[AI-GENERATE-EFFECT] extraction/validation failed: ${parseMsg}`);
+      logger.info(`[AI-GENERATE-EFFECT] full output: ${outputText.slice(0, 1000)}`);
+      await logger.flush();
+      return jsonResponse({ error: parseMsg, rawOutput: outputText.slice(0, 500) }, 422);
+    }
+    const { code, name: generatedName, description, parameterSchema } = extracted;
+
+    await logger.flush();
     return jsonResponse({
       code,
       name: generatedName,
@@ -162,6 +175,8 @@ serve(async (req) => {
   } catch (err: unknown) {
     const message = toErrorMessage(err);
     console.error("[ai-generate-effect] Error generating effect:", message);
+    logger.info(`[AI-GENERATE-EFFECT] error: ${message}`);
+    await logger.flush();
     return jsonResponse({ error: "Internal server error", details: message }, 500);
   }
 });
