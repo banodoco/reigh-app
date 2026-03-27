@@ -47,10 +47,10 @@ type EffectComponentProps = {
   params?: Record<string, unknown>;
 };`;
 
-const AVAILABLE_GLOBALS = `Available globals at runtime:
+const AVAILABLE_GLOBALS = `Available globals at runtime (use EXACTLY these names — no variations):
 - React
-- useCurrentFrame()
-- useVideoConfig()
+- useCurrentFrame (NOT useCurrentFrames, NOT useFrame)
+- useVideoConfig
 - interpolate(value, inputRange, outputRange, options?)
 - spring({ frame, fps, durationInFrames?, config? })
 - AbsoluteFill`;
@@ -314,7 +314,15 @@ export function extractEffectCodeAndMeta(responseText: string): ExtractedEffectM
   const { name, range: nameRange } = extractName(normalized);
   const { description, range: descriptionRange } = extractDescription(normalized);
   const { parameterSchema, range: parameterSchemaRange } = extractParameterSchema(normalized);
-  const code = stripRanges(normalized, [nameRange, descriptionRange, parameterSchemaRange]);
+  const rawCode = stripRanges(normalized, [nameRange, descriptionRange, parameterSchemaRange]);
+
+  // Auto-fix common LLM typos before validation
+  const code = rawCode
+    .replace(/\buseCurrentFrames\b/g, 'useCurrentFrame')
+    .replace(/\buseFrame\b(?!s)/g, 'useCurrentFrame')
+    .replace(/\buseConfig\b/g, 'useVideoConfig')
+    .replace(/\bAbsoluteFills\b/g, 'AbsoluteFill')
+    .replace(/\binterpolates\b/g, 'interpolate');
 
   validateExtractedEffectCode(code);
 
@@ -329,6 +337,14 @@ export function extractEffectCodeAndMeta(responseText: string): ExtractedEffectM
 export function extractEffectCode(responseText: string): string {
   return extractEffectCodeAndMeta(responseText).code;
 }
+
+const KNOWN_TYPOS: Array<[RegExp, string]> = [
+  [/\buseCurrentFrames\b/, 'useCurrentFrames should be useCurrentFrame (no "s")'],
+  [/\buseFrame\b(?!s)/, 'useFrame should be useCurrentFrame'],
+  [/\buseConfig\b/, 'useConfig should be useVideoConfig'],
+  [/\bAbsoluteFills\b/, 'AbsoluteFills should be AbsoluteFill (no "s")'],
+  [/\binterpolates\b/, 'interpolates should be interpolate (no "s")'],
+];
 
 export function validateExtractedEffectCode(code: string): void {
   if (!code.trim()) {
@@ -349,5 +365,11 @@ export function validateExtractedEffectCode(code: string): void {
 
   if (!code.includes('React.createElement')) {
     throw new Error('Generated effect code must use React.createElement instead of JSX');
+  }
+
+  for (const [pattern, message] of KNOWN_TYPOS) {
+    if (pattern.test(code)) {
+      throw new Error(`Generated code contains a typo: ${message}`);
+    }
   }
 }
