@@ -55,20 +55,28 @@ export function buildImagePayload(allShotGenerations: ShotGenRow[]): ImagePayloa
     return Boolean(url) && url !== '/placeholder.svg';
   });
 
+  const absoluteImageUrls = filteredImages
+    .map(item => getDisplayUrl(item.location))
+    .filter((url): url is string => Boolean(url) && url !== '/placeholder.svg');
+
+  // Only include mapped ID arrays when ALL items have the ID.
+  // A partial array (some IDs missing) would fail the cardinality check
+  // against image_urls, and a partial mapping is useless to the backend anyway.
+  const allGenerationIds = filteredImages.map(item => item.generationId);
+  const allVariantIds = filteredImages.map(item => item.primaryVariantId);
+  const allPairShotGenIds = filteredImages.slice(0, -1).map(item => item.shotGenerationId);
+
   return {
-    absoluteImageUrls: filteredImages
-      .map(item => getDisplayUrl(item.location))
-      .filter((url): url is string => Boolean(url) && url !== '/placeholder.svg'),
-    imageGenerationIds: filteredImages
-      .map(item => item.generationId)
-      .filter((id): id is string => Boolean(id)),
-    imageVariantIds: filteredImages
-      .map(item => item.primaryVariantId)
-      .filter((id): id is string => Boolean(id)),
-    pairShotGenerationIds: filteredImages
-      .slice(0, -1)
-      .map(item => item.shotGenerationId)
-      .filter((id): id is string => Boolean(id)),
+    absoluteImageUrls,
+    imageGenerationIds: allGenerationIds.every(Boolean)
+      ? (allGenerationIds as string[])
+      : [],
+    imageVariantIds: allVariantIds.every(Boolean)
+      ? (allVariantIds as string[])
+      : [],
+    pairShotGenerationIds: allPairShotGenIds.every(Boolean)
+      ? (allPairShotGenIds as string[])
+      : [],
   };
 }
 

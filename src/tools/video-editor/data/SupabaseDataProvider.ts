@@ -53,7 +53,7 @@ export class SupabaseDataProvider implements DataProvider {
       .eq('id', timelineId)
       .eq('project_id', this.options.projectId)
       .eq('user_id', this.options.userId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       throw error;
@@ -183,7 +183,7 @@ export class SupabaseDataProvider implements DataProvider {
       .eq('id', timelineId)
       .eq('project_id', this.options.projectId)
       .eq('user_id', this.options.userId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       throw error;
