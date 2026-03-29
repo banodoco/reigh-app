@@ -60,6 +60,14 @@ export class SupabaseDataProvider implements DataProvider {
       throw error;
     }
 
+    if (!data) {
+      console.error('[SupabaseDataProvider] loadTimeline returned null — project_id/user_id mismatch?', {
+        timelineId,
+        projectId: this.options.projectId,
+        userId: this.options.userId,
+      });
+    }
+
     const config = (data?.config ?? createDefaultTimelineConfig()) as TimelineConfig;
     validateSerializedConfig(config);
 
