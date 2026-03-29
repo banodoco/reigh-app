@@ -52,20 +52,10 @@ export class SupabaseDataProvider implements DataProvider {
       .from('timelines')
       .select('config, config_version')
       .eq('id', timelineId)
-      .eq('project_id', this.options.projectId)
-      .eq('user_id', this.options.userId)
       .maybeSingle();
 
     if (error) {
       throw error;
-    }
-
-    if (!data) {
-      console.error('[SupabaseDataProvider] loadTimeline returned null — project_id/user_id mismatch?', {
-        timelineId,
-        projectId: this.options.projectId,
-        userId: this.options.userId,
-      });
     }
 
     const config = (data?.config ?? createDefaultTimelineConfig()) as TimelineConfig;
@@ -82,13 +72,6 @@ export class SupabaseDataProvider implements DataProvider {
   async saveTimeline(timelineId: string, config: TimelineConfig, expectedVersion: number): Promise<number> {
     validateSerializedConfig(config);
 
-    console.error('[SupabaseDataProvider] saveTimeline called', {
-      timelineId,
-      expectedVersion,
-      clipCount: config.clips?.length,
-      timestamp: new Date().toISOString(),
-    });
-
     const { data, error } = await getSupabaseClient()
       .rpc('update_timeline_config_versioned' as never, {
         p_timeline_id: timelineId,
@@ -96,44 +79,15 @@ export class SupabaseDataProvider implements DataProvider {
         p_config: config,
       } as never);
 
-    console.error('[SupabaseDataProvider] saveTimeline response', {
-      hasError: !!error,
-      errorCode: error?.code,
-      errorMessage: error?.message,
-      errorHint: (error as { hint?: string } | null)?.hint,
-      dataType: typeof data,
-      isArray: Array.isArray(data),
-      dataLength: Array.isArray(data) ? data.length : 'n/a',
-      rawData: data,
-    });
-
     if (error) {
       throw error;
     }
 
     const rows = data as Array<{ config_version: number }> | null;
     if (!rows || rows.length === 0) {
-      // 0 rows can mean version mismatch OR row doesn't exist.
-      // Check which one to give the caller an actionable error.
-      const { data: existing } = await getSupabaseClient()
-        .from('timelines')
-        .select('config_version')
-        .eq('id', timelineId)
-        .maybeSingle();
-
-      if (!existing) {
-        console.error('[SupabaseDataProvider] timeline not found', { timelineId, expectedVersion });
-        throw new TimelineNotFoundError(timelineId);
-      }
-
-      console.error('[SupabaseDataProvider] version conflict — 0 rows returned', {
-        expectedVersion,
-        actualVersion: existing.config_version,
-      });
       throw new TimelineVersionConflictError();
     }
 
-    console.error('[SupabaseDataProvider] save success', { expectedVersion, newVersion: rows[0].config_version });
     return rows[0].config_version;
   }
 
@@ -225,8 +179,6 @@ export class SupabaseDataProvider implements DataProvider {
       .from('timelines')
       .select('asset_registry')
       .eq('id', timelineId)
-      .eq('project_id', this.options.projectId)
-      .eq('user_id', this.options.userId)
       .maybeSingle();
 
     if (error) {

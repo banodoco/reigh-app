@@ -104,14 +104,8 @@ export function useTimelineSave(
   // Only accept higher versions to prevent regression from stale polls.
   useEffect(() => {
     const polledVersion = timelineQuery.data?.configVersion;
-    console.error('[TimelineSave] configVersion effect', {
-      polledVersion,
-      currentRef: configVersionRef.current,
-      hasData: !!timelineQuery.data,
-    });
     if (timelineQuery.data && typeof polledVersion === 'number' && polledVersion > configVersionRef.current) {
       configVersionRef.current = polledVersion;
-      console.error('[TimelineSave] configVersionRef updated to', polledVersion);
     }
   }, [timelineQuery.data]);
 
