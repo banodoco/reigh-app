@@ -6,6 +6,7 @@ import type {
 import {
   getClipSourceDuration,
   getConfigSignature,
+  getStableConfigSignature,
   resolveTimelineConfig as resolveTimelineConfigShared,
   type UrlResolver,
 } from '@/tools/video-editor/lib/config-utils';
@@ -70,6 +71,7 @@ export interface TimelineData {
   tracks: TrackDefinition[];
   clipOrder: ClipOrderMap;
   signature: string;
+  stableSignature: string;
 }
 
 const ASSET_COLORS: Record<string, string> = {
@@ -301,12 +303,6 @@ export const rowsToConfig = (
   return config;
 };
 
-const sortTracksByKind = (tracks: TrackDefinition[]): TrackDefinition[] => {
-  const visual = tracks.filter((track) => track.kind === 'visual');
-  const audio = tracks.filter((track) => track.kind === 'audio');
-  return [...visual, ...audio];
-};
-
 interface AssembleTimelineDataParams {
   config: TimelineConfig;
   configVersion: number;
@@ -343,6 +339,7 @@ export const assembleTimelineData = ({
     tracks: rowData.tracks,
     clipOrder: rowData.clipOrder,
     signature: getConfigSignature(resolvedConfig),
+    stableSignature: getStableConfigSignature(config, registry),
   };
 };
 

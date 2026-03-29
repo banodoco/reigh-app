@@ -35,11 +35,15 @@ export type SaveStatus = 'saved' | 'saving' | 'dirty' | 'error';
 export { shouldAcceptPolledData } from '@/tools/video-editor/lib/timeline-save-utils';
 
 const MAX_CONFLICT_RETRIES = 3;
+const TIMELINE_SYNC_LOG_TAG = '[TimelineSync]';
 
 type CommitHistoryOptions = {
   transactionId?: string;
   semantic?: boolean;
 };
+
+type ConfigVersionUpdateSource = 'save' | 'poll' | 'reload' | 'conflict-retry';
+type PollCheckPhase = 'preflight' | 'timeout';
 
 type CommitDataOptions = {
   save?: boolean;
@@ -74,6 +78,7 @@ export function useTimelineSave(
   const savedSeqRef = useRef(0);
   const configVersionRef = useRef(1);
   const conflictRetryRef = useRef(0);
+  const pendingOpsRef = useRef(0);
   const isSavingRef = useRef(false);
   const pendingSaveRef = useRef<{ data: TimelineData; seq: number } | null>(null);
   const dataRef = useRef<TimelineData | null>(null);
@@ -94,15 +99,69 @@ export function useTimelineSave(
     selectedTrackIdRef.current = selectedTrackId;
   }, [data, selectedClipId, selectedTrackId]);
 
-  useEffect(() => {
-    if (timelineQuery.data) {
-      configVersionRef.current = timelineQuery.data.configVersion;
-    }
-  }, [timelineQuery.data]);
-
   const scheduleSaveRef = useRef<(nextData: TimelineData, options?: { preserveStatus?: boolean }) => void>(
     () => undefined,
   );
+
+  const logTimelineSync = useCallback((message: string, details?: Record<string, unknown>) => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    console.log(TIMELINE_SYNC_LOG_TAG, message, details);
+  }, []);
+
+  const logConfigVersionUpdate = useCallback((source: ConfigVersionUpdateSource, nextVersion: number) => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    console.log(TIMELINE_SYNC_LOG_TAG, 'configVersionRef updated', {
+      source,
+      from: configVersionRef.current,
+      to: nextVersion,
+    });
+  }, []);
+
+  const getPollRejectionReason = useCallback((polledData: TimelineData): string | null => {
+    if (savedSeqRef.current < editSeqRef.current) {
+      return 'unsaved edits';
+    }
+
+    if (pendingOpsRef.current > 0) {
+      return 'pending ops';
+    }
+
+    if (polledData.configVersion < configVersionRef.current) {
+      return 'stale version';
+    }
+
+    if (
+      !shouldAcceptPolledData(
+        editSeqRef.current,
+        savedSeqRef.current,
+        pendingOpsRef.current,
+        polledData.stableSignature,
+        lastSavedSignature.current,
+      )
+    ) {
+      return polledData.configVersion === configVersionRef.current ? 'own echo' : 'signature match';
+    }
+
+    return null;
+  }, []);
+
+  const logPollRejection = useCallback((phase: PollCheckPhase, polledData: TimelineData, reason: string) => {
+    logTimelineSync('poll rejected', {
+      phase,
+      reason,
+      polledConfigVersion: polledData.configVersion,
+      currentConfigVersion: configVersionRef.current,
+      editSeq: editSeqRef.current,
+      savedSeq: savedSeqRef.current,
+      pendingOps: pendingOpsRef.current,
+    });
+  }, [logTimelineSync]);
 
   const handleConflictExhausted = useCallback((details: {
     expectedVersion: number;
@@ -120,6 +179,13 @@ export function useTimelineSave(
       return provider.saveTimeline(timelineId, config, expectedVersion);
     },
   });
+
+  const loadConflictRetryVersion = useCallback(async (): Promise<number> => {
+    const loaded = await provider.loadTimeline(timelineId);
+    logConfigVersionUpdate('conflict-retry', loaded.configVersion);
+    configVersionRef.current = loaded.configVersion;
+    return loaded.configVersion;
+  }, [logConfigVersionUpdate, provider, timelineId]);
 
   const materializeData = useCallback((
     current: TimelineData,
@@ -170,6 +236,7 @@ export function useTimelineSave(
         },
         {
           onSuccess: (nextVersion) => {
+            logConfigVersionUpdate('save', nextVersion);
             configVersionRef.current = nextVersion;
             completedSeqRef.current = seq;
 
@@ -194,7 +261,7 @@ export function useTimelineSave(
 
             if (seq > savedSeqRef.current) {
               savedSeqRef.current = seq;
-              lastSavedSignature.current = nextData.signature;
+              lastSavedSignature.current = nextData.stableSignature;
             }
 
             setSaveStatus(seq >= editSeqRef.current ? 'saved' : 'dirty');
@@ -208,9 +275,7 @@ export function useTimelineSave(
         let actualVersion: number | undefined;
 
         try {
-          const loaded = await provider.loadTimeline(timelineId);
-          actualVersion = loaded.configVersion;
-          configVersionRef.current = loaded.configVersion;
+          actualVersion = await loadConflictRetryVersion();
           console.log('[TimelineSave] conflict detected', {
             expectedVersion,
             actualVersion,
@@ -273,7 +338,7 @@ export function useTimelineSave(
         }
       }
     }
-  }, [handleConflictExhausted, onSaveSuccessRef, provider, saveMutation, timelineId]);
+  }, [handleConflictExhausted, loadConflictRetryVersion, logConfigVersionUpdate, onSaveSuccessRef, saveMutation]);
 
   const scheduleSave = useCallback((nextData: TimelineData, options?: { preserveStatus?: boolean }) => {
     if (!options?.preserveStatus) {
@@ -335,7 +400,7 @@ export function useTimelineSave(
     }
 
     if (options?.updateLastSavedSignature) {
-      lastSavedSignature.current = nextData.signature;
+      lastSavedSignature.current = nextData.stableSignature;
     }
 
     if (shouldSave) {
@@ -469,30 +534,28 @@ export function useTimelineSave(
 
   useEffect(() => {
     const polledData = timelineQuery.data;
-    if (
-      !polledData
-      || !shouldAcceptPolledData(
-        editSeqRef.current,
-        savedSeqRef.current,
-        polledData.signature,
-        lastSavedSignature.current,
-      )
-    ) {
+    if (!polledData) {
+      return;
+    }
+
+    const preflightRejectionReason = getPollRejectionReason(polledData);
+    if (preflightRejectionReason) {
+      logPollRejection('preflight', polledData, preflightRejectionReason);
       return;
     }
 
     const syncHandle = window.setTimeout(() => {
-      if (
-        !shouldAcceptPolledData(
-          editSeqRef.current,
-          savedSeqRef.current,
-          polledData.signature,
-          lastSavedSignature.current,
-        )
-      ) {
+      const timeoutRejectionReason = getPollRejectionReason(polledData);
+      if (timeoutRejectionReason) {
+        logPollRejection('timeout', polledData, timeoutRejectionReason);
         return;
       }
 
+      logTimelineSync('poll accepted', {
+        fromConfigVersion: configVersionRef.current,
+        toConfigVersion: polledData.configVersion,
+      });
+      logConfigVersionUpdate('poll', polledData.configVersion);
       configVersionRef.current = polledData.configVersion;
       commitDataRef.current(
         dataRef.current ? preserveUploadingClips(dataRef.current, polledData) : polledData,
@@ -501,7 +564,7 @@ export function useTimelineSave(
     }, 0);
 
     return () => window.clearTimeout(syncHandle);
-  }, [timelineQuery.data]);
+  }, [getPollRejectionReason, logConfigVersionUpdate, logPollRejection, logTimelineSync, timelineQuery.data]);
 
   useEffect(() => {
     const current = dataRef.current;
@@ -524,7 +587,7 @@ export function useTimelineSave(
       current.configVersion,
     ).then((nextData) => {
       if (
-        nextData.signature === current.signature
+        nextData.stableSignature === current.stableSignature
         && Object.keys(nextData.assetMap).length === Object.keys(current.assetMap).length
       ) {
         return;
@@ -538,6 +601,7 @@ export function useTimelineSave(
         commitDataRef.current(nextData, {
           save: false,
           skipHistory: true,
+          updateLastSavedSignature: true,
           selectedClipId: selectedClipIdRef.current,
           selectedTrackId: selectedTrackIdRef.current,
         });
@@ -565,6 +629,7 @@ export function useTimelineSave(
     pendingSaveRef.current = null;
     setIsConflictExhausted(false);
     editSeqRef.current = savedSeqRef.current;
+    logConfigVersionUpdate('reload', loadedTimeline.configVersion);
     configVersionRef.current = loadedTimeline.configVersion;
 
     commitData(
@@ -583,7 +648,7 @@ export function useTimelineSave(
       },
     );
     setSaveStatus('saved');
-  }, [commitData, provider, timelineId]);
+  }, [commitData, logConfigVersionUpdate, provider, timelineId]);
 
   const retrySaveAfterConflict = useCallback(async () => {
     if (!dataRef.current) {
@@ -595,8 +660,7 @@ export function useTimelineSave(
     conflictRetryRef.current = 0;
 
     try {
-      const loaded = await provider.loadTimeline(timelineId);
-      configVersionRef.current = loaded.configVersion;
+      await loadConflictRetryVersion();
       if (dataRef.current) {
         void saveTimeline(dataRef.current, editSeqRef.current);
       }
@@ -607,7 +671,7 @@ export function useTimelineSave(
         reason: 'load_failed',
       });
     }
-  }, [handleConflictExhausted, provider, saveTimeline, timelineId]);
+  }, [handleConflictExhausted, loadConflictRetryVersion, saveTimeline]);
 
   return {
     data,
@@ -626,6 +690,7 @@ export function useTimelineSave(
     reloadFromServer,
     retrySaveAfterConflict,
     editSeqRef,
+    pendingOpsRef,
     savedSeqRef,
     selectedClipIdRef,
     selectedTrackIdRef,

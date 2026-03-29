@@ -214,25 +214,15 @@ export class SupabaseDataProvider implements DataProvider {
     assetId: string,
     entry: AssetRegistryEntry,
   ): Promise<void> {
-    const registry = await this.loadAssetRegistry(timelineId);
+    const { error } = await getSupabaseClient()
+      .rpc('upsert_asset_registry_entry' as never, {
+        p_timeline_id: timelineId,
+        p_asset_id: assetId,
+        p_entry: entry,
+      } as never);
 
-    const { error: updateError } = await getSupabaseClient()
-      .from('timelines')
-      .update({
-        asset_registry: {
-          assets: {
-            ...(registry.assets ?? {}),
-            [assetId]: entry,
-          },
-        },
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', timelineId)
-      .eq('project_id', this.options.projectId)
-      .eq('user_id', this.options.userId);
-
-    if (updateError) {
-      throw updateError;
+    if (error) {
+      throw error;
     }
   }
 

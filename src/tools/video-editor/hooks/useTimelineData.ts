@@ -96,7 +96,7 @@ export function useTimelineData(): UseTimelineDataResult {
   });
   const derived = useDerivedTimeline(save.data, save.selectedClipId, save.selectedTrackId);
   const render = useRenderState(derived.resolvedConfig, derived.renderMetadata);
-  const assets = useAssetOperations(provider, timelineId, userId, queryClient);
+  const assets = useAssetOperations(provider, timelineId, userId, queryClient, save.pendingOpsRef);
   onSaveSuccessRef.current = () => render.setRenderDirty(true);
 
   useLayoutEffect(() => {

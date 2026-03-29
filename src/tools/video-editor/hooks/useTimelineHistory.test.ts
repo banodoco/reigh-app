@@ -4,7 +4,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DataProviderWrapper } from '../contexts/DataProviderContext';
 import type { DataProvider } from '../data/DataProvider';
-import { getConfigSignature } from '../lib/config-utils';
+import { getConfigSignature, getStableConfigSignature } from '../lib/config-utils';
 import { createDefaultTimelineConfig } from '../lib/defaults';
 import { configToRows, type TimelineData } from '../lib/timeline-data';
 import { useTimelineHistory } from './useTimelineHistory';
@@ -72,6 +72,7 @@ function makeTimelineData(step: number): TimelineData {
     tracks: (config.tracks ?? []).map((track) => ({ ...track })),
     clipOrder: rowData.clipOrder,
     signature: getConfigSignature(resolvedConfig),
+    stableSignature: getStableConfigSignature(config, { assets: {} }),
   };
 }
 

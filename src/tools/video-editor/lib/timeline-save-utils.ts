@@ -1,26 +1,31 @@
 import { assembleTimelineData, type TimelineData } from '@/tools/video-editor/lib/timeline-data';
-import { migrateToFlatTracks } from '@/tools/video-editor/lib/migrate';
+import { migrateToFlatTracks, repairConfig } from '@/tools/video-editor/lib/migrate';
 import type { TimelineConfig } from '@/tools/video-editor/types';
 
 export function shouldAcceptPolledData(
   editSeq: number,
   savedSeq: number,
-  polledSig: string,
-  lastSavedSig: string,
+  pendingOps: number,
+  polledStableSig: string,
+  lastSavedStableSig: string,
 ): boolean {
   if (savedSeq < editSeq) {
     return false;
   }
 
-  return polledSig !== lastSavedSig;
+  if (pendingOps > 0) {
+    return false;
+  }
+
+  return polledStableSig !== lastSavedStableSig;
 }
 
 export function buildDataFromCurrentRegistry(
   config: TimelineConfig,
   current: TimelineData,
 ): TimelineData {
-  // Run migration first so the saved/snapshotted config stays canonical.
-  const migratedConfig = migrateToFlatTracks(config);
+  // Repair before migration so saved/snapshotted configs keep the canonical shape.
+  const migratedConfig = migrateToFlatTracks(repairConfig(config));
   migratedConfig.tracks = migratedConfig.tracks ?? [];
 
   const resolvedConfig = {

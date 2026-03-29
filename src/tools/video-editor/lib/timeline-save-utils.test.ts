@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { getConfigSignature } from '@/tools/video-editor/lib/config-utils';
+import { getConfigSignature, getStableConfigSignature } from '@/tools/video-editor/lib/config-utils';
 import { migrateToFlatTracks, repairConfig } from '@/tools/video-editor/lib/migrate';
-import { buildDataFromCurrentRegistry } from '@/tools/video-editor/lib/timeline-save-utils';
+import { buildDataFromCurrentRegistry, shouldAcceptPolledData } from '@/tools/video-editor/lib/timeline-save-utils';
 import { assembleTimelineData } from '@/tools/video-editor/lib/timeline-data';
 import type {
   AssetRegistry,
@@ -106,6 +106,7 @@ describe('timeline save utils regression coverage', () => {
     expect(Object.keys(data.meta)).toEqual(['clip-1', 'clip-2']);
     expect(Object.keys(data.effects)).toEqual(['effect-clip-1', 'effect-clip-2']);
     expect(data.signature).toBe(getConfigSignature(resolvedConfig));
+    expect(data.stableSignature).toBe(getStableConfigSignature(config, registry));
   });
 
   it('deduplicates duplicate track ids through repair then assemble', () => {
@@ -236,5 +237,79 @@ describe('timeline save utils regression coverage', () => {
     expect(data.tracks.map((track) => track.id)).toEqual(['V1', 'V3']);
     expect(data.rows.map((row) => row.id)).toEqual(['V1', 'V3']);
     expect(Object.keys(data.clipOrder)).toEqual(['V1', 'V3']);
+  });
+
+  it('keeps the stable signature unchanged when only resolved asset URLs change', () => {
+    const config: TimelineConfig = {
+      output: { resolution: '1920x1080', fps: 30, file: 'out.mp4' },
+      tracks: [makeTrack('V1')],
+      clips: [{ id: 'clip-1', at: 0, track: 'V1', clipType: 'hold', asset: 'asset-1', hold: 2 }],
+    };
+    const registry: AssetRegistry = {
+      assets: {
+        'asset-1': { file: 'video.mp4', duration: 2 },
+      },
+    };
+
+    const first = assembleTimelineData({
+      config,
+      configVersion: 1,
+      registry,
+      resolvedConfig: buildResolvedConfig(config, {
+        'asset-1': { ...registry.assets['asset-1'], src: 'https://signed.example.com/video?token=one' },
+      }),
+      output: { ...config.output },
+      assetMap: makeAssetMap(registry),
+    });
+    const second = assembleTimelineData({
+      config,
+      configVersion: 1,
+      registry,
+      resolvedConfig: buildResolvedConfig(config, {
+        'asset-1': { ...registry.assets['asset-1'], src: 'https://signed.example.com/video?token=two' },
+      }),
+      output: { ...config.output },
+      assetMap: makeAssetMap(registry),
+    });
+
+    expect(first.signature).not.toBe(second.signature);
+    expect(first.stableSignature).toBe(second.stableSignature);
+    expect(shouldAcceptPolledData(2, 2, 0, second.stableSignature, first.stableSignature)).toBe(false);
+  });
+
+  it('produces the same stable signature across repeated canonical serializations', () => {
+    const config: TimelineConfig = {
+      output: { resolution: '1920x1080', fps: 30, file: 'out.mp4' },
+      tracks: [makeTrack('V1')],
+      clips: [{ id: 'clip-1', at: 0, track: 'V1', clipType: 'hold', asset: 'asset-1', hold: 2 }],
+      customEffects: {
+        zoom: {
+          category: 'entrance',
+          code: 'return frame;',
+        },
+      },
+    };
+    const registryA: AssetRegistry = {
+      assets: {
+        'asset-2': { duration: 4, file: 'b.mp4', fps: 24 },
+        'asset-1': { file: 'a.mp4', duration: 2 },
+      },
+    };
+    const registryB: AssetRegistry = {
+      assets: {
+        'asset-1': { duration: 2, file: 'a.mp4' },
+        'asset-2': { fps: 24, file: 'b.mp4', duration: 4 },
+      },
+    };
+
+    const first = getStableConfigSignature(config, registryA);
+    const second = getStableConfigSignature(JSON.parse(JSON.stringify(config)) as TimelineConfig, registryB);
+
+    expect(first).toBe(second);
+  });
+
+  it('rejects polled data while asset operations are pending', () => {
+    expect(shouldAcceptPolledData(4, 4, 1, 'polled', 'saved')).toBe(false);
+    expect(shouldAcceptPolledData(4, 4, 0, 'polled', 'saved')).toBe(true);
   });
 });
