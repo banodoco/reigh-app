@@ -7,7 +7,6 @@ import { timelineListQueryKey } from '@/tools/video-editor/hooks/useTimelinesLis
 interface UseTimelineRealtimeOptions {
   timelineId: string;
   conflictExhausted: boolean;
-  saveStatus: 'saved' | 'saving' | 'dirty' | 'error';
   onKeepLocalChanges: () => Promise<void>;
   onDiscardRemoteChanges: () => Promise<void>;
 }
@@ -15,7 +14,6 @@ interface UseTimelineRealtimeOptions {
 export function useTimelineRealtime({
   timelineId,
   conflictExhausted,
-  saveStatus,
   onKeepLocalChanges,
   onDiscardRemoteChanges,
 }: UseTimelineRealtimeOptions) {
@@ -39,16 +37,11 @@ export function useTimelineRealtime({
         return;
       }
 
-      if (saveStatus !== 'saved') {
-        setIsOpen(true);
-        return;
-      }
-
       void queryClient.invalidateQueries({ queryKey: timelineQueryKey(timelineId) });
       void queryClient.invalidateQueries({ queryKey: assetRegistryQueryKey(timelineId) });
       void queryClient.invalidateQueries({ queryKey: timelineListQueryKey(matching.projectId) });
     });
-  }, [queryClient, saveStatus, timelineId]);
+  }, [queryClient, timelineId]);
 
   const keepLocalChanges = useCallback(async () => {
     setIsOpen(false);

@@ -66,7 +66,6 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
   const conflict = useTimelineRealtime({
     timelineId,
     conflictExhausted: chrome.isConflictExhausted,
-    saveStatus: chrome.saveStatus,
     onKeepLocalChanges: chrome.retrySaveAfterConflict,
     onDiscardRemoteChanges: chrome.reloadFromServer,
   });
