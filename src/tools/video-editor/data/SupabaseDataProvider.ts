@@ -78,19 +78,18 @@ export class SupabaseDataProvider implements DataProvider {
         p_timeline_id: timelineId,
         p_expected_version: expectedVersion,
         p_config: config,
-      } as never)
-      .maybeSingle();
+      } as never);
 
     if (error) {
       throw error;
     }
 
-    const nextVersion = (data as { config_version?: unknown } | null)?.config_version;
-    if (typeof nextVersion !== 'number') {
+    const rows = data as Array<{ config_version: number }> | null;
+    if (!rows || rows.length === 0) {
       throw new TimelineVersionConflictError();
     }
 
-    return nextVersion;
+    return rows[0].config_version;
   }
 
   async saveCheckpoint(timelineId: string, checkpoint: Omit<Checkpoint, 'id'>): Promise<string> {
