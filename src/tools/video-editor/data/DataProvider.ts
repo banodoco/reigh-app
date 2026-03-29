@@ -36,6 +36,20 @@ export function isTimelineVersionConflictError(error: unknown): error is Timelin
     || (error instanceof Error && error.name === 'TimelineVersionConflictError');
 }
 
+export class TimelineNotFoundError extends Error {
+  code = 'timeline_not_found' as const;
+
+  constructor(timelineId: string) {
+    super(`Timeline ${timelineId} not found — it may have been deleted`);
+    this.name = 'TimelineNotFoundError';
+  }
+}
+
+export function isTimelineNotFoundError(error: unknown): error is TimelineNotFoundError {
+  return error instanceof TimelineNotFoundError
+    || (error instanceof Error && error.name === 'TimelineNotFoundError');
+}
+
 export interface DataProvider {
   loadTimeline(timelineId: string): Promise<LoadedTimeline>;
   saveTimeline(timelineId: string, config: TimelineConfig, expectedVersion: number): Promise<number>;

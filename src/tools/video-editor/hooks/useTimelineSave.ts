@@ -9,6 +9,7 @@ import {
 import { useMutation } from '@tanstack/react-query';
 import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/DataProviderContext';
 import {
+  isTimelineNotFoundError,
   isTimelineVersionConflictError,
   type DataProvider,
 } from '@/tools/video-editor/data/DataProvider';
@@ -286,6 +287,17 @@ export function useTimelineSave(
         },
       );
     } catch (error) {
+      if (isTimelineNotFoundError(error)) {
+        // The timeline row doesn't exist — retrying won't help.
+        console.log('[TimelineSave] timeline not found, cannot save');
+        handleConflictExhausted({
+          expectedVersion: configVersionRef.current,
+          retries: conflictRetryRef.current,
+          reason: 'missing_local_data',
+        });
+        return;
+      }
+
       if (isTimelineVersionConflictError(error)) {
         const expectedVersion = configVersionRef.current;
         let actualVersion: number | undefined;
@@ -311,6 +323,23 @@ export function useTimelineSave(
             actualVersion,
             retries: conflictRetryRef.current,
             reason: 'missing_local_data',
+          });
+          return;
+        }
+
+        // If the reloaded version matches what we already sent, retrying
+        // with the same version is pointless (likely an RLS or permissions
+        // issue rather than a genuine version race).
+        if (actualVersion === expectedVersion) {
+          console.log('[TimelineSave] reloaded version matches expected — not a version race', {
+            expectedVersion,
+            actualVersion,
+          });
+          handleConflictExhausted({
+            expectedVersion,
+            actualVersion,
+            retries: conflictRetryRef.current,
+            reason: 'max_retries',
           });
           return;
         }

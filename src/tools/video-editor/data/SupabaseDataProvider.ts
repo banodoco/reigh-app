@@ -4,6 +4,7 @@ import { validateSerializedConfig } from '@/tools/video-editor/lib/serialize';
 import { createDefaultTimelineConfig } from '@/tools/video-editor/lib/defaults';
 import { extractAssetRegistryEntry } from '@/tools/video-editor/lib/mediaMetadata';
 import {
+  TimelineNotFoundError,
   TimelineVersionConflictError,
   type DataProvider,
   type LoadedTimeline,
@@ -104,7 +105,23 @@ export class SupabaseDataProvider implements DataProvider {
 
     const rows = data as Array<{ config_version: number }> | null;
     if (!rows || rows.length === 0) {
-      console.error('[SupabaseDataProvider] version conflict — 0 rows returned', { expectedVersion });
+      // 0 rows can mean version mismatch OR row doesn't exist.
+      // Check which one to give the caller an actionable error.
+      const { data: existing } = await getSupabaseClient()
+        .from('timelines')
+        .select('config_version')
+        .eq('id', timelineId)
+        .maybeSingle();
+
+      if (!existing) {
+        console.error('[SupabaseDataProvider] timeline not found', { timelineId, expectedVersion });
+        throw new TimelineNotFoundError(timelineId);
+      }
+
+      console.error('[SupabaseDataProvider] version conflict — 0 rows returned', {
+        expectedVersion,
+        actualVersion: existing.config_version,
+      });
       throw new TimelineVersionConflictError();
     }
 
