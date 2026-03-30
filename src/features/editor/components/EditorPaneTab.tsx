@@ -70,6 +70,14 @@ const EditorPaneComponent: React.FC = () => {
     tasksPaneWidth,
   } = useEditorPane();
 
+  const activeTimelineId = settings?.lastTimelineId ?? timelines.data?.[0]?.id ?? null;
+  const provider = useMemo(() => {
+    if (!selectedProjectId || !userId) {
+      return null;
+    }
+    return new SupabaseDataProvider({ projectId: selectedProjectId, userId });
+  }, [selectedProjectId, userId]);
+
   useEffect(() => {
     if (isVideoEditorRoute(location.pathname) && isEditorPaneLocked) {
       setIsEditorPaneLocked(false);
@@ -83,13 +91,6 @@ const EditorPaneComponent: React.FC = () => {
   const horizontalOffset =
     (isShotsPaneLocked ? shotsPaneWidth : 0) -
     (isTasksPaneLocked ? tasksPaneWidth : 0);
-  const activeTimelineId = settings?.lastTimelineId ?? timelines.data?.[0]?.id ?? null;
-  const provider = useMemo(() => {
-    if (!selectedProjectId || !userId) {
-      return null;
-    }
-    return new SupabaseDataProvider({ projectId: selectedProjectId, userId });
-  }, [selectedProjectId, userId]);
   const activeTimelineName = timelines.data?.find((timeline) => timeline.id === activeTimelineId)?.name ?? null;
   const createTimeline = async () => {
     const created = await timelines.createTimeline.mutateAsync('Main timeline');
