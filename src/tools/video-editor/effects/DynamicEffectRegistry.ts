@@ -11,13 +11,17 @@ export class DynamicEffectRegistry {
   }
 
   register(name: string, code: string): void {
+    const normalized = this.normalizeName(name);
+    if (this.dynamic[normalized]?.code === code) return;
     const component = compileEffect(code);
-    this.dynamic[this.normalizeName(name)] = { component, code };
+    this.dynamic[normalized] = { component, code };
   }
 
   async registerAsync(name: string, code: string): Promise<void> {
+    const normalized = this.normalizeName(name);
+    if (this.dynamic[normalized]?.code === code) return;
     const component = await compileEffectAsync(code);
-    this.dynamic[this.normalizeName(name)] = { component, code };
+    this.dynamic[normalized] = { component, code };
   }
 
   unregister(name: string): void {

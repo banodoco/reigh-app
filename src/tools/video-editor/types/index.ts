@@ -50,12 +50,14 @@ export type TrackDefinition = {
 export type ClipEntrance = {
   type: string;
   duration: number;
+  intensity?: number;
   params?: Record<string, unknown>;
 };
 
 export type ClipExit = {
   type: string;
   duration: number;
+  intensity?: number;
   params?: Record<string, unknown>;
 };
 

@@ -103,7 +103,12 @@ export const lookupEffect = (
     return builtInMap[name];
   }
 
-  return getEffectRegistry().get(name) ?? null;
+  const registry = getEffectRegistry();
+  const result = registry.get(name) ?? null;
+  if (type.startsWith('custom:')) {
+    console.log('[EffectLookup] type=%s resolved=%s found=%s registryAll=%o', type, name, !!result, registry.listAll());
+  }
+  return result;
 };
 
 export const wrapWithClipEffects = (
@@ -115,6 +120,9 @@ export const wrapWithClipEffects = (
   let wrapped = content;
 
   const continuous = clip.continuous ? lookupEffect(continuousEffects, clip.continuous.type) : null;
+  if (clip.continuous && !continuous) {
+    console.warn('[EffectWrap] continuous effect NOT FOUND for clip=%s type=%s', clip.id, clip.continuous.type);
+  }
   if (continuous) {
     const Continuous = continuous;
     wrapped = (
@@ -135,6 +143,7 @@ export const wrapWithClipEffects = (
       <Entrance
         durationInFrames={durationInFrames}
         effectFrames={secondsToFrames(clip.entrance?.duration ?? 0.4, fps)}
+        intensity={clip.entrance?.intensity}
         params={clip.entrance?.params}
       >
         {wrapped}
@@ -149,6 +158,7 @@ export const wrapWithClipEffects = (
       <Exit
         durationInFrames={durationInFrames}
         effectFrames={secondsToFrames(clip.exit?.duration ?? 0.4, fps)}
+        intensity={clip.exit?.intensity}
         params={clip.exit?.params}
       >
         {wrapped}

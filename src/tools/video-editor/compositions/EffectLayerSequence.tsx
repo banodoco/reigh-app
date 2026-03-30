@@ -29,6 +29,7 @@ export const EffectLayerSequence: FC<EffectLayerSequenceProps> = ({ clip, fps, c
 
   const Effect = lookupEffect(continuousEffects, clip.continuous.type);
   if (!Effect) {
+    console.warn('[EffectLayer] effect NOT FOUND for clip=%s type=%s', clip.id, clip.continuous.type);
     return <>{children}</>;
   }
 

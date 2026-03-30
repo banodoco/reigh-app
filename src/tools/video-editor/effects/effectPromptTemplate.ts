@@ -31,6 +31,13 @@ Write the component and set it as the default export using \`exports.default = C
 
 Do NOT use import/export statements. Do NOT use JSX syntax - use \`React.createElement()\` instead.
 
+## Important constraints
+- Children may be images, videos, or complex elements — NOT just text.
+  CSS \`color\` only affects text foreground; it does NOT tint images or videos.
+  For color-channel effects (chromatic aberration, RGB split), use CSS
+  mix-blend-mode:multiply with colored overlays and isolation:isolate.
+  Do NOT use SVG filters (blocked on cross-origin) or CSS \`color\` (text only).
+
 Now write the component for: "${description}"
 `;
 }

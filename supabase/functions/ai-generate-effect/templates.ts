@@ -70,7 +70,29 @@ const OUTPUT_RULES = `Output requirements:
 - Use React.createElement(...) instead of JSX
 - Set the component using exports.default = ComponentName
 - The default export must be a function component compatible with EffectComponentProps
-- Preserve the passed children and wrap or transform them visually`;
+- Preserve the passed children and wrap or transform them visually
+- Read user-adjustable values from the params prop (e.g. params?.drift ?? 1), NOT as top-level props
+- CRITICAL: children may be images, videos, or complex elements — NOT just text.
+  CSS \`color\` only affects text foreground; it does NOT tint images or videos.
+  For color-channel effects (chromatic aberration, RGB split, color isolation),
+  use CSS mix-blend-mode:multiply with colored overlay divs to isolate channels
+  (e.g. multiply with #ff0000 keeps only the red channel). Wrap each channel layer
+  in isolation:isolate to scope the blend. IMPORTANT: children may have transparent
+  areas (objectFit:contain letterboxing). Always add a black backdrop div (position:
+  absolute, inset:0, background:#000) BEFORE children inside each blend layer —
+  without this, multiply against transparent produces the overlay color, not black,
+  and screen-combining colored channels produces white bars.
+  Do NOT use SVG feColorMatrix (blocked on cross-origin images) or CSS \`color\`
+  (only affects text, not images/videos).
+- Use useVideoConfig() to get width/height, and express spatial values (offsets,
+  drift, blur radius) as a percentage of the composition width — NOT fixed pixels.
+  The preview renders at 320×320 but the timeline renders at 1920×1080+.
+  Fixed pixel values that look dramatic in preview will be invisible on timeline.
+- NEVER use Math.random() — Remotion renders each frame independently, so random
+  values change between renders making output non-deterministic. Use deterministic
+  math based on frame number instead (e.g. Math.sin(frame * seed)).
+- If using inline SVG filter IDs, generate unique IDs with React.useMemo to avoid
+  collisions when multiple clips use the same effect (e.g. "myeffect-" + Math.random().toString(36).slice(2,8)).`;
 
 const CATEGORY_GUIDANCE: Record<EffectCategory, string> = {
   entrance: `Category guidance: entrance
@@ -365,6 +387,14 @@ export function validateExtractedEffectCode(code: string): void {
 
   if (!code.includes('React.createElement')) {
     throw new Error('Generated effect code must use React.createElement instead of JSX');
+  }
+
+  // Math.random() creates non-deterministic renders — each frame capture gets
+  // different values, causing flicker and inconsistent output.
+  // Allow it only inside React.useMemo (for one-time IDs like SVG filter IDs).
+  const codeWithoutMemos = code.replace(/React\.useMemo\([^)]*Math\.random\(\)[^)]*\)/g, '');
+  if (/\bMath\.random\s*\(/.test(codeWithoutMemos)) {
+    throw new Error('Generated effect must not use Math.random() — use deterministic math based on frame number instead');
   }
 
   for (const [pattern, message] of KNOWN_TYPOS) {

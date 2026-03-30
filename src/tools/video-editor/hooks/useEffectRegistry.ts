@@ -29,11 +29,22 @@ export function useEffectRegistry(
 
   useEffect(() => {
     replaceEffectRegistry(registry);
+    const drafts = Object.entries(draftEffects);
+    const db = dbEffects ?? [];
+    const resources = resourceEffects ?? [];
+    console.log('[EffectRegistry] registering drafts=%d db=%d resources=%d', drafts.length, db.length, resources.length);
+    if (resources.length > 0) {
+      console.log('[EffectRegistry] resource IDs:', resources.map((e) => e.id));
+    }
     void Promise.all([
-      ...Object.entries(draftEffects).map(([name, code]) => registry.registerAsync(name, code)),
-      ...(dbEffects ?? []).map((effect) => registry.registerAsync(effect.slug, effect.code)),
-      ...(resourceEffects ?? []).map((effect) => registry.registerAsync(effect.id, effect.code)),
-    ]);
+      ...drafts.map(([name, code]) => registry.registerAsync(name, code)),
+      ...db.map((effect) => registry.registerAsync(effect.slug, effect.code)),
+      ...resources.map((effect) => registry.registerAsync(effect.id, effect.code).then(() => {
+        console.log('[EffectRegistry] registered resource effect id=%s', effect.id);
+      })),
+    ]).then(() => {
+      console.log('[EffectRegistry] all done, registry has:', registry.listAll());
+    });
   }, [dbEffects, resourceEffects, draftEffects, registry]);
 
   return registry;

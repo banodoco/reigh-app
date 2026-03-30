@@ -153,7 +153,9 @@ function makePreviewComposition(
         intensity={params.intensity}
         params={effectParams}
       >
-        <PreviewRect assetSrc={assetSrc} />
+        <AbsoluteFill style={{ overflow: 'hidden' }}>
+          <PreviewRect assetSrc={assetSrc} />
+        </AbsoluteFill>
       </EffectComponent>
     );
   };

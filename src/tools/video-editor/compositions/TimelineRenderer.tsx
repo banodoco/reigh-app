@@ -61,22 +61,36 @@ const renderVisualTrack = (
           );
         }
 
+        const effectiveScale = track.scale ?? 1;
+        const needsScaleWrapper = effectiveScale !== 1;
+        if (needsScaleWrapper) {
+          return (
+            <AbsoluteFill
+              key={clip.id}
+              style={{
+                transform: `scale(${effectiveScale})`,
+                transformOrigin: 'center center',
+                overflow: 'hidden',
+                isolation: 'isolate',
+              }}
+            >
+              <VisualClipSequence
+                clip={clip}
+                track={track}
+                fps={fps}
+                predecessor={predecessor}
+              />
+            </AbsoluteFill>
+          );
+        }
         return (
-          <AbsoluteFill
+          <VisualClipSequence
             key={clip.id}
-            style={{
-              transform: `scale(${track.scale ?? 1})`,
-              transformOrigin: 'center center',
-              overflow: 'hidden',
-            }}
-          >
-            <VisualClipSequence
-              clip={clip}
-              track={track}
-              fps={fps}
-              predecessor={predecessor}
-            />
-          </AbsoluteFill>
+            clip={clip}
+            track={track}
+            fps={fps}
+            predecessor={predecessor}
+          />
         );
       })}
     </AbsoluteFill>
