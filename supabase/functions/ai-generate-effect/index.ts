@@ -62,7 +62,7 @@ async function callFireworks(
         model: FIREWORKS_MODEL,
         messages,
         temperature: 0.4,
-        max_tokens: 8192,
+        max_tokens: 4096,
         top_p: 1,
       }),
       signal: controller.signal,
