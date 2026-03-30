@@ -80,7 +80,6 @@ const getIntrinsicMediaSize = (
 
 const VisualAsset: FC<VisualClipProps> = ({ clip, track, fps }) => {
   const { width: compositionWidth, height: compositionHeight } = useVideoConfig();
-
   if (!clip.assetEntry) {
     return null;
   }
@@ -242,10 +241,19 @@ export const VisualClipSequence: FC<VisualClipProps> = ({ clip, track, fps, pred
     ? secondsToFrames(clip.transition.duration, fps)
     : 0;
   const from = Math.max(0, secondsToFrames(clip.at, fps) - transitionFrames);
+  // Extend by transitionFrames so the clip isn't cut short when `from` is
+  // pulled back for a transition-in, plus 1 overlap frame so the outgoing
+  // clip stays mounted while the next clip's <Video> element loads.
+  const effectiveDuration = durationInFrames + transitionFrames + 1;
 
   return (
-    <Sequence key={clip.id} from={from} durationInFrames={durationInFrames}>
-      <LazyGuard durationInFrames={durationInFrames}>
+    <Sequence
+      key={clip.id}
+      from={from}
+      durationInFrames={effectiveDuration}
+      premountFor={fps}
+    >
+      <LazyGuard durationInFrames={effectiveDuration}>
         <VisualClip clip={clip} track={track} fps={fps} predecessor={predecessor} />
       </LazyGuard>
     </Sequence>

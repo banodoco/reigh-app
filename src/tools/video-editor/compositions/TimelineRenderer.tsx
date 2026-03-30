@@ -119,6 +119,7 @@ export const TimelineRenderer: FC<{ config: ResolvedTimelineConfig }> = memo(({ 
       return groups;
     }, { regular: {}, effectLayers: {}, all: {} });
   }, [config]);
+
   const visualContent = useMemo(() => {
     let accumulated: ReactNode = null;
 
