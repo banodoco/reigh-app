@@ -19,9 +19,11 @@ import {
 const GROQ_TRIAGE_MODEL = "moonshotai/kimi-k2-instruct-0905";
 const GROQ_TIMEOUT_MS = 15_000;
 
-// Generation: simple → Groq (fast), complex → OpenRouter Kimi K2.5 (reasoning)
+// Generation: simple create → Groq K2 (fast), complex create → Kimi K2.5 via Fireworks (reasoning), edit → Qwen via OpenRouter
 const GROQ_GENERATE_MODEL = "moonshotai/kimi-k2-instruct-0905";
-const OPENROUTER_COMPLEX_MODEL = "moonshotai/kimi-k2.5";
+const FIREWORKS_MODEL = "accounts/fireworks/models/kimi-k2p5";
+const FIREWORKS_URL = "https://api.fireworks.ai/inference/v1/chat/completions";
+const FIREWORKS_TIMEOUT_MS = 60_000;
 const EDIT_MODEL = "qwen/qwen3.5-27b";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
@@ -116,7 +118,58 @@ async function callGroq(
   return { content, model: response.model || GROQ_GENERATE_MODEL };
 }
 
-// ── OpenRouter generation (complex + edits) ──────────────────────────
+// ── Fireworks generation (complex — Kimi K2.5) ─────────────────────
+
+async function callFireworks(
+  messages: Array<{ role: string; content: string }>,
+  logger: { info: (msg: string) => void },
+): Promise<LLMResponse> {
+  const apiKey = Deno.env.get("FIREWORKS_API_KEY");
+  if (!apiKey) throw new Error("[ai-generate-effect] Missing FIREWORKS_API_KEY");
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FIREWORKS_TIMEOUT_MS);
+
+  try {
+    const startedAt = Date.now();
+    logger.info(`[AI-GENERATE-EFFECT] Fireworks request: model=${FIREWORKS_MODEL}`);
+    const response = await fetch(FIREWORKS_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: JSON.stringify({
+        model: FIREWORKS_MODEL,
+        messages,
+        temperature: 0.4,
+        max_tokens: 8192,
+        top_p: 1,
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      throw new Error(`Fireworks ${response.status}: ${text.slice(0, 500)}`);
+    }
+
+    const data = await response.json() as {
+      choices: Array<{ message: { content?: string; role: string } }>;
+      model?: string;
+      usage?: Record<string, unknown>;
+    };
+
+    const content = (data.choices?.[0]?.message?.content ?? "").trim();
+    logger.info(`[AI-GENERATE-EFFECT] Fireworks response in ${Date.now() - startedAt}ms, model=${data.model ?? FIREWORKS_MODEL}, length=${content.length}, usage=${JSON.stringify(data.usage ?? {})}`);
+    return { content, model: data.model || FIREWORKS_MODEL };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+// ── OpenRouter generation (edits) ───────────────────────────────────
 
 interface OpenRouterMessage {
   content?: string;
@@ -273,18 +326,23 @@ serve(async (req) => {
 
     let llmResponse: LLMResponse;
 
-    // All generation (create + edit) goes through Groq K2 for speed (~2s)
-    // OpenRouter/Qwen path commented out — can re-enable if quality needs improvement
-    //
-    // if (isEditMode) {
-    //   logger.info(`[AI-GENERATE-EFFECT] edit mode → ${EDIT_MODEL}`);
-    //   await logger.flush();
-    //   llmResponse = await callOpenRouter(EDIT_MODEL, messages, logger);
-    // } else {
-    {
-      logger.info(`[AI-GENERATE-EFFECT] ${isEditMode ? 'edit' : 'create'} mode → ${GROQ_GENERATE_MODEL} (Groq)`);
+    if (isEditMode) {
+      logger.info(`[AI-GENERATE-EFFECT] edit mode → ${EDIT_MODEL} (OpenRouter)`);
       await logger.flush();
-      llmResponse = await callGroq(messages, logger);
+      llmResponse = await callOpenRouter(EDIT_MODEL, messages, logger);
+    } else {
+      // Classify complexity: simple → Groq K2 (fast), complex → Kimi K2.5 (reasoning)
+      const complexity = await triagePrompt(prompt, category, logger);
+
+      if (complexity === "complex") {
+        logger.info(`[AI-GENERATE-EFFECT] complex create → ${FIREWORKS_MODEL} (Fireworks)`);
+        await logger.flush();
+        llmResponse = await callFireworks(messages, logger);
+      } else {
+        logger.info(`[AI-GENERATE-EFFECT] simple create → ${GROQ_GENERATE_MODEL} (Groq)`);
+        await logger.flush();
+        llmResponse = await callGroq(messages, logger);
+      }
     }
 
     logger.info(`[AI-GENERATE-EFFECT] raw output length=${llmResponse.content.length}, first 200 chars: ${llmResponse.content.slice(0, 200)}`);
