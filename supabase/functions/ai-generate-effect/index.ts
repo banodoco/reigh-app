@@ -1,6 +1,5 @@
 // deno-lint-ignore-file
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import Groq from "npm:groq-sdk@0.26.0";
 import {
   enforceRateLimit,
   RATE_LIMITS,
@@ -15,12 +14,7 @@ import {
 } from "./templates.ts";
 
 // ── Models ───────────────────────────────────────────────────────────
-// Triage: fast Groq call to classify complexity
-const GROQ_TRIAGE_MODEL = "moonshotai/kimi-k2-instruct-0905";
-const GROQ_TIMEOUT_MS = 15_000;
-
-// Generation: simple create → Groq K2 (fast), complex create → Kimi K2.5 via Fireworks (reasoning), edit → Qwen via OpenRouter
-const GROQ_GENERATE_MODEL = "moonshotai/kimi-k2-instruct-0905";
+// Create → Kimi K2.5 via Fireworks, Edit → Qwen via OpenRouter
 const FIREWORKS_MODEL = "accounts/fireworks/models/kimi-k2p5";
 const FIREWORKS_URL = "https://api.fireworks.ai/inference/v1/chat/completions";
 const FIREWORKS_TIMEOUT_MS = 60_000;
@@ -28,23 +22,11 @@ const EDIT_MODEL = "qwen/qwen3.5-27b";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const OPENROUTER_TIMEOUT_MS = 100_000;
-const GROQ_GENERATE_TIMEOUT_MS = 45_000;
 
 const EFFECT_CATEGORIES: EffectCategory[] = ["entrance", "exit", "continuous"];
 
 function isEffectCategory(value: unknown): value is EffectCategory {
   return typeof value === "string" && EFFECT_CATEGORIES.includes(value as EffectCategory);
-}
-
-// ── Groq client ──────────────────────────────────────────────────────
-
-let groqClient: Groq | null = null;
-function getGroqClient(): Groq {
-  if (groqClient) return groqClient;
-  const apiKey = Deno.env.get("GROQ_API_KEY");
-  if (!apiKey) throw new Error("[ai-generate-effect] Missing GROQ_API_KEY");
-  groqClient = new Groq({ apiKey, timeout: GROQ_GENERATE_TIMEOUT_MS });
-  return groqClient;
 }
 
 // ── Response types ───────────────────────────────────────────────────
@@ -54,71 +36,7 @@ interface LLMResponse {
   model: string;
 }
 
-// ── Triage: classify prompt as simple or complex ─────────────────────
-
-async function triagePrompt(
-  prompt: string,
-  category: EffectCategory,
-  logger: { info: (msg: string) => void },
-): Promise<'simple' | 'complex'> {
-  const groq = getGroqClient();
-
-  const triageSystemMsg = `You are classifying visual animation effect requests for a video editor.
-Reply with EXACTLY one word: "simple" or "complex".
-
-simple = standard animations: fades, slides, zooms, rotations, bounces, pulses, scale changes, opacity changes, basic color shifts, flips
-complex = anything involving: particle systems, physics simulations, multiple independent animated elements, procedural patterns, 3D transforms, shaders, fractals, generative art, complex math, custom easing curves with many keyframes, interactive/reactive elements
-
-If unsure, say "simple".`;
-
-  const triageUserMsg = `Category: ${category}\nRequest: "${prompt}"`;
-
-  try {
-    const startedAt = Date.now();
-    const response = await groq.chat.completions.create({
-      model: GROQ_TRIAGE_MODEL,
-      messages: [
-        { role: "system", content: triageSystemMsg },
-        { role: "user", content: triageUserMsg },
-      ],
-      temperature: 0,
-      max_tokens: 10,
-    } as Parameters<typeof groq.chat.completions.create>[0]);
-
-    const result = (response.choices[0]?.message?.content ?? "").trim().toLowerCase();
-    const classification = result.includes("complex") ? "complex" : "simple";
-    logger.info(`[AI-GENERATE-EFFECT] triage: "${result}" → ${classification} (${Date.now() - startedAt}ms)`);
-    return classification;
-  } catch (err: unknown) {
-    logger.info(`[AI-GENERATE-EFFECT] triage failed, defaulting to simple: ${toErrorMessage(err)}`);
-    return "simple";
-  }
-}
-
-// ── Groq generation (simple) ─────────────────────────────────────────
-
-async function callGroq(
-  messages: Array<{ role: string; content: string }>,
-  logger: { info: (msg: string) => void },
-): Promise<LLMResponse> {
-  const groq = getGroqClient();
-  const startedAt = Date.now();
-  logger.info(`[AI-GENERATE-EFFECT] Groq request: model=${GROQ_GENERATE_MODEL}`);
-
-  const response = await groq.chat.completions.create({
-    model: GROQ_GENERATE_MODEL,
-    messages: messages as Parameters<typeof groq.chat.completions.create>[0]["messages"],
-    temperature: 0.4,
-    max_tokens: 8192,
-    top_p: 1,
-  } as Parameters<typeof groq.chat.completions.create>[0]);
-
-  const content = response.choices[0]?.message?.content?.trim() ?? "";
-  logger.info(`[AI-GENERATE-EFFECT] Groq response in ${Date.now() - startedAt}ms, model=${response.model}, length=${content.length}`);
-  return { content, model: response.model || GROQ_GENERATE_MODEL };
-}
-
-// ── Fireworks generation (complex — Kimi K2.5) ─────────────────────
+// ── Fireworks generation (create — Kimi K2.5) ───────────────────────
 
 async function callFireworks(
   messages: Array<{ role: string; content: string }>,
@@ -327,22 +245,13 @@ serve(async (req) => {
     let llmResponse: LLMResponse;
 
     if (isEditMode) {
-      logger.info(`[AI-GENERATE-EFFECT] edit mode → ${EDIT_MODEL} (OpenRouter)`);
+      logger.info(`[AI-GENERATE-EFFECT] edit → ${EDIT_MODEL} (OpenRouter)`);
       await logger.flush();
       llmResponse = await callOpenRouter(EDIT_MODEL, messages, logger);
     } else {
-      // Classify complexity: simple → Groq K2 (fast), complex → Kimi K2.5 (reasoning)
-      const complexity = await triagePrompt(prompt, category, logger);
-
-      if (complexity === "complex") {
-        logger.info(`[AI-GENERATE-EFFECT] complex create → ${FIREWORKS_MODEL} (Fireworks)`);
-        await logger.flush();
-        llmResponse = await callFireworks(messages, logger);
-      } else {
-        logger.info(`[AI-GENERATE-EFFECT] simple create → ${GROQ_GENERATE_MODEL} (Groq)`);
-        await logger.flush();
-        llmResponse = await callGroq(messages, logger);
-      }
+      logger.info(`[AI-GENERATE-EFFECT] create → ${FIREWORKS_MODEL} (Fireworks)`);
+      await logger.flush();
+      llmResponse = await callFireworks(messages, logger);
     }
 
     logger.info(`[AI-GENERATE-EFFECT] raw output length=${llmResponse.content.length}, first 200 chars: ${llmResponse.content.slice(0, 200)}`);
