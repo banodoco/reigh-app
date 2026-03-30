@@ -92,8 +92,25 @@ def run(client: DebugClient, options: dict):
                 'status': t.get('status'),
             })
 
+        # ── 3b. Supplement with workers table (catches workers missed by log parsing) ──
+        workers_result = client.supabase.table('workers').select(
+            'id, status, created_at, metadata'
+        ).gte('created_at', cutoff).order('created_at').limit(100).execute()
+
+        for w in (workers_result.data or []):
+            wid = w['id']
+            if wid not in spawns:
+                spawns[wid] = w.get('created_at', '')
+            if w.get('status') in ('error', 'terminated'):
+                meta = w.get('metadata') or {}
+                if wid not in kills:
+                    kills[wid] = {
+                        'timestamp': w.get('created_at', ''),
+                        'reason': meta.get('termination_reason', meta.get('error', f"status={w['status']}")),
+                    }
+
         # ── 4. Analyze each worker ────────────────────────────────────────
-        all_worker_ids = set(spawns.keys()) | set(kills.keys()) | set(promotions.keys())
+        all_worker_ids = set(spawns.keys()) | set(kills.keys()) | set(promotions.keys()) | set(worker_tasks.keys())
 
         issues = []       # (severity, worker_id, details)
         healthy = []      # (worker_id, details)
@@ -107,7 +124,7 @@ def run(client: DebugClient, options: dict):
             was_promoted = wid in promotions
             completed = [
                 t for t in worker_tasks.get(wid, [])
-                if t['status'] == 'Completed'
+                if t['status'] in ('Complete', 'Completed')
             ]
             task_count = len(completed)
 

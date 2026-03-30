@@ -235,21 +235,22 @@ def _extract_transitions(logs, task_id, task):
 
 
 def _failure_snippet(msg: str) -> str:
-    """Extract a short reason from a failure log message."""
+    """Extract a reason from a failure log message (up to 120 chars)."""
+    max_len = 120
     # Try to grab the tail after a status code or colon
     for pattern in [
-        re.compile(r"\d{3}:\s*(.{5,80})"),
-        re.compile(r"(?:error|failed|failure)[:\s]+(.{5,80})", re.IGNORECASE),
+        re.compile(r"\d{3}:\s*(.{5,200})"),
+        re.compile(r"(?:error|failed|failure)[:\s]+(.{5,200})", re.IGNORECASE),
     ]:
         m = pattern.search(msg)
         if m:
             snippet = m.group(1).strip()
-            if len(snippet) > 60:
-                snippet = snippet[:57] + "..."
+            if len(snippet) > max_len:
+                snippet = snippet[:max_len - 3] + "..."
             return snippet
-    # Fallback: last 60 chars
-    if len(msg) > 60:
-        return msg[-60:].strip()
+    # Fallback: last 120 chars
+    if len(msg) > max_len:
+        return msg[-max_len:].strip()
     return msg.strip()
 
 

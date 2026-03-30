@@ -229,43 +229,33 @@ def run(client: DebugClient, worker_id: str, options: dict):
         if last_completion and kill_dt:
             last_complete_dt = _parse_ts(last_completion['ts'])
             if last_complete_dt:
-                gap_seconds = (kill_dt - last_complete_dt).total_seconds()
-                gap_str = _format_duration(gap_seconds)
+                idle_seconds = (kill_dt - last_complete_dt).total_seconds()
+                idle_str = _format_duration(idle_seconds)
 
-                if gap_seconds < 300:  # Within 5 minutes
-                    print(f"  \u26a0\ufe0f  SUSPICIOUS: Worker completed a task {gap_str} before being killed.")
+                # Parse effective_age_sec from kill reason (e.g. "...idle with queued tasks (1181s)")
+                import re
+                age_match = re.search(r'\((\d+)s\)', kill_reason or '')
+                reported_age = int(age_match.group(1)) if age_match else None
 
-                    # Check if effective_age was used vs idle time
-                    worker_result = client.supabase.table('workers').select(
-                        'created_at'
-                    ).eq('id', worker_id).execute()
-                    worker_data = (worker_result.data or [None])[0]
-
-                    if worker_data and worker_data.get('created_at'):
-                        worker_created = _parse_ts(worker_data['created_at'])
-                        if worker_created:
-                            total_age = (kill_dt - worker_created).total_seconds()
-                            print(f"     The kill used effective_age_sec ({total_age:.0f}s = total worker age) but the")
-                            print(f"     worker was actively productive until recently.")
-                            print()
-                            print(f"  Last task completion: {last_completion['ts_short']} ({gap_str} before kill)")
-                            print(f"  Worker total age at kill: {total_age:.0f}s")
-                    else:
-                        print(f"     The worker was actively productive until recently.")
-                        print()
-                        print(f"  Last task completion: {last_completion['ts_short']} ({gap_str} before kill)")
-
-                elif gap_seconds >= 600:  # More than 10 minutes
-                    print(f"  \u2705 EXPECTED: Worker was genuinely idle.")
-                    print(f"     Last task completed {gap_str} before the kill.")
-                    print()
-                    print(f"  Last task completion: {last_completion['ts_short']} ({gap_str} before kill)")
-
+                # The key diagnostic: does the reported age (total worker age) diverge
+                # significantly from the actual idle time? If so, the orchestrator used
+                # the wrong metric.
+                if reported_age and reported_age > idle_seconds * 1.5:
+                    print(f"  \u26a0\ufe0f  SUSPICIOUS: Kill used total worker age ({reported_age}s) but actual")
+                    print(f"     idle time was only {idle_str}. The worker was productive recently.")
+                    print(f"     This suggests the timeout compared total age, not idle duration.")
+                elif idle_seconds < 300:
+                    print(f"  \u26a0\ufe0f  SUSPICIOUS: Worker completed a task only {idle_str} before being killed.")
+                elif idle_seconds >= 600:
+                    print(f"  \u2705 EXPECTED: Worker was genuinely idle for {idle_str} before kill.")
                 else:
-                    print(f"  \u2139\ufe0f  BORDERLINE: Worker completed a task {gap_str} before being killed.")
-                    print(f"     This is between the 5-minute suspicious threshold and 10-minute expected threshold.")
-                    print()
-                    print(f"  Last task completion: {last_completion['ts_short']} ({gap_str} before kill)")
+                    print(f"  \u2139\ufe0f  BORDERLINE: Worker idle for {idle_str} before kill.")
+
+                print()
+                print(f"  Last task completion: {last_completion['ts_short']} ({idle_str} before kill)")
+                if reported_age:
+                    print(f"  Reported age in kill reason: {reported_age}s")
+                    print(f"  Actual idle time: {idle_seconds:.0f}s")
 
         elif not any_claims:
             print(f"  \u2705 EXPECTED: Worker never became productive.")
