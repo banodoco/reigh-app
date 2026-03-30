@@ -10,6 +10,7 @@ import type { SupabaseClient } from "../_shared/supabaseClient.ts";
 import { getErrorMessage } from "./request.ts";
 import { JWT_AUTH_REQUIRED } from "../_shared/requestGuards.ts";
 import { getTaskFamilyResolver } from "./resolvers/registry.ts";
+import { TaskValidationError } from "./resolvers/shared/validation.ts";
 import type { ResolveRequest, TaskInsertObject } from "./resolvers/types.ts";
 
 function createErrorResponse(
@@ -497,6 +498,12 @@ serve(async (req) => {
       deduplicated: createdTaskIds.length === 1 && deduplicatedCount === 1,
     });
   } catch (error: unknown) {
+    if (error instanceof TaskValidationError) {
+      logger.error("Validation error", { error: error.message, field: error.field });
+      await logger.flush();
+      return createErrorResponse(error.message, 400, "validation_error", false);
+    }
+
     const message = getErrorMessage(error);
     logger.critical("Unexpected error", { error: message });
     await logger.flush();

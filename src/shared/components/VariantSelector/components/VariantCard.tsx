@@ -307,7 +307,7 @@ export const VariantCard: React.FC<VariantCardProps> = ({
                         </Tooltip>
                       )}
                       {/* Delete button */}
-                      {!readOnly && onDeleteVariant && !isPrimary && (
+                      {!readOnly && onDeleteVariant && !isPrimary && variant.variant_type !== 'original' && (
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <button

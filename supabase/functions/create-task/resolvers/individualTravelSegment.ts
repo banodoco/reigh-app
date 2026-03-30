@@ -359,11 +359,32 @@ function buildIndividualTravelSegmentParams(
   };
 }
 
+/**
+ * Worker-created segment tasks (from travel_orchestrator) include
+ * orchestrator_task_id_ref and a fully-built payload. Pass through as-is
+ * to preserve pipeline linkage fields the stitch task needs.
+ */
+function isWorkerCreatedSegment(input: Record<string, unknown>): boolean {
+  return typeof input.orchestrator_task_id_ref === "string";
+}
+
 export const individualTravelSegmentResolver: TaskFamilyResolver = async (
   request,
   context,
 ): Promise<ResolverResult> => {
-  const input = request.input as unknown as IndividualTravelSegmentInput;
+  const rawInput = request.input as Record<string, unknown>;
+
+  if (isWorkerCreatedSegment(rawInput)) {
+    // Worker-created segment: pass through the full payload as-is
+    return {
+      tasks: [
+        buildQueuedTask(context.projectId, "individual_travel_segment", rawInput),
+      ],
+    };
+  }
+
+  // Frontend-created segment: full validation and param resolution
+  const input = rawInput as unknown as IndividualTravelSegmentInput;
   validateInput(input);
 
   const { parentGenerationId, childGenerationId } = await resolveSegmentGenerationRoute(context, input);

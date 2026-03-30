@@ -9,18 +9,19 @@
  * Outputs: imageEditValue (for context), mode flags, and generation handlers.
  */
 
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { GenerationRow } from '@/domains/generation/types';
 import type { LoraModel } from '@/domains/lora/types/lora';
 import type { LoraManagerState } from '@/domains/lora/types/loraManager';
 import type { ImageEditState } from '../contexts/ImageEditContext';
 import type { EditAdvancedSettings, EditMode, LoraMode, QwenEditModel } from '../model/editSettingsTypes';
+import type { AnnotationMode, EditMode as InpaintingEditMode } from './inpainting/types';
 
 import { useMagicEditMode } from './useMagicEditMode';
 import { useRepositionMode } from './useRepositionMode';
 import { useImg2ImgMode } from './useImg2ImgMode';
+import { useInpainting } from './useInpainting';
 import { buildImageEditStateValue } from '../model/buildImageEditStateValue';
-import { useManagedInpaintingState } from './imageEditing/useManagedInpaintingState';
 
 // ============================================================================
 // Props
@@ -128,6 +129,13 @@ interface UseImageEditOrchestratorReturn {
 // Hook
 // ============================================================================
 
+function toInpaintingEditMode(mode: EditMode): InpaintingEditMode {
+  if (mode === 'inpaint' || mode === 'annotate' || mode === 'text') {
+    return mode;
+  }
+  return 'text';
+}
+
 export function useImageEditOrchestrator({
   mediaContext,
   displayContext,
@@ -138,7 +146,6 @@ export function useImageEditOrchestrator({
   const {
     media,
     selectedProjectId,
-    actualGenerationId,
     shotId,
     toolTypeOverride,
     initialActive,
@@ -173,12 +180,41 @@ export function useImageEditOrchestrator({
     advancedSettings, setAdvancedSettings,
     qwenEditModel, setQwenEditModel,
     editMode: persistedEditMode, setEditMode: setPersistedEditMode,
-    isReady: isEditSettingsReady,
-    hasPersistedSettings,
   } = settingsContext;
+  const [annotationMode, setAnnotationMode] = useState<AnnotationMode>(null);
+
+  useEffect(() => {
+    setAnnotationMode(null);
+  }, [media.id]);
+
+  const inpaintingHook = useInpainting({
+    media,
+    selectedProjectId,
+    shotId,
+    toolTypeOverride,
+    isVideo: false,
+    imageContainerRef,
+    imageDimensions,
+    handleExitInpaintMode: () => {},
+    loras: effectiveEditModeLoras,
+    activeVariantId: activeVariant?.id,
+    activeVariantLocation: activeVariant?.location,
+    createAsGeneration,
+    advancedSettings,
+    qwenEditModel,
+    imageUrl: activeVariant?.location || effectiveImageUrl,
+    thumbnailUrl: thumbnailUrl || media.thumbUrl,
+    editMode: toInpaintingEditMode(persistedEditMode),
+    annotationMode,
+    inpaintPrompt: persistedPrompt,
+    inpaintNumGenerations: persistedNumGenerations,
+    setEditMode: (mode) => setPersistedEditMode(mode),
+    setAnnotationMode,
+    setInpaintPrompt: setPersistedPrompt,
+    setInpaintNumGenerations: setPersistedNumGenerations,
+  });
 
   const {
-    inpaintingHook,
     isInpaintMode,
     editMode,
     setIsInpaintMode,
@@ -191,31 +227,11 @@ export function useImageEditOrchestrator({
     handleEnterInpaintMode,
     handleGenerateInpaint,
     handleGenerateAnnotatedEdit,
-    handleExitInpaintMode,
-  } = useManagedInpaintingState({
-    media,
-    selectedProjectId,
-    actualGenerationId,
-    shotId,
-    toolTypeOverride,
-    imageContainerRef,
-    imageDimensions,
-    effectiveEditModeLoras,
-    activeVariant,
-    effectiveImageUrl,
-    thumbnailUrl: thumbnailUrl || media.thumbUrl,
-    createAsGeneration,
-    advancedSettings,
-    qwenEditModel,
-    persistedEditMode,
-    persistedNumGenerations,
-    persistedPrompt,
-    isEditSettingsReady,
-    hasPersistedSettings,
-    setPersistedEditMode,
-    setPersistedNumGenerations,
-    setPersistedPrompt,
-  });
+  } = inpaintingHook;
+
+  const handleExitInpaintMode = useCallback(() => {
+    setIsInpaintMode(false);
+  }, [setIsInpaintMode]);
 
   // ========================================
   // MAGIC EDIT MODE HOOK

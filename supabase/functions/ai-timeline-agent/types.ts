@@ -85,6 +85,8 @@ export interface TimelineRow {
   project_id: string;
 }
 
+export type Difficulty = "easy" | "okay" | "hard";
+
 export interface OpenRouterParams {
   model: string;
   messages: unknown[];

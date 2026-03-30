@@ -198,6 +198,7 @@ export async function deleteVariantInProject(
       .delete()
       .eq('id', params.id)
       .eq('generation_id', generationId)
+      .neq('variant_type', 'original')
       .select('id'),
     'No rows deleted while enforcing variant scope',
   );

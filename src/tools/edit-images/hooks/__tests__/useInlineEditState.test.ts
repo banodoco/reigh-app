@@ -51,7 +51,7 @@ const mockUseInpainting = vi.fn().mockReturnValue({
   inpaintGenerateSuccess: false,
   isAnnotateMode: false,
   editMode: null,
-  annotationMode: 'freeform',
+  annotationMode: null,
   selectedShapeId: null,
   isDrawing: false,
   currentStroke: null,
@@ -161,7 +161,7 @@ vi.mock('@/domains/media-lightbox/hooks/useImg2ImgMode', () => ({
 
 vi.mock('@/domains/media-lightbox/hooks/persistence/useEditSettingsPersistence', () => ({
   useEditSettingsPersistence: () => ({
-    editMode: null,
+    editMode: 'text',
     setEditMode: vi.fn(),
     loraMode: 'none',
     setLoraMode: vi.fn(),
@@ -188,10 +188,6 @@ vi.mock('@/domains/media-lightbox/hooks/persistence/useEditSettingsPersistence',
     isReady: true,
     hasPersistedSettings: false,
   }),
-}));
-
-vi.mock('@/domains/media-lightbox/hooks/persistence/useEditSettingsSync', () => ({
-  useEditSettingsSync: vi.fn(),
 }));
 
 vi.mock('@/shared/lib/media/downloadMedia', () => ({
@@ -321,6 +317,10 @@ describe('useInlineEditState', () => {
     expect(mockUseInpainting).toHaveBeenCalledWith(
       expect.objectContaining({
         toolTypeOverride: 'edit-images',
+        editMode: 'text',
+        annotationMode: null,
+        inpaintPrompt: '',
+        inpaintNumGenerations: 1,
       }),
     );
   });

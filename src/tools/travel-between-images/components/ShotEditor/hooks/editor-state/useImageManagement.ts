@@ -90,10 +90,11 @@ export function useImageManagement({
         return;
       }
 
-      // 2. Delete ALL variants of this generation (not just primary)
+      // 2. Delete ALL variants of this generation except the original
       const { error: deleteVariantError } = await supabase().from('generation_variants')
         .delete()
         .eq('generation_id', generationId)
+        .neq('variant_type', 'original')
         .select('id');
 
       if (deleteVariantError) {

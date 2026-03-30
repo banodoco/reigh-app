@@ -61,7 +61,14 @@ export interface UseInpaintingProps {
   qwenEditModel?: QwenEditModel;
   imageUrl?: string;
   thumbnailUrl?: string;
-  initialEditMode?: EditMode;
+  editMode?: EditMode;
+  annotationMode?: AnnotationMode;
+  inpaintPrompt?: string;
+  inpaintNumGenerations?: number;
+  setEditMode?: (mode: EditMode | ((prev: EditMode) => EditMode)) => void;
+  setAnnotationMode?: (mode: AnnotationMode | ((prev: AnnotationMode) => AnnotationMode)) => void;
+  setInpaintPrompt?: (prompt: string) => void;
+  setInpaintNumGenerations?: (num: number) => void;
   /** Start with isInpaintMode=true (skips the "select an option" step) */
   initialActive?: boolean;
 }
@@ -116,19 +123,8 @@ export interface UseInpaintingReturn {
   imageLoadError: string | null;
 }
 
-// ============================================
-// Internal State Types
-// ============================================
-
-export interface MediaStateCache {
-  editMode: EditMode;
-  annotationMode: AnnotationMode;
-}
-
 export interface StrokeCache {
   inpaintStrokes: BrushStroke[];
   annotationStrokes: BrushStroke[];
-  prompt: string;
-  numGenerations: number;
   brushSize: number;
 }

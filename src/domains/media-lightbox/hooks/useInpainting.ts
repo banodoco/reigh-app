@@ -2,7 +2,7 @@
  * useInpainting - Main hook for inpainting functionality
  *
  * This is the orchestrator that composes several sub-hooks:
- * - useMediaPersistence: Handles localStorage, in-memory cache, and DB persistence
+ * - useStrokePersistence: Handles localStorage + in-memory stroke persistence
  * - useInpaintActions: Handles user actions (undo, clear, delete, etc.)
  * - useTaskGeneration: Handles task creation for inpaint/annotate edits
  *
@@ -25,7 +25,7 @@ import type {
 } from './inpainting/types';
 
 // Import sub-hooks
-import { useMediaPersistence } from './inpainting/useMediaPersistence';
+import { useStrokePersistence } from './inpainting/useStrokePersistence';
 import { useTaskGeneration } from './inpainting/useTaskGeneration';
 
 // Import helpers
@@ -52,7 +52,14 @@ export const useInpainting = ({
   createAsGeneration,
   advancedSettings,
   qwenEditModel,
-  initialEditMode,
+  editMode: incomingEditMode,
+  annotationMode: incomingAnnotationMode,
+  inpaintPrompt: incomingInpaintPrompt,
+  inpaintNumGenerations: incomingInpaintNumGenerations,
+  setEditMode: incomingSetEditMode,
+  setAnnotationMode: incomingSetAnnotationMode,
+  setInpaintPrompt: incomingSetInpaintPrompt,
+  setInpaintNumGenerations: incomingSetInpaintNumGenerations,
   initialActive = false,
 }: UseInpaintingProps): UseInpaintingReturn => {
   // ============================================
@@ -64,6 +71,10 @@ export const useInpainting = ({
   const [showTextModeHint, setShowTextModeHint] = useState(false);
   const [isImageLoaded] = useState(false);
   const [imageLoadError] = useState<string | null>(null);
+  const [fallbackEditMode, setFallbackEditMode] = useState<EditMode>('text');
+  const [fallbackAnnotationMode, setFallbackAnnotationMode] = useState<AnnotationMode>(null);
+  const [fallbackInpaintPrompt, setFallbackInpaintPrompt] = useState('');
+  const [fallbackInpaintNumGenerations, setFallbackInpaintNumGenerations] = useState(4);
 
   // Selection state (owned here, synced via onSelectionChange callback from StrokeOverlay)
   const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
@@ -72,29 +83,72 @@ export const useInpainting = ({
   const strokeOverlayRef = useRef<StrokeOverlayHandle>(null);
 
   // ============================================
-  // Media Persistence (strokes, editMode, etc.)
+  // Stroke persistence (strokes + brush size only)
   // ============================================
   const {
-    editMode,
-    annotationMode,
     inpaintStrokes,
     annotationStrokes,
-    inpaintPrompt,
-    inpaintNumGenerations,
     brushSize,
-    setEditMode,
-    setAnnotationMode,
     setInpaintStrokes,
     setAnnotationStrokes,
-    setInpaintPrompt,
-    setInpaintNumGenerations,
     setBrushSize,
-  } = useMediaPersistence({
+  } = useStrokePersistence({
     media,
     activeVariantId,
     isInpaintMode,
-    initialEditMode,
   });
+
+  const editMode = incomingEditMode ?? fallbackEditMode;
+  const annotationMode = incomingAnnotationMode ?? fallbackAnnotationMode;
+  const inpaintPrompt = incomingInpaintPrompt ?? fallbackInpaintPrompt;
+  const inpaintNumGenerations = incomingInpaintNumGenerations ?? fallbackInpaintNumGenerations;
+
+  const setEditMode = useCallback((value: EditMode | ((prev: EditMode) => EditMode)) => {
+    if (incomingSetEditMode) {
+      incomingSetEditMode(value);
+      return;
+    }
+    setFallbackEditMode(value);
+  }, [incomingSetEditMode]);
+
+  const setAnnotationMode = useCallback((value: AnnotationMode | ((prev: AnnotationMode) => AnnotationMode)) => {
+    if (incomingSetAnnotationMode) {
+      incomingSetAnnotationMode(value);
+      return;
+    }
+    setFallbackAnnotationMode(value);
+  }, [incomingSetAnnotationMode]);
+
+  const setInpaintPrompt = useCallback((prompt: string) => {
+    if (incomingSetInpaintPrompt) {
+      incomingSetInpaintPrompt(prompt);
+      return;
+    }
+    setFallbackInpaintPrompt(prompt);
+  }, [incomingSetInpaintPrompt]);
+
+  const setInpaintNumGenerations = useCallback((num: number) => {
+    if (incomingSetInpaintNumGenerations) {
+      incomingSetInpaintNumGenerations(num);
+      return;
+    }
+    setFallbackInpaintNumGenerations(num);
+  }, [incomingSetInpaintNumGenerations]);
+
+  useEffect(() => {
+    if (incomingEditMode === undefined) {
+      setFallbackEditMode('text');
+    }
+    if (incomingAnnotationMode === undefined) {
+      setFallbackAnnotationMode(null);
+    }
+    if (incomingInpaintPrompt === undefined) {
+      setFallbackInpaintPrompt('');
+    }
+    if (incomingInpaintNumGenerations === undefined) {
+      setFallbackInpaintNumGenerations(4);
+    }
+  }, [media.id, incomingEditMode, incomingAnnotationMode, incomingInpaintPrompt, incomingInpaintNumGenerations]);
 
   // Computed values
   const isAnnotateMode = editMode === 'annotate';

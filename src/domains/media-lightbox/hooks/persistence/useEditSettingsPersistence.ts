@@ -188,6 +188,7 @@ export function useEditSettingsPersistence({
   // (the parent objects are recreated each render, but these functions are stable)
   const { updateLastUsed } = lastUsedSettings;
   const {
+    setEditMode: genSetEditMode,
     setLoraMode: genSetLoraMode,
     setCustomLoraUrl: genSetCustomLoraUrl,
     setNumGenerations: genSetNumGenerations,
@@ -202,10 +203,11 @@ export function useEditSettingsPersistence({
   } = generationSettings;
 
   // Wrapper setters that also update "last used" (except prompt)
-  // editMode is user-level only (not per-generation) so it stays consistent across images/videos
+  // editMode writes to both generation persistence and user-level last used state.
   const setEditMode = useCallback((mode: EditMode) => {
+    genSetEditMode(mode);
     updateLastUsed({ editMode: mode });
-  }, [updateLastUsed]);
+  }, [genSetEditMode, updateLastUsed]);
 
   const setLoraMode = useCallback((mode: LoraMode) => {
     genSetLoraMode(mode);

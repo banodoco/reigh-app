@@ -315,6 +315,7 @@ const Timeline: React.FC<TimelineProps> = ({
       features: {
         showTaskDetails: true,
         showMagicEdit: true,
+        showDownload: true,
         initialEditActive: lightbox.initialEditActive,
       },
       taskDetailsData: {

@@ -21,9 +21,8 @@ import { useStarToggle } from '@/domains/media-lightbox/hooks/useStarToggle';
 import { useRepositionMode } from '@/domains/media-lightbox/hooks/useRepositionMode';
 import { useImg2ImgMode } from '@/domains/media-lightbox/hooks/useImg2ImgMode';
 import { useEditSettingsPersistence } from '@/domains/media-lightbox/hooks/persistence/useEditSettingsPersistence';
-import { useEditSettingsSync } from '@/domains/media-lightbox/hooks/persistence/useEditSettingsSync';
 import type { EditMode as SettingsEditMode } from '@/domains/media-lightbox/model/editSettingsTypes';
-import type { EditMode as InpaintingEditMode } from '@/domains/media-lightbox/hooks/inpainting/types';
+import type { AnnotationMode, EditMode as InpaintingEditMode } from '@/domains/media-lightbox/hooks/inpainting/types';
 import type { ImageEditMode, ImageEditState } from '@/domains/media-lightbox/contexts/ImageEditContext';
 import { buildImageEditStateValue } from '@/tools/edit-images/model/buildImageEditStateValue';
 import { downloadMedia } from '@/shared/lib/media/downloadMedia';
@@ -156,6 +155,7 @@ export function useInlineEditState(
     generationId: actualGenerationId,
     enabled: true,
   });
+  const [annotationMode, setAnnotationMode] = useState<AnnotationMode>(null);
 
   const activeVariant = variants.activeVariant;
   const effectiveImageUrl = activeVariant?.location || upscaleImageUrl;
@@ -163,6 +163,10 @@ export function useInlineEditState(
   useEffect(() => {
     setUpscaleActiveVariant(activeVariant?.location, activeVariant?.id);
   }, [setUpscaleActiveVariant, activeVariant?.location, activeVariant?.id]);
+
+  useEffect(() => {
+    setAnnotationMode(null);
+  }, [media.id]);
 
   const { data: availableLoras } = usePublicLoras();
 
@@ -182,6 +186,14 @@ export function useInlineEditState(
     createAsGeneration,
     advancedSettings: editSettings.advancedSettings,
     qwenEditModel: editSettings.qwenEditModel,
+    editMode: toInpaintingEditMode(editSettings.editMode ?? 'text'),
+    annotationMode,
+    inpaintPrompt: editSettings.prompt,
+    inpaintNumGenerations: editSettings.numGenerations,
+    setEditMode: (mode) => editSettings.setEditMode(mode),
+    setAnnotationMode,
+    setInpaintPrompt: editSettings.setPrompt,
+    setInpaintNumGenerations: editSettings.setNumGenerations,
     initialActive: true,
   });
 
@@ -258,25 +270,6 @@ export function useInlineEditState(
       toolTypeOverride: TOOL_IDS.EDIT_IMAGES,
       createAsGeneration,
     },
-  });
-
-  // --- Settings sync ---
-  useEditSettingsSync({
-    actualGenerationId: actualGenerationId ?? undefined,
-    isEditSettingsReady: editSettings.isReady,
-    hasPersistedSettings: editSettings.hasPersistedSettings,
-    persistedEditMode: editSettings.editMode,
-    persistedNumGenerations: editSettings.numGenerations,
-    persistedPrompt: editSettings.prompt,
-    editMode: inpainting.editMode,
-    inpaintNumGenerations: inpainting.inpaintNumGenerations,
-    inpaintPrompt: inpainting.inpaintPrompt,
-    setEditMode: (mode: SettingsEditMode) => inpainting.setEditMode(toInpaintingEditMode(mode)),
-    setInpaintNumGenerations: inpainting.setInpaintNumGenerations,
-    setInpaintPrompt: inpainting.setInpaintPrompt,
-    setPersistedEditMode: editSettings.setEditMode,
-    setPersistedNumGenerations: editSettings.setNumGenerations,
-    setPersistedPrompt: editSettings.setPrompt,
   });
 
   const { sourceGenerationData } = useSourceGeneration({

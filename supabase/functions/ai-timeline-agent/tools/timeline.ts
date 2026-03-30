@@ -56,14 +56,25 @@ function getClipTimelineDuration(clip: TimelineClip, registry: AssetRegistry): n
 
 function formatClipLine(clip: TimelineClip, registry: AssetRegistry): string {
   const duration = roundSeconds(getClipTimelineDuration(clip, registry));
-  return [
+  const parts = [
     `id=${clip.id}`,
     `track=${clip.track}`,
     `at=${roundSeconds(clip.at)}s`,
     `duration=${duration}s`,
     `type=${clip.clipType ?? "media"}`,
     `asset=${clip.asset ?? "none"}`,
-  ].join(" | ");
+  ];
+
+  if (clip.x != null) parts.push(`x=${clip.x}`);
+  if (clip.y != null) parts.push(`y=${clip.y}`);
+  if (clip.width != null) parts.push(`width=${clip.width}`);
+  if (clip.height != null) parts.push(`height=${clip.height}`);
+  if (clip.opacity != null && clip.opacity !== 1) parts.push(`opacity=${clip.opacity}`);
+  if (clip.volume != null && clip.volume !== 1) parts.push(`volume=${clip.volume}`);
+  if (clip.speed != null && clip.speed !== 1) parts.push(`speed=${clip.speed}`);
+  if (clip.clipType === "text" && clip.text?.content) parts.push(`text="${clip.text.content}"`);
+
+  return parts.join(" | ");
 }
 
 function getTrackDefinitions(config: TimelineConfig): TrackDefinition[] {

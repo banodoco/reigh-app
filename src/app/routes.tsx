@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter, RouterProvider, redirect } from 'react-router-dom';
-import HomePage from '@/pages/Home/HomePage';
+const HomePage = lazy(() => import('@/pages/Home/HomePage'));
 import ArtPage from '@/pages/ArtPage';
 import PaymentSuccessPage from '@/pages/PaymentSuccessPage';
 import PaymentCancelPage from '@/pages/PaymentCancelPage';
@@ -62,7 +62,7 @@ const router = createBrowserRouter([
   // Redirects logged-in users to /tools/travel-between-images
   ...(currentEnv === AppEnv.WEB ? [{
     path: '/',
-    element: <HomePage />,
+    element: <Suspense fallback={<LazyLoadingFallback />}><HomePage /></Suspense>,
     loader: authRedirectLoader,
     errorElement: <NotFoundPage />,
   }] : []),
@@ -70,7 +70,7 @@ const router = createBrowserRouter([
   // Add /home route that also leads to HomePage
   {
     path: '/home',
-    element: <HomePage />,
+    element: <Suspense fallback={<LazyLoadingFallback />}><HomePage /></Suspense>,
     errorElement: <NotFoundPage />,
   },
 

@@ -244,10 +244,13 @@ export const useVariants = ({
   const deleteVariantMutation = useMutation({
     mutationFn: async (variantId: string) => {
 
-      // Check if variant is primary - don't allow deleting primary
+      // Check if variant is primary or original - don't allow deleting either
       const variant = variants.find(v => v.id === variantId);
       if (variant?.is_primary) {
         throw new Error('Cannot delete the primary variant');
+      }
+      if (variant?.variant_type === 'original') {
+        throw new Error('Cannot delete the original variant');
       }
 
       const { error } = await supabase().from('generation_variants')

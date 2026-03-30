@@ -46,7 +46,7 @@ export const TopRightControls: React.FC<TopRightControlsProps> = ({
     <div className="absolute top-4 right-4 flex items-center gap-x-2 z-[70]">
       {/* Download Button - Keep visible in edit mode */}
       {/* Guard: only render if handleDownload is provided (parent must supply it) */}
-      {showDownload && !readOnly && handleDownload && (
+      {showDownload && handleDownload && (
         <Tooltip>
           <TooltipTrigger asChild>
             <Button

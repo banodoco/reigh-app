@@ -2,11 +2,10 @@ import type { EdgeRuntime } from "../_shared/edgeRequest.ts";
 import { toErrorMessage } from "../_shared/errorMessage.ts";
 import {
   LOOP_LIMIT,
-  OPENROUTER_MODEL,
   SOFT_TIMEOUT_MS,
 } from "./config.ts";
 import { loadSessionStatus, loadTimelineState, persistSessionState } from "./db.ts";
-import { invokeLlmWithRetry } from "./llm/client.ts";
+import { invokeLlm, triageDifficulty } from "./llm/client.ts";
 import {
   buildInitialMessages,
   createToolTurn,
@@ -143,6 +142,11 @@ export async function runAgentLoop(
     const messages = buildInitialMessages(systemPrompt, turns);
     const startedAt = Date.now();
 
+    // Triage the user message to pick provider: easy/okay → Kimi K2.5, hard → Claude
+    const difficulty = userMessage
+      ? await triageDifficulty(userMessage, logger)
+      : "okay";
+
     loop: for (let iteration = 0; iteration < LOOP_LIMIT; iteration += 1) {
       if (Date.now() - startedAt >= SOFT_TIMEOUT_MS) {
         status = "continue";
@@ -157,9 +161,8 @@ export async function runAgentLoop(
 
       let completion;
       try {
-        completion = await invokeLlmWithRetry(
+        completion = await invokeLlm(
           {
-            model: OPENROUTER_MODEL,
             messages: messages as unknown[],
             tools: TIMELINE_AGENT_TOOLS as unknown[],
             tool_choice: "auto",
@@ -167,6 +170,7 @@ export async function runAgentLoop(
             max_tokens: 4096,
             top_p: 1,
           },
+          difficulty,
           logger,
         );
       } catch (llmError: unknown) {
