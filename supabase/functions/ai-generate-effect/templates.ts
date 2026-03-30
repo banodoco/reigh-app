@@ -88,11 +88,13 @@ const OUTPUT_RULES = `Output requirements:
   drift, blur radius) as a percentage of the composition width — NOT fixed pixels.
   The preview renders at 320×320 but the timeline renders at 1920×1080+.
   Fixed pixel values that look dramatic in preview will be invisible on timeline.
-- NEVER use Math.random() — Remotion renders each frame independently, so random
-  values change between renders making output non-deterministic. Use deterministic
-  math based on frame number instead (e.g. Math.sin(frame * seed)).
-- If using inline SVG filter IDs, generate unique IDs with React.useMemo to avoid
-  collisions when multiple clips use the same effect (e.g. "myeffect-" + Math.random().toString(36).slice(2,8)).`;
+- NEVER use Math.random() ANYWHERE in the code — Remotion renders each frame
+  independently, so random values change between renders making output
+  non-deterministic. Use deterministic math based on frame number instead
+  (e.g. Math.sin(frame * seed), or a simple hash function on an index).
+- If using inline SVG filter IDs, generate unique IDs with React.useMemo and
+  a counter or component name to avoid collisions (e.g. React.useMemo(() =>
+  "myeffect-" + (++globalCounter), [])) — do NOT use Math.random() for IDs.`;
 
 const CATEGORY_GUIDANCE: Record<EffectCategory, string> = {
   entrance: `Category guidance: entrance
