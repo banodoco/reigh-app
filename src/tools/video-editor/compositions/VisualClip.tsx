@@ -113,12 +113,12 @@ const VisualAsset: FC<VisualClipProps> = ({ clip, track, fps }) => {
     return (
       <Video
         src={clip.assetEntry.src}
-        startFrom={secondsToFrames(clip.from ?? 0, fps)}
+        trimBefore={secondsToFrames(clip.from ?? 0, fps)}
+        trimAfter={clip.to ? secondsToFrames(clip.to, fps) : undefined}
         playbackRate={clip.speed ?? 1}
         volume={clipVolume}
         muted={clipVolume <= 0}
         style={sharedStyle}
-        crossOrigin="anonymous"
       />
     );
   }
@@ -184,12 +184,12 @@ const VisualAsset: FC<VisualClipProps> = ({ clip, track, fps }) => {
     <div style={viewportStyle}>
       <Video
         src={clip.assetEntry.src}
-        startFrom={secondsToFrames(clip.from ?? 0, fps)}
+        trimBefore={secondsToFrames(clip.from ?? 0, fps)}
+        trimAfter={clip.to ? secondsToFrames(clip.to, fps) : undefined}
         playbackRate={clip.speed ?? 1}
         volume={clipVolume}
         muted={clipVolume <= 0}
         style={mediaStyle}
-        crossOrigin="anonymous"
       />
     </div>
   );

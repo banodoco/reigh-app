@@ -7,12 +7,47 @@ import { generateUUID } from './ids';
 import { parseTaskCreationResponse } from './parseTaskCreationResponse';
 import type { BaseTaskParams, TaskCreationResult } from './types';
 
+const ATTEMPT_TIMEOUT_MS = 15_000;
+const MAX_ATTEMPTS = 2;
+
+function getNetworkDiagnostics(): Record<string, unknown> {
+  const diag: Record<string, unknown> = {
+    online: navigator.onLine,
+  };
+  const conn = (navigator as Navigator & { connection?: { effectiveType?: string; downlink?: number; rtt?: number } }).connection;
+  if (conn) {
+    diag.effectiveType = conn.effectiveType;
+    diag.downlink = conn.downlink;
+    diag.rtt = conn.rtt;
+  }
+  return diag;
+}
+
+async function attemptCreateTask(
+  url: string,
+  headers: Record<string, string>,
+  body: string,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, {
+      method: 'POST',
+      headers,
+      body,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 /**
  * Creates a task using the unified create-task edge function.
+ * Retries once on timeout since the server typically responds in <2s.
  */
 export async function createTask(taskParams: BaseTaskParams): Promise<TaskCreationResult> {
-  // Read access token from localStorage — avoids navigator.locks contention.
-  // getSession() acquires a shared navigator.lock blocked during token refresh.
   const accessToken = readAccessTokenFromStorage();
 
   if (!accessToken) {
@@ -27,70 +62,78 @@ export async function createTask(taskParams: BaseTaskParams): Promise<TaskCreati
     taskType: taskIdentifier,
     projectId: taskParams.project_id,
   };
-  const timeoutMs = 20000; // 20s safety timeout to avoid indefinite UI stall
-  const controller = new AbortController();
-  const timeout = setTimeout(() => {
-    controller.abort();
-  }, timeoutMs);
 
-  try {
-    // Generate an idempotency key to prevent duplicate task creation from
-    // network retries or double-clicks. The server will return the existing
-    // task if this key was already used.
-    const idempotency_key = generateUUID();
+  // Idempotency key stays the same across retries so the server
+  // deduplicates if the first attempt actually landed.
+  const idempotency_key = generateUUID();
+  const url = `${getSupabaseUrl()}/functions/v1/create-task`;
+  const headers = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${accessToken}`,
+    apikey: getSupabasePublishableKey(),
+  };
+  const body = JSON.stringify({
+    family: taskParams.family,
+    project_id: taskParams.project_id,
+    input: taskParams.input,
+    idempotency_key,
+  });
 
-    const response = await fetch(`${getSupabaseUrl()}/functions/v1/create-task`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
-        apikey: getSupabasePublishableKey(),
-      },
-      body: JSON.stringify({
-        family: taskParams.family,
-        project_id: taskParams.project_id,
-        input: taskParams.input,
-        idempotency_key,
-      }),
-      signal: controller.signal,
-    });
+  let lastError: unknown;
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => '');
-      throw new ServerError(errorText || 'Failed to create task', {
-        context: requestContext,
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const response = await attemptCreateTask(url, headers, body, ATTEMPT_TIMEOUT_MS);
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        throw new ServerError(errorText || 'Failed to create task', {
+          context: requestContext,
+        });
+      }
+
+      const data = await response.json() as unknown;
+      return parseTaskCreationResponse(data, requestContext);
+    } catch (err: unknown) {
+      lastError = err;
+      const durationMs = Date.now() - startTime;
+      const isTimeout = isAbortError(err);
+
+      if (isTimeout && attempt < MAX_ATTEMPTS) {
+        console.error('[createTask] attempt %d/%d timed out after %dms, retrying', attempt, MAX_ATTEMPTS, durationMs, {
+          ...requestContext,
+          network: getNetworkDiagnostics(),
+        });
+        continue;
+      }
+
+      const context = {
+        ...requestContext,
+        attempt,
+        durationMs,
+        network: getNetworkDiagnostics(),
+        errorType: err instanceof Error ? err.name : typeof err,
+        errorMessage: err instanceof Error ? err.message : String(err),
+      };
+
+      console.error('[createTask] FAILED after %d attempt(s), %dms', attempt, durationMs, context);
+
+      if (isTimeout) {
+        throw new NetworkError('Task creation timed out. Please try again.', {
+          isTimeout: true,
+          context,
+          cause: err instanceof Error ? err : undefined,
+        });
+      }
+
+      normalizeAndPresentAndRethrow(err, {
+        context: 'TaskCreation',
+        showToast: false,
+        logData: context,
       });
     }
-
-    const data = await response.json() as unknown;
-    return parseTaskCreationResponse(data, requestContext);
-  } catch (err: unknown) {
-    const context = {
-      requestId,
-      taskType: taskIdentifier,
-      projectId: taskParams.project_id,
-      durationMs: Date.now() - startTime,
-    };
-
-    if (import.meta.env.DEV) {
-      console.error('[createTask] invoke FAILED', context, err);
-    }
-
-    // Normalize abort errors for better UX
-    if (isAbortError(err)) {
-      throw new NetworkError('Task creation timed out. Please try again.', {
-        isTimeout: true,
-        context,
-        cause: err instanceof Error ? err : undefined,
-      });
-    }
-
-    normalizeAndPresentAndRethrow(err, {
-      context: 'TaskCreation',
-      showToast: false,
-      logData: context,
-    });
-  } finally {
-    clearTimeout(timeout);
   }
+
+  // Unreachable, but TypeScript needs it
+  throw lastError;
 }

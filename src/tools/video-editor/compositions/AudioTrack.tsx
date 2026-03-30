@@ -20,10 +20,10 @@ export const AudioTrack: FC<{
           {clip.assetEntry ? (
             <Audio
               src={clip.assetEntry.src}
-              startFrom={secondsToFrames(clip.from ?? 0, fps)}
+              trimBefore={secondsToFrames(clip.from ?? 0, fps)}
+              trimAfter={clip.to ? secondsToFrames(clip.to, fps) : undefined}
               playbackRate={clip.speed ?? 1}
               volume={clip.volume ?? 1}
-              crossOrigin="anonymous"
             />
           ) : null}
         </Sequence>
