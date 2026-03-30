@@ -70,9 +70,14 @@ const OUTPUT_RULES = `Output requirements:
 - Use React.createElement(...) instead of JSX
 - Set the component using exports.default = ComponentName
 - The default export must be a function component compatible with EffectComponentProps
-- Preserve the passed children and wrap or transform them visually
+- CRITICAL: The children (video/image) must ALWAYS remain visible as the primary content.
+  The standard pattern is: render children FIRST as the base layer, then add effect
+  overlays (particles, glows, borders, etc.) on top with pointerEvents:'none'.
+  You may also apply CSS transforms (scale, rotate, translate) or filters (blur,
+  brightness, hue-rotate) to the children wrapper div — but children must be visible.
+  Do NOT bury children inside complex blend-mode chains that obscure them.
 - Read user-adjustable values from the params prop (e.g. params?.drift ?? 1), NOT as top-level props
-- CRITICAL: children may be images, videos, or complex elements — NOT just text.
+- Children may be images, videos, or complex elements — NOT just text.
   CSS \`color\` only affects text foreground; it does NOT tint images or videos.
   For color-channel effects (chromatic aberration, RGB split, color isolation),
   use CSS mix-blend-mode:multiply with colored overlay divs to isolate channels
