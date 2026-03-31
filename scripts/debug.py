@@ -106,6 +106,7 @@ def create_parser() -> argparse.ArgumentParser:
 
     # Workers command
     workers_parser = subparsers.add_parser('workers', help='Show active workers, health, failure counts')
+    workers_parser.add_argument('--all', action='store_true', help='Show all workers including terminated (default: active only)')
     workers_parser.add_argument('--json', action='store_true', help='Output as JSON')
     workers_parser.add_argument('--debug', action='store_true', help='Show debug info on errors')
 
@@ -202,7 +203,9 @@ def main():
         options['type'] = args.type
     if hasattr(args, 'logs_only'):
         options['logs_only'] = args.logs_only
-    
+    if hasattr(args, 'all') and args.all:
+        options['all'] = True
+
     # Add logs-specific options
     if hasattr(args, 'source') and args.source:
         options['source'] = args.source
