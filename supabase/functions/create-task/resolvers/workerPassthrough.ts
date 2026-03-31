@@ -12,9 +12,13 @@ export function createWorkerPassthroughResolver(taskType: string): TaskFamilyRes
   return (request, context): ResolverResult => {
     const params = request.input as Record<string, unknown>;
     const dependantOn = Array.isArray(params.dependant_on) ? params.dependant_on as string[] : null;
+    // Workers pre-generate a task UUID and pass it as input.task_id.
+    // Honor it so the returned ID matches dependant_on references from sibling tasks.
+    const workerTaskId = typeof params.task_id === "string" ? params.task_id : undefined;
 
     return {
       tasks: [{
+        ...(workerTaskId ? { id: workerTaskId } : {}),
         project_id: context.projectId,
         task_type: taskType,
         params,
