@@ -33,7 +33,6 @@ import {
   coerceSelectedModel,
   getModelSpec,
   resolveSelectedModelFromModelName,
-  getInferenceStepRange,
   resolveGenerationPolicy,
 } from '@/tools/travel-between-images/settings';
 
@@ -99,10 +98,8 @@ export const SegmentSettingsForm: React.FC<SegmentSettingsFormProps> = ({
     settings.selectedModel ?? (modelName ? resolveSelectedModelFromModelName(modelName) : undefined)
   );
   const spec = getModelSpec(effectiveSelectedModel);
-  const isLtxSelected = spec.modelFamily === 'ltx';
   const modelDefaults = MODEL_DEFAULTS[effectiveSelectedModel];
   const frameStep = modelDefaults.frameStep;
-  const stepRange = getInferenceStepRange(effectiveSelectedModel);
   const effectiveSmoothContinuations = settings.smoothContinuations ?? shotDefaults?.smoothContinuations ?? false;
   const continuationPolicy = resolveGenerationPolicy(spec, {
     smoothContinuations: effectiveSmoothContinuations,
@@ -306,22 +303,6 @@ export const SegmentSettingsForm: React.FC<SegmentSettingsFormProps> = ({
               )}
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Inference Steps (LTX models only) — Guidance scale is in Advanced Settings */}
-      {isLtxSelected && (
-        <div>
-          <Label className="text-sm font-light block mb-1">
-            Inference steps: {settings.inferenceSteps ?? modelDefaults.steps}
-          </Label>
-          <Slider
-            min={stepRange.min}
-            max={stepRange.max}
-            step={1}
-            value={settings.inferenceSteps ?? modelDefaults.steps}
-            onValueChange={(value) => onChange({ inferenceSteps: Array.isArray(value) ? value[0] : value })}
-          />
         </div>
       )}
 

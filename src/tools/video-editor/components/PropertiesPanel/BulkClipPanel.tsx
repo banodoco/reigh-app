@@ -3,6 +3,7 @@ import { Volume2 } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { Input } from '@/shared/components/ui/input';
+import { NumberInput } from '@/shared/components/ui/number-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
 import { Slider } from '@/shared/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
@@ -23,7 +24,8 @@ const MIXED_SELECT_VALUE = '__mixed__';
 
 type BulkScalarPatch = Partial<Pick<ClipMeta, 'speed' | 'from' | 'to' | 'x' | 'y' | 'width' | 'height' | 'opacity' | 'volume'>>;
 type BulkDraftField = 'speed' | 'from' | 'to' | 'x' | 'y' | 'width' | 'height' | 'fontSize' | 'color';
-type BulkDrafts = Record<BulkDraftField, string>;
+type BulkNumberDraftField = Exclude<BulkDraftField, 'color'>;
+type BulkDrafts = Record<BulkNumberDraftField, number | null> & { color: string };
 
 export interface BulkClipPanelProps {
   clips: ResolvedTimelineClip[];
@@ -57,18 +59,18 @@ export interface BulkClipPanelProps {
   setActiveTab: (tab: ClipTab) => void;
 }
 
-const toDraft = (value: number | string | null): string => (value === null ? '' : String(value));
+const toNumberDraft = (value: number | null | undefined): number | null => (typeof value === 'number' ? value : null);
 
 const buildDrafts = (props: BulkClipPanelProps): BulkDrafts => ({
-  speed: toDraft(props.sharedSpeed),
-  from: toDraft(props.sharedFrom),
-  to: toDraft(props.sharedTo),
-  x: toDraft(props.sharedX),
-  y: toDraft(props.sharedY),
-  width: toDraft(props.sharedWidth),
-  height: toDraft(props.sharedHeight),
-  fontSize: toDraft(props.sharedFontSize ?? props.sharedText?.fontSize ?? null),
-  color: toDraft(props.sharedTextColor ?? props.sharedText?.color ?? null),
+  speed: toNumberDraft(props.sharedSpeed),
+  from: toNumberDraft(props.sharedFrom),
+  to: toNumberDraft(props.sharedTo),
+  x: toNumberDraft(props.sharedX),
+  y: toNumberDraft(props.sharedY),
+  width: toNumberDraft(props.sharedWidth),
+  height: toNumberDraft(props.sharedHeight),
+  fontSize: toNumberDraft(props.sharedFontSize ?? props.sharedText?.fontSize),
+  color: props.sharedTextColor ?? props.sharedText?.color ?? '',
 });
 
 function getDefaultEffectParams(
@@ -134,61 +136,55 @@ export function BulkClipPanel(props: BulkClipPanelProps) {
     }
   }, [activeTab, setActiveTab, visibleTabs]);
 
-  const setDraft = (field: BulkDraftField, value: string) => {
+  const setNumberDraft = (field: BulkNumberDraftField, value: number | null) => {
     setDrafts((current) => ({ ...current, [field]: value }));
   };
 
-  const commitScalarField = (field: Exclude<BulkDraftField, 'fontSize' | 'color'>, value: string) => {
-    if (value.trim() === '') {
-      return;
-    }
+  const setColorDraft = (value: string) => {
+    setDrafts((current) => ({ ...current, color: value }));
+  };
 
-    const parsedValue = Number(value);
-    if (!Number.isFinite(parsedValue)) {
+  const commitScalarField = (field: Exclude<BulkDraftField, 'fontSize' | 'color'>, value: number | null) => {
+    if (value === null || !Number.isFinite(value)) {
       return;
     }
 
     switch (field) {
       case 'speed':
-        onChange({ speed: Math.max(0.05, parsedValue) });
+        onChange({ speed: Math.max(0.05, value) });
         return;
       case 'from':
-        onChange({ from: Math.max(0, parsedValue) });
+        onChange({ from: Math.max(0, value) });
         return;
       case 'to':
-        onChange({ to: Math.max(0, parsedValue) });
+        onChange({ to: Math.max(0, value) });
         return;
       case 'x':
-        onChange({ x: parsedValue });
+        onChange({ x: value });
         return;
       case 'y':
-        onChange({ y: parsedValue });
+        onChange({ y: value });
         return;
       case 'width':
-        onChange({ width: Math.min(compositionWidth, Math.max(0, parsedValue)) });
+        onChange({ width: Math.min(compositionWidth, Math.max(0, value)) });
         return;
       case 'height':
-        onChange({ height: Math.min(compositionHeight, Math.max(0, parsedValue)) });
+        onChange({ height: Math.min(compositionHeight, Math.max(0, value)) });
         return;
       default:
         return;
     }
   };
 
-  const commitTextFontSize = (value: string) => {
-    if (value.trim() === '') {
-      return;
-    }
-
-    const parsedValue = Number(value);
-    if (!Number.isFinite(parsedValue)) {
+  const commitTextFontSize = (value: number | null) => {
+    if (value === null || !Number.isFinite(value)) {
       return;
     }
 
     onChangeDeep((meta) => ({
       text: {
         ...(meta.text ?? sharedText ?? { content: '' }),
-        fontSize: Math.max(1, parsedValue),
+        fontSize: Math.max(1, value),
       },
     }));
   };
@@ -214,20 +210,14 @@ export function BulkClipPanel(props: BulkClipPanelProps) {
   ) => (
     <div className="space-y-2">
       <FieldLabel>{label}</FieldLabel>
-      <Input
-        type="number"
+      <NumberInput
         min={options?.min}
         max={options?.max}
         step={options?.step}
         value={drafts[field]}
         placeholder="Mixed"
-        onChange={(event) => setDraft(field, event.target.value)}
-        onBlur={() => commitScalarField(field, drafts[field])}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') {
-            commitScalarField(field, drafts[field]);
-          }
-        }}
+        onChange={(value) => setNumberDraft(field, value)}
+        onValueCommitted={(value) => commitScalarField(field, value)}
       />
     </div>
   );
@@ -433,18 +423,12 @@ export function BulkClipPanel(props: BulkClipPanelProps) {
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
                 <FieldLabel>Font size</FieldLabel>
-                <Input
-                  type="number"
+                <NumberInput
                   min={1}
                   value={drafts.fontSize}
                   placeholder="Mixed"
-                  onChange={(event) => setDraft('fontSize', event.target.value)}
-                  onBlur={() => commitTextFontSize(drafts.fontSize)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      commitTextFontSize(drafts.fontSize);
-                    }
-                  }}
+                  onChange={(value) => setNumberDraft('fontSize', value)}
+                  onValueCommitted={(value) => commitTextFontSize(value)}
                 />
               </div>
               <div className="space-y-2">
@@ -453,7 +437,7 @@ export function BulkClipPanel(props: BulkClipPanelProps) {
                   type="text"
                   value={drafts.color}
                   placeholder="Mixed"
-                  onChange={(event) => setDraft('color', event.target.value)}
+                  onChange={(event) => setColorDraft(event.target.value)}
                   onBlur={() => commitTextColor(drafts.color)}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') {

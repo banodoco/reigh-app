@@ -4,8 +4,9 @@ import { ChevronUp, ChevronDown } from "lucide-react"
 import { cn } from "@/shared/components/ui/contracts/cn"
 
 interface NumberInputProps {
-  value: number
-  onChange: (value: number) => void
+  value: number | null
+  onChange: (value: number | null) => void
+  onValueCommitted?: (value: number | null) => void
   min?: number
   max?: number
   step?: number
@@ -17,14 +18,15 @@ interface NumberInputProps {
 }
 
 const NumberInput = React.forwardRef<HTMLDivElement, NumberInputProps>(
-  ({ value, onChange, min, max, step = 1, disabled, className, id, placeholder, prefix }, ref) => {
+  ({ value, onChange, onValueCommitted, min, max, step = 1, disabled, className, id, placeholder, prefix }, ref) => {
     return (
       <NumberField.Root
         ref={ref}
         value={value}
         onValueChange={(val) => {
-          if (val !== null) onChange(val)
+          onChange(val)
         }}
+        onValueCommitted={onValueCommitted}
         min={min}
         max={max}
         step={step}

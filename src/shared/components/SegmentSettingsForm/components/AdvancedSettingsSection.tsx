@@ -16,6 +16,11 @@ import { useSaveFieldAsDefault } from '../hooks/useSaveFieldAsDefault';
 import { Button } from '@/shared/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/components/ui/collapsible';
 import { ChevronLeft } from 'lucide-react';
+import {
+  coerceSelectedModel,
+  getModelSpec,
+  resolveSelectedModelFromModelName,
+} from '@/tools/travel-between-images/settings';
 import { usePublicLoras } from '@/features/resources/hooks/useResources';
 import { MotionPresetSection } from './MotionPresetSection';
 import { StructureVideoSection } from './StructureVideoSection';
@@ -102,6 +107,11 @@ export const AdvancedSettingsSection: React.FC<AdvancedSettingsSectionProps> = (
     shotDefaults,
   });
 
+  const effectiveSelectedModel = coerceSelectedModel(
+    settings.selectedModel ?? (modelName ? resolveSelectedModelFromModelName(modelName) : undefined)
+  );
+  const spec = getModelSpec(effectiveSelectedModel);
+
   const { savingField, handleSaveFieldAsDefault } = useSaveFieldAsDefault({
     onSaveFieldAsDefault,
     onChange,
@@ -163,30 +173,32 @@ export const AdvancedSettingsSection: React.FC<AdvancedSettingsSectionProps> = (
             savingField={savingField}
           />
 
-          <MotionPresetSection
-            builtinPreset={builtinPreset}
-            featuredPresetIds={featuredPresetIds}
-            generationMode={generationMode}
-            settings={settings}
-            onChange={onChange}
-            shotDefaults={shotDefaults}
-            queryKeyPrefix={queryKeyPrefix}
-            availableLoras={availableLoras}
-            effectiveLoras={effectiveLoras}
-            onMotionModeChange={handleMotionModeChange}
-            onPhaseConfigChange={handlePhaseConfigChange}
-            onPhasePresetSelect={handlePhasePresetSelect}
-            onPhasePresetRemove={handlePhasePresetRemove}
-            onRandomSeedChange={handleRandomSeedChange}
-            onAddLoraClick={handleAddLoraClick}
-            onRemoveLora={handleRemoveLora}
-            onLoraStrengthChange={handleLoraStrengthChange}
-            onSaveFieldAsDefault={onSaveFieldAsDefault}
-            handleSaveFieldAsDefault={handleSaveFieldAsDefault}
-            savingField={savingField}
-            isUsingMotionDefaults={isUsingMotionDefaults}
-            isUsingLorasDefault={isUsingLorasDefault}
-          />
+          {spec.supportsPhaseConfig && (
+            <MotionPresetSection
+              builtinPreset={builtinPreset}
+              featuredPresetIds={featuredPresetIds}
+              generationMode={generationMode}
+              settings={settings}
+              onChange={onChange}
+              shotDefaults={shotDefaults}
+              queryKeyPrefix={queryKeyPrefix}
+              availableLoras={availableLoras}
+              effectiveLoras={effectiveLoras}
+              onMotionModeChange={handleMotionModeChange}
+              onPhaseConfigChange={handlePhaseConfigChange}
+              onPhasePresetSelect={handlePhasePresetSelect}
+              onPhasePresetRemove={handlePhasePresetRemove}
+              onRandomSeedChange={handleRandomSeedChange}
+              onAddLoraClick={handleAddLoraClick}
+              onRemoveLora={handleRemoveLora}
+              onLoraStrengthChange={handleLoraStrengthChange}
+              onSaveFieldAsDefault={onSaveFieldAsDefault}
+              handleSaveFieldAsDefault={handleSaveFieldAsDefault}
+              savingField={savingField}
+              isUsingMotionDefaults={isUsingMotionDefaults}
+              isUsingLorasDefault={isUsingLorasDefault}
+            />
+          )}
 
           {/* Structure Video Section */}
           <StructureVideoSection

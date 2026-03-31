@@ -47,6 +47,25 @@ export interface UseClipEditingResult {
   handleAddTextAt: (trackId: string, time: number) => void;
 }
 
+export const DURATION_KEYS = ['speed', 'from', 'to', 'hold'] as const;
+
+export function patchAffectsDuration(patch: Partial<ClipMeta>): boolean {
+  return DURATION_KEYS.some((key) => key in patch);
+}
+
+export function recalcActionEnd(action: TimelineAction, merged: Partial<ClipMeta>): number {
+  const speed = merged.speed ?? 1;
+  const fallbackSourceDuration = Math.max(0, (action.end - action.start) * speed);
+  const sourceDuration = typeof merged.hold === 'number'
+    ? merged.hold
+    : Math.max(
+      0,
+      (merged.to ?? fallbackSourceDuration + (merged.from ?? 0)) - (merged.from ?? 0),
+    );
+
+  return action.start + sourceDuration / speed;
+}
+
 export function useClipEditing({
   dataRef,
   resolvedConfig,
@@ -106,7 +125,32 @@ export function useClipEditing({
       validClipIds.map((clipId) => [clipId, patch]),
     ) as Record<string, Partial<ClipMeta>>;
 
-    applyTimelineEdit(current.rows, metaUpdates);
+    if (!patchAffectsDuration(patch)) {
+      applyTimelineEdit(current.rows, metaUpdates);
+      return;
+    }
+
+    const validClipIdSet = new Set(validClipIds);
+    const nextRows = current.rows.map((row) => ({
+      ...row,
+      actions: row.actions.map((action) => {
+        if (!validClipIdSet.has(action.id)) {
+          return action;
+        }
+
+        const existing = current.meta[action.id];
+        if (!existing) {
+          return action;
+        }
+
+        return {
+          ...action,
+          end: recalcActionEnd(action, { ...existing, ...patch }),
+        };
+      }),
+    }));
+
+    applyTimelineEdit(nextRows, metaUpdates);
   }, [applyTimelineEdit, dataRef, getValidClipIds]);
 
   const handleUpdateClipsDeep = useCallback((
@@ -174,8 +218,10 @@ export function useClipEditing({
       return;
     }
 
+    const { at: _at, ...metaPatch } = patch;
+    const affectsDuration = patchAffectsDuration(metaPatch);
     const nextRows = current.rows.map((row) => {
-      if (row.id !== clipRow.id || patch.at === undefined) {
+      if (row.id !== clipRow.id || (patch.at === undefined && !affectsDuration)) {
         return row;
       }
 
@@ -186,17 +232,28 @@ export function useClipEditing({
             return action;
           }
 
-          const duration = action.end - action.start;
-          return {
+          const nextStart = patch.at ?? action.start;
+          const nextAction = {
             ...action,
-            start: patch.at,
-            end: patch.at + duration,
+            start: nextStart,
+            end: patch.at === undefined
+              ? action.end
+              : nextStart + (action.end - action.start),
+          };
+
+          if (!affectsDuration) {
+            return nextAction;
+          }
+
+          const merged = { ...current.meta[selectedClipId], ...metaPatch };
+          return {
+            ...nextAction,
+            end: recalcActionEnd(nextAction, merged),
           };
         }),
       };
     });
 
-    const { at: _at, ...metaPatch } = patch;
     applyTimelineEdit(nextRows, { [selectedClipId]: metaPatch });
   }, [applyTimelineEdit, dataRef, selectedClipId]);
 

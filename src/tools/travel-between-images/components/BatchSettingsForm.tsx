@@ -427,7 +427,54 @@ export const BatchSettingsForm: React.FC<BatchSettingsFormProps> = ({
               )}
             </div>
 
-            {/* Guidance Scale - below toggles */}
+            {/* Inference Steps + Distilled/Full (LTX) - just above Guidance Scale */}
+            {spec.ui.inferenceSteps && (
+              <div className="flex gap-3 items-end">
+                {onSelectedModelChange && spec.modelFamily === 'ltx' && (
+                  <div className="flex rounded-lg border border-border overflow-hidden self-stretch">
+                    <button
+                      type="button"
+                      onClick={() => onSelectedModelChange('ltx-2.3-fast')}
+                      className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                        spec.id === 'ltx-2.3-fast'
+                          ? 'bg-muted text-foreground'
+                          : 'bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                      }`}
+                    >
+                      Distilled
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onSelectedModelChange('ltx-2.3')}
+                      className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                        spec.id === 'ltx-2.3'
+                          ? 'bg-muted text-foreground'
+                          : 'bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                      }`}
+                    >
+                      Full
+                    </button>
+                  </div>
+                )}
+                <div className="flex-1">
+                  <Label htmlFor="batchVideoSteps" className="text-sm font-light block mb-1">
+                    Inference steps: {batchVideoSteps}
+                  </Label>
+                  <Slider
+                    id="batchVideoSteps"
+                    min={stepMin}
+                    max={stepMax}
+                    step={1}
+                    value={batchVideoSteps}
+                    onValueChange={onBatchVideoStepsChange}
+                    disabled={readOnly}
+                    className={readOnly ? 'opacity-50' : ''}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Guidance Scale */}
             {spec.ui.guidanceScale && guidanceScale !== undefined && onGuidanceScaleChange && (
               <div className="relative">
                 <Label htmlFor="guidanceScale" className="text-sm font-light block mb-1">
@@ -500,24 +547,6 @@ export const BatchSettingsForm: React.FC<BatchSettingsFormProps> = ({
                   onValueChange={(value) => onBatchVideoFramesChange(clampFrameCountToPolicy(value, spec, generationIntent))}
                   disabled={turboMode}
                   className={turboMode ? 'opacity-50' : ''}
-                />
-              </div>
-            )}
-
-            {spec.ui.inferenceSteps && (
-              <div className="relative">
-                <Label htmlFor="batchVideoSteps" className="text-sm font-light block mb-1">
-                  Inference steps: {batchVideoSteps}
-                </Label>
-                <Slider
-                  id="batchVideoSteps"
-                  min={stepMin}
-                  max={stepMax}
-                  step={1}
-                  value={batchVideoSteps}
-                  onValueChange={onBatchVideoStepsChange}
-                  disabled={readOnly}
-                  className={readOnly ? 'opacity-50' : ''}
                 />
               </div>
             )}

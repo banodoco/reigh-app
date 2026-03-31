@@ -28,7 +28,7 @@ import type {
   StructureVideoDragHandlers,
 } from '../types';
 import type { TravelGuidanceMode } from '@/shared/lib/tasks/travelGuidance';
-import { coerceSelectedModel } from '@/tools/travel-between-images/settings';
+import { coerceSelectedModel, getModelSpec, getInferenceStepRange, MODEL_DEFAULTS } from '@/tools/travel-between-images/settings';
 import type { SelectedModel } from '@/tools/travel-between-images/settings';
 
 interface StructureVideoSectionProps
@@ -55,8 +55,8 @@ interface StructureVideoSectionProps
     depthContrast?: number;
   };
 
-  // Model change handler (clears model-dependent settings)
-  onModelChange: (model: SelectedModel) => void;
+  // Model change handler (for distilled/full variant switching)
+  onModelChange?: (model: SelectedModel) => void;
 
   // Video upload hook return
   videoUpload: ReturnType<typeof useStructureVideoUpload>;
@@ -88,6 +88,10 @@ export const StructureVideoSection: React.FC<StructureVideoSectionProps> = ({
   const effectiveSelectedModel = coerceSelectedModel(
     settings.selectedModel ?? shotDefaults?.selectedModel,
   );
+  const spec = getModelSpec(effectiveSelectedModel);
+  const isLtxSelected = spec.modelFamily === 'ltx';
+  const modelDefaults = MODEL_DEFAULTS[effectiveSelectedModel];
+  const stepRange = getInferenceStepRange(effectiveSelectedModel);
   const effectiveGuidanceScale = settings.guidanceScale ?? shotDefaults?.guidanceScale ?? 1;
 
   const fieldControls = {
@@ -430,27 +434,71 @@ export const StructureVideoSection: React.FC<StructureVideoSectionProps> = ({
           </>
         ) : null}
 
-        <TravelGuidanceEditor
-          selectedModel={effectiveSelectedModel}
-          onSelectedModelChange={onModelChange}
-          hasStructureVideo={!!structureVideoUrl}
-          guidanceMode={settings.guidanceMode ?? structureVideoDefaults?.mode ?? structureVideoType ?? null}
-          onGuidanceModeChange={(value) => onChange({ guidanceMode: value })}
-          guidanceScale={effectiveGuidanceScale}
-          onGuidanceScaleChange={(value) => onChange({ guidanceScale: value })}
-          guidanceTreatment={settings.guidanceTreatment ?? structureVideoDefaults?.treatment ?? 'adjust'}
-          onGuidanceTreatmentChange={(value) => onChange({ guidanceTreatment: value })}
-          guidanceStrength={settings.guidanceStrength ?? structureVideoDefaults?.motionStrength ?? 1.2}
-          onGuidanceStrengthChange={(value) => onChange({ guidanceStrength: value })}
-          guidanceUni3cEndPercent={settings.guidanceUni3cEndPercent ?? structureVideoDefaults?.uni3cEndPercent ?? 0.1}
-          onGuidanceUni3cEndPercentChange={(value) => onChange({ guidanceUni3cEndPercent: value })}
-          guidanceCannyIntensity={settings.guidanceCannyIntensity ?? structureVideoDefaults?.cannyIntensity ?? 1}
-          onGuidanceCannyIntensityChange={(value) => onChange({ guidanceCannyIntensity: value })}
-          guidanceDepthContrast={settings.guidanceDepthContrast ?? structureVideoDefaults?.depthContrast ?? 1}
-          onGuidanceDepthContrastChange={(value) => onChange({ guidanceDepthContrast: value })}
-          fieldControls={fieldControls}
-        />
       </div>
+
+      {/* Inference Steps + Distilled/Full variant (LTX models only) */}
+      {isLtxSelected && (
+        <div className="flex gap-3 items-end">
+          {onModelChange && (
+            <div className="flex rounded-lg border border-border overflow-hidden self-stretch">
+              <button
+                type="button"
+                onClick={() => onModelChange('ltx-2.3-fast')}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                  spec.id === 'ltx-2.3-fast'
+                    ? 'bg-muted text-foreground'
+                    : 'bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                }`}
+              >
+                Distilled
+              </button>
+              <button
+                type="button"
+                onClick={() => onModelChange('ltx-2.3')}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                  spec.id === 'ltx-2.3'
+                    ? 'bg-muted text-foreground'
+                    : 'bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                }`}
+              >
+                Full
+              </button>
+            </div>
+          )}
+          <div className="flex-1">
+            <Label className="text-sm font-light block mb-1">
+              Inference steps: {settings.inferenceSteps ?? modelDefaults.steps}
+            </Label>
+            <Slider
+              min={stepRange.min}
+              max={stepRange.max}
+              step={1}
+              value={settings.inferenceSteps ?? modelDefaults.steps}
+              onValueChange={(value) => onChange({ inferenceSteps: Array.isArray(value) ? value[0] : value })}
+            />
+          </div>
+        </div>
+      )}
+
+      <TravelGuidanceEditor
+        selectedModel={effectiveSelectedModel}
+        hasStructureVideo={!!structureVideoUrl}
+        guidanceMode={settings.guidanceMode ?? structureVideoDefaults?.mode ?? structureVideoType ?? null}
+        onGuidanceModeChange={(value) => onChange({ guidanceMode: value })}
+        guidanceScale={effectiveGuidanceScale}
+        onGuidanceScaleChange={(value) => onChange({ guidanceScale: value })}
+        guidanceTreatment={settings.guidanceTreatment ?? structureVideoDefaults?.treatment ?? 'adjust'}
+        onGuidanceTreatmentChange={(value) => onChange({ guidanceTreatment: value })}
+        guidanceStrength={settings.guidanceStrength ?? structureVideoDefaults?.motionStrength ?? 1.2}
+        onGuidanceStrengthChange={(value) => onChange({ guidanceStrength: value })}
+        guidanceUni3cEndPercent={settings.guidanceUni3cEndPercent ?? structureVideoDefaults?.uni3cEndPercent ?? 0.1}
+        onGuidanceUni3cEndPercentChange={(value) => onChange({ guidanceUni3cEndPercent: value })}
+        guidanceCannyIntensity={settings.guidanceCannyIntensity ?? structureVideoDefaults?.cannyIntensity ?? 1}
+        onGuidanceCannyIntensityChange={(value) => onChange({ guidanceCannyIntensity: value })}
+        guidanceDepthContrast={settings.guidanceDepthContrast ?? structureVideoDefaults?.depthContrast ?? 1}
+        onGuidanceDepthContrastChange={(value) => onChange({ guidanceDepthContrast: value })}
+        fieldControls={fieldControls}
+      />
 
       {/* Structure Video Browser Modal - Timeline Mode Only */}
       {isTimelineMode && (

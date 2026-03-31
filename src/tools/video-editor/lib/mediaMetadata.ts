@@ -1,6 +1,25 @@
 import { extractVideoMetadata } from '@/shared/lib/media/videoMetadata';
 import type { AssetRegistryEntry } from '@/tools/video-editor/types';
 
+const VIDEO_EXTENSION_TYPES: Record<string, string> = {
+  '.avi': 'video/x-msvideo',
+  '.m4v': 'video/x-m4v',
+  '.mkv': 'video/x-matroska',
+  '.mov': 'video/quicktime',
+  '.mp4': 'video/mp4',
+  '.ogv': 'video/ogg',
+  '.webm': 'video/webm',
+};
+
+const AUDIO_EXTENSION_TYPES: Record<string, string> = {
+  '.aac': 'audio/aac',
+  '.flac': 'audio/flac',
+  '.m4a': 'audio/mp4',
+  '.mp3': 'audio/mpeg',
+  '.ogg': 'audio/ogg',
+  '.wav': 'audio/wav',
+};
+
 function loadImageMetadata(file: File): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
@@ -65,6 +84,38 @@ export async function extractAssetRegistryEntry(
       type: file.type,
       duration: metadata.duration,
     };
+  }
+
+  const extension = file.name.includes('.')
+    ? file.name.slice(file.name.lastIndexOf('.')).toLowerCase()
+    : '';
+
+  if (extension in VIDEO_EXTENSION_TYPES) {
+    try {
+      const metadata = await extractVideoMetadata(file);
+      return {
+        file: storagePath,
+        type: file.type || VIDEO_EXTENSION_TYPES[extension],
+        duration: metadata.duration_seconds,
+        resolution: `${metadata.width}x${metadata.height}`,
+        fps: metadata.frame_rate,
+      };
+    } catch {
+      // Fall through to the generic entry when metadata extraction fails.
+    }
+  }
+
+  if (extension in AUDIO_EXTENSION_TYPES) {
+    try {
+      const metadata = await loadAudioMetadata(file);
+      return {
+        file: storagePath,
+        type: file.type || AUDIO_EXTENSION_TYPES[extension],
+        duration: metadata.duration,
+      };
+    } catch {
+      // Fall through to the generic entry when metadata extraction fails.
+    }
   }
 
   return {

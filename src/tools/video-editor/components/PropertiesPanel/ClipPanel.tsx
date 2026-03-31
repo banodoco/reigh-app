@@ -3,6 +3,7 @@ import { Pencil, Plus, Trash2, Volume2 } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { Input } from '@/shared/components/ui/input';
+import { NumberInput } from '@/shared/components/ui/number-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
 import { Slider } from '@/shared/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
@@ -438,26 +439,26 @@ export function ClipPanel({
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
                 <FieldLabel>Start (seconds)</FieldLabel>
-                <Input type="number" value={clip.at} onChange={(event) => onChange({ at: Number(event.target.value) })} />
+                <NumberInput value={clip.at} step={0.1} onChange={(value) => { if (value !== null) onChange({ at: value }); }} />
               </div>
               {isEffectLayer ? (
                 <div className="space-y-2">
                   <FieldLabel>Duration (seconds)</FieldLabel>
-                  <Input type="number" value={clip.hold ?? 5} step="0.1" min="0.1" onChange={(event) => onChange({ hold: Number(event.target.value) })} />
+                  <NumberInput value={clip.hold ?? 5} min={0.1} step={0.1} onChange={(value) => { if (value !== null) onChange({ hold: value }); }} />
                 </div>
               ) : (
                 <>
                   <div className="space-y-2">
                     <FieldLabel>Speed</FieldLabel>
-                    <Input type="number" value={clip.speed ?? 1} step="0.1" onChange={(event) => onChange({ speed: Number(event.target.value) })} />
+                    <NumberInput value={clip.speed ?? 1} min={0.1} step={0.1} onChange={(value) => { if (value !== null) onChange({ speed: value }); }} />
                   </div>
                   <div className="space-y-2">
                     <FieldLabel>Source In</FieldLabel>
-                    <Input type="number" value={clip.from ?? 0} step="0.1" onChange={(event) => onChange({ from: Number(event.target.value) })} />
+                    <NumberInput value={clip.from ?? 0} min={0} step={0.1} onChange={(value) => { if (value !== null) onChange({ from: value }); }} />
                   </div>
                   <div className="space-y-2">
                     <FieldLabel>Source Out</FieldLabel>
-                    <Input type="number" value={clip.to ?? clip.assetEntry?.duration ?? 5} step="0.1" onChange={(event) => onChange({ to: Number(event.target.value) })} />
+                    <NumberInput value={clip.to ?? clip.assetEntry?.duration ?? 5} min={0} step={0.1} onChange={(value) => { if (value !== null) onChange({ to: value }); }} />
                   </div>
                 </>
               )}
@@ -470,19 +471,19 @@ export function ClipPanel({
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
                 <FieldLabel>X</FieldLabel>
-                <Input type="number" value={clip.x ?? 0} onChange={(event) => onChange({ x: Number(event.target.value) })} />
+                <NumberInput value={clip.x ?? 0} onChange={(value) => { if (value !== null) onChange({ x: value }); }} />
               </div>
               <div className="space-y-2">
                 <FieldLabel>Y</FieldLabel>
-                <Input type="number" value={clip.y ?? 0} onChange={(event) => onChange({ y: Number(event.target.value) })} />
+                <NumberInput value={clip.y ?? 0} onChange={(value) => { if (value !== null) onChange({ y: value }); }} />
               </div>
               <div className="space-y-2">
                 <FieldLabel>Width</FieldLabel>
-                <Input type="number" max={compositionWidth} value={clip.width ?? compositionWidth} onChange={(event) => onChange({ width: Number(event.target.value) })} />
+                <NumberInput value={clip.width ?? compositionWidth} min={0} max={compositionWidth} onChange={(value) => { if (value !== null) onChange({ width: value }); }} />
               </div>
               <div className="space-y-2">
                 <FieldLabel>Height</FieldLabel>
-                <Input type="number" max={compositionHeight} value={clip.height ?? compositionHeight} onChange={(event) => onChange({ height: Number(event.target.value) })} />
+                <NumberInput value={clip.height ?? compositionHeight} min={0} max={compositionHeight} onChange={(value) => { if (value !== null) onChange({ height: value }); }} />
               </div>
             </div>
             <div className="space-y-2">
@@ -534,10 +535,15 @@ export function ClipPanel({
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="space-y-2">
                     <FieldLabel>Font size</FieldLabel>
-                    <Input
-                      type="number"
+                    <NumberInput
                       value={clip.text?.fontSize ?? 64}
-                      onChange={(event) => onChange({ text: { ...(clip.text ?? { content: '' }), fontSize: Number(event.target.value) } })}
+                      min={1}
+                      step={1}
+                      onChange={(value) => {
+                        if (value !== null) {
+                          onChange({ text: { ...(clip.text ?? { content: '' }), fontSize: value } });
+                        }
+                      }}
                     />
                   </div>
                   <div className="space-y-2">
