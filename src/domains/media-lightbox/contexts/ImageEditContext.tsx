@@ -21,7 +21,6 @@ import {
   ImageEditCanvasProvider,
   useImageEditCanvasSafe,
   type ImageEditCanvasState,
-  type ImageEditMode,
 } from './ImageEditCanvasContext';
 import {
   ImageEditFormProvider,
@@ -35,7 +34,7 @@ import {
 } from './ImageEditStatusContext';
 
 // Re-export sub-context types and hooks for direct consumption
-export type { ImageEditCanvasState, ImageEditFormState, ImageEditStatusState, ImageEditMode };
+export type { ImageEditCanvasState, ImageEditFormState, ImageEditStatusState };
 export { useImageEditCanvasSafe, useImageEditFormSafe, useImageEditStatusSafe };
 
 // ============================================================================

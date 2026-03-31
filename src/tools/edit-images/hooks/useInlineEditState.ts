@@ -21,9 +21,8 @@ import { useStarToggle } from '@/domains/media-lightbox/hooks/useStarToggle';
 import { useRepositionMode } from '@/domains/media-lightbox/hooks/useRepositionMode';
 import { useImg2ImgMode } from '@/domains/media-lightbox/hooks/useImg2ImgMode';
 import { useEditSettingsPersistence } from '@/domains/media-lightbox/hooks/persistence/useEditSettingsPersistence';
-import type { EditMode as SettingsEditMode } from '@/domains/media-lightbox/model/editSettingsTypes';
-import type { AnnotationMode, EditMode as InpaintingEditMode } from '@/domains/media-lightbox/hooks/inpainting/types';
-import type { ImageEditMode, ImageEditState } from '@/domains/media-lightbox/contexts/ImageEditContext';
+import type { AnnotationMode } from '@/domains/media-lightbox/hooks/inpainting/types';
+import type { ImageEditState } from '@/domains/media-lightbox/contexts/ImageEditContext';
 import { buildImageEditStateValue } from '@/tools/edit-images/model/buildImageEditStateValue';
 import { downloadMedia } from '@/shared/lib/media/downloadMedia';
 import { useVariants } from '@/shared/hooks/variants/useVariants';
@@ -35,15 +34,6 @@ type StarToggleHookResult = ReturnType<typeof useStarToggle>;
 type SourceGenerationData = ReturnType<typeof useSourceGeneration>['sourceGenerationData'];
 type PublicLorasData = ReturnType<typeof usePublicLoras>['data'];
 type ImageEditValue = ImageEditState;
-
-function toInpaintingEditMode(
-  mode: SettingsEditMode | ImageEditMode
-): InpaintingEditMode {
-  if (mode === 'text' || mode === 'inpaint' || mode === 'annotate') {
-    return mode;
-  }
-  return 'text';
-}
 
 function resolveActualGenerationId(media: GenerationRow): string | null {
   const isShotGenerationRecord = media.shotImageEntryId === media.id ||
@@ -186,11 +176,11 @@ export function useInlineEditState(
     createAsGeneration,
     advancedSettings: editSettings.advancedSettings,
     qwenEditModel: editSettings.qwenEditModel,
-    editMode: toInpaintingEditMode(editSettings.editMode ?? 'text'),
+    editMode: editSettings.editMode ?? 'text',
     annotationMode,
     inpaintPrompt: editSettings.prompt,
     inpaintNumGenerations: editSettings.numGenerations,
-    setEditMode: (mode) => editSettings.setEditMode(mode),
+    setEditMode: editSettings.setEditMode,
     setAnnotationMode,
     setInpaintPrompt: editSettings.setPrompt,
     setInpaintNumGenerations: editSettings.setNumGenerations,
@@ -290,11 +280,8 @@ export function useInlineEditState(
     img2img,
     imageContainerRef,
     handleExitInpaintMode: () => inpainting.setIsInpaintMode(false),
-    editMode: (editSettings.editMode ?? 'text') as ImageEditMode,
-    setEditMode: (mode: ImageEditMode) => {
-      editSettings.setEditMode(mode as any);
-      inpainting.setEditMode(toInpaintingEditMode(mode));
-    },
+    editMode: editSettings.editMode ?? 'text',
+    setEditMode: editSettings.setEditMode,
     loraMode: editSettings.loraMode,
     setLoraMode: editSettings.setLoraMode,
     customLoraUrl: editSettings.customLoraUrl,

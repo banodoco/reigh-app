@@ -162,7 +162,7 @@ describe('buildImageEditStateValue', () => {
     inpaintCase.params.reposition.isSavingAsVariant = false;
 
     const magicCase = buildParams();
-    magicCase.params.editMode = 'magic-edit' as any;
+    magicCase.params.editMode = 'text';
     magicCase.params.inpainting.isInpaintMode = false;
     magicCase.params.magic.isMagicEditMode = true;
     magicCase.params.magic.isSpecialEditMode = true;
@@ -192,7 +192,7 @@ describe('buildImageEditStateValue', () => {
     expect(inpaintState.isInpaintMode).toBe(true);
     expect(inpaintState.isMagicEditMode).toBe(false);
 
-    expect(magicState.editMode).toBe('magic-edit');
+    expect(magicState.editMode).toBe('text');
     expect(magicState.isMagicEditMode).toBe(true);
     expect(magicState.isSpecialEditMode).toBe(true);
 

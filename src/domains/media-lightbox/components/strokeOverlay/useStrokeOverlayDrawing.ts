@@ -8,6 +8,7 @@ import {
   getRectangleCorners,
 } from '../../hooks/inpainting/shapeHelpers';
 import type { BrushStroke } from '../../hooks/inpainting/types';
+import type { EditMode } from '../../model/editSettingsTypes';
 
 export interface StrokeOverlayDrawingProps {
   imageWidth: number;
@@ -20,7 +21,7 @@ export interface StrokeOverlayDrawingProps {
   annotationMode: 'rectangle' | null;
   isInpaintMode: boolean;
   isAnnotateMode: boolean;
-  editMode: 'text' | 'inpaint' | 'annotate' | 'reposition' | 'img2img';
+  editMode: EditMode;
   onStrokeComplete: (stroke: BrushStroke) => void;
   onStrokesChange: (strokes: BrushStroke[]) => void;
   onSelectionChange: (shapeId: string | null) => void;

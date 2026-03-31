@@ -71,7 +71,6 @@ export const useInpainting = ({
   const [showTextModeHint, setShowTextModeHint] = useState(false);
   const [isImageLoaded] = useState(false);
   const [imageLoadError] = useState<string | null>(null);
-  const [fallbackEditMode, setFallbackEditMode] = useState<EditMode>('text');
   const [fallbackAnnotationMode, setFallbackAnnotationMode] = useState<AnnotationMode>(null);
   const [fallbackInpaintPrompt, setFallbackInpaintPrompt] = useState('');
   const [fallbackInpaintNumGenerations, setFallbackInpaintNumGenerations] = useState(4);
@@ -98,17 +97,13 @@ export const useInpainting = ({
     isInpaintMode,
   });
 
-  const editMode = incomingEditMode ?? fallbackEditMode;
+  const editMode = incomingEditMode;
   const annotationMode = incomingAnnotationMode ?? fallbackAnnotationMode;
   const inpaintPrompt = incomingInpaintPrompt ?? fallbackInpaintPrompt;
   const inpaintNumGenerations = incomingInpaintNumGenerations ?? fallbackInpaintNumGenerations;
 
-  const setEditMode = useCallback((value: EditMode | ((prev: EditMode) => EditMode)) => {
-    if (incomingSetEditMode) {
-      incomingSetEditMode(value);
-      return;
-    }
-    setFallbackEditMode(value);
+  const setEditMode = useCallback((value: EditMode) => {
+    incomingSetEditMode(value);
   }, [incomingSetEditMode]);
 
   const setAnnotationMode = useCallback((value: AnnotationMode | ((prev: AnnotationMode) => AnnotationMode)) => {
@@ -136,9 +131,6 @@ export const useInpainting = ({
   }, [incomingSetInpaintNumGenerations]);
 
   useEffect(() => {
-    if (incomingEditMode === undefined) {
-      setFallbackEditMode('text');
-    }
     if (incomingAnnotationMode === undefined) {
       setFallbackAnnotationMode(null);
     }
@@ -148,7 +140,7 @@ export const useInpainting = ({
     if (incomingInpaintNumGenerations === undefined) {
       setFallbackInpaintNumGenerations(4);
     }
-  }, [media.id, incomingEditMode, incomingAnnotationMode, incomingInpaintPrompt, incomingInpaintNumGenerations]);
+  }, [media.id, incomingAnnotationMode, incomingInpaintPrompt, incomingInpaintNumGenerations]);
 
   // Computed values
   const isAnnotateMode = editMode === 'annotate';

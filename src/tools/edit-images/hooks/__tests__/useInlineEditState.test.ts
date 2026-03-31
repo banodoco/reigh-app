@@ -125,6 +125,35 @@ const mockUseImg2ImgMode = vi.fn().mockReturnValue({
   loraManager: { selectedLoras: [], setSelectedLoras: vi.fn() },
 });
 
+const mockEditSettingsPersistence = {
+  editMode: 'text',
+  setEditMode: vi.fn(),
+  loraMode: 'none',
+  setLoraMode: vi.fn(),
+  customLoraUrl: '',
+  setCustomLoraUrl: vi.fn(),
+  editModeLoras: [],
+  img2imgStrength: 0.6,
+  img2imgEnablePromptExpansion: false,
+  img2imgPrompt: '',
+  img2imgPromptHasBeenSet: false,
+  setImg2imgStrength: vi.fn(),
+  setImg2imgEnablePromptExpansion: vi.fn(),
+  setImg2imgPrompt: vi.fn(),
+  prompt: '',
+  setPrompt: vi.fn(),
+  numGenerations: 1,
+  setNumGenerations: vi.fn(),
+  advancedSettings: { enabled: false },
+  setAdvancedSettings: vi.fn(),
+  qwenEditModel: 'qwen-edit-2511',
+  setQwenEditModel: vi.fn(),
+  createAsGeneration: false,
+  setCreateAsGeneration: vi.fn(),
+  isReady: true,
+  hasPersistedSettings: false,
+};
+
 vi.mock('@/domains/media-lightbox/hooks/useUpscale', () => ({
   useUpscale: (...args: unknown[]) => mockUseUpscale(...args),
 }));
@@ -160,34 +189,7 @@ vi.mock('@/domains/media-lightbox/hooks/useImg2ImgMode', () => ({
 }));
 
 vi.mock('@/domains/media-lightbox/hooks/persistence/useEditSettingsPersistence', () => ({
-  useEditSettingsPersistence: () => ({
-    editMode: 'text',
-    setEditMode: vi.fn(),
-    loraMode: 'none',
-    setLoraMode: vi.fn(),
-    customLoraUrl: '',
-    setCustomLoraUrl: vi.fn(),
-    editModeLoras: [],
-    img2imgStrength: 0.6,
-    img2imgEnablePromptExpansion: false,
-    img2imgPrompt: '',
-    img2imgPromptHasBeenSet: false,
-    setImg2imgStrength: vi.fn(),
-    setImg2imgEnablePromptExpansion: vi.fn(),
-    setImg2imgPrompt: vi.fn(),
-    prompt: '',
-    setPrompt: vi.fn(),
-    numGenerations: 1,
-    setNumGenerations: vi.fn(),
-    advancedSettings: { enabled: false },
-    setAdvancedSettings: vi.fn(),
-    qwenEditModel: 'qwen-edit-2511',
-    setQwenEditModel: vi.fn(),
-    createAsGeneration: false,
-    setCreateAsGeneration: vi.fn(),
-    isReady: true,
-    hasPersistedSettings: false,
-  }),
+  useEditSettingsPersistence: () => mockEditSettingsPersistence,
 }));
 
 vi.mock('@/shared/lib/media/downloadMedia', () => ({
@@ -245,6 +247,8 @@ const mockMedia = {
 describe('useInlineEditState', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockEditSettingsPersistence.editMode = 'text';
+    mockEditSettingsPersistence.setEditMode = vi.fn();
   });
 
   it('returns all expected sections of state', () => {
@@ -321,6 +325,21 @@ describe('useInlineEditState', () => {
         annotationMode: null,
         inpaintPrompt: '',
         inpaintNumGenerations: 1,
+      }),
+    );
+  });
+
+  it('passes reposition edit mode through to useInpainting', () => {
+    mockEditSettingsPersistence.editMode = 'reposition';
+
+    renderHook(
+      () => useInlineEditState(mockMedia),
+      { wrapper: createWrapper() },
+    );
+
+    expect(mockUseInpainting).toHaveBeenCalledWith(
+      expect.objectContaining({
+        editMode: 'reposition',
       }),
     );
   });
@@ -414,5 +433,21 @@ describe('useInlineEditState', () => {
     expect(editValue.toolPanelPosition).toBe('right');
     expect(typeof editValue.setIsInpaintMode).toBe('function');
     expect(typeof editValue.handleEnterInpaintMode).toBe('function');
+  });
+
+  it('wires imageEditValue.setEditMode directly to edit settings persistence', () => {
+    const setEditMode = vi.fn();
+    mockEditSettingsPersistence.setEditMode = setEditMode;
+
+    const { result } = renderHook(
+      () => useInlineEditState(mockMedia),
+      { wrapper: createWrapper() },
+    );
+
+    act(() => {
+      result.current.imageEditValue.setEditMode('img2img');
+    });
+
+    expect(setEditMode).toHaveBeenCalledWith('img2img');
   });
 });

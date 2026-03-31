@@ -40,6 +40,26 @@ const baseMedia = {
   updated_at: '2026-03-30T00:00:00.000Z',
 } as GenerationRow;
 
+function createProps(overrides: Record<string, unknown> = {}) {
+  return {
+    media: baseMedia,
+    selectedProjectId: 'proj-1',
+    isVideo: false,
+    imageDimensions: null,
+    imageContainerRef: { current: null },
+    handleExitInpaintMode: vi.fn(),
+    editMode: 'text',
+    annotationMode: null,
+    inpaintPrompt: '',
+    inpaintNumGenerations: 1,
+    setEditMode: vi.fn(),
+    setAnnotationMode: vi.fn(),
+    setInpaintPrompt: vi.fn(),
+    setInpaintNumGenerations: vi.fn(),
+    ...overrides,
+  };
+}
+
 describe('useInpainting', () => {
   beforeEach(() => {
     mockUseStrokePersistence.mockReset();
@@ -67,14 +87,8 @@ describe('useInpainting', () => {
     const setInpaintNumGenerations = vi.fn();
 
     const { result } = renderHook(() =>
-      useInpainting({
-        media: baseMedia,
-        selectedProjectId: 'proj-1',
+      useInpainting(createProps({
         shotId: 'shot-1',
-        isVideo: false,
-        imageDimensions: null,
-        imageContainerRef: { current: null },
-        handleExitInpaintMode: vi.fn(),
         editMode: 'annotate',
         annotationMode: 'rectangle',
         inpaintPrompt: 'keep the skyline',
@@ -83,7 +97,7 @@ describe('useInpainting', () => {
         setAnnotationMode,
         setInpaintPrompt,
         setInpaintNumGenerations,
-      }),
+      })),
     );
 
     expect(result.current.editMode).toBe('annotate');
@@ -109,13 +123,7 @@ describe('useInpainting', () => {
     const setInpaintNumGenerations = vi.fn();
 
     const { result } = renderHook(() =>
-      useInpainting({
-        media: baseMedia,
-        selectedProjectId: 'proj-1',
-        isVideo: false,
-        imageDimensions: null,
-        imageContainerRef: { current: null },
-        handleExitInpaintMode: vi.fn(),
+      useInpainting(createProps({
         editMode: 'text',
         annotationMode: null,
         inpaintPrompt: '',
@@ -124,7 +132,7 @@ describe('useInpainting', () => {
         setAnnotationMode,
         setInpaintPrompt,
         setInpaintNumGenerations,
-      }),
+      })),
     );
 
     act(() => {
@@ -139,4 +147,17 @@ describe('useInpainting', () => {
     expect(setInpaintPrompt).toHaveBeenCalledWith('new prompt');
     expect(setInpaintNumGenerations).toHaveBeenCalledWith(5);
   });
+
+  it.each(['reposition', 'img2img', 'upscale'] as const)(
+    'passes through %s mode without exposing brush strokes',
+    (editMode) => {
+      const { result } = renderHook(() =>
+        useInpainting(createProps({ editMode })),
+      );
+
+      expect(result.current.editMode).toBe(editMode);
+      expect(result.current.brushStrokes).toEqual([]);
+      expect(result.current.isAnnotateMode).toBe(false);
+    },
+  );
 });

@@ -6,8 +6,8 @@
  * This factory eliminates that duplication.
  */
 
-import type { ImageEditState, ImageEditMode } from '../contexts/ImageEditContext';
-import type { EditAdvancedSettings, LoraMode, QwenEditModel } from './editSettingsTypes';
+import type { ImageEditState } from '../contexts/ImageEditContext';
+import type { EditAdvancedSettings, EditMode, LoraMode, QwenEditModel } from './editSettingsTypes';
 import type { useInpainting } from '../hooks/useInpainting';
 import type { useMagicEditMode } from '../hooks/useMagicEditMode';
 import type { useRepositionMode } from '../hooks/useRepositionMode';
@@ -25,8 +25,8 @@ interface BuildImageEditStateParams {
 
   // Overrides (where orchestrator and inline callers diverge)
   handleExitInpaintMode: () => void;
-  editMode: ImageEditMode;
-  setEditMode: (mode: ImageEditMode) => void;
+  editMode: EditMode | null;
+  setEditMode: (mode: EditMode | null) => void;
 
   // Settings (sourced from different places per caller)
   loraMode: LoraMode;

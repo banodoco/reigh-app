@@ -13,21 +13,20 @@ import React, { createContext, useContext } from 'react';
 import type { BrushStroke, AnnotationMode } from '../hooks/inpainting/types';
 import type { ImageTransform } from '../hooks/useRepositionMode';
 import type { StrokeOverlayHandle } from '../components/StrokeOverlay';
+import type { EditMode } from '../model/editSettingsTypes';
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export type ImageEditMode = 'inpaint' | 'annotate' | 'reposition' | 'img2img' | 'text' | 'upscale' | null;
-
 interface ImageEditModeState {
   isInpaintMode: boolean;
   isMagicEditMode: boolean;
   isSpecialEditMode: boolean;
-  editMode: ImageEditMode;
+  editMode: EditMode | null;
   setIsInpaintMode: (value: boolean) => void;
   setIsMagicEditMode: (value: boolean) => void;
-  setEditMode: (mode: ImageEditMode) => void;
+  setEditMode: (mode: EditMode | null) => void;
   handleEnterInpaintMode: () => void;
   handleExitInpaintMode: () => void;
   handleEnterMagicEditMode: () => void;

@@ -15,7 +15,7 @@ import type { LoraModel } from '@/domains/lora/types/lora';
 import type { LoraManagerState } from '@/domains/lora/types/loraManager';
 import type { ImageEditState } from '../contexts/ImageEditContext';
 import type { EditAdvancedSettings, EditMode, LoraMode, QwenEditModel } from '../model/editSettingsTypes';
-import type { AnnotationMode, EditMode as InpaintingEditMode } from './inpainting/types';
+import type { AnnotationMode } from './inpainting/types';
 
 import { useMagicEditMode } from './useMagicEditMode';
 import { useRepositionMode } from './useRepositionMode';
@@ -125,17 +125,6 @@ interface UseImageEditOrchestratorReturn {
 
 }
 
-// ============================================================================
-// Hook
-// ============================================================================
-
-function toInpaintingEditMode(mode: EditMode): InpaintingEditMode {
-  if (mode === 'inpaint' || mode === 'annotate' || mode === 'text') {
-    return mode;
-  }
-  return 'text';
-}
-
 export function useImageEditOrchestrator({
   mediaContext,
   displayContext,
@@ -204,11 +193,11 @@ export function useImageEditOrchestrator({
     qwenEditModel,
     imageUrl: activeVariant?.location || effectiveImageUrl,
     thumbnailUrl: thumbnailUrl || media.thumbUrl,
-    editMode: toInpaintingEditMode(persistedEditMode),
+    editMode: persistedEditMode,
     annotationMode,
     inpaintPrompt: persistedPrompt,
     inpaintNumGenerations: persistedNumGenerations,
-    setEditMode: (mode) => setPersistedEditMode(mode),
+    setEditMode: setPersistedEditMode,
     setAnnotationMode,
     setInpaintPrompt: setPersistedPrompt,
     setInpaintNumGenerations: setPersistedNumGenerations,
@@ -216,9 +205,7 @@ export function useImageEditOrchestrator({
 
   const {
     isInpaintMode,
-    editMode,
     setIsInpaintMode,
-    setEditMode,
     brushStrokes,
     inpaintPrompt,
     inpaintNumGenerations,
@@ -340,8 +327,8 @@ export function useImageEditOrchestrator({
       img2img: img2imgHook,
       imageContainerRef,
       handleExitInpaintMode,
-      editMode: persistedEditMode as ImageEditState['editMode'],
-      setEditMode: setEditMode as ImageEditState['setEditMode'],
+      editMode: persistedEditMode,
+      setEditMode: setPersistedEditMode,
       loraMode, setLoraMode,
       customLoraUrl, setCustomLoraUrl,
       createAsGeneration, setCreateAsGeneration,
@@ -350,7 +337,7 @@ export function useImageEditOrchestrator({
     }),
     [
       inpaintingHook, magicEditHook, repositionHook, img2imgHook,
-      imageContainerRef, handleExitInpaintMode, setEditMode,
+      imageContainerRef, handleExitInpaintMode, persistedEditMode, setPersistedEditMode,
       loraMode, setLoraMode, customLoraUrl, setCustomLoraUrl,
       createAsGeneration, setCreateAsGeneration, qwenEditModel, setQwenEditModel,
       advancedSettings, setAdvancedSettings,
@@ -362,7 +349,7 @@ export function useImageEditOrchestrator({
     isInpaintMode,
     isMagicEditMode,
     isSpecialEditMode,
-    editMode,
+    editMode: persistedEditMode,
     handleEnterMagicEditMode,
     handleExitMagicEditMode,
     handleUnifiedGenerate,

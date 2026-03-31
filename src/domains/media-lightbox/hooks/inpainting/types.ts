@@ -1,7 +1,7 @@
 import type { GenerationRow } from '@/domains/generation/types';
 
 // Import canonical types from single source of truth
-import type { EditAdvancedSettings, QwenEditModel } from '../editSettingsTypes';
+import type { EditAdvancedSettings, EditMode, QwenEditModel } from '../../model/editSettingsTypes';
 
 // StrokeOverlayHandle lives here to avoid a circular import
 // (StrokeOverlay → shapeHelpers → types → StrokeOverlay).
@@ -16,7 +16,7 @@ export interface StrokeOverlayHandle {
 }
 
 // Re-export for backwards compatibility
-export type { EditAdvancedSettings, QwenEditModel };
+export type { EditAdvancedSettings, EditMode, QwenEditModel };
 
 // ============================================
 // Core Types
@@ -30,8 +30,6 @@ export interface BrushStroke {
   shapeType?: 'line' | 'rectangle';
   isFreeForm?: boolean; // True if corners have been independently dragged
 }
-
-export type EditMode = 'text' | 'inpaint' | 'annotate';
 
 export type AnnotationMode = 'rectangle' | null;
 
@@ -61,11 +59,11 @@ export interface UseInpaintingProps {
   qwenEditModel?: QwenEditModel;
   imageUrl?: string;
   thumbnailUrl?: string;
-  editMode?: EditMode;
+  editMode: EditMode;
   annotationMode?: AnnotationMode;
   inpaintPrompt?: string;
   inpaintNumGenerations?: number;
-  setEditMode?: (mode: EditMode | ((prev: EditMode) => EditMode)) => void;
+  setEditMode: (mode: EditMode) => void;
   setAnnotationMode?: (mode: AnnotationMode | ((prev: AnnotationMode) => AnnotationMode)) => void;
   setInpaintPrompt?: (prompt: string) => void;
   setInpaintNumGenerations?: (num: number) => void;
@@ -96,7 +94,7 @@ export interface UseInpaintingReturn {
   setBrushSize: (size: number) => void;
   setIsEraseMode: (isErasing: boolean) => void;
   setIsAnnotateMode: (isAnnotate: boolean | ((prev: boolean) => boolean)) => void;
-  setEditMode: (mode: EditMode | ((prev: EditMode) => EditMode)) => void;
+  setEditMode: (mode: EditMode) => void;
   setAnnotationMode: (mode: AnnotationMode | ((prev: AnnotationMode) => AnnotationMode)) => void;
 
   // Handlers
