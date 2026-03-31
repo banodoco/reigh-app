@@ -4,7 +4,6 @@ import { usePrefetchTaskData } from '@/shared/hooks/tasks/useTaskPrefetch';
 import { usePendingImageOpen } from '@/shared/hooks/usePendingImageOpen';
 import { useAdjacentSegmentsData } from './useAdjacentSegmentsData';
 import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
-import type { PairData } from '@/shared/types/pairData';
 import type { SegmentSlot } from '@/shared/hooks/segments';
 import type { GenerationRow } from '@/domains/generation/types';
 
@@ -17,7 +16,7 @@ interface UseLightboxContextDataInput {
   pendingImageVariantId?: string | null;
   onClearPendingImageToOpen?: () => void;
   segmentSlots?: SegmentSlot[];
-  onPairClick?: (pairIndex: number, pairData?: PairData) => void;
+  onPairClick?: (pairIndex: number) => void;
   navigateWithTransition?: (doNavigation: () => void) => void;
 }
 

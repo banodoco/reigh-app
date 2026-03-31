@@ -74,7 +74,7 @@ describe('TrailingEndpointLayer', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('renders the trailing endpoint and enriches duration clicks with last-image data', async () => {
+  it('renders the trailing endpoint and forwards duration clicks with the trailing pair index', async () => {
     const onPairClick = vi.fn();
     const onExtractFinalFrame = vi.fn().mockResolvedValue(undefined);
 
@@ -100,23 +100,7 @@ describe('TrailingEndpointLayer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'duration-click' }));
     fireEvent.click(screen.getByRole('button', { name: 'extract-final-frame' }));
 
-    expect(onPairClick).toHaveBeenCalledWith(
-      1,
-      expect.objectContaining({
-        index: 1,
-        frames: 17,
-        startFrame: 61,
-        endFrame: 78,
-        startImage: expect.objectContaining({
-          id: 'img-2',
-          generationId: 'gen-2',
-          url: 'image-2.png',
-          thumbUrl: 'thumb-2.png',
-          position: 2,
-        }),
-        endImage: null,
-      }),
-    );
+    expect(onPairClick).toHaveBeenCalledWith(1);
     expect(onExtractFinalFrame).toHaveBeenCalledTimes(1);
   });
 });

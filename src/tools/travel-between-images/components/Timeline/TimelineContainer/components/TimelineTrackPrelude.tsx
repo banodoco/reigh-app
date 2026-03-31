@@ -41,8 +41,8 @@ interface TimelineTrackPreludeProps {
     isSegmentsLoading?: boolean;
     hasPendingTask?: (pairShotGenerationId: string | null | undefined) => boolean;
     selectedOutputId?: string | null;
-    onPairClick?: (pairIndex: number, pairData: PairData) => void;
-    onOpenPairSettings?: (pairIndex: number, pairFrameData?: { frames: number; startFrame: number; endFrame: number }) => void;
+    onPairClick?: (pairIndex: number) => void;
+    onOpenPairSettings?: (pairIndex: number) => void;
     onSegmentFrameCountChange?: (pairShotGenerationId: string, frameCount: number) => void;
     onTrailingEndFrameChange: (endFrame: number | undefined) => void;
     onTrailingVideoInfo: (videoUrl: string | null) => void;

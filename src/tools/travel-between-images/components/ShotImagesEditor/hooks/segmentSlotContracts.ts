@@ -49,13 +49,12 @@ export interface UseSegmentSlotModeReturn {
   segmentSlotLightboxIndex: number | null;
   setSegmentSlotLightboxIndex: (index: number | null) => void;
   activePairData: PairData | null;
-  setActivePairData: (data: PairData | null) => void;
   pendingImageToOpen: string | null;
   setPendingImageToOpen: (id: string | null) => void;
   pendingImageVariantId: string | null;
   pairDataByIndex: Map<number, PairData>;
   segmentSlotModeData: SegmentSlotModeData | null;
-  handlePairClick: (pairIndex: number, passedPairData?: PairData) => void;
+  handlePairClick: (pairIndex: number) => void;
   updatePairFrameCount: (
     pairShotGenerationId: string,
     newFrameCount: number,
@@ -66,7 +65,6 @@ export interface SegmentSlotState {
   segmentSlotLightboxIndex: number | null;
   setSegmentSlotLightboxIndex: (value: number | null) => void;
   activePairData: PairData | null;
-  setActivePairData: (value: PairData | null) => void;
   pendingImageToOpen: string | null;
   setPendingImageToOpen: (value: string | null) => void;
   pendingImageVariantId: string | null;

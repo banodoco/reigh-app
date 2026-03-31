@@ -26,7 +26,6 @@ export function useSegmentSlotDeepLinking({
   const {
     segmentSlotLightboxIndex,
     setSegmentSlotLightboxIndex,
-    setActivePairData,
     setPendingImageToOpen,
     setPendingImageVariantId,
   } = state;
@@ -48,7 +47,6 @@ export function useSegmentSlotDeepLinking({
 
     if (segmentSlotLightboxIndex !== null) {
       setSegmentSlotLightboxIndex(null);
-      setActivePairData(null);
     }
 
     navigateWithTransition(() => {
@@ -70,7 +68,6 @@ export function useSegmentSlotDeepLinking({
     navigateWithTransition,
     segmentSlotLightboxIndex,
     setSegmentSlotLightboxIndex,
-    setActivePairData,
     setPendingImageToOpen,
     setPendingImageVariantId,
   ]);
@@ -86,7 +83,6 @@ export function useSegmentSlotDeepLinking({
       const hasVideo = matchingSlot?.type === 'child' && matchingSlot.child?.location;
       if (!hasVideo) return;
 
-      setActivePairData(pairData);
       setSegmentSlotLightboxIndex(pairIndex);
       navigate(location.pathname + location.hash, {
         replace: true,
@@ -101,7 +97,6 @@ export function useSegmentSlotDeepLinking({
     navigate,
     pairDataByIndex,
     slotByIndex,
-    setActivePairData,
     setSegmentSlotLightboxIndex,
   ]);
 }

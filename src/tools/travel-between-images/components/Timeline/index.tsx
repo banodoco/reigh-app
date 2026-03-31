@@ -12,7 +12,6 @@ import { MediaLightbox, type MediaLightboxProps } from "@/domains/media-lightbox
 import type { LightboxActionHandlers } from '@/domains/media-lightbox/types';
 import { TimelineEmptyState } from "./TimelineEmptyState";
 import type { SegmentSlot } from "@/shared/hooks/segments";
-import type { PairData } from "@/shared/types/pairData";
 
 
 import { useTimelineDomainService } from "./hooks/timeline-core/useTimelineDomainService";
@@ -41,7 +40,7 @@ interface TimelineInteractionAdapter {
   onImageDuplicate?: (imageId: string, timeline_frame: number) => void;
   duplicatingImageId?: string | null;
   duplicateSuccessImageId?: string | null;
-  onPairClick?: (pairIndex: number, pairData: PairData) => void;
+  onPairClick?: (pairIndex: number) => void;
   onClearEnhancedPrompt?: (pairIndex: number) => void;
   onDragStateChange?: (isDragging: boolean) => void;
   onNewShotFromSelection?: (selectedIds: string[]) => Promise<string | void>;

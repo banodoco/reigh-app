@@ -49,17 +49,23 @@ export function toCompletionError(
         wrapped_error_code: error.code,
         wrapped_error_context: error.context,
         wrapped_error_recoverable: error.recoverable,
+        wrapped_error_message: error.message,
       },
       cause: error,
     });
   }
+
+  const causeMessage = error instanceof Error ? error.message : String(error);
 
   return new CompletionError({
     code: options.code,
     context: options.context,
     recoverable: options.recoverable,
     message: options.message,
-    metadata: options.metadata,
+    metadata: {
+      ...(options.metadata ?? {}),
+      cause_message: causeMessage,
+    },
     cause: error,
   });
 }

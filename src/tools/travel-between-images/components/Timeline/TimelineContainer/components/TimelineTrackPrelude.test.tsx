@@ -3,6 +3,8 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { PairData } from '@/shared/types/pairData';
+import { TimelineMediaProvider } from '../../TimelineMediaContext';
 import { TimelineTrackPrelude } from './TimelineTrackPrelude';
 
 const captures = vi.hoisted(() => ({
@@ -61,7 +63,32 @@ describe('TimelineTrackPrelude', () => {
     captures.audioProps = null;
   });
 
-  function buildProps(overrides: Partial<React.ComponentProps<typeof TimelineTrackPrelude>> = {}) {
+  function buildProps(): React.ComponentProps<typeof TimelineTrackPrelude> {
+    const pairDataByIndex = new Map<number, PairData>([
+      [0, {
+        index: 0,
+        frames: 61,
+        startFrame: 0,
+        endFrame: 61,
+        startImage: {
+          id: 'img-1',
+          generationId: 'gen-1',
+          primaryVariantId: 'variant-1',
+          url: 'image-1.png',
+          thumbUrl: 'thumb-1.png',
+          position: 1,
+        },
+        endImage: {
+          id: 'img-2',
+          generationId: 'gen-2',
+          primaryVariantId: 'variant-2',
+          url: 'image-2.png',
+          thumbUrl: 'thumb-2.png',
+          position: 2,
+        },
+      }],
+    ]);
+
     return {
       timeline: {
         shotId: 'shot-1',
@@ -77,15 +104,25 @@ describe('TimelineTrackPrelude', () => {
         hasCallbackTrailingVideo: false,
         hasLiveTrailingVideo: false,
         projectAspectRatio: '16:9',
-        pairInfoWithPending: [{ index: 0 }],
-        pairDataByIndex: new Map([[0, { index: 0 }]]),
+        pairInfoWithPending: [{
+          index: 0,
+          startId: 'img-1',
+          endId: 'img-2',
+          startFrame: 0,
+          endFrame: 61,
+          frames: 61,
+          generationStart: 51,
+          contextStart: 61,
+          contextEnd: 71,
+        }],
+        pairDataByIndex,
         localShotGenPositions: new Map([['img-1', 0], ['img-2', 61]]),
         segmentSlots: [{ id: 'slot-1' }] as never,
         isSegmentsLoading: false,
         hasPendingTask: vi.fn(),
         selectedOutputId: 'output-1',
-        onPairClick: vi.fn(),
-        onOpenPairSettings: vi.fn(),
+        onPairClick: vi.fn<(pairIndex: number) => void>(),
+        onOpenPairSettings: vi.fn<(pairIndex: number) => void>(),
         onSegmentFrameCountChange: vi.fn(),
         onTrailingEndFrameChange: vi.fn(),
         onTrailingVideoInfo: vi.fn(),
@@ -101,10 +138,18 @@ describe('TimelineTrackPrelude', () => {
         onRemoveStructureVideo: vi.fn(),
         primaryStructureVideo: {
           path: 'guide.mp4',
-          metadata: { duration: 2 },
+          metadata: {
+            duration_seconds: 2,
+            frame_rate: 30,
+            total_frames: 60,
+            width: 1920,
+            height: 1080,
+            file_size: 1024,
+          },
           treatment: 'adjust',
           motionStrength: 0.8,
           structureType: 'flow',
+          uni3cEndPercent: 100,
         },
         onPrimaryStructureVideoInputChange: vi.fn(),
         isUploadingStructureVideo: false,
@@ -129,13 +174,35 @@ describe('TimelineTrackPrelude', () => {
         onZoomReset: vi.fn(),
         onZoomToStart: vi.fn(),
       },
-      ...overrides,
-    } satisfies React.ComponentProps<typeof TimelineTrackPrelude>;
+    };
+  }
+
+  function renderPrelude(props: React.ComponentProps<typeof TimelineTrackPrelude>) {
+    return render(
+      <TimelineMediaProvider
+        value={{
+          structureVideos: props.guidance.structureVideos,
+          isStructureVideoLoading: props.guidance.isStructureVideoLoading,
+          cachedHasStructureVideo: props.guidance.cachedHasStructureVideo,
+          onAddStructureVideo: props.guidance.onAddStructureVideo,
+          onUpdateStructureVideo: props.guidance.onUpdateStructureVideo,
+          onRemoveStructureVideo: props.guidance.onRemoveStructureVideo,
+          primaryStructureVideo: props.guidance.primaryStructureVideo,
+          onPrimaryStructureVideoInputChange: props.guidance.onPrimaryStructureVideoInputChange,
+          audioUrl: props.audio.audioUrl,
+          audioMetadata: props.audio.audioMetadata,
+          onAudioChange: props.audio.onAudioChange,
+          timelineFps: 30,
+        }}
+      >
+        <TimelineTrackPrelude {...props} />
+      </TimelineMediaProvider>,
+    );
   }
 
   it('renders segment output, primary guidance strip, and audio strip with trailing controls', () => {
     const props = buildProps();
-    render(<TimelineTrackPrelude {...props} />);
+    renderPrelude(props);
 
     expect(screen.getByTestId('segment-output-strip')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'guidance-strip' })).toBeInTheDocument();
@@ -168,21 +235,20 @@ describe('TimelineTrackPrelude', () => {
   });
 
   it('renders the multi-video guidance container when structured video collection handlers are available', () => {
-    render(
-      <TimelineTrackPrelude
-        {...buildProps({
-          guidance: {
-            ...buildProps().guidance,
-            structureVideos: [{ id: 'structure-1' }] as never,
-          },
-          audio: {
-            audioUrl: null,
-            audioMetadata: null,
-            onAudioChange: vi.fn(),
-          },
-        })}
-      />,
-    );
+    const props = buildProps();
+
+    renderPrelude({
+      ...props,
+      guidance: {
+        ...props.guidance,
+        structureVideos: [{ id: 'structure-1' }] as never,
+      },
+      audio: {
+        audioUrl: null,
+        audioMetadata: null,
+        onAudioChange: vi.fn(),
+      },
+    });
 
     expect(screen.getByTestId('guidance-videos-container')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'guidance-strip' })).not.toBeInTheDocument();

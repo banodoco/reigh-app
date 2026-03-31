@@ -39,7 +39,7 @@ interface SegmentOutputStripProps {
   isLoading?: boolean;
   localShotGenPositions?: Map<string, number>;
   hasPendingTask?: (pairShotGenerationId: string | null | undefined) => boolean;
-  onOpenPairSettings?: (pairIndex: number, pairFrameData?: { frames: number; startFrame: number; endFrame: number }) => void;
+  onOpenPairSettings?: (pairIndex: number) => void;
   selectedParentId?: string | null;
   pairDataByIndex?: Map<number, PairData>;
   onSegmentFrameCountChange?: (pairShotGenerationId: string, frameCount: number) => void;
@@ -184,14 +184,7 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
                       isMobile={isMobile}
                       leftPercent={positioned.leftPercent}
                       widthPercent={positioned.widthPercent}
-                      onOpenPairSettings={onOpenPairSettings ? (pairIdx: number) => {
-                        const pairFrameData = pairInfo.find(p => p.index === pairIdx);
-                        onOpenPairSettings(pairIdx, pairFrameData ? {
-                          frames: pairFrameData.frames,
-                          startFrame: pairFrameData.startFrame,
-                          endFrame: pairFrameData.endFrame,
-                        } : undefined);
-                      } : undefined}
+                      onOpenPairSettings={onOpenPairSettings}
                       onDelete={handleDeleteSegment}
                       isDeleting={slot.type === 'child' && slot.child.id === deletingSegmentId}
                       isPending={hasPendingTask(slot.pairShotGenerationId)}

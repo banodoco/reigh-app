@@ -82,7 +82,6 @@ describe('useSegmentSlotPresentationAdapter', () => {
       endImage: null,
     };
 
-    const setActivePairData = vi.fn();
     const setSegmentSlotLightboxIndex = vi.fn();
     const navigateWithTransition = vi.fn((cb: () => void) => cb());
     const { result } = renderHook(() =>
@@ -122,7 +121,6 @@ describe('useSegmentSlotPresentationAdapter', () => {
           segmentSlotLightboxIndex: 0,
           setSegmentSlotLightboxIndex,
           activePairData: pair0 as never,
-          setActivePairData,
           pendingImageToOpen: null,
           setPendingImageToOpen: vi.fn(),
           pendingImageVariantId: null,
@@ -154,7 +152,6 @@ describe('useSegmentSlotPresentationAdapter', () => {
     });
 
     expect(navigateWithTransition).toHaveBeenCalledTimes(1);
-    expect(setActivePairData).toHaveBeenCalledWith(pair2);
     expect(setSegmentSlotLightboxIndex).toHaveBeenCalledWith(2);
   });
 
@@ -194,7 +191,6 @@ describe('useSegmentSlotPresentationAdapter', () => {
             startImage: { id: 'gen-1' },
             endImage: null,
           } as never,
-          setActivePairData: vi.fn(),
           pendingImageToOpen: null,
           setPendingImageToOpen: vi.fn(),
           pendingImageVariantId: null,

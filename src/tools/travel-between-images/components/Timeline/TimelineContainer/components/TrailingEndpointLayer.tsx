@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import { GenerationRow } from '@/domains/generation/types';
-import { PairData } from '@/shared/types/pairData';
 import { TrailingEndpoint } from '../../TrailingEndpoint';
 import { sortPositionEntries } from '../../utils/timeline-utils';
 
@@ -18,7 +17,7 @@ interface TrailingEndpointLayerProps {
   maxAllowedGap: number;
   readOnly: boolean;
   onEndpointMouseDown: (e: React.MouseEvent, endpointId: string) => void;
-  onPairClick?: (pairIndex: number, pairData: PairData) => void;
+  onPairClick?: (pairIndex: number) => void;
   trailingVideoUrl: string | null;
   onExtractFinalFrame?: () => Promise<void>;
 }
@@ -52,7 +51,7 @@ export const TrailingEndpointLayer: React.FC<TrailingEndpointLayerProps> = ({
     return null;
   }
 
-  const [id, imageFrame] = lastEntry;
+  const [, imageFrame] = lastEntry;
   const isMultiImage = images.length > 1;
   const hasTrailingSegment = trailingEndFrame !== undefined;
 
@@ -63,12 +62,6 @@ export const TrailingEndpointLayer: React.FC<TrailingEndpointLayerProps> = ({
   const defaultEndFrame = imageFrame + (isMultiImage ? 17 : 49);
   const effectiveEndFrame = trailingEndFrame ?? defaultEndFrame;
   const gapToImage = effectiveEndFrame - imageFrame;
-  const lastImageIndex = sortedEntries.length - 1;
-  const lastImage = images.find((img) => {
-    const imgId = img.shot_generation_id || img.id;
-    return imgId === id;
-  }) || images[lastImageIndex];
-
   const trailingPairIndex = Math.max(0, sortedEntries.length - 1);
 
   return (
@@ -86,22 +79,7 @@ export const TrailingEndpointLayer: React.FC<TrailingEndpointLayerProps> = ({
       maxAllowedGap={maxAllowedGap}
       readOnly={readOnly}
       compact={isMultiImage}
-      onDurationClick={onPairClick && lastImage ? () => {
-        onPairClick(trailingPairIndex, {
-          index: trailingPairIndex,
-          frames: effectiveEndFrame - imageFrame,
-          startFrame: imageFrame,
-          endFrame: effectiveEndFrame,
-          startImage: {
-            id,
-            generationId: lastImage.generation_id,
-            url: lastImage.imageUrl || lastImage.thumbUrl,
-            thumbUrl: lastImage.thumbUrl,
-            position: sortedEntries.length,
-          },
-          endImage: null,
-        });
-      } : undefined}
+      onDurationClick={onPairClick ? () => onPairClick(trailingPairIndex) : undefined}
       hasTrailingVideo={!!trailingVideoUrl}
       onExtractFinalFrame={trailingVideoUrl && onExtractFinalFrame ? onExtractFinalFrame : undefined}
     />

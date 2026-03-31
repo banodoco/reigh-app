@@ -33,7 +33,6 @@ function buildInput(options: BuildInputOptions = {}) {
   });
 
   const setSegmentSlotLightboxIndex = vi.fn();
-  const setActivePairData = vi.fn();
   const setPendingImageToOpen = vi.fn();
   const setPendingImageVariantId = vi.fn();
 
@@ -45,7 +44,6 @@ function buildInput(options: BuildInputOptions = {}) {
     segmentSlotLightboxIndex: options.segmentSlotLightboxIndex ?? null,
     setSegmentSlotLightboxIndex,
     activePairData: null,
-    setActivePairData,
     pendingImageToOpen: null,
     setPendingImageToOpen,
     pendingImageVariantId: null,
@@ -64,7 +62,6 @@ function buildInput(options: BuildInputOptions = {}) {
     navigate,
     navigateWithTransition,
     setSegmentSlotLightboxIndex,
-    setActivePairData,
     setPendingImageToOpen,
     setPendingImageVariantId,
   };
@@ -111,7 +108,6 @@ describe('useSegmentSlotDeepLinking', () => {
     rerender();
 
     expect(first.setSegmentSlotLightboxIndex).toHaveBeenCalledWith(null);
-    expect(first.setActivePairData).toHaveBeenCalledWith(null);
     expect(first.navigateWithTransition).toHaveBeenCalledTimes(1);
     expect(first.setPendingImageToOpen).toHaveBeenCalledWith('gen-22');
     expect(first.setPendingImageVariantId).toHaveBeenCalledWith('variant-22');
@@ -138,7 +134,6 @@ describe('useSegmentSlotDeepLinking', () => {
 
     renderHook(() => useSegmentSlotDeepLinking(input.hookInput));
 
-    expect(input.setActivePairData).toHaveBeenCalledWith(pairData);
     expect(input.setSegmentSlotLightboxIndex).toHaveBeenCalledWith(0);
     expect(input.navigate).toHaveBeenCalledWith('/travel#timeline', {
       replace: true,

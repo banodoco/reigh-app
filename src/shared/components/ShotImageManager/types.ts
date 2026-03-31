@@ -1,7 +1,6 @@
 import { GenerationRow, PairLoraConfig, PairMotionSettings } from '@/domains/generation/types';
 import type { SegmentSlot } from '@/shared/hooks/segments';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
-import type { PairData } from '@/shared/types/pairData';
 import type {
   ImageDeleteHandler,
   BatchImageDeleteHandler,
@@ -71,7 +70,7 @@ interface ShotManagementProps {
 
 /** Per-pair prompt display and override props */
 interface ShotPairPromptProps {
-  onPairClick?: (pairIndex: number, pairData?: PairData) => void;
+  onPairClick?: (pairIndex: number) => void;
   pairPrompts?: Record<number, { prompt: string; negativePrompt: string }>;
   enhancedPrompts?: Record<number, string>;
   defaultPrompt?: string;

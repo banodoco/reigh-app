@@ -1,6 +1,5 @@
 import React from 'react';
 import { GenerationRow } from '@/domains/generation/types';
-import { PairData } from '@/shared/types/pairData';
 import { PairRegion } from '../../PairRegion';
 import { TIMELINE_PADDING_OFFSET } from '../../constants';
 import { sortPositionEntries } from '../../utils/timeline-utils';
@@ -28,7 +27,7 @@ interface PairRegionsLayerProps {
   dragState: {
     isDragging: boolean;
   };
-  onPairClick?: (pairIndex: number, pairData: PairData) => void;
+  onPairClick?: (pairIndex: number) => void;
   onClearEnhancedPrompt?: (pairIndex: number) => void;
   readOnly: boolean;
   enableTapToMove: boolean;
@@ -108,7 +107,6 @@ export const PairRegionsLayer: React.FC<PairRegionsLayerProps> = ({
         const generationStartPercent = (generationStartPixel / containerWidth) * 100;
 
         const startImage = images.find((img) => img.id === startEntry?.[0]);
-        const endImage = images.find((img) => img.id === endEntry?.[0]);
         const pairPromptData = pairPrompts?.[index];
         const pairPromptFromMetadata = pairPromptData?.prompt || '';
         const pairNegativePromptFromMetadata = pairPromptData?.negativePrompt || '';
@@ -128,27 +126,7 @@ export const PairRegionsLayer: React.FC<PairRegionsLayerProps> = ({
             numPairs={Math.max(0, images.length - 1)}
             startFrame={pair.startFrame}
             endFrame={pair.endFrame}
-            onPairClick={onPairClick ? (pairIndex, pairData) => {
-              onPairClick(pairIndex, {
-                ...pairData,
-                startImage: startImage ? {
-                  id: startImage.id,
-                  generationId: startImage.generation_id || undefined,
-                  primaryVariantId: startImage.primary_variant_id || undefined,
-                  url: startImage.imageUrl || startImage.thumbUrl,
-                  thumbUrl: startImage.thumbUrl,
-                  position: index + 1,
-                } : null,
-                endImage: endImage ? {
-                  id: endImage.id,
-                  generationId: endImage.generation_id || undefined,
-                  primaryVariantId: endImage.primary_variant_id || undefined,
-                  url: endImage.imageUrl || endImage.thumbUrl,
-                  thumbUrl: endImage.thumbUrl,
-                  position: index + 2,
-                } : null,
-              });
-            } : undefined}
+            onPairClick={onPairClick}
             pairPrompt={pairPromptFromMetadata}
             pairNegativePrompt={pairNegativePromptFromMetadata}
             enhancedPrompt={actualEnhancedPrompt}

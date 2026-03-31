@@ -8,7 +8,6 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import type { PairData } from '../../Timeline/TimelineContainer/types';
 import { usePairData } from './usePairData';
 import { useFrameCountUpdater } from './useFrameCountUpdater';
 import type {
@@ -31,7 +30,6 @@ export function useSegmentSlotMode(props: UseSegmentSlotModeProps): UseSegmentSl
 
   const initialState = parseSegmentSlotLocationState(location.state);
   const [segmentSlotLightboxIndex, setSegmentSlotLightboxIndex] = useState<number | null>(null);
-  const [activePairData, setActivePairData] = useState<PairData | null>(null);
   const [pendingImageToOpen, setPendingImageToOpen] = useState<string | null>(
     initialState.openImageGenerationId ?? null,
   );
@@ -68,11 +66,23 @@ export function useSegmentSlotMode(props: UseSegmentSlotModeProps): UseSegmentSl
     trailingFrameUpdateRef: props.trailingFrameUpdateRef,
   });
 
+  const trailingPairData = useMemo(() => buildTrailingPairData({
+    pairDataByIndex,
+    segmentSlots: props.segmentSlots,
+    shotGenerations: props.shotGenerations,
+  }), [pairDataByIndex, props.segmentSlots, props.shotGenerations]);
+
+  const activePairData = useMemo(() => {
+    if (segmentSlotLightboxIndex === null) return null;
+    return pairDataByIndex.get(segmentSlotLightboxIndex)
+      ?? (segmentSlotLightboxIndex === pairDataByIndex.size ? trailingPairData : null)
+      ?? null;
+  }, [segmentSlotLightboxIndex, pairDataByIndex, trailingPairData]);
+
   const state: SegmentSlotState = useMemo(() => ({
     segmentSlotLightboxIndex,
     setSegmentSlotLightboxIndex,
     activePairData,
-    setActivePairData,
     pendingImageToOpen,
     setPendingImageToOpen,
     pendingImageVariantId,
@@ -83,12 +93,6 @@ export function useSegmentSlotMode(props: UseSegmentSlotModeProps): UseSegmentSl
     pendingImageToOpen,
     pendingImageVariantId,
   ]);
-
-  const trailingPairData = useMemo(() => buildTrailingPairData({
-    pairDataByIndex,
-    segmentSlots: props.segmentSlots,
-    shotGenerations: props.shotGenerations,
-  }), [pairDataByIndex, props.segmentSlots, props.shotGenerations]);
 
   const slotByIndex = useMemo(
     () => buildSegmentSlotIndexMap(props.segmentSlots),
@@ -102,17 +106,9 @@ export function useSegmentSlotMode(props: UseSegmentSlotModeProps): UseSegmentSl
     slotByIndex,
   });
 
-  const handlePairClick = useCallback((pairIndex: number, passedPairData?: PairData) => {
-    const computedData = pairDataByIndex.get(pairIndex)
-      || (pairIndex === pairDataByIndex.size ? trailingPairData : null);
-    const pairData = (passedPairData?.startImage ? passedPairData : null)
-      || computedData
-      || passedPairData;
-    if (pairData) {
-      setActivePairData(pairData);
-    }
+  const handlePairClick = useCallback((pairIndex: number) => {
     setSegmentSlotLightboxIndex(pairIndex);
-  }, [pairDataByIndex, trailingPairData]);
+  }, []);
 
   const segmentSlotModeData = useSegmentSlotPresentationAdapter({
     props,
@@ -128,7 +124,6 @@ export function useSegmentSlotMode(props: UseSegmentSlotModeProps): UseSegmentSl
     segmentSlotLightboxIndex,
     setSegmentSlotLightboxIndex,
     activePairData,
-    setActivePairData,
     pendingImageToOpen,
     setPendingImageToOpen,
     pendingImageVariantId,

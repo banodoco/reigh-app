@@ -15,7 +15,6 @@ import { TimelineTrackContent } from './components/TimelineTrackContent';
 
 import { useTimelineOrchestrator } from '../hooks/timeline-core/useTimelineOrchestrator';
 import { useTrailingEndpoint } from '../hooks/segment/useTrailingEndpoint';
-import { usePairSettingsHandler } from '../hooks/usePairSettingsHandler';
 
 import type { TimelineContainerProps } from './types';
 import { useTimelineMedia } from '../TimelineMediaContext';
@@ -260,14 +259,9 @@ const TimelineContainer: React.FC<TimelineContainerProps> = ({
     return getPairInfo(imagePositionsWithPending);
   }, [pairInfo, activePendingFrame, imagePositionsWithPending]);
 
-  const { handleOpenPairSettings } = usePairSettingsHandler({
-    images,
-    imagePositions,
-    trailingEndFrame,
-    pairInfo,
-    pairDataByIndex,
-    onPairClick,
-  });
+  const handleOpenPairSettings = useCallback((pairIndex: number) => {
+    onPairClick?.(pairIndex);
+  }, [onPairClick]);
 
   const handleReset = useCallback(() => {
     if (images.length === 1) {

@@ -162,6 +162,10 @@ export async function createSingleItemVariant(
   return result;
 }
 
+// Note: (parent_generation_id, child_order) and (parent_generation_id, pair_shot_generation_id)
+// are NOT unique - duplicates can arise from retries/re-runs. child_order is intra-run only;
+// pair_shot_generation_id is the durable position key. We use order(created_at DESC)+limit(1)
+// to deterministically pick the most recent row.
 export async function findExistingGenerationAtPosition(
   supabase: SupabaseClient,
   parentGenerationId: string,
@@ -176,6 +180,8 @@ export async function findExistingGenerationAtPosition(
       .eq('parent_generation_id', parentGenerationId)
       .eq('is_child', true)
       .eq('pair_shot_generation_id', pairShotGenId)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (!matchByColumnError && matchByColumn?.id) {

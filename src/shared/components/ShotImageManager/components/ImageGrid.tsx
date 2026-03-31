@@ -9,7 +9,6 @@ import { PairPromptIndicator } from './PairPromptIndicator';
 import { InlineSegmentVideo } from '@/shared/components/InlineSegmentVideo';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
 import type { UseVideoScrubbingReturn } from '@/shared/hooks/useVideoScrubbing';
-import type { PairData } from '@/shared/types/pairData';
 import { TrailingDurationIndicator } from './TrailingDurationIndicator';
 import { Loader2 } from 'lucide-react';
 import { usePrefetchTaskData } from '@/shared/hooks/tasks/useTaskPrefetch';
@@ -57,8 +56,8 @@ interface ImageGridInteractionModel {
 }
 
 interface ImageGridPromptModel {
-  // Pair prompt props - pass index and optionally pairData (for single-image mode)
-  onPairClick?: (pairIndex: number, pairData?: PairData) => void;
+  // Pair prompt props
+  onPairClick?: (pairIndex: number) => void;
   pairPrompts?: Record<number, { prompt: string; negativePrompt: string }>;
   enhancedPrompts?: Record<number, string>;
   defaultPrompt?: string;
@@ -442,24 +441,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
             fps={FPS}
             readOnly={readOnly}
             projectAspectRatio={projectAspectRatio}
-            onClick={() => {
-              const image = images[0];
-              const pairData: PairData = {
-                index: 0,
-                frames: batchVideoFrames,
-                startFrame: 0,
-                endFrame: batchVideoFrames,
-                startImage: {
-                  id: image.id,
-                  generationId: image.generation_id || undefined,
-                  url: image.imageUrl || image.thumbUrl,
-                  thumbUrl: image.thumbUrl,
-                  position: 1,
-                },
-                endImage: null,
-              };
-              onPairClick(0, pairData);
-            }}
+            onClick={() => onPairClick(0)}
           />
         </div>
       )}

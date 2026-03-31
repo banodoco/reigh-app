@@ -1,7 +1,7 @@
 import { toErrorMessage } from "../_shared/errorMessage.ts";
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 
-import { extractOrchestratorRef, buildSubTaskFilter, UUID_REGEX } from '../_shared/billing.ts';
+import { extractOrchestratorRef, UUID_REGEX } from '../_shared/billing.ts';
 import type { SystemLogger } from '../_shared/systemLogger.ts';
 import type { TaskStatusRow, TaskStatus } from './types.ts';
 
@@ -46,40 +46,20 @@ export async function handleCascadingTaskFailure(
       is_orchestrator_task: isOrchestratorTask,
     });
 
-    const cascadePayload = {
-      status: failureStatus,
-      updated_at: new Date().toISOString(),
-      error_message: `Cascaded ${failureStatus.toLowerCase()} from related task ${failedTaskId}`,
-    };
+    const { data: cascadedIds, error: cascadeError } = await supabaseAdmin
+      .rpc('cascade_task_failure', {
+        p_orchestrator_task_id: orchestratorTaskId,
+        p_failed_task_id: failedTaskId,
+        p_failure_status: failureStatus,
+        p_is_orchestrator_task: isOrchestratorTask,
+      });
 
-    let cascadeResult;
-
-    if (isOrchestratorTask) {
-      cascadeResult = await supabaseAdmin
-        .from('tasks')
-        .update(cascadePayload)
-        .or(buildSubTaskFilter(orchestratorTaskId))
-        .neq('id', failedTaskId)
-        .not('status', 'in', '("Complete","Failed","Cancelled")')
-        .select('id');
-    } else {
-      cascadeResult = await supabaseAdmin
-        .from('tasks')
-        .update(cascadePayload)
-        .or(`id.eq.${orchestratorTaskId},${buildSubTaskFilter(orchestratorTaskId)}`)
-        .neq('id', failedTaskId)
-        .not('status', 'in', '("Complete","Failed","Cancelled")')
-        .select('id');
-    }
-
-    if (cascadeResult.error) {
-      logger.error('Error cascading failure to related tasks', { error: cascadeResult.error.message });
+    if (cascadeError) {
+      logger.error('Error cascading failure to related tasks', { error: cascadeError.message });
       return;
     }
 
-    const cascadedTaskIds = (cascadeResult.data || [])
-      .map((task: { id: string }) => task.id)
-      .filter(Boolean);
+    const cascadedTaskIds = (cascadedIds as string[] || []).filter(Boolean);
 
     if (cascadedTaskIds.length === 0) {
       logger.debug('No related tasks found for cascade (all already terminal or none exist)');

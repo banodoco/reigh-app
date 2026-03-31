@@ -132,6 +132,8 @@ describe('complete_task/generation-core', () => {
       '2026-01-01T00:00:00.000Z',
     );
 
+    expect(supabase.from).toHaveBeenCalledTimes(1);
+    expect(supabase.from).toHaveBeenCalledWith('generation_variants');
     expect(variantsQuery.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         generation_id: 'gen-1',

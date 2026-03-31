@@ -9,7 +9,6 @@ import { ShotImageManagerContainer as ShotImageManager } from '@/shared/componen
 import { BatchGuidanceVideo } from '../../BatchGuidanceVideo';
 import { SectionHeader } from '@/shared/components/ImageGenerationForm/components/SectionHeader';
 import { UnpositionedGenerationsBanner } from './UnpositionedGenerationsBanner';
-import type { PairData } from '../../Timeline/TimelineContainer/types';
 import type { GenerationRow, Shot } from '@/domains/generation/types';
 import type { SegmentSlot } from '@/shared/hooks/segments';
 import type { OperationResult } from '@/shared/lib/operationResult';
@@ -57,7 +56,7 @@ interface BatchModeUIOptions {
 
   onClearEnhancedPrompt: (pairIndex: number) => Promise<void>;
   onDragStateChange: (isDragging: boolean) => void;
-  onPairClick: (pairIndex: number, pairData?: PairData) => void;
+  onPairClick: (pairIndex: number) => void;
   onSelectionChange?: (hasSelection: boolean) => void;
 
   onImageUpload: (files: File[]) => Promise<void>;

@@ -15,13 +15,13 @@ vi.mock('../../PairRegion', () => ({
     pairNegativePrompt: string;
     enhancedPrompt: string;
     hidePairLabel: boolean;
-    onPairClick?: (pairIndex: number, pairData: Record<string, unknown>) => void;
+    onPairClick?: (pairIndex: number) => void;
   }) => {
     captures.pairRegionProps.push(props);
     return (
       <button
         type="button"
-        onClick={() => props.onPairClick?.(props.index, { source: 'pair-region' })}
+        onClick={() => props.onPairClick?.(props.index)}
       >
         pair-region-{props.index}
       </button>
@@ -34,7 +34,7 @@ describe('PairRegionsLayer', () => {
     captures.pairRegionProps = [];
   });
 
-  it('passes prompt metadata through and enriches pair-click callbacks with start/end image data', () => {
+  it('passes prompt metadata through and forwards pair-click callbacks', () => {
     const onPairClick = vi.fn();
 
     render(
@@ -102,28 +102,7 @@ describe('PairRegionsLayer', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'pair-region-0' }));
 
-    expect(onPairClick).toHaveBeenCalledWith(
-      0,
-      expect.objectContaining({
-        source: 'pair-region',
-        startImage: expect.objectContaining({
-          id: 'img-1',
-          generationId: 'gen-1',
-          primaryVariantId: 'variant-1',
-          url: 'image-1.png',
-          thumbUrl: 'thumb-1.png',
-          position: 1,
-        }),
-        endImage: expect.objectContaining({
-          id: 'img-2',
-          generationId: 'gen-2',
-          primaryVariantId: 'variant-2',
-          url: 'image-2.png',
-          thumbUrl: 'thumb-2.png',
-          position: 2,
-        }),
-      }),
-    );
+    expect(onPairClick).toHaveBeenCalledWith(0);
   });
 
   it('hides pair labels while tap-to-move selection is active inside the layer', () => {

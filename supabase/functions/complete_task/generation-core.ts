@@ -177,6 +177,8 @@ export async function derivePredecessorVariantId(
     .select('primary_variant_id')
     .eq('parent_generation_id', parentGenerationId)
     .eq('child_order', childOrder - 1)
+    .order('created_at', { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   if (error) {
@@ -249,10 +251,21 @@ export async function linkGenerationToShot(
     });
 
     if (error) {
-      console.warn(`Failed to link generation ${generationId} to shot ${shotId}:`, error);
+      const rpcError = asRecord(error);
+      console.warn('Failed to link generation to shot via RPC', {
+        shotId,
+        generationId,
+        errorCode: rpcError?.code ?? null,
+        errorMessage: rpcError?.message ?? null,
+        errorDetails: rpcError?.details ?? null,
+      });
     }
   } catch (error) {
-    console.warn('Exception linking generation to shot:', error);
+    console.warn('Exception linking generation to shot', {
+      shotId,
+      generationId,
+      error,
+    });
     return;
   }
 }

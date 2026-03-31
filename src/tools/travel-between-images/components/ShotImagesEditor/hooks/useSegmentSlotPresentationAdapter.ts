@@ -224,13 +224,11 @@ export function useSegmentSlotPresentationAdapter({
 
         if (currentHasVideo !== targetHasVideo) {
           props.navigateWithTransition(() => {
-            state.setActivePairData(targetPairData);
             state.setSegmentSlotLightboxIndex(index);
           });
           return;
         }
 
-        state.setActivePairData(targetPairData);
         state.setSegmentSlotLightboxIndex(index);
       },
       projectId: props.projectId || null,

@@ -9,15 +9,14 @@ import type {
 import type { SegmentSlot } from '@/shared/hooks/segments';
 
 // Re-export PairData from shared for backwards compatibility
-import type { PairData } from '@/shared/types/pairData';
-export type { PairData };
+export type { PairData } from '@/shared/types/pairData';
 
 // ---------------------------------------------------------------------------
 // Sub-interfaces (grouped for readability)
 // ---------------------------------------------------------------------------
 
 interface TimelinePairProps {
-  onPairClick?: (pairIndex: number, pairData: PairData) => void;
+  onPairClick?: (pairIndex: number) => void;
   pairPrompts?: Record<number, { prompt: string; negativePrompt: string }>;
   defaultPrompt?: string;
   defaultNegativePrompt?: string;

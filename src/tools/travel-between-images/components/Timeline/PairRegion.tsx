@@ -17,12 +17,7 @@ interface PairRegionProps {
   numPairs: number;
   startFrame: number;
   endFrame: number;
-  onPairClick?: (pairIndex: number, pairData: {
-    index: number;
-    frames: number;
-    startFrame: number;
-    endFrame: number;
-  }) => void;
+  onPairClick?: (pairIndex: number) => void;
   pairPrompt?: string;
   pairNegativePrompt?: string;
   enhancedPrompt?: string;
@@ -136,22 +131,12 @@ const PairRegion: React.FC<PairRegionProps> = ({
                 }}
                 onClick={readOnly ? undefined : (e) => {
                   e.stopPropagation();
-                  onPairClick?.(index, {
-                    index,
-                    frames: actualFrames,
-                    startFrame: startFrame,
-                    endFrame: endFrame,
-                  });
+                  onPairClick?.(index);
                 }}
                 onTouchEnd={readOnly ? undefined : (e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  onPairClick?.(index, {
-                    index,
-                    frames: actualFrames,
-                    startFrame: startFrame,
-                    endFrame: endFrame,
-                  });
+                  onPairClick?.(index);
                 }}
               >
                 <div className="flex items-center gap-1">

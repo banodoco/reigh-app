@@ -193,7 +193,7 @@ export function useSegmentOutputStrip({
   const handleSegmentClick = useCallback((
     slot: SegmentSlot,
     slotIndex: number,
-    onOpenPairSettings?: (pairIndex: number, pairFrameData?: { frames: number; startFrame: number; endFrame: number }) => void,
+    onOpenPairSettings?: (pairIndex: number) => void,
   ) => {
     clearScrubbing();
     if (slot.type === 'child') {
@@ -204,17 +204,12 @@ export function useSegmentOutputStrip({
       // Route all clicks through pair settings → segmentSlotMode lightbox.
       // This handles both regular pairs and trailing segments uniformly,
       // with proper form-only and video views plus full chevron navigation.
-      const pairFrameData = pairInfo.find(p => p.index === slot.index);
-      onOpenPairSettings(slot.index, pairFrameData ? {
-        frames: pairFrameData.frames,
-        startFrame: pairFrameData.startFrame,
-        endFrame: pairFrameData.endFrame,
-      } : undefined);
+      onOpenPairSettings(slot.index);
     } else if (slot.type === 'child') {
       // No pair settings handler — fall back to inline SegmentOutputStrip lightbox
       setLightboxIndex(slotIndex);
     }
-  }, [markAllViewed, pairInfo, clearScrubbing, setLightboxIndex]);
+  }, [markAllViewed, clearScrubbing, setLightboxIndex]);
 
   // ===== TRAILING VIDEO INFO REPORTING =====
   // Trailing slot is always the last displaySlot when trailingSegmentMode is active

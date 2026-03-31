@@ -15,7 +15,10 @@ describe('complete_task/errors', () => {
     expect(error.code).toBe('outer_code');
     expect(error.context).toBe('outer_context');
     expect(error.message).toBe('outer message');
-    expect(error.metadata).toMatchObject({ a: 1 });
+    expect(error.metadata).toMatchObject({
+      a: 1,
+      cause_message: 'inner failure',
+    });
     expect(error.cause).toBeInstanceOf(Error);
   });
 
@@ -45,6 +48,7 @@ describe('complete_task/errors', () => {
       wrapped_error_code: 'inner_code',
       wrapped_error_context: 'inner_context',
       wrapped_error_recoverable: false,
+      wrapped_error_message: 'inner message',
     });
     expect(wrapped.cause).toBe(inner);
   });

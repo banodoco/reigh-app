@@ -10,6 +10,7 @@ import type { SupabaseClient } from "../_shared/supabaseClient.ts";
 import { getErrorMessage } from "./request.ts";
 import { JWT_AUTH_REQUIRED } from "../_shared/requestGuards.ts";
 import { getTaskFamilyResolver } from "./resolvers/registry.ts";
+import { createWorkerPassthroughResolver } from "./resolvers/workerPassthrough.ts";
 import { TaskValidationError } from "./resolvers/shared/validation.ts";
 import type { ResolveRequest, TaskInsertObject } from "./resolvers/types.ts";
 
@@ -423,11 +424,25 @@ serve(async (req) => {
     let insertObjects: TaskInsertObject[];
     let responseMeta: Record<string, unknown> | undefined;
 
-    const resolver = getTaskFamilyResolver(resolverRequest.family);
+    let resolver = getTaskFamilyResolver(resolverRequest.family);
     if (!resolver) {
-      logger.error("Unknown task family", { family: resolverRequest.family });
-      await logger.flush();
-      return createErrorResponse("Unknown task family", 400, "unknown_task_family", false);
+      // No explicit resolver — check if this task type exists in the DB.
+      // Worker-created child tasks (category: "processing") don't need
+      // validation, just a passthrough insert.
+      const { data: taskType } = await supabaseAdmin
+        .from("task_types")
+        .select("name")
+        .eq("name", resolverRequest.family)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (!taskType) {
+        logger.error("Unknown task family", { family: resolverRequest.family });
+        await logger.flush();
+        return createErrorResponse("Unknown task family", 400, "unknown_task_family", false);
+      }
+
+      resolver = createWorkerPassthroughResolver(resolverRequest.family);
     }
 
     const resolverResult = await resolver(resolverRequest, {
