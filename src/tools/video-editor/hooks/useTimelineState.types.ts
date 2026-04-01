@@ -80,6 +80,8 @@ export interface TimelineEditorContextValue {
   createTrackAndMoveClip: TimelineTrackManagementHook['createTrackAndMoveClip'];
   uploadFiles: TimelineDataHook['uploadFiles'];
   applyTimelineEdit: TimelineDataHook['applyTimelineEdit'];
+  patchRegistry: TimelineDataHook['patchRegistry'];
+  registerAsset: TimelineDataHook['registerAsset'];
   onDoubleClickAsset?: (assetKey: string) => void;
   registerLightboxHandler?: (handler: ((assetKey: string) => void) | null) => void;
 }

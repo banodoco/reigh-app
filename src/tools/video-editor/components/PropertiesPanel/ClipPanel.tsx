@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pencil, Plus, Trash2, Volume2 } from 'lucide-react';
+import { Pencil, Plus, RefreshCw, Trash2, Volume2, X } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { Input } from '@/shared/components/ui/input';
@@ -30,6 +30,9 @@ interface ClipPanelProps {
   compositionHeight: number;
   activeTab: ClipTab;
   setActiveTab: (tab: ClipTab) => void;
+  isVariantStale?: boolean;
+  onUpdateVariant?: () => void;
+  onDismissStale?: () => void;
 }
 
 export const NO_EFFECT = '__none__';
@@ -130,6 +133,9 @@ export function ClipPanel({
   compositionHeight,
   activeTab,
   setActiveTab,
+  isVariantStale,
+  onUpdateVariant,
+  onDismissStale,
 }: ClipPanelProps) {
   const { userId } = useVideoEditorRuntime();
   const effectResources = useEffectResources(userId);
@@ -173,6 +179,23 @@ export function ClipPanel({
           </Button>
         </div>
       </div>
+
+      {isVariantStale && (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+          <RefreshCw className="h-3.5 w-3.5 shrink-0" />
+          <span className="flex-1">Variant outdated</span>
+          {onUpdateVariant && (
+            <Button type="button" variant="ghost" size="sm" className="h-6 gap-1 px-2 text-xs text-amber-200 hover:bg-amber-500/20 hover:text-amber-100" onClick={onUpdateVariant}>
+              Update
+            </Button>
+          )}
+          {onDismissStale && (
+            <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-amber-200/60 hover:bg-amber-500/20 hover:text-amber-100" onClick={onDismissStale}>
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+      )}
 
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ClipTab)}>
         <TabsList className={cn('grid w-full bg-muted/60', TAB_COLUMNS_CLASS[visibleTabs.length as keyof typeof TAB_COLUMNS_CLASS] ?? 'grid-cols-4')}>

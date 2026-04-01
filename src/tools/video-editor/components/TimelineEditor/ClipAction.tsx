@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ImageIcon, Layers, Music2, Scissors, Trash2, Type } from 'lucide-react';
+import { ImageIcon, Layers, Music2, RefreshCw, Scissors, Trash2, Type, X } from 'lucide-react';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import type { ClipMeta } from '@/tools/video-editor/lib/timeline-data';
 import type { TimelineAction } from '@/tools/video-editor/types/timeline-canvas';
@@ -25,6 +25,12 @@ interface ClipActionProps {
   onDeleteClip?: (clipId: string) => void;
   onDeleteClips?: (clipIds: string[]) => void;
   onToggleMuteClips?: (clipIds: string[]) => void;
+  /** True when the clip's file no longer matches the generation's current primary variant */
+  isVariantStale?: boolean;
+  /** True when the clip is linked to a generation (enables "Update to current variant" in menu) */
+  isGenerationAsset?: boolean;
+  onUpdateVariant?: () => void;
+  onDismissStale?: () => void;
 }
 
 export function ClipAction({
@@ -41,6 +47,10 @@ export function ClipAction({
   onDeleteClip,
   onDeleteClips,
   onToggleMuteClips,
+  isVariantStale,
+  isGenerationAsset,
+  onUpdateVariant,
+  onDismissStale,
 }: ClipActionProps) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -141,6 +151,22 @@ export function ClipAction({
             </div>
           )}
         </div>
+        {isVariantStale && (
+          <div
+            className="absolute right-1 top-1 flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-amber-500 text-white hover:bg-amber-400"
+            title="Variant outdated"
+            role="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!isSelected) {
+                onSelect(action.id, clipMeta.track);
+              }
+              setContextMenu({ x: e.clientX, y: e.clientY, clientX: e.clientX });
+            }}
+          >
+            <RefreshCw className="h-2.5 w-2.5" />
+          </div>
+        )}
       </button>
 
       {contextMenu && createPortal(
@@ -149,6 +175,35 @@ export function ClipAction({
           className="fixed z-50 min-w-[10rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
+          {!hasBatchSelection && isGenerationAsset && onUpdateVariant && (
+            <button
+              type="button"
+              className="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground"
+              onClick={() => {
+                onUpdateVariant();
+                closeMenu();
+              }}
+            >
+              <RefreshCw className="h-4 w-4" />
+              Update to current variant
+            </button>
+          )}
+          {!hasBatchSelection && isVariantStale && onDismissStale && (
+            <button
+              type="button"
+              className="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground"
+              onClick={() => {
+                onDismissStale();
+                closeMenu();
+              }}
+            >
+              <X className="h-4 w-4" />
+              Dismiss reminder
+            </button>
+          )}
+          {((isGenerationAsset && onUpdateVariant) || (isVariantStale && onDismissStale)) && !hasBatchSelection && (
+            <div className="my-1 h-px bg-border" />
+          )}
           {!hasBatchSelection && onSplitHere && (
             <button
               type="button"

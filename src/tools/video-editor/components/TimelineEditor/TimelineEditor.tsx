@@ -16,6 +16,7 @@ import { useTimelineChromeContext } from '@/tools/video-editor/contexts/Timeline
 import { useTimelineEditorContext } from '@/tools/video-editor/contexts/TimelineEditorContext';
 import { useClipDrag } from '@/tools/video-editor/hooks/useClipDrag';
 import { useMarqueeSelect } from '@/tools/video-editor/hooks/useMarqueeSelect';
+import { useStaleVariants } from '@/tools/video-editor/hooks/useStaleVariants';
 import type { TimelineAction } from '@/tools/video-editor/types/timeline-canvas';
 
 function TimelineEditorComponent() {
@@ -61,6 +62,8 @@ function TimelineEditorComponent() {
     onTimelineDragLeave,
     onTimelineDrop,
     onDoubleClickAsset,
+    patchRegistry,
+    registerAsset,
   } = useTimelineEditorContext();
   const trackSensors = useSensors(
     useSensor(PointerSensor, {
@@ -96,6 +99,12 @@ function TimelineEditorComponent() {
     selectClips,
     addToSelection,
     clearSelection,
+  });
+
+  const { staleAssetKeys, dismissedAssetKeys, generationAssetKeys, dismissAsset, updateAssetToCurrentVariant } = useStaleVariants({
+    registry: resolvedConfig?.registry,
+    patchRegistry,
+    registerAsset,
   });
 
   useLayoutEffect(() => {
@@ -170,6 +179,10 @@ function TimelineEditorComponent() {
 
     const clipWidthPx = (action.end - action.start) * pixelsPerSecond;
     const thumbnailSrc = clipWidthPx >= 40 ? thumbnailMap[action.id] : undefined;
+    const assetKey = clipMeta.asset;
+    const isStale = assetKey ? staleAssetKeys.has(assetKey) : false;
+    const isDismissed = assetKey ? dismissedAssetKeys.has(assetKey) : false;
+    const isGenAsset = assetKey ? generationAssetKeys.has(assetKey) : false;
 
     return (
       <ClipAction
@@ -186,10 +199,17 @@ function TimelineEditorComponent() {
         onDeleteClips={handleDeleteClips}
         onDeleteClip={handleDeleteClip}
         onToggleMuteClips={handleToggleMuteClips}
+        isVariantStale={isStale && !isDismissed}
+        isGenerationAsset={isGenAsset}
+        onUpdateVariant={isGenAsset && assetKey ? () => void updateAssetToCurrentVariant(assetKey) : undefined}
+        onDismissStale={isStale && assetKey ? () => dismissAsset(assetKey) : undefined}
       />
     );
   }, [
     data,
+    dismissAsset,
+    dismissedAssetKeys,
+    generationAssetKeys,
     handleClipSelect,
     handleDeleteClip,
     handleDeleteClips,
@@ -201,7 +221,9 @@ function TimelineEditorComponent() {
     pixelsPerSecond,
     primaryClipId,
     selectedClipIds,
+    staleAssetKeys,
     thumbnailMap,
+    updateAssetToCurrentVariant,
   ]);
 
   const handleTrackDragEnd = useCallback(({ active, over }: DragEndEvent) => {

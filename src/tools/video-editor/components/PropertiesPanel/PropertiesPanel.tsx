@@ -4,6 +4,7 @@ import AssetPanel from '@/tools/video-editor/components/PropertiesPanel/AssetPan
 import { BulkClipPanel } from '@/tools/video-editor/components/PropertiesPanel/BulkClipPanel';
 import { ClipPanel, getVisibleClipTabs, NO_EFFECT } from '@/tools/video-editor/components/PropertiesPanel/ClipPanel';
 import { useTimelineEditorContext } from '@/tools/video-editor/contexts/TimelineEditorContext';
+import { useStaleVariants } from '@/tools/video-editor/hooks/useStaleVariants';
 import { getBulkVisibleTabs, getSharedNestedValue, getSharedValue } from '@/tools/video-editor/lib/bulk-utils';
 
 function PropertiesPanelComponent() {
@@ -29,7 +30,14 @@ function PropertiesPanelComponent() {
     setActiveClipTab,
     setAssetPanelState,
     uploadFiles,
+    patchRegistry,
+    registerAsset,
   } = useTimelineEditorContext();
+  const { staleAssetKeys, dismissedAssetKeys, dismissAsset, updateAssetToCurrentVariant } = useStaleVariants({
+    registry: resolvedConfig?.registry,
+    patchRegistry,
+    registerAsset,
+  });
   const [assetsExpanded, setAssetsExpanded] = useState(false);
   const prevClipIdRef = useRef(selectedClip?.id);
   const selectedClipIdsList = [...selectedClipIds];
@@ -164,6 +172,9 @@ function PropertiesPanelComponent() {
             compositionHeight={compositionSize.height}
             activeTab={preferences.activeClipTab}
             setActiveTab={setActiveClipTab}
+            isVariantStale={selectedClip?.asset ? staleAssetKeys.has(selectedClip.asset) && !dismissedAssetKeys.has(selectedClip.asset) : false}
+            onUpdateVariant={selectedClip?.asset ? () => void updateAssetToCurrentVariant(selectedClip.asset!) : undefined}
+            onDismissStale={selectedClip?.asset && staleAssetKeys.has(selectedClip.asset) ? () => dismissAsset(selectedClip.asset!) : undefined}
           />
         )}
       </div>

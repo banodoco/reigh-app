@@ -268,6 +268,8 @@ export function useTimelineState(): UseTimelineStateResult {
     createTrackAndMoveClip: trackManagement.createTrackAndMoveClip,
     uploadFiles: dataHook.uploadFiles,
     applyTimelineEdit: dataHook.applyTimelineEdit,
+    patchRegistry: dataHook.patchRegistry,
+    registerAsset: dataHook.registerAsset,
   }), [
     dataHook.compositionSize,
     dataHook.data,
@@ -283,6 +285,8 @@ export function useTimelineState(): UseTimelineStateResult {
     dataHook.trackScaleMap,
     dataHook.uploadFiles,
     dataHook.applyTimelineEdit,
+    dataHook.patchRegistry,
+    dataHook.registerAsset,
     addToSelection,
     assetManagement.handleAssetDrop,
     assetManagement.registerGenerationAsset,
