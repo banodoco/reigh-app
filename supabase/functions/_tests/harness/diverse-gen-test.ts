@@ -34,11 +34,19 @@ interface GenTestResult {
   durationMs: number;
 }
 
+interface SelectedClipOverrides {
+  media_type?: SelectedClipPayload["media_type"];
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function buildSelectedClip(snapshot: HarnessSnapshot, clipIndex: number): SelectedClipPayload {
+function buildSelectedClip(
+  snapshot: HarnessSnapshot,
+  clipIndex: number,
+  overrides?: SelectedClipOverrides,
+): SelectedClipPayload {
   const timeline = Object.values(snapshot.timelines)[0];
   if (!timeline) throw new Error("No timeline in snapshot");
 
@@ -53,9 +61,13 @@ function buildSelectedClip(snapshot: HarnessSnapshot, clipIndex: number): Select
   return {
     clip_id: clip.id,
     url: asset.file,
-    media_type: asset.type?.startsWith("video/") ? "video" : "image",
+    media_type: overrides?.media_type ?? (asset.type?.startsWith("video/") ? "video" : "image"),
     ...(asset.generationId ? { generation_id: asset.generationId } : {}),
   };
+}
+
+function buildSyntheticVideoClip(snapshot: HarnessSnapshot, clipIndex: number): SelectedClipPayload {
+  return buildSelectedClip(snapshot, clipIndex, { media_type: "video" });
 }
 
 function findAddedTask(diff: SnapshotDiff): TaskSnapshotRow | null {
@@ -83,6 +95,23 @@ function extractKeyParams(task: TaskSnapshotRow): Record<string, unknown> {
   if (params.base_prompts) keys.base_prompts = params.base_prompts;
   if (params.shot_id) keys.shot_id = params.shot_id;
   if (params.imagesPerPrompt) keys.imagesPerPrompt = params.imagesPerPrompt;
+  if (params.image_url) keys.image_url = params.image_url;
+  if (params.video_url) keys.video_url = params.video_url;
+  if (params.character_image_url) keys.character_image_url = params.character_image_url;
+  if (params.motion_video_url) keys.motion_video_url = params.motion_video_url;
+  if (params.image) keys.image = params.image;
+  if (params.model) keys.model = params.model;
+  if (params.prompt) keys.prompt = String(params.prompt).slice(0, 80);
+  if (params.strength !== undefined) keys.strength = params.strength;
+  if (params.based_on) keys.based_on = params.based_on;
+  if (params.generation_id) keys.generation_id = params.generation_id;
+  if (params.enable_interpolation !== undefined) keys.enable_interpolation = params.enable_interpolation;
+  if (params.enable_upscale !== undefined) keys.enable_upscale = params.enable_upscale;
+  if (params.resolution) keys.resolution = params.resolution;
+  if (params.orchestrator_details && typeof params.orchestrator_details === "object") {
+    const orchestratorDetails = params.orchestrator_details as Record<string, unknown>;
+    if (orchestratorDetails.model_name) keys.orchestrator_model_name = orchestratorDetails.model_name;
+  }
   return keys;
 }
 
@@ -93,38 +122,38 @@ function extractKeyParams(task: TaskSnapshotRow): Record<string, unknown> {
 const testCases: GenTestCase[] = [
   {
     label: "text-to-image",
-    // The create-task edge function maps text-to-image to the actual GPU task type
-    // which may be "wan_2_2_t2i", "image_generation", etc. — we accept any non-null.
-    expectedTaskType: "*",
-    message: "Generate an image of a futuristic city at sunset",
+    expectedTaskType: "z_image_turbo",
+    message: "Create a text-to-image task using model z-image for a futuristic city at sunset",
     validateTask: (task) => {
-      // The task was created — verify it exists and has a prompt-related param
       const params = task.params as Record<string, unknown>;
       const paramsStr = JSON.stringify(params).toLowerCase();
       if (!paramsStr.includes("futuristic") && !paramsStr.includes("city") && !paramsStr.includes("sunset")) {
         return "Task params don't seem to contain the prompt content";
+      }
+      // The create-task resolver stores the model as "model", not "model_name"
+      const model = params.model ?? params.model_name;
+      if (model !== "z-image") {
+        return `Expected model=z-image, got ${String(model)}`;
       }
       return null;
     },
   },
   {
     label: "image-to-video",
-    // The create-task edge function maps image-to-video to "travel_orchestrator" or similar
     expectedTaskType: "*",
     message: (snapshot) => {
       const clip0 = buildSelectedClip(snapshot, 0);
       const clip1 = buildSelectedClip(snapshot, 1);
-      return `Convert these clips into a video traveling between them: ${clip0.url} and ${clip1.url}`;
+      return `Create an image-to-video task using model ltx-2.3 to travel between selected clips ${clip0.clip_id} and ${clip1.clip_id}`;
     },
     selectedClips: (snapshot) => [buildSelectedClip(snapshot, 0), buildSelectedClip(snapshot, 1)],
     validateTask: (task) => {
       const params = task.params as Record<string, unknown>;
-      // Should have image_urls with at least 2 entries
       if (params.image_urls && Array.isArray(params.image_urls) && (params.image_urls as string[]).length >= 2) {
-        return null;
+        return params.model_name === "ltx2_22B" ? null : "Expected model_name to be ltx2_22B";
       }
-      // Or the task type itself indicates video generation
-      if (task.task_type.includes("travel") || task.task_type.includes("video") || task.task_type.includes("i2v")) {
+      const orchestratorDetails = params.orchestrator_details as Record<string, unknown> | undefined;
+      if (orchestratorDetails?.model_name === "ltx2_22B") {
         return null;
       }
       return `Expected video-related task or image_urls with 2+ entries, got task_type=${task.task_type}`;
@@ -136,7 +165,7 @@ const testCases: GenTestCase[] = [
     expectedTaskType: "*",
     message: (snapshot) => {
       const clip0 = buildSelectedClip(snapshot, 0);
-      return `Generate an image using the subject from selected clip ${clip0.clip_id} but place it in a forest setting`;
+      return `Create a subject-transfer task using selected clip ${clip0.clip_id} as the subject reference, with the prompt "place this subject in a lush forest setting"`;
     },
     selectedClips: (snapshot) => [buildSelectedClip(snapshot, 0)],
     validateTask: (task) => {
@@ -164,6 +193,90 @@ const testCases: GenTestCase[] = [
       // Accept if it's at least a reference-based generation
       if (params.style_reference_image || params.reference_mode || params.subject_reference_image) return null;
       return `Expected scene-transfer params (reference_mode=scene), got: ${JSON.stringify(Object.keys(params))}`;
+    },
+  },
+  {
+    label: "image-to-image",
+    expectedTaskType: "z_image_turbo_i2i",
+    message: (snapshot) => {
+      const clip0 = buildSelectedClip(snapshot, 0);
+      return `Create an image-to-image task from selected clip ${clip0.clip_id} with prompt "turn this into glossy editorial lighting" and strength 0.45`;
+    },
+    selectedClips: (snapshot) => [buildSelectedClip(snapshot, 0)],
+    validateTask: (task) => {
+      const params = task.params as Record<string, unknown>;
+      if (!params.image_url) return "Expected image_url in image-to-image task params";
+      if (params.strength !== 0.45) return `Expected strength 0.45, got ${String(params.strength)}`;
+      if (!params.based_on) return "Expected based_on lineage in image-to-image task params";
+      return null;
+    },
+  },
+  {
+    label: "magic-edit",
+    expectedTaskType: "qwen_image_edit",
+    message: (snapshot) => {
+      const clip0 = buildSelectedClip(snapshot, 0);
+      return `Create a magic-edit task for selected clip ${clip0.clip_id} that replaces the background with a moody rain-soaked alley`;
+    },
+    selectedClips: (snapshot) => [buildSelectedClip(snapshot, 0)],
+    validateTask: (task) => {
+      const params = task.params as Record<string, unknown>;
+      // The magic-edit resolver stores the image as "image", not "image_url"
+      if (!params.image && !params.image_url) return "Expected image or image_url in magic-edit task params";
+      if (!params.prompt) return "Expected prompt in magic-edit task params";
+      if (!params.based_on) return "Expected based_on lineage in magic-edit task params";
+      return null;
+    },
+  },
+  {
+    label: "image-upscale",
+    expectedTaskType: "image-upscale",
+    message: (snapshot) => {
+      const clip0 = buildSelectedClip(snapshot, 0);
+      return `Create an image-upscale task for selected clip ${clip0.clip_id}`;
+    },
+    selectedClips: (snapshot) => [buildSelectedClip(snapshot, 0)],
+    validateTask: (task) => {
+      const params = task.params as Record<string, unknown>;
+      // The image-upscale resolver stores the image as "image", not "image_url"
+      if (!params.image && !params.image_url) return "Expected image or image_url in image-upscale task params";
+      if (!params.generation_id) return "Expected generation_id in image-upscale task params";
+      return null;
+    },
+  },
+  {
+    label: "video-enhance",
+    expectedTaskType: "video_enhance",
+    message: (snapshot) => {
+      const videoClip = buildSyntheticVideoClip(snapshot, 1);
+      return `Create a video-enhance task for selected video clip ${videoClip.clip_id}`;
+    },
+    selectedClips: (snapshot) => [buildSyntheticVideoClip(snapshot, 1)],
+    validateTask: (task) => {
+      const params = task.params as Record<string, unknown>;
+      if (!params.video_url) return "Expected video_url in video-enhance task params";
+      if (params.enable_interpolation !== true) return "Expected enable_interpolation=true in video-enhance task params";
+      if (params.enable_upscale !== true) return "Expected enable_upscale=true in video-enhance task params";
+      if (!params.based_on) return "Expected based_on lineage in video-enhance task params";
+      return null;
+    },
+  },
+  {
+    label: "character-animate",
+    expectedTaskType: "animate_character",
+    message: (snapshot) => {
+      const imageClip = buildSelectedClip(snapshot, 0);
+      const videoClip = buildSyntheticVideoClip(snapshot, 1);
+      return `Create a character-animate task using selected image clip ${imageClip.clip_id} as the character and selected video clip ${videoClip.clip_id} as the motion reference`;
+    },
+    selectedClips: (snapshot) => [buildSelectedClip(snapshot, 0), buildSyntheticVideoClip(snapshot, 1)],
+    validateTask: (task) => {
+      const params = task.params as Record<string, unknown>;
+      if (!params.character_image_url) return "Expected character_image_url in character-animate task params";
+      if (!params.motion_video_url) return "Expected motion_video_url in character-animate task params";
+      if (params.resolution !== "480p") return `Expected resolution 480p, got ${String(params.resolution)}`;
+      // Note: characterAnimateResolver does not propagate based_on (not in its interface)
+      return null;
     },
   },
 ];
