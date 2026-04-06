@@ -1,19 +1,54 @@
-import React, { useMemo, useState } from 'react';
-import { Search, X } from 'lucide-react';
+import React, { useCallback, useMemo, useState } from 'react';
+import { ArrowDownWideNarrow, ArrowUpWideNarrow, Copy, Pencil, Search, Trash2, X } from 'lucide-react';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { useShots } from '@/shared/contexts/ShotsContext';
+import { useProjectSelectionContext } from '@/shared/contexts/ProjectContext';
 import { useShotFinalVideos, type ShotFinalVideo } from '@/tools/travel-between-images/hooks/video/useShotFinalVideos';
-import { setShotDragData, createDragPreview } from '@/shared/lib/dnd/dragDrop';
+import {
+  setShotDragData,
+  createDragPreview,
+  getDragType,
+  getGenerationDropData,
+} from '@/shared/lib/dnd/dragDrop';
 import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import { isVideoGeneration } from '@/shared/lib/typeGuards';
 import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';
+import { useAddImageToShot } from '@/shared/hooks/shots/useShotGenerationMutations';
+import { useDuplicateShot, useDeleteShot } from '@/shared/hooks/shots/useShotsCrud';
+import { useUpdateShotName } from '@/shared/hooks/shots/useShotUpdates';
+import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import type { Shot } from '@/domains/generation/types';
 
 interface ShotsPanelContentProps {
   projectId: string;
+  onOpenVideoGeneration?: (shot: Shot) => void;
 }
 
-function ShotCard({ shot, finalVideo }: { shot: Shot; finalVideo?: ShotFinalVideo }) {
+type SortMode = 'ordered' | 'newest' | 'oldest';
+
+function ShotCard({
+  shot,
+  finalVideo,
+  projectId,
+  onDoubleClick,
+  onDuplicate,
+  onDelete,
+  onRename,
+  onGenerationDrop,
+}: {
+  shot: Shot;
+  finalVideo?: ShotFinalVideo;
+  projectId: string;
+  onDoubleClick: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+  onRename: (name: string) => void;
+  onGenerationDrop: (shotId: string, generationId: string, imageUrl: string, thumbUrl?: string) => void;
+}) {
+  const [isDropTarget, setIsDropTarget] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(shot.name);
+
   const thumbnailUrl = finalVideo?.thumbnailUrl
     ?? getDisplayUrl(shot.images?.[0]?.thumbUrl ?? shot.images?.[0]?.imageUrl ?? shot.images?.[0]?.location);
   const imageCount = shot.images?.filter((img) => !isVideoGeneration(img)).length ?? 0;
@@ -24,37 +59,89 @@ function ShotCard({ shot, finalVideo }: { shot: Shot; finalVideo?: ShotFinalVide
       .map((image) => getGenerationId(image))
       .filter((id): id is string => typeof id === 'string' && id.length > 0);
 
-    setShotDragData(event, {
-      shotId: shot.id,
-      shotName: shot.name,
-      imageGenerationIds,
-    });
-
-    const cleanup = createDragPreview(
-      event,
-      imageGenerationIds.length > 1 ? { badgeText: String(imageGenerationIds.length) } : undefined,
-    );
+    setShotDragData(event, { shotId: shot.id, shotName: shot.name, imageGenerationIds });
+    const cleanup = createDragPreview(event, imageGenerationIds.length > 1 ? { badgeText: String(imageGenerationIds.length) } : undefined);
     if (cleanup) setTimeout(cleanup, 0);
+  };
+
+  const handleDragOver = (event: React.DragEvent) => {
+    const dragType = getDragType(event);
+    if (dragType === 'generation' || dragType === 'file') {
+      event.preventDefault();
+      event.stopPropagation();
+      setIsDropTarget(true);
+    }
+  };
+
+  const handleDragLeave = () => setIsDropTarget(false);
+
+  const handleDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDropTarget(false);
+
+    const generationData = getGenerationDropData(event);
+    if (generationData) {
+      onGenerationDrop(shot.id, generationData.generationId, generationData.imageUrl, generationData.thumbUrl);
+      return;
+    }
+
+  };
+
+  const handleSaveName = () => {
+    const trimmed = editName.trim();
+    if (trimmed && trimmed !== shot.name) {
+      onRename(trimmed);
+    }
+    setIsEditing(false);
   };
 
   return (
     <div
-      draggable
+      draggable={!isEditing}
       onDragStart={handleDragStart}
-      className="group flex cursor-grab flex-col overflow-hidden rounded-md border border-border bg-card/80 transition-colors hover:border-accent active:cursor-grabbing"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      onDoubleClick={onDoubleClick}
+      className={cn(
+        'group relative flex cursor-grab flex-col overflow-hidden rounded-md border border-border bg-card/80 transition-colors hover:border-accent active:cursor-grabbing',
+        isDropTarget && 'ring-2 ring-primary',
+      )}
     >
+      {/* Actions overlay */}
+      <div className="absolute right-0.5 top-0.5 z-10 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setIsEditing(true); setEditName(shot.name); }}
+          className="rounded bg-background/70 p-0.5 text-muted-foreground backdrop-blur-sm hover:text-foreground"
+          title="Rename"
+        >
+          <Pencil className="h-2.5 w-2.5" />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
+          className="rounded bg-background/70 p-0.5 text-muted-foreground backdrop-blur-sm hover:text-foreground"
+          title="Duplicate"
+        >
+          <Copy className="h-2.5 w-2.5" />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="rounded bg-background/70 p-0.5 text-muted-foreground backdrop-blur-sm hover:text-destructive"
+          title="Delete"
+        >
+          <Trash2 className="h-2.5 w-2.5" />
+        </button>
+      </div>
+
       <div className="relative aspect-video w-full overflow-hidden bg-muted">
         {thumbnailUrl ? (
-          <img
-            src={thumbnailUrl}
-            alt={shot.name}
-            className="h-full w-full object-cover"
-            draggable={false}
-          />
+          <img src={thumbnailUrl} alt={shot.name} className="h-full w-full object-cover" draggable={false} />
         ) : (
-          <div className="flex h-full items-center justify-center text-[10px] text-muted-foreground">
-            No images
-          </div>
+          <div className="flex h-full items-center justify-center text-[10px] text-muted-foreground">No images</div>
         )}
         {finalVideo && (
           <div className="absolute bottom-0.5 right-0.5 rounded bg-background/70 px-1 py-0.5 text-[8px] font-medium text-foreground backdrop-blur-sm">
@@ -62,45 +149,107 @@ function ShotCard({ shot, finalVideo }: { shot: Shot; finalVideo?: ShotFinalVide
           </div>
         )}
       </div>
+
       <div className="flex items-center gap-1 px-1.5 py-1">
-        <span className="min-w-0 flex-1 truncate text-[10px] text-foreground">{shot.name}</span>
+        {isEditing ? (
+          <input
+            type="text"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') setIsEditing(false); }}
+            onBlur={handleSaveName}
+            className="min-w-0 flex-1 rounded bg-background px-1 text-[10px] text-foreground outline-none ring-1 ring-border"
+            autoFocus
+          />
+        ) : (
+          <span className="min-w-0 flex-1 truncate text-[10px] text-foreground">{shot.name}</span>
+        )}
         <span className="shrink-0 text-[9px] text-muted-foreground">{imageCount}</span>
       </div>
     </div>
   );
 }
 
-export function ShotsPanelContent({ projectId }: ShotsPanelContentProps) {
+export function ShotsPanelContent({ projectId, onOpenVideoGeneration }: ShotsPanelContentProps) {
   const { shots, isLoading } = useShots();
   const { finalVideoMap } = useShotFinalVideos(projectId);
+  const { selectedProjectId } = useProjectSelectionContext();
+  const addImageToShot = useAddImageToShot();
+  const duplicateShot = useDuplicateShot();
+  const deleteShot = useDeleteShot();
+  const updateShotName = useUpdateShotName();
+
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortMode, setSortMode] = useState<SortMode>('ordered');
 
   const filteredShots = useMemo(() => {
     if (!shots) return [];
-    if (!searchQuery.trim()) return shots;
-    const query = searchQuery.toLowerCase();
-    return shots.filter((shot) => shot.name.toLowerCase().includes(query));
-  }, [shots, searchQuery]);
+    let result = shots;
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter((shot) => shot.name.toLowerCase().includes(query));
+    }
+    if (sortMode === 'newest') {
+      result = [...result].sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''));
+    } else if (sortMode === 'oldest') {
+      result = [...result].sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''));
+    }
+    return result;
+  }, [shots, searchQuery, sortMode]);
+
+  const handleGenerationDrop = useCallback(async (shotId: string, generationId: string, imageUrl: string, thumbUrl?: string) => {
+    if (!selectedProjectId) return;
+    try {
+      await addImageToShot.mutateAsync({
+        shot_id: shotId,
+        generation_id: generationId,
+        project_id: selectedProjectId,
+        imageUrl,
+        thumbUrl,
+      });
+    } catch (error) {
+      normalizeAndPresentError(error, { context: 'ShotsPanelContent', toastTitle: 'Failed to add image to shot' });
+    }
+  }, [addImageToShot, selectedProjectId]);
+
+  const handleDuplicate = useCallback(async (shotId: string) => {
+    if (!selectedProjectId) return;
+    try {
+      await duplicateShot.mutateAsync({ shotId, projectId: selectedProjectId });
+    } catch (error) {
+      normalizeAndPresentError(error, { context: 'ShotsPanelContent', toastTitle: 'Failed to duplicate shot' });
+    }
+  }, [duplicateShot, selectedProjectId]);
+
+  const handleDelete = useCallback(async (shotId: string) => {
+    if (!selectedProjectId) return;
+    try {
+      await deleteShot.mutateAsync({ shotId, projectId: selectedProjectId });
+    } catch (error) {
+      normalizeAndPresentError(error, { context: 'ShotsPanelContent', toastTitle: 'Failed to delete shot' });
+    }
+  }, [deleteShot, selectedProjectId]);
+
+  const handleRename = useCallback(async (shotId: string, name: string) => {
+    if (!selectedProjectId) return;
+    try {
+      await updateShotName.mutateAsync({ shotId, name, projectId: selectedProjectId });
+    } catch (error) {
+      normalizeAndPresentError(error, { context: 'ShotsPanelContent', toastTitle: 'Failed to rename shot' });
+    }
+  }, [updateShotName, selectedProjectId]);
 
   if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-        Loading shots…
-      </div>
-    );
+    return <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Loading shots…</div>;
   }
 
   if (!shots || shots.length === 0) {
-    return (
-      <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-        No shots yet
-      </div>
-    );
+    return <div className="flex h-full items-center justify-center text-xs text-muted-foreground">No shots yet</div>;
   }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {/* Search bar */}
+      {/* Toolbar */}
       <div className="flex items-center gap-2 border-b border-border px-3 py-1.5">
         <Search className="h-3 w-3 shrink-0 text-muted-foreground" />
         <input
@@ -116,14 +265,41 @@ export function ShotsPanelContent({ projectId }: ShotsPanelContentProps) {
             <X className="h-3 w-3" />
           </button>
         )}
+        <div className="ml-auto flex items-center gap-0.5 border-l border-border pl-2">
+          <button
+            type="button"
+            onClick={() => setSortMode(sortMode === 'newest' ? 'ordered' : 'newest')}
+            className={cn('rounded p-1 text-muted-foreground transition-colors hover:text-foreground', sortMode === 'newest' && 'bg-accent text-foreground')}
+            title="Newest first"
+          >
+            <ArrowDownWideNarrow className="h-3 w-3" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setSortMode(sortMode === 'oldest' ? 'ordered' : 'oldest')}
+            className={cn('rounded p-1 text-muted-foreground transition-colors hover:text-foreground', sortMode === 'oldest' && 'bg-accent text-foreground')}
+            title="Oldest first"
+          >
+            <ArrowUpWideNarrow className="h-3 w-3" />
+          </button>
+        </div>
       </div>
 
-      {/* Shot grid — horizontal scroll, 2 rows packed tight */}
+      {/* Shot grid */}
       <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-2 py-2">
         <div className="flex h-full flex-wrap content-start gap-1.5" style={{ flexDirection: 'column' }}>
           {filteredShots.map((shot) => (
             <div key={shot.id} className="w-[110px] shrink-0">
-              <ShotCard shot={shot} finalVideo={finalVideoMap.get(shot.id)} />
+              <ShotCard
+                shot={shot}
+                finalVideo={finalVideoMap.get(shot.id)}
+                projectId={projectId}
+                onDoubleClick={() => onOpenVideoGeneration?.(shot)}
+                onDuplicate={() => void handleDuplicate(shot.id)}
+                onDelete={() => void handleDelete(shot.id)}
+                onRename={(name) => void handleRename(shot.id, name)}
+                onGenerationDrop={(...args) => void handleGenerationDrop(...args)}
+              />
             </div>
           ))}
         </div>
@@ -131,7 +307,7 @@ export function ShotsPanelContent({ projectId }: ShotsPanelContentProps) {
 
       {filteredShots.length === 0 && searchQuery && (
         <div className="flex flex-1 items-center justify-center text-xs text-muted-foreground">
-          No shots match "{searchQuery}"
+          No shots match &ldquo;{searchQuery}&rdquo;
         </div>
       )}
     </div>

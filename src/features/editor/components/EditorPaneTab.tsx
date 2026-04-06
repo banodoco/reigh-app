@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { LayoutGrid } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { PaneControlTab } from '@/shared/components/PaneControlTab';
 import { useSlidingPane } from '@/shared/hooks/useSlidingPane';
 import { usePanes } from '@/shared/contexts/PanesContext';
 import { useProjectSelectionContext } from '@/shared/contexts/ProjectContext';
 import { ShotsPanelContent } from '@/features/editor/components/ShotsPanelContent';
+import type { Shot } from '@/domains/generation/types';
 
 function useEditorPane() {
   const {
@@ -41,6 +43,7 @@ function useEditorPane() {
 }
 
 const EditorPaneComponent: React.FC = () => {
+  const navigate = useNavigate();
   const { selectedProjectId } = useProjectSelectionContext();
   const {
     pane,
@@ -93,7 +96,10 @@ const EditorPaneComponent: React.FC = () => {
         )}
       >
         {selectedProjectId ? (
-          <ShotsPanelContent projectId={selectedProjectId} />
+          <ShotsPanelContent
+            projectId={selectedProjectId}
+            onOpenVideoGeneration={(shot) => navigate(`/tools/travel-between-images?shot=${shot.id}`)}
+          />
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
             Select a project to browse shots

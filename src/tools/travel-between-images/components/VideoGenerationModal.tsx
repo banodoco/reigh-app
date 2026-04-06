@@ -6,7 +6,7 @@ import { Skeleton } from '@/shared/components/ui/skeleton';
 import { useExtraLargeModal } from '@/shared/hooks/useModal';
 import { LoraSelectorModal } from '@/domains/lora/components';
 import {
-  VideoGenerationModalFormContent,
+  VideoGenerationModalAccordionContent,
   VideoGenerationModalHeader,
   VideoGenerationModalLoadingContent,
 } from './VideoGenerationModalSections';
@@ -17,6 +17,12 @@ export interface VideoGenerationModalProps {
   isOpen: boolean;
   onClose: () => void;
   shot: Shot;
+  /** Whether the "Shot Images" section starts open. Default: false */
+  defaultTopOpen?: boolean;
+  /** Whether the "Final Video" section starts open. Default: false */
+  defaultFinalVideoOpen?: boolean;
+  /** Whether the "Generation Settings" section starts open. Default: true */
+  defaultBottomOpen?: boolean;
 }
 
 /**
@@ -28,6 +34,9 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
   isOpen,
   onClose,
   shot,
+  defaultTopOpen = false,
+  defaultFinalVideoOpen = false,
+  defaultBottomOpen = true,
 }) => {
   const modal = useExtraLargeModal();
 
@@ -59,6 +68,8 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
     handleLoraStrengthChange,
     handleAddTriggerWord,
     selectedLorasForModal,
+    effectiveAspectRatio,
+    shotGenerations,
     handleGenerate,
     handleNavigateToShot,
     handleDialogOpenChange,
@@ -75,7 +86,6 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
           <DialogHeader className={modal.headerClass}>
             <VideoGenerationModalHeader
               shotName={shot.name}
-              positionedImages={positionedImages}
               onNavigateToShot={handleNavigateToShot}
             />
           </DialogHeader>
@@ -84,7 +94,15 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
             {isLoading ? (
               <VideoGenerationModalLoadingContent />
             ) : (
-              <VideoGenerationModalFormContent
+              <VideoGenerationModalAccordionContent
+                defaultTopOpen={defaultTopOpen}
+                defaultFinalVideoOpen={defaultFinalVideoOpen}
+                defaultBottomOpen={defaultBottomOpen}
+                shotId={shot.id}
+                projectId={selectedProjectId || ''}
+                positionedImages={positionedImages}
+                shotGenerations={shotGenerations}
+                effectiveAspectRatio={effectiveAspectRatio}
                 settings={settings}
                 updateField={updateField}
                 projects={projects}

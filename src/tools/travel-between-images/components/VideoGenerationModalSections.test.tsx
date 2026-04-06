@@ -68,44 +68,30 @@ vi.mock('@/shared/components/ImageGenerationForm/components', () => ({
 }));
 
 describe('VideoGenerationModalSections', () => {
-  it('renders header thumbnails, overflow badge, and navigate action', () => {
+  it('renders header with shot name and navigate action', () => {
     const onNavigateToShot = vi.fn();
     render(
       <VideoGenerationModalHeader
         shotName="Shot A"
-        positionedImages={[
-          { id: '1', thumbUrl: '1.png' },
-          { id: '2', thumbUrl: '2.png' },
-          { id: '3', thumbUrl: '3.png' },
-          { id: '4', thumbUrl: '4.png' },
-          { id: '5', thumbUrl: '5.png' },
-          { id: '6', thumbUrl: '6.png' },
-          { id: '7', thumbUrl: '7.png' },
-        ]}
         onNavigateToShot={onNavigateToShot}
       />,
     );
 
     expect(screen.getByText(/Generate Video -/)).toHaveTextContent('Shot A');
-    expect(screen.getAllByRole('img')).toHaveLength(6);
-    expect(screen.getByText('+1')).toBeInTheDocument();
-    expect(screen.getAllByRole('img')[0]).toHaveAttribute('src', 'display:1.png');
 
     fireEvent.click(screen.getByRole('button'));
     expect(onNavigateToShot).toHaveBeenCalledTimes(1);
   });
 
-  it('shows unnamed fallback and missing-images warning', () => {
+  it('shows unnamed fallback when no shot name', () => {
     render(
       <VideoGenerationModalHeader
         shotName={undefined}
-        positionedImages={[]}
         onNavigateToShot={vi.fn()}
       />,
     );
 
     expect(screen.getByText(/Unnamed Shot/)).toBeInTheDocument();
-    expect(screen.getByText('(need 1+ images)')).toBeInTheDocument();
   });
 
   it('renders loading skeleton layout', () => {

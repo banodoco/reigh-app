@@ -452,6 +452,8 @@ export function useVideoGenerationModalController({ isOpen, onClose, shot }: {
     validPresetId,
     selectedLoras,
     ...loras,
+    effectiveAspectRatio,
+    shotGenerations: shotGenerations || [],
     handleGenerate,
     handleNavigateToShot,
     handleDialogOpenChange,

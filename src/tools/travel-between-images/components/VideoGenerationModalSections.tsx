@@ -1,14 +1,22 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { getDisplayUrl } from '@/shared/lib/media/mediaUrl';
 import { ExternalLinkTooltipButton } from '@/shared/components/ui/composed/ExternalLinkTooltipButton';
 import { Skeleton } from '@/shared/components/ui/skeleton';
 import { BatchSettingsForm } from '@/tools/travel-between-images/components/BatchSettingsForm';
 import { MotionControl } from '@/tools/travel-between-images/components/MotionControl';
 import { PanelSectionHeader } from '@/tools/travel-between-images/components/shared/PanelSectionHeader';
+import { ShotImagesEditor } from '@/tools/travel-between-images/components/ShotImagesEditor';
+import { FinalVideoSection } from '@/tools/travel-between-images/components/FinalVideoSection';
+import { ImageManagerSkeleton } from '@/tools/travel-between-images/components/ShotEditor/ui/Skeleton';
 import { DEFAULT_PHASE_CONFIG, coerceSelectedModel, type VideoTravelSettings } from '@/tools/travel-between-images/settings';
+import { useModalImageHandlers } from './hooks/useModalImageHandlers';
+import { useSegmentOutputsForShot } from '@/shared/hooks/segments/useSegmentOutputsForShot';
+import type { GenerationRow } from '@/domains/generation/types';
 import type { ActiveLora, LoraModel } from '@/domains/lora/types/lora';
 import type { TravelGuidanceMode } from '@/shared/lib/tasks/travelGuidance';
 import type { Project } from '@/types/project';
+import type { ShotImagesEditorProps } from '@/tools/travel-between-images/components/ShotImagesEditor/types';
 
 interface PositionedImagePreview {
   id?: string;
@@ -19,43 +27,22 @@ interface PositionedImagePreview {
 
 interface VideoGenerationModalHeaderProps {
   shotName: string | undefined;
-  positionedImages: PositionedImagePreview[];
   onNavigateToShot: () => void;
 }
 
 export function VideoGenerationModalHeader({
   shotName,
-  positionedImages,
   onNavigateToShot,
 }: VideoGenerationModalHeaderProps): React.ReactElement {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <div className="flex items-center gap-2">
-        <span className="text-xl font-light">
-          Generate Video - <span className="preserve-case">{shotName || 'Unnamed Shot'}</span>
-        </span>
-        <ExternalLinkTooltipButton
-          onClick={onNavigateToShot}
-          tooltipLabel="Open Shot Editor"
-        />
-      </div>
-
-      <div className="flex items-center gap-1 flex-shrink-0">
-        {positionedImages.slice(0, 6).map((img, idx) => (
-          <img
-            key={img.id || idx}
-            src={getDisplayUrl(img.thumbUrl || img.imageUrl || img.location)}
-            alt={`Image ${idx + 1}`}
-            className="w-7 h-7 object-cover rounded border border-zinc-600"
-          />
-        ))}
-        {positionedImages.length > 6 && (
-          <div className="w-7 h-7 rounded border border-zinc-600 bg-zinc-700 flex items-center justify-center text-[10px] text-zinc-400">
-            +{positionedImages.length - 6}
-          </div>
-        )}
-        {positionedImages.length < 1 && <span className="text-xs text-amber-500">(need 1+ images)</span>}
-      </div>
+    <div className="flex items-center gap-2">
+      <span className="text-xl font-light">
+        Generate Video - <span className="preserve-case">{shotName || 'Unnamed Shot'}</span>
+      </span>
+      <ExternalLinkTooltipButton
+        onClick={onNavigateToShot}
+        tooltipLabel="Open Shot Editor"
+      />
     </div>
   );
 }
@@ -260,6 +247,229 @@ export function VideoGenerationModalFormContent({
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// Collapsible Accordion Section
+// =============================================================================
+
+interface ModalAccordionSectionProps {
+  title: string;
+  defaultOpen?: boolean;
+  summary: React.ReactNode;
+  children: React.ReactNode;
+}
+
+export function ModalAccordionSection({ title, defaultOpen = false, summary, children }: ModalAccordionSectionProps) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <div className="border border-zinc-700 rounded-lg overflow-hidden">
+      <button
+        type="button"
+        className="w-full flex items-center justify-between px-4 py-2.5 bg-zinc-800/50 hover:bg-zinc-800 transition-colors text-sm font-medium text-zinc-300"
+        onClick={() => setIsOpen((prev) => !prev)}
+      >
+        <span>{title}</span>
+        <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isOpen ? '' : '-rotate-90'}`} />
+      </button>
+      {isOpen ? (
+        <div className="border-t border-zinc-700">{children}</div>
+      ) : (
+        <div className="px-4 py-3 border-t border-zinc-700/50">{summary}</div>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
+// Shot Images Section (real ShotImagesEditor in readOnly batch mode)
+// =============================================================================
+
+const noop = () => {};
+const emptyMap = new Map<string, number>();
+
+interface ModalShotImagesEditorProps {
+  shotId: string;
+  projectId: string;
+  images: GenerationRow[];
+  batchVideoFrames: number;
+  projectAspectRatio?: string;
+}
+
+function ModalShotImagesEditor({ shotId, projectId, images, batchVideoFrames, projectAspectRatio }: ModalShotImagesEditorProps) {
+  const [generationMode, setGenerationMode] = useState<'batch' | 'timeline'>('batch');
+  const handlers = useModalImageHandlers(shotId, projectId, images, batchVideoFrames);
+
+  const editorProps: ShotImagesEditorProps = useMemo(() => ({
+    displayOptions: {
+      isModeReady: true,
+      isMobile: false,
+      generationMode,
+      onGenerationModeChange: setGenerationMode as (mode: 'batch' | 'timeline' | 'by-pair') => void,
+      columns: 4 as const,
+      skeleton: <ImageManagerSkeleton />,
+      projectAspectRatio,
+    },
+    imageState: {
+      selectedShotId: shotId,
+      projectId,
+      preloadedImages: images,
+      batchVideoFrames,
+      pendingPositions: emptyMap,
+      unpositionedGenerationsCount: 0,
+      fileInputKey: 0,
+      isUploadingImage: handlers.isUploadingImage,
+      uploadProgress: handlers.uploadProgress,
+    },
+    editActions: {
+      onImageReorder: handlers.onImageReorder,
+      onFramePositionsChange: noop,
+      onFileDrop: handlers.onFileDrop,
+      onGenerationDrop: handlers.onGenerationDrop,
+      onBatchFileDrop: handlers.onBatchFileDrop,
+      onBatchGenerationDrop: handlers.onBatchGenerationDrop,
+      onPendingPositionApplied: noop,
+      onImageDelete: handlers.onImageDelete,
+      onBatchImageDelete: handlers.onBatchImageDelete,
+      onImageDuplicate: handlers.onImageDuplicate,
+      onOpenUnpositionedPane: noop,
+      onImageUpload: handlers.onImageUpload,
+    },
+    shotWorkflow: {},
+  }), [shotId, projectId, images, batchVideoFrames, projectAspectRatio, generationMode, handlers]);
+
+  return <ShotImagesEditor {...editorProps} />;
+}
+
+function ShotImagesSummary({ images }: { images: PositionedImagePreview[] }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
+        {images.slice(0, 8).map((img, idx) => (
+          <img
+            key={img.id || idx}
+            src={getDisplayUrl(img.thumbUrl || img.imageUrl || img.location)}
+            alt={`Image ${idx + 1}`}
+            className="w-6 h-6 object-cover rounded border border-zinc-600"
+          />
+        ))}
+        {images.length > 8 && (
+          <span className="text-xs text-zinc-400 ml-1">+{images.length - 8}</span>
+        )}
+      </div>
+      <span className="text-xs text-zinc-400">
+        {images.length} image{images.length !== 1 ? 's' : ''} · Batch mode
+      </span>
+    </div>
+  );
+}
+
+// =============================================================================
+// Final Video collapsed summary
+// =============================================================================
+
+function FinalVideoSummary() {
+  return (
+    <span className="text-xs text-zinc-400">Click to view final video output</span>
+  );
+}
+
+// =============================================================================
+// Generation Settings collapsed summary
+// =============================================================================
+
+function GenerationSettingsSummary({ settings }: { settings: VideoTravelSettings }) {
+  const model = coerceSelectedModel(settings.selectedModel);
+  const frames = settings.batchVideoFrames || 61;
+  const prompt = settings.prompt || '';
+  const truncatedPrompt = prompt.length > 60 ? prompt.slice(0, 57) + '...' : prompt;
+
+  return (
+    <div className="flex items-center gap-3 text-xs text-zinc-400">
+      <span className="font-medium text-zinc-300">{model}</span>
+      <span className="text-zinc-600">·</span>
+      <span>{frames} frames</span>
+      {truncatedPrompt && (
+        <>
+          <span className="text-zinc-600">·</span>
+          <span className="truncate max-w-[200px] italic">&ldquo;{truncatedPrompt}&rdquo;</span>
+        </>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
+// Accordion Content (combines all three sections)
+// =============================================================================
+
+export interface VideoGenerationModalAccordionContentProps extends VideoGenerationModalFormContentProps {
+  defaultTopOpen?: boolean;
+  defaultFinalVideoOpen?: boolean;
+  defaultBottomOpen?: boolean;
+  shotId: string;
+  projectId: string;
+  positionedImages: PositionedImagePreview[];
+  shotGenerations: GenerationRow[];
+  effectiveAspectRatio?: string;
+}
+
+export function VideoGenerationModalAccordionContent({
+  defaultTopOpen = false,
+  defaultFinalVideoOpen = false,
+  defaultBottomOpen = true,
+  shotId,
+  projectId,
+  positionedImages,
+  shotGenerations,
+  effectiveAspectRatio,
+  ...formProps
+}: VideoGenerationModalAccordionContentProps) {
+  const segmentOutputs = useSegmentOutputsForShot(shotId, projectId);
+  const hasFinalVideo = segmentOutputs.parentGenerations.length > 0;
+  const imageHandlers = useModalImageHandlers(shotId, projectId, shotGenerations, formProps.settings.batchVideoFrames || 61);
+
+  return (
+    <div className="space-y-4">
+      {hasFinalVideo && (
+        <ModalAccordionSection
+          title="Final Video"
+          defaultOpen={defaultFinalVideoOpen}
+          summary={<FinalVideoSummary />}
+        >
+          <FinalVideoSection
+            shotId={shotId}
+            projectId={projectId}
+            projectAspectRatio={effectiveAspectRatio}
+            onDelete={imageHandlers.onDeleteFinalVideo}
+          />
+        </ModalAccordionSection>
+      )}
+
+      <ModalAccordionSection
+        title="Shot Images"
+        defaultOpen={defaultTopOpen}
+        summary={<ShotImagesSummary images={positionedImages} />}
+      >
+        <ModalShotImagesEditor
+          shotId={shotId}
+          projectId={projectId}
+          images={shotGenerations}
+          batchVideoFrames={formProps.settings.batchVideoFrames || 61}
+          projectAspectRatio={effectiveAspectRatio}
+        />
+      </ModalAccordionSection>
+
+      <ModalAccordionSection
+        title="Generation Settings"
+        defaultOpen={defaultBottomOpen}
+        summary={<GenerationSettingsSummary settings={formProps.settings} />}
+      >
+        <VideoGenerationModalFormContent {...formProps} />
+      </ModalAccordionSection>
     </div>
   );
 }
