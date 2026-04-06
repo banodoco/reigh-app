@@ -330,7 +330,7 @@ function ClipActionComponent({
         onContextMenu={handleContextMenu}
       >
         {waveform ? <WaveformOverlay waveform={waveform} /> : null}
-        {thumbnailSrc ? (
+        {thumbnailSrc && !isVideoClip ? (
           <img src={thumbnailSrc} alt="" className="relative z-10 h-full w-10 shrink-0 object-cover opacity-80" draggable={false} />
         ) : (
           <div className="relative z-10 flex h-full w-8 shrink-0 items-center justify-center bg-background/60 text-muted-foreground">
