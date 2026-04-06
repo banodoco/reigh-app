@@ -127,7 +127,7 @@ function buildTravelBetweenImagesInput(args: CreateGenerationTaskArgs): Record<s
     ...asStringArray(args.image_urls),
     ...asStringArray(legacyInput.image_urls),
   ]));
-  if (!prompt || imageUrls.length < 2) {
+  if (!prompt || imageUrls.length < 1) {
     return null;
   }
 
