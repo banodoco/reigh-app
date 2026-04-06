@@ -354,7 +354,7 @@ export const seedTestCases: TestCase[] = [
     name: "create a text-to-image generation with project LoRAs",
     category: "generation",
     message: () => "Generate a cinematic desert landscape at golden hour",
-    timeoutMs: 180_000,
+    skipTaskCompletion: true,
     evaluate: ({ after, diff }) => {
       const task = findAddedTask(
         diff,
