@@ -201,7 +201,7 @@ export async function createShotWithFilesPath(
       includeProjectUnified: true,
     });
 
-    invalidateShotsQueries(queryClient, selectedProjectId, { refetchType: 'inactive' });
+    invalidateShotsQueries(queryClient, selectedProjectId);
 
     return {
       shotId: newShotId,
@@ -261,7 +261,7 @@ export async function createShotWithGenerationsPath(
     includeProjectUnified: true,
   });
 
-  invalidateShotsQueries(queryClient, selectedProjectId, { refetchType: 'inactive' });
+  invalidateShotsQueries(queryClient, selectedProjectId);
 
   return {
     shotId: rpcResult.shot_id,

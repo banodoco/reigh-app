@@ -98,7 +98,6 @@ describe('shotCreationPaths', () => {
     expect(mocks.invalidateShotsQueries).toHaveBeenCalledWith(
       { id: 'query-client' },
       'project-1',
-      { refetchType: 'inactive' },
     );
     expect(result).toEqual({
       shotId: 'shot-1',
@@ -213,7 +212,6 @@ describe('shotCreationPaths', () => {
     expect(mocks.invalidateShotsQueries).toHaveBeenCalledWith(
       queryClient,
       'project-1',
-      { refetchType: 'inactive' },
     );
     expect(result).toEqual({
       shotId: 'shot-2',
@@ -338,7 +336,6 @@ describe('shotCreationPaths', () => {
     expect(mocks.invalidateShotsQueries).toHaveBeenCalledWith(
       { id: 'query-client' },
       'project-1',
-      { refetchType: 'inactive' },
     );
     expect(setTimeoutSpy).not.toHaveBeenCalled();
     setTimeoutSpy.mockRestore();

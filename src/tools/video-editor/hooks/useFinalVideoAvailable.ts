@@ -7,22 +7,21 @@ import {
 
 export type { ShotFinalVideo };
 
+export const dismissedFinalVideoIds = new Set<string>();
+
 export function useFinalVideoAvailable() {
   const { selectedProjectId } = useProjectSelectionContext();
   const { finalVideoMap } = useShotFinalVideos(selectedProjectId);
-  const [dismissedShotIds, setDismissedShotIds] = useState<Set<string>>(() => new Set());
+  const [, forceRender] = useState(0);
 
-  const dismissShot = useCallback((shotId: string) => {
-    setDismissedShotIds((prev) => {
-      const next = new Set(prev);
-      next.add(shotId);
-      return next;
-    });
+  const dismissFinalVideo = useCallback((finalVideoId: string) => {
+    dismissedFinalVideoIds.add(finalVideoId);
+    forceRender((count) => count + 1);
   }, []);
 
   return {
     finalVideoMap,
-    dismissedShotIds,
-    dismissShot,
+    dismissedFinalVideoIds,
+    dismissFinalVideo,
   };
 }

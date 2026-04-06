@@ -32,6 +32,7 @@ import { useStaleVariants } from '@/tools/video-editor/hooks/useStaleVariants';
 import { useSwitchToFinalVideo } from '@/tools/video-editor/hooks/useSwitchToFinalVideo';
 import type { AssetRegistry, ResolvedTimelineClip, TrackDefinition } from '@/tools/video-editor/types';
 import type { TimelineAction, TimelineRow } from '@/tools/video-editor/types/timeline-canvas';
+import type { ShotFinalVideo } from '@/tools/video-editor/hooks/useFinalVideoAvailable';
 
 const EMPTY_CLIP_META: Record<string, ClipMeta> = {};
 const EMPTY_ASSET_REGISTRY: AssetRegistry = { assets: {} };
@@ -118,6 +119,41 @@ export function resolveWaveformAudioSrc(
   }
 
   return undefined;
+}
+
+export function resolveFinalVideoShotIds({
+  rows,
+  meta,
+  registry,
+  finalVideoMap,
+  dismissedFinalVideoIds,
+}: {
+  rows: TimelineRow[];
+  meta: Record<string, ClipMeta>;
+  registry: AssetRegistry;
+  finalVideoMap: Map<string, ShotFinalVideo>;
+  dismissedFinalVideoIds: Set<string>;
+}) {
+  const timelineClipGenerationIds = new Set<string>();
+  for (const row of rows) {
+    for (const action of row.actions) {
+      const assetKey = meta[action.id]?.asset;
+      const generationId = assetKey ? registry.assets[assetKey]?.generationId : undefined;
+      if (typeof generationId === 'string' && generationId.length > 0) {
+        timelineClipGenerationIds.add(generationId);
+      }
+    }
+  }
+
+  const shotIds = new Set<string>();
+  for (const [shotId, finalVideo] of finalVideoMap) {
+    if (dismissedFinalVideoIds.has(finalVideo.id) || timelineClipGenerationIds.has(finalVideo.id)) {
+      continue;
+    }
+    shotIds.add(shotId);
+  }
+
+  return shotIds;
 }
 
 function TimelineEditorComponent() {
@@ -216,7 +252,7 @@ function TimelineEditorComponent() {
     registerAsset,
   });
   const { activeTaskAssetKeys } = useActiveTaskClips({ registry: resolvedConfig?.registry });
-  const { finalVideoMap, dismissedShotIds, dismissShot } = useFinalVideoAvailable();
+  const { finalVideoMap, dismissedFinalVideoIds, dismissFinalVideo } = useFinalVideoAvailable();
 
   useLayoutEffect(() => {
     const wrapper = timelineWrapperRef.current;
@@ -267,14 +303,14 @@ function TimelineEditorComponent() {
 
   const pixelsPerSecond = scaleWidth / scale;
   const finalVideoShotIds = useMemo(() => {
-    const shotIds = new Set<string>();
-    for (const shotId of finalVideoMap.keys()) {
-      if (!dismissedShotIds.has(shotId)) {
-        shotIds.add(shotId);
-      }
-    }
-    return shotIds;
-  }, [dismissedShotIds, finalVideoMap]);
+    return resolveFinalVideoShotIds({
+      rows: data?.rows ?? [],
+      meta: data?.meta ?? EMPTY_CLIP_META,
+      registry: data?.registry ?? EMPTY_ASSET_REGISTRY,
+      finalVideoMap,
+      dismissedFinalVideoIds,
+    });
+  }, [data?.meta, data?.registry, data?.registry?.assets, data?.rows, dismissedFinalVideoIds, finalVideoMap]);
   const shotGroups = useShotGroups(
     data?.rows ?? [],
     data?.meta ?? EMPTY_CLIP_META,
@@ -545,8 +581,19 @@ function TimelineEditorComponent() {
           finalVideoShotIds={finalVideoShotIds}
           onShotGroupNavigate={handleShotGroupNavigate}
           onShotGroupGenerateVideo={handleShotGroupGenerateVideo}
-          onShotGroupSwitchToFinalVideo={(group) => { dismissShot(group.shotId); handleSwitchToFinalVideo(group); }}
-          onShotGroupDismissFinalVideo={dismissShot}
+          onShotGroupSwitchToFinalVideo={(group) => {
+            const finalVideo = finalVideoMap.get(group.shotId);
+            if (finalVideo) {
+              dismissFinalVideo(finalVideo.id);
+            }
+            handleSwitchToFinalVideo(group);
+          }}
+          onShotGroupDismissFinalVideo={(shotId) => {
+            const finalVideo = finalVideoMap.get(shotId);
+            if (finalVideo) {
+              dismissFinalVideo(finalVideo.id);
+            }
+          }}
           onSelectClips={selectClips}
           dragSessionRef={dragSessionRef}
           marqueeRect={marqueeRect}
