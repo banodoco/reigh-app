@@ -7,6 +7,7 @@ import {
 import {
   loadActiveReference,
   loadProjectImageSettings,
+  loadShotVideoTravelSettings,
   loadSessionStatus,
   loadTimelineState,
   persistSessionState,
@@ -32,14 +33,16 @@ import {
   findShotForGenerations,
   resolveClipGenerationIds,
 } from "./tools/clips.ts";
-import { executeCreateTask, type CreateTaskImageContext } from "./tools/create-task.ts";
+import { executeCreateTask } from "./tools/create-task.ts";
 import { executeDuplicateGeneration } from "./tools/duplicate-generation.ts";
+import { executeSearchLoras, executeSetLora } from "./tools/loras.ts";
 import { executeCommand } from "./tools/registry.ts";
 import { viewTimeline } from "./tools/timeline.ts";
 import type {
   AgentSession,
   AgentSessionStatus,
   AgentTurn,
+  GenerationContext,
   LlmMessage,
   SelectedClipPayload,
   SupabaseAdmin,
@@ -165,7 +168,8 @@ export async function executeToolCall(
   supabaseAdmin: SupabaseAdmin,
   timelineId: string,
   selectedClips?: SelectedClipPayload[],
-  imageContext?: CreateTaskImageContext,
+  generationContext?: GenerationContext,
+  userId?: string,
 ): Promise<ToolResult> {
   const toolArgs = toolCall.args;
 
@@ -185,7 +189,15 @@ export async function executeToolCall(
   }
 
   if (toolCall.name === "create_task") {
-    return await executeCreateTask(toolArgs, timelineState, selectedClips, supabaseAdmin, imageContext);
+    return await executeCreateTask(toolArgs, timelineState, selectedClips, supabaseAdmin, generationContext);
+  }
+
+  if (toolCall.name === "search_loras") {
+    return await executeSearchLoras(toolArgs, supabaseAdmin, userId);
+  }
+
+  if (toolCall.name === "set_lora") {
+    return await executeSetLora(toolArgs, timelineState, selectedClips, supabaseAdmin, generationContext);
   }
 
   if (toolCall.name === "duplicate_generation") {
@@ -210,9 +222,10 @@ async function processToolCalls({
   messages,
   timelineState,
   selectedClips,
-  imageContext,
+  generationContext,
   supabaseAdmin,
   timelineId,
+  userId,
   setActiveToolCallId,
 }: {
   toolCalls: ExtractedToolCall[];
@@ -221,9 +234,10 @@ async function processToolCalls({
   messages: LlmMessage[];
   timelineState: TimelineState;
   selectedClips?: SelectedClipPayload[];
-  imageContext?: CreateTaskImageContext;
+  generationContext?: GenerationContext;
   supabaseAdmin: SupabaseAdmin;
   timelineId: string;
+  userId?: string;
   setActiveToolCallId: (toolCallId: string | null) => void;
 }): Promise<{ hasError: boolean }> {
   let hasError = false;
@@ -252,7 +266,8 @@ async function processToolCalls({
       supabaseAdmin,
       timelineId,
       selectedClips,
-      imageContext,
+      generationContext,
+      userId,
     );
     setActiveToolCallId(null);
 
@@ -319,29 +334,39 @@ export async function runAgentLoop(
 
     const timelineState = await loadTimelineState(supabaseAdmin, session.timeline_id);
     const imageSettings = await loadProjectImageSettings(supabaseAdmin, timelineState.projectId);
-    const clipGenerationIds = imageSettings
-      ? resolveClipGenerationIds(effectiveSelectedClips ?? [], timelineState.registry, timelineState.config)
-      : [];
-    const clipShotId = imageSettings && clipGenerationIds.length > 0
+    const clipGenerationIds = resolveClipGenerationIds(
+      effectiveSelectedClips ?? [],
+      timelineState.registry,
+      timelineState.config,
+    );
+    const clipShotId = clipGenerationIds.length > 0
       ? await findShotForGenerations(supabaseAdmin, clipGenerationIds)
+      : null;
+    const travelSettings = clipShotId
+      ? await loadShotVideoTravelSettings(supabaseAdmin, clipShotId)
       : null;
     const activeReference = imageSettings
       ? await loadActiveReference(supabaseAdmin, imageSettings, clipShotId ?? undefined)
       : null;
-    const imageContext = imageSettings
-      ? {
-        defaultModelName: imageSettings.selectedTextModel ?? "qwen-image",
-        activeReference,
-        selectedLorasByCategory: imageSettings.selectedLorasByCategory,
-      }
-      : undefined;
+    const generationContext: GenerationContext = {
+      image: imageSettings
+        ? {
+          defaultModelName: imageSettings.selectedTextModel ?? "qwen-image",
+          activeReference,
+          selectedLorasByCategory: imageSettings.selectedLorasByCategory,
+        }
+        : null,
+      travel: travelSettings,
+    };
     const timelineSummary = viewTimeline(timelineState.config, timelineState.registry).result;
     const systemPrompt = buildTimelineAgentSystemPrompt({
       projectId: timelineState.projectId,
       timelineSummary,
       selectedClips: effectiveSelectedClips,
-      defaultModel: imageContext?.defaultModelName,
-      activeReference: imageContext?.activeReference ?? null,
+      defaultModel: generationContext.image?.defaultModelName,
+      activeReference: generationContext.image?.activeReference ?? null,
+      travelSettings,
+      imageLorasByCategory: generationContext.image?.selectedLorasByCategory ?? null,
     });
     const messages = buildInitialMessages(systemPrompt, turns);
     const startedAt = Date.now();
@@ -410,9 +435,10 @@ export async function runAgentLoop(
         messages,
         timelineState,
         selectedClips: effectiveSelectedClips,
-        imageContext,
+        generationContext,
         supabaseAdmin,
         timelineId: session.timeline_id,
+        userId: session.user_id,
         setActiveToolCallId: (toolCallId) => { activeToolCallId = toolCallId; },
       });
 

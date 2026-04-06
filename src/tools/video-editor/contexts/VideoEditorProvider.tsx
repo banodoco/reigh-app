@@ -1,4 +1,6 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { MediaLightbox } from '@/domains/media-lightbox/MediaLightbox';
 import type { DataProvider } from '@/tools/video-editor/data/DataProvider';
 import { DataProviderWrapper } from '@/tools/video-editor/contexts/DataProviderContext';
 import { TimelineChromeContextProvider } from '@/tools/video-editor/contexts/TimelineChromeContext';
@@ -15,6 +17,7 @@ import type {
   TimelineEditorDataContextValue,
   TimelineEditorOpsContextValue,
 } from '@/tools/video-editor/hooks/useTimelineState.types';
+import { loadGenerationForLightbox } from '@/tools/video-editor/lib/generation-utils';
 
 function InnerProvider({
   children,
@@ -33,16 +36,31 @@ function InnerProvider({
     effectResources.effects,
   );
   const { editor, chrome, playback } = useTimelineState();
+  const [lightboxAssetKey, setLightboxAssetKey] = useState<string | null>(null);
+  const lightboxAsset = lightboxAssetKey ? editor.resolvedConfig?.registry[lightboxAssetKey] : undefined;
+  const lightboxGenerationId = lightboxAsset?.generationId ?? null;
+  const lightboxQuery = useQuery({
+    queryKey: ['video-editor', 'lightbox', lightboxGenerationId],
+    queryFn: () => loadGenerationForLightbox(lightboxGenerationId as string),
+    enabled: Boolean(lightboxGenerationId),
+    staleTime: 60_000,
+  });
 
-  // Shared lightbox callback — PreviewPanel registers its handler, timeline clips call it
-  const lightboxHandlerRef = useRef<((assetKey: string) => void) | null>(null);
+  useEffect(() => {
+    if (!lightboxAssetKey || !lightboxGenerationId || lightboxQuery.isLoading || lightboxQuery.data) {
+      return;
+    }
+
+    setLightboxAssetKey(null);
+  }, [lightboxAssetKey, lightboxGenerationId, lightboxQuery.data, lightboxQuery.isLoading]);
+
   const onDoubleClickAsset = useCallback((assetKey: string) => {
-    lightboxHandlerRef.current?.(assetKey);
-  }, []);
+    if (!editor.resolvedConfig?.registry[assetKey]?.generationId) {
+      return;
+    }
 
-  const registerLightboxHandler = useCallback((handler: ((assetKey: string) => void) | null) => {
-    lightboxHandlerRef.current = handler;
-  }, []);
+    setLightboxAssetKey(assetKey);
+  }, [editor.resolvedConfig]);
 
   const editorData = useMemo<TimelineEditorDataContextValue>(() => ({
     data: editor.data,
@@ -115,8 +133,8 @@ function InnerProvider({
     patchRegistry: editor.patchRegistry,
     registerAsset: editor.registerAsset,
     onDoubleClickAsset,
-    registerLightboxHandler,
-  }), [editor, onDoubleClickAsset, registerLightboxHandler]);
+    setLightboxAssetKey,
+  }), [editor, onDoubleClickAsset, setLightboxAssetKey]);
 
   return (
     <TimelineEditorDataContextProvider value={editorData}>
@@ -124,6 +142,14 @@ function InnerProvider({
         <TimelineChromeContextProvider value={chrome}>
           <TimelinePlaybackContextProvider value={playback}>
             {children}
+            {lightboxAssetKey && lightboxQuery.data && (
+              <MediaLightbox
+                media={lightboxQuery.data}
+                initialVariantId={lightboxAsset?.variantId ?? lightboxQuery.data.primary_variant_id ?? undefined}
+                onClose={() => setLightboxAssetKey(null)}
+                features={{ showDownload: true, showTaskDetails: true }}
+              />
+            )}
           </TimelinePlaybackContextProvider>
         </TimelineChromeContextProvider>
       </TimelineEditorOpsContextProvider>

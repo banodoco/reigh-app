@@ -1,0 +1,136 @@
+{
+  "flags": [
+    {
+      "id": "FLAG-001",
+      "concern": "Shot-group replacement targeting: Recurring debt: the plan keys the switch action by `shotId`, but `useShotGroups()` can produce multiple distinct groups for the same shot, so the replacement target is ambiguous and can hit the wrong row or clip set.",
+      "category": "correctness",
+      "severity_hint": "likely-significant",
+      "evidence": "`src/tools/video-editor/hooks/useShotGroups.ts:79-130` can emit multiple groups per shot, while the planned callbacks only pass `shotId` from `TimelineCanvas`.",
+      "raised_in": "critique_v1.json",
+      "status": "open",
+      "severity": "significant",
+      "verified": false
+    },
+    {
+      "id": "FLAG-002",
+      "concern": "Asset registration contract: the proposed `registerGenerationAsset()` call uses an unsupported `mimeType` field, so final videos may not be registered as video assets unless the plan passes `variantType: 'video'` or `metadata.content_type`.",
+      "category": "correctness",
+      "severity_hint": "likely-significant",
+      "evidence": "`GenerationDropData` in `src/shared/lib/dnd/dragDrop.ts:48-55` has no `mimeType`, and `useAssetManagement.ts:71-85` infers media type only from `metadata.content_type`, `variantType`, or the URL.",
+      "raised_in": "critique_v1.json",
+      "status": "open",
+      "severity": "significant",
+      "verified": false
+    },
+    {
+      "id": "FLAG-003",
+      "concern": "Verification coverage: the planned checks do not exercise the new shot-group badge/menu wiring or the atomic replace mutation, so the main risk surface remains untested.",
+      "category": "completeness",
+      "severity_hint": "likely-significant",
+      "evidence": "`src/tools/video-editor/components/TimelineEditor/TimelineCanvas.test.tsx` currently covers resize behavior only, and `src/tools/video-editor/components/TimelineEditor/TimelineEditor.test.ts` contains only helper tests.",
+      "raised_in": "critique_v1.json",
+      "status": "open",
+      "severity": "significant",
+      "verified": false
+    },
+    {
+      "id": "issue_hints-1",
+      "concern": "Did the work fully address the issue hints, user notes, and approved plan requirements?: Checked the requested interaction against the existing timeline UI in `src/tools/video-editor/components/TimelineEditor/TimelineCanvas.tsx:343-364,774-803` and `src/tools/video-editor/components/TimelineEditor/ClipAction.tsx:107-201`. The repo\u2019s established pattern for these affordances is a portal context menu, but the user request explicitly says clicking the badge should open a panel; the plan changes that to a menu/mini-menu, which is a product-level divergence that needs an explicit acceptance rather than being treated as equivalent.",
+      "category": "completeness",
+      "severity_hint": "likely-significant",
+      "evidence": "Checked the requested interaction against the existing timeline UI in `src/tools/video-editor/components/TimelineEditor/TimelineCanvas.tsx:343-364,774-803` and `src/tools/video-editor/components/TimelineEditor/ClipAction.tsx:107-201`. The repo\u2019s established pattern for these affordances is a portal context menu, but the user request explicitly says clicking the badge should open a panel; the plan changes that to a menu/mini-menu, which is a product-level divergence that needs an explicit acceptance rather than being treated as equivalent.",
+      "raised_in": "critique_v1.json",
+      "status": "open",
+      "severity": "significant",
+      "verified": false
+    },
+    {
+      "id": "issue_hints-2",
+      "concern": "Did the work fully address the issue hints, user notes, and approved plan requirements?: Checked how shot groups are defined in `src/tools/video-editor/hooks/useShotGroups.ts:29-33,73-75` and in `src/tools/video-editor/hooks/useShotGroups.test.ts:101-110`. The current repo only materializes shot groups when there are at least two matching clips, so the plan\u2019s assumption that single-clip shots will not show the final-video badge is consistent with current code, but it still leaves one of the plan\u2019s own open questions unresolved and narrows the feature unless that scope choice is confirmed.",
+      "category": "completeness",
+      "severity_hint": "likely-significant",
+      "evidence": "Checked how shot groups are defined in `src/tools/video-editor/hooks/useShotGroups.ts:29-33,73-75` and in `src/tools/video-editor/hooks/useShotGroups.test.ts:101-110`. The current repo only materializes shot groups when there are at least two matching clips, so the plan\u2019s assumption that single-clip shots will not show the final-video badge is consistent with current code, but it still leaves one of the plan\u2019s own open questions unresolved and narrows the feature unless that scope choice is confirmed.",
+      "raised_in": "critique_v1.json",
+      "status": "open",
+      "severity": "significant",
+      "verified": false
+    },
+    {
+      "id": "correctness-1",
+      "concern": "Are the proposed changes technically correct?: Checked the proposed asset-registration call against the actual drag-drop contract in `src/shared/lib/dnd/dragDrop.ts:48-55` and `src/tools/video-editor/hooks/useAssetManagement.ts:66-85`. The plan says to call `registerGenerationAsset({ generationId: finalVideo.id, imageUrl: finalVideo.location, mimeType: 'video/mp4' })`, but `mimeType` is not a supported field on `GenerationDropData`, and `registerGenerationAsset()` only looks at `metadata.content_type`, `variantType`, or the URL suffix; as written, this call can misclassify the asset unless the location reliably ends with a video extension.",
+      "category": "correctness",
+      "severity_hint": "likely-significant",
+      "evidence": "Checked the proposed asset-registration call against the actual drag-drop contract in `src/shared/lib/dnd/dragDrop.ts:48-55` and `src/tools/video-editor/hooks/useAssetManagement.ts:66-85`. The plan says to call `registerGenerationAsset({ generationId: finalVideo.id, imageUrl: finalVideo.location, mimeType: 'video/mp4' })`, but `mimeType` is not a supported field on `GenerationDropData`, and `registerGenerationAsset()` only looks at `metadata.content_type`, `variantType`, or the URL suffix; as written, this call can misclassify the asset unless the location reliably ends with a video extension.",
+      "raised_in": "critique_v1.json",
+      "status": "open",
+      "severity": "significant",
+      "verified": false
+    },
+    {
+      "id": "correctness-2",
+      "concern": "Are the proposed changes technically correct?: Checked `useShotGroups()` in `src/tools/video-editor/hooks/useShotGroups.ts:79-130` and the planned `TimelineCanvas` callback shape that only passes `shotId`. The repository can emit multiple distinct groups for the same shot across rows or separated runs on one row, so a switch action keyed only by `shotId` is ambiguous and can replace the wrong clip set; the callback needs the clicked group identity (`clipIds`, `rowId`, or a group key), not just the shot id.",
+      "category": "correctness",
+      "severity_hint": "likely-significant",
+      "evidence": "Checked `useShotGroups()` in `src/tools/video-editor/hooks/useShotGroups.ts:79-130` and the planned `TimelineCanvas` callback shape that only passes `shotId`. The repository can emit multiple distinct groups for the same shot across rows or separated runs on one row, so a switch action keyed only by `shotId` is ambiguous and can replace the wrong clip set; the callback needs the clicked group identity (`clipIds`, `rowId`, or a group key), not just the shot id.",
+      "raised_in": "critique_v1.json",
+      "status": "open",
+      "severity": "significant",
+      "verified": false
+    },
+    {
+      "id": "scope-1",
+      "concern": "Search for related code that handles the same concept. Is the reported issue a symptom of something broader?: Checked the existing video-drop paths in `src/tools/video-editor/lib/external-drop-utils.ts:46-55,386-412` and `src/tools/video-editor/hooks/useAssetManagement.ts:198-252`. The broader repository pattern for video assets is not just \u201cregister then insert\u201d; multi-generation video drops also patch `registry.duration` using `getDroppedGenerationDuration()`, while `useShotFinalVideos()` in `src/tools/travel-between-images/hooks/video/useShotFinalVideos.ts:19-37` currently fetches no duration metadata. That means final-video replacement is broader than badge wiring alone if the new clip is expected to behave like other video assets in timing UI and resize logic.",
+      "category": "completeness",
+      "severity_hint": "likely-significant",
+      "evidence": "Checked the existing video-drop paths in `src/tools/video-editor/lib/external-drop-utils.ts:46-55,386-412` and `src/tools/video-editor/hooks/useAssetManagement.ts:198-252`. The broader repository pattern for video assets is not just \u201cregister then insert\u201d; multi-generation video drops also patch `registry.duration` using `getDroppedGenerationDuration()`, while `useShotFinalVideos()` in `src/tools/travel-between-images/hooks/video/useShotFinalVideos.ts:19-37` currently fetches no duration metadata. That means final-video replacement is broader than badge wiring alone if the new clip is expected to behave like other video assets in timing UI and resize logic.",
+      "raised_in": "critique_v1.json",
+      "status": "open",
+      "severity": "significant",
+      "verified": false
+    },
+    {
+      "id": "scope-2",
+      "concern": "Search for related code that handles the same concept. Is the reported issue a symptom of something broader?: Checked shot-group action plumbing in `src/tools/video-editor/components/TimelineEditor/TimelineCanvas.tsx:343-364,757-803`. The canvas already has one shot-group menu state and portal renderer for group actions, so introducing a second parallel menu state for final-video actions would duplicate the same concern in the same component; extending the existing menu model with richer group payload looks more aligned with the current structure.",
+      "category": "completeness",
+      "severity_hint": "likely-significant",
+      "evidence": "Checked shot-group action plumbing in `src/tools/video-editor/components/TimelineEditor/TimelineCanvas.tsx:343-364,757-803`. The canvas already has one shot-group menu state and portal renderer for group actions, so introducing a second parallel menu state for final-video actions would duplicate the same concern in the same component; extending the existing menu model with richer group payload looks more aligned with the current structure.",
+      "raised_in": "critique_v1.json",
+      "status": "open",
+      "severity": "significant",
+      "verified": false
+    },
+    {
+      "id": "verification-1",
+      "concern": "Is there convincing verification for the change?: Checked the current automated coverage in `src/tools/video-editor/components/TimelineEditor/TimelineCanvas.test.tsx:133-260` and `src/tools/video-editor/components/TimelineEditor/TimelineEditor.test.ts:1-114`. Existing tests only cover resize behavior and a couple of pure helpers; they do not exercise shot-group overlays, shot-group menus, or any final-video replacement path, so the plan\u2019s proposed verification is too weak for the main UI and mutation risks.",
+      "category": "completeness",
+      "severity_hint": "likely-minor",
+      "evidence": "Checked the current automated coverage in `src/tools/video-editor/components/TimelineEditor/TimelineCanvas.test.tsx:133-260` and `src/tools/video-editor/components/TimelineEditor/TimelineEditor.test.ts:1-114`. Existing tests only cover resize behavior and a couple of pure helpers; they do not exercise shot-group overlays, shot-group menus, or any final-video replacement path, so the plan\u2019s proposed verification is too weak for the main UI and mutation risks.",
+      "raised_in": "critique_v1.json",
+      "status": "open",
+      "severity": "minor",
+      "verified": false
+    },
+    {
+      "id": "verification-2",
+      "concern": "Is there convincing verification for the change?: Checked for any existing tests around `useShotFinalVideos` or `shot_final_videos` in the editor paths and found none. A new `useFinalVideoAvailable` hook test would verify filtering and dismiss state, but it would still miss the highest-risk behavior: removing a specific group\u2019s clips, inserting a single video clip, registering the asset with the right media type, and keeping the operation as one undoable edit.",
+      "category": "completeness",
+      "severity_hint": "likely-minor",
+      "evidence": "Checked for any existing tests around `useShotFinalVideos` or `shot_final_videos` in the editor paths and found none. A new `useFinalVideoAvailable` hook test would verify filtering and dismiss state, but it would still miss the highest-risk behavior: removing a specific group\u2019s clips, inserting a single video clip, registering the asset with the right media type, and keeping the operation as one undoable edit.",
+      "raised_in": "critique_v1.json",
+      "status": "open",
+      "severity": "minor",
+      "verified": false
+    },
+    {
+      "id": "verification-3",
+      "concern": "Is there convincing verification for the change?: Checked `src/tools/video-editor/hooks/useClipEditing.test.ts:47-123` and the existing `applyEdit` assertion style there. The repo already has a straightforward pattern for unit-testing editor mutations by asserting the exact `applyEdit` payload, so the plan should add a targeted test for the switch-to-final-video edit shape rather than relying mostly on manual smoke coverage.",
+      "category": "completeness",
+      "severity_hint": "likely-minor",
+      "evidence": "Checked `src/tools/video-editor/hooks/useClipEditing.test.ts:47-123` and the existing `applyEdit` assertion style there. The repo already has a straightforward pattern for unit-testing editor mutations by asserting the exact `applyEdit` payload, so the plan should add a targeted test for the switch-to-final-video edit shape rather than relying mostly on manual smoke coverage.",
+      "raised_in": "critique_v1.json",
+      "status": "open",
+      "severity": "minor",
+      "verified": false
+    }
+  ]
+}

@@ -113,7 +113,7 @@ export interface TimelineEditorOpsContextValue {
   patchRegistry: TimelinePatchRegistry;
   registerAsset: TimelineRegisterAsset;
   onDoubleClickAsset?: (assetKey: string) => void;
-  registerLightboxHandler?: (handler: ((assetKey: string) => void) | null) => void;
+  setLightboxAssetKey?: (assetKey: string | null) => void;
 }
 
 /**

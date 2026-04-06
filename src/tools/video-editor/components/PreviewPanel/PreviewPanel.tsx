@@ -1,6 +1,4 @@
-import { memo, useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { MediaLightbox } from '@/domains/media-lightbox/MediaLightbox';
+import { memo } from 'react';
 import OverlayEditor from '@/tools/video-editor/components/PreviewPanel/OverlayEditor';
 import { RemotionPreview } from '@/tools/video-editor/components/PreviewPanel/RemotionPreview';
 import {
@@ -8,7 +6,6 @@ import {
   useTimelineEditorOps,
 } from '@/tools/video-editor/contexts/TimelineEditorContext';
 import { useTimelinePlaybackContext } from '@/tools/video-editor/contexts/TimelinePlaybackContext';
-import { loadGenerationForLightbox } from '@/tools/video-editor/lib/generation-utils';
 
 function PreviewPanelComponent() {
   const {
@@ -21,42 +18,14 @@ function PreviewPanelComponent() {
   const {
     setSelectedClipId,
     onOverlayChange,
-    registerLightboxHandler,
+    onDoubleClickAsset,
   } = useTimelineEditorOps();
-  const [lightboxAssetKey, setLightboxAssetKey] = useState<string | null>(null);
   const {
     previewRef,
     playerContainerRef,
     currentTime,
     onPreviewTimeUpdate,
   } = useTimelinePlaybackContext();
-
-  const lightboxAsset = lightboxAssetKey ? resolvedConfig?.registry[lightboxAssetKey] : undefined;
-  const lightboxGenerationId = lightboxAsset?.generationId ?? null;
-  const lightboxQuery = useQuery({
-    queryKey: ['video-editor', 'preview-lightbox', lightboxGenerationId],
-    queryFn: () => loadGenerationForLightbox(lightboxGenerationId as string),
-    enabled: Boolean(lightboxGenerationId),
-    staleTime: 60_000,
-  });
-
-  // Register this panel's lightbox opener so timeline clips can trigger it too
-  useEffect(() => {
-    const handler = (assetKey: string) => {
-      if (!resolvedConfig?.registry[assetKey]?.generationId) return;
-      setLightboxAssetKey(assetKey);
-    };
-    registerLightboxHandler?.(handler);
-    return () => registerLightboxHandler?.(null);
-  }, [registerLightboxHandler, resolvedConfig]);
-
-  useEffect(() => {
-    if (!lightboxAssetKey || !lightboxGenerationId || lightboxQuery.isLoading || lightboxQuery.data) {
-      return;
-    }
-
-    setLightboxAssetKey(null);
-  }, [lightboxAssetKey, lightboxGenerationId, lightboxQuery.data, lightboxQuery.isLoading]);
 
   if (!data || !resolvedConfig) {
     return null;
@@ -99,21 +68,10 @@ function PreviewPanelComponent() {
             selectedClipId={selectedClipId}
             onSelectClip={setSelectedClipId}
             onOverlayChange={onOverlayChange}
-            onDoubleClickAsset={(assetKey) => {
-              if (!resolvedConfig.registry[assetKey]?.generationId) return;
-              setLightboxAssetKey(assetKey);
-            }}
+            onDoubleClickAsset={onDoubleClickAsset}
           />
         </div>
       </div>
-      {lightboxAssetKey && lightboxQuery.data && (
-        <MediaLightbox
-          media={lightboxQuery.data}
-          initialVariantId={lightboxAsset?.variantId ?? lightboxQuery.data.primary_variant_id ?? undefined}
-          onClose={() => setLightboxAssetKey(null)}
-          features={{ showDownload: true, showTaskDetails: true }}
-        />
-      )}
     </div>
   );
 }

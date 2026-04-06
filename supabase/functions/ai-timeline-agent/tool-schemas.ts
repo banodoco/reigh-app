@@ -89,6 +89,26 @@ export const TIMELINE_AGENT_TOOLS: TimelineAgentToolDefinition[] = [
             description: "Generation ID this task derives from. Overrides auto-detected value from selected clips.",
           },
           shot_name: { type: "string", description: "Optional shot name to use if a new shot must be created." },
+          amount_of_motion: {
+            type: "number",
+            description: "Motion intensity 0-100 for image-to-video. Higher = more motion.",
+          },
+          steps: {
+            type: "number",
+            description: "Inference steps for image-to-video. Model-dependent (wan-2.2: 6, ltx-2.3: 30, ltx-2.3-fast: 8).",
+          },
+          guidance_scale: {
+            type: "number",
+            description: "Guidance scale for image-to-video (LTX models only).",
+          },
+          enhance_prompt: {
+            type: "boolean",
+            description: "Auto-enhance prompts for image-to-video.",
+          },
+          turbo_mode: {
+            type: "boolean",
+            description: "Turbo mode for wan-2.2 image-to-video (faster, lower quality).",
+          },
         },
         required: ["task_type"],
         additionalProperties: false,
@@ -109,6 +129,73 @@ export const TIMELINE_AGENT_TOOLS: TimelineAgentToolDefinition[] = [
           },
         },
         required: ["generation_id"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "search_loras",
+      description: "Search the LoRA catalog by name, tag, or description. Returns matching LoRAs with paths and metadata.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Search text matched against LoRA name, tags, description, and related metadata.",
+          },
+          base_model: {
+            type: "string",
+            enum: ["wan", "qwen", "ltx", "z-image"],
+            description: "Optional base model filter for narrowing LoRA results.",
+          },
+        },
+        required: ["query"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "set_lora",
+      description: "Add, remove, or update a LoRA in active settings. For video travel: modifies shot LoRAs. For image generation: modifies project LoRAs.",
+      parameters: {
+        type: "object",
+        properties: {
+          action: {
+            type: "string",
+            enum: ["add", "remove", "update_strength"],
+            description: "Whether to add a LoRA, remove it, or change its strength.",
+          },
+          lora_path: {
+            type: "string",
+            description: "Canonical LoRA file path to add, remove, or update.",
+          },
+          lora_name: {
+            type: "string",
+            description: "Optional LoRA display name, mainly used when adding a new LoRA.",
+          },
+          strength: {
+            type: "number",
+            description: "Optional LoRA strength from 0 to 2.",
+          },
+          target: {
+            type: "string",
+            enum: ["video-travel", "image-generation"],
+            description: "Which settings scope to modify.",
+          },
+          trigger_word: {
+            type: "string",
+            description: "Optional trigger word associated with the LoRA.",
+          },
+          low_noise_path: {
+            type: "string",
+            description: "Optional low-noise LoRA path for multi-stage LoRAs.",
+          },
+        },
+        required: ["action", "lora_path", "target"],
         additionalProperties: false,
       },
     },

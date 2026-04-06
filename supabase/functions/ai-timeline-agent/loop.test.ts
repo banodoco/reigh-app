@@ -4,6 +4,8 @@ const mocks = vi.hoisted(() => ({
   executeCommand: vi.fn(),
   executeCreateTask: vi.fn(),
   executeDuplicateGeneration: vi.fn(),
+  executeSearchLoras: vi.fn(),
+  executeSetLora: vi.fn(),
 }));
 
 vi.mock("./tools/registry.ts", () => ({
@@ -16,6 +18,11 @@ vi.mock("./tools/create-task.ts", () => ({
 
 vi.mock("./tools/duplicate-generation.ts", () => ({
   executeDuplicateGeneration: (...args: unknown[]) => mocks.executeDuplicateGeneration(...args),
+}));
+
+vi.mock("./tools/loras.ts", () => ({
+  executeSearchLoras: (...args: unknown[]) => mocks.executeSearchLoras(...args),
+  executeSetLora: (...args: unknown[]) => mocks.executeSetLora(...args),
 }));
 
 import {
@@ -56,6 +63,8 @@ describe("loop helpers", () => {
 
     mocks.executeCommand.mockResolvedValue({ result: "ran" });
     mocks.executeCreateTask.mockResolvedValue({ result: "queued" });
+    mocks.executeSearchLoras.mockResolvedValue({ result: "found" });
+    mocks.executeSetLora.mockResolvedValue({ result: "updated" });
 
     await expect(executeToolCall({
       id: "parse",
@@ -84,6 +93,39 @@ describe("loop helpers", () => {
       selectedClips,
       supabaseAdmin,
       undefined,
+    );
+
+    await expect(executeToolCall({
+      id: "search",
+      name: "search_loras",
+      args: { query: "cinematic" },
+      parseError: null,
+    }, timelineState, supabaseAdmin, "timeline-1", selectedClips, undefined, "user-1")).resolves.toEqual({ result: "found" });
+    expect(mocks.executeSearchLoras).toHaveBeenCalledWith(
+      { query: "cinematic" },
+      supabaseAdmin,
+      "user-1",
+    );
+
+    const generationContext = {
+      image: null,
+      travel: null,
+    } satisfies import("./types.ts").GenerationContext;
+
+    await expect(executeToolCall({
+      id: "set",
+      name: "set_lora",
+      args: { action: "add", lora_path: "loras/cinematic.safetensors", target: "video-travel" },
+      parseError: null,
+    }, timelineState, supabaseAdmin, "timeline-1", selectedClips, generationContext)).resolves.toEqual({
+      result: "updated",
+    });
+    expect(mocks.executeSetLora).toHaveBeenCalledWith(
+      { action: "add", lora_path: "loras/cinematic.safetensors", target: "video-travel" },
+      timelineState,
+      selectedClips,
+      supabaseAdmin,
+      generationContext,
     );
 
     await expect(executeToolCall({

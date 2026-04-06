@@ -34,6 +34,8 @@ type SupabaseInsertResult = Promise<{ data?: unknown; error: SupabaseError | nul
 type SupabaseSelectQuery = {
   eq: (column: string, value: string) => SupabaseSelectQuery;
   in: (column: string, values: string[]) => SupabaseListResult;
+  or: (filter: string) => SupabaseSelectQuery;
+  limit: (count: number) => SupabaseListResult;
   maybeSingle: () => SupabaseMaybeSingleResult;
 };
 
@@ -107,6 +109,32 @@ export interface AgentProjectImageSettings {
   selectedLorasByCategory?: Partial<Record<"qwen" | "z-image", Array<{ path: string; strength: number }>>>;
 }
 
+export interface AgentVideoTravelSettings {
+  selectedModel: string;
+  frames: number;
+  steps: number;
+  amountOfMotion: number;
+  guidanceScale?: number;
+  turboMode: boolean;
+  enhancePrompt: boolean;
+  negativePrompt?: string;
+  textBeforePrompts?: string;
+  textAfterPrompts?: string;
+  generationTypeMode: "i2v" | "vace";
+  generationMode: "batch" | "by-pair" | "timeline";
+  loras: Array<{
+    id: string;
+    name: string;
+    path: string;
+    strength: number;
+    triggerWord?: string;
+    lowNoisePath?: string;
+    isMultiStage?: boolean;
+  }>;
+  phaseConfig?: Record<string, unknown>;
+  smoothContinuations: boolean;
+}
+
 export interface ResolvedReference {
   url: string;
   referenceMode: AgentReferenceMode;
@@ -115,6 +143,15 @@ export interface ResolvedReference {
   subjectDescription?: string;
   inThisScene?: boolean;
   inThisSceneStrength?: number;
+}
+
+export interface GenerationContext {
+  image: {
+    defaultModelName?: AgentTextToImageModel;
+    activeReference?: ResolvedReference | null;
+    selectedLorasByCategory?: Partial<Record<"qwen" | "z-image", Array<{ path: string; strength: number }>>>;
+  } | null;
+  travel: AgentVideoTravelSettings | null;
 }
 
 export interface AgentInvocationBody {

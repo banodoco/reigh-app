@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { VideoEditorProvider } from '@/tools/video-editor/contexts/VideoEditorProvider';
@@ -56,11 +57,20 @@ describe('VideoEditorProvider', () => {
       loadAssetRegistry: vi.fn(),
       resolveAssetUrl: vi.fn(),
     };
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+        },
+      },
+    });
 
     render(
-      <VideoEditorProvider dataProvider={provider} timelineId="timeline-1" userId="user-1">
-        <Consumer />
-      </VideoEditorProvider>,
+      <QueryClientProvider client={queryClient}>
+        <VideoEditorProvider dataProvider={provider} timelineId="timeline-1" userId="user-1">
+          <Consumer />
+        </VideoEditorProvider>
+      </QueryClientProvider>,
     );
 
     expect(screen.getByText('clip-1')).toBeInTheDocument();

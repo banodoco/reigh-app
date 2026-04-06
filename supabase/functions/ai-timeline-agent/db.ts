@@ -6,6 +6,7 @@ import type {
   AgentReferenceMode,
   AgentSessionStatus,
   AgentTurn,
+  AgentVideoTravelSettings,
   ResolvedReference,
   SupabaseAdmin,
   TimelineState,
@@ -31,8 +32,24 @@ function asReferenceMode(value: unknown): AgentReferenceMode | undefined {
 
 type AgentLoraCategory = "qwen" | "z-image";
 type AgentPathLora = { path: string; strength: number };
+type TravelModelDefaults = { frames: number; steps: number; guidanceScale?: number };
+type SearchLoraResult = {
+  resourceId: string;
+  name: string;
+  path: string;
+  triggerWord?: string;
+  baseModel?: string;
+  description?: string;
+  highNoiseUrl?: string;
+  lowNoiseUrl?: string;
+};
 
 const AGENT_LORA_CATEGORIES: AgentLoraCategory[] = ["qwen", "z-image"];
+const TRAVEL_MODEL_DEFAULTS: Record<string, TravelModelDefaults> = {
+  "wan-2.2": { frames: 61, steps: 6 },
+  "ltx-2.3": { frames: 97, steps: 30, guidanceScale: 3 },
+  "ltx-2.3-fast": { frames: 97, steps: 8, guidanceScale: 3 },
+};
 
 function normalizePathLora(value: unknown): AgentPathLora | null {
   if (!isRecord(value)) {
@@ -185,6 +202,81 @@ function normalizeProjectImageSettings(value: unknown): AgentProjectImageSetting
   };
 }
 
+function asTravelGenerationTypeMode(value: unknown): AgentVideoTravelSettings["generationTypeMode"] | undefined {
+  return value === "i2v" || value === "vace" ? value : undefined;
+}
+
+function asTravelGenerationMode(value: unknown): AgentVideoTravelSettings["generationMode"] | undefined {
+  return value === "batch" || value === "by-pair" || value === "timeline" ? value : undefined;
+}
+
+function normalizeTravelLora(
+  value: unknown,
+): AgentVideoTravelSettings["loras"][number] | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const id = asTrimmedString(value.id);
+  const name = asTrimmedString(value.name);
+  const path = asTrimmedString(value.path);
+  const strength = asOptionalNumber(value.strength);
+  if (!id || !name || !path || strength === undefined) {
+    return null;
+  }
+
+  const lowNoisePath = asTrimmedString(value.lowNoisePath) ?? asTrimmedString(value.low_noise_path) ?? undefined;
+  const isMultiStage = asOptionalBoolean(value.isMultiStage) ?? asOptionalBoolean(value.is_multi_stage);
+
+  return {
+    id,
+    name,
+    path,
+    strength,
+    ...(asTrimmedString(value.triggerWord) ?? asTrimmedString(value.trigger_word)
+      ? { triggerWord: asTrimmedString(value.triggerWord) ?? asTrimmedString(value.trigger_word) ?? undefined }
+      : {}),
+    ...(lowNoisePath ? { lowNoisePath } : {}),
+    ...(isMultiStage !== undefined ? { isMultiStage } : (lowNoisePath ? { isMultiStage: true } : {})),
+  };
+}
+
+function resolveTravelModelDefaults(rawSettings: Record<string, unknown>, selectedModel: string): TravelModelDefaults {
+  const modelDefaults = TRAVEL_MODEL_DEFAULTS[selectedModel] ?? TRAVEL_MODEL_DEFAULTS["wan-2.2"];
+  const modelOverrides = isRecord(rawSettings.modelSettingsByModel)
+    && isRecord(rawSettings.modelSettingsByModel[selectedModel])
+    ? rawSettings.modelSettingsByModel[selectedModel]
+    : null;
+
+  return {
+    frames: modelOverrides && asOptionalNumber(modelOverrides.batchVideoFrames) !== undefined
+      ? asOptionalNumber(modelOverrides.batchVideoFrames) ?? modelDefaults.frames
+      : asOptionalNumber(rawSettings.batchVideoFrames) ?? modelDefaults.frames,
+    steps: modelOverrides && asOptionalNumber(modelOverrides.batchVideoSteps) !== undefined
+      ? asOptionalNumber(modelOverrides.batchVideoSteps) ?? modelDefaults.steps
+      : asOptionalNumber(rawSettings.batchVideoSteps) ?? modelDefaults.steps,
+    guidanceScale: modelOverrides && asOptionalNumber(modelOverrides.guidanceScale) !== undefined
+      ? asOptionalNumber(modelOverrides.guidanceScale)
+      : (asOptionalNumber(rawSettings.guidanceScale) ?? modelDefaults.guidanceScale),
+  };
+}
+
+function getStringListSearchField(value: unknown): string {
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0).join(" ")
+    : "";
+}
+
+function getLoraModelFilePath(metadata: Record<string, unknown>): string | null {
+  const modelFiles = metadata["Model Files"];
+  if (!Array.isArray(modelFiles)) {
+    return null;
+  }
+
+  const firstFile = modelFiles.find((entry) => isRecord(entry) && asTrimmedString(entry.path));
+  return firstFile && isRecord(firstFile) ? asTrimmedString(firstFile.path) : null;
+}
+
 function buildResolvedReference(
   pointer: AgentProjectImageSettingsReference,
   metadataValue: unknown,
@@ -256,6 +348,210 @@ export async function loadProjectImageSettings(
   }
 
   return normalizeProjectImageSettings(data.settings["project-image-settings"]);
+}
+
+export async function loadShotVideoTravelSettings(
+  supabaseAdmin: SupabaseAdmin,
+  shotId?: string | null,
+): Promise<AgentVideoTravelSettings | null> {
+  if (!shotId) {
+    return null;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("shots")
+    .select("settings")
+    .eq("id", shotId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to load shot video travel settings: ${error.message}`);
+  }
+
+  if (!data || !isRecord(data) || !isRecord(data.settings)) {
+    return null;
+  }
+
+  const rawSettings = data.settings["travel-between-images"];
+  if (!isRecord(rawSettings)) {
+    return null;
+  }
+
+  const selectedModel = asTrimmedString(rawSettings.selectedModel) ?? "wan-2.2";
+  const modelDefaults = resolveTravelModelDefaults(rawSettings, selectedModel);
+  const loras = Array.isArray(rawSettings.loras)
+    ? rawSettings.loras
+      .map((entry) => normalizeTravelLora(entry))
+      .filter((entry): entry is AgentVideoTravelSettings["loras"][number] => entry !== null)
+    : [];
+
+  return {
+    selectedModel,
+    frames: modelDefaults.frames,
+    steps: modelDefaults.steps,
+    amountOfMotion: asOptionalNumber(rawSettings.amountOfMotion) ?? 50,
+    guidanceScale: modelDefaults.guidanceScale,
+    turboMode: asOptionalBoolean(rawSettings.turboMode) ?? false,
+    enhancePrompt: asOptionalBoolean(rawSettings.enhancePrompt) ?? false,
+    negativePrompt: asTrimmedString(rawSettings.negativePrompt) ?? undefined,
+    textBeforePrompts: asTrimmedString(rawSettings.textBeforePrompts) ?? undefined,
+    textAfterPrompts: asTrimmedString(rawSettings.textAfterPrompts) ?? undefined,
+    generationTypeMode: asTravelGenerationTypeMode(rawSettings.generationTypeMode) ?? "i2v",
+    generationMode: asTravelGenerationMode(rawSettings.generationMode) ?? "timeline",
+    loras,
+    phaseConfig: isRecord(rawSettings.phaseConfig) ? rawSettings.phaseConfig : undefined,
+    smoothContinuations: asOptionalBoolean(rawSettings.smoothContinuations) ?? false,
+  };
+}
+
+export async function searchLoras(
+  supabaseAdmin: SupabaseAdmin,
+  query: string,
+  userId?: string,
+): Promise<SearchLoraResult[]> {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) {
+    return [];
+  }
+
+  const baseQuery = supabaseAdmin
+    .from("resources")
+    .select("id, metadata")
+    .eq("type", "lora");
+  const { data, error } = userId
+    ? await baseQuery.or(`is_public.eq.true,user_id.eq.${userId}`).limit(200)
+    : await baseQuery.eq("is_public", "true").limit(200);
+
+  if (error) {
+    throw new Error(`Failed to search loras: ${error.message}`);
+  }
+
+  if (!Array.isArray(data)) {
+    return [];
+  }
+
+  return data.flatMap((entry) => {
+    if (!isRecord(entry) || !isRecord(entry.metadata)) {
+      return [];
+    }
+
+    const resourceId = asTrimmedString(entry.id);
+    const metadata = entry.metadata;
+    const name = asTrimmedString(metadata.Name);
+    const path = getLoraModelFilePath(metadata);
+    if (!resourceId || !name || !path) {
+      return [];
+    }
+
+    const triggerWord = asTrimmedString(metadata.trigger_word) ?? undefined;
+    const baseModel = asTrimmedString(metadata.base_model) ?? undefined;
+    const description = asTrimmedString(metadata.Description) ?? undefined;
+    const highNoiseUrl = asTrimmedString(metadata.high_noise_url) ?? undefined;
+    const lowNoiseUrl = asTrimmedString(metadata.low_noise_url) ?? undefined;
+    const haystack = [
+      name,
+      getStringListSearchField(metadata.Tags),
+      description ?? "",
+      triggerWord ?? "",
+      baseModel ?? "",
+    ].join(" ").toLowerCase();
+
+    if (!haystack.includes(normalizedQuery)) {
+      return [];
+    }
+
+    return [{
+      resourceId,
+      name,
+      path,
+      ...(triggerWord ? { triggerWord } : {}),
+      ...(baseModel ? { baseModel } : {}),
+      ...(description ? { description } : {}),
+      ...(highNoiseUrl ? { highNoiseUrl } : {}),
+      ...(lowNoiseUrl ? { lowNoiseUrl } : {}),
+    }];
+  }).slice(0, 10);
+}
+
+export async function updateShotLoras(
+  supabaseAdmin: SupabaseAdmin,
+  shotId: string,
+  loras: AgentVideoTravelSettings["loras"],
+): Promise<void> {
+  const { data, error } = await supabaseAdmin
+    .from("shots")
+    .select("settings")
+    .eq("id", shotId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to load shot settings for LoRA update: ${error.message}`);
+  }
+
+  const currentSettings = data && isRecord(data) && isRecord(data.settings) ? data.settings : {};
+  const currentTravelSettings = isRecord(currentSettings["travel-between-images"])
+    ? currentSettings["travel-between-images"]
+    : {};
+  const nextSettings = {
+    ...currentSettings,
+    "travel-between-images": {
+      ...currentTravelSettings,
+      loras,
+    },
+  };
+
+  const updateResult = await supabaseAdmin
+    .from("shots")
+    .update({ settings: nextSettings })
+    .eq("id", shotId);
+
+  if (updateResult.error) {
+    throw new Error(`Failed to update shot loras: ${updateResult.error.message}`);
+  }
+}
+
+export async function updateProjectImageLoras(
+  supabaseAdmin: SupabaseAdmin,
+  projectId: string,
+  category: AgentLoraCategory,
+  loras: AgentPathLora[],
+): Promise<void> {
+  const { data, error } = await supabaseAdmin
+    .from("projects")
+    .select("settings")
+    .eq("id", projectId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to load project image settings for LoRA update: ${error.message}`);
+  }
+
+  const currentSettings = data && isRecord(data) && isRecord(data.settings) ? data.settings : {};
+  const currentProjectImageSettings = isRecord(currentSettings["project-image-settings"])
+    ? currentSettings["project-image-settings"]
+    : {};
+  const currentSelectedLorasByCategory = isRecord(currentProjectImageSettings.selectedLorasByCategory)
+    ? currentProjectImageSettings.selectedLorasByCategory
+    : {};
+  const nextSettings = {
+    ...currentSettings,
+    "project-image-settings": {
+      ...currentProjectImageSettings,
+      selectedLorasByCategory: {
+        ...currentSelectedLorasByCategory,
+        [category]: loras,
+      },
+    },
+  };
+
+  const updateResult = await supabaseAdmin
+    .from("projects")
+    .update({ settings: nextSettings })
+    .eq("id", projectId);
+
+  if (updateResult.error) {
+    throw new Error(`Failed to update project image loras: ${updateResult.error.message}`);
+  }
 }
 
 export async function loadActiveReference(

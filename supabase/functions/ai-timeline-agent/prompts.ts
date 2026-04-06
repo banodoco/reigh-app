@@ -1,7 +1,31 @@
-import type { ResolvedReference, SelectedClipPayload } from "./types.ts";
+import type { AgentVideoTravelSettings, ResolvedReference, SelectedClipPayload } from "./types.ts";
 
 function formatSelectedClipPrompt(prompt: string): string {
   return prompt.replace(/\s+/g, " ").trim().replace(/"/g, '\\"');
+}
+
+type ImageLorasByCategory = Partial<Record<"qwen" | "z-image", Array<{ path: string; strength: number }>>>;
+
+function formatStrength(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function formatTravelLoras(loras: AgentVideoTravelSettings["loras"]): string {
+  return loras.length > 0
+    ? loras.map((lora) => `${lora.name} (strength ${formatStrength(lora.strength)})`).join(", ")
+    : "none";
+}
+
+function formatImageLoras(lorasByCategory: ImageLorasByCategory | null | undefined): string {
+  if (!lorasByCategory) {
+    return "none";
+  }
+
+  const flattened = (Object.entries(lorasByCategory) as Array<["qwen" | "z-image", Array<{ path: string; strength: number }> | undefined]>)
+    .flatMap(([category, loras]) =>
+      (loras ?? []).map((lora) => `${category}:${lora.path} (strength ${formatStrength(lora.strength)})`));
+
+  return flattened.length > 0 ? flattened.join(", ") : "none";
 }
 
 export function buildSelectedClipsPrompt(
@@ -38,6 +62,8 @@ export function buildTimelineAgentSystemPrompt(
     selectedClips?: SelectedClipPayload[];
     defaultModel?: string;
     activeReference?: ResolvedReference | null;
+    travelSettings?: AgentVideoTravelSettings | null;
+    imageLorasByCategory?: ImageLorasByCategory | null;
   },
 ): string {
   const preferredModelLine = options.defaultModel
@@ -64,6 +90,30 @@ export function buildTimelineAgentSystemPrompt(
         ? `in_this_scene_strength=${options.activeReference.inThisSceneStrength}`
         : null,
     ].filter((line): line is string => Boolean(line)).join(" ")
+    : "";
+  const activeTravelDefaultsLine = options.travelSettings
+    ? [
+      `Active video travel defaults: model=${options.travelSettings.selectedModel}, frames=${options.travelSettings.frames}, steps=${options.travelSettings.steps}, motion=${options.travelSettings.amountOfMotion}%`,
+      options.travelSettings.loras.length > 0
+        ? `loras=[${options.travelSettings.loras.map((lora) => lora.name).join(", ")}]`
+        : null,
+      options.travelSettings.guidanceScale !== undefined
+        ? `guidance=${options.travelSettings.guidanceScale}`
+        : null,
+      "Use these defaults for image-to-video tasks. The user can ask to change motion, model, or steps.",
+    ].filter((line): line is string => Boolean(line)).join(", ").replace(", Use these defaults", ". Use these defaults")
+    : "";
+  const hasGenerationContext = Boolean(
+    options.travelSettings
+      || options.defaultModel
+      || options.activeReference
+      || options.imageLorasByCategory,
+  );
+  const activeLorasSection = hasGenerationContext
+    ? `Active LoRAs:
+- Video travel: ${options.travelSettings ? formatTravelLoras(options.travelSettings.loras) : "none"}
+- Image generation: ${formatImageLoras(options.imageLorasByCategory)}
+Use search_loras to find LoRAs and set_lora to add/remove them.`
     : "";
 
   return `Timeline editor. Use run(command="...") for edits. Plain text for conversation.
@@ -102,6 +152,9 @@ Model guide:
 - image-to-video: wan-2.2 = default travel model, ltx-2.3 = higher quality/slower, ltx-2.3-fast = faster LTX variant
 ${preferredModelLine ? `- ${preferredModelLine}` : ""}
 ${activeReferenceLine ? `- ${activeReferenceLine}` : ""}
+${activeTravelDefaultsLine ? `- ${activeTravelDefaultsLine}` : ""}
+${activeLorasSection ? `${activeLorasSection}
+` : ""}
 
 Task guide:
 - text-to-image: prompt required, optional model, optional count

@@ -1,6 +1,5 @@
 import type {
-  AgentTextToImageModel,
-  ResolvedReference,
+  GenerationContext,
   SelectedClipPayload,
   SupabaseAdmin,
   TimelineState,
@@ -55,10 +54,8 @@ const TASK_TYPES_REQUIRING_VIDEO = new Set([
   "character-animate",
 ]);
 
-export interface CreateTaskImageContext {
-  defaultModelName?: AgentTextToImageModel;
-  activeReference?: ResolvedReference | null;
-  selectedLorasByCategory?: Partial<Record<"qwen" | "z-image", Array<{ path: string; strength: number }>>>;
+function asFiniteNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 export async function executeCreateTask(
@@ -66,8 +63,10 @@ export async function executeCreateTask(
   timelineState: TimelineState,
   selectedClips: SelectedClipPayload[] | undefined,
   supabaseAdmin: SupabaseAdmin,
-  imageContext?: CreateTaskImageContext,
+  generationContext?: GenerationContext,
 ): Promise<Pick<ToolResult, "result">> {
+  const imageContext = generationContext?.image ?? null;
+  const travelContext = generationContext?.travel ?? null;
   const taskType = asTrimmedString(args.task_type);
   const prompt = asTrimmedString(args.prompt);
   if (!taskType) {
@@ -131,9 +130,11 @@ export async function executeCreateTask(
     ? selectedVideoClip?.generation_id
     : selectedReferenceClips[0]?.generation_id);
   const generationId = taskType === "image-upscale" ? selectedReferenceClips[0]?.generation_id : undefined;
-  const defaultModelName = taskType === "text-to-image" || Boolean(TASK_TYPE_TO_REFERENCE_MODE[taskType])
-    ? imageContext?.defaultModelName
-    : undefined;
+  const defaultModelName = taskType === "image-to-video"
+    ? travelContext?.selectedModel
+    : (taskType === "text-to-image" || Boolean(TASK_TYPE_TO_REFERENCE_MODE[taskType]))
+      ? imageContext?.defaultModelName
+      : undefined;
   const activeReferenceParams = shouldUseActiveReference && activeReference
     ? {
       ...(activeReference.styleReferenceStrength !== undefined
@@ -158,10 +159,33 @@ export async function executeCreateTask(
     ? "qwen"
     : (effectiveModel?.startsWith("z-") ? "z-image" : "qwen");
   const loras = imageContext?.selectedLorasByCategory?.[loraCategory] ?? [];
+  const rawMotion = asFiniteNumber(args.amount_of_motion);
+  const travelParams = taskType === "image-to-video"
+    ? {
+      amount_of_motion: rawMotion !== null
+        ? rawMotion / 100
+        : (travelContext ? travelContext.amountOfMotion / 100 : undefined),
+      steps: asPositiveNumber(args.steps) ?? travelContext?.steps,
+      guidance_scale: asFiniteNumber(args.guidance_scale) ?? travelContext?.guidanceScale,
+      enhance_prompt: typeof args.enhance_prompt === "boolean" ? args.enhance_prompt : travelContext?.enhancePrompt,
+      turbo_mode: typeof args.turbo_mode === "boolean" ? args.turbo_mode : travelContext?.turboMode,
+      loras: travelContext?.loras?.map((lora) => ({ path: lora.path, strength: lora.strength })),
+      negative_prompts: travelContext?.negativePrompt ? [travelContext.negativePrompt] : undefined,
+      text_before_prompts: travelContext?.textBeforePrompts || undefined,
+      text_after_prompts: travelContext?.textAfterPrompts || undefined,
+      segment_frames: travelContext ? [travelContext.frames] : undefined,
+      model_type: travelContext?.generationTypeMode,
+      generation_mode: travelContext ? (travelContext.generationMode ?? "timeline") : undefined,
+      phase_config: travelContext?.phaseConfig,
+    }
+    : undefined;
   const mergedParams = {
     ...(activeReferenceParams ?? {}),
     ...(loras.length > 0 ? { loras } : {}),
   };
+  const filteredTravelParams = travelParams
+    ? Object.fromEntries(Object.entries(travelParams).filter(([, value]) => value !== undefined))
+    : undefined;
 
   const result = await createGenerationTask({
     project_id: timelineState.projectId,
@@ -174,7 +198,9 @@ export async function executeCreateTask(
     video_url: videoUrl ?? undefined,
     strength,
     model_name: effectiveModel,
-    params: Object.keys(mergedParams).length > 0 ? mergedParams : undefined,
+    params: taskType === "image-to-video"
+      ? (filteredTravelParams && Object.keys(filteredTravelParams).length > 0 ? filteredTravelParams : undefined)
+      : (Object.keys(mergedParams).length > 0 ? mergedParams : undefined),
     based_on: basedOn ?? undefined,
     generation_id: generationId ?? undefined,
     shot_id: shotId ?? undefined,
