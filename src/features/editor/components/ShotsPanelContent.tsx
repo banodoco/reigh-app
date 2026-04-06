@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ArrowDownWideNarrow, ArrowUpWideNarrow, Copy, Pencil, Search, Trash2, X } from 'lucide-react';
+import { ArrowDownWideNarrow, ArrowUpWideNarrow, Check, Copy, Loader2, Pencil, Search, Trash2, X } from 'lucide-react';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { useShots } from '@/shared/contexts/ShotsContext';
 import { useProjectSelectionContext } from '@/shared/contexts/ProjectContext';
@@ -44,9 +44,10 @@ function ShotCard({
   onDuplicate: () => void;
   onDelete: () => void;
   onRename: (name: string) => void;
-  onGenerationDrop: (shotId: string, generationId: string, imageUrl: string, thumbUrl?: string) => void;
+  onGenerationDrop: (shotId: string, generationId: string, imageUrl: string, thumbUrl?: string) => Promise<void>;
 }) {
   const [isDropTarget, setIsDropTarget] = useState(false);
+  const [dropState, setDropState] = useState<'idle' | 'loading' | 'success'>('idle');
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(shot.name);
 
@@ -75,22 +76,34 @@ function ShotCard({
 
   const handleDragLeave = () => setIsDropTarget(false);
 
-  const handleDrop = (event: React.DragEvent) => {
+  const handleDrop = async (event: React.DragEvent) => {
     event.preventDefault();
     event.stopPropagation();
     setIsDropTarget(false);
+    setDropState('loading');
 
-    const multiData = getMultiGenerationDropData(event);
-    if (multiData) {
-      for (const gen of multiData) {
-        onGenerationDrop(shot.id, gen.generationId, gen.imageUrl, gen.thumbUrl);
+    try {
+      const multiData = getMultiGenerationDropData(event);
+      if (multiData) {
+        for (const gen of multiData) {
+          await onGenerationDrop(shot.id, gen.generationId, gen.imageUrl, gen.thumbUrl);
+        }
+        setDropState('success');
+        setTimeout(() => setDropState('idle'), 1500);
+        return;
       }
-      return;
-    }
 
-    const generationData = getGenerationDropData(event);
-    if (generationData) {
-      onGenerationDrop(shot.id, generationData.generationId, generationData.imageUrl, generationData.thumbUrl);
+      const generationData = getGenerationDropData(event);
+      if (generationData) {
+        await onGenerationDrop(shot.id, generationData.generationId, generationData.imageUrl, generationData.thumbUrl);
+        setDropState('success');
+        setTimeout(() => setDropState('idle'), 1500);
+        return;
+      }
+
+      setDropState('idle');
+    } catch {
+      setDropState('idle');
     }
   };
 
@@ -111,8 +124,10 @@ function ShotCard({
       onDrop={handleDrop}
       onDoubleClick={onDoubleClick}
       className={cn(
-        'group relative flex cursor-grab flex-col overflow-hidden rounded-md border border-border bg-card/80 transition-colors hover:border-accent active:cursor-grabbing',
-        isDropTarget && 'ring-2 ring-primary',
+        'group relative flex cursor-grab flex-col overflow-hidden rounded-md border border-border bg-card/80 transition-all hover:border-accent active:cursor-grabbing',
+        isDropTarget && 'ring-2 ring-primary scale-[1.02]',
+        dropState === 'loading' && 'ring-2 ring-primary/50',
+        dropState === 'success' && 'ring-2 ring-green-500',
       )}
     >
       {/* Actions overlay */}
@@ -149,7 +164,18 @@ function ShotCard({
         ) : (
           <div className="flex h-full items-center justify-center text-[10px] text-muted-foreground">No images</div>
         )}
-        {finalVideo && (
+        {(isDropTarget || dropState !== 'idle') && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm">
+            {dropState === 'loading' ? (
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            ) : dropState === 'success' ? (
+              <Check className="h-4 w-4 text-green-500" />
+            ) : (
+              <span className="text-[9px] font-medium text-primary">Drop here</span>
+            )}
+          </div>
+        )}
+        {finalVideo && dropState === 'idle' && !isDropTarget && (
           <div className="absolute bottom-0.5 right-0.5 rounded bg-background/70 px-1 py-0.5 text-[8px] font-medium text-foreground backdrop-blur-sm">
             Video
           </div>
@@ -177,7 +203,7 @@ function ShotCard({
 }
 
 export function ShotsPanelContent({ projectId }: ShotsPanelContentProps) {
-  const { shots, isLoading } = useShots();
+  const { shots, isLoading, refetchShots } = useShots();
   const { finalVideoMap } = useShotFinalVideos(projectId);
   const { selectedProjectId } = useProjectSelectionContext();
   const addImageToShot = useAddImageToShot();
@@ -214,10 +240,11 @@ export function ShotsPanelContent({ projectId }: ShotsPanelContentProps) {
         imageUrl,
         thumbUrl,
       });
+      refetchShots();
     } catch (error) {
       normalizeAndPresentError(error, { context: 'ShotsPanelContent', toastTitle: 'Failed to add image to shot' });
     }
-  }, [addImageToShot, selectedProjectId]);
+  }, [addImageToShot, refetchShots, selectedProjectId]);
 
   const handleDuplicate = useCallback(async (shotId: string) => {
     if (!selectedProjectId) return;
