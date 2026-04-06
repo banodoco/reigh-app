@@ -24,6 +24,7 @@ import { useKeyboardShortcuts } from '@/tools/video-editor/hooks/useKeyboardShor
 import { useTimelineRealtime } from '@/tools/video-editor/hooks/useTimelineRealtime';
 import { getTimelineDurationInFrames, parseResolution } from '@/tools/video-editor/lib/config-utils';
 import { bootDiagnostics, MemoryPressureDetector } from '@/tools/video-editor/lib/perf-diagnostics';
+import { useRenderDiagnostic } from '@/tools/video-editor/hooks/usePerfDiagnostics';
 import { dispatchAppEvent } from '@/shared/lib/typedEvents';
 
 const MIN_TIMELINE_HEIGHT = 140;
@@ -55,6 +56,7 @@ interface VideoEditorShellProps {
 }
 
 function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: string; forceCondensed?: boolean }) {
+  useRenderDiagnostic('FullEditorLayout');
   const editorData = useTimelineEditorData();
   const editorOps = useTimelineEditorOps();
   const chrome = useTimelineChromeContext();

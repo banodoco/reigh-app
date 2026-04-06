@@ -18,6 +18,7 @@ import type {
   TimelineEditorOpsContextValue,
 } from '@/tools/video-editor/hooks/useTimelineState.types';
 import { loadGenerationForLightbox } from '@/tools/video-editor/lib/generation-utils';
+import { useRenderDiagnostic } from '@/tools/video-editor/hooks/usePerfDiagnostics';
 
 function InnerProvider({
   children,
@@ -26,6 +27,7 @@ function InnerProvider({
   children: React.ReactNode;
   userId: string;
 }) {
+  useRenderDiagnostic('VideoEditorProvider');
   const effectsQuery = useEffects(userId);
   const effectResources = useEffectResources(userId);
   useEffectRegistry(

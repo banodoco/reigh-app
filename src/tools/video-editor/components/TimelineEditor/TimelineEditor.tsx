@@ -13,6 +13,7 @@ import { useShots } from '@/shared/contexts/ShotsContext';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { VideoGenerationModal } from '@/tools/travel-between-images/components/VideoGenerationModal';
 import '@/tools/video-editor/components/TimelineEditor/timeline-overrides.css';
+import { useRenderDiagnostic } from '@/tools/video-editor/hooks/usePerfDiagnostics';
 import { ClipAction } from '@/tools/video-editor/components/TimelineEditor/ClipAction';
 import { DropIndicator } from '@/tools/video-editor/components/TimelineEditor/DropIndicator';
 import { TimelineCanvas } from '@/tools/video-editor/components/TimelineEditor/TimelineCanvas';
@@ -157,6 +158,7 @@ export function resolveFinalVideoShotIds({
 }
 
 function TimelineEditorComponent() {
+  useRenderDiagnostic('TimelineEditor');
   const chrome = useTimelineChromeContext();
   const [newTrackDropLabel, setNewTrackDropLabel] = useState<string | null>(null);
   const [videoModalShot, setVideoModalShot] = useState<Shot | null>(null);

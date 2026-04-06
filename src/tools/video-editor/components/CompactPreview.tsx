@@ -8,6 +8,7 @@ import { useTimelineEditorData } from '@/tools/video-editor/contexts/TimelineEdi
 import { useTimelinePlaybackContext } from '@/tools/video-editor/contexts/TimelinePlaybackContext';
 import { RemotionPreview } from '@/tools/video-editor/components/PreviewPanel/RemotionPreview';
 import { getTimelineDurationInFrames } from '@/tools/video-editor/lib/config-utils';
+import { useRenderDiagnostic } from '@/tools/video-editor/hooks/usePerfDiagnostics';
 
 interface CompactPreviewProps {
   timelineId?: string | null;
@@ -15,6 +16,7 @@ interface CompactPreviewProps {
 }
 
 export function CompactPreview({ timelineId, onCreateTimeline }: CompactPreviewProps) {
+  useRenderDiagnostic('CompactPreview');
   const navigate = useNavigate();
   const { resolvedConfig } = useTimelineEditorData();
   const { saveStatus } = useTimelineChromeContext();

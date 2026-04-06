@@ -12,6 +12,7 @@ import {
   type SelectedMediaClip,
 } from '@/tools/video-editor/hooks/useSelectedMediaClips';
 import { useAgentVoice } from '@/tools/video-editor/hooks/useAgentVoice';
+import { useRenderDiagnostic } from '@/tools/video-editor/hooks/usePerfDiagnostics';
 import type { AgentTurn } from '@/tools/video-editor/types/agent-session';
 import { AgentChatMessage, AgentChatToolGroup } from './AgentChatMessage';
 
@@ -102,6 +103,7 @@ function buildRenderedTurns(turns: AgentTurn[]): RenderedTurn[] {
 }
 
 export function AgentChat({ timelineId }: AgentChatProps) {
+  useRenderDiagnostic('AgentChat');
   const sessions = useAgentSessions(timelineId);
   const createSession = useCreateSession(timelineId);
   const { isTasksPaneLocked, tasksPaneWidth, isGenerationsPaneLocked, isGenerationsPaneOpen, effectiveGenerationsPaneHeight } = usePanes();

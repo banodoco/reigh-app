@@ -6,8 +6,10 @@ import {
   useTimelineEditorOps,
 } from '@/tools/video-editor/contexts/TimelineEditorContext';
 import { useTimelinePlaybackContext } from '@/tools/video-editor/contexts/TimelinePlaybackContext';
+import { useRenderDiagnostic } from '@/tools/video-editor/hooks/usePerfDiagnostics';
 
 function PreviewPanelComponent() {
+  useRenderDiagnostic('PreviewPanel');
   const {
     data,
     resolvedConfig,

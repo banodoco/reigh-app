@@ -8,9 +8,11 @@ import {
   useTimelineEditorOps,
 } from '@/tools/video-editor/contexts/TimelineEditorContext';
 import { useStaleVariants } from '@/tools/video-editor/hooks/useStaleVariants';
+import { useRenderDiagnostic } from '@/tools/video-editor/hooks/usePerfDiagnostics';
 import { getBulkVisibleTabs, getSharedNestedValue, getSharedValue } from '@/tools/video-editor/lib/bulk-utils';
 
 function PropertiesPanelComponent() {
+  useRenderDiagnostic('PropertiesPanel');
   const {
     data,
     resolvedConfig,
