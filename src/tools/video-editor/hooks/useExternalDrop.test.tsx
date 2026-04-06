@@ -189,6 +189,7 @@ describe('useExternalDrop', () => {
       coordinator,
       registerGenerationAsset: vi.fn(),
       uploadImageGeneration: vi.fn(),
+      uploadVideoGeneration: vi.fn(),
       handleAssetDrop: vi.fn(),
     }));
 
@@ -294,6 +295,7 @@ describe('useExternalDrop', () => {
       coordinator,
       registerGenerationAsset,
       uploadImageGeneration: vi.fn(),
+      uploadVideoGeneration: vi.fn(),
       handleAssetDrop,
     }));
 
@@ -341,13 +343,43 @@ describe('useExternalDrop', () => {
       }),
     } as React.MutableRefObject<DropTestData>;
     const pendingOpsRef = { current: 0 } as React.MutableRefObject<number>;
-    const firstUpload = deferred<{ assetId: string; entry: { file: string; type: string } }>();
-    const secondUpload = deferred<{ assetId: string; entry: { file: string; type: string } }>();
+    const firstUpload = deferred<{
+      generationId: string;
+      variantType: 'video';
+      imageUrl: string;
+      thumbUrl: string;
+      durationSeconds?: number;
+      metadata: {
+        content_type: string;
+        original_filename: string;
+      };
+    }>();
+    const secondUpload = deferred<{
+      generationId: string;
+      variantType: 'video';
+      imageUrl: string;
+      thumbUrl: string;
+      durationSeconds?: number;
+      metadata: {
+        content_type: string;
+        original_filename: string;
+      };
+    }>();
     const uploadQueue = [firstUpload, secondUpload];
 
     const applyEdit = vi.fn();
-    const uploadAsset = vi
-      .fn<(file: File) => Promise<{ assetId: string; entry: { file: string; type: string } }>>()
+    const uploadVideoGeneration = vi
+      .fn<(file: File) => Promise<{
+        generationId: string;
+        variantType: 'video';
+        imageUrl: string;
+        thumbUrl: string;
+        durationSeconds?: number;
+        metadata: {
+          content_type: string;
+          original_filename: string;
+        };
+      }>>()
       .mockImplementation(() => {
         const nextUpload = uploadQueue.shift();
         if (!nextUpload) {
@@ -394,12 +426,13 @@ describe('useExternalDrop', () => {
       applyEdit,
       patchRegistry: vi.fn(),
       registerAsset: vi.fn(),
-      uploadAsset,
+      uploadAsset: vi.fn(),
       invalidateAssetRegistry: vi.fn(),
       resolveAssetUrl: vi.fn(async (file: string) => `https://cdn.example/${file}`),
       coordinator,
       registerGenerationAsset: vi.fn(),
       uploadImageGeneration: vi.fn(),
+      uploadVideoGeneration,
       handleAssetDrop: vi.fn(),
     }));
 
@@ -412,12 +445,19 @@ describe('useExternalDrop', () => {
       await result.current.onTimelineDrop(event);
     });
 
-    expect(uploadAsset).toHaveBeenCalledTimes(2);
+    expect(uploadVideoGeneration).toHaveBeenCalledTimes(2);
     expect(pendingOpsRef.current).toBe(2);
 
     firstUpload.resolve({
-      assetId: 'asset-1',
-      entry: { file: 'one.mp4', type: 'video/mp4' },
+      generationId: 'gen-1',
+      variantType: 'video',
+      imageUrl: 'https://cdn.example/one.mp4',
+      thumbUrl: 'https://cdn.example/one.jpg',
+      durationSeconds: 4,
+      metadata: {
+        content_type: 'video/mp4',
+        original_filename: 'one.mp4',
+      },
     });
     await waitFor(() => {
       expect(pendingOpsRef.current).toBe(1);
@@ -504,6 +544,7 @@ describe('useExternalDrop', () => {
       coordinator,
       registerGenerationAsset,
       uploadImageGeneration: vi.fn(),
+      uploadVideoGeneration: vi.fn(),
       handleAssetDrop,
     }));
 

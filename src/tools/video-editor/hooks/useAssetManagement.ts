@@ -1,8 +1,10 @@
 import { useCallback } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
-import { getGenerationDropData } from '@/shared/lib/dnd/dragDrop';
+import type { GenerationDropData } from '@/shared/lib/dnd/dragDrop';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import { uploadImageToStorage } from '@/shared/lib/media/imageUploader';
+import { uploadBlobToStorage, uploadImageToStorage } from '@/shared/lib/media/imageUploader';
+import { extractVideoMetadata } from '@/shared/lib/media/videoMetadata';
+import { extractVideoPosterFrame } from '@/shared/lib/media/videoPosterExtractor';
 import { generateClientThumbnail, uploadImageWithThumbnail } from '@/shared/media/clientThumbnailGenerator';
 import { createExternalUploadGeneration } from '@/integrations/supabase/repositories/generationMutationsRepository';
 import { generateUUID } from '@/shared/lib/taskCreation/ids';
@@ -24,6 +26,10 @@ import type {
 import type { TimelineAction } from '@/tools/video-editor/types/timeline-canvas';
 import type { AssetRegistryEntry, ClipType } from '@/tools/video-editor/types';
 
+type UploadedGenerationData = GenerationDropData & {
+  durationSeconds?: number;
+};
+
 export interface UseAssetManagementArgs {
   dataRef: MutableRefObject<TimelineData | null>;
   selectedTrackId: string | null;
@@ -39,12 +45,23 @@ export interface UseAssetManagementArgs {
 }
 
 export interface UseAssetManagementResult {
-  registerGenerationAsset: (data: ReturnType<typeof getGenerationDropData>) => string | null;
+  registerGenerationAsset: (data: UploadedGenerationData | null) => string | null;
   uploadImageGeneration: (file: File) => Promise<{
     generationId: string;
     variantType: 'image';
     imageUrl: string;
     thumbUrl: string;
+    metadata: {
+      content_type: string;
+      original_filename: string;
+    };
+  }>;
+  uploadVideoGeneration: (file: File) => Promise<{
+    generationId: string;
+    variantType: 'video';
+    imageUrl: string;
+    thumbUrl: string;
+    durationSeconds?: number;
     metadata: {
       content_type: string;
       original_filename: string;
@@ -225,7 +242,7 @@ export function useAssetManagement({
   patchRegistry,
   registerAsset,
 }: UseAssetManagementArgs): UseAssetManagementResult {
-  const registerGenerationAsset = useCallback((generationData: ReturnType<typeof getGenerationDropData>) => {
+  const registerGenerationAsset = useCallback((generationData: UploadedGenerationData | null) => {
     if (!generationData) {
       return null;
     }
@@ -250,6 +267,9 @@ export function useAssetManagement({
     const entry: AssetRegistryEntry = {
       file: generationData.imageUrl,
       type: mimeType,
+      ...(typeof generationData.durationSeconds === 'number'
+        ? { duration: generationData.durationSeconds }
+        : {}),
       generationId: generationData.generationId,
       variantId: generationData.variantId,
     };
@@ -309,6 +329,58 @@ export function useAssetManagement({
     };
   }, [selectedProjectId]);
 
+  const uploadVideoGeneration = useCallback(async (file: File) => {
+    if (!selectedProjectId) {
+      throw new Error('No project selected');
+    }
+
+    const videoUrl = await uploadImageToStorage(file);
+
+    let thumbnailUrl = videoUrl;
+    try {
+      const thumbnailBlob = await extractVideoPosterFrame(file);
+      thumbnailUrl = await uploadBlobToStorage(thumbnailBlob, 'thumbnail.jpg', 'image/jpeg');
+    } catch (error) {
+      normalizeAndPresentError(error, { context: `video-editor:external-video-thumbnail:${file.name}`, showToast: false });
+    }
+
+    let durationSeconds: number | undefined;
+    try {
+      const metadata = await extractVideoMetadata(file);
+      durationSeconds = metadata.duration_seconds;
+    } catch (error) {
+      normalizeAndPresentError(error, { context: `video-editor:external-video-metadata:${file.name}`, showToast: false });
+    }
+
+    const generation = await createExternalUploadGeneration({
+      imageUrl: videoUrl,
+      thumbnailUrl,
+      fileType: 'video',
+      projectId: selectedProjectId,
+      generationParams: {
+        prompt: file.name.replace(/\.[^.]+$/, ''),
+        extra: {
+          source: 'external_upload',
+          original_filename: file.name,
+          file_type: file.type || 'video/mp4',
+          file_size: file.size,
+        },
+      },
+    });
+
+    return {
+      generationId: generation.id,
+      variantType: 'video' as const,
+      imageUrl: videoUrl,
+      thumbUrl: thumbnailUrl,
+      durationSeconds,
+      metadata: {
+        content_type: file.type || 'video/mp4',
+        original_filename: file.name,
+      },
+    };
+  }, [selectedProjectId]);
+
   const handleAssetDrop = useCallback((assetKey: string, trackId: string | undefined, time: number, forceNewTrack = false, insertAtTop = false) => {
     const resolvedTarget = resolveAssetDropTarget({
       dataRef,
@@ -343,6 +415,7 @@ export function useAssetManagement({
   return {
     registerGenerationAsset,
     uploadImageGeneration,
+    uploadVideoGeneration,
     handleAssetDrop,
   };
 }

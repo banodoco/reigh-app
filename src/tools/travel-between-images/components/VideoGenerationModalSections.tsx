@@ -429,7 +429,7 @@ export function VideoGenerationModalAccordionContent({
   ...formProps
 }: VideoGenerationModalAccordionContentProps) {
   const segmentOutputs = useSegmentOutputsForShot(shotId, projectId);
-  const hasFinalVideo = segmentOutputs.parentGenerations.length > 0;
+  const hasFinalVideo = segmentOutputs.parentGenerations.some((p) => Boolean(p.location));
   const imageHandlers = useModalImageHandlers(shotId, projectId, shotGenerations, formProps.settings.batchVideoFrames || 61);
 
   return (

@@ -50,6 +50,7 @@ async function dispatchTimelineDrop({
   resolveAssetUrl,
   registerGenerationAsset,
   uploadImageGeneration,
+  uploadVideoGeneration,
   dropAsset,
   handleAddTextAt,
   shots,
@@ -66,6 +67,7 @@ async function dispatchTimelineDrop({
   resolveAssetUrl: (file: string) => Promise<string>;
   registerGenerationAsset: UseAssetManagementResult['registerGenerationAsset'];
   uploadImageGeneration: UseAssetManagementResult['uploadImageGeneration'];
+  uploadVideoGeneration: UseAssetManagementResult['uploadVideoGeneration'];
   dropAsset: UseAssetManagementResult['handleAssetDrop'];
   handleAddTextAt?: (trackId: string, time: number) => void;
   shots: Shot[] | undefined;
@@ -96,6 +98,7 @@ async function dispatchTimelineDrop({
     resolveAssetUrl,
     registerGenerationAsset,
     uploadImageGeneration,
+    uploadVideoGeneration,
     dropAsset,
   })) {
     return;
@@ -243,6 +246,7 @@ export interface UseExternalDropArgs {
   coordinator: DragCoordinator;
   registerGenerationAsset: UseAssetManagementResult['registerGenerationAsset'];
   uploadImageGeneration: UseAssetManagementResult['uploadImageGeneration'];
+  uploadVideoGeneration: UseAssetManagementResult['uploadVideoGeneration'];
   handleAssetDrop: UseAssetManagementResult['handleAssetDrop'];
   handleAddTextAt?: (trackId: string, time: number) => void;
   onSeekToTime?: (time: number) => void;
@@ -266,6 +270,7 @@ export function useExternalDrop({
   coordinator,
   registerGenerationAsset,
   uploadImageGeneration,
+  uploadVideoGeneration,
   handleAssetDrop: dropAsset,
   handleAddTextAt,
   onSeekToTime,
@@ -380,6 +385,7 @@ export function useExternalDrop({
       resolveAssetUrl,
       registerGenerationAsset,
       uploadImageGeneration,
+      uploadVideoGeneration,
       dropAsset,
       handleAddTextAt,
       shots,

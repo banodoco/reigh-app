@@ -118,6 +118,12 @@ export function isImageFile(file: File): boolean {
     || ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.avif'].includes(extension);
 }
 
+export function isVideoFile(file: File): boolean {
+  const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+  return file.type.startsWith('video/')
+    || ['.mp4', '.mov', '.webm', '.m4v', '.avi'].includes(extension);
+}
+
 export function handleTextToolDrop({
   dataRef,
   dropPosition,
@@ -231,6 +237,7 @@ export async function handleFileDrop({
   resolveAssetUrl,
   registerGenerationAsset,
   uploadImageGeneration,
+  uploadVideoGeneration,
   dropAsset,
 }: {
   files: File[];
@@ -246,6 +253,7 @@ export async function handleFileDrop({
   resolveAssetUrl: (file: string) => Promise<string>;
   registerGenerationAsset: UseAssetManagementResult['registerGenerationAsset'];
   uploadImageGeneration: UseAssetManagementResult['uploadImageGeneration'];
+  uploadVideoGeneration: UseAssetManagementResult['uploadVideoGeneration'];
   dropAsset: UseAssetManagementResult['handleAssetDrop'];
 }): Promise<boolean> {
   if (!files.length || !dataRef.current) {
@@ -304,6 +312,25 @@ export async function handleFileDrop({
       try {
         if (isImageFile(file)) {
           const generationData = await uploadImageGeneration(file);
+          const current = dataRef.current;
+          if (!current) {
+            return;
+          }
+
+          applyEdit({
+            type: 'rows',
+            rows: removeAction(current.rows, skeletonId),
+            metaDeletes: [skeletonId],
+          });
+          const assetId = registerGenerationAsset(generationData);
+          if (assetId) {
+            dropAsset(assetId, compatibleTrackId ?? undefined, clipTime);
+          }
+          return;
+        }
+
+        if (isVideoFile(file)) {
+          const generationData = await uploadVideoGeneration(file);
           const current = dataRef.current;
           if (!current) {
             return;
