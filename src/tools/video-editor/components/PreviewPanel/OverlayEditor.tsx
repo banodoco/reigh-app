@@ -203,6 +203,20 @@ function OverlayEditorComponent({
     return getTrackDefaultBounds(trackId);
   }, [compositionHeight, compositionWidth, getTrackDefaultBounds]);
 
+  // Compute which clip IDs are visible at currentTime — this string only changes when clips enter/exit
+  const visibleClipKey = useMemo(() => {
+    const ids: string[] = [];
+    for (const row of rows) {
+      if (!row.id.startsWith('V')) continue;
+      for (const action of row.actions) {
+        if (currentTime >= action.start && currentTime < action.end) {
+          ids.push(action.id);
+        }
+      }
+    }
+    return ids.join(',');
+  }, [currentTime, rows]);
+
   const activeOverlays = useMemo(() => {
     const overlays: OverlayViewModel[] = [];
     for (const row of rows) {
@@ -257,7 +271,8 @@ function OverlayEditorComponent({
     }
 
     return overlays;
-  }, [currentTime, getClipBounds, meta, rows, selectedClipId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- visibleClipKey is a stable proxy for currentTime
+  }, [visibleClipKey, getClipBounds, meta, rows, selectedClipId]);
 
   const effectiveOverlays = useMemo(() => {
     if (!dragOverride) {
@@ -761,6 +776,40 @@ function OverlayEditorComponent({
   );
 }
 
-const OverlayEditor = memo(OverlayEditorComponent);
+function getVisibleClipIds(rows: TimelineRow[], time: number): string {
+  const ids: string[] = [];
+  for (const row of rows) {
+    if (!row.id.startsWith('V')) continue;
+    for (const action of row.actions) {
+      if (time >= action.start && time < action.end) ids.push(action.id);
+    }
+  }
+  return ids.join(',');
+}
+
+const OverlayEditor = memo(OverlayEditorComponent, (prev, next) => {
+  // Skip re-render when only currentTime changed but visible clips are the same
+  if (prev.currentTime !== next.currentTime) {
+    const prevKey = getVisibleClipIds(prev.rows, prev.currentTime);
+    const nextKey = getVisibleClipIds(next.rows, next.currentTime);
+    if (prevKey === nextKey
+      && prev.rows === next.rows
+      && prev.meta === next.meta
+      && prev.registry === next.registry
+      && prev.selectedClipId === next.selectedClipId
+      && prev.trackScaleMap === next.trackScaleMap
+      && prev.compositionWidth === next.compositionWidth
+      && prev.compositionHeight === next.compositionHeight
+      && prev.playerContainerRef === next.playerContainerRef
+      && prev.onSelectClip === next.onSelectClip
+      && prev.onOverlayChange === next.onOverlayChange
+      && prev.onDoubleClickAsset === next.onDoubleClickAsset
+    ) {
+      return true; // skip re-render
+    }
+  }
+  // For all other prop changes, use default shallow comparison
+  return false;
+});
 
 export default OverlayEditor;
