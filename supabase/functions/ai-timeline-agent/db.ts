@@ -682,13 +682,12 @@ export interface AgentTaskSummary {
   generation_started_at: string | null;
   generation_processed_at: string | null;
   error_message: string | null;
-  cost_cents: number | null;
   attempts: number;
   params_summary: string;
 }
 
 const TASK_SELECT_COLUMNS =
-  "id, task_type, status, created_at, generation_started_at, generation_processed_at, error_message, cost_cents, attempts, params";
+  "id, task_type, status, created_at, generation_started_at, generation_processed_at, error_message, attempts, params";
 
 function summarizeTaskParams(params: unknown): string {
   if (!isRecord(params)) return "";
@@ -708,7 +707,6 @@ function rowToTaskSummary(row: Record<string, unknown>): AgentTaskSummary {
     generation_started_at: row.generation_started_at ? String(row.generation_started_at) : null,
     generation_processed_at: row.generation_processed_at ? String(row.generation_processed_at) : null,
     error_message: row.error_message ? String(row.error_message) : null,
-    cost_cents: typeof row.cost_cents === "number" ? row.cost_cents : null,
     attempts: typeof row.attempts === "number" ? row.attempts : 0,
     params_summary: summarizeTaskParams(row.params),
   };

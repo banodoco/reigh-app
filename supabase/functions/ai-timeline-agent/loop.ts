@@ -186,8 +186,8 @@ async function executeGetTasks(
     if (t.status === "In Progress" && t.generation_started_at) {
       line += ` | running ${timeSince(t.generation_started_at)}`;
     }
-    if (t.status === "Complete" && t.cost_cents != null) {
-      line += ` | cost: ${t.cost_cents}¢`;
+    if (t.status === "Complete" && t.attempts > 1) {
+      line += ` | ${t.attempts} attempts`;
     }
     return line;
   });
