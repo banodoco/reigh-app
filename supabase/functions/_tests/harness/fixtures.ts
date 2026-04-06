@@ -108,6 +108,21 @@ export async function createTestTimeline(
       aspect_ratio: "16:9",
       settings: {
         created_by: "timeline-agent-harness",
+        "project-image-settings": {
+          selectedTextModel: "qwen-image",
+          generationSource: "just-text",
+          selectedLorasByCategory: {
+            qwen: [
+              {
+                id: "harness-lora-1",
+                name: "Harness Test LoRA",
+                path: "https://huggingface.co/test/harness-lora/resolve/main/test.safetensors",
+                strength: 0.8,
+              },
+            ],
+            "z-image": [],
+          },
+        },
       },
     })
     .select("id")

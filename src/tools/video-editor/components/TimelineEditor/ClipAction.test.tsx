@@ -4,6 +4,15 @@ import type { ComponentProps } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ClipMeta } from '@/tools/video-editor/lib/timeline-data';
 import type { TimelineAction } from '@/tools/video-editor/types/timeline-canvas';
+
+const mocks = vi.hoisted(() => ({
+  useWaveformData: vi.fn(),
+}));
+
+vi.mock('@/tools/video-editor/hooks/useWaveformData', () => ({
+  useWaveformData: mocks.useWaveformData,
+}));
+
 import { ClipAction } from './ClipAction';
 
 function buildProps(overrides: Partial<ComponentProps<typeof ClipAction>> = {}) {
@@ -25,6 +34,8 @@ function buildProps(overrides: Partial<ComponentProps<typeof ClipAction>> = {}) 
     isSelected: true,
     isPrimary: true,
     selectedClipIds: ['clip-1', 'clip-2'],
+    audioSrc: undefined,
+    clipWidth: 90,
     onSelect: vi.fn(),
     onSplitHere: vi.fn(),
     onSplitClipsAtPlayhead: vi.fn(),
@@ -45,9 +56,20 @@ function buildProps(overrides: Partial<ComponentProps<typeof ClipAction>> = {}) 
 describe('ClipAction', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    mocks.useWaveformData.mockReset();
   });
 
+  const mockUseWaveformData = (
+    implementation: (src: string | undefined) => { waveform: number[] | null; loading: boolean } = (src) => ({
+      waveform: src ? [0.25, 0.75, 0.5] : null,
+      loading: false,
+    }),
+  ) => {
+    mocks.useWaveformData.mockImplementation(implementation);
+  };
+
   it('adds create-shot actions without disturbing existing batch actions', () => {
+    mockUseWaveformData();
     const props = buildProps();
     const { container } = render(<ClipAction {...props} />);
 
@@ -65,6 +87,7 @@ describe('ClipAction', () => {
   });
 
   it('hides create-shot actions when the selection is not eligible', () => {
+    mockUseWaveformData();
     const props = buildProps({
       canCreateShotFromSelection: false,
     });
@@ -79,6 +102,7 @@ describe('ClipAction', () => {
   });
 
   it('selects an unselected clip before opening its context menu', () => {
+    mockUseWaveformData();
     const originalRequestAnimationFrame = window.requestAnimationFrame;
     window.requestAnimationFrame = ((callback: FrameRequestCallback) => {
       callback(0);
@@ -101,6 +125,7 @@ describe('ClipAction', () => {
   });
 
   it('shows existing shots and updates the menu from live props while it is open', () => {
+    mockUseWaveformData();
     const existingShot = { id: 'shot-9', name: 'Shot 9' };
     const props = buildProps({
       existingShots: [existingShot],
@@ -118,5 +143,48 @@ describe('ClipAction', () => {
 
     expect(screen.queryByText('Shot 9')).not.toBeInTheDocument();
     expect(screen.queryByTitle('Jump to shot')).not.toBeInTheDocument();
+  });
+
+  it('only renders the waveform overlay when audioSrc is truthy', () => {
+    mockUseWaveformData();
+
+    const { container, rerender } = render(<ClipAction {...buildProps()} />);
+    const getWaveformSvg = () => container.querySelector('div[aria-hidden="true"] svg');
+
+    expect(getWaveformSvg()).toBeNull();
+    expect(mocks.useWaveformData).toHaveBeenCalledWith(undefined, expect.objectContaining({
+      from: undefined,
+      to: undefined,
+      speed: undefined,
+      numBuckets: 30,
+    }));
+
+    rerender(<ClipAction {...buildProps({ audioSrc: 'https://example.com/audio.wav' })} />);
+
+    expect(getWaveformSvg()).not.toBeNull();
+    expect(mocks.useWaveformData).toHaveBeenLastCalledWith('https://example.com/audio.wav', expect.objectContaining({
+      numBuckets: 30,
+    }));
+  });
+
+  it('re-renders when audioSrc or clipWidth changes so the memo comparator keeps waveform props fresh', () => {
+    mockUseWaveformData();
+
+    const props = buildProps({ audioSrc: 'https://example.com/a.wav', clipWidth: 90 });
+    const { rerender } = render(<ClipAction {...props} />);
+
+    expect(mocks.useWaveformData).toHaveBeenCalledTimes(1);
+
+    rerender(<ClipAction {...props} />);
+    expect(mocks.useWaveformData).toHaveBeenCalledTimes(1);
+
+    rerender(<ClipAction {...props} audioSrc="https://example.com/b.wav" />);
+    expect(mocks.useWaveformData).toHaveBeenCalledTimes(2);
+
+    rerender(<ClipAction {...props} audioSrc="https://example.com/b.wav" clipWidth={120} />);
+    expect(mocks.useWaveformData).toHaveBeenCalledTimes(3);
+    expect(mocks.useWaveformData).toHaveBeenLastCalledWith('https://example.com/b.wav', expect.objectContaining({
+      numBuckets: 40,
+    }));
   });
 });

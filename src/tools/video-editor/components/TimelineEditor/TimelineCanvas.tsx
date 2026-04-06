@@ -16,6 +16,7 @@ import { DndContext, closestCenter, type DragEndEvent, useSensors } from '@dnd-k
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ArrowRight, Clapperboard, Layers } from 'lucide-react';
+import { cn } from '@/shared/components/ui/contracts/cn';
 import { usePortalMousedownGuard } from '@/shared/hooks/usePortalMousedownGuard';
 import { TrackLabelContent } from '@/tools/video-editor/components/TimelineEditor/TrackLabel';
 import type { ShotGroup } from '@/tools/video-editor/hooks/useShotGroups';
@@ -23,6 +24,7 @@ import { useTimelineEditorData } from '@/tools/video-editor/contexts/TimelineEdi
 import { TimeRuler } from '@/tools/video-editor/components/TimelineEditor/TimeRuler';
 import { LABEL_WIDTH } from '@/tools/video-editor/lib/coordinate-utils';
 import { snapResize } from '@/tools/video-editor/lib/snap-edges';
+import { getSourceTime, type TimelineData } from '@/tools/video-editor/lib/timeline-data';
 import type { TrackDefinition } from '@/tools/video-editor/types';
 import type { TimelineAction, TimelineCanvasHandle, TimelineRow } from '@/tools/video-editor/types/timeline-canvas';
 import type { DragSession } from '@/tools/video-editor/hooks/useClipDrag';
@@ -48,6 +50,8 @@ interface ResizeSession {
   initialStart: number;
   initialEnd: number;
   initialClientX: number;
+  minStart?: number;
+  maxEnd?: number;
 }
 
 interface PositionedShotGroup {
@@ -73,7 +77,7 @@ export interface TimelineCanvasProps {
   minScaleCount: number;
   maxScaleCount: number;
   selectedTrackId: string | null;
-  getActionRender?: (action: TimelineAction, row: TimelineRow) => ReactNode;
+  getActionRender?: (action: TimelineAction, row: TimelineRow, width: number) => ReactNode;
   onSelectTrack: (trackId: string) => void;
   onTrackChange: (trackId: string, patch: Partial<TrackDefinition>) => void;
   onRemoveTrack: (trackId: string) => void;
@@ -116,6 +120,53 @@ const buildGridBackground = (startLeft: number, scaleWidth: number, scaleSplitCo
   ].join(',');
 };
 
+const getAudioResizeLimits = (
+  data: TimelineData | null,
+  action: TimelineAction,
+  row: TimelineRow,
+  dir: ResizeDir,
+): Pick<ResizeSession, 'minStart' | 'maxEnd'> => {
+  if (!data) {
+    return {};
+  }
+
+  const clipMeta = data.meta[action.id];
+  if (!clipMeta || typeof clipMeta.hold === 'number') {
+    return {};
+  }
+
+  const trackKind = data.tracks.find((track) => track.id === row.id)?.kind
+    ?? data.tracks.find((track) => track.id === clipMeta.track)?.kind;
+  if (trackKind !== 'audio') {
+    return {};
+  }
+
+  const speed = clipMeta.speed ?? 1;
+  if (speed <= 0) {
+    return {};
+  }
+
+  const from = clipMeta.from ?? 0;
+  const to = getSourceTime({ from, start: action.start, speed }, action.end);
+
+  if (dir === 'left') {
+    return {
+      minStart: action.end - (to / speed),
+    };
+  }
+
+  const assetDuration = clipMeta.asset
+    ? data.resolvedConfig.registry[clipMeta.asset]?.duration ?? data.registry.assets[clipMeta.asset]?.duration
+    : undefined;
+  if (typeof assetDuration !== 'number') {
+    return {};
+  }
+
+  return {
+    maxEnd: action.start + Math.max(0, assetDuration - from) / speed,
+  };
+};
+
 interface SortableRowProps {
   row: TimelineRow;
   track: TrackDefinition;
@@ -123,8 +174,9 @@ interface SortableRowProps {
   startLeft: number;
   pixelsPerSecond: number;
   selectedTrackId: string | null;
+  resizeClampedActionId: string | null;
   resizeOverrides: Readonly<Record<string, ResizeOverride>>;
-  getActionRender?: (action: TimelineAction, row: TimelineRow) => ReactNode;
+  getActionRender?: (action: TimelineAction, row: TimelineRow, width: number) => ReactNode;
   onSelectTrack: (trackId: string) => void;
   onTrackChange: (trackId: string, patch: Partial<TrackDefinition>) => void;
   onRemoveTrack: (trackId: string) => void;
@@ -147,6 +199,7 @@ const SortableRow = React.memo(function SortableRow({
   startLeft,
   pixelsPerSecond,
   selectedTrackId,
+  resizeClampedActionId,
   resizeOverrides,
   getActionRender,
   onSelectTrack,
@@ -201,7 +254,10 @@ const SortableRow = React.memo(function SortableRow({
         return (
           <div
             key={action.id}
-            className="group absolute"
+            className={cn(
+              'group absolute',
+              resizeClampedActionId === action.id && 'rounded-md ring-2 ring-amber-400/80 ring-offset-1 ring-offset-background',
+            )}
             data-action-id={action.id}
             data-row-id={row.id}
             style={{
@@ -211,7 +267,7 @@ const SortableRow = React.memo(function SortableRow({
               height: actionHeight,
             }}
           >
-            {getActionRender?.(renderedAction, row)}
+            {getActionRender?.(renderedAction, row, width)}
             <div
               className="absolute inset-y-0 left-0 z-10 cursor-ew-resize rounded-l-sm border-l border-sky-300/10 bg-sky-300/0 transition-colors group-hover:bg-sky-300/10"
               style={{ width: RESIZE_HANDLE_WIDTH }}
@@ -273,7 +329,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   onClearUnusedTracks,
   newTrackDropLabel,
 }: TimelineCanvasProps, ref) {
-  const { pendingOpsRef } = useTimelineEditorData();
+  const { pendingOpsRef, dataRef } = useTimelineEditorData();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
   const resizeSessionRef = useRef<ResizeSession | null>(null);
@@ -282,6 +338,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   const playRateRef = useRef(1);
   const scrollMetricsRef = useRef<ScrollMetrics>({ scrollLeft: 0, scrollTop: 0 });
   const [scrollLeft, setScrollLeft] = useState(0);
+  const [resizeClampedActionId, setResizeClampedActionId] = useState<string | null>(null);
   const [resizeOverrides, setResizeOverrides] = useState<Record<string, ResizeOverride>>({});
   const [shotGroupMenu, setShotGroupMenu] = useState<{ x: number; y: number; shotId: string; shotName: string } | null>(null);
   const shotGroupMenuRef = useRef<HTMLDivElement>(null);
@@ -507,6 +564,16 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       }
     }
 
+    let resizeClamped = false;
+    if (typeof session.minStart === 'number' && start < session.minStart) {
+      start = session.minStart;
+      resizeClamped = true;
+    }
+    if (typeof session.maxEnd === 'number' && end > session.maxEnd) {
+      end = session.maxEnd;
+      resizeClamped = true;
+    }
+
     const context = getResizeContext(session.actionId, session.rowId);
     if (!context) {
       return;
@@ -523,6 +590,13 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       ...current,
       [session.actionId]: { start, end },
     }));
+    setResizeClampedActionId((current) => (
+      resizeClamped
+        ? session.actionId
+        : current === session.actionId
+          ? null
+          : current
+    ));
     onActionResizing?.({
       action: nextAction,
       row: context.row,
@@ -544,6 +618,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     }
 
     pendingOpsRef.current -= 1;
+    setResizeClampedActionId((current) => (current === session.actionId ? null : current));
     const context = getResizeContext(session.actionId, session.rowId);
     if (!cancelled && context) {
       onActionResizeEnd?.({
@@ -568,6 +643,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       return;
     }
 
+    const resizeLimits = getAudioResizeLimits(dataRef.current, action, row, dir);
     resizeSessionRef.current = {
       pointerId: event.pointerId,
       actionId: action.id,
@@ -576,11 +652,13 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       initialStart: action.start,
       initialEnd: action.end,
       initialClientX: event.clientX,
+      ...resizeLimits,
     };
     resizePreviewRef.current[action.id] = {
       start: action.start,
       end: action.end,
     };
+    setResizeClampedActionId(null);
     setResizeOverrides((current) => ({
       ...current,
       [action.id]: {
@@ -593,7 +671,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     event.currentTarget.setPointerCapture(event.pointerId);
     event.preventDefault();
     event.stopPropagation();
-  }, [onActionResizeStart]);
+  }, [dataRef, onActionResizeStart]);
 
   const handleResizePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const session = resizeSessionRef.current;
@@ -747,6 +825,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
                     startLeft={startLeft}
                     pixelsPerSecond={pixelsPerSecond}
                     selectedTrackId={selectedTrackId}
+                    resizeClampedActionId={resizeClampedActionId}
                     resizeOverrides={rowResizeOverrides[index] ?? EMPTY_RESIZE_OVERRIDES}
                     getActionRender={getActionRender}
                     onSelectTrack={onSelectTrack}

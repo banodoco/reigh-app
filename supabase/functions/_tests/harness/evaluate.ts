@@ -340,6 +340,20 @@ export function expectDuplicateGeneration(diff: SnapshotDiff): AssertionResult {
   return pass(`Duplicated generation: ${addedGenerations.map((g) => g.id).join(", ")}.`);
 }
 
+export function expectTaskParamsContain(
+  diff: SnapshotDiff,
+  key: string,
+  label?: string,
+): AssertionResult {
+  for (const task of Object.values(diff.tasks.added)) {
+    if (jsonContainsSubstring(task.params, key)) {
+      return pass(`Task ${task.id} params contain "${label ?? key}".`);
+    }
+  }
+
+  return fail(`No added task params contain "${label ?? key}".`);
+}
+
 export function expectSessionTerminal(snapshot: HarnessSnapshot): AssertionResult {
   const sessions = Object.values(snapshot.timeline_agent_sessions);
   if (sessions.length === 0) {

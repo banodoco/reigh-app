@@ -27,7 +27,7 @@ import { useClipDrag } from '@/tools/video-editor/hooks/useClipDrag';
 import { useMarqueeSelect } from '@/tools/video-editor/hooks/useMarqueeSelect';
 import { useShotGroups } from '@/tools/video-editor/hooks/useShotGroups';
 import { useStaleVariants } from '@/tools/video-editor/hooks/useStaleVariants';
-import type { AssetRegistry } from '@/tools/video-editor/types';
+import type { AssetRegistry, ResolvedTimelineClip, TrackDefinition } from '@/tools/video-editor/types';
 import type { TimelineAction, TimelineRow } from '@/tools/video-editor/types/timeline-canvas';
 
 const EMPTY_CLIP_META: Record<string, ClipMeta> = {};
@@ -88,6 +88,33 @@ export function resolveSelectedGenerationIdsForShotCreation({
     canCreateShot: orderedSelections.length > 0 && generationIds.length === orderedSelections.length,
     generationIds,
   };
+}
+
+export function resolveWaveformAudioSrc(
+  clip: ResolvedTimelineClip | undefined,
+  track: TrackDefinition | undefined,
+): string | undefined {
+  if (!clip || !track || !clip.assetEntry?.src) {
+    return undefined;
+  }
+
+  if (clip.clipType === 'text' || clip.clipType === 'effect-layer') {
+    return undefined;
+  }
+
+  if (track.kind === 'audio') {
+    return clip.volume === 0 ? undefined : clip.assetEntry.src;
+  }
+
+  if (
+    track.kind === 'visual'
+    && clip.assetEntry.type?.startsWith('video/')
+    && (clip.volume ?? 1) > 0
+  ) {
+    return clip.assetEntry.src;
+  }
+
+  return undefined;
 }
 
 function TimelineEditorComponent() {
@@ -254,6 +281,20 @@ function TimelineEditorComponent() {
     }, {});
   }, [data?.registry?.assets]);
   const stableAssetGenerationMap = useStableValue(assetGenerationMap);
+  const resolvedClipMap = useMemo(() => {
+    if (!resolvedConfig) {
+      return new Map<string, ResolvedTimelineClip>();
+    }
+
+    return new Map(resolvedConfig.clips.map((clip) => [clip.id, clip]));
+  }, [resolvedConfig]);
+  const trackMap = useMemo(() => {
+    if (!resolvedConfig) {
+      return new Map<string, TrackDefinition>();
+    }
+
+    return new Map(resolvedConfig.tracks.map((track) => [track.id, track]));
+  }, [resolvedConfig]);
 
   const selectionShotCreationState = useMemo(() => {
     if (!data?.rows || !data?.meta) {
@@ -345,15 +386,18 @@ function TimelineEditorComponent() {
     handleSplitClipAtTime(clipId, time);
   }, [clientXToTime, handleSplitClipAtTime]);
 
-  const getActionRender = useCallback((action: TimelineAction) => {
+  const getActionRender = useCallback((action: TimelineAction, _row: TimelineRow, clipWidth: number) => {
     const clipMeta = data?.meta[action.id];
     if (!clipMeta) {
       return null;
     }
 
-    const clipWidthPx = (action.end - action.start) * pixelsPerSecond;
+    const resolvedClip = resolvedClipMap.get(action.id);
+    const track = resolvedClip ? trackMap.get(resolvedClip.track) : undefined;
+    const clipWidthPx = clipWidth;
     const thumbnailSrc = clipWidthPx >= 40 ? thumbnailMap[action.id] : undefined;
     const assetKey = clipMeta.asset;
+    const audioSrc = resolveWaveformAudioSrc(resolvedClip, track);
     const isStale = assetKey ? staleAssetKeys.has(assetKey) : false;
     const isDismissed = assetKey ? dismissedAssetKeys.has(assetKey) : false;
     const isGenAsset = assetKey ? generationAssetKeys.has(assetKey) : false;
@@ -366,6 +410,8 @@ function TimelineEditorComponent() {
         isPrimary={primaryClipId === action.id}
         selectedClipIds={[...selectedClipIds]}
         thumbnailSrc={thumbnailSrc}
+        audioSrc={audioSrc}
+        clipWidth={clipWidthPx}
         onSelect={handleClipSelect}
         onDoubleClickAsset={onDoubleClickAsset}
         onSplitHere={handleSplitClipHere}
@@ -406,8 +452,9 @@ function TimelineEditorComponent() {
     isCreating,
     isClipSelected,
     onDoubleClickAsset,
-    pixelsPerSecond,
     primaryClipId,
+    resolvedClipMap,
+    trackMap,
     selectedClipIds,
     staleAssetKeys,
     thumbnailMap,

@@ -13,6 +13,7 @@ import {
   expectPropertySet,
   expectSessionTerminal,
   expectTaskCreatedByPrompt,
+  expectTaskParamsContain,
   expectTextAdded,
   scoreResult,
   type AssertionResult,
@@ -346,6 +347,41 @@ export const seedTestCases: TestCase[] = [
         expectGenerationCreatedSoft(diff, task?.id),
         expectCreditChargedSoft(diff, task?.id),
         expectSessionTerminal(after),
+      ]);
+    },
+  },
+  {
+    name: "create a text-to-image generation with project LoRAs",
+    category: "generation",
+    message: () => "Generate a cinematic desert landscape at golden hour",
+    timeoutMs: 180_000,
+    evaluate: ({ after, diff }) => {
+      const task = findAddedTask(
+        diff,
+        (row) => JSON.stringify(row.params).toLowerCase().includes("desert"),
+      );
+      return evaluateWith([
+        expectTaskCreatedByPrompt(diff, "desert"),
+        // Verify the task uses the correct model (qwen_image, not wan_2_2_t2i)
+        expectTaskParam(
+          diff,
+          (row) => row.task_type === "qwen_image" || row.task_type === "qwen_image_style",
+          'task_type is qwen_image or qwen_image_style (not wan_2_2_t2i)',
+        ),
+        // Verify project LoRAs were passed through
+        expectTaskParamsContain(diff, "harness-lora", "harness test LoRA path in params"),
+        expectGenerationCreatedSoft(diff, task?.id),
+        expectSessionTerminal(after),
+        expectNoCollateralDamage(diff, {
+          user: true,
+          tables: {
+            tasks: { added: "*" },
+            generations: { added: "*" },
+            generation_variants: { added: "*" },
+            timeline_agent_sessions: { modified: "*" },
+            credits_ledger: { added: "*" },
+          },
+        }),
       ]);
     },
   },

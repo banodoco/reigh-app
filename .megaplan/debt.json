@@ -1072,6 +1072,142 @@
       "resolved": false,
       "resolved_by": null,
       "resolved_at": null
+    },
+    {
+      "id": "DEBT-064",
+      "subsystem": "did-the-work-fully-address-the-issue-hints-user-notes-and-approved-plan-requirements",
+      "concern": "did the work fully address the issue hints, user notes, and approved plan requirements?: checked `src/tools/video-editor/hooks/useclipresize.ts:54-73` against revised step 1. the plan now says to cache `to` in `resizestartref`, but it still never states whether that value must come from committed clip state or from a fresh `getsourcetime(...)` calculation. because the current resize handler computes a transient wrong `to` during left-edge trims before commit-time rematerialization repairs it, leaving `origin.to` implicit is still a correctness-sensitive ambiguity.",
+      "flag_ids": [
+        "issue_hints-1"
+      ],
+      "plan_ids": [
+        "fix-video-and-audio-clip-20260406-0616"
+      ],
+      "occurrence_count": 1,
+      "created_at": "2026-04-06T04:55:58Z",
+      "updated_at": "2026-04-06T04:55:58Z",
+      "resolved": false,
+      "resolved_by": null,
+      "resolved_at": null
+    },
+    {
+      "id": "DEBT-065",
+      "subsystem": "did-the-work-fully-address-the-issue-hints-user-notes-and-approved-plan-requirements",
+      "concern": "did the work fully address the issue hints, user notes, and approved plan requirements?: checked revised step 4.2 against `src/tools/video-editor/components/timelineeditor/timelinecanvas.tsx:483-490` and `src/tools/video-editor/hooks/useclipresize.ts:56-60`. the plan still gives two different formulas for audio `minstart`, and one of them depends on `clipmeta.to`, so the left-edge live-clamp requirement is not fully settled yet.",
+      "flag_ids": [
+        "issue_hints-2"
+      ],
+      "plan_ids": [
+        "fix-video-and-audio-clip-20260406-0616"
+      ],
+      "occurrence_count": 1,
+      "created_at": "2026-04-06T04:55:58Z",
+      "updated_at": "2026-04-06T04:55:58Z",
+      "resolved": false,
+      "resolved_by": null,
+      "resolved_at": null
+    },
+    {
+      "id": "DEBT-066",
+      "subsystem": "search-for-related-code-that-handles-the-same-concept-is-the-reported-issue-a-symptom-of-something-broader",
+      "concern": "search for related code that handles the same concept. is the reported issue a symptom of something broader?: checked `src/tools/video-editor/lib/resolve-overlaps.ts:139-195` at the `useclipresize` call site. this api only produces `metapatches[clipid]` for the moved clip, so revised step 3's generic 'for each clip id in overlappatches' loop is broader than the actual resize surface and adds complexity the fix does not currently need.",
+      "flag_ids": [
+        "scope"
+      ],
+      "plan_ids": [
+        "fix-video-and-audio-clip-20260406-0616"
+      ],
+      "occurrence_count": 1,
+      "created_at": "2026-04-06T04:55:58Z",
+      "updated_at": "2026-04-06T04:55:58Z",
+      "resolved": false,
+      "resolved_by": null,
+      "resolved_at": null
+    },
+    {
+      "id": "DEBT-067",
+      "subsystem": "clip-resize-math",
+      "concern": "clip resize math: revised step 1 still leaves the source of `origin.to` under-specified, so the speed formula can be implemented against the wrong `to` value unless the plan explicitly says to use committed clip state or recompute it with `getsourcetime(...)`.",
+      "flag_ids": [
+        "FLAG-004"
+      ],
+      "plan_ids": [
+        "fix-video-and-audio-clip-20260406-0616"
+      ],
+      "occurrence_count": 1,
+      "created_at": "2026-04-06T04:55:58Z",
+      "updated_at": "2026-04-06T04:55:58Z",
+      "resolved": false,
+      "resolved_by": null,
+      "resolved_at": null
+    },
+    {
+      "id": "DEBT-068",
+      "subsystem": "audio-clamp-math",
+      "concern": "audio clamp math: revised step 4.2 still gives conflicting formulas for left-edge `minstart`, and one of them depends on `clipmeta.to`, so the live audio clamp is not fully specified.",
+      "flag_ids": [
+        "FLAG-005"
+      ],
+      "plan_ids": [
+        "fix-video-and-audio-clip-20260406-0616"
+      ],
+      "occurrence_count": 1,
+      "created_at": "2026-04-06T04:55:58Z",
+      "updated_at": "2026-04-06T04:55:58Z",
+      "resolved": false,
+      "resolved_by": null,
+      "resolved_at": null
+    },
+    {
+      "id": "DEBT-069",
+      "subsystem": "resize-hook-mutation",
+      "concern": "resize hook mutation: revised step 2.4 clamps audio by mutating `action.end`, even though the current resize hook builds new row objects immutably from the callback input.",
+      "flag_ids": [
+        "FLAG-006"
+      ],
+      "plan_ids": [
+        "fix-video-and-audio-clip-20260406-0616"
+      ],
+      "occurrence_count": 1,
+      "created_at": "2026-04-06T04:55:58Z",
+      "updated_at": "2026-04-06T04:55:58Z",
+      "resolved": false,
+      "resolved_by": null,
+      "resolved_at": null
+    },
+    {
+      "id": "DEBT-070",
+      "subsystem": "are-the-proposed-changes-technically-correct",
+      "concern": "are the proposed changes technically correct?: checked revised step 2.4 against `src/tools/video-editor/hooks/useclipresize.ts:76-100`. the plan still says to clamp audio by writing back to `action.end`, but the current hook treats the callback `action` as input data and then creates fresh row actions from it. mutating that caller-owned object is unnecessary and risks coupling the resize hook to outside references instead of using a local `clampedend` variable.",
+      "flag_ids": [
+        "correctness"
+      ],
+      "plan_ids": [
+        "fix-video-and-audio-clip-20260406-0616"
+      ],
+      "occurrence_count": 1,
+      "created_at": "2026-04-06T04:55:58Z",
+      "updated_at": "2026-04-06T04:55:58Z",
+      "resolved": false,
+      "resolved_by": null,
+      "resolved_at": null
+    },
+    {
+      "id": "DEBT-071",
+      "subsystem": "are-the-success-criteria-well-prioritized-and-verifiable",
+      "concern": "are the success criteria well-prioritized and verifiable?: checked the remaining `must` criteria against the revised verification plan. criteria like 'existing timelinecanvas.test.tsx tests pass' and 'rowstoconfig serialization ... verified by read-only inspection' are reviewable, but they are still proxy gates rather than direct evidence that resize speed math and live audio clamping behave correctly, so the criteria are improved but not fully outcome-oriented yet.",
+      "flag_ids": [
+        "criteria_quality"
+      ],
+      "plan_ids": [
+        "fix-video-and-audio-clip-20260406-0616"
+      ],
+      "occurrence_count": 1,
+      "created_at": "2026-04-06T04:55:58Z",
+      "updated_at": "2026-04-06T04:55:58Z",
+      "resolved": false,
+      "resolved_by": null,
+      "resolved_at": null
     }
   ]
 }

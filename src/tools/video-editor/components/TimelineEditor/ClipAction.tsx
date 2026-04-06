@@ -4,6 +4,8 @@ import { ArrowRight, Clapperboard, FolderPlus, ImageIcon, Layers, Music2, Refres
 import { cn } from '@/shared/components/ui/contracts/cn';
 import type { Shot } from '@/domains/generation/types';
 import { usePortalMousedownGuard } from '@/shared/hooks/usePortalMousedownGuard';
+import { WaveformOverlay } from '@/tools/video-editor/components/TimelineEditor/WaveformOverlay';
+import { useWaveformData } from '@/tools/video-editor/hooks/useWaveformData';
 import type { ClipMeta } from '@/tools/video-editor/lib/timeline-data';
 import type { TimelineAction } from '@/tools/video-editor/types/timeline-canvas';
 
@@ -20,6 +22,8 @@ interface ClipActionProps {
   isPrimary?: boolean;
   selectedClipIds?: string[];
   thumbnailSrc?: string;
+  audioSrc?: string;
+  clipWidth?: number;
   onSelect: (clipId: string, trackId: string) => void;
   onDoubleClickAsset?: (assetKey: string) => void;
   onSplitHere?: (clipId: string, clientX: number) => void;
@@ -222,10 +226,18 @@ function ClipActionComponent({
   onNavigateToShot,
   onOpenGenerateVideo,
   isCreatingShot = false,
+  audioSrc,
+  clipWidth,
 }: ClipActionProps) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const openMenuWithSelectionRef = useRef<(clientX: number, clientY: number) => void>(() => undefined);
+  const { waveform } = useWaveformData(audioSrc, {
+    from: clipMeta.from,
+    to: clipMeta.to,
+    speed: clipMeta.speed,
+    numBuckets: Math.max(2, Math.floor((clipWidth ?? 60) / 3)),
+  });
 
   const closeMenu = useCallback(() => setContextMenu(null), []);
   const openMenuAt = useCallback((x: number, y: number) => { setContextMenu({ x, y, clientX: x }); }, []);
@@ -310,14 +322,15 @@ function ClipActionComponent({
         }}
         onContextMenu={handleContextMenu}
       >
+        {waveform ? <WaveformOverlay waveform={waveform} /> : null}
         {thumbnailSrc ? (
-          <img src={thumbnailSrc} alt="" className="h-full w-10 shrink-0 object-cover opacity-80" draggable={false} />
+          <img src={thumbnailSrc} alt="" className="relative z-10 h-full w-10 shrink-0 object-cover opacity-80" draggable={false} />
         ) : (
-          <div className="flex h-full w-8 shrink-0 items-center justify-center bg-background/60 text-muted-foreground">
+          <div className="relative z-10 flex h-full w-8 shrink-0 items-center justify-center bg-background/60 text-muted-foreground">
             {icon}
           </div>
         )}
-        <div className="min-w-0 flex-1 px-2 py-1">
+        <div className="relative z-10 min-w-0 flex-1 px-2 py-1">
           <div className="truncate text-[11px] font-medium">
             {isEffectLayer
               ? (clipMeta.continuous?.type || 'Effect Layer')
@@ -335,7 +348,7 @@ function ClipActionComponent({
         </div>
         {isVariantStale && (
           <div
-            className="absolute right-1 top-1 flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-amber-500 text-white hover:bg-amber-400"
+            className="absolute right-1 top-1 z-20 flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-amber-500 text-white hover:bg-amber-400"
             title="Variant outdated"
             role="button"
             onClick={(e) => {
@@ -386,6 +399,8 @@ function areClipActionPropsEqual(prev: ClipActionProps, next: ClipActionProps): 
   if (prev.isSelected !== next.isSelected) return false;
   if (prev.isPrimary !== next.isPrimary) return false;
   if (prev.thumbnailSrc !== next.thumbnailSrc) return false;
+  if (prev.audioSrc !== next.audioSrc) return false;
+  if (prev.clipWidth !== next.clipWidth) return false;
   if (prev.isVariantStale !== next.isVariantStale) return false;
   if (prev.isGenerationAsset !== next.isGenerationAsset) return false;
   if (prev.canCreateShotFromSelection !== next.canCreateShotFromSelection) return false;
