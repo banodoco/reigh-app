@@ -16,7 +16,10 @@ export function useDerivedTimeline(
   selectedClipId: string | null,
   selectedTrackId: string | null,
 ) {
-  const resolvedConfig = useMemo(() => data?.resolvedConfig ?? null, [data]);
+  const resolvedConfig = useMemo(() => data?.resolvedConfig ?? null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: signature covers resolved URLs
+    [data?.signature],
+  );
 
   const selectedClip = useMemo(() => {
     if (!resolvedConfig || !selectedClipId) {
@@ -32,7 +35,8 @@ export function useDerivedTimeline(
 
     const preferredTrackId = selectedClip?.track ?? selectedTrackId;
     return preferredTrackId ? getTrackById(data.resolvedConfig, preferredTrackId) : data.tracks[0] ?? null;
-  }, [data, selectedClip, selectedTrackId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: stableSignature covers structural timeline changes
+  }, [data?.stableSignature, selectedClip, selectedTrackId]);
 
   const selectedClipHasPredecessor = useMemo(() => {
     if (!resolvedConfig || !selectedClip) {
@@ -48,7 +52,8 @@ export function useDerivedTimeline(
 
   const compositionSize = useMemo(() => {
     return data ? parseResolution(data.output.resolution) : { width: 1280, height: 720 };
-  }, [data]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: stableSignature covers output structure
+  }, [data?.stableSignature]);
 
   const renderMetadata = useMemo<CompositionMetadata | null>(() => {
     if (!resolvedConfig) {
@@ -75,7 +80,8 @@ export function useDerivedTimeline(
     }
 
     return Object.fromEntries(data.tracks.map((track) => [track.id, track.scale ?? 1]));
-  }, [data]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: stableSignature covers track structure
+  }, [data?.stableSignature]);
 
   return {
     resolvedConfig,
