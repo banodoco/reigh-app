@@ -17,6 +17,10 @@ const TIMELINE_ASSETS_BUCKET = 'timeline-assets';
 const TIMELINE_CHECKPOINT_LIMIT = 30;
 const TIMELINE_CHECKPOINT_RETENTION_MS = 24 * 60 * 60 * 1000;
 
+// Cache signed URLs for 50 minutes (URLs expire after 60 minutes)
+const SIGNED_URL_CACHE_TTL_MS = 50 * 60 * 1000;
+const signedUrlCache = new Map<string, { url: string; expiresAt: number }>();
+
 type TimelineCheckpointRow = {
   id: string;
   timeline_id: string;
@@ -190,6 +194,11 @@ export class SupabaseDataProvider implements DataProvider {
       return file;
     }
 
+    const cached = signedUrlCache.get(file);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.url;
+    }
+
     const { data, error } = await getSupabaseClient()
       .storage
       .from(TIMELINE_ASSETS_BUCKET)
@@ -198,6 +207,11 @@ export class SupabaseDataProvider implements DataProvider {
     if (error) {
       throw error;
     }
+
+    signedUrlCache.set(file, {
+      url: data.signedUrl,
+      expiresAt: Date.now() + SIGNED_URL_CACHE_TTL_MS,
+    });
 
     return data.signedUrl;
   }
