@@ -5,9 +5,7 @@ import {
   getShotDropData,
   getDragType,
 } from '@/shared/lib/dnd/dragDrop';
-import { useProjectSelectionContext } from '@/shared/contexts/ProjectContext';
 import { useShots } from '@/shared/contexts/ShotsContext';
-import { useShotFinalVideos } from '@/tools/travel-between-images/hooks/video/useShotFinalVideos';
 import { inferDragKind } from '@/tools/video-editor/lib/drop-position';
 import type { DragCoordinator } from '@/tools/video-editor/hooks/useDragCoordinator';
 import {
@@ -38,7 +36,6 @@ import { RafLoopDetector } from '@/tools/video-editor/lib/perf-diagnostics';
 import type { TrackKind } from '@/tools/video-editor/types';
 import { createAutoScroller } from '@/tools/video-editor/lib/auto-scroll';
 import type { Shot } from '@/domains/generation/types';
-import { useSwitchToFinalVideo } from '@/tools/video-editor/hooks/useSwitchToFinalVideo';
 
 async function dispatchTimelineDrop({
   event,
@@ -56,8 +53,6 @@ async function dispatchTimelineDrop({
   dropAsset,
   handleAddTextAt,
   shots,
-  finalVideoMap,
-  switchToFinalVideo,
 }: {
   event: React.DragEvent<HTMLDivElement>;
   dataRef: React.MutableRefObject<TimelineData | null>;
@@ -74,8 +69,6 @@ async function dispatchTimelineDrop({
   dropAsset: UseAssetManagementResult['handleAssetDrop'];
   handleAddTextAt?: (trackId: string, time: number) => void;
   shots: Shot[] | undefined;
-  finalVideoMap: Map<string, { id: string; location: string; thumbnailUrl: string | null }>;
-  switchToFinalVideo: ({ shotId, clipIds, rowId }: { shotId: string; clipIds: string[]; rowId: string }) => void;
 }) {
   const insertAtTop = Boolean(dropPosition.isNewTrackTop);
 
@@ -194,14 +187,6 @@ async function dispatchTimelineDrop({
       selectedClipId: createdClipIds[0] ?? null,
       selectedTrackId: resolvedTarget.trackId,
     });
-
-    if (finalVideoMap.has(shot.id)) {
-      switchToFinalVideo({
-        shotId: shot.id,
-        clipIds: createdClipIds,
-        rowId: resolvedTarget.trackId,
-      });
-    }
     return;
   }
 
@@ -275,7 +260,6 @@ export function useExternalDrop({
   selectedTrackId,
   applyEdit,
   patchRegistry,
-  registerAsset,
   uploadAsset,
   invalidateAssetRegistry,
   resolveAssetUrl,
@@ -286,16 +270,7 @@ export function useExternalDrop({
   handleAddTextAt,
   onSeekToTime,
 }: UseExternalDropArgs): UseExternalDropResult {
-  const { selectedProjectId } = useProjectSelectionContext();
   const { shots } = useShots();
-  const { finalVideoMap } = useShotFinalVideos(selectedProjectId);
-  const { switchToFinalVideo } = useSwitchToFinalVideo({
-    applyEdit,
-    dataRef,
-    finalVideoMap,
-    patchRegistry,
-    registerAsset,
-  });
   const externalDragFrameRef = useRef<number | null>(null);
   const autoScrollerRef = useRef<ReturnType<typeof createAutoScroller> | null>(null);
   const latestExternalDragRef = useRef<{
@@ -408,8 +383,6 @@ export function useExternalDrop({
       dropAsset,
       handleAddTextAt,
       shots,
-      finalVideoMap,
-      switchToFinalVideo,
     });
     onSeekToTime?.(dropPosition.time);
   }, [
@@ -417,7 +390,6 @@ export function useExternalDrop({
     coordinator,
     dataRef,
     dropAsset,
-    finalVideoMap,
     invalidateAssetRegistry,
     pendingOpsRef,
     patchRegistry,
@@ -426,7 +398,6 @@ export function useExternalDrop({
     selectedTrackId,
     shots,
     handleAddTextAt,
-    switchToFinalVideo,
     uploadAsset,
     uploadImageGeneration,
   ]);

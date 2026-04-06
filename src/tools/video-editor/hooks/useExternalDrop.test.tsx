@@ -16,32 +16,9 @@ const mockUseShots = vi.fn(() => ({
   error: null,
   refetchShots: vi.fn(),
 }));
-const mockUseProjectSelectionContext = vi.fn(() => ({
-  selectedProjectId: 'project-1',
-}));
-const mockUseShotFinalVideos = vi.fn(() => ({
-  finalVideoMap: new Map(),
-  isLoading: false,
-}));
-const mockSwitchToFinalVideo = vi.fn();
-const mockUseSwitchToFinalVideo = vi.fn(() => ({
-  switchToFinalVideo: mockSwitchToFinalVideo,
-}));
 
 vi.mock('@/shared/contexts/ShotsContext', () => ({
   useShots: () => mockUseShots(),
-}));
-
-vi.mock('@/shared/contexts/ProjectContext', () => ({
-  useProjectSelectionContext: () => mockUseProjectSelectionContext(),
-}));
-
-vi.mock('@/tools/travel-between-images/hooks/video/useShotFinalVideos', () => ({
-  useShotFinalVideos: (projectId: string | null) => mockUseShotFinalVideos(projectId),
-}));
-
-vi.mock('@/tools/video-editor/hooks/useSwitchToFinalVideo', () => ({
-  useSwitchToFinalVideo: (args: unknown) => mockUseSwitchToFinalVideo(args),
 }));
 
 function createStoredDragPayload(items: GenerationDropData[]) {
@@ -150,25 +127,11 @@ function makeDropTestData(overrides: Partial<DropTestData> = {}): DropTestData {
 afterEach(() => {
   vi.restoreAllMocks();
   mockUseShots.mockReset();
-  mockUseProjectSelectionContext.mockReset();
-  mockUseShotFinalVideos.mockReset();
-  mockUseSwitchToFinalVideo.mockReset();
-  mockSwitchToFinalVideo.mockReset();
   mockUseShots.mockReturnValue({
     shots: undefined,
     isLoading: false,
     error: null,
     refetchShots: vi.fn(),
-  });
-  mockUseProjectSelectionContext.mockReturnValue({
-    selectedProjectId: 'project-1',
-  });
-  mockUseShotFinalVideos.mockReturnValue({
-    finalVideoMap: new Map(),
-    isLoading: false,
-  });
-  mockUseSwitchToFinalVideo.mockReturnValue({
-    switchToFinalVideo: mockSwitchToFinalVideo,
   });
 });
 
@@ -578,108 +541,5 @@ describe('useExternalDrop', () => {
     expect(mutation.clipOrderOverride).toEqual({ V1: createdClipIds });
     expect(Object.keys(mutation.metaUpdates)).toEqual(createdClipIds);
     expect(options).toEqual({ selectedClipId: createdClipIds[0], selectedTrackId: 'V1' });
-    expect(mockSwitchToFinalVideo).not.toHaveBeenCalled();
-  });
-
-  it('switches a dropped shot to the final video after creating the image clips when a final video exists', async () => {
-    mockUseShots.mockReturnValue({
-      shots: [{
-        id: 'shot-1',
-        name: 'Shot 1',
-        images: [
-          { generation_id: 'gen-1', imageUrl: 'https://example.com/1.png', thumbUrl: 'https://example.com/1-thumb.png', contentType: 'image/png', type: 'image' },
-          { generation_id: 'gen-2', imageUrl: 'https://example.com/2.png', thumbUrl: 'https://example.com/2-thumb.png', contentType: 'image/png', type: 'image' },
-        ],
-      }],
-      isLoading: false,
-      error: null,
-      refetchShots: vi.fn(),
-    });
-    mockUseShotFinalVideos.mockReturnValue({
-      finalVideoMap: new Map([[
-        'shot-1',
-        { id: 'final-1', location: 'https://example.com/final.mp4', thumbnailUrl: 'https://example.com/final.jpg' },
-      ]]),
-      isLoading: false,
-    });
-
-    const dataRef = {
-      current: makeDropTestData(),
-    } as React.MutableRefObject<DropTestData>;
-    const pendingOpsRef = { current: 0 } as React.MutableRefObject<number>;
-    const applyEdit = vi.fn();
-    const registerGenerationAsset = vi.fn((generation: GenerationDropData) => {
-      const assetId = `asset-${generation.generationId}`;
-      dataRef.current.registry.assets[assetId] = {
-        file: generation.imageUrl,
-        type: 'image/png',
-      };
-      return assetId;
-    });
-
-    const coordinator = {
-      update: vi.fn(),
-      showSecondaryGhosts: vi.fn(),
-      end: vi.fn(),
-      lastPosition: {
-        time: 12,
-        rowIndex: 0,
-        trackId: 'V1',
-        trackKind: 'visual',
-        trackName: 'V1',
-        isNewTrack: false,
-        isNewTrackTop: false,
-        isReject: false,
-        newTrackKind: null,
-        screenCoords: {
-          rowTop: 0,
-          rowLeft: 0,
-          rowWidth: 0,
-          rowHeight: 0,
-          clipLeft: 0,
-          clipWidth: 0,
-          ghostCenter: 0,
-        },
-      },
-      editAreaRef: { current: null },
-    };
-
-    const { result } = renderHook(() => useExternalDrop({
-      dataRef,
-      pendingOpsRef,
-      scale: 1,
-      scaleWidth: 1,
-      selectedTrackId: null,
-      applyEdit,
-      patchRegistry: vi.fn(),
-      registerAsset: vi.fn(),
-      uploadAsset: vi.fn(),
-      invalidateAssetRegistry: vi.fn(),
-      resolveAssetUrl: vi.fn(),
-      coordinator,
-      registerGenerationAsset,
-      uploadImageGeneration: vi.fn(),
-      handleAssetDrop: vi.fn(),
-    }));
-
-    const event = createDropEvent(
-      createStoredShotPayload({
-        shotId: 'shot-1',
-        shotName: 'Shot 1',
-        imageGenerationIds: ['gen-1', 'gen-2'],
-      }),
-      ['application/x-shot', 'text/plain'],
-    );
-
-    await result.current.onTimelineDrop(event);
-
-    expect(applyEdit).toHaveBeenCalledTimes(1);
-    const [mutation] = applyEdit.mock.calls[0];
-    const createdClipIds = mutation.rows[0].actions.map((action: { id: string }) => action.id);
-    expect(mockSwitchToFinalVideo).toHaveBeenCalledWith({
-      shotId: 'shot-1',
-      clipIds: createdClipIds,
-      rowId: 'V1',
-    });
   });
 });

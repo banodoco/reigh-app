@@ -11,8 +11,6 @@ const useTimelinePlaybackContextMock = vi.fn();
 const useTimelineChromeContextMock = vi.fn();
 const usePanesMock = vi.fn();
 const useTimelineRealtimeMock = vi.fn();
-const useProjectSelectionContextMock = vi.fn();
-const useSelectedShotIdsMock = vi.fn();
 
 vi.mock('@/tools/video-editor/contexts/TimelineEditorContext', async () => {
   const actual = await vi.importActual<typeof import('@/tools/video-editor/contexts/TimelineEditorContext')>(
@@ -59,23 +57,8 @@ vi.mock('@/shared/contexts/PanesContext', async () => {
   };
 });
 
-vi.mock('@/shared/contexts/ProjectContext', async () => {
-  const actual = await vi.importActual<typeof import('@/shared/contexts/ProjectContext')>(
-    '@/shared/contexts/ProjectContext',
-  );
-
-  return {
-    ...actual,
-    useProjectSelectionContext: () => useProjectSelectionContextMock(),
-  };
-});
-
 vi.mock('@/tools/video-editor/hooks/useTimelineRealtime', () => ({
   useTimelineRealtime: () => useTimelineRealtimeMock(),
-}));
-
-vi.mock('@/tools/video-editor/hooks/useSelectedShotIds', () => ({
-  useSelectedShotIds: () => useSelectedShotIdsMock(),
 }));
 
 vi.mock('@/tools/video-editor/hooks/useKeyboardShortcuts', () => ({
@@ -109,10 +92,6 @@ vi.mock('@/tools/video-editor/components/TimelineEditor/TimelineEditor', () => (
 
 vi.mock('@/tools/video-editor/components/PropertiesPanel/PropertiesPanel', () => ({
   PropertiesPanel: () => <div data-testid="properties-panel" />,
-}));
-
-vi.mock('@/tools/video-editor/components/ShotsPanel', () => ({
-  ShotsPanel: ({ projectId }: { projectId: string }) => <div data-testid="shots-panel" data-project-id={projectId} />,
 }));
 
 vi.mock('@/tools/video-editor/components/PreviewPanel/OverlayEditor', () => ({
@@ -273,12 +252,6 @@ beforeEach(() => {
     isGenerationsPaneLocked: false,
     setIsGenerationsPaneLocked: vi.fn(),
   });
-  useProjectSelectionContextMock.mockReturnValue({
-    selectedProjectId: 'project-1',
-  });
-  useSelectedShotIdsMock.mockReturnValue({
-    highlightedShotIds: new Set<string>(),
-  });
 
   useTimelineRealtimeMock.mockReturnValue({
     isOpen: false,
@@ -293,9 +266,7 @@ describe('VideoEditorShell preview persistence', () => {
     const view = renderShell('compact');
 
     const initialNode = screen.getByTestId('mock-player');
-    const compactShotsPanel = screen.getByTestId('shots-panel');
     expect(screen.getAllByTestId('mock-player')).toHaveLength(1);
-    expect(compactShotsPanel.parentElement).toHaveAttribute('aria-hidden', 'false');
     expect(screen.queryByText('1280x720')).not.toBeInTheDocument();
 
     view.rerender(
@@ -311,20 +282,5 @@ describe('VideoEditorShell preview persistence', () => {
     expect(screen.getAllByTestId('mock-player')).toHaveLength(1);
     expect(sameNode).toBe(initialNode);
     expect(screen.getByText('1280x720')).toBeInTheDocument();
-  });
-
-  it('defaults back to preview on travel-between-images routes', () => {
-    render(
-      <MemoryRouter
-        initialEntries={['/tools/travel-between-images?timeline=timeline-1']}
-        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-      >
-        <VideoEditorShell mode="compact" timelineId="timeline-1" />
-      </MemoryRouter>,
-    );
-
-    const shotsPanel = screen.getByTestId('shots-panel');
-    expect(shotsPanel.parentElement).toHaveAttribute('aria-hidden', 'true');
-    expect(screen.getAllByTestId('mock-player')).toHaveLength(1);
   });
 });

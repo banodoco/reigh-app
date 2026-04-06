@@ -2,7 +2,6 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import {
-  VideoGenerationModalAccordionContent,
   VideoGenerationModalFormContent,
   VideoGenerationModalHeader,
   VideoGenerationModalLoadingContent,
@@ -34,7 +33,6 @@ const mocks = vi.hoisted(() => ({
       </button>
     ),
   ),
-  shotImagesEditor: vi.fn(() => <div data-testid="shot-images-editor">images</div>),
 }));
 
 vi.mock('@/shared/lib/media/mediaUrl', () => ({
@@ -48,10 +46,8 @@ vi.mock('@/shared/components/ui/tooltip', () => ({
 }));
 
 vi.mock('@/shared/components/ui/button', () => ({
-  Button: React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement>>(
-    ({ children, ...props }, ref) => (
-      <button ref={ref} {...props}>{children}</button>
-    ),
+  Button: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button {...props}>{children}</button>
   ),
 }));
 
@@ -65,10 +61,6 @@ vi.mock('@/tools/travel-between-images/components/BatchSettingsForm', () => ({
 
 vi.mock('@/tools/travel-between-images/components/MotionControl', () => ({
   MotionControl: (props: unknown) => mocks.motionControl(props),
-}));
-
-vi.mock('@/tools/travel-between-images/components/ShotImagesEditor', () => ({
-  ShotImagesEditor: (props: unknown) => mocks.shotImagesEditor(props),
 }));
 
 vi.mock('@/shared/components/ImageGenerationForm/components', () => ({
@@ -167,64 +159,5 @@ describe('VideoGenerationModalSections', () => {
         }),
       }),
     );
-  });
-
-  it('toggles accordion sections independently and shows collapsed summaries outside the content panels', () => {
-    render(
-      <VideoGenerationModalAccordionContent
-        defaultTopOpen={false}
-        defaultBottomOpen={true}
-        shotId="shot-1"
-        images={[
-          { id: '1', thumbUrl: '1.png' },
-          { id: '2', thumbUrl: '2.png' },
-        ] as never}
-        aspectRatio="16:9"
-        batchVideoFrames={61}
-        settings={{
-          prompt: 'start prompt',
-          motionMode: 'basic',
-          batchVideoFrames: 61,
-          selectedModel: 'wan-2.2',
-          phaseConfig: undefined,
-        } as never}
-        updateField={vi.fn() as never}
-        projects={[]}
-        selectedProjectId={null}
-        selectedLoras={[]}
-        availableLoras={[]}
-        accelerated={false}
-        onAcceleratedChange={vi.fn()}
-        randomSeed={false}
-        onRandomSeedChange={vi.fn()}
-        imageCount={2}
-        hasStructureVideo={false}
-        guidanceKind="flow"
-        validPresetId={undefined}
-        status="ready"
-        onOpenLoraModal={vi.fn()}
-        onRemoveLora={vi.fn()}
-        onLoraStrengthChange={vi.fn()}
-        onAddTriggerWord={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByText('2 images')).toBeInTheDocument();
-    expect(screen.queryByTestId('shot-images-editor')).not.toBeInTheDocument();
-    expect(screen.getByTestId('batch-settings-form')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: /Shot Images/i }));
-
-    expect(screen.getByTestId('shot-images-editor')).toBeInTheDocument();
-    expect(screen.queryByText('2 images')).not.toBeInTheDocument();
-    expect(screen.getByTestId('batch-settings-form')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: /Generation Settings/i }));
-
-    expect(screen.getByTestId('shot-images-editor')).toBeInTheDocument();
-    expect(screen.queryByTestId('batch-settings-form')).not.toBeInTheDocument();
-    expect(screen.getByText('Wan 2.2')).toBeInTheDocument();
-    expect(screen.getByText('61f')).toBeInTheDocument();
-    expect(screen.getByText('start prompt')).toBeInTheDocument();
   });
 });

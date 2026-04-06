@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/shared/components/ui/runtime/sonner';
-import type { GenerationRow, Shot } from '@/domains/generation/types';
+import type { Shot } from '@/domains/generation/types';
 import type { ActiveLora } from '@/domains/lora/types/lora';
 import type { LoraModel } from '@/domains/lora/types/lora';
 import { useProject } from '@/shared/contexts/ProjectContext';
@@ -247,7 +247,7 @@ export function useVideoGenerationModalController({ isOpen, onClose, shot }: {
     { disableRefetch: false },
   );
 
-  const positionedImages = useMemo<GenerationRow[]>(() => {
+  const positionedImages = useMemo(() => {
     if (!shotGenerations) return [];
     return shotGenerations
       .filter((gen) => !isVideoGeneration(gen) && isPositioned(gen))
@@ -442,7 +442,6 @@ export function useVideoGenerationModalController({ isOpen, onClose, shot }: {
     updateField,
     availableLoras,
     positionedImages,
-    effectiveAspectRatio,
     isLoading,
     isGenerating,
     justQueued,

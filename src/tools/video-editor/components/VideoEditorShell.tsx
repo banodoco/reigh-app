@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { formatDistanceToNow } from 'date-fns';
-import { Download, Eye, GripHorizontal, History, LayoutGrid, Maximize2, Minimize2, Redo2, Settings, SlidersHorizontal, Undo2, ZoomIn, ZoomOut } from 'lucide-react';
+import { Download, Eye, GripHorizontal, History, Maximize2, Minimize2, Redo2, Settings, SlidersHorizontal, Undo2, ZoomIn, ZoomOut } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/shared/components/ui/alert-dialog';
 import { Badge } from '@/shared/components/ui/badge';
@@ -10,20 +10,17 @@ import { cn } from '@/shared/components/ui/contracts/cn';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/shared/components/ui/dropdown-menu';
 import { Slider } from '@/shared/components/ui/slider';
 import { usePanes } from '@/shared/contexts/PanesContext';
-import { useProjectSelectionContext } from '@/shared/contexts/ProjectContext';
 import { AgentChat } from '@/tools/video-editor/components/AgentChat';
 import { CompactPreview } from '@/tools/video-editor/components/CompactPreview';
 import { PreviewPanel } from '@/tools/video-editor/components/PreviewPanel/PreviewPanel';
 import { RemotionPreview } from '@/tools/video-editor/components/PreviewPanel/RemotionPreview';
 import { PropertiesPanel } from '@/tools/video-editor/components/PropertiesPanel/PropertiesPanel';
-import { ShotsPanel } from '@/tools/video-editor/components/ShotsPanel';
 import { TimelineEditor } from '@/tools/video-editor/components/TimelineEditor/TimelineEditor';
 import { useTimelineChromeContext } from '@/tools/video-editor/contexts/TimelineChromeContext';
 import {
   useTimelineEditorData,
   useTimelineEditorOps,
 } from '@/tools/video-editor/contexts/TimelineEditorContext';
-import { useSelectedShotIds } from '@/tools/video-editor/hooks/useSelectedShotIds';
 import { useTimelinePlaybackContext } from '@/tools/video-editor/contexts/TimelinePlaybackContext';
 import { useKeyboardShortcuts } from '@/tools/video-editor/hooks/useKeyboardShortcuts';
 import { useTimelineRealtime } from '@/tools/video-editor/hooks/useTimelineRealtime';
@@ -67,20 +64,15 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
   const chrome = useTimelineChromeContext();
   const playback = useTimelinePlaybackContext();
   const { isGenerationsPaneLocked, setIsGenerationsPaneLocked } = usePanes();
-  const { selectedProjectId } = useProjectSelectionContext();
   const location = useLocation();
   const navigate = useNavigate();
   const isOnEditorPage = location.pathname.startsWith('/tools/video-editor');
-  const isOnTravelPage = location.pathname.startsWith('/tools/travel-between-images');
-  const { highlightedShotIds } = useSelectedShotIds();
   const containerRef = useRef<HTMLDivElement>(null);
   const dividerRef = useRef<HTMLDivElement>(null);
   const [timelineHeight, setTimelineHeight] = useState<number | null>(null);
   const [isTimelineMaximized, setIsTimelineMaximized] = useState(false);
-  /** In condensed mode: preview, shots, or properties for the right panel. */
-  const [condensedRightPanel, setCondensedRightPanel] = useState<'preview' | 'properties' | 'shots'>(() => (
-    isOnTravelPage ? 'preview' : 'shots'
-  ));
+  /** In condensed mode: 'preview' (default) or 'properties' for the right panel. */
+  const [condensedRightPanel, setCondensedRightPanel] = useState<'preview' | 'properties'>('preview');
   const conflict = useTimelineRealtime({
     timelineId,
     conflictExhausted: chrome.isConflictExhausted,
@@ -93,10 +85,6 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
     MemoryPressureDetector.start();
     return MemoryPressureDetector.stop;
   }, []);
-
-  useEffect(() => {
-    setCondensedRightPanel(isOnTravelPage ? 'preview' : 'shots');
-  }, [isOnTravelPage]);
 
   useKeyboardShortcuts({
     hasSelectedClip: editorData.selectedClipIds.size > 0,
@@ -444,7 +432,7 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
         )}
 
         {condensed ? (
-          /* ── Condensed layout: timeline left, preview/shots/props right ── */
+          /* ── Condensed layout: timeline left, preview or props right ── */
           <main className="grid h-full min-h-0 flex-1 animate-in fade-in duration-200 grid-cols-[minmax(0,1fr)_320px] grid-rows-[auto_minmax(0,1fr)] gap-3 p-3 transition-opacity">
             <div className="col-span-1">
               {toolbar}
@@ -462,15 +450,7 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
                 </button>
                 <button
                   type="button"
-                  className={`flex flex-1 items-center justify-center gap-1.5 border-l border-r px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.12em] transition-colors ${condensedRightPanel === 'shots' ? 'bg-accent text-foreground' : highlightedShotIds.size > 0 ? 'text-sky-400 hover:text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                  onClick={() => setCondensedRightPanel('shots')}
-                >
-                  <LayoutGrid className="h-3 w-3" />
-                  Shots
-                </button>
-                <button
-                  type="button"
-                  className={`flex flex-1 items-center justify-center gap-1.5 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.12em] transition-colors ${condensedRightPanel === 'properties' ? 'bg-accent text-foreground' : editorData.selectedClipIds.size > 0 ? 'text-sky-400 hover:text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  className={`flex flex-1 items-center justify-center gap-1.5 border px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.12em] transition-colors ${condensedRightPanel === 'properties' ? 'border-transparent bg-accent text-foreground' : editorData.selectedClipIds.size > 0 ? 'border-sky-400 text-muted-foreground hover:text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
                   onClick={() => setCondensedRightPanel('properties')}
                 >
                   <SlidersHorizontal className="h-3 w-3" />
@@ -482,7 +462,7 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
                 className={cn('relative flex min-h-0 flex-1 flex-col', condensedRightPanel !== 'preview' && 'hidden')}
                 aria-hidden={condensedRightPanel !== 'preview'}
               >
-                {condensedRightPanel !== 'shots' && previewOverlay}
+                {previewOverlay}
                 <div className="min-h-0 flex-1">
                   <div ref={condensedSlotRef} className="flex h-full w-full min-h-0 items-center justify-center" />
                 </div>
@@ -495,15 +475,6 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
                     onValueChange={(value) => playback.previewRef.current?.seek(value)}
                   />
                 </div>
-              </div>
-              <div
-                className={cn('min-h-0 flex-1 overflow-hidden p-3', condensedRightPanel !== 'shots' && 'hidden')}
-                aria-hidden={condensedRightPanel !== 'shots'}
-              >
-                <ShotsPanel
-                  projectId={selectedProjectId ?? ''}
-                  highlightedShotIds={highlightedShotIds}
-                />
               </div>
               <div
                 className={cn('min-h-0 flex-1 overflow-auto p-3', condensedRightPanel !== 'properties' && 'hidden')}

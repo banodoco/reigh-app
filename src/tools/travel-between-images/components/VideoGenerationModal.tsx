@@ -6,7 +6,7 @@ import { Skeleton } from '@/shared/components/ui/skeleton';
 import { useExtraLargeModal } from '@/shared/hooks/useModal';
 import { LoraSelectorModal } from '@/domains/lora/components';
 import {
-  VideoGenerationModalAccordionContent,
+  VideoGenerationModalFormContent,
   VideoGenerationModalHeader,
   VideoGenerationModalLoadingContent,
 } from './VideoGenerationModalSections';
@@ -17,8 +17,6 @@ export interface VideoGenerationModalProps {
   isOpen: boolean;
   onClose: () => void;
   shot: Shot;
-  defaultTopOpen?: boolean;
-  defaultBottomOpen?: boolean;
 }
 
 /**
@@ -30,8 +28,6 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
   isOpen,
   onClose,
   shot,
-  defaultTopOpen = false,
-  defaultBottomOpen = true,
 }) => {
   const modal = useExtraLargeModal();
 
@@ -43,7 +39,6 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
     updateField,
     availableLoras,
     positionedImages,
-    effectiveAspectRatio,
     isLoading,
     isGenerating,
     justQueued,
@@ -89,13 +84,7 @@ export const VideoGenerationModal: React.FC<VideoGenerationModalProps> = ({
             {isLoading ? (
               <VideoGenerationModalLoadingContent />
             ) : (
-              <VideoGenerationModalAccordionContent
-                defaultTopOpen={defaultTopOpen}
-                defaultBottomOpen={defaultBottomOpen}
-                shotId={shot.id}
-                images={positionedImages}
-                aspectRatio={effectiveAspectRatio}
-                batchVideoFrames={settings.batchVideoFrames || 61}
+              <VideoGenerationModalFormContent
                 settings={settings}
                 updateField={updateField}
                 projects={projects}
