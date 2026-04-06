@@ -136,16 +136,16 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
 
   useEffect(() => {
     const el = outerRef.current;
-    if (!el || forceCondensed || isGenerationsPaneLocked) return;
+    if (!el || forceCondensed) return;
 
     const observer = new ResizeObserver(([entry]) => {
       setTooSmall(entry.contentRect.height < MIN_STANDARD_HEIGHT);
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [forceCondensed, isGenerationsPaneLocked, MIN_STANDARD_HEIGHT]);
+  }, [forceCondensed, MIN_STANDARD_HEIGHT]);
 
-  const condensed = forceCondensed || isGenerationsPaneLocked || tooSmall;
+  const condensed = forceCondensed || tooSmall;
 
   const gridTemplateRows = isTimelineMaximized
     ? `${MIN_PREVIEW_HEIGHT}px auto 1fr`
@@ -359,7 +359,7 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
 
         {condensed ? (
           /* ── Condensed layout: timeline left, preview or props right ── */
-          <main className="grid h-full min-h-0 flex-1 grid-cols-[minmax(0,1fr)_320px] grid-rows-[auto_minmax(0,1fr)] gap-3 p-3">
+          <main className="grid h-full min-h-0 flex-1 animate-in fade-in duration-200 grid-cols-[minmax(0,1fr)_320px] grid-rows-[auto_minmax(0,1fr)] gap-3 p-3 transition-opacity">
             <div className="col-span-1">
               {toolbar}
             </div>
@@ -427,7 +427,7 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
           /* ── Standard layout: preview top, timeline bottom ── */
           <main
             ref={containerRef}
-            className="grid h-full min-h-0 flex-1 grid-cols-[minmax(0,1fr)_360px] gap-3 p-3"
+            className="grid h-full min-h-0 flex-1 animate-in fade-in duration-200 grid-cols-[minmax(0,1fr)_360px] gap-3 p-3 transition-[grid-template-rows,opacity] duration-300 ease-smooth"
             style={{ gridTemplateRows }}
           >
             <div className="relative min-h-0">

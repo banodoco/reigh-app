@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Loader2, MessageSquareText, Mic, MicOff, Send, Square, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { Button } from '@/shared/components/ui/button';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { useGallerySelection } from '@/shared/contexts/GallerySelectionContext';
+import { usePanes } from '@/shared/contexts/PanesContext';
 import { useAgentSession, useAgentSessions, useCancelSession, useCreateSession, useSendMessage } from '@/tools/video-editor/hooks/useAgentSession';
 import {
   buildSummary,
@@ -103,6 +104,7 @@ function buildRenderedTurns(turns: AgentTurn[]): RenderedTurn[] {
 export function AgentChat({ timelineId }: AgentChatProps) {
   const sessions = useAgentSessions(timelineId);
   const createSession = useCreateSession(timelineId);
+  const { isTasksPaneLocked, tasksPaneWidth, isGenerationsPaneLocked, isGenerationsPaneOpen, effectiveGenerationsPaneHeight } = usePanes();
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [draft, setDraft] = useState('');
@@ -111,6 +113,11 @@ export function AgentChat({ timelineId }: AgentChatProps) {
   const bottomAnchorRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const positionStyle = useMemo<CSSProperties>(() => ({
+    right: isTasksPaneLocked ? tasksPaneWidth + 20 : 20,
+    bottom: (isGenerationsPaneLocked || isGenerationsPaneOpen) ? effectiveGenerationsPaneHeight + 20 : 20,
+    transition: 'right 300ms cubic-bezier(0.25, 0.1, 0.25, 1), bottom 300ms cubic-bezier(0.25, 0.1, 0.25, 1)',
+  }), [isTasksPaneLocked, tasksPaneWidth, isGenerationsPaneLocked, isGenerationsPaneOpen, effectiveGenerationsPaneHeight]);
 
   const activeSession = useAgentSession(activeSessionId);
   const sendMessage = useSendMessage(activeSessionId, timelineId);
@@ -272,7 +279,7 @@ export function AgentChat({ timelineId }: AgentChatProps) {
 
   if (!isOpen && (voice.isRecording || voice.isProcessing)) {
     content = (
-      <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3">
+      <div className="fixed z-50 flex items-center gap-3" style={positionStyle}>
         <div className="flex items-center gap-2 rounded-full border border-border/80 bg-background/95 px-4 py-2.5 shadow-lg backdrop-blur">
           {voice.isRecording ? (
             <>
@@ -308,9 +315,10 @@ export function AgentChat({ timelineId }: AgentChatProps) {
         type="button"
         onClick={() => setIsOpen(true)}
         className={cn(
-          'group fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all hover:scale-105 active:scale-95',
+          'group fixed z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all hover:scale-105 active:scale-95',
           'bg-primary text-primary-foreground',
         )}
+        style={positionStyle}
         title="Timeline Agent (Cmd+B to talk)"
       >
         <MessageSquareText className="h-6 w-6" />
@@ -324,7 +332,7 @@ export function AgentChat({ timelineId }: AgentChatProps) {
     );
   } else {
     content = (
-      <div className="fixed bottom-5 right-5 z-50 flex h-[min(520px,calc(100vh-3rem))] w-[380px] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl border border-border/80 bg-background/95 shadow-2xl backdrop-blur">
+      <div className="fixed z-50 flex h-[min(520px,calc(100vh-3rem))] w-[380px] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl border border-border/80 bg-background/95 shadow-2xl backdrop-blur" style={positionStyle}>
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
           <div className="flex items-center gap-2">

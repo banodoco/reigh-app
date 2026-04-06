@@ -37,6 +37,10 @@ vi.mock('@/shared/contexts/GallerySelectionContext', () => ({
   useGallerySelection: (...args: unknown[]) => mocks.useGallerySelection(...args),
 }));
 
+vi.mock('@/shared/contexts/PanesContext', () => ({
+  usePanes: () => ({ isTasksPaneLocked: false, tasksPaneWidth: 0, isGenerationsPaneLocked: false, isGenerationsPaneOpen: false, effectiveGenerationsPaneHeight: 0 }),
+}));
+
 vi.mock('@/tools/video-editor/hooks/useAgentVoice', () => ({
   useAgentVoice: (...args: unknown[]) => mocks.useAgentVoice(...args),
 }));
