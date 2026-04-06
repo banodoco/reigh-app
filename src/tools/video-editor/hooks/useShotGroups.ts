@@ -55,10 +55,12 @@ export function useShotGroups(
     for (const row of rows) {
       for (const action of row.actions) {
         const assetKey = meta[action.id]?.asset;
-        const generationId = assetKey ? registry.assets[assetKey]?.generationId : undefined;
-        if (typeof generationId === 'string' && generationId.length > 0) {
-          clipGenerationIds.set(action.id, generationId);
-        }
+        if (!assetKey) continue;
+        const entry = registry.assets[assetKey];
+        if (!entry?.generationId || typeof entry.generationId !== 'string' || entry.generationId.length === 0) continue;
+        // Exclude video clips from inferred grouping — only images should auto-group
+        if (entry.type?.startsWith('video/')) continue;
+        clipGenerationIds.set(action.id, entry.generationId);
       }
     }
 
