@@ -53,18 +53,14 @@ function InnerProvider({
       return;
     }
 
-    console.warn('[VideoEditorProvider] Lightbox auto-closing: no data for generation', lightboxGenerationId);
     setLightboxAssetKey(null);
   }, [lightboxAssetKey, lightboxGenerationId, lightboxQuery.data, lightboxQuery.isLoading]);
 
   const onDoubleClickAsset = useCallback((assetKey: string) => {
-    const entry = editor.resolvedConfig?.registry[assetKey];
-    if (!entry?.generationId) {
-      console.warn('[VideoEditorProvider] Double-click: no generationId for asset', assetKey, entry);
+    if (!editor.resolvedConfig?.registry[assetKey]?.generationId) {
       return;
     }
 
-    console.log('[VideoEditorProvider] Opening lightbox for', assetKey, 'generationId:', entry.generationId, 'type:', entry.type);
     setLightboxAssetKey(assetKey);
   }, [editor.resolvedConfig]);
 

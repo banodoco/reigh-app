@@ -482,6 +482,23 @@ function TimelineEditorComponent() {
     return Math.max(0, (clientX - rect.left + scrollLeft - TIMELINE_START_LEFT) / pixelsPerSecond);
   }, [pixelsPerSecond, timelineWrapperRef]);
 
+  const handleDoubleClickVideoClip = useCallback((clipId: string) => {
+    const pinnedShotGroups = dataRef.current?.config.pinnedShotGroups ?? [];
+    const group = pinnedShotGroups.find((g) => g.clipIds.includes(clipId));
+    if (group) {
+      const shot = shots?.find((s) => s.id === group.shotId);
+      if (shot) {
+        setVideoModalShot(shot);
+        return;
+      }
+    }
+    // Fallback: try lightbox for videos with generationId
+    const assetKey = data?.meta[clipId]?.asset;
+    if (assetKey) {
+      onDoubleClickAsset?.(assetKey);
+    }
+  }, [dataRef, shots, data?.meta, onDoubleClickAsset]);
+
   const handleSplitClipHere = useCallback((clipId: string, clientX: number) => {
     const time = clientXToTime(clientX);
     handleSplitClipAtTime(clipId, time);
@@ -526,6 +543,7 @@ function TimelineEditorComponent() {
         clipWidth={clipWidthPx}
         onSelect={handleClipSelect}
         onDoubleClickAsset={onDoubleClickAsset}
+        onDoubleClickVideoClip={handleDoubleClickVideoClip}
         onSplitHere={handleSplitClipHere}
         onSplitClipsAtPlayhead={handleSplitClipsAtPlayhead}
         onDeleteClips={handleDeleteClips}
@@ -555,6 +573,7 @@ function TimelineEditorComponent() {
     dismissedAssetKeys,
     generationAssetKeys,
     handleCreateShotFromSelection,
+    handleDoubleClickVideoClip,
     handleClipSelect,
     handleDeleteClip,
     handleDeleteClips,

@@ -26,6 +26,7 @@ interface ClipActionProps {
   clipWidth?: number;
   onSelect: (clipId: string, trackId: string) => void;
   onDoubleClickAsset?: (assetKey: string) => void;
+  onDoubleClickVideoClip?: (clipId: string) => void;
   onSplitHere?: (clipId: string, clientX: number) => void;
   onSplitClipsAtPlayhead?: (clipIds: string[]) => void;
   onDeleteClip?: (clipId: string) => void;
@@ -213,6 +214,7 @@ function ClipActionComponent({
   thumbnailSrc,
   onSelect,
   onDoubleClickAsset,
+  onDoubleClickVideoClip,
   onSplitHere,
   onSplitClipsAtPlayhead,
   onDeleteClip,
@@ -323,7 +325,10 @@ function ClipActionComponent({
         onPointerDown={(event) => event.stopPropagation()}
         onDoubleClick={(event) => {
           event.stopPropagation();
-          if (!isEffectLayer && clipMeta.clipType !== 'text' && clipMeta.asset) {
+          if (isEffectLayer || clipMeta.clipType === 'text') return;
+          if (isVideoClip && onDoubleClickVideoClip) {
+            onDoubleClickVideoClip(action.id);
+          } else if (clipMeta.asset) {
             onDoubleClickAsset?.(clipMeta.asset);
           }
         }}
@@ -441,6 +446,7 @@ function areClipActionPropsEqual(prev: ClipActionProps, next: ClipActionProps): 
   return (
     prev.onSelect === next.onSelect
     && prev.onDoubleClickAsset === next.onDoubleClickAsset
+    && prev.onDoubleClickVideoClip === next.onDoubleClickVideoClip
     && prev.onSplitHere === next.onSplitHere
     && prev.onSplitClipsAtPlayhead === next.onSplitClipsAtPlayhead
     && prev.onDeleteClip === next.onDeleteClip
