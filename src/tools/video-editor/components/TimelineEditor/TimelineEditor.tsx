@@ -52,14 +52,12 @@ function useStableValue<T extends Record<string, string>>(value: T): T {
 export function resolveSelectedGenerationIdsForShotCreation({
   rows,
   meta,
-  registry,
   assetGenerationMap,
   selectedClipIds,
 }: {
   rows: TimelineRow[];
   meta: Record<string, ClipMeta>;
-  registry?: AssetRegistry;
-  assetGenerationMap?: Record<string, string>;
+  assetGenerationMap: Record<string, string>;
   selectedClipIds: Iterable<string>;
 }) {
   const selectedSet = new Set(selectedClipIds);
@@ -72,9 +70,7 @@ export function resolveSelectedGenerationIdsForShotCreation({
       .filter((action) => selectedSet.has(action.id))
       .map((action) => {
         const assetKey = meta[action.id]?.asset;
-        const generationId = assetKey
-          ? assetGenerationMap?.[assetKey] ?? registry?.assets[assetKey]?.generationId
-          : undefined;
+        const generationId = assetKey ? assetGenerationMap[assetKey] : undefined;
 
         console.log('[ShotCreate:resolve]', {
           clipId: action.id,

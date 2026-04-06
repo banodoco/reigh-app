@@ -37,8 +37,8 @@ export async function triageDifficulty(
 Reply with EXACTLY one word: "easy", "okay", or "hard".
 
 easy = simple single-clip operations: move, trim, delete, set a property, view, basic text edits
-okay = multi-step edits, duplicating with offsets, adding several elements, moderate complexity
-hard = complex creative direction, generating content, intricate multi-track choreography, troubleshooting broken timelines, anything requiring deep reasoning
+okay = multi-step edits, duplicating clips with offsets, adding several elements, moderate complexity
+hard = complex creative direction, generating content, duplicating generations, adding media from generations, compound multi-tool workflows (duplicate then add), intricate multi-track choreography, troubleshooting broken timelines, anything requiring deep reasoning
 
 If unsure, say "okay".`;
 

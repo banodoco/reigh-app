@@ -1,59 +1,47 @@
 {
   "considerations": [
     {
-      "severity": "critical",
-      "point": "getFallbackValue return type incompatible with AudioBindingValue",
-      "detail": "Both getFallbackValue functions (validateParams.ts:5 and ParameterControls.tsx:16) return `number | string | boolean`. AudioBindingValue is `{ source, min, max }` \u2014 an object. The plan adds audio-binding to ParameterType and assumes getFallbackValue can return the object default, but the return type annotation will reject it. Similarly, ParameterDefinition.default is typed `number | string | boolean` (types/index.ts:18). Both the return type of getFallbackValue AND the ParameterDefinition.default type must be widened to include AudioBindingValue.",
-      "source": "src/tools/video-editor/types/index.ts:18, src/tools/video-editor/effects/validateParams.ts:5, src/tools/video-editor/components/ParameterControls.tsx:16"
-    },
-    {
-      "severity": "critical",
-      "point": "validateAndCoerceParams else-clause silently treats audio-binding as color",
-      "detail": "The else clause in validateAndCoerceParams (validateParams.ts:31) falls through to color validation for any unknown type: `typeof value === 'string' && COLOR_RE.test(value)`. If the audio-binding case is not added BEFORE this else, an AudioBindingValue object will fail the string check and be replaced with the fallback. The plan mentions adding the case but doesn't flag that the current code structure means audio-binding values would be silently coerced to '#000000' if the case is missed or ordered incorrectly.",
-      "source": "src/tools/video-editor/effects/validateParams.ts:30-32"
-    },
-    {
-      "severity": "critical",
-      "point": "getDisplayValue casts to `number | string | boolean` \u2014 breaks with object AudioBindingValue",
-      "detail": "ParameterControls.tsx:44 casts the return: `return value as number | string | boolean`. When the value is an AudioBindingValue object, this cast is wrong and will cause rendering issues when the value is used in String() calls or compared. The plan's Step 7 mentions updating getDisplayValue but only says 'handle the object-typed audio-binding value' without flagging that the function signature and return type need changing.",
-      "source": "src/tools/video-editor/components/ParameterControls.tsx:42-48"
+      "severity": "important",
+      "point": "Slider component is single-value only \u2014 cannot be used as a range slider for min/max",
+      "detail": "The plan's Step 8 proposes 'A dual-value Slider or two number inputs for min/max mapping range.' The custom Slider component (src/shared/components/ui/slider.tsx) wraps @base-ui/react Slider but explicitly converts array values to scalars via toScalarValue() and types onValueChange as (value: number) => void. It renders only a single SliderPrimitive.Thumb. A dual-thumb range slider would require either a new component wrapping the base-ui primitive with two Thumbs, or falling back to two separate number Inputs. The plan should commit to two separate Input fields for min/max rather than suggesting a range slider that doesn't exist.",
+      "source": "src/shared/components/ui/slider.tsx:5-9, 11-17, 48-51"
     },
     {
       "severity": "important",
-      "point": "OfflineAudioContext + AnalyserNode combination doesn't work as described",
-      "detail": "The plan says 'Runs FFT analysis (via AnalyserNode or manual FFT on the rendered buffer)'. AnalyserNode is a real-time node that doesn't work with OfflineAudioContext for per-frame extraction \u2014 it only provides the latest snapshot when getFloatFrequencyData is called. For offline pre-computation, you must render the full audio buffer via OfflineAudioContext.startRendering(), then manually compute FFT (e.g., via a manual DFT/FFT implementation or by processing the buffer in chunks). The plan hedges with 'or manual FFT' but should commit to the manual approach since AnalyserNode won't work for this use case.",
-      "source": "Plan Phase 1, Step 1, item 3"
+      "point": "cancelRender is called in plan but Remotion's cancelRender has different semantics than expected",
+      "detail": "Step 2 says 'Calls cancelRender(handle) on unmount if still pending.' In Remotion v4, cancelRender() is used to ABORT the entire render with an error \u2014 it's not a cleanup function for delayRender handles. If the component unmounts before analysis completes (e.g., user navigates away), calling cancelRender would abort the Player with an error. The correct cleanup is to simply call continueRender(handle) on unmount to release the render gate, then discard the analysis results. Or use a ref-based abort pattern to avoid setting state after unmount.",
+      "source": "node_modules/remotion/dist/cjs/index.d.ts \u2014 cancelRender exported from cancel-render.js"
     },
     {
       "severity": "important",
-      "point": "totalDurationInFrames not directly available in TimelineRenderer",
-      "detail": "The plan says to pass totalDurationInFrames to AudioAnalysisProvider in TimelineRenderer.tsx and notes it's 'already available or derivable from config.output'. But TimelineRenderer receives `config: ResolvedTimelineConfig` which has `config.output.fps` but no duration field. The total duration in frames comes from Remotion's composition registration (in the Player or registerRoot), not from the config. TimelineRenderer would need to call `useVideoConfig()` to get durationInFrames, or compute it from clip positions.",
-      "source": "src/tools/video-editor/compositions/TimelineRenderer.tsx, src/tools/video-editor/types/index.ts:115-121 (TimelineOutput type)"
+      "point": "useAudioParam uses Remotion's interpolate but it's not imported in the hook file",
+      "detail": "Step 3 says useAudioParam returns 'interpolate(audio[binding.source], [0, 1], [binding.min, binding.max])'. But the hook file (useAudioReactive.ts) would need to import interpolate from 'remotion'. Since this hook is also injected as a global into the compiled effect sandbox, it would carry a closure over the real interpolate import \u2014 which is fine. But a simpler linear interpolation (binding.min + audio[binding.source] * (binding.max - binding.min)) would avoid the dependency and the question of whether Remotion's interpolate works outside the rendering context.",
+      "source": "Plan Step 3 vs src/tools/video-editor/effects/compileEffect.tsx:2"
     },
     {
       "severity": "important",
-      "point": "EffectCreatorPanel preview wrapping is non-trivial \u2014 Player component prop can't be wrapped externally",
-      "detail": "The plan says to 'Wrap the preview Player's PreviewComposition with AudioAnalysisProvider'. But the Player receives `component={PreviewComposition}` as a prop \u2014 the component is a function returned by makePreviewComposition(). To inject a provider, you'd need to modify makePreviewComposition to return a component that renders AudioAnalysisProvider internally, since wrapping the Player element itself won't put the provider inside the Remotion rendering tree.",
-      "source": "src/tools/video-editor/components/EffectCreatorPanel.tsx:485-496, lines 141-176"
-    },
-    {
-      "severity": "important",
-      "point": "Plan proposes params-based audio-binding but effects receive audio via hook, creating two separate mechanisms",
-      "detail": "The plan introduces both: (1) a useAudioReactive() hook injected as a global for direct use in effect code, AND (2) an audio-binding ParameterType that stores {source, min, max} in params. But there's no code path connecting them \u2014 the params object arrives as Record<string, unknown> and effects would need to manually read audio-binding params and map them using useAudioReactive(). The plan doesn't describe how ParameterControls audio-binding values flow into the effect's runtime behavior. Should wrapWithEffect resolve audio-binding params to numbers before passing them? Or must every effect manually interpret audio-binding objects?",
-      "source": "Plan Phase 2, Steps 3+7 vs Steps 4+5"
+      "point": "ParameterControls Slider value prop accepts number but audio-binding UI would need object state management",
+      "detail": "The existing onChange callback signature is (name: string, value: unknown) => void, which can handle object values. However, the plan doesn't detail how the audio-binding UI manages partial updates (e.g., user changes just 'source' while keeping min/max). The onChange call needs to merge the changed field into the existing AudioBindingValue object. The plan should specify that onChange emits the full merged AudioBindingValue object on each sub-control change, reading the current value from the values prop.",
+      "source": "src/tools/video-editor/components/ParameterControls.tsx:11, 84"
     },
     {
       "severity": "minor",
-      "point": "Duplicate getFallbackValue functions should be consolidated",
-      "detail": "validateParams.ts and ParameterControls.tsx have nearly identical getFallbackValue functions. The plan adds audio-binding handling to both independently. This is an existing duplication issue that will get worse \u2014 consider having ParameterControls import from validateParams instead.",
-      "source": "src/tools/video-editor/effects/validateParams.ts:5-12, src/tools/video-editor/components/ParameterControls.tsx:16-33"
+      "point": "KNOWN_TYPOS array in templates.ts ends at line 450, not 451 as plan states",
+      "detail": "Plan Step 6 says 'Update KNOWN_TYPOS array (line 445-451)'. The actual array is at lines 445-450 (5 entries). Minor line number discrepancy, not a functional issue. The suggestion to add audio hook typos (e.g., useAudioReactives \u2192 useAudioReactive) is sound.",
+      "source": "supabase/functions/ai-generate-effect/templates.ts:445-450"
     },
     {
       "severity": "minor",
-      "point": "effectPromptTemplate tells AI 'Do NOT use JSX' but useAudioReactive examples use JSX-like patterns",
-      "detail": "The prompt template (effectPromptTemplate.ts:32) instructs AI to use React.createElement() instead of JSX. The plan's proposed examples ('const scale = 1 + audio.bass * 0.3') are fine since they're just JS expressions, but the template context should be considered \u2014 AI-generated effects using audio will need to work with React.createElement, not JSX.",
-      "source": "src/tools/video-editor/effects/effectPromptTemplate.ts:32"
+      "point": "Plan mentions getTimelineDurationInFrames import from config-utils.ts at 'line 38' but TimelineRenderer already imports from config-utils",
+      "detail": "TimelineRenderer.tsx already imports getClipDurationInFrames and secondsToFrames from config-utils.ts. The plan should note that getTimelineDurationInFrames just needs to be added to the existing import statement, not introduced as a new import line. Minor execution detail.",
+      "source": "src/tools/video-editor/compositions/TimelineRenderer.tsx, src/tools/video-editor/lib/config-utils.ts:38-45"
+    },
+    {
+      "severity": "minor",
+      "point": "sanitizeParameterSchema only validates name field presence \u2014 audio-binding params with invalid structure pass through",
+      "detail": "Plan Step 6 correctly notes sanitizeParameterSchema won't block audio-binding definitions. But this means the edge function could return malformed audio-binding defaults (e.g., { source: 'invalid' }) that only get caught by frontend validateAndCoerceParams. This is acceptable for v1 but worth noting \u2014 the AI model might generate invalid audio-binding structures that compile but don't validate on the client.",
+      "source": "supabase/functions/ai-generate-effect/templates.ts:341-349"
     }
   ],
-  "summary": "Found 9 issues (3 critical, 4 important, 2 minor):\n\n**Critical:** (1) getFallbackValue return type and ParameterDefinition.default type are `number | string | boolean` \u2014 incompatible with the object-typed AudioBindingValue. Both types/index.ts and both getFallbackValue copies need widened types. (2) validateAndCoerceParams else-clause silently treats unknown types as color, so audio-binding values would be coerced to '#000000' if the case isn't added carefully. (3) getDisplayValue casts all values to `number | string | boolean`, breaking with AudioBindingValue objects.\n\n**Important:** (1) AnalyserNode doesn't work with OfflineAudioContext for per-frame extraction \u2014 must use manual FFT on the rendered buffer. (2) totalDurationInFrames isn't available in TimelineRenderer's config \u2014 needs useVideoConfig() or clip-based calculation. (3) Player component prop can't be externally wrapped with a provider \u2014 makePreviewComposition must be modified to include the provider internally. (4) The audio-binding parameter type and useAudioReactive() hook are two disconnected mechanisms with no described integration path for resolving audio-binding params to runtime values."
+  "summary": "Found 7 issues (0 critical, 4 important, 3 minor):\n\n**Important:** (1) The custom Slider component only supports single values (one thumb) \u2014 the plan's suggestion of a \"dual-value Slider\" for min/max won't work; must use two Input fields instead. (2) cancelRender aborts the entire render with an error \u2014 it's NOT a cleanup function for delayRender handles; unmount cleanup should call continueRender instead. (3) useAudioParam references Remotion's interpolate but the hook file won't import it; a simple linear interp avoids this dependency. (4) Audio-binding UI needs partial-update state management (merging changed fields into existing AudioBindingValue) which the plan doesn't detail.\n\n**Minor:** Line number discrepancies in templates.ts references; getTimelineDurationInFrames can be added to existing import; sanitizeParameterSchema passes through malformed audio-binding structures from AI."
 }

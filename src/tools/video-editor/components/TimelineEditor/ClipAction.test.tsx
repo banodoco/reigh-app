@@ -100,7 +100,7 @@ describe('ClipAction', () => {
     window.requestAnimationFrame = originalRequestAnimationFrame;
   });
 
-  it('shows existing shots and keeps the snapshotted list while the menu is open', () => {
+  it('shows existing shots and updates the menu from live props while it is open', () => {
     const existingShot = { id: 'shot-9', name: 'Shot 9' };
     const props = buildProps({
       existingShots: [existingShot],
@@ -116,10 +116,7 @@ describe('ClipAction', () => {
 
     rerender(<ClipAction {...props} existingShots={[]} />);
 
-    expect(screen.getByText('Shot 9')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByTitle('Jump to shot'));
-
-    expect(props.onNavigateToShot).toHaveBeenCalledWith(existingShot);
+    expect(screen.queryByText('Shot 9')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Jump to shot')).not.toBeInTheDocument();
   });
 });

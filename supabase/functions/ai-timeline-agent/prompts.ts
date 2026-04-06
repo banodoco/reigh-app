@@ -16,13 +16,16 @@ export function buildSelectedClipsPrompt(
   const selectedClipLines = selectedClips.map((clip) => {
     const matchingLine = timelineLines.find((line) => line.includes(`id=${clip.clip_id}`));
     const timelineContext = matchingLine ? matchingLine.replace(/^- /, "").trim() : null;
+    const generationText = typeof clip.generation_id === "string" && clip.generation_id.trim()
+      ? ` | generation_id=${clip.generation_id}`
+      : "";
     const promptText = typeof clip.prompt === "string" && clip.prompt.trim()
       ? ` | prompt="${formatSelectedClipPrompt(clip.prompt)}"`
       : "";
 
     return timelineContext
-      ? `- ${clip.clip_id} (${clip.media_type}, ${clip.url}) | timeline=${timelineContext}${promptText}`
-      : `- ${clip.clip_id} (${clip.media_type}, ${clip.url})${promptText}`;
+      ? `- ${clip.clip_id} (${clip.media_type}, ${clip.url})${generationText} | timeline=${timelineContext}${promptText}`
+      : `- ${clip.clip_id} (${clip.media_type}, ${clip.url})${generationText}${promptText}`;
   });
 
   return `\n\nUser has selected the following clips:\n${selectedClipLines.join("\n")}\nThese clips are the focus of the user's request.`;
@@ -49,7 +52,12 @@ Use duplicate_generation({"generation_id":"..."}) to copy an existing generation
 For style, subject, or scene transfer with multiple selections, choose the strongest matching reference instead of guessing.
 For image-to-video or travel-between-images requests, use all selected reference_image_urls in the order that best matches the requested motion.
 When a selected clip includes prompt="...", treat it as source metadata and reuse it instead of re-describing the image.
-Duplicate workflow: duplicate_generation returns a new_generation_id and asset URL. Reuse that new_generation_id as based_on in create_task for edits derived from the duplicate, and keep the returned asset URL available for a later add-media placement step.
+Duplicate & place workflow (multi-step — call each tool in order):
+Step 1: duplicate_generation({"generation_id":"<id>"}) → returns new_generation_id, asset URL, type
+Step 2 (optional edits): create_task({..., "based_on":"<new_generation_id>", "reference_image_urls":["<asset URL>"]})
+Step 3 (place on timeline): run(command="add-media <track> <at> <new_generation_id> <asset_url> [--type video]")
+When user says "duplicate and add after this clip", do BOTH step 1 and step 3. Calculate <at> = clip's at + clip's duration.
+When user says just "duplicate", do only step 1.
 Timeline insert guide:
 - add-media <track> <at> <generation_id> <url> [--type video]
 - default media type is image when --type is omitted

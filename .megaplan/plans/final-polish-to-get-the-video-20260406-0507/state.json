@@ -1,0 +1,65 @@
+{
+  "name": "final-polish-to-get-the-video-20260406-0507",
+  "idea": "Final polish to get the video editor timeline state management to excellent. Address all remaining rough edges.\n\n## Remaining issues found during review\n\n### 1. useTimelineData.types.ts is a zombie module (65 lines)\nContains UseTimelineDataResult (no longer used), but still exports ClipTab, TimelineApplyEdit, SaveStatus, RenderStatus used by 10+ files. The types it re-exports originate from useTimelineCommit, useEditorPreferences, useTimelinePersistence, useRenderState. Files should import directly from the source, then delete this file.\n\nConsumers: ClipPanel.tsx, BulkClipPanel.tsx, useClipResize.ts, useTimelineSelection.ts, useStaleVariants.ts, useClipDrag.ts, useTimelineState.contexts.ts, useTimelineState.types.ts, useClipEditing.ts, useAssetManagement.ts\n\n### 2. TimelineCanvas still uses deprecated useTimelineEditorContext\nLine 275: const { pendingOpsRef } = useTimelineEditorContext() \u2014 should use useTimelineEditorData() instead.\n\n### 3. Console.logs left in TimelineEditor.tsx\nThree console.log('[ShotCreate]...') calls at lines 75, 294, 303 \u2014 debug leftovers.\n\n### 4. useExternalDrop is 829 lines \u2014 largest hook in the system\nContains 15+ standalone functions (lines 33-465) that are pure data transforms, not hooks. These should be extracted to a lib file (e.g., external-drop-utils.ts), leaving the hook focused on the React integration (effects, callbacks, state).\n\n### 5. useClipEditing is 581 lines\nContains exported pure functions (patchAffectsDuration, recalcActionEnd) and 15+ handlers. The pure functions and split-clip logic could be extracted to a lib file.\n\n### 6. TimelineCanvas is 842 lines\nContains SortableRow (memoized inner component), scroll metrics, resize session logic, grid background builders, shot group positioning. The resize session could be extracted to useClipResize area, pure helpers to a utils file.\n\n### 7. useTimelineState.contexts.ts (361 lines) \u2014 context assembly\nThis was extracted from useTimelineState to assemble context values. Contains useTimelineEditorContextValue which builds the editor context from individual values. This is fine structurally but should be cleaned up \u2014 the function accepts ~50 parameters.\n\n### 8. ClipAction.tsx (434 lines) \nContains the context menu rendering inline. Could be cleaner but not critical.\n\n## Key constraints\n- No behavioral changes \u2014 pure cleanup/polish\n- 26 test files, 94 tests must pass after each step\n- Test command: cd reigh-app && npx vitest run --config config/testing/vitest.config.ts src/tools/video-editor/\n- Focus on the highest-impact items: zombie types file, deprecated hook usage, console.logs, and the two largest hooks (useExternalDrop, useClipEditing)",
+  "current_state": "planned",
+  "iteration": 1,
+  "created_at": "2026-04-06T03:07:47Z",
+  "config": {
+    "project_dir": "/Users/peteromalley/Documents/reigh-workspace",
+    "auto_approve": false,
+    "robustness": "light",
+    "agent": ""
+  },
+  "sessions": {
+    "claude_planner": {
+      "id": "647a556f-3d87-47bb-9dc5-b940a688b741",
+      "mode": "persistent",
+      "created_at": "2026-04-06T03:11:00Z",
+      "last_used_at": "2026-04-06T03:11:00Z",
+      "refreshed": false
+    }
+  },
+  "plan_versions": [
+    {
+      "version": 1,
+      "file": "plan_v1.md",
+      "hash": "sha256:b19377e42310aa51125c343302e0333d125e3f34d8c24d7d7fafd3ad09481ad2",
+      "timestamp": "2026-04-06T03:11:00Z"
+    }
+  ],
+  "history": [
+    {
+      "step": "init",
+      "timestamp": "2026-04-06T03:07:47Z",
+      "duration_ms": 0,
+      "cost_usd": 0.0,
+      "result": "success",
+      "environment": {
+        "claude": true,
+        "codex": true
+      }
+    },
+    {
+      "step": "plan",
+      "timestamp": "2026-04-06T03:11:00Z",
+      "duration_ms": 187394,
+      "cost_usd": 0.5222802499999999,
+      "result": "success",
+      "session_mode": "persistent",
+      "session_id": "647a556f-3d87-47bb-9dc5-b940a688b741",
+      "agent": "claude",
+      "output_file": "plan_v1.md",
+      "artifact_hash": "sha256:b19377e42310aa51125c343302e0333d125e3f34d8c24d7d7fafd3ad09481ad2"
+    }
+  ],
+  "meta": {
+    "significant_counts": [],
+    "weighted_scores": [],
+    "plan_deltas": [],
+    "recurring_critiques": [],
+    "total_cost_usd": 0.52228,
+    "overrides": [],
+    "notes": []
+  },
+  "last_gate": {}
+}

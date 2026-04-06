@@ -148,6 +148,34 @@ export async function createTestTimeline(
     if (generationError) {
       throw new Error(`Failed to create harness generation rows: ${generationError.message}`);
     }
+
+    // Create a shot and link generations via shot_generations so that
+    // duplicate_generation can resolve shot_id and timeline_frame.
+    const { data: shot, error: shotError } = await supabase
+      .from("shots")
+      .insert({
+        project_id: project.id,
+        name: "Harness Shot",
+        position: 0,
+        aspect_ratio: "16:9",
+      })
+      .select("id")
+      .single();
+
+    if (shotError || typeof shot?.id !== "string") {
+      throw new Error(`Failed to create harness shot: ${shotError?.message ?? "missing shot id"}`);
+    }
+
+    const shotGenerationRows = generationRows.map((gen, index) => ({
+      shot_id: shot.id,
+      generation_id: gen.id,
+      timeline_frame: index * 50,
+    }));
+
+    const { error: sgError } = await supabase.from("shot_generations").insert(shotGenerationRows);
+    if (sgError) {
+      throw new Error(`Failed to create harness shot_generations: ${sgError.message}`);
+    }
   }
 
   return {

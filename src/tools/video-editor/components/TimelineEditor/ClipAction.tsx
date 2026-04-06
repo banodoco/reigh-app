@@ -47,15 +47,6 @@ const disabledMenuItemClassName = 'disabled:cursor-wait disabled:opacity-60';
 
 type ClipContextMenuProps = Pick<ClipActionProps, 'isGenerationAsset' | 'onUpdateVariant' | 'isVariantStale' | 'onDismissStale' | 'onSplitHere' | 'onToggleMuteClips' | 'onSplitClipsAtPlayhead' | 'onCreateShotFromSelection' | 'onGenerateVideoFromSelection' | 'onNavigateToShot' | 'onOpenGenerateVideo' | 'isCreatingShot' | 'onDeleteClip' | 'onDeleteClips'> & { actionId: string; contextMenu: ContextMenuState; menuRef: React.RefObject<HTMLDivElement | null>; closeMenu: () => void; hasBatchSelection: boolean; selectedClipIds: string[]; showShotActions: boolean; hasActionsBeforeShotSection: boolean; existingShots?: Shot[]; };
 type ClipContextMenuItemProps = { icon: React.ComponentType<{ className?: string }>; onClick: () => void; children: React.ReactNode; disabled?: boolean; destructive?: boolean; suffix?: React.ReactNode; };
-type ShotActionSnapshot = {
-  showShotActions: boolean;
-  existingShots?: Shot[];
-  onCreateShotFromSelection?: () => Promise<Shot | null>;
-  onGenerateVideoFromSelection?: () => void | Promise<void>;
-  onNavigateToShot?: (shot: Shot) => void;
-  onOpenGenerateVideo?: (shot: Shot) => void;
-  isCreatingShot: boolean;
-};
 
 function ClipContextMenuItem({ icon: Icon, onClick, children, disabled = false, destructive = false, suffix }: ClipContextMenuItemProps) {
   return (
@@ -244,11 +235,6 @@ function ClipActionComponent({
   const menuRef = useRef<HTMLDivElement>(null);
   const openMenuWithSelectionRef = useRef<(clientX: number, clientY: number) => void>(() => undefined);
 
-  // Snapshot shot-creation state when the menu opens so that re-renders
-  // (e.g. from EffectRegistry) can't remove the items while the menu is visible.
-  const shotActionsSnapshotRef = useRef<ShotActionSnapshot>({ showShotActions: false, isCreatingShot: false });
-  const latestShotActionsRef = useRef<ShotActionSnapshot>({ showShotActions: false, isCreatingShot: false });
-
   const closeMenu = useCallback(() => setContextMenu(null), []);
   const openMenuAt = useCallback((x: number, y: number) => { setContextMenu({ x, y, clientX: x }); }, []);
 
@@ -270,18 +256,6 @@ function ClipActionComponent({
     };
   }, [contextMenu, closeMenu]);
 
-  latestShotActionsRef.current = {
-    showShotActions: canCreateShotFromSelection && (
-      typeof onCreateShotFromSelection === 'function' || typeof onGenerateVideoFromSelection === 'function'
-    ),
-    existingShots,
-    onCreateShotFromSelection,
-    onGenerateVideoFromSelection,
-    onNavigateToShot,
-    onOpenGenerateVideo,
-    isCreatingShot,
-  };
-
   openMenuWithSelectionRef.current = (clientX: number, clientY: number) => {
     if (!isSelected) {
       onSelect(action.id, clipMeta.track);
@@ -296,9 +270,6 @@ function ClipActionComponent({
     e.preventDefault();
     e.stopPropagation();
     const { clientX, clientY } = e;
-
-    // Snapshot shot actions at menu-open time so re-renders can't remove them
-    shotActionsSnapshotRef.current = latestShotActionsRef.current;
     openMenuWithSelectionRef.current(clientX, clientY);
   }, []);
   const isEffectLayer = clipMeta.clipType === 'effect-layer';
@@ -310,14 +281,9 @@ function ClipActionComponent({
       ? <Music2 className="h-3 w-3" />
       : <ImageIcon className="h-3 w-3" />;
   const hasBatchSelection = isSelected && selectedClipIds.length > 1;
-  // Use the snapshot so re-renders don't remove items while menu is open,
-  // but fall through to current props when the snapshot was taken before
-  // onSelect propagated (e.g. right-clicking an unselected clip).
-  const snap = shotActionsSnapshotRef.current;
-  const currentCanCreate = canCreateShotFromSelection && (
+  const showShotActions = canCreateShotFromSelection && (
     typeof onCreateShotFromSelection === 'function' || typeof onGenerateVideoFromSelection === 'function'
   );
-  const showShotActions = contextMenu ? (snap.showShotActions || currentCanCreate) : false;
   const hasActionsBeforeShotSection = (
     (!hasBatchSelection && isGenerationAsset && onUpdateVariant)
     || (!hasBatchSelection && isVariantStale && onDismissStale)
@@ -383,7 +349,6 @@ function ClipActionComponent({
             onClick={(e) => {
               e.stopPropagation();
               const { clientX, clientY } = e;
-              shotActionsSnapshotRef.current = latestShotActionsRef.current;
               openMenuWithSelectionRef.current(clientX, clientY);
             }}
           >
@@ -409,12 +374,12 @@ function ClipActionComponent({
           onSplitClipsAtPlayhead={onSplitClipsAtPlayhead}
           showShotActions={showShotActions}
           hasActionsBeforeShotSection={hasActionsBeforeShotSection}
-          existingShots={snap.existingShots?.length ? snap.existingShots : existingShots}
-          onCreateShotFromSelection={snap.onCreateShotFromSelection ?? onCreateShotFromSelection}
-          onGenerateVideoFromSelection={snap.onGenerateVideoFromSelection ?? onGenerateVideoFromSelection}
-          onNavigateToShot={snap.onNavigateToShot ?? onNavigateToShot}
-          onOpenGenerateVideo={snap.onOpenGenerateVideo ?? onOpenGenerateVideo}
-          isCreatingShot={snap.isCreatingShot}
+          existingShots={existingShots}
+          onCreateShotFromSelection={onCreateShotFromSelection}
+          onGenerateVideoFromSelection={onGenerateVideoFromSelection}
+          onNavigateToShot={onNavigateToShot}
+          onOpenGenerateVideo={onOpenGenerateVideo}
+          isCreatingShot={isCreatingShot}
           onDeleteClip={onDeleteClip}
           onDeleteClips={onDeleteClips}
         />

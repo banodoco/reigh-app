@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { renderHook } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   GENERATION_MULTI_DRAG_TYPE,
   setMultiGenerationDragData,
@@ -40,11 +40,43 @@ function createDropEvent(data: Record<string, string>, types: string[] = [GENERA
   } as unknown as React.DragEvent<HTMLDivElement>;
 }
 
+function createFileDropEvent(files: File[]) {
+  return {
+    preventDefault: vi.fn(),
+    stopPropagation: vi.fn(),
+    clientX: 120,
+    clientY: 48,
+    currentTarget: { dataset: {} as Record<string, string> },
+    dataTransfer: {
+      types: ['Files'],
+      files,
+      items: [],
+      getData: vi.fn(() => ''),
+      setData: vi.fn(),
+    },
+  } as unknown as React.DragEvent<HTMLDivElement>;
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+
+  return { promise, resolve, reject };
+}
+
 type DropTestData = {
   tracks: Array<{ id: string; kind: 'visual'; label: string }>;
-  rows: never[];
+  rows: Array<{ id: string; actions: Array<{ id: string; start: number; end: number; effectId: string }> }>;
   registry: { assets: Record<string, { file: string; type?: string; duration?: number }> };
 };
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('useExternalDrop', () => {
   it('accepts generation-multi drags during drag over', () => {
@@ -232,5 +264,105 @@ describe('useExternalDrop', () => {
       type: 'video/mp4',
       duration: 8,
     }, 'https://example.com/video.mp4');
+  });
+
+  it('tracks pending uploads per file until each async upload settles', async () => {
+    const dataRef = {
+      current: {
+        tracks: [{ id: 'V1', kind: 'visual', label: 'V1' }],
+        rows: [{ id: 'V1', actions: [] }],
+        registry: { assets: {} as Record<string, { file: string; type?: string; duration?: number }> },
+      },
+    } as React.MutableRefObject<DropTestData>;
+    const pendingOpsRef = { current: 0 } as React.MutableRefObject<number>;
+    const firstUpload = deferred<{ assetId: string; entry: { file: string; type: string } }>();
+    const secondUpload = deferred<{ assetId: string; entry: { file: string; type: string } }>();
+    const uploadQueue = [firstUpload, secondUpload];
+
+    const applyEdit = vi.fn();
+    const uploadAsset = vi
+      .fn<(file: File) => Promise<{ assetId: string; entry: { file: string; type: string } }>>()
+      .mockImplementation(() => {
+        const nextUpload = uploadQueue.shift();
+        if (!nextUpload) {
+          throw new Error('unexpected upload');
+        }
+
+        return nextUpload.promise;
+      });
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const coordinator = {
+      update: vi.fn(),
+      showSecondaryGhosts: vi.fn(),
+      end: vi.fn(),
+      lastPosition: {
+        time: 12,
+        rowIndex: 0,
+        trackId: 'V1',
+        trackKind: 'visual',
+        trackName: 'V1',
+        isNewTrack: false,
+        isNewTrackTop: false,
+        isReject: false,
+        newTrackKind: null,
+        screenCoords: {
+          rowTop: 0,
+          rowLeft: 0,
+          rowWidth: 0,
+          rowHeight: 0,
+          clipLeft: 0,
+          clipWidth: 0,
+          ghostCenter: 0,
+        },
+      },
+      editAreaRef: { current: null },
+    };
+
+    const { result } = renderHook(() => useExternalDrop({
+      dataRef,
+      pendingOpsRef,
+      scale: 1,
+      scaleWidth: 1,
+      selectedTrackId: null,
+      applyEdit,
+      patchRegistry: vi.fn(),
+      registerAsset: vi.fn(),
+      uploadAsset,
+      invalidateAssetRegistry: vi.fn(),
+      resolveAssetUrl: vi.fn(async (file: string) => `https://cdn.example/${file}`),
+      coordinator,
+      registerGenerationAsset: vi.fn(),
+      uploadImageGeneration: vi.fn(),
+      handleAssetDrop: vi.fn(),
+    }));
+
+    const event = createFileDropEvent([
+      new File(['one'], 'one.mp4', { type: 'video/mp4' }),
+      new File(['two'], 'two.mp4', { type: 'video/mp4' }),
+    ]);
+
+    await act(async () => {
+      await result.current.onTimelineDrop(event);
+    });
+
+    expect(uploadAsset).toHaveBeenCalledTimes(2);
+    expect(pendingOpsRef.current).toBe(2);
+
+    firstUpload.resolve({
+      assetId: 'asset-1',
+      entry: { file: 'one.mp4', type: 'video/mp4' },
+    });
+    await waitFor(() => {
+      expect(pendingOpsRef.current).toBe(1);
+    });
+
+    secondUpload.reject(new Error('upload failed'));
+    await waitFor(() => {
+      expect(pendingOpsRef.current).toBe(0);
+    });
+
+    expect(consoleError).toHaveBeenCalledWith('[drop] Upload failed:', expect.any(Error));
+    expect(applyEdit).toHaveBeenCalled();
   });
 });

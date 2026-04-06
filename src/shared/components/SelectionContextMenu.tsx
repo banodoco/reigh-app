@@ -82,6 +82,8 @@ export function SelectionContextMenu({
   }, [position]);
 
   // Stop native mousedown from reaching the document-level click-outside listener.
+  // Portal DOM hierarchy doesn't match the React tree, so Node.contains() can
+  // return false for elements that ARE visually inside the menu.
   useEffect(() => {
     const el = menuRef.current;
     if (!el) return;

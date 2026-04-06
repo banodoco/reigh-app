@@ -1,0 +1,65 @@
+{
+  "name": "final-polish-pass-on-shot-20260406-0506",
+  "idea": "Final polish pass on shot creation system. Four items: (1) Remove target_timeline_frame escape hatch from duplicate_as_new_generation RPC. The SQL currently has a branch that skips its own collision logic when target_timeline_frame is passed. Remove this parameter from the RPC signature and the SQL branch, so SQL always computes frame placement. Update the TypeScript types and any callers. (2) Remove debug console.log statements left from the debugging session. Search for [ShotCreate:resolve], [ShotCreate:path], [ShotCreate] in TimelineEditor.tsx and shotCreationPaths.ts. Remove all of them. (3) Investigate and document the Node.contains() portal issue. The three portaled menus (ClipContextMenu in ClipAction.tsx, SelectionContextMenu.tsx, TimelineCanvas shot group menu) all have stopPropagation workarounds because Node.contains() returns false for elements inside the portal. Write a minimal repro or investigate React 18 portal behavior to determine root cause. If fixable, fix it and remove the workarounds. If not fixable, add a clear shared comment block explaining the root cause so future developers understand. (4) Migrate addImageToShot mutation (useShotGenerationMutations.ts) from the old optimistic-then-replace pattern with temp IDs to the same atomic pattern. Currently it creates temp IDs in onMutate, writes to DB in mutationFn, then replaces temp IDs in onSuccess. The DB write (runAddImageMutation -> insertAutoPositionedShotGeneration) already returns the real data. Simplify: remove the optimistic temp ID scaffolding, use the DB response directly to update cache via upsertShotInCache or direct setQueryData, remove replaceOptimisticItemInCache/replaceOptimisticItemInShotsCache.",
+  "current_state": "planned",
+  "iteration": 1,
+  "created_at": "2026-04-06T03:06:52Z",
+  "config": {
+    "project_dir": "/Users/peteromalley/Documents/reigh-workspace/reigh-app",
+    "auto_approve": false,
+    "robustness": "light",
+    "agent": ""
+  },
+  "sessions": {
+    "claude_planner": {
+      "id": "89855a66-c59c-4d52-9ad3-bad7d10b54a6",
+      "mode": "persistent",
+      "created_at": "2026-04-06T03:10:16Z",
+      "last_used_at": "2026-04-06T03:10:16Z",
+      "refreshed": false
+    }
+  },
+  "plan_versions": [
+    {
+      "version": 1,
+      "file": "plan_v1.md",
+      "hash": "sha256:0701fd39ba97cf8df315d6a87ad56bf5a2f4ccab0ab3fa985b09b5c791ad5019",
+      "timestamp": "2026-04-06T03:10:16Z"
+    }
+  ],
+  "history": [
+    {
+      "step": "init",
+      "timestamp": "2026-04-06T03:06:52Z",
+      "duration_ms": 0,
+      "cost_usd": 0.0,
+      "result": "success",
+      "environment": {
+        "claude": true,
+        "codex": true
+      }
+    },
+    {
+      "step": "plan",
+      "timestamp": "2026-04-06T03:10:16Z",
+      "duration_ms": 199395,
+      "cost_usd": 0.7782173499999998,
+      "result": "success",
+      "session_mode": "persistent",
+      "session_id": "89855a66-c59c-4d52-9ad3-bad7d10b54a6",
+      "agent": "claude",
+      "output_file": "plan_v1.md",
+      "artifact_hash": "sha256:0701fd39ba97cf8df315d6a87ad56bf5a2f4ccab0ab3fa985b09b5c791ad5019"
+    }
+  ],
+  "meta": {
+    "significant_counts": [],
+    "weighted_scores": [],
+    "plan_deltas": [],
+    "recurring_critiques": [],
+    "total_cost_usd": 0.778217,
+    "overrides": [],
+    "notes": []
+  },
+  "last_gate": {}
+}

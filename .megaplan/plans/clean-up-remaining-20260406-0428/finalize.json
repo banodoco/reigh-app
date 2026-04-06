@@ -4,12 +4,15 @@
       "id": "T1",
       "description": "Phase 1: Apply stopPropagation portal workaround to TimelineCanvas shot group menu. Read the existing workarounds in ClipAction.tsx:92-101 and SelectionContextMenu.tsx:84-91 for the pattern. Add the same useEffect + stopPropagation pattern to the shotGroupMenuRef in TimelineCanvas.tsx near line 288. Add a matching comment explaining the portal Node.contains() limitation. Verify all three menus now have consistent workaround code and comments.",
       "depends_on": [],
-      "status": "pending",
-      "executor_notes": "",
+      "status": "done",
+      "executor_notes": "Verified the TimelineCanvas shot-group menu now uses the same portal mousedown stopPropagation workaround/comment pattern as ClipAction, and SelectionContextMenu now carries the same portal-limitation comment. Covered by the shared portal-menu test run.",
       "files_changed": [
-        "src/tools/video-editor/components/TimelineEditor/TimelineCanvas.tsx"
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/video-editor/components/TimelineEditor/TimelineCanvas.tsx",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/shared/components/SelectionContextMenu.tsx"
       ],
-      "commands_run": [],
+      "commands_run": [
+        "npm exec vitest run --config config/testing/vitest.config.ts src/tools/video-editor/components/TimelineEditor/ClipAction.test.tsx src/shared/components/SelectionContextMenu.test.tsx src/tools/video-editor/components/TimelineEditor/TimelineEditor.test.ts src/tools/travel-between-images/components/Timeline/hooks/timeline-core/useTimelineOrchestrator.test.ts src/shared/hooks/shots/__tests__/useDuplicateAsNewGeneration.test.ts src/shared/hooks/shots/externalImageDrop.test.ts src/shared/hooks/shotCreation/shotCreationPaths.test.ts"
+      ],
       "evidence_files": [
         "src/tools/video-editor/components/TimelineEditor/ClipAction.tsx",
         "src/shared/components/SelectionContextMenu.tsx"
@@ -20,18 +23,22 @@
       "id": "T2",
       "description": "Phase 2: Make SQL authoritative for travel-between-images duplicate frame placement. (1) In useDuplicateAction.ts (~line 109), stop passing target_timeline_frame when duplicating from the timeline. Instead pass timeline_frame (current frame) and next_timeline_frame so the SQL's midpoint/+30 logic runs. (2) In useTimelineOrchestratorActions.ts:160-169, remove the calculateDuplicateFrame call and setPendingDuplicateFrame(finalFrame). Pass timelineFrame and the next image's frame to onImageDuplicate. (3) Update the onImageDuplicate callback signature through the chain (useShotSettingsValue.ts:246-248 \u2192 TimelineContainer.tsx \u2192 Timeline/index.tsx) to accept (imageId, currentFrame, nextFrame?) instead of (imageId, targetFrame). (4) Use the RPC's returned timeline_frame in the mutation's onSuccess to update UI position. (5) Add a doc comment to calculateDuplicateFrame in timelinePositionCalculator.ts stating: 'For optimistic/preview use. For duplicate_as_new_generation, SQL is authoritative \u2014 pass timeline_frame + next_timeline_frame instead of pre-computing target_timeline_frame.' (6) Update tests in useDuplicateAsNewGeneration.test.ts and any travel-between-images tests that assert on target_timeline_frame parameter passing.",
       "depends_on": [],
-      "status": "pending",
-      "executor_notes": "",
+      "status": "done",
+      "executor_notes": "Verified the travel-between-images duplicate path now forwards currentFrame + nextFrame and stops precomputing/passing target_timeline_frame. The optimistic duplicate marker now uses the source frame while the RPC-returned timeline_frame remains authoritative for the new item position. Duplicate RPC/unit tests passed.",
       "files_changed": [
-        "src/shared/hooks/shots/useDuplicateAsNewGeneration.ts",
-        "src/tools/video-editor/hooks/useTimelineOrchestratorActions.ts",
-        "src/tools/video-editor/hooks/useShotSettingsValue.ts",
-        "src/tools/video-editor/components/TimelineContainer.tsx",
-        "src/tools/video-editor/components/Timeline/index.tsx",
-        "src/shared/hooks/shots/__tests__/useDuplicateAsNewGeneration.test.ts",
-        "src/tools/video-editor/hooks/timelinePositionCalculator.ts"
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/travel-between-images/components/Timeline/hooks/timeline-core/useTimelineOrchestratorActions.ts",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/travel-between-images/components/ShotEditor/hooks/actions/useDuplicateAction.ts",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/travel-between-images/components/ShotEditor/hooks/editor-state/useShotSettingsValue.ts",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/travel-between-images/components/Timeline/index.tsx",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/travel-between-images/components/Timeline/hooks/timeline-core/useTimelineOrchestrator.ts",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/travel-between-images/components/Timeline/TimelineContainer/types.ts",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/travel-between-images/components/Timeline/hooks/timeline-core/useTimelineOrchestrator.test.ts",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/shared/hooks/shots/__tests__/useDuplicateAsNewGeneration.test.ts",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/shared/lib/timelinePositionCalculator.ts"
       ],
-      "commands_run": [],
+      "commands_run": [
+        "npm exec vitest run --config config/testing/vitest.config.ts src/tools/video-editor/components/TimelineEditor/ClipAction.test.tsx src/shared/components/SelectionContextMenu.test.tsx src/tools/video-editor/components/TimelineEditor/TimelineEditor.test.ts src/tools/travel-between-images/components/Timeline/hooks/timeline-core/useTimelineOrchestrator.test.ts src/shared/hooks/shots/__tests__/useDuplicateAsNewGeneration.test.ts src/shared/hooks/shots/externalImageDrop.test.ts src/shared/hooks/shotCreation/shotCreationPaths.test.ts"
+      ],
       "evidence_files": [],
       "reviewer_verdict": ""
     },
@@ -39,12 +46,15 @@
       "id": "T3",
       "description": "Phase 3a: Extract stable assetKey\u2192generationId mapping from registry in TimelineEditor.tsx. (1) Add a useMemo that extracts Record<string, string> from data.registry.assets, mapping each asset key to its generationId. (2) Create a useStableValue hook (inline, ~10 lines, shallow object comparison) to keep the same reference when keys/values haven't changed. (3) Update resolveSelectedGenerationIdsForShotCreation signature to accept assetGenerationMap: Record<string, string> instead of registry: AssetRegistry. Change line 54 from registry.assets[assetKey] to assetGenerationMap[assetKey]. (4) Update the selectionShotCreationState memo (line 234) to depend on [data?.rows, data?.meta, stableAssetGenerationMap, selectedClipIds] instead of [data, selectedClipIds]. (5) Verify handleCreateShotFromSelection and handleGenerateVideoFromSelection callbacks (lines 263-294) also stabilize.",
       "depends_on": [],
-      "status": "pending",
-      "executor_notes": "",
+      "status": "done",
+      "executor_notes": "Verified TimelineEditor now extracts a stable assetKey->generationId map, resolveSelectedGenerationIdsForShotCreation reads that plain Record, and selectionShotCreationState depends on data.rows/data.meta/stableAssetGenerationMap instead of the whole data object. TimelineEditor unit tests passed.",
       "files_changed": [
-        "src/tools/video-editor/components/TimelineEditor/TimelineEditor.tsx"
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/video-editor/components/TimelineEditor/TimelineEditor.tsx",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/video-editor/components/TimelineEditor/TimelineEditor.test.ts"
       ],
-      "commands_run": [],
+      "commands_run": [
+        "npm exec vitest run --config config/testing/vitest.config.ts src/tools/video-editor/components/TimelineEditor/ClipAction.test.tsx src/shared/components/SelectionContextMenu.test.tsx src/tools/video-editor/components/TimelineEditor/TimelineEditor.test.ts src/tools/travel-between-images/components/Timeline/hooks/timeline-core/useTimelineOrchestrator.test.ts src/shared/hooks/shots/__tests__/useDuplicateAsNewGeneration.test.ts src/shared/hooks/shots/externalImageDrop.test.ts src/shared/hooks/shotCreation/shotCreationPaths.test.ts"
+      ],
       "evidence_files": [],
       "reviewer_verdict": ""
     },
@@ -54,12 +64,16 @@
       "depends_on": [
         "T3"
       ],
-      "status": "pending",
-      "executor_notes": "",
+      "status": "done",
+      "executor_notes": "Verified ClipAction now renders shot actions directly from live props with the snapshot refs/type/capture logic removed. Confirmed there are no remaining snapshot references via ripgrep, and the full ClipAction test module passed.",
       "files_changed": [
-        "src/tools/video-editor/components/TimelineEditor/ClipAction.tsx"
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/video-editor/components/TimelineEditor/ClipAction.tsx",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/video-editor/components/TimelineEditor/ClipAction.test.tsx"
       ],
-      "commands_run": [],
+      "commands_run": [
+        "rg -n \"shotActionsSnapshotRef|latestShotActionsRef|ShotActionSnapshot|snapshot\" src/tools/video-editor/components/TimelineEditor/ClipAction.tsx src/tools/video-editor/components/TimelineEditor/ClipAction.test.tsx",
+        "npm exec vitest run --config config/testing/vitest.config.ts src/tools/video-editor/components/TimelineEditor/ClipAction.test.tsx"
+      ],
       "evidence_files": [],
       "reviewer_verdict": ""
     },
@@ -67,14 +81,18 @@
       "id": "T5",
       "description": "Phase 4: Eliminate post-upload fetch in createShotWithFilesPath. (1) Update processSingleDroppedImage return type (externalImageDrop.ts:283-350) to include full generation metadata: generationId, location, thumbnail_url, type, created_at, params, primary_variant_id, shot_generation_id, timeline_frame. The createGenerationForUploadedImage call at line 94 already does .select().single() which returns the full row \u2014 capture and return it. (2) Update processDroppedImages (externalImageDrop.ts:352-396) to accumulate per-file metadata into an array and include it in return value. (3) Update uploadToShot mutation (useShotCreation.ts:65-91) to surface the accumulated metadata in its return value. (4) Update createShotWithFilesPath (shotCreationPaths.ts:187-250): use generation metadata from upload result to build GenerationRow[] directly, remove the post-upload shot_generations fetch (lines 199-226), keep cache hydration but feed from upload result. (5) Check if mapJoinedShotGenerationToRow (shotCreationPaths.ts:78-112) is still used elsewhere \u2014 clean up if only used by removed fetch. (6) Update tests in shotCreationPaths.test.ts and externalImageDrop tests.",
       "depends_on": [],
-      "status": "pending",
-      "executor_notes": "",
+      "status": "done",
+      "executor_notes": "Verified the upload pipeline now returns generationMetadata per file, and createShotWithFilesPath hydrates cache directly from that metadata with no post-upload shot_generations fetch. Upload-path and shot-creation-path tests passed.",
       "files_changed": [
-        "src/shared/hooks/shots/externalImageDrop.ts",
-        "src/shared/hooks/shots/useShotCreation.ts",
-        "src/shared/hooks/shotCreation/shotCreationPaths.ts"
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/shared/hooks/shots/externalImageDrop.ts",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/shared/hooks/shotCreation/shotCreationTypes.ts",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/shared/hooks/shotCreation/shotCreationPaths.ts",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/shared/hooks/shots/externalImageDrop.test.ts",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/shared/hooks/shotCreation/shotCreationPaths.test.ts"
       ],
-      "commands_run": [],
+      "commands_run": [
+        "npm exec vitest run --config config/testing/vitest.config.ts src/tools/video-editor/components/TimelineEditor/ClipAction.test.tsx src/shared/components/SelectionContextMenu.test.tsx src/tools/video-editor/components/TimelineEditor/TimelineEditor.test.ts src/tools/travel-between-images/components/Timeline/hooks/timeline-core/useTimelineOrchestrator.test.ts src/shared/hooks/shots/__tests__/useDuplicateAsNewGeneration.test.ts src/shared/hooks/shots/externalImageDrop.test.ts src/shared/hooks/shotCreation/shotCreationPaths.test.ts"
+      ],
       "evidence_files": [],
       "reviewer_verdict": ""
     },
@@ -111,35 +129,35 @@
       "id": "SC1",
       "task_id": "T1",
       "question": "Does the TimelineCanvas shot group menu now have the same stopPropagation useEffect pattern and portal-limitation comment as ClipAction.tsx and SelectionContextMenu.tsx?",
-      "executor_note": "",
+      "executor_note": "Verified TimelineCanvas, ClipAction, and SelectionContextMenu now share the same portaled-menu mousedown stopPropagation workaround and portal-limitation comment.",
       "verdict": ""
     },
     {
       "id": "SC2",
       "task_id": "T2",
       "question": "Is target_timeline_frame no longer passed from the travel-between-images duplicate path to the RPC? Are timeline_frame and next_timeline_frame passed instead, letting SQL compute placement?",
-      "executor_note": "",
+      "executor_note": "Verified the travel-between-images duplicate path no longer precomputes/passes target_timeline_frame. It now forwards timelineFrame + nextTimelineFrame to the RPC path and lets SQL resolve placement.",
       "verdict": ""
     },
     {
       "id": "SC3",
       "task_id": "T3",
       "question": "Does the selectionShotCreationState memo depend on stableAssetGenerationMap (a Record<string,string>) rather than the full data object, so registry _version bumps that don't change generationId mappings don't trigger recomputation?",
-      "executor_note": "",
+      "executor_note": "Verified selectionShotCreationState now depends on stableAssetGenerationMap instead of the full data object, so registry churn without generation-id mapping changes does not force recomputation.",
       "verdict": ""
     },
     {
       "id": "SC4",
       "task_id": "T4",
       "question": "Are shotActionsSnapshotRef, latestShotActionsRef, ShotActionSnapshot type, and all snapshot capture/fallback logic fully removed from ClipAction.tsx with no remaining references?",
-      "executor_note": "",
+      "executor_note": "Verified shotActionsSnapshotRef, latestShotActionsRef, ShotActionSnapshot, and the menu snapshot fallback logic are fully removed from ClipAction.tsx with no remaining references.",
       "verdict": ""
     },
     {
       "id": "SC5",
       "task_id": "T5",
       "question": "Does createShotWithFilesPath now use generation metadata returned from the upload pipeline for cache hydration, with zero post-upload queries to shot_generations?",
-      "executor_note": "",
+      "executor_note": "Verified createShotWithFilesPath hydrates from upload-returned generationMetadata and contains no post-upload shot_generations fetch.",
       "verdict": ""
     },
     {

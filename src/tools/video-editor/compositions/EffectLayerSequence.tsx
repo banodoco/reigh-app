@@ -1,5 +1,5 @@
 import type { FC, ReactNode } from 'react';
-import { Sequence } from 'remotion';
+import { Sequence, useCurrentFrame } from 'remotion';
 import {
   continuousEffects,
   getEffectRegistry,
@@ -17,9 +17,12 @@ interface EffectLayerSequenceProps {
 
 /**
  * Applies a continuous effect for the effect-layer clip's time range
- * while preserving the children's original composition time context.
+ * while always passing children through. Outside the effect's range,
+ * children render unmodified; inside the range, the effect is applied
+ * with a local frame context so effect animations start from 0.
  */
 export const EffectLayerSequence: FC<EffectLayerSequenceProps> = ({ clip, fps, children }) => {
+  const frame = useCurrentFrame();
   const startFrame = Math.max(0, secondsToFrames(clip.at, fps));
   const durationInFrames = getClipDurationInFrames(clip, fps);
 
@@ -33,6 +36,14 @@ export const EffectLayerSequence: FC<EffectLayerSequenceProps> = ({ clip, fps, c
     return <>{children}</>;
   }
 
+  // Outside the effect's time range, pass children through unchanged.
+  if (frame < startFrame || frame >= startFrame + durationInFrames) {
+    return <>{children}</>;
+  }
+
+  // Inside the range: wrap in a Sequence to give the effect a local frame
+  // context (frame 0 = effect start), and nest children in an offsetting
+  // Sequence so they still see the original composition time.
   const inner = startFrame === 0 ? children : <Sequence from={-startFrame}>{children}</Sequence>;
 
   return (
