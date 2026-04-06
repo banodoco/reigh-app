@@ -32,11 +32,9 @@ import { usePinnedGroupSync, usePinnedShotGroups } from '@/tools/video-editor/ho
 import { useShotGroups } from '@/tools/video-editor/hooks/useShotGroups';
 import { useStaleVariants } from '@/tools/video-editor/hooks/useStaleVariants';
 import { useSwitchToFinalVideo } from '@/tools/video-editor/hooks/useSwitchToFinalVideo';
-import type { AssetRegistry, ResolvedTimelineClip, TrackDefinition } from '@/tools/video-editor/types';
+import type { ResolvedTimelineClip, TrackDefinition } from '@/tools/video-editor/types';
 import type { TimelineAction, TimelineRow } from '@/tools/video-editor/types/timeline-canvas';
 
-const EMPTY_CLIP_META: Record<string, ClipMeta> = {};
-const EMPTY_ASSET_REGISTRY: AssetRegistry = { assets: {} };
 const EMPTY_ASSET_GENERATION_MAP: Record<string, string> = {};
 
 function useStableValue<T extends Record<string, string>>(value: T): T {
@@ -285,8 +283,6 @@ function TimelineEditorComponent() {
   const pixelsPerSecond = scaleWidth / scale;
   const shotGroups = useShotGroups(
     data?.rows ?? [],
-    data?.meta ?? EMPTY_CLIP_META,
-    data?.registry ?? EMPTY_ASSET_REGISTRY,
     shots,
     data?.config.pinnedShotGroups,
   );
@@ -603,9 +599,6 @@ function TimelineEditorComponent() {
           activeTaskClipIds={activeTaskClipIds}
           onShotGroupNavigate={handleShotGroupNavigate}
           onShotGroupGenerateVideo={handleShotGroupGenerateVideo}
-          onShotGroupPin={(group) => {
-            pinGroup(group.shotId, group.trackId, group.clipIds);
-          }}
           onShotGroupUnpin={(group) => {
             unpinGroup(group.shotId, group.trackId);
           }}
