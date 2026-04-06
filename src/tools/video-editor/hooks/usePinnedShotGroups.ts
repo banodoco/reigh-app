@@ -39,13 +39,14 @@ function clonePinnedShotGroup(group: PinnedShotGroup): PinnedShotGroup {
   };
 }
 
-function isVideoLikeShotImage(image: NonNullable<Shot['images']>[number]) {
-  const contentType = image.contentType ?? image.type ?? '';
-  return contentType.startsWith('video/');
-}
-
 function getSyncableShotImages(shot: Shot | undefined) {
-  return (shot?.images ?? []).filter((image) => !isVideoLikeShotImage(image));
+  return (shot?.images ?? []).filter((image) => {
+    // Only include positioned image-type generations
+    const contentType = image.contentType ?? image.type ?? '';
+    if (contentType.startsWith('video') || contentType === 'video') return false;
+    if (image.timeline_frame == null) return false;
+    return true;
+  });
 }
 
 function areStringArraysEqual(left: string[], right: string[]) {
