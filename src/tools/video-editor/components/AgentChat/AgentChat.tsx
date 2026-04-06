@@ -208,10 +208,10 @@ export function AgentChat({ timelineId }: AgentChatProps) {
     }
   }, [isOpen, scrollToBottom]);
 
-  // Cmd+R global shortcut — toggle recording without opening chat
+  // Cmd+Shift+R global shortcut — toggle recording without opening chat
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === 'r') {
+      if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key === 'r') {
         event.preventDefault();
         if (voice.isRecording) {
           voice.stopRecording();
@@ -319,7 +319,7 @@ export function AgentChat({ timelineId }: AgentChatProps) {
           'bg-primary text-primary-foreground',
         )}
         style={positionStyle}
-        title="Timeline Agent (Cmd+R to talk)"
+        title="Timeline Agent (Cmd+Shift+R to talk)"
       >
         <MessageSquareText className="h-6 w-6" />
         {hasMessages && (
@@ -387,7 +387,7 @@ export function AgentChat({ timelineId }: AgentChatProps) {
           {!activeSession.isLoading && renderedTurns.length === 0 && (
             <div className="py-8 text-center text-sm text-muted-foreground">
               <p>Ask me to edit your timeline.</p>
-              <p className="mt-1 text-xs">Press <kbd className="rounded border border-border px-1 py-0.5 text-[10px]">Cmd+R</kbd> to talk</p>
+              <p className="mt-1 text-xs">Press <kbd className="rounded border border-border px-1 py-0.5 text-[10px]">Cmd+Shift+R</kbd> to talk</p>
             </div>
           )}
 
@@ -464,7 +464,7 @@ export function AgentChat({ timelineId }: AgentChatProps) {
               type="text"
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
-              placeholder={voice.isRecording ? 'Recording...' : 'Type or press Cmd+R to talk...'}
+              placeholder={voice.isRecording ? 'Recording...' : 'Type or press Cmd+Shift+R to talk...'}
               className="h-10 flex-1 rounded-xl border border-border/70 bg-card px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/50"
               disabled={!activeSessionId || isProcessing || voice.isRecording || voice.isProcessing}
               onKeyDown={(event) => {
@@ -483,7 +483,7 @@ export function AgentChat({ timelineId }: AgentChatProps) {
                 className="h-10 w-10 rounded-xl"
                 onClick={() => voice.isRecording ? voice.stopRecording() : voice.startRecording()}
                 disabled={!activeSessionId || voice.isProcessing || sendMessage.isPending}
-                title={voice.isRecording ? 'Stop recording' : 'Voice input (Cmd+R)'}
+                title={voice.isRecording ? 'Stop recording' : 'Voice input (Cmd+Shift+R)'}
               >
                 {voice.isRecording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
               </Button>
