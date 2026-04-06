@@ -223,4 +223,31 @@ export const TIMELINE_AGENT_TOOLS: TimelineAgentToolDefinition[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "get_tasks",
+      description:
+        "Fetch recent tasks for this project. Use to check task status, see errors, or find completed generation outputs.",
+      parameters: {
+        type: "object",
+        properties: {
+          status: {
+            type: "string",
+            enum: ["Queued", "In Progress", "Complete", "Failed", "Cancelled"],
+            description: "Filter by task status. Omit to see all recent tasks.",
+          },
+          task_id: {
+            type: "string",
+            description: "Fetch a specific task by ID. When provided, other filters are ignored.",
+          },
+          limit: {
+            type: "number",
+            description: "Max tasks to return (default 10, max 50).",
+          },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
 ];

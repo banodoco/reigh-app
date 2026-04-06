@@ -5,6 +5,7 @@ import {
   SOFT_TIMEOUT_MS,
 } from "./config.ts";
 import {
+  fetchProjectTasks,
   loadActiveReference,
   loadProjectImageSettings,
   loadShotVideoTravelSettings,
@@ -162,6 +163,45 @@ async function executeCreateShot(
   };
 }
 
+async function executeGetTasks(
+  args: Record<string, unknown>,
+  timelineState: TimelineState,
+  supabaseAdmin: SupabaseAdmin,
+): Promise<ToolResult> {
+  const tasks = await fetchProjectTasks(supabaseAdmin, timelineState.projectId, {
+    status: typeof args.status === "string" ? args.status : undefined,
+    taskId: typeof args.task_id === "string" ? args.task_id : undefined,
+    limit: typeof args.limit === "number" ? args.limit : undefined,
+  });
+
+  if (tasks.length === 0) {
+    return { result: "No tasks found." };
+  }
+
+  const lines = tasks.map((t) => {
+    const age = timeSince(t.created_at);
+    let line = `• ${t.id.slice(0, 8)} | ${t.task_type} | ${t.status} | ${age}`;
+    if (t.params_summary) line += ` | ${t.params_summary}`;
+    if (t.error_message) line += `\n  Error: ${t.error_message.slice(0, 200)}`;
+    if (t.status === "In Progress" && t.generation_started_at) {
+      line += ` | running ${timeSince(t.generation_started_at)}`;
+    }
+    if (t.status === "Complete" && t.cost_cents != null) {
+      line += ` | cost: ${t.cost_cents}¢`;
+    }
+    return line;
+  });
+
+  return { result: `${tasks.length} task(s):\n${lines.join("\n")}` };
+}
+
+function timeSince(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  if (ms < 60_000) return `${Math.round(ms / 1000)}s ago`;
+  if (ms < 3_600_000) return `${Math.round(ms / 60_000)}m ago`;
+  return `${Math.round(ms / 3_600_000)}h ago`;
+}
+
 export async function executeToolCall(
   toolCall: ExtractedToolCall,
   timelineState: TimelineState,
@@ -206,6 +246,10 @@ export async function executeToolCall(
 
   if (toolCall.name === "create_shot") {
     return await executeCreateShot(toolArgs, timelineState, supabaseAdmin);
+  }
+
+  if (toolCall.name === "get_tasks") {
+    return await executeGetTasks(toolArgs, timelineState, supabaseAdmin);
   }
 
   return { result: `Unknown tool: ${toolCall.name}.` };

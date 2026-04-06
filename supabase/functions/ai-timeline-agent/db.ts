@@ -671,3 +671,78 @@ export async function persistSessionState(
     throw new Error(`Failed to persist session state: ${error.message}`);
   }
 }
+
+// ── Task queries ──────────────────────────────────────────────────────
+
+export interface AgentTaskSummary {
+  id: string;
+  task_type: string;
+  status: string;
+  created_at: string;
+  generation_started_at: string | null;
+  generation_processed_at: string | null;
+  error_message: string | null;
+  cost_cents: number | null;
+  attempts: number;
+  params_summary: string;
+}
+
+const TASK_SELECT_COLUMNS =
+  "id, task_type, status, created_at, generation_started_at, generation_processed_at, error_message, cost_cents, attempts, params";
+
+function summarizeTaskParams(params: unknown): string {
+  if (!isRecord(params)) return "";
+  const parts: string[] = [];
+  if (typeof params.model_name === "string") parts.push(`model=${params.model_name}`);
+  if (typeof params.prompt === "string") parts.push(`prompt="${params.prompt.slice(0, 80)}${params.prompt.length > 80 ? "…" : ""}"`);
+  if (typeof params.task_type === "string" && !parts.length) parts.push(`type=${params.task_type}`);
+  return parts.join(", ");
+}
+
+function rowToTaskSummary(row: Record<string, unknown>): AgentTaskSummary {
+  return {
+    id: String(row.id ?? ""),
+    task_type: String(row.task_type ?? ""),
+    status: String(row.status ?? ""),
+    created_at: String(row.created_at ?? ""),
+    generation_started_at: row.generation_started_at ? String(row.generation_started_at) : null,
+    generation_processed_at: row.generation_processed_at ? String(row.generation_processed_at) : null,
+    error_message: row.error_message ? String(row.error_message) : null,
+    cost_cents: typeof row.cost_cents === "number" ? row.cost_cents : null,
+    attempts: typeof row.attempts === "number" ? row.attempts : 0,
+    params_summary: summarizeTaskParams(row.params),
+  };
+}
+
+export async function fetchProjectTasks(
+  supabaseAdmin: SupabaseAdmin,
+  projectId: string,
+  options?: { status?: string; taskId?: string; limit?: number },
+): Promise<AgentTaskSummary[]> {
+  if (options?.taskId) {
+    const { data, error } = await supabaseAdmin
+      .from("tasks")
+      .select(TASK_SELECT_COLUMNS)
+      .eq("id", options.taskId)
+      .maybeSingle();
+    if (error) throw new Error(`Failed to fetch task: ${error.message}`);
+    if (!data || !isRecord(data)) return [];
+    return [rowToTaskSummary(data)];
+  }
+
+  let query = supabaseAdmin
+    .from("tasks")
+    .select(TASK_SELECT_COLUMNS)
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: false })
+    .limit(Math.min(options?.limit ?? 10, 50));
+
+  if (options?.status) {
+    query = query.eq("status", options.status);
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(`Failed to fetch tasks: ${error.message}`);
+  if (!Array.isArray(data)) return [];
+  return data.filter(isRecord).map(rowToTaskSummary);
+}
