@@ -12,7 +12,7 @@ export const TIMELINE_AGENT_TOOLS: TimelineAgentToolDefinition[] = [
     type: "function",
     function: {
       name: "run",
-      description: "Execute a timeline editing command. Commands: view, move <clipId> <seconds>, trim <clipId> [--from N] [--to N] [--duration N], delete <clipId>, set <clipId> <property> <value>, add-text <track> <at> <duration> <text>, add-media <track> <at> <generation_id> <url> [--type image|video], find-issues",
+      description: "Execute a timeline editing command. Commands: view, move <clipId> <seconds>, split <clipId> <time>, trim <clipId> [--from N] [--to N] [--duration N], delete <clipId>, set <clipId> <property> <value>, add-text <track> <at> <duration> <text>, add-media <track> <at> <generation_id> <url> [--type image|video], swap <clipId> <generation_id> <url> [--type image|video], duplicate <clipId> [count], query, undo, find-issues",
       parameters: {
         type: "object",
         properties: {
@@ -102,6 +102,29 @@ export const TIMELINE_AGENT_TOOLS: TimelineAgentToolDefinition[] = [
           },
         },
         required: ["generation_id"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_shot",
+      description: "Create a named shot and group existing generation IDs into it.",
+      parameters: {
+        type: "object",
+        properties: {
+          shot_name: {
+            type: "string",
+            description: "Name for the shot to create.",
+          },
+          generation_ids: {
+            type: "array",
+            items: { type: "string" },
+            description: "Existing generation IDs to attach to the shot.",
+          },
+        },
+        required: ["shot_name", "generation_ids"],
         additionalProperties: false,
       },
     },

@@ -11,7 +11,7 @@ export type ExtractedToolCall = {
   parseError: string | null;
 };
 
-const COMMAND_VERBS = /^(?:view|move|trim|delete|rm|set|set-text|settext|add-text|addtext|text|duplicate|dup|clone|find-issues|findissues|issues|generate|gen)\b/;
+const COMMAND_VERBS = /^(?:view|move|split|trim|delete|rm|set|set-text|settext|add-text|addtext|text|swap|duplicate|dup|clone|query|undo|find-issues|findissues|issues|generate|gen)\b/;
 
 function cleanCommand(raw: string): string {
   return raw

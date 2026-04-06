@@ -14,13 +14,16 @@ import { createGenerationTask } from "./generation.ts";
 const COMMAND_TO_TOOL: Record<string, string> = {
   view: "view_timeline",
   move: "move_clip",
+  split: "split_clip",
   trim: "trim_clip",
   delete: "delete_clip",
   set: "set_clip_property",
   "set-text": "set_text_content",
   duplicate: "duplicate_clip",
   "add-media": "add_media_clip",
+  swap: "swap_clip_asset",
   "add-text": "add_text_clip",
+  query: "query_timeline",
   "find-issues": "find_issues",
   // "repeat" is handled specially in executeCommand, not mapped to a tool
 };
@@ -29,6 +32,7 @@ function commandToToolArgs(parsed: ParsedCommand): Record<string, unknown> {
   switch (parsed.type) {
     case "view": return {};
     case "move": return { clipId: parsed.clipId, at: parsed.at };
+    case "split": return { clipId: parsed.clipId, time: parsed.time };
     case "trim": return { clipId: parsed.clipId, from: parsed.from, to: parsed.to, duration: parsed.duration };
     case "delete": return { clipId: parsed.clipId };
     case "set-text": return { clipId: parsed.clipId, text: parsed.text };
@@ -36,6 +40,8 @@ function commandToToolArgs(parsed: ParsedCommand): Record<string, unknown> {
     case "set": return { clipId: parsed.clipId, property: parsed.property, value: parsed.value };
     case "add-text": return { track: parsed.track, at: parsed.at, duration: parsed.duration, text: parsed.text };
     case "add-media": return { track: parsed.track, at: parsed.at, mediaType: parsed.mediaType };
+    case "swap": return { clipId: parsed.clipId };
+    case "query": return {};
     case "find-issues": return {};
     case "generate": return { prompt: parsed.prompt, count: parsed.count };
     default: return {};
@@ -70,6 +76,7 @@ export async function executeCommand(
 
   // Handle repeat: expand template, execute all in memory, save once at end
   if (parsed.type === "repeat") {
+    state.previousConfig = structuredClone(state.config);
     const errorMessages: string[] = [];
     let errors = 0;
     let succeeded = 0;
@@ -99,8 +106,8 @@ export async function executeCommand(
         continue;
       }
 
-      if (subParsed.type === "add-media") {
-        errorMessages.push(`${i + 1}. add-media is not supported inside repeat.`);
+      if (subParsed.type === "add-media" || subParsed.type === "swap") {
+        errorMessages.push(`${i + 1}. ${subParsed.type} is not supported inside repeat.`);
         errors++;
         if (errors >= 3) { errorMessages.push("Stopped after 3 errors."); break; }
         continue;
@@ -183,6 +190,67 @@ export async function executeCommand(
       assetKey,
       mediaType: parsed.mediaType,
     };
+  }
+
+  if (parsed.type === "swap") {
+    const assetKey = `asset-${crypto.randomUUID().slice(0, 6)}`;
+    const assetEntry: AssetRegistryEntry = {
+      file: parsed.url,
+      type: parsed.mediaType === "video" ? "video/mp4" : "image/png",
+      generationId: parsed.generationId,
+    };
+
+    const { error } = await supabaseAdmin.rpc("upsert_asset_registry_entry", {
+      p_timeline_id: timelineId,
+      p_asset_id: assetKey,
+      p_entry: assetEntry,
+    }).maybeSingle();
+    if (error) {
+      return { result: `Failed to register asset ${assetKey}: ${error.message}` };
+    }
+
+    state.registry = {
+      ...state.registry,
+      assets: {
+        ...state.registry.assets,
+        [assetKey]: assetEntry,
+      },
+    };
+    handlerArgs = {
+      clipId: parsed.clipId,
+      assetKey,
+      mediaType: parsed.mediaType,
+    };
+  }
+
+  if (parsed.type === "undo") {
+    if (!state.previousConfig) {
+      return { result: "Nothing to undo." };
+    }
+
+    const nextVersion = await saveTimelineConfigVersioned(
+      supabaseAdmin,
+      timelineId,
+      state.configVersion,
+      state.previousConfig,
+    );
+
+    if (nextVersion === null) {
+      return { result: "Version conflict. Please retry." };
+    }
+
+    const oldConfig = state.config;
+    state.config = state.previousConfig;
+    state.previousConfig = oldConfig;
+    state.configVersion = nextVersion;
+    return {
+      config: state.config,
+      result: "Undid the last timeline change.",
+    };
+  }
+
+  if (parsed.type !== "view" && parsed.type !== "query" && parsed.type !== "find-issues") {
+    state.previousConfig = structuredClone(state.config);
   }
 
   // Route to timeline tool

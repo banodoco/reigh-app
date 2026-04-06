@@ -57,6 +57,7 @@ export type SupabaseAdmin = {
 
 export type TimelineState = {
   config: TimelineConfig;
+  previousConfig?: TimelineConfig;
   configVersion: number;
   registry: AssetRegistry;
   projectId: string;

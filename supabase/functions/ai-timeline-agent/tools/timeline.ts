@@ -141,6 +141,68 @@ export function moveClip(
   };
 }
 
+export function splitClip(
+  config: TimelineConfig,
+  registry: AssetRegistry,
+  args: { clipId?: string; time?: number },
+): TimelineToolResult {
+  if (typeof args.clipId !== "string" || typeof args.time !== "number") {
+    return { result: "split_clip requires clipId and time." };
+  }
+
+  const nextConfig = cloneConfig(config);
+  const clipIndex = getClipIndex(nextConfig, args.clipId);
+  if (clipIndex < 0) {
+    return { result: `Clip ${args.clipId} was not found.` };
+  }
+
+  const clip = nextConfig.clips[clipIndex];
+  const clipEnd = clip.at + getClipTimelineDuration(clip, registry);
+  if (!(args.time > clip.at && args.time < clipEnd)) {
+    return { result: `Split time ${roundSeconds(args.time)}s must be inside clip ${clip.id}.` };
+  }
+
+  const splitTime = roundSeconds(args.time);
+  const rightClipId = `clip-${crypto.randomUUID().slice(0, 6)}`;
+  let leftClip: TimelineClip;
+  let rightClip: TimelineClip;
+
+  if (typeof clip.hold === "number") {
+    const elapsed = roundSeconds(splitTime - clip.at);
+    const remaining = roundSeconds(clip.hold - elapsed);
+    leftClip = {
+      ...clip,
+      hold: elapsed,
+    };
+    rightClip = {
+      ...clip,
+      id: rightClipId,
+      at: splitTime,
+      hold: remaining,
+    };
+  } else {
+    const speed = clip.speed ?? 1;
+    const splitSource = roundSeconds((clip.from ?? 0) + (splitTime - clip.at) * speed);
+    leftClip = {
+      ...clip,
+      to: splitSource,
+    };
+    rightClip = {
+      ...clip,
+      id: rightClipId,
+      at: splitTime,
+      from: splitSource,
+    };
+  }
+
+  nextConfig.clips.splice(clipIndex, 1, leftClip, rightClip);
+
+  return {
+    config: nextConfig,
+    result: `Split clip ${clip.id} at ${splitTime}s into ${clip.id} and ${rightClipId}.`,
+  };
+}
+
 export function trimClip(
   config: TimelineConfig,
   registry: AssetRegistry,
@@ -359,6 +421,124 @@ export function addMediaClip(
   };
 }
 
+export function swapClipAsset(
+  config: TimelineConfig,
+  registry: AssetRegistry,
+  args: { clipId?: string; assetKey?: string; mediaType?: "image" | "video" },
+): TimelineToolResult {
+  if (
+    typeof args.clipId !== "string"
+    || typeof args.assetKey !== "string"
+    || (args.mediaType !== "image" && args.mediaType !== "video")
+  ) {
+    return { result: "swap_clip_asset requires clipId, assetKey, and mediaType." };
+  }
+
+  const nextConfig = cloneConfig(config);
+  const clipIndex = getClipIndex(nextConfig, args.clipId);
+  if (clipIndex < 0) {
+    return { result: `Clip ${args.clipId} was not found.` };
+  }
+
+  const clip = nextConfig.clips[clipIndex];
+  if (clip.clipType === "text" || clip.clipType === "effect-layer") {
+    return { result: `Clip ${clip.id} cannot swap media assets.` };
+  }
+
+  const currentMediaType = clip.clipType === "hold" ? "image" : "video";
+  clip.asset = args.assetKey;
+
+  if (currentMediaType === args.mediaType) {
+    return {
+      config: nextConfig,
+      result: `Swapped asset on clip ${clip.id} to ${args.assetKey}.`,
+    };
+  }
+
+  if (args.mediaType === "video") {
+    clip.clipType = "media";
+    clip.from = 0;
+    clip.to = roundSeconds(getAssetDuration(registry, args.assetKey) ?? 5);
+    clip.speed = 1;
+    clip.volume = 1;
+    delete clip.hold;
+  } else {
+    clip.clipType = "hold";
+    clip.hold = 5;
+    delete clip.from;
+    delete clip.to;
+    delete clip.speed;
+    delete clip.volume;
+  }
+
+  return {
+    config: nextConfig,
+    result: `Swapped clip ${clip.id} to ${args.mediaType} asset ${args.assetKey}.`,
+  };
+}
+
+export function queryTimeline(config: TimelineConfig, registry: AssetRegistry): TimelineToolResult {
+  const nextConfig = cloneConfig(config);
+  const trackDefinitions = getTrackDefinitions(nextConfig);
+  const clipsByTrack = new Map<string, TimelineClip[]>();
+  let totalDuration = 0;
+  let longest: { id: string; duration: number } | null = null;
+  let shortest: { id: string; duration: number } | null = null;
+  let gapCount = 0;
+  let overlapCount = 0;
+
+  for (const track of trackDefinitions) {
+    clipsByTrack.set(track.id, []);
+  }
+
+  for (const clip of nextConfig.clips) {
+    const duration = roundSeconds(getClipTimelineDuration(clip, registry));
+    totalDuration = Math.max(totalDuration, roundSeconds(clip.at + duration));
+
+    if (!longest || duration > longest.duration) {
+      longest = { id: clip.id, duration };
+    }
+    if (!shortest || duration < shortest.duration) {
+      shortest = { id: clip.id, duration };
+    }
+
+    const trackClips = clipsByTrack.get(clip.track) ?? [];
+    trackClips.push(clip);
+    clipsByTrack.set(clip.track, trackClips);
+  }
+
+  for (const trackClips of clipsByTrack.values()) {
+    const sortedClips = [...trackClips].sort((left, right) => left.at - right.at);
+    for (let index = 1; index < sortedClips.length; index += 1) {
+      const previousClip = sortedClips[index - 1];
+      const currentClip = sortedClips[index];
+      const previousEnd = previousClip.at + getClipTimelineDuration(previousClip, registry);
+
+      if (currentClip.at - previousEnd > 0.01) {
+        gapCount += 1;
+      }
+
+      if (previousEnd - currentClip.at > 0.01) {
+        overlapCount += 1;
+      }
+    }
+  }
+
+  const trackSummary = trackDefinitions.length > 0
+    ? trackDefinitions.map((track) => `${track.id}(${clipsByTrack.get(track.id)?.length ?? 0})`).join(" ")
+    : "none";
+
+  return {
+    result: [
+      `Duration: ${roundSeconds(totalDuration)}s | Clips: ${nextConfig.clips.length} | Tracks: ${trackSummary}`,
+      `Longest: ${longest ? `${longest.id} ${roundSeconds(longest.duration)}s` : "none"} | Shortest: ${
+        shortest ? `${shortest.id} ${roundSeconds(shortest.duration)}s` : "none"
+      }`,
+      `Gaps: ${gapCount} | Overlaps: ${overlapCount}`,
+    ].join("\n"),
+  };
+}
+
 export function findIssues(config: TimelineConfig, registry: AssetRegistry): TimelineToolResult {
   const issues: string[] = [];
   const clipsByTrack = new Map<string, TimelineClip[]>();
@@ -513,8 +693,11 @@ export const timelineTools = {
   duplicate_clip: duplicateClip,
   find_issues: findIssues,
   move_clip: moveClip,
+  query_timeline: queryTimeline,
   set_clip_property: setClipProperty,
   set_text_content: setTextContent,
+  split_clip: splitClip,
+  swap_clip_asset: swapClipAsset,
   trim_clip: trimClip,
   view_timeline: viewTimeline,
 };
@@ -526,8 +709,11 @@ export const handlers: Record<string, ToolHandler> = {
   duplicate_clip: (args, ctx) => duplicateClip(ctx.config, ctx.registry, args),
   find_issues: (_args, ctx) => findIssues(ctx.config, ctx.registry),
   move_clip: (args, ctx) => moveClip(ctx.config, ctx.registry, args),
+  query_timeline: (_args, ctx) => queryTimeline(ctx.config, ctx.registry),
   set_clip_property: (args, ctx) => setClipProperty(ctx.config, ctx.registry, args),
   set_text_content: (args, ctx) => setTextContent(ctx.config, ctx.registry, args),
+  split_clip: (args, ctx) => splitClip(ctx.config, ctx.registry, args),
+  swap_clip_asset: (args, ctx) => swapClipAsset(ctx.config, ctx.registry, args),
   trim_clip: (args, ctx) => trimClip(ctx.config, ctx.registry, args),
   view_timeline: (_args, ctx) => viewTimeline(ctx.config, ctx.registry),
 };

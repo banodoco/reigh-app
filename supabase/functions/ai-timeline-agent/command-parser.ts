@@ -3,15 +3,19 @@ import type { TimelineConfig, AssetRegistry } from "../../src/tools/video-editor
 export type ParsedCommand =
   | { type: "view" }
   | { type: "move"; clipId: string; at: number }
+  | { type: "split"; clipId: string; time: number }
   | { type: "trim"; clipId: string; from?: number; to?: number; duration?: number }
   | { type: "delete"; clipId: string }
   | { type: "set"; clipId: string; property: string; value: number }
   | { type: "add-text"; track: string; at: number; duration: number; text: string }
   | { type: "add-media"; track: string; at: number; generationId: string; url: string; mediaType: "image" | "video" }
+  | { type: "swap"; clipId: string; generationId: string; url: string; mediaType: "image" | "video" }
   | { type: "set-text"; clipId: string; text: string }
   | { type: "duplicate"; clipId: string; count: number }
   | { type: "repeat"; count: number; varName: string; from: number; step: number; template: string }
   | { type: "find-issues" }
+  | { type: "query" }
+  | { type: "undo" }
   | { type: "generate"; prompt: string; count: number }
   | { type: "error"; message: string };
 
@@ -55,6 +59,14 @@ function parseMoveCommand(tokens: string[]): ParsedCommand {
   if (typeof at === "string") return { type: "error", message: at };
   if (at < 0) return { type: "error", message: "seconds must be >= 0" };
   return { type: "move", clipId: tokens[1], at };
+}
+
+function parseSplit(tokens: string[]): ParsedCommand {
+  if (tokens.length < 3) return { type: "error", message: "Usage: split <clipId> <time>" };
+  const time = parseNumber(tokens[2], "time");
+  if (typeof time === "string") return { type: "error", message: time };
+  if (time < 0) return { type: "error", message: "time must be >= 0" };
+  return { type: "split", clipId: tokens[1], time };
 }
 
 function parseTrimCommand(tokens: string[]): ParsedCommand {
@@ -129,6 +141,23 @@ function parseAddMediaCommand(tokens: string[]): ParsedCommand {
   };
 }
 
+function parseSwap(tokens: string[]): ParsedCommand {
+  if (tokens.length < 4) {
+    return { type: "error", message: "Usage: swap <clipId> <generation_id> <url> [--type image|video]" };
+  }
+  const mediaType = parseFlag(tokens.slice(4), "--type") ?? "image";
+  if (mediaType !== "image" && mediaType !== "video") {
+    return { type: "error", message: '--type must be "image" or "video"' };
+  }
+  return {
+    type: "swap",
+    clipId: tokens[1],
+    generationId: tokens[2],
+    url: tokens[3],
+    mediaType,
+  };
+}
+
 function parseSetTextCommand(tokens: string[]): ParsedCommand {
   if (tokens.length < 3) return { type: "error", message: 'Usage: set-text <clipId> "<new text>"' };
   const text = tokens.slice(2).join(" ");
@@ -196,6 +225,14 @@ function parseGenerateCommand(tokens: string[]): ParsedCommand {
   return { type: "generate", prompt, count: Math.max(1, Math.round(count)) };
 }
 
+function parseQuery(): ParsedCommand {
+  return { type: "query" };
+}
+
+function parseUndo(): ParsedCommand {
+  return { type: "undo" };
+}
+
 const COMMAND_ALIASES: Record<string, string> = {
   findissues: "find-issues",
   issues: "find-issues",
@@ -214,14 +251,18 @@ const PARSERS: Record<string, CommandParser> = {
   view: parseViewCommand,
   "find-issues": parseFindIssuesCommand,
   move: parseMoveCommand,
+  split: parseSplit,
   trim: parseTrimCommand,
   delete: parseDeleteCommand,
   set: parseSetCommand,
   "add-text": parseAddTextCommand,
   "add-media": parseAddMediaCommand,
+  swap: parseSwap,
   "set-text": parseSetTextCommand,
   duplicate: parseDuplicateCommand,
   repeat: parseRepeatCommand,
+  query: parseQuery,
+  undo: parseUndo,
   generate: parseGenerateCommand,
 };
 
@@ -250,7 +291,15 @@ export function validateCommand(
   config: TimelineConfig,
   _registry: AssetRegistry,
 ): string | null {
-  if (parsed.type === "error" || parsed.type === "view" || parsed.type === "find-issues" || parsed.type === "generate") {
+  if (
+    parsed.type === "error"
+    || parsed.type === "view"
+    || parsed.type === "find-issues"
+    || parsed.type === "query"
+    || parsed.type === "undo"
+    || parsed.type === "repeat"
+    || parsed.type === "generate"
+  ) {
     return null;
   }
 

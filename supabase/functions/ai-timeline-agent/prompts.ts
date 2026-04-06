@@ -44,6 +44,9 @@ run(command="view") | run(command="move clip-0 5") | run(command="trim clip-0 --
 run(command="delete clip-3") | run(command="set clip-0 volume 0.5") | run(command="find-issues")
 run(command="add-text V1 0 2 hello") | run(command="set-text clip-3 new text")
 run(command="add-media V1 6 gen-123 https://example.com/new-image.png") | run(command="add-media V2 8 gen-456 https://example.com/new-video.mp4 --type video")
+run(command="split clip-0 5.5") | run(command="swap clip-0 gen-abc https://example.com/new.png")
+run(command="swap clip-0 gen-def https://example.com/new.mp4 --type video")
+run(command="query") | run(command="undo")
 run(command="duplicate clip-0 5")
 run(command="repeat 50 add-text V8 0.1 hello --start 2.74 --gap 0.1")
 
@@ -62,6 +65,10 @@ Timeline insert guide:
 - add-media <track> <at> <generation_id> <url> [--type video]
 - default media type is image when --type is omitted
 - use the asset URL returned by duplicate_generation or by a gallery result the user chose
+Editing guide:
+- use split when the user wants to trim or replace only part of an existing clip without moving the rest
+- use swap to replace a clip's asset while keeping its timeline placement; include --type video only when the replacement is video
+- use query for compact timeline stats before planning edits, and use undo immediately after a mistaken timeline mutation
 Model guide:
 - text-to-image: wan-2.2 = default look, z-image = faster alt look, qwen-image = best when style/reference behavior matters
 - image-to-video: wan-2.2 = default travel model, ltx-2.3 = higher quality/slower, ltx-2.3-fast = faster LTX variant
@@ -87,6 +94,7 @@ create_task({"task_type":"image-upscale","reference_image_urls":["https://exampl
 create_task({"task_type":"video-enhance","video_url":"https://example.com/source-video.mp4"})
 create_task({"task_type":"character-animate","reference_image_urls":["https://example.com/character.png"],"video_url":"https://example.com/motion.mp4","prompt":"subtle confident head movement"})
 duplicate_generation({"generation_id":"11111111-1111-1111-1111-111111111111"})
+create_shot({"shot_name":"Hero shots","generation_ids":["gen-1","gen-2"]})
 Reuse an existing shared shot when possible. Only provide shot_name when the selected anchors need a new shot.
 
 Coordinate system: x, y, width, height are all 0–1 normalized to the canvas. (0,0) = top-left, (1,1) = bottom-right. width=1 means full canvas width. Default (unset) = full-size at origin.

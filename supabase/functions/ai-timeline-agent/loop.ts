@@ -20,6 +20,8 @@ import {
   type ExtractedToolCall,
 } from "./tool-calls.ts";
 import { TIMELINE_AGENT_TOOLS } from "./tool-schemas.ts";
+import { asStringArray, asTrimmedString } from "./utils.ts";
+import { createShotWithGenerations } from "./tools/clips.ts";
 import { executeCreateTask } from "./tools/create-task.ts";
 import { executeDuplicateGeneration } from "./tools/duplicate-generation.ts";
 import { executeCommand } from "./tools/registry.ts";
@@ -36,6 +38,8 @@ import type {
 } from "./types.ts";
 
 type LoopLogger = Pick<EdgeRuntime["logger"], "error" | "info">;
+
+const APPEND_SHOT_POSITION = 2_147_483_647;
 
 export interface RunAgentLoopOptions {
   session: AgentSession;
@@ -117,6 +121,34 @@ export function cleanAssistantText(text: string): string {
     .trim();
 }
 
+async function executeCreateShot(
+  args: Record<string, unknown>,
+  timelineState: TimelineState,
+  supabaseAdmin: SupabaseAdmin,
+): Promise<Pick<ToolResult, "result">> {
+  const shotName = asTrimmedString(args.shot_name);
+  const generationIds = asStringArray(args.generation_ids);
+
+  if (!shotName) {
+    return { result: "create_shot requires shot_name." };
+  }
+
+  if (generationIds.length === 0) {
+    return { result: "create_shot requires at least one generation_id." };
+  }
+
+  const shotId = await createShotWithGenerations(supabaseAdmin, {
+    projectId: timelineState.projectId,
+    shotName,
+    generationIds,
+    position: APPEND_SHOT_POSITION,
+  });
+
+  return {
+    result: `Created shot ${shotName} (${shotId}) with ${generationIds.length} generation(s).`,
+  };
+}
+
 export async function executeToolCall(
   toolCall: ExtractedToolCall,
   timelineState: TimelineState,
@@ -147,6 +179,10 @@ export async function executeToolCall(
 
   if (toolCall.name === "duplicate_generation") {
     return await executeDuplicateGeneration(toolArgs, timelineState, selectedClips, supabaseAdmin);
+  }
+
+  if (toolCall.name === "create_shot") {
+    return await executeCreateShot(toolArgs, timelineState, supabaseAdmin);
   }
 
   return { result: `Unknown tool: ${toolCall.name}.` };
