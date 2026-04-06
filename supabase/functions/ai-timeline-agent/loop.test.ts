@@ -78,7 +78,13 @@ describe("loop helpers", () => {
       args: { prompt: "hello" },
       parseError: null,
     }, timelineState, supabaseAdmin, "timeline-1", selectedClips)).resolves.toEqual({ result: "queued" });
-    expect(mocks.executeCreateTask).toHaveBeenCalledWith({ prompt: "hello" }, timelineState, selectedClips, supabaseAdmin);
+    expect(mocks.executeCreateTask).toHaveBeenCalledWith(
+      { prompt: "hello" },
+      timelineState,
+      selectedClips,
+      supabaseAdmin,
+      undefined,
+    );
 
     await expect(executeToolCall({
       id: "unknown",

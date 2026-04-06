@@ -4,7 +4,13 @@ import {
   LOOP_LIMIT,
   SOFT_TIMEOUT_MS,
 } from "./config.ts";
-import { loadSessionStatus, loadTimelineState, persistSessionState } from "./db.ts";
+import {
+  loadActiveReference,
+  loadProjectImageSettings,
+  loadSessionStatus,
+  loadTimelineState,
+  persistSessionState,
+} from "./db.ts";
 import { invokeLlm, triageDifficulty } from "./llm/client.ts";
 import {
   buildInitialMessages,
@@ -21,8 +27,12 @@ import {
 } from "./tool-calls.ts";
 import { TIMELINE_AGENT_TOOLS } from "./tool-schemas.ts";
 import { asStringArray, asTrimmedString } from "./utils.ts";
-import { createShotWithGenerations } from "./tools/clips.ts";
-import { executeCreateTask } from "./tools/create-task.ts";
+import {
+  createShotWithGenerations,
+  findShotForGenerations,
+  resolveClipGenerationIds,
+} from "./tools/clips.ts";
+import { executeCreateTask, type CreateTaskImageContext } from "./tools/create-task.ts";
 import { executeDuplicateGeneration } from "./tools/duplicate-generation.ts";
 import { executeCommand } from "./tools/registry.ts";
 import { viewTimeline } from "./tools/timeline.ts";
@@ -155,6 +165,7 @@ export async function executeToolCall(
   supabaseAdmin: SupabaseAdmin,
   timelineId: string,
   selectedClips?: SelectedClipPayload[],
+  imageContext?: CreateTaskImageContext,
 ): Promise<ToolResult> {
   const toolArgs = toolCall.args;
 
@@ -174,7 +185,7 @@ export async function executeToolCall(
   }
 
   if (toolCall.name === "create_task") {
-    return await executeCreateTask(toolArgs, timelineState, selectedClips, supabaseAdmin);
+    return await executeCreateTask(toolArgs, timelineState, selectedClips, supabaseAdmin, imageContext);
   }
 
   if (toolCall.name === "duplicate_generation") {
@@ -199,6 +210,7 @@ async function processToolCalls({
   messages,
   timelineState,
   selectedClips,
+  imageContext,
   supabaseAdmin,
   timelineId,
   setActiveToolCallId,
@@ -209,6 +221,7 @@ async function processToolCalls({
   messages: LlmMessage[];
   timelineState: TimelineState;
   selectedClips?: SelectedClipPayload[];
+  imageContext?: CreateTaskImageContext;
   supabaseAdmin: SupabaseAdmin;
   timelineId: string;
   setActiveToolCallId: (toolCallId: string | null) => void;
@@ -239,6 +252,7 @@ async function processToolCalls({
       supabaseAdmin,
       timelineId,
       selectedClips,
+      imageContext,
     );
     setActiveToolCallId(null);
 
@@ -304,11 +318,29 @@ export async function runAgentLoop(
     });
 
     const timelineState = await loadTimelineState(supabaseAdmin, session.timeline_id);
+    const imageSettings = await loadProjectImageSettings(supabaseAdmin, timelineState.projectId);
+    const clipGenerationIds = imageSettings
+      ? resolveClipGenerationIds(effectiveSelectedClips ?? [], timelineState.registry, timelineState.config)
+      : [];
+    const clipShotId = imageSettings && clipGenerationIds.length > 0
+      ? await findShotForGenerations(supabaseAdmin, clipGenerationIds)
+      : null;
+    const activeReference = imageSettings
+      ? await loadActiveReference(supabaseAdmin, imageSettings, clipShotId ?? undefined)
+      : null;
+    const imageContext = imageSettings
+      ? {
+        defaultModelName: imageSettings.selectedTextModel ?? "qwen-image",
+        activeReference,
+      }
+      : undefined;
     const timelineSummary = viewTimeline(timelineState.config, timelineState.registry).result;
     const systemPrompt = buildTimelineAgentSystemPrompt({
       projectId: timelineState.projectId,
       timelineSummary,
       selectedClips: effectiveSelectedClips,
+      defaultModel: imageContext?.defaultModelName,
+      activeReference: imageContext?.activeReference ?? null,
     });
     const messages = buildInitialMessages(systemPrompt, turns);
     const startedAt = Date.now();
@@ -377,6 +409,7 @@ export async function runAgentLoop(
         messages,
         timelineState,
         selectedClips: effectiveSelectedClips,
+        imageContext,
         supabaseAdmin,
         timelineId: session.timeline_id,
         setActiveToolCallId: (toolCallId) => { activeToolCallId = toolCallId; },

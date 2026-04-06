@@ -85,6 +85,37 @@ export type SelectedClipPayload = {
   prompt?: string;
 };
 
+export type AgentTextToImageModel = "qwen-image" | "qwen-image-2512" | "z-image";
+
+export type AgentReferenceMode = "style" | "subject" | "style-character" | "scene" | "custom";
+
+export interface AgentProjectImageSettingsReference {
+  id: string;
+  resourceId: string;
+  referenceMode?: AgentReferenceMode;
+  styleReferenceStrength?: number;
+  subjectStrength?: number;
+  subjectDescription?: string;
+  inThisScene?: boolean;
+  inThisSceneStrength?: number;
+}
+
+export interface AgentProjectImageSettings {
+  selectedTextModel?: AgentTextToImageModel;
+  references?: AgentProjectImageSettingsReference[];
+  selectedReferenceIdByShot?: Record<string, string | null>;
+}
+
+export interface ResolvedReference {
+  url: string;
+  referenceMode: AgentReferenceMode;
+  styleReferenceStrength?: number;
+  subjectStrength?: number;
+  subjectDescription?: string;
+  inThisScene?: boolean;
+  inThisSceneStrength?: number;
+}
+
 export interface AgentInvocationBody {
   session_id?: unknown;
   user_message?: unknown;

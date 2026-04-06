@@ -1,4 +1,4 @@
-import type { SelectedClipPayload } from "./types.ts";
+import type { ResolvedReference, SelectedClipPayload } from "./types.ts";
 
 function formatSelectedClipPrompt(prompt: string): string {
   return prompt.replace(/\s+/g, " ").trim().replace(/"/g, '\\"');
@@ -36,8 +36,36 @@ export function buildTimelineAgentSystemPrompt(
     projectId: string;
     timelineSummary: string;
     selectedClips?: SelectedClipPayload[];
+    defaultModel?: string;
+    activeReference?: ResolvedReference | null;
   },
 ): string {
+  const preferredModelLine = options.defaultModel
+    ? `Preferred text-to-image model for this project: ${options.defaultModel}. Use it when the user does not specify a model.`
+    : "";
+  const activeReferenceLine = options.activeReference
+    ? [
+      "Saved project reference available for this shot. Use it when helpful, do not force it.",
+      `If used, copy this URL into reference_image_urls: ${options.activeReference.url}`,
+      `reference_mode=${options.activeReference.referenceMode}`,
+      options.activeReference.styleReferenceStrength !== undefined
+        ? `style_reference_strength=${options.activeReference.styleReferenceStrength}`
+        : null,
+      options.activeReference.subjectStrength !== undefined
+        ? `subject_strength=${options.activeReference.subjectStrength}`
+        : null,
+      typeof options.activeReference.subjectDescription === "string" && options.activeReference.subjectDescription.trim()
+        ? `subject_description="${formatSelectedClipPrompt(options.activeReference.subjectDescription)}"`
+        : null,
+      options.activeReference.inThisScene !== undefined
+        ? `in_this_scene=${options.activeReference.inThisScene}`
+        : null,
+      options.activeReference.inThisSceneStrength !== undefined
+        ? `in_this_scene_strength=${options.activeReference.inThisSceneStrength}`
+        : null,
+    ].filter((line): line is string => Boolean(line)).join(" ")
+    : "";
+
   return `Timeline editor. Use run(command="...") for edits. Plain text for conversation.
 
 run(command="view") | run(command="move clip-0 5") | run(command="trim clip-0 --duration 2")
@@ -52,7 +80,7 @@ run(command="repeat 50 add-text V8 0.1 hello --start 2.74 --gap 0.1")
 
 Use create_task({...}) for generation tasks. Copy selected clip URLs exactly into reference_image_urls or video_url.
 Use duplicate_generation({"generation_id":"..."}) to copy an existing generation instantly when the user wants a non-destructive derivative or alternate edit path.
-For style, subject, or scene transfer with multiple selections, choose the strongest matching reference instead of guessing.
+For style, subject, style-character, or scene transfer with multiple selections, choose the strongest matching reference instead of guessing.
 For image-to-video or travel-between-images requests, use all selected reference_image_urls in the order that best matches the requested motion.
 When a selected clip includes prompt="...", treat it as source metadata and reuse it instead of re-describing the image.
 Duplicate & place workflow (multi-step — call each tool in order):
@@ -70,12 +98,14 @@ Editing guide:
 - use swap to replace a clip's asset while keeping its timeline placement; include --type video only when the replacement is video
 - use query for compact timeline stats before planning edits, and use undo immediately after a mistaken timeline mutation
 Model guide:
-- text-to-image: wan-2.2 = default look, z-image = faster alt look, qwen-image = best when style/reference behavior matters
+- text-to-image: qwen-image = default, qwen-image-2512 = higher-resolution Qwen variant, z-image = alternate look
 - image-to-video: wan-2.2 = default travel model, ltx-2.3 = higher quality/slower, ltx-2.3-fast = faster LTX variant
+${preferredModelLine ? `- ${preferredModelLine}` : ""}
+${activeReferenceLine ? `- ${activeReferenceLine}` : ""}
 
 Task guide:
 - text-to-image: prompt required, optional model, optional count
-- style-transfer | subject-transfer | scene-transfer: prompt required, reference_image_urls required
+- style-transfer | subject-transfer | style-character-transfer | scene-transfer: prompt required, reference_image_urls required
 - image-to-video: prompt required, exactly two or more reference_image_urls, optional model
 - image-to-image: prompt required, one reference_image_url, optional strength from 0 to 1
 - magic-edit: prompt required, one reference_image_url
@@ -85,6 +115,7 @@ Task guide:
 
 create_task({"task_type":"style-transfer","prompt":"apply this look to a new fashion portrait","reference_image_urls":["https://example.com/style.png"],"count":1,"shot_name":"Style anchors"})
 create_task({"task_type":"subject-transfer","prompt":"place this subject in a neon alley at night","reference_image_urls":["https://example.com/subject.png"],"count":1,"shot_name":"Subject anchors"})
+create_task({"task_type":"style-character-transfer","prompt":"keep this character identity but restyle as polished sci-fi concept art","reference_image_urls":["https://example.com/character-style.png"],"count":1,"shot_name":"Character anchors"})
 create_task({"task_type":"scene-transfer","prompt":"rebuild this scene at golden hour with subtle fog","reference_image_urls":["https://example.com/scene.png"],"count":1,"shot_name":"Scene anchors"})
 create_task({"task_type":"image-to-video","prompt":"travel between these frames with gentle camera motion","reference_image_urls":["https://example.com/frame-a.png","https://example.com/frame-b.png"],"model":"ltx-2.3","shot_name":"Travel anchors"})
 create_task({"task_type":"text-to-image","prompt":"wide cinematic desert at blue hour","model":"z-image","count":4})

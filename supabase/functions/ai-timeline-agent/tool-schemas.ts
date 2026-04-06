@@ -37,6 +37,7 @@ export const TIMELINE_AGENT_TOOLS: TimelineAgentToolDefinition[] = [
               "text-to-image",
               "style-transfer",
               "subject-transfer",
+              "style-character-transfer",
               "scene-transfer",
               "image-to-video",
               "image-to-image",
@@ -49,19 +50,25 @@ export const TIMELINE_AGENT_TOOLS: TimelineAgentToolDefinition[] = [
           prompt: {
             type: "string",
             description:
-              "Generation instruction. Required for text-to-image, style-transfer, subject-transfer, scene-transfer, image-to-video, image-to-image, and magic-edit. Optional for image-upscale, video-enhance, and character-animate.",
+              "Generation instruction. Required for text-to-image, style-transfer, subject-transfer, style-character-transfer, scene-transfer, image-to-video, image-to-image, and magic-edit. Optional for image-upscale, video-enhance, and character-animate.",
           },
           model: {
             type: "string",
-            enum: ["wan-2.2", "qwen-image", "z-image", "ltx-2.3", "ltx-2.3-fast"],
+            enum: ["qwen-image", "qwen-image-2512", "z-image", "wan-2.2", "ltx-2.3", "ltx-2.3-fast"],
             description:
-              "Optional model choice. Use wan-2.2, qwen-image, or z-image for text-to-image; use wan-2.2, ltx-2.3, or ltx-2.3-fast for image-to-video.",
+              "Optional model choice. Text-to-image models: qwen-image, qwen-image-2512, z-image. Image-to-video models: wan-2.2, ltx-2.3, ltx-2.3-fast.",
           },
           reference_image_urls: {
             type: "array",
             items: { type: "string" },
             description:
-              "Reference image URLs chosen from the selected media context. Use for style-transfer, subject-transfer, scene-transfer, image-to-video, image-to-image, magic-edit, image-upscale, and character-animate's character image.",
+              "Reference image URLs chosen from the selected media context. Use for style-transfer, subject-transfer, style-character-transfer, scene-transfer, image-to-video, image-to-image, magic-edit, image-upscale, and character-animate's character image.",
+          },
+          reference_mode: {
+            type: "string",
+            enum: ["style", "subject", "style-character", "scene"],
+            description:
+              "Optional override for the reference behavior used by transfer tasks when it should differ from the task_type default.",
           },
           video_url: {
             type: "string",
@@ -75,7 +82,7 @@ export const TIMELINE_AGENT_TOOLS: TimelineAgentToolDefinition[] = [
           count: {
             type: "number",
             description:
-              "Number of outputs to request for text-to-image, style-transfer, subject-transfer, scene-transfer, image-to-image, or magic-edit tasks.",
+              "Number of outputs to request for text-to-image, style-transfer, subject-transfer, style-character-transfer, scene-transfer, image-to-image, or magic-edit tasks.",
           },
           based_on: {
             type: "string",

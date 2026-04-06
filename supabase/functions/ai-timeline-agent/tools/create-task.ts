@@ -1,4 +1,6 @@
 import type {
+  AgentTextToImageModel,
+  ResolvedReference,
   SelectedClipPayload,
   SupabaseAdmin,
   TimelineState,
@@ -13,6 +15,7 @@ const SUPPORTED_CREATE_TASK_TYPES = new Set([
   "text-to-image",
   "style-transfer",
   "subject-transfer",
+  "style-character-transfer",
   "scene-transfer",
   "image-to-video",
   "image-to-image",
@@ -24,12 +27,14 @@ const SUPPORTED_CREATE_TASK_TYPES = new Set([
 const TASK_TYPE_TO_REFERENCE_MODE: Record<string, string> = {
   "style-transfer": "style",
   "subject-transfer": "subject",
+  "style-character-transfer": "style-character",
   "scene-transfer": "scene",
 };
 const TASK_TYPES_REQUIRING_PROMPT = new Set([
   "text-to-image",
   "style-transfer",
   "subject-transfer",
+  "style-character-transfer",
   "scene-transfer",
   "image-to-video",
   "image-to-image",
@@ -38,6 +43,7 @@ const TASK_TYPES_REQUIRING_PROMPT = new Set([
 const TASK_TYPES_REQUIRING_REFERENCE_IMAGE = new Set([
   "style-transfer",
   "subject-transfer",
+  "style-character-transfer",
   "scene-transfer",
   "image-to-image",
   "magic-edit",
@@ -49,11 +55,17 @@ const TASK_TYPES_REQUIRING_VIDEO = new Set([
   "character-animate",
 ]);
 
+export interface CreateTaskImageContext {
+  defaultModelName?: AgentTextToImageModel;
+  activeReference?: ResolvedReference | null;
+}
+
 export async function executeCreateTask(
   args: Record<string, unknown>,
   timelineState: TimelineState,
   selectedClips: SelectedClipPayload[] | undefined,
   supabaseAdmin: SupabaseAdmin,
+  imageContext?: CreateTaskImageContext,
 ): Promise<Pick<ToolResult, "result">> {
   const taskType = asTrimmedString(args.task_type);
   const prompt = asTrimmedString(args.prompt);
@@ -67,7 +79,15 @@ export async function executeCreateTask(
     return { result: `create_task ${taskType} requires prompt.` };
   }
 
-  const referenceImageUrls = asStringArray(args.reference_image_urls);
+  const requestedReferenceImageUrls = asStringArray(args.reference_image_urls);
+  const activeReference = imageContext?.activeReference ?? null;
+  const shouldUseActiveReference = requestedReferenceImageUrls.length === 0
+    && Boolean(TASK_TYPE_TO_REFERENCE_MODE[taskType])
+    && Boolean(activeReference?.url);
+  const referenceImageUrls = shouldUseActiveReference && activeReference?.url
+    ? [activeReference.url]
+    : requestedReferenceImageUrls;
+  const referenceMode = asTrimmedString(args.reference_mode) ?? TASK_TYPE_TO_REFERENCE_MODE[taskType] ?? undefined;
   const videoUrl = asTrimmedString(args.video_url);
   const strength = typeof args.strength === "number" && Number.isFinite(args.strength) ? args.strength : undefined;
   if (strength !== undefined && (strength < 0 || strength > 1)) {
@@ -110,18 +130,41 @@ export async function executeCreateTask(
     ? selectedVideoClip?.generation_id
     : selectedReferenceClips[0]?.generation_id);
   const generationId = taskType === "image-upscale" ? selectedReferenceClips[0]?.generation_id : undefined;
+  const defaultModelName = taskType === "text-to-image" || Boolean(TASK_TYPE_TO_REFERENCE_MODE[taskType])
+    ? imageContext?.defaultModelName
+    : undefined;
+  const activeReferenceParams = shouldUseActiveReference && activeReference
+    ? {
+      ...(activeReference.styleReferenceStrength !== undefined
+        ? { style_reference_strength: activeReference.styleReferenceStrength }
+        : {}),
+      ...(activeReference.subjectStrength !== undefined
+        ? { subject_strength: activeReference.subjectStrength }
+        : {}),
+      ...(typeof activeReference.subjectDescription === "string" && activeReference.subjectDescription.trim()
+        ? { subject_description: activeReference.subjectDescription }
+        : {}),
+      ...(activeReference.inThisScene !== undefined
+        ? { in_this_scene: activeReference.inThisScene }
+        : {}),
+      ...(activeReference.inThisSceneStrength !== undefined
+        ? { in_this_scene_strength: activeReference.inThisSceneStrength }
+        : {}),
+    }
+    : undefined;
 
   const result = await createGenerationTask({
     project_id: timelineState.projectId,
     prompt: prompt ?? undefined,
     count: asPositiveNumber(args.count) ?? 1,
     task_type: taskType,
-    reference_mode: TASK_TYPE_TO_REFERENCE_MODE[taskType],
+    reference_mode: referenceMode,
     reference_image_url: referenceImageUrls[0],
     image_urls: taskType === "image-to-video" ? referenceImageUrls : undefined,
     video_url: videoUrl ?? undefined,
     strength,
-    model_name: asTrimmedString(args.model) ?? undefined,
+    model_name: asTrimmedString(args.model) ?? defaultModelName ?? undefined,
+    params: activeReferenceParams && Object.keys(activeReferenceParams).length > 0 ? activeReferenceParams : undefined,
     based_on: basedOn ?? undefined,
     generation_id: generationId ?? undefined,
     shot_id: shotId ?? undefined,
