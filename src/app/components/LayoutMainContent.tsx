@@ -17,6 +17,8 @@ export function LayoutMainContent(props: LayoutMainContentProps) {
   const { isMobileSplitView, onOpenSettings } = props;
   const { isVideoEditorShellActive } = useVideoEditorRouteState();
   const {
+    isEditorPaneLocked,
+    effectiveEditorPaneHeight,
     isTasksPaneLocked,
     tasksPaneWidth,
     isShotsPaneLocked,
@@ -34,7 +36,7 @@ export function LayoutMainContent(props: LayoutMainContentProps) {
   const contentStyle = {
     marginRight: isTasksPaneLocked ? `${tasksPaneWidth}px` : '0px',
     marginLeft: isShotsPaneLocked ? `${shotsPaneWidth}px` : '0px',
-    paddingTop: '0px',
+    paddingTop: isEditorPaneLocked ? `${effectiveEditorPaneHeight}px` : '0px',
     paddingBottom: isMobileSplitView ? '0px' : ((isGenerationsPaneLocked || isGenerationsPaneOpen) ? `${effectiveGenerationsPaneHeight}px` : '0px'),
     '--content-width': `${contentWidth}px`,
     '--content-height': `${contentHeight}px`,
