@@ -22,6 +22,18 @@ export interface ExternalImageDropVariables {
   skipOptimistic?: boolean;
 }
 
+export interface UploadedGenerationMetadata {
+  generationId: string;
+  location: string | null;
+  thumbnail_url: string | null;
+  type: string | null;
+  created_at: string;
+  params: Database['public']['Tables']['generations']['Row']['params'];
+  primary_variant_id: string | null;
+  shot_generation_id: string;
+  timeline_frame: number | null;
+}
+
 interface CropConfig {
   shouldCrop: boolean;
   targetAspectRatio: number | null;
@@ -238,7 +250,7 @@ async function attachGenerationToShot(input: {
   variables: ExternalImageDropVariables;
   addImageToShot: ProcessDroppedImagesInput['addImageToShot'];
   addImageToShotWithoutPosition: ProcessDroppedImagesInput['addImageToShotWithoutPosition'];
-}): Promise<void> {
+}): Promise<{ shot_generation_id: string; timeline_frame: number | null }> {
   const {
     shotId,
     generation,
@@ -261,23 +273,55 @@ async function attachGenerationToShot(input: {
   };
 
   if (explicitPosition !== undefined) {
-    await addImageToShot({
+    const result = await addImageToShot({
       ...baseInput,
       timelineFrame: explicitPosition,
       skipOptimistic,
     });
-    return;
+    const shotGenerationId = typeof (result as { id?: unknown })?.id === 'string'
+      ? (result as { id: string }).id
+      : null;
+    if (!shotGenerationId) {
+      throw new Error('Failed to attach uploaded generation with explicit position.');
+    }
+    return {
+      shot_generation_id: shotGenerationId,
+      timeline_frame: typeof (result as { timeline_frame?: unknown })?.timeline_frame === 'number'
+        ? (result as { timeline_frame: number }).timeline_frame
+        : explicitPosition,
+    };
   }
 
   if (skipAutoPosition) {
-    await addImageToShotWithoutPosition(baseInput);
-    return;
+    const result = await addImageToShotWithoutPosition(baseInput);
+    const shotGenerationId = typeof (result as { id?: unknown })?.id === 'string'
+      ? (result as { id: string }).id
+      : null;
+    if (!shotGenerationId) {
+      throw new Error('Failed to attach uploaded generation without position.');
+    }
+    return {
+      shot_generation_id: shotGenerationId,
+      timeline_frame: null,
+    };
   }
 
-  await addImageToShot({
+  const result = await addImageToShot({
     ...baseInput,
     skipOptimistic,
   });
+  const shotGenerationId = typeof (result as { id?: unknown })?.id === 'string'
+    ? (result as { id: string }).id
+    : null;
+  if (!shotGenerationId) {
+    throw new Error('Failed to attach uploaded generation to shot.');
+  }
+  return {
+    shot_generation_id: shotGenerationId,
+    timeline_frame: typeof (result as { timeline_frame?: unknown })?.timeline_frame === 'number'
+      ? (result as { timeline_frame: number }).timeline_frame
+      : null,
+  };
 }
 
 async function processSingleDroppedImage(input: {
@@ -290,7 +334,7 @@ async function processSingleDroppedImage(input: {
   addImageToShot: ProcessDroppedImagesInput['addImageToShot'];
   addImageToShotWithoutPosition: ProcessDroppedImagesInput['addImageToShotWithoutPosition'];
   createGeneration: typeof createGenerationForUploadedImage;
-}): Promise<string | null> {
+}): Promise<UploadedGenerationMetadata | null> {
   const {
     imageFile,
     fileIndex,
@@ -335,7 +379,7 @@ async function processSingleDroppedImage(input: {
     return null;
   }
 
-  await attachGenerationToShot({
+  const attachment = await attachGenerationToShot({
     shotId,
     generation,
     projectId,
@@ -346,12 +390,22 @@ async function processSingleDroppedImage(input: {
     addImageToShotWithoutPosition,
   });
 
-  return generation.id as string;
+  return {
+    generationId: generation.id,
+    location: generation.location,
+    thumbnail_url: generation.thumbnail_url ?? thumbnailUrl ?? generation.location,
+    type: generation.type,
+    created_at: generation.created_at,
+    params: generation.params,
+    primary_variant_id: generation.primary_variant_id,
+    shot_generation_id: attachment.shot_generation_id,
+    timeline_frame: attachment.timeline_frame,
+  };
 }
 
 export async function processDroppedImages(
   input: ProcessDroppedImagesInput,
-): Promise<{ shotId: string; generationIds: string[] } | null> {
+): Promise<{ shotId: string; generationIds: string[]; generationMetadata: UploadedGenerationMetadata[] } | null> {
   const {
     variables,
     projectId,
@@ -370,10 +424,11 @@ export async function processDroppedImages(
   }
 
   const generationIds: string[] = [];
+  const generationMetadata: UploadedGenerationMetadata[] = [];
   for (let fileIndex = 0; fileIndex < processedFiles.length; fileIndex++) {
     const imageFile = processedFiles[fileIndex];
     try {
-      const generationId = await processSingleDroppedImage({
+      const metadata = await processSingleDroppedImage({
         imageFile,
         fileIndex,
         totalFiles: processedFiles.length,
@@ -384,13 +439,14 @@ export async function processDroppedImages(
         addImageToShotWithoutPosition,
         createGeneration,
       });
-      if (generationId) {
-        generationIds.push(generationId);
+      if (metadata) {
+        generationIds.push(metadata.generationId);
+        generationMetadata.push(metadata);
       }
     } catch (error) {
       normalizeAndPresentError(error, { context: 'useShotCreation', toastTitle: `Failed to process file ${imageFile.name}` });
     }
   }
 
-  return generationIds.length > 0 ? { shotId, generationIds } : null;
+  return generationIds.length > 0 ? { shotId, generationIds, generationMetadata } : null;
 }

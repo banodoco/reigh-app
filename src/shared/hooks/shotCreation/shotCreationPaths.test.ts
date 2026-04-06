@@ -4,7 +4,6 @@ const mocks = vi.hoisted(() => ({
   enqueueGenerationsInvalidation: vi.fn(),
   invalidateShotsQueries: vi.fn(),
   upsertShotInCache: vi.fn(),
-  from: vi.fn(),
 }));
 
 vi.mock('@/shared/hooks/invalidation/useGenerationInvalidation', () => ({
@@ -14,12 +13,6 @@ vi.mock('@/shared/hooks/invalidation/useGenerationInvalidation', () => ({
 vi.mock('@/shared/hooks/shots/cacheUtils', () => ({
   invalidateShotsQueries: (...args: unknown[]) => mocks.invalidateShotsQueries(...args),
   upsertShotInCache: (...args: unknown[]) => mocks.upsertShotInCache(...args),
-}));
-
-vi.mock('@/integrations/supabase/client', () => ({
-  getSupabaseClient: () => ({
-    from: (...args: unknown[]) => mocks.from(...args),
-  }),
 }));
 
 import {
@@ -125,47 +118,31 @@ describe('shotCreationPaths', () => {
     const uploadToShot = vi.fn().mockResolvedValue({
       shotId: 'shot-2',
       generationIds: ['gen-a', 'gen-b'],
-    });
-    const order = vi.fn().mockResolvedValue({
-      data: [
+      generationMetadata: [
         {
-          id: 'shot-gen-a',
-          generation_id: 'gen-a',
+          generationId: 'gen-a',
+          shot_generation_id: 'shot-gen-a',
           timeline_frame: 0,
-          generations: {
-            location: 'https://example.com/image-a.png',
-            thumbnail_url: 'https://example.com/thumb-a.png',
-            type: 'image',
-            created_at: '2026-04-06T00:00:00.000Z',
-            starred: false,
-            name: 'Image A',
-            based_on: null,
-            params: { prompt: 'alpha' },
-            primary_variant_id: 'variant-a',
-          },
+          location: 'https://example.com/image-a.png',
+          thumbnail_url: 'https://example.com/thumb-a.png',
+          type: 'image',
+          created_at: '2026-04-06T00:00:00.000Z',
+          params: { prompt: 'alpha' },
+          primary_variant_id: 'variant-a',
         },
         {
-          id: 'shot-gen-b',
-          generation_id: 'gen-b',
+          generationId: 'gen-b',
+          shot_generation_id: 'shot-gen-b',
           timeline_frame: 50,
-          generations: {
-            location: 'https://example.com/image-b.png',
-            thumbnail_url: 'https://example.com/thumb-b.png',
-            type: 'image',
-            created_at: '2026-04-06T00:00:01.000Z',
-            starred: true,
-            name: 'Image B',
-            based_on: 'seed',
-            params: { prompt: 'beta' },
-            primary_variant_id: 'variant-b',
-          },
+          location: 'https://example.com/image-b.png',
+          thumbnail_url: 'https://example.com/thumb-b.png',
+          type: 'image',
+          created_at: '2026-04-06T00:00:01.000Z',
+          params: { prompt: 'beta' },
+          primary_variant_id: 'variant-b',
         },
       ],
-      error: null,
     });
-    const eq = vi.fn().mockReturnValue({ order });
-    const select = vi.fn().mockReturnValue({ eq });
-    mocks.from.mockReturnValue({ select });
     const onProgress = vi.fn();
     const files = [new File(['a'], 'a.png', { type: 'image/png' })];
     const queryClient = { id: 'query-client' } as never;
@@ -195,10 +172,6 @@ describe('shotCreationPaths', () => {
       currentShotCount: 1,
       onProgress,
     });
-    expect(mocks.from).toHaveBeenCalledWith('shot_generations');
-    expect(select).toHaveBeenCalledWith(expect.stringContaining('generations!inner'));
-    expect(eq).toHaveBeenCalledWith('shot_id', 'shot-2');
-    expect(order).toHaveBeenCalledWith('timeline_frame', { ascending: true });
     expect(mocks.upsertShotInCache).toHaveBeenCalledWith(
       queryClient,
       'project-1',

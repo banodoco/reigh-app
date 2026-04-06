@@ -3,7 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import { MediaLightbox } from '@/domains/media-lightbox/MediaLightbox';
 import OverlayEditor from '@/tools/video-editor/components/PreviewPanel/OverlayEditor';
 import { RemotionPreview } from '@/tools/video-editor/components/PreviewPanel/RemotionPreview';
-import { useTimelineEditorContext } from '@/tools/video-editor/contexts/TimelineEditorContext';
+import {
+  useTimelineEditorData,
+  useTimelineEditorOps,
+} from '@/tools/video-editor/contexts/TimelineEditorContext';
 import { useTimelinePlaybackContext } from '@/tools/video-editor/contexts/TimelinePlaybackContext';
 import { loadGenerationForLightbox } from '@/tools/video-editor/lib/generation-utils';
 
@@ -14,10 +17,12 @@ function PreviewPanelComponent() {
     trackScaleMap,
     compositionSize,
     selectedClipId,
+  } = useTimelineEditorData();
+  const {
     setSelectedClipId,
     onOverlayChange,
     registerLightboxHandler,
-  } = useTimelineEditorContext();
+  } = useTimelineEditorOps();
   const [lightboxAssetKey, setLightboxAssetKey] = useState<string | null>(null);
   const {
     previewRef,

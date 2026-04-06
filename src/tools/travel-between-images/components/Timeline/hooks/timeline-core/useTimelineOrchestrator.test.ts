@@ -34,7 +34,7 @@ describe('useTimelineOrchestrator helpers', () => {
     expect(setPendingDropFrame).toHaveBeenLastCalledWith(null);
   });
 
-  it('calculates duplicate placement and forwards the same frame to state + callback', () => {
+  it('forwards the source frame to pending state and lets SQL resolve the final placement', () => {
     const setPendingDuplicateFrame = vi.fn();
     const onImageDuplicate = vi.fn();
 
@@ -45,13 +45,12 @@ describe('useTimelineOrchestrator helpers', () => {
         { id: 'img-1', timeline_frame: 1 },
         { id: 'img-2', timeline_frame: 9 },
       ] as never,
-      framePositions: new Map(),
       onImageDuplicate,
       setPendingDuplicateFrame,
     });
 
-    expect(setPendingDuplicateFrame).toHaveBeenCalledWith(5);
-    expect(onImageDuplicate).toHaveBeenCalledWith('img-1', 5);
+    expect(setPendingDuplicateFrame).toHaveBeenCalledWith(1);
+    expect(onImageDuplicate).toHaveBeenCalledWith('img-1', 1, 9);
   });
 
   it('routes structure-video resource selection through the add-video path when timeline videos exist', () => {

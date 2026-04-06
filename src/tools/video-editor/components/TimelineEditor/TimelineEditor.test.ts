@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import type { ClipMeta } from '@/tools/video-editor/lib/timeline-data';
-import type { AssetRegistry } from '@/tools/video-editor/types';
 import type { TimelineRow } from '@/tools/video-editor/types/timeline-canvas';
 import { resolveSelectedGenerationIdsForShotCreation } from './TimelineEditor';
 
@@ -28,18 +27,16 @@ describe('resolveSelectedGenerationIdsForShotCreation', () => {
   };
 
   it('sorts selected generation ids by track index and clip start', () => {
-    const registry: AssetRegistry = {
-      assets: {
-        'asset-1': { file: 'one.png', generationId: 'gen-1' },
-        'asset-2': { file: 'two.png', generationId: 'gen-2' },
-        'asset-3': { file: 'three.png', generationId: 'gen-3' },
-      },
+    const assetGenerationMap = {
+      'asset-1': 'gen-1',
+      'asset-2': 'gen-2',
+      'asset-3': 'gen-3',
     };
 
     const result = resolveSelectedGenerationIdsForShotCreation({
       rows,
       meta,
-      registry,
+      assetGenerationMap,
       selectedClipIds: ['clip-3', 'clip-1', 'clip-2'],
     });
 
@@ -50,18 +47,15 @@ describe('resolveSelectedGenerationIdsForShotCreation', () => {
   });
 
   it('marks the selection as ineligible when any selected clip lacks a generation id', () => {
-    const registry: AssetRegistry = {
-      assets: {
-        'asset-1': { file: 'one.png', generationId: 'gen-1' },
-        'asset-2': { file: 'two.png' },
-        'asset-3': { file: 'three.png', generationId: 'gen-3' },
-      },
+    const assetGenerationMap = {
+      'asset-1': 'gen-1',
+      'asset-3': 'gen-3',
     };
 
     const result = resolveSelectedGenerationIdsForShotCreation({
       rows,
       meta,
-      registry,
+      assetGenerationMap,
       selectedClipIds: ['clip-1', 'clip-2', 'clip-3'],
     });
 

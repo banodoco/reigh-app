@@ -3,7 +3,10 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import AssetPanel from '@/tools/video-editor/components/PropertiesPanel/AssetPanel';
 import { BulkClipPanel } from '@/tools/video-editor/components/PropertiesPanel/BulkClipPanel';
 import { ClipPanel, getVisibleClipTabs, NO_EFFECT } from '@/tools/video-editor/components/PropertiesPanel/ClipPanel';
-import { useTimelineEditorContext } from '@/tools/video-editor/contexts/TimelineEditorContext';
+import {
+  useTimelineEditorData,
+  useTimelineEditorOps,
+} from '@/tools/video-editor/contexts/TimelineEditorContext';
 import { useStaleVariants } from '@/tools/video-editor/hooks/useStaleVariants';
 import { getBulkVisibleTabs, getSharedNestedValue, getSharedValue } from '@/tools/video-editor/lib/bulk-utils';
 
@@ -16,6 +19,9 @@ function PropertiesPanelComponent() {
     selectedTrack,
     selectedClipHasPredecessor,
     compositionSize,
+    preferences,
+  } = useTimelineEditorData();
+  const {
     clearSelection,
     setSelectedClipId,
     handleUpdateClips,
@@ -26,13 +32,10 @@ function PropertiesPanelComponent() {
     handleResetClipsPosition,
     handleToggleMuteClips,
     handleToggleMute,
-    preferences,
     setActiveClipTab,
-    setAssetPanelState,
-    uploadFiles,
     patchRegistry,
     registerAsset,
-  } = useTimelineEditorContext();
+  } = useTimelineEditorOps();
   const { staleAssetKeys, dismissedAssetKeys, dismissAsset, updateAssetToCurrentVariant } = useStaleVariants({
     registry: resolvedConfig?.registry,
     patchRegistry,

@@ -1,6 +1,7 @@
 import type { Shot } from '@/domains/generation/types';
 import type { Dispatch, SetStateAction } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
+import type { UploadedGenerationMetadata } from '@/shared/hooks/shots/externalImageDrop';
 
 export interface ShotCreationResult {
   shotId: string;
@@ -50,6 +51,7 @@ interface CreateShotMutationResult {
 interface ExternalDropResult {
   shotId: string;
   generationIds?: string[];
+  generationMetadata?: UploadedGenerationMetadata[];
 }
 
 export interface CreateShotWithGenerationsRpcShotGeneration {

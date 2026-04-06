@@ -37,7 +37,7 @@ interface TimelineInteractionAdapter {
   onFileDrop?: (files: File[], targetFrame?: number) => Promise<void>;
   onGenerationDrop?: (generationId: string, imageUrl: string, thumbUrl: string | undefined, targetFrame?: number) => Promise<void>;
   onImageDelete: NonNullable<LightboxActionHandlers['onDelete']>;
-  onImageDuplicate?: (imageId: string, timeline_frame: number) => void;
+  onImageDuplicate?: (imageId: string, timelineFrame: number, nextTimelineFrame?: number) => void;
   duplicatingImageId?: string | null;
   duplicateSuccessImageId?: string | null;
   onPairClick?: (pairIndex: number) => void;

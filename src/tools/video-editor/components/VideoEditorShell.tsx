@@ -15,7 +15,10 @@ import { RemotionPreview } from '@/tools/video-editor/components/PreviewPanel/Re
 import { PropertiesPanel } from '@/tools/video-editor/components/PropertiesPanel/PropertiesPanel';
 import { TimelineEditor } from '@/tools/video-editor/components/TimelineEditor/TimelineEditor';
 import { useTimelineChromeContext } from '@/tools/video-editor/contexts/TimelineChromeContext';
-import { useTimelineEditorContext } from '@/tools/video-editor/contexts/TimelineEditorContext';
+import {
+  useTimelineEditorData,
+  useTimelineEditorOps,
+} from '@/tools/video-editor/contexts/TimelineEditorContext';
 import { useTimelinePlaybackContext } from '@/tools/video-editor/contexts/TimelinePlaybackContext';
 import { useKeyboardShortcuts } from '@/tools/video-editor/hooks/useKeyboardShortcuts';
 import { useTimelineRealtime } from '@/tools/video-editor/hooks/useTimelineRealtime';
@@ -50,7 +53,8 @@ interface VideoEditorShellProps {
 }
 
 function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: string; forceCondensed?: boolean }) {
-  const editor = useTimelineEditorContext();
+  const editorData = useTimelineEditorData();
+  const editorOps = useTimelineEditorOps();
   const chrome = useTimelineChromeContext();
   const playback = useTimelinePlaybackContext();
   const { isGenerationsPaneLocked, setIsGenerationsPaneLocked } = usePanes();
@@ -71,19 +75,19 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
   });
 
   useKeyboardShortcuts({
-    hasSelectedClip: editor.selectedClipIds.size > 0,
-    canMoveSelectedClipToTrack: editor.selectedClipIds.size >= 1,
-    selectedClipIds: editor.selectedClipIds,
-    moveSelectedClipsToTrack: editor.moveSelectedClipsToTrack,
+    hasSelectedClip: editorData.selectedClipIds.size > 0,
+    canMoveSelectedClipToTrack: editorData.selectedClipIds.size >= 1,
+    selectedClipIds: editorData.selectedClipIds,
+    moveSelectedClipsToTrack: editorOps.moveSelectedClipsToTrack,
     undo: chrome.undo,
     redo: chrome.redo,
-    selectAllClips: () => editor.selectClips(Object.keys(editor.data?.meta ?? {})),
+    selectAllClips: () => editorOps.selectClips(Object.keys(editorData.data?.meta ?? {})),
     togglePlayPause: () => playback.previewRef.current?.togglePlayPause(),
     seekRelative: (deltaSeconds) => playback.previewRef.current?.seek(Math.max(0, playback.currentTime + deltaSeconds)),
-    toggleMute: () => editor.handleToggleMuteClips([...editor.selectedClipIds]),
-    splitSelectedClip: editor.handleSplitSelectedClip,
-    deleteSelectedClip: () => editor.handleDeleteClips([...editor.selectedClipIds]),
-    clearSelection: editor.clearSelection,
+    toggleMute: () => editorOps.handleToggleMuteClips([...editorData.selectedClipIds]),
+    splitSelectedClip: editorOps.handleSplitSelectedClip,
+    deleteSelectedClip: () => editorOps.handleDeleteClips([...editorData.selectedClipIds]),
+    clearSelection: editorOps.clearSelection,
   });
 
   const onDividerMouseDown = useCallback((event: ReactMouseEvent) => {
@@ -148,9 +152,9 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
     : (timelineHeight ? `minmax(0,1fr) auto ${timelineHeight}px` : 'minmax(0,1fr) auto minmax(200px,36%)');
 
   const totalSeconds = useMemo(() => {
-    if (!editor.resolvedConfig) return 1;
-    return getTimelineDurationInFrames(editor.resolvedConfig, editor.resolvedConfig.output.fps) / editor.resolvedConfig.output.fps;
-  }, [editor.resolvedConfig]);
+    if (!editorData.resolvedConfig) return 1;
+    return getTimelineDurationInFrames(editorData.resolvedConfig, editorData.resolvedConfig.output.fps) / editorData.resolvedConfig.output.fps;
+  }, [editorData.resolvedConfig]);
 
   // ── Save badge (left of track buttons in toolbar) ───────────────────
 
@@ -372,7 +376,7 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
                 </button>
                 <button
                   type="button"
-                  className={`flex flex-1 items-center justify-center gap-1.5 border px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.12em] transition-colors ${condensedRightPanel === 'properties' ? 'border-transparent bg-accent text-foreground' : editor.selectedClipIds.size > 0 ? 'border-sky-400 text-muted-foreground hover:text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+                  className={`flex flex-1 items-center justify-center gap-1.5 border px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.12em] transition-colors ${condensedRightPanel === 'properties' ? 'border-transparent bg-accent text-foreground' : editorData.selectedClipIds.size > 0 ? 'border-sky-400 text-muted-foreground hover:text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
                   onClick={() => setCondensedRightPanel('properties')}
                 >
                   <SlidersHorizontal className="h-3 w-3" />
@@ -384,10 +388,10 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
                 <div className="relative flex min-h-0 flex-1 flex-col">
                   {previewOverlay}
                   <div className="min-h-0 flex-1">
-                    {editor.resolvedConfig && (
+                    {editorData.resolvedConfig && (
                       <RemotionPreview
                         ref={playback.previewRef}
-                        config={editor.resolvedConfig}
+                        config={editorData.resolvedConfig}
                         compact
                         initialTime={playback.currentTime}
                         onTimeUpdate={playback.onPreviewTimeUpdate}

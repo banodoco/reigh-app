@@ -45,7 +45,7 @@ interface GenerationActionsReturn {
   ) => Promise<void>;
   handleDeleteImageFromShot: (generationId: string) => Promise<void>;
   handleBatchDeleteImages: (generationIds: string[]) => Promise<void>;
-  handleDuplicateImage: (generationId: string, currentFrame: number) => Promise<void>;
+  handleDuplicateImage: (generationId: string, currentFrame: number, nextFrame?: number) => Promise<void>;
 }
 
 // Type for shot actions from useShotActions
@@ -243,8 +243,8 @@ export function useShotSettingsValue({
       onBatchDelete: (ids: string[]) => {
         generationActions.handleBatchDeleteImages(ids);
       },
-      onDuplicate: (id: string, timeline_frame: number) => {
-        generationActions.handleDuplicateImage(id, timeline_frame);
+      onDuplicate: (id: string, timeline_frame: number, nextFrame?: number) => {
+        generationActions.handleDuplicateImage(id, timeline_frame, nextFrame);
       },
       onUpload: handleImageUpload,
     }),

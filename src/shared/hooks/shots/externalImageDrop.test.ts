@@ -88,7 +88,11 @@ describe('processDroppedImages', () => {
   });
 
   it('uploads, creates generation, and attaches with explicit timeline position', async () => {
-    const addImageToShot = vi.fn().mockResolvedValue(undefined);
+    const addImageToShot = vi.fn().mockResolvedValue({
+      id: 'shot-gen-1',
+      generation_id: 'gen-1',
+      timeline_frame: 42,
+    });
     const addImageToShotWithoutPosition = vi.fn().mockResolvedValue(undefined);
 
     const result = await processDroppedImages({
@@ -106,12 +110,30 @@ describe('processDroppedImages', () => {
       createGeneration: vi.fn().mockResolvedValue({
         id: 'gen-1',
         location: 'https://example.com/image.png',
+        thumbnail_url: 'https://example.com/thumb.png',
+        type: 'image',
+        created_at: '2026-04-06T00:00:00.000Z',
+        params: { source: 'upload' },
+        primary_variant_id: 'variant-1',
       }),
     });
 
     expect(result).toEqual({
       shotId: 'shot-1',
       generationIds: ['gen-1'],
+      generationMetadata: [
+        {
+          generationId: 'gen-1',
+          location: 'https://example.com/image.png',
+          thumbnail_url: 'https://example.com/thumb.png',
+          type: 'image',
+          created_at: '2026-04-06T00:00:00.000Z',
+          params: { source: 'upload' },
+          primary_variant_id: 'variant-1',
+          shot_generation_id: 'shot-gen-1',
+          timeline_frame: 42,
+        },
+      ],
     });
     expect(addImageToShot).toHaveBeenCalledWith(
       expect.objectContaining({

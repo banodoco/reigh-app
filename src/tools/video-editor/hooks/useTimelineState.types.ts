@@ -42,7 +42,7 @@ type ClipResizeHook = ReturnType<typeof useClipResize>;
 type ClipEditingHook = ReturnType<typeof useClipEditing>;
 type ExternalDropHook = ReturnType<typeof useExternalDrop>;
 
-export interface TimelineEditorContextValue {
+export interface TimelineEditorDataContextValue {
   data: TimelineData | null;
   resolvedConfig: TimelineResolvedConfig;
   selectedClipId: string | null;
@@ -66,6 +66,9 @@ export interface TimelineEditorContextValue {
   preferences: EditorPreferences;
   timelineRef: TimelinePlaybackHook['timelineRef'];
   timelineWrapperRef: TimelinePlaybackHook['timelineWrapperRef'];
+}
+
+export interface TimelineEditorOpsContextValue {
   setSelectedClipId: TimelineSetSelectedClipId;
   isClipSelected: UseMultiSelectResult['isClipSelected'];
   selectClip: UseMultiSelectResult['selectClip'];
@@ -111,6 +114,11 @@ export interface TimelineEditorContextValue {
   onDoubleClickAsset?: (assetKey: string) => void;
   registerLightboxHandler?: (handler: ((assetKey: string) => void) | null) => void;
 }
+
+/**
+ * @deprecated Prefer `TimelineEditorDataContextValue` and `TimelineEditorOpsContextValue`.
+ */
+export interface TimelineEditorContextValue extends TimelineEditorDataContextValue, TimelineEditorOpsContextValue {}
 
 export interface TimelineChromeContextValue {
   timelineName: string | null;

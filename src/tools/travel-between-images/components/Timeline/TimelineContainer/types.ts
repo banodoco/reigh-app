@@ -1,7 +1,6 @@
 import type { GenerationRow } from '@/domains/generation/types';
 import type {
   ImageDeleteHandler,
-  ImageDuplicateHandler,
   ImageReorderHandler,
   FileDropHandler,
   GenerationDropHandler,
@@ -25,7 +24,7 @@ interface TimelinePairProps {
 
 interface TimelineImageActionProps {
   onImageDelete: ImageDeleteHandler;
-  onImageDuplicate: ImageDuplicateHandler;
+  onImageDuplicate: (imageId: string, timelineFrame: number, nextTimelineFrame?: number) => void;
   duplicatingImageId?: string | null;
   duplicateSuccessImageId?: string | null;
 }

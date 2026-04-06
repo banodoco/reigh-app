@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useTimelineEditorContext } from '@/tools/video-editor/contexts/TimelineEditorContext';
+import { useTimelineEditorData } from '@/tools/video-editor/contexts/TimelineEditorContext';
 
 export type SelectedMediaClip = {
   clipId: string;
@@ -27,7 +27,7 @@ export function buildSummary(imageCount: number, videoCount: number) {
 }
 
 export function useSelectedMediaClips(): { clips: SelectedMediaClip[]; summary: string } {
-  const { selectedClipIds, resolvedConfig } = useTimelineEditorContext();
+  const { selectedClipIds, resolvedConfig } = useTimelineEditorData();
 
   return useMemo(() => {
     if (!resolvedConfig || selectedClipIds.size === 0) {

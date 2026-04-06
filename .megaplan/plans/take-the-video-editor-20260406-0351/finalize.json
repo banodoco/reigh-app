@@ -215,10 +215,24 @@
       "depends_on": [
         "T12"
       ],
-      "status": "pending",
-      "executor_notes": "",
-      "files_changed": [],
-      "commands_run": [],
+      "status": "done",
+      "executor_notes": "Removed the remaining timeline data adapter pattern so `useTimelineState` and the downstream hooks consume direct values and typed operations instead of a reassembled `UseTimelineDataResult` object. Verified by grep: `UseTimelineDataResult`, `TimelineDataHook`, `dataHook.*`, `applyTimelineEdit`, and `applyResolvedConfigEdit` no longer appear under `src/tools/video-editor/`. Full verification passed with `npx vitest run --config config/testing/vitest.config.ts src/tools/video-editor/`: 23 test files / 82 tests passed.",
+      "files_changed": [
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/video-editor/hooks/useAssetManagement.ts",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/video-editor/hooks/useClipDrag.ts",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/video-editor/hooks/useClipEditing.ts",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/video-editor/hooks/useClipResize.ts",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/video-editor/hooks/useExternalDrop.ts",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/video-editor/hooks/useStaleVariants.ts",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/video-editor/hooks/useTimelineState.ts",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/video-editor/hooks/useTimelineState.types.ts",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/video-editor/hooks/useTimelineTrackManagement.ts"
+      ],
+      "commands_run": [
+        "cd /Users/peteromalley/Documents/reigh-workspace/reigh-app && rg -n \"UseTimelineDataResult|dataHook\\\\.|TimelineDataHook\" src/tools/video-editor/",
+        "cd /Users/peteromalley/Documents/reigh-workspace/reigh-app && rg -n \"applyTimelineEdit|applyResolvedConfigEdit|UseTimelineDataResult\" src/tools/video-editor/",
+        "cd /Users/peteromalley/Documents/reigh-workspace/reigh-app && npx vitest run --config config/testing/vitest.config.ts src/tools/video-editor/"
+      ],
       "evidence_files": [],
       "reviewer_verdict": ""
     },
@@ -228,10 +242,17 @@
       "depends_on": [
         "T13"
       ],
-      "status": "pending",
-      "executor_notes": "",
-      "files_changed": [],
-      "commands_run": [],
+      "status": "done",
+      "executor_notes": "Split the editor context type surface into `TimelineEditorDataContextValue` and `TimelineEditorOpsContextValue`, added data/ops context providers and convenience hooks, and kept the merged `useTimelineEditorContext()` as a deprecated compatibility hook that reads both sub-contexts. `VideoEditorProvider` now nests the data and ops providers under the editor umbrella before chrome/playback. Verified by grep for the two new sub-context hooks/providers and the `@deprecated` markers, and by the full `src/tools/video-editor/` Vitest module passing with 24 test files / 88 tests.",
+      "files_changed": [
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/video-editor/contexts/TimelineEditorContext.tsx",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/video-editor/contexts/VideoEditorProvider.tsx",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/video-editor/hooks/useTimelineState.types.ts"
+      ],
+      "commands_run": [
+        "cd /Users/peteromalley/Documents/reigh-workspace/reigh-app && rg -n \"TimelineEditorDataContextProvider|TimelineEditorOpsContextProvider|useTimelineEditorData|useTimelineEditorOps|@deprecated\" src/tools/video-editor/contexts/TimelineEditorContext.tsx src/tools/video-editor/hooks/useTimelineState.types.ts",
+        "cd /Users/peteromalley/Documents/reigh-workspace/reigh-app && npx vitest run --config config/testing/vitest.config.ts src/tools/video-editor/"
+      ],
       "evidence_files": [],
       "reviewer_verdict": ""
     },
@@ -241,10 +262,21 @@
       "depends_on": [
         "T14"
       ],
-      "status": "pending",
-      "executor_notes": "",
-      "files_changed": [],
-      "commands_run": [],
+      "status": "done",
+      "executor_notes": "Migrated the seven planned consumers from the deprecated merged editor context hook to the data/ops sub-context hooks: `TimelineEditor`, `PropertiesPanel`, `PreviewPanel`, `AssetPanel`, `CompactPreview`, `useSelectedMediaClips`, and `VideoEditorShell`. Verification included a grep over those seven files showing no remaining `useTimelineEditorContext` imports, plus the full `src/tools/video-editor/` Vitest module passing with 24 test files / 89 tests. During verification, corrected a helper regression in `TimelineEditor` so `resolveSelectedGenerationIdsForShotCreation` supports both the optimized asset-generation map path and the existing registry-based test contract.",
+      "files_changed": [
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/video-editor/components/CompactPreview.tsx",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/video-editor/components/PreviewPanel/PreviewPanel.tsx",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/video-editor/components/PropertiesPanel/AssetPanel.tsx",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/video-editor/components/PropertiesPanel/PropertiesPanel.tsx",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/video-editor/components/TimelineEditor/TimelineEditor.tsx",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/video-editor/components/VideoEditorShell.tsx",
+        "/Users/peteromalley/Documents/reigh-workspace/reigh-app/src/tools/video-editor/hooks/useSelectedMediaClips.ts"
+      ],
+      "commands_run": [
+        "cd /Users/peteromalley/Documents/reigh-workspace/reigh-app && rg -n \"useTimelineEditorContext\" src/tools/video-editor/components/TimelineEditor/TimelineEditor.tsx src/tools/video-editor/components/PropertiesPanel/PropertiesPanel.tsx src/tools/video-editor/components/PreviewPanel/PreviewPanel.tsx src/tools/video-editor/components/PropertiesPanel/AssetPanel.tsx src/tools/video-editor/components/CompactPreview.tsx src/tools/video-editor/hooks/useSelectedMediaClips.ts src/tools/video-editor/components/VideoEditorShell.tsx",
+        "cd /Users/peteromalley/Documents/reigh-workspace/reigh-app && npx vitest run --config config/testing/vitest.config.ts src/tools/video-editor/"
+      ],
       "evidence_files": [],
       "reviewer_verdict": ""
     },
@@ -380,21 +412,21 @@
       "id": "SC13",
       "task_id": "T13",
       "question": "Is UseTimelineDataResult type removed? Do all downstream hooks accept specific args instead of the adapter shape?",
-      "executor_note": "",
+      "executor_note": "Yes. `UseTimelineDataResult` is gone, the old adapter/object reassembly is gone, and the downstream hooks now consume specific typed args instead of the adapter shape.",
       "verdict": ""
     },
     {
       "id": "SC14",
       "task_id": "T14",
       "question": "Are there exactly 2 new sub-contexts (Data + Ops) with convenience hooks, and is the merged useTimelineEditorContext marked @deprecated?",
-      "executor_note": "",
+      "executor_note": "Yes. There are exactly two new editor sub-contexts, `useTimelineEditorData()` and `useTimelineEditorOps()` were added, and the merged `useTimelineEditorContext()` is explicitly marked deprecated.",
       "verdict": ""
     },
     {
       "id": "SC15",
       "task_id": "T15",
       "question": "Are all 7 consumers (TimelineEditor, PropertiesPanel, PreviewPanel, VideoEditorShell, AssetPanel, CompactPreview, useSelectedMediaClips) using sub-context hooks instead of the merged context?",
-      "executor_note": "",
+      "executor_note": "Yes. All seven planned consumers now use the data/ops sub-context hooks instead of the merged editor context hook.",
       "verdict": ""
     },
     {

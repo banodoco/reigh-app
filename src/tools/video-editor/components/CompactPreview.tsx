@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/shared/components/ui/button';
 import { Slider } from '@/shared/components/ui/slider';
 import { useTimelineChromeContext } from '@/tools/video-editor/contexts/TimelineChromeContext';
-import { useTimelineEditorContext } from '@/tools/video-editor/contexts/TimelineEditorContext';
+import { useTimelineEditorData } from '@/tools/video-editor/contexts/TimelineEditorContext';
 import { useTimelinePlaybackContext } from '@/tools/video-editor/contexts/TimelinePlaybackContext';
 import { RemotionPreview } from '@/tools/video-editor/components/PreviewPanel/RemotionPreview';
 import { getTimelineDurationInFrames } from '@/tools/video-editor/lib/config-utils';
@@ -16,7 +16,7 @@ interface CompactPreviewProps {
 
 export function CompactPreview({ timelineId, onCreateTimeline }: CompactPreviewProps) {
   const navigate = useNavigate();
-  const { resolvedConfig } = useTimelineEditorContext();
+  const { resolvedConfig } = useTimelineEditorData();
   const { saveStatus } = useTimelineChromeContext();
   const { previewRef, playerContainerRef, currentTime, onPreviewTimeUpdate } = useTimelinePlaybackContext();
 

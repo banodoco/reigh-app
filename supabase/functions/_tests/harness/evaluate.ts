@@ -313,6 +313,33 @@ export function expectNoCollateralDamage(
     : fail(`Unexpected changes detected: ${unexpected.join(", ")}`);
 }
 
+export function expectMediaClipAdded(diff: SnapshotDiff, trackId?: string): AssertionResult {
+  for (const row of getTimelineModifications(diff)) {
+    for (const clip of Object.values(row.clip_changes.added)) {
+      const isMedia = clip.clipType === "hold" || clip.clipType === "media";
+      const matchesTrack = !trackId || clip.track === trackId;
+      if (isMedia && clip.asset && matchesTrack) {
+        return pass(`Media clip ${clip.id} was added on track ${clip.track} with asset ${clip.asset}.`);
+      }
+    }
+  }
+
+  return fail(`No added media clip found${trackId ? ` on track ${trackId}` : ""}.`);
+}
+
+export function expectDuplicateGeneration(diff: SnapshotDiff): AssertionResult {
+  const addedGenerations = Object.values(diff.generations.added);
+  const addedShotGenerations = Object.values(diff.shot_generations.added);
+  if (addedGenerations.length === 0) {
+    return fail("No new generations were created by duplicate_generation.");
+  }
+  // Duplicated generations are linked to a shot via shot_generations
+  if (addedShotGenerations.length === 0) {
+    return fail("Generation was duplicated but no shot_generations entry was created.");
+  }
+  return pass(`Duplicated generation: ${addedGenerations.map((g) => g.id).join(", ")}.`);
+}
+
 export function expectSessionTerminal(snapshot: HarnessSnapshot): AssertionResult {
   const sessions = Object.values(snapshot.timeline_agent_sessions);
   if (sessions.length === 0) {

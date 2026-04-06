@@ -1,4 +1,4 @@
-import { memo, useCallback, useLayoutEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardSensor,
   PointerSensor,
@@ -19,7 +19,10 @@ import { TimelineCanvas } from '@/tools/video-editor/components/TimelineEditor/T
 import { ROW_HEIGHT, TIMELINE_START_LEFT } from '@/tools/video-editor/lib/coordinate-utils';
 import type { ClipMeta } from '@/tools/video-editor/lib/timeline-data';
 import { useTimelineChromeContext } from '@/tools/video-editor/contexts/TimelineChromeContext';
-import { useTimelineEditorContext } from '@/tools/video-editor/contexts/TimelineEditorContext';
+import {
+  useTimelineEditorData,
+  useTimelineEditorOps,
+} from '@/tools/video-editor/contexts/TimelineEditorContext';
 import { useClipDrag } from '@/tools/video-editor/hooks/useClipDrag';
 import { useMarqueeSelect } from '@/tools/video-editor/hooks/useMarqueeSelect';
 import { useShotGroups } from '@/tools/video-editor/hooks/useShotGroups';
@@ -29,16 +32,34 @@ import type { TimelineAction, TimelineRow } from '@/tools/video-editor/types/tim
 
 const EMPTY_CLIP_META: Record<string, ClipMeta> = {};
 const EMPTY_ASSET_REGISTRY: AssetRegistry = { assets: {} };
+const EMPTY_ASSET_GENERATION_MAP: Record<string, string> = {};
+
+function useStableValue<T extends Record<string, string>>(value: T): T {
+  const ref = useRef(value);
+  const previous = ref.current;
+  const previousKeys = Object.keys(previous);
+  const nextKeys = Object.keys(value);
+  const isEqual = previousKeys.length === nextKeys.length
+    && nextKeys.every((key) => previous[key] === value[key]);
+
+  if (!isEqual) {
+    ref.current = value;
+  }
+
+  return ref.current;
+}
 
 export function resolveSelectedGenerationIdsForShotCreation({
   rows,
   meta,
   registry,
+  assetGenerationMap,
   selectedClipIds,
 }: {
   rows: TimelineRow[];
   meta: Record<string, ClipMeta>;
-  registry: AssetRegistry;
+  registry?: AssetRegistry;
+  assetGenerationMap?: Record<string, string>;
   selectedClipIds: Iterable<string>;
 }) {
   const selectedSet = new Set(selectedClipIds);
@@ -47,27 +68,24 @@ export function resolveSelectedGenerationIdsForShotCreation({
   }
 
   const orderedSelections = rows
-    .flatMap((row, trackIndex) => row.actions
+      .flatMap((row, trackIndex) => row.actions
       .filter((action) => selectedSet.has(action.id))
       .map((action) => {
         const assetKey = meta[action.id]?.asset;
-        const assetEntry = assetKey ? registry.assets[assetKey] : undefined;
+        const generationId = assetKey
+          ? assetGenerationMap?.[assetKey] ?? registry?.assets[assetKey]?.generationId
+          : undefined;
 
         console.log('[ShotCreate:resolve]', {
           clipId: action.id,
           assetKey,
-          registryEntry: assetEntry ? {
-            file: assetEntry.file,
-            generationId: assetEntry.generationId,
-            variantId: assetEntry.variantId,
-            type: assetEntry.type,
-          } : null,
+          generationId: generationId ?? null,
         });
 
         return {
           trackIndex,
           start: action.start,
-          generationId: assetEntry?.generationId,
+          generationId,
         };
       }))
     .sort((left, right) => left.trackIndex - right.trackIndex || left.start - right.start);
@@ -95,6 +113,18 @@ function TimelineEditorComponent() {
     timelineRef,
     timelineWrapperRef,
     dataRef,
+    primaryClipId,
+    selectedClipIds,
+    selectedClipIdsRef,
+    scale,
+    scaleWidth,
+    pendingOpsRef,
+    coordinator,
+    indicatorRef,
+    editAreaRef,
+    selectedTrackId,
+  } = useTimelineEditorData();
+  const {
     applyEdit,
     moveClipToRow,
     createTrackAndMoveClip,
@@ -103,17 +133,7 @@ function TimelineEditorComponent() {
     addToSelection,
     clearSelection,
     isClipSelected,
-    primaryClipId,
-    selectedClipIds,
-    selectedClipIdsRef,
     setSelectedTrackId,
-    scale,
-    scaleWidth,
-    pendingOpsRef,
-    coordinator,
-    indicatorRef,
-    editAreaRef,
-    selectedTrackId,
     handleTrackPopoverChange,
     handleMoveTrack,
     handleRemoveTrack,
@@ -132,7 +152,7 @@ function TimelineEditorComponent() {
     onDoubleClickAsset,
     patchRegistry,
     registerAsset,
-  } = useTimelineEditorContext();
+  } = useTimelineEditorOps();
   const trackSensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 5 },
@@ -230,19 +250,33 @@ function TimelineEditorComponent() {
     data?.registry ?? EMPTY_ASSET_REGISTRY,
     shots,
   );
+  const assetGenerationMap = useMemo<Record<string, string>>(() => {
+    const assets = data?.registry?.assets;
+    if (!assets) {
+      return EMPTY_ASSET_GENERATION_MAP;
+    }
+
+    return Object.entries(assets).reduce<Record<string, string>>((acc, [assetKey, assetEntry]) => {
+      if (typeof assetEntry?.generationId === 'string' && assetEntry.generationId.length > 0) {
+        acc[assetKey] = assetEntry.generationId;
+      }
+      return acc;
+    }, {});
+  }, [data?.registry?.assets]);
+  const stableAssetGenerationMap = useStableValue(assetGenerationMap);
 
   const selectionShotCreationState = useMemo(() => {
-    if (!data) {
+    if (!data?.rows || !data?.meta) {
       return { canCreateShot: false, generationIds: [] as string[] };
     }
 
     return resolveSelectedGenerationIdsForShotCreation({
       rows: data.rows,
       meta: data.meta,
-      registry: data.registry,
+      assetGenerationMap: stableAssetGenerationMap,
       selectedClipIds,
     });
-  }, [data, selectedClipIds]);
+  }, [data?.rows, data?.meta, stableAssetGenerationMap, selectedClipIds]);
 
   const existingShotsForSelection = useMemo(() => {
     if (selectionShotCreationState.generationIds.length === 0 || !shots?.length) {

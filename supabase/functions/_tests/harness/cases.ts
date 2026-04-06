@@ -5,8 +5,10 @@ import {
   expectClipMoved,
   expectClipTrimmed,
   expectCreditChargedSoft,
+  expectDuplicateGeneration,
   expectGenerationCreated,
   expectGenerationCreatedSoft,
+  expectMediaClipAdded,
   expectNoCollateralDamage,
   expectPropertySet,
   expectSessionTerminal,
@@ -36,8 +38,8 @@ export interface TestCase {
   timeoutMs?: number;
 }
 
-export const COMPOUND_CASES_BLOCKED_REASON =
-  "Blocked: the timeline agent can create generation tasks, but it does not have a tool to place completed generations back onto the timeline.";
+/** @deprecated The agent now supports duplicate_generation + add-media, so compound workflows are unblocked. */
+export const COMPOUND_CASES_BLOCKED_REASON = null;
 
 const TEXT_TO_IMAGE_PROMPT = "harness lighthouse mist matte painting";
 const STYLE_TRANSFER_PROMPT = "harness style transfer editorial portrait";
@@ -227,6 +229,61 @@ export const seedTestCases: TestCase[] = [
             timeline_agent_sessions: { modified: "*" },
           },
           timelineClips: { modified: [getClip(before, 2).id] },
+        }),
+      ]),
+  },
+  {
+    name: "duplicate a generation from a selected clip",
+    category: "timeline-edit",
+    message: (snapshot) => {
+      const clip = getClip(snapshot, 0);
+      const registry = getRegistry(snapshot);
+      const asset = clip.asset ? registry.assets[clip.asset] : null;
+      const generationId = typeof asset?.generationId === "string" ? asset.generationId : null;
+      return generationId
+        ? `Duplicate generation ${generationId}`
+        : `Duplicate the generation from clip ${clip.id}`;
+    },
+    selectedClips: (snapshot) => [buildSelectedClip(snapshot, 0)],
+    skipTaskCompletion: true,
+    evaluate: ({ before, after, diff }) =>
+      evaluateWith([
+        expectDuplicateGeneration(diff),
+        expectSessionTerminal(after),
+        expectSessionMentions(after, "duplicated"),
+        expectNoCollateralDamage(diff, {
+          tables: {
+            generations: { added: "*" },
+            generation_variants: { added: "*" },
+            shot_generations: { added: "*" },
+            timeline_agent_sessions: { modified: "*" },
+          },
+        }),
+      ]),
+  },
+  {
+    name: "duplicate a generation and add it to the timeline",
+    category: "timeline-edit",
+    message: (snapshot) => {
+      const clip = getClip(snapshot, 0);
+      return `Duplicate the generation from clip ${clip.id} and add it right after this clip on the same track`;
+    },
+    selectedClips: (snapshot) => [buildSelectedClip(snapshot, 0)],
+    skipTaskCompletion: true,
+    evaluate: ({ before, after, diff }) =>
+      evaluateWith([
+        expectDuplicateGeneration(diff),
+        expectMediaClipAdded(diff, getClip(before, 0).track),
+        expectSessionTerminal(after),
+        expectNoCollateralDamage(diff, {
+          tables: {
+            timelines: { modified: [before.timeline_id] },
+            generations: { added: "*" },
+            generation_variants: { added: "*" },
+            shot_generations: { added: "*" },
+            timeline_agent_sessions: { modified: "*" },
+          },
+          timelineClips: { added: "*" },
         }),
       ]),
   },

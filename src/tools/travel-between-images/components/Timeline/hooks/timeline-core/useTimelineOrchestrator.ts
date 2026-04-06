@@ -52,7 +52,7 @@ interface TimelineOrchestratorDropHandlers {
 
 interface TimelineOrchestratorInteractionProps {
   setIsDragInProgress: (dragging: boolean) => void;
-  onImageDuplicate: (imageId: string, timeline_frame: number) => void;
+  onImageDuplicate: (imageId: string, timelineFrame: number, nextTimelineFrame?: number) => void;
   readOnly?: boolean;
   isUploadingImage?: boolean;
   maxFrameLimit?: number;

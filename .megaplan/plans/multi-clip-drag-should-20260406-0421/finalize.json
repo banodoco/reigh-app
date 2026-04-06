@@ -81,13 +81,13 @@
       "depends_on": [
         "T4"
       ],
-      "status": "pending",
-      "executor_notes": "",
-      "files_changed": [
-        "src/tools/video-editor/hooks/useClipDrag.ts",
-        "src/tools/video-editor/lib/multi-drag-utils.ts"
+      "status": "done",
+      "executor_notes": "Verified the near-edge multi-drag behavior without a code patch. `computeDropPosition` derives `isNewTrack` from row geometry and source kind rather than selection size, so multi-clip drags get the same new-track state as single-clip drags. `DropIndicator` already shows the affordance when `position.isNewTrack === true && position.trackId === undefined`. `useClipDrag` still falls back to `session.sourceRowId` for secondary ghost placement when no real target row exists, and `computeSecondaryGhosts` therefore keeps secondary ghosts visible relative to that source row. This matches the plan\u2019s acceptable FLAG-002 behavior, so the optional virtual-row polish was not needed.",
+      "files_changed": [],
+      "commands_run": [
+        "npx tsc --noEmit --pretty false",
+        "npx vitest run src/tools/video-editor/hooks/useClipDrag.test.tsx src/tools/video-editor/lib/multi-drag-utils.test.ts"
       ],
-      "commands_run": [],
       "evidence_files": [],
       "reviewer_verdict": ""
     },
@@ -99,12 +99,16 @@
         "T4",
         "T5"
       ],
-      "status": "pending",
-      "executor_notes": "",
+      "status": "done",
+      "executor_notes": "Added an integration test in `src/tools/video-editor/hooks/useClipDrag.test.tsx` for a multi-clip drop onto a new bottom track. The test drives pointerdown/move/up with `isNewTrack: true` and verifies `applyEdit` receives `type: 'config'` plus a resolved config containing the new track and moved clips. I also inspected `useClipDrag.ts` to confirm the single-clip new-track branch at lines 365-377 remains untouched and the existing-track multi-drag rows path still lives in the fallback at lines 419-440. Final verification passed with the full video-editor regression suite.",
       "files_changed": [
-        "src/tools/video-editor/components/TimelineEditor/ClipAction.test.tsx"
+        "src/tools/video-editor/hooks/useClipDrag.test.tsx"
       ],
       "commands_run": [
+        "npx eslint src/tools/video-editor/hooks/useClipDrag.test.tsx",
+        "npx vitest run src/tools/video-editor/hooks/useClipDrag.test.tsx",
+        "npx tsc --noEmit --pretty false",
+        "node --import tsx /tmp/multi-clip-new-track-repro.ts",
         "npx vitest run src/tools/video-editor/"
       ],
       "evidence_files": [],
@@ -155,14 +159,14 @@
       "id": "SC5",
       "task_id": "T5",
       "question": "Does the DropIndicator correctly show the new-track affordance during multi-clip drag (not just single-clip), and are secondary ghosts still visible (even if at source position)?",
-      "executor_note": "",
+      "executor_note": "Confirmed by inspection that the DropIndicator affordance is driven by `isNewTrack && trackId === undefined`, which `computeDropPosition` already produces for multi-drag and `useDragCoordinator` already forwards unchanged. Confirmed that secondary ghosts remain visible near edges because `useClipDrag` falls back to `session.sourceRowId`, so `computeSecondaryGhosts` renders them against a real source row instead of disappearing.",
       "verdict": ""
     },
     {
       "id": "SC6",
       "task_id": "T6",
       "question": "Do ALL existing video-editor tests pass, including single-clip drag, multi-clip same-track drag, and multi-clip cross-track to existing tracks?",
-      "executor_note": "",
+      "executor_note": "Confirmed by the final full regression run that all existing video-editor tests passed after the change set: `npx vitest run src/tools/video-editor/` completed with 24 passed test files and 89 passed tests, including the single-clip drag path, same-track multi-drag, cross-track multi-drag to existing tracks, and the new multi-clip new-track integration case.",
       "verdict": ""
     }
   ],

@@ -7,10 +7,10 @@ import type {
   CreateShotWithGenerationsPathInput,
 } from './shotCreationTypes';
 import type { GenerationRow, Shot } from '@/domains/generation/types';
-import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
 import { enqueueGenerationsInvalidation } from '@/shared/hooks/invalidation/useGenerationInvalidation';
 import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import { invalidateShotsQueries, upsertShotInCache } from '@/shared/hooks/shots/cacheUtils';
+import type { UploadedGenerationMetadata } from '@/shared/hooks/shots/externalImageDrop';
 
 function toRecord(value: unknown): Record<string, unknown> {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
@@ -48,65 +48,30 @@ function mapRpcShotGenerationToRow(
   } as GenerationRow;
 }
 
-interface JoinedShotGenerationRecord {
-  id: string;
-  generation_id: string;
-  timeline_frame: number | null;
-  generations: {
-    location: string | null;
-    thumbnail_url: string | null;
-    type: string | null;
-    created_at: string;
-    starred: boolean | null;
-    name: string | null;
-    based_on: string | null;
-    params: unknown;
-    primary_variant_id: string | null;
-  } | Array<{
-    location: string | null;
-    thumbnail_url: string | null;
-    type: string | null;
-    created_at: string;
-    starred: boolean | null;
-    name: string | null;
-    based_on: string | null;
-    params: unknown;
-    primary_variant_id: string | null;
-  }> | null;
-}
-
-function mapJoinedShotGenerationToRow(
-  shotGeneration: JoinedShotGenerationRecord,
+function mapUploadedGenerationToRow(
+  shotGeneration: UploadedGenerationMetadata,
 ): GenerationRow {
-  const generation = Array.isArray(shotGeneration.generations)
-    ? shotGeneration.generations[0]
-    : shotGeneration.generations;
-
-  if (!generation) {
-    throw new Error('Shot creation hydration failed - missing joined generation');
-  }
-
-  const location = generation.location;
-  const thumbnailUrl = generation.thumbnail_url ?? generation.location;
+  const location = shotGeneration.location;
+  const thumbnailUrl = shotGeneration.thumbnail_url ?? shotGeneration.location;
 
   return {
-    id: shotGeneration.id,
-    generation_id: shotGeneration.generation_id,
-    shotImageEntryId: shotGeneration.id,
-    shot_generation_id: shotGeneration.id,
+    id: shotGeneration.shot_generation_id,
+    generation_id: shotGeneration.generationId,
+    shotImageEntryId: shotGeneration.shot_generation_id,
+    shot_generation_id: shotGeneration.shot_generation_id,
     location,
     imageUrl: location ?? undefined,
     thumbUrl: thumbnailUrl ?? undefined,
-    type: generation.type || 'image',
-    created_at: generation.created_at,
-    createdAt: generation.created_at,
-    starred: generation.starred || false,
-    name: generation.name,
-    based_on: generation.based_on,
-    params: toRecord(generation.params),
+    type: shotGeneration.type || 'image',
+    created_at: shotGeneration.created_at,
+    createdAt: shotGeneration.created_at,
+    starred: false,
+    name: null,
+    based_on: null,
+    params: toRecord(shotGeneration.params),
     timeline_frame: shotGeneration.timeline_frame,
     metadata: {},
-    primary_variant_id: generation.primary_variant_id,
+    primary_variant_id: shotGeneration.primary_variant_id,
     position: shotGeneration.timeline_frame == null ? undefined : Math.floor(shotGeneration.timeline_frame / 50),
   } as GenerationRow;
 }
@@ -197,35 +162,24 @@ export async function createShotWithFilesPath(
   }
 
   if (queryClient) {
-    const { data: hydratedRows, error: hydratedRowsError } = await supabase().from('shot_generations')
-      .select(`
-        id,
-        generation_id,
-        timeline_frame,
-        generations!inner(
-          location,
-          thumbnail_url,
-          type,
-          created_at,
-          starred,
-          name,
-          based_on,
-          params,
-          primary_variant_id
-        )
-      `)
-      .eq('shot_id', newShotId)
-      .order('timeline_frame', { ascending: true });
-
-    if (hydratedRowsError) {
-      throw new Error(`Shot creation hydration failed: ${hydratedRowsError.message}`);
+    if (!uploadResult.generationMetadata?.length) {
+      throw new Error('Shot creation hydration failed - no uploaded generation metadata returned');
     }
 
-    if (!hydratedRows?.length) {
-      throw new Error('Shot creation hydration failed - no shot generations returned');
-    }
-
-    const images = hydratedRows.map((row) => mapJoinedShotGenerationToRow(row as JoinedShotGenerationRecord));
+    const images = [...uploadResult.generationMetadata]
+      .sort((left, right) => {
+        if (left.timeline_frame == null && right.timeline_frame == null) {
+          return 0;
+        }
+        if (left.timeline_frame == null) {
+          return 1;
+        }
+        if (right.timeline_frame == null) {
+          return -1;
+        }
+        return left.timeline_frame - right.timeline_frame;
+      })
+      .map(mapUploadedGenerationToRow);
     const stats = buildShotStats(images);
     const shot: Shot = {
       ...created.shot,

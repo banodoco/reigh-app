@@ -1,13 +1,11 @@
 import { useCallback } from 'react';
 import type { RefObject } from 'react';
-import { calculateDuplicateFrame } from '@/shared/lib/timelinePositionCalculator';
 import type { GenerationRow } from '@/domains/generation/types';
 import type { Resource, StructureVideoMetadata } from '@/features/resources/hooks/useResources';
 import type { PrimaryStructureVideo, StructureVideoConfigWithMetadata } from '@/shared/lib/tasks/travelBetweenImages';
 import type { OnPrimaryStructureVideoInputChange } from '@/tools/travel-between-images/types/mediaHandlers';
 import {
   calculateNewVideoPlacement,
-  TRAILING_ENDPOINT_KEY,
 } from '../../utils/timeline-utils';
 import { useTapToMove } from '../drag/useTapToMove';
 
@@ -37,8 +35,7 @@ interface DuplicateInterceptorArgs {
   imageId: string;
   timelineFrame: number;
   images: GenerationRow[];
-  framePositions: Map<string, number>;
-  onImageDuplicate: (imageId: string, timeline_frame: number) => void;
+  onImageDuplicate: (imageId: string, timelineFrame: number, nextTimelineFrame?: number) => void;
   setPendingDuplicateFrame: (frame: number | null) => void;
 }
 
@@ -65,7 +62,7 @@ interface UseTimelineOrchestratorActionsInput {
   clearSelection: () => void;
   containerRef: RefObject<HTMLDivElement>;
   images: GenerationRow[];
-  onImageDuplicate: (imageId: string, timeline_frame: number) => void;
+  onImageDuplicate: (imageId: string, timelineFrame: number, nextTimelineFrame?: number) => void;
   setPendingDuplicateFrame: (frame: number | null) => void;
   onFileDrop?: (files: File[], targetFrame?: number) => Promise<void>;
   setPendingDropFrame: (frame: number | null) => void;
@@ -140,7 +137,6 @@ export function runDuplicateInterceptor({
   imageId,
   timelineFrame,
   images,
-  framePositions,
   onImageDuplicate,
   setPendingDuplicateFrame,
 }: DuplicateInterceptorArgs): void {
@@ -152,21 +148,10 @@ export function runDuplicateInterceptor({
   const nextImage = currentIndex >= 0 && currentIndex < sortedImages.length - 1
     ? sortedImages[currentIndex + 1]
     : null;
-
-  const existingFrames = images
-    .map((img) => img.timeline_frame)
-    .filter((frame): frame is number => frame !== null && frame !== undefined);
   const nextFrame = nextImage?.timeline_frame;
-  const finalFrame = calculateDuplicateFrame({
-    currentFrame: timelineFrame,
-    nextFrame: nextFrame ?? null,
-    existingFrames,
-    singleItemTrailingFrame: framePositions.get(TRAILING_ENDPOINT_KEY) ?? null,
-    isSingleItem: images.length === 1,
-  });
 
-  setPendingDuplicateFrame(finalFrame);
-  onImageDuplicate(imageId, finalFrame);
+  setPendingDuplicateFrame(timelineFrame);
+  onImageDuplicate(imageId, timelineFrame, nextFrame ?? undefined);
 }
 
 export function handleTimelineStructureVideoSelect({
@@ -287,11 +272,10 @@ export function useTimelineOrchestratorActions({
       imageId,
       timelineFrame,
       images,
-      framePositions,
       onImageDuplicate,
       setPendingDuplicateFrame,
     });
-  }, [framePositions, images, onImageDuplicate, setPendingDuplicateFrame]);
+  }, [images, onImageDuplicate, setPendingDuplicateFrame]);
 
   const handleVideoBrowserSelect = useCallback((resource: Resource) => {
     handleTimelineStructureVideoSelect({

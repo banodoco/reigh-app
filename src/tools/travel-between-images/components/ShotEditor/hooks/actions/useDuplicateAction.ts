@@ -47,7 +47,11 @@ export const useDuplicateAction = ({
   const pendingFramePositionsRef = useRef(state.pendingFramePositions);
   pendingFramePositionsRef.current = state.pendingFramePositions;
 
-  const handleDuplicateImage = useCallback(async (shotImageEntryId: string, timeline_frame: number) => {
+  const handleDuplicateImage = useCallback(async (
+    shotImageEntryId: string,
+    currentFrame: number,
+    nextTimelineFrame?: number,
+  ) => {
     const currentShot = selectedShotRef.current;
     const currentProjectId = projectIdRef.current;
 
@@ -85,28 +89,12 @@ export const useDuplicateAction = ({
     // Start loading state targeting the specific shotImageEntryId
     actionsRef.current.setDuplicatingImageId(shotImageEntryId);
 
-    // Calculate the next image's frame from UI data (more reliable than database query)
-    const sortedImages = [...currentOrderedImages]
-      .filter(img => img.timeline_frame !== undefined && img.timeline_frame !== null)
-      .sort((a, b) => (a.timeline_frame ?? 0) - (b.timeline_frame ?? 0));
-
-    const currentIndex = sortedImages.findIndex(img => img.id === shotImageEntryId);
-
-    const nextImage = currentIndex >= 0 && currentIndex < sortedImages.length - 1
-      ? sortedImages[currentIndex + 1]
-      : null;
-    const nextTimelineFrame = nextImage?.timeline_frame ?? undefined;
-
-    const targetTimelineFrame = timeline_frame;
-    const sourceTimelineFrame = originalImage.timeline_frame ?? 0;
-
     duplicateAsNewGenerationMutationRef.current.mutate({
       shot_id: currentShot.id,
       generation_id: generationId,
       project_id: currentProjectId,
-      timeline_frame: sourceTimelineFrame,
+      timeline_frame: currentFrame,
       next_timeline_frame: nextTimelineFrame ?? undefined,
-      target_timeline_frame: targetTimelineFrame,
     }, {
       onSuccess: (result) => {
         // Add the new item to pending positions immediately to prevent flicker

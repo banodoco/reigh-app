@@ -285,6 +285,17 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   const [shotGroupMenu, setShotGroupMenu] = useState<{ x: number; y: number; shotId: string; shotName: string } | null>(null);
   const shotGroupMenuRef = useRef<HTMLDivElement>(null);
 
+  // Stop native mousedown from reaching the document-level click-outside listener.
+  // Portal DOM hierarchy doesn't match the React tree, so Node.contains() can
+  // return false for elements that ARE visually inside the menu.
+  useEffect(() => {
+    const el = shotGroupMenuRef.current;
+    if (!el) return;
+    const stop = (e: MouseEvent) => e.stopPropagation();
+    el.addEventListener('mousedown', stop);
+    return () => el.removeEventListener('mousedown', stop);
+  }, [shotGroupMenu]);
+
   useEffect(() => {
     if (!shotGroupMenu) return;
     const handleClickOutside = (e: MouseEvent) => {

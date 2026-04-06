@@ -1,0 +1,59 @@
+{
+  "considerations": [
+    {
+      "severity": "critical",
+      "point": "getFallbackValue return type incompatible with AudioBindingValue",
+      "detail": "Both getFallbackValue functions (validateParams.ts:5 and ParameterControls.tsx:16) return `number | string | boolean`. AudioBindingValue is `{ source, min, max }` \u2014 an object. The plan adds audio-binding to ParameterType and assumes getFallbackValue can return the object default, but the return type annotation will reject it. Similarly, ParameterDefinition.default is typed `number | string | boolean` (types/index.ts:18). Both the return type of getFallbackValue AND the ParameterDefinition.default type must be widened to include AudioBindingValue.",
+      "source": "src/tools/video-editor/types/index.ts:18, src/tools/video-editor/effects/validateParams.ts:5, src/tools/video-editor/components/ParameterControls.tsx:16"
+    },
+    {
+      "severity": "critical",
+      "point": "validateAndCoerceParams else-clause silently treats audio-binding as color",
+      "detail": "The else clause in validateAndCoerceParams (validateParams.ts:31) falls through to color validation for any unknown type: `typeof value === 'string' && COLOR_RE.test(value)`. If the audio-binding case is not added BEFORE this else, an AudioBindingValue object will fail the string check and be replaced with the fallback. The plan mentions adding the case but doesn't flag that the current code structure means audio-binding values would be silently coerced to '#000000' if the case is missed or ordered incorrectly.",
+      "source": "src/tools/video-editor/effects/validateParams.ts:30-32"
+    },
+    {
+      "severity": "critical",
+      "point": "getDisplayValue casts to `number | string | boolean` \u2014 breaks with object AudioBindingValue",
+      "detail": "ParameterControls.tsx:44 casts the return: `return value as number | string | boolean`. When the value is an AudioBindingValue object, this cast is wrong and will cause rendering issues when the value is used in String() calls or compared. The plan's Step 7 mentions updating getDisplayValue but only says 'handle the object-typed audio-binding value' without flagging that the function signature and return type need changing.",
+      "source": "src/tools/video-editor/components/ParameterControls.tsx:42-48"
+    },
+    {
+      "severity": "important",
+      "point": "OfflineAudioContext + AnalyserNode combination doesn't work as described",
+      "detail": "The plan says 'Runs FFT analysis (via AnalyserNode or manual FFT on the rendered buffer)'. AnalyserNode is a real-time node that doesn't work with OfflineAudioContext for per-frame extraction \u2014 it only provides the latest snapshot when getFloatFrequencyData is called. For offline pre-computation, you must render the full audio buffer via OfflineAudioContext.startRendering(), then manually compute FFT (e.g., via a manual DFT/FFT implementation or by processing the buffer in chunks). The plan hedges with 'or manual FFT' but should commit to the manual approach since AnalyserNode won't work for this use case.",
+      "source": "Plan Phase 1, Step 1, item 3"
+    },
+    {
+      "severity": "important",
+      "point": "totalDurationInFrames not directly available in TimelineRenderer",
+      "detail": "The plan says to pass totalDurationInFrames to AudioAnalysisProvider in TimelineRenderer.tsx and notes it's 'already available or derivable from config.output'. But TimelineRenderer receives `config: ResolvedTimelineConfig` which has `config.output.fps` but no duration field. The total duration in frames comes from Remotion's composition registration (in the Player or registerRoot), not from the config. TimelineRenderer would need to call `useVideoConfig()` to get durationInFrames, or compute it from clip positions.",
+      "source": "src/tools/video-editor/compositions/TimelineRenderer.tsx, src/tools/video-editor/types/index.ts:115-121 (TimelineOutput type)"
+    },
+    {
+      "severity": "important",
+      "point": "EffectCreatorPanel preview wrapping is non-trivial \u2014 Player component prop can't be wrapped externally",
+      "detail": "The plan says to 'Wrap the preview Player's PreviewComposition with AudioAnalysisProvider'. But the Player receives `component={PreviewComposition}` as a prop \u2014 the component is a function returned by makePreviewComposition(). To inject a provider, you'd need to modify makePreviewComposition to return a component that renders AudioAnalysisProvider internally, since wrapping the Player element itself won't put the provider inside the Remotion rendering tree.",
+      "source": "src/tools/video-editor/components/EffectCreatorPanel.tsx:485-496, lines 141-176"
+    },
+    {
+      "severity": "important",
+      "point": "Plan proposes params-based audio-binding but effects receive audio via hook, creating two separate mechanisms",
+      "detail": "The plan introduces both: (1) a useAudioReactive() hook injected as a global for direct use in effect code, AND (2) an audio-binding ParameterType that stores {source, min, max} in params. But there's no code path connecting them \u2014 the params object arrives as Record<string, unknown> and effects would need to manually read audio-binding params and map them using useAudioReactive(). The plan doesn't describe how ParameterControls audio-binding values flow into the effect's runtime behavior. Should wrapWithEffect resolve audio-binding params to numbers before passing them? Or must every effect manually interpret audio-binding objects?",
+      "source": "Plan Phase 2, Steps 3+7 vs Steps 4+5"
+    },
+    {
+      "severity": "minor",
+      "point": "Duplicate getFallbackValue functions should be consolidated",
+      "detail": "validateParams.ts and ParameterControls.tsx have nearly identical getFallbackValue functions. The plan adds audio-binding handling to both independently. This is an existing duplication issue that will get worse \u2014 consider having ParameterControls import from validateParams instead.",
+      "source": "src/tools/video-editor/effects/validateParams.ts:5-12, src/tools/video-editor/components/ParameterControls.tsx:16-33"
+    },
+    {
+      "severity": "minor",
+      "point": "effectPromptTemplate tells AI 'Do NOT use JSX' but useAudioReactive examples use JSX-like patterns",
+      "detail": "The prompt template (effectPromptTemplate.ts:32) instructs AI to use React.createElement() instead of JSX. The plan's proposed examples ('const scale = 1 + audio.bass * 0.3') are fine since they're just JS expressions, but the template context should be considered \u2014 AI-generated effects using audio will need to work with React.createElement, not JSX.",
+      "source": "src/tools/video-editor/effects/effectPromptTemplate.ts:32"
+    }
+  ],
+  "summary": "Found 9 issues (3 critical, 4 important, 2 minor):\n\n**Critical:** (1) getFallbackValue return type and ParameterDefinition.default type are `number | string | boolean` \u2014 incompatible with the object-typed AudioBindingValue. Both types/index.ts and both getFallbackValue copies need widened types. (2) validateAndCoerceParams else-clause silently treats unknown types as color, so audio-binding values would be coerced to '#000000' if the case isn't added carefully. (3) getDisplayValue casts all values to `number | string | boolean`, breaking with AudioBindingValue objects.\n\n**Important:** (1) AnalyserNode doesn't work with OfflineAudioContext for per-frame extraction \u2014 must use manual FFT on the rendered buffer. (2) totalDurationInFrames isn't available in TimelineRenderer's config \u2014 needs useVideoConfig() or clip-based calculation. (3) Player component prop can't be externally wrapped with a provider \u2014 makePreviewComposition must be modified to include the provider internally. (4) The audio-binding parameter type and useAudioReactive() hook are two disconnected mechanisms with no described integration path for resolving audio-binding params to runtime values."
+}

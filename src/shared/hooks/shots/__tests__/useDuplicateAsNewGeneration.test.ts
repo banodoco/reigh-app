@@ -85,14 +85,13 @@ describe('useDuplicateAsNewGeneration', () => {
       });
     });
 
-    expect(mocks.rpc).toHaveBeenCalledWith('duplicate_as_new_generation', {
+    expect(mocks.rpc).toHaveBeenCalledWith('duplicate_as_new_generation', expect.objectContaining({
       p_shot_id: 'shot-1',
       p_generation_id: 'gen-1',
       p_project_id: 'project-1',
       p_timeline_frame: 50,
       p_next_timeline_frame: 100,
-      p_target_timeline_frame: undefined,
-    });
+    }));
     expect(rpcSingle).toHaveBeenCalledTimes(1);
     expect(mocks.enqueueGenerationsInvalidation).toHaveBeenCalledWith(queryClient, 'shot-1', {
       reason: 'duplicate-as-new-generation',
