@@ -331,6 +331,15 @@ function TimelineEditorComponent() {
     shots,
     finalVideoShotIds,
   );
+  const shotGroupClipIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const group of shotGroups) {
+      for (const clipId of group.clipIds) {
+        ids.add(clipId);
+      }
+    }
+    return ids;
+  }, [shotGroups]);
   const assetGenerationMap = useMemo<Record<string, string>>(() => {
     const assets = data?.registry?.assets;
     if (!assets) {
@@ -472,7 +481,7 @@ function TimelineEditorComponent() {
     const isStale = assetKey ? staleAssetKeys.has(assetKey) : false;
     const isDismissed = assetKey ? dismissedAssetKeys.has(assetKey) : false;
     const isGenAsset = assetKey ? generationAssetKeys.has(assetKey) : false;
-    const isTaskActive = assetKey ? activeTaskAssetKeys.has(assetKey) : false;
+    const isTaskActive = assetKey && !shotGroupClipIds.has(action.id) ? activeTaskAssetKeys.has(assetKey) : false;
 
     return (
       <ClipAction
@@ -509,6 +518,7 @@ function TimelineEditorComponent() {
     selectionShotCreationState.canCreateShot,
     existingShotsForSelection,
     activeTaskAssetKeys,
+    shotGroupClipIds,
     data,
     dismissAsset,
     dismissedAssetKeys,

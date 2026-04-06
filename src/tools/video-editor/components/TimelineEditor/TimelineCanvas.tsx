@@ -814,8 +814,8 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
                   className="pointer-events-none absolute flex h-5 w-5 items-center justify-center rounded-full shadow-sm"
                   title="Task in progress"
                   style={{
-                    left: group.left + group.width - 8,
-                    top: group.top - 8,
+                    left: group.left + group.width - 10,
+                    top: group.top + group.height / 2 - 10,
                     zIndex: 9,
                     backgroundColor: 'rgba(255,255,255,0.9)',
                   }}
