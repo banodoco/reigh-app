@@ -336,7 +336,14 @@ function ClipActionComponent({
       >
         {waveform ? <WaveformOverlay waveform={waveform} /> : null}
         {thumbnailSrc ? (
-          <img src={thumbnailSrc} alt="" className="relative z-10 h-full w-10 shrink-0 object-cover opacity-80" draggable={false} />
+          <div className="relative z-10 h-full w-10 shrink-0">
+            <img src={thumbnailSrc} alt="" className="h-full w-full object-cover opacity-80" draggable={false} />
+            {isVideoClip && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Film className="h-3 w-3 text-white drop-shadow-sm" />
+              </div>
+            )}
+          </div>
         ) : (
           <div className="relative z-10 flex h-full w-8 shrink-0 items-center justify-center bg-background/60 text-muted-foreground">
             {icon}
