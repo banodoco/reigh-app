@@ -17,12 +17,6 @@ const TIMELINE_ASSETS_BUCKET = 'timeline-assets';
 const TIMELINE_CHECKPOINT_LIMIT = 30;
 const TIMELINE_CHECKPOINT_RETENTION_MS = 24 * 60 * 60 * 1000;
 
-// Cache signed URLs for 50 minutes (URLs expire after 60 minutes)
-const SIGNED_URL_CACHE_TTL_MS = 50 * 60 * 1000;
-const signedUrlCache = new Map<string, { url: string; expiresAt: number }>();
-// Deduplicate in-flight signing requests — if the same file is requested
-// concurrently, all callers share one network request
-const signedUrlInflight = new Map<string, Promise<string>>();
 
 type TimelineCheckpointRow = {
   id: string;
@@ -197,41 +191,12 @@ export class SupabaseDataProvider implements DataProvider {
       return file;
     }
 
-    const cached = signedUrlCache.get(file);
-    if (cached && cached.expiresAt > Date.now()) {
-      return cached.url;
-    }
+    const { data } = getSupabaseClient()
+      .storage
+      .from(TIMELINE_ASSETS_BUCKET)
+      .getPublicUrl(file);
 
-    // Deduplicate concurrent requests for the same file
-    const inflight = signedUrlInflight.get(file);
-    if (inflight) {
-      return inflight;
-    }
-
-    const promise = (async () => {
-      const { data, error } = await getSupabaseClient()
-        .storage
-        .from(TIMELINE_ASSETS_BUCKET)
-        .createSignedUrl(file, 60 * 60);
-
-      if (error) {
-        throw error;
-      }
-
-      signedUrlCache.set(file, {
-        url: data.signedUrl,
-        expiresAt: Date.now() + SIGNED_URL_CACHE_TTL_MS,
-      });
-
-      return data.signedUrl;
-    })();
-
-    signedUrlInflight.set(file, promise);
-    try {
-      return await promise;
-    } finally {
-      signedUrlInflight.delete(file);
-    }
+    return data.publicUrl;
   }
 
   async registerAsset(
