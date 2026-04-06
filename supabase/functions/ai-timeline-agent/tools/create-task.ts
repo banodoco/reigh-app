@@ -58,6 +58,14 @@ function asFiniteNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+// Default reference strength params per mode — matches the form's REFERENCE_MODE_DEFAULTS for qwen-image
+const REFERENCE_MODE_DEFAULTS: Record<string, Record<string, unknown>> = {
+  style: { style_reference_strength: 1.1 },
+  subject: { style_reference_strength: 0.4, subject_strength: 1.0 },
+  "style-character": { style_reference_strength: 0.4, subject_strength: 1.0 },
+  scene: { style_reference_strength: 0.4, in_this_scene: true, in_this_scene_strength: 1.0 },
+};
+
 async function expandPrompts(basePrompt: string, count: number): Promise<string[]> {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -224,7 +232,10 @@ export async function executeCreateTask(
       phase_config: travelContext?.phaseConfig,
     }
     : undefined;
+  // For transfer tasks: start with mode defaults, then overlay active reference params (which may override)
+  const modeDefaults = referenceMode ? (REFERENCE_MODE_DEFAULTS[referenceMode] ?? {}) : {};
   const mergedParams = {
+    ...modeDefaults,
     ...(activeReferenceParams ?? {}),
     ...(loras.length > 0 ? { loras } : {}),
   };
