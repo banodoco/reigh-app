@@ -58,43 +58,56 @@ function asFiniteNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-function requireEnv(key: string): string {
-  const value = Deno.env.get(key);
-  if (!value) throw new Error(`Missing env: ${key}`);
-  return value;
-}
+const GROQ_MODEL = "moonshotai/kimi-k2-instruct-0905";
+const GROQ_FALLBACK_MODEL = "llama-3.3-70b-versatile";
 
 async function expandPrompts(basePrompt: string, count: number): Promise<string[]> {
-  try {
-    const supabaseUrl = requireEnv("SUPABASE_URL");
-    const serviceRoleKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
-    const response = await fetch(`${supabaseUrl}/functions/v1/ai-prompt`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${serviceRoleKey}`,
-        apikey: serviceRoleKey,
-      },
-      body: JSON.stringify({
-        task: "generate_prompts",
-        overallPromptText: basePrompt,
-        numberToGenerate: count,
-        existingPrompts: [],
-        temperature: 0.9,
-      }),
-    });
-    if (!response.ok) return Array(count).fill(basePrompt);
-    const data = await response.json() as { prompts?: string[] };
-    if (Array.isArray(data.prompts) && data.prompts.length > 0) {
-      // Pad or trim to exact count
-      const prompts = data.prompts.slice(0, count);
+  const apiKey = Deno.env.get("GROQ_API_KEY");
+  if (!apiKey) return numberedFallback(basePrompt, count);
+
+  const systemMsg = "You generate distinct image prompts for AI image generation. Focus on visual elements like composition, lighting, colors, and atmosphere.";
+  const userMsg = `Generate exactly ${count} distinct image generation prompts based on this request: ${basePrompt}
+
+Each prompt should be a variation — different scene, composition, or details while keeping the core subject.
+Output EXACTLY ${count} prompts, each on its own line. NO numbering, bullet points, or formatting.`;
+
+  for (const model of [GROQ_MODEL, GROQ_FALLBACK_MODEL]) {
+    try {
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: systemMsg },
+            { role: "user", content: userMsg },
+          ],
+          temperature: 0.9,
+          max_tokens: 4096,
+        }),
+      });
+      if (!response.ok) continue;
+      const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+      const text = data.choices?.[0]?.message?.content?.trim();
+      if (!text) continue;
+      const prompts = text.split("\n").map((s: string) => s.trim()).filter(Boolean).slice(0, count);
       while (prompts.length < count) prompts.push(basePrompt);
       return prompts;
+    } catch {
+      continue;
     }
-  } catch {
-    // Fall back to repeating the base prompt
   }
-  return Array(count).fill(basePrompt);
+  return numberedFallback(basePrompt, count);
+}
+
+function numberedFallback(basePrompt: string, count: number): string[] {
+  // Append a variation hint so idempotency keys differ
+  return Array.from({ length: count }, (_, i) =>
+    i === 0 ? basePrompt : `${basePrompt} (variation ${i + 1})`
+  );
 }
 
 export async function executeCreateTask(
