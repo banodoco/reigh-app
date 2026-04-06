@@ -358,12 +358,20 @@ function TimelineEditorComponent() {
       return null;
     }
 
+    // Determine the track from the first selected clip
+    const selectedClipId = [...selectedClipIds][0];
+    const trackId = selectedClipId ? data?.meta[selectedClipId]?.track : undefined;
+
     const result = await createShot({ generationIds: selectionShotCreationState.generationIds });
+    if (result?.shot && trackId) {
+      // Auto-pin the new shot group on the timeline
+      pinGroup(result.shot.id, trackId, [...selectedClipIds]);
+    }
     if (result?.shot) {
       return result.shot;
     }
     return null;
-  }, [createShot, selectionShotCreationState]);
+  }, [createShot, data?.meta, pinGroup, selectedClipIds, selectionShotCreationState]);
 
   const handleGenerateVideoFromSelection = useCallback(async () => {
     if (!selectionShotCreationState.canCreateShot) {
@@ -376,16 +384,23 @@ function TimelineEditorComponent() {
       return;
     }
 
+    const selectedClipId = [...selectedClipIds][0];
+    const trackId = selectedClipId ? data?.meta[selectedClipId]?.track : undefined;
+
     const result = await createShot({ generationIds: selectionShotCreationState.generationIds });
     if (!result?.shotId) {
       return;
+    }
+
+    if (trackId) {
+      pinGroup(result.shotId, trackId, [...selectedClipIds]);
     }
 
     const createdShot = result.shot ?? shots?.find((shot) => shot.id === result.shotId) ?? null;
     if (createdShot) {
       setVideoModalShot(createdShot);
     }
-  }, [createShot, existingShotsForSelection, selectionShotCreationState, shots]);
+  }, [createShot, data?.meta, existingShotsForSelection, pinGroup, selectedClipIds, selectionShotCreationState, shots]);
 
   const handleNavigateToShot = useCallback((shot: Shot) => {
     navigateToShot(shot, { isNewlyCreated: true });
@@ -405,6 +420,7 @@ function TimelineEditorComponent() {
     if (shot) setVideoModalShot(shot);
   }, [shots]);
   const {
+    pinGroup,
     unpinGroup,
   } = usePinnedShotGroups({
     dataRef,
