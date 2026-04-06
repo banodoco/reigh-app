@@ -44,7 +44,7 @@ export function usePositionManagement({
       async (signal) => {
         await positionSystem.updatePositions(newPositions, {
           operation: 'drag',
-          skipOptimistic: true,
+          optimisticAppliedExternally: true,
           externalRollback: preAppliedRollback,
           signal,
         });

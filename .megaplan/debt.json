@@ -902,6 +902,176 @@
       "resolved": false,
       "resolved_by": null,
       "resolved_at": null
+    },
+    {
+      "id": "DEBT-054",
+      "subsystem": "video-editor-render-pipeline",
+      "concern": "video-editor-render-pipeline: recurring debt: the revised render-gating plan still uses `cancelrender()` as unmount cleanup and leaves `delayrender()` acquisition described as a mount-time action, which can abort renders or miss initial-frame blocking.",
+      "flag_ids": [
+        "FLAG-003"
+      ],
+      "plan_ids": [
+        "add-audio-reactive-effects-to-20260406-0440"
+      ],
+      "occurrence_count": 1,
+      "created_at": "2026-04-06T03:15:04Z",
+      "updated_at": "2026-04-06T03:15:04Z",
+      "resolved": false,
+      "resolved_by": null,
+      "resolved_at": null
+    },
+    {
+      "id": "DEBT-055",
+      "subsystem": "are-the-proposed-changes-technically-correct",
+      "concern": "are the proposed changes technically correct?: checked the render-gating cleanup plan against remotion's runtime exports in `node_modules/remotion/dist/cjs/cancel-render.js:46-70`. `cancelrender()` stores an error and throws to abort the render; it is not a benign cleanup for an abandoned `delayrender` handle, so step 2's instruction to call `cancelrender(handle)` on unmount is technically wrong and would abort preview or export with an error.",
+      "flag_ids": [
+        "correctness-1"
+      ],
+      "plan_ids": [
+        "add-audio-reactive-effects-to-20260406-0440"
+      ],
+      "occurrence_count": 1,
+      "created_at": "2026-04-06T03:15:04Z",
+      "updated_at": "2026-04-06T03:15:04Z",
+      "resolved": false,
+      "resolved_by": null,
+      "resolved_at": null
+    },
+    {
+      "id": "DEBT-056",
+      "subsystem": "are-the-proposed-changes-technically-correct",
+      "concern": "are the proposed changes technically correct?: checked how remotion itself acquires delay handles in `node_modules/remotion/dist/cjs/iframe.js:8-18`. remotion's own components create the handle synchronously with `usestate(() => delayrender(...))`; the plan says 'calls delayrender() on mount', which reads like an effect-time action and leaves the initial-frame blocking behavior underspecified compared with the actual library pattern.",
+      "flag_ids": [
+        "correctness-2"
+      ],
+      "plan_ids": [
+        "add-audio-reactive-effects-to-20260406-0440"
+      ],
+      "occurrence_count": 1,
+      "created_at": "2026-04-06T03:15:04Z",
+      "updated_at": "2026-04-06T03:15:04Z",
+      "resolved": false,
+      "resolved_by": null,
+      "resolved_at": null
+    },
+    {
+      "id": "DEBT-057",
+      "subsystem": "are-the-proposed-changes-technically-correct",
+      "concern": "are the proposed changes technically correct?: checked the new `useaudioparam()` sketch against `src/tools/video-editor/effects/compileeffect.tsx:1-2`. the plan defines it in terms of `interpolate(audio[binding.source], ...)` but does not explicitly import `interpolate` into the new hook file or simplify it to straight arithmetic, so the helper's implementation contract is still looser than it needs to be.",
+      "flag_ids": [
+        "correctness-3"
+      ],
+      "plan_ids": [
+        "add-audio-reactive-effects-to-20260406-0440"
+      ],
+      "occurrence_count": 1,
+      "created_at": "2026-04-06T03:15:04Z",
+      "updated_at": "2026-04-06T03:15:04Z",
+      "resolved": false,
+      "resolved_by": null,
+      "resolved_at": null
+    },
+    {
+      "id": "DEBT-058",
+      "subsystem": "does-the-change-touch-all-locations-and-supporting-infrastructure",
+      "concern": "does the change touch all locations and supporting infrastructure?: checked the supporting ui infrastructure for audio-binding controls. because `src/shared/components/ui/slider.tsx:5-17,31-52` only supports one thumb and `src/shared/components/ui/number-input.tsx:6-33` already exists as the established numeric input control, the plan should call out either `numberinput` usage or a new range-slider component explicitly; right now the supporting ui work is still incomplete in the plan.",
+      "flag_ids": [
+        "all_locations-1"
+      ],
+      "plan_ids": [
+        "add-audio-reactive-effects-to-20260406-0440"
+      ],
+      "occurrence_count": 1,
+      "created_at": "2026-04-06T03:15:04Z",
+      "updated_at": "2026-04-06T03:15:04Z",
+      "resolved": false,
+      "resolved_by": null,
+      "resolved_at": null
+    },
+    {
+      "id": "DEBT-059",
+      "subsystem": "does-the-change-touch-all-locations-and-supporting-infrastructure",
+      "concern": "does the change touch all locations and supporting infrastructure?: checked the planned test location for prompt-template changes against `supabase/functions/ai-generate-effect/index.test.ts`. since that suite mocks `buildgenerateeffectmessages()`, touching only `index.test.ts` still misses the supporting test infrastructure needed to validate `templates.ts` itself.",
+      "flag_ids": [
+        "all_locations-2"
+      ],
+      "plan_ids": [
+        "add-audio-reactive-effects-to-20260406-0440"
+      ],
+      "occurrence_count": 1,
+      "created_at": "2026-04-06T03:15:04Z",
+      "updated_at": "2026-04-06T03:15:04Z",
+      "resolved": false,
+      "resolved_by": null,
+      "resolved_at": null
+    },
+    {
+      "id": "DEBT-060",
+      "subsystem": "are-the-success-criteria-well-prioritized-and-verifiable",
+      "concern": "are the success criteria well-prioritized and verifiable?: checked the `must` criterion 'edge function tests (ai-generate-effect/index.test.ts) pass with updated templates' against the actual test file. since `supabase/functions/ai-generate-effect/index.test.ts` mocks `buildgenerateeffectmessages()`, this criterion can pass without validating the template edits themselves, so it is still a weak `must` gate as written.",
+      "flag_ids": [
+        "criteria_quality"
+      ],
+      "plan_ids": [
+        "add-audio-reactive-effects-to-20260406-0440"
+      ],
+      "occurrence_count": 1,
+      "created_at": "2026-04-06T03:15:04Z",
+      "updated_at": "2026-04-06T03:15:04Z",
+      "resolved": false,
+      "resolved_by": null,
+      "resolved_at": null
+    },
+    {
+      "id": "DEBT-061",
+      "subsystem": "video-editor-parameter-controls",
+      "concern": "video-editor-parameter-controls: the revised plan still suggests a dual-value slider for audio-binding min/max even though the shared slider wrapper is scalar-only; it should commit to two `numberinput` controls or a new range-slider implementation.",
+      "flag_ids": [
+        "FLAG-006"
+      ],
+      "plan_ids": [
+        "add-audio-reactive-effects-to-20260406-0440"
+      ],
+      "occurrence_count": 1,
+      "created_at": "2026-04-06T03:15:04Z",
+      "updated_at": "2026-04-06T03:15:04Z",
+      "resolved": false,
+      "resolved_by": null,
+      "resolved_at": null
+    },
+    {
+      "id": "DEBT-062",
+      "subsystem": "did-the-work-fully-address-the-issue-hints-user-notes-and-approved-plan-requirements",
+      "concern": "did the work fully address the issue hints, user notes, and approved plan requirements?: checked the revised audio-binding ui step against the research note and `src/shared/components/ui/slider.tsx:5-17,31-52`. the plan still says 'a dual-value slider or two number inputs' instead of committing to the supported path, even though the shared slider wrapper is scalar-only, so that important review note is only partially addressed.",
+      "flag_ids": [
+        "issue_hints"
+      ],
+      "plan_ids": [
+        "add-audio-reactive-effects-to-20260406-0440"
+      ],
+      "occurrence_count": 1,
+      "created_at": "2026-04-06T03:15:04Z",
+      "updated_at": "2026-04-06T03:15:04Z",
+      "resolved": false,
+      "resolved_by": null,
+      "resolved_at": null
+    },
+    {
+      "id": "DEBT-063",
+      "subsystem": "search-for-related-code-that-handles-the-same-concept-is-the-reported-issue-a-symptom-of-something-broader",
+      "concern": "search for related code that handles the same concept. is the reported issue a symptom of something broader?: checked the verification scope around the edge function. `supabase/functions/ai-generate-effect/index.test.ts:35-46` mocks `buildgenerateeffectmessages()`, so adding only more `index.test.ts` cases still will not exercise the real `templates.ts` prompt content; the revised plan improves scope on the implementation side, but its test scope is still narrower than the actual risk surface.",
+      "flag_ids": [
+        "scope"
+      ],
+      "plan_ids": [
+        "add-audio-reactive-effects-to-20260406-0440"
+      ],
+      "occurrence_count": 1,
+      "created_at": "2026-04-06T03:15:04Z",
+      "updated_at": "2026-04-06T03:15:04Z",
+      "resolved": false,
+      "resolved_by": null,
+      "resolved_at": null
     }
   ]
 }

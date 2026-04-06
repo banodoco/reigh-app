@@ -1,4 +1,4 @@
-import type { ClipTab } from '@/tools/video-editor/hooks/useTimelineData.types';
+import type { ClipTab } from '@/tools/video-editor/hooks/useEditorPreferences';
 import type { ResolvedTimelineClip, TrackDefinition } from '@/tools/video-editor/types';
 
 export const getSharedValue = <T,>(values: T[]): T | null => {

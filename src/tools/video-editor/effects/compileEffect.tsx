@@ -1,6 +1,7 @@
 import React, { type FC } from 'react';
 import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
 import type { EffectComponentProps } from '@/tools/video-editor/effects/entrances';
+import { useAudioParam, useAudioReactive } from '@/tools/video-editor/effects/useAudioReactive';
 
 let transformSync: typeof import('sucrase').transform | null = null;
 
@@ -69,10 +70,21 @@ function tryCompileWithTransform(
       'interpolate',
       'spring',
       'AbsoluteFill',
+      'useAudioReactive',
+      'useAudioParam',
       wrappedCode,
     ) as (...args: unknown[]) => unknown;
 
-    const component = factory(React, useCurrentFrame, useVideoConfig, interpolate, spring, AbsoluteFill);
+    const component = factory(
+      React,
+      useCurrentFrame,
+      useVideoConfig,
+      interpolate,
+      spring,
+      AbsoluteFill,
+      useAudioReactive,
+      useAudioParam,
+    );
 
     if (typeof component !== 'function') {
       throw new Error('Effect code did not produce a valid component (expected a function as default export)');

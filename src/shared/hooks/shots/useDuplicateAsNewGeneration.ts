@@ -16,8 +16,6 @@ interface DuplicateAsNewGenerationInput {
   project_id: string;
   timeline_frame: number;
   next_timeline_frame?: number;
-  /** Explicit target frame - bypasses midpoint/+30 calculation */
-  target_timeline_frame?: number;
 }
 
 interface DuplicateAsNewGenerationResult {
@@ -38,13 +36,12 @@ async function duplicateAsNewGeneration(
   input: DuplicateAsNewGenerationInput
 ): Promise<DuplicateAsNewGenerationResult> {
   const { data, error } = await supabase().rpc('duplicate_as_new_generation', {
-      p_shot_id: input.shot_id,
-      p_generation_id: input.generation_id,
-      p_project_id: input.project_id,
-      p_timeline_frame: input.timeline_frame,
-      p_next_timeline_frame: input.next_timeline_frame,
-      p_target_timeline_frame: input.target_timeline_frame,
-    })
+    p_shot_id: input.shot_id,
+    p_generation_id: input.generation_id,
+    p_project_id: input.project_id,
+    p_timeline_frame: input.timeline_frame,
+    p_next_timeline_frame: input.next_timeline_frame,
+  })
     .single();
 
   if (error) {

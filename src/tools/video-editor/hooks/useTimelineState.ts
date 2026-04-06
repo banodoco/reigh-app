@@ -26,7 +26,9 @@ import {
 import type { UseTimelineStateResult } from '@/tools/video-editor/hooks/useTimelineState.types';
 import { useTimelineTrackManagement } from '@/tools/video-editor/hooks/useTimelineTrackManagement';
 
-export type { SaveStatus, RenderStatus, EditorPreferences } from '@/tools/video-editor/hooks/useTimelineData.types';
+export type { EditorPreferences } from '@/tools/video-editor/hooks/useEditorPreferences';
+export type { RenderStatus } from '@/tools/video-editor/hooks/useRenderState';
+export type { SaveStatus } from '@/tools/video-editor/hooks/useTimelineSave';
 
 export function useTimelineState(): UseTimelineStateResult {
   const runtime = useVideoEditorRuntime();

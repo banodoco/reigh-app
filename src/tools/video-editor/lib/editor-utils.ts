@@ -39,6 +39,35 @@ export const getTrackById = (
   return config.tracks.find((track) => track.id === trackId) ?? null;
 };
 
+export const isTrackMuted = (track: TrackDefinition): boolean => {
+  return track.muted === true || (track.volume ?? 1) <= 0;
+};
+
+export const toggleTrackMute = (
+  config: ResolvedTimelineConfig,
+  trackId: string,
+): ResolvedTimelineConfig => {
+  return {
+    ...config,
+    tracks: config.tracks.map((track) =>
+      track.id === trackId ? { ...track, muted: !isTrackMuted(track) } : track
+    ),
+  };
+};
+
+export const setTrackVolume = (
+  config: ResolvedTimelineConfig,
+  trackId: string,
+  volume: number,
+): ResolvedTimelineConfig => {
+  return {
+    ...config,
+    tracks: config.tracks.map((track) =>
+      track.id === trackId ? { ...track, volume } : track
+    ),
+  };
+};
+
 export const addTrack = (
   config: ResolvedTimelineConfig,
   kind: TrackKind,
@@ -154,6 +183,65 @@ export const toggleClipMute = (
     ...clip,
     volume: isClipMuted(clip) ? 1 : 0,
   }));
+};
+
+export const detachAudioFromVideo = (
+  config: ResolvedTimelineConfig,
+  clipId: string,
+): ResolvedTimelineConfig => {
+  const clip = findClipById(config, clipId);
+  if (!clip || isClipMuted(clip) || !clip.asset || !clip.assetEntry?.src) {
+    return config;
+  }
+
+  const sourceTrack = getTrackById(config, clip.track);
+  if (!sourceTrack || sourceTrack.kind !== 'visual' || !clip.assetEntry.type?.startsWith('video/')) {
+    return config;
+  }
+
+  const originalVolume = getClipVolume(clip);
+  const mutedConfig = updateClipInConfig(config, clipId, (currentClip) => ({
+    ...currentClip,
+    volume: 0,
+  }));
+
+  const existingAudioTrack = mutedConfig.tracks.find((track) => track.kind === 'audio' && /^A\d+$/.test(track.id))
+    ?? mutedConfig.tracks.find((track) => track.kind === 'audio')
+    ?? null;
+
+  let nextConfig = mutedConfig;
+  let destinationTrack = existingAudioTrack;
+
+  if (!destinationTrack) {
+    const previousTrackIds = new Set(mutedConfig.tracks.map((track) => track.id));
+    nextConfig = addTrack(mutedConfig, 'audio');
+    destinationTrack = nextConfig.tracks.find((track) => !previousTrackIds.has(track.id)) ?? null;
+  }
+
+  if (!destinationTrack) {
+    return config;
+  }
+
+  const detachedClip: ResolvedTimelineClip = {
+    id: createSplitClipId(
+      nextConfig.clips.map((entry) => entry.id),
+      clip.id,
+    ),
+    at: clip.at,
+    track: destinationTrack.id,
+    clipType: clip.clipType,
+    asset: clip.asset,
+    assetEntry: clip.assetEntry,
+    from: clip.from,
+    to: clip.to,
+    speed: clip.speed,
+    volume: originalVolume,
+  };
+
+  return {
+    ...nextConfig,
+    clips: [...nextConfig.clips, detachedClip],
+  };
 };
 
 export const canSplitClipAtTime = (clip: ResolvedTimelineClip, playheadSeconds: number): boolean => {

@@ -16,9 +16,10 @@ import { DndContext, closestCenter, type DragEndEvent, useSensors } from '@dnd-k
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ArrowRight, Clapperboard, Layers } from 'lucide-react';
+import { usePortalMousedownGuard } from '@/shared/hooks/usePortalMousedownGuard';
 import { TrackLabelContent } from '@/tools/video-editor/components/TimelineEditor/TrackLabel';
 import type { ShotGroup } from '@/tools/video-editor/hooks/useShotGroups';
-import { useTimelineEditorContext } from '@/tools/video-editor/contexts/TimelineEditorContext';
+import { useTimelineEditorData } from '@/tools/video-editor/contexts/TimelineEditorContext';
 import { TimeRuler } from '@/tools/video-editor/components/TimelineEditor/TimeRuler';
 import { LABEL_WIDTH } from '@/tools/video-editor/lib/coordinate-utils';
 import { snapResize } from '@/tools/video-editor/lib/snap-edges';
@@ -272,7 +273,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   onClearUnusedTracks,
   newTrackDropLabel,
 }: TimelineCanvasProps, ref) {
-  const { pendingOpsRef } = useTimelineEditorContext();
+  const { pendingOpsRef } = useTimelineEditorData();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
   const resizeSessionRef = useRef<ResizeSession | null>(null);
@@ -285,16 +286,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   const [shotGroupMenu, setShotGroupMenu] = useState<{ x: number; y: number; shotId: string; shotName: string } | null>(null);
   const shotGroupMenuRef = useRef<HTMLDivElement>(null);
 
-  // Stop native mousedown from reaching the document-level click-outside listener.
-  // Portal DOM hierarchy doesn't match the React tree, so Node.contains() can
-  // return false for elements that ARE visually inside the menu.
-  useEffect(() => {
-    const el = shotGroupMenuRef.current;
-    if (!el) return;
-    const stop = (e: MouseEvent) => e.stopPropagation();
-    el.addEventListener('mousedown', stop);
-    return () => el.removeEventListener('mousedown', stop);
-  }, [shotGroupMenu]);
+  usePortalMousedownGuard(shotGroupMenuRef, Boolean(shotGroupMenu));
 
   useEffect(() => {
     if (!shotGroupMenu) return;

@@ -6,9 +6,6 @@ import type { useExternalDrop } from '@/tools/video-editor/hooks/useExternalDrop
 import type { useTimelinePlayback } from '@/tools/video-editor/hooks/useTimelinePlayback';
 import type { useTimelineTrackManagement } from '@/tools/video-editor/hooks/useTimelineTrackManagement';
 import type {
-  EditorPreferences,
-  RenderStatus,
-  SaveStatus,
   TimelineApplyEdit,
   TimelineCheckpoints,
   TimelineCreateManualCheckpoint,
@@ -23,14 +20,15 @@ import type {
   TimelineRetrySaveAfterConflict,
   TimelineSelectedClip,
   TimelineSelectedTrack,
-  TimelineSetActiveClipTab,
-  TimelineSetAssetPanelState,
   TimelineSetScaleWidth,
   TimelineSetSelectedClipId,
   TimelineSetSelectedTrackId,
   TimelineStartRender,
   TimelineUploadFiles,
-} from '@/tools/video-editor/hooks/useTimelineData.types';
+} from '@/tools/video-editor/hooks/timeline-state-types';
+import type { ClipTab, EditorPreferences } from '@/tools/video-editor/hooks/useEditorPreferences';
+import type { RenderStatus } from '@/tools/video-editor/hooks/useRenderState';
+import type { SaveStatus } from '@/tools/video-editor/hooks/useTimelineSave';
 import type { TimelineData } from '@/tools/video-editor/lib/timeline-data';
 import type { UseMultiSelectResult } from '@/tools/video-editor/hooks/useMultiSelect';
 
@@ -41,6 +39,8 @@ type AssetManagementHook = ReturnType<typeof useAssetManagement>;
 type ClipResizeHook = ReturnType<typeof useClipResize>;
 type ClipEditingHook = ReturnType<typeof useClipEditing>;
 type ExternalDropHook = ReturnType<typeof useExternalDrop>;
+type TimelineSetActiveClipTab = (tab: ClipTab) => void;
+type TimelineSetAssetPanelState = (patch: Partial<EditorPreferences['assetPanel']>) => void;
 
 export interface TimelineEditorDataContextValue {
   data: TimelineData | null;
@@ -100,6 +100,7 @@ export interface TimelineEditorOpsContextValue {
   handleSplitClipsAtPlayhead: ClipEditingHook['handleSplitClipsAtPlayhead'];
   handleToggleMuteClips: ClipEditingHook['handleToggleMuteClips'];
   handleToggleMute: ClipEditingHook['handleToggleMute'];
+  handleDetachAudioClip: ClipEditingHook['handleDetachAudioClip'];
   handleTrackPopoverChange: TimelineTrackManagementHook['handleTrackPopoverChange'];
   handleMoveTrack: TimelineTrackManagementHook['handleMoveTrack'];
   handleRemoveTrack: TimelineTrackManagementHook['handleRemoveTrack'];

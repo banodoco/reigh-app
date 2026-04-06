@@ -2,7 +2,7 @@ import { useCallback, useRef } from 'react';
 import { buildRowTrackPatches } from '@/tools/video-editor/lib/coordinate-utils';
 import { getSourceTime, type ClipMeta, type TimelineData } from '@/tools/video-editor/lib/timeline-data';
 import { resolveOverlaps } from '@/tools/video-editor/lib/resolve-overlaps';
-import type { TimelineApplyEdit } from '@/tools/video-editor/hooks/useTimelineData.types';
+import type { TimelineApplyEdit } from '@/tools/video-editor/hooks/timeline-state-types';
 import type { TimelineAction, TimelineRow } from '@/tools/video-editor/types/timeline-canvas';
 
 export interface UseClipResizeArgs {

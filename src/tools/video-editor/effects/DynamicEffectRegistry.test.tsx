@@ -1,6 +1,21 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { useSyncExternalStore, type FC } from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+
+const remotionState = vi.hoisted(() => ({
+  frame: 0,
+  videoConfig: { fps: 30, width: 1920, height: 1080 },
+}));
+
+vi.mock('remotion', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('remotion')>();
+  return {
+    ...actual,
+    useCurrentFrame: vi.fn(() => remotionState.frame),
+    useVideoConfig: vi.fn(() => remotionState.videoConfig),
+  };
+});
+
 import * as compileEffectModule from '@/tools/video-editor/effects/compileEffect';
 import { getEffectRegistry, replaceEffectRegistry, wrapWithEffect } from '@/tools/video-editor/effects';
 import type { EffectComponentProps } from '@/tools/video-editor/effects/entrances';
@@ -45,6 +60,51 @@ describe('DynamicEffectRegistry', () => {
     const registry = new DynamicEffectRegistry({});
     expect(() => registry.register('broken', 'export default function Effect( {')).not.toThrow();
     expect(registry.get('broken')).toBeDefined();
+  });
+
+  it('compiles and renders an effect that calls useAudioReactive without a provider', async () => {
+    const result = await compileEffectModule.tryCompileEffectAsync(`
+      function AudioReactiveEffect() {
+        const audio = useAudioReactive();
+        return <div data-testid="audio-reactive-effect">{String(audio.amplitude)}:{String(audio.isBeat)}</div>;
+      }
+      exports.default = AudioReactiveEffect;
+    `);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+
+    render(<result.component durationInFrames={1}>{null}</result.component>);
+
+    expect(screen.getByTestId('audio-reactive-effect').textContent).toBe('0:false');
+  });
+
+  it('compiles and renders an effect that calls useAudioParam', async () => {
+    const result = await compileEffectModule.tryCompileEffectAsync(`
+      function AudioParamEffect(props) {
+        const value = useAudioParam(props.params?.binding);
+        return <div data-testid="audio-param-effect">{String(value)}</div>;
+      }
+      exports.default = AudioParamEffect;
+    `);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+
+    render(
+      <result.component
+        durationInFrames={1}
+        params={{ binding: { source: 'amplitude', min: 2, max: 5 } }}
+      >
+        {null}
+      </result.component>,
+    );
+
+    expect(screen.getByTestId('audio-param-effect').textContent).toBe('2');
   });
 
   it('tracks subscriptions, deduplicates unchanged registrations, batches notifications, and stores schemas', async () => {
@@ -288,6 +348,13 @@ describe('DynamicEffectRegistry', () => {
         ],
       },
       { name: 'color', label: 'Color', description: 'Tint color', type: 'color', default: '#123abc' },
+      {
+        name: 'binding',
+        label: 'Binding',
+        description: 'Audio binding',
+        type: 'audio-binding',
+        default: { source: 'bass', min: 1, max: 3 },
+      },
     ];
 
     expect(validateAndCoerceParams({
@@ -296,6 +363,7 @@ describe('DynamicEffectRegistry', () => {
       enabled: 'true',
       mode: 'missing',
       color: 'blue',
+      binding: { source: 'noise', min: 'low', max: null },
       customSeed: 42,
     }, schema)).toEqual({
       size: 2,
@@ -303,6 +371,7 @@ describe('DynamicEffectRegistry', () => {
       enabled: false,
       mode: 'soft',
       color: '#123abc',
+      binding: { source: 'bass', min: 1, max: 3 },
       customSeed: 42,
     });
   });

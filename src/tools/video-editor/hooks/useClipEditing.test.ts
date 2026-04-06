@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { patchAffectsDuration, recalcActionEnd, useClipEditing } from '@/tools/video-editor/hooks/useClipEditing';
+import { patchAffectsDuration, recalcActionEnd } from '@/tools/video-editor/lib/clip-editing-utils';
+import { useClipEditing } from '@/tools/video-editor/hooks/useClipEditing';
 import type { ClipMeta, TimelineData } from '@/tools/video-editor/lib/timeline-data';
 import type { TimelineRow } from '@/tools/video-editor/types/timeline-canvas';
 

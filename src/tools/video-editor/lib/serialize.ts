@@ -42,6 +42,8 @@ export const TRACK_DEFINITION_FIELDS = [
   'scale',
   'fit',
   'opacity',
+  'volume',
+  'muted',
   'blendMode',
 ] as const;
 

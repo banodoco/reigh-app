@@ -72,12 +72,6 @@ export function resolveSelectedGenerationIdsForShotCreation({
         const assetKey = meta[action.id]?.asset;
         const generationId = assetKey ? assetGenerationMap[assetKey] : undefined;
 
-        console.log('[ShotCreate:resolve]', {
-          clipId: action.id,
-          assetKey,
-          generationId: generationId ?? null,
-        });
-
         return {
           trackIndex,
           start: action.start,
@@ -291,16 +285,11 @@ function TimelineEditorComponent() {
   }, [shots, selectionShotCreationState.generationIds]);
 
   const handleCreateShotFromSelection = useCallback(async (): Promise<Shot | null> => {
-    console.log('[ShotCreate] handleCreateShotFromSelection', {
-      canCreateShot: selectionShotCreationState.canCreateShot,
-      generationIds: selectionShotCreationState.generationIds,
-    });
     if (!selectionShotCreationState.canCreateShot) {
       return null;
     }
 
     const result = await createShot({ generationIds: selectionShotCreationState.generationIds });
-    console.log('[ShotCreate] createShot result', result);
     if (result?.shot) {
       return result.shot;
     }

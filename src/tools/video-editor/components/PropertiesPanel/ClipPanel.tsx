@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pencil, Plus, RefreshCw, Trash2, Volume2, X } from 'lucide-react';
+import { AudioWaveform, Pencil, Plus, RefreshCw, Trash2, Volume2, X } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { Input } from '@/shared/components/ui/input';
@@ -13,7 +13,7 @@ import { continuousEffectTypes, entranceEffectTypes, exitEffectTypes } from '@/t
 import { EffectCreatorPanel } from '@/tools/video-editor/components/EffectCreatorPanel';
 import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/DataProviderContext';
 import { useEffectResources, type EffectCategory, type EffectResource } from '@/tools/video-editor/hooks/useEffectResources';
-import type { ClipTab } from '@/tools/video-editor/hooks/useTimelineData.types';
+import type { ClipTab } from '@/tools/video-editor/hooks/useEditorPreferences';
 import type { ClipMeta } from '@/tools/video-editor/lib/timeline-data';
 import type { ResolvedTimelineClip, TrackDefinition } from '@/tools/video-editor/types';
 
@@ -26,6 +26,7 @@ interface ClipPanelProps {
   onClose: () => void;
   onDelete?: () => void;
   onToggleMute: () => void;
+  onDetachAudio?: () => void;
   compositionWidth: number;
   compositionHeight: number;
   activeTab: ClipTab;
@@ -121,6 +122,15 @@ function hasParameterSchema(effect: EffectResource | undefined): effect is Effec
   return Boolean(effect?.parameterSchema?.length);
 }
 
+function isAudioReactiveEffect(effect: EffectResource): boolean {
+  return effect.code?.includes('useAudioReactive') || effect.code?.includes('useAudioParam')
+    || effect.parameterSchema?.some((p) => p.type === 'audio-binding') === true;
+}
+
+function AudioReactiveIcon() {
+  return <AudioWaveform className="inline-block h-3 w-3 shrink-0 text-muted-foreground" />;
+}
+
 export function ClipPanel({
   clip,
   track,
@@ -130,6 +140,7 @@ export function ClipPanel({
   onClose,
   onDelete,
   onToggleMute,
+  onDetachAudio,
   compositionWidth,
   compositionHeight,
   activeTab,
@@ -148,6 +159,7 @@ export function ClipPanel({
   const entranceEffect = findEffectResourceByType(clip?.entrance?.type, effectResources.effects);
   const exitEffect = findEffectResourceByType(clip?.exit?.type, effectResources.effects);
   const continuousEffect = findEffectResourceByType(clip?.continuous?.type, effectResources.effects);
+  const canDetachAudio = track?.kind === 'visual' && clip?.assetEntry?.type?.startsWith('video/');
 
   if (!clip) {
     return (
@@ -240,7 +252,7 @@ export function ClipPanel({
                         )}
                         {effectResources.entrance.map((effect) => (
                           <SelectItem key={`custom:${effect.id}`} value={`custom:${effect.id}`}>
-                            {effect.name}
+                            <span className="flex items-center gap-1.5">{isAudioReactiveEffect(effect) && <AudioReactiveIcon />}{effect.name}</span>
                           </SelectItem>
                         ))}
                       </>
@@ -308,7 +320,7 @@ export function ClipPanel({
                         )}
                         {effectResources.exit.map((effect) => (
                           <SelectItem key={`custom:${effect.id}`} value={`custom:${effect.id}`}>
-                            {effect.name}
+                            <span className="flex items-center gap-1.5">{isAudioReactiveEffect(effect) && <AudioReactiveIcon />}{effect.name}</span>
                           </SelectItem>
                         ))}
                       </>
@@ -375,7 +387,7 @@ export function ClipPanel({
                         )}
                         {effectResources.continuous.map((effect) => (
                           <SelectItem key={`custom:${effect.id}`} value={`custom:${effect.id}`}>
-                            {effect.name}
+                            <span className="flex items-center gap-1.5">{isAudioReactiveEffect(effect) && <AudioReactiveIcon />}{effect.name}</span>
                           </SelectItem>
                         ))}
                       </>
@@ -545,6 +557,18 @@ export function ClipPanel({
               <Button type="button" variant="secondary" size="sm" className="mt-3" onClick={onToggleMute}>
                 Toggle mute
               </Button>
+              {canDetachAudio && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={onDetachAudio}
+                  disabled={!onDetachAudio}
+                >
+                  Detach audio
+                </Button>
+              )}
             </div>
           </TabsContent>
         )}

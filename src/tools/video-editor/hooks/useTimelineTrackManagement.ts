@@ -6,7 +6,7 @@ import type { TrackDefinition, TrackKind } from '@/tools/video-editor/types';
 import { moveClipBetweenTracks } from '@/tools/video-editor/lib/coordinate-utils';
 import type { TimelineData } from '@/tools/video-editor/lib/timeline-data';
 import { resolveOverlaps } from '@/tools/video-editor/lib/resolve-overlaps';
-import type { TimelineApplyEdit } from '@/tools/video-editor/hooks/useTimelineData.types';
+import type { TimelineApplyEdit } from '@/tools/video-editor/hooks/timeline-state-types';
 
 export interface UseTimelineTrackManagementArgs {
   dataRef: React.MutableRefObject<TimelineData | null>;

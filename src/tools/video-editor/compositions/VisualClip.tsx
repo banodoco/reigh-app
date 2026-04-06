@@ -85,6 +85,7 @@ const VisualAsset: FC<VisualClipProps> = ({ clip, track, fps }) => {
   }
 
   const clipVolume = clip.volume ?? 1;
+  const effectiveVolume = (track.muted ? 0 : (track.volume ?? 1)) * clipVolume;
   const isImage = clip.assetEntry.type?.startsWith('image');
   const hasPositionOverride = (
     clip.x !== undefined
@@ -116,8 +117,8 @@ const VisualAsset: FC<VisualClipProps> = ({ clip, track, fps }) => {
         trimBefore={secondsToFrames(clip.from ?? 0, fps)}
         trimAfter={clip.to ? secondsToFrames(clip.to, fps) : undefined}
         playbackRate={clip.speed ?? 1}
-        volume={clipVolume}
-        muted={clipVolume <= 0}
+        volume={effectiveVolume}
+        muted={effectiveVolume <= 0}
         style={sharedStyle}
       />
     );
@@ -187,8 +188,8 @@ const VisualAsset: FC<VisualClipProps> = ({ clip, track, fps }) => {
         trimBefore={secondsToFrames(clip.from ?? 0, fps)}
         trimAfter={clip.to ? secondsToFrames(clip.to, fps) : undefined}
         playbackRate={clip.speed ?? 1}
-        volume={clipVolume}
-        muted={clipVolume <= 0}
+        volume={effectiveVolume}
+        muted={effectiveVolume <= 0}
         style={mediaStyle}
       />
     </div>

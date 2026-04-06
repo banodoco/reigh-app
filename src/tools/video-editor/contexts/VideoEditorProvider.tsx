@@ -102,6 +102,7 @@ function InnerProvider({
     handleSplitClipsAtPlayhead: editor.handleSplitClipsAtPlayhead,
     handleToggleMuteClips: editor.handleToggleMuteClips,
     handleToggleMute: editor.handleToggleMute,
+    handleDetachAudioClip: editor.handleDetachAudioClip,
     handleTrackPopoverChange: editor.handleTrackPopoverChange,
     handleMoveTrack: editor.handleMoveTrack,
     handleRemoveTrack: editor.handleRemoveTrack,

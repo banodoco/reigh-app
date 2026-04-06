@@ -1,10 +1,16 @@
 import { useCallback, useLayoutEffect, useRef } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import {
+  detachAudioFromVideo,
   getVisualTracks,
   splitClipAtPlayhead,
   updateClipInConfig,
 } from '@/tools/video-editor/lib/editor-utils';
+import {
+  patchAffectsDuration,
+  recalcActionEnd,
+  splitIntersectingClipsAtPlayhead,
+} from '@/tools/video-editor/lib/clip-editing-utils';
 import {
   updateClipOrder,
 } from '@/tools/video-editor/lib/coordinate-utils';
@@ -18,7 +24,7 @@ import type { ApplyEditOptions } from '@/tools/video-editor/hooks/useTimelineCom
 import type {
   TimelineApplyEdit,
   TimelineSelectedTrack,
-} from '@/tools/video-editor/hooks/useTimelineData.types';
+} from '@/tools/video-editor/hooks/timeline-state-types';
 import type { TimelineAction } from '@/tools/video-editor/types/timeline-canvas';
 
 export interface UseClipEditingArgs {
@@ -46,28 +52,12 @@ export interface UseClipEditingResult {
   handleSplitClipsAtPlayhead: (clipIds: string[]) => void;
   handleToggleMuteClips: (clipIds: string[]) => void;
   handleToggleMute: () => void;
+  handleDetachAudioClip: (clipId: string) => void;
   handleAddText: () => void;
   handleAddTextAt: (trackId: string, time: number) => void;
 }
 
-export const DURATION_KEYS = ['speed', 'from', 'to', 'hold'] as const;
-
-export function patchAffectsDuration(patch: Partial<ClipMeta>): boolean {
-  return DURATION_KEYS.some((key) => key in patch);
-}
-
-export function recalcActionEnd(action: TimelineAction, merged: Partial<ClipMeta>): number {
-  const speed = merged.speed ?? 1;
-  const fallbackSourceDuration = Math.max(0, (action.end - action.start) * speed);
-  const sourceDuration = typeof merged.hold === 'number'
-    ? merged.hold
-    : Math.max(
-      0,
-      (merged.to ?? fallbackSourceDuration + (merged.from ?? 0)) - (merged.from ?? 0),
-    );
-
-  return action.start + sourceDuration / speed;
-}
+export { DURATION_KEYS, patchAffectsDuration, recalcActionEnd } from '@/tools/video-editor/lib/clip-editing-utils';
 
 export function useClipEditing({
   dataRef,
@@ -382,42 +372,12 @@ export function useClipEditing({
       return;
     }
 
-    const currentTime = currentTimeRef.current;
-    const intersectingClipIds = new Set<string>();
-
-    for (const row of current.rows) {
-      for (const action of row.actions) {
-        if (
-          validClipIds.includes(action.id)
-          && action.start <= currentTime
-          && currentTime < action.end
-        ) {
-          intersectingClipIds.add(action.id);
-        }
-      }
-    }
-
-    if (intersectingClipIds.size === 0) {
-      return;
-    }
-
-    let nextResolvedConfig = resolvedConfig;
-    let didSplit = false;
-
-    for (const clipId of validClipIds) {
-      if (!intersectingClipIds.has(clipId)) {
-        continue;
-      }
-
-      const splitResult = splitClipAtPlayhead(nextResolvedConfig, clipId, currentTime);
-      if (!splitResult.nextSelectedClipId) {
-        continue;
-      }
-
-      nextResolvedConfig = splitResult.config;
-      didSplit = true;
-    }
-
+    const { config: nextResolvedConfig, didSplit } = splitIntersectingClipsAtPlayhead(
+      resolvedConfig,
+      current.rows,
+      validClipIds,
+      currentTimeRef.current,
+    );
     if (!didSplit) {
       return;
     }
@@ -453,6 +413,19 @@ export function useClipEditing({
 
     handleToggleMuteClips([selectedClipId]);
   }, [handleToggleMuteClips, resolvedConfig, selectedClipId]);
+
+  const handleDetachAudioClip = useCallback((clipId: string) => {
+    if (!resolvedConfig) {
+      return;
+    }
+
+    const nextConfig = detachAudioFromVideo(resolvedConfig, clipId);
+    if (nextConfig === resolvedConfig) {
+      return;
+    }
+
+    applyConfigEdit(nextConfig, { selectedClipId: clipId });
+  }, [applyConfigEdit, resolvedConfig]);
 
   const handleAddText = useCallback(() => {
     const current = dataRef.current;
@@ -575,6 +548,7 @@ export function useClipEditing({
     handleSplitClipsAtPlayhead,
     handleToggleMuteClips,
     handleToggleMute,
+    handleDetachAudioClip,
     handleAddText,
     handleAddTextAt,
   };

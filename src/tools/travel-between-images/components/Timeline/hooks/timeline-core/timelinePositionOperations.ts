@@ -111,7 +111,7 @@ export function useTimelinePositionOperations({
   ) => {
     const {
       operation = 'reorder',
-      skipOptimistic = false,
+      optimisticAppliedExternally = false,
       skipDatabase = false,
       metadata = {},
       externalRollback,
@@ -128,7 +128,7 @@ export function useTimelinePositionOperations({
     const operationId = `op-${++operationIdRef.current}-${operation}`;
 
     const basePositions =
-      skipOptimistic && snapshotRef.current ? snapshotRef.current : positionsRef.current;
+      optimisticAppliedExternally && snapshotRef.current ? snapshotRef.current : positionsRef.current;
     const changes = detectPositionChanges(basePositions, quantizedPositions);
 
     const trailingRemoved = positionsRef.current.has(TRAILING_ENDPOINT_KEY) && !quantizedPositions.has(TRAILING_ENDPOINT_KEY);
@@ -143,7 +143,7 @@ export function useTimelinePositionOperations({
     }
 
     let rollback: (() => void) | null = null;
-    if (!skipOptimistic) {
+    if (!optimisticAppliedExternally) {
       const optimisticUpdates = changes.map(c => ({
         id: c.id,
         position: c.newPos,

@@ -3,7 +3,18 @@ export type TimelineEffect = {
   fade_out?: number;
 };
 
-export type ParameterType = 'number' | 'select' | 'boolean' | 'color';
+export type ParameterType =
+  | 'number'
+  | 'select'
+  | 'boolean'
+  | 'color'
+  | 'audio-binding';
+
+export type AudioBindingValue = {
+  source: 'bass' | 'mid' | 'treble' | 'amplitude';
+  min: number;
+  max: number;
+};
 
 export type ParameterOption = {
   label: string;
@@ -15,7 +26,7 @@ export type ParameterDefinition = {
   label: string;
   description: string;
   type: ParameterType;
-  default?: number | string | boolean;
+  default?: number | string | boolean | AudioBindingValue;
   min?: number;
   max?: number;
   step?: number;
@@ -44,6 +55,8 @@ export type TrackDefinition = {
   scale?: number;
   fit?: TrackFit;
   opacity?: number;
+  volume?: number;
+  muted?: boolean;
   blendMode?: TrackBlendMode;
 };
 

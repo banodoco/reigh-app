@@ -5,7 +5,7 @@ import { TimelineCanvas } from '@/tools/video-editor/components/TimelineEditor/T
 import type { TrackDefinition } from '@/tools/video-editor/types';
 import type { TimelineAction, TimelineRow } from '@/tools/video-editor/types/timeline-canvas';
 
-const useTimelineEditorContextMock = vi.fn();
+const useTimelineEditorDataMock = vi.fn();
 
 vi.mock('@/tools/video-editor/contexts/TimelineEditorContext', async () => {
   const actual = await vi.importActual<typeof import('@/tools/video-editor/contexts/TimelineEditorContext')>(
@@ -14,7 +14,7 @@ vi.mock('@/tools/video-editor/contexts/TimelineEditorContext', async () => {
 
   return {
     ...actual,
-    useTimelineEditorContext: () => useTimelineEditorContextMock(),
+    useTimelineEditorData: () => useTimelineEditorDataMock(),
   };
 });
 
@@ -40,7 +40,7 @@ function renderCanvas(params?: {
   onActionResizeEnd?: ReturnType<typeof vi.fn>;
 }) {
   const pendingOpsRef = params?.pendingOpsRef ?? { current: 0 };
-  useTimelineEditorContextMock.mockReturnValue({ pendingOpsRef });
+  useTimelineEditorDataMock.mockReturnValue({ pendingOpsRef });
 
   const onActionResizeStart = params?.onActionResizeStart ?? vi.fn();
   const onActionResizeEnd = params?.onActionResizeEnd ?? vi.fn();
@@ -108,7 +108,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  useTimelineEditorContextMock.mockReset();
+  useTimelineEditorDataMock.mockReset();
   pointerCaptures = new WeakMap<HTMLElement, Set<number>>();
 });
 

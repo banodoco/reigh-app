@@ -1,8 +1,10 @@
 import { AbsoluteFill } from 'remotion';
 import { memo, useMemo, type FC, type ReactNode } from 'react';
 import { getAudioTracks, getVisualTracks } from '@/tools/video-editor/lib/editor-utils';
+import { getTimelineDurationInFrames } from '@/tools/video-editor/lib/config-utils';
 import type { ResolvedTimelineClip, ResolvedTimelineConfig, TrackDefinition } from '@/tools/video-editor/types';
 import { AudioTrack } from '@/tools/video-editor/compositions/AudioTrack';
+import { AudioAnalysisProvider } from '@/tools/video-editor/compositions/AudioAnalysisProvider';
 import { EffectLayerSequence } from '@/tools/video-editor/compositions/EffectLayerSequence';
 import { TextClipSequence } from '@/tools/video-editor/compositions/TextClip';
 import { VisualClipSequence } from '@/tools/video-editor/compositions/VisualClip';
@@ -101,6 +103,11 @@ export const TimelineRenderer: FC<{ config: ResolvedTimelineConfig }> = memo(({ 
   const fps = config.output.fps;
   const visualTracks = useMemo(() => [...getVisualTracks(config)].reverse(), [config]);
   const audioTracks = useMemo(() => getAudioTracks(config), [config]);
+  const totalDurationInFrames = useMemo(() => getTimelineDurationInFrames(config, fps), [config, fps]);
+  const audioClips = useMemo(() => {
+    const audioTrackIds = new Set(audioTracks.map((track) => track.id));
+    return config.clips.filter((clip) => audioTrackIds.has(clip.track));
+  }, [audioTracks, config.clips]);
   const clipsByTrack = useMemo(() => {
     return config.clips.reduce<{
       regular: Record<string, ResolvedTimelineClip[]>;
@@ -147,18 +154,20 @@ export const TimelineRenderer: FC<{ config: ResolvedTimelineConfig }> = memo(({ 
   }, [clipsByTrack.effectLayers, clipsByTrack.regular, fps, visualTracks]);
 
   return (
-    <AbsoluteFill style={{ backgroundColor: 'black', overflow: 'hidden' }}>
-      <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center' }}>
-        <AbsoluteFill style={{ position: 'relative', overflow: 'hidden' }}>{visualContent}</AbsoluteFill>
+    <AudioAnalysisProvider clips={audioClips} fps={fps} totalDurationInFrames={totalDurationInFrames}>
+      <AbsoluteFill style={{ backgroundColor: 'black', overflow: 'hidden' }}>
+        <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center' }}>
+          <AbsoluteFill style={{ position: 'relative', overflow: 'hidden' }}>{visualContent}</AbsoluteFill>
+        </AbsoluteFill>
+        {audioTracks.map((track) => (
+          <AudioTrack
+            key={track.id}
+            track={track}
+            clips={clipsByTrack.all[track.id] ?? []}
+            fps={fps}
+          />
+        ))}
       </AbsoluteFill>
-      {audioTracks.map((track) => (
-        <AudioTrack
-          key={track.id}
-          trackId={track.id}
-          clips={clipsByTrack.all[track.id] ?? []}
-          fps={fps}
-        />
-      ))}
-    </AbsoluteFill>
+    </AudioAnalysisProvider>
   );
 });

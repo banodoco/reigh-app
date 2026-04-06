@@ -32,6 +32,7 @@ function PropertiesPanelComponent() {
     handleResetClipsPosition,
     handleToggleMuteClips,
     handleToggleMute,
+    handleDetachAudioClip,
     setActiveClipTab,
     patchRegistry,
     registerAsset,
@@ -171,6 +172,7 @@ function PropertiesPanelComponent() {
             onClose={() => setSelectedClipId(null)}
             onDelete={selectedClip ? () => handleDeleteClip(selectedClip.id) : undefined}
             onToggleMute={handleToggleMute}
+            onDetachAudio={selectedClip ? () => handleDetachAudioClip(selectedClip.id) : undefined}
             compositionWidth={compositionSize.width}
             compositionHeight={compositionSize.height}
             activeTab={preferences.activeClipTab}

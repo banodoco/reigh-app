@@ -8,23 +8,21 @@ import type { useTimelinePlayback } from '@/tools/video-editor/hooks/useTimeline
 import type { useTimelineSelection } from '@/tools/video-editor/hooks/useTimelineSelection';
 import type { useTimelineTrackManagement } from '@/tools/video-editor/hooks/useTimelineTrackManagement';
 import type {
-  EditorPreferences,
   TimelineApplyEdit,
   TimelineDataRef,
   TimelinePatchRegistry,
   TimelinePendingOpsRef,
   TimelineRegisterAsset,
   TimelineReloadFromServer,
-  SaveStatus,
   TimelineRetrySaveAfterConflict,
-  TimelineSetActiveClipTab,
-  TimelineSetAssetPanelState,
   TimelineSetScaleWidth,
   TimelineSetSelectedTrackId,
   TimelineStartRender,
   TimelineUploadFiles,
-} from '@/tools/video-editor/hooks/useTimelineData.types';
+} from '@/tools/video-editor/hooks/timeline-state-types';
+import type { ClipTab, EditorPreferences } from '@/tools/video-editor/hooks/useEditorPreferences';
 import type { useRenderState } from '@/tools/video-editor/hooks/useRenderState';
+import type { SaveStatus } from '@/tools/video-editor/hooks/useTimelineSave';
 import type { useTimelineHistory } from '@/tools/video-editor/hooks/useTimelineHistory';
 import type {
   TimelineChromeContextValue,
@@ -43,6 +41,8 @@ type ClipEditingHook = ReturnType<typeof useClipEditing>;
 type ExternalDropHook = ReturnType<typeof useExternalDrop>;
 type TimelineHistoryHook = ReturnType<typeof useTimelineHistory>;
 type RenderStateHook = ReturnType<typeof useRenderState>;
+type TimelineSetActiveClipTab = (tab: ClipTab) => void;
+type TimelineSetAssetPanelState = (patch: Partial<EditorPreferences['assetPanel']>) => void;
 
 interface UseTimelineEditorContextValueArgs {
   data: TimelineData | null;
@@ -154,6 +154,7 @@ export function useTimelineEditorContextValue({
     handleSplitClipsAtPlayhead: clipEditing.handleSplitClipsAtPlayhead,
     handleToggleMuteClips: clipEditing.handleToggleMuteClips,
     handleToggleMute: clipEditing.handleToggleMute,
+    handleDetachAudioClip: clipEditing.handleDetachAudioClip,
     handleTrackPopoverChange: trackManagement.handleTrackPopoverChange,
     handleMoveTrack: trackManagement.handleMoveTrack,
     handleRemoveTrack: trackManagement.handleRemoveTrack,
@@ -197,6 +198,7 @@ export function useTimelineEditorContextValue({
     clipEditing.handleSplitClipsAtPlayhead,
     clipEditing.handleToggleMuteClips,
     clipEditing.handleToggleMute,
+    clipEditing.handleDetachAudioClip,
     clipEditing.handleUpdateClips,
     clipEditing.handleUpdateClipsDeep,
     clipEditing.onOverlayChange,

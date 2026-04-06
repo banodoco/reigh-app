@@ -1,6 +1,6 @@
 export type EffectCategory = 'entrance' | 'exit' | 'continuous';
 
-type ParameterType = 'number' | 'select' | 'boolean' | 'color';
+type ParameterType = 'number' | 'select' | 'boolean' | 'color' | 'audio-binding';
 
 interface ParameterOption {
   label: string;
@@ -12,7 +12,7 @@ interface ParameterDefinition {
   label: string;
   description: string;
   type: ParameterType;
-  default?: number | string | boolean;
+  default?: number | string | boolean | { source: string; min: number; max: number };
   min?: number;
   max?: number;
   step?: number;
@@ -50,13 +50,15 @@ type EffectComponentProps = {
   params?: Record<string, unknown>;
 };`;
 
-const AVAILABLE_GLOBALS = `Available globals at runtime (use EXACTLY these names — no variations):
+export const AVAILABLE_GLOBALS = `Available globals at runtime (use EXACTLY these names — no variations):
 - React
 - useCurrentFrame (NOT useCurrentFrames, NOT useFrame)
 - useVideoConfig
 - interpolate(value, inputRange, outputRange, options?)
 - spring({ frame, fps, durationInFrames?, config? })
-- AbsoluteFill`;
+- AbsoluteFill
+- useAudioReactive() -> { amplitude, bass, mid, treble, isBeat, frequencyBins }
+- useAudioParam(binding) -> number`;
 
 const OUTPUT_RULES = `Output requirements:
 - Return only executable JavaScript/TypeScript component code
@@ -71,6 +73,7 @@ const OUTPUT_RULES = `Output requirements:
 - Each parameter definition must include name, label, description, type, and default
 - Number params may include min, max, and step
 - Select params must include options as [{ "label": string, "value": string }]
+- Audio-binding params must use type: "audio-binding" and default: { "source": "bass" | "mid" | "treble" | "amplitude", "min": number, "max": number }
 - Use React.createElement(...) instead of JSX
 - Set the component using exports.default = ComponentName
 - The default export must be a function component compatible with EffectComponentProps
@@ -425,6 +428,7 @@ export function extractEffectCodeAndMeta(responseText: string): ExtractedEffectM
     .replace(/\buseFrame\b(?!s)/g, 'useCurrentFrame')
     .replace(/\buseConfig\b/g, 'useVideoConfig')
     .replace(/\bAbsoluteFills\b/g, 'AbsoluteFill')
+    .replace(/\buseAudioReactives\b/g, 'useAudioReactive')
     .replace(/\binterpolates\b/g, 'interpolate');
 
   validateExtractedEffectCode(code);
@@ -447,6 +451,7 @@ const KNOWN_TYPOS: Array<[RegExp, string]> = [
   [/\buseFrame\b(?!s)/, 'useFrame should be useCurrentFrame'],
   [/\buseConfig\b/, 'useConfig should be useVideoConfig'],
   [/\bAbsoluteFills\b/, 'AbsoluteFills should be AbsoluteFill (no "s")'],
+  [/\buseAudioReactives\b/, 'useAudioReactives should be useAudioReactive (no trailing "s")'],
   [/\binterpolates\b/, 'interpolates should be interpolate (no "s")'],
 ];
 

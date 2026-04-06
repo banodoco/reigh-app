@@ -19,7 +19,6 @@ export interface ExternalImageDropVariables {
   skipAutoPosition?: boolean;
   positions?: number[];
   onProgress?: (fileIndex: number, fileProgress: number, overallProgress: number) => void;
-  skipOptimistic?: boolean;
 }
 
 export interface UploadedGenerationMetadata {
@@ -55,7 +54,6 @@ interface ProcessDroppedImagesInput {
     imageUrl?: string;
     thumbUrl?: string;
     timelineFrame?: number;
-    skipOptimistic?: boolean;
   }) => Promise<unknown>;
   addImageToShotWithoutPosition: (input: {
     shot_id: string;
@@ -262,7 +260,7 @@ async function attachGenerationToShot(input: {
     addImageToShotWithoutPosition,
   } = input;
 
-  const { positions, skipAutoPosition, skipOptimistic } = variables;
+  const { positions, skipAutoPosition } = variables;
   const explicitPosition = positions && positions.length > fileIndex ? positions[fileIndex] : undefined;
   const baseInput = {
     shot_id: shotId,
@@ -276,7 +274,6 @@ async function attachGenerationToShot(input: {
     const result = await addImageToShot({
       ...baseInput,
       timelineFrame: explicitPosition,
-      skipOptimistic,
     });
     const shotGenerationId = typeof (result as { id?: unknown })?.id === 'string'
       ? (result as { id: string }).id
@@ -308,7 +305,6 @@ async function attachGenerationToShot(input: {
 
   const result = await addImageToShot({
     ...baseInput,
-    skipOptimistic,
   });
   const shotGenerationId = typeof (result as { id?: unknown })?.id === 'string'
     ? (result as { id: string }).id

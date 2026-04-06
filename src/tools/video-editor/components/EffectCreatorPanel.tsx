@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
-import { Loader2, Play, RotateCcw, Save, Sparkles, Pencil, Globe, Lock, X } from 'lucide-react';
+import { Loader2, RotateCcw, Save, Sparkles, Pencil, Globe, Lock, X } from 'lucide-react';
 import { Player } from '@remotion/player';
 import { AbsoluteFill } from 'remotion';
 import { Button } from '@/shared/components/ui/button';
@@ -24,6 +24,7 @@ import { Textarea } from '@/shared/components/ui/textarea';
 import { toast } from '@/shared/components/ui/toast';
 import { invokeSupabaseEdgeFunction } from '@/integrations/supabase/functions/invokeSupabaseEdgeFunction';
 import { ParameterControls, getDefaultValues } from '@/tools/video-editor/components/ParameterControls';
+import { SyntheticAudioProvider } from '@/tools/video-editor/compositions/AudioAnalysisProvider';
 import { tryCompileEffectAsync, type CompileResult } from '@/tools/video-editor/effects/compileEffect';
 import { wrapWithEffect } from '@/tools/video-editor/effects';
 import type { EffectComponentProps } from '@/tools/video-editor/effects/entrances';
@@ -154,23 +155,27 @@ function makePreviewComposition(
 
   return function EffectPreviewComposition() {
     const fallback = <PreviewRect assetSrc={assetSrc} />;
-    if (!EffectComponent) {
-      return fallback;
-    }
+    const content = !EffectComponent
+      ? fallback
+      : wrapWithEffect(
+        <AbsoluteFill style={{ overflow: 'hidden' }}>
+          <PreviewRect assetSrc={assetSrc} />
+        </AbsoluteFill>,
+        EffectComponent,
+        {
+          effectName: 'preview',
+          durationInFrames,
+          effectFrames,
+          intensity: params.intensity,
+          params: effectParams,
+          schema,
+        },
+      );
 
-    return wrapWithEffect(
-      <AbsoluteFill style={{ overflow: 'hidden' }}>
-        <PreviewRect assetSrc={assetSrc} />
-      </AbsoluteFill>,
-      EffectComponent,
-      {
-        effectName: 'preview',
-        durationInFrames,
-        effectFrames,
-        intensity: params.intensity,
-        params: effectParams,
-        schema,
-      },
+    return (
+      <SyntheticAudioProvider fps={fps} durationInFrames={durationInFrames}>
+        {content}
+      </SyntheticAudioProvider>
     );
   };
 }

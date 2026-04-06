@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { ArrowRight, Clapperboard, FolderPlus } from 'lucide-react';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import type { Shot } from '@/domains/generation/types';
+import { usePortalMousedownGuard } from '@/shared/hooks/usePortalMousedownGuard';
 
 interface SelectionContextMenuProps {
   position: { x: number; y: number } | null;
@@ -81,16 +82,7 @@ export function SelectionContextMenu({
     setAdjustedPos({ x: Math.max(pad, x), y: Math.max(pad, y) });
   }, [position]);
 
-  // Stop native mousedown from reaching the document-level click-outside listener.
-  // Portal DOM hierarchy doesn't match the React tree, so Node.contains() can
-  // return false for elements that ARE visually inside the menu.
-  useEffect(() => {
-    const el = menuRef.current;
-    if (!el) return;
-    const stop = (e: MouseEvent) => e.stopPropagation();
-    el.addEventListener('mousedown', stop);
-    return () => el.removeEventListener('mousedown', stop);
-  }, [position]);
+  usePortalMousedownGuard(menuRef, Boolean(position));
 
   useEffect(() => {
     if (!position) {

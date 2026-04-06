@@ -292,7 +292,6 @@ export const useDropActions = ({
         currentShotCount: 0,
         skipAutoPosition: false,
         positions: positions,
-        skipOptimistic: true
       });
 
       if (!result?.generationIds?.length) {

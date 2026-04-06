@@ -14,7 +14,7 @@ export interface UseTimelinePositionsProps {
 
 export interface UpdateOptions {
   operation?: 'drag' | 'drop' | 'reorder' | 'reset';
-  skipOptimistic?: boolean;
+  optimisticAppliedExternally?: boolean;
   skipDatabase?: boolean;
   metadata?: Record<string, unknown>;
   /**

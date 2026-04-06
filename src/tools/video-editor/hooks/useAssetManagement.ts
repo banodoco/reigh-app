@@ -20,7 +20,7 @@ import type {
   TimelinePatchRegistry,
   TimelineRegisterAsset,
   TimelineUploadAsset,
-} from '@/tools/video-editor/hooks/useTimelineData.types';
+} from '@/tools/video-editor/hooks/timeline-state-types';
 import type { TimelineAction } from '@/tools/video-editor/types/timeline-canvas';
 import type { AssetRegistryEntry, ClipType } from '@/tools/video-editor/types';
 

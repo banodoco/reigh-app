@@ -59,10 +59,37 @@ function stubDenoEnv(): void {
     env: {
       get: (key: string) => {
         if (key === 'GROQ_API_KEY') return 'groq-test-key';
+        if (key === 'FIREWORKS_API_KEY') return 'fireworks-test-key';
         return undefined;
       },
     },
   });
+}
+
+function createLogger() {
+  return {
+    info: vi.fn(),
+    flush: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
+function createFireworksSseResponse(content: string): Response {
+  const encoder = new TextEncoder();
+  return new Response(
+    new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+          choices: [{ delta: { content } }],
+        })}\n\n`));
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+        controller.close();
+      },
+    }),
+    {
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream' },
+    },
+  );
 }
 
 async function loadHandler() {
@@ -80,25 +107,22 @@ describe('ai-generate-effect edge entrypoint', () => {
     vi.resetModules();
     __resetServeHandler();
     stubDenoEnv();
+    vi.stubGlobal('fetch', vi.fn(async () =>
+      createFireworksSseResponse(
+        '```ts\n// DESCRIPTION: Slides the clip in from the left with a soft easing finish.\n// PARAMS: [{"name":"direction","label":"Direction","description":"Controls which side the clip enters from.","type":"select","default":"left","options":[{"label":"Left","value":"left"},{"label":"Right","value":"right"}]}]\nfunction Example(props){ return React.createElement(AbsoluteFill, null, props.children); }\nexports.default = Example;\n```',
+      )
+    ));
 
     mocks.enforceRateLimit.mockResolvedValue(null);
     mocks.buildGenerateEffectMessages.mockReturnValue({
       systemMsg: 'system message',
       userMsg: 'user message',
     });
-    mocks.groqChatCreate.mockResolvedValue({
-      model: 'moonshotai/kimi-k2-instruct-0905',
-      choices: [{
-        message: {
-          content: '```ts\n// DESCRIPTION: Slides the clip in from the left with a soft easing finish.\n// PARAMS: [{"name":"direction","label":"Direction","description":"Controls which side the clip enters from.","type":"select","default":"left","options":[{"label":"Left","value":"left"},{"label":"Right","value":"right"}]}]\nfunction Example(props){ return React.createElement(AbsoluteFill, null, props.children); }\nexports.default = Example;\n```',
-        },
-      }],
-    });
     mocks.bootstrapEdgeHandler.mockResolvedValue({
       ok: true,
       value: {
         supabaseAdmin: {},
-        logger: { info: vi.fn() },
+        logger: createLogger(),
         auth: { userId: 'user-1' },
         body: {
           prompt: 'Slide the clip in from the left',
@@ -130,7 +154,7 @@ describe('ai-generate-effect edge entrypoint', () => {
       ok: true,
       value: {
         supabaseAdmin: {},
-        logger: { info: vi.fn() },
+        logger: createLogger(),
         auth: { userId: '' },
         body: { prompt: 'Generate an effect', category: 'entrance' },
       },
@@ -166,6 +190,7 @@ describe('ai-generate-effect edge entrypoint', () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
       code: 'function Example(props){ return React.createElement(AbsoluteFill, null, props.children); }\nexports.default = Example;',
+      name: '',
       description: 'Slides the clip in from the left with a soft easing finish.',
       parameterSchema: [
         {
@@ -180,11 +205,15 @@ describe('ai-generate-effect edge entrypoint', () => {
           ],
         },
       ],
-      model: 'moonshotai/kimi-k2-instruct-0905',
+      model: 'accounts/fireworks/models/kimi-k2p5',
     });
-    expect(mocks.groqChatCreate).toHaveBeenCalledWith(
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://api.fireworks.ai/inference/v1/chat/completions',
       expect.objectContaining({
-        model: 'moonshotai/kimi-k2-instruct-0905',
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer fireworks-test-key',
+        }),
       }),
     );
     expect(mocks.buildGenerateEffectMessages).toHaveBeenCalledWith({
@@ -199,7 +228,7 @@ describe('ai-generate-effect edge entrypoint', () => {
       ok: true,
       value: {
         supabaseAdmin: {},
-        logger: { info: vi.fn() },
+        logger: createLogger(),
         auth: { userId: 'user-1' },
         body: { prompt: 'Generate an effect', category: 'spin-up' },
       },
@@ -212,6 +241,6 @@ describe('ai-generate-effect edge entrypoint', () => {
     await expect(response.json()).resolves.toEqual({
       error: 'category must be one of: entrance, exit, continuous',
     });
-    expect(mocks.groqChatCreate).not.toHaveBeenCalled();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 });

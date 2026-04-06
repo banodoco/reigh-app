@@ -71,7 +71,7 @@ interface DuplicateFrameOptions {
 
 export const calculateDuplicateFrame = (options: DuplicateFrameOptions): number => {
   // For optimistic/preview use. For duplicate_as_new_generation, SQL is authoritative:
-  // pass timeline_frame + next_timeline_frame instead of pre-computing target_timeline_frame.
+  // pass timeline_frame + next_timeline_frame and let SQL choose the final frame.
   const {
     currentFrame,
     nextFrame,

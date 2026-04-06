@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
+import { enqueueGenerationsInvalidation } from '@/shared/hooks/invalidation';
+import { queryKeys } from '@/shared/lib/queryKeys';
 
 // Mock supabase
 const mockFrom = vi.fn();
@@ -125,6 +127,46 @@ describe('useAddImageToShot', () => {
       p_shot_id: 'shot-1',
       p_generation_id: 'gen-1',
       p_with_position: true,
+    });
+  });
+
+  it('invalidates shot, segment, and unified data after a successful add', async () => {
+    const rpcResult = {
+      id: 'sg-new',
+      shot_id: 'shot-1',
+      generation_id: 'gen-1',
+      timeline_frame: 150,
+    };
+
+    mockRpc.mockResolvedValue({ data: rpcResult, error: null });
+
+    const { queryClient, wrapper } = createWrapper();
+    const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    const { result } = renderHook(() => useAddImageToShot(), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        shot_id: 'shot-1',
+        generation_id: 'gen-1',
+        project_id: 'project-1',
+      });
+    });
+
+    expect(enqueueGenerationsInvalidation).toHaveBeenCalledWith(queryClient, 'shot-1', {
+      reason: 'add-image-to-shot',
+      scope: 'all',
+      includeShots: true,
+      projectId: 'project-1',
+      includeProjectUnified: true,
+    });
+    expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+      queryKey: queryKeys.segments.liveTimeline('shot-1'),
+    });
+    expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+      queryKey: queryKeys.segments.parents('shot-1', 'project-1'),
+    });
+    expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+      queryKey: queryKeys.generations.meta('shot-1'),
     });
   });
 

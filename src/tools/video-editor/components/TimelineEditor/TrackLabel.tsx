@@ -3,12 +3,13 @@ import type { DraggableAttributes } from '@dnd-kit/core';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities';
-import { Check, GripVertical, Settings, Trash2, Video, Volume2 } from 'lucide-react';
+import { Check, GripVertical, Settings, Trash2, Video, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/shared/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
 import { Slider } from '@/shared/components/ui/slider';
 import { cn } from '@/shared/components/ui/contracts/cn';
+import { isTrackMuted } from '@/tools/video-editor/lib/editor-utils';
 import type { TrackBlendMode, TrackDefinition, TrackFit } from '@/tools/video-editor/types';
 
 interface TrackLabelProps {
@@ -172,7 +173,7 @@ export function TrackLabelContent({
                         min={0.1}
                         max={2}
                         step={0.05}
-                        onValueChange={(v) => onChange(track.id, { scale: v[0] })}
+                        onValueChange={(v) => onChange(track.id, { scale: v })}
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -182,7 +183,7 @@ export function TrackLabelContent({
                         min={0}
                         max={1}
                         step={0.05}
-                        onValueChange={(v) => onChange(track.id, { opacity: v[0] })}
+                        onValueChange={(v) => onChange(track.id, { opacity: v })}
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -202,15 +203,27 @@ export function TrackLabelContent({
                   </>
                 )}
                 {track.kind === 'audio' && (
-                  <div className="space-y-1.5">
-                    <FieldLabel>Default Volume ({((track.opacity ?? 1) * 100).toFixed(0)}%)</FieldLabel>
-                    <Slider
-                      value={[track.opacity ?? 1]}
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      onValueChange={(v) => onChange(track.id, { opacity: v[0] })}
-                    />
+                  <div className="space-y-2">
+                    <div className="space-y-1.5">
+                      <FieldLabel>Default Volume ({((track.volume ?? 1) * 100).toFixed(0)}%)</FieldLabel>
+                      <Slider
+                        value={[track.volume ?? 1]}
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        onValueChange={(v) => onChange(track.id, { volume: v })}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => onChange(track.id, { muted: !isTrackMuted(track) })}
+                    >
+                      {isTrackMuted(track) ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+                      {isTrackMuted(track) ? 'Unmute Track' : 'Mute Track'}
+                    </Button>
                   </div>
                 )}
               </div>

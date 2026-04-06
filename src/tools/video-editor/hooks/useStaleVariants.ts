@@ -5,7 +5,7 @@ import type { AssetRegistryEntry, ResolvedAssetRegistryEntry } from '@/tools/vid
 import type {
   TimelinePatchRegistry,
   TimelineRegisterAsset,
-} from '@/tools/video-editor/hooks/useTimelineData.types';
+} from '@/tools/video-editor/hooks/timeline-state-types';
 
 interface PrimaryVariantInfo {
   location: string;

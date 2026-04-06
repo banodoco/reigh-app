@@ -22,12 +22,6 @@ import {
   cancelShotGenerationsQuery
 } from './cacheUtils';
 import {
-  optimisticallyRemoveFromUnifiedGenerations,
-} from './shotMutationHelpers';
-import {
-  applyOptimisticCaches,
-  replaceOptimisticItemInCache,
-  replaceOptimisticItemInShotsCache,
   runAddImageMutation,
   toAddImageErrorMessage,
   withVariableMetadata,
@@ -42,17 +36,9 @@ export { useDuplicateAsNewGeneration } from './useDuplicateAsNewGeneration';
 // ADD IMAGE TO SHOT (unified hook)
 // ============================================================================
 
-interface AddImageToShotContext {
-  previousShots: ReturnType<typeof findShotsCache> | undefined;
-  previousFastGens: GenerationRow[] | undefined;
-  project_id: string | undefined;
-  shot_id: string | undefined;
-  tempId?: string;
-}
-
 type AddImageToShotWithoutPositionVariables = Omit<
   AddImageToShotVariables,
-  'timelineFrame' | 'skipOptimistic'
+  'timelineFrame'
 >;
 
 function withUnpositionedAddImageVariables(
@@ -61,7 +47,6 @@ function withUnpositionedAddImageVariables(
   return {
     ...variables,
     timelineFrame: null,
-    skipOptimistic: true,
   };
 }
 
@@ -75,52 +60,13 @@ function withUnpositionedAddImageVariables(
  */
 export const useAddImageToShot = () => {
   const queryClient = useQueryClient();
-  const mutation = useMutation<Record<string, unknown>, Error, AddImageToShotVariables, AddImageToShotContext>({
+  const mutation = useMutation<Record<string, unknown>, Error, AddImageToShotVariables>({
     mutationFn: async (variables: AddImageToShotVariables) => {
       const data = await runAddImageMutation(variables);
       return withVariableMetadata(data, variables);
     },
 
-    onMutate: async (variables): Promise<AddImageToShotContext> => {
-      const {
-        shot_id,
-        project_id,
-        imageUrl,
-        thumbUrl,
-        skipOptimistic,
-      } = variables;
-
-      if (!project_id) {
-        return { previousShots: undefined, previousFastGens: undefined, project_id: undefined, shot_id: undefined };
-      }
-
-      await cancelShotsQueries(queryClient, project_id);
-      await cancelShotGenerationsQuery(queryClient, shot_id);
-
-      const previousShots = findShotsCache(queryClient, project_id);
-      const previousFastGens = queryClient.getQueryData<GenerationRow[]>(
-        queryKeys.generations.byShot(shot_id)
-      );
-
-      let tempId: string | undefined;
-
-      // Only perform optimistic update if we have image URL and not skipped
-      if ((imageUrl || thumbUrl) && !skipOptimistic) {
-        tempId = `temp-${Date.now()}-${Math.random()}`;
-        applyOptimisticCaches(queryClient, variables, previousFastGens, tempId);
-      }
-
-      // Optimistically remove from unified-generations (for "items without shots" filter)
-      optimisticallyRemoveFromUnifiedGenerations(
-        queryClient,
-        project_id,
-        variables.generation_id
-      );
-
-      return { previousShots, previousFastGens, project_id, shot_id, tempId };
-    },
-
-    onError: (error: Error, _variables, context) => {
+    onError: (error: Error) => {
       // Check for duplicate key constraint
       const isDuplicateError =
         error.message?.includes('unique_shot_generation_pair') ||
@@ -131,45 +77,22 @@ export const useAddImageToShot = () => {
         return;
       }
 
-      // Rollback caches
-      if (context?.previousShots && context.project_id) {
-        rollbackShotsCaches(queryClient, context.project_id, context.previousShots);
-      }
-      if (context?.previousFastGens && context.shot_id) {
-        rollbackShotGenerationsCache(queryClient, context.shot_id, context.previousFastGens);
-      }
-      if (context?.project_id) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.unified.projectPrefix(context.project_id),
-        });
-      }
-
       toast.error(`Failed to add image to shot: ${toAddImageErrorMessage(error)}`);
     },
 
-    onSuccess: (data, variables, context) => {
+    onSuccess: (_data, variables) => {
       const { project_id, shot_id } = variables;
 
-      // Replace temp ID with real ID in cache
-      if (context?.tempId) {
-        replaceOptimisticItemInCache(queryClient, shot_id, context.tempId, data);
-        replaceOptimisticItemInShotsCache(queryClient, project_id, shot_id, context.tempId, data);
-      }
-
-      // Invalidate related queries
-      queryClient.invalidateQueries({ queryKey: queryKeys.shots.list(project_id) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.generations.meta(shot_id) });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.unified.projectPrefix(project_id),
+      enqueueGenerationsInvalidation(queryClient, shot_id, {
+        reason: 'add-image-to-shot',
+        scope: 'all',
+        includeShots: true,
+        projectId: project_id,
+        includeProjectUnified: true,
       });
-      // Invalidate byShot to ensure timeline refetches with complete data.
-      // Critical when the target shot's cache wasn't populated at mutation time
-      // (e.g., adding to a different shot than the one currently viewed),
-      // since no optimistic item would have been created in that case.
-      queryClient.invalidateQueries({ queryKey: queryKeys.generations.byShot(shot_id) });
-      // Invalidate segment position map so videos reposition to match new timeline order
       queryClient.invalidateQueries({ queryKey: queryKeys.segments.liveTimeline(shot_id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.segments.parents(shot_id, project_id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.generations.meta(shot_id) });
     },
   });
 

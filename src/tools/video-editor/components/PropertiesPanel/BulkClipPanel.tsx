@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Volume2 } from 'lucide-react';
+import { AudioWaveform, Volume2 } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { Input } from '@/shared/components/ui/input';
@@ -16,7 +16,7 @@ import {
 import { continuousEffectTypes, entranceEffectTypes, exitEffectTypes } from '@/tools/video-editor/effects';
 import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/DataProviderContext';
 import { useEffectResources } from '@/tools/video-editor/hooks/useEffectResources';
-import type { ClipTab } from '@/tools/video-editor/hooks/useTimelineData.types';
+import type { ClipTab } from '@/tools/video-editor/hooks/useEditorPreferences';
 import type { ClipMeta } from '@/tools/video-editor/lib/timeline-data';
 import type { ResolvedTimelineClip } from '@/tools/video-editor/types';
 
@@ -72,6 +72,15 @@ const buildDrafts = (props: BulkClipPanelProps): BulkDrafts => ({
   fontSize: toNumberDraft(props.sharedFontSize ?? props.sharedText?.fontSize),
   color: props.sharedTextColor ?? props.sharedText?.color ?? '',
 });
+
+function isAudioReactiveEffect(effect: { code?: string; parameterSchema?: Array<{ type: string }> }): boolean {
+  return effect.code?.includes('useAudioReactive') === true || effect.code?.includes('useAudioParam') === true
+    || effect.parameterSchema?.some((p) => p.type === 'audio-binding') === true;
+}
+
+function AudioReactiveIcon() {
+  return <AudioWaveform className="inline-block h-3 w-3 shrink-0 text-muted-foreground" />;
+}
 
 function getDefaultEffectParams(
   type: string,
@@ -274,7 +283,7 @@ export function BulkClipPanel(props: BulkClipPanelProps) {
                         <div className="my-1 h-px bg-border" />
                         {effectResources.entrance.map((effect) => (
                           <SelectItem key={`custom:${effect.id}`} value={`custom:${effect.id}`}>
-                            {effect.name}
+                            <span className="flex items-center gap-1.5">{isAudioReactiveEffect(effect) && <AudioReactiveIcon />}{effect.name}</span>
                           </SelectItem>
                         ))}
                       </>
@@ -306,7 +315,7 @@ export function BulkClipPanel(props: BulkClipPanelProps) {
                         <div className="my-1 h-px bg-border" />
                         {effectResources.exit.map((effect) => (
                           <SelectItem key={`custom:${effect.id}`} value={`custom:${effect.id}`}>
-                            {effect.name}
+                            <span className="flex items-center gap-1.5">{isAudioReactiveEffect(effect) && <AudioReactiveIcon />}{effect.name}</span>
                           </SelectItem>
                         ))}
                       </>
@@ -338,7 +347,7 @@ export function BulkClipPanel(props: BulkClipPanelProps) {
                         <div className="my-1 h-px bg-border" />
                         {effectResources.continuous.map((effect) => (
                           <SelectItem key={`custom:${effect.id}`} value={`custom:${effect.id}`}>
-                            {effect.name}
+                            <span className="flex items-center gap-1.5">{isAudioReactiveEffect(effect) && <AudioReactiveIcon />}{effect.name}</span>
                           </SelectItem>
                         ))}
                       </>

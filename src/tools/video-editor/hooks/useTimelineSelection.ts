@@ -16,7 +16,7 @@ import type {
   TimelineSelectedClip,
   TimelineSelectedTrack,
   TimelineSetSelectedClipId,
-} from '@/tools/video-editor/hooks/useTimelineData.types';
+} from '@/tools/video-editor/hooks/timeline-state-types';
 import type { TimelineData } from '@/tools/video-editor/lib/timeline-data';
 
 export interface UseTimelineSelectionArgs {

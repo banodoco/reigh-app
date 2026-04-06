@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { MutableRefObject, RefObject } from 'react';
 import type { DragCoordinator } from '@/tools/video-editor/hooks/useDragCoordinator';
 import type { SelectClipOptions } from '@/tools/video-editor/hooks/useMultiSelect';
-import type { TimelineApplyEdit } from '@/tools/video-editor/hooks/useTimelineData.types';
+import type { TimelineApplyEdit } from '@/tools/video-editor/hooks/timeline-state-types';
 import type { TrackKind } from '@/tools/video-editor/types';
 import type { TimelineData } from '@/tools/video-editor/lib/timeline-data';
 import {
