@@ -10,7 +10,6 @@ export type ShotGroupMenuState = {
   rowId: string;
   trackId: string;
   hasFinalVideo: boolean;
-  isPinned: boolean;
   mode?: 'images' | 'video';
 } | null;
 
@@ -22,9 +21,7 @@ interface ShotGroupContextMenuProps {
   onGenerateVideo?: (shotId: string) => void;
   onSwitchToFinalVideo?: (group: { shotId: string; clipIds: string[]; rowId: string }) => void;
   onSwitchToImages?: (group: { shotId: string; rowId: string }) => void;
-  onPinGroup?: (group: { shotId: string; trackId: string; clipIds: string[] }) => void;
   onUnpinGroup?: (group: { shotId: string; trackId: string }) => void;
-  onDismissFinalVideo?: (shotId: string) => void;
 }
 
 export function ShotGroupContextMenu({
@@ -35,24 +32,14 @@ export function ShotGroupContextMenu({
   onGenerateVideo,
   onSwitchToFinalVideo,
   onSwitchToImages,
-  onPinGroup,
   onUnpinGroup,
-  onDismissFinalVideo,
 }: ShotGroupContextMenuProps) {
   if (!menu) {
     return null;
   }
 
   const pinActions = [
-    !menu.isPinned && onPinGroup
-      ? {
-          key: 'pin-shot-group',
-          label: 'Pin as Shot Group',
-          icon: Video,
-          onClick: () => onPinGroup({ shotId: menu.shotId, trackId: menu.trackId, clipIds: menu.clipIds }),
-        }
-      : null,
-    menu.isPinned && onUnpinGroup
+    onUnpinGroup
       ? {
           key: 'unpin-shot-group',
           label: 'Unpin',
@@ -61,7 +48,7 @@ export function ShotGroupContextMenu({
         }
       : null,
   ].filter((action): action is { key: string; label: string; icon: typeof Video; onClick: () => void } => Boolean(action));
-  const finalVideoActions = menu.hasFinalVideo && (!menu.isPinned || menu.mode === 'images')
+  const finalVideoActions = menu.hasFinalVideo && menu.mode !== 'video'
     ? [
       onSwitchToFinalVideo
         ? {
@@ -71,12 +58,9 @@ export function ShotGroupContextMenu({
           onClick: () => onSwitchToFinalVideo({ shotId: menu.shotId, clipIds: menu.clipIds, rowId: menu.rowId }),
         }
         : null,
-      onDismissFinalVideo
-        ? { key: 'dismiss-final-video', label: 'Dismiss reminder', icon: X, onClick: () => onDismissFinalVideo(menu.shotId) }
-        : null,
     ].filter((action): action is { key: string; label: string; icon: typeof Video; onClick: () => void } => Boolean(action))
     : [];
-  const imageActions = menu.isPinned && menu.mode === 'video'
+  const imageActions = menu.mode === 'video'
     ? [
       onSwitchToImages
         ? {

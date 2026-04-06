@@ -32,12 +32,9 @@ import { usePinnedGroupSync, usePinnedShotGroups } from '@/tools/video-editor/ho
 import { useShotGroups } from '@/tools/video-editor/hooks/useShotGroups';
 import { useStaleVariants } from '@/tools/video-editor/hooks/useStaleVariants';
 import { useSwitchToFinalVideo } from '@/tools/video-editor/hooks/useSwitchToFinalVideo';
-import type { AssetRegistry, ResolvedTimelineClip, TrackDefinition } from '@/tools/video-editor/types';
+import type { ResolvedTimelineClip, TrackDefinition } from '@/tools/video-editor/types';
 import type { TimelineAction, TimelineRow } from '@/tools/video-editor/types/timeline-canvas';
-import type { ShotFinalVideo } from '@/tools/video-editor/hooks/useFinalVideoAvailable';
 
-const EMPTY_CLIP_META: Record<string, ClipMeta> = {};
-const EMPTY_ASSET_REGISTRY: AssetRegistry = { assets: {} };
 const EMPTY_ASSET_GENERATION_MAP: Record<string, string> = {};
 
 function useStableValue<T extends Record<string, string>>(value: T): T {
@@ -121,41 +118,6 @@ export function resolveWaveformAudioSrc(
   }
 
   return undefined;
-}
-
-export function resolveFinalVideoShotIds({
-  rows,
-  meta,
-  registry,
-  finalVideoMap,
-  dismissedFinalVideoIds,
-}: {
-  rows: TimelineRow[];
-  meta: Record<string, ClipMeta>;
-  registry: AssetRegistry;
-  finalVideoMap: Map<string, ShotFinalVideo>;
-  dismissedFinalVideoIds: Set<string>;
-}) {
-  const timelineClipGenerationIds = new Set<string>();
-  for (const row of rows) {
-    for (const action of row.actions) {
-      const assetKey = meta[action.id]?.asset;
-      const generationId = assetKey ? registry.assets[assetKey]?.generationId : undefined;
-      if (typeof generationId === 'string' && generationId.length > 0) {
-        timelineClipGenerationIds.add(generationId);
-      }
-    }
-  }
-
-  const shotIds = new Set<string>();
-  for (const [shotId, finalVideo] of finalVideoMap) {
-    if (dismissedFinalVideoIds.has(finalVideo.id) || timelineClipGenerationIds.has(finalVideo.id)) {
-      continue;
-    }
-    shotIds.add(shotId);
-  }
-
-  return shotIds;
 }
 
 function TimelineEditorComponent() {
@@ -269,7 +231,7 @@ function TimelineEditorComponent() {
     }
     return clipIds;
   }, [activeTaskAssetKeys, data?.rows, data?.meta]);
-  const { finalVideoMap, dismissedFinalVideoIds, dismissFinalVideo } = useFinalVideoAvailable();
+  const { finalVideoMap, dismissFinalVideo } = useFinalVideoAvailable();
 
   useLayoutEffect(() => {
     const wrapper = timelineWrapperRef.current;
@@ -319,21 +281,9 @@ function TimelineEditorComponent() {
   }, [selectClip, setSelectedTrackId]);
 
   const pixelsPerSecond = scaleWidth / scale;
-  const finalVideoShotIds = useMemo(() => {
-    return resolveFinalVideoShotIds({
-      rows: data?.rows ?? [],
-      meta: data?.meta ?? EMPTY_CLIP_META,
-      registry: data?.registry ?? EMPTY_ASSET_REGISTRY,
-      finalVideoMap,
-      dismissedFinalVideoIds,
-    });
-  }, [data?.meta, data?.registry, data?.registry?.assets, data?.rows, dismissedFinalVideoIds, finalVideoMap]);
   const shotGroups = useShotGroups(
     data?.rows ?? [],
-    data?.meta ?? EMPTY_CLIP_META,
-    data?.registry ?? EMPTY_ASSET_REGISTRY,
     shots,
-    finalVideoShotIds,
     data?.config.pinnedShotGroups,
   );
   const shotGroupClipIds = useMemo(() => {
@@ -455,7 +405,6 @@ function TimelineEditorComponent() {
     if (shot) setVideoModalShot(shot);
   }, [shots]);
   const {
-    pinGroup,
     unpinGroup,
   } = usePinnedShotGroups({
     dataRef,
@@ -629,13 +578,10 @@ function TimelineEditorComponent() {
           onActionResizeStart={onActionResizeStart}
           onActionResizeEnd={onActionResizeEnd}
           shotGroups={shotGroups}
-          finalVideoShotIds={finalVideoShotIds}
+          finalVideoMap={finalVideoMap}
           activeTaskClipIds={activeTaskClipIds}
           onShotGroupNavigate={handleShotGroupNavigate}
           onShotGroupGenerateVideo={handleShotGroupGenerateVideo}
-          onShotGroupPin={(group) => {
-            pinGroup(group.shotId, group.trackId, group.clipIds);
-          }}
           onShotGroupUnpin={(group) => {
             unpinGroup(group.shotId, group.trackId);
           }}
@@ -648,12 +594,6 @@ function TimelineEditorComponent() {
           }}
           onShotGroupSwitchToImages={(group) => {
             handleSwitchToImages(group);
-          }}
-          onShotGroupDismissFinalVideo={(shotId) => {
-            const finalVideo = finalVideoMap.get(shotId);
-            if (finalVideo) {
-              dismissFinalVideo(finalVideo.id);
-            }
           }}
           onSelectClips={selectClips}
           dragSessionRef={dragSessionRef}

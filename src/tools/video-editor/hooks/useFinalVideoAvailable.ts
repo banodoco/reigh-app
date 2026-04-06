@@ -7,7 +7,7 @@ import {
 
 export type { ShotFinalVideo };
 
-export const dismissedFinalVideoIds = new Set<string>();
+const dismissedFinalVideoIds = new Set<string>();
 
 export function useFinalVideoAvailable() {
   const { selectedProjectId } = useProjectSelectionContext();
@@ -21,7 +21,6 @@ export function useFinalVideoAvailable() {
 
   return {
     finalVideoMap,
-    dismissedFinalVideoIds,
     dismissFinalVideo,
   };
 }

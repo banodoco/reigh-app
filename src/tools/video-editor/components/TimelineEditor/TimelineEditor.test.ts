@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { ClipMeta } from '@/tools/video-editor/lib/timeline-data';
-import type { ShotFinalVideo } from '@/tools/video-editor/hooks/useFinalVideoAvailable';
 import type { ResolvedTimelineClip, TrackDefinition } from '@/tools/video-editor/types';
 import type { TimelineRow } from '@/tools/video-editor/types/timeline-canvas';
-import { resolveFinalVideoShotIds, resolveSelectedGenerationIdsForShotCreation, resolveWaveformAudioSrc } from './TimelineEditor';
+import { resolveSelectedGenerationIdsForShotCreation, resolveWaveformAudioSrc } from './TimelineEditor';
 
 describe('resolveSelectedGenerationIdsForShotCreation', () => {
   const rows: TimelineRow[] = [
@@ -111,62 +110,5 @@ describe('resolveWaveformAudioSrc', () => {
     }), visualTrack)).toBeUndefined();
     expect(resolveWaveformAudioSrc(createClip({ clipType: 'text' }), visualTrack)).toBeUndefined();
     expect(resolveWaveformAudioSrc(createClip({ clipType: 'effect-layer' }), visualTrack)).toBeUndefined();
-  });
-});
-
-describe('resolveFinalVideoShotIds', () => {
-  const rows: TimelineRow[] = [
-    {
-      id: 'V1',
-      actions: [
-        { id: 'clip-1', start: 0, end: 1, effectId: 'effect-1' },
-        { id: 'clip-2', start: 1, end: 2, effectId: 'effect-2' },
-      ],
-    },
-  ];
-
-  const meta: Record<string, ClipMeta> = {
-    'clip-1': { asset: 'asset-1', track: 'V1', clipType: 'media' },
-    'clip-2': { asset: 'asset-2', track: 'V1', clipType: 'media' },
-  };
-
-  const buildFinalVideoMap = () => new Map<string, ShotFinalVideo>([
-    ['shot-1', { id: 'final-video-1', location: 'https://example.com/final-1.mp4', thumbnailUrl: null }],
-    ['shot-2', { id: 'final-video-2', location: 'https://example.com/final-2.mp4', thumbnailUrl: null }],
-  ]);
-
-  it('hides the badge when the final video generation id is already on a current timeline clip', () => {
-    const result = resolveFinalVideoShotIds({
-      rows,
-      meta,
-      registry: {
-        assets: {
-          'asset-1': { file: 'asset-1.mp4', generationId: 'final-video-1' },
-          'asset-2': { file: 'asset-2.png', generationId: 'some-image-generation' },
-          'stale-final-video': { file: 'old.mp4', generationId: 'final-video-2' },
-        },
-      },
-      finalVideoMap: buildFinalVideoMap(),
-      dismissedFinalVideoIds: new Set<string>(),
-    });
-
-    expect(result).toEqual(new Set(['shot-2']));
-  });
-
-  it('filters dismissed final video ids instead of suppressing by shot id', () => {
-    const result = resolveFinalVideoShotIds({
-      rows,
-      meta,
-      registry: {
-        assets: {
-          'asset-1': { file: 'asset-1.png', generationId: 'image-generation-1' },
-          'asset-2': { file: 'asset-2.png', generationId: 'image-generation-2' },
-        },
-      },
-      finalVideoMap: buildFinalVideoMap(),
-      dismissedFinalVideoIds: new Set(['final-video-1']),
-    });
-
-    expect(result).toEqual(new Set(['shot-2']));
   });
 });

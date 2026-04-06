@@ -65,7 +65,6 @@ interface PositionedShotGroup {
   clipIds: string[];
   rowId: string;
   color: string;
-  isPinned: boolean;
   mode?: 'images' | 'video';
   hasFinalVideo: boolean;
   hasActiveTask: boolean;
@@ -98,15 +97,13 @@ export interface TimelineCanvasProps {
   onActionResizing?: (params: { action: TimelineAction; row: TimelineRow; start: number; end: number; dir: ResizeDir }) => void;
   onActionResizeEnd?: (params: { action: TimelineAction; row: TimelineRow; start: number; end: number; dir: ResizeDir }) => void;
   shotGroups?: ShotGroup[];
-  finalVideoShotIds?: Set<string>;
+  finalVideoMap?: Map<string, unknown>;
   activeTaskClipIds?: Set<string>;
   onShotGroupNavigate?: (shotId: string) => void;
   onShotGroupGenerateVideo?: (shotId: string) => void;
   onShotGroupSwitchToFinalVideo?: (group: { shotId: string; clipIds: string[]; rowId: string }) => void;
   onShotGroupSwitchToImages?: (group: { shotId: string; rowId: string }) => void;
-  onShotGroupPin?: (group: { shotId: string; trackId: string; clipIds: string[] }) => void;
   onShotGroupUnpin?: (group: { shotId: string; trackId: string }) => void;
-  onShotGroupDismissFinalVideo?: (shotId: string) => void;
   onSelectClips?: (clipIds: string[]) => void;
   dragSessionRef?: MutableRefObject<DragSession | null>;
   onScroll?: (metrics: ScrollMetrics) => void;
@@ -332,15 +329,13 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   onActionResizing,
   onActionResizeEnd,
   shotGroups = [],
-  finalVideoShotIds,
+  finalVideoMap,
   activeTaskClipIds,
   onShotGroupNavigate,
   onShotGroupGenerateVideo,
   onShotGroupSwitchToFinalVideo,
   onShotGroupSwitchToImages,
-  onShotGroupPin,
   onShotGroupUnpin,
-  onShotGroupDismissFinalVideo,
   onSelectClips,
   dragSessionRef,
   onScroll,
@@ -465,9 +460,8 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         clipIds: group.clipIds,
         rowId: group.rowId,
         color: group.color,
-        isPinned: group.isPinned === true,
         mode: group.mode,
-        hasFinalVideo: finalVideoShotIds?.has(group.shotId) ?? false,
+        hasFinalVideo: finalVideoMap?.has(group.shotId) ?? false,
         hasActiveTask: activeTaskClipIds ? group.clipIds.some((id) => activeTaskClipIds.has(id)) : false,
         left: startLeft + first.start * pixelsPerSecond,
         top: group.rowIndex * rowHeight + ACTION_VERTICAL_MARGIN,
@@ -475,14 +469,14 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         height: actionHeight,
       }];
     });
-  }, [actionHeight, activeTaskClipIds, finalVideoShotIds, pixelsPerSecond, resizeOverrides, rowActionMaps, rowHeight, rows, shotGroups, startLeft]);
+  }, [actionHeight, activeTaskClipIds, finalVideoMap, pixelsPerSecond, resizeOverrides, rowActionMaps, rowHeight, rows, shotGroups, startLeft]);
   const hideShotGroups = dragSessionRef?.current !== null || hasResizeOverrides;
   const openShotGroupMenu = useCallback((
     x: number,
     y: number,
-    group: Pick<PositionedShotGroup, 'shotId' | 'shotName' | 'clipIds' | 'rowId' | 'hasFinalVideo' | 'isPinned' | 'mode'>,
+    group: Pick<PositionedShotGroup, 'shotId' | 'shotName' | 'clipIds' | 'rowId' | 'hasFinalVideo' | 'mode'>,
   ) => {
-    setShotGroupMenu({ x, y, ...group, trackId: group.rowId });
+    setShotGroupMenu({ x, y, ...group, trackId: group.rowId } as NonNullable<ShotGroupMenuState>);
   }, []);
 
   const syncCursor = useCallback((time = timeRef.current) => {
@@ -774,18 +768,16 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
               <div
                 className={cn(
                   'pointer-events-none absolute rounded-md transition-colors',
-                  group.isPinned ? 'border-2 border-solid' : 'border border-dashed',
+                  'border-2 border-solid',
                 )}
-                data-shot-group-kind={group.isPinned ? 'pinned' : 'suggested'}
+                data-shot-group-kind="pinned"
                 style={{
                   left: group.left - 2,
                   top: group.top - 2,
                   width: group.width + 4,
                   height: group.height + 4,
                   zIndex: 1,
-                  borderColor: group.isPinned
-                    ? `color-mix(in srgb, ${group.color} 60%, transparent)`
-                    : `color-mix(in srgb, ${group.color} 48%, transparent)`,
+                  borderColor: `color-mix(in srgb, ${group.color} 60%, transparent)`,
                 }}
               />
               <div
@@ -802,24 +794,20 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
                 }}
                 style={{
                   left: group.left,
-                  top: group.isPinned ? group.top - 18 : group.top - ACTION_VERTICAL_MARGIN,
+                  top: group.top - 18,
                   width: group.width,
-                  height: group.isPinned ? 18 : ACTION_VERTICAL_MARGIN,
+                  height: 18,
                   zIndex: 8,
                   pointerEvents: 'auto',
-                  background: group.isPinned
-                    ? `color-mix(in srgb, ${group.color} 78%, transparent)`
-                    : `color-mix(in srgb, ${group.color} 58%, transparent)`,
+                  background: `color-mix(in srgb, ${group.color} 78%, transparent)`,
                 }}
               >
-                {group.isPinned && (
-                  <span
-                    className="pointer-events-none absolute inset-x-2 top-1/2 -translate-y-1/2 truncate text-[10px] font-medium"
-                    style={{ color: `color-mix(in srgb, white 92%, ${group.color})` }}
-                  >
-                    {group.shotName}
-                  </span>
-                )}
+                <span
+                  className="pointer-events-none absolute inset-x-2 top-1/2 -translate-y-1/2 truncate text-[10px] font-medium"
+                  style={{ color: `color-mix(in srgb, white 92%, ${group.color})` }}
+                >
+                  {group.shotName}
+                </span>
               </div>
               {group.hasFinalVideo && (
                 <button
@@ -865,9 +853,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
             onGenerateVideo={onShotGroupGenerateVideo}
             onSwitchToFinalVideo={onShotGroupSwitchToFinalVideo}
             onSwitchToImages={onShotGroupSwitchToImages}
-            onPinGroup={onShotGroupPin}
             onUnpinGroup={onShotGroupUnpin}
-            onDismissFinalVideo={onShotGroupDismissFinalVideo}
           />
           <DndContext
             sensors={trackSensors}

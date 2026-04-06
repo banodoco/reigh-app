@@ -43,8 +43,7 @@ function renderCanvas(params?: {
   track?: TrackDefinition;
   row?: TimelineRow;
   shotGroups?: React.ComponentProps<typeof TimelineCanvas>['shotGroups'];
-  finalVideoShotIds?: React.ComponentProps<typeof TimelineCanvas>['finalVideoShotIds'];
-  onShotGroupPin?: React.ComponentProps<typeof TimelineCanvas>['onShotGroupPin'];
+  finalVideoMap?: React.ComponentProps<typeof TimelineCanvas>['finalVideoMap'];
   onShotGroupUnpin?: React.ComponentProps<typeof TimelineCanvas>['onShotGroupUnpin'];
   onShotGroupSwitchToFinalVideo?: React.ComponentProps<typeof TimelineCanvas>['onShotGroupSwitchToFinalVideo'];
   onShotGroupSwitchToImages?: React.ComponentProps<typeof TimelineCanvas>['onShotGroupSwitchToImages'];
@@ -82,8 +81,7 @@ function renderCanvas(params?: {
       onActionResizeStart={onActionResizeStart}
       onActionResizeEnd={onActionResizeEnd}
       shotGroups={params?.shotGroups}
-      finalVideoShotIds={params?.finalVideoShotIds}
-      onShotGroupPin={params?.onShotGroupPin}
+      finalVideoMap={params?.finalVideoMap}
       onShotGroupUnpin={params?.onShotGroupUnpin}
       onShotGroupSwitchToFinalVideo={params?.onShotGroupSwitchToFinalVideo}
       onShotGroupSwitchToImages={params?.onShotGroupSwitchToImages}
@@ -300,58 +298,59 @@ describe('TimelineCanvas resize pending ops', () => {
     expect(actionElement.className).not.toContain('ring-amber-400/80');
   });
 
-  it('renders suggested groups dashed and keeps pinned group labels visible', () => {
+  it('renders all shot groups with solid borders and always shows the shot name label', () => {
     const { container, getByText } = renderCanvas({
       shotGroups: [
         {
-          shotId: 'shot-suggested',
-          shotName: 'Suggested Shot',
+          shotId: 'shot-a',
+          shotName: 'Shot A',
           rowId: 'V1',
           rowIndex: 0,
           clipIds: ['clip-1'],
           color: '#3b82f6',
-          isPinned: false,
         },
         {
-          shotId: 'shot-pinned',
-          shotName: 'Pinned Shot',
+          shotId: 'shot-b',
+          shotName: 'Shot B',
           rowId: 'V1',
           rowIndex: 0,
           clipIds: ['clip-1'],
           color: '#22c55e',
-          isPinned: true,
           mode: 'images',
         },
       ],
     });
 
-    expect(container.innerHTML).toContain('border-dashed');
+    expect(container.innerHTML).not.toContain('border-dashed');
     expect(container.innerHTML).toContain('border-solid');
-    expect(getByText('Pinned Shot')).toBeTruthy();
+    expect(container.querySelectorAll('[data-shot-group-kind="pinned"]')).toHaveLength(2);
+    expect(getByText('Shot A')).toBeTruthy();
+    expect(getByText('Shot B')).toBeTruthy();
   });
 
-  it('shows pin and switch-to-video actions for suggested groups with a final video', () => {
-    const onShotGroupPin = vi.fn();
+  it('shows unpin and switch-to-video actions for pinned groups with a final video', () => {
     const onShotGroupSwitchToFinalVideo = vi.fn();
+    const onShotGroupUnpin = vi.fn();
     const { getByTitle } = renderCanvas({
       shotGroups: [{
         shotId: 'shot-1',
-        shotName: 'Suggested Shot',
+        shotName: 'Pinned Shot',
         rowId: 'V1',
         rowIndex: 0,
         clipIds: ['clip-1'],
         color: '#22c55e',
+        mode: 'images',
       }],
-      finalVideoShotIds: new Set(['shot-1']),
-      onShotGroupPin,
+      finalVideoMap: new Map([['shot-1', {}]]),
+      onShotGroupUnpin,
       onShotGroupSwitchToFinalVideo,
     });
 
-    fireEvent.contextMenu(getByTitle('Suggested Shot'));
+    fireEvent.contextMenu(getByTitle('Pinned Shot'));
 
-    expect(screen.getByText('Pin as Shot Group')).toBeTruthy();
+    expect(screen.getByText('Unpin')).toBeTruthy();
     expect(screen.getByText('Switch to Final Video')).toBeTruthy();
-    expect(screen.queryByText('Unpin')).toBeNull();
+    expect(screen.queryByText('Pin as Shot Group')).toBeNull();
     expect(screen.queryByText('Switch to Images')).toBeNull();
 
     fireEvent.click(screen.getByText('Switch to Final Video'));
@@ -374,10 +373,9 @@ describe('TimelineCanvas resize pending ops', () => {
         rowIndex: 0,
         clipIds: ['clip-1'],
         color: '#3b82f6',
-        isPinned: true,
         mode: 'video',
       }],
-      finalVideoShotIds: new Set(['shot-1']),
+      finalVideoMap: new Map([['shot-1', {}]]),
       onShotGroupUnpin,
       onShotGroupSwitchToImages,
     });
