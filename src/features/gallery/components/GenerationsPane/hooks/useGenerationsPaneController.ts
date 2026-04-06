@@ -34,6 +34,7 @@ import { useAppEventListener } from '@/shared/lib/typedEvents';
 
 // Fallback rows for pane (smaller than full page galleries)
 const PANE_ROWS = 2;
+const PANE_ROWS_EXPANDED = 3;
 
 type MediaTypeFilter = 'all' | 'image' | 'video';
 type BooleanStateSetter = (value: boolean) => void;
@@ -253,7 +254,7 @@ const usePaneLifecycle = ({
   };
 };
 
-const usePaneLayout = (projectAspectRatio: ProjectAspectRatio | undefined) => {
+const usePaneLayout = (projectAspectRatio: ProjectAspectRatio | undefined, expandedRows = false) => {
   const isMobile = useIsMobile();
   const [galleryContainerRef, containerWidth] = useContainerWidth();
 
@@ -265,11 +266,12 @@ const usePaneLayout = (projectAspectRatio: ProjectAspectRatio | undefined) => {
       undefined,
       true,
     );
+    const rows = expandedRows ? PANE_ROWS_EXPANDED : PANE_ROWS;
     return {
       ...layout,
-      itemsPerPage: layout.columns * PANE_ROWS,
+      itemsPerPage: layout.columns * rows,
     };
-  }, [projectAspectRatio, isMobile, containerWidth]);
+  }, [projectAspectRatio, isMobile, containerWidth, expandedRows]);
 
   return {
     galleryContainerRef,
@@ -291,6 +293,7 @@ export const useGenerationsPaneController = () => {
     shotsPaneWidth,
     isTasksPaneLocked,
     tasksPaneWidth,
+    isEditorPaneLocked,
   } = usePanes();
   const { selectedProjectId } = useProjectSelectionContext();
   const { projects } = useProjectCrudContext();
@@ -301,7 +304,7 @@ export const useGenerationsPaneController = () => {
   const projectAspectRatio = currentProject?.aspectRatio;
   const shouldEnableDataLoading = isGenerationsPaneOpen;
 
-  const { galleryContainerRef, isMobile, paneLayout } = usePaneLayout(projectAspectRatio);
+  const { galleryContainerRef, isMobile, paneLayout } = usePaneLayout(projectAspectRatio, isEditorPaneLocked);
 
   const [mediaTypeFilter, setMediaTypeFilter] = useState<MediaTypeFilter>('image');
   const generationData = useGenerationData({

@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ArrowDownWideNarrow, ArrowUpWideNarrow, Check, Copy, Loader2, Pencil, Search, Trash2, X } from 'lucide-react';
+import { ArrowDownWideNarrow, ArrowUpWideNarrow, Check, Copy, Loader2, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
+import { useShotCreation } from '@/shared/hooks/shotCreation/useShotCreation';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { useShots } from '@/shared/contexts/ShotsContext';
 import { useProjectSelectionContext } from '@/shared/contexts/ProjectContext';
@@ -210,10 +211,12 @@ export function ShotsPanelContent({ projectId }: ShotsPanelContentProps) {
   const duplicateShot = useDuplicateShot();
   const deleteShot = useDeleteShot();
   const updateShotName = useUpdateShotName();
+  const { createShot } = useShotCreation();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('ordered');
   const [modalShot, setModalShot] = useState<Shot | null>(null);
+  const [newShotDropState, setNewShotDropState] = useState<'idle' | 'loading' | 'success'>('idle');
 
   const filteredShots = useMemo(() => {
     if (!shots) return [];
@@ -245,6 +248,30 @@ export function ShotsPanelContent({ projectId }: ShotsPanelContentProps) {
       normalizeAndPresentError(error, { context: 'ShotsPanelContent', toastTitle: 'Failed to add image to shot' });
     }
   }, [addImageToShot, refetchShots, selectedProjectId]);
+
+  const handleNewShotDrop = useCallback(async (event: React.DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setNewShotDropState('loading');
+    try {
+      const multiData = getMultiGenerationDropData(event);
+      const singleData = getGenerationDropData(event);
+      const generationIds = multiData
+        ? multiData.map((g) => g.generationId)
+        : singleData ? [singleData.generationId] : [];
+      if (generationIds.length === 0) { setNewShotDropState('idle'); return; }
+      const result = await createShot({ generationIds });
+      if (result?.shot) {
+        refetchShots();
+        setNewShotDropState('success');
+        setTimeout(() => setNewShotDropState('idle'), 1500);
+      } else {
+        setNewShotDropState('idle');
+      }
+    } catch {
+      setNewShotDropState('idle');
+    }
+  }, [createShot, refetchShots]);
 
   const handleDuplicate = useCallback(async (shotId: string) => {
     if (!selectedProjectId) return;
@@ -322,6 +349,27 @@ export function ShotsPanelContent({ projectId }: ShotsPanelContentProps) {
       {/* Shot grid */}
       <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-2 py-2">
         <div className="flex h-full flex-wrap content-start gap-1.5" style={{ flexDirection: 'column' }}>
+          {/* New shot drop zone */}
+          <div
+            className="w-[110px] shrink-0"
+            onDragOver={(e) => { if (isValidDropTarget(e)) { e.preventDefault(); e.stopPropagation(); } }}
+            onDrop={handleNewShotDrop}
+          >
+            <div className={cn(
+              'flex aspect-video w-full items-center justify-center rounded-md border-2 border-dashed border-border bg-card/50 text-muted-foreground transition-colors hover:border-accent hover:text-foreground',
+              newShotDropState === 'loading' && 'border-primary/50',
+              newShotDropState === 'success' && 'border-green-500',
+            )}>
+              {newShotDropState === 'loading' ? (
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              ) : newShotDropState === 'success' ? (
+                <Check className="h-4 w-4 text-green-500" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+            </div>
+            <div className="px-1.5 py-1 text-center text-[10px] text-muted-foreground">New shot</div>
+          </div>
           {filteredShots.map((shot) => (
             <div key={shot.id} className="w-[110px] shrink-0">
               <ShotCard
