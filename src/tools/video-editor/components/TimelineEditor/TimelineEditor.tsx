@@ -483,24 +483,40 @@ function TimelineEditorComponent() {
   }, [pixelsPerSecond, timelineWrapperRef]);
 
   const handleDoubleClickVideoClip = useCallback((clipId: string) => {
+    // 1. Check pinned groups
     const pinnedShotGroups = dataRef.current?.config.pinnedShotGroups ?? [];
     const group = pinnedShotGroups.find((g) => g.clipIds.includes(clipId));
-    console.log('[TimelineEditor] handleDoubleClickVideoClip', { clipId, foundGroup: !!group, shotId: group?.shotId, pinnedGroupCount: pinnedShotGroups.length });
     if (group) {
       const shot = shots?.find((s) => s.id === group.shotId);
-      console.log('[TimelineEditor] found shot:', shot?.id, shot?.name);
-      if (shot) {
-        setVideoModalShot(shot);
-        return;
+      if (shot) { setVideoModalShot(shot); return; }
+    }
+
+    // 2. Try to match the video's generationId against finalVideoMap
+    const assetKey = data?.meta[clipId]?.asset;
+    const generationId = assetKey ? data?.registry?.assets[assetKey]?.generationId : undefined;
+    if (generationId) {
+      for (const [shotId, fv] of finalVideoMap.entries()) {
+        if (fv.id === generationId) {
+          const shot = shots?.find((s) => s.id === shotId);
+          if (shot) { setVideoModalShot(shot); return; }
+        }
+      }
+      // Has generationId but not a final video — try lightbox
+      onDoubleClickAsset?.(assetKey!);
+      return;
+    }
+
+    // 3. Try to match the video's file URL against finalVideoMap
+    const fileUrl = assetKey ? data?.registry?.assets[assetKey]?.file : undefined;
+    if (fileUrl) {
+      for (const [shotId, fv] of finalVideoMap.entries()) {
+        if (fv.location === fileUrl) {
+          const shot = shots?.find((s) => s.id === shotId);
+          if (shot) { setVideoModalShot(shot); return; }
+        }
       }
     }
-    // Fallback: try lightbox for videos with generationId
-    const assetKey = data?.meta[clipId]?.asset;
-    console.log('[TimelineEditor] video fallback to lightbox, assetKey:', assetKey);
-    if (assetKey) {
-      onDoubleClickAsset?.(assetKey);
-    }
-  }, [dataRef, shots, data?.meta, onDoubleClickAsset]);
+  }, [dataRef, shots, data?.meta, data?.registry?.assets, finalVideoMap, onDoubleClickAsset]);
 
   const handleSplitClipHere = useCallback((clipId: string, clientX: number) => {
     const time = clientXToTime(clientX);

@@ -325,7 +325,6 @@ function ClipActionComponent({
         onPointerDown={(event) => event.stopPropagation()}
         onDoubleClick={(event) => {
           event.stopPropagation();
-          console.log('[ClipAction] double-click', { clipId: action.id, isEffectLayer, clipType: clipMeta.clipType, isVideoClip, hasAsset: !!clipMeta.asset, hasDoubleClickVideo: !!onDoubleClickVideoClip, hasDoubleClickAsset: !!onDoubleClickAsset });
           if (isEffectLayer || clipMeta.clipType === 'text') return;
           if (isVideoClip && onDoubleClickVideoClip) {
             onDoubleClickVideoClip(action.id);
