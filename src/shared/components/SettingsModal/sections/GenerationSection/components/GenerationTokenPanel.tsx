@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import { Terminal, ChevronDown } from 'lucide-react';
+import { Terminal, ChevronDown, Info } from 'lucide-react';
 import { Label } from '@/shared/components/ui/primitives/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
 import {
@@ -59,6 +59,28 @@ const IDLE_RELEASE_OPTIONS: Array<{ value: string; label: string }> = [
 
 const IDLE_RELEASE_LABELS: Record<string, string> = Object.fromEntries(
   IDLE_RELEASE_OPTIONS.map(({ value, label }) => [value, label]),
+);
+
+interface FieldLabelProps {
+  text: string;
+  colorClassName: string;
+  tooltip: string;
+}
+
+const FieldLabel: React.FC<FieldLabelProps> = ({ text, colorClassName, tooltip }) => (
+  <div className="flex items-center gap-1 mb-1">
+    <Label className={`text-xs ${colorClassName}`}>{text}</Label>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className={`${colorClassName} opacity-60 hover:opacity-100 cursor-help transition-opacity`}>
+          <Info className="h-3 w-3" />
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs">
+        <p className="text-xs leading-snug">{tooltip}</p>
+      </TooltipContent>
+    </Tooltip>
+  </div>
 );
 
 function useCopyFeedback() {
@@ -198,9 +220,14 @@ export const GenerationTokenPanel: React.FC<GenerationTokenPanelProps> = ({
   return (
     <div className="space-y-4">
       <div className="space-y-4">
+        <TooltipProvider>
         <div className={`grid ${isMobile ? 'grid-cols-2' : computerType === 'windows' ? 'grid-cols-6' : 'grid-cols-5'} gap-2`}>
           <div>
-            <Label className="text-xs text-blue-600 dark:text-blue-400 mb-1 block">Computer:</Label>
+            <FieldLabel
+              text="Machine:"
+              colorClassName="text-blue-600 dark:text-blue-400"
+              tooltip="Your operating system. Determines which install commands and shell-specific paths to use."
+            />
             <Select
               value={computerType}
               onValueChange={(value) => {
@@ -221,7 +248,11 @@ export const GenerationTokenPanel: React.FC<GenerationTokenPanelProps> = ({
           </div>
 
           <div>
-            <Label className="text-xs text-violet-600 dark:text-violet-400 mb-1 block">GPU:</Label>
+            <FieldLabel
+              text="GPU:"
+              colorClassName="text-violet-600 dark:text-violet-400"
+              tooltip="Your graphics card type. Picks the right CUDA build of PyTorch (50-series uses cu128, ≤40-series uses cu124). Non-NVIDIA GPUs aren't supported for local generation."
+            />
             <Select
               value={gpuType}
               onValueChange={(value) => {
@@ -243,7 +274,11 @@ export const GenerationTokenPanel: React.FC<GenerationTokenPanelProps> = ({
           </div>
 
           <div>
-            <Label className="text-xs text-emerald-600 dark:text-emerald-400 mb-1 block">Memory:</Label>
+            <FieldLabel
+              text="Memory:"
+              colorClassName="text-emerald-600 dark:text-emerald-400"
+              tooltip="How aggressively to use RAM and VRAM. Higher = faster but needs a beefier machine; lower = works on smaller setups but slower. Hover each option for the recommended specs."
+            />
             <Select
               value={memoryProfile}
               onValueChange={(value) => {
@@ -304,7 +339,11 @@ export const GenerationTokenPanel: React.FC<GenerationTokenPanelProps> = ({
 
           {computerType === "windows" && (
             <div>
-              <Label className="text-xs text-rose-600 dark:text-rose-400 mb-1 block">Shell:</Label>
+              <FieldLabel
+                text="Shell:"
+                colorClassName="text-rose-600 dark:text-rose-400"
+                tooltip="Which Windows shell you launch from. Picks the correct virtual-environment activation script (PowerShell vs. Command Prompt)."
+              />
               <Select
                 value={windowsShell}
                 onValueChange={(value) => {
@@ -325,7 +364,11 @@ export const GenerationTokenPanel: React.FC<GenerationTokenPanelProps> = ({
           )}
 
           <div>
-            <Label className="text-xs text-amber-600 dark:text-amber-400 mb-1 block">Debug:</Label>
+            <FieldLabel
+              text="Debug:"
+              colorClassName="text-amber-600 dark:text-amber-400"
+              tooltip="Show verbose logs from the worker. Turn on when something isn't working — copy the output for troubleshooting."
+            />
             <button
               onClick={() => setShowDebugLogs(!showDebugLogs)}
               className={`w-full h-9 px-3 text-sm rounded-md border transition-colors flex items-center justify-between ${
@@ -345,7 +388,11 @@ export const GenerationTokenPanel: React.FC<GenerationTokenPanelProps> = ({
           </div>
 
           <div>
-            <Label className="text-xs text-cyan-600 dark:text-cyan-400 mb-1 block">Free GPU:</Label>
+            <FieldLabel
+              text="Free GPU:"
+              colorClassName="text-cyan-600 dark:text-cyan-400"
+              tooltip="When the worker has been idle for this long, it shuts down and frees all GPU memory until a new task arrives — so you can run games or other apps in the meantime. Pick Never to keep models loaded permanently."
+            />
             <Select
               value={idleReleaseMinutes}
               onValueChange={(value) => {
@@ -367,6 +414,7 @@ export const GenerationTokenPanel: React.FC<GenerationTokenPanelProps> = ({
             </Select>
           </div>
         </div>
+        </TooltipProvider>
 
         {computerType === "windows" && windowsShell === "powershell" && (
           <div className="p-2 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 rounded-lg">
