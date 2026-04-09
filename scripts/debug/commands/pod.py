@@ -175,33 +175,45 @@ def _print_worker_commands(api_key: str, pod_id: str, options: dict):
 1. SSH in:
    {ssh_cmd}
 
-2. First-time setup (if /workspace/Reigh-Worker doesn't exist):
-   cd /workspace
-   git clone https://github.com/banodoco/Reigh-Worker.git
-   cd Reigh-Worker
-   python -m venv venv
-   source venv/bin/activate
-   pip install -r requirements.txt
+2. Bootstrap / resync:
+   cd /workspace/Reigh-Worker 2>/dev/null || {{ git clone https://github.com/banodoco/Reigh-Worker.git /workspace/Reigh-Worker && cd /workspace/Reigh-Worker; }}
+   if [ ! -x "$HOME/.local/bin/uv" ]; then curl -LsSf https://astral.sh/uv/install.sh | sh; fi
+   export PATH="$HOME/.local/bin:$PATH"
+   if [ ! -f .uv-migrated ]; then
+     ts=$(date +%Y%m%d%H%M%S)
+     [ -d venv ] && mv venv "venv.pre-uv-$ts"
+     [ -d .venv ] && mv .venv ".venv.pre-uv-$ts"
+   fi
+   git pull --ff-only
+   uv sync --locked --python 3.10 --extra cuda124
+   touch .uv-migrated
 
 3. Start worker:
    cd /workspace/Reigh-Worker
-   git pull
-   source venv/bin/activate
-   nohup python -u worker.py \\
+   export PATH="$HOME/.local/bin:$PATH"
+   nohup uv run --python 3.10 python run_worker.py \\
      --reigh-access-token <PAT_TOKEN> \\
-     --debug --wgp-profile 4 \\
+     --debug --wgp-profile 4 --idle-release-minutes 15 \\
      > /tmp/worker_test.log 2>&1 &
 
 4. Verify:
-   ps aux | grep 'python.*worker' | grep -v grep
+   ps aux | grep 'python.*run_worker' | grep -v grep
    tail -f /tmp/worker_test.log
 
 5. Kill:
-   kill -9 $(pgrep -f 'python.*worker')
+   kill -9 $(pgrep -f 'python.*run_worker')
 
-=== Quick restart (existing setup) ===
-   {ssh_cmd} "kill -9 $(pgrep -f 'python.*worker') 2>/dev/null; \\
-     cd /workspace/Reigh-Worker && git pull && source venv/bin/activate && \\
-     nohup python -u worker.py --reigh-access-token <PAT_TOKEN> --debug --wgp-profile 4 \\
+6. Roll back a first-migration failure:
+   cd /workspace/Reigh-Worker
+   rm -f .uv-migrated
+   mv venv.pre-uv-<timestamp> venv        # or mv .venv.pre-uv-<timestamp> .venv
+   # There is no runtime pip fallback on this branch.
+   # For a full release rollback, revert the uv rollout commits first, then use that older revision's requirements.txt bootstrap.
+
+=== Quick run-path restart (existing setup) ===
+   {ssh_cmd} "kill -9 $(pgrep -f 'python.*run_worker') 2>/dev/null; \\
+     export PATH=\\\"$HOME/.local/bin:$PATH\\\"; cd /workspace/Reigh-Worker && git pull --ff-only && \\
+     uv sync --locked --python 3.10 --extra cuda124 && \\
+     nohup uv run --python 3.10 python run_worker.py --reigh-access-token <PAT_TOKEN> --debug --wgp-profile 4 --idle-release-minutes 15 \\
      > /tmp/worker_test.log 2>&1 &"
 """)

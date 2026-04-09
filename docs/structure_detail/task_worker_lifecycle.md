@@ -72,20 +72,23 @@ Reigh uses an async task queue pattern for all AI generation workloads. This dec
 
 **Local Deployment (GPU Required)**
 ```bash
-# Clone the worker repository
-git clone https://github.com/peteromallet/Headless-Wan2GP.git
-cd Headless-Wan2GP
+# Clone the worker repository where the Settings modal expects it
+git clone https://github.com/banodoco/Reigh-Worker.git ~/Documents/Reigh-Worker
+cd ~/Documents/Reigh-Worker
 
-# Install dependencies
-pip install -r requirements.txt
+# Install uv once
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
 
-# Configure environment
-cp .env.example .env
-# Edit .env with your Supabase credentials and API keys
+# Ubuntu 24.04+ note: install Python 3.10 packages from deadsnakes first
+# sudo add-apt-repository ppa:deadsnakes/ppa && sudo apt-get update
 
-# Run the worker
-python main.py
+# Sync and run
+uv sync --locked --python 3.10 --extra cuda124
+uv run --python 3.10 python run_worker.py --reigh-access-token <PAT_TOKEN>
 ```
+
+The desktop Settings modal now stores a `Worker repo location` field. Both generated commands `cd` into that absolute path before any `uv` call, so users can paste them from a fresh shell in their home directory.
 
 **Cloud Deployment (RunPod)**
 
@@ -93,8 +96,8 @@ Workers run on RunPod GPU pods (RTX 4090). Code lives on a persistent network vo
 
 | Path | Contents |
 |------|----------|
-| `/workspace/Headless-Wan2GP/` | Worker source code (git clone of `banodoco/Reigh-Worker`) |
-| `/workspace/Reigh-Worker/` | Orchestrator / wrapper scripts |
+| `/workspace/Reigh-Worker/` | Canonical worker checkout used by the startup template |
+| `/workspace/Headless-Wan2GP/` | Legacy fallback checkout still supported during rollout |
 
 **Accessing pods:**
 - **SSH**: Pod IP + port from RunPod dashboard or API (`ssh root@<ip> -p <port>`)
@@ -107,11 +110,17 @@ Workers run on RunPod GPU pods (RTX 4090). Code lives on a persistent network vo
 # Guardian heartbeat log: /tmp/guardian_<worker_id>.log
 # Worker ID format: gpu-YYYYMMDD_HHMMSS-<hash>
 
+# Bootstrap / resync (also used for first install)
+cd /workspace/Reigh-Worker
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+uv sync --locked --python 3.10 --extra cuda124
+
 # Start (nohup so it survives SSH disconnect)
-cd /workspace/Headless-Wan2GP && nohup python main.py > /tmp/worker.log 2>&1 &
+nohup uv run --python 3.10 python run_worker.py --reigh-access-token <PAT_TOKEN> > /tmp/worker.log 2>&1 &
 
 # Restart after code change
-pkill -f 'python main' && cd /workspace/Headless-Wan2GP && git pull && nohup python main.py > /tmp/worker.log 2>&1 &
+pkill -f 'python.*run_worker' && cd /workspace/Reigh-Worker && git pull --ff-only && uv sync --locked --python 3.10 --extra cuda124 && nohup uv run --python 3.10 python run_worker.py --reigh-access-token <PAT_TOKEN> > /tmp/worker.log 2>&1 &
 
 # Check status
 ps aux | grep python
@@ -122,11 +131,16 @@ nvidia-smi
 **Code change workflow:**
 1. Edit locally at `~/Documents/Reigh-Worker` (same repo: `banodoco/Reigh-Worker`)
 2. `git add . && git commit -m "fix: ..." && git push`
-3. SSH to pod: `cd /workspace/Headless-Wan2GP && git pull`
+3. SSH to pod: `cd /workspace/Reigh-Worker && git pull --ff-only`
 4. Kill + restart worker process (see above)
 
-**Multiple pods** share the same `/workspace/` volume, so `git pull` on one updates all.
+**Multiple pods** share the same `/workspace/` volume, so `git pull` on one updates all. The startup template still accepts transient Wan2GP subtree drift during rollout, but the canonical runtime dependency set comes from the root `uv.lock`.
 Pods can be queried programmatically via RunPod GraphQL API (credentials in `~/Documents/Arnold/.env`).
+
+**Rollback story:**
+- There is no runtime pip fallback on the migrated branch.
+- If the first uv-based startup fails on a machine with an older virtualenv, restore the latest `venv.pre-uv-*` or `.venv.pre-uv-*` backup and remove `.uv-migrated`.
+- If the release must be rolled back, revert the uv rollout commits and return to the pre-uv revision that still bootstraps from `requirements.txt`.
 
 #### Worker Configuration
 The worker polls the same task queue but specializes in video generation:

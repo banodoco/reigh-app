@@ -1,6 +1,18 @@
 import type { CommandConfig } from './types';
 import { writeClipboardTextSafe } from '@/shared/lib/browser/clipboard';
 
+const WORKER_REPO_URL = 'https://github.com/banodoco/Reigh-Worker.git';
+const LINUX_UV_INSTALL = 'curl -LsSf https://astral.sh/uv/install.sh | sh';
+const WINDOWS_UV_INSTALL = 'irm https://astral.sh/uv/install.ps1 | iex';
+const WINDOWS_CMD_UV_EXE = '%USERPROFILE%\\.local\\bin\\uv.exe';
+
+export class UnsupportedPlatformError extends Error {
+  constructor(platform: string) {
+    super(`Local worker commands are not supported on ${platform}.`);
+    this.name = 'UnsupportedPlatformError';
+  }
+}
+
 /**
  * Safe clipboard copy with fallback for older browsers
  */
@@ -8,15 +20,52 @@ export const safeCopy = (text: string): Promise<boolean> => {
   return writeClipboardTextSafe(text, { allowExecCommandFallback: true });
 };
 
+const getCudaExtra = (gpuType: string): 'cuda124' | 'cuda128' => {
+  return gpuType === 'nvidia-50' ? 'cuda128' : 'cuda124';
+};
+
+const escapeDoubleQuoted = (value: string): string => {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+};
+
+const escapePowerShellDoubleQuoted = (value: string): string => {
+  return value.replace(/`/g, '``').replace(/"/g, '`"');
+};
+
+const toPowerShellPath = (workerRepoPath: string): string => {
+  return workerRepoPath.replace(/^%USERPROFILE%/i, '$env:USERPROFILE');
+};
+
+const buildBackupPreludeLinux = (): string => {
+  return `if [ ! -f ".uv-migrated" ]; then
+  UV_MIGRATION_TS="$(date +%Y%m%d%H%M%S)"
+  if [ -d "venv" ]; then mv "venv" "venv.pre-uv-$UV_MIGRATION_TS"; fi
+  if [ -d ".venv" ]; then mv ".venv" ".venv.pre-uv-$UV_MIGRATION_TS"; fi
+fi`;
+};
+
+const buildBackupPreludePowerShell = (): string => {
+  return `if (-not (Test-Path -LiteralPath '.uv-migrated')) {
+  $uvMigrationTs = Get-Date -Format 'yyyyMMddHHmmss'
+  foreach ($legacyDir in @('venv', '.venv')) {
+    if (Test-Path -LiteralPath $legacyDir) {
+      Move-Item -LiteralPath $legacyDir -Destination "$legacyDir.pre-uv-$uvMigrationTs"
+    }
+  }
+}`;
+};
+
+const buildBackupPreludeCmd = (): string => {
+  return `if not exist ".uv-migrated" (
+  if exist "venv" powershell -NoProfile -Command "$ts = Get-Date -Format 'yyyyMMddHHmmss'; Move-Item -LiteralPath 'venv' -Destination ('venv.pre-uv-' + $ts)"
+  if exist ".venv" powershell -NoProfile -Command "$ts = Get-Date -Format 'yyyyMMddHHmmss'; Move-Item -LiteralPath '.venv' -Destination ('.venv.pre-uv-' + $ts)"
+)`;
+};
+
 /**
  * Build the `python run_worker.py ...` line that launches the worker.
  *
- * Sole producer of the worker launch line — both `getInstallationCommand`
- * and `getRunCommand` consume this for all OS branches, so a new flag is
- * added in exactly one place.
- *
- * --idle-release-minutes is always appended (including '0', which the
- * worker treats as disabled). --debug is conditional on showDebugLogs.
+ * Sole producer of the worker launch flags — all OS branches consume this.
  */
 export const buildWorkerLaunchLine = (config: CommandConfig): string => {
   const { memoryProfile, showDebugLogs, idleReleaseMinutes, token } = config;
@@ -25,55 +74,107 @@ export const buildWorkerLaunchLine = (config: CommandConfig): string => {
     showDebugLogs ? '--debug' : null,
     `--wgp-profile ${memoryProfile}`,
     `--idle-release-minutes ${idleReleaseMinutes}`,
-  ].filter((f): f is string => Boolean(f));
+  ].filter((flag): flag is string => Boolean(flag));
   return `python run_worker.py ${flags.join(' ')}`;
+};
+
+const buildUvRunLine = (uvCommand: string, config: CommandConfig): string => {
+  return `${uvCommand} run --python 3.10 ${buildWorkerLaunchLine(config)}`;
+};
+
+const buildLinuxCommand = (config: CommandConfig, mode: 'install' | 'run'): string => {
+  const repoPath = escapeDoubleQuoted(config.workerRepoPath);
+  const cudaExtra = getCudaExtra(config.gpuType);
+  const uvCommand = '"$HOME/.local/bin/uv"';
+  const lines = [
+    mode === 'install'
+      ? `cd "${repoPath}" 2>/dev/null || { mkdir -p "${repoPath}" && cd "${repoPath}"; } &&`
+      : `cd "${repoPath}" &&`,
+  ];
+
+  if (mode === 'install') {
+    lines.push(`if [ ! -d .git ]; then git clone --depth 1 ${WORKER_REPO_URL} .; fi &&`);
+    lines.push(`apt-cache show python3.10-venv >/dev/null 2>&1 || { echo "python3.10-venv is unavailable. Install deadsnakes first; see README."; exit 1; } &&`);
+    lines.push('sudo apt-get update && sudo apt-get install -y python3.10-venv python3.10-dev ffmpeg git curl &&');
+    lines.push(`if [ ! -x "$HOME/.local/bin/uv" ]; then ${LINUX_UV_INSTALL}; fi &&`);
+  }
+
+  lines.push('export PATH="$HOME/.local/bin:$PATH" &&');
+  lines.push(`${buildBackupPreludeLinux()} &&`);
+  lines.push('git pull --ff-only &&');
+  lines.push(`${uvCommand} sync --locked --python 3.10 --extra ${cudaExtra} &&`);
+  lines.push('touch .uv-migrated &&');
+  lines.push(buildUvRunLine(uvCommand, config));
+
+  return lines.join('\n');
+};
+
+const buildWindowsPowerShellCommand = (config: CommandConfig, mode: 'install' | 'run'): string => {
+  const repoPath = escapePowerShellDoubleQuoted(toPowerShellPath(config.workerRepoPath));
+  const cudaExtra = getCudaExtra(config.gpuType);
+  const uvCommand = '& $uvExe';
+  const lines = [
+    `Set-Location -LiteralPath "${repoPath}"; if (-not $?) { New-Item -ItemType Directory -Force -Path "${repoPath}" | Out-Null; Set-Location -LiteralPath "${repoPath}" }`,
+  ];
+
+  if (mode === 'install') {
+    lines.push(`if (-not (Test-Path -LiteralPath '.git')) { git clone --depth 1 ${WORKER_REPO_URL} . }`);
+  }
+
+  lines.push(`$uvExe = Join-Path $env:USERPROFILE '.local\\bin\\uv.exe'`);
+  if (mode === 'install') {
+    lines.push(`if (-not (Test-Path -LiteralPath $uvExe)) { ${WINDOWS_UV_INSTALL} }`);
+  }
+  lines.push(buildBackupPreludePowerShell());
+  lines.push('git pull --ff-only');
+  lines.push(`${uvCommand} sync --locked --python 3.10 --extra ${cudaExtra}`);
+  lines.push(`New-Item -ItemType File -Force -Path '.uv-migrated' | Out-Null`);
+  lines.push(buildUvRunLine(uvCommand, config));
+
+  return lines.join('\n');
+};
+
+const buildWindowsCmdCommand = (config: CommandConfig, mode: 'install' | 'run'): string => {
+  const repoPath = config.workerRepoPath.replace(/\//g, '\\');
+  const cudaExtra = getCudaExtra(config.gpuType);
+  const uvCommand = `"${WINDOWS_CMD_UV_EXE}"`;
+  const lines = [
+    mode === 'install'
+      ? `cd /d "${repoPath}" || (mkdir "${repoPath}" && cd /d "${repoPath}") &&`
+      : `cd /d "${repoPath}" &&`,
+  ];
+
+  if (mode === 'install') {
+    lines.push(`if not exist ".git" git clone --depth 1 ${WORKER_REPO_URL} . &&`);
+    lines.push(`if not exist "${WINDOWS_CMD_UV_EXE}" powershell -NoProfile -ExecutionPolicy Bypass -Command "${WINDOWS_UV_INSTALL}" &&`);
+  }
+
+  lines.push(`${buildBackupPreludeCmd()} &&`);
+  lines.push('git pull --ff-only &&');
+  lines.push(`${uvCommand} sync --locked --python 3.10 --extra ${cudaExtra} &&`);
+  lines.push('type nul > .uv-migrated &&');
+  lines.push(buildUvRunLine(uvCommand, config));
+
+  return lines.join('\n');
 };
 
 /**
  * Generate the installation command based on system configuration
  */
 export const getInstallationCommand = (config: CommandConfig): string => {
-  const { computerType, gpuType, windowsShell } = config;
-  const launchLine = buildWorkerLaunchLine(config);
+  const { computerType, windowsShell } = config;
 
-  // PyTorch install: 50 series needs cu128, ≤40 series uses cu124
-  // Don't pin version - let pip grab the latest available in each index
-  // Use python -m pip to ensure we use the venv's pip, not system pip
-  const torchInstall = gpuType === "nvidia-50"
-    ? `python -m pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128`
-    : `python -m pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124`;
-
-  if (computerType === "windows") {
-    // Shell-specific activation command
-    const activateCmd = windowsShell === "powershell"
-      ? `.\\venv\\Scripts\\Activate.ps1`
-      : `venv\\Scripts\\activate.bat`;
-
-    // Install torch LAST to ensure CUDA version doesn't get overwritten by requirements
-    return `git clone --depth 1 https://github.com/banodoco/Reigh-Worker.git
-cd Reigh-Worker
-python -m venv venv
-${activateCmd}
-python -m pip install --no-cache-dir -r Wan2GP/requirements.txt
-python -m pip install --no-cache-dir -r requirements.txt
-${torchInstall}
-echo Checking CUDA availability...
-python -c "import torch; assert torch.cuda.is_available(), 'ERROR: CUDA not available! Reinstall PyTorch with CUDA support.'; print('CUDA OK:', torch.cuda.get_device_name(0))"
-${launchLine}`;
-  } else {
-    // Linux command
-    // Install torch LAST to ensure CUDA version doesn't get overwritten by requirements
-    return `git clone --depth 1 https://github.com/banodoco/Reigh-Worker && \\
-cd Reigh-Worker && \\
-sudo apt-get update && sudo apt-get install -y python3.10-venv python3.10-dev ffmpeg && \\
-python3.10 -m venv venv && \\
-source venv/bin/activate && \\
-python -m pip install --no-cache-dir -r Wan2GP/requirements.txt && \\
-python -m pip install --no-cache-dir -r requirements.txt && \\
-${torchInstall} && \\
-python -c "import torch; assert torch.cuda.is_available(), 'ERROR: CUDA not available! Reinstall PyTorch with CUDA support.'; print('CUDA OK:', torch.cuda.get_device_name(0))" && \\
-${launchLine}`;
+  if (computerType === 'linux') {
+    return buildLinuxCommand(config, 'install');
   }
+
+  if (computerType === 'windows') {
+    return windowsShell === 'powershell'
+      ? buildWindowsPowerShellCommand(config, 'install')
+      : buildWindowsCmdCommand(config, 'install');
+  }
+
+  throw new UnsupportedPlatformError(computerType);
 };
 
 /**
@@ -81,28 +182,18 @@ ${launchLine}`;
  */
 export const getRunCommand = (config: CommandConfig): string => {
   const { computerType, windowsShell } = config;
-  const launchLine = buildWorkerLaunchLine(config);
 
-  if (computerType === "windows") {
-    // Shell-specific activation and directory check
-    const cdCheck = windowsShell === "powershell"
-      ? `if (!(Test-Path run_worker.py)) { cd Reigh-Worker }`
-      : `if not exist run_worker.py cd Reigh-Worker`;
-    const activateCmd = windowsShell === "powershell"
-      ? `.\\venv\\Scripts\\Activate.ps1`
-      : `venv\\Scripts\\activate.bat`;
-
-    return `${cdCheck}
-git pull
-${activateCmd}
-${launchLine}`;
-  } else {
-    // Linux / Mac command - auto-cd if not in correct folder
-    return `[ ! -f "run_worker.py" ] && cd Reigh-Worker
-git pull && \\
-source venv/bin/activate && \\
-${launchLine}`;
+  if (computerType === 'linux') {
+    return buildLinuxCommand(config, 'run');
   }
+
+  if (computerType === 'windows') {
+    return windowsShell === 'powershell'
+      ? buildWindowsPowerShellCommand(config, 'run')
+      : buildWindowsCmdCommand(config, 'run');
+  }
+
+  throw new UnsupportedPlatformError(computerType);
 };
 
 /**
@@ -113,8 +204,8 @@ export const generateAIInstructions = (
   activeInstallTab: string
 ): string => {
   const { computerType } = config;
-  const isWindows = computerType === "windows";
-  const isInstalling = activeInstallTab === "need-install";
+  const isWindows = computerType === 'windows';
+  const isInstalling = activeInstallTab === 'need-install';
 
   const prerequisites = isWindows ? `
 
@@ -144,8 +235,17 @@ PREREQUISITES (Windows only - install these first):
    - Need PATH help? Search "Windows add to PATH" on YouTube
 ` : '';
 
-  const installCommand = isInstalling ? getInstallationCommand(config) : getRunCommand(config);
-  const commandType = isInstalling ? "INSTALLATION" : "RUN";
+  let installCommand: string;
+  try {
+    installCommand = isInstalling ? getInstallationCommand(config) : getRunCommand(config);
+  } catch (error) {
+    if (error instanceof UnsupportedPlatformError) {
+      installCommand = error.message;
+    } else {
+      throw error;
+    }
+  }
+  const commandType = isInstalling ? 'INSTALLATION' : 'RUN';
 
   return `I'm trying to set up a local AI worker for Reigh and need help troubleshooting.
 
@@ -168,8 +268,8 @@ SYSTEM REQUIREMENTS:
 - PyTorch with CUDA support (critical - CPU-only PyTorch will NOT work)${prerequisites}
 
 MY CURRENT SITUATION:
-- Operating System: ${computerType === "windows" ? "Windows" : computerType === "linux" ? "Linux" : "Mac"}
-- Task: ${isInstalling ? "Initial installation" : "Running existing installation"}
+- Operating System: ${computerType === 'windows' ? 'Windows' : computerType === 'linux' ? 'Linux' : 'Mac'}
+- Task: ${isInstalling ? 'Initial installation' : 'Running existing installation'}
 - Status: Encountering errors
 
 ${commandType} COMMAND I'M USING:
@@ -184,5 +284,5 @@ After understanding my system specs, please guide me step-by-step through this p
 3. Explain how to verify each step worked
 4. Tell me what to do next
 
-Please be very specific with file paths, command syntax, and verification steps since I'm on ${computerType === "windows" ? "Windows" : computerType}.`;
+Please be very specific with file paths, command syntax, and verification steps since I'm on ${computerType === 'windows' ? 'Windows' : computerType}.`;
 };

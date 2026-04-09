@@ -18,6 +18,7 @@ export interface CommandConfig {
   showDebugLogs: boolean;
   idleReleaseMinutes: string;
   token: string;
+  workerRepoPath: string;
 }
 
 export interface GenerationSectionProps {
@@ -55,4 +56,3 @@ export interface PreferencesSectionProps {
   aiInputMode: AIInputMode;
   setAIInputMode: (mode: AIInputMode) => void;
 }
-

@@ -6,6 +6,7 @@ import type { ToolCallPair } from './AgentChat';
 
 const MAX_TOOL_NAME_LENGTH = 80;
 const MAX_ATTACHMENT_SUMMARY_LENGTH = 120;
+const MAX_ATTACHMENT_PREVIEW_COUNT = 4;
 
 type AgentChatMessageProps = {
   turn: AgentTurn;
@@ -39,6 +40,63 @@ function formatTimestamp(timestamp: string) {
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return '';
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+type AgentChatAttachmentStripProps = {
+  attachments: NonNullable<AgentTurn['attachments']>;
+  isUser: boolean;
+};
+
+function AgentChatAttachmentStrip({ attachments, isUser }: AgentChatAttachmentStripProps) {
+  const previewAttachments = attachments.slice(0, MAX_ATTACHMENT_PREVIEW_COUNT);
+  const remainingCount = attachments.length - previewAttachments.length;
+
+  return (
+    <div className="mt-2 flex flex-wrap gap-1.5">
+      {previewAttachments.map((attachment, index) => (
+        <div
+          key={`${attachment.clipId}:${index}`}
+          className={cn(
+            'relative h-10 w-10 overflow-hidden rounded-md border',
+            isUser
+              ? 'border-primary-foreground/20 bg-primary-foreground/10'
+              : 'border-border/70 bg-muted/40',
+          )}
+        >
+          {attachment.mediaType === 'video' ? (
+            <video
+              src={attachment.url}
+              className="h-full w-full object-cover"
+              muted
+              playsInline
+              preload="metadata"
+              aria-label="Attached video preview"
+            />
+          ) : (
+            <img
+              src={attachment.url}
+              alt="Attached image preview"
+              className="h-full w-full object-cover"
+              loading="lazy"
+            />
+          )}
+        </div>
+      ))}
+      {remainingCount > 0 && (
+        <div
+          className={cn(
+            'flex h-10 w-10 items-center justify-center rounded-md border text-[10px] font-medium',
+            isUser
+              ? 'border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground/80'
+              : 'border-border/70 bg-muted/40 text-muted-foreground',
+          )}
+          aria-label={`${remainingCount} more attachments`}
+        >
+          +{remainingCount}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function AgentChatToolGroup({ pairs }: AgentChatToolGroupProps) {
@@ -94,6 +152,7 @@ export function AgentChatMessage({ turn }: AgentChatMessageProps) {
   const timestamp = formatTimestamp(turn.timestamp);
   const isUser = turn.role === 'user';
   const attachmentSummary = formatAttachmentSummary(turn.attachments);
+  const hasAttachmentPreviews = Boolean(turn.attachments?.length);
 
   return (
     <div className={cn('flex w-full', isUser ? 'justify-end' : 'justify-start')}>
@@ -106,6 +165,9 @@ export function AgentChatMessage({ turn }: AgentChatMessageProps) {
         )}
       >
         <div className="whitespace-pre-wrap text-sm leading-relaxed">{turn.content}</div>
+        {hasAttachmentPreviews && turn.attachments && (
+          <AgentChatAttachmentStrip attachments={turn.attachments} isUser={isUser} />
+        )}
         {attachmentSummary && (
           <span
             className={cn(

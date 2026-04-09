@@ -4,6 +4,15 @@ function formatSelectedClipPrompt(prompt: string): string {
   return prompt.replace(/\s+/g, " ").trim().replace(/"/g, '\\"');
 }
 
+function isPlaceholderSelectedClipPrompt(prompt: string | undefined): boolean {
+  if (typeof prompt !== "string") {
+    return false;
+  }
+
+  const normalized = prompt.trim().toLowerCase();
+  return normalized.startsWith("uploaded ");
+}
+
 type ImageLorasByCategory = Partial<Record<"qwen" | "z-image", Array<{ path: string; strength: number }>>>;
 
 function formatStrength(value: number): string {
@@ -43,13 +52,16 @@ export function buildSelectedClipsPrompt(
     const generationText = typeof clip.generation_id === "string" && clip.generation_id.trim()
       ? ` | generation_id=${clip.generation_id}`
       : "";
-    const promptText = typeof clip.prompt === "string" && clip.prompt.trim()
+    const promptText = typeof clip.prompt === "string" && clip.prompt.trim() && !isPlaceholderSelectedClipPrompt(clip.prompt)
       ? ` | prompt="${formatSelectedClipPrompt(clip.prompt)}"`
+      : "";
+    const uploadHint = clip.media_type === "image" && isPlaceholderSelectedClipPrompt(clip.prompt)
+      ? " | note=user-uploaded reference image with no descriptive prompt metadata"
       : "";
 
     return timelineContext
-      ? `- ${clip.clip_id} (${clip.media_type}, ${clip.url})${generationText} | timeline=${timelineContext}${promptText}`
-      : `- ${clip.clip_id} (${clip.media_type}, ${clip.url})${generationText}${promptText}`;
+      ? `- ${clip.clip_id} (${clip.media_type}, ${clip.url})${generationText} | timeline=${timelineContext}${promptText}${uploadHint}`
+      : `- ${clip.clip_id} (${clip.media_type}, ${clip.url})${generationText}${promptText}${uploadHint}`;
   });
 
   return `\n\nUser has selected the following clips:\n${selectedClipLines.join("\n")}\nThese clips are the focus of the user's request.`;
@@ -132,6 +144,10 @@ Use create_task({...}) for generation tasks. Copy selected clip URLs exactly int
 When the user asks for multiple images, use count to request them all at once — the system automatically generates varied prompts for each.
 Use get_tasks({}) to check on recent task status, errors, or results. Use get_tasks({"task_id":"..."}) for a specific task.
 Use duplicate_generation({"generation_id":"..."}) to copy an existing generation instantly when the user wants a non-destructive derivative or alternate edit path.
+If the user says "in this style", "like this", "use this look", "match this image", or similar and a selected image is present, treat that selected image as a style reference.
+In that case, do not ignore the selected image and do not fall back to plain text-to-image without a reference.
+Prefer create_task with task_type="style-transfer" and copy the selected image URL into reference_image_urls.
+If the selected image only has placeholder metadata such as prompt="Uploaded ...", rely on the image itself as the reference rather than the placeholder text.
 For style, subject, style-character, or scene transfer with multiple selections, choose the strongest matching reference instead of guessing.
 For image-to-video or travel-between-images requests, use all selected reference_image_urls in the order that best matches the requested motion.
 When a selected clip includes prompt="...", treat it as source metadata and reuse it instead of re-describing the image.

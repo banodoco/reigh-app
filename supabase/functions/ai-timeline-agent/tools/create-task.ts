@@ -7,9 +7,10 @@ import type {
 } from "../types.ts";
 import { asPositiveNumber, asStringArray, asTrimmedString } from "../utils.ts";
 import { createShotWithGenerations, findShotForGenerations, resolveClipGenerationIds } from "./clips.ts";
-import { createGenerationTask } from "./generation.ts";
+import { createGenerationTask, type CreateGenerationTaskArgs } from "./generation.ts";
 
 const APPEND_SHOT_POSITION = 2_147_483_647;
+const MAX_BATCH_VARIATIONS = 16;
 const SUPPORTED_CREATE_TASK_TYPES = new Set([
   "text-to-image",
   "style-transfer",
@@ -104,6 +105,81 @@ function numberedFallback(basePrompt: string, count: number): string[] {
   return Array.from({ length: count }, (_, i) =>
     i === 0 ? basePrompt : `${basePrompt} (variation ${i + 1})`
   );
+}
+
+function normalizePromptKey(prompt: string): string {
+  return prompt.replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function ensureDistinctPrompts(basePrompt: string, prompts: string[], count: number): string[] {
+  const uniquePrompts: string[] = [];
+  const seen = new Set<string>();
+
+  for (const candidate of prompts) {
+    const prompt = candidate.trim();
+    if (!prompt) {
+      continue;
+    }
+
+    const key = normalizePromptKey(prompt);
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    uniquePrompts.push(prompt);
+
+    if (uniquePrompts.length >= count) {
+      return uniquePrompts;
+    }
+  }
+
+  let fallbackIndex = 1;
+  while (uniquePrompts.length < count) {
+    const fallbackPrompt = numberedFallback(basePrompt, count + fallbackIndex)[count + fallbackIndex - 1];
+    fallbackIndex += 1;
+
+    const key = normalizePromptKey(fallbackPrompt);
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    uniquePrompts.push(fallbackPrompt);
+  }
+
+  return uniquePrompts;
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const encoded = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", encoded);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function buildBatchIdempotencyKey(args: CreateGenerationTaskArgs, batchIndex: number): Promise<string> {
+  const payload = JSON.stringify({
+    project_id: args.project_id,
+    request: {
+      prompt: args.prompt,
+      task_type: args.task_type,
+      reference_mode: args.reference_mode,
+      reference_image_url: args.reference_image_url,
+      shot_id: args.shot_id,
+      model_name: args.model_name,
+      image_urls: args.image_urls,
+      video_url: args.video_url,
+      strength: args.strength,
+      based_on: args.based_on,
+      generation_id: args.generation_id,
+      params: args.params,
+      batch_index: batchIndex,
+    },
+  });
+  const digest = await sha256Hex(payload);
+  return `timeline-agent:${digest.slice(0, 40)}`;
 }
 
 export async function executeCreateTask(
@@ -252,10 +328,17 @@ export async function executeCreateTask(
 
   // When count > 1 and there's a prompt, expand into varied prompts and create separate tasks
   if (requestedCount > 1 && prompt) {
-    const prompts = await expandPrompts(prompt, Math.min(requestedCount, 10));
-    const results: string[] = [];
-    for (const expandedPrompt of prompts) {
-      const result = await createGenerationTask({
+    const targetCount = Math.min(requestedCount, MAX_BATCH_VARIATIONS);
+    const expandedPrompts = ensureDistinctPrompts(
+      prompt,
+      await expandPrompts(prompt, targetCount),
+      targetCount,
+    );
+    let queuedCount = 0;
+    let failedCount = 0;
+
+    for (const [index, expandedPrompt] of expandedPrompts.entries()) {
+      const generationArgs: CreateGenerationTaskArgs = {
         project_id: timelineState.projectId,
         prompt: expandedPrompt,
         count: 1,
@@ -270,10 +353,29 @@ export async function executeCreateTask(
         based_on: basedOn ?? undefined,
         generation_id: generationId ?? undefined,
         shot_id: shotId ?? undefined,
+      };
+
+      const result = await createGenerationTask({
+        ...generationArgs,
+        idempotency_key: await buildBatchIdempotencyKey(generationArgs, index),
       });
-      results.push(result.result);
+
+      if (result.result.startsWith("Failed to create task:")) {
+        failedCount += 1;
+      } else {
+        queuedCount += 1;
+      }
     }
-    return { result: `Queued ${prompts.length} tasks with varied prompts.${shotNote}`.trim() };
+
+    const summaryParts = [`Queued ${queuedCount} ${queuedCount === 1 ? "task" : "tasks"} with varied prompts.`];
+    if (failedCount > 0) {
+      summaryParts.push(`${failedCount} failed.`);
+    }
+    if (requestedCount > MAX_BATCH_VARIATIONS) {
+      summaryParts.push(`Requested ${requestedCount}, capped at ${MAX_BATCH_VARIATIONS}.`);
+    }
+
+    return { result: `${summaryParts.join(" ")}${shotNote}`.trim() };
   }
 
   const result = await createGenerationTask({

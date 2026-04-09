@@ -31,7 +31,7 @@ import {
   executeToolCall,
   recoverSelectedClipsFromTurns,
 } from "./loop.ts";
-import { buildSelectedClipsPrompt } from "./prompts.ts";
+import { buildSelectedClipsPrompt, buildTimelineAgentSystemPrompt } from "./prompts.ts";
 
 describe("loop helpers", () => {
   beforeEach(() => {
@@ -233,5 +233,37 @@ describe("loop helpers", () => {
 
     expect(prompt).toContain('prompt="moody \\"reference\\" lighting"');
     expect(prompt).not.toContain("prompt=undefined");
+  });
+
+  it("marks uploaded images as visual references instead of prompt metadata", () => {
+    const prompt = buildSelectedClipsPrompt([
+      {
+        clip_id: "clip-upload",
+        url: "https://example.com/upload.jpg",
+        media_type: "image",
+        prompt: "Uploaded example-image2.jpg",
+      },
+    ], "");
+
+    expect(prompt).toContain("note=user-uploaded reference image with no descriptive prompt metadata");
+    expect(prompt).not.toContain('prompt="Uploaded example-image2.jpg"');
+  });
+
+  it("tells the agent to treat 'in this style' as a style reference request", () => {
+    const systemPrompt = buildTimelineAgentSystemPrompt({
+      projectId: "project-1",
+      timelineSummary: "- id=clip-1 track=V1",
+      selectedClips: [{
+        clip_id: "clip-1",
+        url: "https://example.com/reference.png",
+        media_type: "image",
+        prompt: "Uploaded reference.png",
+      }],
+      defaultModel: "qwen-image",
+    });
+
+    expect(systemPrompt).toContain('If the user says "in this style"');
+    expect(systemPrompt).toContain('Prefer create_task with task_type="style-transfer"');
+    expect(systemPrompt).toContain("do not fall back to plain text-to-image without a reference");
   });
 });
