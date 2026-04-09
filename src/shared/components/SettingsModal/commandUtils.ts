@@ -67,8 +67,8 @@ export const buildWorkerLaunchLine = (config: CommandConfig): string => {
   return `python run_worker.py ${flags.join(' ')}`;
 };
 
-const buildUvRunLine = (uvCommand: string, config: CommandConfig): string => {
-  return `${uvCommand} run --python 3.10 ${buildWorkerLaunchLine(config)}`;
+const buildUvRunLine = (uvCommand: string, cudaExtra: string, config: CommandConfig): string => {
+  return `${uvCommand} run --python 3.10 --extra ${cudaExtra} ${buildWorkerLaunchLine(config)}`;
 };
 
 const buildLinuxCommand = (config: CommandConfig, mode: 'install' | 'run'): string => {
@@ -91,7 +91,7 @@ const buildLinuxCommand = (config: CommandConfig, mode: 'install' | 'run'): stri
   lines.push('git pull --ff-only &&');
   lines.push(`${uvCommand} sync --locked --python 3.10 --extra ${cudaExtra} &&`);
   lines.push('touch .uv-migrated &&');
-  lines.push(buildUvRunLine(uvCommand, config));
+  lines.push(buildUvRunLine(uvCommand, cudaExtra, config));
 
   return lines.join('\n');
 };
@@ -116,7 +116,7 @@ const buildWindowsPowerShellCommand = (config: CommandConfig, mode: 'install' | 
   lines.push('git pull --ff-only');
   lines.push(`${uvCommand} sync --locked --python 3.10 --extra ${cudaExtra}`);
   lines.push(`New-Item -ItemType File -Force -Path '.uv-migrated' | Out-Null`);
-  lines.push(buildUvRunLine(uvCommand, config));
+  lines.push(buildUvRunLine(uvCommand, cudaExtra, config));
 
   return lines.join('\n');
 };
@@ -136,7 +136,7 @@ const buildWindowsCmdCommand = (config: CommandConfig, mode: 'install' | 'run'):
 
   parts.push('git pull --ff-only');
   parts.push(`${uvCommand} sync --locked --python 3.10 --extra ${cudaExtra}`);
-  parts.push(buildUvRunLine(uvCommand, config));
+  parts.push(buildUvRunLine(uvCommand, cudaExtra, config));
 
   // Single line — cmd.exe splits multiline pastes and loses && chains
   return parts.join(' && ');

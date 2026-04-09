@@ -45,7 +45,7 @@ describe('getInstallationCommand', () => {
     expect(cmd).toContain('apt-cache show python3.10-venv');
     expect(cmd).toContain('sync --locked --python 3.10 --extra cuda124');
     expect(cmd).toContain('touch .uv-migrated');
-    expect(cmd).toContain('run --python 3.10 python run_worker.py');
+    expect(cmd).toContain('run --python 3.10 --extra cuda124 python run_worker.py');
   });
 
   it('Linux install: switches to cu128 for nvidia-50', () => {
@@ -65,7 +65,7 @@ describe('getInstallationCommand', () => {
 
     expect(cmd).toContain("Set-Location -LiteralPath 'Reigh-Worker'");
     expect(cmd).toContain('$uvExe sync --locked --python 3.10 --extra cuda124');
-    expect(cmd).toContain('& $uvExe run --python 3.10 python run_worker.py');
+    expect(cmd).toContain('& $uvExe run --python 3.10 --extra cuda124 python run_worker.py');
   });
 
   it('Windows cmd install: cd /d into Reigh-Worker, uses explicit uv.exe path', () => {
@@ -77,7 +77,7 @@ describe('getInstallationCommand', () => {
 
     expect(cmd).toContain('cd /d Reigh-Worker &&');
     expect(cmd).toContain('"%USERPROFILE%/.local/bin/uv.exe" sync --locked --python 3.10 --extra cuda124');
-    expect(cmd).toContain('"%USERPROFILE%/.local/bin/uv.exe" run --python 3.10 python run_worker.py');
+    expect(cmd).toContain('"%USERPROFILE%/.local/bin/uv.exe" run --python 3.10 --extra cuda124 python run_worker.py');
   });
 });
 
@@ -90,7 +90,7 @@ describe('getRunCommand', () => {
     expect(cmd).toContain('git pull --ff-only');
     expect(cmd).toContain('sync --locked --python 3.10 --extra cuda124');
     expect(cmd).toContain('touch .uv-migrated');
-    expect(cmd).toContain('run --python 3.10 python run_worker.py');
+    expect(cmd).toContain('run --python 3.10 --extra cuda124 python run_worker.py');
     expect(cmd).not.toMatch(/python worker\.py\b/);
   });
 
@@ -126,7 +126,7 @@ describe('getRunCommand', () => {
     expect(cmd).toContain("Set-Location -LiteralPath 'Reigh-Worker'");
     expect(cmd).toContain("if (-not (Test-Path -LiteralPath '.uv-migrated'))");
     expect(cmd).toContain('& $uvExe sync --locked --python 3.10 --extra cuda128');
-    expect(cmd).toContain('& $uvExe run --python 3.10 python run_worker.py');
+    expect(cmd).toContain('& $uvExe run --python 3.10 --extra cuda128 python run_worker.py');
   });
 
   it('Windows cmd run: single-line cd /d, git pull, sync, run with explicit uv.exe', () => {
@@ -139,7 +139,7 @@ describe('getRunCommand', () => {
     expect(cmd).toMatch(/^cd \/d Reigh-Worker && /);
     expect(cmd).toContain('git pull --ff-only');
     expect(cmd).toContain('"%USERPROFILE%/.local/bin/uv.exe" sync --locked --python 3.10 --extra cuda124');
-    expect(cmd).toContain('"%USERPROFILE%/.local/bin/uv.exe" run --python 3.10 python run_worker.py');
+    expect(cmd).toContain('"%USERPROFILE%/.local/bin/uv.exe" run --python 3.10 --extra cuda124 python run_worker.py');
     expect(cmd).not.toContain('\n');
     expect(cmd).not.toMatch(/python worker\.py\b/);
   });
