@@ -10,6 +10,7 @@ import { cn } from '@/shared/components/ui/contracts/cn';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/shared/components/ui/dropdown-menu';
 import { Slider } from '@/shared/components/ui/slider';
 import { usePanes } from '@/shared/contexts/PanesContext';
+import { useHomeNavigation } from '@/shared/hooks/useHomeNavigation';
 import { AgentChat } from '@/tools/video-editor/components/AgentChat';
 import { CompactPreview } from '@/tools/video-editor/components/CompactPreview';
 import { PreviewPanel } from '@/tools/video-editor/components/PreviewPanel/PreviewPanel';
@@ -63,6 +64,7 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
   const editorOps = useTimelineEditorOps();
   const chrome = useTimelineChromeContext();
   const playback = useTimelinePlaybackContext();
+  const { navigateHome } = useHomeNavigation();
   const { isEditorPaneLocked, isGenerationsPaneLocked, setIsGenerationsPaneLocked } = usePanes();
   const location = useLocation();
   const navigate = useNavigate();
@@ -302,7 +304,7 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
           <button
             type="button"
             className="mr-2 shrink-0 text-[11px] transition-colors hover:text-foreground"
-            onClick={() => navigate('/')}
+            onClick={navigateHome}
           >
             ← Back
           </button>
@@ -413,7 +415,7 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
             <button
               type="button"
               className="shrink-0 transition-colors hover:text-foreground"
-              onClick={() => navigate('/')}
+              onClick={navigateHome}
             >
               ← Back
             </button>

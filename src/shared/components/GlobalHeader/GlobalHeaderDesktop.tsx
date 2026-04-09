@@ -12,6 +12,7 @@ import {
 interface GlobalHeaderDesktopProps extends GlobalHeaderSharedActionsProps {
   contentOffsetRight: number;
   contentOffsetLeft: number;
+  onNavigateHome: () => void;
 }
 
 export const GlobalHeaderDesktop: React.FC<GlobalHeaderDesktopProps> = ({
@@ -22,11 +23,12 @@ export const GlobalHeaderDesktop: React.FC<GlobalHeaderDesktopProps> = ({
   referralStats,
   isBrandFlash,
   triggerBrandFlash,
+  onNavigateHome,
   onOpenCreateProject,
   onOpenProjectSettings,
   onOpenReferralModal,
 }) => {
-  const { navigate, darkMode, projects, selectedProject, isLoadingProjects, handleProjectChange } = useGlobalHeaderProject({ onOpenCreateProject });
+  const { darkMode, projects, selectedProject, isLoadingProjects, handleProjectChange } = useGlobalHeaderProject({ onOpenCreateProject });
 
   return (
     <div
@@ -44,7 +46,7 @@ export const GlobalHeaderDesktop: React.FC<GlobalHeaderDesktopProps> = ({
           darkMode={darkMode}
           isBrandFlash={isBrandFlash}
           triggerBrandFlash={triggerBrandFlash}
-          onNavigateHome={() => navigate('/')}
+          onNavigateHome={onNavigateHome}
         />
 
         {/* Project Management */}

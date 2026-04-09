@@ -4,6 +4,7 @@ import { ProjectSettingsModal } from '@/shared/components/modals/ProjectSettings
 import { ReferralModal } from '@/shared/components/modals/ReferralModal';
 import { useGlobalHeaderController } from './useGlobalHeaderController';
 import { CreateProjectModal } from './CreateProjectModal';
+import { useHomeNavigation } from '@/shared/hooks/useHomeNavigation';
 
 import { GlobalHeaderDesktop } from './GlobalHeaderDesktop';
 import { GlobalHeaderMobile } from './GlobalHeaderMobile';
@@ -28,6 +29,7 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({ contentOffsetRight =
     handleOpenProjectSettings,
     handleOpenReferralModal,
   } = useGlobalHeaderController();
+  const { navigateHome } = useHomeNavigation();
 
   return (
     <>
@@ -60,6 +62,7 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({ contentOffsetRight =
           referralStats={referralStats}
           isBrandFlash={isBrandFlash}
           triggerBrandFlash={triggerBrandFlash}
+          onNavigateHome={navigateHome}
           onOpenCreateProject={handleOpenCreateProject}
           onOpenProjectSettings={handleOpenProjectSettings}
           onOpenReferralModal={handleOpenReferralModal}
@@ -74,6 +77,7 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({ contentOffsetRight =
           referralStats={referralStats}
           isBrandFlash={isBrandFlash}
           triggerBrandFlash={triggerBrandFlash}
+          onNavigateHome={navigateHome}
           onOpenCreateProject={handleOpenCreateProject}
           onOpenProjectSettings={handleOpenProjectSettings}
           onOpenReferralModal={handleOpenReferralModal}

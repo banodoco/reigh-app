@@ -201,10 +201,10 @@ export function useSegmentOutputStrip({
     }
 
     if (onOpenPairSettings) {
-      // Route all clicks through pair settings → segmentSlotMode lightbox.
-      // This handles both regular pairs and trailing segments uniformly,
-      // with proper form-only and video views plus full chevron navigation.
-      onOpenPairSettings(slot.index);
+      // The strip can render a slot at a different visible pair index than the
+      // child's original raw index after timeline reorders. Open the currently
+      // displayed pair so the lightbox resolves the matching segment video.
+      onOpenPairSettings(slotIndex);
     } else if (slot.type === 'child') {
       // No pair settings handler — fall back to inline SegmentOutputStrip lightbox
       setLightboxIndex(slotIndex);

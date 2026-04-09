@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { MediaLightbox } from '@/domains/media-lightbox/MediaLightbox';
+import type { GenerationRow } from '@/domains/generation/types';
 import type { DataProvider } from '@/tools/video-editor/data/DataProvider';
 import { DataProviderWrapper } from '@/tools/video-editor/contexts/DataProviderContext';
 import { TimelineChromeContextProvider } from '@/tools/video-editor/contexts/TimelineChromeContext';
@@ -21,6 +22,49 @@ import type {
 } from '@/tools/video-editor/hooks/useTimelineState.types';
 import { loadGenerationForLightbox } from '@/tools/video-editor/lib/generation-utils';
 import { useRenderDiagnostic } from '@/tools/video-editor/hooks/usePerfDiagnostics';
+import type { ResolvedAssetRegistryEntry } from '@/tools/video-editor/types';
+
+const log = import.meta.env.DEV ? (...args: Parameters<typeof console.log>) => console.log(...args) : () => {};
+
+function isOpenableAssetType(type: string | undefined, url: string | undefined): boolean {
+  if (typeof type === 'string' && (type.startsWith('video/') || type.startsWith('image/'))) {
+    return true;
+  }
+
+  if (!url) {
+    return false;
+  }
+
+  return /\.(mp4|mov|webm|m4v|png|jpe?g|webp|gif|avif)(\?.*)?$/i.test(url);
+}
+
+export function buildVideoEditorLightboxMedia(
+  assetKey: string | null,
+  asset: ResolvedAssetRegistryEntry | undefined,
+): GenerationRow | null {
+  if (!assetKey || !asset) {
+    return null;
+  }
+
+  const src = asset.src || asset.file;
+  if (!src || !isOpenableAssetType(asset.type, src)) {
+    return null;
+  }
+
+  const isVideo = asset.type?.startsWith('video/')
+    || /\.(mp4|mov|webm|m4v)(\?.*)?$/i.test(src);
+
+  return {
+    id: assetKey,
+    generation_id: asset.generationId || assetKey,
+    location: src,
+    imageUrl: src,
+    thumbUrl: asset.thumbnailUrl || src,
+    type: isVideo ? 'video' : 'image',
+    primary_variant_id: asset.variantId || null,
+    name: asset.file,
+  };
+}
 
 function InnerProvider({
   children,
@@ -42,6 +86,10 @@ function InnerProvider({
   const { editor, chrome, playback } = useTimelineState();
   const [lightboxAssetKey, setLightboxAssetKey] = useState<string | null>(null);
   const lightboxAsset = lightboxAssetKey ? editor.resolvedConfig?.registry[lightboxAssetKey] : undefined;
+  const lightboxFallbackMedia = useMemo(
+    () => buildVideoEditorLightboxMedia(lightboxAssetKey, lightboxAsset),
+    [lightboxAsset, lightboxAssetKey],
+  );
   const lightboxGenerationId = lightboxAsset?.generationId ?? null;
   const lightboxQuery = useQuery({
     queryKey: ['video-editor', 'lightbox', lightboxGenerationId],
@@ -51,20 +99,55 @@ function InnerProvider({
   });
 
   useEffect(() => {
-    if (!lightboxAssetKey || !lightboxGenerationId || lightboxQuery.isLoading || lightboxQuery.data) {
+    if (
+      !lightboxAssetKey
+      || !lightboxGenerationId
+      || lightboxQuery.isLoading
+      || lightboxQuery.data
+      || lightboxFallbackMedia
+    ) {
       return;
     }
 
+    log('[video-editor] lightbox query returned no data; clearing asset key', {
+      assetKey: lightboxAssetKey,
+      generationId: lightboxGenerationId,
+    });
     setLightboxAssetKey(null);
-  }, [lightboxAssetKey, lightboxGenerationId, lightboxQuery.data, lightboxQuery.isLoading]);
+  }, [lightboxAssetKey, lightboxFallbackMedia, lightboxGenerationId, lightboxQuery.data, lightboxQuery.isLoading]);
 
   const onDoubleClickAsset = useCallback((assetKey: string) => {
-    if (!editor.resolvedConfig?.registry[assetKey]?.generationId) {
+    const asset = editor.resolvedConfig?.registry[assetKey];
+    log('[video-editor] onDoubleClickAsset', {
+      assetKey,
+      hasAsset: Boolean(asset),
+      generationId: asset?.generationId ?? null,
+      file: asset?.file ?? null,
+      type: asset?.type ?? null,
+    });
+    if (!buildVideoEditorLightboxMedia(assetKey, asset)) {
       return;
     }
 
     setLightboxAssetKey(assetKey);
   }, [editor.resolvedConfig]);
+
+  useEffect(() => {
+    if (!lightboxAssetKey) {
+      return;
+    }
+
+    log('[video-editor] lightbox state', {
+      assetKey: lightboxAssetKey,
+      generationId: lightboxGenerationId,
+      isLoading: lightboxQuery.isLoading,
+      hasData: Boolean(lightboxQuery.data),
+      hasFallbackMedia: Boolean(lightboxFallbackMedia),
+      mediaId: lightboxQuery.data?.id ?? null,
+      mediaType: lightboxQuery.data?.type ?? null,
+      mediaLocation: lightboxQuery.data?.location ?? null,
+    });
+  }, [lightboxAssetKey, lightboxFallbackMedia, lightboxGenerationId, lightboxQuery.data, lightboxQuery.isLoading]);
 
   const editorData = useMemo<TimelineEditorDataContextValue>(() => ({
     data: editor.data,
@@ -144,16 +227,18 @@ function InnerProvider({
     setLightboxAssetKey,
   }), [editor, onActionResizeStart, onClipEdgeResizeEnd, onDoubleClickAsset, setLightboxAssetKey]);
 
+  const resolvedLightboxMedia = lightboxQuery.data ?? lightboxFallbackMedia;
+
   return (
     <TimelineEditorDataContextProvider value={editorData}>
       <TimelineEditorOpsContextProvider value={editorOps}>
         <TimelineChromeContextProvider value={chrome}>
           <TimelinePlaybackContextProvider value={playback}>
             {children}
-            {lightboxAssetKey && lightboxQuery.data && (
+            {lightboxAssetKey && resolvedLightboxMedia && (
               <MediaLightbox
-                media={lightboxQuery.data}
-                initialVariantId={lightboxAsset?.variantId ?? lightboxQuery.data.primary_variant_id ?? undefined}
+                media={resolvedLightboxMedia}
+                initialVariantId={lightboxAsset?.variantId ?? resolvedLightboxMedia.primary_variant_id ?? undefined}
                 onClose={() => setLightboxAssetKey(null)}
                 features={{ showDownload: true, showTaskDetails: true }}
               />

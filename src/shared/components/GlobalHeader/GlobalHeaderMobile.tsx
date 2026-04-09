@@ -12,6 +12,7 @@ import {
 interface GlobalHeaderMobileProps extends GlobalHeaderSharedActionsProps {
   contentOffsetLeft: number;
   contentOffsetRight: number;
+  onNavigateHome: () => void;
 }
 
 export const GlobalHeaderMobile: React.FC<GlobalHeaderMobileProps> = ({
@@ -22,11 +23,12 @@ export const GlobalHeaderMobile: React.FC<GlobalHeaderMobileProps> = ({
   referralStats,
   isBrandFlash,
   triggerBrandFlash,
+  onNavigateHome,
   onOpenCreateProject,
   onOpenProjectSettings,
   onOpenReferralModal,
 }) => {
-  const { navigate, darkMode, projects, selectedProject, isLoadingProjects, handleProjectChange } = useGlobalHeaderProject({ onOpenCreateProject });
+  const { darkMode, projects, selectedProject, isLoadingProjects, handleProjectChange } = useGlobalHeaderProject({ onOpenCreateProject });
 
   return (
     <div
@@ -50,7 +52,7 @@ export const GlobalHeaderMobile: React.FC<GlobalHeaderMobileProps> = ({
             darkMode={darkMode}
             isBrandFlash={isBrandFlash}
             triggerBrandFlash={triggerBrandFlash}
-            onNavigateHome={() => navigate('/')}
+            onNavigateHome={onNavigateHome}
           />
 
           {/* Project Buttons */}

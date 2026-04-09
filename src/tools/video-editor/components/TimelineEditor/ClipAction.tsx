@@ -9,6 +9,8 @@ import { useWaveformData } from '@/tools/video-editor/hooks/useWaveformData';
 import type { ClipMeta } from '@/tools/video-editor/lib/timeline-data';
 import type { TimelineAction } from '@/tools/video-editor/types/timeline-canvas';
 
+const log = import.meta.env.DEV ? (...args: Parameters<typeof console.log>) => console.log(...args) : () => {};
+
 interface ContextMenuState {
   x: number;
   y: number;
@@ -397,6 +399,13 @@ function ClipActionComponent({
         onDoubleClick={(event) => {
           event.stopPropagation();
           if (isEffectLayer || clipMeta.clipType === 'text') return;
+          log('[video-editor] clip double-click', {
+            clipId: action.id,
+            assetKey: clipMeta.asset ?? null,
+            trackId: clipMeta.track,
+            isVideoClip: Boolean(isVideoClip),
+            clipType: clipMeta.clipType ?? null,
+          });
           if (isVideoClip && onDoubleClickVideoClip) {
             onDoubleClickVideoClip(action.id);
           } else if (clipMeta.asset) {

@@ -26,7 +26,6 @@ export function useGlobalHeaderProject({ onOpenCreateProject }: UseGlobalHeaderP
   }, [onOpenCreateProject, selectedProjectId, setSelectedProjectId, navigate]);
 
   return {
-    navigate,
     darkMode,
     projects,
     selectedProject,

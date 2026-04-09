@@ -55,7 +55,8 @@
         },
         "required": [
           "file_path",
-          "why"
+          "why",
+          "functions"
         ],
         "additionalProperties": false
       }

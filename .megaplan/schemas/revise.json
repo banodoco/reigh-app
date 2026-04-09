@@ -53,7 +53,10 @@
   "required": [
     "plan",
     "changes_summary",
-    "flags_addressed"
+    "flags_addressed",
+    "assumptions",
+    "success_criteria",
+    "questions"
   ],
   "additionalProperties": false
 }

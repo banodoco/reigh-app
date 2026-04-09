@@ -176,7 +176,7 @@ export const SegmentOutputStrip: React.FC<SegmentOutputStripProps> = ({
                   <React.Fragment key={slot.type === 'child' ? slot.child.id : `placeholder-${index}`}>
                     <InlineSegmentVideo
                       slot={slot}
-                      pairIndex={slot.index}
+                      pairIndex={index}
                       onClick={() => {
                         handleSegmentClick(slot, index, onOpenPairSettings);
                       }}

@@ -43,6 +43,57 @@ import type { ResolvedTimelineClip, TrackDefinition } from '@/tools/video-editor
 import type { TimelineAction, TimelineRow } from '@/tools/video-editor/types/timeline-canvas';
 
 const EMPTY_ASSET_GENERATION_MAP: Record<string, string> = {};
+const log = import.meta.env.DEV ? (...args: Parameters<typeof console.log>) => console.log(...args) : () => {};
+
+interface DoubleClickPinnedGroup {
+  shotId: string;
+  clipIds: string[];
+}
+
+interface DoubleClickFinalVideo {
+  id: string;
+  location?: string | null;
+}
+
+type VideoClipDoubleClickResolution =
+  | { type: 'lightbox'; assetKey: string; generationId?: string }
+  | { type: 'video-modal'; shotId: string; reason: 'pinned-group' | 'final-video-file' }
+  | { type: 'none' };
+
+export function resolveVideoClipDoubleClickResolution({
+  clipId,
+  assetKey,
+  generationId,
+  fileUrl,
+  pinnedShotGroups,
+  finalVideoMap,
+}: {
+  clipId: string;
+  assetKey?: string;
+  generationId?: string;
+  fileUrl?: string;
+  pinnedShotGroups: DoubleClickPinnedGroup[];
+  finalVideoMap: Map<string, DoubleClickFinalVideo>;
+}): VideoClipDoubleClickResolution {
+  if (assetKey) {
+    return { type: 'lightbox', assetKey, generationId };
+  }
+
+  const pinnedGroup = pinnedShotGroups.find((group) => group.clipIds.includes(clipId));
+  if (pinnedGroup) {
+    return { type: 'video-modal', shotId: pinnedGroup.shotId, reason: 'pinned-group' };
+  }
+
+  if (fileUrl) {
+    for (const [shotId, finalVideo] of finalVideoMap.entries()) {
+      if (finalVideo.location === fileUrl) {
+        return { type: 'video-modal', shotId, reason: 'final-video-file' };
+      }
+    }
+  }
+
+  return { type: 'none' };
+}
 
 function useStableValue<T extends Record<string, string>>(value: T): T {
   const ref = useRef(value);
@@ -513,39 +564,55 @@ function TimelineEditorComponent() {
   }, [pixelToTime, timelineWrapperRef]);
 
   const handleDoubleClickVideoClip = useCallback((clipId: string) => {
-    // 1. Check pinned groups
-    const pinnedShotGroups = dataRef.current?.config.pinnedShotGroups ?? [];
-    const group = pinnedShotGroups.find((g) => g.clipIds.includes(clipId));
-    if (group) {
-      const shot = shots?.find((s) => s.id === group.shotId);
-      if (shot) { setVideoModalShot(shot); return; }
-    }
-
-    // 2. Try to match the video's generationId against finalVideoMap
     const assetKey = data?.meta[clipId]?.asset;
     const generationId = assetKey ? data?.registry?.assets[assetKey]?.generationId : undefined;
-    if (generationId) {
-      for (const [shotId, fv] of finalVideoMap.entries()) {
-        if (fv.id === generationId) {
-          const shot = shots?.find((s) => s.id === shotId);
-          if (shot) { setVideoModalShot(shot); return; }
-        }
-      }
-      // Has generationId but not a final video — try lightbox
-      onDoubleClickAsset?.(assetKey!);
+    const fileUrl = assetKey ? data?.registry?.assets[assetKey]?.file : undefined;
+    const resolution = resolveVideoClipDoubleClickResolution({
+      clipId,
+      assetKey,
+      generationId,
+      fileUrl,
+      pinnedShotGroups: dataRef.current?.config.pinnedShotGroups ?? [],
+      finalVideoMap,
+    });
+    log('[video-editor] handleDoubleClickVideoClip:start', {
+      clipId,
+      assetKey: assetKey ?? null,
+      generationId: generationId ?? null,
+      fileUrl: fileUrl ?? null,
+      resolution,
+    });
+
+    if (resolution.type === 'lightbox') {
+      log('[video-editor] handleDoubleClickVideoClip:open-lightbox', {
+        clipId,
+        assetKey: resolution.assetKey,
+        generationId: resolution.generationId ?? null,
+      });
+      onDoubleClickAsset?.(resolution.assetKey);
       return;
     }
 
-    // 3. Try to match the video's file URL against finalVideoMap
-    const fileUrl = assetKey ? data?.registry?.assets[assetKey]?.file : undefined;
-    if (fileUrl) {
-      for (const [shotId, fv] of finalVideoMap.entries()) {
-        if (fv.location === fileUrl) {
-          const shot = shots?.find((s) => s.id === shotId);
-          if (shot) { setVideoModalShot(shot); return; }
-        }
+    if (resolution.type === 'video-modal') {
+      const shot = shots?.find((s) => s.id === resolution.shotId);
+      log('[video-editor] handleDoubleClickVideoClip:open-video-modal', {
+        clipId,
+        shotId: resolution.shotId,
+        reason: resolution.reason,
+        foundShot: Boolean(shot),
+      });
+      if (shot) {
+        setVideoModalShot(shot);
       }
+      return;
     }
+
+    log('[video-editor] handleDoubleClickVideoClip:no-match', {
+      clipId,
+      assetKey: assetKey ?? null,
+      generationId: generationId ?? null,
+      fileUrl: fileUrl ?? null,
+    });
   }, [dataRef, shots, data?.meta, data?.registry?.assets, finalVideoMap, onDoubleClickAsset]);
 
   const handleSplitClipHere = useCallback((clipId: string, clientX: number) => {

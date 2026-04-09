@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { ClipMeta } from '@/tools/video-editor/lib/timeline-data';
 import type { ResolvedTimelineClip, TrackDefinition } from '@/tools/video-editor/types';
 import type { TimelineRow } from '@/tools/video-editor/types/timeline-canvas';
-import { resolveSelectedGenerationIdsForShotCreation, resolveWaveformAudioSrc } from './TimelineEditor';
+import {
+  resolveSelectedGenerationIdsForShotCreation,
+  resolveVideoClipDoubleClickResolution,
+  resolveWaveformAudioSrc,
+} from './TimelineEditor';
 
 describe('resolveSelectedGenerationIdsForShotCreation', () => {
   const rows: TimelineRow[] = [
@@ -110,5 +114,49 @@ describe('resolveWaveformAudioSrc', () => {
     }), visualTrack)).toBeUndefined();
     expect(resolveWaveformAudioSrc(createClip({ clipType: 'text' }), visualTrack)).toBeUndefined();
     expect(resolveWaveformAudioSrc(createClip({ clipType: 'effect-layer' }), visualTrack)).toBeUndefined();
+  });
+});
+
+describe('resolveVideoClipDoubleClickResolution', () => {
+  it('prefers the media lightbox when the clip has a generation-backed asset, even if it matches a final video', () => {
+    const result = resolveVideoClipDoubleClickResolution({
+      clipId: 'clip-33',
+      assetKey: 'asset-1',
+      generationId: 'gen-final',
+      fileUrl: 'https://example.com/final.mp4',
+      pinnedShotGroups: [
+        { shotId: 'shot-1', clipIds: ['clip-33'] },
+      ],
+      finalVideoMap: new Map([
+        ['shot-1', { id: 'gen-final', location: 'https://example.com/final.mp4' }],
+      ]),
+    });
+
+    expect(result).toEqual({
+      type: 'lightbox',
+      assetKey: 'asset-1',
+      generationId: 'gen-final',
+    });
+  });
+
+  it('falls back to the video modal when a clip has no generation-backed asset but belongs to a pinned shot group', () => {
+    const result = resolveVideoClipDoubleClickResolution({
+      clipId: 'clip-33',
+      assetKey: 'asset-1',
+      generationId: undefined,
+      fileUrl: 'https://example.com/final.mp4',
+      pinnedShotGroups: [
+        { shotId: 'shot-1', clipIds: ['clip-33'] },
+      ],
+      finalVideoMap: new Map([
+        ['shot-1', { id: 'gen-final', location: 'https://example.com/final.mp4' }],
+      ]),
+    });
+
+    expect(result).toEqual({
+      type: 'lightbox',
+      assetKey: 'asset-1',
+      generationId: undefined,
+    });
   });
 });

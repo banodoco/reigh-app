@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { VideoEditorProvider } from '@/tools/video-editor/contexts/VideoEditorProvider';
+import { buildVideoEditorLightboxMedia, VideoEditorProvider } from '@/tools/video-editor/contexts/VideoEditorProvider';
 import { useTimelineChromeContext } from '@/tools/video-editor/contexts/TimelineChromeContext';
 import {
   useTimelineEditorData,
@@ -50,6 +50,21 @@ function Consumer() {
 }
 
 describe('VideoEditorProvider', () => {
+  it('builds fallback lightbox media for raw video assets without a generation id', () => {
+    expect(buildVideoEditorLightboxMedia('asset-1', {
+      file: 'folder/video.mp4',
+      src: 'https://example.com/video.mp4',
+      thumbnailUrl: 'https://example.com/video.jpg',
+      type: 'video/mp4',
+    })).toEqual(expect.objectContaining({
+      id: 'asset-1',
+      generation_id: 'asset-1',
+      location: 'https://example.com/video.mp4',
+      thumbUrl: 'https://example.com/video.jpg',
+      type: 'video',
+    }));
+  });
+
   it('provides editor data, editor ops, chrome, and playback contexts together', () => {
     const provider: DataProvider = {
       loadTimeline: vi.fn(),
