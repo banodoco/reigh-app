@@ -1,5 +1,13 @@
 import { usePersistentState } from "@/shared/hooks/usePersistentState";
 
+function detectOS(): string {
+  if (typeof navigator === "undefined") return "linux";
+  const ua = navigator.userAgent.toLowerCase();
+  if (ua.includes("win")) return "windows";
+  if (ua.includes("mac")) return "mac";
+  return "linux";
+}
+
 /**
  * The persistent settings that drive the local-worker launch command.
  * Bundled into a single hook so consumers don't have to pass 12 props.
@@ -34,7 +42,7 @@ export interface WorkerLaunchConfig {
  * GenerationSection.
  */
 export function useWorkerLaunchConfig(): WorkerLaunchConfig {
-  const [computerType, setComputerType] = usePersistentState<string>("computer-type", "linux");
+  const [computerType, setComputerType] = usePersistentState<string>("computer-type", detectOS());
   const [gpuType, setGpuType] = usePersistentState<string>("gpu-type", "nvidia-30-40");
   const [memoryProfile, setMemoryProfile] = usePersistentState<string>("memory-profile", "4");
   const [windowsShell, setWindowsShell] = usePersistentState<string>("windows-shell", "powershell");
