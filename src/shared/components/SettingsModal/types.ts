@@ -18,7 +18,6 @@ export interface CommandConfig {
   showDebugLogs: boolean;
   idleReleaseMinutes: string;
   token: string;
-  workerRepoPath: string;
 }
 
 export interface GenerationSectionProps {

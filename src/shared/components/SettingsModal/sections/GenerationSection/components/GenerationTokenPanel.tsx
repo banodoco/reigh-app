@@ -16,7 +16,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/shared/components/ui/tooltip';
-import { Input } from '@/shared/components/ui/input';
 import { getInstallationCommand, getRunCommand, generateAIInstructions, safeCopy } from '../../../commandUtils';
 import type { CommandConfig } from '../../../types';
 import { CommandPreview } from './CommandPreview';
@@ -111,7 +110,6 @@ interface GenerationTokenPanelConfig {
   windowsShell: string;
   showDebugLogs: boolean;
   idleReleaseMinutes: string;
-  workerRepoPath: string;
 }
 
 interface GenerationTokenPanelState {
@@ -127,7 +125,6 @@ interface GenerationTokenPanelActions {
   setWindowsShell: (value: string) => void;
   setShowDebugLogs: (value: boolean) => void;
   setIdleReleaseMinutes: (value: string) => void;
-  setWorkerRepoPath: (value: string) => void;
   setActiveInstallTab: (value: string) => void;
   updateGenerationMethodsWithNotification: (patch: { onComputer?: boolean; inCloud?: boolean }) => void;
 }
@@ -152,7 +149,6 @@ export const GenerationTokenPanel: React.FC<GenerationTokenPanelProps> = ({
     windowsShell,
     showDebugLogs,
     idleReleaseMinutes,
-    workerRepoPath,
   } = config;
   const {
     generatedToken,
@@ -166,7 +162,6 @@ export const GenerationTokenPanel: React.FC<GenerationTokenPanelProps> = ({
     setWindowsShell,
     setShowDebugLogs,
     setIdleReleaseMinutes,
-    setWorkerRepoPath,
     setActiveInstallTab,
     updateGenerationMethodsWithNotification,
   } = actions;
@@ -198,9 +193,8 @@ export const GenerationTokenPanel: React.FC<GenerationTokenPanelProps> = ({
     windowsShell,
     showDebugLogs,
     idleReleaseMinutes,
-    workerRepoPath,
     token: generatedToken || getActiveToken()?.token || 'your-api-token',
-  }), [computerType, gpuType, memoryProfile, windowsShell, showDebugLogs, idleReleaseMinutes, workerRepoPath, generatedToken, getActiveToken]);
+  }), [computerType, gpuType, memoryProfile, windowsShell, showDebugLogs, idleReleaseMinutes, generatedToken, getActiveToken]);
 
   const handleCopyInstallCommand = useCallback(async () => {
     const ok = await safeCopy(getInstallationCommand(getCommandConfig()));
@@ -421,26 +415,6 @@ export const GenerationTokenPanel: React.FC<GenerationTokenPanelProps> = ({
           </div>
         </div>
         </TooltipProvider>
-
-        <div className="space-y-1.5">
-          <FieldLabel
-            text="Worker repo location:"
-            colorClassName="text-slate-600 dark:text-slate-400"
-            tooltip="The absolute path where your worker repo lives. Every generated command changes into this folder before running git or uv."
-          />
-          <Input
-            aria-label="Worker repo location"
-            value={workerRepoPath}
-            onChange={(event) => setWorkerRepoPath(event.target.value)}
-            className="h-9"
-            spellCheck={false}
-            autoCapitalize="none"
-            autoCorrect="off"
-          />
-          <p className="text-xs text-muted-foreground">
-            Install and run commands will always <code>cd</code> into this repo before launching the worker.
-          </p>
-        </div>
 
         {computerType === "windows" && windowsShell === "powershell" && (
           <div className="p-2 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 rounded-lg">

@@ -2,6 +2,7 @@ import type { CommandConfig } from './types';
 import { writeClipboardTextSafe } from '@/shared/lib/browser/clipboard';
 
 const WORKER_REPO_URL = 'https://github.com/banodoco/Reigh-Worker.git';
+const REPO_DIR = 'Reigh-Worker';
 const LINUX_UV_INSTALL = 'curl -LsSf https://astral.sh/uv/install.sh | sh';
 const WINDOWS_UV_INSTALL = 'irm https://astral.sh/uv/install.ps1 | iex';
 const WINDOWS_CMD_UV_EXE = '%USERPROFILE%\\.local\\bin\\uv.exe';
@@ -22,18 +23,6 @@ export const safeCopy = (text: string): Promise<boolean> => {
 
 const getCudaExtra = (gpuType: string): 'cuda124' | 'cuda128' => {
   return gpuType === 'nvidia-50' ? 'cuda128' : 'cuda124';
-};
-
-const escapeDoubleQuoted = (value: string): string => {
-  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-};
-
-const escapePowerShellDoubleQuoted = (value: string): string => {
-  return value.replace(/`/g, '``').replace(/"/g, '`"');
-};
-
-const toPowerShellPath = (workerRepoPath: string): string => {
-  return workerRepoPath.replace(/^%USERPROFILE%/i, '$env:USERPROFILE');
 };
 
 const buildBackupPreludeLinux = (): string => {
@@ -83,20 +72,18 @@ const buildUvRunLine = (uvCommand: string, config: CommandConfig): string => {
 };
 
 const buildLinuxCommand = (config: CommandConfig, mode: 'install' | 'run'): string => {
-  const repoPath = escapeDoubleQuoted(config.workerRepoPath);
   const cudaExtra = getCudaExtra(config.gpuType);
   const uvCommand = '"$HOME/.local/bin/uv"';
-  const lines = [
-    mode === 'install'
-      ? `cd "${repoPath}" 2>/dev/null || { mkdir -p "${repoPath}" && cd "${repoPath}"; } &&`
-      : `cd "${repoPath}" &&`,
-  ];
+  const lines: string[] = [];
 
   if (mode === 'install') {
-    lines.push(`if [ ! -d .git ]; then git clone --depth 1 ${WORKER_REPO_URL} .; fi &&`);
+    lines.push(`if [ ! -d ${REPO_DIR} ]; then git clone --depth 1 ${WORKER_REPO_URL}; fi &&`);
+    lines.push(`cd ${REPO_DIR} &&`);
     lines.push(`apt-cache show python3.10-venv >/dev/null 2>&1 || { echo "python3.10-venv is unavailable. Install deadsnakes first; see README."; exit 1; } &&`);
     lines.push('sudo apt-get update && sudo apt-get install -y python3.10-venv python3.10-dev ffmpeg git curl &&');
     lines.push(`if [ ! -x "$HOME/.local/bin/uv" ]; then ${LINUX_UV_INSTALL}; fi &&`);
+  } else {
+    lines.push(`cd ${REPO_DIR} &&`);
   }
 
   lines.push('export PATH="$HOME/.local/bin:$PATH" &&');
@@ -110,15 +97,15 @@ const buildLinuxCommand = (config: CommandConfig, mode: 'install' | 'run'): stri
 };
 
 const buildWindowsPowerShellCommand = (config: CommandConfig, mode: 'install' | 'run'): string => {
-  const repoPath = escapePowerShellDoubleQuoted(toPowerShellPath(config.workerRepoPath));
   const cudaExtra = getCudaExtra(config.gpuType);
   const uvCommand = '& $uvExe';
-  const lines = [
-    `Set-Location -LiteralPath "${repoPath}"; if (-not $?) { New-Item -ItemType Directory -Force -Path "${repoPath}" | Out-Null; Set-Location -LiteralPath "${repoPath}" }`,
-  ];
+  const lines: string[] = [];
 
   if (mode === 'install') {
-    lines.push(`if (-not (Test-Path -LiteralPath '.git')) { git clone --depth 1 ${WORKER_REPO_URL} . }`);
+    lines.push(`if (-not (Test-Path -LiteralPath '${REPO_DIR}')) { git clone --depth 1 ${WORKER_REPO_URL} }`);
+    lines.push(`Set-Location -LiteralPath '${REPO_DIR}'`);
+  } else {
+    lines.push(`Set-Location -LiteralPath '${REPO_DIR}'`);
   }
 
   lines.push(`$uvExe = Join-Path $env:USERPROFILE '.local\\bin\\uv.exe'`);
@@ -135,18 +122,16 @@ const buildWindowsPowerShellCommand = (config: CommandConfig, mode: 'install' | 
 };
 
 const buildWindowsCmdCommand = (config: CommandConfig, mode: 'install' | 'run'): string => {
-  const repoPath = config.workerRepoPath.replace(/\//g, '\\');
   const cudaExtra = getCudaExtra(config.gpuType);
   const uvCommand = `"${WINDOWS_CMD_UV_EXE}"`;
-  const lines = [
-    mode === 'install'
-      ? `cd /d "${repoPath}" || (mkdir "${repoPath}" && cd /d "${repoPath}") &&`
-      : `cd /d "${repoPath}" &&`,
-  ];
+  const lines: string[] = [];
 
   if (mode === 'install') {
-    lines.push(`if not exist ".git" git clone --depth 1 ${WORKER_REPO_URL} . &&`);
+    lines.push(`if not exist "${REPO_DIR}" git clone --depth 1 ${WORKER_REPO_URL} &&`);
+    lines.push(`cd /d ${REPO_DIR} &&`);
     lines.push(`if not exist "${WINDOWS_CMD_UV_EXE}" powershell -NoProfile -ExecutionPolicy Bypass -Command "${WINDOWS_UV_INSTALL}" &&`);
+  } else {
+    lines.push(`cd /d ${REPO_DIR} &&`);
   }
 
   lines.push(`${buildBackupPreludeCmd()} &&`);

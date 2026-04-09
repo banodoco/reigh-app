@@ -1,11 +1,4 @@
-import { useCallback } from "react";
 import { usePersistentState } from "@/shared/hooks/usePersistentState";
-
-export function getDefaultWorkerRepoPath(computerType: string): string {
-  return computerType === "windows"
-    ? "%USERPROFILE%\\Reigh-Worker"
-    : "$HOME/reigh-worker";
-}
 
 /**
  * The persistent settings that drive the local-worker launch command.
@@ -18,7 +11,6 @@ export interface WorkerLaunchConfigValues {
   windowsShell: string;
   showDebugLogs: boolean;
   idleReleaseMinutes: string;
-  workerRepoPath: string;
 }
 
 export interface WorkerLaunchConfigSetters {
@@ -28,7 +20,6 @@ export interface WorkerLaunchConfigSetters {
   setWindowsShell: (value: string) => void;
   setShowDebugLogs: (value: boolean) => void;
   setIdleReleaseMinutes: (value: string) => void;
-  setWorkerRepoPath: (value: string) => void;
 }
 
 export interface WorkerLaunchConfig {
@@ -43,27 +34,13 @@ export interface WorkerLaunchConfig {
  * GenerationSection.
  */
 export function useWorkerLaunchConfig(): WorkerLaunchConfig {
-  const [computerType, persistComputerType] = usePersistentState<string>("computer-type", "linux");
+  const [computerType, setComputerType] = usePersistentState<string>("computer-type", "linux");
   const [gpuType, setGpuType] = usePersistentState<string>("gpu-type", "nvidia-30-40");
   const [memoryProfile, setMemoryProfile] = usePersistentState<string>("memory-profile", "4");
   const [windowsShell, setWindowsShell] = usePersistentState<string>("windows-shell", "powershell");
   const [showDebugLogs, setShowDebugLogs] = usePersistentState<boolean>("show-debug-logs", false);
   // "0" disables idle release; default 15 matches the worker default.
   const [idleReleaseMinutes, setIdleReleaseMinutes] = usePersistentState<string>("idle-release-minutes", "15");
-  const [workerRepoPath, setWorkerRepoPath] = usePersistentState<string>(
-    "worker-repo-path",
-    getDefaultWorkerRepoPath(computerType),
-  );
-
-  const setComputerType = useCallback((value: string) => {
-    const previousDefaultRepoPath = getDefaultWorkerRepoPath(computerType);
-    const nextDefaultRepoPath = getDefaultWorkerRepoPath(value);
-
-    setWorkerRepoPath((currentRepoPath) => (
-      currentRepoPath === previousDefaultRepoPath ? nextDefaultRepoPath : currentRepoPath
-    ));
-    persistComputerType(value);
-  }, [computerType, persistComputerType, setWorkerRepoPath]);
 
   return {
     config: {
@@ -73,7 +50,6 @@ export function useWorkerLaunchConfig(): WorkerLaunchConfig {
       windowsShell,
       showDebugLogs,
       idleReleaseMinutes,
-      workerRepoPath,
     },
     setters: {
       setComputerType,
@@ -82,7 +58,6 @@ export function useWorkerLaunchConfig(): WorkerLaunchConfig {
       setWindowsShell,
       setShowDebugLogs,
       setIdleReleaseMinutes,
-      setWorkerRepoPath,
     },
   };
 }

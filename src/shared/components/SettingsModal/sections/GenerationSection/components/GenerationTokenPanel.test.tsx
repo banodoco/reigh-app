@@ -2,7 +2,6 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GenerationTokenPanel } from './GenerationTokenPanel';
-import { getDefaultWorkerRepoPath, useWorkerLaunchConfig } from '../../../hooks/useWorkerLaunchConfig';
 
 const mockGetInstallationCommand = vi.fn();
 const mockGetRunCommand = vi.fn();
@@ -115,7 +114,6 @@ function buildProps(overrides: Record<string, unknown> = {}) {
       windowsShell: 'cmd',
       showDebugLogs: false,
       idleReleaseMinutes: '15',
-      workerRepoPath: '/Users/peteromalley/reigh-worker',
     },
     state: {
       generatedToken: null,
@@ -129,7 +127,6 @@ function buildProps(overrides: Record<string, unknown> = {}) {
       setWindowsShell: vi.fn(),
       setShowDebugLogs: vi.fn(),
       setIdleReleaseMinutes: vi.fn(),
-      setWorkerRepoPath: vi.fn(),
       setActiveInstallTab: vi.fn(),
       updateGenerationMethodsWithNotification: vi.fn(),
     },
@@ -169,24 +166,17 @@ describe('GenerationTokenPanel', () => {
     expect(mockGetInstallationCommand).toHaveBeenCalledWith(
       expect.objectContaining({
         token: 'active-token',
-        workerRepoPath: '/Users/peteromalley/reigh-worker',
-      }),
+        }),
     );
     expect(mockGetRunCommand).toHaveBeenCalledWith(
       expect.objectContaining({
         token: 'active-token',
-        workerRepoPath: '/Users/peteromalley/reigh-worker',
-      }),
+        }),
     );
 
     const logsButton = screen.getByRole('button', { name: /Logs/i });
     fireEvent.click(logsButton);
     expect(props.actions.setShowDebugLogs).toHaveBeenCalledWith(true);
-
-    fireEvent.change(screen.getByLabelText('Worker repo location'), {
-      target: { value: '/tmp/custom-worker' },
-    });
-    expect(props.actions.setWorkerRepoPath).toHaveBeenCalledWith('/tmp/custom-worker');
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'copy-install-cmd' }));
@@ -202,8 +192,7 @@ describe('GenerationTokenPanel', () => {
 
     expect(mockGenerateAIInstructions).toHaveBeenCalledWith(
       expect.objectContaining({
-        workerRepoPath: '/Users/peteromalley/reigh-worker',
-      }),
+        }),
       'need-install',
     );
 
@@ -222,8 +211,7 @@ describe('GenerationTokenPanel', () => {
         windowsShell: 'cmd',
         showDebugLogs: false,
         idleReleaseMinutes: '15',
-        workerRepoPath: '/Users/peteromalley/reigh-worker',
-      },
+        },
     });
 
     render(<GenerationTokenPanel {...(props as never)} />);
@@ -248,7 +236,6 @@ describe('GenerationTokenPanel', () => {
         windowsShell: 'powershell',
         showDebugLogs: true,
         idleReleaseMinutes: '15',
-        workerRepoPath: '%USERPROFILE%\\Reigh-Worker',
       },
     });
 
@@ -260,42 +247,4 @@ describe('GenerationTokenPanel', () => {
     expect(setShowPrerequisites).toHaveBeenCalledWith(true);
   });
 
-  it('auto-resets workerRepoPath only when it still matches the previous platform default', () => {
-    function HookHarness() {
-      const { config, setters } = useWorkerLaunchConfig();
-
-      return (
-        <div>
-          <span>{config.computerType}</span>
-          <span>{config.workerRepoPath}</span>
-          <button type="button" onClick={() => setters.setComputerType('windows')}>
-            switch-to-windows
-          </button>
-          <button type="button" onClick={() => setters.setComputerType('linux')}>
-            switch-to-linux
-          </button>
-          <button
-            type="button"
-            onClick={() => setters.setWorkerRepoPath('D:\\custom\\worker')}
-          >
-            set-custom-path
-          </button>
-        </div>
-      );
-    }
-
-    render(<HookHarness />);
-
-    expect(screen.getByText(getDefaultWorkerRepoPath('linux'))).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'switch-to-windows' }));
-    expect(screen.getByText(getDefaultWorkerRepoPath('windows'))).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'set-custom-path' }));
-    expect(screen.getByText('D:\\custom\\worker')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'switch-to-linux' }));
-    expect(screen.getByText('D:\\custom\\worker')).toBeInTheDocument();
-    expect(window.localStorage.getItem('worker-repo-path')).toBe(JSON.stringify('D:\\custom\\worker'));
-  });
 });

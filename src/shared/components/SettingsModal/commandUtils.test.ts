@@ -7,9 +7,6 @@ import {
 } from './commandUtils';
 import type { CommandConfig } from './types';
 
-const linuxRepoPath = '/Users/tester/Reigh-Worker';
-const windowsRepoPath = 'C:\\Users\\tester\\Reigh-Worker';
-
 const baseConfig: CommandConfig = {
   computerType: 'linux',
   gpuType: 'nvidia-30-40',
@@ -18,7 +15,6 @@ const baseConfig: CommandConfig = {
   showDebugLogs: false,
   idleReleaseMinutes: '15',
   token: 'test-token',
-  workerRepoPath: linuxRepoPath,
 };
 
 describe('buildWorkerLaunchLine', () => {
@@ -41,63 +37,55 @@ describe('buildWorkerLaunchLine', () => {
 });
 
 describe('getInstallationCommand', () => {
-  it('starts Linux install with a repo cd, includes the repo path, deadsnakes precheck, and cu124 sync', () => {
+  it('Linux install: clones if missing, cds into Reigh-Worker, installs uv, syncs cuda124', () => {
     const cmd = getInstallationCommand(baseConfig);
 
-    expect(cmd.startsWith(`cd "${linuxRepoPath}"`)).toBe(true);
-    expect(cmd).toContain(linuxRepoPath);
+    expect(cmd).toContain('git clone --depth 1 https://github.com/banodoco/Reigh-Worker.git');
+    expect(cmd).toContain('cd Reigh-Worker &&');
     expect(cmd).toContain('apt-cache show python3.10-venv');
-    expect(cmd).toContain('git clone --depth 1 https://github.com/banodoco/Reigh-Worker.git .');
     expect(cmd).toContain('sync --locked --python 3.10 --extra cuda124');
     expect(cmd).toContain('touch .uv-migrated');
     expect(cmd).toContain('run --python 3.10 python run_worker.py');
   });
 
-  it('starts Linux install with a repo cd and switches to cu128 for nvidia-50', () => {
+  it('Linux install: switches to cu128 for nvidia-50', () => {
     const cmd = getInstallationCommand({ ...baseConfig, gpuType: 'nvidia-50' });
 
-    expect(cmd.startsWith(`cd "${linuxRepoPath}"`)).toBe(true);
-    expect(cmd).toContain(linuxRepoPath);
+    expect(cmd).toContain('cd Reigh-Worker &&');
     expect(cmd).toContain('sync --locked --python 3.10 --extra cuda128');
     expect(cmd).not.toContain('sync --locked --python 3.10 --extra cuda124');
   });
 
-  it('starts Windows PowerShell install with Set-Location and includes the repo path', () => {
+  it('Windows PowerShell install: Set-Location into Reigh-Worker, uv sync cuda124', () => {
     const cmd = getInstallationCommand({
       ...baseConfig,
       computerType: 'windows',
       windowsShell: 'powershell',
-      workerRepoPath: windowsRepoPath,
     });
 
-    expect(cmd.startsWith(`Set-Location -LiteralPath "${windowsRepoPath}"`)).toBe(true);
-    expect(cmd).toContain(windowsRepoPath);
+    expect(cmd).toContain("Set-Location -LiteralPath 'Reigh-Worker'");
     expect(cmd).toContain('$uvExe sync --locked --python 3.10 --extra cuda124');
     expect(cmd).toContain('& $uvExe run --python 3.10 python run_worker.py');
   });
 
-  it('starts Windows cmd install with cd /d, includes the repo path, and uses explicit uv.exe', () => {
+  it('Windows cmd install: cd /d into Reigh-Worker, uses explicit uv.exe path', () => {
     const cmd = getInstallationCommand({
       ...baseConfig,
       computerType: 'windows',
       windowsShell: 'cmd',
-      workerRepoPath: windowsRepoPath,
     });
 
-    expect(cmd.startsWith(`cd /d "${windowsRepoPath}"`)).toBe(true);
-    expect(cmd).toContain(windowsRepoPath);
-    expect(cmd).toContain('cd /d');
+    expect(cmd).toContain('cd /d Reigh-Worker &&');
     expect(cmd).toContain('"%USERPROFILE%\\.local\\bin\\uv.exe" sync --locked --python 3.10 --extra cuda124');
     expect(cmd).toContain('"%USERPROFILE%\\.local\\bin\\uv.exe" run --python 3.10 python run_worker.py');
   });
 });
 
 describe('getRunCommand', () => {
-  it('starts Linux run with a repo cd, includes the repo path, sentinel preguard, git pull, and cu124 sync', () => {
+  it('Linux run: cds into Reigh-Worker, sentinel preguard, git pull, cu124 sync', () => {
     const cmd = getRunCommand(baseConfig);
 
-    expect(cmd.startsWith(`cd "${linuxRepoPath}"`)).toBe(true);
-    expect(cmd).toContain(linuxRepoPath);
+    expect(cmd).toMatch(/^cd Reigh-Worker &&/);
     expect(cmd).toContain('if [ ! -f ".uv-migrated" ]');
     expect(cmd).toContain('git pull --ff-only');
     expect(cmd).toContain('sync --locked --python 3.10 --extra cuda124');
@@ -106,77 +94,64 @@ describe('getRunCommand', () => {
     expect(cmd).not.toMatch(/python worker\.py\b/);
   });
 
-  it('starts Linux run with a repo cd and switches to cu128 for nvidia-50', () => {
+  it('Linux run: switches to cu128 for nvidia-50', () => {
     const cmd = getRunCommand({ ...baseConfig, gpuType: 'nvidia-50' });
 
-    expect(cmd.startsWith(`cd "${linuxRepoPath}"`)).toBe(true);
-    expect(cmd).toContain(linuxRepoPath);
-    expect(cmd).toContain('if [ ! -f ".uv-migrated" ]');
+    expect(cmd).toMatch(/^cd Reigh-Worker &&/);
     expect(cmd).toContain('sync --locked --python 3.10 --extra cuda128');
     expect(cmd).not.toContain('sync --locked --python 3.10 --extra cuda124');
   });
 
-  it('starts Windows PowerShell install with Set-Location and switches to cu128 for nvidia-50', () => {
+  it('Windows PowerShell install: Set-Location and cu128 for nvidia-50', () => {
     const cmd = getInstallationCommand({
       ...baseConfig,
       computerType: 'windows',
       windowsShell: 'powershell',
       gpuType: 'nvidia-50',
-      workerRepoPath: windowsRepoPath,
     });
 
-    expect(cmd.startsWith(`Set-Location -LiteralPath "${windowsRepoPath}"`)).toBe(true);
-    expect(cmd).toContain(windowsRepoPath);
+    expect(cmd).toContain("Set-Location -LiteralPath 'Reigh-Worker'");
     expect(cmd).toContain('$uvExe sync --locked --python 3.10 --extra cuda128');
     expect(cmd).not.toContain('$uvExe sync --locked --python 3.10 --extra cuda124');
   });
 
-  it('starts Windows PowerShell run with Set-Location, includes the repo path, and switches to cu128 for nvidia-50', () => {
+  it('Windows PowerShell run: Set-Location, sentinel, cu128 for nvidia-50', () => {
     const cmd = getRunCommand({
       ...baseConfig,
       computerType: 'windows',
       windowsShell: 'powershell',
       gpuType: 'nvidia-50',
-      workerRepoPath: windowsRepoPath,
     });
 
-    expect(cmd.startsWith(`Set-Location -LiteralPath "${windowsRepoPath}"`)).toBe(true);
-    expect(cmd).toContain(windowsRepoPath);
+    expect(cmd).toContain("Set-Location -LiteralPath 'Reigh-Worker'");
     expect(cmd).toContain("if (-not (Test-Path -LiteralPath '.uv-migrated'))");
     expect(cmd).toContain('& $uvExe sync --locked --python 3.10 --extra cuda128');
     expect(cmd).toContain('& $uvExe run --python 3.10 python run_worker.py');
   });
 
-  it('starts Windows cmd run with cd /d, includes the repo path, sentinel preguard, and explicit uv.exe', () => {
+  it('Windows cmd run: cd /d, sentinel preguard, explicit uv.exe', () => {
     const cmd = getRunCommand({
       ...baseConfig,
       computerType: 'windows',
       windowsShell: 'cmd',
-      workerRepoPath: windowsRepoPath,
     });
 
-    expect(cmd.startsWith(`cd /d "${windowsRepoPath}"`)).toBe(true);
-    expect(cmd).toContain(windowsRepoPath);
-    expect(cmd).toContain('cd /d');
+    expect(cmd).toMatch(/^cd \/d Reigh-Worker &&/);
     expect(cmd).toContain('if not exist ".uv-migrated"');
     expect(cmd).toContain('"%USERPROFILE%\\.local\\bin\\uv.exe" sync --locked --python 3.10 --extra cuda124');
     expect(cmd).toContain('"%USERPROFILE%\\.local\\bin\\uv.exe" run --python 3.10 python run_worker.py');
     expect(cmd).not.toMatch(/python worker\.py\b/);
   });
 
-  it('starts Windows cmd run with cd /d and switches to cu128 for nvidia-50', () => {
+  it('Windows cmd run: cd /d and cu128 for nvidia-50', () => {
     const cmd = getRunCommand({
       ...baseConfig,
       computerType: 'windows',
       windowsShell: 'cmd',
       gpuType: 'nvidia-50',
-      workerRepoPath: windowsRepoPath,
     });
 
-    expect(cmd.startsWith(`cd /d "${windowsRepoPath}"`)).toBe(true);
-    expect(cmd).toContain(windowsRepoPath);
-    expect(cmd).toContain('cd /d');
-    expect(cmd).toContain('if not exist ".uv-migrated"');
+    expect(cmd).toMatch(/^cd \/d Reigh-Worker &&/);
     expect(cmd).toContain('"%USERPROFILE%\\.local\\bin\\uv.exe" sync --locked --python 3.10 --extra cuda128');
     expect(cmd).not.toContain('"%USERPROFILE%\\.local\\bin\\uv.exe" sync --locked --python 3.10 --extra cuda124');
   });
