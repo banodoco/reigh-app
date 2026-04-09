@@ -124,23 +124,22 @@ const buildWindowsPowerShellCommand = (config: CommandConfig, mode: 'install' | 
 const buildWindowsCmdCommand = (config: CommandConfig, mode: 'install' | 'run'): string => {
   const cudaExtra = getCudaExtra(config.gpuType);
   const uvCommand = `"${WINDOWS_CMD_UV_EXE}"`;
-  const lines: string[] = [];
+  const parts: string[] = [];
 
   if (mode === 'install') {
-    lines.push(`if not exist "${REPO_DIR}" git clone --depth 1 ${WORKER_REPO_URL} &&`);
-    lines.push(`cd /d ${REPO_DIR} &&`);
-    lines.push(`if not exist "${WINDOWS_CMD_UV_EXE}" powershell -NoProfile -ExecutionPolicy Bypass -Command "${WINDOWS_UV_INSTALL}" &&`);
+    parts.push(`if not exist "${REPO_DIR}" git clone --depth 1 ${WORKER_REPO_URL}`);
+    parts.push(`cd /d ${REPO_DIR}`);
+    parts.push(`if not exist "${WINDOWS_CMD_UV_EXE}" powershell -NoProfile -ExecutionPolicy Bypass -Command "${WINDOWS_UV_INSTALL}"`);
   } else {
-    lines.push(`cd /d ${REPO_DIR} &&`);
+    parts.push(`cd /d ${REPO_DIR}`);
   }
 
-  lines.push(`${buildBackupPreludeCmd()} &&`);
-  lines.push('git pull --ff-only &&');
-  lines.push(`${uvCommand} sync --locked --python 3.10 --extra ${cudaExtra} &&`);
-  lines.push('type nul > .uv-migrated &&');
-  lines.push(buildUvRunLine(uvCommand, config));
+  parts.push('git pull --ff-only');
+  parts.push(`${uvCommand} sync --locked --python 3.10 --extra ${cudaExtra}`);
+  parts.push(buildUvRunLine(uvCommand, config));
 
-  return lines.join('\n');
+  // Single line — cmd.exe splits multiline pastes and loses && chains
+  return parts.join(' && ');
 };
 
 /**

@@ -129,17 +129,18 @@ describe('getRunCommand', () => {
     expect(cmd).toContain('& $uvExe run --python 3.10 python run_worker.py');
   });
 
-  it('Windows cmd run: cd /d, sentinel preguard, explicit uv.exe', () => {
+  it('Windows cmd run: single-line cd /d, git pull, sync, run with explicit uv.exe', () => {
     const cmd = getRunCommand({
       ...baseConfig,
       computerType: 'windows',
       windowsShell: 'cmd',
     });
 
-    expect(cmd).toMatch(/^cd \/d Reigh-Worker &&/);
-    expect(cmd).toContain('if not exist ".uv-migrated"');
+    expect(cmd).toMatch(/^cd \/d Reigh-Worker && /);
+    expect(cmd).toContain('git pull --ff-only');
     expect(cmd).toContain('"%USERPROFILE%\\.local\\bin\\uv.exe" sync --locked --python 3.10 --extra cuda124');
     expect(cmd).toContain('"%USERPROFILE%\\.local\\bin\\uv.exe" run --python 3.10 python run_worker.py');
+    expect(cmd).not.toContain('\n');
     expect(cmd).not.toMatch(/python worker\.py\b/);
   });
 
