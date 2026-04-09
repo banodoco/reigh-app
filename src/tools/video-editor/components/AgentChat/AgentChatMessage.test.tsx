@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { AgentChatMessage } from './AgentChatMessage';
 
 describe('AgentChatMessage', () => {
@@ -30,8 +30,8 @@ describe('AgentChatMessage', () => {
     );
 
     expect(screen.getByText('I used your selected references.')).toBeInTheDocument();
-    expect(screen.getByAltText('Attached image preview')).toBeInTheDocument();
-    expect(screen.getByLabelText('Attached video preview')).toBeInTheDocument();
+    expect(screen.getByLabelText('Attached image 1')).toBeInTheDocument();
+    expect(screen.getByLabelText('Attached video 2')).toBeInTheDocument();
     expect(screen.getByText('1 image, 1 video attached')).toBeInTheDocument();
   });
 
@@ -53,9 +53,41 @@ describe('AgentChatMessage', () => {
       />,
     );
 
-    expect(screen.getAllByAltText('Attached image preview')).toHaveLength(4);
+    expect(screen.getAllByLabelText(/Attached image \d/)).toHaveLength(4);
     expect(screen.getByLabelText('1 more attachments')).toBeInTheDocument();
     expect(screen.getByText('+1')).toBeInTheDocument();
     expect(screen.getByText('5 images attached')).toBeInTheDocument();
+  });
+
+  it('calls the attachment click handler for clickable previews', () => {
+    const onAttachmentClick = vi.fn();
+
+    render(
+      <AgentChatMessage
+        turn={{
+          role: 'assistant',
+          content: 'I used your selected references.',
+          attachments: [
+            {
+              clipId: 'gallery-gen-1',
+              url: 'https://example.com/image.png',
+              mediaType: 'image',
+              generationId: 'gen-1',
+            },
+          ],
+          timestamp: '2026-04-04T12:00:00.000Z',
+        }}
+        onAttachmentClick={onAttachmentClick}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open attached image 1' }));
+
+    expect(onAttachmentClick).toHaveBeenCalledWith({
+      clipId: 'gallery-gen-1',
+      url: 'https://example.com/image.png',
+      mediaType: 'image',
+      generationId: 'gen-1',
+    });
   });
 });

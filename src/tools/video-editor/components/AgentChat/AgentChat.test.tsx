@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   useSelectedMediaClips: vi.fn(),
   useGallerySelection: vi.fn(),
   useAgentVoice: vi.fn(),
+  loadGenerationForLightbox: vi.fn(),
 }));
 
 vi.mock('@/tools/video-editor/hooks/useAgentSession', () => ({
@@ -45,9 +46,36 @@ vi.mock('@/tools/video-editor/hooks/useAgentVoice', () => ({
   useAgentVoice: (...args: unknown[]) => mocks.useAgentVoice(...args),
 }));
 
+vi.mock('@/tools/video-editor/lib/generation-utils', () => ({
+  loadGenerationForLightbox: (...args: unknown[]) => mocks.loadGenerationForLightbox(...args),
+}));
+
+vi.mock('@/domains/media-lightbox/MediaLightbox', () => ({
+  MediaLightbox: ({ media }: { media: { id: string } }) => <div data-testid="media-lightbox">{media.id}</div>,
+}));
+
 vi.mock('./AgentChatMessage', () => ({
   AgentChatMessage: ({ turn }: { turn: { content: string } }) => <div>{turn.content}</div>,
   AgentChatToolGroup: () => null,
+  AgentChatAttachmentStrip: ({
+    attachments,
+    onAttachmentClick,
+  }: {
+    attachments: Array<{ clipId: string; mediaType: string }>;
+    onAttachmentClick?: (attachment: { clipId: string; mediaType: string }) => void;
+  }) => (
+    <div>
+      {attachments.map((attachment, index) => (
+        <button
+          key={attachment.clipId}
+          type="button"
+          onClick={() => onAttachmentClick?.(attachment)}
+        >
+          {`preview-${index + 1}-${attachment.mediaType}`}
+        </button>
+      ))}
+    </div>
+  ),
 }));
 
 describe('AgentChat', () => {
@@ -136,6 +164,20 @@ describe('AgentChat', () => {
       audioLevel: 0,
       remainingSeconds: 30,
     });
+    mocks.loadGenerationForLightbox.mockResolvedValue({
+      id: 'gen-1',
+      generation_id: 'gen-1',
+      location: 'https://example.com/shared.png',
+      imageUrl: 'https://example.com/shared.png',
+      thumbUrl: 'https://example.com/shared.png',
+      type: 'image',
+      createdAt: '2026-04-04T12:00:00.000Z',
+      starred: false,
+      name: 'Reference',
+      based_on: null,
+      params: {},
+      primary_variant_id: 'variant-1',
+    });
   });
 
   it('merges timeline and gallery attachments by URL and clears gallery selection after send', async () => {
@@ -175,6 +217,24 @@ describe('AgentChat', () => {
     });
 
     expect(gallerySelection.clearGallerySelection).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders composer attachment previews and opens the lightbox from a selected attachment', async () => {
+    render(<AgentChat timelineId="timeline-1" />);
+
+    fireEvent.click(screen.getByTitle('Timeline Agent (Cmd+Shift+R to talk)'));
+
+    expect(await screen.findByText('attaching 1 image, 1 video')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'preview-1-image' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'preview-2-video' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'preview-1-image' }));
+
+    await waitFor(() => {
+      expect(mocks.loadGenerationForLightbox).toHaveBeenCalledWith('gen-1');
+    });
+
+    expect(await screen.findByTestId('media-lightbox')).toHaveTextContent('gen-1');
   });
 
   it('disables sending when the active session has been cancelled', async () => {

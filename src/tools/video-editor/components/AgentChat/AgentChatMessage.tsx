@@ -10,10 +10,19 @@ const MAX_ATTACHMENT_PREVIEW_COUNT = 4;
 
 type AgentChatMessageProps = {
   turn: AgentTurn;
+  onAttachmentClick?: (attachment: AgentChatAttachmentPreviewItem) => void;
 };
 
 type AgentChatToolGroupProps = {
   pairs: ToolCallPair[];
+};
+
+export type AgentChatAttachmentPreviewItem = {
+  clipId: string;
+  url: string;
+  mediaType: 'image' | 'video';
+  generationId?: string;
+  assetKey?: string;
 };
 
 function formatAttachmentSummary(attachments: AgentTurn['attachments']) {
@@ -43,45 +52,71 @@ function formatTimestamp(timestamp: string) {
 }
 
 type AgentChatAttachmentStripProps = {
-  attachments: NonNullable<AgentTurn['attachments']>;
+  attachments: readonly AgentChatAttachmentPreviewItem[];
   isUser: boolean;
+  className?: string;
+  onAttachmentClick?: (attachment: AgentChatAttachmentPreviewItem) => void;
 };
 
-function AgentChatAttachmentStrip({ attachments, isUser }: AgentChatAttachmentStripProps) {
+export function AgentChatAttachmentStrip({
+  attachments,
+  isUser,
+  className,
+  onAttachmentClick,
+}: AgentChatAttachmentStripProps) {
   const previewAttachments = attachments.slice(0, MAX_ATTACHMENT_PREVIEW_COUNT);
   const remainingCount = attachments.length - previewAttachments.length;
 
   return (
-    <div className="mt-2 flex flex-wrap gap-1.5">
-      {previewAttachments.map((attachment, index) => (
-        <div
-          key={`${attachment.clipId}:${index}`}
-          className={cn(
-            'relative h-10 w-10 overflow-hidden rounded-md border',
-            isUser
-              ? 'border-primary-foreground/20 bg-primary-foreground/10'
-              : 'border-border/70 bg-muted/40',
-          )}
-        >
-          {attachment.mediaType === 'video' ? (
-            <video
-              src={attachment.url}
-              className="h-full w-full object-cover"
-              muted
-              playsInline
-              preload="metadata"
-              aria-label="Attached video preview"
-            />
-          ) : (
-            <img
-              src={attachment.url}
-              alt="Attached image preview"
-              className="h-full w-full object-cover"
-              loading="lazy"
-            />
-          )}
-        </div>
-      ))}
+    <div className={cn('mt-2 flex flex-wrap gap-1.5', className)}>
+      {previewAttachments.map((attachment, index) => {
+        const isInteractive = Boolean(onAttachmentClick && attachment.generationId);
+        const previewClassName = cn(
+          'relative h-10 w-10 overflow-hidden rounded-md border',
+          isUser
+            ? 'border-primary-foreground/20 bg-primary-foreground/10'
+            : 'border-border/70 bg-muted/40',
+          isInteractive && 'cursor-pointer transition-transform hover:scale-[1.03]',
+        );
+
+        const preview = attachment.mediaType === 'video' ? (
+          <video
+            src={attachment.url}
+            className="h-full w-full object-cover"
+            muted
+            playsInline
+            preload="metadata"
+            aria-hidden="true"
+          />
+        ) : (
+          <img
+            src={attachment.url}
+            alt=""
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
+        );
+
+        return isInteractive ? (
+          <button
+            key={`${attachment.clipId}:${index}`}
+            type="button"
+            className={previewClassName}
+            onClick={() => onAttachmentClick?.(attachment)}
+            aria-label={`Open attached ${attachment.mediaType} ${index + 1}`}
+          >
+            {preview}
+          </button>
+        ) : (
+          <div
+            key={`${attachment.clipId}:${index}`}
+            className={previewClassName}
+            aria-label={`Attached ${attachment.mediaType} ${index + 1}`}
+          >
+            {preview}
+          </div>
+        );
+      })}
       {remainingCount > 0 && (
         <div
           className={cn(
@@ -148,7 +183,7 @@ export function AgentChatToolGroup({ pairs }: AgentChatToolGroupProps) {
   );
 }
 
-export function AgentChatMessage({ turn }: AgentChatMessageProps) {
+export function AgentChatMessage({ turn, onAttachmentClick }: AgentChatMessageProps) {
   const timestamp = formatTimestamp(turn.timestamp);
   const isUser = turn.role === 'user';
   const attachmentSummary = formatAttachmentSummary(turn.attachments);
@@ -166,7 +201,11 @@ export function AgentChatMessage({ turn }: AgentChatMessageProps) {
       >
         <div className="whitespace-pre-wrap text-sm leading-relaxed">{turn.content}</div>
         {hasAttachmentPreviews && turn.attachments && (
-          <AgentChatAttachmentStrip attachments={turn.attachments} isUser={isUser} />
+          <AgentChatAttachmentStrip
+            attachments={turn.attachments}
+            isUser={isUser}
+            onAttachmentClick={onAttachmentClick}
+          />
         )}
         {attachmentSummary && (
           <span

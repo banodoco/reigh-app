@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Loader2, MessageSquareText, Mic, Send, Square, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import type { GenerationRow } from '@/domains/generation/types';
+import { MediaLightbox } from '@/domains/media-lightbox/MediaLightbox';
 import { Button } from '@/shared/components/ui/button';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { useGallerySelection } from '@/shared/contexts/GallerySelectionContext';
@@ -13,8 +15,9 @@ import {
 } from '@/tools/video-editor/hooks/useSelectedMediaClips';
 import { useAgentVoice } from '@/tools/video-editor/hooks/useAgentVoice';
 import { useRenderDiagnostic } from '@/tools/video-editor/hooks/usePerfDiagnostics';
+import { loadGenerationForLightbox } from '@/tools/video-editor/lib/generation-utils';
 import type { AgentTurn } from '@/tools/video-editor/types/agent-session';
-import { AgentChatMessage, AgentChatToolGroup } from './AgentChatMessage';
+import { AgentChatAttachmentStrip, AgentChatMessage, AgentChatToolGroup, type AgentChatAttachmentPreviewItem } from './AgentChatMessage';
 
 type AgentChatProps = {
   timelineId: string;
@@ -111,7 +114,9 @@ export function AgentChat({ timelineId }: AgentChatProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [draft, setDraft] = useState('');
   const [optimisticMessage, setOptimisticMessage] = useState<string | null>(null);
+  const [attachmentLightboxMedia, setAttachmentLightboxMedia] = useState<GenerationRow | null>(null);
   const hasAutoCreatedSessionRef = useRef(false);
+  const lightboxRequestIdRef = useRef(0);
   const bottomAnchorRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -153,6 +158,35 @@ export function AgentChat({ timelineId }: AgentChatProps) {
   const isCancelled = activeStatus === 'cancelled';
   const isProcessing = activeStatus === 'processing' || activeStatus === 'continue';
   const showKillSwitch = activeStatus === 'processing' || activeStatus === 'continue';
+
+  const handleAttachmentPreviewClick = useCallback(async (attachment: AgentChatAttachmentPreviewItem) => {
+    if (!attachment.generationId) {
+      return;
+    }
+
+    const requestId = lightboxRequestIdRef.current + 1;
+    lightboxRequestIdRef.current = requestId;
+    setAttachmentLightboxMedia(null);
+
+    try {
+      const media = await loadGenerationForLightbox(attachment.generationId);
+      if (lightboxRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      setAttachmentLightboxMedia(media);
+    } catch (error) {
+      if (lightboxRequestIdRef.current === requestId) {
+        setAttachmentLightboxMedia(null);
+      }
+      console.warn('[AgentChat] Failed to open attachment lightbox', error);
+    }
+  }, []);
+
+  const handleCloseAttachmentLightbox = useCallback(() => {
+    lightboxRequestIdRef.current += 1;
+    setAttachmentLightboxMedia(null);
+  }, []);
 
   // Auto-select or create session
   useEffect(() => {
@@ -412,7 +446,11 @@ export function AgentChat({ timelineId }: AgentChatProps) {
           <div className="flex flex-col gap-2.5">
             {renderedTurns.map((item) =>
               item.kind === 'message' ? (
-                <AgentChatMessage key={item.key} turn={item.turn} />
+                <AgentChatMessage
+                  key={item.key}
+                  turn={item.turn}
+                  onAttachmentClick={handleAttachmentPreviewClick}
+                />
               ) : (
                 <AgentChatToolGroup key={item.key} pairs={item.pairs} />
               ),
@@ -440,8 +478,14 @@ export function AgentChat({ timelineId }: AgentChatProps) {
         {/* Input bar */}
         <div className="border-t border-border/70 px-3 py-3">
           {clips.length > 0 && (
-            <div className="mb-2 rounded-lg bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground">
-              {summary}
+            <div className="mb-2 rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+              <AgentChatAttachmentStrip
+                attachments={clips}
+                isUser={false}
+                className="mt-0"
+                onAttachmentClick={handleAttachmentPreviewClick}
+              />
+              <div className="mt-2">{summary}</div>
             </div>
           )}
 
@@ -537,6 +581,15 @@ export function AgentChat({ timelineId }: AgentChatProps) {
             </Button>
           </div>
         </div>
+
+        {attachmentLightboxMedia && (
+          <MediaLightbox
+            media={attachmentLightboxMedia}
+            initialVariantId={attachmentLightboxMedia.primary_variant_id ?? undefined}
+            onClose={handleCloseAttachmentLightbox}
+            features={{ showDownload: true, showTaskDetails: true }}
+          />
+        )}
       </div>
     );
   }
