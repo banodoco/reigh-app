@@ -8,12 +8,17 @@ import { bootstrapEdgeHandler, NO_SESSION_RUNTIME_OPTIONS } from "../_shared/edg
 import { toErrorMessage } from "../_shared/errorMessage.ts";
 import { resolveTaskStorageActor } from "../_shared/taskActorPolicy.ts";
 import { ensureTaskActor } from "../_shared/requestGuards.ts";
+import type { AssetRegistryEntry } from "../../../src/tools/video-editor/types/index.ts";
+import { loadTimelineState, saveTimelineConfigVersioned } from "../ai-timeline-agent/db.ts";
+import { addMediaClip } from "../ai-timeline-agent/tools/timeline.ts";
+import type { SupabaseAdmin as TimelineSupabaseAdmin } from "../ai-timeline-agent/types.ts";
 
 // Import from refactored modules
 import { parseCompleteTaskRequest, validateStoragePathSecurity } from './request.ts';
 import { handleStorageOperations, getStoragePublicUrl, cleanupFile } from './storage.ts';
-import { setThumbnailInParams } from './params.ts';
-import { createGenerationFromTask } from './generation.ts';
+import * as completeTaskParams from './params.ts';
+import { createGenerationFromTask, type CompletionAssetRef } from './generation.ts';
+import { executePlacement, extractPlacementIntent } from './placement.ts';
 import { checkOrchestratorCompletion } from './orchestrator.ts';
 import { validateAndCleanupShotId } from './shotValidation.ts';
 import { triggerCostCalculationIfNotSubTask } from './billing.ts';
@@ -28,6 +33,90 @@ import {
 
 // Provide a loose Deno type for local tooling
 declare const Deno: { env: { get: (key: string) => string | undefined } };
+
+async function applyCompletedGenerationTimelinePlacement(
+  supabaseAdmin: TimelineSupabaseAdmin,
+  options: {
+    taskId: string;
+    params: Record<string, unknown>;
+    contentType: "image" | "video";
+    generationId: string;
+    publicUrl: string;
+    thumbnailUrl: string | null;
+    filename: string;
+    logger: {
+      info: (message: string, metadata?: Record<string, unknown>) => void;
+    };
+  },
+): Promise<void> {
+  const placement = completeTaskParams.extractTimelinePlacement?.(options.params) ?? null;
+  if (!placement) {
+    return;
+  }
+
+  const timelineState = await loadTimelineState(supabaseAdmin, placement.timeline_id);
+  const assetKey = `asset-${crypto.randomUUID().slice(0, 6)}`;
+  const assetEntry: AssetRegistryEntry = {
+    file: options.publicUrl,
+    type: completeTaskParams.getContentType(options.filename),
+    generationId: options.generationId,
+    ...(options.thumbnailUrl && options.thumbnailUrl !== options.publicUrl
+      ? { thumbnailUrl: options.thumbnailUrl }
+      : {}),
+  };
+
+  const { error: assetRegistryError } = await supabaseAdmin
+    .rpc("upsert_asset_registry_entry", {
+      p_timeline_id: placement.timeline_id,
+      p_asset_id: assetKey,
+      p_entry: assetEntry,
+    })
+    .maybeSingle();
+
+  if (assetRegistryError) {
+    throw new Error(`Failed to register timeline asset: ${assetRegistryError.message}`);
+  }
+
+  const nextRegistry = {
+    ...timelineState.registry,
+    assets: {
+      ...timelineState.registry.assets,
+      [assetKey]: assetEntry,
+    },
+  };
+  const insertionResult = addMediaClip(timelineState.config, nextRegistry, {
+    track: placement.target_track,
+    at: placement.insertion_time,
+    assetKey,
+    mediaType: options.contentType,
+  });
+
+  if (!insertionResult.config) {
+    throw new Error(insertionResult.result);
+  }
+
+  const nextVersion = await saveTimelineConfigVersioned(
+    supabaseAdmin,
+    placement.timeline_id,
+    timelineState.configVersion,
+    insertionResult.config,
+  );
+  if (nextVersion === null) {
+    throw new Error(`Failed to save timeline ${placement.timeline_id}: version conflict.`);
+  }
+
+  options.logger.info("Applied completion-time timeline placement", {
+    task_id: options.taskId,
+    generation_id: options.generationId,
+    timeline_id: placement.timeline_id,
+    source_clip_id: placement.source_clip_id,
+    target_track: placement.target_track,
+    insertion_time: placement.insertion_time,
+    intent: placement.intent,
+    asset_key: assetKey,
+    config_version: nextVersion,
+  });
+}
 
 export async function completeTaskHandler(req: Request): Promise<Response> {
   const bootstrap = await bootstrapEdgeHandler(req, {
@@ -185,7 +274,7 @@ export async function completeTaskHandler(req: Request): Promise<Response> {
       // Add thumbnail URL if available
       if (thumbnailUrl) {
         needsParamsUpdate = true;
-        updatedParams = setThumbnailInParams(updatedParams, taskContext.task_type, thumbnailUrl);
+        updatedParams = completeTaskParams.setThumbnailInParams(updatedParams, taskContext.task_type, thumbnailUrl);
       }
 
       if (needsParamsUpdate) {
@@ -209,6 +298,8 @@ export async function completeTaskHandler(req: Request): Promise<Response> {
 
     // 11) Create generation (if applicable)
     const CREATE_GENERATION_IN_EDGE = Deno.env.get("CREATE_GENERATION_IN_EDGE") !== "false";
+    let createdGenerationId: string | null = null;
+    let completionAssetRef: CompletionAssetRef | null = null;
     if (CREATE_GENERATION_IN_EDGE) {
       try {
         const generationOutcome = await createGenerationFromTask(
@@ -235,7 +326,105 @@ export async function completeTaskHandler(req: Request): Promise<Response> {
             task_id: taskContext.id,
             reason: generationOutcome.reason,
           });
+        } else {
+          completionAssetRef = generationOutcome.completionAsset;
+          const generationId = typeof generationOutcome.generation?.id === 'string'
+            && generationOutcome.generation.id.length > 0
+            ? generationOutcome.generation.id
+            : null;
+          createdGenerationId = generationId;
+          const placementIntent = extractPlacementIntent(taskContext.params);
+
+          if (placementIntent) {
+            if (!completionAssetRef) {
+              logger.warn('Placement intent was present but no completion asset ref was available', {
+                task_id: taskContext.id,
+                generation_id: generationId,
+                placement_intent: placementIntent,
+              });
+              completionFollowUpIssues.push({
+                step: 'timeline_placement',
+                code: 'placement_completion_asset_missing',
+                message: 'Placement intent could not be applied because the completed asset reference was unavailable.',
+              });
+            } else {
+              try {
+                const placementResult = await executePlacement(
+                  supabaseAdmin as unknown as TimelineSupabaseAdmin,
+                  placementIntent,
+                  completionAssetRef,
+                );
+
+                if (placementResult.status === 'placed') {
+                  logger.info('Applied completion-time placement intent', {
+                    task_id: taskContext.id,
+                    generation_id: generationId,
+                    timeline_id: placementResult.timelineId,
+                    asset_key: placementResult.assetKey,
+                    clip_id: placementResult.clipId,
+                    used_fallback: placementResult.usedFallback,
+                    config_version: placementResult.configVersion,
+                  });
+                } else {
+                  logger.warn('Timeline placement intent degraded', {
+                    task_id: taskContext.id,
+                    generation_id: generationId,
+                    placement_intent: placementIntent,
+                    issue: placementResult.issue,
+                  });
+                  completionFollowUpIssues.push(placementResult.issue);
+                }
+              } catch (timelinePlacementError) {
+                const message = toErrorMessage(timelinePlacementError);
+                logger.error("Timeline placement follow-up failed", {
+                  task_id: taskContext.id,
+                  generation_id: generationId,
+                  error: message,
+                  placement_intent: placementIntent,
+                });
+                completionFollowUpIssues.push({
+                  step: 'timeline_placement',
+                  code: 'timeline_placement_failed',
+                  message,
+                });
+              }
+            }
+          } else if (!generationId) {
+            logger.warn('Generation creation returned no generation id; skipping timeline placement', {
+              task_id: taskContext.id,
+            });
+          } else {
+            try {
+              await applyCompletedGenerationTimelinePlacement(
+                supabaseAdmin as unknown as TimelineSupabaseAdmin,
+                {
+                  taskId: taskContext.id,
+                  params: taskContext.params,
+                  contentType: taskContext.content_type,
+                  generationId,
+                  publicUrl,
+                  thumbnailUrl: thumbnailUrl ?? null,
+                  filename: parsedRequest.filename,
+                  logger,
+                },
+              );
+            } catch (timelinePlacementError) {
+              const message = toErrorMessage(timelinePlacementError);
+              logger.error("Timeline placement follow-up failed", {
+                task_id: taskContext.id,
+                generation_id: generationId,
+                error: message,
+                timeline_placement: completeTaskParams.extractTimelinePlacement?.(taskContext.params) ?? null,
+              });
+              completionFollowUpIssues.push({
+                step: 'timeline_placement',
+                code: 'timeline_placement_failed',
+                message,
+              });
+            }
+          }
         }
+        void completionAssetRef;
       } catch (genErr: unknown) {
         const normalizedError = genErr instanceof CompletionError ? genErr : null;
         const msg = toErrorMessage(genErr);
@@ -372,6 +561,7 @@ export async function completeTaskHandler(req: Request): Promise<Response> {
     logger.info("Task completed successfully", { 
       task_id: taskIdString,
       output_location: publicUrl,
+      generation_id: createdGenerationId,
       has_thumbnail: !!thumbnailUrl,
       follow_up_issue_count: completionFollowUpIssues.length,
     });

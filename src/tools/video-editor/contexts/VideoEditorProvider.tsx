@@ -152,6 +152,14 @@ function InnerProvider({
   const editorData = useMemo<TimelineEditorDataContextValue>(() => ({
     data: editor.data,
     resolvedConfig: editor.resolvedConfig,
+    deviceClass: editor.deviceClass,
+    inputModality: editor.inputModality,
+    interactionMode: editor.interactionMode,
+    gestureOwner: editor.gestureOwner,
+    precisionEnabled: editor.precisionEnabled,
+    contextTarget: editor.contextTarget,
+    inspectorTarget: editor.inspectorTarget,
+    interactionPolicy: editor.interactionPolicy,
     selectedClipId: editor.selectedClipId,
     selectedClipIds: editor.selectedClipIds,
     selectedClipIdsRef: editor.selectedClipIdsRef,
@@ -181,6 +189,13 @@ function InnerProvider({
   const onClipEdgeResizeEnd: TimelineClipEdgeResizeEnd = editor.onClipEdgeResizeEnd;
 
   const editorOps = useMemo<TimelineEditorOpsContextValue>(() => ({
+    setInputModality: editor.setInputModality,
+    setInputModalityFromPointerType: editor.setInputModalityFromPointerType,
+    setInteractionMode: editor.setInteractionMode,
+    setGestureOwner: editor.setGestureOwner,
+    setPrecisionEnabled: editor.setPrecisionEnabled,
+    setContextTarget: editor.setContextTarget,
+    setInspectorTarget: editor.setInspectorTarget,
     setSelectedClipId: editor.setSelectedClipId,
     isClipSelected: editor.isClipSelected,
     selectClip: editor.selectClip,

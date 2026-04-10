@@ -159,8 +159,13 @@ describe('AgentChat', () => {
           assetKey: 'asset-1',
           url: 'https://example.com/shared.png',
           mediaType: 'image',
+          isTimelineBacked: true,
           shotId: 'shot-1',
           shotName: 'Hero Shot',
+          shotSelectionClipCount: 1,
+          trackId: 'V1',
+          at: 8,
+          duration: 2.5,
         },
       ],
       summary: 'attaching 1 image',
@@ -175,6 +180,7 @@ describe('AgentChat', () => {
           assetKey: '',
           url: 'https://example.com/shared.png',
           mediaType: 'image',
+          isTimelineBacked: false,
           generationId: 'gen-1',
         },
         {
@@ -182,6 +188,7 @@ describe('AgentChat', () => {
           assetKey: '',
           url: 'https://example.com/video.mp4',
           mediaType: 'video',
+          isTimelineBacked: false,
           generationId: 'gen-2',
         },
       ],
@@ -220,7 +227,7 @@ describe('AgentChat', () => {
 
     fireEvent.click(screen.getByTitle('Timeline Agent (Cmd+Shift+R to talk)'));
 
-    expect(await screen.findByText('attaching 1 image, 1 video')).toBeInTheDocument();
+    expect(await screen.findByText('attaching 1 shot (1 image) and 1 more video')).toBeInTheDocument();
 
     const input = screen.getByPlaceholderText('Type or press Cmd+Shift+R to talk...');
     await waitFor(() => expect(input).not.toBeDisabled());
@@ -239,14 +246,20 @@ describe('AgentChat', () => {
             clipId: 'gallery-gen-1',
             url: 'https://example.com/shared.png',
             mediaType: 'image',
+            isTimelineBacked: true,
             generationId: 'gen-1',
             shotId: 'shot-1',
             shotName: 'Hero Shot',
+            shotSelectionClipCount: 1,
+            trackId: 'V1',
+            at: 8,
+            duration: 2.5,
           },
           {
             clipId: 'gallery-gen-2',
             url: 'https://example.com/video.mp4',
             mediaType: 'video',
+            isTimelineBacked: false,
             generationId: 'gen-2',
           },
         ],
@@ -256,12 +269,67 @@ describe('AgentChat', () => {
     expect(gallerySelection.clearGallerySelection).toHaveBeenCalledTimes(1);
   });
 
+  it('includes timeline attachment coordinates in sent attachments', async () => {
+    mocks.useSelectedMediaClips.mockReturnValue({
+      clips: [
+        {
+          clipId: 'timeline-clip-coords',
+          assetKey: 'asset-coords',
+          url: 'https://example.com/coords.png',
+          mediaType: 'image',
+          isTimelineBacked: true,
+          trackId: 'V3',
+          at: 14.5,
+          duration: 2.25,
+        },
+      ],
+      summary: 'attaching 1 image',
+    });
+    mocks.useGallerySelection.mockReturnValue({
+      selectedGalleryIds: new Set(),
+      gallerySelectionMap: new Map(),
+      gallerySummary: '',
+      selectedGalleryClips: [],
+      selectGalleryItem: vi.fn(),
+      selectGalleryItems: vi.fn(),
+      deselectGalleryItems: vi.fn(),
+      clearGallerySelection: vi.fn(),
+    });
+
+    render(<AgentChat timelineId="timeline-1" />);
+
+    fireEvent.click(screen.getByTitle('Timeline Agent (Cmd+Shift+R to talk)'));
+
+    const input = screen.getByPlaceholderText('Type or press Cmd+Shift+R to talk...');
+    await waitFor(() => expect(input).not.toBeDisabled());
+
+    fireEvent.change(input, { target: { value: 'Insert after this clip' } });
+    fireEvent.click(screen.getByTitle('Send'));
+
+    const sendMessage = mocks.useSendMessage.mock.results[0]?.value;
+
+    await waitFor(() => {
+      expect(sendMessage.mutateAsync).toHaveBeenCalledWith({
+        message: 'Insert after this clip',
+        attachments: [{
+          clipId: 'timeline-clip-coords',
+          url: 'https://example.com/coords.png',
+          mediaType: 'image',
+          isTimelineBacked: true,
+          trackId: 'V3',
+          at: 14.5,
+          duration: 2.25,
+        }],
+      });
+    });
+  });
+
   it('renders composer attachment previews and opens the lightbox from a selected attachment', async () => {
     render(<AgentChat timelineId="timeline-1" />);
 
     fireEvent.click(screen.getByTitle('Timeline Agent (Cmd+Shift+R to talk)'));
 
-    expect(await screen.findByText('attaching 1 image, 1 video')).toBeInTheDocument();
+    expect(await screen.findByText('attaching 1 shot (1 image) and 1 more video')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'preview-1-image' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'preview-2-video' })).toBeInTheDocument();
 

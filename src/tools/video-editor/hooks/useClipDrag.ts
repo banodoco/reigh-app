@@ -15,6 +15,15 @@ import {
 } from '@/tools/video-editor/lib/multi-drag-utils';
 import { createAutoScroller } from '@/tools/video-editor/lib/auto-scroll';
 import { notifyInteractionEndIfIdle } from '@/tools/video-editor/lib/interaction-state';
+import {
+  shouldPreserveTouchSelectionForMove,
+  shouldAllowTouchClipDrag,
+  shouldToggleTouchSelection,
+  type TimelineDeviceClass,
+  type TimelineGestureOwner,
+  type TimelineInputModality,
+  type TimelineInteractionMode,
+} from '@/tools/video-editor/lib/mobile-interaction-model';
 import { findEnclosingPinnedGroup, orderClipIdsByAt } from '@/tools/video-editor/lib/pinned-group-projection';
 import { snapDrag } from '@/tools/video-editor/lib/snap-edges';
 import { useTimelineScale } from '@/tools/video-editor/hooks/useTimelineScale';
@@ -40,6 +49,11 @@ interface UseCrossTrackDragOptions {
   dataRef: MutableRefObject<TimelineData | null>;
   pendingOpsRef: MutableRefObject<number>;
   interactionStateRef?: import('@/tools/video-editor/lib/interaction-state').InteractionStateRef;
+  deviceClass: TimelineDeviceClass;
+  interactionMode: TimelineInteractionMode;
+  gestureOwner: TimelineGestureOwner;
+  setGestureOwner: (owner: TimelineGestureOwner) => void;
+  setInputModalityFromPointerType: (pointerType: string | null | undefined) => TimelineInputModality;
   moveClipToRow: (clipId: string, targetRowId: string, newStartTime?: number, transactionId?: string) => void;
   createTrackAndMoveClip: (clipId: string, kind: TrackKind, newStartTime?: number, insertAtTop?: boolean) => void;
   selectClip: (clipId: string, opts?: SelectClipOptions) => void;
@@ -71,13 +85,16 @@ export interface DragSession {
   pointerCoordinateYOffset: number;
   clipDuration: number;
   clipEl: HTMLElement;
+  inputModality: TimelineInputModality;
   moveListener: (event: PointerEvent) => void;
   upListener: (event: PointerEvent) => void;
   cancelListener: (event: PointerEvent) => void;
   /** Floating clone shown during cross-track drag. */
   floatingGhostEl: HTMLElement | null;
   countBadgeEl: HTMLSpanElement | null;
+  dragAllowed: boolean;
   hasMoved: boolean;
+  claimedGestureOwner: boolean;
   transactionId: string;
   groupDragEntry: GroupDragEntry | null;
 }
@@ -97,6 +114,11 @@ export const useClipDrag = ({
   dataRef,
   pendingOpsRef,
   interactionStateRef,
+  deviceClass,
+  interactionMode,
+  gestureOwner,
+  setGestureOwner,
+  setInputModalityFromPointerType,
   moveClipToRow,
   createTrackAndMoveClip,
   selectClip,
@@ -140,6 +162,16 @@ export const useClipDrag = ({
   applyEditRef.current = applyEdit;
   const additiveSelectionRefRef = useRef(additiveSelectionRef);
   additiveSelectionRefRef.current = additiveSelectionRef;
+  const deviceClassRef = useRef(deviceClass);
+  deviceClassRef.current = deviceClass;
+  const interactionModeRef = useRef(interactionMode);
+  interactionModeRef.current = interactionMode;
+  const gestureOwnerRef = useRef(gestureOwner);
+  gestureOwnerRef.current = gestureOwner;
+  const setGestureOwnerRef = useRef(setGestureOwner);
+  setGestureOwnerRef.current = setGestureOwner;
+  const setInputModalityFromPointerTypeRef = useRef(setInputModalityFromPointerType);
+  setInputModalityFromPointerTypeRef.current = setInputModalityFromPointerType;
 
   useEffect(() => {
     const findClipElement = (
@@ -185,6 +217,9 @@ export const useClipDrag = ({
       if (interactionStateRef) {
         interactionStateRef.current.drag = false;
         notifyInteractionEndIfIdle(interactionStateRef);
+      }
+      if (session.claimedGestureOwner) {
+        setGestureOwnerRef.current('none');
       }
       dragSessionRef.current = null;
       actionDragStateRef.current = null;
@@ -316,6 +351,14 @@ export const useClipDrag = ({
       const clipId = clipTarget.dataset.clipId;
       const rowId = clipTarget.dataset.rowId;
       if (!clipId || !rowId) return;
+      if (gestureOwnerRef.current !== 'none' && gestureOwnerRef.current !== 'clip') return;
+
+      const inputModality = setInputModalityFromPointerTypeRef.current(event.pointerType);
+      const dragAllowed = shouldAllowTouchClipDrag(
+        deviceClassRef.current,
+        inputModality,
+        interactionModeRef.current,
+      );
 
       const current = dataRef.current;
       const sourceTrack = current?.tracks.find((track) => track.id === rowId);
@@ -472,6 +515,7 @@ export const useClipDrag = ({
 
         // Don't show anything until the pointer actually moves (avoids flash on click)
         if (!session.hasMoved && distance < DRAG_THRESHOLD_PX) return;
+        if (!session.dragAllowed) return;
 
         // First move past threshold — capture the pointer so we own all subsequent events
         // and the timeline library can't start its own competing drag.
@@ -480,6 +524,8 @@ export const useClipDrag = ({
           if (interactionStateRef) {
             interactionStateRef.current.drag = true;
           }
+          session.claimedGestureOwner = true;
+          setGestureOwnerRef.current('clip');
           try { session.clipEl.setPointerCapture(session.pointerId); } catch { /* ok */ }
           ensureCountBadge(session);
         }
@@ -619,6 +665,22 @@ export const useClipDrag = ({
         if (session.hasMoved) {
           moveClipToRowRef.current(session.clipId, session.sourceRowId, nextStart, session.transactionId);
           selectClipRef.current(session.clipId);
+        } else if (shouldToggleTouchSelection(
+          deviceClassRef.current,
+          session.inputModality,
+          interactionModeRef.current,
+        )) {
+          selectClipRef.current(session.clipId, { toggle: true });
+        } else if (
+          shouldPreserveTouchSelectionForMove(
+            deviceClassRef.current,
+            session.inputModality,
+            interactionModeRef.current,
+          )
+          && session.wasSelectedOnPointerDown
+          && selectedClipIdsRefRef.current.current.size > 1
+        ) {
+          selectClipRef.current(session.clipId, { preserveSelection: true });
         } else if (session.metaKey || session.ctrlKey) {
           selectClipRef.current(session.clipId, { toggle: true });
         } else {
@@ -653,12 +715,15 @@ export const useClipDrag = ({
         pointerCoordinateYOffset,
         clipDuration,
         clipEl: clipTarget,
+        inputModality,
         moveListener: handlePointerMove,
         upListener: handlePointerUp,
         cancelListener: handlePointerCancel,
         floatingGhostEl: null,
         countBadgeEl: null,
+        dragAllowed,
         hasMoved: false,
+        claimedGestureOwner: false,
         transactionId: crypto.randomUUID(),
         groupDragEntry,
       };

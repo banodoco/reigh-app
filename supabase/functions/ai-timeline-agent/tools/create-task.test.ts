@@ -22,6 +22,20 @@ import { executeCreateTask } from "./create-task.ts";
 describe("executeCreateTask", () => {
   const originalDeno = globalThis.Deno;
   const originalFetch = globalThis.fetch;
+  const timelineState = {
+    config: { clips: [] },
+    configVersion: 1,
+    registry: { assets: {} },
+    projectId: "project-1",
+  } as never;
+  const generationContext = {
+    image: { defaultModelName: "qwen-image", activeReference: null, selectedLorasByCategory: {} },
+    travel: null,
+  };
+  const timelineStateWithClips = (...clips: Array<Record<string, unknown>>) => ({
+    ...timelineState,
+    config: { clips },
+  }) as never;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -62,18 +76,11 @@ describe("executeCreateTask", () => {
         count: 16,
         model: "qwen-image",
       },
-      {
-        config: { clips: [] },
-        configVersion: 1,
-        registry: { assets: {} },
-        projectId: "project-1",
-      } as never,
+      timelineState,
       undefined,
       {} as never,
-      {
-        image: { defaultModelName: "qwen-image", activeReference: null, selectedLorasByCategory: {} },
-        travel: null,
-      },
+      generationContext,
+      "timeline-1",
     );
 
     expect(result.result).toContain("Queued 16 tasks with varied prompts.");
@@ -103,18 +110,11 @@ describe("executeCreateTask", () => {
         count: 3,
         model: "qwen-image",
       },
-      {
-        config: { clips: [] },
-        configVersion: 1,
-        registry: { assets: {} },
-        projectId: "project-1",
-      } as never,
+      timelineState,
       undefined,
       {} as never,
-      {
-        image: { defaultModelName: "qwen-image", activeReference: null, selectedLorasByCategory: {} },
-        travel: null,
-      },
+      generationContext,
+      "timeline-1",
     );
 
     expect(result.result).toContain("Queued 2 tasks with varied prompts.");
@@ -131,12 +131,7 @@ describe("executeCreateTask", () => {
         prompt: "apply this look to a portrait",
         reference_image_urls: ["https://example.com/reference.png"],
       },
-      {
-        config: { clips: [] },
-        configVersion: 1,
-        registry: { assets: {} },
-        projectId: "project-1",
-      } as never,
+      timelineState,
       [{
         clip_id: "clip-1",
         url: "https://example.com/reference.png",
@@ -145,10 +140,8 @@ describe("executeCreateTask", () => {
         shot_id: "shot-1",
       }],
       {} as never,
-      {
-        image: { defaultModelName: "qwen-image", activeReference: null, selectedLorasByCategory: {} },
-        travel: null,
-      },
+      generationContext,
+      "timeline-1",
     );
 
     expect(result.result).toContain("Reused shot shot-1.");
@@ -171,12 +164,7 @@ describe("executeCreateTask", () => {
         model: "z-image",
         strength: 0.55,
       },
-      {
-        config: { clips: [] },
-        configVersion: 1,
-        registry: { assets: {} },
-        projectId: "project-1",
-      } as never,
+      timelineState,
       [{
         clip_id: "clip-1",
         url: "https://example.com/reference.png",
@@ -185,10 +173,8 @@ describe("executeCreateTask", () => {
         shot_id: "shot-1",
       }],
       {} as never,
-      {
-        image: { defaultModelName: "qwen-image", activeReference: null, selectedLorasByCategory: {} },
-        travel: null,
-      },
+      generationContext,
+      "timeline-1",
     );
 
     expect(mocks.createGenerationTask).toHaveBeenCalledWith(expect.objectContaining({
@@ -208,5 +194,241 @@ describe("executeCreateTask", () => {
       reference_mode?: string;
     };
     expect(firstCallArgs.reference_mode).toBeUndefined();
+  });
+
+  it("passes timeline_placement through when the agent specifies it", async () => {
+    const timelinePlacement = {
+      timeline_id: "timeline-1",
+      source_clip_id: "clip-1",
+      target_track: "V1",
+      insertion_time: 12.5,
+      intent: "after_source" as const,
+    };
+
+    await executeCreateTask(
+      {
+        task_type: "image-to-image",
+        prompt: "warm cinematic grade",
+        reference_image_urls: ["https://example.com/reference.png"],
+        strength: 0.45,
+        timeline_placement: timelinePlacement,
+      },
+      timelineState,
+      [{
+        clip_id: "clip-1",
+        url: "https://example.com/reference.png",
+        media_type: "image",
+        generation_id: "gen-1",
+        shot_id: "shot-1",
+      }],
+      {} as never,
+      generationContext,
+      "timeline-1",
+    );
+
+    expect(mocks.createGenerationTask).toHaveBeenCalledWith(expect.objectContaining({
+      timeline_placement: timelinePlacement,
+    }));
+  });
+
+  it("omits timeline_placement when the agent does not specify it", async () => {
+    await executeCreateTask(
+      {
+        task_type: "image-to-image",
+        prompt: "warm cinematic grade",
+        reference_image_urls: ["https://example.com/reference.png"],
+        strength: 0.45,
+      },
+      timelineState,
+      [{
+        clip_id: "clip-1",
+        url: "https://example.com/reference.png",
+        media_type: "image",
+        generation_id: "gen-1",
+        shot_id: "shot-1",
+      }],
+      {} as never,
+      generationContext,
+      "timeline-1",
+    );
+
+    const firstCallArgs = mocks.createGenerationTask.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect("timeline_placement" in firstCallArgs).toBe(false);
+  });
+
+  it("persists source_variant_id and placement_intent for exactly one selected timeline clip", async () => {
+    await executeCreateTask(
+      {
+        task_type: "image-to-image",
+        prompt: "warm cinematic grade",
+        reference_image_urls: ["https://example.com/reference.png"],
+        strength: 0.45,
+      },
+      timelineStateWithClips({
+        id: "clip-1",
+        at: 5,
+        track: "V1",
+        hold: 2.5,
+      }),
+      [{
+        clip_id: "clip-1",
+        url: "https://example.com/reference.png",
+        media_type: "image",
+        generation_id: "gen-1",
+        variant_id: "variant-1",
+      }],
+      {} as never,
+      generationContext,
+      "timeline-1",
+    );
+
+    expect(mocks.createGenerationTask).toHaveBeenCalledWith(expect.objectContaining({
+      based_on: "gen-1",
+      source_variant_id: "variant-1",
+      params: expect.objectContaining({
+        is_primary: true,
+        placement_intent: {
+          timeline_id: "timeline-1",
+          anchor_clip_id: "clip-1",
+          anchor_generation_id: "gen-1",
+          anchor_variant_id: "variant-1",
+          relation: "after",
+          preferred_track_id: "V1",
+          fallback_at: 7.5,
+          fallback_track_id: "V1",
+        },
+      }),
+    }));
+  });
+
+  it("omits placement_intent for gallery-only selections while preserving source_variant_id", async () => {
+    await executeCreateTask(
+      {
+        task_type: "image-to-image",
+        prompt: "warm cinematic grade",
+        reference_image_urls: ["https://example.com/reference.png"],
+        strength: 0.45,
+      },
+      timelineState,
+      [{
+        clip_id: "gallery-gen-1",
+        url: "https://example.com/reference.png",
+        media_type: "image",
+        generation_id: "gen-1",
+        variant_id: "variant-1",
+      }],
+      {} as never,
+      generationContext,
+      "timeline-1",
+    );
+
+    const firstCallArgs = mocks.createGenerationTask.mock.calls[0]?.[0] as {
+      source_variant_id?: string;
+      params?: Record<string, unknown>;
+    };
+
+    expect(firstCallArgs.source_variant_id).toBe("variant-1");
+    expect(firstCallArgs.params).toEqual(expect.objectContaining({
+      is_primary: true,
+    }));
+    expect("placement_intent" in (firstCallArgs.params ?? {})).toBe(false);
+  });
+
+  it("threads source_variant_id and placement_intent for image-upscale requests from a single timeline clip", async () => {
+    await executeCreateTask(
+      {
+        task_type: "image-upscale",
+        prompt: "upscale this still",
+        reference_image_urls: ["https://example.com/reference.png"],
+      },
+      timelineStateWithClips({
+        id: "clip-1",
+        at: 5,
+        track: "V1",
+        hold: 2.5,
+      }),
+      [{
+        clip_id: "clip-1",
+        url: "https://example.com/reference.png",
+        media_type: "image",
+        generation_id: "gen-1",
+        variant_id: "variant-1",
+      }],
+      {} as never,
+      generationContext,
+      "timeline-1",
+    );
+
+    expect(mocks.createGenerationTask).toHaveBeenCalledWith(expect.objectContaining({
+      generation_id: "gen-1",
+      source_variant_id: "variant-1",
+      params: expect.objectContaining({
+        placement_intent: {
+          timeline_id: "timeline-1",
+          anchor_clip_id: "clip-1",
+          anchor_generation_id: "gen-1",
+          anchor_variant_id: "variant-1",
+          relation: "after",
+          preferred_track_id: "V1",
+          fallback_at: 7.5,
+          fallback_track_id: "V1",
+        },
+      }),
+    }));
+  });
+
+  it("omits placement_intent when multiple selected clips are still on the timeline", async () => {
+    await executeCreateTask(
+      {
+        task_type: "image-to-image",
+        prompt: "warm cinematic grade",
+        reference_image_urls: ["https://example.com/reference-1.png"],
+        strength: 0.45,
+      },
+      timelineStateWithClips(
+        {
+          id: "clip-1",
+          at: 5,
+          track: "V1",
+          hold: 2.5,
+        },
+        {
+          id: "clip-2",
+          at: 10,
+          track: "V2",
+          hold: 3,
+        },
+      ),
+      [
+        {
+          clip_id: "clip-1",
+          url: "https://example.com/reference-1.png",
+          media_type: "image",
+          generation_id: "gen-1",
+          variant_id: "variant-1",
+        },
+        {
+          clip_id: "clip-2",
+          url: "https://example.com/reference-2.png",
+          media_type: "image",
+          generation_id: "gen-2",
+          variant_id: "variant-2",
+        },
+      ],
+      {} as never,
+      generationContext,
+      "timeline-1",
+    );
+
+    const firstCallArgs = mocks.createGenerationTask.mock.calls[0]?.[0] as {
+      source_variant_id?: string;
+      params?: Record<string, unknown>;
+    };
+
+    expect(firstCallArgs.source_variant_id).toBe("variant-1");
+    expect(firstCallArgs.params).toEqual(expect.objectContaining({
+      is_primary: true,
+    }));
+    expect("placement_intent" in (firstCallArgs.params ?? {})).toBe(false);
   });
 });

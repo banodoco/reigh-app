@@ -277,13 +277,20 @@ export function useSendMessage(sessionId: string | null | undefined, timelineId?
                 clip_id: clip.clipId,
                 url: clip.url,
                 media_type: clip.mediaType,
+                ...(typeof clip.isTimelineBacked === 'boolean'
+                  ? { is_timeline_backed: clip.isTimelineBacked }
+                  : {}),
                 ...(clip.generationId ? { generation_id: clip.generationId } : {}),
+                ...(clip.variantId ? { variant_id: clip.variantId } : {}),
                 ...(clip.prompt ? { prompt: clip.prompt } : {}),
                 ...(clip.shotId ? { shot_id: clip.shotId } : {}),
                 ...(clip.shotName ? { shot_name: clip.shotName } : {}),
                 ...(typeof clip.shotSelectionClipCount === 'number'
                   ? { shot_selection_clip_count: clip.shotSelectionClipCount }
                   : {}),
+                ...(clip.trackId ? { track_id: clip.trackId } : {}),
+                ...(typeof clip.at === 'number' ? { at: clip.at } : {}),
+                ...(typeof clip.duration === 'number' ? { duration: clip.duration } : {}),
               })),
             } : {}),
           },

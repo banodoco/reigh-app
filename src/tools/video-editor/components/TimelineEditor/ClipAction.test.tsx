@@ -128,6 +128,43 @@ describe('ClipAction', () => {
     window.requestAnimationFrame = originalRequestAnimationFrame;
   });
 
+  it('shows a visible overflow trigger for touch layouts and opens the menu from it', () => {
+    mockUseWaveformData();
+    const originalRequestAnimationFrame = window.requestAnimationFrame;
+    window.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+      callback(0);
+      return 0;
+    }) as typeof window.requestAnimationFrame;
+
+    const props = buildProps({
+      isSelected: false,
+      selectedClipIds: [],
+      showOverflowMenu: true,
+      onDeleteClip: vi.fn(),
+    });
+    render(<ClipAction {...props} />);
+
+    fireEvent.click(screen.getByLabelText('Open clip actions'));
+
+    expect(props.onSelect).toHaveBeenCalledWith('clip-1', 'V1');
+    expect(screen.getByText('Delete Clip')).toBeInTheDocument();
+
+    window.requestAnimationFrame = originalRequestAnimationFrame;
+  });
+
+  it('labels the visible overflow trigger for multi-clip touch selections', () => {
+    mockUseWaveformData();
+    const props = buildProps({
+      showOverflowMenu: true,
+    });
+    render(<ClipAction {...props} />);
+
+    const trigger = screen.getByLabelText('Open actions for 2 selected clips');
+
+    expect(trigger).toBeInTheDocument();
+    expect(trigger).toHaveAttribute('role', 'button');
+  });
+
   it('shows existing shots and updates the menu from live props while it is open', () => {
     mockUseWaveformData();
     const existingShot = { id: 'shot-9', name: 'Shot 9' };

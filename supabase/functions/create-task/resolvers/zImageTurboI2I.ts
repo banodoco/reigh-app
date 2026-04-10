@@ -5,13 +5,17 @@ import {
 } from "./shared/loras.ts";
 import { resolveSeed32Bit, validateSeed32Bit } from "./shared/seed.ts";
 import {
+  setTaskLineageFields,
+  type TimelinePlacement,
+} from "./shared/lineage.ts";
+import type { PlacementIntent } from "../../ai-timeline-agent/types.ts";
+import {
   TaskValidationError,
   validateNonEmptyString,
   validateNumericRange,
   validateRequiredFields,
   validateUrlString,
 } from "./shared/validation.ts";
-import { setTaskLineageFields } from "./shared/lineage.ts";
 
 interface FalLoraConfig {
   path: string;
@@ -31,6 +35,8 @@ interface ZImageTurboImageToImageTaskInput {
   source_variant_id?: string;
   create_as_generation?: boolean;
   tool_type?: string;
+  timeline_placement?: TimelinePlacement;
+  placement_intent?: PlacementIntent;
 }
 
 function buildQueuedTask(
@@ -114,6 +120,8 @@ function buildTaskParams(
     sourceVariantId: input.source_variant_id,
     createAsGeneration: input.create_as_generation,
     toolType: input.tool_type,
+    timelinePlacement: input.timeline_placement,
+    placementIntent: input.placement_intent,
   });
 
   return params;

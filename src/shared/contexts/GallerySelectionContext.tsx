@@ -19,6 +19,7 @@ type GallerySelectionEntry = {
   url: string;
   mediaType: GallerySelectionMediaType;
   generationId: string;
+  variantId?: string;
 };
 
 export type GallerySelectionMeta = {
@@ -26,6 +27,7 @@ export type GallerySelectionMeta = {
   type?: string | null;
   mediaType?: string | null;
   generationId?: string | null;
+  variantId?: string | null;
 };
 
 export type GallerySelectionItem = GallerySelectionMeta & {
@@ -84,6 +86,7 @@ function normalizeSelectionItem(item: GallerySelectionItem): (GallerySelectionEn
     url,
     mediaType,
     generationId,
+    ...(item.variantId?.trim() ? { variantId: item.variantId.trim() } : {}),
   };
 }
 
@@ -99,7 +102,8 @@ function hasSameSelection(
     const existing = selectionMap.get(item.id);
     return existing?.url === item.url
       && existing.mediaType === item.mediaType
-      && existing.generationId === item.generationId;
+      && existing.generationId === item.generationId
+      && existing.variantId === item.variantId;
   });
 }
 
@@ -140,6 +144,7 @@ export function GallerySelectionProvider({ children }: { children: ReactNode }) 
               url: normalized.url,
               mediaType: normalized.mediaType,
               generationId: normalized.generationId,
+              variantId: normalized.variantId,
             },
           ],
         ]);
@@ -155,6 +160,7 @@ export function GallerySelectionProvider({ children }: { children: ReactNode }) 
         url: normalized.url,
         mediaType: normalized.mediaType,
         generationId: normalized.generationId,
+        variantId: normalized.variantId,
       });
       return next;
     });
@@ -184,6 +190,7 @@ export function GallerySelectionProvider({ children }: { children: ReactNode }) 
           url: item.url,
           mediaType: item.mediaType,
           generationId: item.generationId,
+          variantId: item.variantId,
         };
         const previousEntry = previous.get(item.id);
         if (
@@ -191,6 +198,7 @@ export function GallerySelectionProvider({ children }: { children: ReactNode }) 
           || previousEntry.url !== nextEntry.url
           || previousEntry.mediaType !== nextEntry.mediaType
           || previousEntry.generationId !== nextEntry.generationId
+          || previousEntry.variantId !== nextEntry.variantId
         ) {
           changed = true;
         }
@@ -239,7 +247,9 @@ export function GallerySelectionProvider({ children }: { children: ReactNode }) 
       assetKey: '',
       url: item.url,
       mediaType: item.mediaType,
+      isTimelineBacked: false,
       generationId: item.generationId,
+      variantId: item.variantId,
     }))
   ), [gallerySelectionMap]);
 

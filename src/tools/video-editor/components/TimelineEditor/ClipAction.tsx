@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowRight, Clapperboard, Copy, Film, FolderPlus, ImageIcon, Layers, Loader2, Music2, RefreshCw, Scissors, Trash2, Type, X } from 'lucide-react';
+import { ArrowRight, Clapperboard, Copy, Ellipsis, Film, FolderPlus, ImageIcon, Layers, Loader2, Music2, RefreshCw, Scissors, Trash2, Type, X } from 'lucide-react';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import type { Shot } from '@/domains/generation/types';
 import { usePortalMousedownGuard } from '@/shared/hooks/usePortalMousedownGuard';
@@ -38,6 +38,7 @@ interface ClipActionProps {
   onToggleMuteClips?: (clipIds: string[]) => void;
   isVideoClip?: boolean;
   isTaskActive?: boolean;
+  showOverflowMenu?: boolean;
   /** True when the clip's file no longer matches the generation's current primary variant */
   isVariantStale?: boolean;
   /** True when the clip is linked to a generation (enables "Update to current variant" in menu) */
@@ -285,6 +286,7 @@ function ClipActionComponent({
   onToggleMuteClips,
   isVideoClip,
   isTaskActive,
+  showOverflowMenu = false,
   isVariantStale,
   isGenerationAsset,
   isDuplicatingGeneration = false,
@@ -357,15 +359,16 @@ function ClipActionComponent({
     (isGenerationAsset && onUpdateVariant)
     || (isVariantStale && onDismissStale),
   );
+  const canOpenContextMenu = !isInPinnedShotGroup || hasPinnedShotGroupAssetActions;
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (isInPinnedShotGroup && !hasPinnedShotGroupAssetActions) {
+    if (!canOpenContextMenu) {
       return;
     }
     const { clientX, clientY } = e;
     openMenuWithSelectionRef.current(clientX, clientY);
-  }, [hasPinnedShotGroupAssetActions, isInPinnedShotGroup]);
+  }, [canOpenContextMenu]);
   const showShotActions = Boolean(canCreateShotFromSelection && (
     typeof onCreateShotFromSelection === 'function' || typeof onGenerateVideoFromSelection === 'function'
   ));
@@ -469,6 +472,34 @@ function ClipActionComponent({
             <RefreshCw className="h-2.5 w-2.5" />
           </div>
         ) : null}
+        {showOverflowMenu && canOpenContextMenu && (
+          <div
+            role="button"
+            tabIndex={0}
+            className={cn(
+              'absolute bottom-0 right-0 z-20 flex h-10 w-10 items-center justify-center rounded-tl-md bg-background/80 text-muted-foreground shadow-sm transition-colors',
+              'hover:bg-accent hover:text-accent-foreground',
+            )}
+            aria-label={hasBatchSelection ? `Open actions for ${selectedClipIds.length} selected clips` : 'Open clip actions'}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              const { clientX, clientY } = event;
+              openMenuWithSelectionRef.current(clientX, clientY);
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter' && event.key !== ' ') {
+                return;
+              }
+              event.preventDefault();
+              event.stopPropagation();
+              const target = event.currentTarget.getBoundingClientRect();
+              openMenuWithSelectionRef.current(target.left + target.width / 2, target.top + target.height / 2);
+            }}
+          >
+            <Ellipsis className="h-4 w-4" />
+          </div>
+        )}
       </button>
 
       {contextMenu && (

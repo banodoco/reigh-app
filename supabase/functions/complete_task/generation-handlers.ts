@@ -3,6 +3,7 @@
  */
 
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
+import type { CompletionAssetRef } from './generation.ts';
 import { VARIANT_TYPE_DEFAULT } from './constants.ts';
 
 import {
@@ -47,7 +48,7 @@ export async function handleVariantCreation(
   basedOnGenerationId: string,
   publicUrl: string,
   thumbnailUrl: string | null
-): Promise<boolean> {
+): Promise<CompletionAssetRef> {
   const isPrimary = taskData.params?.is_primary === true;
   const variantType = taskData.variant_type || VARIANT_TYPE_DEFAULT;
 
@@ -81,7 +82,7 @@ export async function handleVariantCreation(
       content_type: taskData.content_type,
     };
 
-    await createVariant(
+    const variant = await createVariant(
       supabase,
       basedOnGenerationId,
       publicUrl,
@@ -109,7 +110,14 @@ export async function handleVariantCreation(
         cause: markError,
       });
     }
-    return true;
+    return {
+      generation_id: basedOnGenerationId,
+      variant_id: variant.id,
+      location: publicUrl,
+      ...(thumbnailUrl ? { thumbnail_url: thumbnailUrl } : {}),
+      media_type: taskData.content_type || 'image',
+      created_as: 'variant',
+    };
   } catch (variantErr) {
     throw toCompletionError(variantErr, {
       code: 'variant_creation_failed',
@@ -431,7 +439,7 @@ export async function handleStandaloneGeneration(ctx: HandlerContext): Promise<u
   const newGeneration = await insertGeneration(supabase, generationRecord);
 
   // Create "original" variant
-  await createVariant(
+  const originalVariant = await createVariant(
     supabase, newGeneration.id, publicUrl, thumbnailUrl,
     { ...generationParams, source_task_id: taskId, created_from: 'generation_original' },
     true, 'original', null, null
@@ -444,5 +452,15 @@ export async function handleStandaloneGeneration(ctx: HandlerContext): Promise<u
 
   await supabase.from('tasks').update({ generation_created: true }).eq('id', taskId);
 
-  return newGeneration;
+  return {
+    ...newGeneration,
+    completionAsset: {
+      generation_id: newGeneration.id,
+      variant_id: originalVariant.id,
+      location: publicUrl,
+      ...(thumbnailUrl ? { thumbnail_url: thumbnailUrl } : {}),
+      media_type: generationType,
+      created_as: 'generation' as const,
+    },
+  };
 }

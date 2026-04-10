@@ -33,8 +33,8 @@ import {
   isGenerationDragType,
   type TimelineDropPosition,
 } from '@/tools/video-editor/lib/external-drop-utils';
-import { orderClipIdsByAt } from '@/tools/video-editor/lib/pinned-group-projection';
 import { RafLoopDetector } from '@/tools/video-editor/lib/perf-diagnostics';
+import { buildPinnedShotGroupsOverride } from '@/tools/video-editor/lib/shot-group-commands';
 import type { TrackKind } from '@/tools/video-editor/types';
 import { createAutoScroller } from '@/tools/video-editor/lib/auto-scroll';
 import type { Shot } from '@/domains/generation/types';
@@ -128,7 +128,6 @@ async function dispatchTimelineDrop({
     }
 
     let workingData = resolvedTarget.current;
-    const nextPinnedShotGroups = [...(workingData.config.pinnedShotGroups ?? [])];
     const metaUpdates: Record<string, TimelineData['meta'][string]> = {};
     const createdClipIds: string[] = [];
     let timeOffset = 0;
@@ -178,13 +177,12 @@ async function dispatchTimelineDrop({
       return;
     }
 
-    const nextGroup = {
+    const nextPinnedShotGroups = buildPinnedShotGroupsOverride(workingData, {
       shotId: shot.id,
       trackId: resolvedTarget.trackId,
-      clipIds: orderClipIdsByAt(createdClipIds, { rows: workingData.rows }),
+      clipIds: createdClipIds,
       mode: 'images',
-    } as const;
-    nextPinnedShotGroups.push(nextGroup);
+    });
 
     applyEdit({
       type: 'rows',

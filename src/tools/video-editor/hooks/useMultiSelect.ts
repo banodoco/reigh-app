@@ -2,6 +2,7 @@ import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
 export interface SelectClipOptions {
   toggle?: boolean;
+  preserveSelection?: boolean;
 }
 
 export interface UseMultiSelectResult {
@@ -94,6 +95,10 @@ export function useMultiSelect(): UseMultiSelectResult {
   }, [commitSelection]);
 
   const selectClip = useCallback((clipId: string, opts?: SelectClipOptions) => {
+    if (opts?.preserveSelection && selectedClipIdsRef.current.has(clipId)) {
+      return;
+    }
+
     if (!opts?.toggle) {
       commitSelection(new Set([clipId]), clipId, false);
       return;

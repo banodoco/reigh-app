@@ -1,4 +1,6 @@
 import type { ResolverResult, TaskFamilyResolver, TaskInsertObject } from "./types.ts";
+import { setTaskLineageFields } from "./shared/lineage.ts";
+import type { PlacementIntent } from "../../ai-timeline-agent/types.ts";
 import {
   TaskValidationError,
   validateNumericRange,
@@ -15,6 +17,7 @@ interface ImageUpscaleTaskInput {
   noise_scale?: number;
   output_format?: string;
   shot_id?: string;
+  placement_intent?: PlacementIntent;
 }
 
 function buildQueuedTask(
@@ -54,15 +57,15 @@ function buildImageUpscaleTaskParams(input: ImageUpscaleTaskInput): Record<strin
 
   if (input.generation_id) {
     params.generation_id = input.generation_id;
-    params.based_on = input.generation_id;
-    params.is_primary = true;
   }
-  if (input.source_variant_id) {
-    params.source_variant_id = input.source_variant_id;
-  }
-  if (input.shot_id) {
-    params.shot_id = input.shot_id;
-  }
+
+  setTaskLineageFields(params, {
+    shotId: input.shot_id,
+    basedOn: input.generation_id ?? undefined,
+    sourceVariantId: input.source_variant_id,
+    markPrimaryWhenBasedOn: true,
+    placementIntent: input.placement_intent,
+  });
 
   return params;
 }

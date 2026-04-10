@@ -31,6 +31,14 @@ import type { RenderStatus } from '@/tools/video-editor/hooks/useRenderState';
 import type { SaveStatus } from '@/tools/video-editor/hooks/useTimelineSave';
 import type { TimelineData } from '@/tools/video-editor/lib/timeline-data';
 import type { UseMultiSelectResult } from '@/tools/video-editor/hooks/useMultiSelect';
+import type {
+  MobileInteractionPolicy,
+  TimelineContextTarget,
+  TimelineGestureOwner,
+  TimelineInputModality,
+  TimelineInspectorTarget,
+  TimelineInteractionMode,
+} from '@/tools/video-editor/lib/mobile-interaction-model';
 
 type DragCoordinatorHook = ReturnType<typeof useDragCoordinator>;
 type TimelinePlaybackHook = ReturnType<typeof useTimelinePlayback>;
@@ -48,6 +56,14 @@ export type TimelineClipEdgeResizeEnd = ClipResizeHook['onClipEdgeResizeEnd'];
 export interface TimelineEditorDataContextValue {
   data: TimelineData | null;
   resolvedConfig: TimelineResolvedConfig;
+  deviceClass: MobileInteractionPolicy['deviceClass'];
+  inputModality: TimelineInputModality;
+  interactionMode: TimelineInteractionMode;
+  gestureOwner: TimelineGestureOwner;
+  precisionEnabled: boolean;
+  contextTarget: TimelineContextTarget;
+  inspectorTarget: TimelineInspectorTarget;
+  interactionPolicy: MobileInteractionPolicy;
   selectedClipId: string | null;
   selectedClipIds: UseMultiSelectResult['selectedClipIds'];
   selectedClipIdsRef: UseMultiSelectResult['selectedClipIdsRef'];
@@ -74,6 +90,13 @@ export interface TimelineEditorDataContextValue {
 }
 
 export interface TimelineEditorOpsContextValue {
+  setInputModality: (inputModality: TimelineInputModality) => void;
+  setInputModalityFromPointerType: (pointerType: string | null | undefined) => TimelineInputModality;
+  setInteractionMode: (mode: TimelineInteractionMode) => void;
+  setGestureOwner: (owner: TimelineGestureOwner) => void;
+  setPrecisionEnabled: (enabled: boolean) => void;
+  setContextTarget: (target: TimelineContextTarget) => void;
+  setInspectorTarget: (target: TimelineInspectorTarget) => void;
   setSelectedClipId: TimelineSetSelectedClipId;
   isClipSelected: UseMultiSelectResult['isClipSelected'];
   selectClip: UseMultiSelectResult['selectClip'];

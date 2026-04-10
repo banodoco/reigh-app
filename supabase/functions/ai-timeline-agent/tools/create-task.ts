@@ -1,11 +1,14 @@
 import type {
   GenerationContext,
+  PlacementIntent,
   SelectedClipPayload,
   SupabaseAdmin,
   TimelineState,
   ToolResult,
 } from "../types.ts";
-import { asPositiveNumber, asStringArray, asTrimmedString } from "../utils.ts";
+import type { TimelinePlacement } from "../../create-task/resolvers/shared/lineage.ts";
+import { asPositiveNumber, asStringArray, asTrimmedString, isRecord } from "../utils.ts";
+import { resolveSelectionContext } from "../selectedClips.ts";
 import { createShotWithGenerations, resolveClipGenerationIds, resolveSelectedClipShot } from "./clips.ts";
 import { createGenerationTask, type CreateGenerationTaskArgs } from "./generation.ts";
 
@@ -54,9 +57,82 @@ const TASK_TYPES_REQUIRING_VIDEO = new Set([
   "video-enhance",
   "character-animate",
 ]);
+const TASK_TYPES_SUPPORTING_SOURCE_PLACEMENT = new Set([
+  "image-to-image",
+  "magic-edit",
+  "image-upscale",
+]);
 
 function asFiniteNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function normalizeTimelinePlacementArg(value: unknown): TimelinePlacement | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const timelineId = asTrimmedString(value.timeline_id);
+  const sourceClipId = asTrimmedString(value.source_clip_id);
+  const targetTrack = asTrimmedString(value.target_track);
+  const insertionTime = typeof value.insertion_time === "number" && Number.isFinite(value.insertion_time)
+    ? value.insertion_time
+    : undefined;
+  const intent = value.intent === "after_source" || value.intent === "replace"
+    ? value.intent
+    : undefined;
+
+  if (!timelineId || !sourceClipId || !targetTrack || insertionTime === undefined || !intent) {
+    return undefined;
+  }
+
+  return {
+    timeline_id: timelineId,
+    source_clip_id: sourceClipId,
+    target_track: targetTrack,
+    insertion_time: insertionTime,
+    intent,
+  };
+}
+
+function buildPlacementIntent(
+  taskType: string,
+  resolvedSelectionContexts: ReturnType<typeof resolveSelectionContext>,
+): PlacementIntent | undefined {
+  if (!TASK_TYPES_SUPPORTING_SOURCE_PLACEMENT.has(taskType)) {
+    return undefined;
+  }
+
+  const timelineSelections = resolvedSelectionContexts.filter((context) => context.is_on_timeline);
+  if (timelineSelections.length !== 1) {
+    return undefined;
+  }
+
+  const anchor = timelineSelections[0];
+  return {
+    timeline_id: anchor.timeline_id,
+    anchor_clip_id: anchor.clip_id,
+    ...(anchor.generation_id ? { anchor_generation_id: anchor.generation_id } : {}),
+    ...(anchor.variant_id ? { anchor_variant_id: anchor.variant_id } : {}),
+    relation: "after",
+    preferred_track_id: anchor.track_id,
+    fallback_at: anchor.at + anchor.duration,
+    fallback_track_id: anchor.track_id,
+  };
+}
+
+function withPlacementIntent(
+  params: Record<string, unknown> | undefined,
+  placementIntent: PlacementIntent | undefined,
+): Record<string, unknown> | undefined {
+  if (!placementIntent) {
+    return params;
+  }
+
+  return {
+    ...(params ?? {}),
+    placement_intent: placementIntent,
+  };
 }
 
 // Default reference strength params per mode — matches the form's REFERENCE_MODE_DEFAULTS for qwen-image
@@ -174,6 +250,7 @@ async function buildBatchIdempotencyKey(args: CreateGenerationTaskArgs, batchInd
       strength: args.strength,
       based_on: args.based_on,
       generation_id: args.generation_id,
+      timeline_placement: args.timeline_placement,
       params: args.params,
       batch_index: batchIndex,
     },
@@ -188,6 +265,7 @@ export async function executeCreateTask(
   selectedClips: SelectedClipPayload[] | undefined,
   supabaseAdmin: SupabaseAdmin,
   generationContext?: GenerationContext,
+  timelineId = "",
 ): Promise<Pick<ToolResult, "result">> {
   const imageContext = generationContext?.image ?? null;
   const travelContext = generationContext?.travel ?? null;
@@ -217,6 +295,12 @@ export async function executeCreateTask(
   if (strength !== undefined && (strength < 0 || strength > 1)) {
     return { result: "create_task strength must be between 0 and 1." };
   }
+  const timelinePlacement = normalizeTimelinePlacementArg(args.timeline_placement);
+  if (args.timeline_placement !== undefined && !timelinePlacement) {
+    return {
+      result: "create_task timeline_placement must include timeline_id, source_clip_id, target_track, insertion_time, and intent.",
+    };
+  }
   if (taskType === "image-to-video" && referenceImageUrls.length < 1) {
     return { result: "create_task image-to-video requires at least one reference_image_url." };
   }
@@ -227,13 +311,20 @@ export async function executeCreateTask(
     return { result: `create_task ${taskType} requires video_url.` };
   }
 
-  const selectedReferenceClips = selectedClips?.filter((clip) => referenceImageUrls.includes(clip.url)) ?? [];
-  const selectedVideoClip = videoUrl
-    ? selectedClips?.find((clip) => clip.url === videoUrl)
+  const resolvedSelectionContexts = resolveSelectionContext(selectedClips ?? [], timelineState, timelineId);
+  const selectedClipEntries = (selectedClips ?? []).map((clip, index) => ({
+    clip,
+    resolvedContext: resolvedSelectionContexts[index],
+  }));
+  const selectedReferenceEntries = selectedClipEntries.filter(({ clip }) => referenceImageUrls.includes(clip.url));
+  const selectedVideoEntry = videoUrl
+    ? selectedClipEntries.find(({ clip }) => clip.url === videoUrl)
     : undefined;
-  const selectedClipsForShot = selectedVideoClip && !selectedReferenceClips.some((clip) => clip.url === selectedVideoClip.url)
-    ? [...selectedReferenceClips, selectedVideoClip]
-    : selectedReferenceClips;
+  const selectedEntriesForShot = selectedVideoEntry && !selectedReferenceEntries.some(({ clip }) => clip.url === selectedVideoEntry.clip.url)
+    ? [...selectedReferenceEntries, selectedVideoEntry]
+    : selectedReferenceEntries;
+  const selectedClipsForShot = selectedEntriesForShot.map(({ clip }) => clip);
+  const placementIntent = buildPlacementIntent(taskType, resolvedSelectionContexts);
   const generationIds = resolveClipGenerationIds(selectedClipsForShot, timelineState.registry, timelineState.config);
   let shotId = (
     await resolveSelectedClipShot(supabaseAdmin, timelineState, selectedClipsForShot)
@@ -266,9 +357,16 @@ export async function executeCreateTask(
   const basedOn = asNew
     ? undefined
     : (asTrimmedString(args.based_on) ?? (taskType === "video-enhance"
-      ? selectedVideoClip?.generation_id
-      : selectedReferenceClips[0]?.generation_id));
-  const generationId = taskType === "image-upscale" ? selectedReferenceClips[0]?.generation_id : undefined;
+      ? selectedVideoEntry?.resolvedContext?.generation_id
+      : selectedReferenceEntries[0]?.resolvedContext?.generation_id));
+  const sourceVariantId = TASK_TYPES_SUPPORTING_SOURCE_PLACEMENT.has(taskType)
+    ? (asTrimmedString(args.source_variant_id) ?? (taskType === "video-enhance"
+      ? selectedVideoEntry?.resolvedContext?.variant_id
+      : selectedReferenceEntries[0]?.resolvedContext?.variant_id))
+    : asTrimmedString(args.source_variant_id);
+  const generationId = taskType === "image-upscale"
+    ? selectedReferenceEntries[0]?.resolvedContext?.generation_id
+    : undefined;
   const defaultModelName = taskType === "image-to-video"
     ? travelContext?.selectedModel
     : (taskType === "text-to-image" || Boolean(TASK_TYPE_TO_REFERENCE_MODE[taskType]))
@@ -341,6 +439,7 @@ export async function executeCreateTask(
       };
       return Object.keys(variantParams).length > 0 ? variantParams : undefined;
     })();
+  const taskParamsWithPlacement = withPlacementIntent(taskParams, placementIntent);
 
   // When count > 1 and there's a prompt, expand into varied prompts and create separate tasks
   if (requestedCount > 1 && prompt) {
@@ -365,10 +464,12 @@ export async function executeCreateTask(
         video_url: videoUrl ?? undefined,
         strength,
         model_name: effectiveModel,
-        params: taskParams,
+        params: taskParamsWithPlacement,
         based_on: basedOn ?? undefined,
+        source_variant_id: sourceVariantId ?? undefined,
         generation_id: generationId ?? undefined,
         shot_id: shotId ?? undefined,
+        ...(timelinePlacement ? { timeline_placement: timelinePlacement } : {}),
       };
 
       const result = await createGenerationTask({
@@ -405,10 +506,12 @@ export async function executeCreateTask(
     video_url: videoUrl ?? undefined,
     strength,
     model_name: effectiveModel,
-    params: taskParams,
+    params: taskParamsWithPlacement,
     based_on: basedOn ?? undefined,
+    source_variant_id: sourceVariantId ?? undefined,
     generation_id: generationId ?? undefined,
     shot_id: shotId ?? undefined,
+    ...(timelinePlacement ? { timeline_placement: timelinePlacement } : {}),
   });
   return { result: `${result.result}${shotNote}`.trim() };
 }

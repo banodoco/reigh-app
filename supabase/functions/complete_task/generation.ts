@@ -41,14 +41,25 @@ interface GenerationRef {
   id: string;
 }
 
+export type CompletionAssetRef = {
+  generation_id: string;
+  variant_id?: string;
+  location: string;
+  thumbnail_url?: string;
+  media_type: string;
+  created_as: 'generation' | 'variant';
+};
+
 export type GenerationCreationOutcome =
   | { status: 'skipped'; reason: GenerationSkipReason }
-  | { status: 'created'; generation: GenerationRef };
+  | { status: 'created'; generation: GenerationRef; completionAsset: CompletionAssetRef | null };
 
 interface CompletedTaskData {
   category?: string;
   task_type?: string;
   tool_type?: string;
+  content_type?: string;
+  variant_type?: string | null;
   project_id?: string;
   params: Record<string, unknown>;
 }
@@ -101,6 +112,8 @@ function normalizeCompletedTaskData(taskData: unknown): CompletedTaskData {
     category: typeof record.category === 'string' ? record.category : undefined,
     task_type: typeof record.task_type === 'string' ? record.task_type : undefined,
     tool_type: typeof record.tool_type === 'string' ? record.tool_type : undefined,
+    content_type: typeof record.content_type === 'string' ? record.content_type : undefined,
+    variant_type: typeof record.variant_type === 'string' ? record.variant_type : null,
     project_id: typeof record.project_id === 'string' ? record.project_id : undefined,
     params: asObjectOrEmpty(record.params),
   };
@@ -169,16 +182,33 @@ function classifyGenerationRouteAttempts(routeParams: GenerationRouteParams): Ge
 async function executeGenerationRouteAttempt(
   attempt: GenerationRouteAttempt,
   ctx: GenerationHandlerContext,
-): Promise<GenerationRef | null> {
+): Promise<{ generation: GenerationRef; completionAsset: CompletionAssetRef | null } | null> {
   switch (attempt) {
-    case 'variant_on_child':
-      return toGenerationRef(await handleVariantOnChild(ctx));
-    case 'variant_on_parent':
-      return toGenerationRef(await handleVariantOnParent(ctx));
-    case 'child_generation':
-      return toGenerationRef(await handleChildGeneration(ctx));
-    case 'standalone':
-      return toGenerationRef(await handleStandaloneGeneration(ctx));
+    case 'variant_on_child': {
+      const generation = toGenerationRef(await handleVariantOnChild(ctx));
+      return generation ? { generation, completionAsset: null } : null;
+    }
+    case 'variant_on_parent': {
+      const generation = toGenerationRef(await handleVariantOnParent(ctx));
+      return generation ? { generation, completionAsset: null } : null;
+    }
+    case 'child_generation': {
+      const generation = toGenerationRef(await handleChildGeneration(ctx));
+      return generation ? { generation, completionAsset: null } : null;
+    }
+    case 'standalone': {
+      const standaloneResult = await handleStandaloneGeneration(ctx) as {
+        id?: unknown;
+        completionAsset?: CompletionAssetRef | null;
+      } | null;
+      const generation = toGenerationRef(standaloneResult);
+      return generation
+        ? {
+          generation,
+          completionAsset: standaloneResult?.completionAsset ?? null,
+        }
+        : null;
+    }
   }
 }
 
@@ -239,7 +269,7 @@ export async function createGenerationFromTask(
     }
 
     if (existingGeneration) {
-      const generation = await handleRegeneration(
+      const completionAsset = await handleRegeneration(
         supabase,
         taskId,
         normalizedTaskData,
@@ -248,11 +278,15 @@ export async function createGenerationFromTask(
         thumbnailUrl,
         logger,
       );
-      return { status: 'created', generation };
+      return {
+        status: 'created',
+        generation: existingGeneration,
+        completionAsset,
+      };
     }
 
     if (routeParams.basedOn && !routeParams.createAsGeneration) {
-      const success = await handleVariantCreation(
+      const completionAsset = await handleVariantCreation(
         supabase,
         taskId,
         normalizedTaskData,
@@ -260,8 +294,12 @@ export async function createGenerationFromTask(
         publicUrl,
         thumbnailUrl,
       );
-      if (success) {
-        return { status: 'created', generation: { id: routeParams.basedOn } };
+      if (completionAsset) {
+        return {
+          status: 'created',
+          generation: { id: routeParams.basedOn },
+          completionAsset,
+        };
       }
     }
 
@@ -279,9 +317,9 @@ export async function createGenerationFromTask(
     };
 
     for (const attempt of classifyGenerationRouteAttempts(routeParams)) {
-      const generation = await executeGenerationRouteAttempt(attempt, handlerContext);
-      if (generation) {
-        return { status: 'created', generation };
+      const routeResult = await executeGenerationRouteAttempt(attempt, handlerContext);
+      if (routeResult) {
+        return { status: 'created', ...routeResult };
       }
     }
 
@@ -331,7 +369,7 @@ async function handleRegeneration(
   publicUrl: string,
   thumbnailUrl: string | null | undefined,
   logger?: CompletionLogger
-): Promise<GenerationRef> {
+): Promise<CompletionAssetRef> {
   logger?.info("Existing generation found - creating regenerated variant", {
     task_id: taskId,
     existing_generation_id: existingGeneration.id,
@@ -345,7 +383,7 @@ async function handleRegeneration(
     tool_type: taskData.tool_type,
   };
 
-  await createVariant(
+  const variant = await createVariant(
     supabase,
     existingGeneration.id,
     publicUrl,
@@ -380,5 +418,12 @@ async function handleRegeneration(
     });
   }
 
-  return existingGeneration;
+  return {
+    generation_id: existingGeneration.id,
+    variant_id: variant.id,
+    location: publicUrl,
+    ...(thumbnailUrl ? { thumbnail_url: thumbnailUrl } : {}),
+    media_type: taskData.content_type || 'image',
+    created_as: 'variant',
+  };
 }

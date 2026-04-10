@@ -1,4 +1,4 @@
-import { useMemo, type MutableRefObject } from 'react';
+import { useMemo } from 'react';
 import type { useAssetManagement } from '@/tools/video-editor/hooks/useAssetManagement';
 import type { useClipEditing } from '@/tools/video-editor/hooks/useClipEditing';
 import type { useClipResize } from '@/tools/video-editor/hooks/useClipResize';
@@ -31,6 +31,14 @@ import type {
   TimelineEditorContextValue,
   TimelinePlaybackContextValue,
 } from '@/tools/video-editor/hooks/useTimelineState.types';
+import type {
+  MobileInteractionPolicy,
+  TimelineContextTarget,
+  TimelineGestureOwner,
+  TimelineInputModality,
+  TimelineInspectorTarget,
+  TimelineInteractionMode,
+} from '@/tools/video-editor/lib/mobile-interaction-model';
 import type { TimelineData } from '@/tools/video-editor/lib/timeline-data';
 
 type SelectionHook = ReturnType<typeof useTimelineSelection>;
@@ -48,6 +56,7 @@ type TimelineSetAssetPanelState = (patch: Partial<EditorPreferences['assetPanel'
 
 interface UseTimelineEditorContextValueArgs {
   data: TimelineData | null;
+  interactionPolicy: MobileInteractionPolicy;
   selection: SelectionHook;
   selectedTrackId: string | null;
   compositionSize: { width: number; height: number };
@@ -73,10 +82,18 @@ interface UseTimelineEditorContextValueArgs {
   applyEdit: TimelineApplyEdit;
   patchRegistry: TimelinePatchRegistry;
   registerAsset: TimelineRegisterAsset;
+  setInputModality: (inputModality: TimelineInputModality) => void;
+  setInputModalityFromPointerType: (pointerType: string | null | undefined) => TimelineInputModality;
+  setInteractionMode: (mode: TimelineInteractionMode) => void;
+  setGestureOwner: (owner: TimelineGestureOwner) => void;
+  setPrecisionEnabled: (enabled: boolean) => void;
+  setContextTarget: (target: TimelineContextTarget) => void;
+  setInspectorTarget: (target: TimelineInspectorTarget) => void;
 }
 
 export function useTimelineEditorContextValue({
   data,
+  interactionPolicy,
   selection,
   selectedTrackId,
   compositionSize,
@@ -102,6 +119,13 @@ export function useTimelineEditorContextValue({
   applyEdit,
   patchRegistry,
   registerAsset,
+  setInputModality,
+  setInputModalityFromPointerType,
+  setInteractionMode,
+  setGestureOwner,
+  setPrecisionEnabled,
+  setContextTarget,
+  setInspectorTarget,
 }: UseTimelineEditorContextValueArgs): TimelineEditorContextValue {
   const onActionResizeStart: TimelineActionResizeStart = clipResize.onActionResizeStart;
   const onClipEdgeResizeEnd: TimelineClipEdgeResizeEnd = clipResize.onClipEdgeResizeEnd;
@@ -109,6 +133,14 @@ export function useTimelineEditorContextValue({
   return useMemo<TimelineEditorContextValue>(() => ({
     data,
     resolvedConfig: selection.resolvedConfig,
+    deviceClass: interactionPolicy.deviceClass,
+    inputModality: interactionPolicy.inputModality,
+    interactionMode: interactionPolicy.interactionMode,
+    gestureOwner: interactionPolicy.gestureOwner,
+    precisionEnabled: interactionPolicy.precisionEnabled,
+    contextTarget: interactionPolicy.contextTarget,
+    inspectorTarget: interactionPolicy.inspectorTarget,
+    interactionPolicy,
     selectedClipId: selection.primaryClipId,
     selectedClipIds: selection.selectedClipIds,
     selectedClipIdsRef: selection.selectedClipIdsRef,
@@ -132,6 +164,13 @@ export function useTimelineEditorContextValue({
     preferences: editorPreferences,
     timelineRef: playback.timelineRef,
     timelineWrapperRef: playback.timelineWrapperRef,
+    setInputModality,
+    setInputModalityFromPointerType,
+    setInteractionMode,
+    setGestureOwner,
+    setPrecisionEnabled,
+    setContextTarget,
+    setInspectorTarget,
     setSelectedClipId: selection.setSelectedClipId,
     isClipSelected: selection.isClipSelected,
     selectClip: selection.selectClip,
@@ -180,6 +219,7 @@ export function useTimelineEditorContextValue({
     compositionSize,
     data,
     dataRef,
+    interactionPolicy,
     isLoading,
     pendingOpsRef,
     interactionStateRef,
@@ -187,6 +227,13 @@ export function useTimelineEditorContextValue({
     scale,
     scaleWidth,
     selectedTrackId,
+    setContextTarget,
+    setGestureOwner,
+    setInputModality,
+    setInputModalityFromPointerType,
+    setInspectorTarget,
+    setInteractionMode,
+    setPrecisionEnabled,
     setActiveClipTab,
     setAssetPanelState,
     setSelectedTrackId,

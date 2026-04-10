@@ -533,6 +533,74 @@ describe('useSwitchToFinalVideo', () => {
     expect(patchRegistry).toHaveBeenCalledTimes(1);
   });
 
+  it('updates a video-mode shot group to the latest final video in one edit', () => {
+    const applyEdit = vi.fn();
+    const patchRegistry = vi.fn();
+    const registerAsset = vi.fn(async () => undefined);
+    const dataRef = {
+      current: makeConfigTimelineData(
+        {
+          output: { resolution: '1920x1080', fps: 30, file: 'out.mp4' },
+          tracks: [{ id: 'V1', kind: 'visual', label: 'V1' }],
+          clips: [
+            { id: 'clip-3', at: 7, track: 'V1', clipType: 'media', asset: 'asset-video', from: 0, to: 10, speed: 1 },
+          ],
+          pinnedShotGroups: [makePinnedGroup({
+            shotId: 'shot-1',
+            trackId: 'V1',
+            clipIds: ['clip-3'],
+            mode: 'video',
+            videoAssetKey: 'asset-video',
+            imageClipSnapshot: [
+              { clipId: 'clip-1', assetKey: 'asset-1', start: 7, end: 10, meta: { clipType: 'hold', hold: 3 } },
+            ],
+          })],
+        },
+        {
+          assets: {
+            'asset-video': { file: 'video-old.mp4', type: 'video/mp4', generationId: 'final-old' },
+            'asset-1': { file: 'one.png', type: 'image/png' },
+          },
+        },
+      ),
+    };
+
+    const { result } = renderHook(() => useSwitchToFinalVideo({
+      applyEdit,
+      dataRef,
+      finalVideoMap: new Map([['shot-1', { id: 'final-new', location: 'https://example.com/final-new.mp4', thumbnailUrl: null }]]),
+      patchRegistry,
+      registerAsset,
+    }));
+
+    act(() => {
+      result.current.updateToLatestVideo({ shotId: 'shot-1', rowId: 'V1' });
+    });
+
+    expect(patchRegistry).toHaveBeenCalledTimes(1);
+    expect(registerAsset).toHaveBeenCalledTimes(1);
+    expect(applyEdit).toHaveBeenCalledTimes(1);
+
+    const mutation = applyEdit.mock.calls[0][0];
+    expect(mutation.type).toBe('rows');
+    expect(mutation.rows).toEqual(dataRef.current.rows);
+    expect(mutation.metaUpdates).toEqual({
+      'clip-3': {
+        asset: expect.any(String),
+      },
+    });
+    expect(mutation.pinnedShotGroupsOverride).toEqual([expect.objectContaining({
+      shotId: 'shot-1',
+      trackId: 'V1',
+      clipIds: ['clip-3'],
+      mode: 'video',
+      videoAssetKey: expect.any(String),
+      imageClipSnapshot: [
+        { clipId: 'clip-1', assetKey: 'asset-1', start: 7, end: 10, meta: { clipType: 'hold', hold: 3 } },
+      ],
+    })]);
+  });
+
   it('restores image clips from snapshot in one edit when switching back to images', () => {
     const applyEdit = vi.fn();
     const dataRef = {

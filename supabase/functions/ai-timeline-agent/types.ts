@@ -3,6 +3,7 @@ import type {
   AgentSessionStatus,
   AgentTurn,
 } from "../../../src/tools/video-editor/types/agent-session.ts";
+import type { TimelinePlacement } from "../create-task/resolvers/shared/lineage.ts";
 import type { AssetRegistry, TimelineConfig } from "../../../src/tools/video-editor/types/index.ts";
 
 export type { AgentSession, AgentSessionStatus, AgentTurn };
@@ -85,11 +86,42 @@ export type SelectedClipPayload = {
   clip_id: string;
   url: string;
   media_type: "image" | "video";
+  is_timeline_backed?: boolean;
   generation_id?: string;
+  variant_id?: string;
   prompt?: string;
   shot_id?: string;
   shot_name?: string;
   shot_selection_clip_count?: number;
+  track_id?: string;
+  at?: number;
+  duration?: number;
+  timeline_placement?: TimelinePlacement;
+};
+
+export type ResolvedSelectionContext = {
+  timeline_id: string;
+  clip_id: string;
+  generation_id?: string;
+  variant_id?: string;
+  track_id: string;
+  at: number;
+  duration: number;
+  shot_id?: string;
+  shot_name?: string;
+  source: "timeline" | "gallery";
+  is_on_timeline: boolean;
+};
+
+export type PlacementIntent = {
+  timeline_id: string;
+  anchor_clip_id: string;
+  anchor_generation_id?: string;
+  anchor_variant_id?: string;
+  relation: "after";
+  preferred_track_id: string;
+  fallback_at: number;
+  fallback_track_id: string;
 };
 
 export type AgentTextToImageModel = "qwen-image" | "qwen-image-2512" | "z-image";

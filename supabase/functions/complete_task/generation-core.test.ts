@@ -120,7 +120,7 @@ describe('complete_task/generation-core', () => {
       from: vi.fn().mockReturnValue(variantsQuery),
     } as unknown as Parameters<typeof createVariant>[0];
 
-    await createVariant(
+    await expect(createVariant(
       supabase,
       'gen-1',
       'https://x.test/video.mp4',
@@ -130,10 +130,11 @@ describe('complete_task/generation-core', () => {
       'video',
       'main',
       '2026-01-01T00:00:00.000Z',
-    );
+    )).resolves.toEqual({ id: 'variant-1' });
 
     expect(supabase.from).toHaveBeenCalledTimes(1);
     expect(supabase.from).toHaveBeenCalledWith('generation_variants');
+    expect(variantsQuery.select).toHaveBeenCalledWith('id');
     expect(variantsQuery.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         generation_id: 'gen-1',

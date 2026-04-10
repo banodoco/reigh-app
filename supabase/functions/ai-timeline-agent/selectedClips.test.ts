@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { enrichClipsWithPrompts, normalizeSelectedClips } from './selectedClips.ts';
+import {
+  enrichClipsWithPrompts,
+  normalizeSelectedClips,
+  resolveSelectionContext,
+  resolveTimelinePlacement,
+} from './selectedClips.ts';
 
 function createSupabaseAdmin(rows: unknown, error: { message: string } | null = null) {
   const inMock = vi.fn().mockResolvedValue({ data: rows, error });
@@ -21,12 +26,30 @@ describe('normalizeSelectedClips', () => {
     expect(normalizeSelectedClips([{
       clip_id: 'clip-1',
       generation_id: 'gen-1',
+      variant_id: 'variant-1',
       url: 'https://example.com/image.png',
       media_type: 'image',
     }])).toEqual([{
       clip_id: 'clip-1',
       generation_id: 'gen-1',
+      variant_id: 'variant-1',
       url: 'https://example.com/image.png',
+      media_type: 'image',
+    }]);
+  });
+
+  it('preserves the exact timeline clip id while trimming variant_id during normalization', () => {
+    expect(normalizeSelectedClips([{
+      clip_id: '  clip-timeline-7  ',
+      generation_id: 'gen-7',
+      variant_id: '  variant-7  ',
+      url: 'https://example.com/timeline-7.png',
+      media_type: 'image',
+    }])).toEqual([{
+      clip_id: 'clip-timeline-7',
+      generation_id: 'gen-7',
+      variant_id: 'variant-7',
+      url: 'https://example.com/timeline-7.png',
       media_type: 'image',
     }]);
   });
@@ -75,18 +98,197 @@ describe('normalizeSelectedClips', () => {
       generation_id: 'gen-4',
       url: 'https://example.com/shot.png',
       media_type: 'image',
+      is_timeline_backed: true,
       shot_id: '  shot-4  ',
       shot_name: '  Hero Shot  ',
       shot_selection_clip_count: 4,
+      track_id: '  V1  ',
+      at: 10.5,
+      duration: 2.25,
     }])).toEqual([{
       clip_id: 'clip-4',
       generation_id: 'gen-4',
       url: 'https://example.com/shot.png',
       media_type: 'image',
+      is_timeline_backed: true,
       shot_id: 'shot-4',
       shot_name: 'Hero Shot',
       shot_selection_clip_count: 4,
+      track_id: 'V1',
+      at: 10.5,
+      duration: 2.25,
     }]);
+  });
+});
+
+describe('resolveTimelinePlacement', () => {
+  it('returns an after_source placement for a timeline-backed clip that still exists on the loaded timeline', () => {
+    const timelineState = {
+      config: {
+        clips: [{
+          id: 'clip-1',
+          at: 8,
+          track: 'V1',
+          hold: 2.5,
+        }],
+      },
+    } as unknown as import('./types.ts').TimelineState;
+
+    expect(resolveTimelinePlacement({
+      clip_id: 'clip-1',
+      url: 'https://example.com/1.png',
+      media_type: 'image',
+      is_timeline_backed: true,
+    }, timelineState, 'timeline-1')).toEqual({
+      timeline_id: 'timeline-1',
+      source_clip_id: 'clip-1',
+      target_track: 'V1',
+      insertion_time: 10.5,
+      intent: 'after_source',
+    });
+  });
+
+  it('returns null for gallery-only clips with no timeline backing', () => {
+    const timelineState = {
+      config: {
+        clips: [{
+          id: 'clip-1',
+          at: 8,
+          track: 'V1',
+          hold: 2.5,
+        }],
+      },
+    } as unknown as import('./types.ts').TimelineState;
+
+    expect(resolveTimelinePlacement({
+      clip_id: 'gallery-gen-1',
+      url: 'https://example.com/1.png',
+      media_type: 'image',
+      is_timeline_backed: false,
+    }, timelineState, 'timeline-1')).toBeNull();
+  });
+
+  it('does not treat gallery clip ids as timeline anchors even when variant_id is present', () => {
+    const timelineState = {
+      config: {
+        clips: [{
+          id: 'clip-1',
+          at: 8,
+          track: 'V1',
+          hold: 2.5,
+        }],
+      },
+    } as unknown as import('./types.ts').TimelineState;
+
+    const [galleryClip] = normalizeSelectedClips([{
+      clip_id: '',
+      generation_id: 'gen-2',
+      variant_id: 'variant-2',
+      url: 'https://example.com/gallery.png',
+      media_type: 'image',
+      is_timeline_backed: true,
+    }]);
+
+    expect(galleryClip).toEqual({
+      clip_id: 'gallery-gen-2',
+      generation_id: 'gen-2',
+      variant_id: 'variant-2',
+      url: 'https://example.com/gallery.png',
+      media_type: 'image',
+      is_timeline_backed: true,
+    });
+    expect(resolveTimelinePlacement(galleryClip, timelineState, 'timeline-1')).toBeNull();
+  });
+});
+
+describe('resolveSelectionContext', () => {
+  it('resolves timeline clips from the live timeline config with track, at, and duration', () => {
+    const timelineState = {
+      config: {
+        clips: [{
+          id: 'clip-1',
+          at: 3.5,
+          track: 'V2',
+          hold: 1.25,
+        }],
+      },
+    } as unknown as import('./types.ts').TimelineState;
+
+    expect(resolveSelectionContext([{
+      clip_id: 'clip-1',
+      generation_id: 'gen-1',
+      variant_id: 'variant-1',
+      url: 'https://example.com/1.png',
+      media_type: 'image',
+      track_id: 'stale-track',
+      at: 99,
+      duration: 99,
+      shot_id: 'shot-1',
+      shot_name: 'Hero',
+    }], timelineState, 'timeline-1')).toEqual([{
+      timeline_id: 'timeline-1',
+      clip_id: 'clip-1',
+      generation_id: 'gen-1',
+      variant_id: 'variant-1',
+      track_id: 'V2',
+      at: 3.5,
+      duration: 1.25,
+      shot_id: 'shot-1',
+      shot_name: 'Hero',
+      source: 'timeline',
+      is_on_timeline: true,
+    }]);
+  });
+
+  it('treats gallery-prefixed or missing clip ids as non-timeline selections', () => {
+    const timelineState = {
+      config: {
+        clips: [{
+          id: 'clip-1',
+          at: 3.5,
+          track: 'V2',
+          hold: 1.25,
+        }],
+      },
+    } as unknown as import('./types.ts').TimelineState;
+
+    expect(resolveSelectionContext([
+      {
+        clip_id: 'gallery-gen-2',
+        generation_id: 'gen-2',
+        variant_id: 'variant-2',
+        url: 'https://example.com/gallery.png',
+        media_type: 'image',
+      },
+      {
+        clip_id: 'clip-missing',
+        generation_id: 'gen-3',
+        url: 'https://example.com/missing.png',
+        media_type: 'image',
+      },
+    ], timelineState, 'timeline-1')).toEqual([
+      {
+        timeline_id: 'timeline-1',
+        clip_id: 'gallery-gen-2',
+        generation_id: 'gen-2',
+        variant_id: 'variant-2',
+        track_id: '',
+        at: 0,
+        duration: 0,
+        source: 'gallery',
+        is_on_timeline: false,
+      },
+      {
+        timeline_id: 'timeline-1',
+        clip_id: 'clip-missing',
+        generation_id: 'gen-3',
+        track_id: '',
+        at: 0,
+        duration: 0,
+        source: 'gallery',
+        is_on_timeline: false,
+      },
+    ]);
   });
 });
 
@@ -128,7 +330,12 @@ describe('enrichClipsWithPrompts', () => {
   });
 
   it('passes clips through unchanged when none have generation_id', async () => {
-    const clips = [{ clip_id: 'clip-1', url: 'https://example.com/1.png', media_type: 'image' as const }];
+    const clips = [{
+      clip_id: 'clip-1',
+      variant_id: 'variant-1',
+      url: 'https://example.com/1.png',
+      media_type: 'image' as const,
+    }];
     const { supabaseAdmin, fromMock } = createSupabaseAdmin([]);
 
     await expect(enrichClipsWithPrompts(supabaseAdmin, clips)).resolves.toEqual(clips);

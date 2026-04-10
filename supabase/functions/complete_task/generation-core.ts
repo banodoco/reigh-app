@@ -204,7 +204,7 @@ export async function createVariant(
   variantType: string | null,
   name?: string | null,
   viewedAt?: string | null
-): Promise<unknown> {
+): Promise<{ id: string }> {
   const variantRecord: Record<string, unknown> = {
     generation_id: generationId,
     location,
@@ -224,7 +224,7 @@ export async function createVariant(
   const { data, error } = await supabase
     .from('generation_variants')
     .insert(variantRecord)
-    .select()
+    .select('id')
     .single();
 
   if (error) {

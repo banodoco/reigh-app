@@ -9,6 +9,7 @@ import {
 import { CompletionError } from './errors.ts';
 
 const mocks = vi.hoisted(() => ({
+  insertGeneration: vi.fn(),
   createVariant: vi.fn(),
   getOrCreateParentGeneration: vi.fn(),
   createVariantOnParent: vi.fn(),
@@ -31,8 +32,8 @@ vi.mock('./generation-core.ts', async () => {
   const actual = await vi.importActual<typeof import('./generation-core.ts')>('./generation-core.ts');
   return {
     ...actual,
+    insertGeneration: (...args: unknown[]) => mocks.insertGeneration(...args),
     createVariant: (...args: unknown[]) => mocks.createVariant(...args),
-    insertGeneration: actual.insertGeneration,
     linkGenerationToShot: actual.linkGenerationToShot,
   };
 });
@@ -49,6 +50,8 @@ vi.mock('./generation-parent.ts', async () => {
 describe('complete_task/generation-handlers exports', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.insertGeneration.mockResolvedValue({ id: 'gen-standalone' });
+    mocks.createVariant.mockResolvedValue({ id: 'variant-1' });
   });
 
   it('exports generation handlers', () => {
@@ -132,5 +135,108 @@ describe('complete_task/generation-handlers exports', () => {
         created_from: 'travel_stitch_completion',
       }),
     );
+  });
+
+  it('returns completion asset identity for source-derived variant creation', async () => {
+    const taskUpdateEq = vi.fn().mockResolvedValue({ error: null });
+    const taskUpdate = vi.fn().mockReturnValue({ eq: taskUpdateEq });
+    const sourceSingle = vi.fn().mockResolvedValue({
+      data: { id: 'gen-source', project_id: 'project-1' },
+      error: null,
+    });
+    const sourceEq = vi.fn().mockReturnValue({ single: sourceSingle });
+    const sourceSelect = vi.fn().mockReturnValue({ eq: sourceEq });
+    const supabase = {
+      from: vi.fn((table: string) => {
+        if (table === 'generations') {
+          return { select: sourceSelect };
+        }
+        if (table === 'tasks') {
+          return { update: taskUpdate };
+        }
+        throw new Error(`Unexpected table ${table}`);
+      }),
+    };
+
+    await expect(handleVariantCreation(
+      supabase as never,
+      'task-variant',
+      {
+        params: { is_primary: true, source_variant_id: 'source-variant-1' },
+        variant_type: 'magic-edit',
+        task_type: 'magic-edit',
+        tool_type: 'qwen_image_edit',
+        content_type: 'image',
+      },
+      'gen-source',
+      'https://example.com/out.png',
+      'https://example.com/thumb.png',
+    )).resolves.toEqual({
+      generation_id: 'gen-source',
+      variant_id: 'variant-1',
+      location: 'https://example.com/out.png',
+      thumbnail_url: 'https://example.com/thumb.png',
+      media_type: 'image',
+      created_as: 'variant',
+    });
+  });
+
+  it('returns completion asset identity for standalone generation originals', async () => {
+    const taskUpdateEq = vi.fn().mockResolvedValue({ error: null });
+    const taskUpdate = vi.fn().mockReturnValue({ eq: taskUpdateEq });
+    const supabase = {
+      from: vi.fn((table: string) => {
+        if (table === 'tasks') {
+          return { update: taskUpdate };
+        }
+        if (table === 'shots') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({ data: null, error: null }),
+              })),
+            })),
+          };
+        }
+        throw new Error(`Unexpected table ${table}`);
+      }),
+    };
+
+    const result = await handleStandaloneGeneration({
+      supabase: supabase as never,
+      taskId: 'task-standalone',
+      taskData: {
+        task_type: 'image_generation',
+        project_id: 'project-1',
+        params: {},
+        tool_type: 'wan',
+        content_type: 'image',
+      },
+      publicUrl: 'https://example.com/generated.png',
+      thumbnailUrl: 'https://example.com/generated-thumb.png',
+      logger: { info: vi.fn() },
+    } as never) as {
+      id: string;
+      completionAsset: {
+        generation_id: string;
+        variant_id?: string;
+        location: string;
+        thumbnail_url?: string;
+        media_type: string;
+        created_as: 'generation' | 'variant';
+      };
+    };
+
+    expect(result).toMatchObject({
+      id: 'gen-standalone',
+      completionAsset: {
+        generation_id: 'gen-standalone',
+        variant_id: 'variant-1',
+        location: 'https://example.com/generated.png',
+        thumbnail_url: 'https://example.com/generated-thumb.png',
+        media_type: 'image',
+        created_as: 'generation',
+      },
+    });
   });
 });

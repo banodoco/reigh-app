@@ -15,7 +15,7 @@ import React, {
 import { DndContext, closestCenter, type DragEndEvent, useSensors } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Layers, Loader2, RefreshCw, Video } from 'lucide-react';
+import { Ellipsis, Layers, Loader2, RefreshCw, Video } from 'lucide-react';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { usePortalMousedownGuard } from '@/shared/hooks/usePortalMousedownGuard';
 import {
@@ -28,6 +28,13 @@ import { useTimelineEditorData } from '@/tools/video-editor/contexts/TimelineEdi
 import { TimeRuler } from '@/tools/video-editor/components/TimelineEditor/TimeRuler';
 import { LABEL_WIDTH } from '@/tools/video-editor/lib/coordinate-utils';
 import { notifyInteractionEndIfIdle } from '@/tools/video-editor/lib/interaction-state';
+import {
+  shouldExpandTouchTrimHandles,
+  type TimelineDeviceClass,
+  type TimelineGestureOwner,
+  type TimelineInputModality,
+  type TimelineInteractionMode,
+} from '@/tools/video-editor/lib/mobile-interaction-model';
 import {
   applyClipEdgeMove,
   snapBoundaryToSiblings,
@@ -55,6 +62,14 @@ interface ResizeOverride {
   end: number;
 }
 
+interface ResizeActivationState {
+  pointerId: number;
+  startClientX: number;
+  target: HTMLDivElement;
+  isActive: boolean;
+  claimedOwnership: boolean;
+}
+
 interface PositionedShotGroup {
   key: string;
   shotId: string;
@@ -77,6 +92,10 @@ interface PositionedShotGroup {
 export interface TimelineCanvasProps {
   rows: TimelineRow[];
   tracks: TrackDefinition[];
+  deviceClass: TimelineDeviceClass;
+  inputModality: TimelineInputModality;
+  interactionMode: TimelineInteractionMode;
+  gestureOwner: TimelineGestureOwner;
   scale: number;
   scaleWidth: number;
   scaleSplitCount: number;
@@ -93,6 +112,8 @@ export interface TimelineCanvasProps {
   trackSensors: ReturnType<typeof useSensors>;
   onCursorDrag: (time: number) => void;
   onClickTimeArea: (time: number) => void;
+  setInputModalityFromPointerType: (pointerType: string | null | undefined) => TimelineInputModality;
+  setGestureOwner: (owner: TimelineGestureOwner) => void;
   onActionResizeStart?: (params: {
     action: TimelineAction;
     row: TimelineRow;
@@ -127,6 +148,8 @@ export interface TimelineCanvasProps {
 const ACTION_VERTICAL_MARGIN = 4;
 const CURSOR_WIDTH = 2;
 const RESIZE_HANDLE_WIDTH = 8;
+const TOUCH_RESIZE_HANDLE_WIDTH = 20;
+const RESIZE_ACTIVATION_THRESHOLD_PX = 4;
 const MIN_ACTION_WIDTH_PX = 24;
 const SNAP_THRESHOLD_PX = 8;
 const SHOT_GROUP_LABEL_HEIGHT = 18;
@@ -318,6 +341,7 @@ interface SortableRowProps {
   selectedTrackId: string | null;
   resizeClampedActionId: string | null;
   resizePreviewSnapshot: Readonly<Record<string, ResizeOverride>>;
+  resizeHandleWidth: number;
   getActionRender?: (action: TimelineAction, row: TimelineRow, width: number) => ReactNode;
   onSelectTrack: (trackId: string) => void;
   onTrackChange: (trackId: string, patch: Partial<TrackDefinition>) => void;
@@ -411,6 +435,7 @@ const SortableRow = React.memo(function SortableRow({
   selectedTrackId,
   resizeClampedActionId,
   resizePreviewSnapshot,
+  resizeHandleWidth,
   getActionRender,
   onSelectTrack,
   onTrackChange,
@@ -426,10 +451,7 @@ const SortableRow = React.memo(function SortableRow({
     transform: CSS.Transform.toString(sortable.transform),
     transition: sortable.transition,
     opacity: sortable.isDragging ? 0.5 : 1,
-    // Rows must sit above the ::before gutter overlay (z-index 6) so that
-    // track labels remain visible when dnd-kit applies transforms (which
-    // create a new stacking context, trapping the label's local z-index).
-    zIndex: 7,
+    zIndex: sortable.isDragging ? 20 : undefined,
   };
 
   return (
@@ -440,7 +462,7 @@ const SortableRow = React.memo(function SortableRow({
       style={style}
     >
       <div
-        className="absolute left-0 top-0 z-10 h-full border-r border-border bg-card"
+        className="absolute left-0 top-0 z-20 h-full border-r border-border bg-card"
         style={{ width: LABEL_WIDTH, position: 'sticky', left: 0 }}
         onPointerDown={(event) => event.stopPropagation()}
       >
@@ -485,7 +507,7 @@ const SortableRow = React.memo(function SortableRow({
             {getActionRender?.(renderedAction, row, width)}
             <div
               className="absolute inset-y-0 left-0 z-10 cursor-ew-resize rounded-l-sm border-l border-sky-300/10 bg-sky-300/0 transition-colors group-hover:bg-sky-300/10"
-              style={{ width: RESIZE_HANDLE_WIDTH }}
+              style={{ width: resizeHandleWidth }}
               onPointerDown={(event) => onResizePointerDown(event, renderedAction, row, 'left')}
               onPointerMove={onResizePointerMove}
               onPointerUp={(event) => onResizeEnd(event, false)}
@@ -494,7 +516,7 @@ const SortableRow = React.memo(function SortableRow({
             />
             <div
               className="absolute inset-y-0 right-0 z-10 cursor-ew-resize rounded-r-sm border-r border-sky-300/10 bg-sky-300/0 transition-colors group-hover:bg-sky-300/10"
-              style={{ width: RESIZE_HANDLE_WIDTH }}
+              style={{ width: resizeHandleWidth }}
               onPointerDown={(event) => onResizePointerDown(event, renderedAction, row, 'right')}
               onPointerMove={onResizePointerMove}
               onPointerUp={(event) => onResizeEnd(event, false)}
@@ -513,6 +535,10 @@ SortableRow.displayName = 'SortableRow';
 export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasProps>(function TimelineCanvas({
   rows,
   tracks,
+  deviceClass,
+  inputModality,
+  interactionMode,
+  gestureOwner,
   scale,
   scaleWidth,
   scaleSplitCount,
@@ -529,6 +555,8 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   trackSensors,
   onCursorDrag,
   onClickTimeArea,
+  setInputModalityFromPointerType,
+  setGestureOwner,
   onActionResizeStart,
   onActionResizing,
   onClipEdgeResizeEnd,
@@ -559,6 +587,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
   const resizeSessionRef = useRef<ClipEdgeResizeSession | null>(null);
+  const resizeActivationRef = useRef<ResizeActivationState | null>(null);
   const resizePreviewStoreRef = useRef<ResizePreviewStore>();
   if (!resizePreviewStoreRef.current) {
     resizePreviewStoreRef.current = createResizePreviewStore();
@@ -600,6 +629,9 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   }, [shotGroupMenu]);
 
   const { pixelsPerSecond, pixelToTime, timeToPixel } = useTimelineScale({ scale, scaleWidth, startLeft });
+  const resizeHandleWidth = shouldExpandTouchTrimHandles(deviceClass, inputModality, interactionMode)
+    ? TOUCH_RESIZE_HANDLE_WIDTH
+    : RESIZE_HANDLE_WIDTH;
   const minDuration = MIN_ACTION_WIDTH_PX / pixelsPerSecond;
   const actionHeight = Math.max(12, rowHeight - ACTION_VERTICAL_MARGIN * 2);
   const scrollContentHeight = (rows.length + 1) * rowHeight;
@@ -667,6 +699,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     });
   }, [actionHeight, activeTaskClipIds, finalVideoMap, pixelsPerSecond, resizePreviewSnapshot, rowHeight, rows, shotGroups, staleShotGroupIds, timeToPixel]);
   const hideShotGroups = dragSessionRef?.current !== null;
+  const showTouchShotGroupActions = deviceClass !== 'desktop';
   const openShotGroupMenu = useCallback((
     x: number,
     y: number,
@@ -911,7 +944,25 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     const session = resizeSessionRef.current;
     if (!session || session.pointerId !== event.pointerId) return;
 
+    const activation = resizeActivationRef.current;
     resizeSessionRef.current = null;
+    resizeActivationRef.current = null;
+
+    if (!activation?.isActive) {
+      if (activation?.claimedOwnership) {
+        setGestureOwner('none');
+      }
+      setResizeClampedActionId((current) => (current === session.clipId ? null : current));
+      clearResizePreview(getResizePreviewIds(session));
+      return;
+    }
+
+    if (activation.target.hasPointerCapture(event.pointerId)) {
+      activation.target.releasePointerCapture(event.pointerId);
+    }
+    if (activation.claimedOwnership) {
+      setGestureOwner('none');
+    }
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
@@ -936,7 +987,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       cancelled,
     });
     clearResizePreview(previewIds);
-  }, [clearResizePreview, computeResizePreview, interactionStateRef, onClipEdgeResizeEnd, pendingOpsRef, resizePreviewStore]);
+  }, [clearResizePreview, computeResizePreview, interactionStateRef, onClipEdgeResizeEnd, pendingOpsRef, resizePreviewStore, setGestureOwner]);
 
   const handleResizePointerDown = useCallback((
     event: ReactPointerEvent<HTMLDivElement>,
@@ -945,6 +996,11 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     edge: ResizeDir,
   ) => {
     if (event.button !== 0) return;
+    if (gestureOwner !== 'none' && gestureOwner !== 'trim') {
+      return;
+    }
+
+    setInputModalityFromPointerType(event.pointerType);
 
     const resolved = resolveClipEdgeResizeContext(
       rows,
@@ -970,29 +1026,80 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     };
 
     resizeSessionRef.current = nextSession;
-    resizePreviewStore.merge(getOverrideMapForUpdates(
-      nextSession,
-      applyClipEdgeMove(resolved.context, edge, resolved.initialBoundaryTime).updates,
-    ));
+    resizeActivationRef.current = {
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      target: event.currentTarget,
+      isActive: false,
+      claimedOwnership: false,
+    };
     setResizeClampedActionId(null);
-
-    if (nextSession.context.kind !== 'outer') {
-      onActionResizeStart?.({ action, row, dir: edge });
-    }
-    if (interactionStateRef) {
-      interactionStateRef.current.resize = true;
-    }
-    pendingOpsRef.current += 1;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    event.preventDefault();
     event.stopPropagation();
-  }, [interactionStateRef, onActionResizeStart, pendingOpsRef, positionedShotGroups, resolveClipEdgeResizeContext, resizePreviewStore, rows, shotGroups, timeToPixel]);
+  }, [
+    gestureOwner,
+    positionedShotGroups,
+    resolveClipEdgeResizeContext,
+    rows,
+    setInputModalityFromPointerType,
+    shotGroups,
+    timeToPixel,
+  ]);
 
   const handleResizePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const session = resizeSessionRef.current;
     if (!session || session.pointerId !== event.pointerId) return;
+
+    const activation = resizeActivationRef.current;
+    if (!activation || activation.pointerId !== event.pointerId) {
+      return;
+    }
+
+    if (!activation.isActive) {
+      if (Math.abs(event.clientX - activation.startClientX) < RESIZE_ACTIVATION_THRESHOLD_PX) {
+        return;
+      }
+      if (gestureOwner !== 'none' && gestureOwner !== 'trim') {
+        resizeSessionRef.current = null;
+        resizeActivationRef.current = null;
+        clearResizePreview(getResizePreviewIds(session));
+        return;
+      }
+
+      activation.isActive = true;
+      activation.claimedOwnership = true;
+      setGestureOwner('trim');
+      resizePreviewStore.merge(getOverrideMapForUpdates(
+        session,
+        applyClipEdgeMove(session.context, session.edge, session.initialBoundaryTime).updates,
+      ));
+      if (session.context.kind !== 'outer') {
+        const row = rows.find((candidate) => candidate.id === session.rowId);
+        const action = row?.actions.find((candidate) => candidate.id === session.clipId);
+        if (row && action) {
+          onActionResizeStart?.({ action, row, dir: session.edge });
+        }
+      }
+      if (interactionStateRef) {
+        interactionStateRef.current.resize = true;
+      }
+      pendingOpsRef.current += 1;
+      activation.target.setPointerCapture(event.pointerId);
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
     updateResize(session, event.clientX);
-  }, [updateResize]);
+  }, [
+    clearResizePreview,
+    gestureOwner,
+    interactionStateRef,
+    onActionResizeStart,
+    pendingOpsRef,
+    resizePreviewStore,
+    rows,
+    setGestureOwner,
+    updateResize,
+  ]);
 
   return (
     <div className="relative flex h-full min-h-0 flex-col bg-background/70">
@@ -1013,13 +1120,19 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         startLeft={startLeft}
         scrollLeft={scrollLeft}
         totalWidth={totalWidth}
+        gestureOwner={gestureOwner}
         onClickTimeArea={onClickTimeArea}
         onCursorDrag={onCursorDrag}
+        setGestureOwner={setGestureOwner}
+        setInputModalityFromPointerType={setInputModalityFromPointerType}
       />
       {!hideShotGroups && positionedShotGroups.map((group) => (
         <div
           key={`${group.key}:label`}
-          className="absolute rounded-t-sm opacity-0 transition-opacity hover:opacity-100 cursor-pointer select-none"
+          className={cn(
+            'absolute cursor-pointer select-none rounded-t-sm transition-opacity',
+            showTouchShotGroupActions ? 'opacity-100' : 'opacity-0 hover:opacity-100',
+          )}
           title={group.shotName}
           data-action-id="shot-group-label"
           data-shot-group-drag-anchor-clip-id={group.clipIds[0] ?? ''}
@@ -1061,6 +1174,21 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
             {group.shotName}
           </span>
           <div className="pointer-events-none absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-1">
+            {showTouchShotGroupActions && (
+              <button
+                type="button"
+                className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full bg-card/90 text-foreground shadow-sm transition-colors hover:bg-accent"
+                title="Open shot actions"
+                aria-label={`Open actions for ${group.shotName}`}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  openShotGroupMenu(event.clientX, event.clientY, group);
+                }}
+              >
+                <Ellipsis className="h-4 w-4" />
+              </button>
+            )}
             {group.hasFinalVideo && (
               <button
                 type="button"
@@ -1100,7 +1228,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
             )}
           </div>
         </div>
-      ))}
+        ))}
       <div
         ref={scrollContainerRef}
         className="timeline-canvas-edit-area timeline-scroll relative min-h-0 flex-1 overflow-auto overscroll-contain bg-background/70"
@@ -1191,6 +1319,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
                     selectedTrackId={selectedTrackId}
                     resizeClampedActionId={resizeClampedActionId}
                     resizePreviewSnapshot={rowResizePreview[index] ?? EMPTY_RESIZE_PREVIEW_SNAPSHOT}
+                    resizeHandleWidth={resizeHandleWidth}
                     getActionRender={getActionRender}
                     onSelectTrack={onSelectTrack}
                     onTrackChange={onTrackChange}
@@ -1207,7 +1336,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         {/* Footer: + Video / + Audio split buttons and draggable text tool — outside the grid background div */}
         <div className="relative flex border-t border-border bg-background/70" style={{ height: rowHeight, width: totalWidth }}>
           <div
-            className="z-10 flex bg-card"
+            className="z-20 flex bg-card"
             style={{ width: LABEL_WIDTH, position: 'sticky', left: 0 }}
             onPointerDown={(event) => event.stopPropagation()}
           >

@@ -47,6 +47,7 @@ function SelectionConsumer({ peerClear }: { peerClear?: (() => void) | null } = 
           url: 'https://example.com/image-1.png',
           type: 'image/png',
           generationId: 'gen-1',
+          variantId: 'variant-1',
         })}
       >
         select-image
@@ -145,6 +146,7 @@ describe('GallerySelectionContext', () => {
     fireEvent.click(screen.getByText('select-image'));
     expect(screen.getByTestId('selected-ids')).toHaveTextContent('gen-1');
     expect(screen.getByTestId('summary')).toHaveTextContent('attaching 1 image');
+    expect(screen.getByTestId('selected-clips')).toHaveTextContent('"variantId":"variant-1"');
 
     fireEvent.click(screen.getByText('toggle-video'));
     expect(screen.getByTestId('selected-ids')).toHaveTextContent('gen-1,gen-2');

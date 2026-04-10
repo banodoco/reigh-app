@@ -17,6 +17,7 @@ export interface TaskContext {
 
 export type CompletionFollowUpStep =
   | 'validation'
+  | 'timeline_placement'
   | 'orchestrator_completion'
   | 'cost_calculation'
   | 'follow_up_persistence';

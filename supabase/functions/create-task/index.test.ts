@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   parseCreateTaskBody: vi.fn(),
   buildTaskInsertObject: vi.fn(),
   getErrorMessage: vi.fn((error: unknown) => (error instanceof Error ? error.message : String(error))),
+  getTaskFamilyResolver: vi.fn(),
 }));
 
 vi.mock('../_shared/edgeHandler.ts', () => ({
@@ -26,6 +27,10 @@ vi.mock('./request.ts', () => ({
   parseCreateTaskBody: (...args: unknown[]) => mocks.parseCreateTaskBody(...args),
   buildTaskInsertObject: (...args: unknown[]) => mocks.buildTaskInsertObject(...args),
   getErrorMessage: (...args: unknown[]) => mocks.getErrorMessage(...args),
+}));
+
+vi.mock('./resolvers/registry.ts', () => ({
+  getTaskFamilyResolver: (...args: unknown[]) => mocks.getTaskFamilyResolver(...args),
 }));
 
 function createLogger() {
@@ -53,8 +58,8 @@ function createTasksIdempotentLookupChain(task: { id: string; status: string; pr
   return { select, eq, single };
 }
 
-function createProjectsLookupChain(userId: string) {
-  const single = vi.fn().mockResolvedValue({ data: { user_id: userId }, error: null });
+function createProjectsLookupChain(project: { user_id?: string; aspect_ratio?: string }) {
+  const single = vi.fn().mockResolvedValue({ data: project, error: null });
   const eq = vi.fn().mockReturnValue({ single });
   const select = vi.fn().mockReturnValue({ eq });
   return { select, eq, single };
@@ -79,20 +84,30 @@ describe('create-task edge entrypoint', () => {
     mocks.parseCreateTaskBody.mockReturnValue({
       ok: true,
       value: {
-        task_id: 'task-client-1',
-        params: { prompt: 'hello' },
-        task_type: 'image_generation',
         project_id: 'project-1',
-        normalizedDependantOn: null,
-        idempotency_key: null,
+        family: 'image_upscale',
+        input: { image_url: 'https://example.com/source.png' },
       },
     });
     mocks.buildTaskInsertObject.mockReturnValue({ id: 'task-client-1' });
+    mocks.getTaskFamilyResolver.mockReturnValue(
+      vi.fn().mockResolvedValue({
+        tasks: [
+          {
+            project_id: 'project-1',
+            task_type: 'image_upscale',
+            params: { image_url: 'https://example.com/source.png' },
+            status: 'Queued',
+          },
+        ],
+      }),
+    );
 
     const taskInsert = createTasksInsertChain('task-created-1');
     const supabaseAdmin = {
       from: vi.fn().mockImplementation((table: string) => {
         if (table === 'tasks') return { insert: taskInsert.insert };
+        if (table === 'projects') return { select: createProjectsLookupChain({ aspect_ratio: '16:9' }).select };
         throw new Error(`Unexpected table: ${table}`);
       }),
     };
@@ -103,7 +118,11 @@ describe('create-task edge entrypoint', () => {
         supabaseAdmin,
         logger: createLogger(),
         auth: { isServiceRole: true, userId: null },
-        body: { task_type: 'image_generation', params: { prompt: 'hello' }, project_id: 'project-1' },
+        body: {
+          family: 'image_upscale',
+          project_id: 'project-1',
+          input: { image_url: 'https://example.com/source.png' },
+        },
       },
     });
   });
@@ -142,18 +161,13 @@ describe('create-task edge entrypoint', () => {
       },
     });
 
-    mocks.parseCreateTaskBody.mockReturnValue({
-      ok: false,
-      error: 'params, task_type required',
-    });
-
     const handler = await loadHandler();
     const response = await handler(new Request('https://edge.test/create-task', { method: 'POST' }));
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({
       errorCode: 'invalid_request_body',
-      message: 'params, task_type required',
+      message: 'family field is required',
     });
     expect(logger.flush).toHaveBeenCalled();
   });
@@ -166,19 +180,10 @@ describe('create-task edge entrypoint', () => {
         supabaseAdmin: { from: vi.fn() },
         logger,
         auth: { isServiceRole: true, userId: null },
-        body: {},
-      },
-    });
-
-    mocks.parseCreateTaskBody.mockReturnValue({
-      ok: true,
-      value: {
-        task_id: null,
-        params: { foo: 'bar' },
-        task_type: 'image_generation',
-        project_id: null,
-        normalizedDependantOn: null,
-        idempotency_key: null,
+        body: {
+          family: 'image_upscale',
+          input: { image_url: 'https://example.com/source.png' },
+        },
       },
     });
 
@@ -187,8 +192,8 @@ describe('create-task edge entrypoint', () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({
-      errorCode: 'project_id_required',
-      message: 'project_id required for service role',
+      errorCode: 'invalid_request_body',
+      message: 'project_id required',
     });
     expect(logger.flush).toHaveBeenCalled();
   });
@@ -199,6 +204,7 @@ describe('create-task edge entrypoint', () => {
     const supabaseAdmin = {
       from: vi.fn().mockImplementation((table: string) => {
         if (table === 'tasks') return { insert: taskInsert.insert };
+        if (table === 'projects') return { select: createProjectsLookupChain({ aspect_ratio: '16:9' }).select };
         throw new Error(`Unexpected table: ${table}`);
       }),
     };
@@ -210,25 +216,12 @@ describe('create-task edge entrypoint', () => {
         logger,
         auth: { isServiceRole: true, userId: null },
         body: {
-          task_type: 'image_generation',
-          params: { prompt: 'hello' },
+          family: 'image_upscale',
           project_id: 'project-1',
+          input: { image_url: 'https://example.com/source.png' },
         },
       },
     });
-
-    mocks.parseCreateTaskBody.mockReturnValue({
-      ok: true,
-      value: {
-        task_id: 'task-client-1',
-        params: { prompt: 'hello' },
-        task_type: 'image_generation',
-        project_id: 'project-1',
-        normalizedDependantOn: null,
-        idempotency_key: null,
-      },
-    });
-    mocks.buildTaskInsertObject.mockReturnValue({ id: 'task-client-1', project_id: 'project-1' });
 
     const handler = await loadHandler();
     const response = await handler(new Request('https://edge.test/create-task', { method: 'POST' }));
@@ -252,7 +245,7 @@ describe('create-task edge entrypoint', () => {
     const insertSingle = vi.fn().mockResolvedValue({ data: null, error: duplicateError });
     const insertSelect = vi.fn().mockReturnValue({ single: insertSingle });
     const insert = vi.fn().mockReturnValue({ select: insertSelect });
-    const projects = createProjectsLookupChain('user-1');
+    const projects = createProjectsLookupChain({ user_id: 'user-1', aspect_ratio: '16:9' });
     const existingTask = createTasksIdempotentLookupChain({
       id: 'task-existing-1',
       status: 'Queued',
@@ -278,25 +271,13 @@ describe('create-task edge entrypoint', () => {
         logger,
         auth: { isServiceRole: false, userId: 'user-1', isJwtAuth: true },
         body: {
-          task_type: 'image_generation',
-          params: { prompt: 'hello' },
+          family: 'image_upscale',
           project_id: 'project-1',
+          input: { image_url: 'https://example.com/source.png' },
           idempotency_key: 'idem-1',
         },
       },
     });
-    mocks.parseCreateTaskBody.mockReturnValue({
-      ok: true,
-      value: {
-        task_id: null,
-        params: { prompt: 'hello' },
-        task_type: 'image_generation',
-        project_id: 'project-1',
-        normalizedDependantOn: null,
-        idempotency_key: 'idem-1',
-      },
-    });
-    mocks.buildTaskInsertObject.mockReturnValue({ project_id: 'project-1', idempotency_key: 'idem-1' });
 
     const handler = await loadHandler();
     const response = await handler(new Request('https://edge.test/create-task', { method: 'POST' }));
@@ -320,7 +301,7 @@ describe('create-task edge entrypoint', () => {
     const insertSingle = vi.fn().mockResolvedValue({ data: null, error: duplicateError });
     const insertSelect = vi.fn().mockReturnValue({ single: insertSingle });
     const insert = vi.fn().mockReturnValue({ select: insertSelect });
-    const projects = createProjectsLookupChain('user-1');
+    const projects = createProjectsLookupChain({ user_id: 'user-1', aspect_ratio: '16:9' });
     const existingTask = createTasksIdempotentLookupChain({
       id: 'task-existing-1',
       status: 'Queued',
@@ -346,25 +327,13 @@ describe('create-task edge entrypoint', () => {
         logger,
         auth: { isServiceRole: false, userId: 'user-1', isJwtAuth: true },
         body: {
-          task_type: 'image_generation',
-          params: { prompt: 'hello' },
+          family: 'image_upscale',
           project_id: 'project-1',
+          input: { image_url: 'https://example.com/source.png' },
           idempotency_key: 'idem-1',
         },
       },
     });
-    mocks.parseCreateTaskBody.mockReturnValue({
-      ok: true,
-      value: {
-        task_id: null,
-        params: { prompt: 'hello' },
-        task_type: 'image_generation',
-        project_id: 'project-1',
-        normalizedDependantOn: null,
-        idempotency_key: 'idem-1',
-      },
-    });
-    mocks.buildTaskInsertObject.mockReturnValue({ project_id: 'project-1', idempotency_key: 'idem-1' });
 
     const handler = await loadHandler();
     const response = await handler(new Request('https://edge.test/create-task', { method: 'POST' }));

@@ -100,6 +100,7 @@ describe("loop helpers", () => {
       selectedClips,
       supabaseAdmin,
       undefined,
+      "timeline-1",
     );
 
     await expect(executeToolCall({
@@ -216,11 +217,15 @@ describe("loop helpers", () => {
           clipId: "clip-new",
           url: "https://example.com/new.png",
           mediaType: "image",
+          isTimelineBacked: true,
           generationId: "gen-new",
           prompt: "new prompt",
           shotId: "shot-new",
           shotName: "Hero Shot",
           shotSelectionClipCount: 4,
+          trackId: "V1",
+          at: 9.25,
+          duration: 2.5,
         }],
         timestamp: "2026-04-04T00:00:02.000Z",
       },
@@ -230,11 +235,15 @@ describe("loop helpers", () => {
       clip_id: "clip-new",
       url: "https://example.com/new.png",
       media_type: "image",
+      is_timeline_backed: true,
       generation_id: "gen-new",
       prompt: "new prompt",
       shot_id: "shot-new",
       shot_name: "Hero Shot",
       shot_selection_clip_count: 4,
+      track_id: "V1",
+      at: 9.25,
+      duration: 2.5,
     }]);
   });
 
@@ -246,6 +255,13 @@ describe("loop helpers", () => {
         media_type: "image",
         shot_id: "shot-1",
         shot_name: 'Hero "Shot"',
+        timeline_placement: {
+          timeline_id: "timeline-1",
+          source_clip_id: "clip-1",
+          target_track: "V1",
+          insertion_time: 10.5,
+          intent: "after_source",
+        },
         prompt: 'moody "reference" lighting',
       },
       {
@@ -262,7 +278,29 @@ describe("loop helpers", () => {
     expect(prompt).toContain('shot_id=shot-1');
     expect(prompt).toContain('shot_name="Hero \\"Shot\\""');
     expect(prompt).toContain('timeline=id=clip-1 | track=V1 | shot=Hero Shot | shotId=shot-1');
+    expect(prompt).toContain('placement_anchor={"timeline_id":"timeline-1","source_clip_id":"clip-1","target_track":"V1","insertion_time":10.5,"intent":"after_source"}');
     expect(prompt).not.toContain("prompt=undefined");
+  });
+
+  it("adds a structured placement anchor when a single selected timeline clip carries resolved placement", () => {
+    const prompt = buildSelectedClipsPrompt([
+      {
+        clip_id: "clip-placed",
+        url: "https://example.com/placed.png",
+        media_type: "image",
+        is_timeline_backed: true,
+        timeline_placement: {
+          timeline_id: "timeline-9",
+          source_clip_id: "clip-placed",
+          target_track: "V2",
+          insertion_time: 18.75,
+          intent: "after_source",
+        },
+      },
+    ], "- id=clip-placed | track=V2 | shot=Hero Shot | shotId=shot-1");
+
+    expect(prompt).toContain('timeline=id=clip-placed | track=V2 | shot=Hero Shot | shotId=shot-1');
+    expect(prompt).toContain('placement_anchor={"timeline_id":"timeline-9","source_clip_id":"clip-placed","target_track":"V2","insertion_time":18.75,"intent":"after_source"}');
   });
 
   it("marks uploaded images as visual references instead of prompt metadata", () => {

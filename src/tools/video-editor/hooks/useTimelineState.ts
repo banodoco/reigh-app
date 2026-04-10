@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useIsMobile, useIsTablet } from '@/shared/hooks/mobile';
 import { createInteractionState } from '@/tools/video-editor/lib/interaction-state';
 import { useGallerySelection } from '@/shared/contexts/GallerySelectionContext';
 import { useProjectSelectionContext } from '@/shared/contexts/ProjectContext';
@@ -25,6 +26,12 @@ import {
   useTimelinePlaybackContextValue,
 } from '@/tools/video-editor/hooks/useTimelineState.contexts';
 import type { UseTimelineStateResult } from '@/tools/video-editor/hooks/useTimelineState.types';
+import {
+  createMobileInteractionPolicy,
+  getDefaultInteractionMode,
+  resolveInputModalityFromPointerType,
+  resolveTimelineDeviceClass,
+} from '@/tools/video-editor/lib/mobile-interaction-model';
 import { useTimelineTrackManagement } from '@/tools/video-editor/hooks/useTimelineTrackManagement';
 
 export type { EditorPreferences } from '@/tools/video-editor/hooks/useEditorPreferences';
@@ -34,11 +41,26 @@ export type { SaveStatus } from '@/tools/video-editor/hooks/useTimelineSave';
 export function useTimelineState(): UseTimelineStateResult {
   const runtime = useVideoEditorRuntime();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
   const playback = useTimelinePlayback();
   const preferences = useEditorPreferences(runtime.timelineId);
   const queries = useTimelineQueries(runtime.provider, runtime.timelineId);
   // Shared gate observed by drag/resize writers and read by save/persistence/poll.
   const interactionStateRef = useRef(createInteractionState());
+  const deviceClass = useMemo(
+    () => resolveTimelineDeviceClass({ isMobile, isTablet }),
+    [isMobile, isTablet],
+  );
+  const defaultInteractionMode = getDefaultInteractionMode(deviceClass);
+  const initialInteractionPolicyRef = useRef(createMobileInteractionPolicy(deviceClass));
+  const previousDefaultInteractionModeRef = useRef(defaultInteractionMode);
+  const [inputModality, setInputModality] = useState(initialInteractionPolicyRef.current.inputModality);
+  const [interactionMode, setInteractionMode] = useState(initialInteractionPolicyRef.current.interactionMode);
+  const [gestureOwner, setGestureOwner] = useState(initialInteractionPolicyRef.current.gestureOwner);
+  const [precisionEnabled, setPrecisionEnabled] = useState(initialInteractionPolicyRef.current.precisionEnabled);
+  const [contextTarget, setContextTarget] = useState(initialInteractionPolicyRef.current.contextTarget);
+  const [inspectorTarget, setInspectorTarget] = useState(initialInteractionPolicyRef.current.inspectorTarget);
   const save = useTimelineSave(queries, runtime.provider, interactionStateRef);
   const history = useTimelineHistory({
     dataRef: save.dataRef,
@@ -119,6 +141,29 @@ export function useTimelineState(): UseTimelineStateResult {
     clearGallerySelection,
     registerPeerClear,
   });
+  const setInputModalityFromPointerType = useCallback((pointerType: string | null | undefined) => {
+    const nextModality = resolveInputModalityFromPointerType(pointerType);
+    setInputModality(nextModality);
+    return nextModality;
+  }, []);
+
+  const interactionPolicy = useMemo(() => ({
+    deviceClass,
+    inputModality,
+    interactionMode,
+    gestureOwner,
+    precisionEnabled,
+    contextTarget,
+    inspectorTarget,
+  }), [
+    contextTarget,
+    deviceClass,
+    gestureOwner,
+    inputModality,
+    inspectorTarget,
+    interactionMode,
+    precisionEnabled,
+  ]);
 
   useEffect(() => {
     return eventBus.on('beforeCommit', onBeforeCommit);
@@ -133,6 +178,15 @@ export function useTimelineState(): UseTimelineStateResult {
       setRenderDirty(true);
     });
   }, [eventBus, setRenderDirty]);
+
+  useEffect(() => {
+    setInteractionMode((currentMode) => (
+      currentMode === previousDefaultInteractionModeRef.current
+        ? defaultInteractionMode
+        : currentMode
+    ));
+    previousDefaultInteractionModeRef.current = defaultInteractionMode;
+  }, [defaultInteractionMode]);
 
   const dragCoordinator = useDragCoordinator({
     dataRef,
@@ -203,6 +257,7 @@ export function useTimelineState(): UseTimelineStateResult {
 
   const editor = useTimelineEditorContextValue({
     data,
+    interactionPolicy,
     selection,
     selectedTrackId,
     compositionSize,
@@ -228,6 +283,13 @@ export function useTimelineState(): UseTimelineStateResult {
     applyEdit,
     patchRegistry,
     registerAsset,
+    setInputModality,
+    setInputModalityFromPointerType,
+    setInteractionMode,
+    setGestureOwner,
+    setPrecisionEnabled,
+    setContextTarget,
+    setInspectorTarget,
   });
 
   const chrome = useTimelineChromeContextValue({

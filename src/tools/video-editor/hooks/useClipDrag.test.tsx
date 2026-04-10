@@ -331,6 +331,11 @@ describe('useClipDrag', () => {
         timelineWrapperRef,
         dataRef,
         pendingOpsRef,
+        deviceClass: 'desktop',
+        interactionMode: 'select',
+        gestureOwner: 'none',
+        setGestureOwner: vi.fn(),
+        setInputModalityFromPointerType: vi.fn(() => 'mouse'),
         moveClipToRow: vi.fn(),
         createTrackAndMoveClip: vi.fn(),
         selectClip: vi.fn(),
@@ -379,6 +384,11 @@ describe('useClipDrag', () => {
         timelineWrapperRef,
         dataRef,
         pendingOpsRef,
+        deviceClass: 'desktop',
+        interactionMode: 'select',
+        gestureOwner: 'none',
+        setGestureOwner: vi.fn(),
+        setInputModalityFromPointerType: vi.fn(() => 'mouse'),
         moveClipToRow: vi.fn(),
         createTrackAndMoveClip: vi.fn(),
         selectClip: vi.fn(),
@@ -429,6 +439,11 @@ describe('useClipDrag', () => {
         dataRef,
         pendingOpsRef,
         interactionStateRef,
+        deviceClass: 'desktop',
+        interactionMode: 'select',
+        gestureOwner: 'none',
+        setGestureOwner: vi.fn(),
+        setInputModalityFromPointerType: vi.fn(() => 'mouse'),
         moveClipToRow: vi.fn(),
         createTrackAndMoveClip: vi.fn(),
         selectClip: vi.fn(),
@@ -488,6 +503,338 @@ describe('useClipDrag', () => {
     }
   });
 
+  it('toggles touch selection in select mode without desktop modifier keys', () => {
+    const pendingOpsRef = { current: 0 };
+    const selectClip = vi.fn();
+    const { clip, wrapper, cleanup } = setupDom();
+    const timelineWrapperRef = { current: wrapper };
+    const dataRef = { current: makeData() };
+
+    try {
+      renderHook(() => useClipDrag({
+        timelineWrapperRef,
+        dataRef,
+        pendingOpsRef,
+        deviceClass: 'phone',
+        interactionMode: 'select',
+        gestureOwner: 'none',
+        setGestureOwner: vi.fn(),
+        setInputModalityFromPointerType: vi.fn(() => 'touch'),
+        moveClipToRow: vi.fn(),
+        createTrackAndMoveClip: vi.fn(),
+        selectClip,
+        selectClips: vi.fn(),
+        selectedClipIdsRef: { current: new Set<string>() },
+        additiveSelectionRef: { current: false },
+        applyEdit: vi.fn(),
+        coordinator: makeCoordinator(),
+        rowHeight: 48,
+        scale: 1,
+        scaleWidth: 100,
+        startLeft: 0,
+      }));
+
+      act(() => {
+        fireEvent.pointerDown(clip, {
+          button: 0,
+          pointerId: 12,
+          pointerType: 'touch',
+          clientX: 24,
+          clientY: 12,
+        });
+      });
+
+      act(() => {
+        fireEvent.pointerUp(window, {
+          pointerId: 12,
+          clientX: 24,
+          clientY: 12,
+        });
+      });
+
+      expect(selectClip).toHaveBeenCalledWith('clip-1', { toggle: true });
+    } finally {
+      cleanup();
+    }
+  });
+
+  it('preserves additive touch selection on move-mode taps that do not start a drag', () => {
+    const pendingOpsRef = { current: 0 };
+    const selectClip = vi.fn();
+    const { clip, wrapper, cleanup } = setupDom();
+    const timelineWrapperRef = { current: wrapper };
+    const dataRef = { current: makeData() };
+
+    try {
+      renderHook(() => useClipDrag({
+        timelineWrapperRef,
+        dataRef,
+        pendingOpsRef,
+        deviceClass: 'phone',
+        interactionMode: 'move',
+        gestureOwner: 'none',
+        setGestureOwner: vi.fn(),
+        setInputModalityFromPointerType: vi.fn(() => 'touch'),
+        moveClipToRow: vi.fn(),
+        createTrackAndMoveClip: vi.fn(),
+        selectClip,
+        selectClips: vi.fn(),
+        selectedClipIdsRef: { current: new Set<string>(['clip-1', 'clip-2']) },
+        additiveSelectionRef: { current: true },
+        applyEdit: vi.fn(),
+        coordinator: makeCoordinator(),
+        rowHeight: 48,
+        scale: 1,
+        scaleWidth: 100,
+        startLeft: 0,
+      }));
+
+      act(() => {
+        fireEvent.pointerDown(clip, {
+          button: 0,
+          pointerId: 13,
+          pointerType: 'touch',
+          clientX: 24,
+          clientY: 12,
+        });
+      });
+
+      act(() => {
+        fireEvent.pointerUp(window, {
+          pointerId: 13,
+          clientX: 24,
+          clientY: 12,
+        });
+      });
+
+      expect(selectClip).toHaveBeenCalledWith('clip-1', { preserveSelection: true });
+    } finally {
+      cleanup();
+    }
+  });
+
+  it('keeps tablet touch select-mode drags dormant while tablet mouse still follows desktop drag behavior', () => {
+    const touchPendingOpsRef = { current: 0 };
+    const touchInteractionStateRef = { current: createInteractionState() };
+    const touchSetGestureOwner = vi.fn();
+    const touchDom = setupDom();
+    const touchTimelineWrapperRef = { current: touchDom.wrapper };
+    const touchDataRef = { current: makeData() };
+
+    try {
+      renderHook(() => useClipDrag({
+        timelineWrapperRef: touchTimelineWrapperRef,
+        dataRef: touchDataRef,
+        pendingOpsRef: touchPendingOpsRef,
+        interactionStateRef: touchInteractionStateRef,
+        deviceClass: 'tablet',
+        interactionMode: 'select',
+        gestureOwner: 'none',
+        setGestureOwner: touchSetGestureOwner,
+        setInputModalityFromPointerType: vi.fn(() => 'touch'),
+        moveClipToRow: vi.fn(),
+        createTrackAndMoveClip: vi.fn(),
+        selectClip: vi.fn(),
+        selectClips: vi.fn(),
+        selectedClipIdsRef: { current: new Set<string>() },
+        additiveSelectionRef: { current: false },
+        applyEdit: vi.fn(),
+        coordinator: makeCoordinator(),
+        rowHeight: 48,
+        scale: 1,
+        scaleWidth: 100,
+        startLeft: 0,
+      }));
+
+      act(() => {
+        fireEvent.pointerDown(touchDom.clip, {
+          button: 0,
+          pointerId: 14,
+          pointerType: 'touch',
+          clientX: 24,
+          clientY: 12,
+        });
+      });
+
+      act(() => {
+        fireEvent.pointerMove(window, {
+          pointerId: 14,
+          pointerType: 'touch',
+          clientX: 40,
+          clientY: 12,
+        });
+      });
+
+      expect(touchSetGestureOwner).not.toHaveBeenCalled();
+      expect(touchInteractionStateRef.current.drag).toBe(false);
+
+      act(() => {
+        fireEvent.pointerUp(window, {
+          pointerId: 14,
+          pointerType: 'touch',
+          clientX: 40,
+          clientY: 12,
+        });
+      });
+
+      expect(touchPendingOpsRef.current).toBe(0);
+    } finally {
+      touchDom.cleanup();
+    }
+
+    const mousePendingOpsRef = { current: 0 };
+    const mouseInteractionStateRef = { current: createInteractionState() };
+    const mouseSetGestureOwner = vi.fn();
+    const mouseDom = setupDom();
+    const mouseTimelineWrapperRef = { current: mouseDom.wrapper };
+    const mouseDataRef = { current: makeData() };
+
+    try {
+      renderHook(() => useClipDrag({
+        timelineWrapperRef: mouseTimelineWrapperRef,
+        dataRef: mouseDataRef,
+        pendingOpsRef: mousePendingOpsRef,
+        interactionStateRef: mouseInteractionStateRef,
+        deviceClass: 'tablet',
+        interactionMode: 'select',
+        gestureOwner: 'none',
+        setGestureOwner: mouseSetGestureOwner,
+        setInputModalityFromPointerType: vi.fn(() => 'mouse'),
+        moveClipToRow: vi.fn(),
+        createTrackAndMoveClip: vi.fn(),
+        selectClip: vi.fn(),
+        selectClips: vi.fn(),
+        selectedClipIdsRef: { current: new Set<string>() },
+        additiveSelectionRef: { current: false },
+        applyEdit: vi.fn(),
+        coordinator: makeCoordinator(),
+        rowHeight: 48,
+        scale: 1,
+        scaleWidth: 100,
+        startLeft: 0,
+      }));
+
+      act(() => {
+        fireEvent.pointerDown(mouseDom.clip, {
+          button: 0,
+          pointerId: 15,
+          pointerType: 'mouse',
+          clientX: 24,
+          clientY: 12,
+        });
+      });
+
+      act(() => {
+        fireEvent.pointerMove(window, {
+          pointerId: 15,
+          pointerType: 'mouse',
+          clientX: 40,
+          clientY: 12,
+        });
+      });
+
+      expect(mouseSetGestureOwner).toHaveBeenCalledWith('clip');
+      expect(mouseInteractionStateRef.current.drag).toBe(true);
+
+      act(() => {
+        fireEvent.pointerUp(window, {
+          pointerId: 15,
+          pointerType: 'mouse',
+          clientX: 40,
+          clientY: 12,
+        });
+      });
+
+      expect(mouseInteractionStateRef.current.drag).toBe(false);
+      expect(mousePendingOpsRef.current).toBe(0);
+    } finally {
+      mouseDom.cleanup();
+    }
+  });
+
+  it('arms tablet touch clip dragging in move mode only after the drag threshold is crossed', () => {
+    const pendingOpsRef = { current: 0 };
+    const interactionStateRef = { current: createInteractionState() };
+    const setGestureOwner = vi.fn();
+    const { clip, wrapper, cleanup } = setupDom();
+    const timelineWrapperRef = { current: wrapper };
+    const dataRef = { current: makeData() };
+
+    try {
+      renderHook(() => useClipDrag({
+        timelineWrapperRef,
+        dataRef,
+        pendingOpsRef,
+        interactionStateRef,
+        deviceClass: 'tablet',
+        interactionMode: 'move',
+        gestureOwner: 'none',
+        setGestureOwner,
+        setInputModalityFromPointerType: vi.fn(() => 'touch'),
+        moveClipToRow: vi.fn(),
+        createTrackAndMoveClip: vi.fn(),
+        selectClip: vi.fn(),
+        selectClips: vi.fn(),
+        selectedClipIdsRef: { current: new Set<string>(['clip-1']) },
+        additiveSelectionRef: { current: true },
+        applyEdit: vi.fn(),
+        coordinator: makeCoordinator(),
+        rowHeight: 48,
+        scale: 1,
+        scaleWidth: 100,
+        startLeft: 0,
+      }));
+
+      act(() => {
+        fireEvent.pointerDown(clip, {
+          button: 0,
+          pointerId: 16,
+          pointerType: 'touch',
+          clientX: 24,
+          clientY: 12,
+        });
+      });
+
+      act(() => {
+        fireEvent.pointerMove(window, {
+          pointerId: 16,
+          pointerType: 'touch',
+          clientX: 26,
+          clientY: 12,
+        });
+      });
+
+      expect(setGestureOwner).not.toHaveBeenCalled();
+      expect(interactionStateRef.current.drag).toBe(false);
+
+      act(() => {
+        fireEvent.pointerMove(window, {
+          pointerId: 16,
+          pointerType: 'touch',
+          clientX: 40,
+          clientY: 12,
+        });
+      });
+
+      expect(setGestureOwner).toHaveBeenCalledWith('clip');
+      expect(interactionStateRef.current.drag).toBe(true);
+
+      act(() => {
+        fireEvent.pointerUp(window, {
+          pointerId: 16,
+          pointerType: 'touch',
+          clientX: 40,
+          clientY: 12,
+        });
+      });
+
+      expect(interactionStateRef.current.drag).toBe(false);
+      expect(pendingOpsRef.current).toBe(0);
+    } finally {
+      cleanup();
+    }
+  });
+
   it('commits a config edit when a free multi-clip drag drops onto a new bottom track', () => {
     const pendingOpsRef = { current: 0 };
     const applyEdit = vi.fn();
@@ -519,6 +866,11 @@ describe('useClipDrag', () => {
         timelineWrapperRef,
         dataRef,
         pendingOpsRef,
+        deviceClass: 'desktop',
+        interactionMode: 'select',
+        gestureOwner: 'none',
+        setGestureOwner: vi.fn(),
+        setInputModalityFromPointerType: vi.fn(() => 'mouse'),
         moveClipToRow: vi.fn(),
         createTrackAndMoveClip: vi.fn(),
         selectClip: vi.fn(),
@@ -587,6 +939,11 @@ describe('useClipDrag', () => {
         timelineWrapperRef,
         dataRef,
         pendingOpsRef,
+        deviceClass: 'desktop',
+        interactionMode: 'select',
+        gestureOwner: 'none',
+        setGestureOwner: vi.fn(),
+        setInputModalityFromPointerType: vi.fn(() => 'mouse'),
         moveClipToRow: vi.fn(),
         createTrackAndMoveClip: vi.fn(),
         selectClip: vi.fn(),
@@ -629,6 +986,11 @@ describe('useClipDrag', () => {
         timelineWrapperRef,
         dataRef,
         pendingOpsRef,
+        deviceClass: 'desktop',
+        interactionMode: 'select',
+        gestureOwner: 'none',
+        setGestureOwner: vi.fn(),
+        setInputModalityFromPointerType: vi.fn(() => 'mouse'),
         moveClipToRow: vi.fn(),
         createTrackAndMoveClip: vi.fn(),
         selectClip: vi.fn(),
@@ -677,6 +1039,11 @@ describe('useClipDrag', () => {
         timelineWrapperRef,
         dataRef,
         pendingOpsRef,
+        deviceClass: 'desktop',
+        interactionMode: 'select',
+        gestureOwner: 'none',
+        setGestureOwner: vi.fn(),
+        setInputModalityFromPointerType: vi.fn(() => 'mouse'),
         moveClipToRow: vi.fn(),
         createTrackAndMoveClip: vi.fn(),
         selectClip: vi.fn(),
@@ -726,6 +1093,11 @@ describe('useClipDrag', () => {
         timelineWrapperRef,
         dataRef,
         pendingOpsRef,
+        deviceClass: 'desktop',
+        interactionMode: 'select',
+        gestureOwner: 'none',
+        setGestureOwner: vi.fn(),
+        setInputModalityFromPointerType: vi.fn(() => 'mouse'),
         moveClipToRow: vi.fn(),
         createTrackAndMoveClip: vi.fn(),
         selectClip: vi.fn(),
@@ -776,6 +1148,11 @@ describe('useClipDrag', () => {
         timelineWrapperRef,
         dataRef,
         pendingOpsRef,
+        deviceClass: 'desktop',
+        interactionMode: 'select',
+        gestureOwner: 'none',
+        setGestureOwner: vi.fn(),
+        setInputModalityFromPointerType: vi.fn(() => 'mouse'),
         moveClipToRow: vi.fn(),
         createTrackAndMoveClip: vi.fn(),
         selectClip: vi.fn(),
@@ -844,6 +1221,11 @@ describe('useClipDrag', () => {
         timelineWrapperRef,
         dataRef,
         pendingOpsRef,
+        deviceClass: 'desktop',
+        interactionMode: 'select',
+        gestureOwner: 'none',
+        setGestureOwner: vi.fn(),
+        setInputModalityFromPointerType: vi.fn(() => 'mouse'),
         moveClipToRow: vi.fn(),
         createTrackAndMoveClip: vi.fn(),
         selectClip: vi.fn(),
@@ -952,6 +1334,11 @@ describe('useClipDrag', () => {
         timelineWrapperRef,
         dataRef,
         pendingOpsRef,
+        deviceClass: 'desktop',
+        interactionMode: 'select',
+        gestureOwner: 'none',
+        setGestureOwner: vi.fn(),
+        setInputModalityFromPointerType: vi.fn(() => 'mouse'),
         moveClipToRow: vi.fn(),
         createTrackAndMoveClip: vi.fn(),
         selectClip: vi.fn(),

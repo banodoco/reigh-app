@@ -1,5 +1,12 @@
 import { useCallback, useRef, useState, type MutableRefObject, type PointerEvent as ReactPointerEvent } from 'react';
 import { createAutoScroller } from '@/tools/video-editor/lib/auto-scroll';
+import {
+  shouldAllowTouchMarquee,
+  type TimelineDeviceClass,
+  type TimelineGestureOwner,
+  type TimelineInputModality,
+  type TimelineInteractionMode,
+} from '@/tools/video-editor/lib/mobile-interaction-model';
 
 const MARQUEE_THRESHOLD_PX = 4;
 
@@ -13,6 +20,11 @@ export interface MarqueeRect {
 interface UseMarqueeSelectArgs {
   editAreaRef: MutableRefObject<HTMLElement | null>;
   dragSessionRef: MutableRefObject<unknown>;
+  deviceClass: TimelineDeviceClass;
+  interactionMode: TimelineInteractionMode;
+  gestureOwner: TimelineGestureOwner;
+  setGestureOwner: (owner: TimelineGestureOwner) => void;
+  setInputModalityFromPointerType: (pointerType: string | null | undefined) => TimelineInputModality;
   selectClips: (clipIds: Iterable<string>) => void;
   addToSelection: (clipIds: Iterable<string>) => void;
   clearSelection: () => void;
@@ -26,6 +38,7 @@ interface MarqueeSession {
   startCanvasY: number;
   additive: boolean;
   hasMoved: boolean;
+  claimedOwnership: boolean;
   moveListener: (event: PointerEvent) => void;
   upListener: (event: PointerEvent) => void;
   cancelListener: (event: PointerEvent) => void;
@@ -47,6 +60,11 @@ const intersects = (
 export function useMarqueeSelect({
   editAreaRef,
   dragSessionRef,
+  deviceClass,
+  interactionMode,
+  gestureOwner,
+  setGestureOwner,
+  setInputModalityFromPointerType,
   selectClips,
   addToSelection,
   clearSelection,
@@ -55,6 +73,8 @@ export function useMarqueeSelect({
   const sessionRef = useRef<MarqueeSession | null>(null);
   const intersectedClipIdsRef = useRef<string[]>([]);
   const autoScrollerRef = useRef<ReturnType<typeof createAutoScroller> | null>(null);
+  const gestureOwnerRef = useRef(gestureOwner);
+  gestureOwnerRef.current = gestureOwner;
 
   const clearSession = useCallback((session: MarqueeSession | null) => {
     autoScrollerRef.current?.stop();
@@ -70,10 +90,13 @@ export function useMarqueeSelect({
     window.removeEventListener('pointercancel', session.cancelListener);
     document.body.style.userSelect = '';
     document.body.style.webkitUserSelect = '';
+    if (session.claimedOwnership) {
+      setGestureOwner('none');
+    }
     sessionRef.current = null;
     setMarqueeRect(null);
     intersectedClipIdsRef.current = [];
-  }, []);
+  }, [setGestureOwner]);
 
   const onPointerDown = useCallback((event: ReactPointerEvent<HTMLElement>) => {
     if (event.button !== 0 || dragSessionRef.current) {
@@ -82,6 +105,15 @@ export function useMarqueeSelect({
 
     const target = event.target;
     if (!(target instanceof Element) || target.closest('.clip-action, [data-action-id]')) {
+      return;
+    }
+
+    if (gestureOwnerRef.current !== 'none' && gestureOwnerRef.current !== 'timeline') {
+      return;
+    }
+
+    const inputModality = setInputModalityFromPointerType(event.pointerType);
+    if (!shouldAllowTouchMarquee(deviceClass, inputModality, interactionMode)) {
       return;
     }
 
@@ -143,7 +175,13 @@ export function useMarqueeSelect({
       }
 
       if (!session.hasMoved) {
+        if (gestureOwnerRef.current !== 'none' && gestureOwnerRef.current !== 'timeline') {
+          clearSession(session);
+          return;
+        }
         session.hasMoved = true;
+        session.claimedOwnership = true;
+        setGestureOwner('timeline');
         // Prevent text selection while dragging the marquee
         document.body.style.userSelect = 'none';
         document.body.style.webkitUserSelect = 'none';
@@ -196,6 +234,7 @@ export function useMarqueeSelect({
       startCanvasY,
       additive: event.ctrlKey || event.metaKey,
       hasMoved: false,
+      claimedOwnership: false,
       moveListener: handlePointerMove,
       upListener: handlePointerUp,
       cancelListener: handlePointerCancel,
@@ -204,7 +243,18 @@ export function useMarqueeSelect({
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
     window.addEventListener('pointercancel', handlePointerCancel);
-  }, [addToSelection, clearSelection, clearSession, dragSessionRef, editAreaRef, selectClips]);
+  }, [
+    addToSelection,
+    clearSelection,
+    clearSession,
+    deviceClass,
+    dragSessionRef,
+    editAreaRef,
+    interactionMode,
+    selectClips,
+    setGestureOwner,
+    setInputModalityFromPointerType,
+  ]);
 
   return {
     marqueeRect,

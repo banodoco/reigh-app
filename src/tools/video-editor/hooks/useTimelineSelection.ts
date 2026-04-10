@@ -90,6 +90,11 @@ export function useTimelineSelection({
   const selectionDerived = useDerivedTimeline(data, primaryClipId, selectedTrackId);
 
   const selectClip = useCallback((clipId: string, opts?: SelectClipOptions) => {
+    if (opts?.preserveSelection && selectedClipIdsRef.current.has(clipId)) {
+      setSelectionState(getPrimaryClipId(selectedClipIdsRef.current, primaryClipId));
+      return;
+    }
+
     if (!opts?.toggle) {
       clearGallerySelection();
     }

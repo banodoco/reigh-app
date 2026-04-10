@@ -181,6 +181,40 @@ describe('useTimelinePersistence — interaction gating', () => {
     expect(args?.output.file).toBe('output-drag-3.mp4');
   });
 
+  it('keeps save deferred until both drag and resize interactions are idle', async () => {
+    const harness = setup();
+    harness.interactionStateRef.current.drag = true;
+    harness.interactionStateRef.current.resize = true;
+
+    harness.scheduleSave(makeTimelineData('both-active'));
+
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+      await Promise.resolve();
+    });
+    expect(harness.saveTimeline).not.toHaveBeenCalled();
+
+    await act(async () => {
+      harness.interactionStateRef.current.drag = false;
+      notifyInteractionEndIfIdle(harness.interactionStateRef);
+      vi.advanceTimersByTime(600);
+      await Promise.resolve();
+    });
+
+    expect(harness.saveTimeline).not.toHaveBeenCalled();
+
+    await act(async () => {
+      harness.interactionStateRef.current.resize = false;
+      notifyInteractionEndIfIdle(harness.interactionStateRef);
+      vi.advanceTimersByTime(600);
+      await Promise.resolve();
+    });
+
+    expect(harness.saveTimeline).toHaveBeenCalledTimes(1);
+    const args = harness.saveTimeline.mock.calls[0]?.[1];
+    expect(args?.output.file).toBe('output-both-active.mp4');
+  });
+
   it('schedules saves normally when no interaction is active', async () => {
     const harness = setup();
 

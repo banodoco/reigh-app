@@ -1,5 +1,6 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { Button } from '@/shared/components/ui/button';
 import AssetPanel from '@/tools/video-editor/components/PropertiesPanel/AssetPanel';
 import { BulkClipPanel } from '@/tools/video-editor/components/PropertiesPanel/BulkClipPanel';
 import { ClipPanel, getVisibleClipTabs, NO_EFFECT } from '@/tools/video-editor/components/PropertiesPanel/ClipPanel';
@@ -18,7 +19,11 @@ function PropertiesPanelComponent() {
     resolvedConfig,
     selectedClip,
     selectedClipIds,
+    deviceClass,
+    interactionMode,
+    precisionEnabled,
     selectedTrack,
+    selectedTrackId,
     selectedClipHasPredecessor,
     compositionSize,
     preferences,
@@ -29,13 +34,21 @@ function PropertiesPanelComponent() {
     handleUpdateClips,
     handleUpdateClipsDeep,
     handleDeleteClip,
+    handleDeleteClips,
     handleSelectedClipChange,
     handleResetClipPosition,
     handleResetClipsPosition,
+    handleSplitClipsAtPlayhead,
+    handleSplitSelectedClip,
     handleToggleMuteClips,
     handleToggleMute,
     handleDetachAudioClip,
+    moveSelectedClipsToTrack,
+    setContextTarget,
     setActiveClipTab,
+    setInspectorTarget,
+    setInteractionMode,
+    setPrecisionEnabled,
     patchRegistry,
     registerAsset,
   } = useTimelineEditorOps();
@@ -47,6 +60,21 @@ function PropertiesPanelComponent() {
   const [assetsExpanded, setAssetsExpanded] = useState(false);
   const prevClipIdRef = useRef(selectedClip?.id);
   const selectedClipIdsList = [...selectedClipIds];
+  const inspectorSelectionTarget = useMemo(() => {
+    if (selectedClipIdsList.length > 1) {
+      return { kind: 'selection' as const, clipIds: selectedClipIdsList };
+    }
+
+    if (selectedClip) {
+      return { kind: 'clip' as const, clipId: selectedClip.id };
+    }
+
+    if (selectedTrackId) {
+      return { kind: 'track' as const, trackId: selectedTrackId };
+    }
+
+    return { kind: 'timeline' as const };
+  }, [selectedClip, selectedClipIdsList, selectedTrackId]);
   const bulkSelectedClips = resolvedConfig?.clips.filter((clip) => selectedClipIds.has(clip.id)) ?? [];
   const bulkVisibleTabs = getBulkVisibleTabs(bulkSelectedClips, data?.resolvedConfig?.tracks ?? []);
   const bulkEntrance = getSharedNestedValue(bulkSelectedClips, (clip) => clip.entrance);
@@ -100,6 +128,14 @@ function PropertiesPanelComponent() {
   }
 
   const hasSelection = selectedClipIds.size > 0;
+  const showInspectorActions = deviceClass !== 'desktop' && selectedClipIds.size > 1;
+
+  const focusInspectorMode = (mode: 'move' | 'trim', tab: 'timing' | 'position' = 'timing') => {
+    setInteractionMode(mode);
+    setInspectorTarget(inspectorSelectionTarget);
+    setContextTarget(inspectorSelectionTarget);
+    setActiveClipTab(tab);
+  };
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
@@ -131,6 +167,58 @@ function PropertiesPanelComponent() {
         )}
       </div>
       */}
+      {showInspectorActions && (
+        <div className="rounded-xl border border-sky-400/40 bg-sky-500/10 p-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-sm font-medium text-foreground">Selection actions</div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                Use explicit inspector controls for touch editing instead of relying on timeline gestures.
+              </div>
+            </div>
+            <div className="text-[11px] uppercase tracking-[0.12em] text-sky-100">
+              {interactionMode}
+              {precisionEnabled ? ' + precision' : ''}
+            </div>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Button type="button" variant="secondary" size="sm" className="justify-start" onClick={() => focusInspectorMode('trim')}>
+              Trim in inspector
+            </Button>
+            <Button type="button" variant="secondary" size="sm" className="justify-start" onClick={() => focusInspectorMode('move')}>
+              Move in inspector
+            </Button>
+            <Button type="button" variant="outline" size="sm" className="justify-start" onClick={() => moveSelectedClipsToTrack('up', selectedClipIds)}>
+              Track up
+            </Button>
+            <Button type="button" variant="outline" size="sm" className="justify-start" onClick={() => moveSelectedClipsToTrack('down', selectedClipIds)}>
+              Track down
+            </Button>
+            <Button type="button" variant="outline" size="sm" className="justify-start" onClick={() => handleSplitClipsAtPlayhead(selectedClipIdsList)}>
+              Split at playhead
+            </Button>
+            <Button type="button" variant="outline" size="sm" className="justify-start" onClick={() => handleToggleMuteClips(selectedClipIdsList)}>
+              Mute or unmute
+            </Button>
+            <Button
+              type="button"
+              variant={precisionEnabled ? 'secondary' : 'outline'}
+              size="sm"
+              className="justify-start"
+              onClick={() => {
+                setInspectorTarget(inspectorSelectionTarget);
+                setContextTarget(inspectorSelectionTarget);
+                setPrecisionEnabled(!precisionEnabled);
+              }}
+            >
+              {precisionEnabled ? 'Disable precision' : 'Enable precision'}
+            </Button>
+            <Button type="button" variant="destructive" size="sm" className="justify-start" onClick={() => handleDeleteClips(selectedClipIdsList)}>
+              Delete selection
+            </Button>
+          </div>
+        </div>
+      )}
       <div className={`min-h-0 flex-1 overflow-auto rounded-xl border bg-card/80 p-3 transition-colors ${hasSelection ? 'border-sky-400 ring-1 ring-sky-400/30' : 'border-border'}`}>
         {selectedClipIds.size > 1 ? (
           <BulkClipPanel
@@ -168,6 +256,9 @@ function PropertiesPanelComponent() {
           <ClipPanel
             clip={selectedClip}
             track={selectedTrack}
+            deviceClass={deviceClass}
+            interactionMode={interactionMode}
+            precisionEnabled={precisionEnabled}
             hasPredecessor={selectedClipHasPredecessor}
             onChange={handleSelectedClipChange}
             onResetPosition={handleResetClipPosition}
@@ -175,6 +266,23 @@ function PropertiesPanelComponent() {
             onDelete={selectedClip ? () => handleDeleteClip(selectedClip.id) : undefined}
             onToggleMute={handleToggleMute}
             onDetachAudio={selectedClip ? () => handleDetachAudioClip(selectedClip.id) : undefined}
+            onSplitAtPlayhead={() => {
+              setInspectorTarget(inspectorSelectionTarget);
+              setContextTarget(inspectorSelectionTarget);
+              handleSplitSelectedClip();
+            }}
+            onMoveTrackUp={() => moveSelectedClipsToTrack('up', selectedClipIds)}
+            onMoveTrackDown={() => moveSelectedClipsToTrack('down', selectedClipIds)}
+            onSetInteractionMode={(mode) => {
+              setInspectorTarget(inspectorSelectionTarget);
+              setContextTarget(inspectorSelectionTarget);
+              setInteractionMode(mode);
+            }}
+            onSetPrecisionEnabled={(enabled) => {
+              setInspectorTarget(inspectorSelectionTarget);
+              setContextTarget(inspectorSelectionTarget);
+              setPrecisionEnabled(enabled);
+            }}
             compositionWidth={compositionSize.width}
             compositionHeight={compositionSize.height}
             activeTab={preferences.activeClipTab}

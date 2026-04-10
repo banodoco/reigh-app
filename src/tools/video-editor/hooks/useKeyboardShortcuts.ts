@@ -4,7 +4,9 @@ import { isEditableTarget } from '@/tools/video-editor/lib/coordinate-utils';
 interface UseKeyboardShortcutsOptions {
   hasSelectedClip: boolean;
   canMoveSelectedClipToTrack: boolean;
+  precisionEnabled: boolean;
   selectedClipIds: ReadonlySet<string>;
+  timelineFps: number;
   moveSelectedClipsToTrack: (direction: 'up' | 'down', selectedClipIds: ReadonlySet<string>) => void;
   undo: () => void;
   redo: () => void;
@@ -20,7 +22,9 @@ interface UseKeyboardShortcutsOptions {
 export function useKeyboardShortcuts({
   hasSelectedClip,
   canMoveSelectedClipToTrack,
+  precisionEnabled,
   selectedClipIds,
+  timelineFps,
   moveSelectedClipsToTrack,
   undo,
   redo,
@@ -55,13 +59,13 @@ export function useKeyboardShortcuts({
 
       if (event.key === 'ArrowLeft') {
         event.preventDefault();
-        seekRelative(-1);
+        seekRelative(event.altKey && precisionEnabled ? -(1 / timelineFps) : -1);
         return;
       }
 
       if (event.key === 'ArrowRight') {
         event.preventDefault();
-        seekRelative(1);
+        seekRelative(event.altKey && precisionEnabled ? (1 / timelineFps) : 1);
         return;
       }
 
@@ -119,5 +123,5 @@ export function useKeyboardShortcuts({
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [canMoveSelectedClipToTrack, clearSelection, deleteSelectedClip, hasSelectedClip, moveSelectedClipsToTrack, redo, seekRelative, selectAllClips, selectedClipIds, splitSelectedClip, toggleMute, togglePlayPause, undo]);
+  }, [canMoveSelectedClipToTrack, clearSelection, deleteSelectedClip, hasSelectedClip, moveSelectedClipsToTrack, precisionEnabled, redo, seekRelative, selectAllClips, selectedClipIds, splitSelectedClip, timelineFps, toggleMute, togglePlayPause, undo]);
 }

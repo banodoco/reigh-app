@@ -49,9 +49,14 @@ function mergeSelectedClips(
       clipsByUrl.set(clip.url, {
         ...preferred,
         generationId: preferred.generationId ?? secondary.generationId,
+        variantId: preferred.variantId ?? secondary.variantId,
+        isTimelineBacked: preferred.isTimelineBacked || secondary.isTimelineBacked,
         shotId: preferred.shotId ?? secondary.shotId,
         shotName: preferred.shotName ?? secondary.shotName,
         shotSelectionClipCount: preferred.shotSelectionClipCount ?? secondary.shotSelectionClipCount,
+        trackId: preferred.trackId ?? secondary.trackId,
+        at: preferred.at ?? secondary.at,
+        duration: preferred.duration ?? secondary.duration,
         assetKey: preferred.assetKey || secondary.assetKey,
       });
       continue;
@@ -388,9 +393,15 @@ export function AgentChat({ timelineId }: AgentChatProps) {
       clipId: clip.clipId,
       url: clip.url,
       mediaType: clip.mediaType,
+      isTimelineBacked: clip.isTimelineBacked,
       generationId: clip.generationId,
+      variantId: clip.variantId,
       shotId: clip.shotId,
       shotName: clip.shotName,
+      shotSelectionClipCount: clip.shotSelectionClipCount,
+      trackId: clip.trackId,
+      at: clip.at,
+      duration: clip.duration,
     }));
 
     if (rawText === undefined) setDraft('');

@@ -6,6 +6,7 @@ import {
 } from '@/tools/video-editor/contexts/TimelineEditorContext';
 import { useTimelinePlaybackContext } from '@/tools/video-editor/contexts/TimelinePlaybackContext';
 import { useRenderDiagnostic } from '@/tools/video-editor/hooks/usePerfDiagnostics';
+import { isTouchTimelineInput } from '@/tools/video-editor/lib/mobile-interaction-model';
 
 interface PreviewPanelProps {
   previewSlotRef: RefObject<HTMLDivElement>;
@@ -19,11 +20,20 @@ function PreviewPanelComponent({ previewSlotRef }: PreviewPanelProps) {
     trackScaleMap,
     compositionSize,
     selectedClipId,
+    deviceClass,
+    inputModality,
+    interactionMode,
+    gestureOwner,
+    precisionEnabled,
   } = useTimelineEditorData();
   const {
     setSelectedClipId,
     onOverlayChange,
     onDoubleClickAsset,
+    setInputModalityFromPointerType,
+    setGestureOwner,
+    setContextTarget,
+    setInspectorTarget,
   } = useTimelineEditorOps();
   const {
     playerContainerRef,
@@ -34,12 +44,23 @@ function PreviewPanelComponent({ previewSlotRef }: PreviewPanelProps) {
     return null;
   }
 
+  const interactionStateLabel = gestureOwner === 'preview'
+    ? 'Preview overlay transform active.'
+    : (isTouchTimelineInput(deviceClass, inputModality) && deviceClass === 'phone'
+        ? 'Phone touch preview uses inspector-first overlay editing.'
+        : 'Preview overlay transforms are available in the preview.');
+
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card/80">
+    <div
+      className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card/80"
+      role="region"
+      aria-label="Preview panel"
+    >
       <div className="relative flex min-h-0 flex-1">
         <div
           className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-background"
-          onMouseDownCapture={(event) => {
+          style={{ touchAction: gestureOwner === 'preview' ? 'none' : 'manipulation' }}
+          onPointerDownCapture={(event) => {
             const target = event.target;
             if (!(target instanceof Element)) {
               return;
@@ -49,9 +70,24 @@ function PreviewPanelComponent({ previewSlotRef }: PreviewPanelProps) {
               return;
             }
 
+            setInputModalityFromPointerType(event.pointerType);
+            if (gestureOwner !== 'none' && gestureOwner !== 'preview') {
+              return;
+            }
+
+            setContextTarget({ kind: 'preview' });
+            setInspectorTarget({ kind: 'preview' });
+            if (gestureOwner === 'preview') {
+              setGestureOwner('none');
+            }
             setSelectedClipId(null);
           }}
         >
+          <div className="sr-only" aria-live="polite" aria-atomic="true">
+            {interactionStateLabel}
+            {' '}
+            Mode {interactionMode}. Precision {precisionEnabled ? 'enabled' : 'disabled'}.
+          </div>
           <div ref={previewSlotRef} className="flex h-full w-full min-h-0 items-center justify-center" />
           <OverlayEditor
             rows={data.rows}
@@ -63,8 +99,16 @@ function PreviewPanelComponent({ previewSlotRef }: PreviewPanelProps) {
             compositionWidth={compositionSize.width}
             compositionHeight={compositionSize.height}
             selectedClipId={selectedClipId}
+            deviceClass={deviceClass}
+            inputModality={inputModality}
+            interactionMode={interactionMode}
+            gestureOwner={gestureOwner}
             onSelectClip={setSelectedClipId}
             onOverlayChange={onOverlayChange}
+            setInputModalityFromPointerType={setInputModalityFromPointerType}
+            setGestureOwner={setGestureOwner}
+            setContextTarget={setContextTarget}
+            setInspectorTarget={setInspectorTarget}
             onDoubleClickAsset={onDoubleClickAsset}
           />
         </div>

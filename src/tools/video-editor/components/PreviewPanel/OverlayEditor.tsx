@@ -1,10 +1,19 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties, MouseEvent as ReactMouseEvent, RefObject } from 'react';
+import type { CSSProperties, PointerEvent as ReactPointerEvent, RefObject } from 'react';
 import { Maximize2, RotateCcw } from 'lucide-react';
 import {
   hasRenderableBounds,
 } from '@/tools/video-editor/lib/render-bounds';
 import { useEffectDiagnostic, useRenderDiagnostic } from '@/tools/video-editor/hooks/usePerfDiagnostics';
+import {
+  isTouchTimelineInput,
+  type TimelineContextTarget,
+  type TimelineDeviceClass,
+  type TimelineGestureOwner,
+  type TimelineInputModality,
+  type TimelineInspectorTarget,
+  type TimelineInteractionMode,
+} from '@/tools/video-editor/lib/mobile-interaction-model';
 import type { ClipMeta } from '@/tools/video-editor/lib/timeline-data';
 import type { TimelineRow } from '@/tools/video-editor/types/timeline-canvas';
 import type { ResolvedTimelineConfig } from '@/tools/video-editor/types';
@@ -19,8 +28,16 @@ interface OverlayEditorProps {
   compositionWidth: number;
   compositionHeight: number;
   selectedClipId: string | null;
+  deviceClass: TimelineDeviceClass;
+  inputModality: TimelineInputModality;
+  interactionMode: TimelineInteractionMode;
+  gestureOwner: TimelineGestureOwner;
   onSelectClip: (clipId: string | null) => void;
   onOverlayChange: (actionId: string, patch: Partial<ClipMeta>) => void;
+  setInputModalityFromPointerType: (pointerType: string | null | undefined) => TimelineInputModality;
+  setGestureOwner: (owner: TimelineGestureOwner) => void;
+  setContextTarget: (target: TimelineContextTarget) => void;
+  setInspectorTarget: (target: TimelineInspectorTarget) => void;
   onDoubleClickAsset?: (assetKey: string) => void;
 }
 
@@ -125,8 +142,16 @@ function OverlayEditorComponent({
   compositionWidth,
   compositionHeight,
   selectedClipId,
+  deviceClass,
+  inputModality,
+  interactionMode: _interactionMode,
+  gestureOwner,
   onSelectClip,
   onOverlayChange,
+  setInputModalityFromPointerType,
+  setGestureOwner,
+  setContextTarget,
+  setInspectorTarget,
   onDoubleClickAsset,
 }: OverlayEditorProps) {
   const [layout, setLayout] = useState<OverlayLayout | null>(null);
@@ -144,18 +169,24 @@ function OverlayEditorComponent({
     actionId: string;
     startMouseX: number;
     startMouseY: number;
+    pointerId: number;
     scaleX: number;
     scaleY: number;
+    target: HTMLElement;
     startBounds: OverlayBounds;
     startFullBounds: OverlayBounds;
     startCropValues: CropValues;
     startAspectRatio: number;
     latestBounds: OverlayBounds;
     cropValues: CropValues;
+    claimedOwnership: boolean;
     hasChanges: boolean;
   } | null>(null);
   useRenderDiagnostic('OverlayEditor');
   const markLayoutEffect = useEffectDiagnostic('overlayEditor:layout');
+  const touchPreviewInput = isTouchTimelineInput(deviceClass, inputModality);
+  const allowsDirectManipulationControls = !(deviceClass === 'phone' && inputModality === 'touch');
+  const previewTouchAction = deviceClass === 'phone' ? 'manipulation' : 'none';
 
   const getTrackDefaultBounds = useCallback((trackId: string): OverlayBounds => {
     const trackScale = Math.max(trackScaleMap[trackId] ?? 1, 0.01);
@@ -335,27 +366,33 @@ function OverlayEditorComponent({
     };
   }, [computeLayout, markLayoutEffect, playerContainerRef]);
 
-  const commitDragChange = useCallback(() => {
-    dragState.current = null;
-    setDragOverride(null);
-    // Changes were already pushed to Remotion live during mousemove,
-    // so no final commit needed — just clean up drag state.
-  }, []);
+  const finishDrag = useCallback((pointerId: number | null) => {
+    const state = dragState.current;
+    if (!state) {
+      return;
+    }
 
-  const cancelDrag = useCallback(() => {
+    const releasePointerId = pointerId ?? state.pointerId;
+    if (state.target.hasPointerCapture(releasePointerId)) {
+      state.target.releasePointerCapture(releasePointerId);
+    }
+    if (state.claimedOwnership) {
+      setGestureOwner('none');
+    }
+
     dragState.current = null;
     setDragOverride(null);
     setDragActive(false);
-  }, []);
+  }, [setGestureOwner]);
 
   useEffect(() => {
     if (!dragActive) {
       return;
     }
 
-    const onMouseMove = (event: MouseEvent) => {
+    const onPointerMove = (event: PointerEvent) => {
       const state = dragState.current;
-      if (!state) {
+      if (!state || state.pointerId !== event.pointerId) {
         return;
       }
 
@@ -466,35 +503,79 @@ function OverlayEditorComponent({
       }
     };
 
-    const onMouseUp = () => {
-      commitDragChange();
-      setDragActive(false);
+    const onPointerUp = (event: PointerEvent) => {
+      const state = dragState.current;
+      if (!state || state.pointerId !== event.pointerId) {
+        return;
+      }
+
+      finishDrag(event.pointerId);
+    };
+
+    const onPointerCancel = (event: PointerEvent) => {
+      const state = dragState.current;
+      if (!state || state.pointerId !== event.pointerId) {
+        return;
+      }
+
+      finishDrag(event.pointerId);
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        cancelDrag();
+        finishDrag(null);
       }
     };
 
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('blur', cancelDrag);
-    window.addEventListener('contextmenu', cancelDrag);
-    return () => {
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('blur', cancelDrag);
-      window.removeEventListener('contextmenu', cancelDrag);
+    const onWindowBlur = () => {
+      finishDrag(null);
     };
-  }, [dragActive, commitDragChange, cancelDrag, onOverlayChange]);
 
-  const startDrag = useCallback((event: ReactMouseEvent, overlay: OverlayViewModel, mode: DragMode) => {
+    const onWindowContextMenu = () => {
+      finishDrag(null);
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerCancel);
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('blur', onWindowBlur);
+    window.addEventListener('contextmenu', onWindowContextMenu);
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerCancel);
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('blur', onWindowBlur);
+      window.removeEventListener('contextmenu', onWindowContextMenu);
+    };
+  }, [dragActive, finishDrag, onOverlayChange]);
+
+  const startDrag = useCallback((event: ReactPointerEvent<HTMLElement>, overlay: OverlayViewModel, mode: DragMode) => {
+    if (event.button !== 0) {
+      return;
+    }
+    if (gestureOwner !== 'none' && gestureOwner !== 'preview') {
+      return;
+    }
+
+    const nextInputModality = setInputModalityFromPointerType(event.pointerType);
+    const nextContextTarget: TimelineContextTarget = { kind: 'overlay', clipId: overlay.actionId };
+    const nextInspectorTarget: TimelineInspectorTarget = { kind: 'clip', clipId: overlay.actionId };
+
+    setContextTarget(nextContextTarget);
+    setInspectorTarget(nextInspectorTarget);
+    onSelectClip(overlay.actionId);
+
+    if (deviceClass === 'phone' && nextInputModality === 'touch') {
+      event.stopPropagation();
+      return;
+    }
+
     event.preventDefault();
     event.stopPropagation();
-    onSelectClip(overlay.actionId);
+    setGestureOwner('preview');
+    event.currentTarget.setPointerCapture(event.pointerId);
 
     const scaleX = compositionWidth / Math.max(1, layout?.width ?? 1);
     const scaleY = compositionHeight / Math.max(1, layout?.height ?? 1);
@@ -503,18 +584,32 @@ function OverlayEditorComponent({
       actionId: overlay.actionId,
       startMouseX: event.clientX,
       startMouseY: event.clientY,
+      pointerId: event.pointerId,
       scaleX,
       scaleY,
+      target: event.currentTarget,
       startBounds: { ...overlay.bounds },
       startFullBounds: { ...overlay.fullBounds },
       startCropValues: { ...overlay.cropValues },
       startAspectRatio: overlay.bounds.width / Math.max(1, overlay.bounds.height),
       latestBounds: { ...overlay.bounds },
       cropValues: { ...overlay.cropValues },
+      claimedOwnership: true,
       hasChanges: false,
     };
     setDragActive(true);
-  }, [compositionHeight, compositionWidth, layout, onSelectClip]);
+  }, [
+    compositionHeight,
+    compositionWidth,
+    deviceClass,
+    gestureOwner,
+    layout,
+    onSelectClip,
+    setContextTarget,
+    setGestureOwner,
+    setInputModalityFromPointerType,
+    setInspectorTarget,
+  ]);
 
   const beginTextEdit = useCallback((actionId: string) => {
     const clipMeta = meta[actionId];
@@ -554,7 +649,7 @@ function OverlayEditorComponent({
   return (
     <div
       className="pointer-events-none absolute"
-      style={{ left: layout.left, top: layout.top, width: layout.width, height: layout.height }}
+      style={{ left: layout.left, top: layout.top, width: layout.width, height: layout.height, touchAction: previewTouchAction }}
     >
       {/* Dim entire composition during crop drag, with a hole for the visible crop area */}
       {isCropDrag && (() => {
@@ -653,8 +748,11 @@ function OverlayEditorComponent({
             ) : (
               <button
                 type="button"
-                className={`group relative h-full w-full rounded text-left transition ${isSelected ? 'border border-sky-400 bg-sky-400/10 shadow-[0_0_0_1px_rgba(56,189,248,0.4)]' : 'border border-transparent hover:border-white/40'}`}
-                onMouseDown={(event) => startDrag(event, overlay, 'move')}
+                className={`group relative h-full w-full rounded text-left transition motion-reduce:transition-none ${isSelected ? 'border border-sky-400 bg-sky-400/10 shadow-[0_0_0_1px_rgba(56,189,248,0.4)]' : 'border border-transparent hover:border-white/40'}`}
+                style={{ touchAction: previewTouchAction }}
+                aria-label={isSelected ? `Selected overlay ${overlay.label}` : `Select overlay ${overlay.label}`}
+                aria-pressed={isSelected}
+                onPointerDown={(event) => startDrag(event, overlay, 'move')}
                 onDoubleClick={() => {
                   if (clipMeta?.clipType === 'text') {
                     beginTextEdit(overlay.actionId);
@@ -667,7 +765,7 @@ function OverlayEditorComponent({
                   onSelectClip(overlay.actionId);
                 }}
               >
-                {isSelected && (['resize-nw', 'resize-ne', 'resize-sw', 'resize-se'] as const).map((mode) => {
+                {isSelected && allowsDirectManipulationControls && (['resize-nw', 'resize-ne', 'resize-sw', 'resize-se'] as const).map((mode) => {
                   const pos = {
                     'resize-nw': 'left-0 top-0 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize',
                     'resize-ne': 'right-0 top-0 translate-x-1/2 -translate-y-1/2 cursor-nesw-resize',
@@ -677,12 +775,14 @@ function OverlayEditorComponent({
                   return (
                     <span
                       key={mode}
-                      className={`absolute h-3 w-3 rounded-full border border-white/60 bg-sky-400 ${pos}`}
-                      onMouseDown={(event) => startDrag(event, overlay, mode)}
+                      aria-hidden="true"
+                      className={`absolute rounded-full border border-white/60 bg-sky-400 ${touchPreviewInput ? 'h-11 w-11' : 'h-3 w-3'} ${pos}`}
+                      style={{ touchAction: previewTouchAction }}
+                      onPointerDown={(event) => startDrag(event, overlay, mode)}
                     />
                   );
                 })}
-                {isSelected && !overlay.isText && ([
+                {isSelected && allowsDirectManipulationControls && !overlay.isText && ([
                   {
                     mode: 'crop-n',
                     hitClassName: 'left-1.5 right-1.5 top-0 h-3 -translate-y-1/2 cursor-ns-resize',
@@ -706,28 +806,31 @@ function OverlayEditorComponent({
                 ] as const).map(({ mode, hitClassName, lineClassName }) => (
                   <span
                     key={mode}
-                    className={`absolute ${hitClassName}`}
-                    onMouseDown={(event) => startDrag(event, overlay, mode)}
+                    aria-hidden="true"
+                    className={`absolute ${touchPreviewInput ? hitClassName.replace('h-3', 'h-11').replace('w-3', 'w-11') : hitClassName}`}
+                    style={{ touchAction: previewTouchAction }}
+                    onPointerDown={(event) => startDrag(event, overlay, mode)}
                   >
                     <span
-                      className={`pointer-events-none absolute rounded-full transition ${lineClassName} ${isSelected ? 'bg-sky-300/70' : 'bg-white/0 group-hover:bg-white/50'}`}
+                      className={`pointer-events-none absolute rounded-full transition motion-reduce:transition-none ${lineClassName} ${isSelected || touchPreviewInput ? 'bg-sky-300/70' : 'bg-white/0 group-hover:bg-white/50'}`}
                     />
                   </span>
                 ))}
-                {isSelected && (
+                {isSelected && allowsDirectManipulationControls && (
                   <div
                     className="absolute right-1 top-1 flex gap-1"
-                    onMouseDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
                   >
                     {/* Only show reset if the clip has been moved/resized/cropped */}
                     {(clipMeta?.x !== undefined || clipMeta?.y !== undefined
                       || clipMeta?.width !== undefined || clipMeta?.height !== undefined
                       || clipMeta?.cropTop !== undefined || clipMeta?.cropBottom !== undefined
                       || clipMeta?.cropLeft !== undefined || clipMeta?.cropRight !== undefined) && (
-                      <span
-                        role="button"
+                      <button
+                        type="button"
                         title="Reset to original size"
-                        className="flex h-6 w-6 cursor-pointer items-center justify-center rounded bg-black/70 text-white/80 transition hover:bg-black/90 hover:text-white"
+                        aria-label="Reset overlay to original size"
+                        className={`flex items-center justify-center rounded bg-black/70 text-white/80 transition motion-reduce:transition-none hover:bg-black/90 hover:text-white ${touchPreviewInput ? 'h-11 w-11' : 'h-6 w-6'}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           // Keep current position (x/y), reset size to composition
@@ -743,12 +846,13 @@ function OverlayEditorComponent({
                         }}
                       >
                         <RotateCcw className="h-3.5 w-3.5" />
-                      </span>
+                      </button>
                     )}
-                    <span
-                      role="button"
+                    <button
+                      type="button"
                       title="Fill composition"
-                      className="flex h-6 w-6 cursor-pointer items-center justify-center rounded bg-black/70 text-white/80 transition hover:bg-black/90 hover:text-white"
+                      aria-label="Fill overlay to composition"
+                      className={`flex items-center justify-center rounded bg-black/70 text-white/80 transition motion-reduce:transition-none hover:bg-black/90 hover:text-white ${touchPreviewInput ? 'h-11 w-11' : 'h-6 w-6'}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         onOverlayChange(overlay.actionId, {
@@ -764,7 +868,7 @@ function OverlayEditorComponent({
                       }}
                     >
                       <Maximize2 className="h-3.5 w-3.5" />
-                    </span>
+                    </button>
                   </div>
                 )}
               </button>
@@ -800,9 +904,17 @@ const OverlayEditor = memo(OverlayEditorComponent, (prev, next) => {
       && prev.trackScaleMap === next.trackScaleMap
       && prev.compositionWidth === next.compositionWidth
       && prev.compositionHeight === next.compositionHeight
+      && prev.deviceClass === next.deviceClass
+      && prev.inputModality === next.inputModality
+      && prev.interactionMode === next.interactionMode
+      && prev.gestureOwner === next.gestureOwner
       && prev.playerContainerRef === next.playerContainerRef
       && prev.onSelectClip === next.onSelectClip
       && prev.onOverlayChange === next.onOverlayChange
+      && prev.setInputModalityFromPointerType === next.setInputModalityFromPointerType
+      && prev.setGestureOwner === next.setGestureOwner
+      && prev.setContextTarget === next.setContextTarget
+      && prev.setInspectorTarget === next.setInspectorTarget
       && prev.onDoubleClickAsset === next.onDoubleClickAsset
     ) {
       return true; // skip re-render

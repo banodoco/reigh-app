@@ -191,7 +191,7 @@ export async function createVariantOnParent(
       ...extraParams,
     };
 
-    await createVariant(
+    const variant = await createVariant(
       supabase,
       parentGen.id,
       publicUrl,
@@ -209,7 +209,10 @@ export async function createVariantOnParent(
       .update({ generation_created: true })
       .eq('id', taskId);
 
-    return parentGen;
+    return {
+      ...parentGen,
+      variant_id: variant.id,
+    };
 
   } catch (variantErr) {
     throw toCompletionError(variantErr, {

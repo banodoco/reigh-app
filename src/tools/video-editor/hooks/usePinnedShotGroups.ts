@@ -4,6 +4,12 @@ import { getMediaUrl, getThumbnailUrl } from '@/shared/lib/media/mediaTypeHelper
 import { selectTimelineImages } from '@/shared/lib/shotImageSelectors';
 import { buildAssetDropEdit, type UseAssetManagementResult } from '@/tools/video-editor/hooks/useAssetManagement';
 import type { TimelineApplyEdit, TimelineDataRef } from '@/tools/video-editor/hooks/timeline-state-types';
+import {
+  buildPinShotGroupMutation,
+  buildUnpinShotGroupMutation,
+  buildUpdatePinnedShotGroupMutation,
+  clonePinnedShotGroup,
+} from '@/tools/video-editor/lib/shot-group-commands';
 import { orderClipIdsByAt } from '@/tools/video-editor/lib/pinned-group-projection';
 import type { ClipMeta, TimelineData } from '@/tools/video-editor/lib/timeline-data';
 import type { PinnedShotGroup } from '@/tools/video-editor/types';
@@ -30,17 +36,6 @@ function getPinnedShotGroups(dataRef: TimelineDataRef) {
 
 function readPinnedShotGroups(dataRef: TimelineDataRef): NonNullable<ReturnType<typeof getPinnedShotGroups>> {
   return getPinnedShotGroups(dataRef) ?? [];
-}
-
-function clonePinnedShotGroup(group: PinnedShotGroup): PinnedShotGroup {
-  return {
-    ...group,
-    clipIds: [...group.clipIds],
-    imageClipSnapshot: group.imageClipSnapshot?.map((snapshot) => ({
-      ...snapshot,
-      meta: { ...snapshot.meta },
-    })),
-  };
 }
 
 function getSyncableShotImages(shot: Shot | undefined) {
@@ -94,63 +89,36 @@ export function usePinnedShotGroups({
   applyEdit,
 }: UsePinnedShotGroupsArgs) {
   const pinGroup = useCallback((shotId: string, trackId: string, clipIds: string[]) => {
-    const currentGroups = readPinnedShotGroups(dataRef);
     const current = dataRef.current;
-    if (!current) {
+    const mutation = buildPinShotGroupMutation(current, {
+      shotId,
+      trackId,
+      clipIds,
+      mode: 'images',
+    });
+    if (!mutation) {
       return;
     }
 
-    const nextGroup: PinnedShotGroup = {
-      shotId,
-      trackId,
-      clipIds: orderClipIdsByAt(clipIds, {
-        clips: current.config.clips,
-        rows: current.rows,
-      }),
-      mode: 'images',
-    };
-    const existingIndex = currentGroups.findIndex((group) => group.shotId === shotId && group.trackId === trackId);
-    const pinnedShotGroups = existingIndex < 0
-      ? [...currentGroups, nextGroup]
-      : currentGroups.map((group, index) => (index === existingIndex ? nextGroup : group));
-
-    applyEdit({ type: 'pinnedShotGroups', pinnedShotGroups });
+    applyEdit(mutation);
   }, [applyEdit, dataRef]);
 
   const unpinGroup = useCallback((shotId: string, trackId: string) => {
-    const pinnedShotGroups = readPinnedShotGroups(dataRef)
-      .filter((group) => group.shotId !== shotId || group.trackId !== trackId);
+    const mutation = buildUnpinShotGroupMutation(dataRef.current, { shotId, trackId });
+    if (!mutation) {
+      return;
+    }
 
-    applyEdit({ type: 'pinnedShotGroups', pinnedShotGroups });
+    applyEdit(mutation);
   }, [applyEdit, dataRef]);
 
   const updatePinnedGroup = useCallback((shotId: string, trackId: string, updates: PinnedShotGroupUpdates) => {
-    const current = dataRef.current;
-    const pinnedShotGroups = readPinnedShotGroups(dataRef).map((group) => {
-      if (group.shotId !== shotId || group.trackId !== trackId) {
-        return group;
-      }
+    const mutation = buildUpdatePinnedShotGroupMutation(dataRef.current, { shotId, trackId }, updates);
+    if (!mutation) {
+      return;
+    }
 
-      return {
-        ...clonePinnedShotGroup(group),
-        ...updates,
-        clipIds: updates.clipIds
-          ? orderClipIdsByAt(updates.clipIds, {
-              clips: current?.config.clips,
-              rows: current?.rows,
-            })
-          : [...group.clipIds],
-        imageClipSnapshot: updates.imageClipSnapshot?.map((snapshot) => ({
-          ...snapshot,
-          meta: { ...snapshot.meta },
-        })) ?? group.imageClipSnapshot?.map((snapshot) => ({
-          ...snapshot,
-          meta: { ...snapshot.meta },
-        })),
-      };
-    });
-
-    applyEdit({ type: 'pinnedShotGroups', pinnedShotGroups });
+    applyEdit(mutation);
   }, [applyEdit, dataRef]);
 
   return {

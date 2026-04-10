@@ -1,5 +1,9 @@
 import type { ResolverResult, TaskFamilyResolver, TaskInsertObject } from "./types.ts";
 import { generateTaskId } from "./shared/ids.ts";
+import {
+  setTaskLineageFields,
+  type TimelinePlacement,
+} from "./shared/lineage.ts";
 import { mapPathLorasToStrengthRecord, validateLoraConfigs } from "./shared/loras.ts";
 import { resolveImageGenerationResolution } from "./shared/resolution.ts";
 import { validateSeed32Bit } from "./shared/seed.ts";
@@ -43,6 +47,7 @@ interface BatchImageGenerationTaskInput {
   lightning_lora_strength_phase_1?: number;
   lightning_lora_strength_phase_2?: number;
   additional_loras?: Record<string, number>;
+  timeline_placement?: TimelinePlacement;
 }
 
 const IN_SCENE_LORA_URL = "https://huggingface.co/peteromallet/random_junk/resolve/main/in_scene_different_object_000010500.safetensors";
@@ -254,6 +259,10 @@ export const imageGenerationResolver: TaskFamilyResolver = (request, context): R
         finalResolution,
         seed,
       );
+      setTaskLineageFields(params, {
+        shotId: input.shot_id,
+        timelinePlacement: input.timeline_placement,
+      });
       return buildQueuedTask(context.projectId, taskType, params);
     });
   });

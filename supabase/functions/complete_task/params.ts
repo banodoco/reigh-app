@@ -10,6 +10,11 @@ import {
   extractBasedOnParam,
   extractShotIdParam,
 } from '../../../src/shared/lib/tasks/taskParamContract.ts';
+import type { TimelinePlacement } from '../create-task/resolvers/shared/lineage.ts';
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
 
 export function extractBasedOn(params: unknown): string | null {
   return extractBasedOnParam(params);
@@ -19,6 +24,43 @@ export function extractShotAndPosition(params: unknown): { shotId?: string, addI
   const shotId = extractShotIdParam(params) || undefined;
   const addInPosition = extractAddInPositionParam(params);
   return { shotId, addInPosition };
+}
+
+export function extractTimelinePlacement(params: unknown): TimelinePlacement | null {
+  if (!isRecord(params) || !isRecord(params.timeline_placement)) {
+    return null;
+  }
+
+  const placement = params.timeline_placement;
+  const timelineId = typeof placement.timeline_id === 'string' && placement.timeline_id.trim()
+    ? placement.timeline_id.trim()
+    : null;
+  const sourceClipId = typeof placement.source_clip_id === 'string' && placement.source_clip_id.trim()
+    ? placement.source_clip_id.trim()
+    : null;
+  const targetTrack = typeof placement.target_track === 'string' && placement.target_track.trim()
+    ? placement.target_track.trim()
+    : null;
+  const insertionTime = typeof placement.insertion_time === 'number'
+    && Number.isFinite(placement.insertion_time)
+    && placement.insertion_time >= 0
+    ? placement.insertion_time
+    : null;
+  const intent = placement.intent === 'after_source' || placement.intent === 'replace'
+    ? placement.intent
+    : null;
+
+  if (!timelineId || !sourceClipId || !targetTrack || insertionTime === null || !intent) {
+    return null;
+  }
+
+  return {
+    timeline_id: timelineId,
+    source_clip_id: sourceClipId,
+    target_track: targetTrack,
+    insertion_time: insertionTime,
+    intent,
+  };
 }
 
 export {

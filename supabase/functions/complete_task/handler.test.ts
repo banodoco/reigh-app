@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   getStoragePublicUrl: vi.fn(),
   cleanupFile: vi.fn(),
   setThumbnailInParams: vi.fn((params: Record<string, unknown>) => params),
+  extractTimelinePlacement: vi.fn(),
+  getContentType: vi.fn(() => 'image/png'),
   createGenerationFromTask: vi.fn(),
   checkOrchestratorCompletion: vi.fn(),
   validateAndCleanupShotId: vi.fn(),
@@ -26,6 +28,9 @@ const mocks = vi.hoisted(() => ({
   persistCompletionFollowUpIssues: vi.fn(),
   resolveTaskStorageActor: vi.fn(),
   toErrorMessage: vi.fn((error: unknown) => (error instanceof Error ? error.message : String(error))),
+  loadTimelineState: vi.fn(),
+  saveTimelineConfigVersioned: vi.fn(),
+  addMediaClip: vi.fn(),
 }));
 
 vi.mock('../_shared/http.ts', () => ({
@@ -69,10 +74,21 @@ vi.mock('./storage.ts', () => ({
 
 vi.mock('./params.ts', () => ({
   setThumbnailInParams: (...args: unknown[]) => mocks.setThumbnailInParams(...args),
+  extractTimelinePlacement: (...args: unknown[]) => mocks.extractTimelinePlacement(...args),
+  getContentType: (...args: unknown[]) => mocks.getContentType(...args),
 }));
 
 vi.mock('./generation.ts', () => ({
   createGenerationFromTask: (...args: unknown[]) => mocks.createGenerationFromTask(...args),
+}));
+
+vi.mock('../ai-timeline-agent/db.ts', () => ({
+  loadTimelineState: (...args: unknown[]) => mocks.loadTimelineState(...args),
+  saveTimelineConfigVersioned: (...args: unknown[]) => mocks.saveTimelineConfigVersioned(...args),
+}));
+
+vi.mock('../ai-timeline-agent/tools/timeline.ts', () => ({
+  addMediaClip: (...args: unknown[]) => mocks.addMediaClip(...args),
 }));
 
 vi.mock('./orchestrator.ts', () => ({
@@ -110,8 +126,10 @@ function createSupabaseAdmin() {
   const finalEq = vi.fn().mockResolvedValue({ error: null });
   const firstEq = vi.fn().mockReturnValue({ eq: finalEq });
   const update = vi.fn().mockReturnValue({ eq: firstEq });
+  const maybeSingle = vi.fn().mockResolvedValue({ error: null });
+  const rpc = vi.fn().mockReturnValue({ maybeSingle });
   const from = vi.fn().mockReturnValue({ update });
-  return { from, update, firstEq, finalEq };
+  return { from, update, firstEq, finalEq, rpc, maybeSingle };
 }
 
 describe('completeTaskHandler', () => {
@@ -168,10 +186,27 @@ describe('completeTaskHandler', () => {
       needsUpdate: false,
       updatedParams: {},
     });
-    mocks.createGenerationFromTask.mockResolvedValue({ status: 'created' });
+    mocks.extractTimelinePlacement.mockReturnValue(null);
+    mocks.createGenerationFromTask.mockResolvedValue({
+      status: 'created',
+      generation: { id: 'gen-1' },
+      completionAsset: null,
+    });
     mocks.checkOrchestratorCompletion.mockResolvedValue(undefined);
     mocks.triggerCostCalculationIfNotSubTask.mockResolvedValue({ ok: true });
     mocks.persistCompletionFollowUpIssues.mockResolvedValue({ ok: true });
+    mocks.loadTimelineState.mockResolvedValue({
+      config: { clips: [] },
+      configVersion: 1,
+      registry: { assets: {} },
+      projectId: 'project-1',
+      shotNamesById: {},
+    });
+    mocks.addMediaClip.mockReturnValue({
+      config: { clips: [{ id: 'clip-added', track: 'V1', at: 12.5, asset: 'asset-added', clipType: 'hold', hold: 5 }] },
+      result: 'Added media clip clip-added on track V1 at 12.5s.',
+    });
+    mocks.saveTimelineConfigVersioned.mockResolvedValue(2);
   });
 
   it('returns bootstrap response when bootstrap fails', async () => {
@@ -328,5 +363,429 @@ describe('completeTaskHandler', () => {
       'task-1',
       'Generation creation failed: boom',
     );
+  });
+
+  it('attempts legacy timeline insertion when timeline_placement is present in task params', async () => {
+    const logger = createLogger();
+    const supabaseAdmin = createSupabaseAdmin();
+    const timelinePlacement = {
+      timeline_id: 'timeline-1',
+      source_clip_id: 'clip-source-1',
+      target_track: 'V1',
+      insertion_time: 12.5,
+      intent: 'after_source' as const,
+    };
+
+    mocks.bootstrapEdgeHandler.mockResolvedValue({
+      ok: true,
+      value: {
+        supabaseAdmin,
+        logger,
+        auth: { userId: null, isServiceRole: true },
+      },
+    });
+    mocks.fetchTaskContext.mockResolvedValue({
+      id: 'task-1',
+      task_type: 'image_generation',
+      project_id: 'project-1',
+      params: { timeline_placement: timelinePlacement },
+      result_data: {},
+      tool_type: 'wan',
+      category: 'image',
+      content_type: 'image',
+      variant_type: null,
+    });
+    mocks.extractTimelinePlacement.mockReturnValue(timelinePlacement);
+
+    const response = await completeTaskHandler(
+      new Request('https://edge.test/complete-task', { method: 'POST' }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.extractTimelinePlacement).toHaveBeenCalledWith({ timeline_placement: timelinePlacement });
+    expect(mocks.loadTimelineState).toHaveBeenCalledWith(supabaseAdmin, 'timeline-1');
+    expect(supabaseAdmin.rpc).toHaveBeenCalledWith('upsert_asset_registry_entry', expect.objectContaining({
+      p_timeline_id: 'timeline-1',
+      p_entry: expect.objectContaining({
+        file: 'https://cdn.example.com/tasks/task-1/out.png',
+        generationId: 'gen-1',
+        type: 'image/png',
+      }),
+    }));
+
+    const rpcArgs = supabaseAdmin.rpc.mock.calls[0]?.[1] as { p_asset_id: string };
+    expect(mocks.addMediaClip).toHaveBeenCalledWith(
+      { clips: [] },
+      expect.objectContaining({
+        assets: expect.objectContaining({
+          [rpcArgs.p_asset_id]: expect.objectContaining({
+            file: 'https://cdn.example.com/tasks/task-1/out.png',
+            generationId: 'gen-1',
+          }),
+        }),
+      }),
+      {
+        track: 'V1',
+        at: 12.5,
+        assetKey: rpcArgs.p_asset_id,
+        mediaType: 'image',
+      },
+    );
+    expect(mocks.saveTimelineConfigVersioned).toHaveBeenCalledWith(
+      supabaseAdmin,
+      'timeline-1',
+      1,
+      expect.objectContaining({
+        clips: expect.any(Array),
+      }),
+    );
+    expect(mocks.persistCompletionFollowUpIssues).not.toHaveBeenCalled();
+  });
+
+  it('still completes successfully when legacy timeline insertion fails after generation creation', async () => {
+    const logger = createLogger();
+    const supabaseAdmin = createSupabaseAdmin();
+    const timelinePlacement = {
+      timeline_id: 'timeline-1',
+      source_clip_id: 'clip-source-1',
+      target_track: 'V1',
+      insertion_time: 12.5,
+      intent: 'after_source' as const,
+    };
+
+    mocks.bootstrapEdgeHandler.mockResolvedValue({
+      ok: true,
+      value: {
+        supabaseAdmin,
+        logger,
+        auth: { userId: null, isServiceRole: true },
+      },
+    });
+    mocks.fetchTaskContext.mockResolvedValue({
+      id: 'task-1',
+      task_type: 'image_generation',
+      project_id: 'project-1',
+      params: { timeline_placement: timelinePlacement },
+      result_data: {},
+      tool_type: 'wan',
+      category: 'image',
+      content_type: 'image',
+      variant_type: null,
+    });
+    mocks.extractTimelinePlacement.mockReturnValue(timelinePlacement);
+    mocks.addMediaClip.mockReturnValue({
+      result: 'Track V1 does not exist.',
+    });
+
+    const response = await completeTaskHandler(
+      new Request('https://edge.test/complete-task', { method: 'POST' }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      public_url: 'https://cdn.example.com/tasks/task-1/out.png',
+      thumbnail_url: null,
+      follow_up: {
+        status: 'degraded',
+        issues: [{
+          step: 'timeline_placement',
+          code: 'timeline_placement_failed',
+          message: 'Track V1 does not exist.',
+        }],
+      },
+      message: 'Task completed with follow-up warnings',
+    });
+    expect(mocks.saveTimelineConfigVersioned).not.toHaveBeenCalled();
+    expect(mocks.persistCompletionFollowUpIssues).toHaveBeenCalledWith(
+      supabaseAdmin,
+      'task-1',
+      {},
+      [{
+        step: 'timeline_placement',
+        code: 'timeline_placement_failed',
+        message: 'Track V1 does not exist.',
+      }],
+    );
+    expect(logger.error).toHaveBeenCalledWith('Timeline placement follow-up failed', expect.objectContaining({
+      generation_id: 'gen-1',
+      timeline_placement: timelinePlacement,
+    }));
+    expect(mocks.markTaskFailed).not.toHaveBeenCalled();
+  });
+
+  it('places a completed asset after the live anchor clip when placement_intent is present', async () => {
+    const logger = createLogger();
+    const supabaseAdmin = createSupabaseAdmin();
+    const placementIntent = {
+      timeline_id: 'timeline-1',
+      anchor_clip_id: 'clip-source-1',
+      anchor_generation_id: 'gen-source-1',
+      anchor_variant_id: 'variant-source-1',
+      relation: 'after' as const,
+      preferred_track_id: 'V1',
+      fallback_at: 22.25,
+      fallback_track_id: 'V1',
+    };
+
+    mocks.bootstrapEdgeHandler.mockResolvedValue({
+      ok: true,
+      value: {
+        supabaseAdmin,
+        logger,
+        auth: { userId: null, isServiceRole: true },
+      },
+    });
+    mocks.fetchTaskContext.mockResolvedValue({
+      id: 'task-1',
+      task_type: 'image_generation',
+      project_id: 'project-1',
+      params: { placement_intent: placementIntent },
+      result_data: {},
+      tool_type: 'wan',
+      category: 'image',
+      content_type: 'image',
+      variant_type: null,
+    });
+    mocks.createGenerationFromTask.mockResolvedValue({
+      status: 'created',
+      generation: { id: 'gen-1' },
+      completionAsset: {
+        generation_id: 'gen-1',
+        variant_id: 'variant-1',
+        location: 'https://cdn.example.com/tasks/task-1/out.png',
+        media_type: 'image',
+        created_as: 'variant',
+      },
+    });
+    mocks.loadTimelineState.mockResolvedValue({
+      config: {
+        clips: [{ id: 'clip-source-1', at: 8, track: 'V1', clipType: 'hold', hold: 2.5 }],
+        tracks: [{ id: 'V1', kind: 'visual', label: 'Visual 1' }],
+      },
+      configVersion: 1,
+      registry: { assets: {} },
+      projectId: 'project-1',
+      shotNamesById: {},
+    });
+
+    const response = await completeTaskHandler(
+      new Request('https://edge.test/complete-task', { method: 'POST' }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.extractTimelinePlacement).not.toHaveBeenCalled();
+    expect(mocks.loadTimelineState).toHaveBeenCalledWith(supabaseAdmin, 'timeline-1');
+    expect(supabaseAdmin.rpc).toHaveBeenCalledWith('upsert_asset_registry_entry', expect.objectContaining({
+      p_timeline_id: 'timeline-1',
+      p_entry: expect.objectContaining({
+        file: 'https://cdn.example.com/tasks/task-1/out.png',
+        generationId: 'gen-1',
+        variantId: 'variant-1',
+        type: 'image/png',
+      }),
+    }));
+
+    const rpcArgs = supabaseAdmin.rpc.mock.calls[0]?.[1] as { p_asset_id: string };
+    expect(mocks.addMediaClip).toHaveBeenCalledWith(
+      {
+        clips: [{ id: 'clip-source-1', at: 8, track: 'V1', clipType: 'hold', hold: 2.5 }],
+        tracks: [{ id: 'V1', kind: 'visual', label: 'Visual 1' }],
+      },
+      expect.objectContaining({
+        assets: expect.objectContaining({
+          [rpcArgs.p_asset_id]: expect.objectContaining({
+            generationId: 'gen-1',
+            variantId: 'variant-1',
+          }),
+        }),
+      }),
+      {
+        track: 'V1',
+        at: 10.5,
+        assetKey: rpcArgs.p_asset_id,
+        mediaType: 'image',
+      },
+    );
+    expect(mocks.saveTimelineConfigVersioned).toHaveBeenCalledWith(
+      supabaseAdmin,
+      'timeline-1',
+      1,
+      expect.objectContaining({
+        clips: expect.any(Array),
+      }),
+    );
+    expect(mocks.persistCompletionFollowUpIssues).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the stored placement coordinates when the anchor clip is gone', async () => {
+    const logger = createLogger();
+    const supabaseAdmin = createSupabaseAdmin();
+    const placementIntent = {
+      timeline_id: 'timeline-1',
+      anchor_clip_id: 'clip-source-1',
+      relation: 'after' as const,
+      preferred_track_id: 'V1',
+      fallback_at: 22.25,
+      fallback_track_id: 'V1',
+    };
+
+    mocks.bootstrapEdgeHandler.mockResolvedValue({
+      ok: true,
+      value: {
+        supabaseAdmin,
+        logger,
+        auth: { userId: null, isServiceRole: true },
+      },
+    });
+    mocks.fetchTaskContext.mockResolvedValue({
+      id: 'task-1',
+      task_type: 'image_generation',
+      project_id: 'project-1',
+      params: { placement_intent: placementIntent },
+      result_data: {},
+      tool_type: 'wan',
+      category: 'image',
+      content_type: 'image',
+      variant_type: null,
+    });
+    mocks.createGenerationFromTask.mockResolvedValue({
+      status: 'created',
+      generation: { id: 'gen-1' },
+      completionAsset: {
+        generation_id: 'gen-1',
+        variant_id: 'variant-1',
+        location: 'https://cdn.example.com/tasks/task-1/out.png',
+        media_type: 'image',
+        created_as: 'variant',
+      },
+    });
+    mocks.loadTimelineState.mockResolvedValue({
+      config: {
+        clips: [],
+        tracks: [{ id: 'V1', kind: 'visual', label: 'Visual 1' }],
+      },
+      configVersion: 1,
+      registry: { assets: {} },
+      projectId: 'project-1',
+      shotNamesById: {},
+    });
+
+    const response = await completeTaskHandler(
+      new Request('https://edge.test/complete-task', { method: 'POST' }),
+    );
+
+    expect(response.status).toBe(200);
+    const rpcArgs = supabaseAdmin.rpc.mock.calls[0]?.[1] as { p_asset_id: string };
+    expect(mocks.addMediaClip).toHaveBeenCalledWith(
+      {
+        clips: [],
+        tracks: [{ id: 'V1', kind: 'visual', label: 'Visual 1' }],
+      },
+      expect.objectContaining({
+        assets: expect.objectContaining({
+          [rpcArgs.p_asset_id]: expect.objectContaining({
+            generationId: 'gen-1',
+            variantId: 'variant-1',
+          }),
+        }),
+      }),
+      {
+        track: 'V1',
+        at: 22.25,
+        assetKey: rpcArgs.p_asset_id,
+        mediaType: 'image',
+      },
+    );
+    expect(mocks.saveTimelineConfigVersioned).toHaveBeenCalled();
+    expect(mocks.persistCompletionFollowUpIssues).not.toHaveBeenCalled();
+  });
+
+  it('records a degraded follow-up when both the anchor clip and fallback track are gone', async () => {
+    const logger = createLogger();
+    const supabaseAdmin = createSupabaseAdmin();
+    const placementIntent = {
+      timeline_id: 'timeline-1',
+      anchor_clip_id: 'clip-source-1',
+      relation: 'after' as const,
+      preferred_track_id: 'V1',
+      fallback_at: 22.25,
+      fallback_track_id: 'V1',
+    };
+
+    mocks.bootstrapEdgeHandler.mockResolvedValue({
+      ok: true,
+      value: {
+        supabaseAdmin,
+        logger,
+        auth: { userId: null, isServiceRole: true },
+      },
+    });
+    mocks.fetchTaskContext.mockResolvedValue({
+      id: 'task-1',
+      task_type: 'image_generation',
+      project_id: 'project-1',
+      params: { placement_intent: placementIntent },
+      result_data: {},
+      tool_type: 'wan',
+      category: 'image',
+      content_type: 'image',
+      variant_type: null,
+    });
+    mocks.createGenerationFromTask.mockResolvedValue({
+      status: 'created',
+      generation: { id: 'gen-1' },
+      completionAsset: {
+        generation_id: 'gen-1',
+        variant_id: 'variant-1',
+        location: 'https://cdn.example.com/tasks/task-1/out.png',
+        media_type: 'image',
+        created_as: 'variant',
+      },
+    });
+    mocks.loadTimelineState.mockResolvedValue({
+      config: {
+        clips: [],
+        tracks: [{ id: 'V2', kind: 'visual', label: 'Visual 2' }],
+      },
+      configVersion: 1,
+      registry: { assets: {} },
+      projectId: 'project-1',
+      shotNamesById: {},
+    });
+
+    const response = await completeTaskHandler(
+      new Request('https://edge.test/complete-task', { method: 'POST' }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      public_url: 'https://cdn.example.com/tasks/task-1/out.png',
+      thumbnail_url: null,
+      follow_up: {
+        status: 'degraded',
+        issues: [{
+          step: 'timeline_placement',
+          code: 'placement_anchor_and_fallback_missing',
+          message: 'Skipped placement because anchor clip clip-source-1 was missing and fallback track V1 no longer exists on timeline timeline-1.',
+        }],
+      },
+      message: 'Task completed with follow-up warnings',
+    });
+    expect(supabaseAdmin.rpc).not.toHaveBeenCalled();
+    expect(mocks.addMediaClip).not.toHaveBeenCalled();
+    expect(mocks.saveTimelineConfigVersioned).not.toHaveBeenCalled();
+    expect(mocks.persistCompletionFollowUpIssues).toHaveBeenCalledWith(
+      supabaseAdmin,
+      'task-1',
+      {},
+      [{
+        step: 'timeline_placement',
+        code: 'placement_anchor_and_fallback_missing',
+        message: 'Skipped placement because anchor clip clip-source-1 was missing and fallback track V1 no longer exists on timeline timeline-1.',
+      }],
+    );
+    expect(mocks.markTaskFailed).not.toHaveBeenCalled();
   });
 });

@@ -1,4 +1,5 @@
 import type { ToolHandler, ToolResult } from "../types.ts";
+import type { TimelinePlacement } from "../../create-task/resolvers/shared/lineage.ts";
 import {
   asPositiveNumber,
   asStringArray,
@@ -21,7 +22,9 @@ export interface CreateGenerationTaskArgs {
   video_url?: string;
   strength?: number;
   based_on?: string;
+  source_variant_id?: string;
   generation_id?: string;
+  timeline_placement?: TimelinePlacement;
 }
 
 type CreateTaskRequest = {
@@ -81,6 +84,44 @@ function normalizeTravelModelName(value: unknown): string | null {
   return TRAVEL_MODEL_NAME_BY_ID[modelName] ?? modelName;
 }
 
+function normalizeTimelinePlacement(value: unknown): TimelinePlacement | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const timelineId = asTrimmedString(value.timeline_id);
+  const sourceClipId = asTrimmedString(value.source_clip_id);
+  const targetTrack = asTrimmedString(value.target_track);
+  const insertionTime = typeof value.insertion_time === "number" && Number.isFinite(value.insertion_time)
+    ? value.insertion_time
+    : undefined;
+  const intent = value.intent === "after_source" || value.intent === "replace"
+    ? value.intent
+    : undefined;
+
+  if (!timelineId || !sourceClipId || !targetTrack || insertionTime === undefined || !intent) {
+    return null;
+  }
+
+  return {
+    timeline_id: timelineId,
+    source_clip_id: sourceClipId,
+    target_track: targetTrack,
+    insertion_time: insertionTime,
+    intent,
+  };
+}
+
+function getTimelinePlacement(
+  args: CreateGenerationTaskArgs,
+  legacyInput: Record<string, unknown>,
+): TimelinePlacement | null {
+  const timelinePlacement = normalizeTimelinePlacement(args.timeline_placement)
+    ?? normalizeTimelinePlacement(legacyInput.timeline_placement);
+  delete legacyInput.timeline_placement;
+  return timelinePlacement;
+}
+
 function buildImageGenerationInput(args: CreateGenerationTaskArgs): Record<string, unknown> | null {
   const legacyInput = isRecord(args.params) ? { ...args.params } : {};
   const prompt = asTrimmedString(args.prompt) ?? asTrimmedString(legacyInput.prompt);
@@ -105,6 +146,7 @@ function buildImageGenerationInput(args: CreateGenerationTaskArgs): Record<strin
     ?? normalizeImageGenerationModelName(legacyInput.model_name)
     ?? (referenceMode ? "qwen-image" : null);
   const shotId = asTrimmedString(args.shot_id) ?? asTrimmedString(legacyInput.shot_id);
+  const timelinePlacement = getTimelinePlacement(args, legacyInput);
 
   return {
     ...legacyInput,
@@ -117,6 +159,7 @@ function buildImageGenerationInput(args: CreateGenerationTaskArgs): Record<strin
       : {}),
     ...(shotId ? { shot_id: shotId } : {}),
     ...(modelName ? { model_name: modelName } : {}),
+    ...(timelinePlacement ? { timeline_placement: timelinePlacement } : {}),
   };
 }
 
@@ -134,6 +177,7 @@ function buildTravelBetweenImagesInput(args: CreateGenerationTaskArgs): Record<s
   const shotId = asTrimmedString(args.shot_id) ?? asTrimmedString(legacyInput.shot_id);
   const modelName = normalizeTravelModelName(args.model_name) ?? normalizeTravelModelName(legacyInput.model_name);
   const basePrompts = asStringArray(legacyInput.base_prompts);
+  const timelinePlacement = getTimelinePlacement(args, legacyInput);
 
   return {
     ...legacyInput,
@@ -143,6 +187,7 @@ function buildTravelBetweenImagesInput(args: CreateGenerationTaskArgs): Record<s
     frame_overlap: Array.isArray(legacyInput.frame_overlap) ? legacyInput.frame_overlap : [2],
     ...(shotId ? { shot_id: shotId } : {}),
     ...(modelName ? { model_name: modelName } : {}),
+    ...(timelinePlacement ? { timeline_placement: timelinePlacement } : {}),
   };
 }
 
@@ -158,6 +203,8 @@ function buildZImageI2IInput(args: CreateGenerationTaskArgs): Record<string, unk
   const strength = asUnitInterval(args.strength) ?? asUnitInterval(legacyInput.strength);
   const shotId = asTrimmedString(args.shot_id) ?? asTrimmedString(legacyInput.shot_id);
   const basedOn = asTrimmedString(args.based_on) ?? asTrimmedString(legacyInput.based_on);
+  const sourceVariantId = asTrimmedString(args.source_variant_id) ?? asTrimmedString(legacyInput.source_variant_id);
+  const timelinePlacement = getTimelinePlacement(args, legacyInput);
 
   delete legacyInput.count;
 
@@ -169,6 +216,8 @@ function buildZImageI2IInput(args: CreateGenerationTaskArgs): Record<string, unk
     ...(count ? { numImages: count } : {}),
     ...(shotId ? { shot_id: shotId } : {}),
     ...(basedOn ? { based_on: basedOn } : {}),
+    ...(sourceVariantId ? { source_variant_id: sourceVariantId } : {}),
+    ...(timelinePlacement ? { timeline_placement: timelinePlacement } : {}),
   };
 }
 
@@ -183,6 +232,8 @@ function buildMagicEditInput(args: CreateGenerationTaskArgs): Record<string, unk
   const count = asPositiveNumber(args.count) ?? asPositiveNumber(legacyInput.numImages);
   const shotId = asTrimmedString(args.shot_id) ?? asTrimmedString(legacyInput.shot_id);
   const basedOn = asTrimmedString(args.based_on) ?? asTrimmedString(legacyInput.based_on);
+  const sourceVariantId = asTrimmedString(args.source_variant_id) ?? asTrimmedString(legacyInput.source_variant_id);
+  const timelinePlacement = getTimelinePlacement(args, legacyInput);
 
   delete legacyInput.count;
 
@@ -193,6 +244,8 @@ function buildMagicEditInput(args: CreateGenerationTaskArgs): Record<string, unk
     ...(count ? { numImages: count } : {}),
     ...(shotId ? { shot_id: shotId } : {}),
     ...(basedOn ? { based_on: basedOn } : {}),
+    ...(sourceVariantId ? { source_variant_id: sourceVariantId } : {}),
+    ...(timelinePlacement ? { timeline_placement: timelinePlacement } : {}),
   };
 }
 
@@ -205,12 +258,16 @@ function buildImageUpscaleInput(args: CreateGenerationTaskArgs): Record<string, 
 
   const shotId = asTrimmedString(args.shot_id) ?? asTrimmedString(legacyInput.shot_id);
   const generationId = asTrimmedString(args.generation_id) ?? asTrimmedString(legacyInput.generation_id);
+  const sourceVariantId = asTrimmedString(args.source_variant_id) ?? asTrimmedString(legacyInput.source_variant_id);
+  const timelinePlacement = getTimelinePlacement(args, legacyInput);
 
   return {
     ...legacyInput,
     image_url: imageUrl,
     ...(generationId ? { generation_id: generationId } : {}),
+    ...(sourceVariantId ? { source_variant_id: sourceVariantId } : {}),
     ...(shotId ? { shot_id: shotId } : {}),
+    ...(timelinePlacement ? { timeline_placement: timelinePlacement } : {}),
   };
 }
 
@@ -223,6 +280,7 @@ function buildVideoEnhanceInput(args: CreateGenerationTaskArgs): Record<string, 
 
   const shotId = asTrimmedString(args.shot_id) ?? asTrimmedString(legacyInput.shot_id);
   const basedOn = asTrimmedString(args.based_on) ?? asTrimmedString(legacyInput.based_on);
+  const timelinePlacement = getTimelinePlacement(args, legacyInput);
 
   return {
     ...legacyInput,
@@ -231,6 +289,7 @@ function buildVideoEnhanceInput(args: CreateGenerationTaskArgs): Record<string, 
     enable_upscale: true,
     ...(shotId ? { shot_id: shotId } : {}),
     ...(basedOn ? { based_on: basedOn } : {}),
+    ...(timelinePlacement ? { timeline_placement: timelinePlacement } : {}),
   };
 }
 
@@ -245,6 +304,7 @@ function buildCharacterAnimateInput(args: CreateGenerationTaskArgs): Record<stri
 
   const prompt = asTrimmedString(args.prompt) ?? asTrimmedString(legacyInput.prompt);
   const basedOn = asTrimmedString(args.based_on) ?? asTrimmedString(legacyInput.based_on);
+  const timelinePlacement = getTimelinePlacement(args, legacyInput);
 
   return {
     ...legacyInput,
@@ -254,6 +314,7 @@ function buildCharacterAnimateInput(args: CreateGenerationTaskArgs): Record<stri
     resolution: "480p",
     ...(prompt ? { prompt } : {}),
     ...(basedOn ? { based_on: basedOn } : {}),
+    ...(timelinePlacement ? { timeline_placement: timelinePlacement } : {}),
   };
 }
 

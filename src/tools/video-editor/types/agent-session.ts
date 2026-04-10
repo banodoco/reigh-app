@@ -1,3 +1,5 @@
+import type { TimelinePlacement } from '../../../../supabase/functions/create-task/resolvers/shared/lineage';
+
 export type AgentSessionStatus =
   | "waiting_user"
   | "processing"
@@ -10,11 +12,17 @@ export type AgentTurnAttachment = {
   clipId: string;
   url: string;
   mediaType: "image" | "video";
+  isTimelineBacked?: boolean;
   generationId?: string;
+  variantId?: string;
   prompt?: string;
   shotId?: string;
   shotName?: string;
   shotSelectionClipCount?: number;
+  trackId?: string;
+  at?: number;
+  duration?: number;
+  timelinePlacement?: TimelinePlacement;
 };
 
 export type AgentTurn = {

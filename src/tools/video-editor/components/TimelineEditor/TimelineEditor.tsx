@@ -22,6 +22,7 @@ import { DropIndicator } from '@/tools/video-editor/components/TimelineEditor/Dr
 import { TimelineCanvas } from '@/tools/video-editor/components/TimelineEditor/TimelineCanvas';
 import { ROW_HEIGHT, TIMELINE_START_LEFT } from '@/tools/video-editor/lib/coordinate-utils';
 import type { ClipMeta } from '@/tools/video-editor/lib/timeline-data';
+import { buildDeleteShotGroupMutation } from '@/tools/video-editor/lib/shot-group-commands';
 import { useTimelineChromeContext } from '@/tools/video-editor/contexts/TimelineChromeContext';
 import {
   useTimelineEditorData,
@@ -195,6 +196,10 @@ function TimelineEditorComponent() {
     timelineRef,
     timelineWrapperRef,
     dataRef,
+    deviceClass,
+    inputModality,
+    interactionMode,
+    gestureOwner,
     primaryClipId,
     selectedClipIds,
     selectedClipIdsRef,
@@ -228,6 +233,8 @@ function TimelineEditorComponent() {
     handleToggleMuteClips,
     onCursorDrag,
     onClickTimeArea,
+    setGestureOwner,
+    setInputModalityFromPointerType,
     onActionResizeStart,
     onClipEdgeResizeEnd,
     onTimelineDragOver,
@@ -260,6 +267,11 @@ function TimelineEditorComponent() {
     dataRef,
     pendingOpsRef,
     interactionStateRef,
+    deviceClass,
+    interactionMode,
+    gestureOwner,
+    setGestureOwner,
+    setInputModalityFromPointerType,
     moveClipToRow,
     createTrackAndMoveClip,
     applyEdit,
@@ -277,6 +289,11 @@ function TimelineEditorComponent() {
   const { marqueeRect, onPointerDown: onMarqueePointerDown } = useMarqueeSelect({
     editAreaRef,
     dragSessionRef,
+    deviceClass,
+    interactionMode,
+    gestureOwner,
+    setGestureOwner,
+    setInputModalityFromPointerType,
     selectClips,
     addToSelection,
     clearSelection,
@@ -628,6 +645,17 @@ function TimelineEditorComponent() {
     }
     updateToLatestVideo(group);
   }, [dismissFinalVideo, finalVideoMap, updateToLatestVideo]);
+  const handleDeleteShotGroup = useCallback((group: { shotId: string; trackId: string; clipIds: string[] }) => {
+    const mutation = buildDeleteShotGroupMutation({
+      currentData: dataRef.current,
+      group,
+    });
+    if (!mutation) {
+      return;
+    }
+
+    applyEdit(mutation, { semantic: true });
+  }, [applyEdit, dataRef]);
 
   const handleDuplicateGenerationClip = useCallback(async (clipId: string) => {
     if (!selectedProjectId) {
@@ -730,6 +758,7 @@ function TimelineEditorComponent() {
         isInPinnedShotGroup={shotGroupClipIds.has(action.id)}
         isSelected={isClipSelected(action.id)}
         isPrimary={primaryClipId === action.id}
+        showOverflowMenu={deviceClass !== 'desktop'}
         selectedClipIds={[...selectedClipIds]}
         thumbnailSrc={thumbnailSrc}
         audioSrc={audioSrc}
@@ -762,6 +791,7 @@ function TimelineEditorComponent() {
     selectionShotCreationState.canCreateShot,
     existingShotsForSelection,
     activeTaskAssetKeys,
+    deviceClass,
     shotGroupClipIds,
     data,
     dismissAsset,
@@ -829,6 +859,10 @@ function TimelineEditorComponent() {
           ref={timelineRef as React.RefObject<import('@/tools/video-editor/types/timeline-canvas').TimelineCanvasHandle>}
           rows={data.rows}
           tracks={data.tracks}
+          deviceClass={deviceClass}
+          inputModality={inputModality}
+          interactionMode={interactionMode}
+          gestureOwner={gestureOwner}
           scale={scale}
           scaleWidth={scaleWidth}
           scaleSplitCount={5}
@@ -845,6 +879,8 @@ function TimelineEditorComponent() {
           trackSensors={trackSensors}
           onCursorDrag={onCursorDrag}
           onClickTimeArea={onClickTimeArea}
+          setInputModalityFromPointerType={setInputModalityFromPointerType}
+          setGestureOwner={setGestureOwner}
           onActionResizeStart={resizeStartHandler}
           onClipEdgeResizeEnd={clipEdgeResizeEndHandler}
           shotGroups={shotGroups}
@@ -856,10 +892,7 @@ function TimelineEditorComponent() {
           onShotGroupUnpin={(group) => {
             unpinGroup(group.shotId, group.trackId);
           }}
-          onShotGroupDelete={(group) => {
-            handleDeleteClips(group.clipIds, { allowPinnedGroupDelete: true });
-            unpinGroup(group.shotId, group.trackId);
-          }}
+          onShotGroupDelete={handleDeleteShotGroup}
           onShotGroupSwitchToFinalVideo={(group) => {
             const finalVideo = finalVideoMap.get(group.shotId);
             if (finalVideo) {

@@ -1,3 +1,4 @@
+import type { TimelinePlacement } from "../create-task/resolvers/shared/lineage.ts";
 import type { AgentVideoTravelSettings, ResolvedReference, SelectedClipPayload } from "./types.ts";
 
 function formatSelectedClipPrompt(prompt: string): string {
@@ -17,6 +18,10 @@ type ImageLorasByCategory = Partial<Record<"qwen" | "z-image", Array<{ path: str
 
 function formatStrength(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function formatTimelinePlacement(placement: TimelinePlacement): string {
+  return JSON.stringify(placement);
 }
 
 function formatTravelLoras(loras: AgentVideoTravelSettings["loras"]): string {
@@ -64,10 +69,13 @@ export function buildSelectedClipsPrompt(
     const uploadHint = clip.media_type === "image" && isPlaceholderSelectedClipPrompt(clip.prompt)
       ? " | note=user-uploaded reference image with no descriptive prompt metadata"
       : "";
+    const placementAnchor = clip.timeline_placement
+      ? ` | placement_anchor=${formatTimelinePlacement(clip.timeline_placement)}`
+      : "";
 
     return timelineContext
-      ? `- ${clip.clip_id} (${clip.media_type}, ${clip.url})${generationText}${shotIdText}${shotNameText} | timeline=${timelineContext}${promptText}${uploadHint}`
-      : `- ${clip.clip_id} (${clip.media_type}, ${clip.url})${generationText}${shotIdText}${shotNameText}${promptText}${uploadHint}`;
+      ? `- ${clip.clip_id} (${clip.media_type}, ${clip.url})${generationText}${shotIdText}${shotNameText} | timeline=${timelineContext}${placementAnchor}${promptText}${uploadHint}`
+      : `- ${clip.clip_id} (${clip.media_type}, ${clip.url})${generationText}${shotIdText}${shotNameText}${placementAnchor}${promptText}${uploadHint}`;
   });
 
   return `\n\nUser has selected the following clips:\n${selectedClipLines.join("\n")}\nThese clips are the focus of the user's request.`;
@@ -159,6 +167,8 @@ run(command="duplicate clip-0 5")
 run(command="repeat 50 add-text V8 0.1 hello --start 2.74 --gap 0.1")
 
 Use create_task({...}) for generation tasks. Copy selected clip URLs exactly into reference_image_urls or video_url.
+If a selected clip line includes placement_anchor={...} and the user explicitly asks to insert the generated result after or in place of that source clip, copy that exact object into create_task.timeline_placement.
+Do not add timeline_placement unless the user explicitly asks for edit-and-insert, place-after-source, or replace-on-timeline behavior.
 Use transform_image({...}) for exact geometric image edits on an existing image: flip/mirror, rotate, zoom, reposition. This is deterministic and should preserve the source image exactly.
 For exact image transforms, do not use create_task image-to-image or magic-edit.
 By default, transform_image should create a new variant and make it the primary variant unless the user explicitly asks not to, or asks for a standalone new image.
@@ -221,6 +231,7 @@ create_task({"task_type":"image-to-video","prompt":"travel between these frames 
 create_task({"task_type":"text-to-image","prompt":"wide cinematic desert at blue hour","model":"z-image"})
 create_task({"task_type":"image-to-image","prompt":"turn this portrait into glossy editorial lighting","reference_image_urls":["https://example.com/source-image.png"],"strength":0.55})
 create_task({"task_type":"magic-edit","prompt":"replace the background with a moody rain-soaked alley","reference_image_urls":["https://example.com/edit-source.png"]})
+create_task({"task_type":"magic-edit","prompt":"extend this image with more sky","reference_image_urls":["https://example.com/edit-source.png"],"timeline_placement":{"timeline_id":"timeline-1","source_clip_id":"clip-1","target_track":"V1","insertion_time":12.5,"intent":"after_source"}})
 create_task({"task_type":"image-upscale","reference_image_urls":["https://example.com/upscale-source.png"]})
 create_task({"task_type":"video-enhance","video_url":"https://example.com/source-video.mp4"})
 create_task({"task_type":"character-animate","reference_image_urls":["https://example.com/character.png"],"video_url":"https://example.com/motion.mp4","prompt":"subtle confident head movement"})

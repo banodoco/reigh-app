@@ -66,6 +66,8 @@ const pinnedShotGroup: NonNullable<React.ComponentProps<typeof TimelineCanvas>['
   color: '#22c55e',
 };
 const MIN_GROUP_RESIZE_DURATION = 0.05;
+const setGestureOwner = vi.fn();
+const setInputModalityFromPointerType = vi.fn(() => 'mouse');
 
 function cloneRowState(source: TimelineRow): TimelineRow {
   return {
@@ -157,6 +159,10 @@ function renderStatefulPinnedGroupCanvas(params: {
       <TimelineCanvas
         rows={rows}
         tracks={[track]}
+        deviceClass="desktop"
+        inputModality="mouse"
+        interactionMode="select"
+        gestureOwner="none"
         scale={params.scale ?? 1}
         scaleWidth={params.scaleWidth ?? 100}
         scaleSplitCount={1}
@@ -173,6 +179,8 @@ function renderStatefulPinnedGroupCanvas(params: {
         trackSensors={[] as never}
         onCursorDrag={vi.fn()}
         onClickTimeArea={vi.fn()}
+        setInputModalityFromPointerType={setInputModalityFromPointerType}
+        setGestureOwner={setGestureOwner}
         onActionResizeStart={vi.fn()}
         onClipEdgeResizeEnd={(resizeParams) => {
           onClipEdgeResizeEndSpy(resizeParams);
@@ -243,6 +251,10 @@ function renderCanvas(params?: {
   onShotGroupSwitchToFinalVideo?: React.ComponentProps<typeof TimelineCanvas>['onShotGroupSwitchToFinalVideo'];
   onShotGroupSwitchToImages?: React.ComponentProps<typeof TimelineCanvas>['onShotGroupSwitchToImages'];
   allowMissingHandles?: boolean;
+  deviceClass?: React.ComponentProps<typeof TimelineCanvas>['deviceClass'];
+  inputModality?: React.ComponentProps<typeof TimelineCanvas>['inputModality'];
+  interactionMode?: React.ComponentProps<typeof TimelineCanvas>['interactionMode'];
+  gestureOwner?: React.ComponentProps<typeof TimelineCanvas>['gestureOwner'];
   startLeft?: number;
   scale?: number;
   scaleWidth?: number;
@@ -263,6 +275,10 @@ function renderCanvas(params?: {
     <TimelineCanvas
       rows={timelineRows}
       tracks={trackDefinitions}
+      deviceClass={params?.deviceClass ?? 'desktop'}
+      inputModality={params?.inputModality ?? 'mouse'}
+      interactionMode={params?.interactionMode ?? 'select'}
+      gestureOwner={params?.gestureOwner ?? 'none'}
       scale={params?.scale ?? 1}
       scaleWidth={params?.scaleWidth ?? 100}
       scaleSplitCount={1}
@@ -279,6 +295,8 @@ function renderCanvas(params?: {
       trackSensors={[] as never}
       onCursorDrag={vi.fn()}
       onClickTimeArea={vi.fn()}
+      setInputModalityFromPointerType={setInputModalityFromPointerType}
+      setGestureOwner={setGestureOwner}
       onActionResizeStart={onActionResizeStart}
       onClipEdgeResizeEnd={onClipEdgeResizeEnd}
       shotGroups={params?.shotGroups}
@@ -354,6 +372,8 @@ beforeEach(() => {
 
 afterEach(() => {
   useTimelineEditorDataMock.mockReset();
+  setGestureOwner.mockReset();
+  setInputModalityFromPointerType.mockClear();
   pointerCaptures = new WeakMap<HTMLElement, Set<number>>();
 });
 
@@ -389,12 +409,20 @@ describe('TimelineCanvas resize pending ops', () => {
       clientX: 120,
     });
 
+    expect(pendingOpsRef.current).toBe(0);
+    expect(onActionResizeStart).toHaveBeenCalledTimes(0);
+
+    fireEvent.pointerMove(leftHandle, {
+      pointerId: 7,
+      clientX: 112,
+    });
+
     expect(pendingOpsRef.current).toBe(1);
     expect(onActionResizeStart).toHaveBeenCalledTimes(1);
 
     fireEvent.pointerUp(leftHandle, {
       pointerId: 7,
-      clientX: 120,
+      clientX: 112,
     });
 
     expect(pendingOpsRef.current).toBe(0);
@@ -411,11 +439,18 @@ describe('TimelineCanvas resize pending ops', () => {
       clientX: 120,
     });
 
+    expect(pendingOpsRef.current).toBe(0);
+
+    fireEvent.pointerMove(leftHandle, {
+      pointerId: 8,
+      clientX: 112,
+    });
+
     expect(pendingOpsRef.current).toBe(1);
 
     fireEvent.pointerCancel(leftHandle, {
       pointerId: 8,
-      clientX: 120,
+      clientX: 112,
     });
 
     expect(pendingOpsRef.current).toBe(0);
@@ -439,13 +474,77 @@ describe('TimelineCanvas resize pending ops', () => {
       clientX: 120,
     });
 
+    expect(interactionStateRef.current.resize).toBe(false);
+
+    fireEvent.pointerMove(leftHandle, {
+      pointerId: 18,
+      clientX: 112,
+    });
+
     expect(interactionStateRef.current.resize).toBe(true);
 
     fireEvent.pointerUp(leftHandle, {
       pointerId: 18,
+      clientX: 112,
+    });
+
+    expect(interactionStateRef.current.resize).toBe(false);
+  });
+
+  it('gates touch trim ownership and resize state until the trim threshold is crossed', () => {
+    setInputModalityFromPointerType.mockReturnValue('touch');
+    const interactionStateRef = { current: createInteractionState() };
+    const { leftHandle, pendingOpsRef, onActionResizeStart, onClipEdgeResizeEnd } = renderCanvas({
+      deviceClass: 'tablet',
+      inputModality: 'touch',
+      interactionMode: 'trim',
+      interactionStateRef,
+    });
+    if (!leftHandle) throw new Error('expected left handle');
+
+    fireEvent.pointerDown(leftHandle, {
+      button: 0,
+      pointerId: 27,
+      pointerType: 'touch',
       clientX: 120,
     });
 
+    expect(setGestureOwner).not.toHaveBeenCalled();
+    expect(onActionResizeStart).not.toHaveBeenCalled();
+    expect(pendingOpsRef.current).toBe(0);
+    expect(interactionStateRef.current.resize).toBe(false);
+
+    fireEvent.pointerMove(leftHandle, {
+      pointerId: 27,
+      pointerType: 'touch',
+      clientX: 118,
+    });
+
+    expect(setGestureOwner).not.toHaveBeenCalled();
+    expect(onActionResizeStart).not.toHaveBeenCalled();
+    expect(pendingOpsRef.current).toBe(0);
+    expect(interactionStateRef.current.resize).toBe(false);
+
+    fireEvent.pointerMove(leftHandle, {
+      pointerId: 27,
+      pointerType: 'touch',
+      clientX: 110,
+    });
+
+    expect(setGestureOwner).toHaveBeenNthCalledWith(1, 'trim');
+    expect(onActionResizeStart).toHaveBeenCalledTimes(1);
+    expect(pendingOpsRef.current).toBe(1);
+    expect(interactionStateRef.current.resize).toBe(true);
+
+    fireEvent.pointerUp(leftHandle, {
+      pointerId: 27,
+      pointerType: 'touch',
+      clientX: 110,
+    });
+
+    expect(setGestureOwner).toHaveBeenLastCalledWith('none');
+    expect(onClipEdgeResizeEnd).toHaveBeenCalledTimes(1);
+    expect(pendingOpsRef.current).toBe(0);
     expect(interactionStateRef.current.resize).toBe(false);
   });
 
@@ -1124,5 +1223,36 @@ describe('TimelineCanvas resize pending ops', () => {
     fireEvent.contextMenu(getByTitle('Pinned Shot'));
     fireEvent.click(screen.getByText('Delete shot'));
     expect(onShotGroupDelete).toHaveBeenCalledWith({ shotId: 'shot-1', trackId: 'V1', clipIds: ['clip-1'] });
+  });
+
+  it('shows a visible shot-group actions trigger on touch layouts with reachable menu actions', () => {
+    const onShotGroupNavigate = vi.fn();
+    const onShotGroupSwitchToFinalVideo = vi.fn();
+    renderCanvas({
+      deviceClass: 'phone',
+      shotGroups: [pinnedShotGroup],
+      finalVideoMap: new Map([['shot-1', {}]]),
+      onShotGroupNavigate,
+      onShotGroupSwitchToFinalVideo,
+      allowMissingHandles: true,
+    });
+
+    fireEvent.click(screen.getByLabelText('Open actions for Pinned Shot'));
+
+    expect(screen.getByText('Jump to Shot')).toBeInTheDocument();
+    expect(screen.getByText('Switch to Final Video')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Jump to Shot'));
+
+    expect(onShotGroupNavigate).toHaveBeenCalledWith('shot-1');
+
+    fireEvent.click(screen.getByLabelText('Open actions for Pinned Shot'));
+    fireEvent.click(screen.getByText('Switch to Final Video'));
+
+    expect(onShotGroupSwitchToFinalVideo).toHaveBeenCalledWith({
+      shotId: 'shot-1',
+      clipIds: ['clip-1', 'clip-2', 'clip-3'],
+      rowId: 'V1',
+    });
   });
 });

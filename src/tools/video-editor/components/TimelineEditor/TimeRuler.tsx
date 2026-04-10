@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatTime } from '@/tools/video-editor/lib/coordinate-utils';
 import { useTimelineScale } from '@/tools/video-editor/hooks/useTimelineScale';
+import type { TimelineGestureOwner, TimelineInputModality } from '@/tools/video-editor/lib/mobile-interaction-model';
 
 const POINTER_DRAG_THRESHOLD_PX = 3;
 const OVERSCAN_STEPS = 4;
@@ -12,14 +13,18 @@ export interface TimeRulerProps {
   startLeft: number;
   scrollLeft: number;
   totalWidth: number;
+  gestureOwner: TimelineGestureOwner;
   onClickTimeArea: (time: number) => void;
   onCursorDrag: (time: number) => void;
+  setGestureOwner: (owner: TimelineGestureOwner) => void;
+  setInputModalityFromPointerType: (pointerType: string | null | undefined) => TimelineInputModality;
 }
 
 interface PointerSession {
   pointerId: number;
   startClientX: number;
   isDragging: boolean;
+  claimedOwnership: boolean;
 }
 
 const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
@@ -31,11 +36,16 @@ export function TimeRuler({
   startLeft,
   scrollLeft,
   totalWidth,
+  gestureOwner,
   onClickTimeArea,
   onCursorDrag,
+  setGestureOwner,
+  setInputModalityFromPointerType,
 }: TimeRulerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const pointerSessionRef = useRef<PointerSession | null>(null);
+  const gestureOwnerRef = useRef(gestureOwner);
+  gestureOwnerRef.current = gestureOwner;
   const [viewportWidth, setViewportWidth] = useState(0);
 
   const safeSplitCount = Math.max(1, scaleSplitCount);
@@ -132,12 +142,18 @@ export function TimeRuler({
     if (event.button !== 0) {
       return;
     }
+    if (gestureOwnerRef.current !== 'none' && gestureOwnerRef.current !== 'ruler') {
+      return;
+    }
 
+    setInputModalityFromPointerType(event.pointerType);
     pointerSessionRef.current = {
       pointerId: event.pointerId,
       startClientX: event.clientX,
       isDragging: false,
+      claimedOwnership: true,
     };
+    setGestureOwner('ruler');
     event.currentTarget.setPointerCapture(event.pointerId);
     event.preventDefault();
   };
@@ -171,6 +187,9 @@ export function TimeRuler({
     pointerSessionRef.current = null;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (session.claimedOwnership) {
+      setGestureOwner('none');
     }
 
     if (cancelled) {

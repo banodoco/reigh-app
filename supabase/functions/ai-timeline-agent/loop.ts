@@ -22,6 +22,7 @@ import {
   isRecord,
 } from "./llm/messages.ts";
 import { buildTimelineAgentSystemPrompt } from "./prompts.ts";
+import { resolveTimelinePlacement } from "./selectedClips.ts";
 import {
   extractToolCalls,
   isToolError,
@@ -81,6 +82,9 @@ function attachSelectedClips(
     clipId: clip.clip_id,
     url: clip.url,
     mediaType: clip.media_type,
+    ...(typeof clip.is_timeline_backed === "boolean"
+      ? { isTimelineBacked: clip.is_timeline_backed }
+      : {}),
     ...(clip.generation_id ? { generationId: clip.generation_id } : {}),
     ...(clip.prompt ? { prompt: clip.prompt } : {}),
     ...(clip.shot_id ? { shotId: clip.shot_id } : {}),
@@ -88,7 +92,38 @@ function attachSelectedClips(
     ...(typeof clip.shot_selection_clip_count === "number"
       ? { shotSelectionClipCount: clip.shot_selection_clip_count }
       : {}),
+    ...(clip.track_id ? { trackId: clip.track_id } : {}),
+    ...(typeof clip.at === "number" ? { at: clip.at } : {}),
+    ...(typeof clip.duration === "number" ? { duration: clip.duration } : {}),
+    ...(clip.timeline_placement ? { timelinePlacement: clip.timeline_placement } : {}),
   }));
+}
+
+function enrichSelectedClipsWithTimelinePlacement(
+  selectedClips: SelectedClipPayload[] | undefined,
+  timelineState: TimelineState,
+  timelineId: string,
+): SelectedClipPayload[] | undefined {
+  if (!selectedClips?.length) {
+    return selectedClips;
+  }
+
+  const timelineBackedClips = selectedClips.filter((clip) => clip.is_timeline_backed);
+  if (timelineBackedClips.length !== 1) {
+    return selectedClips;
+  }
+
+  const sourceClip = timelineBackedClips[0];
+  const timelinePlacement = resolveTimelinePlacement(sourceClip, timelineState, timelineId);
+  if (!timelinePlacement) {
+    return selectedClips;
+  }
+
+  return selectedClips.map((clip) => (
+    clip.clip_id === sourceClip.clip_id
+      ? { ...clip, timeline_placement: timelinePlacement }
+      : clip
+  ));
 }
 
 export function recoverSelectedClipsFromTurns(turns: AgentTurn[]): SelectedClipPayload[] {
@@ -112,11 +147,43 @@ export function recoverSelectedClipsFromTurns(turns: AgentTurn[]): SelectedClipP
       const prompt = typeof attachment.prompt === "string" && attachment.prompt.trim()
         ? attachment.prompt.trim()
         : undefined;
+      const isTimelineBacked = typeof attachment.isTimelineBacked === "boolean"
+        ? attachment.isTimelineBacked
+        : undefined;
       const shotId = typeof attachment.shotId === "string" && attachment.shotId.trim()
         ? attachment.shotId.trim()
         : undefined;
       const shotName = typeof attachment.shotName === "string" && attachment.shotName.trim()
         ? attachment.shotName.trim()
+        : undefined;
+      const trackId = typeof attachment.trackId === "string" && attachment.trackId.trim()
+        ? attachment.trackId.trim()
+        : undefined;
+      const at = typeof attachment.at === "number" && Number.isFinite(attachment.at)
+        ? attachment.at
+        : undefined;
+      const duration = typeof attachment.duration === "number"
+        && Number.isFinite(attachment.duration)
+        && attachment.duration >= 0
+        ? attachment.duration
+        : undefined;
+      const timelinePlacement = isRecord(attachment.timelinePlacement)
+        && typeof attachment.timelinePlacement.timeline_id === "string"
+        && attachment.timelinePlacement.timeline_id.trim()
+        && typeof attachment.timelinePlacement.source_clip_id === "string"
+        && attachment.timelinePlacement.source_clip_id.trim()
+        && typeof attachment.timelinePlacement.target_track === "string"
+        && attachment.timelinePlacement.target_track.trim()
+        && typeof attachment.timelinePlacement.insertion_time === "number"
+        && Number.isFinite(attachment.timelinePlacement.insertion_time)
+        && (attachment.timelinePlacement.intent === "after_source" || attachment.timelinePlacement.intent === "replace")
+        ? {
+          timeline_id: attachment.timelinePlacement.timeline_id.trim(),
+          source_clip_id: attachment.timelinePlacement.source_clip_id.trim(),
+          target_track: attachment.timelinePlacement.target_track.trim(),
+          insertion_time: attachment.timelinePlacement.insertion_time,
+          intent: attachment.timelinePlacement.intent,
+        }
         : undefined;
       const shotSelectionClipCount = typeof attachment.shotSelectionClipCount === "number"
         && Number.isFinite(attachment.shotSelectionClipCount)
@@ -136,6 +203,11 @@ export function recoverSelectedClipsFromTurns(turns: AgentTurn[]): SelectedClipP
         ...(prompt ? { prompt } : {}),
         ...(shotId ? { shot_id: shotId } : {}),
         ...(shotName ? { shot_name: shotName } : {}),
+        ...(trackId ? { track_id: trackId } : {}),
+        ...(typeof at === "number" ? { at } : {}),
+        ...(typeof duration === "number" ? { duration } : {}),
+        ...(typeof isTimelineBacked === "boolean" ? { is_timeline_backed: isTimelineBacked } : {}),
+        ...(timelinePlacement ? { timeline_placement: timelinePlacement } : {}),
         ...(shotSelectionClipCount ? { shot_selection_clip_count: shotSelectionClipCount } : {}),
       }];
     });
@@ -265,7 +337,7 @@ export async function executeToolCall(
   }
 
   if (toolCall.name === "create_task") {
-    return await executeCreateTask(toolArgs, timelineState, selectedClips, supabaseAdmin, generationContext);
+    return await executeCreateTask(toolArgs, timelineState, selectedClips, supabaseAdmin, generationContext, timelineId);
   }
 
   if (toolCall.name === "transform_image") {
@@ -417,14 +489,25 @@ export async function runAgentLoop(
     });
 
     const timelineState = await loadTimelineState(supabaseAdmin, session.timeline_id);
+    const resolvedSelectedClips = enrichSelectedClipsWithTimelinePlacement(
+      effectiveSelectedClips,
+      timelineState,
+      session.timeline_id,
+    );
+    if (userMessage && !isDuplicate) {
+      const currentUserTurn = turns[turns.length - 1];
+      if (currentUserTurn?.role === "user") {
+        attachSelectedClips(currentUserTurn, resolvedSelectedClips);
+      }
+    }
     const imageSettings = await loadProjectImageSettings(supabaseAdmin, timelineState.projectId);
     const clipShotResolution = await resolveSelectedClipShot(
       supabaseAdmin,
       timelineState,
-      effectiveSelectedClips,
+      resolvedSelectedClips,
     );
     const clipShotId = clipShotResolution.shotId;
-    const clipShotName = resolveSharedShotName(effectiveSelectedClips, clipShotId, timelineState);
+    const clipShotName = resolveSharedShotName(resolvedSelectedClips, clipShotId, timelineState);
     const travelSettings = clipShotId
       ? await loadShotVideoTravelSettings(supabaseAdmin, clipShotId)
       : null;
@@ -449,7 +532,7 @@ export async function runAgentLoop(
     const systemPrompt = buildTimelineAgentSystemPrompt({
       projectId: timelineState.projectId,
       timelineSummary,
-      selectedClips: effectiveSelectedClips,
+      selectedClips: resolvedSelectedClips,
       defaultModel: generationContext.image?.defaultModelName,
       activeReference: generationContext.image?.activeReference ?? null,
       travelSettings,
@@ -527,7 +610,7 @@ export async function runAgentLoop(
         turns,
         messages,
         timelineState,
-        selectedClips: effectiveSelectedClips,
+        selectedClips: resolvedSelectedClips,
         generationContext,
         supabaseAdmin,
         timelineId: session.timeline_id,

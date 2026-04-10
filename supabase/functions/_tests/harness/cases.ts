@@ -45,6 +45,7 @@ export const COMPOUND_CASES_BLOCKED_REASON = null;
 const TEXT_TO_IMAGE_PROMPT = "harness lighthouse mist matte painting";
 const STYLE_TRANSFER_PROMPT = "harness style transfer editorial portrait";
 const SEARCH_AND_ADD_LORA_PROMPT = "harness editorial portrait with soft window light";
+const INSERT_AFTER_SOURCE_PROMPT = "harness warm cinematic grade with subtle contrast";
 const TEXT_CLIP_CONTENT = "Harness caption alpha";
 
 function pass(reason: string): AssertionResult {
@@ -79,6 +80,18 @@ function getRegistry(snapshot: HarnessSnapshot): AssetRegistry {
   return registry as AssetRegistry;
 }
 
+function clipDurationSeconds(clip: TimelineClip): number | undefined {
+  if (typeof clip.hold === "number") {
+    return clip.hold;
+  }
+
+  if (typeof clip.from === "number" && typeof clip.to === "number") {
+    return clip.to - clip.from;
+  }
+
+  return undefined;
+}
+
 function buildSelectedClip(snapshot: HarnessSnapshot, clipIndex: number): SelectedClipPayload {
   const clip = getClip(snapshot, clipIndex);
   if (!clip.asset) {
@@ -94,6 +107,12 @@ function buildSelectedClip(snapshot: HarnessSnapshot, clipIndex: number): Select
     clip_id: clip.id,
     url: asset.file,
     media_type: asset.type?.startsWith("video/") ? "video" : "image",
+    is_timeline_backed: true,
+    track_id: clip.track,
+    at: clip.at,
+    ...(typeof clipDurationSeconds(clip) === "number"
+      ? { duration: clipDurationSeconds(clip) }
+      : {}),
     ...(typeof asset.generationId === "string" && asset.generationId.trim()
       ? { generation_id: asset.generationId }
       : {}),
@@ -348,6 +367,44 @@ export const seedTestCases: TestCase[] = [
         expectGenerationCreatedSoft(diff, task?.id),
         expectCreditChargedSoft(diff, task?.id),
         expectSessionTerminal(after),
+      ]);
+    },
+  },
+  {
+    name: "edit a selected image and insert the result after the source clip",
+    category: "generation",
+    message: (snapshot) => {
+      const clip = getClip(snapshot, 0);
+      return `Create an image-to-image edit from selected clip ${clip.id} with prompt "${INSERT_AFTER_SOURCE_PROMPT}" and insert the result after the source clip on the same track.`;
+    },
+    selectedClips: (snapshot) => [buildSelectedClip(snapshot, 0)],
+    timeoutMs: 180_000,
+    evaluate: ({ before, after, diff }) => {
+      const sourceClip = getClip(before, 0);
+      const task = findAddedTask(
+        diff,
+        (row) => JSON.stringify(row.params).toLowerCase().includes(INSERT_AFTER_SOURCE_PROMPT),
+      );
+
+      return evaluateWith([
+        expectTaskCreatedByPrompt(diff, INSERT_AFTER_SOURCE_PROMPT),
+        expectTaskParamsContain(diff, "timeline_placement", "timeline placement in task params"),
+        expectGenerationCreated(diff, task?.id),
+        expectMediaClipAdded(diff, sourceClip.track),
+        expectSessionTerminal(after),
+        expectNoCollateralDamage(diff, {
+          user: true,
+          tables: {
+            tasks: { added: "*" },
+            generations: { added: "*" },
+            generation_variants: { added: "*" },
+            shot_generations: { added: "*" },
+            timelines: { modified: [before.timeline_id] },
+            timeline_agent_sessions: { modified: "*" },
+            credits_ledger: { added: "*" },
+          },
+          timelineClips: { added: "*" },
+        }),
       ]);
     },
   },

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { ClipMeta } from '@/tools/video-editor/lib/timeline-data';
+import { getConfigSignature, getStableConfigSignature } from '@/tools/video-editor/lib/config-utils';
+import { configToRows, type ClipMeta, type TimelineData } from '@/tools/video-editor/lib/timeline-data';
+import { buildDeleteShotGroupMutation } from '@/tools/video-editor/lib/shot-group-commands';
+import type { TimelineConfig } from '@/tools/video-editor/types';
 import type { ResolvedTimelineClip, TrackDefinition } from '@/tools/video-editor/types';
 import type { TimelineRow } from '@/tools/video-editor/types/timeline-canvas';
 import {
@@ -158,5 +161,78 @@ describe('resolveVideoClipDoubleClickResolution', () => {
       assetKey: 'asset-1',
       generationId: undefined,
     });
+  });
+});
+
+describe('buildDeleteShotGroupMutation', () => {
+  function makeTimelineData(config: TimelineConfig): TimelineData {
+    const rowData = configToRows(config);
+    const resolvedConfig = {
+      output: { ...config.output },
+      tracks: (config.tracks ?? []).map((track) => ({ ...track })),
+      clips: config.clips.map((clip) => ({
+        ...clip,
+        assetEntry: undefined,
+      })),
+      registry: {},
+    };
+
+    return {
+      config,
+      configVersion: 1,
+      registry: { assets: {} },
+      resolvedConfig,
+      rows: rowData.rows,
+      meta: rowData.meta,
+      effects: rowData.effects,
+      assetMap: {},
+      output: { ...config.output },
+      tracks: (config.tracks ?? []).map((track) => ({ ...track })),
+      clipOrder: rowData.clipOrder,
+      signature: getConfigSignature(resolvedConfig),
+      stableSignature: getStableConfigSignature(config, { assets: {} }),
+    };
+  }
+
+  it('removes shot clips and the pinned group in one mutation for a single-step undo', () => {
+    const currentData = makeTimelineData({
+      output: { resolution: '1920x1080', fps: 30, file: 'out.mp4' },
+      tracks: [{ id: 'V1', kind: 'visual', label: 'V1' }],
+      clips: [
+        { id: 'clip-1', at: 0, track: 'V1', clipType: 'hold', hold: 2 },
+        { id: 'clip-2', at: 2, track: 'V1', clipType: 'hold', hold: 2 },
+        { id: 'clip-3', at: 4, track: 'V1', clipType: 'hold', hold: 2 },
+      ],
+      pinnedShotGroups: [
+        { shotId: 'shot-1', trackId: 'V1', clipIds: ['clip-1', 'clip-2'], mode: 'images' },
+        { shotId: 'shot-2', trackId: 'V1', clipIds: ['clip-3'], mode: 'images' },
+      ],
+    });
+
+    const mutation = buildDeleteShotGroupMutation({
+      currentData,
+      group: { shotId: 'shot-1', trackId: 'V1', clipIds: ['clip-1', 'clip-2'] },
+    });
+
+    expect(mutation).toEqual({
+      type: 'rows',
+      rows: [{
+        id: 'V1',
+        actions: [
+          { id: 'clip-3', start: 4, end: 6, effectId: 'effect-clip-3' },
+        ],
+      }],
+      metaDeletes: ['clip-1', 'clip-2'],
+      pinnedShotGroupsOverride: [
+        { shotId: 'shot-2', trackId: 'V1', clipIds: ['clip-3'], mode: 'images' },
+      ],
+    });
+  });
+
+  it('returns null when timeline data is unavailable', () => {
+    expect(buildDeleteShotGroupMutation({
+      currentData: null,
+      group: { shotId: 'shot-1', trackId: 'V1', clipIds: ['clip-1'] },
+    })).toBeNull();
   });
 });

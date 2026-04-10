@@ -1,8 +1,12 @@
 import type { ResolverResult, TaskFamilyResolver, TaskInsertObject } from "./types.ts";
 import { buildHiresFixParams, type HiresFixApiParams } from "./shared/hiresFix.ts";
+import {
+  setTaskLineageFields,
+  type TimelinePlacement,
+} from "./shared/lineage.ts";
+import type { PlacementIntent } from "../../ai-timeline-agent/types.ts";
 import { resolveProjectResolutionFromAspectRatio } from "./shared/resolution.ts";
 import { resolveSeed32Bit, validateSeed32Bit } from "./shared/seed.ts";
-import { setTaskLineageFields } from "./shared/lineage.ts";
 import {
   TaskValidationError,
   validateNonEmptyString,
@@ -35,6 +39,8 @@ interface MagicEditTaskInput {
   hires_fix?: HiresFixApiParams;
   qwen_edit_model?: "qwen-edit" | "qwen-edit-2509" | "qwen-edit-2511";
   numImages?: number;
+  timeline_placement?: TimelinePlacement;
+  placement_intent?: PlacementIntent;
 }
 
 function buildQueuedTask(
@@ -107,6 +113,8 @@ function buildMagicEditTaskParams(
     sourceVariantId: input.source_variant_id,
     createAsGeneration: input.create_as_generation,
     toolType: input.tool_type,
+    timelinePlacement: input.timeline_placement,
+    placementIntent: input.placement_intent,
   });
 
   Object.assign(params, buildHiresFixParams(input.hires_fix));

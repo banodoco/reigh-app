@@ -178,6 +178,35 @@ export const TIMELINE_AGENT_TOOLS: TimelineAgentToolDefinition[] = [
             type: "boolean",
             description: "Turbo mode for wan-2.2 image-to-video (faster, lower quality).",
           },
+          timeline_placement: {
+            type: "object",
+            description: "Optional post-task placement intent. Include only when the user explicitly asks to place the generated result after or in place of a selected timeline clip.",
+            properties: {
+              timeline_id: {
+                type: "string",
+                description: "Timeline ID that should receive the generated media.",
+              },
+              source_clip_id: {
+                type: "string",
+                description: "Selected source clip that anchors placement.",
+              },
+              target_track: {
+                type: "string",
+                description: "Track to insert onto.",
+              },
+              insertion_time: {
+                type: "number",
+                description: "Timeline insertion point in seconds.",
+              },
+              intent: {
+                type: "string",
+                enum: ["after_source", "replace"],
+                description: "Whether to insert after the source clip or replace it.",
+              },
+            },
+            required: ["timeline_id", "source_clip_id", "target_track", "insertion_time", "intent"],
+            additionalProperties: false,
+          },
         },
         required: ["task_type"],
         additionalProperties: false,

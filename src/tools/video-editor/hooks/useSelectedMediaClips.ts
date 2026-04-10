@@ -1,16 +1,22 @@
 import { useMemo } from 'react';
 import { useShots } from '@/shared/contexts/ShotsContext';
 import { useTimelineEditorData } from '@/tools/video-editor/contexts/TimelineEditorContext';
+import { getClipTimelineDuration } from '@/tools/video-editor/lib/config-utils';
 
 export type SelectedMediaClip = {
   clipId: string;
   assetKey: string;
   url: string;
   mediaType: 'image' | 'video';
+  isTimelineBacked: boolean;
   generationId?: string;
+  variantId?: string;
   shotId?: string;
   shotName?: string;
   shotSelectionClipCount?: number;
+  trackId?: string;
+  at?: number;
+  duration?: number;
 };
 
 type SummaryMediaClip = Pick<SelectedMediaClip, 'mediaType' | 'shotId' | 'shotSelectionClipCount'>;
@@ -162,7 +168,12 @@ export function useSelectedMediaClips(): { clips: SelectedMediaClip[]; summary: 
           assetKey,
           url: assetEntry.src,
           mediaType: 'image' as const,
+          isTimelineBacked: true,
           generationId: assetEntry.generationId,
+          variantId: assetEntry.variantId,
+          trackId: clip.track,
+          at: clip.at,
+          duration: getClipTimelineDuration(clip),
           ...shotFields,
         });
         return acc;
@@ -174,7 +185,12 @@ export function useSelectedMediaClips(): { clips: SelectedMediaClip[]; summary: 
           assetKey,
           url: assetEntry.src,
           mediaType: 'video' as const,
+          isTimelineBacked: true,
           generationId: assetEntry.generationId,
+          variantId: assetEntry.variantId,
+          trackId: clip.track,
+          at: clip.at,
+          duration: getClipTimelineDuration(clip),
           ...shotFields,
         });
         return acc;

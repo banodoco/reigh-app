@@ -7,6 +7,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/shared/components/ui/badge';
 import { Button } from '@/shared/components/ui/button';
 import { cn } from '@/shared/components/ui/contracts/cn';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/shared/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/shared/components/ui/dropdown-menu';
 import { Slider } from '@/shared/components/ui/slider';
 import { usePanes } from '@/shared/contexts/PanesContext';
@@ -26,6 +27,11 @@ import { useTimelinePlaybackContext } from '@/tools/video-editor/contexts/Timeli
 import { useKeyboardShortcuts } from '@/tools/video-editor/hooks/useKeyboardShortcuts';
 import { useTimelineRealtime } from '@/tools/video-editor/hooks/useTimelineRealtime';
 import { getTimelineDurationInFrames, parseResolution } from '@/tools/video-editor/lib/config-utils';
+import {
+  areTimelineInteractionTargetsEqual,
+  type TimelineInteractionMode,
+  type TimelineInspectorTarget,
+} from '@/tools/video-editor/lib/mobile-interaction-model';
 import { bootDiagnostics, MemoryPressureDetector } from '@/tools/video-editor/lib/perf-diagnostics';
 import { useRenderDiagnostic } from '@/tools/video-editor/hooks/usePerfDiagnostics';
 import { dispatchAppEvent } from '@/shared/lib/typedEvents';
@@ -51,11 +57,36 @@ const CHECKPOINT_TRIGGER_BADGE_VARIANT = {
   semantic: 'destructive',
   manual: 'default',
 } as const;
+const PHONE_MODE_ITEMS: Array<{ mode: Exclude<TimelineInteractionMode, 'precision'>; label: string }> = [
+  { mode: 'browse', label: 'Browse' },
+  { mode: 'select', label: 'Select' },
+  { mode: 'move', label: 'Move' },
+  { mode: 'trim', label: 'Trim' },
+];
 
 interface VideoEditorShellProps {
   mode: 'full' | 'compact';
   timelineId?: string | null;
   onCreateTimeline?: () => void;
+}
+
+function getInspectorTargetForSelection(
+  selectedClipIds: string[],
+  selectedTrackId: string | null,
+): TimelineInspectorTarget {
+  if (selectedClipIds.length > 1) {
+    return { kind: 'selection', clipIds: selectedClipIds };
+  }
+
+  if (selectedClipIds.length === 1) {
+    return { kind: 'clip', clipId: selectedClipIds[0] };
+  }
+
+  if (selectedTrackId) {
+    return { kind: 'track', trackId: selectedTrackId };
+  }
+
+  return { kind: 'timeline' };
 }
 
 function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: string; forceCondensed?: boolean }) {
@@ -66,6 +97,8 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
   const playback = useTimelinePlaybackContext();
   const { navigateHome } = useHomeNavigation();
   const { isEditorPaneLocked, isGenerationsPaneLocked, setIsGenerationsPaneLocked } = usePanes();
+  const isPhone = editorData.deviceClass === 'phone';
+  const isTablet = editorData.deviceClass === 'tablet';
   const location = useLocation();
   const navigate = useNavigate();
   const isOnEditorPage = location.pathname.startsWith('/tools/video-editor');
@@ -75,6 +108,8 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
   const [isTimelineMaximized, setIsTimelineMaximized] = useState(false);
   /** In condensed mode: 'preview' (default) or 'properties' for the right panel. */
   const [condensedRightPanel, setCondensedRightPanel] = useState<'preview' | 'properties'>('preview');
+  const [isMobilePropertiesOpen, setIsMobilePropertiesOpen] = useState(false);
+  const timelineFps = Math.max(1, editorData.resolvedConfig?.output?.fps ?? 30);
   const conflict = useTimelineRealtime({
     timelineId,
     conflictExhausted: chrome.isConflictExhausted,
@@ -91,7 +126,9 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
   useKeyboardShortcuts({
     hasSelectedClip: editorData.selectedClipIds.size > 0,
     canMoveSelectedClipToTrack: editorData.selectedClipIds.size >= 1,
+    precisionEnabled: editorData.precisionEnabled,
     selectedClipIds: editorData.selectedClipIds,
+    timelineFps,
     moveSelectedClipsToTrack: editorOps.moveSelectedClipsToTrack,
     undo: chrome.undo,
     redo: chrome.redo,
@@ -160,6 +197,11 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
   const outerRef = useRef<HTMLDivElement>(null);
   const condensedSlotRef = useRef<HTMLDivElement>(null);
   const fullSlotRef = useRef<HTMLDivElement>(null);
+  const selectedClipIdsList = useMemo(() => [...editorData.selectedClipIds], [editorData.selectedClipIds]);
+  const inspectorTarget = useMemo(
+    () => getInspectorTargetForSelection(selectedClipIdsList, editorData.selectedTrackId),
+    [editorData.selectedTrackId, selectedClipIdsList],
+  );
   const [previewHostEl] = useState<HTMLDivElement | null>(() => {
     if (typeof document === 'undefined') {
       return null;
@@ -184,8 +226,45 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
     return () => observer.disconnect();
   }, [forceCondensed, aspectRatio, isTimelineMaximized]);
 
-  const condensed = forceCondensed || tooSmall || (isOnEditorPage && isEditorPaneLocked);
+  const mobileSinglePane = isPhone && !forceCondensed;
+  const condensed = forceCondensed || tooSmall || mobileSinglePane || (isOnEditorPage && isEditorPaneLocked);
   const hasConfig = Boolean(editorData.resolvedConfig);
+  const hasClipSelection = selectedClipIdsList.length > 0;
+  const mobilePropertiesTitle = hasClipSelection
+    ? selectedClipIdsList.length > 1
+      ? `Selected clips (${selectedClipIdsList.length})`
+      : 'Selected clip'
+    : 'Inspector';
+  const mobilePropertiesDescription = hasClipSelection
+    ? 'Use inspector-first controls for trim, move, track changes, split, mute, and delete without relying on direct manipulation.'
+    : 'Use the inspector for timeline controls and mode changes when you need more precision.';
+  const inspectorButtonLabel = hasClipSelection
+    ? selectedClipIdsList.length > 1
+      ? `Selection (${selectedClipIdsList.length})`
+      : 'Clip'
+    : 'Inspector';
+  const touchChrome = isPhone || isTablet;
+  const toolbarButtonSizeClass = touchChrome ? 'h-11 w-11' : 'h-6 w-6';
+  const previewActionButtonClass = touchChrome ? 'h-11 min-w-11 px-3 text-[11px]' : 'h-7 px-3 text-[11px]';
+  const interactionStatusLabel = [
+    `Timeline mode ${editorData.interactionMode}.`,
+    `Precision ${editorData.precisionEnabled ? 'enabled' : 'disabled'}.`,
+    editorData.gestureOwner === 'preview'
+      ? 'Preview transform active.'
+      : (touchChrome ? 'Touch controls are available for shell, timeline, and preview actions.' : 'Desktop pointer controls are active.'),
+  ].join(' ');
+
+  useEffect(() => {
+    if (!areTimelineInteractionTargetsEqual(editorData.inspectorTarget, inspectorTarget)) {
+      editorOps.setInspectorTarget(inspectorTarget);
+    }
+  }, [editorData.inspectorTarget, editorOps, inspectorTarget]);
+
+  useEffect(() => {
+    if (isTablet && condensed && hasClipSelection && condensedRightPanel !== 'properties') {
+      setCondensedRightPanel('properties');
+    }
+  }, [condensed, condensedRightPanel, hasClipSelection, isTablet]);
 
   useLayoutEffect(() => {
     if (!previewHostEl) {
@@ -218,6 +297,79 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
     return getTimelineDurationInFrames(editorData.resolvedConfig, editorData.resolvedConfig.output.fps) / editorData.resolvedConfig.output.fps;
   }, [editorData.resolvedConfig]);
 
+  const openInspector = useCallback(() => {
+    editorOps.setInspectorTarget(inspectorTarget);
+    editorOps.setContextTarget(inspectorTarget);
+
+    if (mobileSinglePane) {
+      setIsMobilePropertiesOpen(true);
+      return;
+    }
+
+    setCondensedRightPanel('properties');
+  }, [editorOps, inspectorTarget, mobileSinglePane]);
+
+  const handlePhoneModeChange = useCallback((mode: Exclude<TimelineInteractionMode, 'precision'>) => {
+    editorOps.setInteractionMode(mode);
+    editorOps.setContextTarget({ kind: 'timeline' });
+    editorOps.setInspectorTarget(inspectorTarget);
+  }, [editorOps, inspectorTarget]);
+
+  const togglePhonePrecision = useCallback(() => {
+    editorOps.setPrecisionEnabled(!editorData.precisionEnabled);
+    editorOps.setContextTarget({ kind: 'timeline' });
+    editorOps.setInspectorTarget(inspectorTarget);
+  }, [editorData.precisionEnabled, editorOps, inspectorTarget]);
+
+  const phoneModeBar = mobileSinglePane ? (
+    <div
+      className="rounded-xl border border-border bg-card/80 p-1"
+      role="toolbar"
+      aria-label="Phone timeline mode bar"
+      data-shell-interaction="true"
+    >
+      <div className="grid grid-cols-5 gap-1">
+        {PHONE_MODE_ITEMS.map((item) => {
+          const isActive = editorData.interactionMode === item.mode;
+          return (
+            <button
+              key={item.mode}
+              type="button"
+              className={cn(
+                'min-h-11 rounded-lg px-2 py-2 text-[11px] font-medium uppercase tracking-[0.12em] transition-colors motion-reduce:transition-none',
+                isActive
+                  ? 'bg-accent text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+              )}
+              aria-pressed={isActive}
+              onClick={() => handlePhoneModeChange(item.mode)}
+            >
+              {item.label}
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          className={cn(
+            'min-h-11 rounded-lg px-2 py-2 text-[11px] font-medium uppercase tracking-[0.12em] transition-colors motion-reduce:transition-none',
+            editorData.precisionEnabled
+              ? 'bg-sky-500/15 text-sky-100 ring-1 ring-sky-400/50'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+          )}
+          aria-pressed={editorData.precisionEnabled}
+          onClick={togglePhonePrecision}
+        >
+          Precision
+        </button>
+      </div>
+      <div className="px-2 pt-2 text-[11px] text-muted-foreground">
+        {hasClipSelection
+          ? `${inspectorButtonLabel} actions are available in the inspector.`
+          : 'Open the inspector for move, trim, and timeline actions.'}
+      </div>
+    </div>
+  ) : null;
+
   // ── Save badge (left of track buttons in toolbar) ───────────────────
 
   const saveBadge = (
@@ -231,7 +383,7 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
         type="button"
         variant="ghost"
         size="icon"
-        className="h-6 w-6"
+        className={toolbarButtonSizeClass}
         onClick={chrome.undo}
         disabled={!chrome.canUndo}
         title="Undo"
@@ -242,7 +394,7 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
         type="button"
         variant="ghost"
         size="icon"
-        className="h-6 w-6"
+        className={toolbarButtonSizeClass}
         onClick={chrome.redo}
         disabled={!chrome.canRedo}
         title="Redo"
@@ -251,7 +403,7 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button type="button" variant="ghost" size="icon" className="h-6 w-6" title="History">
+          <Button type="button" variant="ghost" size="icon" className={toolbarButtonSizeClass} title="History">
             <History className="h-3.5 w-3.5" />
           </Button>
         </DropdownMenuTrigger>
@@ -298,12 +450,12 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
   // ── Toolbar (shared between both layouts) ──────────────────────────
 
   const toolbar = (
-    <div className="flex h-7 items-center justify-between gap-2 rounded-lg border border-border/70 bg-card/80 px-2 text-muted-foreground">
+    <div className={cn('flex items-center justify-between gap-2 rounded-lg border border-border/70 bg-card/80 px-2 text-muted-foreground', touchChrome ? 'min-h-11 py-1' : 'h-7')}>
       <div className="flex items-center gap-1">
         {condensed && !forceCondensed && (
           <button
             type="button"
-            className="mr-2 shrink-0 text-[11px] transition-colors hover:text-foreground"
+            className="mr-2 min-h-11 shrink-0 px-2 text-[11px] transition-colors hover:text-foreground motion-reduce:transition-none"
             onClick={navigateHome}
           >
             ← Back
@@ -326,17 +478,17 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
             type="button"
             variant="ghost"
             size="icon"
-            className="h-6 w-6"
+            className={toolbarButtonSizeClass}
             onClick={() => setIsTimelineMaximized((value) => !value)}
             title={isTimelineMaximized ? 'Restore preview and timeline split' : 'Maximize timeline'}
           >
             {isTimelineMaximized ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
           </Button>
         )}
-        <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => chrome.setScaleWidth((value) => Math.max(value / 1.4, 40))}>
+        <Button type="button" variant="ghost" size="icon" className={toolbarButtonSizeClass} onClick={() => chrome.setScaleWidth((value) => Math.max(value / 1.4, 40))}>
           <ZoomOut className="h-3.5 w-3.5" />
         </Button>
-        <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => chrome.setScaleWidth((value) => Math.min(value * 1.4, 500))}>
+        <Button type="button" variant="ghost" size="icon" className={toolbarButtonSizeClass} onClick={() => chrome.setScaleWidth((value) => Math.min(value * 1.4, 500))}>
           <ZoomIn className="h-3.5 w-3.5" />
         </Button>
       </div>
@@ -346,15 +498,70 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
   // ── Preview overlay (time top-left, render top-right) ──────────────
 
   const previewOverlay = (
-    <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between px-3 py-3">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between px-3 py-3" data-shell-interaction="true">
       <span className="pointer-events-auto rounded bg-background/70 px-1.5 py-0.5 font-mono text-[11px] tracking-[0.08em] text-muted-foreground backdrop-blur-sm">{playback.formatTime(playback.currentTime)}</span>
       <div className="pointer-events-auto flex items-center gap-1">
-        {condensed && (
+        {mobileSinglePane && (
+          <Dialog
+            open={isMobilePropertiesOpen}
+            onOpenChange={(open) => {
+              setIsMobilePropertiesOpen(open);
+              if (open) {
+                editorOps.setInspectorTarget(inspectorTarget);
+                editorOps.setContextTarget(inspectorTarget);
+              }
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button
+                type="button"
+                size="sm"
+                variant={hasClipSelection ? 'secondary' : 'outline'}
+                onClick={() => {
+                  editorOps.setInspectorTarget(inspectorTarget);
+                  editorOps.setContextTarget(inspectorTarget);
+                }}
+                className={cn(
+                  `gap-1.5 ${previewActionButtonClass}`,
+                  hasClipSelection && 'border-sky-400/60 bg-sky-500/10 text-sky-100 hover:bg-sky-500/20',
+                )}
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                {inspectorButtonLabel}
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="top-auto bottom-0 max-h-[78dvh] w-[calc(100vw-1rem)] max-w-none translate-x-[-50%] translate-y-0 gap-0 overflow-hidden rounded-t-2xl border-border bg-background p-0 data-[ending-style]:slide-out-to-top-[100%] data-[open]:slide-in-from-top-[100%] motion-reduce:animate-none motion-reduce:transition-none sm:max-w-lg sm:translate-y-[-50%] sm:rounded-lg sm:p-6 sm:data-[ending-style]:slide-out-to-top-[48%] sm:data-[open]:slide-in-from-top-[48%]">
+              <DialogHeader className="border-b border-border px-4 py-3 text-left">
+                <DialogTitle className="text-base">{mobilePropertiesTitle}</DialogTitle>
+                <DialogDescription>{mobilePropertiesDescription}</DialogDescription>
+              </DialogHeader>
+              <div className="min-h-0 flex-1 overflow-hidden p-3">
+                <PropertiesPanel />
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+        {condensed && !mobileSinglePane && (
+          <Button
+            type="button"
+            size="sm"
+            variant={condensedRightPanel === 'properties' ? 'secondary' : hasClipSelection ? 'outline' : 'ghost'}
+            className={cn(
+              `gap-1.5 ${previewActionButtonClass}`,
+              hasClipSelection && condensedRightPanel !== 'properties' && 'border-sky-400/60 text-sky-100 hover:bg-sky-500/10',
+            )}
+            onClick={openInspector}
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            {inspectorButtonLabel}
+          </Button>
+        )}
+        {condensed && !mobileSinglePane && (
           <Button
             type="button"
             size="sm"
             variant="outline"
-            className="h-7 gap-1.5 px-3 text-[11px]"
+            className={`gap-1.5 ${previewActionButtonClass}`}
             onClick={() => {
               if (isOnEditorPage && isGenerationsPaneLocked) {
                 setIsGenerationsPaneLocked(false);
@@ -370,7 +577,7 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
         <Button
           type="button"
           size="sm"
-          className="h-7 gap-1.5 px-3 text-[11px]"
+          className={`gap-1.5 ${previewActionButtonClass}`}
           onClick={() => void chrome.startRender()}
           disabled={chrome.renderStatus === 'rendering'}
         >
@@ -383,7 +590,10 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
           <a
             href={chrome.renderResultUrl}
             download={chrome.renderResultFilename ?? undefined}
-            className="rounded-md border border-border/70 bg-background/80 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
+            className={cn(
+              'rounded-md border border-border/70 bg-background/80 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground motion-reduce:transition-none',
+              touchChrome ? 'min-h-11 px-3 py-2' : 'px-2 py-1',
+            )}
           >
             Download
           </a>
@@ -410,11 +620,14 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
   return (
     <>
       <div ref={outerRef} className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground">
+        <div className="sr-only" aria-live="polite" aria-atomic="true">
+          {interactionStatusLabel}
+        </div>
         {!condensed && (
           <div className="flex h-10 items-center gap-3 border-b border-border bg-background px-3 text-sm text-muted-foreground">
             <button
               type="button"
-              className="shrink-0 transition-colors hover:text-foreground"
+              className={cn('shrink-0 transition-colors hover:text-foreground motion-reduce:transition-none', touchChrome && 'min-h-11 px-2')}
               onClick={navigateHome}
             >
               ← Back
@@ -424,7 +637,7 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
               type="button"
               variant="ghost"
               size="icon"
-              className="ml-auto h-7 w-7 text-muted-foreground"
+              className={cn('ml-auto text-muted-foreground', touchChrome ? 'h-11 w-11' : 'h-7 w-7')}
               onClick={() => dispatchAppEvent('openSettings', {})}
               title="Settings"
             >
@@ -433,9 +646,39 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
           </div>
         )}
 
-        {condensed ? (
+        {mobileSinglePane ? (
+          <main className="grid h-full min-h-0 flex-1 animate-in fade-in duration-200 motion-reduce:animate-none motion-reduce:transition-none grid-rows-[auto_auto_minmax(260px,42dvh)_minmax(0,1fr)] gap-3 p-3 transition-opacity">
+            <div>
+              {toolbar}
+            </div>
+
+            {phoneModeBar}
+
+            <div className="flex min-h-0 flex-col gap-3">
+              <div className="relative min-h-0 flex-1">
+                {previewOverlay}
+                <PreviewPanel previewSlotRef={condensedSlotRef} />
+              </div>
+              <div className="rounded-xl border border-border bg-card/80 px-3 py-2">
+                <Slider
+                  value={[playback.currentTime]}
+                  min={0}
+                  max={Math.max(1, totalSeconds)}
+                  step={0.05}
+                  onValueChange={(value) => playback.previewRef.current?.seek(value)}
+                />
+              </div>
+            </div>
+
+            <div className="relative min-h-0 overflow-hidden">
+              <TimelineEditor />
+            </div>
+
+            <AgentChat timelineId={timelineId} />
+          </main>
+        ) : condensed ? (
           /* ── Condensed layout: timeline left, preview or props right ── */
-          <main className="grid h-full min-h-0 flex-1 animate-in fade-in duration-200 grid-cols-[minmax(0,1fr)_320px] grid-rows-[auto_minmax(0,1fr)] gap-3 p-3 transition-opacity">
+          <main className="grid h-full min-h-0 flex-1 animate-in fade-in duration-200 motion-reduce:animate-none motion-reduce:transition-none grid-cols-[minmax(0,1fr)_320px] grid-rows-[auto_minmax(0,1fr)] gap-3 p-3 transition-opacity">
             <div className="col-span-1">
               {toolbar}
             </div>
@@ -444,7 +687,7 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
               <div className="flex items-center border-b border-border">
                 <button
                   type="button"
-                  className={`flex flex-1 items-center justify-center gap-1.5 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.12em] transition-colors ${condensedRightPanel === 'preview' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.12em] transition-colors motion-reduce:transition-none ${condensedRightPanel === 'preview' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                   onClick={() => setCondensedRightPanel('preview')}
                 >
                   <Eye className="h-3 w-3" />
@@ -452,11 +695,11 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
                 </button>
                 <button
                   type="button"
-                  className={`flex flex-1 items-center justify-center gap-1.5 border px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.12em] transition-colors ${condensedRightPanel === 'properties' ? 'border-transparent bg-accent text-foreground' : editorData.selectedClipIds.size > 0 ? 'border-sky-400 text-muted-foreground hover:text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
-                  onClick={() => setCondensedRightPanel('properties')}
+                  className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 border px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.12em] transition-colors motion-reduce:transition-none ${condensedRightPanel === 'properties' ? 'border-transparent bg-accent text-foreground' : editorData.selectedClipIds.size > 0 ? 'border-sky-400 text-muted-foreground hover:text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+                  onClick={openInspector}
                 >
                   <SlidersHorizontal className="h-3 w-3" />
-                  Properties
+                  {inspectorButtonLabel}
                 </button>
               </div>
 
@@ -497,7 +740,7 @@ function FullEditorLayout({ timelineId, forceCondensed = false }: { timelineId: 
           /* ── Standard layout: preview top, timeline bottom ── */
           <main
             ref={containerRef}
-            className="grid h-full min-h-0 flex-1 animate-in fade-in duration-200 grid-cols-[minmax(0,1fr)_360px] gap-3 p-3 transition-[grid-template-rows,opacity] duration-300 ease-smooth"
+            className="grid h-full min-h-0 flex-1 animate-in fade-in duration-200 motion-reduce:animate-none motion-reduce:transition-none grid-cols-[minmax(0,1fr)_360px] gap-3 p-3 transition-[grid-template-rows,opacity] duration-300 ease-smooth"
             style={{ gridTemplateRows }}
           >
             <div className="relative min-h-0">

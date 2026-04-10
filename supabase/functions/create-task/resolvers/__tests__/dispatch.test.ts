@@ -13,15 +13,19 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('https://deno.land/std@0.224.0/http/server.ts', async () => {
   const actual = await import('../../../_tests/mocks/denoHttpServer.ts');
-  return { serve: actual.serve };
+  return {
+    serve: actual.serve,
+    __getServeHandler: actual.__getServeHandler,
+    __resetServeHandler: actual.__resetServeHandler,
+  };
 });
 
-vi.mock('../../_shared/edgeHandler.ts', () => ({
+vi.mock('../../../_shared/edgeHandler.ts', () => ({
   bootstrapEdgeHandler: (...args: unknown[]) => mocks.bootstrapEdgeHandler(...args),
   NO_SESSION_RUNTIME_OPTIONS: {},
 }));
 
-vi.mock('../../_shared/rateLimit.ts', () => ({
+vi.mock('../../../_shared/rateLimit.ts', () => ({
   enforceRateLimit: (...args: unknown[]) => mocks.enforceRateLimit(...args),
   RATE_LIMITS: {
     taskCreation: { maxRequests: 20, windowSeconds: 60 },
@@ -86,6 +90,32 @@ function createTaskTableChain(taskResponses: Array<{ type: 'insert' | 'lookup'; 
 
 async function loadHandler() {
   vi.resetModules();
+  vi.doMock('https://deno.land/std@0.224.0/http/server.ts', async () => {
+    const actual = await import('../../../_tests/mocks/denoHttpServer.ts');
+    return {
+      serve: actual.serve,
+      __getServeHandler: actual.__getServeHandler,
+      __resetServeHandler: actual.__resetServeHandler,
+    };
+  });
+  vi.doMock('../../../_shared/edgeHandler.ts', () => ({
+    bootstrapEdgeHandler: (...args: unknown[]) => mocks.bootstrapEdgeHandler(...args),
+    NO_SESSION_RUNTIME_OPTIONS: {},
+  }));
+  vi.doMock('../../../_shared/rateLimit.ts', () => ({
+    enforceRateLimit: (...args: unknown[]) => mocks.enforceRateLimit(...args),
+    RATE_LIMITS: {
+      taskCreation: { maxRequests: 20, windowSeconds: 60 },
+    },
+  }));
+  vi.doMock('../../request.ts', () => ({
+    parseCreateTaskBody: (...args: unknown[]) => mocks.parseCreateTaskBody(...args),
+    buildTaskInsertObject: (...args: unknown[]) => mocks.buildTaskInsertObject(...args),
+    getErrorMessage: (...args: unknown[]) => mocks.getErrorMessage(...args),
+  }));
+  vi.doMock('../registry.ts', () => ({
+    getTaskFamilyResolver: (...args: unknown[]) => mocks.getTaskFamilyResolver(...args),
+  }));
   await import('../../index.ts');
   return __getServeHandler();
 }

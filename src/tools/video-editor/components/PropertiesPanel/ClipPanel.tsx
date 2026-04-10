@@ -15,11 +15,15 @@ import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/DataProvide
 import { useEffectResources, type EffectCategory, type EffectResource } from '@/tools/video-editor/hooks/useEffectResources';
 import type { ClipTab } from '@/tools/video-editor/hooks/useEditorPreferences';
 import type { ClipMeta } from '@/tools/video-editor/lib/timeline-data';
+import type { TimelineDeviceClass, TimelineInteractionMode } from '@/tools/video-editor/lib/mobile-interaction-model';
 import type { ResolvedTimelineClip, TrackDefinition } from '@/tools/video-editor/types';
 
 interface ClipPanelProps {
   clip: ResolvedTimelineClip | null;
   track: TrackDefinition | null;
+  deviceClass: TimelineDeviceClass;
+  interactionMode: TimelineInteractionMode;
+  precisionEnabled: boolean;
   hasPredecessor: boolean;
   onChange: (patch: Partial<ClipMeta> & { at?: number }) => void;
   onResetPosition: () => void;
@@ -27,6 +31,11 @@ interface ClipPanelProps {
   onDelete?: () => void;
   onToggleMute: () => void;
   onDetachAudio?: () => void;
+  onSplitAtPlayhead: () => void;
+  onMoveTrackUp: () => void;
+  onMoveTrackDown: () => void;
+  onSetInteractionMode: (mode: 'move' | 'trim') => void;
+  onSetPrecisionEnabled: (enabled: boolean) => void;
   compositionWidth: number;
   compositionHeight: number;
   activeTab: ClipTab;
@@ -134,6 +143,9 @@ function AudioReactiveIcon() {
 export function ClipPanel({
   clip,
   track,
+  deviceClass,
+  interactionMode,
+  precisionEnabled,
   hasPredecessor,
   onChange,
   onResetPosition,
@@ -141,6 +153,11 @@ export function ClipPanel({
   onDelete,
   onToggleMute,
   onDetachAudio,
+  onSplitAtPlayhead,
+  onMoveTrackUp,
+  onMoveTrackDown,
+  onSetInteractionMode,
+  onSetPrecisionEnabled,
   compositionWidth,
   compositionHeight,
   activeTab,
@@ -160,6 +177,7 @@ export function ClipPanel({
   const exitEffect = findEffectResourceByType(clip?.exit?.type, effectResources.effects);
   const continuousEffect = findEffectResourceByType(clip?.continuous?.type, effectResources.effects);
   const canDetachAudio = track?.kind === 'visual' && clip?.assetEntry?.type?.startsWith('video/');
+  const showInspectorActions = deviceClass !== 'desktop';
 
   if (!clip) {
     return (
@@ -208,6 +226,51 @@ export function ClipPanel({
               <X className="h-3.5 w-3.5" />
             </Button>
           )}
+        </div>
+      )}
+
+      {showInspectorActions && (
+        <div className="rounded-xl border border-sky-400/40 bg-sky-500/10 p-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-sm font-medium text-foreground">Inspector-first actions</div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                Use explicit controls for trim, move, track changes, split, mute, and delete when touch editing needs to stay stable.
+              </div>
+            </div>
+            <div className="text-[11px] uppercase tracking-[0.12em] text-sky-100">
+              {interactionMode}
+              {precisionEnabled ? ' + precision' : ''}
+            </div>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Button type="button" variant="secondary" size="sm" className="justify-start" onClick={() => { onSetInteractionMode('trim'); setActiveTab('timing'); }}>
+              Trim in inspector
+            </Button>
+            <Button type="button" variant="secondary" size="sm" className="justify-start" onClick={() => { onSetInteractionMode('move'); setActiveTab('timing'); }}>
+              Move in inspector
+            </Button>
+            <Button type="button" variant="outline" size="sm" className="justify-start" onClick={onMoveTrackUp}>
+              Track up
+            </Button>
+            <Button type="button" variant="outline" size="sm" className="justify-start" onClick={onMoveTrackDown}>
+              Track down
+            </Button>
+            <Button type="button" variant="outline" size="sm" className="justify-start" onClick={onSplitAtPlayhead}>
+              Split at playhead
+            </Button>
+            <Button type="button" variant="outline" size="sm" className="justify-start" onClick={onToggleMute}>
+              Mute or unmute
+            </Button>
+            <Button type="button" variant={precisionEnabled ? 'secondary' : 'outline'} size="sm" className="justify-start" onClick={() => onSetPrecisionEnabled(!precisionEnabled)}>
+              {precisionEnabled ? 'Disable precision' : 'Enable precision'}
+            </Button>
+            {onDelete && (
+              <Button type="button" variant="destructive" size="sm" className="justify-start" onClick={onDelete}>
+                Delete clip
+              </Button>
+            )}
+          </div>
         </div>
       )}
 
