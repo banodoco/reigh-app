@@ -68,7 +68,7 @@ describe('getInstallationCommand', () => {
     expect(cmd).toContain('& $uvExe run --python 3.10 --extra cuda124 python run_worker.py');
   });
 
-  it('Windows cmd install: cd /d into Reigh-Worker, uses explicit uv.exe path', () => {
+  it('Windows cmd install: cd /d into Reigh-Worker, backup prelude, sentinel, uses explicit uv.exe path', () => {
     const cmd = getInstallationCommand({
       ...baseConfig,
       computerType: 'windows',
@@ -76,8 +76,16 @@ describe('getInstallationCommand', () => {
     });
 
     expect(cmd).toContain('cd /d Reigh-Worker &&');
+    // Backup prelude: single-line powershell that moves venv/.venv when sentinel is absent
+    expect(cmd).toContain('if not exist ".uv-migrated" powershell -NoProfile -Command');
+    expect(cmd).toContain("Move-Item 'venv'");
+    expect(cmd).toContain("Move-Item '.venv'");
+    // Sentinel created after sync
+    expect(cmd).toContain('type nul > .uv-migrated');
     expect(cmd).toContain('"%USERPROFILE%/.local/bin/uv.exe" sync --locked --python 3.10 --extra cuda124');
     expect(cmd).toContain('"%USERPROFILE%/.local/bin/uv.exe" run --python 3.10 --extra cuda124 python run_worker.py');
+    // No newlines — single-line cmd.exe constraint
+    expect(cmd).not.toContain('\n');
   });
 });
 

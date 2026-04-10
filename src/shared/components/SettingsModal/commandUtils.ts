@@ -45,10 +45,9 @@ const buildBackupPreludePowerShell = (): string => {
 };
 
 const buildBackupPreludeCmd = (): string => {
-  return `if not exist ".uv-migrated" (
-  if exist "venv" powershell -NoProfile -Command "$ts = Get-Date -Format 'yyyyMMddHHmmss'; Move-Item -LiteralPath 'venv' -Destination ('venv.pre-uv-' + $ts)"
-  if exist ".venv" powershell -NoProfile -Command "$ts = Get-Date -Format 'yyyyMMddHHmmss'; Move-Item -LiteralPath '.venv' -Destination ('.venv.pre-uv-' + $ts)"
-)`;
+  // Single-line: cmd.exe splits multiline pastes and loses && chains.
+  // Uses powershell one-liner to do the backup only when sentinel is absent.
+  return `if not exist ".uv-migrated" powershell -NoProfile -Command "$ts = Get-Date -Format 'yyyyMMddHHmmss'; if (Test-Path 'venv') { Move-Item 'venv' ('venv.pre-uv-' + $ts) }; if (Test-Path '.venv') { Move-Item '.venv' ('.venv.pre-uv-' + $ts) }"`;
 };
 
 /**
@@ -134,8 +133,10 @@ const buildWindowsCmdCommand = (config: CommandConfig, mode: 'install' | 'run'):
     parts.push(`cd /d ${REPO_DIR}`);
   }
 
+  parts.push(buildBackupPreludeCmd());
   parts.push('git pull --ff-only');
   parts.push(`${uvCommand} sync --locked --python 3.10 --extra ${cudaExtra}`);
+  parts.push('type nul > .uv-migrated');
   parts.push(buildUvRunLine(uvCommand, cudaExtra, config));
 
   // Single line — cmd.exe splits multiline pastes and loses && chains
