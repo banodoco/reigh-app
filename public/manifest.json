@@ -23,12 +23,6 @@
       "src": "/favicon-192x192.png",
       "sizes": "192x192",
       "type": "image/png"
-    },
-    {
-      "src": "/lovable-uploads/e2fca7b4-10e4-4ee5-bc85-34d85d75e502.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
     }
   ],
   "categories": ["multimedia", "creativity", "utilities"],
