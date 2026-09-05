@@ -129,8 +129,8 @@ export function createFakeBridgeRouter(): FakeBridgeRouter {
     if (!parsed.success) {
       return errorEnvelope(400, 'invalid_body', 'admission body violates the wire contract');
     }
-    if (!AVAILABLE_FAMILIES.includes(parsed.data.family)) {
-      return errorEnvelope(422, 'capability_unavailable', `${parsed.data.family}: no available local binding`);
+    if (!AVAILABLE_FAMILIES.includes(parsed.data.spec.family)) {
+      return errorEnvelope(422, 'capability_unavailable', `${parsed.data.spec.family}: no available local binding`);
     }
 
     const serializedBody = JSON.stringify(body);
@@ -146,7 +146,7 @@ export function createFakeBridgeRouter(): FakeBridgeRouter {
     state.admissions += 1;
     const readModel = makeAdmittedTaskReadModel({
       taskId: fixtureUlid(String(state.admissions).padStart(6, '0')),
-      family: parsed.data.family,
+      family: parsed.data.spec.family,
     });
     state.tasks.set(readModel.id, taskSummaryFromReadModel(readModel));
     state.admittedByTaskId.set(readModel.id, readModel);

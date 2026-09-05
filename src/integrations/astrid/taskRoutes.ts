@@ -61,10 +61,29 @@ export class AstridLocalTaskRoutes {
   ): Promise<BridgeTaskAdmissionResponse> {
     // Validate on the client too: an invalid admit must fail here, before a
     // receipted key is spent on a request the bridge would reject.
-    bridgeTaskAdmissionRequestSchema.parse(request);
+    const parsed = bridgeTaskAdmissionRequestSchema.parse(request);
+    // Rebuild the closed envelope in contract order so the bytes used by
+    // Runtime's idempotency receipt are independent of caller key order.
+    const canonicalRequest: BridgeTaskAdmissionRequest = {
+      project: parsed.project,
+      capability_id: parsed.capability_id,
+      capability_digest: parsed.capability_digest,
+      schema_version: parsed.schema_version,
+      input_object_ids: [...parsed.input_object_ids],
+      spec: {
+        family: parsed.spec.family,
+        params: parsed.spec.params,
+        output_policy: parsed.spec.output_policy,
+      },
+      storage_estimate: {
+        estimated_scratch_bytes: parsed.storage_estimate.estimated_scratch_bytes,
+        estimated_output_bytes: parsed.storage_estimate.estimated_output_bytes,
+      },
+      settlement_effect: parsed.settlement_effect,
+    };
     return await this.request(() => this.transport.requestJson(
       this.path(),
-      { method: 'POST', body: request, headers: { 'Idempotency-Key': idempotencyKey } },
+      { method: 'POST', body: canonicalRequest, headers: { 'Idempotency-Key': idempotencyKey } },
       bridgeTaskAdmissionResponseSchema,
       'task admission',
     ));

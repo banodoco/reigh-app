@@ -140,6 +140,21 @@ export const bridgeTaskSpecSchema = z.looseObject({
   output_policy: jsonObject.optional(),
 });
 
+/** HC-04 typed producer spec. Unknown fields inside typed objects are owned by
+ * the capability schema, but the admission envelope itself is closed. */
+export const bridgeTaskAdmissionSpecSchema = z.strictObject({
+  family: z.string().min(1),
+  params: jsonObject,
+  output_policy: jsonObject,
+});
+
+export const bridgeTaskStorageEstimateSchema = z.strictObject({
+  estimated_scratch_bytes: z.number().int().nonnegative(),
+  estimated_output_bytes: z.number().int().nonnegative(),
+});
+
+export const bridgeTaskSettlementEffectSchema = jsonObject;
+
 /**
  * Bounded current-attempt read model — also the only extra a fence `409`
  * may carry (doc-27 §4.6: minimal resync data, never the full model).
@@ -223,20 +238,17 @@ export const bridgeAdmittedTaskSchema = z.looseObject({
   finished_at: z.string().nullable().optional(),
 });
 
-/** `POST /projects/:slug/tasks` request body (public R1 admission). */
-export const bridgeMaterializedInputSchema = z.looseObject({
-  media_id: z.string().optional(),
-  generation_id: z.string().optional(),
-  kind: z.enum(['file', 'remote']).optional(),
-  target: z.string().optional(),
-  url: z.string().optional(),
-});
-
-export const bridgeTaskAdmissionRequestSchema = z.looseObject({
-  family: z.string().min(1),
-  input: jsonObject,
-  materialized_inputs: z.array(bridgeMaterializedInputSchema).optional(),
-  priority: z.number().int().optional(),
+/** `POST /projects/:slug/tasks` request body (public HC-04 admission).
+ * Idempotency is deliberately absent: it is transport metadata only. */
+export const bridgeTaskAdmissionRequestSchema = z.strictObject({
+  project: z.string().min(1),
+  capability_id: z.string().min(1),
+  capability_digest: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+  schema_version: z.literal('1'),
+  input_object_ids: z.array(z.string().min(1)),
+  spec: bridgeTaskAdmissionSpecSchema,
+  storage_estimate: bridgeTaskStorageEstimateSchema,
+  settlement_effect: bridgeTaskSettlementEffectSchema,
 });
 
 /** `201` first commit / `200` idempotent replay share this body. */

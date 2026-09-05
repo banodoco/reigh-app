@@ -31,7 +31,23 @@ describe('AstridLocalClient', () => {
   }
 
   function admissionRequest() {
-    return { family: 'image_generation', input: { prompt: 'a lighthouse' } };
+    return {
+      project: 'demo-project',
+      capability_id: 'astrid.image_generation',
+      capability_digest: `sha256:${'a'.repeat(64)}`,
+      schema_version: '1' as const,
+      input_object_ids: ['cas-prompt'],
+      spec: {
+        family: 'image_generation',
+        params: { prompt: 'a lighthouse' },
+        output_policy: {},
+      },
+      storage_estimate: {
+        estimated_scratch_bytes: 0,
+        estimated_output_bytes: 0,
+      },
+      settlement_effect: {},
+    };
   }
 
   it('discovers projects through the one shared transport', async () => {
@@ -69,7 +85,10 @@ describe('AstridLocalClient', () => {
     await client.tasks.admit(admissionRequest(), 'reigh.admit:same');
 
     const error = await client.tasks
-      .admit({ ...admissionRequest(), input: { prompt: 'changed' } }, 'reigh.admit:same')
+      .admit({ ...admissionRequest(), spec: {
+        ...admissionRequest().spec,
+        params: { prompt: 'changed' },
+      } }, 'reigh.admit:same')
       .catch((cause: unknown) => cause);
 
     expect(error).toBeInstanceOf(BridgeRouteError);
@@ -81,7 +100,11 @@ describe('AstridLocalClient', () => {
     const client = makeClient();
 
     await expect(
-      client.tasks.admit({ family: 'image_generation_dead', input: {} }, 'reigh.admit:x'),
+      client.tasks.admit({
+        ...admissionRequest(),
+        capability_id: 'astrid.image_generation_dead',
+        spec: { ...admissionRequest().spec, family: 'image_generation_dead', params: {} },
+      }, 'reigh.admit:x'),
     ).rejects.toMatchObject({
       status: 422,
       code: 'capability_unavailable',

@@ -1,11 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
-// createTask keeps a legacy materialization scan that reaches into the
-// generation repository; the bridge journey itself never needs it here.
-vi.mock('@/integrations/supabase/repositories/generationRepository', () => ({
-  fetchGenerationRecordById: async () => null,
-}));
-
 vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
   normalizeAndPresentAndRethrow: (error: unknown) => {
     throw error;
@@ -13,8 +7,6 @@ vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
 }));
 
 import { createTask } from './createTask';
-import { beginLocalWorkerSession } from './localWorkerSession';
-import type { LocalWorkerSession, MaterializedInputRecord } from './localWorkerSession';
 import { createFakeBridgeRouter, type FakeBridgeRouter } from '@/test/fakeBridgeRouter.ts';
 
 const FAKE_ORIGIN = 'http://bridge.fake';
@@ -52,21 +44,31 @@ function lastAdmitBody(): Record<string, unknown> {
   return JSON.parse(init.body as string) as Record<string, unknown>;
 }
 
-function fakeSessionWithRecords(records: MaterializedInputRecord[]): LocalWorkerSession {
+function admissionParams(overrides: Record<string, unknown> = {}) {
   return {
-    probe: () => Promise.resolve(false),
-    register: () => undefined,
-    records: () => records,
-    cached: () => null,
+    project: 'demo-project',
+    capability_id: 'astrid.image_generation',
+    capability_digest: `sha256:${'a'.repeat(64)}`,
+    schema_version: '1' as const,
+    input_object_ids: [],
+    spec: {
+      family: 'image_generation',
+      params: { prompt: 'hi' },
+      output_policy: {},
+    },
+    storage_estimate: {
+      estimated_scratch_bytes: 0,
+      estimated_output_bytes: 0,
+    },
+    settlement_effect: {},
+    ...overrides,
   };
 }
 
 describe('createTask R1 admission over the fake bridge router', () => {
   it('admits with a per-call Idempotency-Key header and maps the response', async () => {
     const result = await createTask({
-      family: 'image_generation',
-      project_id: 'demo-project',
-      input: { prompt: 'hi' },
+      ...admissionParams(),
     });
 
     const { url, init } = lastAdmitCall();
@@ -98,9 +100,11 @@ describe('createTask R1 admission over the fake bridge router', () => {
     vi.stubGlobal('fetch', flakyFetch);
 
     await createTask({
-      family: 'image_generation',
-      project_id: 'demo-project',
-      input: { prompt: 'retry' },
+      ...admissionParams({ spec: {
+        family: 'image_generation',
+        params: { prompt: 'retry' },
+        output_policy: {},
+      } }),
     });
 
     // Both attempts carried the SAME receipt key; only one task committed.
@@ -109,41 +113,18 @@ describe('createTask R1 admission over the fake bridge router', () => {
     expect(router.state.admissions).toBe(1);
   });
 
-  it('omits materialized_inputs when no session is provided', async () => {
-    await createTask({
-      family: 'image_generation',
-      project_id: 'demo-project',
-      input: { prompt: 'hi' },
+  it('serializes the canonical ordered CAS admission without legacy fields', async () => {
+    const request = admissionParams({
+      input_object_ids: ['cas-source', 'cas-mask'],
     });
 
-    const body = lastAdmitBody();
-    expect(body).not.toHaveProperty('materialized_inputs');
-    expect(body).toMatchObject({
-      family: 'image_generation',
-      input: { prompt: 'hi' },
-    });
-  });
+    await createTask(request);
 
-  it('omits materialized_inputs when session has no records', async () => {
-    await createTask(
-      { family: 'image_generation', project_id: 'demo-project', input: { prompt: 'hi' } },
-      { localWorkerSession: beginLocalWorkerSession() },
-    );
-
+    expect(lastAdmitBody()).toEqual(request);
+    expect(lastAdmitBody()).not.toHaveProperty('project_id');
+    expect(lastAdmitBody()).not.toHaveProperty('family');
+    expect(lastAdmitBody()).not.toHaveProperty('input');
     expect(lastAdmitBody()).not.toHaveProperty('materialized_inputs');
-  });
-
-  it('includes materialized_inputs when session has ≥1 record', async () => {
-    const records: MaterializedInputRecord[] = [
-      { generation_id: 'gen-a', kind: 'remote', target: 'user/uploads/a.png' },
-      { generation_id: 'gen-b', kind: 'file', target: '/tmp/.reigh-local-files/gen-b.png' },
-    ];
-
-    await createTask(
-      { family: 'image_generation', project_id: 'demo-project', input: { x: 1 } },
-      { localWorkerSession: fakeSessionWithRecords(records) },
-    );
-
-    expect(lastAdmitBody().materialized_inputs).toEqual(records);
+    expect(lastAdmitBody()).not.toHaveProperty('idempotency_key');
   });
 });

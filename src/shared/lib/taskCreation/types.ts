@@ -7,10 +7,33 @@ export interface ProjectResolutionResult {
   aspectRatio: string;
 }
 
-export interface TaskCreationRequest {
-  project_id: string;
+/** The typed spec owned by the admitted Astrid capability. */
+export interface RuntimeTaskSpec {
   family: string;
-  input: Record<string, unknown>;
+  params: Record<string, unknown>;
+  output_policy: Record<string, unknown>;
+}
+
+/** Runtime's explicit storage reservation estimate for one admission. */
+export interface RuntimeStorageEstimate {
+  estimated_scratch_bytes: number;
+  estimated_output_bytes: number;
+}
+
+/** Runtime's explicit terminal publication/lineage effect. */
+export type RuntimeSettlementEffect = Record<string, unknown>;
+
+/** HC-04 canonical producer admission DTO. */
+export interface TaskCreationRequest {
+  project: string;
+  capability_id: string;
+  capability_digest: string;
+  schema_version: '1';
+  /** Ordered, already-authorized Runtime CAS object IDs. */
+  input_object_ids: string[];
+  spec: RuntimeTaskSpec;
+  storage_estimate: RuntimeStorageEstimate;
+  settlement_effect: RuntimeSettlementEffect;
 }
 
 export type BaseTaskParams = TaskCreationRequest;

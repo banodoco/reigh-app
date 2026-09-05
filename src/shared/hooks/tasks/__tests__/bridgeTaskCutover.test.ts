@@ -46,9 +46,21 @@ afterEach(() => {
 
 async function admitImageTask(): Promise<string> {
   const result = await createTask({
-    family: 'image_generation',
-    project_id: PROJECT,
-    input: { prompt: 'admit-poll-terminal' },
+    project: PROJECT,
+    capability_id: 'astrid.image_generation',
+    capability_digest: `sha256:${'a'.repeat(64)}`,
+    schema_version: '1',
+    input_object_ids: [],
+    spec: {
+      family: 'image_generation',
+      params: { prompt: 'admit-poll-terminal' },
+      output_policy: {},
+    },
+    storage_estimate: {
+      estimated_scratch_bytes: 0,
+      estimated_output_bytes: 0,
+    },
+    settlement_effect: {},
   });
   return result.task_id;
 }
