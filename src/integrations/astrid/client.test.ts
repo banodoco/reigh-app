@@ -232,7 +232,10 @@ describe('AstridLocalClient', () => {
     await expect(client.tasks.cancel(task.id)).rejects.toMatchObject({ category: 'conflict' });
 
     // capability_unavailable
-    await expect(client.tasks.admit({ family: 'dead_family', input: {} }, 'k')).rejects.toMatchObject({
+    await expect(client.tasks.admit({
+      ...admissionRequest(),
+      spec: { ...admissionRequest().spec, family: 'dead_family', params: {} },
+    }, 'k')).rejects.toMatchObject({
       category: 'capability_unavailable',
     });
 
