@@ -53,6 +53,56 @@ export class BridgeContractError extends Error {
 /** Any JSON object. Unknown keys are part of the payload, never stripped. */
 const jsonObject = z.looseObject({});
 
+/** Runtime-owned sha256 identity for CAS objects and capability definitions. */
+export const runtimeSha256IdSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/);
+
+export const runtimeManagedObjectSchema = z.strictObject({
+  object_id: runtimeSha256IdSchema,
+  digest: runtimeSha256IdSchema,
+  media_type: z.string().min(1),
+  size: z.number().int().nonnegative(),
+  version: z.number().int().nonnegative(),
+  created_at: z.string().min(1),
+  filename: z.string().optional(),
+  relation: z.string().optional(),
+});
+
+export const runtimeCapabilitySchema = z.strictObject({
+  capability_id: z.string().min(1),
+  definition_digest: runtimeSha256IdSchema,
+  status: z.enum(['ready', 'unavailable', 'unsupported', 'retired']),
+  required_resource_keys: z.array(z.string()),
+  estimated_scratch_bytes: z.number().int().nonnegative(),
+  estimated_output_bytes: z.number().int().nonnegative(),
+  unavailable_reason: z.string().nullable().optional(),
+});
+
+export function runtimePageSchema<Schema extends z.ZodType>(item: Schema) {
+  return z.strictObject({
+    items: z.array(item),
+    next_cursor: z.string().min(1).nullable(),
+  });
+}
+
+export const runtimeMutationReceiptSchema = z.strictObject({
+  receipt_id: z.string().min(1),
+  command_kind: z.string().min(1),
+  idempotency_key: z.string().min(1),
+  request_hash: z.string().min(1),
+  project_id: z.string().min(1),
+  project_seq: z.tuple([z.number().int(), z.number().int()]),
+  event_ids: z.array(z.string().min(1)),
+  result: z.unknown(),
+  created_at: z.string().min(1),
+});
+
+export function runtimeMutationSchema<Schema extends z.ZodType>(data: Schema) {
+  return z.strictObject({
+    data,
+    receipt: runtimeMutationReceiptSchema,
+  });
+}
+
 export const bridgeTimelineConfigSchema = z.looseObject({
   output: jsonObject.optional(),
   clips: z.array(jsonObject).optional(),
@@ -243,9 +293,9 @@ export const bridgeAdmittedTaskSchema = z.looseObject({
 export const bridgeTaskAdmissionRequestSchema = z.strictObject({
   project: z.string().min(1),
   capability_id: z.string().min(1),
-  capability_digest: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+  capability_digest: runtimeSha256IdSchema,
   schema_version: z.literal('1'),
-  input_object_ids: z.array(z.string().min(1)),
+  input_object_ids: z.array(runtimeSha256IdSchema),
   spec: bridgeTaskAdmissionSpecSchema,
   storage_estimate: bridgeTaskStorageEstimateSchema,
   settlement_effect: bridgeTaskSettlementEffectSchema,
@@ -409,6 +459,9 @@ export const bridgeErrorEnvelopeSchema = z.looseObject({
 });
 export type BridgeTimelinePayload = z.infer<typeof bridgeTimelinePayloadSchema>;
 export type BridgeAssetRegistryPayload = z.infer<typeof bridgeAssetRegistrySchema>;
+export type RuntimeManagedObject = z.infer<typeof runtimeManagedObjectSchema>;
+export type RuntimeCapability = z.infer<typeof runtimeCapabilitySchema>;
+export type RuntimeMutationReceipt = z.infer<typeof runtimeMutationReceiptSchema>;
 export type BridgeErrorEnvelope = z.infer<typeof bridgeErrorEnvelopeSchema>;
 export type BridgeProjectsPayload = z.infer<typeof bridgeProjectsSchema>;
 export type BridgeTimelinesPayload = z.infer<typeof bridgeTimelinesSchema>;

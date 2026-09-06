@@ -23,6 +23,18 @@ export interface RuntimeStorageEstimate {
 /** Runtime's explicit terminal publication/lineage effect. */
 export type RuntimeSettlementEffect = Record<string, unknown>;
 
+export type RuntimeInput = Blob | Uint8Array | ArrayBuffer;
+
+export interface RuntimeInputIngestOptions {
+  mediaType?: string;
+  originalName?: string;
+}
+
+export interface RuntimeObjectReceipt {
+  object_id: string;
+  receipt: Record<string, unknown>;
+}
+
 /** HC-04 canonical producer admission DTO. */
 export interface TaskCreationRequest {
   project: string;

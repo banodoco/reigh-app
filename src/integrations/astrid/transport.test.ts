@@ -9,6 +9,7 @@ import {
   AstridBridgeTransport,
   BridgeRouteError,
   BridgeTransportFailure,
+  type BridgeRequestInit,
 } from './transport';
 
 async function listen(server: Server): Promise<string> {
@@ -53,6 +54,58 @@ describe('Astrid bridge transport boundary', () => {
       // `rate_limited` is an Astrid wire code, not one of Reigh's public
       // recovery categories; preserve it without relabeling as conflict.
       if (code === 'rate_limited') expect(error).toMatchObject({ category: 'unknown' });
+    } finally {
+      await close(server);
+    }
+  });
+
+  it('sends raw bytes unchanged while keeping JSON serialization explicit', async () => {
+    const observed: Array<{ body: Uint8Array; contentType: string | null; idempotencyKey: string | null }> = [];
+    const server = createServer((request, response) => {
+      const chunks: Buffer[] = [];
+      request.on('data', (chunk: Buffer) => chunks.push(chunk));
+      request.on('end', () => {
+        observed.push({
+          body: new Uint8Array(Buffer.concat(chunks)),
+          contentType: typeof request.headers['content-type'] === 'string'
+            ? request.headers['content-type']
+            : null,
+          idempotencyKey: typeof request.headers['idempotency-key'] === 'string'
+            ? request.headers['idempotency-key']
+            : null,
+        });
+        response.writeHead(200, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify({ ok: true }));
+      });
+    });
+    const baseUrl = await listen(server);
+    try {
+      const transport = new AstridBridgeTransport({ baseUrl });
+      await transport.requestRaw('/v1/upload', {
+        method: 'POST',
+        rawBody: new Uint8Array([0, 255, 1]),
+        headers: {
+          'Content-Type': 'image/png',
+          'Idempotency-Key': 'cas:test',
+          'X-Original-Name': 'input.png',
+        },
+      });
+      await transport.requestJson('/health', {
+        method: 'POST',
+        body: { ok: true },
+      }, z.object({ ok: z.boolean() }), 'json');
+      expect(observed[0]).toEqual({
+        body: new Uint8Array([0, 255, 1]),
+        contentType: 'image/png',
+        idempotencyKey: 'cas:test',
+      });
+      expect(observed[1].body).toEqual(new Uint8Array(Buffer.from('{"ok":true}')));
+      expect(observed[1].contentType).toBe('application/json');
+      await expect(transport.requestRaw('/v1/upload', {
+        method: 'POST',
+        body: { invalid: true },
+        rawBody: new Uint8Array([1]),
+      } as BridgeRequestInit)).rejects.toThrow('both body and rawBody');
     } finally {
       await close(server);
     }

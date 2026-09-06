@@ -11,6 +11,8 @@
  * stays `useVideoEditorProviderSelection` (VideoEditorPage).
  */
 
+import { AstridLocalObjectRoutes } from './objectRoutes.ts';
+import { AstridLocalCatalogRoutes } from './catalogRoutes.ts';
 import { AstridBridgeTransport } from './transport.ts';
 import { AstridLocalTaskRoutes } from './taskRoutes.ts';
 import { AstridLocalGalleryRoutes } from './galleryRoutes.ts';
@@ -26,6 +28,8 @@ export type AstridLocalClientOptions = {
 
 export class AstridLocalClient {
   readonly projects: AstridLocalProjectRoutes;
+  readonly objects: AstridLocalObjectRoutes;
+  readonly catalog: AstridLocalCatalogRoutes;
   readonly tasks: AstridLocalTaskRoutes;
   readonly gallery: AstridLocalGalleryRoutes;
   readonly media: AstridLocalMediaRoutes;
@@ -36,6 +40,8 @@ export class AstridLocalClient {
   constructor(options: AstridLocalClientOptions) {
     this.transport = new AstridBridgeTransport({ baseUrl: options.baseUrl });
     this.projects = new AstridLocalProjectRoutes(this.transport);
+    this.objects = new AstridLocalObjectRoutes(this.transport, options.projectSlug);
+    this.catalog = new AstridLocalCatalogRoutes(this.transport);
     const scope = { projectSlug: options.projectSlug };
     this.tasks = new AstridLocalTaskRoutes(this.transport, scope);
     this.gallery = new AstridLocalGalleryRoutes(this.transport, scope);

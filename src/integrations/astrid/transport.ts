@@ -112,14 +112,35 @@ export type AstridBridgeTransportOptions = {
   timeoutMs?: number;
 };
 
-export type BridgeRequestInit = {
-  method?: 'GET' | 'POST' | 'HEAD';
-  /** JSON body — serialized here so every caller gets identical encoding. */
-  body?: unknown;
-  headers?: Record<string, string>;
-  /** Extra abort signal combined with the transport deadline. */
-  signal?: AbortSignal;
-};
+export type BridgeRequestInit =
+  | {
+      method?: 'GET' | 'POST' | 'HEAD';
+      /** JSON body — serialized here so every caller gets identical encoding. */
+      body?: unknown;
+      /** Raw bodies are mutually exclusive with JSON bodies. */
+      rawBody?: never;
+      headers?: Record<string, string>;
+      /** Extra abort signal combined with the transport deadline. */
+      signal?: AbortSignal;
+    }
+  | {
+      method?: 'GET' | 'POST' | 'HEAD';
+      body?: never;
+      /** Explicit byte/body mode; the caller owns Content-Type. */
+      rawBody: BodyInit;
+      headers?: Record<string, string>;
+      /** Extra abort signal combined with the transport deadline. */
+      signal?: AbortSignal;
+    };
+
+export type BridgeJsonRequestInit = Exclude<BridgeRequestInit, { rawBody: BodyInit }>;
+export type BridgeRawRequestInit = Extract<BridgeRequestInit, { rawBody: BodyInit }>;
+
+function assertRequestBodyMode(request: BridgeRequestInit): void {
+  if (request.body !== undefined && request.rawBody !== undefined) {
+    throw new TypeError('bridge requests cannot specify both body and rawBody');
+  }
+}
 
 export class AstridBridgeTransport {
   readonly baseUrl: string;
@@ -169,9 +190,12 @@ export class AstridBridgeTransport {
    * content, or callers that only need the status).
    */
   async requestRaw(path: string, request: BridgeRequestInit = {}): Promise<Response> {
+    assertRequestBodyMode(request);
     const headers: Record<string, string> = { ...request.headers };
-    let body: string | undefined;
-    if (request.body !== undefined) {
+    let body: BodyInit | undefined;
+    if (request.rawBody !== undefined) {
+      body = request.rawBody;
+    } else if (request.body !== undefined) {
       headers['Content-Type'] = 'application/json';
       body = JSON.stringify(request.body);
     }

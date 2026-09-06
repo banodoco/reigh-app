@@ -6,7 +6,7 @@ vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
   },
 }));
 
-import { createTask } from './createTask';
+import { createTask, ingestProjectInput } from './createTask';
 import { createFakeBridgeRouter, type FakeBridgeRouter } from '@/test/fakeBridgeRouter.ts';
 
 const FAKE_ORIGIN = 'http://bridge.fake';
@@ -82,19 +82,41 @@ describe('createTask R1 admission over the fake bridge router', () => {
     expect(result.status).toBe('Queued');
   });
 
+  it('ingests producer bytes into project CAS without turning locators into IDs', async () => {
+    const input = new Blob([new Uint8Array([7, 0, 255])], { type: 'image/png' });
+    const committed = await ingestProjectInput('demo-project', input);
+    expect(committed.object_id).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect([...router.state.runtimeObjectBodies.get(committed.object_id)!]).toEqual([7, 0, 255]);
+  });
+
+  it('rejects locator-shaped input IDs before catalog or admission', async () => {
+    await expect(createTask(admissionParams({
+      input_object_ids: ['https://example.com/image.png'],
+    }))).rejects.toThrow('canonical HC-04');
+    expect(router.state.admissions).toBe(0);
+  });
+
+  it('fails closed on a catalog digest mismatch before admission', async () => {
+    await expect(createTask(admissionParams({
+      capability_digest: `sha256:${'b'.repeat(64)}`,
+    }))).rejects.toThrow('digest mismatch');
+    expect(router.state.admissions).toBe(0);
+  });
+
   it('keeps one idempotency key across the transport retry of the same admission', async () => {
-    let calls = 0;
+    let admissionCalls = 0;
     const idempotencyKeys: string[] = [];
     const flakyFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const headers = (init?.headers ?? {}) as Record<string, string>;
-      if (headers['Idempotency-Key']) {
-        idempotencyKeys.push(headers['Idempotency-Key']);
-      }
-      calls += 1;
-      if (calls === 1) {
-        throw new Error('connection reset');
-      }
       const url = new URL(input instanceof Request ? input.url : String(input), FAKE_ORIGIN);
+      const isAdmission = url.pathname.endsWith('/tasks') && init?.method === 'POST';
+      if (isAdmission) {
+        admissionCalls += 1;
+        const headers = (init?.headers ?? {}) as Record<string, string>;
+        idempotencyKeys.push(headers['Idempotency-Key']);
+        if (admissionCalls === 1) {
+          throw new Error('connection reset');
+        }
+      }
       return await router.handle(new Request(`${FAKE_ORIGIN}${url.pathname}${url.search}`, init));
     });
     vi.stubGlobal('fetch', flakyFetch);
@@ -115,7 +137,7 @@ describe('createTask R1 admission over the fake bridge router', () => {
 
   it('serializes the canonical ordered CAS admission without legacy fields', async () => {
     const request = admissionParams({
-      input_object_ids: ['cas-source', 'cas-mask'],
+      input_object_ids: [`sha256:${'1'.repeat(64)}`, `sha256:${'2'.repeat(64)}`],
     });
 
     await createTask(request);

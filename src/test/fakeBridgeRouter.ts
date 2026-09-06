@@ -26,6 +26,8 @@ import {
   bridgeTaskListSchema,
   bridgeTimelinePayloadSchema,
   BRIDGE_VERSION_CONFLICT_CODE,
+  type RuntimeCapability,
+  type RuntimeManagedObject,
 } from '@/tools/video-editor/data/bridgeContract.ts';
 import {
   AVAILABLE_FAMILIES,
@@ -41,6 +43,10 @@ export type FakeBridgeState = ReturnType<typeof createJourneyState> & {
   admittedByTaskId: Map<string, Record<string, unknown>>;
   /** IdempotencyKey → task_id, for replay responses. */
   receiptTasks: Map<string, string>;
+  /** Runtime project-scoped CAS fixtures used by HC-04 pre-admission checks. */
+  runtimeObjects: Map<string, RuntimeManagedObject>;
+  runtimeObjectBodies: Map<string, Uint8Array>;
+  runtimeCapabilities: RuntimeCapability[];
   /** task_id → committed output rows surfaced on the detail read. */
   taskOutputs: Map<string, Array<{ ordinal: number; role: string; media_id: string; is_primary?: boolean }>>;
 };
@@ -91,6 +97,27 @@ export function createFakeBridgeRouter(): FakeBridgeRouter {
   const state = createJourneyState() as FakeBridgeState;
   state.admittedByTaskId = new Map();
   state.receiptTasks = new Map();
+  state.runtimeObjects = new Map();
+  state.runtimeObjectBodies = new Map();
+  state.runtimeCapabilities = [{
+    capability_id: 'astrid.image_generation',
+    definition_digest: `sha256:${'a'.repeat(64)}`,
+    status: 'ready',
+    required_resource_keys: [],
+    estimated_scratch_bytes: 0,
+    estimated_output_bytes: 0,
+  }];
+  for (const [index, objectId] of ['1', '2'].entries()) {
+    state.runtimeObjects.set(`sha256:${objectId.repeat(64)}`, {
+      object_id: `sha256:${objectId.repeat(64)}`,
+      digest: `sha256:${objectId.repeat(64)}`,
+      media_type: 'application/octet-stream',
+      size: 0,
+      version: 1,
+      created_at: '2026-09-06T00:00:00Z',
+      filename: `fixture-${index}.bin`,
+    });
+  }
   state.taskOutputs = new Map();
 
   function completeTask(taskId: string, output: { role: string; media_id: string; is_primary?: boolean }): void {
@@ -192,6 +219,54 @@ export function createFakeBridgeRouter(): FakeBridgeRouter {
     return json(200, { task: readModel, attempt: null });
   }
 
+  async function ingestRuntimeObject(request: Request, projectId: string): Promise<Response> {
+    const idempotencyKey = request.headers.get('Idempotency-Key');
+    const mediaType = request.headers.get('Content-Type');
+    if (!idempotencyKey || !mediaType) {
+      return errorEnvelope(400, 'invalid_body', 'Runtime object ingest requires media type and Idempotency-Key');
+    }
+    const bytes = new Uint8Array(await request.arrayBuffer());
+    const digestBytes = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+    const digest = Array.from(digestBytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+    const objectId = `sha256:${digest}`;
+    const object: RuntimeManagedObject = {
+      object_id: objectId,
+      digest: objectId,
+      media_type: mediaType,
+      size: bytes.byteLength,
+      version: 1,
+      created_at: '2026-09-06T00:00:00Z',
+      ...(request.headers.get('X-Original-Name')
+        ? { filename: request.headers.get('X-Original-Name')! }
+        : {}),
+    };
+    state.runtimeObjects.set(objectId, object);
+    state.runtimeObjectBodies.set(objectId, bytes);
+    return json(201, {
+      data: object,
+      receipt: {
+        receipt_id: `receipt:${objectId}`,
+        command_kind: 'project_object_ingest',
+        idempotency_key: idempotencyKey,
+        request_hash: objectId,
+        project_id: projectId,
+        project_seq: [1, 1],
+        event_ids: [],
+        result: { object_id: objectId },
+        created_at: '2026-09-06T00:00:00Z',
+      },
+    });
+  }
+
+  function listRuntimeObjects(url: URL): Response {
+    const all = [...state.runtimeObjects.values()];
+    const offset = Number(url.searchParams.get('cursor') ?? '0');
+    const limit = Number(url.searchParams.get('limit') ?? '50');
+    const items = all.slice(offset, offset + limit);
+    const next = offset + items.length < all.length ? String(offset + items.length) : null;
+    return json(200, { items, next_cursor: next });
+  }
+
   // -- R9 managed-media bytes ----------------------------------------------
 
   function serveMedia(request: Request, mediaId: string): Response {
@@ -239,6 +314,32 @@ export function createFakeBridgeRouter(): FakeBridgeRouter {
   async function handle(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const parts = normalizePath(url);
+
+    if (
+      parts[0] === 'v1'
+      && parts[1] === 'projects'
+      && parts[3] === 'objects'
+      && parts.length === 4
+      && request.method === 'POST'
+    ) {
+      return await ingestRuntimeObject(request, parts[2]);
+    }
+    if (
+      parts[0] === 'v1'
+      && parts[1] === 'projects'
+      && parts[3] === 'objects'
+      && parts.length === 4
+      && request.method === 'GET'
+    ) {
+      return listRuntimeObjects(url);
+    }
+    if (parts[0] === 'v1' && parts[1] === 'capabilities' && parts.length === 2 && request.method === 'GET') {
+      const offset = Number(url.searchParams.get('cursor') ?? '0');
+      const limit = Number(url.searchParams.get('limit') ?? '50');
+      const items = state.runtimeCapabilities.slice(offset, offset + limit);
+      const next = offset + items.length < state.runtimeCapabilities.length ? String(offset + items.length) : null;
+      return json(200, { items, next_cursor: next });
+    }
 
     if (parts[0] === 'health' && request.method === 'GET') return json(200, { ok: true });
     if (parts[0] === 'projects' && parts.length === 1) return json(200, { projects: [state.project] });

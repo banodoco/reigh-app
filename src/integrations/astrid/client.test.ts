@@ -36,7 +36,7 @@ describe('AstridLocalClient', () => {
       capability_id: 'astrid.image_generation',
       capability_digest: `sha256:${'a'.repeat(64)}`,
       schema_version: '1' as const,
-      input_object_ids: ['cas-prompt'],
+      input_object_ids: [`sha256:${'1'.repeat(64)}`],
       spec: {
         family: 'image_generation',
         params: { prompt: 'a lighthouse' },
@@ -58,6 +58,34 @@ describe('AstridLocalClient', () => {
   });
 
   // -- Admission ------------------------------------------------------------
+
+  it('ingests and pages project Runtime objects through exact /v1 paths', async () => {
+    const client = new AstridLocalClient({ projectSlug: 'demo/project', baseUrl: FAKE_ORIGIN });
+    const committed = await client.objects.ingest(
+      new Uint8Array([1, 2, 3]),
+      'image/png',
+      'cas:deterministic',
+      'frame.png',
+    );
+    expect(committed.data.object_id).toMatch(/^sha256:[0-9a-f]{64}$/);
+    const [input, init] = vi.mocked(globalThis.fetch).mock.calls[0] as [string, RequestInit];
+    expect(new URL(input).pathname).toBe('/v1/projects/demo%2Fproject/objects');
+    expect((init.headers as Record<string, string>)['Content-Type']).toBe('image/png');
+    expect((init.headers as Record<string, string>)['Idempotency-Key']).toBe('cas:deterministic');
+
+    const first = await client.objects.list({ limit: 1 });
+    expect(first.items).toHaveLength(1);
+    expect(first.next_cursor).toBe('1');
+    const second = await client.objects.list({ cursor: first.next_cursor ?? undefined, limit: 1 });
+    expect(second.items[0].object_id).not.toBe(first.items[0].object_id);
+  });
+
+  it('binds only a ready catalog capability and returns its exact digest', async () => {
+    const client = makeClient();
+    await expect(client.catalog.bind('astrid.image_generation', `sha256:${'a'.repeat(64)}`))
+      .resolves.toBe(`sha256:${'a'.repeat(64)}`);
+    await expect(client.catalog.bind('missing.capability')).rejects.toThrow('not registered');
+  });
 
   it('admits a task with the required Idempotency-Key header', async () => {
     const client = makeClient();
