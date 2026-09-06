@@ -4,6 +4,8 @@ import { AstridLocalClient } from '@/integrations/astrid/client.ts';
 import {
   BridgeContractError,
   BRIDGE_ERROR_CATEGORIES,
+  runtimeCapabilitySchema,
+  runtimeManagedObjectSchema,
 } from '@/tools/video-editor/data/bridgeContract.ts';
 import { BridgeRouteError, BridgeTransportFailure } from '@/integrations/astrid/transport.ts';
 import { createFakeBridgeRouter, type FakeBridgeRouter } from '@/test/fakeBridgeRouter.ts';
@@ -78,6 +80,42 @@ describe('AstridLocalClient', () => {
     expect(first.next_cursor).toBe('1');
     const second = await client.objects.list({ cursor: first.next_cursor ?? undefined, limit: 1 });
     expect(second.items[0].object_id).not.toBe(first.items[0].object_id);
+  });
+
+  it('accepts valid managed-object metadata and rejects malformed Runtime values', () => {
+    const valid = {
+      object_id: `sha256:${'a'.repeat(64)}`,
+      digest: `sha256:${'b'.repeat(64)}`,
+      media_type: 'video/mp4',
+      size: 0,
+      version: 1,
+      created_at: '2026-08-30T00:00:00Z',
+      filename: 'clip.mp4',
+      relation: 'source',
+    };
+
+    expect(runtimeManagedObjectSchema.safeParse(valid).success).toBe(true);
+    expect(runtimeManagedObjectSchema.safeParse({ ...valid, media_type: 'video' }).success).toBe(false);
+    expect(runtimeManagedObjectSchema.safeParse({ ...valid, version: 0 }).success).toBe(false);
+    expect(runtimeManagedObjectSchema.safeParse({ ...valid, created_at: 'not-a-date' }).success).toBe(false);
+    expect(runtimeManagedObjectSchema.safeParse({ ...valid, filename: '' }).success).toBe(false);
+    expect(runtimeManagedObjectSchema.safeParse({ ...valid, filename: 'x'.repeat(513) }).success).toBe(false);
+    expect(runtimeManagedObjectSchema.safeParse({ ...valid, relation: '' }).success).toBe(false);
+  });
+
+  it('accepts valid capability resources and rejects empty or duplicate keys', () => {
+    const valid = {
+      capability_id: 'astrid.image_generation',
+      definition_digest: `sha256:${'a'.repeat(64)}`,
+      status: 'ready' as const,
+      required_resource_keys: ['gpu', 'scratch'],
+      estimated_scratch_bytes: 0,
+      estimated_output_bytes: 0,
+    };
+
+    expect(runtimeCapabilitySchema.safeParse(valid).success).toBe(true);
+    expect(runtimeCapabilitySchema.safeParse({ ...valid, required_resource_keys: [''] }).success).toBe(false);
+    expect(runtimeCapabilitySchema.safeParse({ ...valid, required_resource_keys: ['gpu', 'gpu'] }).success).toBe(false);
   });
 
   it('binds only a ready catalog capability and returns its exact digest', async () => {

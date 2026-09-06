@@ -8,6 +8,7 @@ vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
 
 import { createTask, ingestProjectInput } from './createTask';
 import { createFakeBridgeRouter, type FakeBridgeRouter } from '@/test/fakeBridgeRouter.ts';
+import { bridgeTaskAdmissionRequestSchema } from '@/tools/video-editor/data/bridgeContract.ts';
 
 const FAKE_ORIGIN = 'http://bridge.fake';
 
@@ -94,6 +95,18 @@ describe('createTask R1 admission over the fake bridge router', () => {
       input_object_ids: ['https://example.com/image.png'],
     }))).rejects.toThrow('canonical HC-04');
     expect(router.state.admissions).toBe(0);
+  });
+
+  it('accepts ordered unique input IDs and rejects duplicate IDs at admission validation', () => {
+    const first = `sha256:${'1'.repeat(64)}`;
+    const second = `sha256:${'2'.repeat(64)}`;
+
+    expect(bridgeTaskAdmissionRequestSchema.safeParse(admissionParams({
+      input_object_ids: [first, second],
+    })).success).toBe(true);
+    expect(bridgeTaskAdmissionRequestSchema.safeParse(admissionParams({
+      input_object_ids: [first, first],
+    })).success).toBe(false);
   });
 
   it('fails closed on a catalog digest mismatch before admission', async () => {

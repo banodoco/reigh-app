@@ -59,19 +59,24 @@ export const runtimeSha256IdSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 export const runtimeManagedObjectSchema = z.strictObject({
   object_id: runtimeSha256IdSchema,
   digest: runtimeSha256IdSchema,
-  media_type: z.string().min(1),
+  media_type: z.string().regex(
+    /^[a-zA-Z0-9][a-zA-Z0-9!#$&^_.+-]{0,126}\/[a-zA-Z0-9][a-zA-Z0-9!#$&^_.+-]{0,126}$/,
+  ),
   size: z.number().int().nonnegative(),
-  version: z.number().int().nonnegative(),
-  created_at: z.string().min(1),
-  filename: z.string().optional(),
-  relation: z.string().optional(),
+  version: z.number().int().min(1),
+  created_at: z.string().datetime({ offset: true }),
+  filename: z.string().min(1).max(512).optional(),
+  relation: z.string().min(1).optional(),
 });
 
 export const runtimeCapabilitySchema = z.strictObject({
   capability_id: z.string().min(1),
   definition_digest: runtimeSha256IdSchema,
   status: z.enum(['ready', 'unavailable', 'unsupported', 'retired']),
-  required_resource_keys: z.array(z.string()),
+  required_resource_keys: z.array(z.string().min(1)).refine(
+    (keys) => new Set(keys).size === keys.length,
+    { message: 'required_resource_keys must contain unique values' },
+  ),
   estimated_scratch_bytes: z.number().int().nonnegative(),
   estimated_output_bytes: z.number().int().nonnegative(),
   unavailable_reason: z.string().nullable().optional(),
@@ -90,9 +95,9 @@ export const runtimeMutationReceiptSchema = z.strictObject({
   idempotency_key: z.string().min(1),
   request_hash: z.string().min(1),
   project_id: z.string().min(1),
-  project_seq: z.tuple([z.number().int(), z.number().int()]),
+  project_seq: z.tuple([z.number().int().min(1), z.number().int().min(1)]),
   event_ids: z.array(z.string().min(1)),
-  result: z.unknown(),
+  result: z.unknown().refine((value) => value !== undefined, { message: 'result is required' }),
   created_at: z.string().min(1),
 });
 
@@ -295,7 +300,10 @@ export const bridgeTaskAdmissionRequestSchema = z.strictObject({
   capability_id: z.string().min(1),
   capability_digest: runtimeSha256IdSchema,
   schema_version: z.literal('1'),
-  input_object_ids: z.array(runtimeSha256IdSchema),
+  input_object_ids: z.array(runtimeSha256IdSchema).refine(
+    (ids) => new Set(ids).size === ids.length,
+    { message: 'input_object_ids must contain unique values' },
+  ),
   spec: bridgeTaskAdmissionSpecSchema,
   storage_estimate: bridgeTaskStorageEstimateSchema,
   settlement_effect: bridgeTaskSettlementEffectSchema,

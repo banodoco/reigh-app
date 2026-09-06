@@ -4,7 +4,10 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { z } from 'zod';
 
-import { BridgeContractError } from '@/tools/video-editor/data/bridgeContract.ts';
+import {
+  BridgeContractError,
+  runtimeMutationReceiptSchema,
+} from '@/tools/video-editor/data/bridgeContract.ts';
 import {
   AstridBridgeTransport,
   BridgeRouteError,
@@ -28,6 +31,28 @@ async function close(server: Server): Promise<void> {
 }
 
 describe('Astrid bridge transport boundary', () => {
+  it('accepts valid mutation receipts and rejects invalid sequence or missing values', () => {
+    const valid = {
+      receipt_id: 'receipt-1',
+      command_kind: 'core.project.create',
+      idempotency_key: 'request-1',
+      request_hash: 'hash-1',
+      project_id: 'project-1',
+      project_seq: [1, 2] as [number, number],
+      event_ids: ['event-1'],
+      result: null,
+      created_at: '2026-08-30T00:00:00Z',
+    };
+
+    expect(runtimeMutationReceiptSchema.safeParse(valid).success).toBe(true);
+    expect(runtimeMutationReceiptSchema.safeParse({ ...valid, project_seq: [0, 2] }).success).toBe(false);
+    expect(runtimeMutationReceiptSchema.safeParse({ ...valid, project_seq: [1] }).success).toBe(false);
+    expect(runtimeMutationReceiptSchema.safeParse({ ...valid, receipt_id: '' }).success).toBe(false);
+    const withoutResult = { ...valid };
+    delete (withoutResult as { result?: unknown }).result;
+    expect(runtimeMutationReceiptSchema.safeParse(withoutResult).success).toBe(false);
+  });
+
   it.each([
     [429, 'rate_limited'],
     [413, 'payload_too_large'],
