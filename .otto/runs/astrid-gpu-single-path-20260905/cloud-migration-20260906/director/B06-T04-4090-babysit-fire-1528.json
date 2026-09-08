@@ -1,0 +1,62 @@
+{
+  "artifacts": [
+    {
+      "bytes": 463043,
+      "gpu": "100% 1113MiB pid 198134",
+      "sha256": "430a821752009c951a8874b37e66a8449469c1cebc3af92f6e4e89ae326f4c43",
+      "when": "2026-09-08T14:45:53Z"
+    },
+    {
+      "bytes": 463043,
+      "gpu": "99% 3165MiB pid 218528",
+      "sha256": "b3fa2c3c00365e838b3ec96e656e8498b0ae167fd475f5440e16d9aae0852250",
+      "when": "2026-09-08T15:05:58Z"
+    },
+    {
+      "bytes": 463043,
+      "gpu": "100% 3015MiB pid 227153",
+      "sha256": "40ee6b7b15a16af4d3a45e6e3568bb7f1cde0b7e03b8cac1b1a79a05819fbe32",
+      "when": "2026-09-08T15:12:22Z"
+    },
+    {
+      "bytes": 463043,
+      "gpu": "3% 3635MiB then 6% 1025MiB pid 235364",
+      "sha256": "d7eb489b542951ba790fd2e69077622177c48fbf9842f36fc035daff029a23cf",
+      "when": "2026-09-08T15:18:43Z"
+    },
+    {
+      "bytes": 463043,
+      "container": "isom/avc1",
+      "gpu": "100% 3131MiB pid 243535",
+      "path": "/root/b06-t04/kept-wan/2026-09-08-15h25m49s_seed7_a quiet lake at dawn.mp4",
+      "sha256": "5c21fecf4ebe671b4985b0bc1ea7670fb56bf9f5254c40c0794a62e76b694e35",
+      "when": "2026-09-08T15:25:49Z"
+    }
+  ],
+  "attention": "C12 holds (5 mp4s). Retry-storm keeps wiping T04-GPU-OUT-a4; durable kept-wan. Settlement still DEFERRED. Do not start T05. Keep Ada 4090.",
+  "c12_proven": true,
+  "comfy_8188": true,
+  "complete": true,
+  "compute_cap": "8.9",
+  "director_attempt": "0025",
+  "gpu": "NVIDIA GeForce RTX 4090",
+  "gpu_uuid": "GPU-56e41b70-30d5-d307-6a45-0fd769cdd4fe",
+  "hourly": 0.74,
+  "journey_accepted": false,
+  "killed_0024": false,
+  "latest_wgp": "SAVE_VIDEO 15h25m49s GENERATE_RETURN True harvested mp4",
+  "live": "director retry-storm relaunch run_c12 pid 251696 run_b06 pid 252037 just started rmtree OUT; generate_video not spawned yet; not killed",
+  "next": "C12 proven. No T05 until operator. Keep pod.",
+  "not_blackwell": true,
+  "owned_pods": 1,
+  "pod_id": "c4by9mq3bpdgwq",
+  "pod_name": "b06-t04-4090-20260908-m6ccu1lodp-a5",
+  "recorded_at_utc": "2026-09-08T15:28:00Z",
+  "rest_ua": "curl/8.5.0",
+  "schema_version": "b06-t04-4090-babysit-fire-v1",
+  "ssh": "213.173.111.10:31945",
+  "t05_t06_t07": "not started; NEVER this fire",
+  "terminated_4090": false,
+  "volume": "m6ccu1lodp",
+  "wgp_import": "SUCCESS /runpod-volume/Reigh-Worker/Wan2GP/wgp.py"
+}
