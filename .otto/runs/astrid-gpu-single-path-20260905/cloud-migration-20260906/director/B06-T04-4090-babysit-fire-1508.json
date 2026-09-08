@@ -1,0 +1,47 @@
+{
+  "artifacts": [
+    {
+      "bytes": 463043,
+      "container": "isom/avc1",
+      "gpu": "100% 1113MiB pid 198134",
+      "path": "/root/b06-t04/kept-wan/2026-09-08-14h45m53s_seed7_a quiet lake at dawn.mp4",
+      "sha256": "430a821752009c951a8874b37e66a8449469c1cebc3af92f6e4e89ae326f4c43",
+      "when": "2026-09-08T14:45:53Z"
+    },
+    {
+      "bytes": 463043,
+      "container": "isom/avc1",
+      "gpu": "99% 3165MiB pid 218528",
+      "path": "/root/b06-t04/kept-wan/2026-09-08-15h05m58s_seed7_a quiet lake at dawn.mp4",
+      "sha256": "b3fa2c3c00365e838b3ec96e656e8498b0ae167fd475f5440e16d9aae0852250",
+      "when": "2026-09-08T15:05:58Z"
+    }
+  ],
+  "attention": "director retry-storm relaunches run_c12_a4.py which rmtree T04-GPU-OUT-a4; durable copies in kept-wan. C12 already proven. Do not start T05. Keep Ada 4090.",
+  "c12_prior_fire": "1448",
+  "c12_proven": true,
+  "comfy_8188": true,
+  "complete": true,
+  "compute_cap": "8.9",
+  "director_attempt": "0025",
+  "gpu": "NVIDIA GeForce RTX 4090",
+  "gpu_uuid": "GPU-56e41b70-30d5-d307-6a45-0fd769cdd4fe",
+  "hourly": 0.74,
+  "journey_accepted": false,
+  "killed_0024": false,
+  "live": "a5 relaunch run_c12 pid 226275 / generate_video pid 227153 attempt 3b1ffe67 loading; GPU 0% 851MiB; GENERATE logged; do not kill",
+  "next": "C12 holds (two mp4s + GPU 99-100%). Let live generate finish if it writes a third. No T05 until operator. Keep pod.",
+  "not_blackwell": true,
+  "owned_pods": 1,
+  "pod_id": "c4by9mq3bpdgwq",
+  "pod_name": "b06-t04-4090-20260908-m6ccu1lodp-a5",
+  "recorded_at_utc": "2026-09-08T15:08:40Z",
+  "rest_ua": "curl/8.5.0",
+  "schema_version": "b06-t04-4090-babysit-fire-v1",
+  "settlement": "prior DEFERRED_READINESS completed result violates its exact typed output media; journey_executed false",
+  "ssh": "213.173.111.10:31945",
+  "t05_t06_t07": "not started; NEVER this fire",
+  "terminated_4090": false,
+  "volume": "m6ccu1lodp",
+  "wgp_import": "SUCCESS /runpod-volume/Reigh-Worker/Wan2GP/wgp.py"
+}
