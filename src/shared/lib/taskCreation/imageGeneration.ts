@@ -18,6 +18,7 @@ export interface CompiledImageGenerationParams {
   count: number;
   seed?: number;
   steps?: number;
+  size?: string;
 }
 
 function requirePositiveInteger(value: unknown, field: string): number {
@@ -72,8 +73,12 @@ export function compileImageGenerationParams(
   if (params.loras && params.loras.length > 0) {
     throw new TaskValidationError('LoRA controls are not yet part of the typed text-image route', 'loras');
   }
-  if (params.resolution_scale !== undefined || params.resolution_mode !== undefined || params.custom_aspect_ratio !== undefined) {
-    throw new TaskValidationError('Resolution scaling is not yet part of the typed text-image route', 'resolution');
+  if (params.resolution === undefined) {
+    throw new TaskValidationError('An authoritative image resolution is required', 'resolution');
+  }
+  const resolutionMatch = /^(\d+)x(\d+)$/.exec(params.resolution.trim());
+  if (resolutionMatch === null || Number(resolutionMatch[1]) < 1 || Number(resolutionMatch[2]) < 1) {
+    throw new TaskValidationError('resolution must use positive WIDTHxHEIGHT pixels', 'resolution');
   }
 
   return params.prompts.map((entry) => {
@@ -87,6 +92,7 @@ export function compileImageGenerationParams(
       count,
       ...(params.seed !== undefined ? { seed: params.seed } : {}),
       ...(params.steps !== undefined ? { steps: params.steps } : {}),
+      ...(params.resolution !== undefined ? { size: params.resolution.trim() } : {}),
     };
   });
 }

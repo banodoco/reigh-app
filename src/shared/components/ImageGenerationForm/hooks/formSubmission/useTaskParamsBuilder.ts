@@ -20,6 +20,7 @@ interface UseTaskParamsBuilderProps {
   styleBoostTerms: string;
   isLocalGenerationEnabled: boolean;
   hiresFixConfig: HiresFixConfig;
+  projectResolution?: string;
   generationSourceRef: MutableRefObject<GenerationSource>;
   selectedTextModelRef: MutableRefObject<TextToImageModel>;
   selectedLorasRef: MutableRefObject<ActiveLora[]>;
@@ -42,6 +43,7 @@ export function useTaskParamsBuilder(props: UseTaskParamsBuilderProps): GetTaskP
     styleBoostTerms,
     isLocalGenerationEnabled,
     hiresFixConfig,
+    projectResolution,
     generationSourceRef,
     selectedTextModelRef,
     selectedLorasRef,
@@ -64,6 +66,7 @@ export function useTaskParamsBuilder(props: UseTaskParamsBuilderProps): GetTaskP
       styleBoostTerms,
       isLocalGenerationEnabled,
       hiresFixConfig,
+      projectResolution,
       generationSource: generationSourceRef.current,
       selectedTextModel: selectedTextModelRef.current,
       selectedLoras: selectedLorasRef.current,

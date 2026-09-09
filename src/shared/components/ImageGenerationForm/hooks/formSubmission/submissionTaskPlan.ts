@@ -20,6 +20,7 @@ interface SubmissionTaskContext {
   styleBoostTerms: string;
   isLocalGenerationEnabled: boolean;
   hiresFixConfig: HiresFixConfig;
+  projectResolution?: string;
   generationSource: GenerationSource;
   selectedTextModel: TextToImageModel;
   selectedLoras: ActiveLora[];
@@ -86,6 +87,7 @@ export function buildSubmissionTaskParams(
     styleBoostTerms: effectiveStyleBoostTerms,
     isLocalGenerationEnabled: context.isLocalGenerationEnabled,
     hiresFixConfig: context.hiresFixConfig,
+    projectResolution: context.projectResolution,
     modelName: context.generationSource === 'just-text'
       ? context.selectedTextModel
       : 'qwen-image',

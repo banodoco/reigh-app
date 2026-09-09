@@ -21,6 +21,7 @@ function params(overrides: Partial<BatchImageGenerationTaskParams> = {}): BatchI
     imagesPerPrompt: 2,
     model_name: 'z-image',
     execution: 'cloud',
+    resolution: '1536x1024',
     ...overrides,
   };
 }
@@ -90,5 +91,26 @@ describe('typed image-generation admission', () => {
       prompts: [{ id: 'p-1', fullPrompt: 'one' }],
     }))).rejects.toThrow('nonzero storage estimate');
     expect(mocks.createTask).not.toHaveBeenCalled();
+  });
+
+  it('maps the canonical UI resolution into the executor size port', () => {
+    expect(compileImageGenerationParams(params({
+      prompts: [{ id: 'p-1', fullPrompt: 'one' }],
+      resolution: '1536x1024',
+    }))).toEqual([expect.objectContaining({ size: '1536x1024' })]);
+  });
+
+  it('rejects malformed canonical resolutions instead of guessing dimensions', () => {
+    expect(() => compileImageGenerationParams(params({
+      prompts: [{ id: 'p-1', fullPrompt: 'one' }],
+      resolution: 'landscape',
+    }))).toThrow('positive WIDTHxHEIGHT');
+  });
+
+  it('rejects missing authoritative dimensions instead of accepting provider defaults', () => {
+    const { resolution: _resolution, ...withoutResolution } = params({
+      prompts: [{ id: 'p-1', fullPrompt: 'one' }],
+    });
+    expect(() => compileImageGenerationParams(withoutResolution)).toThrow('authoritative image resolution');
   });
 });
