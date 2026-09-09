@@ -18,6 +18,7 @@ const MAX_IMAGE_DIMENSION = 16_384;
 const MAX_SEED = 2_147_483_647;
 const MAX_STEPS = 1_000;
 const MAX_CLOUD_I2I_SOURCE_BYTES = 512_000;
+const BOUNDED_CLOUD_I2I_SIZE = '1024x1024';
 
 export interface ImageToImageTaskOptions {
   sourceUrl: string;
@@ -226,6 +227,12 @@ export async function createImageToImageTask(
     throw new TaskValidationError('Image-to-image strength must be between 0 and 1', 'strength');
   }
   const count = requireInteger(options.count, 'count', 1, MAX_IMAGES_PER_TASK);
+  if (count !== 1) {
+    throw new TaskValidationError(
+      'The bounded cloud i2i route currently admits exactly one output per task',
+      'count',
+    );
+  }
   if ((options.loraCount ?? 0) > 0) {
     throw new TaskValidationError('LoRA controls are not part of the typed i2i route', 'loras');
   }
@@ -273,6 +280,7 @@ export async function createImageToImageTask(
         execution: 'cloud',
         prompt: options.prompt.trim(),
         count,
+        size: BOUNDED_CLOUD_I2I_SIZE,
         strength: options.strength,
           image_ref: {
             digest: source.object_id,

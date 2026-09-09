@@ -166,7 +166,7 @@ describe('typed image-generation admission', () => {
       sourceUrl: 'https://media.example/source.jpg',
       prompt: 'make it cinematic',
       strength: 0.6,
-      count: 2,
+      count: 1,
       basedOn: 'generation-1',
       sourceVariantId: 'variant-1',
     })).resolves.toMatchObject({ task_id: 'task-i2i' });
@@ -189,7 +189,8 @@ describe('typed image-generation admission', () => {
           mode: 'i2i',
           execution: 'cloud',
           prompt: 'make it cinematic',
-          count: 2,
+          count: 1,
+          size: '1024x1024',
           strength: 0.6,
           image_ref: {
             digest: sourceObjectId,
@@ -201,7 +202,7 @@ describe('typed image-generation admission', () => {
       },
       storage_estimate: {
         scratch_bytes: 8 * 1024 * 1024 + 1234,
-        output_bytes: 128 * 1024,
+        output_bytes: 64 * 1024,
       },
       settlement_effect: {
         based_on: 'generation-1',
@@ -213,6 +214,12 @@ describe('typed image-generation admission', () => {
   });
 
   it('rejects i2i controls that cannot be represented by the typed route', async () => {
+    await expect(createImageToImageTask('project-1', {
+      sourceUrl: 'https://media.example/source.png',
+      prompt: 'one',
+      strength: 0.5,
+      count: 2,
+    })).rejects.toThrow('exactly one output');
     await expect(createImageToImageTask('project-1', {
       sourceUrl: 'https://media.example/source.png',
       prompt: 'one',
