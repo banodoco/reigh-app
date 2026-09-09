@@ -14,6 +14,7 @@ import {
   createImageGenerationTasks,
   createImageToImageTask,
   IMAGE_GENERATION_CAPABILITY_ID,
+  IMAGE_I2I_CAPABILITY_ID,
 } from './imageGeneration';
 
 function params(overrides: Partial<BatchImageGenerationTaskParams> = {}): BatchImageGenerationTaskParams {
@@ -146,7 +147,7 @@ describe('typed image-generation admission', () => {
   it('admits i2i with ordered CAS source custody and typed controls', async () => {
     const sourceObjectId = `sha256:${'b'.repeat(64)}`;
     mocks.resolveTaskCapability.mockResolvedValue({
-      capability_id: IMAGE_GENERATION_CAPABILITY_ID,
+      capability_id: IMAGE_I2I_CAPABILITY_ID,
       definition_digest: `sha256:${'a'.repeat(64)}`,
       status: 'ready',
       required_resource_keys: ['gpu'],
@@ -178,12 +179,12 @@ describe('typed image-generation admission', () => {
     );
     expect(mocks.createTask).toHaveBeenCalledWith({
       project: 'project-1',
-      capability_id: IMAGE_GENERATION_CAPABILITY_ID,
+      capability_id: IMAGE_I2I_CAPABILITY_ID,
       capability_digest: `sha256:${'a'.repeat(64)}`,
       schema_version: '1',
       input_object_ids: [sourceObjectId],
       spec: {
-        family: IMAGE_GENERATION_CAPABILITY_ID,
+        family: IMAGE_I2I_CAPABILITY_ID,
         params: {
           model: 'z-image',
           mode: 'i2i',
@@ -201,7 +202,7 @@ describe('typed image-generation admission', () => {
         output_policy: {},
       },
       storage_estimate: {
-        scratch_bytes: 8 * 1024 * 1024 + 1234,
+        scratch_bytes: 8 * 1024 * 1024,
         output_bytes: 64 * 1024,
       },
       settlement_effect: {

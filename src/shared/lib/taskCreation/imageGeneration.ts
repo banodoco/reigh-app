@@ -7,6 +7,7 @@ import {
 } from './createTask';
 
 export const IMAGE_GENERATION_CAPABILITY_ID = 'generation.generate_image';
+export const IMAGE_I2I_CAPABILITY_ID = 'generation.generate_image_cloud_i2i';
 
 const SUPPORTED_MODELS = new Set(['z-image', 'qwen-image-2512']);
 // The registered Astrid capability is currently the cloud/provider route.
@@ -243,7 +244,7 @@ export async function createImageToImageTask(
     throw new TaskValidationError('Task-level legacy routing controls are not part of the typed i2i route', 'task_options');
   }
 
-  const capability = await resolveTaskCapability(project, IMAGE_GENERATION_CAPABILITY_ID);
+  const capability = await resolveTaskCapability(project, IMAGE_I2I_CAPABILITY_ID);
   if (capability.estimated_scratch_bytes <= 0 || capability.estimated_output_bytes <= 0) {
     throw new TaskValidationError(
       'Astrid i2i capability has no nonzero storage estimate; producer admission is blocked',
@@ -268,12 +269,12 @@ export async function createImageToImageTask(
   };
   const result = await createTask({
     project,
-    capability_id: IMAGE_GENERATION_CAPABILITY_ID,
+    capability_id: IMAGE_I2I_CAPABILITY_ID,
     capability_digest: capability.definition_digest,
     schema_version: '1',
     input_object_ids: [source.object_id],
     spec: {
-      family: IMAGE_GENERATION_CAPABILITY_ID,
+      family: IMAGE_I2I_CAPABILITY_ID,
       params: {
         model: 'z-image',
         mode: 'i2i',
@@ -291,8 +292,11 @@ export async function createImageToImageTask(
       output_policy: {},
     },
     storage_estimate: {
-      scratch_bytes: capability.estimated_scratch_bytes + source.size,
-      output_bytes: capability.estimated_output_bytes * count,
+      // The dedicated capability publishes a whole-task envelope that
+      // already includes the bounded source, staging copies, controls, and
+      // final manifest. Do not add the source a second time here.
+      scratch_bytes: capability.estimated_scratch_bytes,
+      output_bytes: capability.estimated_output_bytes,
     },
     settlement_effect: settlementEffect,
   });
