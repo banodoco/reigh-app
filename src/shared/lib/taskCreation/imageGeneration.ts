@@ -9,6 +9,10 @@ const SUPPORTED_MODELS = new Set(['z-image', 'qwen-image-2512']);
 // Keep local and Codex execution fail-closed until they have distinct catalog
 // identities and readiness contracts.
 const SUPPORTED_EXECUTIONS = new Set(['cloud']);
+const MAX_IMAGES_PER_TASK = 16;
+const MAX_IMAGE_DIMENSION = 16_384;
+const MAX_SEED = 2_147_483_647;
+const MAX_STEPS = 1_000;
 
 export interface CompiledImageGenerationParams {
   model: string;
@@ -21,11 +25,20 @@ export interface CompiledImageGenerationParams {
   size?: string;
 }
 
-function requirePositiveInteger(value: unknown, field: string): number {
-  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
-    throw new TaskValidationError(`${field} must be a positive integer`, field);
+function requireInteger(value: unknown, field: string, min: number, max: number): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < min || value > max) {
+    throw new TaskValidationError(`${field} must be an integer from ${min} through ${max}`, field);
   }
   return value;
+}
+
+function requireOptionalInteger(
+  value: unknown,
+  field: string,
+  min: number,
+  max: number,
+): number | undefined {
+  return value === undefined ? undefined : requireInteger(value, field, min, max);
 }
 
 /** Compile one text-only UI prompt into the registered Astrid executor schema. */
@@ -46,7 +59,7 @@ export function compileImageGenerationParams(
   if (params.imagesPerPrompt === undefined) {
     throw new TaskValidationError('imagesPerPrompt is required', 'imagesPerPrompt');
   }
-  const count = requirePositiveInteger(params.imagesPerPrompt, 'imagesPerPrompt');
+  const count = requireInteger(params.imagesPerPrompt, 'imagesPerPrompt', 1, MAX_IMAGES_PER_TASK);
   if (!Array.isArray(params.prompts) || params.prompts.length === 0) {
     throw new TaskValidationError('At least one image prompt is required', 'prompts');
   }
@@ -73,13 +86,50 @@ export function compileImageGenerationParams(
   if (params.loras && params.loras.length > 0) {
     throw new TaskValidationError('LoRA controls are not yet part of the typed text-image route', 'loras');
   }
+  const unsupportedControls = [
+    ['shot_id', 'shot lineage'],
+    ['negative_prompt', 'negative prompts'],
+    ['resolution_scale', 'resolution scaling'],
+    ['resolution_mode', 'resolution mode'],
+    ['custom_aspect_ratio', 'custom aspect ratio'],
+    ['num_inference_steps', 'inference-step alias'],
+    ['hires_scale', 'hires scaling'],
+    ['hires_steps', 'hires steps'],
+    ['hires_denoise', 'hires denoise'],
+    ['lightning_lora_strength_phase_1', 'phase-one LoRA strength'],
+    ['lightning_lora_strength_phase_2', 'phase-two LoRA strength'],
+    ['additional_loras', 'additional LoRAs'],
+    ['style_reference_strength', 'reference strength'],
+    ['subject_strength', 'reference strength'],
+    ['in_this_scene_strength', 'reference strength'],
+  ] as const;
+  const unsupportedControl = unsupportedControls.find(([key]) => params[key] !== undefined);
+  if (unsupportedControl) {
+    throw new TaskValidationError(
+      `${unsupportedControl[1]} are not part of the typed text-image route`,
+      unsupportedControl[0],
+    );
+  }
+  const seed = requireOptionalInteger(params.seed, 'seed', 0, MAX_SEED);
+  const steps = requireOptionalInteger(params.steps, 'steps', 1, MAX_STEPS);
   if (params.resolution === undefined) {
     throw new TaskValidationError('An authoritative image resolution is required', 'resolution');
   }
   const resolutionMatch = /^(\d+)x(\d+)$/.exec(params.resolution.trim());
-  if (resolutionMatch === null || Number(resolutionMatch[1]) < 1 || Number(resolutionMatch[2]) < 1) {
+  const width = resolutionMatch === null ? NaN : Number(resolutionMatch[1]);
+  const height = resolutionMatch === null ? NaN : Number(resolutionMatch[2]);
+  if (
+    resolutionMatch === null
+    || !Number.isSafeInteger(width)
+    || !Number.isSafeInteger(height)
+    || width < 1
+    || height < 1
+    || width > MAX_IMAGE_DIMENSION
+    || height > MAX_IMAGE_DIMENSION
+  ) {
     throw new TaskValidationError('resolution must use positive WIDTHxHEIGHT pixels', 'resolution');
   }
+  const size = params.resolution.trim();
 
   return params.prompts.map((entry) => {
     const prompt = entry.fullPrompt.trim();
@@ -90,9 +140,9 @@ export function compileImageGenerationParams(
       execution,
       prompt,
       count,
-      ...(params.seed !== undefined ? { seed: params.seed } : {}),
-      ...(params.steps !== undefined ? { steps: params.steps } : {}),
-      ...(params.resolution !== undefined ? { size: params.resolution.trim() } : {}),
+      ...(seed !== undefined ? { seed } : {}),
+      ...(steps !== undefined ? { steps } : {}),
+      size,
     };
   });
 }

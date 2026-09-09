@@ -96,6 +96,7 @@ export function useTaskParamsBuilder(props: UseTaskParamsBuilderProps): GetTaskP
     styleBoostTerms,
     isLocalGenerationEnabled,
     hiresFixConfig,
+    projectResolution,
     generationSourceRef,
     selectedTextModelRef,
   ]);

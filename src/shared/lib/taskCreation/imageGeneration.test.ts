@@ -113,4 +113,30 @@ describe('typed image-generation admission', () => {
     });
     expect(() => compileImageGenerationParams(withoutResolution)).toThrow('authoritative image resolution');
   });
+
+  it('rejects unsupported semantics instead of silently dropping them', () => {
+    expect(() => compileImageGenerationParams(params({
+      prompts: [{ id: 'p-1', fullPrompt: 'one' }],
+      shot_id: 'shot-1',
+    }))).toThrow('shot lineage');
+    expect(() => compileImageGenerationParams(params({
+      prompts: [{ id: 'p-1', fullPrompt: 'one' }],
+      negative_prompt: 'blurry',
+    }))).toThrow('negative prompts');
+  });
+
+  it('bounds scalar integers and image dimensions before admission', () => {
+    expect(() => compileImageGenerationParams(params({
+      prompts: [{ id: 'p-1', fullPrompt: 'one' }],
+      imagesPerPrompt: 17,
+    }))).toThrow('imagesPerPrompt');
+    expect(() => compileImageGenerationParams(params({
+      prompts: [{ id: 'p-1', fullPrompt: 'one' }],
+      seed: -1,
+    }))).toThrow('seed');
+    expect(() => compileImageGenerationParams(params({
+      prompts: [{ id: 'p-1', fullPrompt: 'one' }],
+      resolution: '20000x1024',
+    }))).toThrow('positive WIDTHxHEIGHT');
+  });
 });
