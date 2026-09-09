@@ -76,8 +76,8 @@ export class AstridLocalTaskRoutes {
         output_policy: parsed.spec.output_policy,
       },
       storage_estimate: {
-        estimated_scratch_bytes: parsed.storage_estimate.estimated_scratch_bytes,
-        estimated_output_bytes: parsed.storage_estimate.estimated_output_bytes,
+        scratch_bytes: parsed.storage_estimate.scratch_bytes,
+        output_bytes: parsed.storage_estimate.output_bytes,
       },
       settlement_effect: parsed.settlement_effect,
     };

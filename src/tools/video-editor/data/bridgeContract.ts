@@ -204,8 +204,8 @@ export const bridgeTaskAdmissionSpecSchema = z.strictObject({
 });
 
 export const bridgeTaskStorageEstimateSchema = z.strictObject({
-  estimated_scratch_bytes: z.number().int().nonnegative(),
-  estimated_output_bytes: z.number().int().nonnegative(),
+  scratch_bytes: z.number().int().nonnegative(),
+  output_bytes: z.number().int().nonnegative(),
 });
 
 export const bridgeTaskSettlementEffectSchema = jsonObject;

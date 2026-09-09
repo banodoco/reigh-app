@@ -45,8 +45,8 @@ describe('AstridLocalClient', () => {
         output_policy: {},
       },
       storage_estimate: {
-        estimated_scratch_bytes: 0,
-        estimated_output_bytes: 0,
+        scratch_bytes: 0,
+        output_bytes: 0,
       },
       settlement_effect: {},
     };

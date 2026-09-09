@@ -16,8 +16,8 @@ export interface RuntimeTaskSpec {
 
 /** Runtime's explicit storage reservation estimate for one admission. */
 export interface RuntimeStorageEstimate {
-  estimated_scratch_bytes: number;
-  estimated_output_bytes: number;
+  scratch_bytes: number;
+  output_bytes: number;
 }
 
 /** Runtime's explicit terminal publication/lineage effect. */
