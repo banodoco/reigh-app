@@ -97,4 +97,29 @@ describe('buildBatchTaskParams', () => {
     expect(result.resolution_scale).toBeUndefined();
     expect(result.resolution_mode).toBeUndefined();
   });
+
+  it('compiles the selected custom aspect ratio before applying scale', () => {
+    const result = buildBatchTaskParams({
+      projectId: 'project-1',
+      prompts: [{ id: 'prompt-1', fullPrompt: 'Prompt', shortPrompt: 'Prompt' }],
+      imagesPerPrompt: 1,
+      loras: [],
+      shotId: null,
+      beforePromptText: '',
+      afterPromptText: '',
+      styleBoostTerms: '',
+      isLocalGenerationEnabled: false,
+      hiresFixConfig: {
+        ...DEFAULT_HIRES_FIX_CONFIG,
+        resolution_mode: 'custom',
+        custom_aspect_ratio: '16:9',
+        resolution_scale: 1,
+      },
+      projectResolution: '768x768',
+      modelName: 'z-image',
+      referenceParams: {},
+    });
+
+    expect(result.resolution).toBe('902x508');
+  });
 });
