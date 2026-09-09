@@ -3,6 +3,7 @@ import { BridgeTransportFailure } from '@/integrations/astrid/transport';
 import {
   bridgeTaskAdmissionRequestSchema,
   runtimeSha256IdSchema,
+  type RuntimeCapability,
 } from '@/tools/video-editor/data/bridgeContract.ts';
 import { normalizeAndPresentAndRethrow } from '@/shared/lib/errorHandling/runtimeError';
 import { NetworkError } from '@/shared/lib/errorHandling/errors';
@@ -114,6 +115,11 @@ export async function verifyProjectInputObject(project: string, objectId: string
 /** Bind a capability ID to Runtime's exact ready definition digest. */
 export async function bindTaskCapability(project: string, capabilityId: string, expectedDigest?: string): Promise<string> {
   return await getBridgeTaskClient(project).catalog.bind(capabilityId, expectedDigest);
+}
+
+/** Resolve the exact ready catalog record used to compile a typed producer request. */
+export async function resolveTaskCapability(project: string, capabilityId: string): Promise<RuntimeCapability> {
+  return await getBridgeTaskClient(project).catalog.get(capabilityId);
 }
 
 async function validateAdmissionAuthority(taskParams: BaseTaskParams): Promise<BaseTaskParams> {

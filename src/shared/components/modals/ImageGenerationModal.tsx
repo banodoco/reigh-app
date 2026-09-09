@@ -7,7 +7,7 @@ import {
 } from '@/shared/components/ui/dialog';
 import { useExtraLargeModal } from '@/shared/hooks/useModal';
 import { ImageGenerationForm } from '@/shared/components/ImageGenerationForm';
-import { createTask } from '@/shared/lib/taskCreation';
+import { createImageGenerationTasks } from '@/shared/lib/taskCreation';
 import { useApiKeys } from '@/shared/hooks/settings/useApiKeys';
 import { useProjectSelectionContext } from '@/shared/contexts/ProjectContext';
 import { useQueryClient } from '@tanstack/react-query';
@@ -54,14 +54,7 @@ export const ImageGenerationModal: React.FC<ImageGenerationModalProps> = ({
       label: taskParams.prompts?.[0]?.fullPrompt?.substring(0, 50) || 'Generating images...',
       context: 'ImageGenerationModal',
       toastTitle: 'Failed to create tasks',
-      create: () => {
-        const { project_id, ...input } = taskParams;
-        return createTask({
-          project_id,
-          family: 'image_generation',
-          input,
-        });
-      },
+      create: () => createImageGenerationTasks(selectedProjectId, taskParams),
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: queryKeys.unified.projectPrefix(selectedProjectId) });
       },

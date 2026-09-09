@@ -77,6 +77,7 @@ export function buildBatchTaskParams(input: BuildBatchTaskParamsInput): BatchIma
     loras: input.loras,
     shot_id: input.shotId || undefined,
     model_name: input.modelName,
+    execution: input.isLocalGenerationEnabled ? 'local' : 'cloud',
     steps: input.isLocalGenerationEnabled ? input.hiresFixConfig.base_steps : undefined,
     // Reference params - passthrough explicit values only (already snake_case)
     ...referenceParams,

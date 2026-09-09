@@ -20,7 +20,15 @@ export {
 
 export {
   createTask,
+  bindTaskCapability,
+  resolveTaskCapability,
 } from './taskCreation/createTask';
+
+export {
+  IMAGE_GENERATION_CAPABILITY_ID,
+  createImageGenerationTasks,
+  compileImageGenerationParams,
+} from './taskCreation/imageGeneration';
 
 export {
   validateRequiredFields,

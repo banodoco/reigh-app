@@ -33,6 +33,15 @@ export class AstridLocalCatalogRoutes {
   }
 
   async bind(capabilityId: string, expectedDigest?: string): Promise<string> {
+    const match = await this.get(capabilityId);
+    if (expectedDigest !== undefined && expectedDigest !== match.definition_digest) {
+      throw new AstridCapabilityBindingError(`capability digest mismatch: ${capabilityId}`);
+    }
+    return match.definition_digest;
+  }
+
+  /** Resolve one ready catalog record without inventing a local digest. */
+  async get(capabilityId: string): Promise<RuntimeCapability> {
     if (capabilityId.length === 0) {
       throw new AstridCapabilityBindingError('capability ID is required');
     }
@@ -75,9 +84,6 @@ export class AstridLocalCatalogRoutes {
         `capability is not ready: ${capabilityId} (${match.status})`,
       );
     }
-    if (expectedDigest !== undefined && expectedDigest !== match.definition_digest) {
-      throw new AstridCapabilityBindingError(`capability digest mismatch: ${capabilityId}`);
-    }
-    return match.definition_digest;
+    return match;
   }
 }

@@ -38,6 +38,8 @@ export interface BatchImageGenerationTaskParams
   resolution_mode?: 'project' | 'custom';
   custom_aspect_ratio?: string;
   model_name?: string;
+  execution?: 'local' | 'cloud' | 'codex';
+  seed?: number;
   subject_reference_image?: string;
   steps?: number;
 }

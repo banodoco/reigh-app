@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/shared/components/ui/runtime/sonner';
-import { createTask } from '@/shared/lib/taskCreation';
+import { createImageGenerationTasks } from '@/shared/lib/taskCreation';
 import type { BatchImageGenerationTaskParams } from '@/shared/types/imageGeneration';
 import { useApiKeys } from '@/features/settings/hooks/useApiKeys';
 import { queryKeys } from '@/shared/lib/queryKeys';
@@ -34,12 +34,7 @@ export function useImageGenSubmit({
     }
 
     try {
-      const { project_id, ...input } = taskParams;
-      const createdTasks = await createTask({
-        project_id,
-        family: 'image_generation',
-        input,
-      });
+      const createdTasks = await createImageGenerationTasks(projectId, taskParams);
       const createdTaskIds = createdTasks.task_ids ?? [createdTasks.task_id];
 
       // Refresh the gallery/media view. Task pane invalidation is handled by the
