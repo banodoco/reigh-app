@@ -2,6 +2,7 @@
 
 import type { AstridBridgeTransport } from './transport.ts';
 import { bridgeProjectsSchema } from '@/tools/video-editor/data/bridgeContract.ts';
+import { astridProjectCollectionPath, isAstridWorkspaceV1 } from './workspaceV1.ts';
 
 export type BridgeProject = { slug: string; name: string } & Record<string, unknown>;
 
@@ -10,11 +11,12 @@ export class AstridLocalProjectRoutes {
 
   async list(): Promise<BridgeProject[]> {
     const payload = await this.transport.requestJson(
-      '/projects',
+      astridProjectCollectionPath(),
       {},
       bridgeProjectsSchema,
       'project list',
     );
-    return (payload.projects ?? []) as BridgeProject[];
+    const wire = payload as typeof payload & { items?: BridgeProject[] };
+    return (isAstridWorkspaceV1 ? wire.items : wire.projects ?? []) as BridgeProject[];
   }
 }

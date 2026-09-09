@@ -408,7 +408,7 @@ describe('AstridBridgeDataProvider', () => {
       registry: {
         assets: {
           z_asset: { media_id: 'duplicate-media', type: 'audio/mpeg' },
-          a_asset: { media_id: 'duplicate-media', type: 'audio/mpeg' },
+          a_asset: { media_id: 'duplicate-media', type: 'video/mp4' },
         },
       },
     }), { status: 200 })));

@@ -20,6 +20,7 @@ import {
   type BridgeTimelinesPayload,
 } from '@/tools/video-editor/data/bridgeContract.ts';
 import { TimelineVersionConflictError } from '@/sdk/video/timeline/errors.ts';
+import { astridTimelineCollectionPath, astridTimelineReadPath, isAstridWorkspaceV1 } from './workspaceV1.ts';
 
 export type TimelineRoutesOptions = {
   /** The project slug every timeline route is scoped under. */
@@ -42,7 +43,7 @@ export class AstridLocalTimelineRoutes {
   }
 
   private base(): string {
-    return `/projects/${encodeURIComponent(this.projectSlug)}/timelines`;
+    return astridTimelineCollectionPath(this.projectSlug);
   }
 
   private toError(error: unknown, action: string, expectedVersion?: number): unknown {
@@ -61,7 +62,9 @@ export class AstridLocalTimelineRoutes {
   /** All timelines of the project (identity, slugs, default flag). */
   async list(): Promise<BridgeTimelinesPayload> {
     try {
-      return await this.transport.requestJson(this.base(), {}, bridgeTimelinesSchema, 'timeline list');
+      const payload = await this.transport.requestJson(this.base(), {}, bridgeTimelinesSchema, 'timeline list');
+      const wire = payload as BridgeTimelinesPayload & { items?: BridgeTimelinesPayload['timelines'] };
+      return isAstridWorkspaceV1 ? { ...wire, timelines: wire.items ?? [] } : wire;
     } catch (error) {
       throw this.toError(error, 'timeline list');
     }
@@ -71,7 +74,7 @@ export class AstridLocalTimelineRoutes {
   async get(ref: string): Promise<BridgeTimelinePayload> {
     try {
       return await this.transport.requestJson(
-        `${this.base()}/${encodeURIComponent(ref)}`,
+        astridTimelineReadPath(this.projectSlug, ref),
         {},
         bridgeTimelinePayloadSchema,
         'load timeline',
@@ -86,6 +89,9 @@ export class AstridLocalTimelineRoutes {
    * a stale head yields {@link TimelineVersionConflictError}.
    */
   async save(ref: string, input: TimelineSaveInput): Promise<BridgeTimelinePayload> {
+    if (isAstridWorkspaceV1) {
+      throw new Error('This live Astrid workspace preview is read-only; timeline saving is not enabled.');
+    }
     try {
       return await this.transport.requestJson(
         `${this.base()}/${encodeURIComponent(ref)}/save`,

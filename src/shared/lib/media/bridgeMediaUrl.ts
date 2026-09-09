@@ -1,3 +1,5 @@
+import { astridObjectContentPath } from '@/integrations/astrid/workspaceV1.ts';
+
 /**
  * Display-URL addressing for managed media (B3 Slice B).
  *
@@ -42,5 +44,5 @@ export function bridgeMediaUrl(
   }
 
   const base = baseUrl.replace(/\/+$/, '');
-  return `${base}/projects/${encodeURIComponent(projectSlug)}/media/${encodeURIComponent(mediaRef)}/content`;
+  return `${base}${astridObjectContentPath(projectSlug, mediaRef)}`;
 }

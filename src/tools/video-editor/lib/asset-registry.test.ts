@@ -36,9 +36,24 @@ describe('asset registry references', () => {
   it('rejects duplicate managed identities in sorted key order', () => {
     expect(() => validateAssetRegistryMediaIds({ assets: {
       z_asset: { media_id: 'media-1' },
-      a_asset: { media_id: 'media-1' },
+      a_asset: { media_id: 'media-1', type: 'audio/mpeg' },
     } })).toThrow(
       "Asset registry media_id 'media-1' is ambiguous between 'a_asset' and 'z_asset'",
+    );
+  });
+
+  it('allows exact managed identity aliases while rejecting metadata conflicts', () => {
+    const alias = { media_id: 'media-1', content_sha256: 'sha256-1', type: 'video/mp4' };
+    expect(() => validateAssetRegistryMediaIds({ assets: {
+      pic6: alias,
+      pic7: { ...alias },
+    } })).not.toThrow();
+
+    expect(() => validateAssetRegistryMediaIds({ assets: {
+      pic6: alias,
+      pic7: { ...alias, type: 'audio/mpeg' },
+    } })).toThrow(
+      "Asset registry media_id 'media-1' is ambiguous between 'pic6' and 'pic7'",
     );
   });
 });

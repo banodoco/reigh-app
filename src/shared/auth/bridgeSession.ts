@@ -16,6 +16,7 @@
  */
 
 import { BRIDGE_REQUEST_TIMEOUT_MS } from '@/tools/video-editor/data/bridgeContract.ts';
+import { isAstridWorkspaceV1 } from '@/integrations/astrid/workspaceV1.ts';
 
 /** Same-origin base of the development bridge proxy (see vite.config). */
 export const BRIDGE_PROBE_BASE_URL = '/api/astrid';
@@ -39,7 +40,7 @@ export async function probeBridgeSession(
 ): Promise<BridgeSessionProbeResult> {
   let response: Response;
   try {
-    response = await fetch(`${baseUrl.replace(/\/+$/, '')}/health`, {
+    response = await fetch(`${baseUrl.replace(/\/+$/, '')}${isAstridWorkspaceV1 ? '/v1/health' : '/health'}`, {
       signal: AbortSignal.timeout(BRIDGE_REQUEST_TIMEOUT_MS),
     });
   } catch (cause) {
@@ -72,6 +73,6 @@ export async function probeBridgeSession(
 function isHealthyStatus(payload: unknown): boolean {
   return typeof payload === 'object'
     && payload !== null
-    && 'ok' in payload
-    && payload.ok === true;
+    && (('ok' in payload && payload.ok === true)
+      || (isAstridWorkspaceV1 && 'status' in payload && payload.status === 'ok'));
 }
