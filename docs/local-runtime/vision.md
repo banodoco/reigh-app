@@ -22,7 +22,7 @@ Astrid and Reigh should be independently useful products built on one neutral fo
 
 The database and task queue do not belong to Astrid or Reigh conceptually or physically. They belong to the independently versioned Banodoco Workspace Runtime, which both products connect to as peer clients. All durable structured workspace state belongs in that database. Large immutable bytes belong in an object store referenced by database identity. Project directories, JSON sidecars, Markdown notes, run folders, and event-log files must not form parallel authorities.
 
-The immediate goal is to ship the proper neutral architecture on one machine in stages: first Astrid from an editable checkout with registered executor workers, then Reigh and Reigh Worker as peer protocol clients. One Banodoco Workspace Runtime is backed by SQLite and a local content-addressed object store. Proven kernel code currently inside Astrid should be extracted and generalized into the neutral runtime rather than making Astrid the runtime's temporary owner. Turso, remote workers, and hosted connectors follow as new placements of the same contracts—not as a rewrite of the local system.
+The immediate goal is to ship the proper neutral architecture on one machine in stages: first Astrid from an editable checkout with its sole `GenericPackHost`, then Reigh as a peer protocol client and the Reigh Worker codebase as GPU process/environment substrate. One Banodoco Workspace Runtime is backed by SQLite and a local content-addressed object store. Proven kernel code currently inside Astrid should be extracted and generalized into the neutral runtime rather than making Astrid the runtime's temporary owner. Turso, remote workers, and hosted connectors follow as new placements of the same contracts—not as a rewrite of the local system.
 
 The cutover is intentionally absolute. A one-time offline importer may understand the old world, but the supported runtime and clients do not: no shims, legacy aliases, dual-write, fallback reads, backend-selection mode, schema compatibility views, or silent translation of old payloads. Active components use one compatible versioned protocol set or fail closed.
 
@@ -52,7 +52,7 @@ Astrid is the agent tool people talk to or invoke programmatically. It should wo
 - A cloud-hosted personal agent.
 - An orchestration layer embedded in another creative product.
 
-Astrid discovers capabilities, understands workspace state, converts intent into operations or task graphs, and explains or supervises the resulting work. Astrid plans and submits GPU, CPU, agent/GPT, render, analysis, and third-party-provider tasks; registered executor workers execute them.
+Astrid discovers capabilities, understands workspace state, converts intent into operations or task graphs, and explains or supervises the resulting work. Astrid plans and submits GPU, CPU, agent/GPT, render, analysis, and third-party-provider tasks; the sole `GenericPackHost` executes registered Astrid packs. Reigh's next agent-assisted workstream triggers or resumes Astrid Sessions on the user's machine through the supported local launcher/host-agent contract; it is not a custom hosted chat server or an assumption that the current Reigh UI already provides it.
 
 Astrid's repository is also its open creative-engine source. Packs remain the authoring and discovery namespace for executors, orchestrators, and elements; skills and per-capability `STAGE.md` files remain the agent-facing operating layer. Local v1 removes legacy package-manager authority, not the ability to inspect, edit, add, validate, or run pack and skill source from an editable checkout.
 
@@ -340,13 +340,15 @@ The current repositories already contain much of the local control-plane foundat
 - Astrid's serve composition currently demonstrates usable process and worker patterns, but the neutral runtime must not depend on Astrid to start.
 - Reigh can consume project, timeline, gallery, generation, and task state through an Astrid-named proxy that should become a neutral workspace client/proxy.
 
-The current Reigh Worker remains materially coupled to Supabase:
+The historical Reigh Worker remains materially coupled to Supabase, while the accepted local GPU direction treats its reusable code as substrate behind Astrid's host:
 
 - Its database runtime is hard-coded to Supabase despite accepting a `--db-type` flag.
 - Claims use Supabase Edge Functions.
 - Status, completion, storage upload, retries, and some child orchestration assume Supabase.
 - Its local mode adds local file ingress but does not replace the queue authority.
 - RunPod orchestration injects Supabase credentials and derives scaling state from Supabase.
+
+The bounded replacement proof is deliberately narrower: `GenericPackHost` alone claims, heartbeats, materializes, supervises, uploads, and settles; Wan2GP and VibeComfy remain engine libraries behind typed Astrid pack adapters; the Worker codebase provides GPU environments, process supervision, and telemetry. No Worker plugin registry, queue, router, database writer, or second settlement path is introduced.
 
 The missing composition seam is an independently owned runtime repository/service and protocol, extracted from the reusable kernel pieces without importing Astrid product concepts. On top of that boundary, Stage 1 needs one generic Astrid pack-executor host using the neutral worker protocol and an explicit capability-parity map; Stage 2 later adapts functionality that still exists only in Reigh Worker.
 
@@ -360,10 +362,10 @@ The first implementation sequence is specified in the canonical [Overall Strateg
 - a narrow generated TypeScript second-client proof freezes only the REIGH seam needed for actor/handshake, project, managed media bytes, minimal timeline/shot/reference state, task/run/event observation, fake settlement, and render invocation; Stage 2 owns richer REIGH domains;
 - every durable structured workspace concept is migrated into SQLite;
 - immutable large bytes are settled into the local object store;
-- every capability advertised ready—including GPT/provider, CPU/analysis, generation, orchestration, and rendering—executes in a registered worker process through the neutral protocol;
+- every capability advertised ready—including GPT/provider, CPU/analysis, generation, orchestration, and rendering—executes through the registered Astrid host and neutral protocol;
 - broad parity is proven per distinct behavior and adapter: every manifest validates/registers/preflights, real end-to-end evidence covers each distinct adapter plus unique/high-risk/high-use paths, and equivalent variants may use declared fixtures;
 - capability readiness is driven by the supported current-machine profile and preflight, not by a blanket local-GPU requirement;
-- no Supabase, Turso, hosted relay, RunPod, cloud GPU, or filesystem compatibility path participates;
+- no Supabase, Turso, hosted relay, or filesystem compatibility path participates in the local proof; RunPod/cloud GPU is a later placement, not a prerequisite or fleet product;
 - the normal runtime contains no legacy fallback or dual-write behavior after the one-time offline migration.
 
 That plan has been ground-truthed through successive repository audits and now carries the handoff-ready work breakdown, dependency order, deletions, migration rules, and acceptance gates. Its first execution gate creates and reviews the concrete DDL, OpenAPI, generated clients, conformance suite, and source-composition manifest before product cutover begins. This vision remains the durable destination; the companion document is the current delivery blueprint.

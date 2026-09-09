@@ -12,6 +12,12 @@ The current-machine beta is developed and run from editable source checkouts. As
 
 Stage 1 deliberately implements the smallest durable boundary: one current-Mac realm, one generic Astrid pack-executor host, typed worker settlement effects, minimal lease-bound resource reservations, and append-only CAS. REIGH-specific domain expansion moves to Stage 2; verified garbage collection, broader platform/lifecycle matrices, and advanced resource scheduling move to Stage 3 or later.
 
+## Current planning state (2026-09-09)
+
+The plan set is a roadmap, not an implementation claim. Phase-C Reigh/Astrid bridge work and selected producer cutovers already exist in the source tree, but the Stage 1 and Stage 2 acceptance gates are not thereby complete. The remaining work is tracked as an audit-backed next-stage sequence in [2026-09-09 next-stage execution](./05-next-stage-execution-20260909.md).
+
+The accepted GPU direction is bounded and unchanged in authority: the Banodoco runtime owns tasks, leases, events, outputs, and settlement; Astrid's `GenericPackHost` is the sole claimant/settler; and the Reigh Worker codebase supplies GPU process/environment/telemetry substrate only. Wan2GP and VibeComfy remain engine libraries behind Astrid's typed pack adapters. This is a local producer proof, not a hosted GPU fleet or RunPod product.
+
 Read in this order:
 
 1. [Long-term product and architecture vision](./vision.md)
@@ -19,5 +25,6 @@ Read in this order:
 3. [Stage 1 — Astrid beta](./01-astrid-beta.md)
 4. [Stage 2 — REIGH next](./02-reigh-plan.md)
 5. [Stage 3 — hardening](./03-hardening.md)
+6. [Next-stage execution supplement (2026-09-09)](./05-next-stage-execution-20260909.md)
 
 External review records live under [`reviews/`](./reviews/). They explain why key architectural decisions were made, but the five documents above are the current source of truth. Superseded parallel-plan variants are intentionally not retained in the canonical set.

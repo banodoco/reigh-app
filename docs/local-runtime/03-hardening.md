@@ -2,7 +2,7 @@
 
 **Status:** deliberately deferred until Astrid and REIGH are working on the shared runtime
 **Scope revision:** 2026-08-29
-**Entry condition:** Stage 2 R7 is complete: fuller local REIGH, the accepted Reigh Worker profile, any selected one-time REIGH-only import, remaining legacy-authority deletion, full-stack composition, and backup/restore fixtures are all accepted
+**Entry condition:** Stage 2 R7 is complete: fuller local REIGH, the accepted `GenericPackHost` plus Worker-substrate profile, any selected one-time REIGH-only import, remaining legacy-authority deletion, full-stack composition, and backup/restore fixtures are all accepted
 
 ## 1. Purpose
 
@@ -17,10 +17,10 @@ The stage is deferred to protect delivery focus, not because its concerns are un
 - frozen runtime protocol/schema and generated clients;
 - complete Astrid legacy-authority deletion proof and capability census;
 - the one-time local migration report, immutable backup, activation manifest, and rollback archive;
-- fuller local REIGH and the accepted Reigh Worker profile sharing the same realm with zero Supabase/direct-database/worker-owned authority;
+- fuller local REIGH and the accepted `GenericPackHost`/Worker-substrate profile sharing the same realm with zero Supabase/direct-database/worker-owned authority;
 - Stage 2 R7 composition and deletion proof, including Astrid-first and REIGH-first activation/composition orders and any selected REIGH-only migration/rollback evidence;
 - an append-only CAS with reachability/accounting reports but no automatic byte collection;
-- one generic Astrid pack host, immutable typed worker outputs, declared settlement effects, and the minimal lease-bound resource-reservation contract;
+- one generic Astrid pack host, immutable typed worker outputs, declared settlement effects, and the minimal lease-bound resource-reservation contract. The GPU substrate is tested as host infrastructure, never as a second claimant or scheduler;
 - the accepted current-Mac, one-selected-realm bootstrap/restart path; and
 - runtime/REIGH build-artifact smokes where applicable plus Astrid editable-checkout composition smokes, doctor/integrity checks, bounded redacted logs, and reproducible beta manifests.
 

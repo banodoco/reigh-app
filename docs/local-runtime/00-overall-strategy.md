@@ -6,6 +6,8 @@
 **Audience:** an implementation team starting without prior conversation context
 **Long-term direction:** [Banodoco Workspace Runtime Vision](./vision.md)
 
+**Planning checkpoint:** 2026-09-09 next-stage supplement; the source tree contains partial Phase-C bridge/client work and selected producer cutovers, but no Stage 1/2 completion claim is made.
+
 ## 1. Outcome
 
 Build one local creative workspace authority shared by Astrid and REIGH:
@@ -49,7 +51,7 @@ Explicitly deferred until Stage 3 or later:
 - exhaustive crash/race/transaction-boundary, disk-full, corrupt-SQLite/CAS, credential, adversarial-input, and security testing;
 - signed/notarized installers, polished update/rollback/uninstall/purge, general migration UX, cross-platform certification, multi-user support, and production support/SLA;
 - hosted auth/credits/storage, Supabase Edge Functions, cloud collaboration, RunPod/cloud GPUs, and Turso synchronization;
-- full Reigh Worker/GPU orchestration beyond what the Stage 2 product scope explicitly accepts.
+- hosted/cloud GPU orchestration and fleet scheduling. A bounded local GPU producer proof is in scope now under the accepted `GenericPackHost` authority; it does not create a second executor or task authority.
 
 The one-time migration, backup, integrity, and rollback requirements are not general product polish. They are retained because the only user's real data is in scope.
 
@@ -93,7 +95,7 @@ These are deliberately sharp. If implementation makes any statement false, it ha
 | Stage 1: Astrid beta | independent runtime; one current-Mac realm; complete Astrid client cutover; one generic pack-executor host; broad truthful capability parity; minimal resource/settlement contracts; one-time migration; legacy authority deleted | packet graph, ownership shards, and integration lanes agreed; Astrid works end to end after restart; real data reconciles; authority/capability censuses have zero unclassified entries |
 | Stage 2A: basic REIGH | REIGH uses the generated TypeScript client and the same realm for the basic visual journey; R0 adds any REIGH-specific neutral contract deltas no longer pre-built in Stage 1 | recorded browser journey, shared identities/state, zero Supabase/direct-DB traffic |
 | Overall single-user beta | Stage 1 plus Stage 2A integrated on the current machine | combined editable-checkout composition smoke, backup/restore, integrity, restart, and rollback evidence |
-| Stage 2B+: fuller REIGH | adds gallery/extension/full-composition contracts when proven by REIGH, progressively replaces the remaining REIGH/Reigh Worker local control plane, and expands the accepted worker/resource profile without reopening authority boundaries | each accepted product slice deletes its old authority before activation |
+| Stage 2B+: fuller REIGH | adds gallery/extension/full-composition contracts when proven by REIGH, completes the first shared visual journey, and adds accepted local GPU profiles behind the sole `GenericPackHost`; Wan2GP/VibeComfy remain engine libraries behind typed Astrid pack adapters | each accepted product slice deletes its old authority before activation |
 | Stage 3: hardening | begins only after Stage 2 R7; adds verified CAS GC and exhaustively tests the integrated fuller REIGH + accepted worker/resource profile, packaged components where applicable, and the supported Astrid editable-checkout lifecycle | full hardening matrix passes with reproducible evidence |
 
 ## 5. Source and dependency order
