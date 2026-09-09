@@ -27,6 +27,7 @@ export {
 export {
   IMAGE_GENERATION_CAPABILITY_ID,
   createImageGenerationTasks,
+  createImageToImageTask,
   compileImageGenerationParams,
 } from './taskCreation/imageGeneration';
 

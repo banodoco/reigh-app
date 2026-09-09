@@ -6,7 +6,7 @@ vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
   },
 }));
 
-import { createTask, ingestProjectInput } from './createTask';
+import { createTask, ingestProjectInput, ingestProjectInputFromUrl } from './createTask';
 import { createFakeBridgeRouter, type FakeBridgeRouter } from '@/test/fakeBridgeRouter.ts';
 import { bridgeTaskAdmissionRequestSchema } from '@/tools/video-editor/data/bridgeContract.ts';
 
@@ -88,6 +88,35 @@ describe('createTask R1 admission over the fake bridge router', () => {
     const committed = await ingestProjectInput('demo-project', input);
     expect(committed.object_id).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect([...router.state.runtimeObjectBodies.get(committed.object_id)!]).toEqual([7, 0, 255]);
+  });
+
+  it('fetches URL bytes before CAS ingest and preserves the verified media type', async () => {
+    const sourceBytes = new Uint8Array([1, 2, 3, 4]);
+    const runtimeFetch = fetchMock;
+    const sourceFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(input instanceof Request ? input.url : String(input), 'http://bridge.fake');
+      if (url.pathname === '/source.png') {
+        return new Response(sourceBytes, {
+          status: 200,
+          headers: { 'content-type': 'image/png' },
+        });
+      }
+      return await runtimeFetch(input, init);
+    });
+    vi.stubGlobal('fetch', sourceFetch);
+
+    const committed = await ingestProjectInputFromUrl(
+      'demo-project',
+      'http://bridge.fake/source.png',
+    );
+
+    expect(committed.object_id).toBe(`sha256:${await (async () => {
+      const digest = await crypto.subtle.digest('SHA-256', sourceBytes);
+      return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+    })()}`);
+    expect(committed.media_type).toBe('image/png');
+    expect(committed.size).toBe(sourceBytes.byteLength);
+    expect(committed.filename).toBe('source.png');
   });
 
   it('rejects locator-shaped input IDs before catalog or admission', async () => {

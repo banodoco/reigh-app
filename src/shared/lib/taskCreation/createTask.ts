@@ -87,7 +87,69 @@ export async function ingestProjectInput(
     key,
     originalName,
   );
-  return { object_id: committed.data.object_id, receipt: committed.receipt };
+  const expectedObjectId = `sha256:${contentFingerprint}`;
+  if (committed.data.object_id !== expectedObjectId) {
+    throw new TaskValidationError(
+      'Runtime CAS returned an object ID that does not match the ingested bytes',
+      'input_object_ids',
+    );
+  }
+  return {
+    object_id: committed.data.object_id,
+    media_type: committed.data.media_type,
+    size: committed.data.size,
+    filename: committed.data.filename ?? originalName ?? 'source',
+    receipt: committed.receipt,
+  };
+}
+
+/** Fetch a producer-owned media locator, then commit its bytes to project CAS. */
+export async function ingestProjectInputFromUrl(
+  project: string,
+  sourceUrl: string,
+  options: RuntimeInputIngestOptions = {},
+): Promise<RuntimeObjectReceipt> {
+  if (!sourceUrl.trim()) {
+    throw new TaskValidationError('A source media URL is required', 'sourceUrl');
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(
+      sourceUrl,
+      typeof window === 'undefined' ? 'http://astrid.invalid' : window.location.origin,
+    );
+  } catch {
+    throw new TaskValidationError('Source media URL is malformed', 'sourceUrl');
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new TaskValidationError('Source media URL must use HTTP(S)', 'sourceUrl');
+  }
+
+  const response = await fetch(parsed.toString(), { redirect: 'error' });
+  if (!response.ok) {
+    throw new TaskValidationError(
+      `Source media could not be fetched (${response.status})`,
+      'sourceUrl',
+    );
+  }
+  const responseType = response.headers.get('content-type')?.split(';', 1)[0]?.trim();
+  const blob = await response.blob();
+  if (options.maxBytes !== undefined && blob.size > options.maxBytes) {
+    throw new TaskValidationError(
+      `Source media exceeds the ${options.maxBytes}-byte ingest boundary`,
+      'sourceUrl',
+    );
+  }
+  const { maxBytes: _maxBytes, ...ingestOptions } = options;
+  const mediaType = ingestOptions.mediaType ?? responseType ?? blob.type;
+  let originalName = parsed.pathname.split('/').pop() || 'source';
+  try {
+    originalName = decodeURIComponent(originalName);
+  } catch {
+    throw new TaskValidationError('Source media URL has an invalid filename', 'sourceUrl');
+  }
+  originalName = options.originalName ?? originalName;
+  return ingestProjectInput(project, blob, { ...ingestOptions, mediaType, originalName });
 }
 
 /** Verify that an existing Runtime CAS ID is authorized for this project. */

@@ -1,6 +1,10 @@
 import type { BatchImageGenerationTaskParams } from '@/shared/types/imageGeneration';
 import { TaskValidationError, type TaskCreationResult } from './types';
-import { createTask, resolveTaskCapability } from './createTask';
+import {
+  createTask,
+  ingestProjectInputFromUrl,
+  resolveTaskCapability,
+} from './createTask';
 
 export const IMAGE_GENERATION_CAPABILITY_ID = 'generation.generate_image';
 
@@ -13,6 +17,23 @@ const MAX_IMAGES_PER_TASK = 16;
 const MAX_IMAGE_DIMENSION = 16_384;
 const MAX_SEED = 2_147_483_647;
 const MAX_STEPS = 1_000;
+const MAX_CLOUD_I2I_SOURCE_BYTES = 512_000;
+
+export interface ImageToImageTaskOptions {
+  sourceUrl: string;
+  prompt: string;
+  strength: number;
+  count: number;
+  model?: 'z-image';
+  execution?: 'cloud';
+  basedOn?: string;
+  sourceVariantId?: string | null;
+  loraCount?: number;
+  enablePromptExpansion?: boolean;
+  createAsGeneration?: boolean;
+  toolTypeOverride?: string;
+  shotId?: string;
+}
 
 export interface CompiledImageGenerationParams {
   model: string;
@@ -178,6 +199,94 @@ export async function createImageGenerationTasks(
       output_bytes: capability.estimated_output_bytes * spec.count,
     },
     settlement_effect: {},
+  });
+  const taskIds = result.task_ids ?? [result.task_id];
+  return {
+    task_id: taskIds[0] ?? '',
+    task_ids: taskIds,
+    status: result.status ?? 'Queued',
+  };
+}
+
+/** Admit one narrow, CAS-backed z-image image-to-image task. */
+export async function createImageToImageTask(
+  project: string,
+  options: ImageToImageTaskOptions,
+): Promise<TaskCreationResult> {
+  if (options.model !== undefined && options.model !== 'z-image') {
+    throw new TaskValidationError('Only z-image is registered for the typed i2i route', 'model');
+  }
+  if (options.execution !== undefined && options.execution !== 'cloud') {
+    throw new TaskValidationError('The typed i2i route currently supports cloud execution only', 'execution');
+  }
+  if (!options.prompt.trim()) {
+    throw new TaskValidationError('Image-to-image prompt must be non-empty', 'prompt');
+  }
+  if (!Number.isFinite(options.strength) || options.strength < 0 || options.strength > 1) {
+    throw new TaskValidationError('Image-to-image strength must be between 0 and 1', 'strength');
+  }
+  const count = requireInteger(options.count, 'count', 1, MAX_IMAGES_PER_TASK);
+  if ((options.loraCount ?? 0) > 0) {
+    throw new TaskValidationError('LoRA controls are not part of the typed i2i route', 'loras');
+  }
+  if (options.enablePromptExpansion) {
+    throw new TaskValidationError('Prompt expansion is not part of the typed i2i route', 'enable_prompt_expansion');
+  }
+  if (options.createAsGeneration || options.toolTypeOverride || options.shotId) {
+    throw new TaskValidationError('Task-level legacy routing controls are not part of the typed i2i route', 'task_options');
+  }
+
+  const capability = await resolveTaskCapability(project, IMAGE_GENERATION_CAPABILITY_ID);
+  if (capability.estimated_scratch_bytes <= 0 || capability.estimated_output_bytes <= 0) {
+    throw new TaskValidationError(
+      'Astrid i2i capability has no nonzero storage estimate; producer admission is blocked',
+      'storage_estimate',
+    );
+  }
+  const source = await ingestProjectInputFromUrl(project, options.sourceUrl, {
+    maxBytes: MAX_CLOUD_I2I_SOURCE_BYTES,
+  });
+  if (!source.media_type.startsWith('image/')) {
+    throw new TaskValidationError('Image-to-image source must be an image media type', 'sourceUrl');
+  }
+  if (source.size > MAX_CLOUD_I2I_SOURCE_BYTES) {
+    throw new TaskValidationError(
+      'Cloud i2i source exceeds the currently verified provider upload boundary',
+      'sourceUrl',
+    );
+  }
+  const settlementEffect = {
+    ...(options.basedOn ? { based_on: options.basedOn } : {}),
+    ...(options.sourceVariantId ? { source_variant_id: options.sourceVariantId } : {}),
+  };
+  const result = await createTask({
+    project,
+    capability_id: IMAGE_GENERATION_CAPABILITY_ID,
+    capability_digest: capability.definition_digest,
+    schema_version: '1',
+    input_object_ids: [source.object_id],
+    spec: {
+      family: IMAGE_GENERATION_CAPABILITY_ID,
+      params: {
+        model: 'z-image',
+        mode: 'i2i',
+        execution: 'cloud',
+        prompt: options.prompt.trim(),
+        count,
+        strength: options.strength,
+          image_ref: {
+            digest: source.object_id,
+            filename: source.filename,
+            media_type: source.media_type,
+          },
+      },
+      output_policy: {},
+    },
+    storage_estimate: {
+      scratch_bytes: capability.estimated_scratch_bytes + source.size,
+      output_bytes: capability.estimated_output_bytes * count,
+    },
+    settlement_effect: settlementEffect,
   });
   const taskIds = result.task_ids ?? [result.task_id];
   return {

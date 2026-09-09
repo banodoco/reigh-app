@@ -28,10 +28,14 @@ export type RuntimeInput = Blob | Uint8Array | ArrayBuffer;
 export interface RuntimeInputIngestOptions {
   mediaType?: string;
   originalName?: string;
+  maxBytes?: number;
 }
 
 export interface RuntimeObjectReceipt {
   object_id: string;
+  media_type: string;
+  size: number;
+  filename: string;
   receipt: Record<string, unknown>;
 }
 
