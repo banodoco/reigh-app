@@ -63,6 +63,7 @@ export async function createBoundedImageEditTask(
   }
   const source = await ingestProjectInputFromUrl(project, options.sourceUrl, {
     maxBytes: SOURCE_MAX_BYTES,
+    requireImage: true,
   });
   if (!source.media_type.startsWith('image/')) {
     throw new TaskValidationError('Image edit source must be an image media type', 'sourceUrl');

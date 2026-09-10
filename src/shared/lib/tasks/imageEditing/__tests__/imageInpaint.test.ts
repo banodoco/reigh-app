@@ -54,7 +54,7 @@ describe('createImageInpaintTask', () => {
     expect(mockIngestProjectInputFromUrl).toHaveBeenCalledWith(
       'proj-1',
       'https://example.com/source.png',
-      { maxBytes: 512_000 },
+      { maxBytes: 512_000, requireImage: true },
     );
     expect(mockCreateTask).toHaveBeenCalledWith(expect.objectContaining({
       capability_id: IMAGE_EDIT_CAPABILITY_ID,
