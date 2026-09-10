@@ -1,5 +1,7 @@
 # Task & Worker Lifecycle
 
+> **Current post-cutover boundary (2026-09-10).** The diagrams and historical implementation notes below describe the retired Reigh/Supabase task lifecycle. New work must follow the canonical Astrid path: Reigh producer → Astrid Runtime admission → Worker `GenericPackHost` execution → Runtime settlement → CAS/gallery/timeline readback. Runtime owns task, run, receipt, event-history, and publication authority; Reigh does not insert or complete legacy task rows. See [`unified_task_creation.md`](unified_task_creation.md) for the current contract. The historical details are retained as migration context and are not an acceptance path.
+
 ## Overview
 
 Reigh uses an async task queue pattern for all AI generation workloads. This decouples the UI from long-running operations and enables distributed processing.

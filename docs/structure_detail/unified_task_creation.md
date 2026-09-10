@@ -1,150 +1,41 @@
-# Unified Task Creation System
+# Canonical Astrid execution and task admission
 
-## Purpose
+Status: post-cutover CPU boundary, 2026-09-10.
 
-Single `create-task` edge function handles all task creation. Clients send minimal intent (family + input); the edge function resolves defaults, validates, formats params, and inserts into `tasks`.
+Reigh is the client/editor and timeline consumer. Browser generation producers use the canonical task-creation client in `src/shared/lib/taskCreation/createTask.ts`, which admits a typed request through `src/integrations/astrid/client.ts`. Astrid Runtime owns task, run, receipt, event-history, and settlement authority. The Worker executes the admitted work through Runtime's `GenericPackHost`; Runtime settlement publishes output and provenance to CAS, and Reigh reads the result through the canonical gallery or timeline readback path.
 
-## Source of Truth
+## Supported execution path
 
-| What | Where |
-|------|-------|
-| Client helper (`createTask`) | `src/shared/lib/taskCreation/createTask.ts` |
-| Shared utilities (`generateTaskId`, etc.) | `src/shared/lib/taskCreation/` |
-| Edge function + resolvers | `supabase/functions/create-task/` |
-| Family resolvers | `supabase/functions/create-task/resolvers/` |
-| Task type routing | `task_types` table (DB) |
-
-## Architecture
-
-```
-UI Component
-  → createTask({ family, project_id, input })
-    → create-task Edge Function
-      → Auth (JWT/PAT/service-role)
-      → Resolver dispatch (family → resolver function)
-        → Resolver: validates, fills defaults, formats params, generates IDs
-      → INSERT into tasks table (batch: N inserts in a loop)
-      → Response: { task_id } or { task_ids } for batch
-        → DB Trigger: on_task_created — looks up task_types, sets run_type
-          → Worker picks up task (see task_worker_lifecycle.md)
+```text
+UI producer
+  -> Reigh createTask
+  -> Astrid Runtime admission (family, project, CAS/input refs, idempotency)
+  -> Worker Runtime/GenericPackHost execution
+  -> Runtime-owned settlement and receipts
+  -> CAS/gallery/timeline readback
 ```
 
-## Request Format
+This path is the authority for supported image, video, character-animation, and related producers. Input identity, ordered inputs, output validation, idempotency, and publication are carried by the admitted Runtime task and its settlement fence.
 
-```json
-{
-  "family": "image_generation",
-  "project_id": "...",
-  "input": {
-    "prompt": "a sunset over mountains",
-    "model_name": "wan_2_2_t2i",
-    "count": 4
-  },
-  "idempotency_key": "..."
-}
-```
+The `supabase/functions/ai-timeline-agent` surface remains a timeline editing and read-context surface. Its timeline commands and existing canonical producer integrations may consume returned CAS media, but the agent does not create tasks, inspect legacy task rows, poll legacy workers, or perform generation settlement.
 
-## Response Format
+## Retired legacy boundary
 
-Single task:
-```json
-{ "task_id": "...", "status": "Task queued" }
-```
+`supabase/functions/create-task` now performs only CORS/auth bootstrap. An authenticated POST returns the stable non-retryable `410 legacy_task_endpoint_removed` response before any task, route, materialization, or recovery database operation.
 
-Batch (count > 1):
-```json
-{ "task_ids": ["...", "..."], "status": "Task queued" }
-```
+The agent's historical `create_task`, `get_tasks`, and `delegateToBanodocoAgent` names are fail-closed compatibility stubs and are not model-visible. `run generate` is likewise retired from the live agent registry. There is no browser-side fallback to route derivation, `materialized_inputs`, legacy `task_types`, direct task insertion, or legacy task lifecycle writes.
 
-With metadata (e.g., travel):
-```json
-{ "task_id": "...", "status": "Task queued", "meta": { "parentGenerationId": "..." } }
-```
+## Worker and route boundary
 
-## Task Families
+The retained Worker route catalog and Stage1 substrate describe execution capability only. They are not an admission authority and do not justify a browser producer or a direct task-table write. Retry and status operations use the Runtime edge contract; the Worker has no direct database fallback for task lifecycle writes.
 
-| Family | Resolver | Batch | Notes |
-|--------|----------|-------|-------|
-| `image_generation` | `imageGeneration.ts` | Yes (prompts × count) | Resolution scaling, LoRA formatting, references, hires fix |
-| `image_upscale` | `imageUpscale.ts` | No | Lineage tracking |
-| `video_enhance` | `videoEnhance.ts` | No | Interpolation + upscale modes |
-| `z_image_turbo_i2i` | `zImageTurboI2I.ts` | Yes (numImages) | Different LoRA format ({path, scale}) |
-| `magic_edit` | `magicEdit.ts` | Yes (numImages) | Resolution from project settings |
-| `masked_edit` | `maskedEdit.ts` | Yes (num_generations) | Inpaint + annotated edit |
-| `join_clips` | `joinClips.ts` | No | Phase config, VACE, per-join overrides |
-| `individual_travel_segment` | `individualTravelSegment.ts` | No | DB queries for generation routing |
-| `travel_between_images` | `travelBetweenImages.ts` | No | Returns parentGenerationId in meta |
-| `crossfade_join` | `crossfadeJoin.ts` | No | Simple crossfade |
-| `edit_video_orchestrator` | `editVideoOrchestrator.ts` | No | Video editing orchestration |
-| `character_animate` | `characterAnimate.ts` | No | Character animation |
+## Acceptance evidence
 
-## Adding a New Task Family
+- Reigh source boundary: commit `87a98d3`.
+- Worker retry boundary: commit `50c6bf1`; supported launcher lineage remains `41df4b0`.
+- Affected Reigh edge suite: 190 tests passed.
+- Canonical producer regression suite: 39 tests passed.
+- Strict island typecheck and targeted lint passed.
+- Worker focused residual suite: 30 tests passed.
 
-1. Create `supabase/functions/create-task/resolvers/myFamily.ts`
-2. Implement the `TaskFamilyResolver` interface: `(request, context) => Promise<ResolverResult>`
-3. Register in `resolvers/registry.ts`
-4. Ensure a matching `task_types.name` row exists in DB
-
-## Resolver Interface
-
-```typescript
-interface ResolveRequest {
-  family: string;
-  project_id: string;
-  input: Record<string, unknown>;
-}
-
-interface ResolverContext {
-  supabaseAdmin: SupabaseClient;
-  projectId: string;
-  aspectRatio: string | null;
-  logger: Logger;
-}
-
-interface ResolverResult {
-  tasks: TaskInsertObject[];
-  meta?: Record<string, unknown>;
-}
-```
-
-## Authentication Flow
-
-| Method | When Used | How It Works |
-|--------|-----------|--------------|
-| Service Role | Internal/server calls | Token matches `SERVICE_ROLE_KEY` |
-| JWT | Frontend (Supabase auth) | Decodes JWT, extracts `payload.sub` as user ID |
-| PAT | External API integrations | Looks up token in `user_api_tokens` table |
-
-## Batch Idempotency
-
-- Client sends a stable `idempotency_key` with each request
-- For batch (count > 1), server derives per-task keys: `SHA-256(clientKey + ":" + taskIndex)`
-- Retries produce identical keys → duplicates recovered via existing 23505 handler
-
-## The `task_type` to `task_types` Contract
-
-When a resolver produces `{ task_type: 'travel_orchestrator', ... }`:
-
-1. `task_type` string is stored in `tasks.task_type` column
-2. DB trigger `on_task_created` looks up this string in `task_types.name`
-3. The matching row's `run_type` (`'gpu'` or `'api'`) determines which worker pool claims it
-4. **If no matching `task_types` row exists, defaults to `run_type='gpu'`**
-
-## Key Invariants
-
-- All param building, validation, defaults, and formatting happens in server-side resolvers, not client-side.
-- Resolvers must produce params blobs that match what workers expect — workers are not changed.
-- The `family` field is required on every request. There is no raw `{ params, task_type }` path.
-- Authentication order matters: Service Role > JWT > PAT. First match wins.
-- `generateTaskId()` creates a prefixed UUID stored in `tasks.params`, not as the DB primary key.
-- Resolution is resolved server-side from project's `aspect_ratio` setting.
-
-## Error Handling
-
-| Error Type | Cause |
-|------------|-------|
-| Validation | Missing/invalid params (caught in resolver, returned as 400) |
-| Authentication | Missing or invalid token |
-| Authorization | User doesn't own the target project |
-| Unknown family | `family` value not in resolver registry |
-| Database | Constraint violations on INSERT |
+These are CPU boundary claims. They do not claim GPU/model/provider availability. Final CR2 closure remains a separate evidence and review step.
