@@ -28,6 +28,7 @@ import {
   BRIDGE_VERSION_CONFLICT_CODE,
   runtimeGenerationPageSchema,
   runtimeGenerationResourceSchema,
+  runtimeProjectPageSchema,
   runtimeMutationReceiptSchema,
   runtimeTaskPageSchema,
   runtimeTaskResourceSchema,
@@ -556,7 +557,24 @@ export function createFakeBridgeRouter(): FakeBridgeRouter {
       return json(200, { items, next_cursor: next });
     }
 
-    if (parts[0] === 'health' && request.method === 'GET') return json(200, { ok: true });
+    if (parts[0] === 'v1' && parts[1] === 'health' && request.method === 'GET') return json(200, { ok: true });
+    if (parts[0] === 'v1' && parts[1] === 'projects' && parts.length === 2 && request.method === 'GET') {
+      const page = {
+        items: [{
+          project_id: 'demo-project-id',
+          slug: state.project.slug,
+          name: state.project.name,
+          metadata: {},
+          version: 1,
+          created_at: '2026-09-06T00:00:00Z',
+          updated_at: '2026-09-06T00:00:00Z',
+          archived: false,
+        }],
+        next_cursor: null,
+      };
+      runtimeProjectPageSchema.parse(page);
+      return json(200, page);
+    }
     if (parts[0] === 'projects' && parts.length === 1) return json(200, { projects: [state.project] });
 
     // Timeline discovery / load / CAS save (frozen contract, unchanged).

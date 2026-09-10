@@ -46,7 +46,8 @@ describe('Astrid boot capability census', () => {
     const router = createFakeBridgeRouter();
     installFetch(async (request) => {
       const pathname = new URL(request.url).pathname;
-      if (/\/(tasks|generations)(?:\?|$)/.test(pathname) || pathname.includes('/media/')) {
+      if (/\/v1\/(?:projects\/[^/]+\/)?(?:tasks|generations)(?:\/|\?|$)/.test(pathname)
+        || /\/v1\/objects\//.test(pathname)) {
         return Response.json(
           { error: 'not_found', detail: `unknown route: ${pathname}` },
           { status: 404 },
@@ -79,12 +80,13 @@ describe('Astrid boot capability census', () => {
     installFetch(async (request) => {
       const url = new URL(request.url);
       requests.push(url.pathname);
-      if (url.pathname.endsWith('/projects')) {
+      if (url.pathname.endsWith('/v1/projects')) {
         return Response.json({
-          projects: [
-            { slug: 'first-project', name: 'First Project' },
-            { slug: 'selected-project', name: 'Selected Project' },
+          items: [
+            { project_id: 'first-id', slug: 'first-project', name: 'First Project', metadata: {}, version: 1, created_at: '2026-09-06T00:00:00Z', updated_at: '2026-09-06T00:00:00Z', archived: false },
+            { project_id: 'selected-id', slug: 'selected-project', name: 'Selected Project', metadata: {}, version: 1, created_at: '2026-09-06T00:00:00Z', updated_at: '2026-09-06T00:00:00Z', archived: false },
           ],
+          next_cursor: null,
         });
       }
       return router.handle(request);
@@ -94,13 +96,13 @@ describe('Astrid boot capability census', () => {
 
     expect(result.projectSlug).toBe('selected-project');
     expect(requests).toEqual(expect.arrayContaining([
-      '/api/astrid/projects/selected-project/tasks',
-      '/api/astrid/projects/selected-project/generations',
+      '/api/astrid/v1/projects/selected-project/tasks',
+      '/api/astrid/v1/projects/selected-project/generations',
     ]));
-    expect(requests.some((pathname) => pathname.startsWith('/api/astrid/projects/selected-project/media/'))).toBe(true);
-    expect(requests.every((pathname) => !pathname.startsWith('/api/astrid/projects/first-project/media/'))).toBe(true);
-    expect(requests).not.toContain('/api/astrid/projects/first-project/tasks');
-    expect(requests).not.toContain('/api/astrid/projects/first-project/generations');
+    expect(requests.some((pathname) => pathname.startsWith('/api/astrid/v1/objects/'))).toBe(true);
+    expect(requests.every((pathname) => !pathname.includes('/v1/projects/first-project/'))).toBe(true);
+    expect(requests).not.toContain('/api/astrid/v1/projects/first-project/tasks');
+    expect(requests).not.toContain('/api/astrid/v1/projects/first-project/generations');
   });
 
   it.each([
@@ -111,12 +113,13 @@ describe('Astrid boot capability census', () => {
     const router = createFakeBridgeRouter();
     installFetch(async (request) => {
       const url = new URL(request.url);
-      if (url.pathname.endsWith('/projects')) {
+      if (url.pathname.endsWith('/v1/projects')) {
         return Response.json({
-          projects: [
-            { slug: 'first-project', name: 'First Project' },
-            { slug: 'second-project', name: 'Second Project' },
+          items: [
+            { project_id: 'first-id', slug: 'first-project', name: 'First Project', metadata: {}, version: 1, created_at: '2026-09-06T00:00:00Z', updated_at: '2026-09-06T00:00:00Z', archived: false },
+            { project_id: 'second-id', slug: 'second-project', name: 'Second Project', metadata: {}, version: 1, created_at: '2026-09-06T00:00:00Z', updated_at: '2026-09-06T00:00:00Z', archived: false },
           ],
+          next_cursor: null,
         });
       }
       return router.handle(request);
@@ -132,12 +135,13 @@ describe('Astrid boot capability census', () => {
     const router = createFakeBridgeRouter();
     installFetch(async (request) => {
       const url = new URL(request.url);
-      if (url.pathname.endsWith('/projects')) {
+      if (url.pathname.endsWith('/v1/projects')) {
         return Response.json({
-          projects: [
-            { slug: 'first-project', name: 'First Project' },
-            { slug: 'second-project', name: 'Second Project' },
+          items: [
+            { project_id: 'first-id', slug: 'first-project', name: 'First Project', metadata: {}, version: 1, created_at: '2026-09-06T00:00:00Z', updated_at: '2026-09-06T00:00:00Z', archived: false },
+            { project_id: 'second-id', slug: 'second-project', name: 'Second Project', metadata: {}, version: 1, created_at: '2026-09-06T00:00:00Z', updated_at: '2026-09-06T00:00:00Z', archived: false },
           ],
+          next_cursor: null,
         });
       }
       return router.handle(request);
@@ -151,9 +155,9 @@ describe('Astrid boot capability census', () => {
   it('does not mistake transport uncertainty for permanent capability absence', async () => {
     installFetch(async (request) => {
       const pathname = new URL(request.url).pathname;
-      if (pathname.endsWith('/health')) return Response.json({ ok: true });
-      if (pathname.endsWith('/projects')) {
-        return Response.json({ projects: [{ slug: 'p', name: 'P' }] });
+      if (pathname.endsWith('/v1/health')) return Response.json({ ok: true });
+      if (pathname.endsWith('/v1/projects')) {
+        return Response.json({ items: [{ project_id: 'p-id', slug: 'p', name: 'P', metadata: {}, version: 1, created_at: '2026-09-06T00:00:00Z', updated_at: '2026-09-06T00:00:00Z', archived: false }], next_cursor: null });
       }
       throw new Error('socket closed');
     });

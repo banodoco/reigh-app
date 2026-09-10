@@ -1,7 +1,7 @@
 /**
  * Browser-side availability check for Astrid's doctor-owned local setup.
  *
- * The frozen HTTP bridge exposes liveness at `/health`, not the full CLI
+ * The neutral Runtime exposes liveness at `/v1/health`, not the full CLI
  * doctor report. This probe therefore answers only whether the local runtime
  * is available. Detailed remediation remains owned by the read-only
  * `python3 -m astrid doctor --json` command.

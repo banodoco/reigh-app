@@ -2,7 +2,7 @@
  * The boot/auth seam — one probe, one authority.
  *
  * `AuthProvider` resolves the fixed local user by asking the Astrid local
- * bridge whether it is alive (`GET /health`, same-origin `/api/astrid` —
+ * bridge whether it is alive (`GET /v1/health`, same-origin `/api/astrid` —
  * the development vite proxy). There is no login: a healthy bridge IS the
  * session. The resolved user id is a fixed local identity (doc 27 §4.7:
  * the per-boot request token is a request capability delivered out of band
@@ -31,7 +31,7 @@ export type BridgeSessionProbeResult =
   | { ok: false; reason: string };
 
 /**
- * Probe `/api/astrid/health` and resolve the fixed local user from it.
+ * Probe `/api/astrid/v1/health` and resolve the fixed local user from it.
  * Never throws — every failure comes back as `{ ok: false }`.
  */
 export async function probeBridgeSession(
@@ -39,7 +39,7 @@ export async function probeBridgeSession(
 ): Promise<BridgeSessionProbeResult> {
   let response: Response;
   try {
-    response = await fetch(`${baseUrl.replace(/\/+$/, '')}/health`, {
+    response = await fetch(`${baseUrl.replace(/\/+$/, '')}/v1/health`, {
       signal: AbortSignal.timeout(BRIDGE_REQUEST_TIMEOUT_MS),
     });
   } catch (cause) {

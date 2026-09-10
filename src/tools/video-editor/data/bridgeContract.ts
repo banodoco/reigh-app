@@ -350,6 +350,19 @@ export const bridgeTaskAdmissionResponseSchema = z.looseObject({
 // projects them onto the app's older task/gallery read models.
 // ---------------------------------------------------------------------------
 
+export const runtimeProjectResourceSchema = z.looseObject({
+  project_id: z.string().min(1),
+  slug: z.string().min(1),
+  name: z.string().min(1),
+  metadata: jsonObject,
+  version: z.number().int().positive(),
+  created_at: z.string().min(1),
+  updated_at: z.string().min(1),
+  archived: z.boolean(),
+});
+
+export const runtimeProjectPageSchema = runtimePageSchema(runtimeProjectResourceSchema);
+
 export const runtimeTaskStateSchema = z.enum([
   'queued',
   'blocked',

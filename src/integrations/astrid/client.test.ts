@@ -57,6 +57,7 @@ describe('AstridLocalClient', () => {
     await expect(client.projects.list()).resolves.toEqual([
       expect.objectContaining({ slug: 'demo-project' }),
     ]);
+    expect(vi.mocked(globalThis.fetch).mock.calls[0]?.[0]).toContain('/v1/projects?limit=200');
   });
 
   // -- Admission ------------------------------------------------------------

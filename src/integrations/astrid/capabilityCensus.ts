@@ -7,8 +7,8 @@ import { getLocalProjectSlug } from '@/shared/dev/devSession.ts';
 import { AstridBridgeTransport, BridgeRouteError } from './transport.ts';
 import { AstridLocalProjectRoutes } from './projectRoutes.ts';
 import {
-  bridgeGenerationListSchema,
-  bridgeTaskListSchema,
+  runtimeGenerationPageSchema,
+  runtimeTaskPageSchema,
 } from '@/tools/video-editor/data/bridgeContract.ts';
 
 export type AstridCapability = 'tasks' | 'generations' | 'media';
@@ -84,11 +84,12 @@ async function probeJsonCapability(operation: () => Promise<unknown>) {
 
 async function probeMediaCapability(
   transport: AstridBridgeTransport,
-  projectSlug: string,
   knownMediaId?: string,
 ): Promise<{ support: AstridCapabilitySupport; reason?: string }> {
-  const mediaRef = knownMediaId || '__reigh_capability_probe__';
-  const contentPath = `/projects/${encodeURIComponent(projectSlug)}/media/${encodeURIComponent(mediaRef)}/content`;
+  const mediaRef = knownMediaId?.startsWith('sha256:')
+    ? knownMediaId
+    : `sha256:${'0'.repeat(64)}`;
+  const contentPath = `/v1/objects/${encodeURIComponent(mediaRef)}`;
   try {
     const response = await transport.requestRaw(
       contentPath,
@@ -109,8 +110,14 @@ async function probeMediaCapability(
       );
       let detail = '';
       try {
-        const body = await diagnostic.json() as { detail?: unknown };
-        detail = typeof body.detail === 'string' ? body.detail : '';
+        const body = await diagnostic.json() as {
+          detail?: unknown;
+          message?: unknown;
+          code?: unknown;
+        };
+        detail = [body.detail, body.message, body.code]
+          .filter((value): value is string => typeof value === 'string')
+          .join(' ');
       } catch {
         // A plain 404 is the ordinary "media object absent" route answer.
       }
@@ -133,15 +140,15 @@ async function probeGenerationCapability(
   encodedProject: string,
 ): Promise<{ support: AstridCapabilitySupport; reason?: string; mediaId?: string }> {
   try {
-    const page = await transport.requestJson(
-      `/projects/${encodedProject}/generations?limit=1`,
+    await transport.requestJson(
+      `/v1/projects/${encodedProject}/generations?limit=1`,
       {},
-      bridgeGenerationListSchema,
+      runtimeGenerationPageSchema,
       'generation capability probe',
     );
     return {
       support: 'supported',
-      mediaId: page.generations.find((generation) => generation.primary)?.primary?.media_id,
+      mediaId: undefined,
     };
   } catch (error) {
     return supportAfterProbe(error);
@@ -218,9 +225,9 @@ export async function inspectAstridCapabilities(
   const encodedProject = encodeURIComponent(projectSlug);
   const [tasks, generations] = await Promise.all([
     probeJsonCapability(() => transport.requestJson(
-      `/projects/${encodedProject}/tasks?limit=1`,
+      `/v1/projects/${encodedProject}/tasks?limit=1`,
       {},
-      bridgeTaskListSchema,
+      runtimeTaskPageSchema,
       'task capability probe',
     )),
     probeGenerationCapability(transport, encodedProject),
@@ -228,7 +235,7 @@ export async function inspectAstridCapabilities(
   // When the bridge already exposed a primary managed-media id, probe that
   // real object instead of intentionally generating a noisy sentinel 404.
   // Empty/older galleries retain the diagnostic sentinel fallback.
-  const media = await probeMediaCapability(transport, projectSlug, generations.mediaId);
+  const media = await probeMediaCapability(transport, generations.mediaId);
   const capabilities = {
     tasks: tasks.support,
     generations: generations.support,
