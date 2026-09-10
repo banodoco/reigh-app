@@ -118,8 +118,8 @@ export function useVideoEditContextValue(props: UseVideoEditContextValueProps): 
         enableUpscale: variantParamsToLoad.enable_upscale ?? true,
         numFrames: variantParamsToLoad.num_frames ?? 1,
         upscaleFactor: variantParamsToLoad.upscale_factor ?? 2,
-        colorFix: variantParamsToLoad.color_fix ?? true,
-        outputQuality: variantParamsToLoad.output_quality ?? 'high',
+        colorFix: variantParamsToLoad.color_fix ?? false,
+        outputQuality: variantParamsToLoad.output_quality ?? 'maximum',
       } as VideoEnhanceSettings);
       setVariantParamsToLoad(null);
     } else {

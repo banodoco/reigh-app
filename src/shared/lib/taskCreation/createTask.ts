@@ -152,6 +152,12 @@ export async function ingestProjectInput(
   options: RuntimeInputIngestOptions = {},
 ): Promise<RuntimeObjectReceipt> {
   const source = await inputBytes(input);
+  if (options.maxBytes !== undefined && source.bytes.byteLength > options.maxBytes) {
+    throw new TaskValidationError(
+      `Source media exceeds the ${options.maxBytes}-byte ingest boundary`,
+      options.field ?? 'sourceUrl',
+    );
+  }
   const mediaType = options.mediaType ?? source.mediaType;
   if (mediaType === undefined || mediaType.length === 0) {
     throw new TaskValidationError('A media type is required for Runtime CAS ingest', 'mediaType');

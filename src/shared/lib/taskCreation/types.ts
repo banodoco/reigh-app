@@ -52,6 +52,8 @@ export interface RuntimeInputIngestOptions {
   mediaType?: string;
   originalName?: string;
   maxBytes?: number;
+  /** Field to associate with bounded local-input failures. */
+  field?: string;
   /** Validate common image signatures before committing producer bytes. */
   requireImage?: boolean;
 }
