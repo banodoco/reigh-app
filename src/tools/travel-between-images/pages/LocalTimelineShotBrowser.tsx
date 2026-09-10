@@ -12,7 +12,6 @@ import { ShotEditorView } from './ShotEditorView.tsx';
 import {
   selectDocumentDerivedShots,
   selectDocumentDerivedShotModels,
-  type LocalTimelineShot,
 } from './localTimelineShotModel.ts';
 
 type LocalTimelineShotBrowserProps = {
@@ -100,7 +99,7 @@ export function LocalTimelineShotBrowser({ projectSlug, timelineRef }: LocalTime
     navigate({ pathname: location.pathname, search: location.search, hash: '' }, { replace: true });
   }, [documentQuery.error, documentQuery.isLoading, location.hash, location.pathname, location.search, navigate, selectedShot]);
 
-  const selectShot = (shot: LocalTimelineShot) => {
+  const selectShot = (shot: { id: string; name?: string }) => {
     // The hash is durable and linkable while the document query remains local.
     navigate({
       pathname: location.pathname,

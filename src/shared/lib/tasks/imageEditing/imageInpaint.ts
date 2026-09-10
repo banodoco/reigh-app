@@ -3,7 +3,6 @@ import {
   ingestProjectInputFromUrl,
   resolveTaskCapability,
 } from '@/shared/lib/taskCreation';
-import type { LocalWorkerSession } from '@/shared/lib/taskCreation/localWorkerSession';
 import { TaskValidationError, type TaskCreationResult } from '@/shared/lib/taskCreation/types';
 import type { MaskedEditTaskParams } from './buildMaskedEditTaskParams';
 
@@ -102,29 +101,10 @@ export async function createBoundedImageEditTask(
 }
 
 export function createImageInpaintTask(
-  params: CreateImageInpaintTaskParams,
-  session?: LocalWorkerSession,
+  _params: CreateImageInpaintTaskParams,
 ): Promise<string> {
-  return createTask(
-    {
-      project_id: params.project_id,
-      family: 'masked_edit',
-      input: {
-        task_type: 'image_inpaint',
-        image_url: params.image_url,
-        mask_url: params.mask_url,
-        prompt: params.prompt,
-        num_generations: params.num_generations,
-        generation_id: params.generation_id,
-        shot_id: params.shot_id,
-        tool_type: params.tool_type,
-        loras: params.loras,
-        create_as_generation: params.create_as_generation,
-        source_variant_id: params.source_variant_id,
-        hires_fix: params.hires_fix,
-        qwen_edit_model: params.qwen_edit_model,
-      },
-    },
-    session ? { localWorkerSession: session } : undefined,
-  ).then((result) => result.task_id);
+  return Promise.reject(new TaskValidationError(
+    'Masked image edits are blocked until Astrid publishes a bounded mask-capable edit capability',
+    'capability_id',
+  ));
 }

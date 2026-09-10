@@ -22,6 +22,8 @@ export {
 export {
   createTask,
   bindTaskCapability,
+  ingestProjectInput,
+  ingestProjectInputFromUrl,
   resolveTaskCapability,
 } from './taskCreation/createTask';
 

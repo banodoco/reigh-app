@@ -25,6 +25,17 @@ interface CreateTaskOptions {
   [key: string]: unknown;
 }
 
+/**
+ * Legacy producer envelope accepted only so residual callers fail at the
+ * canonical boundary with a typed error.  It is never translated or sent to
+ * Runtime; removing this overload is part of the later deletion receipt.
+ */
+interface LegacyTaskEnvelope {
+  project_id: string;
+  family: string;
+  input: unknown;
+}
+
 function getNetworkDiagnostics(): Record<string, unknown> {
   const diag: Record<string, unknown> = {
     online: navigator.onLine,
@@ -39,7 +50,13 @@ function getNetworkDiagnostics(): Record<string, unknown> {
 }
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  // Copy into an ArrayBuffer-backed view.  Browser TypeScript definitions
+  // reject Uint8Array<ArrayBufferLike> as a BufferSource because the input
+  // may be backed by SharedArrayBuffer; the copy also makes the hashed bytes
+  // immutable for the duration of the digest call.
+  const owned = new Uint8Array(bytes.byteLength);
+  owned.set(bytes);
+  const digest = await crypto.subtle.digest('SHA-256', owned.buffer);
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
@@ -210,11 +227,25 @@ async function validateAdmissionAuthority(taskParams: BaseTaskParams): Promise<B
  * Retries once on transport failure since admission is receipted: replaying
  * the same key either dedups or 409s, never double-admits.
  */
-export async function createTask(
+export function createTask(
+  taskParams: LegacyTaskEnvelope,
+  options?: CreateTaskOptions,
+): Promise<never>;
+export function createTask(
   taskParams: BaseTaskParams,
+  options?: CreateTaskOptions,
+): Promise<TaskCreationResult>;
+export async function createTask(
+  taskParams: BaseTaskParams | LegacyTaskEnvelope,
   options?: CreateTaskOptions,
 ): Promise<TaskCreationResult> {
   void options;
+  if ('project_id' in taskParams) {
+    throw new TaskValidationError(
+      `Legacy task family ${taskParams.family} is unsupported; migrate the producer to a canonical Astrid capability before submission`,
+      'capability_id',
+    );
+  }
   const validatedTaskParams = await validateAdmissionAuthority(taskParams);
   const startTime = Date.now();
   const requestId = `${startTime}-${Math.random().toString(36).slice(2, 8)}`;

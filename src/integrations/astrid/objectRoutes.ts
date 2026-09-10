@@ -40,9 +40,11 @@ export class AstridLocalObjectRoutes {
       'Idempotency-Key': idempotencyKey,
     };
     if (originalName !== undefined) headers['X-Original-Name'] = originalName;
+    const owned = new Uint8Array(bytes.byteLength);
+    owned.set(bytes);
     return await this.transport.requestJson(
       this.path(),
-      { method: 'POST', rawBody: bytes, headers },
+      { method: 'POST', rawBody: owned.buffer, headers },
       projectObjectMutationSchema,
       'project object ingest',
     );

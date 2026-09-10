@@ -4,7 +4,6 @@ import { isCancellationError } from '@/shared/lib/errorHandling/errorUtils';
 import { normalizeAndPresentError, type RuntimeErrorOptions } from '@/shared/lib/errorHandling/runtimeError';
 import { ValidationError } from '@/shared/lib/errorHandling/errors';
 import { queryKeys } from '@/shared/lib/queryKeys';
-import { createTask } from '@/shared/lib/taskCreation';
 import { toJson } from '@/shared/lib/supabaseTypeHelpers';
 import {
   DEFAULT_STRUCTURE_GUIDANCE_CONTROLS,
@@ -18,7 +17,6 @@ import { stripModeFromPhaseConfig } from '@/shared/components/SegmentSettingsFor
 import type { GenerationRow, Shot } from '@/domains/generation/types';
 import {
   operationFailure,
-  operationSuccess,
 } from '@/shared/lib/operationResult';
 import {
   buildBasicModeGenerationRequest,
@@ -275,6 +273,14 @@ export async function generateVideo(params: GenerateVideoParams): Promise<Genera
     );
   }
 
+  return failureResult(
+    new ValidationError(
+      'Travel-between-images generation is blocked until Astrid publishes a lossless canonical capability for ordered image pairs, continuation, and lineage.',
+      { field: 'capability_id' },
+    ),
+    { context: 'generateVideoService', toastTitle: 'Travel generation is not yet supported' },
+  );
+
   await waitForPendingMutations(queryClient);
   const spec = getModelSpec(modelConfig.selectedModel);
   const policy = resolveGenerationPolicy(spec, {
@@ -368,7 +374,7 @@ export async function generateVideo(params: GenerateVideoParams): Promise<Genera
 
   if (modelPhaseSelection.effectivePhaseConfig) {
     try {
-      validatePhaseConfigConsistency(modelPhaseSelection.effectivePhaseConfig);
+      validatePhaseConfigConsistency(modelPhaseSelection.effectivePhaseConfig!);
     } catch (error) {
       return failureResult(error, {
         context: 'generateVideoService',
@@ -447,19 +453,13 @@ export async function generateVideo(params: GenerateVideoParams): Promise<Genera
     const normalizedRequestBody = requestBody.model_name?.includes('ltx2')
       ? { ...requestBody, turbo_mode: false }
       : requestBody;
-    const { project_id, ...input } = normalizedRequestBody;
-    const result = await createTask({
-      project_id,
-      family: 'travel_between_images',
-      input,
-    });
-    return operationSuccess(
-      {
-        parentGenerationId: typeof result.meta?.parentGenerationId === 'string'
-          ? result.meta.parentGenerationId
-          : normalizedRequestBody.parent_generation_id,
-      },
-      { policy: 'best_effort' },
+    void normalizedRequestBody;
+    return failureResult(
+      new ValidationError(
+        'Travel-between-images generation is blocked until Astrid publishes a lossless canonical capability.',
+        { field: 'capability_id' },
+      ),
+      { context: 'generateVideoService', toastTitle: 'Travel generation is not yet supported' },
     );
   } catch (error) {
     return failureResult(error, {

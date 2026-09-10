@@ -126,7 +126,8 @@ export function compileImageGenerationParams(
     ['subject_strength', 'reference strength'],
     ['in_this_scene_strength', 'reference strength'],
   ] as const;
-  const unsupportedControl = unsupportedControls.find(([key]) => params[key] !== undefined);
+  const rawParams = params as unknown as Record<string, unknown>;
+  const unsupportedControl = unsupportedControls.find(([key]) => rawParams[key] !== undefined);
   if (unsupportedControl) {
     throw new TaskValidationError(
       `${unsupportedControl[1]} are not part of the typed text-image route`,
@@ -193,7 +194,7 @@ export async function createImageGenerationTasks(
     input_object_ids: [],
     spec: {
       family: IMAGE_GENERATION_CAPABILITY_ID,
-      params: spec,
+      params: { ...spec },
       output_policy: {},
     },
     storage_estimate: {

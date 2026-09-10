@@ -67,6 +67,16 @@ function admissionParams(overrides: Record<string, unknown> = {}) {
 }
 
 describe('createTask R1 admission over the fake bridge router', () => {
+  it('rejects legacy family envelopes before any Runtime request', async () => {
+    await expect(createTask({
+      project_id: 'demo-project',
+      family: 'travel_between_images',
+      input: { prompt: 'legacy' },
+    })).rejects.toThrow('Legacy task family travel_between_images is unsupported');
+    expect(router.state.admissions).toBe(0);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('admits with a per-call Idempotency-Key header and maps the response', async () => {
     const result = await createTask({
       ...admissionParams(),

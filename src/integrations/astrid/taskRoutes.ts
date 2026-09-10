@@ -27,6 +27,12 @@ export type TaskRoutesOptions = {
   projectSlug: string;
 };
 
+/** Legacy task envelope accepted only to produce a local fail-closed error. */
+interface LegacyBridgeTaskEnvelope {
+  family: string;
+  input: unknown;
+}
+
 export class AstridLocalTaskRoutes {
   private readonly transport: AstridBridgeTransport;
   private readonly projectSlug: string;
@@ -58,7 +64,20 @@ export class AstridLocalTaskRoutes {
   async admit(
     request: BridgeTaskAdmissionRequest,
     idempotencyKey: string,
+  ): Promise<BridgeTaskAdmissionResponse>;
+  async admit(
+    request: LegacyBridgeTaskEnvelope,
+    idempotencyKey: string,
+  ): Promise<BridgeTaskAdmissionResponse>;
+  async admit(
+    request: BridgeTaskAdmissionRequest | LegacyBridgeTaskEnvelope,
+    idempotencyKey: string,
   ): Promise<BridgeTaskAdmissionResponse> {
+    if ('family' in request && !('project' in request)) {
+      throw new Error(
+        `Legacy task family ${request.family} is unsupported; submit the canonical HC-04 admission envelope`,
+      );
+    }
     // Validate on the client too: an invalid admit must fail here, before a
     // receipted key is spent on a request the bridge would reject.
     const parsed = bridgeTaskAdmissionRequestSchema.parse(request);

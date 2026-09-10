@@ -15,23 +15,11 @@
  */
 
 import { QueryClient } from '@tanstack/react-query';
-import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
-import { createTask as createTaskRequest } from '@/shared/lib/taskCreation';
-import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
-import { joinPromptParts } from '@/shared/lib/tasks/promptAssembly';
-import { buildTaskParams, type SegmentSettings } from '@/shared/components/SegmentSettingsForm/segmentSettingsUtils';
-import type { IndividualTravelSegmentParams } from '@/shared/types/individualTravelSegment';
-import { persistSegmentEnhancedPrompt } from '@/shared/lib/tasks/segmentGenerationPersistence';
+import type { SegmentSettings } from '@/shared/components/SegmentSettingsForm/segmentSettingsUtils';
 import {
   buildTravelGuidanceFromControls,
   type TravelGuidanceMode,
 } from '@/shared/lib/tasks/travelGuidance';
-import { queryKeys } from '@/shared/lib/queryKeys';
-import {
-  getModelSpec,
-  resolveGenerationPolicy,
-  resolveSelectedModelFromModelName,
-} from '@/tools/travel-between-images/settings';
 import type {
   StructureVideoConfig,
   TravelGuidance,
@@ -176,199 +164,8 @@ interface SubmitSegmentTaskInput {
 type SegmentSubmissionNonFatalStep =
   | 'enhance_prompt'
   | 'metadata_fetch'
-  | 'metadata_update';
-
-type BuildTaskParams = (prompt: string, enhancedPromptParam?: string) => IndividualTravelSegmentParams;
-
-interface SubmitSegmentRuntime {
-  errorContext: string;
-  shouldSaveSettings: boolean;
-  saveSettings: () => Promise<boolean>;
-  effectiveSettings: SegmentSettings;
-  task: SegmentTaskContext;
-  queryClient: QueryClient;
-  buildParams: BuildTaskParams;
-  reportNonFatalError?: (step: SegmentSubmissionNonFatalStep, error: unknown) => void;
-}
-
-function buildSubmitParamsBuilder(
-  effectiveSettings: SegmentSettings,
-  task: SegmentTaskContext,
-  images: SegmentTaskImageContext,
-): BuildTaskParams {
-  const selectedModel = effectiveSettings.selectedModel
-    ?? resolveSelectedModelFromModelName(task.modelName);
-  const spec = getModelSpec(selectedModel);
-  const policy = resolveGenerationPolicy(spec, {
-    smoothContinuations: effectiveSettings.smoothContinuations ?? false,
-    requestedExecutionMode: task.generationTypeMode ?? 'i2v',
-    guidanceKind: (() => {
-      const guidance = task.structureInput?.travelGuidance;
-      if (!guidance || guidance.kind === 'none') {
-        return effectiveSettings.guidanceMode;
-      }
-      if (guidance.kind === 'uni3c') {
-        return 'uni3c';
-      }
-      return guidance.mode;
-    })(),
-  });
-  const continuationEnabled = task.segmentIndex > 0
-    && policy.continuation.enabled
-    && policy.continuation.strategy !== undefined;
-
-  return (prompt: string, enhancedPromptParam?: string) => {
-    return buildTaskParams(
-      { ...effectiveSettings, prompt },
-      {
-        projectId: task.projectId,
-        shotId: task.shotId,
-        generationId: task.generationId,
-        childGenerationId: task.childGenerationId,
-        segmentIndex: task.segmentIndex,
-        startImageUrl: images.startImageUrl ?? '',
-        endImageUrl: images.endImageUrl,
-        startImageGenerationId: images.startImageGenerationId,
-        endImageGenerationId: images.endImageGenerationId,
-        startImageVariantId: images.startImageVariantId,
-        endImageVariantId: images.endImageVariantId,
-        pairShotGenerationId: task.pairShotGenerationId,
-        projectResolution: task.projectResolution,
-        modelName: task.modelName,
-        modelType: policy.travelMode,
-        ...(continuationEnabled
-          ? {
-            continuationConfig: {
-              strategy: policy.continuation.strategy!,
-              overlap_frames: policy.continuation.overlapFrames,
-            },
-            frameOverlapFromPrevious: policy.continuation.overlapFrames,
-          }
-          : {
-            frameOverlapFromPrevious: 0,
-          }),
-        ...(enhancedPromptParam ? { enhancedPrompt: enhancedPromptParam } : {}),
-        ...(task.structureInput?.travelGuidance ? { travelGuidance: task.structureInput.travelGuidance } : {}),
-        skipMotionFields: !spec.supportsMotionFields,
-        originalParams: task.originalParams,
-      },
-    );
-  };
-}
-
-function applyPromptAffixes(settings: SegmentSettings, prompt: string): string {
-  return joinPromptParts(
-    [settings.textBeforePrompts, prompt, settings.textAfterPrompts],
-    'segment_space',
-  );
-}
-
-async function createTask(taskParams: ReturnType<BuildTaskParams>): Promise<string> {
-  const { project_id, ...input } = taskParams;
-  const result = await createTaskRequest({
-    project_id,
-    family: 'individual_travel_segment',
-    input,
-  });
-  if (!result.task_id) {
-    throw new Error('Failed to create task');
-  }
-  return result.task_id;
-}
-
-async function saveEnhancedPromptMetadata(
-  runtime: SubmitSegmentRuntime,
-  task: SegmentTaskContext,
-  queryClient: QueryClient,
-  enhancedPromptResult: string,
-  promptToEnhance: string,
-  basePrompt: string,
-): Promise<void> {
-  try {
-    const updated = await persistSegmentEnhancedPrompt({
-      pairShotGenerationId: task.pairShotGenerationId,
-      enhancedPrompt: enhancedPromptResult,
-      promptToEnhance,
-      basePrompt,
-      context: runtime.errorContext,
-    });
-
-    if (updated && task.pairShotGenerationId) {
-      queryClient.invalidateQueries({ queryKey: queryKeys.segments.pairMetadata(task.pairShotGenerationId) });
-    }
-  } catch (error) {
-    const step = error instanceof Error && error.message.includes('load segment metadata')
-      ? 'metadata_fetch'
-      : 'metadata_update';
-    runtime.reportNonFatalError?.(step, error);
-  }
-}
-
-async function maybeSaveSettings(runtime: SubmitSegmentRuntime): Promise<void> {
-  if (runtime.shouldSaveSettings) {
-    const didSave = await runtime.saveSettings();
-    if (!didSave) {
-      throw new Error('Failed to save segment settings before task submission');
-    }
-  }
-}
-
-async function submitStandardSegmentTask(runtime: SubmitSegmentRuntime): Promise<string> {
-  await maybeSaveSettings(runtime);
-  const finalPrompt = applyPromptAffixes(runtime.effectiveSettings, runtime.effectiveSettings.prompt?.trim() || '');
-  const taskParams = runtime.buildParams(finalPrompt);
-  return createTask(taskParams);
-}
-
-async function enhanceSegmentPrompt(
-  runtime: SubmitSegmentRuntime,
-  promptToEnhance: string,
-  defaultNumFrames: number,
-): Promise<string> {
-  const { data: enhanceResult, error: enhanceError } = await supabase().functions.invoke('ai-prompt', {
-    body: {
-      task: 'enhance_segment_prompt',
-      prompt: promptToEnhance,
-      temperature: 0.7,
-      numFrames: runtime.effectiveSettings.numFrames || defaultNumFrames,
-    },
-  });
-
-  if (enhanceError) {
-    runtime.reportNonFatalError?.('enhance_prompt', enhanceError);
-    normalizeAndPresentError(enhanceError, {
-      context: `${runtime.errorContext}.enhancePrompt`,
-      showToast: false,
-    });
-  }
-
-  return enhanceResult?.enhanced_prompt?.trim() || promptToEnhance;
-}
-
-async function submitEnhancedSegmentTask(
-  runtime: SubmitSegmentRuntime,
-  promptToEnhance: string,
-  defaultNumFrames: number,
-): Promise<string> {
-  await maybeSaveSettings(runtime);
-
-  const enhancedPromptResult = await enhanceSegmentPrompt(runtime, promptToEnhance, defaultNumFrames);
-  const originalPrompt = runtime.effectiveSettings.prompt?.trim() || '';
-  const originalPromptWithAffixes = applyPromptAffixes(runtime.effectiveSettings, originalPrompt);
-  const enhancedPromptWithAffixes = applyPromptAffixes(runtime.effectiveSettings, enhancedPromptResult);
-
-  await saveEnhancedPromptMetadata(
-    runtime,
-    runtime.task,
-    runtime.queryClient,
-    enhancedPromptResult,
-    promptToEnhance,
-    originalPrompt,
-  );
-
-  const taskParams = runtime.buildParams(originalPromptWithAffixes, enhancedPromptWithAffixes);
-  return createTask(taskParams);
-}
+  | 'metadata_update'
+  | 'unsupported_capability';
 
 /**
  * Submit a segment task, handling both enhanced and standard prompt paths.
@@ -376,52 +173,8 @@ async function submitEnhancedSegmentTask(
  * Returns immediately — task creation runs in the background (fire-and-forget).
  */
 export function submitSegmentTask(input: SubmitSegmentTaskInput): void {
-  const {
-    taskLabel,
-    errorContext,
-    getSettings,
-    saveSettings,
-    shouldSaveSettings,
-    shouldEnhance,
-    enhancedPrompt,
-    defaultNumFrames,
-    images,
-    task,
-    run,
-    queryClient,
-    onGenerateStarted,
-    onNonFatalError,
-  } = input;
-
-  const effectiveSettings = getSettings();
-  const promptToEnhance = enhancedPrompt?.trim() || effectiveSettings.prompt?.trim() || '';
-  const buildParams = buildSubmitParamsBuilder(effectiveSettings, task, images);
-
-  // Notify parent for optimistic UI
-  onGenerateStarted?.();
-
-  const runtime: SubmitSegmentRuntime = {
-    errorContext,
-    shouldSaveSettings,
-    saveSettings,
-    effectiveSettings,
-    task,
-    queryClient,
-    buildParams,
-    reportNonFatalError: onNonFatalError,
-  };
-
-  // Fire and forget — run() handles add/resolve/refetch/remove/error lifecycle
-  void run({
-    taskType: 'individual_travel_segment',
-    label: taskLabel,
-    context: errorContext,
-    toastTitle: 'Failed to create task',
-    create: async () => {
-      if (shouldEnhance && promptToEnhance) {
-        return submitEnhancedSegmentTask(runtime, promptToEnhance, defaultNumFrames);
-      }
-      return submitStandardSegmentTask(runtime);
-    },
-  });
+  const unsupported = new Error(
+    'Individual travel segment generation is blocked until a canonical Astrid capability preserves ordered image inputs, continuation state, and lineage.',
+  );
+  input.onNonFatalError?.('unsupported_capability', unsupported);
 }

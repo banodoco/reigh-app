@@ -63,6 +63,11 @@ export function useRepositionTaskCreation({
 
   // Generate transformed image and mask, then create inpaint task
   const handleGenerateReposition = useCallback(async () => {
+    toast.error(
+      'Repositioned inpainting is blocked until Astrid publishes a mask-capable edit capability.',
+    );
+    return;
+
     if (!selectedProjectId || !imageDimensions) {
       toast.error('Missing project or image dimensions');
       return;
@@ -124,6 +129,9 @@ export function useRepositionTaskCreation({
             uploadImageToStorage(transformedFile),
             uploadImageToStorage(maskFile)
           ]);
+          if (!transformedUrl || !maskUrl) {
+            throw new Error('Repositioned inpainting uploads did not return usable media URLs');
+          }
 
           // Create inpaint task with transformed image and mask
           const actualGenerationId = getGenerationId(media);
@@ -131,7 +139,7 @@ export function useRepositionTaskCreation({
 
           return createImageInpaintTask(
             buildMaskedEditTaskParams({
-              projectId: selectedProjectId,
+              projectId: selectedProjectId!,
               imageUrl: transformedUrl,
               maskUrl,
               prompt: effectivePrompt,
