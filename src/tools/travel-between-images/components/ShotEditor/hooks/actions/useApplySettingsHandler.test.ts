@@ -142,7 +142,7 @@ describe('useApplySettingsHandler', () => {
     });
 
     // Should have fetched the task
-    expect(mocks.fetchTask).toHaveBeenCalledWith('task-42');
+    expect(mocks.fetchTask).toHaveBeenCalledWith('project-1', 'task-42');
 
     // Should apply model settings with the UPDATED contexts (from the ref)
     expect(mocks.applyModelSettings).toHaveBeenCalledWith(
@@ -198,7 +198,7 @@ describe('useApplySettingsHandler', () => {
       expect.objectContaining({ toastTitle: 'Loading shot data' }),
     );
     // Should proceed to fetch the task
-    expect(mocks.fetchTask).toHaveBeenCalledWith('task-99');
+    expect(mocks.fetchTask).toHaveBeenCalledWith('project-1', 'task-99');
   });
 
   it('bails out with silent error when task is not found', async () => {

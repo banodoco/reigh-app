@@ -1,19 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  maybeSingle: vi.fn(),
+  get: vi.fn(),
 }));
 
-vi.mock('@/integrations/supabase/client', () => ({
-  getSupabaseClient: () => ({
-    from: () => ({
-      select: () => ({
-        eq: () => ({
-          maybeSingle: (...args: unknown[]) => mocks.maybeSingle(...args),
-        }),
-      }),
-    }),
-  }),
+vi.mock('@/integrations/astrid/bridgeTaskReads', () => ({
+  getBridgeTaskClient: () => ({ tasks: { get: (...args: unknown[]) => mocks.get(...args) } }),
 }));
 
 vi.mock('@/shared/lib/tasks/travelBetweenImages/legacyStructureVideo', async () => {
@@ -31,17 +23,19 @@ vi.mock('@/shared/lib/tasks/travelBetweenImages/legacyStructureVideo', async () 
 });
 
 import { extractSettings, fetchTask } from './taskDataService';
+import { BridgeRouteError } from '@/integrations/astrid/transport';
 
 describe('fetchTask', () => {
   it('returns a missing result when no task row exists', async () => {
-    mocks.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
+    mocks.get.mockRejectedValueOnce(new BridgeRouteError('task detail', 404, null));
 
-    await expect(fetchTask('task-1')).resolves.toEqual({ status: 'missing' });
+    await expect(fetchTask('project-1', 'task-1')).resolves.toEqual({ status: 'missing' });
   });
 
-  it('returns found task data when the row exists', async () => {
-    mocks.maybeSingle.mockResolvedValueOnce({
-      data: {
+  it('returns found task data from the canonical task detail spec', async () => {
+    mocks.get.mockResolvedValueOnce({
+      spec: {
+        family: 'generation.generate_video',
         params: {
           prompt: 'hello',
           orchestrator_details: {
@@ -49,10 +43,9 @@ describe('fetchTask', () => {
           },
         },
       },
-      error: null,
     });
 
-    await expect(fetchTask('task-2')).resolves.toEqual({
+    await expect(fetchTask('project-1', 'task-2')).resolves.toEqual({
       status: 'found',
       taskData: {
         params: {
@@ -66,13 +59,14 @@ describe('fetchTask', () => {
         },
       },
     });
+    expect(mocks.get).toHaveBeenCalledWith('task-2');
   });
 
   it('throws operational query errors instead of collapsing them into missing', async () => {
-    const error = new Error('database unavailable');
-    mocks.maybeSingle.mockResolvedValueOnce({ data: null, error });
+    const error = new Error('bridge unavailable');
+    mocks.get.mockRejectedValueOnce(error);
 
-    await expect(fetchTask('task-3')).rejects.toThrow('database unavailable');
+    await expect(fetchTask('project-1', 'task-3')).rejects.toThrow('bridge unavailable');
   });
 });
 
