@@ -208,7 +208,12 @@ export const MediaGalleryItem: React.FC<MediaGalleryItemProps> = ({
     (!taskTypeInfo && image.metadata?.tool_type === TOOL_IDS.TRAVEL_BETWEEN_IMAGES);
   const isImageEditTask = isImageEditTaskType(taskType || undefined);
   const shouldShowTaskDetails = (!!taskData) && (isVideoTask || isImageEditTask);
-  const { handleShare, isCreatingShare, shareCopied, shareSlug } = useShareGeneration(image.id, taskId);
+  const { handleShare, isCreatingShare, shareCopied, shareSlug } = useShareGeneration(
+    image.id,
+    taskId,
+    undefined,
+    { projectId: selectedProjectId },
+  );
   const { markAllViewed } = useMarkVariantViewed();
   const handleMarkAllVariantsViewed = useCallback(() => {
     if (actualGenerationId) {

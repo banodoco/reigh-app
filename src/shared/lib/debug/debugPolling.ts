@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { getSupabaseClient as supabase } from '@/integrations/supabase/client';
+import { getBridgeTaskClient, isRootBridgeTask, listBridgeTasks } from '@/integrations/astrid/bridgeTaskReads';
 import { taskQueryKeys } from '@/shared/lib/queryKeys/tasks';
 
 /**
@@ -23,30 +23,33 @@ export const debugPolling = {
   },
 
   /**
-   * Test basic Supabase connection
+   * Test the canonical task bridge connection.
    */
   async testConnection(projectId: string) {
     return this.runDebugCheck('Connection test', async () => {
-      const result = await supabase().from('tasks')
-        .select('id')
-        .eq('project_id', projectId)
-        .limit(1);
-      return { error: result.error };
+      try {
+        await getBridgeTaskClient(projectId).tasks.list({ limit: 1, offset: 0 });
+        return { error: null };
+      } catch (error) {
+        return { error };
+      }
     });
   },
 
   /**
-   * Test the exact query that's failing
+   * Test the canonical equivalent of the active root-task status query.
    */
   async testTaskStatusQuery(projectId: string) {
     return this.runDebugCheck('Processing query', async () => {
-      const processingQuery = supabase().from('tasks')
-        .select('id', { count: 'exact', head: true })
-        .eq('project_id', projectId)
-        .in('status', ['Queued', 'In Progress'])
-        .is('params->orchestrator_task_id_ref', null);
-      const { error } = await processingQuery;
-      return { error };
+      try {
+        const tasks = await listBridgeTasks(projectId);
+        tasks.filter((task) =>
+          (task.status === 'Queued' || task.status === 'In Progress')
+          && isRootBridgeTask(task.params));
+        return { error: null };
+      } catch (error) {
+        return { error };
+      }
     });
   },
 
