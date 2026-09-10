@@ -12,3 +12,16 @@ export function unsupportedLegacyTaskError(family: string): TaskValidationError 
     'capability_id',
   );
 }
+
+/**
+ * Build the typed error for a capability that is deliberately withdrawn from
+ * admission until its pinned executor graph is semantically proven.  Keep
+ * this check before capability lookup or CAS ingestion so the producer cannot
+ * create orphaned inputs for a capability Runtime will never claim.
+ */
+export function unsupportedCapabilityError(capabilityId: string, reason: string): TaskValidationError {
+  return new TaskValidationError(
+    `Astrid capability ${capabilityId} is unsupported until its executor is repaired: ${reason}`,
+    'capability_id',
+  );
+}

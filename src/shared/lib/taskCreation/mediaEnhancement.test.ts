@@ -56,81 +56,43 @@ describe('typed media producer admission', () => {
     expect(request.spec.output_policy).toEqual({});
   });
 
-  it('admits video enhancement with one ordered video CAS input', async () => {
-    mocks.ingestProjectInputFromUrl.mockResolvedValue({
-      object_id: digest('c'), media_type: 'video/mp4', filename: 'source.mp4', size: 10, receipt: {},
-    });
-
-    await createVideoEnhanceTask('project-1', {
-      sourceUrl: 'https://example.test/source.mp4', enableInterpolation: true,
-      enableUpscale: true, numFrames: 2, upscaleFactor: 2, colorFix: true, outputQuality: 'maximum',
-    });
-
-    expect(mocks.resolveTaskCapability).toHaveBeenCalledWith('project-1', VIDEO_ENHANCE_CAPABILITY_ID);
-    const request = mocks.createTask.mock.calls[0]?.[0];
-    expect(request.input_object_ids).toEqual([digest('c')]);
-    expect(request.spec.params.video_ref.digest).toBe(digest('c'));
-    expect(request.spec.params).toMatchObject({
-      enable_interpolation: true, enable_upscale: true, interpolation_frames: 2,
-      upscale_factor: 2, color_fix: true, output_quality: 'maximum',
-    });
-    expect(request.storage_estimate).toEqual({ scratch_bytes: 100, output_bytes: 200 });
+  it.each([
+    ['interpolation-only', { enableInterpolation: true, enableUpscale: false }],
+    ['upscale-only', { enableInterpolation: false, enableUpscale: true }],
+    ['combined', { enableInterpolation: true, enableUpscale: true }],
+  ])('rejects unproven video enhancement (%s) before capability lookup or ingest', async (_label, settings) => {
+    await expect(createVideoEnhanceTask('project-1', {
+      sourceUrl: 'https://example.test/source.mp4',
+      ...settings,
+      numFrames: 2, upscaleFactor: 2, colorFix: true, outputQuality: 'maximum',
+    })).rejects.toThrow(`Astrid capability ${VIDEO_ENHANCE_CAPABILITY_ID} is unsupported`);
+    expect(mocks.resolveTaskCapability).not.toHaveBeenCalled();
+    expect(mocks.ingestProjectInputFromUrl).not.toHaveBeenCalled();
+    expect(mocks.createTask).not.toHaveBeenCalled();
   });
 
-  it('admits character animation with image before driving-video CAS input', async () => {
-    mocks.ingestProjectInputFromUrl
-      .mockResolvedValueOnce({
-        object_id: digest('d'), media_type: 'image/jpeg', filename: 'character.jpg', size: 10, receipt: {},
-      })
-      .mockResolvedValueOnce({
-        object_id: digest('e'), media_type: 'video/mp4', filename: 'motion.mp4', size: 10, receipt: {},
-      });
-
-    await createCharacterAnimationTask('project-1', {
+  it.each([
+    ['replace-480p', 'replace' as const, '480p' as const],
+    ['replace-720p', 'replace' as const, '720p' as const],
+    ['animate-480p', 'animate' as const, '480p' as const],
+    ['animate-720p', 'animate' as const, '720p' as const],
+  ])('rejects unproven character animation (%s) before capability lookup or ingest', async (_label, mode, resolution) => {
+    await expect(createCharacterAnimationTask('project-1', {
       characterImageUrl: 'https://example.test/character.jpg',
       motionVideoUrl: 'https://example.test/motion.mp4', prompt: 'walk forward',
-      mode: 'animate', resolution: '480p', seed: 42, randomSeed: true,
-    });
-
-    expect(mocks.resolveTaskCapability).toHaveBeenCalledWith('project-1', CHARACTER_ANIMATION_CAPABILITY_ID);
-    const request = mocks.createTask.mock.calls[0]?.[0];
-    expect(request.input_object_ids).toEqual([digest('d'), digest('e')]);
-    expect(request.spec.params).toMatchObject({
-      mode: 'animate', resolution: '480p', seed: 42,
-      reference_image_ref: { digest: digest('d') }, driving_video_ref: { digest: digest('e') },
-    });
-    expect(request.spec.params.random_seed).toBeUndefined();
-  });
-
-  it('ingests producer-owned character and motion bytes directly when available', async () => {
-    mocks.ingestProjectInput
-      .mockResolvedValueOnce({
-        object_id: digest('g'), media_type: 'image/png', filename: 'character.png', size: 10, receipt: {},
-      })
-      .mockResolvedValueOnce({
-        object_id: digest('h'), media_type: 'video/mp4', filename: 'motion.mp4', size: 10, receipt: {},
-      });
-
-    await createCharacterAnimationTask('project-1', {
-      characterImage: new Uint8Array([1, 2, 3]),
-      motionVideo: new Uint8Array([4, 5, 6]),
-      prompt: 'walk forward', mode: 'animate', resolution: '480p', seed: 42, randomSeed: false,
-    });
-
-    expect(mocks.ingestProjectInput).toHaveBeenNthCalledWith(
-      1, 'project-1', expect.any(Uint8Array), { maxBytes: 8 * 1024 * 1024 },
-    );
-    expect(mocks.ingestProjectInput).toHaveBeenNthCalledWith(
-      2, 'project-1', expect.any(Uint8Array), { maxBytes: 64 * 1024 * 1024 },
-    );
+      mode, resolution, seed: 42, randomSeed: true,
+    })).rejects.toThrow(`Astrid capability ${CHARACTER_ANIMATION_CAPABILITY_ID} is unsupported`);
+    expect(mocks.resolveTaskCapability).not.toHaveBeenCalled();
     expect(mocks.ingestProjectInputFromUrl).not.toHaveBeenCalled();
+    expect(mocks.ingestProjectInput).not.toHaveBeenCalled();
+    expect(mocks.createTask).not.toHaveBeenCalled();
   });
 
-  it('fails closed before ingest when video settings have no operation', async () => {
+  it('fails closed before ingest when the video capability is unsupported', async () => {
     await expect(createVideoEnhanceTask('project-1', {
       sourceUrl: 'https://example.test/source.mp4', enableInterpolation: false,
       enableUpscale: false, numFrames: 1, upscaleFactor: 2, colorFix: true, outputQuality: 'high',
-    })).rejects.toThrow('Enable interpolation or upscale');
+    })).rejects.toThrow(`Astrid capability ${VIDEO_ENHANCE_CAPABILITY_ID} is unsupported`);
     expect(mocks.resolveTaskCapability).not.toHaveBeenCalled();
     expect(mocks.ingestProjectInputFromUrl).not.toHaveBeenCalled();
   });

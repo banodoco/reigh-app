@@ -5,6 +5,7 @@ import {
   resolveTaskCapability,
 } from './createTask';
 import { TaskValidationError, type RuntimeInput, type TaskCreationResult } from './types';
+import { unsupportedCapabilityError } from './legacyBoundary';
 
 export const IMAGE_UPSCALE_CAPABILITY_ID = 'generation.generate_image_upscale';
 export const VIDEO_ENHANCE_CAPABILITY_ID = 'vibecomfy.video_enhance';
@@ -15,6 +16,10 @@ const VIDEO_ENHANCE_SOURCE_MAX_BYTES = 64 * 1024 * 1024;
 const CHARACTER_IMAGE_SOURCE_MAX_BYTES = 8 * 1024 * 1024;
 const CHARACTER_VIDEO_SOURCE_MAX_BYTES = 64 * 1024 * 1024;
 const MAX_SEED = 2_147_483_647;
+const VIDEO_ENHANCE_UNSUPPORTED_REASON =
+  'the pinned ready graph does not implement interpolation, color correction, source-FPS preservation, or typed encoder-quality semantics';
+const CHARACTER_ANIMATION_UNSUPPORTED_REASON =
+  'the pinned ready graph does not expose a proven mode/resolution contract equivalent to the typed producer request';
 
 export interface ImageUpscaleTaskOptions {
   sourceUrl: string;
@@ -150,6 +155,7 @@ export async function createVideoEnhanceTask(
   project: string,
   options: VideoEnhanceTaskOptions,
 ): Promise<TaskCreationResult> {
+  throw unsupportedCapabilityError(VIDEO_ENHANCE_CAPABILITY_ID, VIDEO_ENHANCE_UNSUPPORTED_REASON);
   if (!options.enableInterpolation && !options.enableUpscale) {
     throw new TaskValidationError('Enable interpolation or upscale before submitting', 'settings');
   }
@@ -198,6 +204,7 @@ export async function createCharacterAnimationTask(
   project: string,
   options: CharacterAnimationTaskOptions,
 ): Promise<TaskCreationResult> {
+  throw unsupportedCapabilityError(CHARACTER_ANIMATION_CAPABILITY_ID, CHARACTER_ANIMATION_UNSUPPORTED_REASON);
   const seed = requireInteger(options.seed, 'seed', 0, MAX_SEED);
   const prompt = requirePrompt(options.prompt);
   const capability = await resolveTaskCapability(project, CHARACTER_ANIMATION_CAPABILITY_ID);
