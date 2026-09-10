@@ -4,6 +4,7 @@ import {
   resolveTaskCapability,
 } from '@/shared/lib/taskCreation';
 import { AstridLocalClient } from '@/integrations/astrid/client';
+import { runtimeSha256IdSchema } from '@/tools/video-editor/data/bridgeContract';
 import { TaskValidationError, type TaskCreationResult } from '@/shared/lib/taskCreation/types';
 import type { MaskedEditTaskParams } from './buildMaskedEditTaskParams';
 
@@ -32,7 +33,7 @@ async function resolveEditLineage(
   project: string,
   generationId: string,
   requestedVariantId?: string | null,
-): Promise<{ generationId: string; expectedVersion: number; sourceVariantId: string }> {
+): Promise<{ generationId: string; expectedVersion: number; sourceVariantId: string; sourceObjectId: string }> {
   const detail = await new AstridLocalClient({ projectSlug: project }).gallery.get(generationId);
   const expectedVersion = detail.version;
   if (typeof expectedVersion !== 'number' || !Number.isInteger(expectedVersion) || expectedVersion < 1) {
@@ -50,10 +51,18 @@ async function resolveEditLineage(
       'lineage',
     );
   }
+  const sourceObjectId = sourceVariant.object_id;
+  if (typeof sourceObjectId !== 'string' || !runtimeSha256IdSchema.safeParse(sourceObjectId).success) {
+    throw new TaskValidationError(
+      'Astrid source variant does not expose a CAS object identity for atomic edit settlement',
+      'lineage',
+    );
+  }
   return {
     generationId,
     expectedVersion,
     sourceVariantId: sourceVariant.id,
+    sourceObjectId,
   };
 }
 
@@ -101,6 +110,12 @@ export async function createBoundedImageEditTask(
   });
   if (!source.media_type.startsWith('image/')) {
     throw new TaskValidationError('Image edit source must be an image media type', 'sourceUrl');
+  }
+  if (lineage && source.object_id !== lineage.sourceObjectId) {
+    throw new TaskValidationError(
+      'Selected Astrid source variant does not match the admitted source bytes',
+      'lineage',
+    );
   }
 
   const result = await createTask({

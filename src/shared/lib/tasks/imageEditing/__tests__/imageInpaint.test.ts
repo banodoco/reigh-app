@@ -96,8 +96,8 @@ describe('createImageInpaintTask', () => {
       project_id: 'proj-1',
       version: 7,
       variants: [
-        { id: 'variant-primary', is_primary: true },
-        { id: 'variant-selected', is_primary: false },
+        { id: 'variant-primary', is_primary: true, object_id: `sha256:${'b'.repeat(64)}` },
+        { id: 'variant-selected', is_primary: false, object_id: `sha256:${'b'.repeat(64)}` },
       ],
     });
 
@@ -126,6 +126,72 @@ describe('createImageInpaintTask', () => {
         },
       },
     }));
+  });
+
+  it('falls back to the primary CAS variant when no variant is selected', async () => {
+    mockGalleryGet.mockResolvedValue({
+      generation_id: 'gen-primary',
+      project_id: 'proj-1',
+      version: 2,
+      variants: [{ id: 'variant-primary', is_primary: true, object_id: `sha256:${'b'.repeat(64)}` }],
+    });
+
+    await createBoundedImageEditTask('proj-1', {
+      sourceUrl: 'https://example.com/source.png',
+      prompt: 'edit primary',
+      count: 1,
+      qwenEditModel: 'qwen-edit-2511',
+      basedOn: 'gen-primary',
+    });
+
+    expect(mockCreateTask).toHaveBeenCalledWith(expect.objectContaining({
+      settlement_effect: expect.objectContaining({
+        payload: expect.objectContaining({ source_variant_id: 'variant-primary' }),
+      }),
+    }));
+  });
+
+  it('fails closed for missing version, unknown variant, or missing CAS identity', async () => {
+    mockGalleryGet.mockResolvedValueOnce({ generation_id: 'gen-missing-version', variants: [] });
+    await expect(createBoundedImageEditTask('proj-1', {
+      sourceUrl: 'https://example.com/source.png', prompt: 'edit', count: 1,
+      qwenEditModel: 'qwen-edit-2511', basedOn: 'gen-missing-version',
+    })).rejects.toThrow('no usable version');
+
+    mockGalleryGet.mockResolvedValueOnce({
+      generation_id: 'gen-unknown', version: 1,
+      variants: [{ id: 'variant-known', is_primary: true, object_id: `sha256:${'b'.repeat(64)}` }],
+    });
+    await expect(createBoundedImageEditTask('proj-1', {
+      sourceUrl: 'https://example.com/source.png', prompt: 'edit', count: 1,
+      qwenEditModel: 'qwen-edit-2511', basedOn: 'gen-unknown', sourceVariantId: 'variant-absent',
+    })).rejects.toThrow('no source variant');
+
+    mockGalleryGet.mockResolvedValueOnce({
+      generation_id: 'gen-no-object', version: 1,
+      variants: [{ id: 'variant-no-object', is_primary: true }],
+    });
+    await expect(createBoundedImageEditTask('proj-1', {
+      sourceUrl: 'https://example.com/source.png', prompt: 'edit', count: 1,
+      qwenEditModel: 'qwen-edit-2511', basedOn: 'gen-no-object',
+    })).rejects.toThrow('does not expose a CAS object identity');
+
+    expect(mockResolveTaskCapability).not.toHaveBeenCalled();
+    expect(mockIngestProjectInputFromUrl).not.toHaveBeenCalled();
+  });
+
+  it('rejects a source digest mismatch before task creation', async () => {
+    mockGalleryGet.mockResolvedValue({
+      generation_id: 'gen-mismatch',
+      version: 1,
+      variants: [{ id: 'variant-mismatch', is_primary: true, object_id: `sha256:${'c'.repeat(64)}` }],
+    });
+
+    await expect(createBoundedImageEditTask('proj-1', {
+      sourceUrl: 'https://example.com/source.png', prompt: 'edit', count: 1,
+      qwenEditModel: 'qwen-edit-2511', basedOn: 'gen-mismatch',
+    })).rejects.toThrow('does not match the admitted source bytes');
+    expect(mockCreateTask).not.toHaveBeenCalled();
   });
 
   it('rejects unsupported edit aliases and fan-out before capability lookup', async () => {

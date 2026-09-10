@@ -410,6 +410,8 @@ export const bridgeGenerationVariantSchema = z.looseObject({
   id: z.string(),
   generation_id: z.string(),
   media_id: z.string(),
+  /** Runtime CAS identity when the bridge exposes lineage custody. */
+  object_id: runtimeSha256IdSchema.optional(),
   variant_type: z.string().nullable().optional(),
   name: z.string().nullable().optional(),
   params: jsonObject.optional(),
