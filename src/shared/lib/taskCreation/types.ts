@@ -31,6 +31,19 @@ export type RuntimeSettlementEffect =
         name?: string;
         metadata?: unknown;
       };
+    }
+  | {
+      effect_type: 'generation.variant.append';
+      target_id: string;
+      expected_version: number;
+      payload: {
+        source_variant_id: string;
+        source_object_id: string;
+        variant_type: string;
+        output_name: string;
+        output_ordinal: 0;
+        primary_policy: 'preserve';
+      };
     };
 
 export type RuntimeInput = Blob | Uint8Array | ArrayBuffer;

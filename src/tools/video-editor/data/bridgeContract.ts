@@ -411,6 +411,8 @@ export const bridgeGenerationDetailPayloadSchema = z.looseObject({
     project_id: z.string(),
     task_id: z.string().nullable().optional(),
     type: z.string(),
+    /** Runtime generation head used for lineage settlement CAS. */
+    version: z.number().int().positive().optional(),
     name: z.string().nullable().optional(),
     based_on_generation_id: z.string().nullable().optional(),
     parent_generation_id: z.string().nullable().optional(),

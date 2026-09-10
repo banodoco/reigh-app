@@ -3,6 +3,7 @@ import {
   ingestProjectInputFromUrl,
   resolveTaskCapability,
 } from '@/shared/lib/taskCreation';
+import { AstridLocalClient } from '@/integrations/astrid/client';
 import { TaskValidationError, type TaskCreationResult } from '@/shared/lib/taskCreation/types';
 import type { MaskedEditTaskParams } from './buildMaskedEditTaskParams';
 
@@ -27,6 +28,34 @@ export interface BoundedImageEditTaskOptions {
   sourceVariantId?: string | null;
 }
 
+async function resolveEditLineage(
+  project: string,
+  generationId: string,
+  requestedVariantId?: string | null,
+): Promise<{ generationId: string; expectedVersion: number; sourceVariantId: string }> {
+  const detail = await new AstridLocalClient({ projectSlug: project }).gallery.get(generationId);
+  if (!Number.isInteger(detail.version) || detail.version < 1) {
+    throw new TaskValidationError(
+      'Astrid generation detail has no usable version for atomic edit settlement',
+      'lineage',
+    );
+  }
+  const sourceVariant = requestedVariantId
+    ? detail.variants.find((variant) => variant.id === requestedVariantId)
+    : detail.variants.find((variant) => variant.is_primary) ?? detail.variants[0];
+  if (!sourceVariant) {
+    throw new TaskValidationError(
+      'Astrid generation has no source variant for atomic edit settlement',
+      'lineage',
+    );
+  }
+  return {
+    generationId,
+    expectedVersion: detail.version,
+    sourceVariantId: sourceVariant.id,
+  };
+}
+
 /** Admit the currently published source-only Qwen edit profile. */
 export async function createBoundedImageEditTask(
   project: string,
@@ -47,12 +76,16 @@ export async function createBoundedImageEditTask(
       'count',
     );
   }
-  if (options.basedOn || options.sourceVariantId) {
+  if (options.sourceVariantId && !options.basedOn) {
     throw new TaskValidationError(
-      'Runtime does not yet expose an atomic generation/variant lineage effect for typed edit tasks',
+      'sourceVariantId requires basedOn generation lineage',
       'lineage',
     );
   }
+
+  const lineage = options.basedOn
+    ? await resolveEditLineage(project, options.basedOn, options.sourceVariantId)
+    : null;
 
   const capability = await resolveTaskCapability(project, IMAGE_EDIT_CAPABILITY_ID);
   if (capability.estimated_scratch_bytes <= 0 || capability.estimated_output_bytes <= 0) {
@@ -96,7 +129,21 @@ export async function createBoundedImageEditTask(
       scratch_bytes: capability.estimated_scratch_bytes,
       output_bytes: capability.estimated_output_bytes,
     },
-    settlement_effect: {},
+    settlement_effect: lineage
+      ? {
+          effect_type: 'generation.variant.append',
+          target_id: lineage.generationId,
+          expected_version: lineage.expectedVersion,
+          payload: {
+            source_variant_id: lineage.sourceVariantId,
+            source_object_id: source.object_id,
+            variant_type: 'magic_edit',
+            output_name: 'generated_images',
+            output_ordinal: 0,
+            primary_policy: 'preserve',
+          },
+        }
+      : {},
   });
   return result;
 }
