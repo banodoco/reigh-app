@@ -782,7 +782,10 @@ export async function cancelAstridRenderTask(
   const detail = await client.tasks.get(taskId);
   const attempt = (detail.attempts ?? []).find((candidate) => candidate.status === 'running');
   if (!attempt) {
-    throw new Error(`Cannot cancel render ${taskId}: Astrid returned no live attempt fence.`);
+    // Neutral Runtime uses the task resource version for cancellation and
+    // deliberately does not expose the retired bridge lease projection.
+    await client.tasks.cancel(taskId, { status_version: 1 });
+    return;
   }
   await client.tasks.cancel(taskId, {
     attempt_id: attempt.attempt_id,

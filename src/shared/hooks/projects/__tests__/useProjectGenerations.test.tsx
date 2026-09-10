@@ -60,7 +60,7 @@ describe('useProjectGenerations (bridge gallery reads R12)', () => {
     expect(matchesClientSideFilters(audio, { mediaType: 'all' })).toBe(true);
   });
 
-  it('fetchGenerations maps GET /generations rows into gallery items with R9 display URLs', async () => {
+  it('fetchGenerations maps generation rows into gallery items with Runtime CAS display URLs', async () => {
     const result = await fetchGenerations(SLUG, 100, 0);
 
     const details = createJourneyState().galleryDetails;
@@ -69,19 +69,21 @@ describe('useProjectGenerations (bridge gallery reads R12)', () => {
     expect(result.total).toBe(details.length);
 
     for (const item of result.items) {
-      // Every display address is a same-origin managed-media content route.
-      expect(item.url).toMatch(/^\/api\/astrid\/projects\/demo-project\/media\/[^/]+\/content$/);
+      // Every display address is a same-origin Runtime CAS object route.
+      expect(item.url).toMatch(/^\/api\/astrid\/v1\/objects\/sha256%3A[a-f0-9]{64}$/);
       expect(item.thumbUrl).toBe(item.url);
     }
     // Recency-first wire order is preserved.
     expect(result.items[0].createdAt >= result.items[result.items.length - 1].createdAt).toBe(true);
   });
 
-  it('pushes the starred filter to the route as a query param', async () => {
-    await fetchGenerations(SLUG, 100, 0, { starredOnly: true });
+  it('applies the starred filter over neutral Runtime generation rows', async () => {
+    const result = await fetchGenerations(SLUG, 100, 0, { starredOnly: true });
 
     const firstCall = vi.mocked(globalThis.fetch).mock.calls[0] as [string];
-    expect(String(firstCall[0])).toContain('starred=true');
+    expect(String(firstCall[0])).toContain('/v1/projects/demo-project/generations');
+    expect(String(firstCall[0])).not.toContain('starred=true');
+    expect(result.items.every((item) => item.starred === true)).toBe(true);
   });
 
   it('marks hasMore and keeps the window bounded while pages remain', async () => {
@@ -99,7 +101,7 @@ describe('useProjectGenerations (bridge gallery reads R12)', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.items.length).toBeGreaterThan(0);
-    expect(result.current.data?.items[0].url).toContain('/media/');
+    expect(result.current.data?.items[0].url).toMatch(/\/v1\/objects\/sha256%3A/);
   });
 
   it('makes zero gallery requests after the boot census marks the route unavailable', async () => {

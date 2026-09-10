@@ -25,7 +25,10 @@ export async function cancelBridgeTask(projectSlug: string, taskId: string): Pro
   const detail = await client.tasks.get(taskId);
   const liveAttempt = (detail.attempts ?? []).find((attempt) => attempt.status === 'running');
   if (!liveAttempt) {
-    throw new Error(`Cannot cancel running task ${taskId}: no live attempt to fence with`);
+    // Neutral Runtime cancellation fences the task aggregate by version; it
+    // does not expose the retired bridge lease projection on a task read.
+    await client.tasks.cancel(taskId, { status_version: 1 });
+    return;
   }
 
   await client.tasks.cancel(taskId, {

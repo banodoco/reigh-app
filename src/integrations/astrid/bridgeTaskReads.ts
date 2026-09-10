@@ -51,6 +51,14 @@ function bridgeTaskType(summary: BridgeTaskSummary): string {
     return spec.source_task_type;
   }
   if (typeof spec?.family === 'string' && spec.family.length > 0) {
+    const params = asRecord(spec.params);
+    if (spec.family === 'generation.generate_image_edit') {
+      const model = typeof params?.model === 'string' ? params.model : '';
+      return model.startsWith('flux2-klein-') ? 'flux_klein_edit' : 'qwen_image_edit';
+    }
+    if (spec.family === 'image_generation') {
+      return 'qwen_image';
+    }
     return spec.family;
   }
   return summary.capability;
@@ -87,26 +95,18 @@ export function isRootBridgeTask(params: Record<string, unknown>): boolean {
 export async function listBridgeTasks(projectSlug: string): Promise<Task[]> {
   const client = getBridgeTaskClient(projectSlug);
   const tasks: Task[] = [];
-  let offset = 0;
+  let cursor: string | undefined;
   let hasMore = true;
-  const seenOffsets = new Set<number>();
+  const seenCursors = new Set<string>();
   while (hasMore) {
-    if (seenOffsets.has(offset)) {
-      throw new Error('Astrid task pagination repeated an offset');
+    if (cursor !== undefined && seenCursors.has(cursor)) {
+      throw new Error('Astrid task pagination repeated a cursor');
     }
-    seenOffsets.add(offset);
-    const page = await client.tasks.list({ limit: 200, offset });
+    if (cursor !== undefined) seenCursors.add(cursor);
+    const page = await client.tasks.list({ limit: 200, cursor });
     tasks.push(...page.tasks.map(bridgeTaskSummaryToTask));
-    hasMore = page.next_offset !== null;
-    if (page.next_offset !== null) {
-      if (seenOffsets.has(page.next_offset)) {
-        throw new Error('Astrid task pagination repeated an offset');
-      }
-      if (!Number.isInteger(page.next_offset) || page.next_offset <= offset) {
-        throw new Error('Astrid task pagination returned a non-advancing offset');
-      }
-      offset = page.next_offset;
-    }
+    hasMore = page.next_cursor !== null;
+    cursor = page.next_cursor ?? undefined;
   }
   return tasks;
 }

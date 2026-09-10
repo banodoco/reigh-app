@@ -291,8 +291,8 @@ export const bridgeTaskSummarySchema = z.looseObject({
   capability: z.string(),
   status: bridgeTaskStatusSchema,
   spec: bridgeTaskSpecSchema.optional(),
-  priority: z.number(),
-  max_attempts: z.number(),
+  priority: z.number().optional(),
+  max_attempts: z.number().optional(),
   created_at: z.string(),
   updated_at: z.string(),
   finished_at: z.string().nullable().optional(),
@@ -308,12 +308,12 @@ export const bridgeAdmittedTaskSchema = z.looseObject({
   project_id: z.string(),
   capability: z.string(),
   spec: bridgeTaskSpecSchema,
-  spec_hash: z.string(),
-  input_manifest: z.array(jsonObject),
+  spec_hash: z.string().optional(),
+  input_manifest: z.array(jsonObject).optional(),
   status: bridgeTaskStatusSchema,
-  priority: z.number(),
-  available_at: z.string(),
-  max_attempts: z.number(),
+  priority: z.number().optional(),
+  available_at: z.string().optional(),
+  max_attempts: z.number().optional(),
   run_id: z.string().nullable().optional(),
   run_ordinal: z.number().nullable().optional(),
   winning_attempt_id: z.string().nullable().optional(),
@@ -342,6 +342,67 @@ export const bridgeTaskAdmissionRequestSchema = z.strictObject({
 export const bridgeTaskAdmissionResponseSchema = z.looseObject({
   task: bridgeAdmittedTaskSchema,
 });
+
+// ---------------------------------------------------------------------------
+// Neutral Runtime resources used by the local Astrid client.  These are kept
+// beside the historical bridge DTOs while the remaining timeline-only routes
+// finish their migration.  The adapter must validate these resources before it
+// projects them onto the app's older task/gallery read models.
+// ---------------------------------------------------------------------------
+
+export const runtimeTaskStateSchema = z.enum([
+  'queued',
+  'blocked',
+  'running',
+  'succeeded',
+  'failed',
+  'cancelled',
+]);
+
+export const runtimeTaskResourceSchema = z.looseObject({
+  task_id: z.string().min(1),
+  run_id: z.string().min(1),
+  project_id: z.string().min(1).nullable(),
+  state: runtimeTaskStateSchema,
+  version: z.number().int().positive(),
+  capability_id: z.string().min(1),
+  capability_digest: runtimeSha256IdSchema,
+  schema_version: z.string().min(1),
+  input_object_ids: z.array(runtimeSha256IdSchema),
+  spec: z.looseObject({}),
+  idempotency_key: z.string().min(1),
+  created_at: z.string().min(1),
+  updated_at: z.string().min(1),
+  attempt_id: z.string().min(1).nullable(),
+  runtime_epoch: z.number().int().positive(),
+  result: jsonObject.optional(),
+});
+
+export const runtimeTaskPageSchema = runtimePageSchema(runtimeTaskResourceSchema);
+
+export const runtimeGenerationResourceSchema = z.looseObject({
+  generation_id: z.string().min(1),
+  project_id: z.string().min(1),
+  source_task_id: z.string().min(1).nullable(),
+  type: z.string().min(1),
+  status: z.string().min(1),
+  metadata: jsonObject,
+  version: z.number().int().positive(),
+  created_at: z.string().min(1),
+  updated_at: z.string().min(1),
+});
+
+export const runtimeVariantResourceSchema = z.looseObject({
+  variant_id: z.string().min(1),
+  generation_id: z.string().min(1),
+  object_id: runtimeSha256IdSchema.nullable(),
+  variant_type: z.string().min(1),
+  metadata: jsonObject,
+  created_at: z.string().min(1),
+});
+
+export const runtimeGenerationPageSchema = runtimePageSchema(runtimeGenerationResourceSchema);
+export const runtimeVariantPageSchema = runtimePageSchema(runtimeVariantResourceSchema);
 
 /** `GET /projects/:slug/tasks?limit&offset`. */
 export const bridgeTaskListSchema = z.looseObject({
@@ -503,6 +564,9 @@ export type BridgeAssetRegistryPayload = z.infer<typeof bridgeAssetRegistrySchem
 export type RuntimeManagedObject = z.infer<typeof runtimeManagedObjectSchema>;
 export type RuntimeCapability = z.infer<typeof runtimeCapabilitySchema>;
 export type RuntimeMutationReceipt = z.infer<typeof runtimeMutationReceiptSchema>;
+export type RuntimeTaskResource = z.infer<typeof runtimeTaskResourceSchema>;
+export type RuntimeGenerationResource = z.infer<typeof runtimeGenerationResourceSchema>;
+export type RuntimeVariantResource = z.infer<typeof runtimeVariantResourceSchema>;
 export type BridgeErrorEnvelope = z.infer<typeof bridgeErrorEnvelopeSchema>;
 export type BridgeProjectsPayload = z.infer<typeof bridgeProjectsSchema>;
 export type BridgeTimelinesPayload = z.infer<typeof bridgeTimelinesSchema>;

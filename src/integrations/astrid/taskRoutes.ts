@@ -9,18 +9,24 @@ import type { AstridBridgeTransport } from './transport.ts';
 import { observeAstridCapabilityFailure } from './capabilityCensus.ts';
 import {
   bridgeCancelRequestSchema,
-  bridgeCancelResponseSchema,
   bridgeTaskAdmissionRequestSchema,
   bridgeTaskAdmissionResponseSchema,
-  bridgeTaskDetailPayloadSchema,
-  bridgeTaskListSchema,
+  runtimeMutationSchema,
+  runtimeTaskPageSchema,
+  runtimeTaskResourceSchema,
   type BridgeCancelRequest,
   type BridgeCancelResponse,
   type BridgeTaskAdmissionRequest,
   type BridgeTaskAdmissionResponse,
-  type BridgeTaskDetailPayload,
   type BridgeTaskList,
 } from '@/tools/video-editor/data/bridgeContract.ts';
+import {
+  runtimeTaskToAdmittedTask,
+  runtimeTaskToDetail,
+  runtimeTaskToSummary,
+} from './runtimeReadModels.ts';
+
+const runtimeTaskMutationSchema = runtimeMutationSchema(runtimeTaskResourceSchema);
 
 export type TaskRoutesOptions = {
   /** The project slug every task route is scoped under (`/projects/:slug/…`). */
@@ -42,9 +48,8 @@ export class AstridLocalTaskRoutes {
     this.projectSlug = options.projectSlug;
   }
 
-  private path(suffix?: string): string {
-    const base = `/projects/${encodeURIComponent(this.projectSlug)}/tasks`;
-    return suffix ? `${base}/${suffix}` : base;
+  private projectTasksPath(): string {
+    return `/v1/projects/${encodeURIComponent(this.projectSlug)}/tasks`;
   }
 
   private async request<T>(operation: () => Promise<T>): Promise<T> {
@@ -100,37 +105,50 @@ export class AstridLocalTaskRoutes {
       },
       settlement_effect: parsed.settlement_effect,
     };
-    return await this.request(() => this.transport.requestJson(
-      this.path(),
+    const response = await this.request(() => this.transport.requestJson(
+      '/v1/tasks',
       { method: 'POST', body: canonicalRequest, headers: { 'Idempotency-Key': idempotencyKey } },
-      bridgeTaskAdmissionResponseSchema,
+      runtimeTaskMutationSchema,
       'task admission',
     ));
+    // Keep the app-facing admission projection stable while making the
+    // neutral Runtime resource the only accepted wire shape at this boundary.
+    const task = runtimeTaskToAdmittedTask(response.data, this.projectSlug);
+    bridgeTaskAdmissionResponseSchema.parse({ task });
+    return { task };
   }
 
-  /** Bounded task page for polling reads (`limit`, `offset`). */
-  async list(options: { limit?: number; offset?: number } = {}): Promise<BridgeTaskList> {
+  /** Bounded task page for polling reads (`limit`, opaque Runtime cursor). */
+  async list(options: { limit?: number; offset?: number; cursor?: string } = {}): Promise<BridgeTaskList & { next_cursor: string | null }> {
+    if (options.offset !== undefined && options.offset !== 0 && options.cursor === undefined) {
+      throw new Error('Astrid task pagination uses an opaque Runtime cursor; offset > 0 is unsupported');
+    }
     const params = new URLSearchParams();
     if (options.limit !== undefined) params.set('limit', String(options.limit));
-    if (options.offset !== undefined) params.set('offset', String(options.offset));
+    if (options.cursor !== undefined) params.set('cursor', options.cursor);
     const query = params.size > 0 ? `?${params.toString()}` : '';
-    return await this.request(() => this.transport.requestJson(
-      this.path() + query,
+    const page = await this.request(() => this.transport.requestJson(
+      this.projectTasksPath() + query,
       {},
-      bridgeTaskListSchema,
+      runtimeTaskPageSchema,
       'task list',
     ));
+    return {
+      tasks: page.items.map((task) => runtimeTaskToSummary(task, this.projectSlug)),
+      next_offset: null,
+      next_cursor: page.next_cursor,
+    };
   }
 
   /** One task's full read model incl. attempts and committed outputs. */
-  async get(taskId: string): Promise<BridgeTaskDetailPayload['task']> {
-    const payload = await this.request(() => this.transport.requestJson(
-      this.path(encodeURIComponent(taskId)),
+  async get(taskId: string): Promise<ReturnType<typeof runtimeTaskToDetail>> {
+    const resource = await this.request(() => this.transport.requestJson(
+      `/v1/tasks/${encodeURIComponent(taskId)}`,
       {},
-      bridgeTaskDetailPayloadSchema,
+      runtimeTaskResourceSchema,
       'task detail',
     ));
-    return payload.task;
+    return runtimeTaskToDetail(resource, this.projectSlug);
   }
 
   /**
@@ -139,12 +157,17 @@ export class AstridLocalTaskRoutes {
    * state without error.
    */
   async cancel(taskId: string, fence: BridgeCancelRequest = {}): Promise<BridgeCancelResponse> {
-    bridgeCancelRequestSchema.parse(fence);
-    return await this.request(() => this.transport.requestJson(
-      `${this.path(encodeURIComponent(taskId))}/cancel`,
-      { method: 'POST', body: fence },
-      bridgeCancelResponseSchema,
+    const parsedFence = bridgeCancelRequestSchema.parse(fence);
+    const body = parsedFence.status_version === undefined
+      ? {}
+      : { expected_version: parsedFence.status_version };
+    const idempotencyKey = `reigh.task.cancel:${taskId}:${parsedFence.status_version ?? 'current'}`;
+    const response = await this.request(() => this.transport.requestJson(
+      `/v1/tasks/${encodeURIComponent(taskId)}/cancel`,
+      { method: 'POST', body, headers: { 'Idempotency-Key': idempotencyKey } },
+      runtimeTaskMutationSchema,
       'task cancel',
     ));
+    return { task: runtimeTaskToAdmittedTask(response.data, this.projectSlug) };
   }
 }

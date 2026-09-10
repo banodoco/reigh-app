@@ -35,6 +35,13 @@ export function bridgeMediaUrl(
     return mediaRef;
   }
 
+  // Neutral Runtime objects are addressed directly by their content digest;
+  // legacy media IDs continue to use the project-scoped compatibility route.
+  if (mediaRef.startsWith('sha256:')) {
+    const base = baseUrl.replace(/\/+$/, '');
+    return `${base}/v1/objects/${encodeURIComponent(mediaRef)}`;
+  }
+
   // Without a project scope there is nothing to address the bytes under;
   // hand the raw reference back rather than fabricating a broken route.
   if (!projectSlug) {

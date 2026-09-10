@@ -158,13 +158,14 @@ export async function ingestProjectInput(
   }
   const originalName = options.originalName ?? source.originalName;
   const contentFingerprint = await sha256Hex(source.bytes);
+  const metadataFingerprint = await sha256Hex(
+    new TextEncoder().encode(JSON.stringify([project, mediaType, originalName ?? ''])),
+  );
   const key = [
     'reigh.cas',
-    encodeURIComponent(project),
     contentFingerprint,
-    encodeURIComponent(mediaType),
-    encodeURIComponent(originalName ?? ''),
-  ].join(':');
+    metadataFingerprint,
+  ].join('.');
   const committed = await getBridgeTaskClient(project).objects.ingest(
     source.bytes,
     mediaType,

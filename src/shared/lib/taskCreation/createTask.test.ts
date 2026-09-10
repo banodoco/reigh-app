@@ -125,8 +125,8 @@ describe('createTask R1 admission over the fake bridge router', () => {
     });
 
     const { url, init } = lastAdmitCall();
-    // Frozen R1 route + required receipt header.
-    expect(url).toBe('/api/astrid/projects/demo-project/tasks');
+    // Neutral Runtime admission route + required receipt header.
+    expect(url).toBe('/api/astrid/v1/tasks');
     const headers = init.headers as Record<string, string>;
     expect(headers['Idempotency-Key']).toEqual(expect.any(String));
     expect(headers['Idempotency-Key'].length).toBeGreaterThan(0);
