@@ -171,6 +171,21 @@ describe('createTask R1 admission over the fake bridge router', () => {
     expect(committed.filename).toBe('source.png');
   });
 
+  it('rejects corrupt image bytes before project CAS ingest', async () => {
+    const sourceFetch = vi.fn(async () => new Response(new Uint8Array([1, 2, 3, 4]), {
+      status: 200,
+      headers: { 'content-type': 'image/png' },
+    }));
+    vi.stubGlobal('fetch', sourceFetch);
+
+    await expect(ingestProjectInputFromUrl(
+      'demo-project',
+      'http://bridge.fake/source.png',
+      { maxBytes: 512_000, requireImage: true },
+    )).rejects.toThrow('do not match');
+    expect(router.state.runtimeObjectBodies.size).toBe(0);
+  });
+
   it('rejects locator-shaped input IDs before catalog or admission', async () => {
     await expect(createTask(admissionParams({
       input_object_ids: ['https://example.com/image.png'],

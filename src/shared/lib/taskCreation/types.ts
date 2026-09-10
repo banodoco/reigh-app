@@ -39,6 +39,8 @@ export interface RuntimeInputIngestOptions {
   mediaType?: string;
   originalName?: string;
   maxBytes?: number;
+  /** Validate common image signatures before committing producer bytes. */
+  requireImage?: boolean;
 }
 
 export interface RuntimeObjectReceipt {

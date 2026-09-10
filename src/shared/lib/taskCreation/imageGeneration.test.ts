@@ -173,7 +173,7 @@ describe('typed image-generation admission', () => {
     expect(mocks.ingestProjectInputFromUrl).toHaveBeenCalledWith(
       'project-1',
       'https://media.example/source.jpg',
-      { maxBytes: 512_000 },
+      { maxBytes: 512_000, requireImage: true },
     );
     expect(mocks.createTask).toHaveBeenCalledWith({
       project: 'project-1',

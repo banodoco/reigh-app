@@ -260,6 +260,7 @@ export async function createImageToImageTask(
   }
   const source = await ingestProjectInputFromUrl(project, options.sourceUrl, {
     maxBytes: MAX_CLOUD_I2I_SOURCE_BYTES,
+    requireImage: true,
   });
   if (!source.media_type.startsWith('image/')) {
     throw new TaskValidationError('Image-to-image source must be an image media type', 'sourceUrl');

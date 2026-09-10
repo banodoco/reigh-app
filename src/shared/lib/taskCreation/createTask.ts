@@ -79,6 +79,72 @@ async function inputBytes(input: RuntimeInput): Promise<{
   return { bytes: input, mediaType: undefined, originalName: undefined };
 }
 
+async function readResponseBlobBounded(response: Response, maxBytes?: number): Promise<Blob> {
+  if (maxBytes === undefined) return await response.blob();
+  const declaredLength = response.headers.get('content-length');
+  if (declaredLength !== null) {
+    const parsedLength = Number(declaredLength);
+    if (Number.isSafeInteger(parsedLength) && parsedLength > maxBytes) {
+      throw new TaskValidationError(
+        `Source media exceeds the ${maxBytes}-byte ingest boundary`,
+        'sourceUrl',
+      );
+    }
+  }
+  if (!response.body) {
+    const blob = await response.blob();
+    if (blob.size > maxBytes) {
+      throw new TaskValidationError(
+        `Source media exceeds the ${maxBytes}-byte ingest boundary`,
+        'sourceUrl',
+      );
+    }
+    return blob;
+  }
+  const reader = response.body.getReader();
+  const chunks: ArrayBuffer[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        throw new TaskValidationError(
+          `Source media exceeds the ${maxBytes}-byte ingest boundary`,
+          'sourceUrl',
+        );
+      }
+      const owned = new Uint8Array(value.byteLength);
+      owned.set(value);
+      chunks.push(owned.buffer);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return new Blob(chunks, { type: response.headers.get('content-type')?.split(';', 1)[0]?.trim() ?? '' });
+}
+
+async function validateImageBlob(blob: Blob, mediaType: string): Promise<void> {
+  const header = new Uint8Array(await blob.slice(0, 12).arrayBuffer());
+  const isPng = header.length >= 8
+    && header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4e && header[3] === 0x47
+    && header[4] === 0x0d && header[5] === 0x0a && header[6] === 0x1a && header[7] === 0x0a;
+  const isJpeg = header.length >= 3 && header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff;
+  const isGif = header.length >= 6
+    && (String.fromCharCode(...header.slice(0, 6)) === 'GIF89a'
+      || String.fromCharCode(...header.slice(0, 6)) === 'GIF87a');
+  const isWebp = header.length >= 12
+    && String.fromCharCode(...header.slice(0, 4)) === 'RIFF'
+    && String.fromCharCode(...header.slice(8, 12)) === 'WEBP';
+  const detected = isPng ? 'image/png' : isJpeg ? 'image/jpeg' : isGif ? 'image/gif' : isWebp ? 'image/webp' : null;
+  if (detected === null || detected !== mediaType.toLowerCase()) {
+    throw new TaskValidationError('Source media bytes do not match a supported image media type', 'sourceUrl');
+  }
+}
+
 /** Ingest producer-owned bytes into the project-scoped Runtime CAS. */
 export async function ingestProjectInput(
   project: string,
@@ -151,15 +217,15 @@ export async function ingestProjectInputFromUrl(
     );
   }
   const responseType = response.headers.get('content-type')?.split(';', 1)[0]?.trim();
-  const blob = await response.blob();
-  if (options.maxBytes !== undefined && blob.size > options.maxBytes) {
-    throw new TaskValidationError(
-      `Source media exceeds the ${options.maxBytes}-byte ingest boundary`,
-      'sourceUrl',
-    );
-  }
-  const { maxBytes: _maxBytes, ...ingestOptions } = options;
+  const blob = await readResponseBlobBounded(response, options.maxBytes);
+  const { maxBytes: _maxBytes, requireImage, ...ingestOptions } = options;
   const mediaType = ingestOptions.mediaType ?? responseType ?? blob.type;
+  if (requireImage) {
+    if (!mediaType?.startsWith('image/')) {
+      throw new TaskValidationError('Source media must be an image media type', 'sourceUrl');
+    }
+    await validateImageBlob(blob, mediaType);
+  }
   let originalName = parsed.pathname.split('/').pop() || 'source';
   try {
     originalName = decodeURIComponent(originalName);
