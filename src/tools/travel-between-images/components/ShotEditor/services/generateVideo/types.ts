@@ -49,6 +49,8 @@ export interface GenerateVideoParams {
 }
 
 interface GenerateVideoSuccessValue {
+  taskId: string;
+  taskIds: string[];
   parentGenerationId?: string;
 }
 
