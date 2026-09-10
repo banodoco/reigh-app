@@ -135,6 +135,27 @@ describe('createTask R1 admission over the fake bridge router', () => {
     expect(result.status).toBe('Queued');
   });
 
+  it('admits the atomic generation variant append effect through the bridge schema', async () => {
+    const request = admissionParams({
+      settlement_effect: {
+        effect_type: 'generation.variant.append',
+        target_id: 'generation-1',
+        expected_version: 3,
+        payload: {
+          source_variant_id: 'variant-1',
+          source_object_id: `sha256:${'1'.repeat(64)}`,
+          variant_type: 'magic_edit',
+          output_name: 'generated_images',
+          output_ordinal: 0,
+          primary_policy: 'preserve',
+        },
+      },
+    });
+
+    await expect(createTask(request)).resolves.toEqual(expect.objectContaining({ task_id: expect.any(String) }));
+    expect(lastAdmitBody()).toEqual(request);
+  });
+
   it('ingests producer bytes into project CAS without turning locators into IDs', async () => {
     const input = new Blob([new Uint8Array([7, 0, 255])], { type: 'image/png' });
     const committed = await ingestProjectInput('demo-project', input);
