@@ -89,11 +89,24 @@ export async function listBridgeTasks(projectSlug: string): Promise<Task[]> {
   const tasks: Task[] = [];
   let offset = 0;
   let hasMore = true;
+  const seenOffsets = new Set<number>();
   while (hasMore) {
+    if (seenOffsets.has(offset)) {
+      throw new Error('Astrid task pagination repeated an offset');
+    }
+    seenOffsets.add(offset);
     const page = await client.tasks.list({ limit: 200, offset });
     tasks.push(...page.tasks.map(bridgeTaskSummaryToTask));
     hasMore = page.next_offset !== null;
-    if (page.next_offset !== null) offset = page.next_offset;
+    if (page.next_offset !== null) {
+      if (seenOffsets.has(page.next_offset)) {
+        throw new Error('Astrid task pagination repeated an offset');
+      }
+      if (!Number.isInteger(page.next_offset) || page.next_offset <= offset) {
+        throw new Error('Astrid task pagination returned a non-advancing offset');
+      }
+      offset = page.next_offset;
+    }
   }
   return tasks;
 }
