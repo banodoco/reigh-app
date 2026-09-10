@@ -1,40 +1,7 @@
 import { useState, useCallback } from 'react';
-import { createTask } from '@/shared/lib/taskCreation';
+import { createVideoEnhanceTask } from '@/shared/lib/taskCreation';
 import type { VideoEnhanceSettings } from './useGenerationEditSettings';
 import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
-
-interface FilmInterpolationApiParams {
-  num_frames?: number;
-  use_calculated_fps?: boolean;
-  fps?: number;
-  use_scene_detection?: boolean;
-  loop?: boolean;
-  video_quality?: 'low' | 'medium' | 'high' | 'maximum';
-  video_write_mode?: 'fast' | 'balanced' | 'small';
-}
-
-interface FlashVsrUpscaleApiParams {
-  upscale_factor?: number;
-  acceleration?: 'regular' | 'high' | 'full';
-  quality?: number;
-  color_fix?: boolean;
-  output_format?: 'X264 (.mp4)' | 'VP9 (.webm)' | 'PRORES4444 (.mov)' | 'GIF';
-  output_quality?: 'low' | 'medium' | 'high' | 'maximum';
-  output_write_mode?: 'fast' | 'balanced' | 'small';
-  preserve_audio?: boolean;
-}
-
-interface VideoEnhanceTaskParams {
-  project_id: string;
-  video_url: string;
-  enable_interpolation: boolean;
-  enable_upscale: boolean;
-  interpolation?: FilmInterpolationApiParams;
-  upscale?: FlashVsrUpscaleApiParams;
-  shot_id?: string;
-  based_on?: string;
-  source_variant_id?: string;
-}
 
 export type { VideoEnhanceSettings } from './useGenerationEditSettings';
 
@@ -81,9 +48,6 @@ interface UseVideoEnhanceReturn {
 export function useVideoEnhance({
   projectId,
   videoUrl,
-  shotId,
-  generationId,
-  activeVariantId,
   settings,
   updateSettings,
 }: UseVideoEnhanceProps): UseVideoEnhanceReturn {
@@ -128,36 +92,14 @@ export function useVideoEnhance({
         context: 'useVideoEnhance',
         toastTitle: 'Failed to create video enhancement task',
         create: () => {
-          const params: VideoEnhanceTaskParams = {
-            project_id: projectId,
-            video_url: videoUrl,
-            enable_interpolation: settings.enableInterpolation,
-            enable_upscale: settings.enableUpscale,
-            shot_id: shotId,
-            based_on: generationId,
-            source_variant_id: activeVariantId || undefined,
-          };
-
-          if (settings.enableInterpolation) {
-            params.interpolation = {
-              num_frames: settings.numFrames,
-              use_calculated_fps: true,
-            };
-          }
-
-          if (settings.enableUpscale) {
-            params.upscale = {
-              upscale_factor: settings.upscaleFactor,
-              color_fix: settings.colorFix,
-              output_quality: settings.outputQuality,
-            };
-          }
-
-          const { project_id, ...input } = params;
-          return createTask({
-            project_id,
-            family: 'video_enhance',
-            input,
+          return createVideoEnhanceTask(projectId, {
+            sourceUrl: videoUrl,
+            enableInterpolation: settings.enableInterpolation,
+            enableUpscale: settings.enableUpscale,
+            numFrames: settings.numFrames,
+            upscaleFactor: settings.upscaleFactor,
+            colorFix: settings.colorFix,
+            outputQuality: settings.outputQuality,
           });
         },
         onSuccess: () => {
@@ -171,9 +113,6 @@ export function useVideoEnhance({
     canSubmit,
     projectId,
     videoUrl,
-    shotId,
-    generationId,
-    activeVariantId,
     settings,
     run,
   ]);

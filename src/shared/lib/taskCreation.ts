@@ -1,6 +1,7 @@
 export type {
   BaseTaskParams,
   HiresFixApiParams,
+  RuntimeInput,
   TaskCreationResult,
 } from './taskCreation/types';
 
@@ -23,6 +24,15 @@ export {
   bindTaskCapability,
   resolveTaskCapability,
 } from './taskCreation/createTask';
+
+export {
+  CHARACTER_ANIMATION_CAPABILITY_ID,
+  IMAGE_UPSCALE_CAPABILITY_ID,
+  VIDEO_ENHANCE_CAPABILITY_ID,
+  createCharacterAnimationTask,
+  createImageUpscaleTask,
+  createVideoEnhanceTask,
+} from './taskCreation/mediaEnhancement';
 
 export {
   IMAGE_GENERATION_CAPABILITY_ID,
