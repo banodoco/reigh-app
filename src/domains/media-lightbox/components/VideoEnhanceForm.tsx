@@ -6,7 +6,7 @@
  * - Video upscaling (FlashVSR)
  *
  * Toggle switches reveal settings for each enhancement type.
- * Submit is disabled if neither mode is enabled.
+ * Submit is enabled only for Astrid's currently admitted bounded profile.
  */
 
 import React, { useEffect, useState, useRef } from 'react';
@@ -139,6 +139,13 @@ export const VideoEnhanceForm: React.FC<VideoEnhanceFormProps> = ({
   // Detect video FPS
   const detectedFps = useDetectVideoFps(videoUrl);
   const videoFps = detectedFps ?? DEFAULT_VIDEO_FPS;
+  const isBoundedProfile = (
+    settings.enableUpscale
+    && !settings.enableInterpolation
+    && settings.numFrames === 1
+    && !settings.colorFix
+    && settings.outputQuality === 'maximum'
+  );
 
   // Calculate output FPS based on interpolation setting
   // FILM adds num_frames between each pair, so output FPS ≈ input * (num_frames + 1)
@@ -293,6 +300,11 @@ export const VideoEnhanceForm: React.FC<VideoEnhanceFormProps> = ({
       {!settings.enableInterpolation && !settings.enableUpscale && (
         <p className="text-sm text-amber-500 text-center py-2">
           Enable at least one enhancement mode
+        </p>
+      )}
+      {!isBoundedProfile && (settings.enableInterpolation || settings.colorFix || settings.outputQuality !== 'maximum' || settings.numFrames !== 1) && (
+        <p className="text-sm text-amber-500 text-center py-2">
+          The current Astrid profile supports upscale-only, source-FPS/audio-preserving output: turn off interpolation and color fix, keep one frame, and select maximum quality.
         </p>
       )}
 

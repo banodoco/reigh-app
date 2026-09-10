@@ -65,8 +65,16 @@ export function useVideoEnhance({
     setGenerateSuccess(false);
   }, [updateSettings]);
 
-  // Validation: at least one mode must be enabled
-  const isValid = settings.enableInterpolation || settings.enableUpscale;
+  // Astrid currently admits only the bounded source-FPS/audio-preserving
+  // upscale profile. Keep the UI from dispatching a request that the typed
+  // producer must reject before CAS ingest.
+  const isValid = (
+    settings.enableUpscale
+    && !settings.enableInterpolation
+    && settings.numFrames === 1
+    && !settings.colorFix
+    && settings.outputQuality === 'maximum'
+  );
 
   // Can submit: valid settings + required data
   const canSubmit = isValid && !!projectId && !!videoUrl && !isGenerating;
