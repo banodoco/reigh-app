@@ -47,19 +47,19 @@ function ScrollToTop() {
 
 export const Layout: React.FC = () => {
   const { pathname, search } = useLocation();
-  // The deterministic browser editor is intentionally sessionless.  It still
-  // uses the normal Layout so the production shell and extension host are
-  // exercised, but it must not be redirected to Home (which mounts the legacy
-  // Supabase auth subscription).  AuthProvider already short-circuits this
-  // mode; keep the route-access decision on the same explicit DEV/query
-  // contract rather than inventing a fake authenticated user.
+  // Deterministic local Astrid documents are intentionally sessionless. They
+  // still use the normal Layout so the production shell is exercised, but
+  // they must not be redirected to Home (which mounts the legacy Supabase
+  // auth subscription). AuthProvider already short-circuits this mode; keep
+  // the route-access decision on the same explicit DEV/query contract rather
+  // than inventing a fake authenticated user.
   const localParams = new URLSearchParams(search);
   const localProject = localParams.get('localProject')?.trim();
   const localTimeline = localParams.get('localTimeline')?.trim();
-  const isLocalEditorTest = isVideoEditorRoute(pathname)
-    && isLocalTestMode(import.meta.env, search)
+  const isLocalAstridDocumentTest = isLocalTestMode(import.meta.env, search)
     && Boolean(localProject)
-    && Boolean(localTimeline);
+    && Boolean(localTimeline)
+    && (isVideoEditorRoute(pathname) || pathname === '/tools/travel-between-images');
   const { isVideoEditorShellActive } = useVideoEditorRouteState();
   const isTasksPaneLocked = usePanesStore((state) => state.isTasksPaneLocked);
   const tasksPaneWidth = usePanesStore((state) => state.tasksPaneWidth);
@@ -102,7 +102,7 @@ export const Layout: React.FC = () => {
   // probe fails the user is sent to the public home page — one hop, no loop:
   // `/` outside Layout does not re-enter this gate (and in WEB env `/` is
   // `HomeWithAuthRedirect`, which renders HomePage directly).
-  if (!isAuthenticated && !isLocalEditorTest) {
+  if (!isAuthenticated && !isLocalAstridDocumentTest) {
     return <Navigate to="/home" replace state={{ fromProtected: true }} />;
   }
 

@@ -70,7 +70,8 @@ async function resolveTravelLineage(
       'lineage',
     );
   }
-  if (!runtimeSha256IdSchema.safeParse(sourceVariant.object_id).success) {
+  const parsedSourceObjectId = runtimeSha256IdSchema.safeParse(sourceVariant.object_id);
+  if (!parsedSourceObjectId.success) {
     throw new TaskValidationError(
       'Astrid source variant has no CAS object identity for atomic travel settlement',
       'lineage',
@@ -80,7 +81,7 @@ async function resolveTravelLineage(
     generationId,
     expectedVersion,
     sourceVariantId: sourceVariant.id,
-    sourceObjectId: sourceVariant.object_id,
+    sourceObjectId: parsedSourceObjectId.data,
   };
 }
 
