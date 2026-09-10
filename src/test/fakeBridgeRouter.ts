@@ -557,7 +557,14 @@ export function createFakeBridgeRouter(): FakeBridgeRouter {
       return json(200, { items, next_cursor: next });
     }
 
-    if (parts[0] === 'v1' && parts[1] === 'health' && request.method === 'GET') return json(200, { ok: true });
+    if (parts[0] === 'v1' && parts[1] === 'health' && request.method === 'GET') {
+      return json(200, {
+        protocol: 'workspace.v1',
+        runtime_epoch: 1,
+        schema_digest: `sha256:${'a'.repeat(64)}`,
+        status: 'ok',
+      });
+    }
     if (parts[0] === 'v1' && parts[1] === 'projects' && parts.length === 2 && request.method === 'GET') {
       const page = {
         items: [{

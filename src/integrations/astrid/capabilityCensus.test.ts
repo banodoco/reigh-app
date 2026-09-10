@@ -155,7 +155,7 @@ describe('Astrid boot capability census', () => {
   it('does not mistake transport uncertainty for permanent capability absence', async () => {
     installFetch(async (request) => {
       const pathname = new URL(request.url).pathname;
-      if (pathname.endsWith('/v1/health')) return Response.json({ ok: true });
+      if (pathname.endsWith('/v1/health')) return Response.json({ status: 'ok' });
       if (pathname.endsWith('/v1/projects')) {
         return Response.json({ items: [{ project_id: 'p-id', slug: 'p', name: 'P', metadata: {}, version: 1, created_at: '2026-09-06T00:00:00Z', updated_at: '2026-09-06T00:00:00Z', archived: false }], next_cursor: null });
       }

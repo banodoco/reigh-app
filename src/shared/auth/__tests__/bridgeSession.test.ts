@@ -23,7 +23,7 @@ describe('probeBridgeSession', () => {
   });
 
   it('hits /api/astrid/v1/health with the transport deadline', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ ok: true }));
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ status: 'ok' }));
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await probeBridgeSession();
@@ -37,7 +37,7 @@ describe('probeBridgeSession', () => {
 
   it('resolves the fixed local user on a healthy payload', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
-      jsonResponse({ ok: true, projects_root: '/somewhere' }),
+      jsonResponse({ status: 'ok', projects_root: '/somewhere' }),
     ));
 
     await expect(probeBridgeSession()).resolves.toEqual({

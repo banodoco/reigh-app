@@ -72,6 +72,6 @@ export async function probeBridgeSession(
 function isHealthyStatus(payload: unknown): boolean {
   return typeof payload === 'object'
     && payload !== null
-    && 'ok' in payload
-    && payload.ok === true;
+    && 'status' in payload
+    && payload.status === 'ok';
 }
