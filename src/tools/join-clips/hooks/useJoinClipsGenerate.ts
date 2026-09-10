@@ -1,21 +1,12 @@
 import { useState, useCallback, useMemo } from 'react';
 import { toast } from '@/shared/components/ui/runtime/sonner';
-import { useQueryClient } from '@tanstack/react-query';
-import { createTask } from '@/shared/lib/taskCreation';
-import { resolveAspectRatioResolutionTuple } from '@/shared/lib/video/resolveAspectRatioResolutionTuple';
-import { TOOL_IDS } from '@/shared/lib/tooling/toolIds';
-import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
+import { unsupportedLegacyTaskError } from '@/shared/lib/taskCreation/legacyBoundary';
 import { joinClipsSettings } from '@/shared/lib/joinClips/defaults';
 import { scaleJoinFrameCountsToShortestClip } from '@/shared/lib/joinClips/frameScaling';
-import {
-  flashSuccessForDuration,
-  invalidateTaskAndProjectQueries,
-} from '@/shared/lib/tasks/taskMutationFeedback';
-import { DEFAULT_VACE_PHASE_CONFIG, BUILTIN_VACE_DEFAULT_ID, VACE_GENERATION_DEFAULTS } from '@/shared/lib/vaceDefaults';
+import { DEFAULT_VACE_PHASE_CONFIG, BUILTIN_VACE_DEFAULT_ID } from '@/shared/lib/vaceDefaults';
 import type { VideoClip, TransitionPrompt } from '../clipTypes';
 import type { useJoinClipsSettings } from './useJoinClipsSettings';
 import type { LoraManagerState } from '@/domains/lora/types/loraManager';
-import type { CanonicalJoinClipsTaskInput, JoinClipDescriptor } from '@/shared/types/joinClips';
 import type { ValidationResult } from '../utils/validation';
 
 interface UseJoinClipsGenerateParams {
@@ -31,35 +22,12 @@ interface UseJoinClipsGenerateParams {
 export function useJoinClipsGenerate({
   selectedProjectId,
   clips,
-  transitionPrompts,
   joinSettings,
   loraManager,
-  projectAspectRatio,
   validationResult,
 }: UseJoinClipsGenerateParams) {
-  const queryClient = useQueryClient();
-  const run = useTaskPlaceholder();
-
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [showSuccessState, setShowSuccessState] = useState(false);
+  const { loopFirstClip } = joinSettings.settings;
   const [videosViewJustEnabled, setVideosViewJustEnabled] = useState(false);
-
-  const {
-    prompt: globalPrompt,
-    negativePrompt,
-    contextFrameCount,
-    gapFrameCount,
-    replaceMode,
-    keepBridgingImages,
-    useIndividualPrompts,
-    enhancePrompt,
-    useInputVideoResolution,
-    useInputVideoFps,
-    noisedInputVideo,
-    loopFirstClip,
-    motionMode,
-    phaseConfig,
-  } = joinSettings.settings;
 
   const handleGenerate = useCallback(async () => {
     const validClips = clips.filter(c => c.url);
@@ -76,119 +44,14 @@ export function useJoinClipsGenerate({
 
     if (!selectedProjectId) return;
 
-    setIsGenerating(true);
-    try {
-      await run({
-        taskType: 'join_clips',
-        label: isLooping ? 'Loop video' : `Join ${validClips.length} clips`,
-        context: 'JoinClipsPage',
-        toastTitle: 'Failed to create task',
-        create: () => {
-          const clipsForTask: JoinClipDescriptor[] = isLooping
-            ? [{ url: validClips[0].url }, { url: validClips[0].url }]
-            : validClips.map(clip => ({ url: clip.url }));
-
-          const perJoinSettings = validClips.slice(1).map((clip) => {
-            let finalPrompt = '';
-
-            if (useIndividualPrompts) {
-              const individualPrompt = transitionPrompts.find(p => p.id === clip.id)?.prompt || '';
-              if (individualPrompt && globalPrompt) {
-                finalPrompt = `${individualPrompt}. ${globalPrompt}`;
-              } else if (individualPrompt) {
-                finalPrompt = individualPrompt;
-              } else {
-                finalPrompt = globalPrompt;
-              }
-            } else {
-              finalPrompt = globalPrompt;
-            }
-
-            return { prompt: finalPrompt };
-          });
-
-          const lorasForTask = loraManager.selectedLoras.map(lora => ({
-            path: lora.path,
-            strength: lora.strength,
-          }));
-          const resolutionTuple = resolveAspectRatioResolutionTuple(projectAspectRatio);
-
-          const taskParams: CanonicalJoinClipsTaskInput = {
-            project_id: selectedProjectId,
-            mode: 'multi_clip',
-            clip_source: {
-              kind: 'clips',
-              clips: clipsForTask,
-            },
-            per_join_settings: perJoinSettings,
-            context_frame_count: contextFrameCount,
-            gap_frame_count: gapFrameCount,
-            replace_mode: replaceMode,
-            keep_bridging_images: keepBridgingImages ?? false,
-            enhance_prompt: enhancePrompt,
-            model: (joinSettings.settings.model?.startsWith('wan_2_2_')
-              ? joinSettings.settings.model
-              : VACE_GENERATION_DEFAULTS.model),
-            num_inference_steps: joinSettings.settings.numInferenceSteps,
-            guidance_scale: joinSettings.settings.guidanceScale,
-            seed: joinSettings.settings.seed,
-            negative_prompt: negativePrompt,
-            priority: joinSettings.settings.priority,
-            use_input_video_resolution: useInputVideoResolution,
-            use_input_video_fps: useInputVideoFps,
-            ...(motionMode === 'advanced' && phaseConfig
-              ? { phase_config: phaseConfig }
-              : lorasForTask.length > 0 && { loras: lorasForTask }
-            ),
-            ...(resolutionTuple && { resolution: resolutionTuple }),
-            ...(noisedInputVideo > 0 && { vid2vid_init_strength: noisedInputVideo }),
-            ...(isLooping && { loop_first_clip: true }),
-            ...(isLooping && validClips[0].generationId && { based_on: validClips[0].generationId }),
-            motion_mode: motionMode,
-            selected_phase_preset_id: joinSettings.settings.selectedPhasePresetId,
-            tool_type: TOOL_IDS.JOIN_CLIPS,
-          };
-
-          const { project_id, ...input } = taskParams;
-          return createTask({
-            project_id,
-            family: 'join_clips',
-            input,
-          });
-        },
-        onSuccess: () => {
-          flashSuccessForDuration(setShowSuccessState, 1500);
-          setVideosViewJustEnabled(true);
-          invalidateTaskAndProjectQueries(queryClient, selectedProjectId);
-        },
-      });
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [
-    clips,
-    loopFirstClip,
-    selectedProjectId,
-    run,
-    useIndividualPrompts,
-    transitionPrompts,
-    globalPrompt,
-    loraManager.selectedLoras,
-    projectAspectRatio,
-    contextFrameCount,
-    gapFrameCount,
-    replaceMode,
-    keepBridgingImages,
-    enhancePrompt,
-    joinSettings.settings,
-    negativePrompt,
-    useInputVideoResolution,
-    useInputVideoFps,
-    motionMode,
-    phaseConfig,
-    noisedInputVideo,
-    queryClient,
-  ]);
+    // The legacy join contract has no lossless canonical replacement. Reject
+    // before placeholder, settings, enhancement, or Runtime work.
+    toast({
+      title: 'Join clips is not yet supported',
+      description: unsupportedLegacyTaskError('join_clips').message,
+      variant: 'destructive',
+    });
+  }, [clips, loopFirstClip, selectedProjectId]);
 
   const generateButtonText = useMemo(() => {
     const validClipsCount = clips.filter(c => c.url).length;
@@ -234,8 +97,8 @@ export function useJoinClipsGenerate({
 
   return {
     handleGenerate,
-    isGenerating,
-    showSuccessState,
+    isGenerating: false,
+    showSuccessState: false,
     videosViewJustEnabled,
     setVideosViewJustEnabled,
     generateButtonText,

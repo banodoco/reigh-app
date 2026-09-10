@@ -197,6 +197,13 @@ export const SegmentSlotFormView: React.FC<SegmentSlotFormViewProps> = ({
       run,
       queryClient,
       onGenerateStarted: () => segmentSlotMode.onGenerateStarted?.(pairShotGenerationId),
+      onNonFatalError: (_step, error) => {
+        toast({
+          title: 'Segment generation is not yet supported',
+          description: error instanceof Error ? error.message : 'The requested segment capability is unavailable.',
+          variant: 'destructive',
+        });
+      },
     });
   }, [
     segmentSlotMode,

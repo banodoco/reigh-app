@@ -242,7 +242,20 @@ describe('useTaskPlaceholder', () => {
     stubBridge();
     // Admit a real task so the cancel route has something to fence.
     const client = new AstridLocalClient({ projectSlug: SLUG, baseUrl: FAKE_ORIGIN + '/api/astrid' });
-    const admitted = await client.tasks.admit({ family: 'image_generation', input: {} }, 'reigh.admit:placeholder-cancel');
+    const admitted = await client.tasks.admit({
+      project: SLUG,
+      capability_id: 'astrid.image_generation',
+      capability_digest: `sha256:${'a'.repeat(64)}`,
+      schema_version: '1',
+      input_object_ids: [],
+      spec: {
+        family: 'image_generation',
+        params: { prompt: 'placeholder cancellation' },
+        output_policy: {},
+      },
+      storage_estimate: { scratch_bytes: 0, output_bytes: 0 },
+      settlement_effect: {},
+    }, 'reigh.admit:placeholder-cancel');
 
     mockWasCancelled.mockReturnValue(true);
     const { result } = renderHook(() => useTaskPlaceholder());

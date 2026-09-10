@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 
@@ -307,7 +307,7 @@ describe('useJoinClipsGenerate', () => {
     expect(mockCreateTask).not.toHaveBeenCalled();
   });
 
-  it('creates join clips task with correct params', async () => {
+  it('fails closed before starting the placeholder lifecycle', async () => {
     const { result } = renderHook(
       () =>
         useJoinClipsGenerate({
@@ -322,36 +322,19 @@ describe('useJoinClipsGenerate', () => {
       { wrapper: createWrapper() },
     );
 
-    act(() => {
-      result.current.handleGenerate();
+    await act(async () => {
+      await result.current.handleGenerate();
     });
 
-    await waitFor(() => {
-      expect(mockCreateTask).toHaveBeenCalledWith(
-        expect.objectContaining({
-          project_id: 'proj-1',
-          family: 'join_clips',
-          input: expect.objectContaining({
-            mode: 'multi_clip',
-            clip_source: expect.objectContaining({
-              kind: 'clips',
-              clips: expect.arrayContaining([
-                { url: expect.any(String) },
-                { url: expect.any(String) },
-              ]),
-            }),
-            context_frame_count: 15,
-            gap_frame_count: 23,
-            replace_mode: true,
-            tool_type: 'join_clips',
-          }),
-        }),
-      );
-      expect(mockResolveTaskIds).toHaveBeenCalledWith('incoming-1', ['task-1']);
-    });
+    expect(mockCreateTask).not.toHaveBeenCalled();
+    expect(mockAddIncomingTask).not.toHaveBeenCalled();
+    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Join clips is not yet supported',
+      variant: 'destructive',
+    }));
   });
 
-  it('handles individual prompts when useIndividualPrompts is true', async () => {
+  it('does not allow individual-prompt settings to bypass the legacy guard', async () => {
     const settings = createDefaultSettings();
     settings.settings.useIndividualPrompts = true;
     const prompts: TransitionPrompt[] = [{ id: 'c2', prompt: 'smooth transition' }];
@@ -370,20 +353,14 @@ describe('useJoinClipsGenerate', () => {
       { wrapper: createWrapper() },
     );
 
-    act(() => {
-      result.current.handleGenerate();
+    await act(async () => {
+      await result.current.handleGenerate();
     });
 
-    await waitFor(() => {
-      const callArgs = mockCreateTask.mock.calls[0][0].input;
-      // Individual prompt + global prompt should be combined
-      expect(callArgs.per_join_settings[0].prompt).toBe(
-        'smooth transition. global transition prompt',
-      );
-    });
+    expect(mockCreateTask).not.toHaveBeenCalled();
   });
 
-  it('adds resolution from project aspect ratio', async () => {
+  it('does not allow resolution settings to bypass the legacy guard', async () => {
     const { result } = renderHook(
       () =>
         useJoinClipsGenerate({
@@ -398,17 +375,14 @@ describe('useJoinClipsGenerate', () => {
       { wrapper: createWrapper() },
     );
 
-    act(() => {
-      result.current.handleGenerate();
+    await act(async () => {
+      await result.current.handleGenerate();
     });
 
-    await waitFor(() => {
-      const callArgs = mockCreateTask.mock.calls[0][0].input;
-      expect(callArgs.resolution).toEqual([1280, 720]);
-    });
+    expect(mockCreateTask).not.toHaveBeenCalled();
   });
 
-  it('adds loras when available', async () => {
+  it('does not allow LoRA settings to bypass the legacy guard', async () => {
     const lorasWithItems = {
       selectedLoras: [
         { path: 'lora/path1', strength: 0.8 },
@@ -431,17 +405,11 @@ describe('useJoinClipsGenerate', () => {
       { wrapper: createWrapper() },
     );
 
-    act(() => {
-      result.current.handleGenerate();
+    await act(async () => {
+      await result.current.handleGenerate();
     });
 
-    await waitFor(() => {
-      const callArgs = mockCreateTask.mock.calls[0][0].input;
-      expect(callArgs.loras).toEqual([
-        { path: 'lora/path1', strength: 0.8 },
-        { path: 'lora/path2', strength: 0.5 },
-      ]);
-    });
+    expect(mockCreateTask).not.toHaveBeenCalled();
   });
 
   it('restores defaults correctly', () => {
@@ -511,7 +479,7 @@ describe('useJoinClipsGenerate', () => {
     expect(calls.gapFrameCount).toBeGreaterThanOrEqual(1);
   });
 
-  it('adds incoming task during generation', async () => {
+  it('does not add an incoming placeholder for the blocked family', async () => {
     const { result } = renderHook(
       () =>
         useJoinClipsGenerate({
@@ -526,15 +494,10 @@ describe('useJoinClipsGenerate', () => {
       { wrapper: createWrapper() },
     );
 
-    act(() => {
-      result.current.handleGenerate();
+    await act(async () => {
+      await result.current.handleGenerate();
     });
 
-    await waitFor(() => {
-      expect(mockAddIncomingTask).toHaveBeenCalledWith({
-        taskType: 'join_clips',
-        label: 'Join 2 clips',
-      });
-    });
+    expect(mockAddIncomingTask).not.toHaveBeenCalled();
   });
 });

@@ -17,6 +17,7 @@ import {
   type RuntimeObjectReceipt,
   type TaskCreationResult,
 } from './types';
+import { unsupportedLegacyTaskError } from './legacyBoundary';
 
 const MAX_ATTEMPTS = 2;
 interface CreateTaskOptions {
@@ -241,10 +242,7 @@ export async function createTask(
 ): Promise<TaskCreationResult> {
   void options;
   if ('project_id' in taskParams) {
-    throw new TaskValidationError(
-      `Legacy task family ${taskParams.family} is unsupported; migrate the producer to a canonical Astrid capability before submission`,
-      'capability_id',
-    );
+    throw unsupportedLegacyTaskError(taskParams.family);
   }
   const validatedTaskParams = await validateAdmissionAuthority(taskParams);
   const startTime = Date.now();

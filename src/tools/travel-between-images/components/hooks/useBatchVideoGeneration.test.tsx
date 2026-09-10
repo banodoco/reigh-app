@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   toastError: vi.fn(),
@@ -95,7 +95,6 @@ function renderBatchHook(overrides?: Partial<Parameters<typeof useBatchVideoGene
 describe('useBatchVideoGeneration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useFakeTimers();
     mocks.useQueryClient.mockReturnValue({ query: 'client' });
     mocks.useEnqueueGenerationsInvalidation.mockReturnValue(vi.fn());
     mocks.useVideoTravelSettingsMutations.mockReturnValue({
@@ -108,64 +107,20 @@ describe('useBatchVideoGeneration', () => {
     mocks.generateVideo.mockResolvedValue({ ok: true });
   });
 
-  afterEach(() => {
-    vi.runOnlyPendingTimers();
-    vi.useRealTimers();
-  });
-
-  it('queues generation successfully, flips justQueued, and calls onClose after the timeout', async () => {
-    const onClose = vi.fn();
-    const invalidateGenerations = vi.fn();
-    mocks.useEnqueueGenerationsInvalidation.mockReturnValueOnce(invalidateGenerations);
-    const updateField = vi.fn();
-    mocks.useVideoTravelSettingsMutations.mockReturnValue({
-      settings: baseSettings,
-      updateField,
-    });
-
-    const { result } = renderBatchHook({ onClose });
+  it('rejects a valid batch before settings, loading, timer, or Runtime work', async () => {
+    const { result, onClose } = renderBatchHook();
 
     await act(async () => {
       await result.current.handleGenerate();
     });
 
-    expect(updateField).toHaveBeenCalledWith('generationMode', 'batch');
-    expect(mocks.buildBasicModePhaseConfig).toHaveBeenCalledWith(70, [
-      { path: '/lora-1', strength: 0.8 },
-    ]);
-    expect(mocks.generateVideo).toHaveBeenCalledWith(expect.objectContaining({
-      projectId: 'project-1',
-      selectedShotId: 'shot-1',
-      effectiveAspectRatio: '16:9',
-      generationMode: 'batch',
-    }));
-    expect(mocks.generateVideo).toHaveBeenCalledWith(expect.objectContaining({
-      structureGuidance: { mode: 'none' },
-      structureVideos: [],
-      selectedLoras: [
-        expect.objectContaining({
-          id: 'lora-1',
-          name: 'Lora One',
-          path: '/lora-1',
-          strength: 0.8,
-        }),
-      ],
-    }));
-    expect(result.current.justQueued).toBe(true);
-    expect(result.current.isGenerating).toBe(false);
-    expect(invalidateGenerations).toHaveBeenCalledWith('shot-1', {
-      reason: 'video-generation-modal-success',
-      scope: 'all',
-      includeProjectUnified: true,
-      projectId: 'project-1',
-    });
-
-    act(() => {
-      vi.advanceTimersByTime(1000);
-    });
-
+    expect(mocks.toastError).toHaveBeenCalledWith(expect.stringContaining('Legacy task family travel_between_images is unsupported'));
+    expect(mocks.useVideoTravelSettingsMutations).not.toHaveBeenCalled();
+    expect(mocks.buildBasicModePhaseConfig).not.toHaveBeenCalled();
+    expect(mocks.generateVideo).not.toHaveBeenCalled();
     expect(result.current.justQueued).toBe(false);
-    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(result.current.isGenerating).toBe(false);
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('shows a toast and skips generation when no positioned images are available', async () => {

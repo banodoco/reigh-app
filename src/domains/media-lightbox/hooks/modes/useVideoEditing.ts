@@ -1,25 +1,13 @@
 import { useState, useCallback, useRef } from 'react';
 import { toast } from '@/shared/components/ui/runtime/sonner';
-import { useQueryClient } from '@tanstack/react-query';
-import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
-import { createTask } from '@/shared/lib/taskCreation';
-import {
-  flashSuccessForDuration,
-  invalidateTaskAndProjectQueries,
-} from '@/shared/lib/tasks/taskMutationFeedback';
-import { VACE_GENERATION_DEFAULTS } from '@/shared/lib/vaceDefaults';
+import { unsupportedLegacyTaskError } from '@/shared/lib/taskCreation/legacyBoundary';
 import { useEditVideoSettings } from '@/shared/settings/hooks/useEditVideoSettings';
 import { useLoraManager } from '@/domains/lora/hooks/useLoraManager';
 import { usePublicLoras } from '@/features/resources/hooks/useResources';
-import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
-import { TOOL_IDS } from '@/shared/lib/tooling/toolIds';
 import { useVideoEditingSelections } from './useVideoEditingSelections';
-import { buildVideoEditOrchestratorDetails } from './videoEditingTaskPayload';
 
 export type { UseVideoEditingProps, UseVideoEditingReturn } from './types';
 import type { UseVideoEditingProps, UseVideoEditingReturn } from './types';
-
-const VIDEO_EDIT_FPS = 16;
 
 /**
  * Hook for managing video editing (portion regeneration) functionality.
@@ -28,18 +16,13 @@ const VIDEO_EDIT_FPS = 16;
 export const useVideoEditing = ({
   media,
   selectedProjectId,
-  projectAspectRatio,
   videoDuration,
   videoUrl,
   onExitVideoEditMode,
 }: UseVideoEditingProps): UseVideoEditingReturn => {
-  const queryClient = useQueryClient();
-  const run = useTaskPlaceholder();
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const [isVideoEditMode, setIsVideoEditMode] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generateSuccess, setGenerateSuccess] = useState(false);
 
   const editSettings = useEditVideoSettings(selectedProjectId);
   const { data: availableLoras } = usePublicLoras();
@@ -62,76 +45,11 @@ export const useVideoEditing = ({
     }
     if (!selectedProjectId || !videoUrl || !media) return;
 
-    setIsGenerating(true);
-    try {
-      await run({
-        taskType: 'edit_video_orchestrator',
-        label: editSettings.settings.prompt?.substring(0, 50) || 'Video edit...',
-        context: 'VideoEdit',
-        toastTitle: 'Failed to create regeneration task',
-        create: async () => {
-          const globalPrompt = editSettings.settings.prompt || '';
-          const globalGapFrameCount = editSettings.settings.gapFrameCount;
-          const portionFrameRanges = selectionsState.selectionsToFrameRanges(
-            VIDEO_EDIT_FPS,
-            globalGapFrameCount,
-            globalPrompt,
-          );
-
-          const lorasForTask = loraManager.selectedLoras
-            .filter((lora): lora is typeof lora & { path: string } => Boolean(lora.path))
-            .map(lora => ({ path: lora.path, strength: lora.strength }));
-
-          const orchestratorDetails = buildVideoEditOrchestratorDetails({
-            media,
-            videoUrl,
-            videoDuration,
-            fps: VIDEO_EDIT_FPS,
-            portionFrameRanges,
-            projectAspectRatio,
-            requestedContextFrameCount: editSettings.settings.contextFrameCount,
-            globalGapFrameCount,
-            globalPrompt,
-            negativePrompt: editSettings.settings.negativePrompt || '',
-            enhancePrompt: editSettings.settings.enhancePrompt,
-            priority: editSettings.settings.priority || 0,
-            model: editSettings.settings.model || VACE_GENERATION_DEFAULTS.model,
-            seed: editSettings.settings.seed ?? -1,
-            numInferenceSteps: editSettings.settings.numInferenceSteps || 6,
-            guidanceScale: editSettings.settings.guidanceScale || 3,
-            lorasForTask,
-          });
-
-          return createTask({
-            project_id: selectedProjectId,
-            family: 'edit_video_orchestrator',
-            input: {
-              orchestrator_details: orchestratorDetails,
-              tool_type: TOOL_IDS.EDIT_VIDEO,
-              parent_generation_id: getGenerationId(media),
-            },
-          });
-        },
-        onSuccess: () => {
-          flashSuccessForDuration(setGenerateSuccess, 1500);
-          invalidateTaskAndProjectQueries(queryClient, selectedProjectId);
-        },
-      });
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [
-    editSettings.settings,
-    loraManager.selectedLoras,
-    media,
-    projectAspectRatio,
-    queryClient,
-    run,
-    selectionsState,
-    selectedProjectId,
-    videoDuration,
-    videoUrl,
-  ]);
+    // This lightbox path has the same keeper/gap orchestration semantics as
+    // useReplaceMode and has no lossless typed replacement. Reject before
+    // placeholder state, payload construction, or Runtime submission.
+    toast.error(unsupportedLegacyTaskError('edit_video_orchestrator').message);
+  }, [selectionsState.validation.isValid, selectedProjectId, videoUrl, media]);
 
   const handleEnterVideoEditMode = useCallback(() => {
     setIsVideoEditMode(true);
@@ -166,8 +84,8 @@ export const useVideoEditing = ({
     availableLoras,
 
     handleGenerate,
-    isGenerating,
-    generateSuccess,
+    isGenerating: false,
+    generateSuccess: false,
 
     handleEnterVideoEditMode,
     handleExitVideoEditMode,
