@@ -218,10 +218,25 @@ const projectUpdateSettlementEffectSchema = z.strictObject({
   }).optional(),
 });
 
-/** Runtime currently admits no effect ({}) or the atomic project.update effect. */
+const generationVariantAppendSettlementEffectSchema = z.strictObject({
+  effect_type: z.literal('generation.variant.append'),
+  target_id: z.string().min(1),
+  expected_version: z.number().int().positive(),
+  payload: z.strictObject({
+    source_variant_id: z.string().min(1),
+    source_object_id: runtimeSha256IdSchema,
+    variant_type: z.string().min(1).max(128),
+    output_name: z.string().min(1).max(512),
+    output_ordinal: z.literal(0),
+    primary_policy: z.literal('preserve'),
+  }),
+});
+
+/** Runtime admits no effect ({}), project.update, or atomic variant append. */
 export const bridgeTaskSettlementEffectSchema = z.union([
   z.strictObject({}),
   projectUpdateSettlementEffectSchema,
+  generationVariantAppendSettlementEffectSchema,
 ]);
 
 /**

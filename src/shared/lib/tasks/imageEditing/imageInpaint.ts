@@ -34,7 +34,8 @@ async function resolveEditLineage(
   requestedVariantId?: string | null,
 ): Promise<{ generationId: string; expectedVersion: number; sourceVariantId: string }> {
   const detail = await new AstridLocalClient({ projectSlug: project }).gallery.get(generationId);
-  if (!Number.isInteger(detail.version) || detail.version < 1) {
+  const expectedVersion = detail.version;
+  if (typeof expectedVersion !== 'number' || !Number.isInteger(expectedVersion) || expectedVersion < 1) {
     throw new TaskValidationError(
       'Astrid generation detail has no usable version for atomic edit settlement',
       'lineage',
@@ -51,7 +52,7 @@ async function resolveEditLineage(
   }
   return {
     generationId,
-    expectedVersion: detail.version,
+    expectedVersion,
     sourceVariantId: sourceVariant.id,
   };
 }
