@@ -177,4 +177,8 @@ export function submitSegmentTask(input: SubmitSegmentTaskInput): void {
     'Individual travel segment generation is blocked until a canonical Astrid capability preserves ordered image inputs, continuation state, and lineage.',
   );
   input.onNonFatalError?.('unsupported_capability', unsupported);
+  // The caller's form treats a resolved onSubmit as success. Propagate the
+  // unsupported result after reporting it so no false "Task Created" state is
+  // shown when no task was admitted.
+  throw unsupported;
 }

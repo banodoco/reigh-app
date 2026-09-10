@@ -22,10 +22,6 @@ vi.mock('@/integrations/supabase/client', () => ({
   }),
 }));
 
-const flushPromises = async (): Promise<void> => {
-  await new Promise((resolve) => setTimeout(resolve, 0));
-};
-
 const getSettings = () => ({
   prompt: 'A prompt',
   negativePrompt: '',
@@ -106,12 +102,12 @@ describe('submitSegmentTask', () => {
     });
   });
 
-  it('fails closed before settings persistence or task creation', async () => {
+  it('fails closed before settings persistence or task creation', () => {
     const saveSettings = vi.fn().mockResolvedValue(false);
     const run = vi.fn<RunTaskPlaceholder>();
     const onNonFatalError = vi.fn();
 
-    submitSegmentTask({
+    expect(() => submitSegmentTask({
       taskLabel: 'Segment 1',
       errorContext: 'submitSegmentTask.test',
       getSettings,
@@ -130,22 +126,20 @@ describe('submitSegmentTask', () => {
       run,
       queryClient: new QueryClient(),
       onNonFatalError,
-    });
-
-    await flushPromises();
+    })).toThrow('Individual travel segment generation is blocked');
 
     expect(saveSettings).not.toHaveBeenCalled();
     expect(run).not.toHaveBeenCalled();
     expect(onNonFatalError).toHaveBeenCalledWith('unsupported_capability', expect.any(Error));
   });
 
-  it('does not create an individual travel task even when settings are writable', async () => {
+  it('does not create an individual travel task even when settings are writable', () => {
     const createTaskMock = vi.mocked(createTask);
     createTaskMock.mockResolvedValue({ task_id: 'task-2', status: 'queued' });
     const saveSettings = vi.fn().mockResolvedValue(true);
     const run = vi.fn<RunTaskPlaceholder>();
 
-    submitSegmentTask({
+    expect(() => submitSegmentTask({
       taskLabel: 'Segment 2',
       errorContext: 'submitSegmentTask.test',
       getSettings,
@@ -164,9 +158,7 @@ describe('submitSegmentTask', () => {
       },
       run,
       queryClient: new QueryClient(),
-    });
-
-    await flushPromises();
+    })).toThrow('Individual travel segment generation is blocked');
 
     expect(saveSettings).not.toHaveBeenCalled();
     expect(run).not.toHaveBeenCalled();
