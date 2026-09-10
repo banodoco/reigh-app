@@ -180,8 +180,9 @@ export const useMagicEditMode = ({
       return;
     }
     
-    // Route based on whether there are brush strokes
-    // Klein models don't support masks/inpainting — always use prompt-based edit
+    // Route based on whether there are brush strokes. Klein has a verified
+    // source-only edit endpoint, so brush strokes still use the mask profile
+    // only for Qwen; Klein continues through the typed prompt-edit profile.
     const useKleinPath = qwenEditModel && isKleinModel(qwenEditModel);
     if (brushStrokes.length > 0 && !useKleinPath) {
       // Has brush strokes -> inpaint (Qwen models only)
@@ -200,12 +201,12 @@ export const useMagicEditMode = ({
       ].filter((reason): reason is string => reason !== null);
       if (unsupportedReasons.length > 0) {
         toast.error(
-          `Astrid source-only edit does not support ${unsupportedReasons.join(', ')}; adjust the selection before submitting`,
+          `Astrid bounded edit does not support ${unsupportedReasons.join(', ')}; adjust the selection before submitting`,
         );
         return;
       }
 
-      // No brush strokes -> magic edit
+      // No brush strokes -> typed source edit (Qwen or Klein).
       setIsCreatingMagicEditTasks(true);
       setMagicEditTasksCreated(false);
 
@@ -223,12 +224,6 @@ export const useMagicEditMode = ({
             // IMPORTANT: Use generation_id (actual generations.id) when available, falling back to id
             // For ShotImageManager/Timeline images, id is shot_generations.id but generation_id is the actual generation ID
             const actualGenerationId = getGenerationId(media);
-
-            if (useKlein) {
-              throw new Error(
-                'Klein edit is blocked until Astrid publishes a bounded public edit capability',
-              );
-            }
 
             return createBoundedImageEditTask(selectedProjectId, {
               sourceUrl: effectiveImageUrl,

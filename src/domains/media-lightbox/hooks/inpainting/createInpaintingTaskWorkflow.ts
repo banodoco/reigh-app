@@ -1,6 +1,9 @@
 import type { GenerationRow } from '@/domains/generation/types';
 import type { StrokeOverlayHandle } from '../../components/StrokeOverlay';
 import type { EditAdvancedSettings, QwenEditModel } from './types';
+import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
+import { createImageInpaintTask } from '@/shared/lib/tasks/imageEditing/imageInpaint';
+import { buildMaskedEditTaskParams } from '@/shared/lib/tasks/imageEditing/buildMaskedEditTaskParams';
 
 type TaskType = 'inpaint' | 'annotate';
 
@@ -39,26 +42,45 @@ export async function createInpaintingTaskWorkflow({
   actualGenerationId,
   strokeOverlay,
 }: CreateInpaintingTaskWorkflowParams): Promise<string> {
-  void taskType;
-  void media;
-  void selectedProjectId;
-  void shotId;
-  void toolTypeOverride;
-  void loras;
-  void activeVariantId;
-  void activeVariantLocation;
-  void createAsGeneration;
-  void advancedSettings;
-  void qwenEditModel;
-  void inpaintPrompt;
-  void inpaintNumGenerations;
-  void actualGenerationId;
-  void strokeOverlay;
-  // The current public Astrid edit capability is source-only.  Keep masked
-  // edits fail-closed until a verified mask CAS port and bounded executor
-  // profile exist; in particular, do not start a local worker or upload a
-  // mask to the legacy Supabase path before that admission decision.
-  throw new Error(
-    'Masked image edits are blocked until Astrid publishes a bounded mask-capable edit capability',
-  );
+  if (!selectedProjectId) {
+    throw new Error('Missing project for masked edit task');
+  }
+  const sourceUrl = activeVariantLocation || media.imageUrl || media.location;
+  if (!sourceUrl) {
+    throw new Error('Masked edit source image is unavailable');
+  }
+  const maskUrl = strokeOverlay.exportMask();
+  if (!maskUrl) {
+    throw new Error('Masked edit overlay did not produce a mask');
+  }
+  if (createAsGeneration) {
+    throw new Error('The bounded mask edit capability only settles generation variants');
+  }
+  if (loras?.length) {
+    throw new Error('The bounded mask edit capability does not support LoRA routing');
+  }
+  if (advancedSettings?.enabled) {
+    throw new Error('The bounded mask edit capability does not support hires-fix routing');
+  }
+  const actualId = actualGenerationId || getGenerationId(media);
+  if (!actualId) {
+    throw new Error('Missing generation id for masked edit lineage');
+  }
+
+  return createImageInpaintTask(
+    buildMaskedEditTaskParams({
+      projectId: selectedProjectId,
+      imageUrl: sourceUrl,
+      maskUrl,
+      prompt: inpaintPrompt.trim(),
+      numGenerations: inpaintNumGenerations,
+      generationId: actualId,
+      shotId,
+      toolType: toolTypeOverride,
+      sourceVariantId: activeVariantId || undefined,
+      createAsGeneration: false,
+      editKind: taskType === 'annotate' ? 'annotated_edit' : 'inpaint',
+      qwenEditModel,
+    }),
+  ).then(result => result.task_id);
 }

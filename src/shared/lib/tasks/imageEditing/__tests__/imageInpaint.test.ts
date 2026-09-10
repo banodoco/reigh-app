@@ -3,11 +3,13 @@ import { createBoundedImageEditTask, createImageInpaintTask, IMAGE_EDIT_CAPABILI
 
 const {
   mockCreateTask,
+  mockIngestProjectInput,
   mockIngestProjectInputFromUrl,
   mockResolveTaskCapability,
   mockGalleryGet,
 } = vi.hoisted(() => ({
   mockCreateTask: vi.fn(),
+  mockIngestProjectInput: vi.fn(),
   mockIngestProjectInputFromUrl: vi.fn(),
   mockResolveTaskCapability: vi.fn(),
   mockGalleryGet: vi.fn(),
@@ -15,6 +17,7 @@ const {
 
 vi.mock('../../../taskCreation', () => ({
   createTask: (...args: unknown[]) => mockCreateTask(...args),
+  ingestProjectInput: (...args: unknown[]) => mockIngestProjectInput(...args),
   ingestProjectInputFromUrl: (...args: unknown[]) => mockIngestProjectInputFromUrl(...args),
   resolveTaskCapability: (...args: unknown[]) => mockResolveTaskCapability(...args),
 }));
@@ -44,17 +47,65 @@ describe('createImageInpaintTask', () => {
     });
   });
 
-  it('fails closed before task creation because the published edit capability is source-only', async () => {
-    await expect(createImageInpaintTask({
+  it('admits a bounded inpaint through ordered source and mask CAS custody', async () => {
+    mockResolveTaskCapability.mockResolvedValueOnce({
+      definition_digest: `sha256:${'d'.repeat(64)}`,
+      estimated_scratch_bytes: 137338880,
+      estimated_output_bytes: 68157440,
+    });
+    mockIngestProjectInputFromUrl
+      .mockResolvedValueOnce({
+        object_id: `sha256:${'b'.repeat(64)}`,
+        media_type: 'image/png',
+        filename: 'source.png',
+        size: 123,
+        receipt: {},
+      })
+      .mockResolvedValueOnce({
+        object_id: `sha256:${'c'.repeat(64)}`,
+        media_type: 'image/png',
+        filename: 'mask.png',
+        size: 124,
+        receipt: {},
+      });
+
+    await createImageInpaintTask({
       project_id: 'proj-1',
       image_url: 'https://example.com/image.jpg',
       mask_url: 'https://example.com/mask.png',
       prompt: 'remove the car',
       num_generations: 1,
-    })).rejects.toThrow('mask-capable edit capability');
-    expect(mockCreateTask).not.toHaveBeenCalled();
-    expect(mockResolveTaskCapability).not.toHaveBeenCalled();
-    expect(mockIngestProjectInputFromUrl).not.toHaveBeenCalled();
+      qwen_edit_model: 'qwen-edit-2511',
+    });
+
+    expect(mockIngestProjectInputFromUrl).toHaveBeenNthCalledWith(
+      1,
+      'proj-1',
+      'https://example.com/image.jpg',
+      { maxBytes: 512_000, requireImage: true },
+    );
+    expect(mockIngestProjectInputFromUrl).toHaveBeenNthCalledWith(
+      2,
+      'proj-1',
+      'https://example.com/mask.png',
+      { maxBytes: 512_000, requireImage: true },
+    );
+    expect(mockCreateTask).toHaveBeenCalledWith(expect.objectContaining({
+      capability_id: IMAGE_EDIT_CAPABILITY_ID,
+      capability_digest: `sha256:${'d'.repeat(64)}`,
+      input_object_ids: [`sha256:${'b'.repeat(64)}`, `sha256:${'c'.repeat(64)}`],
+      storage_estimate: { scratch_bytes: 137338880, output_bytes: 68157440 },
+      spec: expect.objectContaining({
+        params: expect.objectContaining({
+          model: 'qwen-image-edit-inpaint',
+          mode: 'inpaint',
+          execution: 'cloud',
+          strength: 0.93,
+          image_ref: { digest: `sha256:${'b'.repeat(64)}`, filename: 'source.png', media_type: 'image/png' },
+          mask_ref: { digest: `sha256:${'c'.repeat(64)}`, filename: 'mask.png', media_type: 'image/png' },
+        }),
+      }),
+    }));
   });
 
   it('admits the bounded source-only edit through ordered CAS custody', async () => {
@@ -209,5 +260,94 @@ describe('createImageInpaintTask', () => {
     })).rejects.toThrow('exactly one output');
     expect(mockResolveTaskCapability).not.toHaveBeenCalled();
     expect(mockIngestProjectInputFromUrl).not.toHaveBeenCalled();
+  });
+
+  it('settles annotated edits against the selected source variant version', async () => {
+    mockGalleryGet.mockResolvedValue({
+      generation_id: 'gen-annotated',
+      project_id: 'proj-1',
+      version: 9,
+      variants: [{
+        id: 'variant-selected',
+        is_primary: false,
+        object_id: `sha256:${'b'.repeat(64)}`,
+      }],
+    });
+    mockIngestProjectInputFromUrl
+      .mockResolvedValueOnce({
+        object_id: `sha256:${'b'.repeat(64)}`,
+        media_type: 'image/png',
+        filename: 'source.png',
+        size: 123,
+        receipt: {},
+      })
+      .mockResolvedValueOnce({
+        object_id: `sha256:${'c'.repeat(64)}`,
+        media_type: 'image/png',
+        filename: 'mask.png',
+        size: 124,
+        receipt: {},
+      });
+
+    await createImageInpaintTask({
+      project_id: 'proj-1',
+      image_url: 'https://example.com/source.png',
+      mask_url: 'https://example.com/mask.png',
+      prompt: 'annotate the selected region',
+      num_generations: 1,
+      generation_id: 'gen-annotated',
+      source_variant_id: 'variant-selected',
+      edit_kind: 'annotated_edit',
+      qwen_edit_model: 'qwen-edit-2511',
+    });
+
+    expect(mockCreateTask).toHaveBeenCalledWith(expect.objectContaining({
+      settlement_effect: {
+        effect_type: 'generation.variant.append',
+        target_id: 'gen-annotated',
+        expected_version: 9,
+        payload: expect.objectContaining({
+          source_variant_id: 'variant-selected',
+          source_object_id: `sha256:${'b'.repeat(64)}`,
+          variant_type: 'annotated_edit',
+          output_name: 'generated_images',
+          output_ordinal: 0,
+          primary_policy: 'preserve',
+        }),
+      },
+    }));
+  });
+
+  it('rejects unsupported mask aliases and fan-out before capability lookup', async () => {
+    await expect(createImageInpaintTask({
+      project_id: 'proj-1', image_url: 'https://example.com/source.png',
+      mask_url: 'https://example.com/mask.png', prompt: 'edit', num_generations: 2,
+    })).rejects.toThrow('exactly one output');
+    await expect(createImageInpaintTask({
+      project_id: 'proj-1', image_url: 'https://example.com/source.png',
+      mask_url: 'https://example.com/mask.png', prompt: 'edit', num_generations: 1,
+      qwen_edit_model: 'qwen-edit-2509',
+    })).rejects.toThrow('not represented');
+    expect(mockResolveTaskCapability).not.toHaveBeenCalled();
+    expect(mockCreateTask).not.toHaveBeenCalled();
+  });
+
+  it('maps the verified Klein UI aliases to exact Astrid edit identities', async () => {
+    await createBoundedImageEditTask('proj-1', {
+      sourceUrl: 'https://example.com/source.png',
+      prompt: 'edit with Klein',
+      count: 1,
+      qwenEditModel: 'flux-klein-4b',
+    });
+
+    expect(mockCreateTask).toHaveBeenCalledWith(expect.objectContaining({
+      spec: expect.objectContaining({
+        params: expect.objectContaining({
+          model: 'flux2-klein-4b',
+          mode: 'edit',
+          execution: 'cloud',
+        }),
+      }),
+    }));
   });
 });
