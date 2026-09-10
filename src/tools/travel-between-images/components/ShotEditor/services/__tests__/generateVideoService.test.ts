@@ -18,6 +18,14 @@ vi.mock('sonner', () => ({
   toast: { error: vi.fn(), success: vi.fn(), loading: vi.fn(), dismiss: vi.fn() },
 }));
 
+const travelTaskMock = vi.hoisted(() => ({
+  createTravelGenerationTask: vi.fn(),
+}));
+vi.mock('@/shared/lib/taskCreation/travelGeneration', () => ({
+  ...travelTaskMock,
+  TRAVEL_GENERATION_MODEL: 'wan-2.2',
+}));
+
 import {
   generateVideo,
   buildBasicModePhaseConfig,
@@ -89,6 +97,85 @@ describe('generateVideoService', () => {
       errorCode: 'generate_video_failed',
       message: expect.stringContaining('No shot selected'),
     });
+  });
+
+  it('admits the cached ordered image pair through the canonical producer', async () => {
+    travelTaskMock.createTravelGenerationTask.mockResolvedValueOnce({
+      task_id: 'task-travel-1',
+      task_ids: ['task-travel-1'],
+    });
+    const queryClient = {
+      getQueryData: vi.fn().mockReturnValue([
+        {
+          id: 'shot-generation-start',
+          generation_id: 'generation-start',
+          timeline_frame: 0,
+          location: 'https://example.com/start.png',
+          type: 'image',
+          primary_variant_id: 'variant-start',
+          metadata: null,
+        },
+        {
+          id: 'shot-generation-end',
+          generation_id: 'generation-end',
+          timeline_frame: 24,
+          location: 'https://example.com/end.png',
+          type: 'image',
+          primary_variant_id: 'variant-end',
+          metadata: null,
+        },
+      ]),
+    };
+
+    const result = await generateVideo({
+      projectId: 'project-1',
+      selectedShotId: 'shot-1',
+      selectedShot: { id: 'shot-1', aspect_ratio: '16:9' },
+      queryClient,
+      effectiveAspectRatio: '16:9',
+      generationMode: 'batch',
+      promptConfig: {
+        base_prompt: 'a measured camera move',
+        enhance_prompt: false,
+        default_negative_prompt: 'blurry',
+      },
+      motionConfig: {
+        amount_of_motion: 50,
+        motion_mode: 'basic',
+        advanced_mode: false,
+      },
+      modelConfig: {
+        selectedModel: 'wan-2.2',
+        seed: 7,
+        random_seed: false,
+        turbo_mode: false,
+        debug: false,
+        generation_type_mode: 'i2v',
+        num_inference_steps: 30,
+        guidance_scale: 5,
+        smoothContinuations: false,
+      },
+      batchVideoFrames: 49,
+      selectedLoras: [],
+      variantNameParam: '',
+      clearAllEnhancedPrompts: vi.fn(),
+    } as GenerateVideoParams);
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: { taskId: 'task-travel-1', taskIds: ['task-travel-1'] },
+      policy: 'fail_closed',
+    });
+    expect(travelTaskMock.createTravelGenerationTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        project: 'project-1',
+        startUrl: 'https://example.com/start.png',
+        endUrl: 'https://example.com/end.png',
+        basedOnGenerationId: 'generation-start',
+        sourceVariantId: 'variant-start',
+        frames: 49,
+      }),
+    );
   });
 
   // --------------------------------------------------------------------------
