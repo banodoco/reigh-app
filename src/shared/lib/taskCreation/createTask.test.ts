@@ -155,6 +155,19 @@ describe('createTask R1 admission over the fake bridge router', () => {
     expect(router.state.admissions).toBe(0);
   });
 
+  it('rejects a project object not authorized by the Runtime catalog before admission', async () => {
+    const foreignObjectId = `sha256:${'9'.repeat(64)}`;
+
+    await expect(createTask(admissionParams({
+      input_object_ids: [foreignObjectId],
+    }))).rejects.toThrow('not authorized for project');
+    expect(router.state.admissions).toBe(0);
+    expect(fetchMock.mock.calls.some(([input, init]) => {
+      const url = new URL(input instanceof Request ? input.url : String(input), FAKE_ORIGIN);
+      return url.pathname.endsWith('/tasks') && (init as RequestInit | undefined)?.method === 'POST';
+    })).toBe(false);
+  });
+
   it('keeps one idempotency key across the transport retry of the same admission', async () => {
     let admissionCalls = 0;
     const idempotencyKeys: string[] = [];
