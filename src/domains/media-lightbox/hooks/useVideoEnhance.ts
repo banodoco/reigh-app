@@ -48,6 +48,8 @@ interface UseVideoEnhanceReturn {
 export function useVideoEnhance({
   projectId,
   videoUrl,
+  generationId,
+  activeVariantId,
   settings,
   updateSettings,
 }: UseVideoEnhanceProps): UseVideoEnhanceReturn {
@@ -102,6 +104,8 @@ export function useVideoEnhance({
         create: () => {
           return createVideoEnhanceTask(projectId, {
             sourceUrl: videoUrl,
+            generationId,
+            sourceVariantId: activeVariantId,
             enableInterpolation: settings.enableInterpolation,
             enableUpscale: settings.enableUpscale,
             numFrames: settings.numFrames,
@@ -121,6 +125,8 @@ export function useVideoEnhance({
     canSubmit,
     projectId,
     videoUrl,
+    generationId,
+    activeVariantId,
     settings,
     run,
   ]);

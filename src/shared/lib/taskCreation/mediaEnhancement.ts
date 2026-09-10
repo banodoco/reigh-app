@@ -4,6 +4,8 @@ import {
   ingestProjectInputFromUrl,
   resolveTaskCapability,
 } from './createTask';
+import { AstridLocalClient } from '@/integrations/astrid/client';
+import { runtimeSha256IdSchema } from '@/tools/video-editor/data/bridgeContract';
 import { TaskValidationError, type RuntimeInput, type TaskCreationResult } from './types';
 import { unsupportedCapabilityError } from './legacyBoundary';
 
@@ -25,12 +27,51 @@ export interface ImageUpscaleTaskOptions {
 
 export interface VideoEnhanceTaskOptions {
   sourceUrl: string;
+  generationId?: string;
+  sourceVariantId?: string | null;
   enableInterpolation: boolean;
   enableUpscale: boolean;
   numFrames: number;
   upscaleFactor: number;
   colorFix: boolean;
   outputQuality: 'low' | 'medium' | 'high' | 'maximum';
+}
+
+async function resolveVideoEnhanceLineage(
+  project: string,
+  generationId: string,
+  requestedVariantId?: string | null,
+): Promise<{ generationId: string; expectedVersion: number; sourceVariantId: string; sourceObjectId: string }> {
+  const detail = await new AstridLocalClient({ projectSlug: project }).gallery.get(generationId);
+  const expectedVersion = detail.version;
+  if (typeof expectedVersion !== 'number' || !Number.isInteger(expectedVersion) || expectedVersion < 1) {
+    throw new TaskValidationError(
+      'Astrid video generation has no usable version for atomic enhancement settlement',
+      'lineage',
+    );
+  }
+  const sourceVariant = requestedVariantId
+    ? detail.variants.find((variant) => variant.id === requestedVariantId)
+    : detail.variants.find((variant) => variant.is_primary) ?? detail.variants[0];
+  if (!sourceVariant) {
+    throw new TaskValidationError(
+      'Astrid video generation has no source variant for atomic enhancement settlement',
+      'lineage',
+    );
+  }
+  const parsedSourceObjectId = runtimeSha256IdSchema.safeParse(sourceVariant.object_id);
+  if (!parsedSourceObjectId.success) {
+    throw new TaskValidationError(
+      'Astrid video source variant has no CAS object identity for atomic enhancement settlement',
+      'lineage',
+    );
+  }
+  return {
+    generationId,
+    expectedVersion,
+    sourceVariantId: sourceVariant.id,
+    sourceObjectId: parsedSourceObjectId.data,
+  };
 }
 
 export interface CharacterAnimationTaskOptions {
@@ -185,12 +226,27 @@ export async function createVideoEnhanceTask(
     );
   }
   const upscaleFactor = requireNumber(options.upscaleFactor, 'upscaleFactor', 1, 4);
+  if (options.sourceVariantId && !options.generationId) {
+    throw new TaskValidationError(
+      'sourceVariantId requires generationId lineage',
+      'lineage',
+    );
+  }
+  const lineage = options.generationId
+    ? await resolveVideoEnhanceLineage(project, options.generationId, options.sourceVariantId)
+    : null;
   const capability = await resolveTaskCapability(project, VIDEO_ENHANCE_CAPABILITY_ID);
   requireEstimate(capability, VIDEO_ENHANCE_CAPABILITY_ID);
   const source = await ingestProjectInputFromUrl(project, options.sourceUrl, {
     maxBytes: VIDEO_ENHANCE_SOURCE_MAX_BYTES,
   });
   requireMediaType(source, 'video', 'sourceUrl');
+  if (lineage && source.object_id !== lineage.sourceObjectId) {
+    throw new TaskValidationError(
+      'Selected Astrid video source variant does not match the admitted source bytes',
+      'lineage',
+    );
+  }
 
   return createTask({
     project,
@@ -219,7 +275,21 @@ export async function createVideoEnhanceTask(
       scratch_bytes: capability.estimated_scratch_bytes,
       output_bytes: capability.estimated_output_bytes,
     },
-    settlement_effect: {},
+    settlement_effect: lineage
+      ? {
+          effect_type: 'generation.variant.append',
+          target_id: lineage.generationId,
+          expected_version: lineage.expectedVersion,
+          payload: {
+            source_variant_id: lineage.sourceVariantId,
+            source_object_id: source.object_id,
+            variant_type: 'video_enhance',
+            output_name: 'enhanced_video',
+            output_ordinal: 0,
+            primary_policy: 'preserve',
+          },
+        }
+      : {},
   });
 }
 

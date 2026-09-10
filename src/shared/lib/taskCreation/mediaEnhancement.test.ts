@@ -13,9 +13,15 @@ const mocks = vi.hoisted(() => ({
   ingestProjectInput: vi.fn(),
   ingestProjectInputFromUrl: vi.fn(),
   resolveTaskCapability: vi.fn(),
+  galleryGet: vi.fn(),
 }));
 
 vi.mock('./createTask', () => mocks);
+vi.mock('@/integrations/astrid/client', () => ({
+  AstridLocalClient: class {
+    gallery = { get: mocks.galleryGet };
+  },
+}));
 
 const digest = (letter: string) => `sha256:${letter.repeat(64)}`;
 
@@ -28,6 +34,15 @@ describe('typed media producer admission', () => {
       estimated_output_bytes: 200,
     });
     mocks.createTask.mockResolvedValue({ task_id: 'task-1', status: 'queued' });
+    mocks.galleryGet.mockResolvedValue({
+      generation_id: 'generation-1',
+      version: 3,
+      variants: [{
+        id: 'variant-1',
+        object_id: digest('b'),
+        is_primary: true,
+      }],
+    });
   });
 
   it('admits image upscale with one image CAS input and typed output policy', async () => {
@@ -93,6 +108,59 @@ describe('typed media producer admission', () => {
       interpolation_frames: 1, upscale_factor: 2,
       color_fix: false, output_quality: 'maximum',
     });
+  });
+
+  it('binds video enhancement completion to the selected generation variant', async () => {
+    mocks.ingestProjectInputFromUrl.mockResolvedValue({
+      object_id: digest('b'), media_type: 'video/mp4', filename: 'source.mp4', size: 10, receipt: {},
+    });
+
+    await createVideoEnhanceTask('project-1', {
+      sourceUrl: 'https://example.test/source.mp4',
+      generationId: 'generation-1',
+      sourceVariantId: 'variant-1',
+      enableInterpolation: false,
+      enableUpscale: true,
+      numFrames: 1,
+      upscaleFactor: 2,
+      colorFix: false,
+      outputQuality: 'maximum',
+    });
+
+    expect(mocks.galleryGet).toHaveBeenCalledWith('generation-1');
+    expect(mocks.createTask.mock.calls[0]?.[0]).toEqual(expect.objectContaining({
+      settlement_effect: {
+        effect_type: 'generation.variant.append',
+        target_id: 'generation-1',
+        expected_version: 3,
+        payload: {
+          source_variant_id: 'variant-1',
+          source_object_id: digest('b'),
+          variant_type: 'video_enhance',
+          output_name: 'enhanced_video',
+          output_ordinal: 0,
+          primary_policy: 'preserve',
+        },
+      },
+    }));
+  });
+
+  it('rejects a video source whose bytes do not match the selected variant', async () => {
+    mocks.ingestProjectInputFromUrl.mockResolvedValue({
+      object_id: digest('c'), media_type: 'video/mp4', filename: 'source.mp4', size: 10, receipt: {},
+    });
+
+    await expect(createVideoEnhanceTask('project-1', {
+      sourceUrl: 'https://example.test/source.mp4',
+      generationId: 'generation-1',
+      enableInterpolation: false,
+      enableUpscale: true,
+      numFrames: 1,
+      upscaleFactor: 2,
+      colorFix: false,
+      outputQuality: 'maximum',
+    })).rejects.toThrow('does not match the admitted source bytes');
+    expect(mocks.createTask).not.toHaveBeenCalled();
   });
 
   it.each([
