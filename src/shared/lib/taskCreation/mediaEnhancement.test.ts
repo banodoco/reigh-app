@@ -207,6 +207,27 @@ describe('typed media producer admission', () => {
       driving_video_ref: { digest: digest('c'), media_type: 'video/mp4' },
       mode: 'animate', resolution: '720p', seed: 42, prompt: 'walk forward',
     });
+    expect(request.settlement_effect).toEqual({
+      effect_type: 'generation.create_with_variant',
+      target_id: 'project-1',
+      payload: {
+        generation_type: 'video',
+        metadata: {
+          params: {
+            tool_type: 'character-animate',
+            content_type: 'video',
+            prompt: 'walk forward',
+            mode: 'animate',
+            resolution: '720p',
+            seed: 42,
+          },
+        },
+        variant_type: 'character_animation',
+        output_name: 'animated_video',
+        output_ordinal: 0,
+        primary_policy: 'preserve',
+      },
+    });
   });
 
   it('fails closed before ingest when the video capability is unsupported', async () => {

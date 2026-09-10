@@ -130,7 +130,7 @@ describe('create-task resolver dispatch', () => {
       value: {
         task_id: 'legacy-task-client-id',
         params: { prompt: 'legacy' },
-        task_type: 'image_generation',
+        task_type: 'wan_2_2_i2v',
         project_id: 'project-1',
         normalizedDependantOn: null,
         idempotency_key: null,
@@ -152,7 +152,7 @@ describe('create-task resolver dispatch', () => {
         tasks: [
           {
             project_id: 'project-1',
-            task_type: 'image_upscale',
+            task_type: 'wan_2_2_i2v',
             params: { image_url: 'https://example.com/source.png' },
             status: 'Queued',
           },
@@ -169,12 +169,12 @@ describe('create-task resolver dispatch', () => {
             if (table === 'projects') return createProjectsLookupChain({ user_id: 'user-1', aspect_ratio: '16:9' });
             throw new Error(`Unexpected table: ${table}`);
           }),
-          rpc: vi.fn().mockResolvedValue({ data: 'image_upscale', error: null }),
+          rpc: vi.fn().mockResolvedValue({ data: 'wan_2_2_i2v', error: null }),
         },
         logger,
         auth: { isServiceRole: false, isJwtAuth: true, userId: 'user-1' },
         body: {
-          family: 'image_upscale',
+          family: 'wan_2_2_i2v',
           project_id: 'project-1',
           input: { image_url: 'https://example.com/source.png' },
         },
@@ -189,7 +189,7 @@ describe('create-task resolver dispatch', () => {
       task_id: 'task-created-1',
       status: 'Task queued',
     });
-    expect(mocks.getTaskFamilyResolver).toHaveBeenCalledWith('image_upscale');
+    expect(mocks.getTaskFamilyResolver).toHaveBeenCalledWith('wan_2_2_i2v');
     expect(mocks.parseCreateTaskBody).not.toHaveBeenCalled();
   });
 
@@ -219,13 +219,13 @@ describe('create-task resolver dispatch', () => {
         tasks: [
           {
             project_id: 'project-1',
-            task_type: 'z_image_turbo_i2i',
+            task_type: 'wan_2_2_i2v',
             params: { image_url: 'https://example.com/one.png', seed: 111 },
             status: 'Queued',
           },
           {
             project_id: 'project-1',
-            task_type: 'z_image_turbo_i2i',
+            task_type: 'wan_2_2_i2v',
             params: { image_url: 'https://example.com/two.png', seed: 112 },
             status: 'Queued',
           },
@@ -247,12 +247,12 @@ describe('create-task resolver dispatch', () => {
             if (table === 'projects') return createProjectsLookupChain({ aspect_ratio: '16:9' });
             throw new Error(`Unexpected table: ${table}`);
           }),
-          rpc: vi.fn().mockResolvedValue({ data: 'z_image_turbo_i2i', error: null }),
+          rpc: vi.fn().mockResolvedValue({ data: 'wan_2_2_i2v', error: null }),
         },
         logger,
         auth: { isServiceRole: true, userId: null },
         body: {
-          family: 'z_image_turbo_i2i',
+          family: 'wan_2_2_i2v',
           project_id: 'project-1',
           input: { image_url: 'https://example.com/source.png', numImages: 2 },
           idempotency_key: 'stable-request-key',
@@ -268,6 +268,90 @@ describe('create-task resolver dispatch', () => {
       task_ids: ['task-existing-1', 'task-created-2'],
       status: 'Task queued',
     });
+  });
+
+  it('fails closed before DB passthrough for a retired direct family', async () => {
+    const logger = createLogger();
+    const from = vi.fn().mockImplementation((table: string) => {
+      if (table === 'projects') {
+        return { select: createProjectsLookupChain({ aspect_ratio: '16:9' }).select };
+      }
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    mocks.bootstrapEdgeHandler.mockResolvedValue({
+      ok: true,
+      value: {
+        supabaseAdmin: { from, rpc: vi.fn() },
+        logger,
+        auth: { isServiceRole: true, userId: null },
+        body: {
+          family: 'image_upscale',
+          project_id: 'project-1',
+          input: { image_url: 'https://example.com/source.png' },
+        },
+      },
+    });
+
+    const handler = await loadHandler();
+    const response = await handler(new Request('https://edge.test/create-task', { method: 'POST' }));
+
+    expect(response.status).toBe(410);
+    await expect(response.json()).resolves.toMatchObject({
+      errorCode: 'legacy_task_family_removed',
+      recoverable: false,
+    });
+    expect(from).toHaveBeenCalledWith('projects');
+    expect(from).not.toHaveBeenCalledWith('tasks');
+    expect(mocks.getTaskFamilyResolver).not.toHaveBeenCalled();
+    expect(logger.flush).toHaveBeenCalled();
+  });
+
+  it('fails closed when a retained resolver emits a retired dimensional task', async () => {
+    const logger = createLogger();
+    const insert = vi.fn();
+    mocks.getTaskFamilyResolver.mockReturnValue(
+      vi.fn().mockResolvedValue({
+        tasks: [{
+          project_id: 'project-1',
+          task_type: 'travel_stitch',
+          params: { legacy: true },
+          status: 'Queued',
+        }],
+      }),
+    );
+
+    mocks.bootstrapEdgeHandler.mockResolvedValue({
+      ok: true,
+      value: {
+        supabaseAdmin: {
+          from: vi.fn().mockImplementation((table: string) => {
+            if (table === 'projects') return createProjectsLookupChain({ aspect_ratio: '16:9' });
+            if (table === 'tasks') return { insert };
+            throw new Error(`Unexpected table: ${table}`);
+          }),
+          rpc: vi.fn().mockResolvedValue({ data: 'wan_2_2_i2v', error: null }),
+        },
+        logger,
+        auth: { isServiceRole: true, userId: null },
+        body: {
+          family: 'wan_2_2_i2v',
+          project_id: 'project-1',
+          input: { clip_urls: ['a', 'b'] },
+        },
+      },
+    });
+
+    const handler = await loadHandler();
+    const response = await handler(new Request('https://edge.test/create-task', { method: 'POST' }));
+
+    expect(response.status).toBe(410);
+    await expect(response.json()).resolves.toMatchObject({
+      errorCode: 'legacy_task_family_removed',
+      recoverable: false,
+    });
+    expect(mocks.getTaskFamilyResolver).toHaveBeenCalledWith('wan_2_2_i2v');
+    expect(insert).not.toHaveBeenCalled();
   });
 });
 

@@ -85,7 +85,7 @@ describe('create-task edge entrypoint', () => {
       ok: true,
       value: {
         project_id: 'project-1',
-        family: 'image_upscale',
+        family: 'wan_2_2_i2v',
         input: { image_url: 'https://example.com/source.png' },
       },
     });
@@ -95,7 +95,7 @@ describe('create-task edge entrypoint', () => {
         tasks: [
           {
             project_id: 'project-1',
-            task_type: 'image_upscale',
+            task_type: 'wan_2_2_i2v',
             params: { image_url: 'https://example.com/source.png' },
             status: 'Queued',
           },
@@ -110,7 +110,7 @@ describe('create-task edge entrypoint', () => {
         if (table === 'projects') return { select: createProjectsLookupChain({ aspect_ratio: '16:9' }).select };
         throw new Error(`Unexpected table: ${table}`);
       }),
-      rpc: vi.fn().mockResolvedValue({ data: 'image_upscale', error: null }),
+      rpc: vi.fn().mockResolvedValue({ data: 'wan_2_2_i2v', error: null }),
     };
 
     mocks.bootstrapEdgeHandler.mockResolvedValue({
@@ -120,7 +120,7 @@ describe('create-task edge entrypoint', () => {
         logger: createLogger(),
         auth: { isServiceRole: true, userId: null },
         body: {
-          family: 'image_upscale',
+          family: 'wan_2_2_i2v',
           project_id: 'project-1',
           input: { image_url: 'https://example.com/source.png' },
         },
@@ -208,7 +208,7 @@ describe('create-task edge entrypoint', () => {
         if (table === 'projects') return { select: createProjectsLookupChain({ aspect_ratio: '16:9' }).select };
         throw new Error(`Unexpected table: ${table}`);
       }),
-      rpc: vi.fn().mockResolvedValue({ data: 'image_upscale', error: null }),
+      rpc: vi.fn().mockResolvedValue({ data: 'wan_2_2_i2v', error: null }),
     };
 
     mocks.bootstrapEdgeHandler.mockResolvedValue({
@@ -218,7 +218,7 @@ describe('create-task edge entrypoint', () => {
         logger,
         auth: { isServiceRole: true, userId: null },
         body: {
-          family: 'image_upscale',
+          family: 'wan_2_2_i2v',
           project_id: 'project-1',
           input: { image_url: 'https://example.com/source.png' },
         },
@@ -264,7 +264,7 @@ describe('create-task edge entrypoint', () => {
         }
         throw new Error(`Unexpected table: ${table}`);
       }),
-      rpc: vi.fn().mockResolvedValue({ data: 'image_upscale', error: null }),
+      rpc: vi.fn().mockResolvedValue({ data: 'wan_2_2_i2v', error: null }),
     };
 
     mocks.bootstrapEdgeHandler.mockResolvedValue({
@@ -274,7 +274,7 @@ describe('create-task edge entrypoint', () => {
         logger,
         auth: { isServiceRole: false, userId: 'user-1', isJwtAuth: true },
         body: {
-          family: 'image_upscale',
+          family: 'wan_2_2_i2v',
           project_id: 'project-1',
           input: { image_url: 'https://example.com/source.png' },
           idempotency_key: 'idem-1',
@@ -321,7 +321,7 @@ describe('create-task edge entrypoint', () => {
         }
         throw new Error(`Unexpected table: ${table}`);
       }),
-      rpc: vi.fn().mockResolvedValue({ data: 'image_upscale', error: null }),
+      rpc: vi.fn().mockResolvedValue({ data: 'wan_2_2_i2v', error: null }),
     };
 
     mocks.bootstrapEdgeHandler.mockResolvedValue({
@@ -331,7 +331,7 @@ describe('create-task edge entrypoint', () => {
         logger,
         auth: { isServiceRole: false, userId: 'user-1', isJwtAuth: true },
         body: {
-          family: 'image_upscale',
+          family: 'wan_2_2_i2v',
           project_id: 'project-1',
           input: { image_url: 'https://example.com/source.png' },
           idempotency_key: 'idem-1',

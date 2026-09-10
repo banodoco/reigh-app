@@ -82,7 +82,9 @@ export interface CharacterAnimationTaskOptions {
   prompt: string;
   mode: 'replace' | 'animate';
   resolution: '480p' | '720p';
+  /** Resolved by the Character Animate producer before Runtime admission. */
   seed: number;
+  /** Compatibility/provenance flag; does not replace the admitted seed. */
   randomSeed: boolean;
 }
 
@@ -356,6 +358,26 @@ export async function createCharacterAnimationTask(
       scratch_bytes: capability.estimated_scratch_bytes,
       output_bytes: capability.estimated_output_bytes,
     },
-    settlement_effect: {},
+    settlement_effect: {
+      effect_type: 'generation.create_with_variant',
+      target_id: project,
+      payload: {
+        generation_type: 'video',
+        metadata: {
+          params: {
+            tool_type: 'character-animate',
+            content_type: 'video',
+            prompt,
+            mode: 'animate',
+            resolution: options.resolution,
+            seed,
+          },
+        },
+        variant_type: 'character_animation',
+        output_name: 'animated_video',
+        output_ordinal: 0,
+        primary_policy: 'preserve',
+      },
+    },
   });
 }

@@ -232,11 +232,26 @@ const generationVariantAppendSettlementEffectSchema = z.strictObject({
   }),
 });
 
-/** Runtime admits no effect ({}), project.update, or atomic variant append. */
+const generationCreateWithVariantSettlementEffectSchema = z.strictObject({
+  effect_type: z.literal('generation.create_with_variant'),
+  target_id: z.string().min(1),
+  payload: z.strictObject({
+    generation_type: z.string().min(1).max(128),
+    metadata: jsonObject,
+    variant_type: z.string().min(1).max(128),
+    output_name: z.string().min(1).max(512),
+    output_ordinal: z.literal(0),
+    primary_policy: z.literal('preserve'),
+  }),
+});
+
+/** Runtime admits no effect, project.update, atomic variant append, or
+ * Runtime-owned creation of a generation with its first variant. */
 export const bridgeTaskSettlementEffectSchema = z.union([
   z.strictObject({}),
   projectUpdateSettlementEffectSchema,
   generationVariantAppendSettlementEffectSchema,
+  generationCreateWithVariantSettlementEffectSchema,
 ]);
 
 /**
@@ -467,6 +482,8 @@ export const bridgeGenerationSummarySchema = z.looseObject({
   generation_id: z.string(),
   name: z.string().nullable(),
   type: z.string(),
+  /** Runtime generation params used by tool-scoped gallery filters. */
+  params: jsonObject.optional(),
   starred: z.boolean(),
   created_at: z.string(),
   updated_at: z.string(),

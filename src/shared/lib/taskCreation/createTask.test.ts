@@ -156,6 +156,31 @@ describe('createTask R1 admission over the fake bridge router', () => {
     expect(lastAdmitBody()).toEqual(request);
   });
 
+  it('admits the Runtime-owned new-generation settlement effect through the bridge schema', async () => {
+    const request = admissionParams({
+      settlement_effect: {
+        effect_type: 'generation.create_with_variant',
+        target_id: 'project-1',
+        payload: {
+          generation_type: 'video',
+          metadata: {
+            params: {
+              tool_type: 'character-animate',
+              content_type: 'video',
+            },
+          },
+          variant_type: 'character_animation',
+          output_name: 'animated_video',
+          output_ordinal: 0,
+          primary_policy: 'preserve',
+        },
+      },
+    });
+
+    await expect(createTask(request)).resolves.toEqual(expect.objectContaining({ task_id: expect.any(String) }));
+    expect(lastAdmitBody()).toEqual(request);
+  });
+
   it('ingests producer bytes into project CAS without turning locators into IDs', async () => {
     const input = new Blob([new Uint8Array([7, 0, 255])], { type: 'image/png' });
     const committed = await ingestProjectInput('demo-project', input);

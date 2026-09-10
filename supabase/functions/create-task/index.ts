@@ -15,6 +15,37 @@ import { TaskValidationError } from "./resolvers/shared/validation.ts";
 import { RouteContractStampError, stampTaskRouteContract } from "./routeContract.ts";
 import type { MaterializedInputRecord, ResolveRequest, TaskInsertObject } from "./resolvers/types.ts";
 
+// These families were replaced by typed Astrid admissions. Keep the edge
+// boundary fail-closed before the DB task_types fallback: otherwise a stale
+// active task_types row would silently recreate the retired direct authority.
+const RETIRED_DIRECT_TASK_FAMILIES = new Set([
+  "image_upscale",
+  "image_generation",
+  "video_enhance",
+  "z_image_turbo_i2i",
+  "magic_edit",
+  "masked_edit",
+  "character_animate",
+  "klein_edit",
+]);
+
+// Dimensional parent/child/stitch task rows were replaced by the typed Astrid
+// admission path. Keep the edge boundary closed even when an old resolver or
+// an active task_types row is still present in a prepared database.
+const RETIRED_DIMENSIONAL_TASK_TYPES = new Set([
+  "travel_between_images",
+  "join_clips",
+  "crossfade_join",
+  "travel_orchestrator",
+  "travel_segment",
+  "individual_travel_segment",
+  "travel_stitch",
+  "join_clips_orchestrator",
+  "join_clips_segment",
+  "join_final_stitch",
+  "edit_video_orchestrator",
+]);
+
 function createErrorResponse(
   message: string,
   status: number,
@@ -466,6 +497,28 @@ serve(async (req) => {
   }
 
   try {
+    if (RETIRED_DIRECT_TASK_FAMILIES.has(resolverRequest.family)) {
+      logger.error("Retired direct task family rejected", { family: resolverRequest.family });
+      await logger.flush();
+      return createErrorResponse(
+        `Legacy direct task family ${resolverRequest.family} is unsupported; use canonical Astrid admission`,
+        410,
+        "legacy_task_family_removed",
+        false,
+      );
+    }
+
+    if (RETIRED_DIMENSIONAL_TASK_TYPES.has(resolverRequest.family)) {
+      logger.error("Retired dimensional task family rejected", { family: resolverRequest.family });
+      await logger.flush();
+      return createErrorResponse(
+        `Legacy dimensional task family ${resolverRequest.family} is unsupported; use canonical Astrid admission`,
+        410,
+        "legacy_task_family_removed",
+        false,
+      );
+    }
+
     let resolver = getTaskFamilyResolver(resolverRequest.family);
     if (!resolver) {
       // No explicit resolver — check if this task type exists in the DB.
@@ -498,6 +551,23 @@ serve(async (req) => {
       logger.error("Resolver returned no tasks", { family: resolverRequest.family });
       await logger.flush();
       return createErrorResponse("Resolver did not return any tasks", 500, "invalid_resolver_result");
+    }
+
+    const retiredProducedTask = resolverResult.tasks.find((task) =>
+      typeof task.task_type === "string" && RETIRED_DIMENSIONAL_TASK_TYPES.has(task.task_type)
+    );
+    if (retiredProducedTask && typeof retiredProducedTask.task_type === "string") {
+      logger.error("Resolver produced a retired dimensional task", {
+        family: resolverRequest.family,
+        task_type: retiredProducedTask.task_type,
+      });
+      await logger.flush();
+      return createErrorResponse(
+        `Resolver produced retired dimensional task family ${retiredProducedTask.task_type}; use canonical Astrid admission`,
+        410,
+        "legacy_task_family_removed",
+        false,
+      );
     }
 
     const tasksWithMaterializedInputs: TaskInsertObject[] = materializedInputs

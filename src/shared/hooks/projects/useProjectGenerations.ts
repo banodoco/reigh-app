@@ -12,10 +12,10 @@
  * is the existing project-selection context, not a new singleton.
  *
  * ## Filter posture
- * The v1 route supports only the `starred` filter server-side; `mediaType`
- * is applied client-side on the row `type`. Tool/search/shot filters have no
- * v1 route (summary rows carry no params/shot placement) and are accepted for
- * API compatibility but not applied — see .oracle/evidence/c3-b-reads.md.
+ * The v1 route supports only the `starred` filter server-side; media type and
+ * tool type are applied client-side after Runtime summary metadata is mapped.
+ * Search/shot filters remain compatibility-only because the v1 summary has no
+ * search text or shot placement.
  *
  * @module useProjectGenerations
  */
@@ -64,14 +64,15 @@ function toRawGeneration(row: BridgeGenerationSummary, projectSlug: string): Raw
     updated_at: row.updated_at,
     starred: row.starred,
     name: row.name,
+    params: row.params,
     derivedCount: row.variant_count,
   };
 }
 
 /**
  * Client-side filter over mapped rows for predicates expressible on summary
- * data. Only the media-type split is derivable (row `type`, mirroring the
- * previous `%video%` SQL match).
+ * data. Runtime carries the tool discriminator in `params.tool_type`, which
+ * is mapped into the gallery item's display metadata.
  */
 export function matchesClientSideFilters(
   item: GeneratedImageWithMetadata,
@@ -80,6 +81,12 @@ export function matchesClientSideFilters(
   if (filters?.mediaType && filters.mediaType !== 'all') {
     if (filters.mediaType === 'video' && !isVideoMedia(item)) return false;
     if (filters.mediaType === 'image' && !isImageMedia(item)) return false;
+  }
+  if (filters?.toolType) {
+    const toolType = item.metadata?.tool_type;
+    if (toolType !== filters.toolType && toolType !== `${filters.toolType}-reconstructed-client`) {
+      return false;
+    }
   }
   return true;
 }

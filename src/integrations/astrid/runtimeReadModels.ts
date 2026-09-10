@@ -183,6 +183,7 @@ export function runtimeGenerationToSummary(
     generation_id: detail.generation_id,
     name: detail.name ?? null,
     type: detail.type,
+    params: detail.params,
     starred: detail.starred,
     created_at: detail.created_at,
     updated_at: detail.updated_at,

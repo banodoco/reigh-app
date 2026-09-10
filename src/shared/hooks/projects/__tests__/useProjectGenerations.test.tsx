@@ -60,6 +60,28 @@ describe('useProjectGenerations (bridge gallery reads R12)', () => {
     expect(matchesClientSideFilters(audio, { mediaType: 'all' })).toBe(true);
   });
 
+  it('filters Runtime summaries by the mapped tool discriminator', () => {
+    const character = {
+      id: 'character',
+      url: '/character.mp4',
+      type: 'video',
+      isVideo: true,
+      metadata: { tool_type: 'character-animate' },
+    } as GeneratedImageWithMetadata;
+    const imageGeneration = {
+      ...character,
+      id: 'image-generation',
+      metadata: { tool_type: 'image-gen' },
+    } as GeneratedImageWithMetadata;
+
+    expect(matchesClientSideFilters(character, { toolType: 'character-animate' })).toBe(true);
+    expect(matchesClientSideFilters(imageGeneration, { toolType: 'character-animate' })).toBe(false);
+    expect(matchesClientSideFilters(
+      { ...character, metadata: { tool_type: 'character-animate-reconstructed-client' } },
+      { toolType: 'character-animate' },
+    )).toBe(true);
+  });
+
   it('fetchGenerations maps generation rows into gallery items with Runtime CAS display URLs', async () => {
     const result = await fetchGenerations(SLUG, 100, 0);
 

@@ -44,6 +44,19 @@ export type RuntimeSettlementEffect =
         output_ordinal: 0;
         primary_policy: 'preserve';
       };
+    }
+  | {
+      /** Runtime creates the project generation and its first primary variant atomically. */
+      effect_type: 'generation.create_with_variant';
+      target_id: string;
+      payload: {
+        generation_type: string;
+        metadata: Record<string, unknown>;
+        variant_type: string;
+        output_name: string;
+        output_ordinal: 0;
+        primary_policy: 'preserve';
+      };
     };
 
 export type RuntimeInput = Blob | Uint8Array | ArrayBuffer;

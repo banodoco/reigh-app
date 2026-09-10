@@ -15,19 +15,19 @@ describe('bridge task pagination', () => {
     listMock.mockReset();
   });
 
-  it('fails closed on a repeated offset instead of looping', async () => {
+  it('fails closed on a repeated cursor instead of looping', async () => {
     listMock
-      .mockResolvedValueOnce({ tasks: [], next_offset: 200 })
-      .mockResolvedValueOnce({ tasks: [], next_offset: 200 });
+      .mockResolvedValueOnce({ tasks: [], next_cursor: 'cursor-200' })
+      .mockResolvedValueOnce({ tasks: [], next_cursor: 'cursor-200' });
 
-    await expect(listBridgeTasks('demo-project')).rejects.toThrow('repeated an offset');
+    await expect(listBridgeTasks('demo-project')).rejects.toThrow('repeated a cursor');
     expect(listMock).toHaveBeenCalledTimes(2);
   });
 
-  it('requires each page offset to advance', async () => {
-    listMock.mockResolvedValue({ tasks: [], next_offset: -1 });
+  it('requires each page cursor to advance', async () => {
+    listMock.mockResolvedValue({ tasks: [], next_cursor: 'cursor-1' });
 
-    await expect(listBridgeTasks('demo-project')).rejects.toThrow('non-advancing offset');
-    expect(listMock).toHaveBeenCalledTimes(1);
+    await expect(listBridgeTasks('demo-project')).rejects.toThrow('repeated a cursor');
+    expect(listMock).toHaveBeenCalledTimes(2);
   });
 });

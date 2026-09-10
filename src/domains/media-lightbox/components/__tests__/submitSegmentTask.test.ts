@@ -126,7 +126,7 @@ describe('submitSegmentTask', () => {
       run,
       queryClient: new QueryClient(),
       onNonFatalError,
-    })).toThrow('Astrid capability generation.generate_travel_video is unsupported');
+    })).toThrow('Astrid capability generation.generate_video is unsupported');
 
     expect(saveSettings).not.toHaveBeenCalled();
     expect(run).not.toHaveBeenCalled();
@@ -158,7 +158,7 @@ describe('submitSegmentTask', () => {
       },
       run,
       queryClient: new QueryClient(),
-    })).toThrow('Astrid capability generation.generate_travel_video is unsupported');
+    })).toThrow('Astrid capability generation.generate_video is unsupported');
 
     expect(saveSettings).not.toHaveBeenCalled();
     expect(run).not.toHaveBeenCalled();
