@@ -8,7 +8,10 @@ vi.mock('@/shared/lib/errorHandling/runtimeError', () => ({
 
 import { createTask, ingestProjectInput, ingestProjectInputFromUrl } from './createTask';
 import { createFakeBridgeRouter, type FakeBridgeRouter } from '@/test/fakeBridgeRouter.ts';
-import { bridgeTaskAdmissionRequestSchema } from '@/tools/video-editor/data/bridgeContract.ts';
+import {
+  bridgeTaskAdmissionRequestSchema,
+  type RuntimeCapability,
+} from '@/tools/video-editor/data/bridgeContract.ts';
 
 const FAKE_ORIGIN = 'http://bridge.fake';
 
@@ -64,6 +67,45 @@ function admissionParams(overrides: Record<string, unknown> = {}) {
     settlement_effect: {},
     ...overrides,
   };
+}
+
+function catalogCapability(overrides: Partial<RuntimeCapability> = {}): RuntimeCapability {
+  return {
+    capability_id: 'astrid.image_generation',
+    definition_digest: `sha256:${'a'.repeat(64)}`,
+    status: 'ready',
+    required_resource_keys: [],
+    estimated_scratch_bytes: 0,
+    estimated_output_bytes: 0,
+    ...overrides,
+  };
+}
+
+function stubCapabilityCatalog(
+  pages: Array<{ items: RuntimeCapability[]; next_cursor: string | null }>,
+): Mock {
+  const bridgeFetch = fetchMock;
+  let pageIndex = 0;
+  const fetchWithCatalog = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(input instanceof Request ? input.url : String(input), FAKE_ORIGIN);
+    if (url.pathname.endsWith('/v1/capabilities') && (init?.method ?? 'GET') === 'GET') {
+      const page = pages[Math.min(pageIndex++, pages.length - 1)];
+      return new Response(JSON.stringify(page), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    return await bridgeFetch(input, init);
+  });
+  vi.stubGlobal('fetch', fetchWithCatalog);
+  return fetchWithCatalog;
+}
+
+function hasAdmissionPost(fetchCalls: Mock['mock']['calls']): boolean {
+  return fetchCalls.some(([input, init]) => {
+    const url = new URL(input instanceof Request ? input.url : String(input), FAKE_ORIGIN);
+    return url.pathname.endsWith('/tasks') && (init as RequestInit | undefined)?.method === 'POST';
+  });
 }
 
 describe('createTask R1 admission over the fake bridge router', () => {
@@ -153,6 +195,40 @@ describe('createTask R1 admission over the fake bridge router', () => {
       capability_digest: `sha256:${'b'.repeat(64)}`,
     }))).rejects.toThrow('digest mismatch');
     expect(router.state.admissions).toBe(0);
+  });
+
+  it('rejects a non-ready catalog capability through createTask before admission', async () => {
+    const fetchWithCatalog = stubCapabilityCatalog([{
+      items: [catalogCapability({ status: 'unavailable', unavailable_reason: 'model_missing' })],
+      next_cursor: null,
+    }]);
+
+    await expect(createTask(admissionParams())).rejects.toThrow('capability is not ready');
+    expect(router.state.admissions).toBe(0);
+    expect(hasAdmissionPost(fetchWithCatalog.mock.calls)).toBe(false);
+  });
+
+  it('rejects duplicate catalog capability IDs through createTask before admission', async () => {
+    const duplicate = catalogCapability();
+    const fetchWithCatalog = stubCapabilityCatalog([
+      { items: [duplicate], next_cursor: 'page-2' },
+      { items: [duplicate], next_cursor: null },
+    ]);
+
+    await expect(createTask(admissionParams())).rejects.toThrow('duplicate ID');
+    expect(router.state.admissions).toBe(0);
+    expect(hasAdmissionPost(fetchWithCatalog.mock.calls)).toBe(false);
+  });
+
+  it('rejects a catalog cursor cycle through createTask before admission', async () => {
+    const fetchWithCatalog = stubCapabilityCatalog([
+      { items: [catalogCapability()], next_cursor: 'page-2' },
+      { items: [], next_cursor: 'page-2' },
+    ]);
+
+    await expect(createTask(admissionParams())).rejects.toThrow('cursor cycle detected');
+    expect(router.state.admissions).toBe(0);
+    expect(hasAdmissionPost(fetchWithCatalog.mock.calls)).toBe(false);
   });
 
   it('rejects a project object not authorized by the Runtime catalog before admission', async () => {
