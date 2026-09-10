@@ -27,7 +27,7 @@ The agent's historical `create_task`, `get_tasks`, and `delegateToBanodocoAgent`
 
 ## Worker and route boundary
 
-The retained Worker route catalog and Stage1 substrate describe execution capability only. They are not an admission authority and do not justify a browser producer or a direct task-table write. Retry and status operations use the Runtime edge contract; the Worker has no direct database fallback for task lifecycle writes.
+The retained Worker route catalog and Stage1 substrate describe execution capability only. They are not an admission authority and do not justify a browser producer or a direct task-table write. Supported claim, progress, and settlement operations use the Runtime edge contract. Older Reigh status/retry helpers that still resolve Supabase function URLs are retained only as unreachable compatibility residue; they are not a supported Runtime path and remain covered by the residual reachability scan. The supported Worker has no direct database fallback for task lifecycle writes.
 
 ## Acceptance evidence
 
