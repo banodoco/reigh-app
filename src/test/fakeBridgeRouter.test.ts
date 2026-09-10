@@ -61,7 +61,20 @@ describe('fakeBridgeRouter wire conformance', () => {
     const admit = await router.handle(new Request(`${BASE}/api/astrid/projects/demo-project/tasks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': 'k1' },
-      body: JSON.stringify({ family: 'image_generation', input: { prompt: 'x' } }),
+      body: JSON.stringify({
+        project: 'demo-project',
+        capability_id: 'astrid.image_generation',
+        capability_digest: `sha256:${'a'.repeat(64)}`,
+        schema_version: '1',
+        input_object_ids: [`sha256:${'1'.repeat(64)}`],
+        spec: {
+          family: 'image_generation',
+          params: { prompt: 'x' },
+          output_policy: {},
+        },
+        storage_estimate: { scratch_bytes: 0, output_bytes: 0 },
+        settlement_effect: {},
+      }),
     }));
     expect(admit.status).toBe(201);
     const admitted = (await admit.json()).task;
