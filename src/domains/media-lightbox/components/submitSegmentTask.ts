@@ -25,6 +25,7 @@ import type {
   TravelGuidance,
 } from '@/shared/lib/tasks/travelBetweenImages';
 import type { RunTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
+import { travelGenerationUnsupportedError } from '@/shared/lib/taskCreation/travelGeneration';
 
 // ============================================================================
 // Structure Video Config Builder (shared between SegmentRegenerateForm & SegmentSlotFormView)
@@ -116,17 +117,12 @@ interface SegmentTaskImageContext {
 interface SegmentTaskContext {
   projectId: string;
   shotId?: string;
-  generationId?: string;
-  childGenerationId?: string;
   segmentIndex: number;
   pairShotGenerationId?: string;
   projectResolution?: string;
   modelName?: string;
   generationTypeMode?: 'i2v' | 'vace';
   structureInput: { travelGuidance: TravelGuidance; structureVideos: StructureVideoConfig[] } | null;
-  /** Original task params from the generation being retried — forwarded so the
-   *  resolver can preserve pipeline layout fields (e.g. segment_frames_expanded). */
-  originalParams?: Record<string, unknown>;
 }
 
 /** Submission configuration */
@@ -173,9 +169,7 @@ type SegmentSubmissionNonFatalStep =
  * Returns immediately — task creation runs in the background (fire-and-forget).
  */
 export function submitSegmentTask(input: SubmitSegmentTaskInput): void {
-  const unsupported = new Error(
-    'Individual travel segment generation is blocked until a canonical Astrid capability preserves ordered image inputs, continuation state, and lineage.',
-  );
+  const unsupported = travelGenerationUnsupportedError();
   input.onNonFatalError?.('unsupported_capability', unsupported);
   // The caller's form treats a resolved onSubmit as success. Propagate the
   // unsupported result after reporting it so no false "Task Created" state is

@@ -37,6 +37,14 @@ export {
 } from './taskCreation/mediaEnhancement';
 
 export {
+  TRAVEL_GENERATION_CAPABILITY_ID,
+  TRAVEL_GENERATION_UNSUPPORTED_REASON,
+  createTravelGenerationTask,
+  travelGenerationUnsupportedError,
+  type TravelGenerationAdmissionRequest,
+} from './taskCreation/travelGeneration';
+
+export {
   IMAGE_GENERATION_CAPABILITY_ID,
   createImageGenerationTasks,
   createImageToImageTask,

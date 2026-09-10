@@ -19,6 +19,7 @@ vi.mock('sonner', () => ({
 }));
 
 import {
+  generateVideo,
   buildBasicModePhaseConfig,
   buildImagePayload,
   buildTimelinePairConfig,
@@ -36,6 +37,7 @@ import {
   type ImagePayload,
   type PairConfigPayload,
 } from '../generateVideoService';
+import type { GenerateVideoParams } from '../generateVideo/types';
 import type { PhaseConfig } from '@/shared/types/phaseConfig';
 
 // ============================================================================
@@ -79,6 +81,16 @@ function makePhaseConfig(overrides: Partial<PhaseConfig> = {}): PhaseConfig {
 // ============================================================================
 
 describe('generateVideoService', () => {
+  it('fails closed at the canonical travel capability seam before side effects', async () => {
+    const result = await generateVideo({ projectId: 'project-1' } as GenerateVideoParams);
+
+    expect(result).toMatchObject({
+      ok: false,
+      errorCode: 'generate_video_failed',
+      message: expect.stringContaining('generation.generate_travel_video is unsupported'),
+    });
+  });
+
   // --------------------------------------------------------------------------
   // stripModeFromPhaseConfig
   // --------------------------------------------------------------------------

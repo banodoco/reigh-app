@@ -126,7 +126,7 @@ describe('submitSegmentTask', () => {
       run,
       queryClient: new QueryClient(),
       onNonFatalError,
-    })).toThrow('Individual travel segment generation is blocked');
+    })).toThrow('Astrid capability generation.generate_travel_video is unsupported');
 
     expect(saveSettings).not.toHaveBeenCalled();
     expect(run).not.toHaveBeenCalled();
@@ -158,7 +158,7 @@ describe('submitSegmentTask', () => {
       },
       run,
       queryClient: new QueryClient(),
-    })).toThrow('Individual travel segment generation is blocked');
+    })).toThrow('Astrid capability generation.generate_travel_video is unsupported');
 
     expect(saveSettings).not.toHaveBeenCalled();
     expect(run).not.toHaveBeenCalled();
