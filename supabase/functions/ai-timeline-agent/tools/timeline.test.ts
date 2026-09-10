@@ -258,7 +258,7 @@ describe("themed command availability", () => {
     });
 
     expect(result.result).toBe(
-      "Clip clip-1 does not support set_params. Installed sequence clip types: image-jump, section-hook, art-card, resource-card, cta-card.",
+      "Clip clip-1 does not support set_params. Installed sequence clip types: image-jump, title-card, section-hook, art-card, resource-card, cta-card.",
     );
     expect(result.config).toBeUndefined();
   });

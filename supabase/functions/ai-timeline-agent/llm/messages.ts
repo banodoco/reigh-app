@@ -148,7 +148,7 @@ export function buildInitialMessages(
 ): LlmMessage[] {
   // Fold session summary into the system prompt so the LLM treats it as ground truth
   const fullSystemPrompt = sessionSummary
-    ? `${systemPrompt}\n\n## Session history\nThis is an ongoing session. Here is what happened earlier:\n\n${sessionSummary}\n\nThe user's next message continues this session. Always use tools (create_task, etc.) to execute requests — never just describe what you would do.`
+    ? `${systemPrompt}\n\n## Session history\nThis is an ongoing session. Here is what happened earlier:\n\n${sessionSummary}\n\nThe user's next message continues this session. Use the live timeline tools to execute timeline requests; media generation uses the canonical Astrid admission path outside this agent.`
     : systemPrompt;
 
   const messages: LlmMessage[] = [{ role: "system", content: fullSystemPrompt }];

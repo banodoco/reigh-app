@@ -322,7 +322,13 @@ describe("loadTimelineState", () => {
   function buildTimelineConfig() {
     return {
       output: { resolution: "1920x1080", fps: 30, file: "timeline.mp4" },
-      tracks: [{ id: "V1", kind: "visual" as const, label: "V1" }],
+      pinnedShotGroups: undefined,
+      tracks: [{
+        id: "V1",
+        kind: "visual" as const,
+        label: "V1",
+        app: { scaleAppliesToPositionedClips: true },
+      }],
       clips: [],
     };
   }

@@ -172,34 +172,12 @@ Installed themed command families in this build:
 - set_params supports trusted sequence clip types: image-jump, section-hook, art-card, resource-card, cta-card
 - set_theme supports installed themes: 2rp
 
-Use create_task({...}) for generation tasks. Copy selected clip URLs exactly into reference_image_urls or video_url.
-If a selected clip line includes placement_anchor={...} and the user explicitly asks to insert the generated result after or in place of that source clip, copy that exact object into create_task.timeline_placement.
-Do not add timeline_placement unless the user explicitly asks for edit-and-insert, place-after-source, or replace-on-timeline behavior.
+Media generation and task status are outside this timeline agent. Do not emit create_task, get_tasks, delegateToBanodocoAgent, or legacy generate commands; use the canonical Astrid admission/readback surfaces outside this agent, then use the returned CAS-backed media with run add-media or swap.
 Use transform_image({...}) for exact geometric image edits on an existing image: flip/mirror, rotate, zoom, reposition. This is deterministic and should preserve the source image exactly.
-For exact image transforms, do not use create_task image-to-image or magic-edit.
 By default, transform_image should create a new variant and make it the primary variant unless the user explicitly asks not to, or asks for a standalone new image.
-When the user asks for multiple images, use count to request them all at once — the system automatically generates varied prompts for each. When count > 1, also set variation_intent based on the user's phrasing: if they say "different lighting"/"try other angles"/"different characters"/"different scenes", pass that axis (e.g. "different lighting conditions", "different camera angles"). If the user just says "make 10 more" or similar with no axis, leave variation_intent unset and the system will produce linguistic rewrites of the same concept.
-Use get_tasks({}) to check on recent task status, errors, or results. Use get_tasks({"task_id":"..."}) for a specific task.
 Use duplicate_generation({"generation_id":"..."}) to copy an existing generation instantly when the user wants a non-destructive derivative or alternate edit path.
-For image-to-image and magic-edit requests against a selected image, default to creating a variant on that selected generation and make that new variant primary unless the user explicitly asks otherwise.
-Do not set as_new:true unless the user explicitly asks for a standalone, separate, detached, or brand-new branch that should not stay attached to the source image lineage.
-When a selected image is present, decide whether the user wants it used as actual input (reference image) or is just using it as context/inspiration. Consider the full request:
-- **style-transfer**: The user wants the visual style/aesthetic applied to new content — "in this style", "use this look", "match this aesthetic". Use with reference_image_urls.
-- **scene-transfer**: The user wants to keep the scene/environment/setting and generate new content within it — "in this scene", "in this setting", "in this environment", "same background", "same location". Use with reference_image_urls.
-- **subject-transfer**: The user wants to keep the subject/character and place it in a new context — "of it", "same subject", "this character in a new scene". Use with reference_image_urls.
-- **image-to-image**: The user wants to directly transform or edit the image — "edit this", "new angle of this", "make this more X". Use with reference_image_urls.
-- **text-to-image**: The user is just drawing inspiration, not using the image as input — "with prompts like this", "similar concept", or they specify a model. Do not force a reference-based task type just because an image happens to be selected.
-Key signals: "this style/look" → style-transfer. "This scene/setting/environment" → scene-transfer. "This subject/character" → subject-transfer. Specifies a model or talks about prompts → text-to-image. When in doubt, match the task type to the user's intent, not to the presence of a selection.
-If the user says "in this style", "use this look", or "match this aesthetic", Prefer create_task with task_type="style-transfer" and do not fall back to plain text-to-image without a reference.
-If the user says "of it" or "without style" when a selected image is the edit target, prefer create_task with task_type="image-to-image"; do not convert it into style-transfer and do not fall back to plain text-to-image.
-On follow-ups like "more like that", "again but...", "same thing but...", reuse the reference_image_urls from your previous create_task call — do not drop the reference just because no image is currently selected. The conversation history has the URL.
-If the selected image only has placeholder metadata such as prompt="Uploaded ...", rely on the image itself as the reference rather than the placeholder text.
-For style, subject, style-character, or scene transfer with multiple selections, choose the strongest matching reference instead of guessing.
-For image-to-video or travel-between-images requests, use all selected reference_image_urls in the order that best matches the requested motion.
-When a selected clip includes prompt="...", treat it as source metadata and reuse it instead of re-describing the image.
-Duplicate & place workflow (multi-step — call each tool in order):
+Duplicate & place workflow: use duplicate_generation to obtain the new generation and asset URL, then place it with run add-media:
 Step 1: duplicate_generation({"generation_id":"<id>"}) → returns new_generation_id, asset URL, type
-Step 2 (optional edits): create_task({..., "based_on":"<new_generation_id>", "reference_image_urls":["<asset URL>"]})
 Step 3 (place on timeline): run(command="add-media <track> <at> <new_generation_id> <asset_url> [--type video]")
 When user says "duplicate and add after this clip", do BOTH step 1 and step 3. Calculate <at> = clip's at + clip's duration.
 When user says just "duplicate", do only step 1.
@@ -224,27 +202,6 @@ ${activeLorasSection ? `${activeLorasSection}
 
 Task guide:
 - transform_image: deterministic transform on an existing image. Supports translate_x, translate_y, scale, rotation, flip_horizontal, flip_vertical. Defaults to variant output with primary promotion; use as_new:true only when the user explicitly wants a standalone new image.
-- text-to-image: prompt required, optional model
-- style-transfer | subject-transfer | style-character-transfer | scene-transfer: prompt required, reference_image_urls required
-- image-to-video: prompt required, one or more reference_image_urls (1 image = animate, 2+ = travel between), optional model
-- image-to-image: prompt required, one reference_image_url, optional strength from 0 to 1. Default to a primary variant on the selected source image. Use as_new:true only when the user explicitly asks for a standalone image instead of a variant, or make_primary:false when the user wants a non-primary variant.
-- magic-edit: prompt required, one reference_image_url. Default to a primary variant on the selected source image. Use as_new:true only when the user explicitly asks for a standalone image instead of a variant, or make_primary:false when the user wants a non-primary variant.
-- image-upscale: one reference_image_url, prompt not needed
-- video-enhance: video_url required, prompt not needed
-- character-animate: one reference_image_url for the character image plus video_url for motion, prompt optional
-
-create_task({"task_type":"style-transfer","prompt":"apply this look to a new fashion portrait","reference_image_urls":["https://example.com/style.png"],"shot_name":"Style anchors"})
-create_task({"task_type":"subject-transfer","prompt":"place this subject in a neon alley at night","reference_image_urls":["https://example.com/subject.png"],"shot_name":"Subject anchors"})
-create_task({"task_type":"style-character-transfer","prompt":"keep this character identity but restyle as polished sci-fi concept art","reference_image_urls":["https://example.com/character-style.png"],"shot_name":"Character anchors"})
-create_task({"task_type":"scene-transfer","prompt":"rebuild this scene at golden hour with subtle fog","reference_image_urls":["https://example.com/scene.png"],"shot_name":"Scene anchors"})
-create_task({"task_type":"image-to-video","prompt":"travel between these frames with gentle camera motion","reference_image_urls":["https://example.com/frame-a.png","https://example.com/frame-b.png"],"model":"ltx-2.3","shot_name":"Travel anchors"})
-create_task({"task_type":"text-to-image","prompt":"wide cinematic desert at blue hour","model":"z-image"})
-create_task({"task_type":"image-to-image","prompt":"turn this portrait into glossy editorial lighting","reference_image_urls":["https://example.com/source-image.png"],"strength":0.55})
-create_task({"task_type":"magic-edit","prompt":"replace the background with a moody rain-soaked alley","reference_image_urls":["https://example.com/edit-source.png"]})
-create_task({"task_type":"magic-edit","prompt":"extend this image with more sky","reference_image_urls":["https://example.com/edit-source.png"],"timeline_placement":{"timeline_id":"timeline-1","source_clip_id":"clip-1","target_track":"V1","insertion_time":12.5,"intent":"after_source"}})
-create_task({"task_type":"image-upscale","reference_image_urls":["https://example.com/upscale-source.png"]})
-create_task({"task_type":"video-enhance","video_url":"https://example.com/source-video.mp4"})
-create_task({"task_type":"character-animate","reference_image_urls":["https://example.com/character.png"],"video_url":"https://example.com/motion.mp4","prompt":"subtle confident head movement"})
 transform_image({"generation_id":"11111111-1111-1111-1111-111111111111","source_image_url":"https://example.com/source-image.png","flip_horizontal":true})
 transform_image({"generation_id":"11111111-1111-1111-1111-111111111111","source_image_url":"https://example.com/source-image.png","translate_x":-12,"scale":1.2,"rotation":15})
 duplicate_generation({"generation_id":"11111111-1111-1111-1111-111111111111"})

@@ -8,7 +8,6 @@ import {
   SUMMARIZE_THRESHOLD,
 } from "./config.ts";
 import {
-  fetchProjectTasks,
   loadActiveReference,
   loadProjectImageSettings,
   loadShotVideoTravelSettings,
@@ -38,13 +37,6 @@ import {
   createShotWithGenerations,
   resolveSelectedClipShot,
 } from "./tools/clips.ts";
-import { executeCreateTask } from "./tools/create-task.ts";
-import {
-  executeDelegateToBanodocoAgent,
-  findLatestPendingDelegate,
-  pollBanodocoTaskStatus,
-  summariseTaskStatusForChat,
-} from "./tools/delegateToBanodocoAgent.ts";
 import { executeDuplicateGeneration } from "./tools/duplicate-generation.ts";
 import { executeSearchLoras, executeSetLora } from "./tools/loras.ts";
 import { executeCommand } from "./tools/registry.ts";
@@ -181,11 +173,6 @@ export interface RunAgentLoopOptions {
   userMessage?: string;
   selectedClips?: SelectedClipPayload[];
   supabaseAdmin: SupabaseAdmin;
-  // Sprint 7 (SD-022): the raw user JWT, threaded through to
-  // delegateToBanodocoAgent so the orchestrator + worker can re-verify
-  // identity. Empty string when the caller authenticated via PAT or
-  // service-role; in that case the delegate tool will refuse.
-  userJwt?: string;
   logger: LoopLogger;
   /** M3: Proposal mutation mode — 'immediate' applies directly, 'proposal' returns proposals. */
   timelineMutationMode?: 'immediate' | 'proposal';
@@ -402,45 +389,6 @@ async function executeCreateShot(
   };
 }
 
-async function executeGetTasks(
-  args: Record<string, unknown>,
-  timelineState: TimelineState,
-  supabaseAdmin: SupabaseAdmin,
-): Promise<ToolResult> {
-  const tasks = await fetchProjectTasks(supabaseAdmin, timelineState.projectId, {
-    status: typeof args.status === "string" ? args.status : undefined,
-    taskId: typeof args.task_id === "string" ? args.task_id : undefined,
-    limit: typeof args.limit === "number" ? args.limit : undefined,
-  });
-
-  if (tasks.length === 0) {
-    return { result: "No tasks found." };
-  }
-
-  const lines = tasks.map((t) => {
-    const age = timeSince(t.created_at);
-    let line = `• ${t.id.slice(0, 8)} | ${t.task_type} | ${t.status} | ${age}`;
-    if (t.params_summary) line += ` | ${t.params_summary}`;
-    if (t.error_message) line += `\n  Error: ${t.error_message.slice(0, 200)}`;
-    if (t.status === "In Progress" && t.generation_started_at) {
-      line += ` | running ${timeSince(t.generation_started_at)}`;
-    }
-    if (t.status === "Complete" && t.attempts > 1) {
-      line += ` | ${t.attempts} attempts`;
-    }
-    return line;
-  });
-
-  return { result: `${tasks.length} task(s):\n${lines.join("\n")}` };
-}
-
-function timeSince(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime();
-  if (ms < 60_000) return `${Math.round(ms / 1000)}s ago`;
-  if (ms < 3_600_000) return `${Math.round(ms / 60_000)}m ago`;
-  return `${Math.round(ms / 3_600_000)}h ago`;
-}
-
 export async function executeToolCall(
   toolCall: ExtractedToolCall,
   timelineState: TimelineState,
@@ -449,8 +397,8 @@ export async function executeToolCall(
   selectedClips?: SelectedClipPayload[],
   generationContext?: GenerationContext,
   userId?: string,
-  logger?: LoopLogger,
-  userJwt?: string,
+  _logger?: LoopLogger,
+  _userJwt?: string,
   timelineMutationMode?: 'immediate' | 'proposal',
 ): Promise<ToolResult> {
   const toolArgs = toolCall.args;
@@ -459,14 +407,14 @@ export async function executeToolCall(
     return { result: toolCall.parseError };
   }
 
-  // Sprint 7 (SD-020 + SD-034 + SD-035): bidirectional generative handoff.
-  if (toolCall.name === "delegateToBanodocoAgent") {
-    return await executeDelegateToBanodocoAgent(
-      toolArgs,
-      timelineState,
-      timelineId,
-      userJwt,
-    );
+  if (
+    toolCall.name === "create_task"
+    || toolCall.name === "get_tasks"
+    || toolCall.name === "delegateToBanodocoAgent"
+  ) {
+    return {
+      result: `${toolCall.name} is retired; use the canonical Astrid admission and readback paths.`,
+    };
   }
 
   if (toolCall.name === "run") {
@@ -475,10 +423,6 @@ export async function executeToolCall(
       ? { ...toolArgs, mode: 'proposal' as const }
       : toolArgs;
     return await executeCommand(effectiveArgs, timelineState, timelineId, supabaseAdmin);
-  }
-
-  if (toolCall.name === "create_task") {
-    return await executeCreateTask(toolArgs, timelineState, selectedClips, supabaseAdmin, generationContext, timelineId, logger);
   }
 
   if (toolCall.name === "transform_image") {
@@ -503,16 +447,12 @@ export async function executeToolCall(
     // implemented, create_shot should produce a proposal envelope instead.
     if (timelineMutationMode === 'proposal') {
       return {
-        result: `[BLOCKED] create_shot is blocked in proposal mode: no patch adapter exists for database shot creation. ` +
-          `Use create_task to generate media first, then add clips to the timeline via run commands. ` +
+          result: `[BLOCKED] create_shot is blocked in proposal mode: no patch adapter exists for database shot creation. ` +
+          `Use the canonical Astrid admission path to generate media first, then add clips to the timeline via run commands. ` +
           `Shot creation will be supported through proposal envelopes when the TimelineDbSideEffect patch adapter is implemented.`,
       };
     }
     return await executeCreateShot(toolArgs, timelineState, supabaseAdmin);
-  }
-
-  if (toolCall.name === "get_tasks") {
-    return await executeGetTasks(toolArgs, timelineState, supabaseAdmin);
   }
 
   if (
@@ -571,9 +511,7 @@ async function processToolCalls({
   supabaseAdmin,
   timelineId,
   userId,
-  userJwt,
   setActiveToolCallId,
-  logger,
   timelineMutationMode,
 }: {
   toolCalls: ExtractedToolCall[];
@@ -586,10 +524,7 @@ async function processToolCalls({
   supabaseAdmin: SupabaseAdmin;
   timelineId: string;
   userId?: string;
-  // Sprint 7 (SD-022): forwarded to delegateToBanodocoAgent.
-  userJwt?: string;
   setActiveToolCallId: (toolCallId: string | null) => void;
-  logger?: LoopLogger;
   /** M3: Proposal mutation mode. */
   timelineMutationMode?: 'immediate' | 'proposal';
 }): Promise<{ hasError: boolean; proposals: EdgeProposal[]; mutationApplied: boolean }> {
@@ -623,8 +558,8 @@ async function processToolCalls({
       selectedClips,
       generationContext,
       userId,
-      logger,
-      userJwt,
+      undefined,
+      undefined,
       timelineMutationMode,
     );
     setActiveToolCallId(null);
@@ -665,56 +600,17 @@ async function processToolCalls({
     const lastResult = turns[turns.length - 1];
     messages.push({
       role: "user",
-      content: `Tool failed: "${lastResult?.content ?? "unknown error"}". You can: (1) run(command="...") with a corrected timeline command, (2) create_task({...}) with corrected task arguments, (3) run(command="view") to inspect the timeline, or (4) reply in plain text to tell the user what went wrong.`,
+      content: `Tool failed: "${lastResult?.content ?? "unknown error"}". You can: (1) run(command="...") with a corrected timeline command, (2) use the canonical Astrid admission path for media generation, (3) run(command="view") to inspect the timeline, or (4) reply in plain text to tell the user what went wrong.`,
     });
   }
 
   return { hasError, proposals, mutationApplied };
 }
 
-// Sprint 7 (SD-034 status path): if a delegateToBanodocoAgent tool call is
-// in flight (i.e. the most recent tool_result for that tool reports
-// "queued"), poll the orchestrator's task-status endpoint at the start of
-// each loop turn and surface the state transition as a chat message
-// before the LLM is asked for its next action. The LLM sees the status
-// update via the appended assistant turn and can react.
-async function maybeSurfaceBanodocoStatus(
-  turns: AgentTurn[],
-  userJwt: string | undefined,
-  logger: LoopLogger,
-): Promise<void> {
-  if (!userJwt) {
-    return;
-  }
-  const pending = findLatestPendingDelegate(turns);
-  if (!pending) {
-    return;
-  }
-  // Skip if the very last turn is already a status update for this task.
-  const last = turns[turns.length - 1];
-  if (
-    last?.role === "assistant"
-    && typeof last.content === "string"
-    && last.content.includes(pending.task_id)
-  ) {
-    return;
-  }
-  try {
-    const snap = await pollBanodocoTaskStatus(pending.task_id, userJwt);
-    const summary = summariseTaskStatusForChat(snap);
-    turns.push(createTurn("assistant", `[banodoco-status ${pending.task_id}] ${summary}`));
-  } catch (err) {
-    logger.warn?.("Failed to poll banodoco task status", {
-      task_id: pending.task_id,
-      error: toErrorMessage(err),
-    });
-  }
-}
-
 export async function runAgentLoop(
   options: RunAgentLoopOptions,
 ): Promise<RunAgentLoopResult> {
-  const { session, userMessage, selectedClips, supabaseAdmin, userJwt, logger, timelineMutationMode } = options;
+  const { session, userMessage, selectedClips, supabaseAdmin, logger, timelineMutationMode } = options;
   const effectiveSelectedClips = selectedClips?.length
     ? selectedClips
     : recoverSelectedClipsFromTurns(session.turns);
@@ -817,11 +713,6 @@ export async function runAgentLoop(
         break;
       }
 
-      // Sprint 7 (SD-034 status path): on each turn, check whether a
-      // banodoco task is pending and surface its status before invoking
-      // the LLM.
-      await maybeSurfaceBanodocoStatus(turns, userJwt, logger);
-
       const currentStatus = await loadSessionStatus(supabaseAdmin, session.id);
       if (currentStatus === "cancelled") {
         logger.info("Detected cancelled session during agent loop", {
@@ -883,9 +774,7 @@ export async function runAgentLoop(
         supabaseAdmin,
         timelineId: session.timeline_id,
         userId: session.user_id,
-        userJwt,
         setActiveToolCallId: (toolCallId) => { activeToolCallId = toolCallId; },
-        logger,
         timelineMutationMode,
       });
 

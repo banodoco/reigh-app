@@ -38,7 +38,6 @@ import {
   trimClip,
   viewTimeline,
 } from "./timeline.ts";
-import { createGenerationTask } from "./generation.ts";
 
 type MoveCommand = TimelineCommand<'move', { clipId: string; at: number }>;
 type SplitCommand = TimelineCommand<'split', { clipId: string; time: number }>;
@@ -1019,6 +1018,10 @@ export async function executeCommand(
     return { result: parsed.message };
   }
 
+  if (parsed.type === "generate") {
+    return { result: "Legacy timeline generation is retired; use the canonical Astrid admission path." };
+  }
+
   const validationError = validateCommand(parsed, state.config, state.registry);
   if (validationError) {
     return { result: validationError };
@@ -1026,14 +1029,6 @@ export async function executeCommand(
 
   if (parsed.type === "repeat") {
     return await handleRepeat(parsed, state, timelineId, supabaseAdmin);
-  }
-
-  if (parsed.type === "generate") {
-    return await createGenerationTask({
-      project_id: state.projectId,
-      prompt: parsed.prompt,
-      count: 1,
-    });
   }
 
   if (parsed.type === "undo") {

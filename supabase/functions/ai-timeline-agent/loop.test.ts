@@ -91,7 +91,7 @@ describe("loop helpers", () => {
     expect(cleanAssistantText(input)).toBe("Done editing the timeline.");
   });
 
-  it("dispatches parse errors, run commands, create_task calls, and unknown tools", async () => {
+  it("dispatches parse errors, run commands, retired task authority, and unknown tools", async () => {
     const timelineState = {
       config: { clips: [] },
       configVersion: 1,
@@ -102,7 +102,6 @@ describe("loop helpers", () => {
     const selectedClips = [{ clip_id: "clip-1", url: "https://example.com/1.png", media_type: "image" as const }];
 
     mocks.executeCommand.mockResolvedValue({ result: "ran" });
-    mocks.executeCreateTask.mockResolvedValue({ result: "queued" });
     mocks.executeSearchLoras.mockResolvedValue({ result: "found" });
     mocks.executeSetLora.mockResolvedValue({ result: "updated" });
     mocks.executeTransformImage.mockResolvedValue({ result: "transformed" });
@@ -132,16 +131,19 @@ describe("loop helpers", () => {
       name: "create_task",
       args: { prompt: "hello" },
       parseError: null,
-    }, timelineState, supabaseAdmin, "timeline-1", selectedClips)).resolves.toEqual({ result: "queued" });
-    expect(mocks.executeCreateTask).toHaveBeenCalledWith(
-      { prompt: "hello" },
-      timelineState,
-      selectedClips,
-      supabaseAdmin,
-      undefined,
-      "timeline-1",
-      undefined,
-    );
+    }, timelineState, supabaseAdmin, "timeline-1", selectedClips)).resolves.toEqual({
+      result: "create_task is retired; use the canonical Astrid admission and readback paths.",
+    });
+    expect(mocks.executeCreateTask).not.toHaveBeenCalled();
+
+    await expect(executeToolCall({
+      id: "tasks",
+      name: "get_tasks",
+      args: { task_id: "task-1" },
+      parseError: null,
+    }, timelineState, supabaseAdmin, "timeline-1")).resolves.toEqual({
+      result: "get_tasks is retired; use the canonical Astrid admission and readback paths.",
+    });
 
     await expect(executeToolCall({
       id: "transform",
@@ -509,9 +511,8 @@ describe("loop helpers", () => {
       defaultModel: "qwen-image",
     });
 
-    expect(systemPrompt).toContain('If the user says "in this style"');
-    expect(systemPrompt).toContain('Prefer create_task with task_type="style-transfer"');
-    expect(systemPrompt).toContain("do not fall back to plain text-to-image without a reference");
+    expect(systemPrompt).toContain("Media generation and task status are outside this timeline agent");
+    expect(systemPrompt).toContain("Do not emit create_task");
   });
 
   it("surfaces the installed themed command families in the system prompt", () => {
@@ -604,13 +605,8 @@ describe("loop helpers", () => {
       defaultModel: "z-image",
     });
 
-    expect(systemPrompt).toContain('If the user says "of it"');
-    expect(systemPrompt).toContain('"without style"');
-    expect(systemPrompt).toContain('prefer create_task with task_type="image-to-image"');
-    expect(systemPrompt).toContain("do not convert it into style-transfer");
-    expect(systemPrompt).toContain("do not fall back to plain text-to-image");
-    expect(systemPrompt).toContain("default to creating a variant on that selected generation");
-    expect(systemPrompt).toContain("Do not set as_new:true unless the user explicitly asks");
+    expect(systemPrompt).toContain("canonical Astrid admission/readback surfaces");
+    expect(systemPrompt).toContain("then use the returned CAS-backed media");
   });
 
   it("surfaces shared shot context in the system prompt when selected clips already share a shot", () => {
@@ -634,7 +630,7 @@ describe("loop helpers", () => {
     expect(systemPrompt).toContain("Reuse this shot for related edits, duplicate flows, travel defaults, and reference lookups");
   });
 
-  // ── Sprint 7 (SD-020 + SD-034 + SD-035): delegateToBanodocoAgent dispatch ──
+  // Retired legacy delegation must remain a no-network negative path.
 
   it("dispatches delegateToBanodocoAgent and threads through the user JWT", async () => {
     const timelineState = {
@@ -644,10 +640,6 @@ describe("loop helpers", () => {
       projectId: "project-1",
     } as unknown as import("./types.ts").TimelineState;
     const supabaseAdmin = {} as import("./types.ts").SupabaseAdmin;
-
-    mocks.executeDelegateToBanodocoAgent.mockResolvedValue({
-      result: "Queued — generative work will appear in ~30s. task_id=task-xyz correlation_id=corr-1",
-    });
 
     const result = await executeToolCall(
       {
@@ -666,13 +658,8 @@ describe("loop helpers", () => {
       "user-jwt-token", // userJwt
     );
 
-    expect(result.result).toMatch(/Queued/);
-    expect(mocks.executeDelegateToBanodocoAgent).toHaveBeenCalledWith(
-      { intent: "extend the 2rp hype reel by 15s", scope: "insert" },
-      timelineState,
-      "timeline-1",
-      "user-jwt-token",
-    );
+    expect(result.result).toBe("delegateToBanodocoAgent is retired; use the canonical Astrid admission and readback paths.");
+    expect(mocks.executeDelegateToBanodocoAgent).not.toHaveBeenCalled();
   });
 
   it("happy path — agent receives 'queued' (loop-level integration)", async () => {
@@ -687,10 +674,6 @@ describe("loop helpers", () => {
       projectId: "project-1",
     } as unknown as import("./types.ts").TimelineState;
     const supabaseAdmin = {} as import("./types.ts").SupabaseAdmin;
-    mocks.executeDelegateToBanodocoAgent.mockResolvedValue({
-      result: "Queued — generative work will appear in ~30s. task_id=task-A correlation_id=corr-A",
-    });
-
     const result = await executeToolCall(
       {
         id: "delegate-happy",
@@ -707,8 +690,7 @@ describe("loop helpers", () => {
       undefined,
       "user-jwt",
     );
-    expect(result.result).toContain("task_id=task-A");
-    expect(result.result).toContain("correlation_id=corr-A");
+    expect(result.result).toBe("delegateToBanodocoAgent is retired; use the canonical Astrid admission and readback paths.");
   });
 
   it("version-conflict path — surgical edit during the wait surfaces retry copy", async () => {
@@ -724,12 +706,6 @@ describe("loop helpers", () => {
       projectId: "project-1",
     } as unknown as import("./types.ts").TimelineState;
     const supabaseAdmin = {} as import("./types.ts").SupabaseAdmin;
-    mocks.executeDelegateToBanodocoAgent.mockResolvedValue({
-      // Simulate the tool surface representing a downstream conflict on
-      // a follow-up status check (the executeDelegate path itself only
-      // queues; conflict surfacing is the loop helper's job).
-      result: "Your edits superseded the AI's mid-generation. Retry the request to regenerate against the new state.",
-    });
     const result = await executeToolCall(
       {
         id: "delegate-conflict",
@@ -746,8 +722,7 @@ describe("loop helpers", () => {
       undefined,
       "user-jwt",
     );
-    expect(result.result).toMatch(/edits superseded/);
-    expect(result.result).toMatch(/retry/i);
+    expect(result.result).toBe("delegateToBanodocoAgent is retired; use the canonical Astrid admission and readback paths.");
   });
 
   // ── M3: mutation_applied semantics ────────────────────────────────

@@ -65,6 +65,6 @@ export async function executeDuplicateGeneration(
   }
 
   return {
-    result: `Duplicated ${generationId} -> ${newGenerationId}. Asset: ${location} (type: ${mediaType}). Use new_generation_id as based_on in create_task, or later with add-media to place on the timeline.`,
+    result: `Duplicated ${generationId} -> ${newGenerationId}. Asset: ${location} (type: ${mediaType}). Use the canonical Astrid admission path for further generation, or use new_generation_id with add-media to place it on the timeline.`,
   };
 }
