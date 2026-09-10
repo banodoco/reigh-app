@@ -208,7 +208,21 @@ export const bridgeTaskStorageEstimateSchema = z.strictObject({
   output_bytes: z.number().int().nonnegative(),
 });
 
-export const bridgeTaskSettlementEffectSchema = jsonObject;
+const projectUpdateSettlementEffectSchema = z.strictObject({
+  effect_type: z.literal('project.update'),
+  target_id: z.string().min(1),
+  expected_version: z.number().int().positive(),
+  payload: z.strictObject({
+    name: z.string().min(1).optional(),
+    metadata: z.unknown().optional(),
+  }).optional(),
+});
+
+/** Runtime currently admits no effect ({}) or the atomic project.update effect. */
+export const bridgeTaskSettlementEffectSchema = z.union([
+  z.strictObject({}),
+  projectUpdateSettlementEffectSchema,
+]);
 
 /**
  * Bounded current-attempt read model — also the only extra a fence `409`

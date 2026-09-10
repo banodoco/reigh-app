@@ -243,6 +243,12 @@ export async function createImageToImageTask(
   if (options.createAsGeneration || options.toolTypeOverride || options.shotId) {
     throw new TaskValidationError('Task-level legacy routing controls are not part of the typed i2i route', 'task_options');
   }
+  if (options.basedOn || options.sourceVariantId) {
+    throw new TaskValidationError(
+      'Runtime does not yet expose an atomic generation/variant lineage effect for typed i2i tasks',
+      'lineage',
+    );
+  }
 
   const capability = await resolveTaskCapability(project, IMAGE_I2I_CAPABILITY_ID);
   if (capability.estimated_scratch_bytes <= 0 || capability.estimated_output_bytes <= 0) {
@@ -263,10 +269,6 @@ export async function createImageToImageTask(
       'sourceUrl',
     );
   }
-  const settlementEffect = {
-    ...(options.basedOn ? { based_on: options.basedOn } : {}),
-    ...(options.sourceVariantId ? { source_variant_id: options.sourceVariantId } : {}),
-  };
   const result = await createTask({
     project,
     capability_id: IMAGE_I2I_CAPABILITY_ID,
@@ -298,7 +300,7 @@ export async function createImageToImageTask(
       scratch_bytes: capability.estimated_scratch_bytes,
       output_bytes: capability.estimated_output_bytes,
     },
-    settlement_effect: settlementEffect,
+    settlement_effect: {},
   });
   const taskIds = result.task_ids ?? [result.task_id];
   return {

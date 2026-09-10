@@ -20,8 +20,18 @@ export interface RuntimeStorageEstimate {
   output_bytes: number;
 }
 
-/** Runtime's explicit terminal publication/lineage effect. */
-export type RuntimeSettlementEffect = Record<string, unknown>;
+/** Runtime's explicit terminal publication effect. */
+export type RuntimeSettlementEffect =
+  | Record<string, never>
+  | {
+      effect_type: 'project.update';
+      target_id: string;
+      expected_version: number;
+      payload?: {
+        name?: string;
+        metadata?: unknown;
+      };
+    };
 
 export type RuntimeInput = Blob | Uint8Array | ArrayBuffer;
 

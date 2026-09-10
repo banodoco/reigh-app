@@ -90,6 +90,14 @@ export async function createInpaintingTaskWorkflow({
   actualGenerationId,
   strokeOverlay,
 }: CreateInpaintingTaskWorkflowParams): Promise<string> {
+  // The current public Astrid edit capability is source-only.  Keep masked
+  // edits fail-closed until a verified mask CAS port and bounded executor
+  // profile exist; in particular, do not start a local worker or upload a
+  // mask to the legacy Supabase path before that admission decision.
+  throw new Error(
+    'Masked image edits are blocked until Astrid publishes a bounded mask-capable edit capability',
+  );
+
   const config = TASK_CONFIGS[taskType];
   const maskImageData = strokeOverlay.exportMask({ pixelRatio: 1.5 });
 

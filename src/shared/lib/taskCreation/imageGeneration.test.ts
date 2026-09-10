@@ -168,8 +168,6 @@ describe('typed image-generation admission', () => {
       prompt: 'make it cinematic',
       strength: 0.6,
       count: 1,
-      basedOn: 'generation-1',
-      sourceVariantId: 'variant-1',
     })).resolves.toMatchObject({ task_id: 'task-i2i' });
 
     expect(mocks.ingestProjectInputFromUrl).toHaveBeenCalledWith(
@@ -205,10 +203,7 @@ describe('typed image-generation admission', () => {
         scratch_bytes: 8 * 1024 * 1024,
         output_bytes: 64 * 1024,
       },
-      settlement_effect: {
-        based_on: 'generation-1',
-        source_variant_id: 'variant-1',
-      },
+      settlement_effect: {},
     });
     const admission = mocks.createTask.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(JSON.stringify(admission)).not.toContain('media.example');
@@ -235,6 +230,13 @@ describe('typed image-generation admission', () => {
       count: 1,
       enablePromptExpansion: true,
     })).rejects.toThrow('Prompt expansion');
+    await expect(createImageToImageTask('project-1', {
+      sourceUrl: 'https://media.example/source.png',
+      prompt: 'one',
+      strength: 0.5,
+      count: 1,
+      basedOn: 'generation-1',
+    })).rejects.toThrow('atomic generation/variant lineage effect');
     expect(mocks.resolveTaskCapability).not.toHaveBeenCalled();
   });
 

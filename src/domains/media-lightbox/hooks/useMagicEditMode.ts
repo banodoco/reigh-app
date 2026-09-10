@@ -1,17 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { GenerationRow } from '@/domains/generation/types';
 import { toast } from '@/shared/components/ui/runtime/sonner';
-import { createTask } from '@/shared/lib/taskCreation';
 import { normalizeAndPresentError } from '@/shared/lib/errorHandling/runtimeError';
 import { useCurrentShot } from '@/shared/state/selectionStore';
 import { useShotGenerationMetadata } from '@/shared/hooks/shots/useShotGenerationMetadata';
 import type { EditAdvancedSettings, QwenEditModel } from './useGenerationEditSettings';
 import type { LoraMode } from '../model/editSettingsTypes';
+import { DEFAULT_ADVANCED_SETTINGS } from '../model/editSettingsTypes';
 import { isKleinModel } from '../model/editSettingsTypes';
-import { convertToHiresFixApiParams } from './useGenerationEditSettings';
 import { getGenerationId } from '@/shared/lib/media/mediaTypeHelpers';
 import type { BrushStroke } from './inpainting/types';
 import { useTaskPlaceholder } from '@/shared/hooks/tasks/useTaskPlaceholder';
+import { createBoundedImageEditTask } from '@/shared/lib/tasks/imageEditing/imageInpaint';
 
 interface UseMagicEditModeParams {
   media: GenerationRow;
@@ -187,6 +187,24 @@ export const useMagicEditMode = ({
       // Has brush strokes -> inpaint (Qwen models only)
       await handleGenerateInpaint();
     } else {
+      const unsupportedReasons = [
+        editModeLoras?.length ? 'LoRA controls' : null,
+        advancedSettings && Object.keys(DEFAULT_ADVANCED_SETTINGS).some(
+          (key) => advancedSettings[key as keyof EditAdvancedSettings] !== DEFAULT_ADVANCED_SETTINGS[key as keyof EditAdvancedSettings],
+        ) ? 'advanced settings' : null,
+        createAsGeneration ? 'create-as-generation routing' : null,
+        toolTypeOverride ? 'tool routing' : null,
+        imageDimensions && (imageDimensions.width !== 1024 || imageDimensions.height !== 1024)
+          ? 'non-1024x1024 output dimensions'
+          : null,
+      ].filter((reason): reason is string => reason !== null);
+      if (unsupportedReasons.length > 0) {
+        toast.error(
+          `Astrid source-only edit does not support ${unsupportedReasons.join(', ')}; adjust the selection before submitting`,
+        );
+        return;
+      }
+
       // No brush strokes -> magic edit
       setIsCreatingMagicEditTasks(true);
       setMagicEditTasksCreated(false);
@@ -207,43 +225,18 @@ export const useMagicEditMode = ({
             const actualGenerationId = getGenerationId(media);
 
             if (useKlein) {
-              return createTask({
-                project_id: selectedProjectId,
-                family: 'klein_edit',
-                input: {
-                  prompt,
-                  image_url: effectiveImageUrl,
-                  klein_model: qwenEditModel,
-                  numImages: inpaintNumGenerations,
-                  seed: 11111,
-                  shot_id: currentShotId || undefined,
-                  tool_type: toolTypeOverride,
-                  based_on: actualGenerationId ?? undefined,
-                  source_variant_id: activeVariantId || undefined,
-                  create_as_generation: createAsGeneration,
-                },
-              });
+              throw new Error(
+                'Klein edit is blocked until Astrid publishes a bounded public edit capability',
+              );
             }
 
-            return createTask({
-              project_id: selectedProjectId,
-              family: 'magic_edit',
-              input: {
-                prompt,
-                image_url: effectiveImageUrl,
-                numImages: inpaintNumGenerations,
-                negative_prompt: "",
-                resolution: imageDimensions ? `${imageDimensions.width}x${imageDimensions.height}` : undefined,
-                seed: 11111,
-                shot_id: currentShotId || undefined,
-                tool_type: toolTypeOverride,
-                loras: editModeLoras,
-                based_on: actualGenerationId ?? undefined,
-                source_variant_id: activeVariantId || undefined,
-                create_as_generation: createAsGeneration,
-                hires_fix: convertToHiresFixApiParams(advancedSettings),
-                qwen_edit_model: qwenEditModel,
-              },
+            return createBoundedImageEditTask(selectedProjectId, {
+              sourceUrl: effectiveImageUrl,
+              prompt,
+              count: inpaintNumGenerations,
+              qwenEditModel: qwenEditModel || '',
+              basedOn: actualGenerationId ?? undefined,
+              sourceVariantId: activeVariantId,
             });
           },
           onSuccess: async () => {
@@ -277,18 +270,18 @@ export const useMagicEditMode = ({
     handleGenerateInpaint,
     isInSceneLoraMode,
     sourceUrlForTasks,
-    inpaintNumGenerations,
+    editModeLoras,
     imageDimensions,
-    currentShotId,
     toolTypeOverride,
-    media,
-    addMagicEditPrompt,
     createAsGeneration,
     advancedSettings,
+    inpaintNumGenerations,
+    currentShotId,
+    media,
+    addMagicEditPrompt,
     qwenEditModel,
     activeVariantId,
     activeVariantLocation,
-    editModeLoras,
     run,
   ]);
 
