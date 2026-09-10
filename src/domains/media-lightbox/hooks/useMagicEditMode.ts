@@ -194,7 +194,7 @@ export const useMagicEditMode = ({
           (key) => advancedSettings[key as keyof EditAdvancedSettings] !== DEFAULT_ADVANCED_SETTINGS[key as keyof EditAdvancedSettings],
         ) ? 'advanced settings' : null,
         createAsGeneration ? 'create-as-generation routing' : null,
-        toolTypeOverride ? 'tool routing' : null,
+        toolTypeOverride && toolTypeOverride !== 'edit-images' ? 'unsupported tool routing' : null,
         imageDimensions && (imageDimensions.width !== 1024 || imageDimensions.height !== 1024)
           ? 'non-1024x1024 output dimensions'
           : null,
