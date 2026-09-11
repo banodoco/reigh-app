@@ -20,6 +20,9 @@ export interface RuntimeStorageEstimate {
   output_bytes: number;
 }
 
+/** Producer-validated GEN intent carried alongside the admitted task. */
+export type RuntimeGenerationIntent = Record<string, unknown>;
+
 /** Runtime's explicit terminal publication effect. */
 export type RuntimeSettlementEffect =
   | Record<string, never>
@@ -89,6 +92,8 @@ export interface TaskCreationRequest {
   input_object_ids: string[];
   spec: RuntimeTaskSpec;
   storage_estimate: RuntimeStorageEstimate;
+  /** Composed and validated by the GEN/UE producer; Reigh does not rebuild it. */
+  generation_intent?: RuntimeGenerationIntent;
   settlement_effect: RuntimeSettlementEffect;
 }
 

@@ -21,6 +21,19 @@ const exactGenTaskInput = {
     output_policy: {},
   },
   storage_estimate: { scratch_bytes: 0, output_bytes: 0 },
+  generation_intent: {
+    version: 1,
+    modality: 'video',
+    partial_success_policy: 'allow',
+    groups: [
+      {
+        group_key: 'main',
+        selectors: [
+          { selector: 'video', ordinal: 0, variant_key: 'original' },
+        ],
+      },
+    ],
+  },
   settlement_effect: {},
 };
 
@@ -81,6 +94,7 @@ function createTransport(options: { revokeFirstMediaRead?: boolean } = {}) {
     runtime_epoch: 7,
     input_object_ids: [INPUT_OBJECT_ID],
     spec: exactGenTaskInput.spec,
+    generation_intent: exactGenTaskInput.generation_intent,
     result: null,
   };
 
@@ -246,6 +260,7 @@ describe('ReighRuntimeClient canonical Runtime reads and browser task seam', () 
       capability_id: CAPABILITY_ID,
       capability_digest: CAPABILITY_DIGEST,
       input_object_ids: [INPUT_OBJECT_ID],
+      generation_intent: exactGenTaskInput.generation_intent,
       state: 'queued',
       version: 1,
     });
