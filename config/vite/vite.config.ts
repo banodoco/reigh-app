@@ -13,6 +13,7 @@ import {
   resolveAstridBridgePort,
   resolveAstridBridgeProxyPolicy,
 } from "./astridBridgeProxy";
+import { createWorkspaceRuntimeProxyOptions, RUNTIME_TOKEN_FILE_ENV } from "./runtimeProxy";
 import { createBundleBudgetPlugin } from "./bundleBudget";
 import { createRemoteFontModePlugin } from "./remoteFonts";
 
@@ -36,6 +37,14 @@ export default defineConfig(() => {
       astridBridgePort,
     ),
   };
+  const runtimeTarget = process.env.VITE_WORKSPACE_RUNTIME_URL?.trim() || null;
+  const runtimeTokenFile = process.env[RUNTIME_TOKEN_FILE_ENV]?.trim() || null;
+  const runtimeToken = runtimeTokenFile && fs.existsSync(runtimeTokenFile)
+    ? fs.readFileSync(runtimeTokenFile, 'utf8').trim()
+    : null;
+  const runtimeProxy = runtimeTarget
+    ? { "/api/runtime": createWorkspaceRuntimeProxyOptions(runtimeTarget, runtimeToken) }
+    : {};
   const disableRemoteFonts = process.env.VITE_DISABLE_REMOTE_FONTS === "1";
   const generatedRegistryPath = path.resolve(
     __dirname,
@@ -67,7 +76,7 @@ export default defineConfig(() => {
     server: {
       host: "::",
       port: port,
-      proxy: astridBridgeProxy,
+      proxy: { ...astridBridgeProxy, ...runtimeProxy },
       // Sprint 5: allow Vite to read from the sibling banodoco-workspace
       // (timeline-theme-2rp file: link).
       fs: {
@@ -78,7 +87,7 @@ export default defineConfig(() => {
       host: "0.0.0.0",
       port: port,
       allowedHosts: [...PREVIEW_ALLOWED_HOSTS],
-      proxy: astridBridgeProxy,
+      proxy: { ...astridBridgeProxy, ...runtimeProxy },
     },
     plugins: [
       astridBridgeAuthPlugin,
