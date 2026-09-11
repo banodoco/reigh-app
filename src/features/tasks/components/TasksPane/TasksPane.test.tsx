@@ -254,7 +254,15 @@ function renderTasksPane() {
 describe('TasksPane', () => {
   beforeEach(() => {
     paneControlProps = null;
-    localStorage.clear();
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      value: {
+        clear: vi.fn(),
+        getItem: vi.fn().mockReturnValue(null),
+        setItem: vi.fn(),
+      },
+    });
+    window.localStorage.clear();
     useLocationMock.mockReset();
     useAgentChatActionsMock.mockReset();
     openPaneMock.mockReset();

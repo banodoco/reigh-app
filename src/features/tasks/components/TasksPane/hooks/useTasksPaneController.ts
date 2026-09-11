@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { usePaginatedTasks, type PaginatedTasksResponse } from '@/shared/hooks/tasks/useTasks';
 import { useAllTaskTypes, useTaskStatusCounts } from '@/shared/hooks/tasks/useTaskStatusCounts';
 import { getTaskDisplayName } from '@/shared/lib/tasks/taskConfig';
+import { operationSuccess } from '@/shared/lib/operationResult';
 import type { Task as RuntimeTask } from '@/integrations/runtime/generated.ts';
 import { ITEMS_PER_PAGE, STATUS_GROUPS } from '../constants';
 import { useTasksPaneViewState, type UseTasksPaneViewStateResult } from './useTasksPaneViewState';
@@ -185,17 +186,21 @@ export function useTasksPaneController(
   const runtimeStatusCounts = useMemo(() => {
     if (!isRuntimeMode || !runtimeTasks.data) return undefined;
     const oneHourAgo = Date.now() - 60 * 60 * 1000;
+    const processing = runtimeTasks.data.filter(runtimeTaskIsCancellable).length;
+    const recentSuccesses = runtimeTasks.data.filter((task) =>
+      task.state === 'succeeded' && new Date(task.updated_at || task.created_at).getTime() >= oneHourAgo,
+    ).length;
+    const recentFailures = runtimeTasks.data.filter((task) =>
+      (task.state === 'failed' || task.state === 'cancelled')
+      && new Date(task.updated_at || task.created_at).getTime() >= oneHourAgo,
+    ).length;
     return {
-      processing: runtimeTasks.data.filter(runtimeTaskIsCancellable).length,
-      recentSuccesses: runtimeTasks.data.filter((task) =>
-        task.state === 'succeeded' && new Date(task.updated_at || task.created_at).getTime() >= oneHourAgo,
-      ).length,
-      recentFailures: runtimeTasks.data.filter((task) =>
-        (task.state === 'failed' || task.state === 'cancelled')
-        && new Date(task.updated_at || task.created_at).getTime() >= oneHourAgo,
-      ).length,
+      processing,
+      recentSuccesses,
+      recentFailures,
       degraded: false,
       failedQueries: [],
+      operation: operationSuccess({ processing, recentSuccesses, recentFailures }, { policy: 'best_effort' }),
     };
   }, [isRuntimeMode, runtimeTasks.data]);
 
