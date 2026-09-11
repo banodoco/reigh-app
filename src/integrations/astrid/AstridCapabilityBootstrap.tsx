@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
+import { isRuntimeDocumentMode } from '@/app/runtime/runtimeDocument';
 import {
   refreshAstridCapabilityCensus,
   useAstridCapabilityCensus,
@@ -6,10 +7,14 @@ import {
 
 /** Starts the single shared capability census before feature pollers opt in. */
 export function AstridCapabilityBootstrap({ children }: { children: ReactNode }) {
+  const runtimeDocumentMode = isRuntimeDocumentMode();
   const capabilityCensus = useAstridCapabilityCensus();
   useEffect(() => {
+    if (runtimeDocumentMode) return;
     void refreshAstridCapabilityCensus();
-  }, []);
+  }, [runtimeDocumentMode]);
+
+  if (runtimeDocumentMode) return <>{children}</>;
 
   // Do not mount any task/gallery/media consumer until the one boot census
   // resolves. This prevents a thundering herd of feature probes from racing

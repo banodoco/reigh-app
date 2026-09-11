@@ -44,6 +44,12 @@ describe('useVideoEditorRouteState', () => {
     expect(state.timelineId).toBe('local-timeline');
   });
 
+  it('activates the shell for an ordinary Runtime timeline', () => {
+    const state = stateFor('/tools/video-editor?runtime=1&runtimeProject=project-1&runtimeTimeline=runtime-timeline');
+    expect(state.isVideoEditorShellActive).toBe(true);
+    expect(state.timelineId).toBe('runtime-timeline');
+  });
+
   it('prefers the app-mode timeline when both params are present', () => {
     const state = stateFor('/tools/video-editor?timeline=app-timeline&localTimeline=local-timeline');
     expect(state.timelineId).toBe('app-timeline');

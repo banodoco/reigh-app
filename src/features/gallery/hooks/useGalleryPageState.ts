@@ -18,6 +18,7 @@ interface UseGenerationsPageLogicOptions {
   mediaType?: 'all' | 'image' | 'video';
   toolType?: string;
   enableDataLoading?: boolean;
+  runtimeProjectId?: string | null;
 }
 
 /**
@@ -27,12 +28,13 @@ function useGenerationsPageLogic({
   itemsPerPage = 45,
   mediaType = 'image',
   toolType,
-  enableDataLoading = true
+  enableDataLoading = true,
+  runtimeProjectId = null,
 }: UseGenerationsPageLogicOptions = {}) {
   const { selectedProjectId } = useProjectSelectionContext();
   const { shots: shotsData } = useShots();
 
-  const shouldLoadData = enableDataLoading && !!selectedProjectId;
+  const shouldLoadData = enableDataLoading && !!(runtimeProjectId ?? selectedProjectId);
   const [page, setPage] = useState(1);
 
   const { currentShotId } = useCurrentShot();
@@ -63,11 +65,12 @@ function useGenerationsPageLogic({
   }, [mediaType, starredOnly]);
 
   const generationsQuery = useProjectGenerations(
-    shouldLoadData ? selectedProjectId : null,
+    shouldLoadData && !runtimeProjectId ? selectedProjectId : null,
     page,
     itemsPerPage,
     shouldLoadData,
-    filters
+    filters,
+    { runtimeProjectId },
   );
   const generationsResponse = generationsQuery.data as GenerationsPaginatedResponse | undefined;
   const isFetching = generationsQuery.isFetching;

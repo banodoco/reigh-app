@@ -186,6 +186,8 @@ function GenerationsPaneSurface({ controller }: { controller: GenerationsPaneCon
             generationFilters: filters.generationFilters,
             currentViewingShotId: filters.currentShotId || undefined,
             onCreateShot: gallery.handleCreateShot,
+            config: gallery.config,
+            readOnly: gallery.readOnly,
           }}
         />
       </div>

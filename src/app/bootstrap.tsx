@@ -20,6 +20,7 @@ import { initializePreloadingService } from '@/shared/lib/preloading';
 import { initializeToolSettingsWriteRuntime } from '@/shared/settings';
 import { initializeNetworkStatusManager } from '@/shared/services/network/networkStatusManager';
 import { initializeLocalTestRuntime, isLocalTestMode } from '@/app/localTestRuntime';
+import { isRuntimeDocumentMode } from '@/app/runtime/runtimeDocument';
 import '@/index.css';
 
 let presenterInstalled = false;
@@ -68,6 +69,7 @@ export function initializeAppEnvironment(): void {
   initializeLoggerRuntime();
   const env = import.meta.env;
   const localTestMode = isLocalTestMode(env);
+  const runtimeDocumentMode = isRuntimeDocumentMode();
   initializeLocalTestRuntime();
   initializeToastManager();
   registerToastErrorPresenter();
@@ -116,7 +118,7 @@ export function initializeAppEnvironment(): void {
   // Supabase runtime without config used to throw synchronously and
   // white-screen the app — skip it entirely when no URL is set.
   const localModeUrl = typeof window !== 'undefined' && hasLocalModeUrlParams(window.location.search);
-  if (!isTestRuntimeEnvironment(env) && !localTestMode && !localModeUrl && hasSupabaseConfig()) {
+  if (!isTestRuntimeEnvironment(env) && !localTestMode && !localModeUrl && !runtimeDocumentMode && hasSupabaseConfig()) {
     const supabaseInitResult = initializeSupabaseResult();
     if (!supabaseInitResult.ok) {
       normalizeAndPresentError(supabaseInitResult.error, {

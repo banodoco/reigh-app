@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Shot } from '@/domains/generation/types';
 import { MediaGallery, type GalleryFilterState } from '@/shared/components/MediaGallery';
+import type { GalleryConfig } from '@/shared/components/MediaGallery/types';
 import { useShots } from '@/shared/contexts/ShotsContext';
 import { SelectionContextMenu } from '@/shared/components/SelectionContextMenu';
 import { SkeletonGallery } from '@/shared/components/ui/composed/skeleton-gallery';
@@ -49,6 +50,8 @@ interface GenerationsPaneGalleryModel {
   generationFilters: MediaGalleryProps['generationFilters'];
   currentViewingShotId?: string;
   onCreateShot: NonNullable<MediaGalleryProps['onCreateShot']>;
+  config?: Partial<GalleryConfig>;
+  readOnly?: boolean;
 }
 
 interface GenerationsPaneGalleryProps {
@@ -215,7 +218,7 @@ export function GenerationsPaneGallery({
                 onFiltersChange={gallery.onFiltersChange}
                 columnsPerRow={layout.columns}
                 onImageClick={handleImageClick}
-                onContextMenu={handleContextMenu}
+                onContextMenu={gallery.readOnly ? undefined : handleContextMenu}
                 onAddToLastShot={gallery.onAddToShot}
                 onAddToLastShotWithoutPosition={gallery.onAddToShotWithoutPosition}
                 className="space-y-0 pb-8"
@@ -227,6 +230,7 @@ export function GenerationsPaneGallery({
                   hideTopFilters: true,
                   showShare: false,
                   enableSingleClick: true,
+                  ...gallery.config,
                 }}
                 pagination={{
                   offset: (pagination.page - 1) * layout.itemsPerPage,
@@ -261,16 +265,18 @@ export function GenerationsPaneGallery({
         )}
       </div>
 
-      <SelectionContextMenu
-        position={contextMenuPosition}
-        onClose={() => setContextMenuPosition(null)}
-        onCreateShot={handleCreateShotFromMenu}
-        onGenerateVideo={handleGenerateVideoFromMenu}
-        onNavigateToShot={handleNavigateToShot}
-        onOpenGenerateVideo={handleOpenGenerateVideo}
-        existingShots={existingShotsForSelection}
-        isCreating={isCreating}
-      />
+      {!gallery.readOnly && (
+        <SelectionContextMenu
+          position={contextMenuPosition}
+          onClose={() => setContextMenuPosition(null)}
+          onCreateShot={handleCreateShotFromMenu}
+          onGenerateVideo={handleGenerateVideoFromMenu}
+          onNavigateToShot={handleNavigateToShot}
+          onOpenGenerateVideo={handleOpenGenerateVideo}
+          existingShots={existingShotsForSelection}
+          isCreating={isCreating}
+        />
+      )}
 
       {videoModalShot && (
         <>

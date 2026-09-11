@@ -31,6 +31,7 @@ import { useResetCurrentShotOnRouteChange } from './hooks/useResetCurrentShotOnR
 import { LayoutMainContent } from './components/LayoutMainContent';
 import { usePanesStore } from '@/shared/state/panesStore';
 import { isLocalTestMode } from '@/app/localTestRuntime';
+import { isRuntimeDocumentMode } from '@/app/runtime/runtimeDocument';
 
 // Scroll to top component
 function ScrollToTop() {
@@ -60,6 +61,7 @@ export const Layout: React.FC = () => {
     && Boolean(localProject)
     && Boolean(localTimeline)
     && (isVideoEditorRoute(pathname) || pathname === '/tools/travel-between-images');
+  const isRuntimeDocument = isRuntimeDocumentMode(search, pathname);
   const { isVideoEditorShellActive } = useVideoEditorRouteState();
   const isTasksPaneLocked = usePanesStore((state) => state.isTasksPaneLocked);
   const tasksPaneWidth = usePanesStore((state) => state.tasksPaneWidth);
@@ -102,7 +104,7 @@ export const Layout: React.FC = () => {
   // probe fails the user is sent to the public home page — one hop, no loop:
   // `/` outside Layout does not re-enter this gate (and in WEB env `/` is
   // `HomeWithAuthRedirect`, which renders HomePage directly).
-  if (!isAuthenticated && !isLocalAstridDocumentTest) {
+  if (!isAuthenticated && !isLocalAstridDocumentTest && !isRuntimeDocument) {
     return <Navigate to="/home" replace state={{ fromProtected: true }} />;
   }
 

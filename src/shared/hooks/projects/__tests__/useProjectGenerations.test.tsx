@@ -3,7 +3,12 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 
-import { fetchGenerations, matchesClientSideFilters, useProjectGenerations } from '../useProjectGenerations';
+import {
+  fetchGenerations,
+  fetchRuntimeGenerationsForProject,
+  matchesClientSideFilters,
+  useProjectGenerations,
+} from '../useProjectGenerations';
 import type { GeneratedImageWithMetadata } from '@/shared/components/MediaGallery/types';
 import { createFakeBridgeRouter, type FakeBridgeRouter } from '@/test/fakeBridgeRouter.ts';
 import { createJourneyState, FIXTURE_PROJECT } from '@/test/bridgeFixtures.mjs';
@@ -80,6 +85,53 @@ describe('useProjectGenerations (bridge gallery reads R12)', () => {
       { ...character, metadata: { tool_type: 'character-animate-reconstructed-client' } },
       { toolType: 'character-animate' },
     )).toBe(true);
+  });
+
+  it('maps canonical Runtime generation/variant pages into the existing gallery shape', async () => {
+    const listGenerations = vi.fn()
+      .mockResolvedValue({
+        items: [{
+          generation_id: 'runtime-generation-1',
+          project_id: 'runtime-project',
+          source_task_id: 'runtime-task-1',
+          type: 'image',
+          status: 'created',
+          metadata: { tool_type: 'image-gen', content_type: 'image' },
+          version: 3,
+          created_at: '2026-09-11T00:00:00Z',
+          updated_at: '2026-09-11T00:01:00Z',
+        }],
+        next_cursor: 'runtime-generations-next',
+      });
+    const listVariants = vi.fn().mockResolvedValue({
+      items: [{
+        variant_id: 'runtime-variant-1',
+        generation_id: 'runtime-generation-1',
+        object_id: `sha256:${'f'.repeat(64)}`,
+        variant_type: 'original',
+        metadata: { is_primary: true },
+        created_at: '2026-09-11T00:00:30Z',
+      }],
+      next_cursor: null,
+    });
+    const client = {
+      listGenerations,
+      listVariants,
+      objectContentUrl: (objectId: string) => `/api/runtime/v1/objects/${encodeURIComponent(objectId)}`,
+    };
+
+    const result = await fetchRuntimeGenerationsForProject(client, 'runtime-project', 1, 0, { mediaType: 'image' });
+
+    expect(listGenerations).toHaveBeenCalledWith('runtime-project', undefined, 50);
+    expect(listVariants).toHaveBeenCalledWith('runtime-generation-1', undefined, 50);
+    expect(result).toMatchObject({ total: 2, hasMore: true });
+    expect(result.items[0]).toMatchObject({
+      id: 'runtime-generation-1',
+      generation_id: 'runtime-generation-1',
+      primary_variant_id: 'runtime-variant-1',
+      url: `/api/runtime/v1/objects/sha256%3A${'f'.repeat(64)}`,
+      metadata: expect.objectContaining({ tool_type: 'image-gen' }),
+    });
   });
 
   it('fetchGenerations maps generation rows into gallery items with Runtime CAS display URLs', async () => {
