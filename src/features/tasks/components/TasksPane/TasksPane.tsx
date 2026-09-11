@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { shallow } from 'zustand/shallow';
 import { useRenderLogger } from '@/shared/lib/debug/debugRendering';
 import { TaskList } from './TaskList';
+import { RuntimeTaskList } from './RuntimeTaskList';
 import { cn } from '@/shared/components/ui/contracts/cn';
 import { Button } from '@/shared/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
@@ -40,6 +41,13 @@ interface TasksPaneProps {
 
 const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
   useRenderBudget('TasksPane', 5);
+  const { pathname, search } = useLocation();
+  const runtimeParams = useMemo(() => new URLSearchParams(search), [search]);
+  const runtimeProjectId = pathname === '/tools/video-editor'
+    && runtimeParams.get('runtime') === '1'
+    && runtimeParams.get('runtimeTimeline')
+    ? runtimeParams.get('runtimeProject')?.trim() || null
+    : null;
   const {
     isTasksPaneLocked,
     setIsTasksPaneLocked,
@@ -98,8 +106,14 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
     cancellableTaskCount,
     isAllProjectsMode,
     projectNameMap,
+    isRuntimeMode,
+    runtimeTaskData,
+    runtimeTaskError,
+    runtimeTaskActionError,
+    runtimeTaskActions,
   } = useTasksPaneController({
     selectedProjectId,
+    runtimeProjectId,
     projects,
     incomingTasks,
     cancelAllIncoming,
@@ -161,7 +175,6 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
   // split-button affordance drives it on Reigh routes.
   // Agent chat lives inside the action pane only on tool routes (where a timeline
   // makes sense). On other routes the pane is task-only.
-  const { pathname } = useLocation();
   const isToolRoute = pathname.startsWith('/tools') || pathname === '/shots' || pathname === '/art';
   // null until AgentChatPanel mounts and registers; the split button stays hidden
   // until then so it can't be clicked before its handlers exist.
@@ -378,34 +391,44 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
                   </SelectContent>
                 </Select>
                 
-                <Select
-                  value={projectScope}
-                  onValueChange={(value) => {
-                    setProjectScope(value ?? 'current');
-                    handlePageChange(1);
-                  }}
-                >
-                  <SelectTrigger variant="retro-dark" size="sm" colorScheme="zinc" className="h-7 !text-xs flex-1 min-w-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent variant="zinc">
-                    <SelectItem variant="zinc" value="current" className="!text-xs">This project</SelectItem>
-                    <SelectItem variant="zinc" value="all" className="!text-xs">All projects</SelectItem>
-                    {projects.filter(p => p.id !== selectedProjectId).length > 0 && <SelectSeparator className="bg-zinc-700" />}
-                    {projects
-                      .filter(p => p.id !== selectedProjectId)
-                      .sort((a, b) => {
-                        const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                        const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                        return bDate - aDate;
-                      })
-                      .map((project) => (
-                        <SelectItem variant="zinc" key={project.id} value={project.id} className="!text-xs preserve-case">
-                          {project.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                {isRuntimeMode ? (
+                  <div
+                    className="flex h-7 min-w-0 flex-1 items-center rounded-md border border-zinc-700 px-2 text-xs text-zinc-300"
+                    data-runtime-task-project={runtimeProjectId ?? ''}
+                    title={runtimeProjectId ?? undefined}
+                  >
+                    Runtime project
+                  </div>
+                ) : (
+                  <Select
+                    value={projectScope}
+                    onValueChange={(value) => {
+                      setProjectScope(value ?? 'current');
+                      handlePageChange(1);
+                    }}
+                  >
+                    <SelectTrigger variant="retro-dark" size="sm" colorScheme="zinc" className="h-7 !text-xs flex-1 min-w-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent variant="zinc">
+                      <SelectItem variant="zinc" value="current" className="!text-xs">This project</SelectItem>
+                      <SelectItem variant="zinc" value="all" className="!text-xs">All projects</SelectItem>
+                      {projects.filter(p => p.id !== selectedProjectId).length > 0 && <SelectSeparator className="bg-zinc-700" />}
+                      {projects
+                        .filter(p => p.id !== selectedProjectId)
+                        .sort((a, b) => {
+                          const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                          const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                          return bDate - aDate;
+                        })
+                        .map((project) => (
+                          <SelectItem variant="zinc" key={project.id} value={project.id} className="!text-xs preserve-case">
+                            {project.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             </div>
 
@@ -433,6 +456,17 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
                 className="absolute inset-0 overflow-y-auto"
                 data-scroll-lock-scrollable="true"
               >
+                {isRuntimeMode ? (
+                  <RuntimeTaskList
+                    tasks={runtimeTaskData?.tasks ?? []}
+                    isLoading={isPaginatedLoading}
+                    error={runtimeTaskError}
+                    actionError={runtimeTaskActionError}
+                    onCancelTask={runtimeTaskActions.cancelTask}
+                    onRetryTask={runtimeTaskActions.retryTask}
+                    isTaskActionPending={runtimeTaskActions.isTaskActionPending}
+                  />
+                ) : (
                 <TaskList
                   filterStatuses={STATUS_GROUPS[selectedFilter]}
                   activeFilter={selectedFilter}
@@ -450,6 +484,7 @@ const TasksPaneComponent: React.FC<TasksPaneProps> = ({ onOpenSettings }) => {
                   showProjectIndicator={isAllProjectsMode}
                   projectNameMap={projectNameMap}
                 />
+                )}
               </div>
               {/* Bottom fade — only visible when the chat half sits below */}
               {showChatHalf && (

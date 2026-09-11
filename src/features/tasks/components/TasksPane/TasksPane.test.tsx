@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TasksPane } from './TasksPane';
 
 const useLocationMock = vi.fn();
+const useTasksPaneControllerMock = vi.fn();
 const useAgentChatActionsMock = vi.fn();
 const usePanesStoreMock = vi.fn();
 const openPaneMock = vi.fn();
@@ -150,6 +151,12 @@ vi.mock('./TaskList', () => ({
   TaskList: () => <div data-testid="task-list" />,
 }));
 
+vi.mock('./RuntimeTaskList', () => ({
+  RuntimeTaskList: ({ tasks }: { tasks: Array<{ task_id: string }> }) => (
+    <div data-testid="runtime-task-list" data-runtime-task-id={tasks[0]?.task_id ?? ''} />
+  ),
+}));
+
 vi.mock('./components/PaginationControls', () => ({
   PaginationControls: () => <div data-testid="pagination-controls" />,
 }));
@@ -180,7 +187,10 @@ vi.mock('./hooks/useShotActions', () => ({
 }));
 
 vi.mock('./hooks/useTasksPaneController', () => ({
-  useTasksPaneController: () => ({
+  useTasksPaneController: (...args: unknown[]) => useTasksPaneControllerMock(...args),
+}));
+
+const legacyControllerState = {
     selectedFilter: 'Processing',
     selectedTaskType: null,
     projectScope: 'current',
@@ -207,8 +217,16 @@ vi.mock('./hooks/useTasksPaneController', () => ({
     cancellableTaskCount: 2,
     isAllProjectsMode: false,
     projectNameMap: {},
-  }),
-}));
+    isRuntimeMode: false,
+    runtimeTaskData: undefined,
+    runtimeTaskError: null,
+    runtimeTaskActionError: null,
+    runtimeTaskActions: {
+      cancelTask: vi.fn(),
+      retryTask: vi.fn(),
+      isTaskActionPending: vi.fn().mockReturnValue(false),
+    },
+};
 
 vi.mock('./hooks/useTasksPaneSlidingPane', () => ({
   useTasksPaneSlidingPane: () => ({
@@ -263,6 +281,8 @@ describe('TasksPane', () => {
     handleOptimisticPositionedMock.mockReset();
     handleOptimisticUnpositionedMock.mockReset();
     useLocationMock.mockReturnValue({ pathname: '/tools/video-editor' });
+    useTasksPaneControllerMock.mockReset();
+    useTasksPaneControllerMock.mockReturnValue(legacyControllerState);
     usePanesStoreMock.mockReturnValue({
       isTasksPaneLocked: false,
       setIsTasksPaneLocked: setIsTasksPaneLockedMock,
@@ -320,5 +340,29 @@ describe('TasksPane', () => {
     expect(toggleRecording).not.toHaveBeenCalled();
     expect(callOrder).toEqual(['mark', 'open', 'focus']);
     expect(paneControlProps.actions.splitButton.primary.ariaLabel).toBe('Open message composer');
+  });
+
+  it('routes the explicit Runtime editor identity to the Runtime task list', () => {
+    useLocationMock.mockReturnValue({
+      pathname: '/tools/video-editor',
+      search: '?runtime=1&runtimeProject=runtime-project&runtimeTimeline=timeline-1',
+    });
+    useTasksPaneControllerMock.mockReturnValue({
+      ...legacyControllerState,
+      isRuntimeMode: true,
+      runtimeTaskData: {
+        tasks: [{ task_id: 'runtime-task-1' }],
+        total: 1,
+        totalPages: 1,
+      },
+    });
+
+    renderTasksPane();
+
+    expect(useTasksPaneControllerMock).toHaveBeenCalledWith(expect.objectContaining({
+      runtimeProjectId: 'runtime-project',
+    }));
+    expect(screen.getByTestId('runtime-task-list')).toHaveAttribute('data-runtime-task-id', 'runtime-task-1');
+    expect(screen.queryByTestId('task-list')).not.toBeInTheDocument();
   });
 });

@@ -2,9 +2,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { usePaginatedTasks, type PaginatedTasksResponse } from '@/shared/hooks/tasks/useTasks';
 import { useAllTaskTypes, useTaskStatusCounts } from '@/shared/hooks/tasks/useTaskStatusCounts';
 import { getTaskDisplayName } from '@/shared/lib/tasks/taskConfig';
+import type { Task as RuntimeTask } from '@/integrations/runtime/generated.ts';
 import { ITEMS_PER_PAGE, STATUS_GROUPS } from '../constants';
 import { useTasksPaneViewState, type UseTasksPaneViewStateResult } from './useTasksPaneViewState';
 import { useTasksPaneCancelPending } from './useTasksPaneCancelPending';
+import {
+  runtimeTaskIsCancellable,
+  runtimeTaskStatusGroup,
+  runtimeTaskType,
+  useRuntimeTasks,
+} from './useRuntimeTasks';
 
 interface TasksPaneProject {
   id: string;
@@ -18,9 +25,16 @@ interface IncomingTaskForCount {
 
 interface UseTasksPaneControllerInput {
   selectedProjectId: string | null | undefined;
+  runtimeProjectId?: string | null;
   projects: TasksPaneProject[];
   incomingTasks: IncomingTaskForCount[];
   cancelAllIncoming: () => void;
+}
+
+export interface RuntimeTaskPageData {
+  tasks: RuntimeTask[];
+  total: number;
+  totalPages: number;
 }
 
 interface UseTasksPaneControllerResult extends UseTasksPaneViewStateResult {
@@ -39,12 +53,23 @@ interface UseTasksPaneControllerResult extends UseTasksPaneViewStateResult {
   effectiveProjectId: string | null;
   isAllProjectsMode: boolean;
   projectNameMap: Record<string, string>;
+  isRuntimeMode: boolean;
+  runtimeTaskData: RuntimeTaskPageData | undefined;
+  runtimeTaskError: Error | null;
+  runtimeTaskActionError: Error | null;
+  runtimeTaskActions: ReturnType<typeof useRuntimeTasks>;
 }
 
 export function useTasksPaneController(
   input: UseTasksPaneControllerInput,
 ): UseTasksPaneControllerResult {
-  const { selectedProjectId, projects, incomingTasks, cancelAllIncoming } = input;
+  const {
+    selectedProjectId,
+    runtimeProjectId = null,
+    projects,
+    incomingTasks,
+    cancelAllIncoming,
+  } = input;
   const viewState = useTasksPaneViewState();
 
   const {
@@ -61,7 +86,9 @@ export function useTasksPaneController(
     handleStatusIndicatorClick,
   } = viewState;
 
-  const shouldLoadTasks = Boolean(selectedProjectId);
+  const isRuntimeMode = Boolean(runtimeProjectId);
+  const runtimeTasks = useRuntimeTasks(runtimeProjectId);
+  const shouldLoadTasks = Boolean(selectedProjectId) && !isRuntimeMode;
   const allProjectIds = useMemo(() => projects.map((project) => project.id), [projects]);
   const projectNameMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -71,12 +98,13 @@ export function useTasksPaneController(
     return map;
   }, [projects]);
 
-  const effectiveProjectId = projectScope === 'current'
+  const legacyEffectiveProjectId = projectScope === 'current'
     ? selectedProjectId ?? null
     : projectScope !== 'all'
       ? projectScope
       : null;
-  const isAllProjectsMode = projectScope === 'all';
+  const isAllProjectsMode = !isRuntimeMode && projectScope === 'all';
+  const effectiveProjectId = isRuntimeMode ? runtimeProjectId : legacyEffectiveProjectId;
 
   const { data: paginatedData, isLoading: isPaginatedLoading } = usePaginatedTasks({
     projectId: shouldLoadTasks ? effectiveProjectId : null,
@@ -88,14 +116,16 @@ export function useTasksPaneController(
     allProjectIds: isAllProjectsMode ? allProjectIds : undefined,
   });
 
-  const scopedProjectId = shouldLoadTasks ? (effectiveProjectId ?? selectedProjectId ?? null) : null;
+  const scopedProjectId = shouldLoadTasks
+    ? (legacyEffectiveProjectId ?? selectedProjectId ?? null)
+    : null;
   const { data: statusCounts, isLoading: isStatusCountsLoading } = useTaskStatusCounts(
     scopedProjectId,
     isAllProjectsMode ? { allProjectIds: allProjectIds } : undefined,
   );
   const { data: allTaskTypes } = useAllTaskTypes(scopedProjectId);
 
-  const taskTypeOptions = useMemo(() => {
+  const legacyTaskTypeOptions = useMemo(() => {
     if (!allTaskTypes || allTaskTypes.length === 0) {
       return [];
     }
@@ -115,36 +145,83 @@ export function useTasksPaneController(
     }
   }, [statusCounts, isStatusCountsLoading, displayStatusCounts]);
 
-  const dbCount = selectedFilter === 'Processing'
+  const legacyDbCount = selectedFilter === 'Processing'
     ? (paginatedData?.total || 0)
     : (displayStatusCounts?.processing || 0);
 
-  const cancellableTaskCount = useMemo(() => {
+  const legacyCancellableTaskCount = useMemo(() => {
     if (incomingTasks.length === 0) {
-      return dbCount;
+      return legacyDbCount;
     }
     const unresolvedCount = incomingTasks
       .filter((task) => !task.taskIds?.length)
       .reduce((sum, task) => sum + (task.expectedCount ?? 1), 0);
-    return dbCount + unresolvedCount;
-  }, [dbCount, incomingTasks]);
+    return legacyDbCount + unresolvedCount;
+  }, [incomingTasks, legacyDbCount]);
 
-  const { handleCancelAllPending, isCancelAllPending } = useTasksPaneCancelPending({
-    selectedProjectId,
+  const legacyCancelPending = useTasksPaneCancelPending({
+    selectedProjectId: isRuntimeMode ? null : selectedProjectId,
     selectedFilter,
     currentPage,
-    cancelAllIncoming,
+    cancelAllIncoming: isRuntimeMode ? () => {} : cancelAllIncoming,
   });
 
-  const totalTasks = paginatedData?.total || 0;
+  const runtimeTaskData = useMemo<RuntimeTaskPageData | undefined>(() => {
+    if (!isRuntimeMode || !runtimeTasks.data) return undefined;
+
+    const filtered = runtimeTasks.data
+      .filter((task) => runtimeTaskStatusGroup(task) === selectedFilter)
+      .filter((task) => !selectedTaskType || runtimeTaskType(task) === selectedTaskType)
+      .sort((left, right) => new Date(right.updated_at || right.created_at).getTime()
+        - new Date(left.updated_at || left.created_at).getTime());
+    const totalPages = filtered.length === 0 ? 0 : Math.ceil(filtered.length / ITEMS_PER_PAGE);
+    return {
+      tasks: filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE),
+      total: filtered.length,
+      totalPages,
+    };
+  }, [currentPage, isRuntimeMode, runtimeTasks.data, selectedFilter, selectedTaskType]);
+
+  const runtimeStatusCounts = useMemo(() => {
+    if (!isRuntimeMode || !runtimeTasks.data) return undefined;
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+    return {
+      processing: runtimeTasks.data.filter(runtimeTaskIsCancellable).length,
+      recentSuccesses: runtimeTasks.data.filter((task) =>
+        task.state === 'succeeded' && new Date(task.updated_at || task.created_at).getTime() >= oneHourAgo,
+      ).length,
+      recentFailures: runtimeTasks.data.filter((task) =>
+        (task.state === 'failed' || task.state === 'cancelled')
+        && new Date(task.updated_at || task.created_at).getTime() >= oneHourAgo,
+      ).length,
+      degraded: false,
+      failedQueries: [],
+    };
+  }, [isRuntimeMode, runtimeTasks.data]);
+
+  const runtimeTaskTypeOptions = useMemo(() => {
+    if (!isRuntimeMode) return [];
+    return [...new Set((runtimeTasks.data ?? []).map(runtimeTaskType))]
+      .sort((left, right) => left.localeCompare(right))
+      .map((value) => ({ value, label: value }));
+  }, [isRuntimeMode, runtimeTasks.data]);
+
+  const handleCancelAllPending = isRuntimeMode
+    ? runtimeTasks.cancelAllPending
+    : legacyCancelPending.handleCancelAllPending;
+  const isCancelAllPending = isRuntimeMode
+    ? runtimeTasks.isCancelAllPending
+    : legacyCancelPending.isCancelAllPending;
+
+  const totalTasks = isRuntimeMode ? (runtimeTaskData?.total || 0) : (paginatedData?.total || 0);
   const totalPages = Math.ceil(totalTasks / ITEMS_PER_PAGE);
-  const isStatusCountsDegraded = Boolean(displayStatusCounts?.degraded);
-  const failedStatusQueries = displayStatusCounts?.failedQueries?.join(', ');
+  const isStatusCountsDegraded = isRuntimeMode ? false : Boolean(displayStatusCounts?.degraded);
+  const failedStatusQueries = isRuntimeMode ? undefined : displayStatusCounts?.failedQueries?.join(', ');
 
   return {
     selectedFilter,
     selectedTaskType,
-    projectScope,
+    projectScope: isRuntimeMode ? 'current' : projectScope,
     currentPage,
     mobileActiveTaskId,
     setProjectScope,
@@ -155,18 +232,27 @@ export function useTasksPaneController(
     handleStatusIndicatorClick,
     handleCancelAllPending,
     isCancelAllPending,
-    paginatedData,
-    isPaginatedLoading,
-    displayStatusCounts,
-    isStatusCountsLoading,
+    paginatedData: isRuntimeMode ? undefined : paginatedData,
+    isPaginatedLoading: isRuntimeMode ? runtimeTasks.isLoading : isPaginatedLoading,
+    displayStatusCounts: isRuntimeMode ? runtimeStatusCounts : displayStatusCounts,
+    isStatusCountsLoading: isRuntimeMode ? runtimeTasks.isLoading : isStatusCountsLoading,
     isStatusCountsDegraded,
     failedStatusQueries,
-    taskTypeOptions,
+    taskTypeOptions: isRuntimeMode ? runtimeTaskTypeOptions : legacyTaskTypeOptions,
     totalTasks,
     totalPages,
-    cancellableTaskCount,
+    cancellableTaskCount: isRuntimeMode
+      ? (runtimeTasks.data ?? []).filter(runtimeTaskIsCancellable).length
+      : legacyCancellableTaskCount,
     effectiveProjectId,
     isAllProjectsMode,
-    projectNameMap,
+    projectNameMap: isRuntimeMode && runtimeProjectId
+      ? { [runtimeProjectId]: 'Runtime project' }
+      : projectNameMap,
+    isRuntimeMode,
+    runtimeTaskData,
+    runtimeTaskError: runtimeTasks.error ?? null,
+    runtimeTaskActionError: runtimeTasks.actionError ?? null,
+    runtimeTaskActions: runtimeTasks,
   };
 }
