@@ -681,26 +681,58 @@ function runtimeObjectId(value: unknown): string | null {
 }
 
 /**
- * Runtime admission authorizes the exact managed objects pinned by the
- * resolved timeline registry. Preserve registry order and de-duplicate
- * aliases without treating a caller URL/path as an object identity.
+ * Runtime admission authorizes only the managed objects actually referenced by
+ * the resolved timeline. Preserve registry order and de-duplicate aliases
+ * without treating a caller URL/path as an object identity. Required
+ * references fail closed: silently dropping one would admit a render with a
+ * different input set than the editor displayed.
  */
-function managedInputObjectIds(config: unknown): string[] {
-  if (!config || typeof config !== 'object') return [];
-  const registry = (config as { registry?: unknown }).registry;
-  if (!registry || typeof registry !== 'object') return [];
+function managedInputObjectIds(config: unknown): { ids: string[]; error?: string } {
+  if (!config || typeof config !== 'object') return { ids: [] };
+  const record = config as { registry?: unknown; clips?: unknown };
+  const registry = record.registry;
+  if (!registry || typeof registry !== 'object' || Array.isArray(registry)) return { ids: [] };
+
+  const referenced = new Set<string>();
+  if (Array.isArray(record.clips)) {
+    for (const clip of record.clips) {
+      if (!clip || typeof clip !== 'object') continue;
+      const asset = (clip as { asset?: unknown }).asset;
+      if (typeof asset === 'string' && asset.trim()) referenced.add(asset);
+    }
+  }
+
   const ids: string[] = [];
   const seen = new Set<string>();
-  for (const entry of Object.values(registry as Record<string, unknown>)) {
-    if (!entry || typeof entry !== 'object') continue;
-    const record = entry as { media_id?: unknown; content_sha256?: unknown };
-    const id = runtimeObjectId(record.media_id) ?? runtimeObjectId(record.content_sha256);
-    if (id && !seen.has(id)) {
+  for (const assetId of referenced) {
+    const entry = (registry as Record<string, unknown>)[assetId];
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      return { ids: [], error: `managed render input ${assetId} is missing from the resolved Runtime registry` };
+    }
+    const value = entry as { media_id?: unknown; content_sha256?: unknown };
+    const mediaId = value.media_id;
+    const digest = value.content_sha256;
+    const normalizedMediaId = mediaId === undefined ? null : runtimeObjectId(mediaId);
+    const normalizedDigest = digest === undefined ? null : runtimeObjectId(digest);
+    if (mediaId !== undefined && normalizedMediaId === null) {
+      return { ids: [], error: `managed render input ${assetId} has an invalid media_id identity` };
+    }
+    if (digest !== undefined && normalizedDigest === null) {
+      return { ids: [], error: `managed render input ${assetId} has an invalid content_sha256 identity` };
+    }
+    if (normalizedMediaId && normalizedDigest && normalizedMediaId !== normalizedDigest) {
+      return { ids: [], error: `managed render input ${assetId} media_id and content_sha256 identities do not match` };
+    }
+    const id = normalizedMediaId ?? normalizedDigest;
+    if (!id) {
+      return { ids: [], error: `managed render input ${assetId} has no Runtime-managed object identity` };
+    }
+    if (!seen.has(id)) {
       seen.add(id);
       ids.push(id);
     }
   }
-  return ids;
+  return { ids };
 }
 
 function newCorrelationId(): string {
@@ -720,6 +752,9 @@ export function buildRenderTimelinePayload(
   if (!request?.renderRuntime?.projectId) return { error: 'projectId is required' };
   if (!request.resolvedConfig) return { error: 'resolved timeline config is required' };
 
+  const managedInputs = managedInputObjectIds(request.resolvedConfig);
+  if (managedInputs.error) return { error: managedInputs.error };
+
   return {
     payload: {
       timeline_id: request.timelineId,
@@ -729,7 +764,7 @@ export function buildRenderTimelinePayload(
       output_filename: request.outputFilename ?? defaultOutputFilename(request.timelineId),
       project_id: request.renderRuntime.projectId,
       correlation_id: input.correlationId ?? newCorrelationId(),
-      input_object_ids: managedInputObjectIds(request.resolvedConfig),
+      input_object_ids: managedInputs.ids,
     },
   };
 }

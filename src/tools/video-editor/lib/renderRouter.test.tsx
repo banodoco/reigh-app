@@ -990,6 +990,64 @@ describe('Sprint 8 buildRenderTimelinePayload', () => {
       previewAssetKeys: ['asset-a'],
     });
   });
+
+  it('authorizes only referenced managed inputs and ignores unrelated registry entries', () => {
+    const resolvedConfig = {
+      ...baseInput.request.resolvedConfig,
+      clips: [{ id: 'clip-a', asset: 'asset-a', clipType: 'media' }],
+      registry: {
+        'asset-a': { media_id: `sha256:${'a'.repeat(64)}` },
+        'unreferenced-invalid': { file: '/tmp/retired.mp4' },
+      },
+    };
+
+    const { payload, error } = buildRenderTimelinePayload({
+      ...baseInput,
+      request: { ...baseInput.request, resolvedConfig },
+    });
+
+    expect(error).toBeUndefined();
+    expect(payload?.input_object_ids).toEqual([`sha256:${'a'.repeat(64)}`]);
+  });
+
+  it('refuses a referenced managed input with no Runtime identity', () => {
+    const { payload, error } = buildRenderTimelinePayload({
+      ...baseInput,
+      request: {
+        ...baseInput.request,
+        resolvedConfig: {
+          ...baseInput.request.resolvedConfig,
+          clips: [{ id: 'clip-a', asset: 'asset-a', clipType: 'media' }],
+          registry: { 'asset-a': { file: 'retired.mp4' } },
+        },
+      },
+    });
+
+    expect(payload).toBeUndefined();
+    expect(error).toContain('asset-a has no Runtime-managed object identity');
+  });
+
+  it('refuses conflicting media_id and content_sha256 identities for a referenced input', () => {
+    const { payload, error } = buildRenderTimelinePayload({
+      ...baseInput,
+      request: {
+        ...baseInput.request,
+        resolvedConfig: {
+          ...baseInput.request.resolvedConfig,
+          clips: [{ id: 'clip-a', asset: 'asset-a', clipType: 'media' }],
+          registry: {
+            'asset-a': {
+              media_id: `sha256:${'a'.repeat(64)}`,
+              content_sha256: `sha256:${'b'.repeat(64)}`,
+            },
+          },
+        },
+      },
+    });
+
+    expect(payload).toBeUndefined();
+    expect(error).toContain('asset-a media_id and content_sha256 identities do not match');
+  });
 });
 
 describe('Sprint 8 enqueueBanodocoRenderTimeline', () => {
@@ -1426,7 +1484,7 @@ describe('Sprint 8 render pipeline middleware', () => {
         theme: '2rp',
         output: { resolution: '1920x1080', fps: 30, file: 'out.mp4' },
         tracks: [{ id: 'V1', kind: 'visual', label: 'V1' }],
-        clips: [{ id: 'clip-1', track: 'V1', at: 0, hold: 1, clipType: 'image-jump' }],
+        clips: [{ id: 'clip-1', track: 'V1', at: 0, hold: 1, clipType: 'image-jump', asset: 'asset-1' }],
         registry: {
           'asset-1': {
             file: 'asset-1.png',
