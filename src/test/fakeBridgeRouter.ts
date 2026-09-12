@@ -272,6 +272,7 @@ export function createFakeBridgeRouter(): FakeBridgeRouter {
       run_id: fixtureUlid(`run${taskId.slice(-6)}`),
       idempotency_key: taskId,
     };
+    const readModelRecord = readModel as typeof readModel & Record<string, unknown>;
     const capabilityDigest = typeof readModel.capability_digest === 'string'
       ? readModel.capability_digest
       : `sha256:${'a'.repeat(64)}`;
@@ -299,6 +300,11 @@ export function createFakeBridgeRouter(): FakeBridgeRouter {
       updated_at: readModel.updated_at,
       attempt_id: summary.status === 'running' ? fixtureUlid(`attempt${taskId.slice(-6)}`) : null,
       runtime_epoch: 1,
+      ...(readModelRecord.generation_intent !== undefined
+        ? { generation_intent: readModelRecord.generation_intent }
+        : requestBody?.generation_intent !== undefined
+          ? { generation_intent: requestBody.generation_intent }
+          : {}),
       ...(state.taskOutputs.get(taskId)
         ? { result: { outputs: state.taskOutputs.get(taskId)!.map((output) => ({
             name: output.role,
@@ -345,6 +351,9 @@ export function createFakeBridgeRouter(): FakeBridgeRouter {
     neutralReadModel.capability_digest = parsed.data.capability_digest;
     neutralReadModel.input_object_ids = parsed.data.input_object_ids;
     neutralReadModel.spec = parsed.data.spec;
+    if (parsed.data.generation_intent !== undefined) {
+      neutralReadModel.generation_intent = parsed.data.generation_intent;
+    }
     neutralReadModel.idempotency_key = rawKey;
     neutralReadModel.run_id = fixtureUlid(`run${String(state.admissions).padStart(6, '0')}`);
     state.tasks.set(readModel.id, taskSummaryFromReadModel(readModel));

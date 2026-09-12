@@ -181,6 +181,43 @@ describe('createTask R1 admission over the fake bridge router', () => {
     expect(lastAdmitBody()).toEqual(request);
   });
 
+  it('forwards producer GEN intent and typed generation publication unchanged', async () => {
+    const request = admissionParams({
+      generation_intent: {
+        version: 1,
+        modality: 'video',
+        partial_success_policy: 'allow',
+        groups: [{
+          group_key: 'main',
+          selectors: [{ selector: 'video', ordinal: 0, variant_key: 'original' }],
+        }],
+      },
+      settlement_effect: {
+        effect_type: 'generation.publish_v1',
+        target_id: 'project-1',
+        payload: {
+          version: 1,
+          modality: 'video',
+          generation_type: 'multi_output_render',
+          metadata: { prompt: 'bounded publish' },
+          partial_success_policy: 'allow',
+          groups: [{
+            group_key: 'main',
+            selectors: [{
+              selector: 'video',
+              ordinal: 0,
+              variant_key: 'original',
+              output_port: 'video',
+            }],
+          }],
+        },
+      },
+    });
+
+    await expect(createTask(request)).resolves.toEqual(expect.objectContaining({ task_id: expect.any(String) }));
+    expect(lastAdmitBody()).toEqual(request);
+  });
+
   it('ingests producer bytes into project CAS without turning locators into IDs', async () => {
     const input = new Blob([new Uint8Array([7, 0, 255])], { type: 'image/png' });
     const committed = await ingestProjectInput('demo-project', input);

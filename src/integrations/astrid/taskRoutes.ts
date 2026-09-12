@@ -103,6 +103,7 @@ export class AstridLocalTaskRoutes {
         scratch_bytes: parsed.storage_estimate.scratch_bytes,
         output_bytes: parsed.storage_estimate.output_bytes,
       },
+      generation_intent: parsed.generation_intent,
       settlement_effect: parsed.settlement_effect,
     };
     const response = await this.request(() => this.transport.requestJson(

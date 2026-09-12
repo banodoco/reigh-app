@@ -60,6 +60,27 @@ export type RuntimeSettlementEffect =
         output_ordinal: 0;
         primary_policy: 'preserve';
       };
+    }
+  | {
+      /** GEN D1 publishes a generation from host-verified typed outputs. */
+      effect_type: 'generation.publish_v1';
+      target_id: string;
+      payload: {
+        version: 1;
+        modality: 'image' | 'video' | 'audio';
+        generation_type: string;
+        metadata: Record<string, unknown>;
+        partial_success_policy: 'reject' | 'allow';
+        groups: Array<{
+          group_key: string;
+          selectors: Array<{
+            selector: string;
+            ordinal: number;
+            variant_key: string;
+            output_port: string;
+          }>;
+        }>;
+      };
     };
 
 export type RuntimeInput = Blob | Uint8Array | ArrayBuffer;

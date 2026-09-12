@@ -245,13 +245,34 @@ const generationCreateWithVariantSettlementEffectSchema = z.strictObject({
   }),
 });
 
-/** Runtime admits no effect, project.update, atomic variant append, or
- * Runtime-owned creation of a generation with its first variant. */
+const generationPublishV1SettlementEffectSchema = z.strictObject({
+  effect_type: z.literal('generation.publish_v1'),
+  target_id: z.string().min(1),
+  payload: z.strictObject({
+    version: z.literal(1),
+    modality: z.enum(['image', 'video', 'audio']),
+    generation_type: z.string().min(1).max(128),
+    metadata: jsonObject,
+    partial_success_policy: z.enum(['reject', 'allow']),
+    groups: z.array(z.strictObject({
+      group_key: z.string().min(1).max(255),
+      selectors: z.array(z.strictObject({
+        selector: z.string().min(1).max(255),
+        ordinal: z.number().int().nonnegative(),
+        variant_key: z.string().min(1).max(255),
+        output_port: z.string().min(1).max(255),
+      })).min(1),
+    })).min(1),
+  }),
+});
+
+/** Runtime settlement effects accepted by the canonical admission envelope. */
 export const bridgeTaskSettlementEffectSchema = z.union([
   z.strictObject({}),
   projectUpdateSettlementEffectSchema,
   generationVariantAppendSettlementEffectSchema,
   generationCreateWithVariantSettlementEffectSchema,
+  generationPublishV1SettlementEffectSchema,
 ]);
 
 /**
@@ -350,6 +371,8 @@ export const bridgeTaskAdmissionRequestSchema = z.strictObject({
   ),
   spec: bridgeTaskAdmissionSpecSchema,
   storage_estimate: bridgeTaskStorageEstimateSchema,
+  /** Producer-validated GEN intent; Reigh carries it without rebuilding it. */
+  generation_intent: jsonObject.optional(),
   settlement_effect: bridgeTaskSettlementEffectSchema,
 });
 
@@ -403,6 +426,7 @@ export const runtimeTaskResourceSchema = z.looseObject({
   updated_at: z.string().min(1),
   attempt_id: z.string().min(1).nullable(),
   runtime_epoch: z.number().int().positive(),
+  generation_intent: jsonObject.optional(),
   result: jsonObject.optional(),
 });
 
