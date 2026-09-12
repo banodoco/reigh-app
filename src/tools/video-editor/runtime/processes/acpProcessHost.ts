@@ -42,6 +42,8 @@ export type AcpProcessHostOptions = {
   readonly cwd?: string;
   readonly profile?: string;
   readonly sessionDir?: string;
+  /** Explicit named-agent prompt file; never inline or discover ambiently. */
+  readonly systemPrompt?: string;
   readonly env?: Record<string, string | undefined>;
   readonly requestTimeoutMs?: number;
   readonly callbacks?: AcpProcessHostCallbacks;
@@ -226,6 +228,7 @@ export class AcpProcessHost {
       'acp',
       ...(this.options.profile ? ['--profile', this.options.profile] : []),
       ...(this.options.sessionDir ? ['--session-dir', this.options.sessionDir] : []),
+      ...(this.options.systemPrompt ? ['--system-prompt', this.options.systemPrompt] : []),
     ];
     const spawnProcess = this.options.spawnProcess ?? defaultSpawnProcess;
     try {

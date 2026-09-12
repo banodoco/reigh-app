@@ -4,6 +4,11 @@ import {
   AcpProcessHost,
   type AcpProcessSpawnOptions,
 } from './acpProcessHost.ts';
+import {
+  ASTRID_ACP_AGENT_IDENTITY,
+  ASTRID_ACP_OMP_BIN,
+  createAstridAcpProcessHost,
+} from './astridAcpLauncher.ts';
 
 type Listener = (...args: unknown[]) => void;
 
@@ -181,5 +186,60 @@ describe('AcpProcessHost', () => {
     process.emit('exit', 1, null);
     await expect(pending).rejects.toMatchObject({ code: 'acp_process_exited' });
     await host.dispose();
+  });
+
+  it('builds the named Astrid launch with exact prompt, identity, cwd, and session custody', async () => {
+    const process = new FakeProcess();
+    let spawnOptions: AcpProcessSpawnOptions | undefined;
+    const host = createAstridAcpProcessHost({
+      cwd: '/tmp/reigh-project',
+      profile: 'astrid',
+      sessionDir: '/tmp/reigh-sessions',
+      systemPromptFile: '/tmp/astrid.md',
+      fileIsRegularFile: () => true,
+      spawnProcess: (options) => {
+        spawnOptions = options;
+        return process.asProcess();
+      },
+      requestTimeoutMs: 1_000,
+    });
+
+    const pending = host.listSessions();
+    await flush();
+    expect(spawnOptions).toEqual({
+      command: ASTRID_ACP_OMP_BIN,
+      args: [
+        'acp',
+        '--profile', 'astrid',
+        '--session-dir', '/tmp/reigh-sessions',
+        '--system-prompt', '/tmp/astrid.md',
+      ],
+      cwd: '/tmp/reigh-project',
+      env: {
+        OMP_BIN: ASTRID_ACP_OMP_BIN,
+        OMP_AGENT_IDENTITY: ASTRID_ACP_AGENT_IDENTITY,
+        ASTRID_AGENT_IDENTITY: ASTRID_ACP_AGENT_IDENTITY,
+      },
+    });
+    const request = lastRequest(process);
+    respond(process, request.id, { sessions: [] });
+    await expect(pending).resolves.toEqual({ sessions: [] });
+    await host.dispose();
+  });
+
+  it('fails closed before spawn when the canonical prompt file is unavailable', () => {
+    let spawned = false;
+    expect(() => createAstridAcpProcessHost({
+      cwd: '/tmp/reigh-project',
+      profile: 'astrid',
+      sessionDir: '/tmp/reigh-sessions',
+      systemPromptFile: '/tmp/missing-astrid.md',
+      fileIsRegularFile: () => false,
+      spawnProcess: () => {
+        spawned = true;
+        return new FakeProcess().asProcess();
+      },
+    })).toThrow('system prompt is unavailable');
+    expect(spawned).toBe(false);
   });
 });
