@@ -11,9 +11,17 @@ In one terminal, start the bridge with explicit host-owned paths:
 export ASTRID_BRIDGE_TOKEN='use-the-same-local-token-as-vite'
 ASTRID_ACP_CWD="$PWD" \
 ASTRID_ACP_PROFILE=astrid \
-ASTRID_ACP_SESSION_DIR="$PWD/.reigh-acp-sessions" \
 npm run dev:astrid-acp
 ```
+
+`ASTRID_ACP_SESSION_DIR` is optional. When omitted, the installed OMP build
+owns its canonical cwd-derived session directory, allowing ACP session
+listing/loading/resume to discover the same opaque session ID after a fresh
+process starts with the same profile and cwd. An explicit absolute
+`ASTRID_ACP_SESSION_DIR` remains a supported legacy override; existing data is
+left in place, but OMP 17.3.5 ACP discovery does not search that arbitrary
+directory in a new process, so use it only when the original process remains
+live.
 
 In a second terminal, start Reigh and point the ACP proxy at its separate
 loopback port:
@@ -31,10 +39,11 @@ persist connection or session IDs. Reconnect while the host is live reuses the
 same ACP process and opaque session authority; it does not create a second
 session registry.
 
-The installed OMP build currently does not make sessions stored under a custom
---session-dir discoverable to a newly spawned ACP process. A page-reload or
-host-restart resume therefore remains an explicit runtime limitation and is
-surfaced as an error rather than being emulated in Reigh.
+The installed OMP build does not make sessions stored under a custom
+`--session-dir` discoverable to a newly spawned ACP process. Reigh therefore
+does not emulate a registry or migrate those files; the canonical no-override
+launch is the supported fresh-process path, while custom-directory sessions
+remain an explicit same-process limitation.
 
 ## Canonical Runtime editor entry
 

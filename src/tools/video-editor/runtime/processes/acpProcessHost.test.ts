@@ -227,6 +227,39 @@ describe('AcpProcessHost', () => {
     await host.dispose();
   });
 
+  it('omits the session override so OMP owns canonical cwd-derived storage', async () => {
+    const process = new FakeProcess();
+    let spawnOptions: AcpProcessSpawnOptions | undefined;
+    const host = createAstridAcpProcessHost({
+      cwd: '/tmp/reigh-canonical-project',
+      profile: 'astrid',
+      systemPromptFile: '/tmp/astrid.md',
+      fileIsRegularFile: () => true,
+      spawnProcess: (options) => {
+        spawnOptions = options;
+        return process.asProcess();
+      },
+      requestTimeoutMs: 1_000,
+    });
+
+    const pending = host.listSessions();
+    await flush();
+    expect(spawnOptions).toEqual({
+      command: ASTRID_ACP_OMP_BIN,
+      args: ['acp', '--profile', 'astrid', '--system-prompt', '/tmp/astrid.md'],
+      cwd: '/tmp/reigh-canonical-project',
+      env: {
+        OMP_BIN: ASTRID_ACP_OMP_BIN,
+        OMP_AGENT_IDENTITY: ASTRID_ACP_AGENT_IDENTITY,
+        ASTRID_AGENT_IDENTITY: ASTRID_ACP_AGENT_IDENTITY,
+      },
+    });
+    const request = lastRequest(process);
+    respond(process, request.id, { sessions: [] });
+    await expect(pending).resolves.toEqual({ sessions: [] });
+    await host.dispose();
+  });
+
   it('fails closed before spawn when the canonical prompt file is unavailable', () => {
     let spawned = false;
     expect(() => createAstridAcpProcessHost({

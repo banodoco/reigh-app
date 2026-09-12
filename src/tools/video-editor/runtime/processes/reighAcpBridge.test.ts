@@ -6,6 +6,7 @@ import {
 } from './astridAcpLauncher.ts';
 import {
   createReighAcpHttpServer,
+  resolveReighAcpBridgeConfig,
   type ReighAcpBridgeConfig,
 } from '../../../../../scripts/reigh-acp-bridge.ts';
 
@@ -99,6 +100,24 @@ function headers(token = 'test-token'): Record<string, string> {
 }
 
 describe('Reigh ACP HTTP bridge', () => {
+  it('defaults to OMP canonical session storage when no override is configured', () => {
+    expect(resolveReighAcpBridgeConfig({
+      ASTRID_BRIDGE_TOKEN: 'test-token',
+      ASTRID_ACP_CWD: '/tmp/reigh-canonical-project',
+      ASTRID_ACP_PROFILE: 'astrid',
+    })).toMatchObject({
+      token: 'test-token',
+      cwd: '/tmp/reigh-canonical-project',
+      profile: 'astrid',
+    });
+    expect(resolveReighAcpBridgeConfig({
+      ASTRID_BRIDGE_TOKEN: 'test-token',
+      ASTRID_ACP_CWD: '/tmp/reigh-canonical-project',
+      ASTRID_ACP_PROFILE: 'astrid',
+      ASTRID_ACP_SESSION_DIR: '/tmp/reigh-legacy-sessions',
+    }).sessionDir).toBe('/tmp/reigh-legacy-sessions');
+  });
+
   it('forwards browser lifecycle controls with host-owned cwd and ephemeral connection identity', async () => {
     const first = new FakeProcess();
     const second = new FakeProcess();

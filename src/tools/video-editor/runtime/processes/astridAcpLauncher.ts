@@ -49,8 +49,12 @@ export type AstridAcpLauncherOptions = {
   readonly cwd: string;
   /** Caller-owned OMP profile; no ambient profile discovery is performed. */
   readonly profile: string;
-  /** Caller-owned ephemeral OMP session directory. */
-  readonly sessionDir: string;
+  /**
+   * Optional caller-owned OMP session directory override. When omitted, OMP
+   * uses its canonical cwd-derived session directory, which ACP can discover
+   * again in a fresh process.
+   */
+  readonly sessionDir?: string;
   /** Defaults to Astrid's canonical raw prompt path. */
   readonly systemPromptFile?: string;
   /** Defaults to the installed OMP selected for this machine. */
@@ -67,8 +71,9 @@ export type AstridAcpLauncherOptions = {
 /**
  * Build the one canonical Astrid ACP host. This is intentionally a host-only
  * factory: browser code cannot resolve the prompt or spawn OMP. The caller
- * must provide cwd/profile/sessionDir, while OMP owns session identity and
- * storage after launch.
+ * must provide cwd/profile, while OMP owns session identity and storage after
+ * launch. The optional sessionDir is passed only as an explicit legacy
+ * override; omission preserves OMP's canonical fresh-process discovery path.
  */
 export function createAstridAcpProcessHost(options: AstridAcpLauncherOptions): AcpProcessHost {
   const cwd = requireAbsolute(options.cwd, 'cwd');
@@ -79,7 +84,9 @@ export function createAstridAcpProcessHost(options: AstridAcpLauncherOptions): A
       { code: 'acp_unavailable' },
     );
   }
-  const sessionDir = requireAbsolute(options.sessionDir, 'session directory');
+  const sessionDir = options.sessionDir === undefined
+    ? undefined
+    : requireAbsolute(options.sessionDir, 'session directory');
   const systemPromptFile = requireAbsolute(
     options.systemPromptFile ?? ASTRID_ACP_SYSTEM_PROMPT_FILE,
     'system prompt file',

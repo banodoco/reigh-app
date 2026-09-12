@@ -37,7 +37,8 @@ export type ReighAcpBridgeConfig = {
   readonly port: number;
   readonly cwd: string;
   readonly profile: string;
-  readonly sessionDir: string;
+  /** Optional OMP override; omission uses OMP's cwd-derived canonical store. */
+  readonly sessionDir?: string;
   readonly systemPromptFile?: string;
   readonly command?: string;
 };
@@ -87,7 +88,9 @@ export function resolveReighAcpBridgeConfig(
     port: parsePort(env.ASTRID_ACP_BRIDGE_PORT),
     cwd: requiredAbsolute(env, 'ASTRID_ACP_CWD'),
     profile,
-    sessionDir: requiredAbsolute(env, 'ASTRID_ACP_SESSION_DIR'),
+    ...(env.ASTRID_ACP_SESSION_DIR?.trim()
+      ? { sessionDir: requiredAbsolute(env, 'ASTRID_ACP_SESSION_DIR') }
+      : {}),
     ...(env.ASTRID_ACP_SYSTEM_PROMPT_FILE?.trim()
       ? { systemPromptFile: env.ASTRID_ACP_SYSTEM_PROMPT_FILE.trim() }
       : { systemPromptFile: ASTRID_ACP_SYSTEM_PROMPT_FILE }),
