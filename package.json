@@ -10,6 +10,7 @@
     "preflight": "docker build .",
     "dev": "vite --config config/vite/vite.config.ts",
     "dev:editor": "node scripts/dev-editor.mjs",
+    "dev:astrid-acp": "tsx scripts/reigh-acp-bridge.ts",
     "dev:editor:bridge": "node tests/e2e/timeline/astrid-bridge-stub.mjs",
     "dev:custom-shell-demo": "vite --config examples/embed-demo/vite.config.ts",
     "build": "vite build --config config/vite/vite.config.ts",

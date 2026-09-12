@@ -9,6 +9,7 @@ import { isSameOriginLoopbackRequest } from './astridProxySecurity';
 
 export const ASTRID_BRIDGE_STUB_OPT_IN_ENV = 'ASTRID_BRIDGE_ALLOW_UNAUTHENTICATED_STUB';
 export const ASTRID_BRIDGE_TOKEN_ENV = 'ASTRID_BRIDGE_TOKEN';
+export const ASTRID_ACP_BRIDGE_PORT_ENV = 'VITE_ASTRID_ACP_BRIDGE_PORT';
 
 export interface AstridBridgeProxyPolicy {
   readonly allowUnauthenticatedStub: boolean;
@@ -23,6 +24,18 @@ export function resolveAstridBridgePort(value: string | undefined): number {
   const port = Number(candidate);
   if (!Number.isSafeInteger(port) || port > 65_535) {
     throw new Error('VITE_ASTRID_BRIDGE_PORT must be an integer from 1 to 65535');
+  }
+  return port;
+}
+
+export function resolveAstridAcpBridgePort(value: string | undefined): number {
+  const candidate = value ?? '17335';
+  if (!/^[1-9]\d{0,4}$/.test(candidate)) {
+    throw new Error('VITE_ASTRID_ACP_BRIDGE_PORT must be an integer from 1 to 65535');
+  }
+  const port = Number(candidate);
+  if (!Number.isSafeInteger(port) || port > 65_535) {
+    throw new Error('VITE_ASTRID_ACP_BRIDGE_PORT must be an integer from 1 to 65535');
   }
   return port;
 }
@@ -66,6 +79,31 @@ export function createAstridBridgeProxyOptions(
         // Vite ports, so consume that header only after proving it names the
         // exact loopback app listener. Cross-origin origins remain intact and
         // are rejected by Astrid; this is not an allowlist relaxation.
+        const incomingOrigin = typeof incomingRequest.headers.origin === 'string'
+          ? incomingRequest.headers.origin
+          : undefined;
+        if (isSameOriginLoopbackRequest(incomingOrigin, incomingRequest.headers.host)) {
+          proxyRequest.removeHeader('Origin');
+        }
+      });
+    },
+  };
+}
+
+/** The ACP host is a separate loopback process; REST traffic keeps its owner. */
+export function createAstridAcpBridgeProxyOptions(
+  policy: AstridBridgeProxyPolicy,
+  port: number,
+): ProxyOptions {
+  return {
+    target: `http://127.0.0.1:${port}`,
+    changeOrigin: true,
+    headers: astridBridgeUpstreamHeaders(policy),
+    timeout: ASTRID_BRIDGE_REQUEST_TIMEOUT_MS,
+    proxyTimeout: ASTRID_BRIDGE_REQUEST_TIMEOUT_MS,
+    rewrite: (incomingPath) => incomingPath.replace(/^\/api\/astrid\/acp/, ''),
+    configure: (proxy) => {
+      proxy.on('proxyReq', (proxyRequest, incomingRequest) => {
         const incomingOrigin = typeof incomingRequest.headers.origin === 'string'
           ? incomingRequest.headers.origin
           : undefined;

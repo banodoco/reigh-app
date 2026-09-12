@@ -46,6 +46,7 @@ import {
 } from '@/tools/video-editor/dev/devExtensionEnablement.ts';
 import { useExtensionLoaderWiring } from '@/tools/video-editor/runtime/useExtensionLoaderWiring';
 import { ReighVideoEditorShell } from '@/tools/video-editor/components/ReighVideoEditorShell.tsx';
+import { AstridAcpSessionControls } from '@/tools/video-editor/components/AstridAcpSessionControls.tsx';
 import { EditorProjectTimelineSelectors } from '@/tools/video-editor/components/EditorProjectTimelineSelectors.tsx';
 import {
   LOCAL_BRIDGE_BASE_URL,
@@ -824,6 +825,13 @@ export default function VideoEditorPage() {
     </div>
   );
 
+  const localNavigationControls = (
+    <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center">
+      <div className="min-w-0 flex-1">{selectors}</div>
+      <AstridAcpSessionControls enabled={mode === 'local' && Boolean(localProjectSlug)} />
+    </div>
+  );
+
   // Page-level header for the branches where the editor shell (which hosts the
   // selectors beside its Back button via `navigationControls`) is not shown.
   const selectorsHeader = (
@@ -835,7 +843,7 @@ export default function VideoEditorPage() {
       >
         ← Back
       </button>
-      <div className="min-w-0 flex-1">{selectors}</div>
+      <div className="min-w-0 flex-1">{mode === 'local' ? localNavigationControls : selectors}</div>
     </div>
   );
 
@@ -915,7 +923,7 @@ export default function VideoEditorPage() {
                 mode="full"
                 timelineId={providerSelection.timelineId}
                 onCreateTimeline={() => navigate('/')}
-                navigationControls={selectors}
+                navigationControls={mode === 'local' ? localNavigationControls : selectors}
               />
             </VideoEditorProvider>
           </div>
