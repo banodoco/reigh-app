@@ -113,6 +113,11 @@ function toRuntimeGalleryItem(
   const nestedParams = asRecord(metadata.params);
   const params = { ...nestedParams, ...metadata };
   const contentType = typeof params.content_type === 'string' ? params.content_type : undefined;
+  const primaryVariantMetadata = asRecord(primaryVariant?.metadata);
+  const primaryVariantMediaType = typeof primaryVariantMetadata.media_type === 'string'
+    && primaryVariantMetadata.media_type.trim().length > 0
+    ? primaryVariantMetadata.media_type.trim()
+    : undefined;
   const type = generation.type || (contentType === 'video' ? 'video' : 'image');
 
   const item = transformGeneration({
@@ -129,8 +134,15 @@ function toRuntimeGalleryItem(
     tasks: generation.source_task_id ?? null,
     derivedCount: variants.length,
     storage_mode: 'remote',
+    local_file_mime: primaryVariantMediaType ?? null,
   });
-  return { ...item, generation_id: generation.generation_id };
+  return {
+    ...item,
+    // Runtime's canonical variant metadata is the authoritative MIME signal
+    // when a generation row intentionally carries neutral metadata.
+    contentType: primaryVariantMediaType ?? item.contentType,
+    generation_id: generation.generation_id,
+  };
 }
 
 function matchesRuntimeGalleryFilters(

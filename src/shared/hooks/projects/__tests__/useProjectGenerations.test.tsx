@@ -134,6 +134,71 @@ describe('useProjectGenerations (bridge gallery reads R12)', () => {
     });
   });
 
+  it('uses the primary variant MIME for neutral typed Runtime gallery rows', async () => {
+    const listGenerations = vi.fn().mockResolvedValue({
+      items: [{
+        generation_id: 'generation-typed-image',
+        project_id: 'runtime-project',
+        source_task_id: 'runtime-task-typed-image',
+        type: 'generation.generate_image',
+        status: 'completed',
+        metadata: {},
+        version: 1,
+        created_at: '2026-09-11T00:00:00Z',
+        updated_at: '2026-09-11T00:01:00Z',
+      }],
+      next_cursor: null,
+    });
+    const listVariants = vi.fn().mockResolvedValue({
+      items: [
+        {
+          variant_id: 'variant-typed-original',
+          generation_id: 'generation-typed-image',
+          object_id: 'sha256:typed-original',
+          variant_type: 'original',
+          metadata: { media_type: 'image/png', group_key: 'main', ordinal: 0 },
+          created_at: '2026-09-11T00:00:30Z',
+        },
+        {
+          variant_id: 'variant-typed-alternate',
+          generation_id: 'generation-typed-image',
+          object_id: 'sha256:typed-alternate',
+          variant_type: 'alternate',
+          metadata: { media_type: 'image/png', group_key: 'main', ordinal: 1 },
+          created_at: '2026-09-11T00:00:31Z',
+        },
+      ],
+      next_cursor: null,
+    });
+    const client = {
+      listGenerations,
+      listVariants,
+      objectContentUrl: (objectId: string) => `/api/runtime/v1/objects/${encodeURIComponent(objectId)}`,
+    };
+
+    const result = await fetchRuntimeGenerationsForProject(
+      client,
+      'runtime-project',
+      50,
+      0,
+      { mediaType: 'image' },
+    );
+
+    expect(listGenerations).toHaveBeenCalledWith('runtime-project', undefined, 50);
+    expect(listVariants).toHaveBeenCalledWith('generation-typed-image', undefined, 50);
+    expect(result).toMatchObject({ total: 1, hasMore: false });
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({
+      id: 'generation-typed-image',
+      generation_id: 'generation-typed-image',
+      primary_variant_id: 'variant-typed-original',
+      type: 'generation.generate_image',
+      contentType: 'image/png',
+      local_file_mime: 'image/png',
+      url: '/api/runtime/v1/objects/sha256%3Atyped-original',
+    });
+  });
+
   it('fetchGenerations maps generation rows into gallery items with Runtime CAS display URLs', async () => {
     const result = await fetchGenerations(SLUG, 100, 0);
 
