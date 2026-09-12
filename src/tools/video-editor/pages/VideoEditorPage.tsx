@@ -831,6 +831,15 @@ export default function VideoEditorPage() {
       <AstridAcpSessionControls enabled={mode === 'local' && Boolean(localProjectSlug)} />
     </div>
   );
+  // Keep the existing Runtime identity selector and the host-owned ACP
+  // controls together on the canonical Runtime entry. The ACP connection is
+  // independent of Runtime storage and remains ephemeral in the browser tab.
+  const runtimeNavigationControls = (
+    <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center">
+      <div className="min-w-0 flex-1">{runtimeSelectors}</div>
+      <AstridAcpSessionControls enabled={mode === 'runtime'} />
+    </div>
+  );
 
   // Page-level header for the branches where the editor shell (which hosts the
   // selectors beside its Back button via `navigationControls`) is not shown.
@@ -869,7 +878,7 @@ export default function VideoEditorPage() {
                 mode="full"
                 timelineId={providerSelection.timelineId}
                 onCreateTimeline={() => navigate('/')}
-                navigationControls={runtimeSelectors}
+                navigationControls={runtimeNavigationControls}
               />
             </VideoEditorProvider>
           </div>
@@ -879,7 +888,7 @@ export default function VideoEditorPage() {
               <button type="button" className="shrink-0 text-sm transition-colors hover:text-foreground" onClick={navigateHome}>
                 ← Back
               </button>
-              <div className="min-w-0 flex-1">{runtimeSelectors}</div>
+              <div className="min-w-0 flex-1">{runtimeNavigationControls}</div>
             </div>
             <div className="flex flex-1 items-center justify-center px-6">
               <Card className="w-full max-w-md">

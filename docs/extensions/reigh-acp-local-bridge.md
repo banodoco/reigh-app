@@ -35,3 +35,19 @@ The installed OMP build currently does not make sessions stored under a custom
 --session-dir discoverable to a newly spawned ACP process. A page-reload or
 host-restart resume therefore remains an explicit runtime limitation and is
 surfaced as an error rather than being emulated in Reigh.
+
+## Canonical Runtime editor entry
+
+The editor's canonical local data path is the existing authenticated Runtime
+proxy, not the legacy Astrid REST timeline route. Start Reigh with
+`VITE_WORKSPACE_RUNTIME_URL` and `WORKSPACE_RUNTIME_TOKEN_FILE`, then open:
+
+`/tools/video-editor?runtime=1&runtimeProject=<Runtime project_id>&runtimeTimeline=<timeline_id>`
+
+For disposable Runtime setup, use the generated client's atomic
+`createTimelineDocument` operation with the chosen project and timeline IDs.
+Do not create the same timeline first with `createTimeline`; the Runtime
+contract treats `createTimelineDocument` as the create-timeline-plus-document
+operation and returns `409 timeline already exists` for a pre-created shell.
+The ACP controls are available alongside this Runtime editor entry; their
+connection and opaque session IDs remain tab-local.
