@@ -138,6 +138,13 @@ export function createFakeBridgeRouter(): FakeBridgeRouter {
     required_resource_keys: [],
     estimated_scratch_bytes: 0,
     estimated_output_bytes: 0,
+  }, {
+    capability_id: 'rendering.render',
+    definition_digest: `sha256:${'d'.repeat(64)}`,
+    status: 'ready',
+    required_resource_keys: [],
+    estimated_scratch_bytes: 0,
+    estimated_output_bytes: 0,
   }];
   for (const [index, objectId] of ['1', '2'].entries()) {
     state.runtimeObjects.set(`sha256:${objectId.repeat(64)}`, {
@@ -536,6 +543,52 @@ export function createFakeBridgeRouter(): FakeBridgeRouter {
     });
   }
 
+  function serveRuntimeObject(request: Request, objectId: string): Response {
+    const object = state.runtimeObjects.get(objectId);
+    const bytes = state.runtimeObjectBodies.get(objectId);
+    if (object === undefined || bytes === undefined) {
+      return errorEnvelope(404, 'not_found', `object ${objectId} was not found`);
+    }
+    const etag = `"${object.digest}"`;
+    if (request.headers.get('If-None-Match') === etag) {
+      return new Response(null, { status: 304, headers: { ETag: etag } });
+    }
+    const range = /^bytes=(\d*)-(\d*)$/.exec(request.headers.get('Range') ?? '');
+    if (range && (range[1] !== '' || range[2] !== '')) {
+      const start = range[1] === ''
+        ? Math.max(0, bytes.byteLength - Number(range[2]))
+        : Number(range[1]);
+      const end = range[1] === ''
+        ? bytes.byteLength - 1
+        : Math.min(Number(range[2]), bytes.byteLength - 1);
+      if (start > end || start >= bytes.byteLength) {
+        return new Response(null, {
+          status: 416,
+          headers: { 'Content-Range': `bytes */${bytes.byteLength}`, 'Accept-Ranges': 'bytes' },
+        });
+      }
+      return new Response(Uint8Array.from(bytes.subarray(start, end + 1)), {
+        status: 206,
+        headers: {
+          'Content-Type': object.media_type,
+          'Content-Range': `bytes ${start}-${end}/${bytes.byteLength}`,
+          'Accept-Ranges': 'bytes',
+          ETag: etag,
+          'Cache-Control': 'private, no-cache',
+        },
+      });
+    }
+    return new Response(Uint8Array.from(bytes), {
+      status: 200,
+      headers: {
+        'Content-Type': object.media_type,
+        'Accept-Ranges': 'bytes',
+        ETag: etag,
+        'Cache-Control': 'private, no-cache',
+      },
+    });
+  }
+
   async function handle(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const parts = normalizePath(url);
@@ -573,6 +626,9 @@ export function createFakeBridgeRouter(): FakeBridgeRouter {
         schema_digest: `sha256:${'a'.repeat(64)}`,
         status: 'ok',
       });
+    }
+    if (parts[0] === 'v1' && parts[1] === 'objects' && parts.length === 3 && request.method === 'GET') {
+      return serveRuntimeObject(request, decodeURIComponent(parts[2]));
     }
     if (parts[0] === 'v1' && parts[1] === 'projects' && parts.length === 2 && request.method === 'GET') {
       const page = {

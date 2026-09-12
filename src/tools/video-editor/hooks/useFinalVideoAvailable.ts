@@ -24,6 +24,7 @@ export function useFinalVideoAvailable() {
       try {
         const renderTasks = taskSnapshot.data.filter((task) =>
           task.taskType === 'rendering.timeline_visualize'
+          || task.taskType === 'rendering.render'
           || task.taskType === 'render_export',
         );
         const details = await Promise.all(renderTasks.map((task) => client.tasks.get(task.id)));

@@ -12,15 +12,83 @@ import {
 import { executeRenderPipeline } from '@/tools/video-editor/render/renderPipeline';
 import { AstridLocalClient } from '@/integrations/astrid/client.ts';
 import { createFakeBridgeRouter } from '@/test/fakeBridgeRouter.ts';
-import { makeAdmittedTaskReadModel } from '@/test/bridgeFixtures.mjs';
 
-const renderAdmissionResponse = (taskId = 'task-42') => ({
-  task: makeAdmittedTaskReadModel({
-    taskId,
-    family: 'render_export',
-    capability: 'rendering.timeline_visualize',
-  }),
+const RENDER_CAPABILITY_ID = 'rendering.render';
+const RENDER_CAPABILITY_DIGEST = `sha256:${'d'.repeat(64)}`;
+
+const renderCapabilityPage = () => ({
+  items: [{
+    capability_id: RENDER_CAPABILITY_ID,
+    definition_digest: RENDER_CAPABILITY_DIGEST,
+    status: 'ready',
+    required_resource_keys: [],
+    estimated_scratch_bytes: 17,
+    estimated_output_bytes: 4096,
+  }],
+  next_cursor: null,
 });
+
+function renderTaskMutationResponse(
+  taskId: string,
+  body: Record<string, unknown>,
+  idempotencyKey = 'reigh.render:test',
+) {
+  const now = '2026-09-12T00:00:00Z';
+  const data = {
+    task_id: taskId,
+    run_id: 'run-render-42',
+    project_id: body.project,
+    state: 'queued',
+    version: 1,
+    capability_id: body.capability_id,
+    capability_digest: body.capability_digest,
+    schema_version: '1',
+    input_object_ids: body.input_object_ids,
+    spec: {
+      schema_version: '1',
+      capability_digest: body.capability_digest,
+      input_object_ids: body.input_object_ids,
+      spec: body.spec,
+    },
+    idempotency_key: idempotencyKey,
+    created_at: now,
+    updated_at: now,
+    attempt_id: null,
+    runtime_epoch: 1,
+  };
+  return {
+    data,
+    receipt: {
+      receipt_id: 'receipt-render-42',
+      command_kind: 'task.create',
+      idempotency_key: idempotencyKey,
+      request_hash: `sha256:${'e'.repeat(64)}`,
+      project_id: body.project,
+      project_seq: [1, 1],
+      event_ids: [],
+      result: { task_id: taskId },
+      created_at: now,
+    },
+  };
+}
+
+function canonicalRenderFetch(taskId = 'task-42') {
+  return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    if (url.pathname === '/v1/capabilities') {
+      return new Response(JSON.stringify(renderCapabilityPage()), { status: 200 });
+    }
+    if (url.pathname === '/v1/tasks' && init?.method === 'POST') {
+      const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+      const headers = init.headers as Record<string, string>;
+      return new Response(
+        JSON.stringify(renderTaskMutationResponse(taskId, body, headers['Idempotency-Key'])),
+        { status: 201 },
+      );
+    }
+    throw new Error(`unexpected render fixture request: ${url.pathname}`);
+  });
+}
 
 describe('Sprint 8 render-button router (decideRenderRoute)', () => {
   it('routes a pure-media timeline to the client renderer', () => {
@@ -935,10 +1003,8 @@ describe('Sprint 8 enqueueBanodocoRenderTimeline', () => {
     correlation_id: 'c',
   };
 
-  it('POSTs render_export through the common R1 task route', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify(renderAdmissionResponse()), { status: 201 }),
-    );
+  it('POSTs the canonical rendering.render envelope through the Runtime task route', async () => {
+    const fetchImpl = canonicalRenderFetch();
     vi.stubGlobal('fetch', fetchImpl);
     const result = await enqueueBanodocoRenderTimeline(payload, {
       client: new AstridLocalClient({ projectSlug: 'p', baseUrl: 'http://bridge.fake' }),
@@ -949,20 +1015,43 @@ describe('Sprint 8 enqueueBanodocoRenderTimeline', () => {
     expect(result.task_id).toBe('task-42');
     expect(result.correlation_id).toBe('c');
 
-    const [url, init] = fetchImpl.mock.calls[0];
-    expect(url).toBe('http://bridge.fake/projects/p/tasks');
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    const [capabilityUrl] = fetchImpl.mock.calls[0];
+    expect(capabilityUrl).toBe('http://bridge.fake/v1/capabilities?limit=50');
+    const [url, init] = fetchImpl.mock.calls[1];
+    expect(url).toBe('http://bridge.fake/v1/tasks');
     expect((init as RequestInit).method).toBe('POST');
     const headers = (init as RequestInit).headers as Record<string, string>;
     expect(headers['Idempotency-Key']).toBe('reigh.render:v1:t:12:project-media:render.mp4');
     const body = JSON.parse((init as RequestInit).body as string);
-    expect(body.family).toBe('render_export');
-    expect(body.input).toMatchObject({
-      timeline_ref: 't',
-      expected_version: 12,
-      format: 'mp4',
-      destination: 'project-media',
-      correlation_id: 'c',
+    expect(body).toMatchObject({
+      project: 'p',
+      capability_id: RENDER_CAPABILITY_ID,
+      capability_digest: RENDER_CAPABILITY_DIGEST,
+      schema_version: '1',
+      input_object_ids: [],
+      spec: {
+        family: RENDER_CAPABILITY_ID,
+        params: {
+          timeline_ref: 't',
+          expected_version: 12,
+          selector: 'rendering.remotion',
+          output_name: 'render.mp4',
+        },
+        output_policy: {
+          format: 'mp4',
+          destination: 'project-media',
+          filename: 'render.mp4',
+        },
+      },
+      storage_estimate: {
+        scratch_bytes: 17,
+        output_bytes: 4096,
+      },
+      settlement_effect: {},
     });
+    expect(body).not.toHaveProperty('family');
+    expect(body).not.toHaveProperty('input');
     vi.unstubAllGlobals();
   });
 
@@ -1006,14 +1095,22 @@ function stubFakeBridge() {
 
 describe('cancelAstridRenderTask rides the common fenced task route', () => {
   const admission = {
-    family: 'render_export',
-    input: {
-      timeline_ref: 't',
-      format: 'mp4',
-      output_filename: 'render.mp4',
-      destination: 'download',
-      correlation_id: 'c',
+    project: 'demo-project',
+    capability_id: RENDER_CAPABILITY_ID,
+    capability_digest: RENDER_CAPABILITY_DIGEST,
+    schema_version: '1' as const,
+    input_object_ids: [],
+    spec: {
+      family: RENDER_CAPABILITY_ID,
+      params: {
+        timeline_ref: 't',
+        selector: 'rendering.remotion',
+        output_name: 'render.mp4',
+      },
+      output_policy: { format: 'mp4', destination: 'download' },
     },
+    storage_estimate: { scratch_bytes: 0, output_bytes: 0 },
+    settlement_effect: {},
   };
 
   afterEach(() => {
@@ -1029,7 +1126,7 @@ describe('cancelAstridRenderTask rides the common fenced task route', () => {
     expect(await client.tasks.get(task.id)).toMatchObject({ status: 'cancelled' });
   });
 
-  it('retries a running render cancel with the live attempt fence', async () => {
+  it('retries a running render cancel with the neutral Runtime version fence', async () => {
     const router = stubFakeBridge();
     const client = new AstridLocalClient({ projectSlug: 'demo-project', baseUrl: 'http://bridge.fake' });
     const { task } = await client.tasks.admit(admission, 'reigh.render:cancel-running');
@@ -1046,9 +1143,7 @@ describe('cancelAstridRenderTask rides the common fenced task route', () => {
     );
     expect(cancelCalls).toHaveLength(2); // unfenced 409, then the fenced retry
     const fence = JSON.parse((cancelCalls[1][1] as RequestInit).body as string);
-    expect(fence.attempt_id).toBeTruthy();
-    expect(fence.lease_id).toBeTruthy();
-    expect(fence.status_version).toBeGreaterThan(0);
+    expect(fence).toEqual({ expected_version: 1 });
     expect(await client.tasks.get(task.id)).toMatchObject({ status: 'cancelled' });
   });
 });
@@ -1083,7 +1178,18 @@ describe('render-as-task journey against the binding stub (B6 smoke)', () => {
     // The executor finishes and commits its render output as managed media.
     const mp4Entry = [...router.state.media.entries()].find(([, media]) => media.mime === 'video/mp4');
     if (!mp4Entry) throw new Error('fixture missing managed mp4');
-    router.completeTask(taskId, { role: 'render', media_id: mp4Entry[0], is_primary: true });
+    const outputObjectId = `sha256:${'f'.repeat(64)}`;
+    router.state.runtimeObjects.set(outputObjectId, {
+      object_id: outputObjectId,
+      digest: outputObjectId,
+      media_type: 'video/mp4',
+      size: mp4Entry[1].bytes.byteLength,
+      version: 1,
+      created_at: '2026-09-12T00:00:00Z',
+      filename: 'journey.mp4',
+    });
+    router.state.runtimeObjectBodies.set(outputObjectId, mp4Entry[1].bytes);
+    router.completeTask(taskId, { role: 'render', media_id: outputObjectId, is_primary: true });
 
     detail = await client.tasks.get(taskId);
     expect(detail.status).toBe('succeeded');
@@ -1093,7 +1199,7 @@ describe('render-as-task journey against the binding stub (B6 smoke)', () => {
     // Playback rides the R9 content route: full GET, then a Range seek, then
     // an ETag revalidation — exactly what <video> issues.
     const contentUrl = client.media.contentUrl(output.media_id);
-    expect(contentUrl).toBe('http://bridge.fake/projects/demo-project/media/' + output.media_id + '/content');
+    expect(contentUrl).toBe('http://bridge.fake/v1/objects/' + encodeURIComponent(outputObjectId));
     const full = await fetch(contentUrl);
     expect(full.status).toBe(200);
     expect(full.headers.get('Accept-Ranges')).toBe('bytes');
@@ -1135,10 +1241,7 @@ describe('Sprint 8 router → enqueue integration', () => {
     });
     expect(payload).toBeDefined();
 
-    const fetchImpl = vi.fn().mockResolvedValue(new Response(
-      JSON.stringify(renderAdmissionResponse('task-1')),
-      { status: 201 },
-    ));
+    const fetchImpl = canonicalRenderFetch('task-1');
     vi.stubGlobal('fetch', fetchImpl);
     const result = await enqueueBanodocoRenderTimeline(payload!, {
       client: new AstridLocalClient({ projectSlug: 'p', baseUrl: 'http://bridge.fake' }),
@@ -1146,9 +1249,19 @@ describe('Sprint 8 router → enqueue integration', () => {
     expect(result.status).toBe('queued');
 
     // Dispatch uses the common Astrid task authority, not a worker pool.
-    const body = JSON.parse(fetchImpl.mock.calls[0][1].body as string);
-    expect(body.family).toBe('render_export');
-    expect(body.input.timeline_ref).toBe('t');
+    const body = JSON.parse(fetchImpl.mock.calls[1][1].body as string);
+    expect(body).toMatchObject({
+      capability_id: RENDER_CAPABILITY_ID,
+      capability_digest: RENDER_CAPABILITY_DIGEST,
+      spec: {
+        family: RENDER_CAPABILITY_ID,
+        params: {
+          timeline_ref: 't',
+          selector: 'rendering.remotion',
+          output_name: 'timeline-t.mp4',
+        },
+      },
+    });
     vi.unstubAllGlobals();
   });
 
@@ -1290,10 +1403,7 @@ describe('Sprint 8 render pipeline middleware', () => {
   it('queues worker-capable routes through Astrid R1 without falling back to the browser renderer', async () => {
     const workerEvents: string[] = [];
     const startBrowserRender = vi.fn(async () => ({ status: 'done' as const, message: 'unexpected' }));
-    const fetchImpl = vi.fn().mockResolvedValue(new Response(
-      JSON.stringify(renderAdmissionResponse('task-1')),
-      { status: 201 },
-    ));
+    const fetchImpl = canonicalRenderFetch('task-1');
     const originalFetch = globalThis.fetch;
     vi.stubGlobal('fetch', fetchImpl);
     const workerRuntime = {
@@ -1308,6 +1418,7 @@ describe('Sprint 8 render pipeline middleware', () => {
             file: 'asset-1.png',
             src: 'file:///tmp/asset-1.png',
             type: 'image/png',
+            media_id: `sha256:${'1'.repeat(64)}`,
           },
         },
       },
@@ -1321,6 +1432,7 @@ describe('Sprint 8 render pipeline middleware', () => {
             file: 'asset-1.png',
             src: 'file:///tmp/asset-1.png',
             type: 'image/png',
+            media_id: `sha256:${'1'.repeat(64)}`,
           },
         },
       },
@@ -1344,11 +1456,21 @@ describe('Sprint 8 render pipeline middleware', () => {
       correlationId: expect.any(String),
     });
     expect(startBrowserRender).not.toHaveBeenCalled();
-    expect(fetchImpl).toHaveBeenCalledTimes(1);
-    const body = JSON.parse(fetchImpl.mock.calls[0][1].body as string);
-    expect(body.family).toBe('render_export');
-    expect(body.input.timeline_ref).toBe('timeline-fixture-worker');
-    expect(body.input.output_filename).toBe('timeline-timeline-fixture-worker.mp4');
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    const body = JSON.parse(fetchImpl.mock.calls[1][1].body as string);
+    expect(body).toMatchObject({
+      capability_id: RENDER_CAPABILITY_ID,
+      capability_digest: RENDER_CAPABILITY_DIGEST,
+      input_object_ids: [`sha256:${'1'.repeat(64)}`],
+      spec: {
+        family: RENDER_CAPABILITY_ID,
+        params: {
+          timeline_ref: 'timeline-fixture-worker',
+          output_name: 'timeline-timeline-fixture-worker.mp4',
+          selector: 'rendering.remotion',
+        },
+      },
+    });
     expect(workerEvents).toEqual(['beforeRender', 'assetMaterialized', 'afterRender']);
 
     vi.stubGlobal('fetch', originalFetch);
