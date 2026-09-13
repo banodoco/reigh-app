@@ -8,6 +8,7 @@ import {
   type ByteResponse,
   type Generation,
   type GenerationVariant,
+  type ManagedOutput,
   type MutationResult,
   type Page,
   type Project,
@@ -216,6 +217,16 @@ export class ReighRuntimeClient {
 
   async retryTask(taskId: string, admissionKey: string, expectedVersion?: number): Promise<MutationResult<Task>> {
     return this.withSession(() => this.client.retryTask(taskId, admissionKey, expectedVersion));
+  }
+
+  /** Canonical managed-output associations for one completed task. */
+  async listManagedOutputs(taskId: string, cursor?: string, limit = 50): Promise<Page<ManagedOutput>> {
+    return this.withSession(() => this.client.listManagedOutputs(taskId, cursor, limit));
+  }
+
+  /** Canonical readback of one managed-output association. */
+  async getManagedOutput(associationId: string): Promise<ManagedOutput> {
+    return this.withSession(() => this.client.getManagedOutput(associationId));
   }
 
   /** Authenticated generated Runtime media read with optional byte range. */
