@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   runtimeGenerationToDetail,
   runtimeGenerationToSummary,
+  runtimeTaskToDetail,
 } from './runtimeReadModels';
 
 const outputObject = `sha256:${'d'.repeat(64)}`;
@@ -59,6 +60,39 @@ describe('Runtime gallery read models', () => {
       params: { tool_type: 'character-animate', content_type: 'video' },
       primary: { media_id: outputObject, variant_type: 'character_animation' },
       variant_count: 1,
+    });
+  });
+
+  it('preserves terminal result errors for the consumer diagnostic fallback', () => {
+    const detail = runtimeTaskToDetail({
+      task_id: 'task-render-failed',
+      run_id: 'run-render-failed',
+      project_id: 'project-1',
+      state: 'failed',
+      version: 2,
+      capability_id: 'rendering.render',
+      capability_digest: `sha256:${'a'.repeat(64)}`,
+      schema_version: '1',
+      input_object_ids: [],
+      spec: {},
+      idempotency_key: 'reigh.render:test',
+      created_at: '2026-09-10T20:00:00.000Z',
+      updated_at: '2026-09-10T20:00:01.000Z',
+      attempt_id: null,
+      runtime_epoch: 7,
+      result: {
+        error: {
+          message: 'scratch free space is below the required floor',
+          retryable: false,
+        },
+      },
+    }, 'project-1');
+
+    expect(detail.result).toEqual({
+      error: {
+        message: 'scratch free space is below the required floor',
+        retryable: false,
+      },
     });
   });
 });

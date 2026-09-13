@@ -22,7 +22,6 @@ import {
   type VideoEditorRuntimeContextValue,
 } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext';
 import { createDiagnosticCollection } from '@reigh/editor-sdk';
-import { makeAdmittedTaskReadModel, taskSummaryFromReadModel } from '@/test/bridgeFixtures.mjs';
 
 const mocks = vi.hoisted(() => ({
   startClientRender: vi.fn(),
@@ -111,26 +110,37 @@ const buildConfig = (clip: ResolvedTimelineConfig['clips'][number]): ResolvedTim
 
 function renderTaskDetail(
   status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled',
-  attempts: unknown[] = [],
+  result?: Record<string, unknown>,
 ) {
-  const admitted = makeAdmittedTaskReadModel({
-    taskId: 'render-task-1',
-    family: 'render_export',
-    capability: 'rendering.timeline_visualize',
-  });
-  const summary = taskSummaryFromReadModel({ ...admitted, status });
   return {
-    task: {
-      ...summary,
+    task_id: 'render-task-1',
+    run_id: 'run-render-1',
+    project_id: 'demo-project',
+    state: status,
+    version: 2,
+    capability_id: 'rendering.timeline_visualize',
+    capability_digest: `sha256:${'a'.repeat(64)}`,
+    schema_version: '1',
+    input_object_ids: [],
+    spec: {
       spec: {
-        ...admitted.spec,
+        family: 'render_export',
         params: { timeline_ref: 'timeline-1' },
+        output_policy: { create_generation: false },
       },
-      attempts,
-      outputs: status === 'succeeded'
-        ? [{ ordinal: 0, role: 'render', media_id: 'media-render-1', is_primary: true }]
-        : [],
     },
+    idempotency_key: 'reigh.render:test',
+    created_at: '2026-08-22T12:00:00Z',
+    updated_at: '2026-08-22T12:00:01Z',
+    attempt_id: null,
+    runtime_epoch: 7,
+    ...(status === 'succeeded'
+      ? {
+          result: {
+            outputs: [{ name: 'render', digest: `sha256:${'b'.repeat(64)}`, media_type: 'video/mp4', size: 123 }],
+          },
+        }
+      : result === undefined ? {} : { result }),
   };
 }
 
@@ -655,7 +665,7 @@ describe('useRenderState render routing', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(result.current.renderStatus).toBe('done');
     expect(result.current.renderProgress?.percent).toBe(100);
-    expect(result.current.renderResultUrl).toBe('/api/astrid/projects/demo-project/media/media-render-1/content');
+    expect(result.current.renderResultUrl).toBe(`/api/astrid/v1/objects/sha256%3A${'b'.repeat(64)}`);
     expect(mocks.startClientRender).not.toHaveBeenCalled();
 
     unmount();
@@ -665,23 +675,7 @@ describe('useRenderState render routing', () => {
 
   it('consumes bounded detail diagnostics for running progress and failed executor output', async () => {
     vi.useFakeTimers();
-    const attempt = {
-      attempt_id: 'attempt-render-1',
-      attempt_no: 1,
-      status: 'running',
-      status_version: 2,
-      lease_id: 'lease-render-1',
-      lease_expires_at: '2026-08-22T12:05:00Z',
-      heartbeat_counter: 1,
-      last_heartbeat_at: null,
-    };
-    let detail = renderTaskDetail('running', [{
-      ...attempt,
-      diagnostics: {
-        progress: { current: 12, total: 30, percent: 40, phase: 'render' },
-        error: {},
-      },
-    }]);
+    let detail = renderTaskDetail('running');
     const fetchMock = vi.fn(async () => new Response(JSON.stringify(detail), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
     const runtimeValue = {
@@ -702,27 +696,77 @@ describe('useRenderState render routing', () => {
     ), { wrapper });
 
     await act(async () => { await result.current.startRender(); });
-    expect(result.current.renderProgress).toMatchObject({ current: 12, total: 30, percent: 40, phase: 'render' });
+    expect(result.current.renderProgress).toMatchObject({ current: 0, total: 30, percent: 0, phase: 'running' });
 
-    detail = renderTaskDetail('failed', [{
-      ...attempt,
-      status: 'failed',
-      diagnostics: {
-        progress: {},
-        error: {
-          code: 'render_export_failed',
-          reason: 'child_exit',
-          type: 'executor',
-          message: 'ffmpeg exited with code 7',
-          retryable: false,
-        },
+    detail = renderTaskDetail('failed', {
+      error: {
+        code: 'render_export_failed',
+        reason: 'child_exit',
+        type: 'executor',
+        message: 'ffmpeg exited with code 7',
+        retryable: false,
       },
-    }]);
+    });
     await act(async () => { await vi.advanceTimersByTimeAsync(2_000); });
     expect(result.current.renderStatus).toBe('error');
     expect(result.current.renderLog).toContain('Astrid render failed: ffmpeg exited with code 7');
     expect(result.current.renderLog).toContain('code=render_export_failed');
     expect(result.current.renderLog).not.toContain('Open task details');
+
+    unmount();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it('uses a new operation identity after terminal failure and retains it for admission retry', async () => {
+    expect(formatAstridExecutorDiagnostic({
+      attempts: [],
+      result: {
+        error: {
+          message: 'scratch free space 1 is below required floor 2',
+          retryable: false,
+        },
+      },
+    })).toContain('scratch free space 1 is below required floor 2');
+
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify(renderTaskDetail('failed')), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    renderRouterMocks.enqueueBanodocoRenderTimeline
+      .mockResolvedValueOnce({ status: 'error', message: 'temporary admission failure' })
+      .mockResolvedValue({ status: 'queued', task_id: 'render-task-1', message: 'queued' });
+    const runtimeValue = {
+      project: { projectId: 'demo-project' },
+      timelineId: 'timeline-1',
+      provider: { apiBaseUrl: '/api/astrid' },
+      telemetry: { warn: vi.fn() },
+    } as unknown as VideoEditorRuntimeContextValue;
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <VideoEditorRuntimeContext.Provider value={runtimeValue}>{children}</VideoEditorRuntimeContext.Provider>
+    );
+    const { result, unmount } = renderHook(() => useRenderState(
+      buildConfig({ id: 'clip-native', clipType: 'media', track: 'V1', at: 0, hold: 1 }),
+      { fps: 30, durationInFrames: 30, compositionWidth: 1920, compositionHeight: 1080 },
+      undefined,
+      undefined,
+      async () => 7,
+    ), { wrapper });
+
+    await act(async () => { await result.current.startRender(); });
+    const firstOperationId = renderRouterMocks.enqueueBanodocoRenderTimeline.mock.calls[0][1].operationId;
+    expect(firstOperationId).toEqual(expect.any(String));
+    expect(result.current.renderStatus).toBe('error');
+
+    await act(async () => { await result.current.startRender(); });
+    const secondOperationId = renderRouterMocks.enqueueBanodocoRenderTimeline.mock.calls[1][1].operationId;
+    expect(secondOperationId).toBe(firstOperationId);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(2_000); });
+    expect(result.current.renderStatus).toBe('error');
+
+    await act(async () => { await result.current.startRender(); });
+    const thirdOperationId = renderRouterMocks.enqueueBanodocoRenderTimeline.mock.calls[2][1].operationId;
+    expect(thirdOperationId).not.toBe(firstOperationId);
 
     unmount();
     vi.unstubAllGlobals();

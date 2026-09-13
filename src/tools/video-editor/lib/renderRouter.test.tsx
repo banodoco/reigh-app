@@ -1113,6 +1113,30 @@ describe('Sprint 8 enqueueBanodocoRenderTimeline', () => {
     vi.unstubAllGlobals();
   });
 
+  it('keeps one operation key stable for delivery retries and changes it for a new intent', async () => {
+    const keys: string[] = [];
+    const submit = async (operationId: string, taskId: string) => {
+      const fetchImpl = canonicalRenderFetch(taskId);
+      vi.stubGlobal('fetch', fetchImpl);
+      await expect(enqueueBanodocoRenderTimeline(payload, {
+        client: new AstridLocalClient({ projectSlug: 'p', baseUrl: 'http://bridge.fake' }),
+        expectedVersion: 3,
+        operationId,
+      })).resolves.toMatchObject({ status: 'queued', task_id: taskId });
+      keys.push(((fetchImpl.mock.calls[1][1] as RequestInit).headers as Record<string, string>)['Idempotency-Key']);
+      vi.unstubAllGlobals();
+    };
+
+    await submit('intent-a', 'task-a');
+    await submit('intent-a', 'task-a-replay');
+    await submit('intent-b', 'task-b');
+
+    expect(keys[0]).toBe('reigh.render:v2:intent-a:t:3:download:render.mp4');
+    expect(keys[1]).toBe(keys[0]);
+    expect(keys[2]).toBe('reigh.render:v2:intent-b:t:3:download:render.mp4');
+    expect(keys[2]).not.toBe(keys[0]);
+  });
+
   it('surfaces a rejected Astrid admission as an error result', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ error: 'invalid_body', detail: 'bad payload' }), { status: 400 }),

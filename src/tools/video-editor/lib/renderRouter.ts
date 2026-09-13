@@ -782,6 +782,8 @@ export interface EnqueueRenderOptions {
   /** Injected in tests; production constructs the client from the payload. */
   client?: AstridLocalClient;
   bridgeBaseUrl?: string;
+  /** Stable identity for one explicit export intent; reuse it for transport retries. */
+  operationId?: string;
   idempotencyKey?: string;
   destination?: RenderExportDestination;
   expectedVersion?: number;
@@ -791,6 +793,9 @@ function renderAdmissionKey(payload: BanodocoRenderTimelinePayload, options: Enq
   if (options.idempotencyKey) return options.idempotencyKey;
   const version = options.expectedVersion ?? 'head';
   const destination = options.destination ?? 'download';
+  if (options.operationId) {
+    return `reigh.render:v2:${options.operationId}:${payload.timeline_id}:${version}:${destination}:${payload.output_filename}`;
+  }
   return `reigh.render:v1:${payload.timeline_id}:${version}:${destination}:${payload.output_filename}`;
 }
 

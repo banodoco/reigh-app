@@ -102,6 +102,7 @@ export function runtimeTaskToDetail(
     // bridge's executor-diagnostics projection. Keep the legacy read model
     // explicit and empty rather than inventing lease fields.
     attempts: [],
+    ...(resource.result === undefined ? {} : { result: resource.result }),
     ...(outputs ? { outputs } : {}),
   };
 }

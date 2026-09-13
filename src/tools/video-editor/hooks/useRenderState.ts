@@ -54,6 +54,21 @@ type RenderProgress = { current: number; total: number; percent: number; phase: 
 const ASTRID_DIAGNOSTIC_LOG_MAX_CHARS = 4_000;
 const ASTRID_DIAGNOSTIC_FIELD_MAX_CHARS = 1_000;
 
+type DiagnosticRecord = Record<string, unknown>;
+
+function asDiagnosticRecord(value: unknown): DiagnosticRecord | null {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as DiagnosticRecord
+    : null;
+}
+
+function newRenderOperationId(): string {
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
+  }
+  return `render-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
 /**
  * Bridge diagnostics are user-visible, but their executor is not a trusted
  * source. Keep useful error vocabulary while removing credentials and host
@@ -124,9 +139,11 @@ function compactDiagnosticValue(value: unknown, maxChars = ASTRID_DIAGNOSTIC_FIE
 
 /** Render the bridge's small executor error projection without log flooding. */
 export function formatAstridExecutorDiagnostic(
-  task: Pick<BridgeTaskDetailPayload['task'], 'attempts'>,
+  task: Pick<BridgeTaskDetailPayload['task'], 'attempts'> & { result?: unknown },
 ): string {
-  const error = task.attempts?.at(-1)?.diagnostics.error;
+  const attemptError = task.attempts?.at(-1)?.diagnostics.error;
+  const resultError = asDiagnosticRecord(asDiagnosticRecord(task.result)?.error);
+  const error = attemptError ?? resultError;
   if (!error) return 'Astrid render failed. No executor diagnostic was provided.';
 
   const message = compactDiagnosticValue(error.message, 4_000);
@@ -468,6 +485,9 @@ export function useRenderState(
   const [renderDestination, setRenderDestination] = useState<RenderExportDestination>('download');
   const renderPollGenerationRef = useRef(0);
   const renderPollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // One export intent keeps one idempotency key across transport retries. A
+  // terminal task clears it so the next explicit export is a new operation.
+  const renderOperationIdRef = useRef<string | null>(null);
   const renderClientRef = useRef<AstridLocalClient | null>(null);
   // M6: Export state
   const [exportStatus, setExportStatus] = useState<ExportStatus>('idle');
@@ -611,6 +631,7 @@ export function useRenderState(
           ?? (task.outputs ?? []).find((candidate) => candidate.is_primary)
           ?? task.outputs?.[0];
         if (!output) {
+          renderOperationIdRef.current = null;
           setRenderStatus('error');
           setRenderProgress(null);
           setRenderLog('Astrid completed the render task without a committed media output.');
@@ -620,6 +641,7 @@ export function useRenderState(
         setRenderResultUrl(client.media.contentUrl(output.media_id));
         setRenderResultFilename(resolvedConfig?.output?.file ?? `timeline-${runtimeContext?.timelineId ?? taskId}.mp4`);
         setRenderProgress({ current: 1, total: 1, percent: 100, phase: 'complete' });
+        renderOperationIdRef.current = null;
         setRenderStatus('done');
         setRenderDirty(false);
         setRenderLog('Render complete. Playback is streaming verified managed bytes from Astrid.');
@@ -628,6 +650,7 @@ export function useRenderState(
       }
 
       if (task.status === 'failed' || task.status === 'cancelled') {
+        renderOperationIdRef.current = null;
         setRenderStatus(task.status === 'cancelled' ? 'idle' : 'error');
         setRenderProgress(null);
         setRenderLog(task.status === 'cancelled' ? 'Render cancelled.' : formatAstridExecutorDiagnostic(task));
@@ -727,10 +750,12 @@ export function useRenderState(
       setRenderLog(built.error ?? 'Could not build Astrid render request.');
       return true;
     }
+    const operationId = renderOperationIdRef.current ??= newRenderOperationId();
     const admission = await renderRouter.enqueueBanodocoRenderTimeline(built.payload, {
       client,
       destination: renderDestination,
       expectedVersion,
+      operationId,
     });
     if (admission.status === 'error' || !admission.task_id) {
       setRenderStatus('error');

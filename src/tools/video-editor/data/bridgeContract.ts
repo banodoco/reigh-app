@@ -333,6 +333,7 @@ export const bridgeTaskSummarySchema = z.looseObject({
   updated_at: z.string(),
   finished_at: z.string().nullable().optional(),
   winning_attempt_id: z.string().nullable().optional(),
+  result: jsonObject.optional(),
 });
 
 /**
