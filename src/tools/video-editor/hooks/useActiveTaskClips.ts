@@ -2,6 +2,13 @@ import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { taskReferencesGeneration } from '@/shared/hooks/tasks/usePendingGenerationTasks.ts';
 import { TASK_STATUS, type Task } from '@/types/tasks.ts';
 import { useBridgeTaskSnapshot } from '@/shared/hooks/tasks/useBridgeTaskSnapshot.ts';
+import { RUNTIME_BASE_URL } from '@/integrations/runtime/client.ts';
+import type { Task as RuntimeTask } from '@/integrations/runtime/generated.ts';
+import {
+  runtimeTaskType,
+  useRuntimeTasks,
+} from '@/features/tasks/components/TasksPane/hooks/useRuntimeTasks';
+import { asRecord } from '@/shared/lib/typeCoercion';
 import { useVideoEditorRuntime } from '@/tools/video-editor/contexts/VideoEditorRuntimeContext.tsx';
 import type { ResolvedAssetRegistryEntry } from '@/tools/video-editor/types/index.ts';
 
@@ -127,9 +134,29 @@ function selectActiveTasks(tasks: readonly Task[]): ActiveTaskRow[] {
     }));
 }
 
+function runtimeTaskParams(task: RuntimeTask): Record<string, unknown> {
+  const envelope = asRecord(task.spec);
+  const spec = asRecord(envelope?.spec) ?? envelope ?? {};
+  return asRecord(spec.params) ?? asRecord(spec.inputs) ?? {};
+}
+
+export function selectActiveRuntimeTasks(tasks: readonly RuntimeTask[]): ActiveTaskRow[] {
+  return tasks
+    .filter((task) => task.state === 'queued' || task.state === 'running')
+    .map((task) => ({
+      id: task.task_id,
+      status: task.state,
+      task_type: runtimeTaskType(task),
+      params: runtimeTaskParams(task),
+    }));
+}
+
 export function useActiveTaskClips({ registry }: UseActiveTaskClipsArgs): UseActiveTaskClipsReturn {
-  const selectedProjectId = useVideoEditorRuntime().project.projectId;
-  const taskSnapshot = useBridgeTaskSnapshot(selectedProjectId ? [selectedProjectId] : []);
+  const runtime = useVideoEditorRuntime();
+  const selectedProjectId = runtime.project.projectId;
+  const isRuntimeMode = (runtime.provider as { apiBaseUrl?: string }).apiBaseUrl === RUNTIME_BASE_URL;
+  const taskSnapshot = useBridgeTaskSnapshot(isRuntimeMode ? [] : selectedProjectId ? [selectedProjectId] : []);
+  const runtimeTasks = useRuntimeTasks(isRuntimeMode ? selectedProjectId : null);
   const optimisticActiveAssetKeys = useSyncExternalStore(
     subscribeOptimisticActive,
     getOptimisticActiveSnapshot,
@@ -160,8 +187,10 @@ export function useActiveTaskClips({ registry }: UseActiveTaskClipsArgs): UseAct
   }, [registry]);
 
   const activeTasks = useMemo(
-    () => selectActiveTasks(taskSnapshot.data ?? []),
-    [taskSnapshot.data],
+    () => isRuntimeMode
+      ? selectActiveRuntimeTasks(runtimeTasks.data ?? [])
+      : selectActiveTasks(taskSnapshot.data ?? []),
+    [isRuntimeMode, runtimeTasks.data, taskSnapshot.data],
   );
 
   const queriedActiveAssetKeys = useMemo(() => {
