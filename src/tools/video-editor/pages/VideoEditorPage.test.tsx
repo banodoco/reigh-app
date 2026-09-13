@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import VideoEditorPage, { TimelineList, timelineFreshnessLabel } from '@/tools/video-editor/pages/VideoEditorPage.tsx';
+import { RuntimeAuthenticationError } from '@/integrations/runtime/client.ts';
 import { setDevExtensionEnabled } from '@/tools/video-editor/dev/devExtensionEnablement.ts';
 
 const state = vi.hoisted(() => ({
@@ -98,6 +99,13 @@ const state = vi.hoisted(() => ({
     this.saveTimeline = vi.fn();
     this.loadAssetRegistry = vi.fn();
   }),
+  runtimeOnError: null as null | ((error: unknown) => void),
+  runtimeCtor: vi.fn(function MockRuntimeProvider(this: Record<string, unknown>, options: unknown) {
+    this.kind = 'runtime';
+    this.options = options;
+    this.reconnect = vi.fn(async () => undefined);
+    state.runtimeOnError = (options as { onRuntimeError?: (error: unknown) => void }).onRuntimeError ?? null;
+  }),
 }));
 
 vi.mock('@/shared/contexts/AuthContext.tsx', () => ({
@@ -159,6 +167,10 @@ vi.mock('@/tools/video-editor/data/SupabaseDataProvider.ts', () => ({
 
 vi.mock('@/tools/video-editor/data/AstridBridgeDataProvider.ts', () => ({
   AstridBridgeDataProvider: state.bridgeCtor,
+}));
+
+vi.mock('@/integrations/runtime/dataProvider.ts', () => ({
+  RuntimeDataProvider: state.runtimeCtor,
 }));
 
 // The dev-local scratchpad is empty on main; tests push fixtures into the
@@ -353,6 +365,8 @@ describe('VideoEditorPage', () => {
     state.confirm.mockReturnValue(true);
     state.supabaseCtor.mockClear();
     state.bridgeCtor.mockClear();
+    state.runtimeCtor.mockClear();
+    state.runtimeOnError = null;
     vi.stubGlobal('fetch', vi.fn());
     vi.stubGlobal('confirm', state.confirm);
     window.confirm = state.confirm;
@@ -377,6 +391,26 @@ describe('VideoEditorPage', () => {
     expect(timelineFreshnessLabel(undefined)).toBe('Managed by Astrid');
     expect(timelineFreshnessLabel(null)).toBe('Managed by Astrid');
     expect(timelineFreshnessLabel('not-a-date')).toBe('Managed by Astrid');
+  });
+
+  it('surfaces Runtime auth recovery in the existing Runtime editor route', async () => {
+    renderPage('/tools/video-editor?runtime=1&runtimeProject=project-r&runtimeTimeline=timeline-r');
+
+    await screen.findByTestId('video-editor-provider');
+    expect(state.runtimeCtor).toHaveBeenCalledWith(expect.objectContaining({
+      projectId: 'project-r',
+      onRuntimeError: expect.any(Function),
+    }));
+
+    act(() => {
+      state.runtimeOnError?.(new RuntimeAuthenticationError('/api/runtime'));
+    });
+
+    expect(await screen.findByTestId('runtime-connector-alert')).toHaveTextContent(
+      'Workspace Runtime authentication failed',
+    );
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Retry Runtime connection' }));
+    expect(state.runtimeCtor.mock.instances[0].reconnect).toHaveBeenCalledTimes(1);
   });
 
   it('keeps Astrid timelines openable while hiding unavailable mutations and tolerating missing metadata', async () => {

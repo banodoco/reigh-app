@@ -61,6 +61,8 @@ export class RuntimeAuthenticationError extends Error {
   }
 }
 
+export type RuntimeConnectorError = RuntimeAuthenticationError | RuntimeUnavailableError;
+
 export function isRuntimeConflict(error: unknown): error is ApiError {
   return error instanceof ApiError && error.status === 409;
 }

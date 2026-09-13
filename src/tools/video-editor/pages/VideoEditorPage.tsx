@@ -53,6 +53,10 @@ import {
   useAstridBridgeDiscovery,
 } from '@/tools/video-editor/hooks/useAstridBridgeDiscovery.ts';
 import { RuntimeDataProvider } from '@/integrations/runtime/dataProvider.ts';
+import {
+  RuntimeAuthenticationError,
+  type RuntimeConnectorError,
+} from '@/integrations/runtime/client.ts';
 import { useTimelinesList } from '@/tools/video-editor/hooks/useTimelinesList.ts';
 import type { SaveStatus } from '@/tools/video-editor/hooks/useTimelinePersistence.ts';
 import { videoEditorSettings } from '@/tools/video-editor/settings/videoEditorDefaults.ts';
@@ -73,6 +77,7 @@ type ProviderSelection = {
   timelineName: string | null;
   userId: string | null;
   remountKey: string;
+  runtimeReconnect?: () => Promise<void>;
 };
 
 /**
@@ -133,6 +138,36 @@ export function timelineFreshnessLabel(updatedAt: string | null | undefined): st
   return `Updated ${new Date(timestamp).toLocaleString()}`;
 }
 
+export function RuntimeConnectorRecoveryBanner({
+  error,
+  onRetry,
+  retrying = false,
+}: {
+  error: RuntimeConnectorError;
+  onRetry: () => void | Promise<void>;
+  retrying?: boolean;
+}) {
+  const authenticationFailed = error instanceof RuntimeAuthenticationError;
+
+  return (
+    <div
+      className="flex items-center justify-between gap-4 border-b border-destructive/30 bg-destructive/5 px-4 py-3"
+      data-testid="runtime-connector-alert"
+      role="alert"
+    >
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-foreground">
+          {authenticationFailed ? 'Workspace Runtime authentication failed' : 'Workspace Runtime is unavailable'}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">{error.recoveryAction}</p>
+      </div>
+      <Button type="button" size="sm" variant="outline" onClick={() => void onRetry()} disabled={retrying}>
+        {retrying ? 'Retrying Runtime connection…' : 'Retry Runtime connection'}
+      </Button>
+    </div>
+  );
+}
+
 function useVideoEditorProviderSelection({
   mode,
   selectedProjectId,
@@ -145,6 +180,7 @@ function useVideoEditorProviderSelection({
   runtimeProjectId,
   runtimeTimelineId,
   onBridgeRequest,
+  onRuntimeError,
 }: {
   mode: VideoEditorMode;
   selectedProjectId: string | null;
@@ -157,6 +193,7 @@ function useVideoEditorProviderSelection({
   runtimeProjectId: string | null;
   runtimeTimelineId: string | null;
   onBridgeRequest?: (event: AstridBridgeRequestObservation) => void;
+  onRuntimeError?: (error: RuntimeConnectorError) => void;
 }): ProviderSelection | null {
   return useMemo(() => {
     if (mode === 'runtime') {
@@ -164,8 +201,13 @@ function useVideoEditorProviderSelection({
         return null;
       }
 
+      const dataProvider = new RuntimeDataProvider({
+        projectId: runtimeProjectId,
+        onRuntimeError,
+      });
+
       return {
-        dataProvider: new RuntimeDataProvider({ projectId: runtimeProjectId }),
+        dataProvider,
         projectId: runtimeProjectId,
         timelineId: runtimeTimelineId,
         timelineName: runtimeTimelineId,
@@ -173,6 +215,7 @@ function useVideoEditorProviderSelection({
         // app user null so cloud-only catalogs cannot become a second authority.
         userId: null,
         remountKey: `runtime:${runtimeProjectId}:${runtimeTimelineId}`,
+        runtimeReconnect: () => dataProvider.reconnect(),
       };
     }
 
@@ -219,6 +262,7 @@ function useVideoEditorProviderSelection({
     localTimelineName,
     mode,
     onBridgeRequest,
+    onRuntimeError,
     runtimeProjectId,
     runtimeTimelineId,
     selectedProjectId,
@@ -529,6 +573,12 @@ export default function VideoEditorPage() {
   });
 
   const [mountedSaveStatus, setMountedSaveStatus] = useState<SaveStatus>('saved');
+  const [runtimeConnectorError, setRuntimeConnectorError] = useState<RuntimeConnectorError | null>(null);
+  const [runtimeRetrying, setRuntimeRetrying] = useState(false);
+  const onRuntimeError = useCallback((error: RuntimeConnectorError) => {
+    setRuntimeConnectorError(error);
+    setRuntimeRetrying(false);
+  }, []);
   const creatingRef = useRef(false);
   const timelines = useTimelinesList(
     mode === 'app' ? selectedProjectId : null,
@@ -555,6 +605,7 @@ export default function VideoEditorPage() {
     runtimeProjectId,
     runtimeTimelineId,
     onBridgeRequest,
+    onRuntimeError: mode === 'runtime' ? onRuntimeError : undefined,
   });
 
   // dataKind V1 golden path (groken round 4): DEV-only fixture provider so the
@@ -571,6 +622,26 @@ export default function VideoEditorPage() {
         })
       : providerSelection.dataProvider;
   }, [providerSelection]);
+
+  useEffect(() => {
+    setRuntimeConnectorError(null);
+    setRuntimeRetrying(false);
+  }, [mode, providerSelection?.remountKey]);
+
+  const handleRuntimeRetry = useCallback(async () => {
+    if (runtimeRetrying || !providerSelection?.runtimeReconnect) {
+      return;
+    }
+    setRuntimeRetrying(true);
+    try {
+      await providerSelection.runtimeReconnect();
+      setRuntimeConnectorError(null);
+    } catch {
+      // RuntimeDataProvider reports the typed failure through onRuntimeError.
+    } finally {
+      setRuntimeRetrying(false);
+    }
+  }, [providerSelection, runtimeRetrying]);
 
   useEffect(() => {
     setMountedSaveStatus('saved');
@@ -859,6 +930,13 @@ export default function VideoEditorPage() {
   if (mode === 'runtime') {
     return (
       <div className="flex h-full w-full flex-col overflow-hidden bg-background">
+        {runtimeConnectorError && (
+          <RuntimeConnectorRecoveryBanner
+            error={runtimeConnectorError}
+            onRetry={handleRuntimeRetry}
+            retrying={runtimeRetrying}
+          />
+        )}
         {providerSelection ? (
           <div className="min-h-0 flex-1 overflow-hidden">
             <VideoEditorProvider

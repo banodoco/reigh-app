@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ReighRuntimeClient } from './client.ts';
+import { ReighRuntimeClient, RuntimeAuthenticationError } from './client.ts';
 import { RuntimeDataProvider } from './dataProvider.ts';
 import { createDefaultTimelineConfig } from '@/tools/video-editor/lib/defaults.ts';
 
@@ -286,5 +286,28 @@ describe('RuntimeDataProvider', () => {
       code: 'runtime_unavailable',
       recoveryAction: 'Start the supported Runtime and configure its authenticated connector, then retry.',
     });
+  });
+
+  it('reports rejected Runtime credentials to the page recovery seam', async () => {
+    const onRuntimeError = vi.fn();
+    const provider = new RuntimeDataProvider({
+      projectId: PROJECT_ID,
+      baseUrl: 'http://runtime.test',
+      token: 'fixture-token',
+      onRuntimeError,
+      transport: async (method, path) => {
+        if (path === '/v1/health') {
+          return { status: 401, headers: {}, body: json({ code: 'unauthorized', message: 'credential rejected' }) };
+        }
+        throw new Error(`unexpected ${method} ${path}`);
+      },
+    });
+
+    await expect(provider.loadTimeline(TIMELINE_ID)).rejects.toBeInstanceOf(RuntimeAuthenticationError);
+    expect(onRuntimeError).toHaveBeenCalledTimes(1);
+    expect(onRuntimeError).toHaveBeenCalledWith(expect.objectContaining({
+      code: 'runtime_authentication',
+      status: 401,
+    }));
   });
 });

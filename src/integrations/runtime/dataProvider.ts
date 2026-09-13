@@ -1,8 +1,10 @@
 import { ApiError, type ByteResponse } from './generated.ts';
 import {
   ReighRuntimeClient,
+  RuntimeAuthenticationError,
+  RuntimeUnavailableError,
   isRuntimeConflict,
-  type RuntimeUnavailableError,
+  type RuntimeConnectorError,
 } from './client.ts';
 import {
   TimelineNotFoundError,
@@ -35,6 +37,8 @@ export interface RuntimeDataProviderOptions {
   /** Direct clients may pass a disposable test credential; browser callers use the connector. */
   token?: string;
   transport?: Transport;
+  /** UI-only observation of connector failures; Runtime remains the IO authority. */
+  onRuntimeError?: (error: RuntimeConnectorError) => void;
 }
 
 /**
@@ -56,17 +60,24 @@ export class RuntimeDataProvider implements DataProvider {
 
   private readonly projectId: string;
   private readonly client: ReighRuntimeClient;
+  private readonly onRuntimeError?: (error: RuntimeConnectorError) => void;
   private activeRegistry: AssetRegistry | null = null;
 
   constructor(options: RuntimeDataProviderOptions) {
     this.projectId = options.projectId;
     this.client = new ReighRuntimeClient({ baseUrl: options.baseUrl, token: options.token, transport: options.transport });
+    this.onRuntimeError = options.onRuntimeError;
     this.apiBaseUrl = this.client.baseUrl;
   }
 
   /** Re-open the cached Runtime handshake before the next hosted read. */
   async reconnect(): Promise<void> {
-    await this.client.reconnect();
+    try {
+      await this.client.reconnect();
+    } catch (error) {
+      this.reportRuntimeError(error);
+      throw error;
+    }
   }
 
   async loadTimeline(timelineId: string): Promise<LoadedTimeline> {
@@ -227,21 +238,29 @@ export class RuntimeDataProvider implements DataProvider {
   }
 
   private toProviderError(error: unknown, timelineId: string, expectedVersion?: number): Error {
+    let providerError: Error;
     if (error instanceof TimelineSchemaIncompatibleError || error instanceof TimelineVersionConflictError) {
-      return error;
-    }
-    if (isRuntimeConflict(error)) {
+      providerError = error;
+    } else if (isRuntimeConflict(error)) {
       const actual = asRecord(error.details)?.actual;
-      return new TimelineVersionConflictError(
+      providerError = new TimelineVersionConflictError(
         'Workspace Runtime rejected a stale timeline version; reload to review the canonical head.',
         expectedVersion,
         typeof actual === 'number' ? actual : undefined,
       );
+    } else if (error instanceof ApiError && error.status === 404) {
+      providerError = new TimelineNotFoundError(timelineId);
+    } else {
+      providerError = error instanceof Error ? error : new Error(String(error));
     }
-    if (error instanceof ApiError && error.status === 404) {
-      return new TimelineNotFoundError(timelineId);
+    this.reportRuntimeError(providerError);
+    return providerError;
+  }
+
+  private reportRuntimeError(error: unknown): void {
+    if (error instanceof RuntimeAuthenticationError || error instanceof RuntimeUnavailableError) {
+      this.onRuntimeError?.(error);
     }
-    return error instanceof Error ? error : new Error(String(error));
   }
 }
 
