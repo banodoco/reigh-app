@@ -5,7 +5,11 @@ import type {
   Transport,
 } from '@/integrations/runtime/generated.ts';
 import { ReighRuntimeClient } from '@/integrations/runtime/client.ts';
-import { readRuntimeFinalVideos } from './useFinalVideoAvailable.ts';
+import {
+  formatManagedOutputExportReceipt,
+  getManagedOutputExportExpectedIdentity,
+  readRuntimeFinalVideos,
+} from './useFinalVideoAvailable.ts';
 
 const PROJECT_ID = 'project-retained-output';
 const TASK_ID = 'task-retained-output';
@@ -120,6 +124,7 @@ describe('Runtime final-video hydration boundary', () => {
       location: `/api/runtime/v1/objects/${encodeURIComponent(OBJECT_ID)}`,
       thumbnailUrl: null,
       variantFetchGenerationId: null,
+      managedOutput: retainedOutput,
     });
     expect(requests).toEqual([
       'GET /v1/health',
@@ -129,5 +134,50 @@ describe('Runtime final-video hydration boundary', () => {
       `GET /v1/tasks/${TASK_ID}`,
       `GET /v1/tasks/${TASK_ID}/managed-outputs?limit=50`,
     ]);
+  });
+
+  it('builds the Runtime-allow-listed export identity and truthful receipt status', () => {
+    const output = managedOutput();
+    expect(getManagedOutputExportExpectedIdentity(output)).toEqual({
+      project_id: PROJECT_ID,
+      run_id: 'run-retained-output',
+      task_id: TASK_ID,
+      attempt_id: 'attempt-retained-output',
+      association_id: ASSOCIATION_ID,
+      output_port: 'video',
+      role: 'output',
+      object_id: OBJECT_ID,
+      digest: OBJECT_ID,
+      size: 133738,
+      filename: 'retained-output.mp4',
+      media_type: 'video/mp4',
+      executor_id: 'astrid-pack-host',
+      runtime_epoch: 4,
+    });
+    expect(formatManagedOutputExportReceipt({
+      export_id: 'export-retained-output',
+      association_id: ASSOCIATION_ID,
+      project_id: PROJECT_ID,
+      run_id: 'run-retained-output',
+      task_id: TASK_ID,
+      attempt_id: 'attempt-retained-output',
+      executor_id: 'astrid-pack-host',
+      lease_id: 'lease-retained-output',
+      fence: 3,
+      runtime_epoch: 4,
+      output_port: 'video',
+      role: 'output',
+      object_id: OBJECT_ID,
+      digest: OBJECT_ID,
+      size: 133738,
+      filename: 'retained-output.mp4',
+      media_type: 'video/mp4',
+      producer: { capability_id: 'rendering.render' },
+      destination: { root: '/runtime/export-root', filename: 'retained-output.mp4' },
+      source_provenance: { task_id: TASK_ID, attempt_id: 'attempt-retained-output' },
+      exported_at: '2026-09-13T00:02:00Z',
+    })).toBe(
+      `export_id=export-retained-output · association_id=${ASSOCIATION_ID} · object_id=${OBJECT_ID} · digest=${OBJECT_ID} · bytes=133738 · filename=retained-output.mp4 · runtime_epoch=4`,
+    );
   });
 });

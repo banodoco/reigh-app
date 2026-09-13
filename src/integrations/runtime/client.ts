@@ -9,6 +9,7 @@ import {
   type Generation,
   type GenerationVariant,
   type ManagedOutput,
+  type ManagedOutputExportReceipt,
   type MutationResult,
   type Page,
   type Project,
@@ -229,6 +230,20 @@ export class ReighRuntimeClient {
   /** Canonical readback of one managed-output association. */
   async getManagedOutput(associationId: string): Promise<ManagedOutput> {
     return this.withSession(() => this.client.getManagedOutput(associationId));
+  }
+
+  /** Export one selected Runtime-managed output; Runtime owns the destination and receipt. */
+  async exportManagedOutput(
+    associationId: string,
+    destinationFilename: string,
+    expected?: Record<string, unknown>,
+  ): Promise<MutationResult<ManagedOutputExportReceipt>> {
+    return this.withSession(() => this.client.exportManagedOutput(
+      associationId,
+      destinationFilename,
+      idempotencyKey(),
+      expected,
+    ));
   }
 
   /** Authenticated generated Runtime media read with optional byte range. */

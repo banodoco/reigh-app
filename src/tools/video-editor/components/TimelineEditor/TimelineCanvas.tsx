@@ -143,6 +143,7 @@ export interface TimelineCanvasProps {
   onShotGroupNavigate?: (shotId: string) => void;
   onShotGroupGenerateVideo?: (shotId: string) => void;
   onShotGroupSwitchToFinalVideo?: (group: { shotId: string; clipIds: string[]; rowId: string }) => void;
+  onShotGroupExportManagedOutput?: (group: { shotId: string; clipIds: string[]; rowId: string }) => void | Promise<void>;
   onShotGroupSwitchToImages?: (group: { shotId: string; rowId: string }) => void;
   onShotGroupUpdateToLatestVideo?: (group: { shotId: string; rowId: string }) => void;
   onShotGroupUnpin?: (group: { shotId: string; trackId: string }) => void;
@@ -332,6 +333,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   onShotGroupNavigate,
   onShotGroupGenerateVideo,
   onShotGroupSwitchToFinalVideo,
+  onShotGroupExportManagedOutput,
   onShotGroupSwitchToImages,
   onShotGroupUpdateToLatestVideo,
   onShotGroupUnpin,
@@ -662,6 +664,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       const preview = resizePreviewSnapshot[groupKey];
       const start = preview?.start ?? group.start;
       const end = preview?.end ?? (group.start + lastChild.offset + lastChild.duration);
+      const finalVideo = finalVideoMap?.get(group.shotId);
 
       return [{
         key: `${group.shotId}:${group.rowId}:${group.clipIds.join(',')}`,
@@ -674,6 +677,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         color: group.color,
         mode: group.mode,
         hasFinalVideo: finalVideoMap?.has(group.shotId) ?? false,
+        hasManagedOutput: Boolean(finalVideo && typeof finalVideo === 'object' && (finalVideo as { managedOutput?: unknown }).managedOutput),
         hasStaleVideo: staleShotGroupIds?.has(`${group.shotId}:${group.rowId}`) ?? false,
         hasActiveTask: activeTaskClipIds ? group.clipIds.some((id) => activeTaskClipIds.has(id)) : false,
         left: timeToPixel(start),
@@ -1153,6 +1157,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
             onNavigate={onShotGroupNavigate}
             onGenerateVideo={onShotGroupGenerateVideo}
             onSwitchToFinalVideo={onShotGroupSwitchToFinalVideo}
+            onExportManagedOutput={onShotGroupExportManagedOutput}
             onSwitchToImages={onShotGroupSwitchToImages}
             onUpdateToLatestVideo={onShotGroupUpdateToLatestVideo}
             onUnpinGroup={onShotGroupUnpin}

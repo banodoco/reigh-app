@@ -7,6 +7,7 @@ import {
 } from '@/integrations/runtime/client.ts';
 import type {
   ManagedOutput,
+  ManagedOutputExportReceipt,
   Task as RuntimeTask,
 } from '@/integrations/runtime/generated.ts';
 import { asRecord } from '@/shared/lib/typeCoercion';
@@ -17,9 +18,18 @@ import { useBridgeTaskSnapshot } from '@/shared/hooks/tasks/useBridgeTaskSnapsho
 
 export type { ShotFinalVideo };
 
+export type RuntimeShotFinalVideo = ShotFinalVideo & {
+  /** Runtime-owned association retained for the selected-output export action. */
+  managedOutput?: ManagedOutput;
+};
+
 type RuntimeFinalVideoClient = Pick<
   ReighRuntimeClient,
-  'listProjectTasks' | 'getTask' | 'listManagedOutputs' | 'objectContentUrl'
+  | 'listProjectTasks'
+  | 'getTask'
+  | 'listManagedOutputs'
+  | 'objectContentUrl'
+  | 'exportManagedOutput'
 >;
 
 function runtimeTaskSpec(task: RuntimeTask): Record<string, unknown> {
@@ -76,12 +86,53 @@ async function listAllRuntimeManagedOutputs(
   }
 }
 
+export function getManagedOutputExportExpectedIdentity(output: ManagedOutput): Record<string, unknown> {
+  const expected: Record<string, unknown> = {
+    project_id: output.project_id,
+    run_id: output.run_id,
+    task_id: output.task_id,
+    attempt_id: output.attempt_id,
+    association_id: output.association_id,
+    output_port: output.output_port,
+    role: output.role,
+    object_id: output.object_id,
+    digest: output.digest,
+    size: output.size,
+    filename: output.filename,
+    media_type: output.media_type,
+  };
+  const provenance = asRecord(output.provenance);
+  for (const field of ['executor_id', 'lease_id'] as const) {
+    if (typeof provenance?.[field] === 'string') {
+      expected[field] = provenance[field];
+    }
+  }
+  for (const field of ['fence', 'runtime_epoch'] as const) {
+    if (typeof provenance?.[field] === 'number') {
+      expected[field] = provenance[field];
+    }
+  }
+  return expected;
+}
+
+export function formatManagedOutputExportReceipt(receipt: ManagedOutputExportReceipt): string {
+  return [
+    `export_id=${receipt.export_id}`,
+    `association_id=${receipt.association_id}`,
+    `object_id=${receipt.object_id}`,
+    `digest=${receipt.digest}`,
+    `bytes=${receipt.size}`,
+    `filename=${receipt.filename}`,
+    `runtime_epoch=${receipt.runtime_epoch}`,
+  ].join(' · ');
+}
+
 /** Read completed Runtime render associations without using the legacy bridge. */
 export async function readRuntimeFinalVideos(
   client: RuntimeFinalVideoClient,
   projectId: string,
   taskInput?: readonly RuntimeTask[],
-): Promise<Map<string, ShotFinalVideo>> {
+): Promise<Map<string, RuntimeShotFinalVideo>> {
   const tasks = taskInput ? [...taskInput] : await (async () => {
     const listed: RuntimeTask[] = [];
     let cursor: string | undefined;
@@ -101,7 +152,7 @@ export async function readRuntimeFinalVideos(
 
   const completedRenderTasks = tasks.filter((task) => task.state === 'succeeded' && isRenderTask(task));
   const details = await Promise.all(completedRenderTasks.map((task) => client.getTask(task.task_id)));
-  const next = new Map<string, ShotFinalVideo>();
+  const next = new Map<string, RuntimeShotFinalVideo>();
 
   for (const detail of details) {
     if (detail.state !== 'succeeded') continue;
@@ -115,6 +166,7 @@ export async function readRuntimeFinalVideos(
       location: client.objectContentUrl(output.object_id),
       thumbnailUrl: null,
       variantFetchGenerationId: null,
+      managedOutput: output,
     });
   }
 
@@ -135,6 +187,16 @@ export function useFinalVideoAvailable() {
     () => new ReighRuntimeClient({ baseUrl: runtimeBaseUrl ?? RUNTIME_BASE_URL }),
     [runtimeBaseUrl],
   );
+  const exportRuntimeManagedOutput = useCallback(async (output: ManagedOutput) => {
+    if (!isRuntimeMode) {
+      throw new Error('Selected output is not a Runtime-managed output.');
+    }
+    return runtimeClient.exportManagedOutput(
+      output.association_id,
+      output.filename,
+      getManagedOutputExportExpectedIdentity(output),
+    );
+  }, [isRuntimeMode, runtimeClient]);
   const runtimeTaskFingerprint = useMemo(
     () => (runtimeTasks.data ?? []).map((task) => `${task.task_id}:${task.state}:${task.version}:${task.updated_at}`).join('|'),
     [runtimeTasks.data],
@@ -206,7 +268,10 @@ export function useFinalVideoAvailable() {
   }, [isRuntimeMode, projectSlug, runtimeBaseUrl, runtime.telemetry, runtimeFinalVideos.data, runtimeFinalVideos.error, taskSnapshot.data]);
 
   const finalVideoMap = useMemo(() => {
-    const merged = new Map(shots.finalVideoMap);
+    const merged = new Map<string, RuntimeShotFinalVideo>();
+    for (const [owner, video] of shots.finalVideoMap) {
+      merged.set(owner, video);
+    }
     for (const [owner, video] of taskVideos) {
       if (!dismissedTaskOutputs.has(video.id)) merged.set(owner, video);
     }
@@ -224,5 +289,6 @@ export function useFinalVideoAvailable() {
   return {
     finalVideoMap,
     dismissFinalVideo,
+    exportRuntimeManagedOutput,
   };
 }

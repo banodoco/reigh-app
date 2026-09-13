@@ -8,6 +8,8 @@ const CAPABILITY_DIGEST = `sha256:${'a'.repeat(64)}`;
 const INPUT_OBJECT_ID = `sha256:${'1'.repeat(64)}`;
 const MEDIA_OBJECT_ID = 'object-r4-media';
 const MEDIA_OBJECT_DIGEST = `sha256:${'c'.repeat(64)}`;
+const MANAGED_OUTPUT_ASSOCIATION_ID = 'managed-output-r3';
+const MANAGED_OUTPUT_OBJECT_ID = `sha256:${'d'.repeat(64)}`;
 
 const exactGenTaskInput = {
   project: PROJECT_ID,
@@ -162,6 +164,61 @@ function createTransport(options: { revokeFirstMediaRead?: boolean } = {}) {
     if (method === 'GET' && path === `/v1/projects/${encodeURIComponent(PROJECT_ID)}/tasks?limit=1&cursor=tasks-2`) {
       return { status: 200, headers: {}, body: json({ items: [task], next_cursor: 'tasks-3' }) };
     }
+    if (method === 'POST' && path === `/v1/managed-outputs/${MANAGED_OUTPUT_ASSOCIATION_ID}/export`) {
+      expect(headers['Content-Type']).toBe('application/json');
+      expect(headers['Idempotency-Key']).toBeTruthy();
+      expect(parsedBody).toEqual({
+        destination_filename: 'retained-output.mp4',
+        expected: {
+          project_id: PROJECT_ID,
+          run_id: 'run-r3',
+          task_id: 'task-r3',
+          attempt_id: 'attempt-r3',
+          association_id: MANAGED_OUTPUT_ASSOCIATION_ID,
+          output_port: 'video',
+          role: 'output',
+          object_id: MANAGED_OUTPUT_OBJECT_ID,
+          digest: MANAGED_OUTPUT_OBJECT_ID,
+          size: 4,
+          filename: 'retained-output.mp4',
+          media_type: 'video/mp4',
+          executor_id: 'executor-r3',
+          lease_id: 'lease-r3',
+          fence: 6,
+          runtime_epoch: 7,
+        },
+      });
+      return {
+        status: 200,
+        headers: {},
+        body: json({
+          data: {
+            export_id: 'export-r3',
+            association_id: MANAGED_OUTPUT_ASSOCIATION_ID,
+            project_id: PROJECT_ID,
+            run_id: 'run-r3',
+            task_id: 'task-r3',
+            attempt_id: 'attempt-r3',
+            executor_id: 'executor-r3',
+            lease_id: 'lease-r3',
+            fence: 6,
+            runtime_epoch: 7,
+            output_port: 'video',
+            role: 'output',
+            object_id: MANAGED_OUTPUT_OBJECT_ID,
+            digest: MANAGED_OUTPUT_OBJECT_ID,
+            size: 4,
+            filename: 'retained-output.mp4',
+            media_type: 'video/mp4',
+            producer: { capability_id: 'rendering.render' },
+            destination: { root: '/runtime/export-root', filename: 'retained-output.mp4' },
+            source_provenance: { task_id: 'task-r3', attempt_id: 'attempt-r3' },
+            exported_at: '2026-09-11T00:02:00Z',
+          },
+          receipt: receipt('managed_output.export', headers['Idempotency-Key'] ?? ''),
+        }),
+      };
+    }
     if (method === 'POST' && path === '/v1/tasks/task-r3/cancel') {
       expect(headers['Idempotency-Key']).toBe('reigh.cancel:r3');
       expect(parsedBody).toEqual({ expected_version: 1 });
@@ -239,6 +296,50 @@ describe('ReighRuntimeClient canonical Runtime reads and browser task seam', () 
       etag: `"${MEDIA_OBJECT_DIGEST}"`,
     });
     expect(fixture.requests.filter(({ path }) => path === '/v1/handshake')).toHaveLength(2);
+  });
+
+  it('exports one selected managed output with exact identity assertions and a durable receipt', async () => {
+    const fixture = createTransport();
+    const client = new ReighRuntimeClient({ baseUrl: 'http://runtime.test', token: 'fixture-token', transport: fixture.transport });
+
+    const exported = await client.exportManagedOutput(
+      MANAGED_OUTPUT_ASSOCIATION_ID,
+      'retained-output.mp4',
+      {
+        project_id: PROJECT_ID,
+        run_id: 'run-r3',
+        task_id: 'task-r3',
+        attempt_id: 'attempt-r3',
+        association_id: MANAGED_OUTPUT_ASSOCIATION_ID,
+        output_port: 'video',
+        role: 'output',
+        object_id: MANAGED_OUTPUT_OBJECT_ID,
+        digest: MANAGED_OUTPUT_OBJECT_ID,
+        size: 4,
+        filename: 'retained-output.mp4',
+        media_type: 'video/mp4',
+        executor_id: 'executor-r3',
+        lease_id: 'lease-r3',
+        fence: 6,
+        runtime_epoch: 7,
+      },
+    );
+
+    expect(exported).toMatchObject({
+      export_id: 'export-r3',
+      association_id: MANAGED_OUTPUT_ASSOCIATION_ID,
+      object_id: MANAGED_OUTPUT_OBJECT_ID,
+      digest: MANAGED_OUTPUT_OBJECT_ID,
+      size: 4,
+      filename: 'retained-output.mp4',
+      runtime_epoch: 7,
+    });
+    expect(exported.receipt).toMatchObject({
+      command_kind: 'managed_output.export',
+      project_id: PROJECT_ID,
+      event_ids: [],
+    });
+    expect(fixture.requests.at(-1)?.path).toBe(`/v1/managed-outputs/${MANAGED_OUTPUT_ASSOCIATION_ID}/export`);
   });
 
   it('uses the exact GEN/UE admission mapping and keeps task lifecycle browser-bounded', async () => {
