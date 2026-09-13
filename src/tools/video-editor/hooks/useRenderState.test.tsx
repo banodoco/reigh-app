@@ -829,6 +829,55 @@ describe('useRenderState render routing', () => {
     expect(diagnostic.length).toBeLessThanOrEqual(4_000);
   });
 
+  it('does not let a late cancel completion erase a newer render intent', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(renderTaskDetail('queued')), { status: 200 })));
+    let resolveCancel!: () => void;
+    const cancelPending = new Promise<void>((resolve) => { resolveCancel = resolve; });
+    renderRouterMocks.cancelAstridRenderTask.mockReturnValueOnce(cancelPending);
+    renderRouterMocks.enqueueBanodocoRenderTimeline
+      .mockResolvedValueOnce({ status: 'queued', task_id: 'render-task-1', message: 'queued' })
+      .mockResolvedValueOnce({ status: 'queued', task_id: 'render-task-2', message: 'queued' });
+    const runtimeValue = {
+      project: { projectId: 'demo-project' },
+      timelineId: 'timeline-1',
+      provider: { apiBaseUrl: '/api/astrid' },
+      telemetry: { warn: vi.fn() },
+    } as unknown as VideoEditorRuntimeContextValue;
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <VideoEditorRuntimeContext.Provider value={runtimeValue}>{children}</VideoEditorRuntimeContext.Provider>
+    );
+    const { result, unmount } = renderHook(() => useRenderState(
+      buildConfig({ id: 'clip-native', clipType: 'media', track: 'V1', at: 0, hold: 1 }),
+      { fps: 30, durationInFrames: 30, compositionWidth: 1920, compositionHeight: 1080 },
+      undefined,
+      undefined,
+      async () => 7,
+    ), { wrapper });
+
+    await act(async () => { await result.current.startRender(); });
+    const firstOperationId = renderRouterMocks.enqueueBanodocoRenderTimeline.mock.calls[0][1].operationId;
+    let cancellation!: Promise<void>;
+    await act(async () => {
+      cancellation = result.current.cancelRender();
+      await Promise.resolve();
+    });
+    expect(renderRouterMocks.cancelAstridRenderTask).toHaveBeenCalledWith(expect.anything(), 'render-task-1');
+
+    await act(async () => { await result.current.startRender(); });
+    const secondOperationId = renderRouterMocks.enqueueBanodocoRenderTimeline.mock.calls[1][1].operationId;
+    expect(secondOperationId).not.toBe(firstOperationId);
+    expect(result.current.activeRenderTaskId).toBe('render-task-2');
+    expect(result.current.renderStatus).toBe('rendering');
+
+    resolveCancel();
+    await act(async () => { await cancellation; });
+    expect(result.current.activeRenderTaskId).toBe('render-task-2');
+    expect(result.current.renderStatus).toBe('rendering');
+
+    unmount();
+    vi.unstubAllGlobals();
+  });
+
   it('cancels an active scoped render through the common fenced task helper', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(renderTaskDetail('queued')), { status: 200 })));
     const runtimeValue = {
@@ -849,11 +898,16 @@ describe('useRenderState render routing', () => {
     ), { wrapper });
 
     await act(async () => { await result.current.startRender(); });
+    const firstOperationId = renderRouterMocks.enqueueBanodocoRenderTimeline.mock.calls[0][1].operationId;
     await act(async () => { await result.current.cancelRender(); });
     expect(renderRouterMocks.cancelAstridRenderTask).toHaveBeenCalledWith(expect.anything(), 'render-task-1');
     expect(result.current.renderStatus).toBe('idle');
     expect(result.current.activeRenderTaskId).toBeNull();
     expect(result.current.renderLog).toBe('Render cancelled.');
+
+    await act(async () => { await result.current.startRender(); });
+    const secondOperationId = renderRouterMocks.enqueueBanodocoRenderTimeline.mock.calls[1][1].operationId;
+    expect(secondOperationId).not.toBe(firstOperationId);
 
     unmount();
     vi.unstubAllGlobals();

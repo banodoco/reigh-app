@@ -50,6 +50,11 @@ export type RenderStatus = 'idle' | 'rendering' | 'done' | 'error';
 export type ExportStatus = 'idle' | 'exporting' | 'done' | 'error';
 
 type RenderProgress = { current: number; total: number; percent: number; phase: string } | null;
+type RenderCancellation = {
+  taskId: string;
+  operationId: string | null;
+  pollGeneration: number;
+};
 
 const ASTRID_DIAGNOSTIC_LOG_MAX_CHARS = 4_000;
 const ASTRID_DIAGNOSTIC_FIELD_MAX_CHARS = 1_000;
@@ -488,6 +493,7 @@ export function useRenderState(
   // One export intent keeps one idempotency key across transport retries. A
   // terminal task clears it so the next explicit export is a new operation.
   const renderOperationIdRef = useRef<string | null>(null);
+  const renderCancellationRef = useRef<RenderCancellation | null>(null);
   const renderClientRef = useRef<AstridLocalClient | null>(null);
   // M6: Export state
   const [exportStatus, setExportStatus] = useState<ExportStatus>('idle');
@@ -750,6 +756,14 @@ export function useRenderState(
       setRenderLog(built.error ?? 'Could not build Astrid render request.');
       return true;
     }
+    const pendingCancellation = renderCancellationRef.current;
+    if (pendingCancellation && pendingCancellation.operationId === renderOperationIdRef.current) {
+      // A render requested after cancellation is a new explicit intent. Clear
+      // the old identity before admission so the old cancel completion cannot
+      // reuse or erase the replacement operation.
+      renderCancellationRef.current = null;
+      renderOperationIdRef.current = null;
+    }
     const operationId = renderOperationIdRef.current ??= newRenderOperationId();
     const admission = await renderRouter.enqueueBanodocoRenderTimeline(built.payload, {
       client,
@@ -772,11 +786,29 @@ export function useRenderState(
   const cancelRender = useCallback(async () => {
     if (!activeRenderTaskId || !renderClientRef.current) return;
     const taskId = activeRenderTaskId;
-    renderPollGenerationRef.current += 1;
+    const cancellation: RenderCancellation = {
+      taskId,
+      operationId: renderOperationIdRef.current,
+      pollGeneration: renderPollGenerationRef.current + 1,
+    };
+    renderCancellationRef.current = cancellation;
+    renderPollGenerationRef.current = cancellation.pollGeneration;
     if (renderPollTimerRef.current) clearTimeout(renderPollTimerRef.current);
     try {
       const renderRouter = await import('@/tools/video-editor/lib/renderRouter.ts');
       await renderRouter.cancelAstridRenderTask(renderClientRef.current, taskId);
+      const currentCancellation = renderCancellationRef.current;
+      if (
+        !currentCancellation
+        || currentCancellation !== cancellation
+        || currentCancellation.taskId !== taskId
+        || renderPollGenerationRef.current !== cancellation.pollGeneration
+        || renderOperationIdRef.current !== cancellation.operationId
+      ) {
+        return;
+      }
+      renderCancellationRef.current = null;
+      renderOperationIdRef.current = null;
       setRenderStatus('idle');
       setRenderProgress(null);
       setRenderLog('Render cancelled.');
