@@ -40,6 +40,7 @@ const runtimeRoutes = [
 
 const astridRoutes = [
   /^\/v1\/(?:health|handshake|realm)$/,
+  /^\/v1\/capabilities(?:\?[^#]*)?$/,
   /^\/v1\/(?:projects|tasks|runs|objects|generations|variants|managed-outputs|timelines|documents)(?:\/[^/?#]+){0,5}(?:\?[^#]*)?$/,
 ];
 

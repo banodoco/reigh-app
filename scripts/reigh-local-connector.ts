@@ -159,6 +159,12 @@ async function beginRequest(id: string, service: string, path: string, method: s
   const outgoing: Record<string, string> = { Accept: headers.accept || 'application/json' };
   for (const key of ['content-type', 'content-length', 'range', 'if-match', 'if-none-match', 'idempotency-key', 'x-filename', 'x-original-name', 'cache-control']) if (headers[key]) outgoing[key] = headers[key];
   outgoing.Authorization = `Bearer ${token}`;
+  // The local composer is an in-process loopback handler with the same
+  // origin guard as the normal Vite proxy. The connector owns this
+  // destination, so it supplies that exact local origin after authenticating
+  // the paired request; browser Origin/Cookie/Authorization never cross the
+  // tunnel.
+  if (service === 'compose') outgoing.Origin = target.origin;
   if (service === 'acp' || service === 'astrid') outgoing['X-Astrid-Bridge-Protocol'] = '1';
   try {
     const response = await fetch(target, { method, headers: outgoing, body, signal: controller.signal, ...(body ? { duplex: 'half' as const } : {}) });

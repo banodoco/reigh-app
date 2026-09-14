@@ -10,6 +10,7 @@ describe('paired transport boundary', () => {
     expect(classifyPairedRoute('/api/runtime/v1/tasks/claim', 'POST')).toBeNull();
     expect(classifyPairedRoute('/api/runtime/v1/export?destination=/tmp/x', 'GET')).toBeNull();
     expect(classifyPairedRoute('/api/runtime/http://127.0.0.1:1/v1/health', 'GET')).toBeNull();
+    expect(classifyPairedRoute('/api/astrid/v1/capabilities?limit=50', 'GET')?.service).toBe('astrid');
     expect(isSafeForwardPath('/api/runtime/v1/objects/a%2Fb')).toBe(false);
   });
 
