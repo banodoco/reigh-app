@@ -17,6 +17,8 @@ const discoveryPath = resolve(
 );
 const port = process.env.PORT ?? '2222';
 const checkOnly = process.argv.includes('--check');
+const paired = process.argv.includes('--paired');
+const pairedRelayOrigin = process.env.REIGH_PAIRED_RELAY_ORIGIN?.trim();
 
 function fail(message) {
   console.error(`dev:local: ${message}`);
@@ -76,6 +78,7 @@ if (!credential) process.exit(process.exitCode ?? 1);
 const token = typeof credential.token === 'string' ? credential.token.trim() : '';
 if (!token) process.exit(fail('runtime credential has no token') ? 1 : 1);
 if (!(await verifyRuntime(endpoint, token))) process.exit(process.exitCode ?? 1);
+if (paired && !pairedRelayOrigin) process.exit(fail('--paired requires REIGH_PAIRED_RELAY_ORIGIN') ? 1 : 1);
 
 const env = {
   ...process.env,
@@ -83,25 +86,39 @@ const env = {
   VITE_ASTRID_WORKSPACE_V1: '1',
   VITE_ASTRID_BRIDGE_PORT: endpoint.port,
   ASTRID_BRIDGE_TOKEN: token,
+  ASTRID_LOCAL_COMPOSE_URL: `http://127.0.0.1:${port}/api/astrid/generation/compose`,
 };
 
 console.log(`workspace.v1 runtime healthy at ${endpoint.origin}; Reigh will use port ${port}`);
 if (checkOnly) process.exit(0);
 
+let connector;
+if (paired) {
+  connector = spawn('npx', ['tsx', 'scripts/reigh-local-connector.ts', '--discovery', discoveryPath, '--relay-origin', pairedRelayOrigin], {
+    stdio: 'inherit',
+    env,
+  });
+}
+
 const child = spawn('npm', ['run', 'dev', '--', '--host', '127.0.0.1', '--strictPort'], {
   stdio: 'inherit',
-  env,
+  // The local Vite process is the connector's fixed compose/ACP destination;
+  // it must not install another relay and accidentally loop back to itself.
+  env: paired ? { ...env, REIGH_PAIRED_RELAY_ENABLED: '0', ASTRID_LOCAL_COMPOSE_URL: `http://127.0.0.1:${port}/api/astrid/generation/compose` } : env,
 });
 let shuttingDown = false;
 const shutdown = (signal) => {
   if (shuttingDown) return;
   shuttingDown = true;
   if (child.exitCode === null) child.kill(signal);
+  if (connector?.exitCode === null) connector.kill(signal);
 };
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 child.on('error', (error) => { fail(`could not start Vite: ${error.message}`); });
 child.on('exit', (code, signal) => {
+  if (connector?.exitCode === null) connector.kill('SIGTERM');
   if (signal && !shuttingDown) process.kill(process.pid, signal);
   else process.exitCode = code ?? 0;
 });
+connector?.on('error', (error) => { fail(`could not start paired connector: ${error.message}`); });

@@ -23,6 +23,7 @@ import {
 } from "./astridGenerationCompose";
 import { createBundleBudgetPlugin } from "./bundleBudget";
 import { createRemoteFontModePlugin } from "./remoteFonts";
+import { createPairedRelayPlugin, resolvePairedRelayConfig } from "./pairedRelay";
 
 export { createRemoteFontModePlugin, stripRemoteFontLinks } from "./remoteFonts";
 
@@ -38,6 +39,7 @@ export default defineConfig(() => {
   const astridBridgePort = resolveAstridBridgePort(process.env.VITE_ASTRID_BRIDGE_PORT);
   const astridAcpBridgePort = resolveAstridAcpBridgePort(process.env.VITE_ASTRID_ACP_BRIDGE_PORT);
   const astridBridgeProxyPolicy = resolveAstridBridgeProxyPolicy(process.env);
+  const pairedRelay = createPairedRelayPlugin(resolvePairedRelayConfig(process.env));
   const astridSource = resolveAstridSource();
   const generationComposerConfig = resolveAstridGenerationComposer(process.env, astridSource?.sourceRoot);
   const generationComposer = generationComposerConfig
@@ -109,6 +111,7 @@ export default defineConfig(() => {
       proxy: { ...astridAcpBridgeProxy, ...astridBridgeProxy, ...runtimeProxy },
     },
     plugins: [
+      pairedRelay,
       astridBridgeAuthPlugin,
       createRemoteFontModePlugin(disableRemoteFonts),
       react(),
