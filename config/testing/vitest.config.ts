@@ -1,8 +1,10 @@
 import { defineConfig } from 'vitest/config';
 import path from 'path';
 import fs from 'fs';
+import { resolveAstridSource } from '../vite/astridSource';
 
 const projectRoot = path.resolve(__dirname, '../..');
+const astridSource = resolveAstridSource();
 const timelineCompositionRegistryPath = path.resolve(
   projectRoot,
   'node_modules/@banodoco/timeline-composition/typescript/src/registry.generated.ts',
@@ -26,6 +28,7 @@ export default defineConfig({
     alias: {
       '@': path.resolve(projectRoot, 'src'),
       '@reigh/editor-sdk': path.resolve(projectRoot, 'src/sdk/index.ts'),
+      ...(astridSource ? { '@astrid': astridSource.sourceRoot } : {}),
       'fake-indexeddb': path.resolve(projectRoot, 'vendor/fake-indexeddb/index.js'),
       // Sprint 5: deduplicate react / remotion / @banodoco/* across linked
       // packages. The timeline-theme-2rp peer-dep package lives at a
@@ -61,7 +64,7 @@ export default defineConfig({
   server: {
     fs: {
       // Allow Vite to read from sibling banodoco-workspace.
-      allow: [path.resolve(projectRoot, '..', '..')],
+      allow: [path.resolve(projectRoot, '..', '..'), ...(astridSource ? [astridSource.checkout] : [])],
     },
   },
   test: {

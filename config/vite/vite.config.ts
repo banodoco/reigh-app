@@ -16,6 +16,7 @@ import {
   resolveAstridBridgeProxyPolicy,
 } from "./astridBridgeProxy";
 import { createWorkspaceRuntimeProxyOptions, RUNTIME_TOKEN_FILE_ENV } from "./runtimeProxy";
+import { resolveAstridSource } from "./astridSource";
 import { createBundleBudgetPlugin } from "./bundleBudget";
 import { createRemoteFontModePlugin } from "./remoteFonts";
 
@@ -47,6 +48,7 @@ export default defineConfig(() => {
     ),
   };
   const runtimeTarget = process.env.VITE_WORKSPACE_RUNTIME_URL?.trim() || null;
+  const astridSource = resolveAstridSource();
   const runtimeTokenFile = process.env[RUNTIME_TOKEN_FILE_ENV]?.trim() || null;
   const runtimeToken = runtimeTokenFile && fs.existsSync(runtimeTokenFile)
     ? fs.readFileSync(runtimeTokenFile, 'utf8').trim()
@@ -89,7 +91,7 @@ export default defineConfig(() => {
       // Sprint 5: allow Vite to read from the sibling banodoco-workspace
       // (timeline-theme-2rp file: link).
       fs: {
-        allow: [path.resolve(__dirname, "../../../..")],
+        allow: [path.resolve(__dirname, "../../../.."), ...(astridSource ? [astridSource.checkout] : [])],
       },
     },
     preview: {
@@ -108,6 +110,7 @@ export default defineConfig(() => {
       alias: {
         "@": path.resolve(__dirname, "../../src"),
         "@reigh/editor-sdk": path.resolve(__dirname, "../../src/sdk/index.ts"),
+        ...(astridSource ? { "@astrid": astridSource.sourceRoot } : {}),
         // Sprint 5: deduplicate React / Remotion / @banodoco/* across the
         // linked timeline-composition + timeline-theme-* packages so a
         // single React runtime drives the @remotion/player preview.
